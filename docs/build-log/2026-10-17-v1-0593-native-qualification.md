@@ -1,13 +1,13 @@
 # 2026-10-17 V1-0593: native runner qualification matrix and three adapter fixes
 
-Outcome. 17 of the 18 native profiles now have an actual shared-executor witness for every
+Outcome. All 18 native profiles now have an actual shared-executor witness for every
 `TRE-V0-009` case: pass, assertion failure, skip, zero tests, collection, build or infrastructure
 error, and timeout with descendant cleanup. Each witness ran through `corvint-test-runner plan`
 and `run` on macOS 26 (Darwin 25.6.0) arm64.
 
 - Before: 37 witnessed, 30 parser-only and 41 missing cases, out of 108.
-- After: 102 witnessed, 5 parser-only and 1 missing.
-- Ginkgo v2 keeps 5 parser-only cases and 1 missing case.
+- After the first pass: 102 witnessed, 5 parser-only and 1 missing (all Ginkgo v2).
+- After the Ginkgo follow-up: 108 witnessed, 0 parser-only and 0 missing.
 
 Retry does not apply to these profiles. Nextest pins `retries=0`, Ginkgo pins
 `flake-attempts=1`, and no other native profile has a retry option. The matrix and its case names
@@ -77,8 +77,27 @@ with owner approval. There was no sudo and no PATH or profile edit.
   - SHA-256: `5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c`, matching the
     committed provenance pin. Only the headers and the license were extracted.
 
-Ginkgo was not installed. The session permission classifier denied
+Ginkgo. The first pass did not install Ginkgo: the session permission classifier denied
 `go install github.com/onsi/ginkgo/v2/ginkgo@v2.33.0`, and the denial was not worked around.
+After the owner asked to fix the blockers, the orchestrator installed the Ginkgo 2.33.0 CLI at
+`toolchains-2026-10-17/ginkgo/bin/ginkgo` (`go install`, Go checksum database; SHA-256
+`610e5b85…a00e`; manifest `toolchains-2026-10-17/MANIFEST-2026-10-17-orchestrator.md`).
+
+- Fixture module `fixtures/ginkgo` (`example.com/gq`): `go get github.com/onsi/ginkgo/v2@v2.33.0
+  github.com/onsi/gomega@v1.40.0` and `go mod tidy` with `GOPROXY=https://proxy.golang.org` and
+  `GOSUMDB=sum.golang.org`. `go.sum` pins ginkgo `h1:C8gBA6Uc2ZEubiV+SXiu5tZnMTwEmXHgkJwGozKtZf8=`
+  and gomega `h1:Vtol0e1MghCD2ZVIilPDIg44XSL9l2QAn8ZNaljWcJc=`. `go mod verify` reported all
+  modules verified. Nothing else was downloaded.
+- Six suite packages (`mixed`, `empty`, `bsfail`, `bsskip`, `ordered`, `hang`) were built with
+  `go test -c` under `GOPROXY=off` and `-mod=readonly`. The binaries, `go.mod` and `go.sum`
+  digests are in `fixtures/ginkgo/SHA256SUMS`. The suites call `RunSpecs` directly, so the CLI
+  binary itself is not on the execution path.
+- Cases, all OK with the unchanged adapter: `ginkgo-mixed`, `-pass`, `-fail`, `-skip`, `-zero`,
+  `-beforesuite-fail`, `-beforesuite-skip`, `-ordered`, `-wrong-target` and `-timeout`.
+  `ginkgo-timeout` reached its hanging spec, and no `/bin/sleep 987` survived.
+- The runs confirm the source-derived limits in "Ginkgo v2 (experimental)": a resolved
+  `SuitePath`, the `Suite skipped in BeforeSuite` reason with `SuiteSucceeded` true and exit 0,
+  and the Ordered follow-on skip with zero attempts. No new requirement was needed.
 
 Host tools already present:
 
@@ -111,11 +130,12 @@ Residuals, not fixed here:
 - CTest writes `Testing/Temporary/LastTest.log` into the caller's build directory.
 - MTP leaves its socket files in the report directory's `.tmp` after a timeout.
 - Five NuGet packages have expired countersignatures.
-- Ginkgo runtime installation needs owner permission.
+- The "Ginkgo v2 (experimental)" section and `ginkgo-provenance.json` still say runtime
+  qualification is NOT_RUN. The matrix section records that the live runs supersede that for
+  this host tuple.
 
 Release blockers:
 
-- Ginkgo v2.33.0 runtime.
 - Linux and Windows tuples for all 18 profiles.
 - .NET 8 and 10, other MTP and adapter versions, and nightly Rust.
 - `gpg` verification of the Catch2 and CMocka signatures.
