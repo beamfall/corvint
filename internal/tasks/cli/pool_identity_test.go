@@ -193,6 +193,9 @@ func TestPSRV0081_SourceIdentityGuard(t *testing.T) {
 		{"failing", "", "EXIT_NONZERO"},
 		{"malformed-output", `{"revision":"1111111111111111111111111111111111111111"}`, "MALFORMED_OUTPUT"},
 		{"trailing-output", identityJSON(identityDefault) + "extra", "MALFORMED_OUTPUT"},
+		// A stray closing delimiter is a syntax error, not end of input.
+		{"trailing-brace", identityJSON(identityDefault) + "}", "MALFORMED_OUTPUT"},
+		{"trailing-bracket", identityJSON(identityDefault) + "]", "MALFORMED_OUTPUT"},
 	} {
 		_ = os.Remove(filepath.Join(dir, member))
 		if c.content != "" {

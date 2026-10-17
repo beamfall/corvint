@@ -70,7 +70,7 @@ func (c leaseContext) identityGuard(found *snapshot.PoolEntry, state snapshot.Po
 	}
 	id.ObservedSeq = c.seq
 	def := *c.st.policy.Pool(found.PoolID).DefaultSource
-	state.Identities = withIdentity(state.Identities, *id)
+	state.Identities = withIdentity(c.st.policy, state.Identities, *id)
 	if id.Class == snapshot.PoolIdentityReported && *id.Source == def {
 		return id, nil
 	}
@@ -89,13 +89,26 @@ func (c leaseContext) identityGuard(found *snapshot.PoolEntry, state snapshot.Po
 	return refuse(leaseOutcome{posts: map[string][]byte{"pools.json": raw}, effect: &leaseEffect{kind: "TRANSITION", attemptID: found.AttemptID, generation: found.Generation, outcome: mutation.OutcomeBlocked, codes: []string{wire.CodeQuiescenceUnproved}}, detail: "QUARANTINED: " + found.MemberID + ": " + reason})
 }
 
-// withIdentity replaces the member's last identity record.
-func withIdentity(list []snapshot.PoolIdentity, id snapshot.PoolIdentity) []snapshot.PoolIdentity {
+// withIdentity replaces the member's last identity record and drops the
+// records of members the current policy no longer declares in that pool, so
+// the records stay within the policy's member bound (PSR-V0-083).
+func withIdentity(policy *intent.Policy, list []snapshot.PoolIdentity, id snapshot.PoolIdentity) []snapshot.PoolIdentity {
 	out := []snapshot.PoolIdentity{}
 	for _, x := range list {
-		if x.MemberID != id.MemberID {
+		if x.MemberID != id.MemberID && poolDeclares(policy, x.PoolID, x.MemberID) {
 			out = append(out, x)
 		}
 	}
 	return append(out, id)
+}
+
+func poolDeclares(policy *intent.Policy, pool, member string) bool {
+	if p := policy.Pool(pool); p != nil {
+		for _, m := range p.Members {
+			if m == member {
+				return true
+			}
+		}
+	}
+	return false
 }

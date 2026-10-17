@@ -57,6 +57,11 @@ func readPoolSourceOrNull(r *wire.Reader) *intent.PoolSource {
 }
 
 func readPoolIdentity(r *wire.Reader) PoolIdentity {
+	// CAL-V0-131: a newer identity record is UNSUPPORTED_VERSION; the nested
+	// pools.json reader relies on the first recorded error sticking.
+	if r.Profile(ProfilePoolIdentity) != nil {
+		return PoolIdentity{}
+	}
 	r.Closed("profile", "poolId", "memberId", "allocationId", "definitionSha256", "class", "source", "outputSha256", "observedAt", "observedSeq")
 	r.Field("profile").Exact(ProfilePoolIdentity)
 	p := PoolIdentity{PoolID: r.Field("poolId").Label(), MemberID: r.Field("memberId").Label(), AllocationID: r.Field("allocationId").Digest(), DefinitionSha256: r.Field("definitionSha256").Digest(), Class: r.Field("class").Enum(PoolIdentityClasses...), Source: readPoolSourceOrNull(r.Field("source")), OutputSha256: r.Field("outputSha256").Digest(), ObservedAt: r.Field("observedAt").Timestamp(), ObservedSeq: r.Field("observedSeq").Size()}

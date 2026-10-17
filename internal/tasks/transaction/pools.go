@@ -237,7 +237,7 @@ func planPoolSafe(c leaseContext) leaseOutcome {
 		return *refusal
 	}
 	if id != nil {
-		state.Identities = withIdentity(state.Identities, *id)
+		state.Identities = withIdentity(c.st.policy, state.Identities, *id)
 	}
 	raw, e := state.Encode()
 	if e != nil {

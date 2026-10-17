@@ -190,6 +190,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		snapshot.ProfileExternalReviewRequest: plain(func(b []byte) error { _, e := snapshot.DecodeExternalReviewRequest(b); return e }),
 		snapshot.ProfileExternalReviewEvent:   plain(func(b []byte) error { _, e := snapshot.DecodeExternalReviewEvent(b); return e }),
 		snapshot.ProfilePools:                 plain(func(b []byte) error { _, e := snapshot.DecodePools(b); return e }),
+		snapshot.ProfilePoolIdentity:          plain(func(b []byte) error { _, e := snapshot.DecodePoolIdentity(b); return e }),
 		"taskman-pool-observation/0":          plain(func(b []byte) error { _, e := snapshot.DecodePoolObservation(b); return e }),
 		"taskman-pool-sweep-observation/0":    plain(func(b []byte) error { _, e := snapshot.DecodePoolSweepObservation(b); return e }),
 		"taskman-pool-sweep-result/0":         plain(func(b []byte) error { _, _, e := transaction.DecodePoolSweepResult(b); return e }),

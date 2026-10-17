@@ -459,7 +459,7 @@ func LiveFormats() []string {
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
-		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
