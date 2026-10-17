@@ -27,9 +27,11 @@ const testHelp = `Run the affected test set (experimental, STR-V0).
 
 Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
-    [--placement universe|balanced] [--profile local|ci [--confine PATH]]
-    [--dry-run] [--manifest PATH] [--receipt PATH]
+    [--placement universe|balanced|measured [--shard-plan PATH]]
+    [--profile local|ci [--confine PATH]] [--dry-run] [--manifest PATH]
+    [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
+  corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
 
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
@@ -44,6 +46,17 @@ neither. The budget covers the whole shard: 6h local, 60m ci.
 over the shards by the cost table; FULL keeps the universe partition. It
 executes only in the local profile (ci: --dry-run only), and a sharded run
 needs every shard to match one --manifest from a --dry-run.
+--placement measured (experimental, local execution only, like balanced)
+puts each Go package whole on the shard a --shard-plan assigns it; a plan
+for another shard count or one that omits a run-set package is INCOMPLETE.
+
+shards reads the listed files (for Go, package import paths) and the
+retained full-run duration tables (corvint-ci-package-costs/0, oldest
+first) and prints a corvint-test-shards/0 plan: each file weighs the median
+of the last K runs (default 5), a file no used run records the median
+weight (listed in unknown), longest first onto the lightest shard, with a
+partition digest. Missing or invalid history prints corvint-test: shards FALLBACK
+<reason> and plans the complete round-robin. It writes only stdout.
 
 --dry-run prints the shard's argv as JSON and runs nothing but Git;
 --manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
@@ -66,9 +79,9 @@ var testCommandExit = map[string]int{sessiontest.ResultPass: 0, sessiontest.Resu
 const testPartitionDirectory = ".github/cishards"
 
 type testOptions struct {
-	base, placement, profile, confine, manifest, receipt string
-	shard, shardCount                                    int
-	dryRun                                               bool
+	base, placement, profile, confine, manifest, receipt, shardPlan string
+	shard, shardCount                                               int
+	dryRun                                                          bool
 }
 
 // testInvocation recognises `[--root PATH] test ...`.
@@ -116,20 +129,23 @@ func parseTestOptions(args []string) (testOptions, error) {
 	once("confine", &options.confine)
 	once("manifest", &options.manifest)
 	once("receipt", &options.receipt)
+	once("shard-plan", &options.shardPlan)
 	shard := ""
 	once("shard", &shard)
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
 	requireClean := f.Bool("require-clean", false, "")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 {
-		return options, argumentError("usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]")
+		return options, argumentError("usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]")
 	}
 	switch {
 	case *requireClean:
 		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
 	case !validGitObjectID(options.base):
 		return options, argumentError("test needs --base FULL_COMMIT_ID")
-	case options.placement != sessiontest.PlacementUniverse && options.placement != sessiontest.PlacementBalanced:
-		return options, argumentError("--placement must be universe or balanced")
+	case options.placement != sessiontest.PlacementUniverse && options.placement != sessiontest.PlacementBalanced && options.placement != sessiontest.PlacementMeasured:
+		return options, argumentError("--placement must be universe, balanced or measured")
+	case (options.placement == sessiontest.PlacementMeasured) != (options.shardPlan != ""):
+		return options, argumentError("--placement measured needs --shard-plan PATH, and --shard-plan applies only to it (STR-V0-054)")
 	case options.profile != sessiontest.ProfileLocal && options.profile != sessiontest.ProfileCI:
 		return options, argumentError("--profile must be local or ci")
 	case options.profile == sessiontest.ProfileCI && !filepath.IsAbs(options.confine):
@@ -150,12 +166,17 @@ func parseTestOptions(args []string) (testOptions, error) {
 	// beside the executing universe placement (STR-V0-008, AFP-V0-028). Its
 	// membership depends on the plan, so a sharded run executes only against
 	// one supplied manifest, which every shard must reproduce or fail.
-	if options.placement == sessiontest.PlacementBalanced && !options.dryRun {
+	// Measured placement follows the same rule (STR-V0-054).
+	if options.placement != sessiontest.PlacementUniverse && !options.dryRun {
+		requirement := "STR-V0-008"
+		if options.placement == sessiontest.PlacementMeasured {
+			requirement = "STR-V0-054"
+		}
 		switch {
 		case options.profile == sessiontest.ProfileCI:
-			return options, argumentError("--profile ci --placement balanced may only be computed with --dry-run; CI executes universe placement (STR-V0-008)")
+			return options, argumentError("--profile ci --placement " + options.placement + " may only be computed with --dry-run; CI executes universe placement (" + requirement + ")")
 		case options.shardCount > 1 && options.manifest == "":
-			return options, argumentError("a sharded --placement balanced run needs --manifest PATH from one --dry-run, which every shard must reproduce (STR-V0-008)")
+			return options, argumentError("a sharded --placement " + options.placement + " run needs --manifest PATH from one --dry-run, which every shard must reproduce (" + requirement + ")")
 		}
 	}
 	return options, nil
@@ -164,6 +185,9 @@ func parseTestOptions(args []string) (testOptions, error) {
 func runTest(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 	if len(args) > 0 && args[0] == "verify-shards" {
 		return runTestVerifyShards(args[1:], stdout, stderr)
+	}
+	if len(args) > 0 && args[0] == "shards" {
+		return runTestShards(args[1:], stdout, stderr)
 	}
 	options, err := parseTestOptions(args)
 	if err != nil {
@@ -210,6 +234,14 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	input := testRunInput(ctx, root, options, source)
+	if options.shardPlan != "" {
+		plan, err := sessiontest.ReadShardPlan(options.shardPlan)
+		if err != nil {
+			emitError(stderr, argumentError("--shard-plan "+options.shardPlan+" is not usable: "+err.Error()))
+			return 2
+		}
+		input.ShardPlan = &plan
+	}
 	manifest, err := sessiontest.Build(input)
 	if err != nil {
 		emitError(stderr, argumentError(err.Error()))
@@ -613,4 +645,60 @@ func runTestVerifyShards(args []string, stdout, stderr io.Writer) int {
 	}
 	_, _ = stdout.Write(append(encoded, '\n'))
 	return testCommandExit[result]
+}
+
+// runTestShards is the STR-V0-050 duration-balanced shard planner. It is a
+// read command: it reads the listed files and the duration tables and
+// writes only stdout and stderr (invariant 4).
+func runTestShards(args []string, stdout, stderr io.Writer) int {
+	f := flag.NewFlagSet("test shards", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	count := f.Int("count", 0, "")
+	runs := f.Int("runs", sessiontest.DefaultHistoryRuns, "")
+	files := f.String("files", "", "")
+	var durations []string
+	f.Func("durations", "", func(value string) error {
+		if value == "" {
+			return errors.New("empty")
+		}
+		durations = append(durations, value)
+		return nil
+	})
+	usage := fmt.Sprintf("usage: corvint test shards --count N (1 to %d) --files PATH [--durations PATH]... [--runs K (1 to %d)]", sessiontest.MaxShardPlanShards, sessiontest.MaxHistoryRuns)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || *files == "" || *count < 1 || *count > sessiontest.MaxShardPlanShards ||
+		*runs < 1 || *runs > sessiontest.MaxHistoryRuns || len(durations) > sessiontest.MaxHistoryRuns {
+		emitError(stderr, argumentError(usage))
+		return 2
+	}
+	raw := testReadOptional(*files)
+	if raw == nil {
+		emitError(stderr, argumentError("--files "+*files+" is not a readable regular file of at most 1 MiB"))
+		return 2
+	}
+	listed, err := sessiontest.ListedFiles(raw)
+	if err != nil {
+		emitError(stderr, argumentError("--files "+*files+": "+err.Error()))
+		return 2
+	}
+	history := make([]sessiontest.History, 0, len(durations))
+	for _, name := range durations {
+		history = append(history, sessiontest.History{Name: name, Raw: testReadOptional(name)})
+	}
+	plan, err := sessiontest.PlanShards(listed, *count, *runs, history)
+	if err != nil {
+		emitError(stderr, argumentError(err.Error()))
+		return 2
+	}
+	encoded, err := sessiontest.Encode(plan)
+	if err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	if plan.Fallback != "" {
+		fmt.Fprintln(stderr, "corvint-test: shards FALLBACK "+plan.Fallback)
+	} else {
+		fmt.Fprintf(stderr, "corvint-test: shards %d files over %d shards from %d runs, %d unknown\n", len(listed), plan.Count, len(plan.History), len(plan.Unknown))
+	}
+	_, _ = stdout.Write(encoded)
+	return 0
 }

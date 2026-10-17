@@ -3399,6 +3399,11 @@ STR-V0-016	docs/specs/session-test-runner-v0.md	251	Adapters execute repository 
 STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
 STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
 STR-V0-019	docs/specs/session-test-runner-v0.md	264	Every `go test` command that a `make gate` step recipe runs SHALL carry a	unrecorded	-
+STR-V0-050	docs/specs/session-test-runner-v0.md	274	`corvint test shards --count N --files PATH [--durations PATH]... [--runs K]` SH	unrecorded	-
+STR-V0-051	docs/specs/session-test-runner-v0.md	284	Each `--durations` file is one retained full run in the `corvint-ci-package-cost	unrecorded	-
+STR-V0-052	docs/specs/session-test-runner-v0.md	292	The plan SHALL take the files heaviest first (ties by name) and put each on the	unrecorded	-
+STR-V0-053	docs/specs/session-test-runner-v0.md	297	When no table is supplied, more than 64 are, any supplied table is unreadable or	unrecorded	-
+STR-V0-054	docs/specs/session-test-runner-v0.md	302	`corvint test --placement measured --shard-plan PATH` (experimental, off by	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-

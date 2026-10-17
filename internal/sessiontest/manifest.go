@@ -45,6 +45,10 @@ const (
 	// by the advisory cost table (STR-V0-008, experimental). It executes only
 	// in the local profile; FULL keeps the universe partition.
 	PlacementBalanced = "balanced"
+	// PlacementMeasured places every Go package of the run set whole on
+	// the shard a corvint-test-shards/0 plan assigns it (STR-V0-054,
+	// experimental). It executes only in the local profile.
+	PlacementMeasured = "measured"
 
 	// SliceWhole names an unsplit unit; a split one is "<index>/<count>".
 	SliceWhole = "whole"

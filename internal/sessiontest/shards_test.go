@@ -1,0 +1,294 @@
+package sessiontest
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+// historyTableJSON is one retained full-run table in the
+// corvint-ci-package-costs/0 shape `ci-shard-costs refresh` writes.
+func historyTableJSON(revision byte, milliseconds map[string]int64) []byte {
+	entries := []string{}
+	for _, file := range sortedKeys(func() map[string]bool {
+		set := map[string]bool{}
+		for file := range milliseconds {
+			set[file] = true
+		}
+		return set
+	}()) {
+		entries = append(entries, fmt.Sprintf("%q: %d", file, milliseconds[file]))
+	}
+	return []byte(`{"milliseconds": {` + strings.Join(entries, ", ") + `}, "profile": "corvint-ci-package-costs/0", "source": {"goVersion": "go1.27.2", "revision": "` +
+		strings.Repeat(string(revision), 40) + `", "runURL": "https://example.test/runs/1"}}`)
+}
+
+func planFiles(plan ShardPlan) [][]string {
+	files := [][]string{}
+	for _, shard := range plan.Shards {
+		files = append(files, shard.Files)
+	}
+	return files
+}
+
+// STR-V0-050: the listed universe is whitespace-separated, sorted, bounded
+// and names every file once.
+func TestSTRV0050ListedFiles(t *testing.T) {
+	files, err := ListedFiles([]byte("b\n a\r\n\nc\n"))
+	if err != nil || !reflect.DeepEqual(files, []string{"a", "b", "c"}) {
+		t.Fatalf("listed %v %v", files, err)
+	}
+	for name, raw := range map[string]string{
+		"empty": " \n", "duplicate": "a\nb\na\n", "control character": "a\x01b\n",
+		"over the unit bound": func() string {
+			var b strings.Builder
+			for i := 0; i <= MaxUnits; i++ {
+				fmt.Fprintf(&b, "f%d\n", i)
+			}
+			return b.String()
+		}(),
+	} {
+		if _, err := ListedFiles([]byte(raw)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+	if _, err := ListedFiles(make([]byte, MaxDocumentBytes+1)); err == nil {
+		t.Error("an oversized list was accepted")
+	}
+}
+
+// STR-V0-051: each file weighs the median of the last K supplied runs that
+// record it; K is configurable; a file no used run records is flagged and
+// weighs the median of the known listed files' weights.
+func TestSTRV0051MedianOfLastKRuns(t *testing.T) {
+	history := []History{
+		{Name: "old", Raw: historyTableJSON('1', map[string]int64{"a": 1000, "b": 100, "c": 50})},
+		{Name: "mid", Raw: historyTableJSON('2', map[string]int64{"a": 10, "b": 200, "c": 60})},
+		{Name: "new", Raw: historyTableJSON('3', map[string]int64{"a": 20, "b": 300})},
+	}
+	files := []string{"a", "b", "c", "d"}
+	plan, err := PlanShards(files, 2, 2, history)
+	if err != nil || plan.Fallback != "" {
+		t.Fatalf("plan %v %q", err, plan.Fallback)
+	}
+	// K=2: a median(10,20)=15, b median(200,300)=250, c only in mid: 60;
+	// d unknown: median(15,60,250)=60.
+	want := map[string]int64{"a": 15, "b": 250, "c": 60, "d": 60}
+	if !reflect.DeepEqual(plan.WeightMilliseconds, want) || !reflect.DeepEqual(plan.Unknown, []string{"d"}) {
+		t.Fatalf("weights %v unknown %v", plan.WeightMilliseconds, plan.Unknown)
+	}
+	if !reflect.DeepEqual(plan.History, []string{strings.Repeat("2", 40), strings.Repeat("3", 40)}) || plan.Runs != 2 {
+		t.Fatalf("history %v runs %d", plan.History, plan.Runs)
+	}
+	// K=3 brings back the oldest run: a median(1000,10,20)=20, c (50,60)=55.
+	plan, err = PlanShards(files, 2, 3, history)
+	if err != nil || plan.WeightMilliseconds["a"] != 20 || plan.WeightMilliseconds["c"] != 55 || plan.WeightMilliseconds["b"] != 200 || len(plan.History) != 3 {
+		t.Fatalf("K=3 weights %v history %v %v", plan.WeightMilliseconds, plan.History, err)
+	}
+	if _, err := PlanShards(files, 2, 0, history); err == nil {
+		t.Error("K=0 accepted")
+	}
+	if _, err := PlanShards(files, 2, MaxHistoryRuns+1, history); err == nil {
+		t.Error("K over the bound accepted")
+	}
+}
+
+// STR-V0-052: longest first onto the lightest shard; every listed file in
+// exactly one shard for 1 to 16 shards; the same inputs give the same
+// bytes and digest, and the digest moves with the partition.
+func TestSTRV0052LongestFirstExactlyOnceDeterministic(t *testing.T) {
+	history := []History{{Name: "run", Raw: historyTableJSON('a', map[string]int64{"a": 10, "b": 9, "c": 8, "d": 1, "e": 1, "f": 1})}}
+	plan, err := PlanShards([]string{"a", "b", "c", "d", "e", "f"}, 2, 5, history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// a(10)->0, b(9)->1, c(8)->1 (9<10), d->0 (10<17), e->0 (11<17), f->0 (12<17).
+	if got := planFiles(plan); !reflect.DeepEqual(got, [][]string{{"a", "d", "e", "f"}, {"b", "c"}}) {
+		t.Fatalf("partition %v", got)
+	}
+	if plan.Shards[0].WeightMilliseconds != 13 || plan.Shards[1].WeightMilliseconds != 17 {
+		t.Fatalf("shard weights %+v", plan.Shards)
+	}
+	files := []string{}
+	weights := map[string]int64{}
+	for i := 0; i < 97; i++ {
+		file := fmt.Sprintf("pkg/%02d", i)
+		files = append(files, file)
+		if i%7 != 0 {
+			weights[file] = int64(1 + (i*37)%101)
+		}
+	}
+	runs := []History{{Name: "r1", Raw: historyTableJSON('1', weights)}, {Name: "r2", Raw: historyTableJSON('2', weights)}}
+	for total := 1; total <= 16; total++ {
+		first, err := PlanShards(files, total, 5, runs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		again, _ := PlanShards(append([]string{}, files...), total, 5, runs)
+		a, _ := Encode(first)
+		b, _ := Encode(again)
+		if string(a) != string(b) || first.PartitionDigest != again.PartitionDigest || !strings.HasPrefix(first.PartitionDigest, "sha256:") {
+			t.Fatalf("%d shards: not deterministic", total)
+		}
+		seen := map[string]int{}
+		for _, shard := range first.Shards {
+			for _, file := range shard.Files {
+				seen[file]++
+			}
+		}
+		if len(seen) != len(files) {
+			t.Fatalf("%d shards: %d of %d files placed", total, len(seen), len(files))
+		}
+		for file, n := range seen {
+			if n != 1 {
+				t.Fatalf("%d shards: %s placed %d times", total, file, n)
+			}
+		}
+		if len(first.Unknown) != 14 {
+			t.Fatalf("%d shards: %d unknown files flagged, want 14", total, len(first.Unknown))
+		}
+		if total > 1 {
+			other, _ := PlanShards(files, total-1, 5, runs)
+			if other.PartitionDigest == first.PartitionDigest {
+				t.Fatalf("%d and %d shards share a digest", total, total-1)
+			}
+		}
+	}
+}
+
+// STR-V0-053: no history, any unusable table, or no listed file with a
+// duration falls back to the complete round-robin and says why.
+func TestSTRV0053FallbackIsCompleteRoundRobin(t *testing.T) {
+	files := []string{"a", "b", "c", "d", "e"}
+	valid := History{Name: "ok", Raw: historyTableJSON('1', map[string]int64{"a": 5})}
+	cases := map[string][]History{
+		"no history":       nil,
+		"unreadable":       {valid, {Name: "gone"}},
+		"not json":         {valid, {Name: "bad", Raw: []byte("{")}},
+		"trailing data":    {{Name: "bad", Raw: append(historyTableJSON('1', map[string]int64{"a": 5}), []byte("{}")...)}},
+		"other profile":    {{Name: "bad", Raw: []byte(strings.Replace(string(valid.Raw), "package-costs/0", "package-costs/9", 1))}},
+		"unknown member":   {{Name: "bad", Raw: []byte(strings.Replace(string(valid.Raw), `"profile"`, `"extra": 1, "profile"`, 1))}},
+		"short revision":   {{Name: "bad", Raw: []byte(strings.Replace(string(valid.Raw), strings.Repeat("1", 40), "1234", 1))}},
+		"zero duration":    {{Name: "bad", Raw: historyTableJSON('1', map[string]int64{"a": 0})}},
+		"over one day":     {{Name: "bad", Raw: historyTableJSON('1', map[string]int64{"a": maxHistoryMilliseconds + 1})}},
+		"empty table":      {{Name: "bad", Raw: historyTableJSON('1', map[string]int64{})}},
+		"no listed file":   {{Name: "other", Raw: historyTableJSON('1', map[string]int64{"z": 5})}},
+		"too many tables":  make([]History, MaxHistoryRuns+1),
+		"invalid is first": {{Name: "bad", Raw: []byte("[]")}, valid},
+	}
+	for name, history := range cases {
+		plan, err := PlanShards(files, 2, 5, history)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if plan.Fallback == "" || len(plan.History) != 0 || len(plan.Unknown) != 0 || len(plan.WeightMilliseconds) != 0 {
+			t.Fatalf("%s: fallback %q history %v unknown %v", name, plan.Fallback, plan.History, plan.Unknown)
+		}
+		if got := planFiles(plan); !reflect.DeepEqual(got, [][]string{{"a", "c", "e"}, {"b", "d"}}) {
+			t.Fatalf("%s: round-robin %v", name, got)
+		}
+	}
+}
+
+// STR-V0-054: a written plan reads back only when it is canonical, one
+// complete partition and its digest recomputes.
+func TestSTRV0054ReadShardPlan(t *testing.T) {
+	plan, err := PlanShards([]string{"a", "b", "c"}, 2, 5, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := Encode(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	read, err := ReadShardPlan(write("ok.json", string(encoded)))
+	if err != nil || read.PartitionDigest != plan.PartitionDigest {
+		t.Fatalf("round trip %v", err)
+	}
+	text := string(encoded)
+	for name, body := range map[string]string{
+		"tampered digest": strings.Replace(text, plan.PartitionDigest, "sha256:"+strings.Repeat("0", 64), 1),
+		"moved file":      strings.Replace(text, `"files":["a","c"]`, `"files":["a"]`, 1),
+		"duplicate file":  strings.Replace(text, `"files":["b"]`, `"files":["a","b"]`, 1),
+		"wrong count":     strings.Replace(text, `"count":2`, `"count":3`, 1),
+		"not canonical":   strings.Replace(text, `{"count"`, `{ "count"`, 1),
+		"other profile":   strings.Replace(text, ShardPlanProfile, "corvint-test-shards/9", 1),
+		"reindexed":       strings.Replace(text, `"index":1`, `"index":0`, 1),
+	} {
+		if body == text {
+			t.Fatalf("%s: the mutation did not apply", name)
+		}
+		if _, err := ReadShardPlan(write(strings.ReplaceAll(name, " ", "-")+".json", body)); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// STR-V0-054: measured placement puts every run-set package whole on its
+// planned shard, NARROWED and FULL alike; the manifest binds the plan's
+// digest; a plan for another count or one that omits a package places no
+// Go unit and is INCOMPLETE.
+func TestSTRV0054MeasuredPlacement(t *testing.T) {
+	plan, err := PlanShards([]string{"example.test/m/a", "example.test/m/b", "example.test/m/c"}, 2, 5,
+		[]History{{Name: "run", Raw: historyTableJSON('1', map[string]int64{"example.test/m/a": 9, "example.test/m/b": 5, "example.test/m/c": 5})}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := func(mutate func(*Input)) Manifest {
+		input := fixtureInput()
+		input.Placement, input.ShardCount, input.ShardPlan = PlacementMeasured, 2, &plan
+		mutate(&input)
+		m, err := Build(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	narrowed := build(func(input *Input) { input.GoSelection = "run example.test/m/b example.test/m/a" })
+	if got := unitIDs(narrowed); !reflect.DeepEqual(got, []string{"0 go:example.test/m/a whole", "1 go:example.test/m/b whole"}) || narrowed.PartitionDigest != plan.PartitionDigest || narrowed.Placement != PlacementMeasured {
+		t.Fatalf("narrowed %v %s %s", got, narrowed.PartitionDigest, narrowed.Placement)
+	}
+	full := build(func(input *Input) { input.GoSelection = "FALLBACK go.mod changed" })
+	goUnits := []string{}
+	for _, id := range unitIDs(full) {
+		if strings.Contains(id, " go:") {
+			goUnits = append(goUnits, id)
+		}
+	}
+	if got := goUnits; full.Scope != ScopeFull || !reflect.DeepEqual(got, []string{"0 go:example.test/m/a whole", "1 go:example.test/m/b whole", "1 go:example.test/m/c whole"}) {
+		t.Fatalf("full %s %v", full.Scope, got)
+	}
+	for name, mutate := range map[string]func(*Input){
+		"other count": func(input *Input) { input.ShardCount = 3 },
+		"omitted package": func(input *Input) {
+			input.GoSelection = "run example.test/m/d"
+			input.Universe = append(input.Universe, "example.test/m/d")
+		},
+	} {
+		m := build(mutate)
+		if len(m.Incomplete) != 1 || !strings.HasPrefix(m.Incomplete[0], "go: the shard plan") {
+			t.Fatalf("%s: incomplete %v", name, m.Incomplete)
+		}
+		for _, unit := range m.Units {
+			if unit.Adapter == AdapterGo {
+				t.Fatalf("%s: placed %s", name, unit.Key())
+			}
+		}
+	}
+	input := fixtureInput()
+	input.Placement = PlacementMeasured
+	if _, err := Build(input); err == nil {
+		t.Fatal("measured placement without a plan was accepted")
+	}
+}
