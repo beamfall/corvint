@@ -870,7 +870,8 @@ func runBatch(env Env, cmd []string, args []string) (result *wire.Result) {
 // runBatchInputDigest is the TOL-V0-051 input digest of a batch: the
 // implementation, the commit (whose clean checkout prepareJob proved), the
 // fixture digest over the fixture and spec files there, the config, the
-// specs, the ledger entries and the scope.
+// values of the environment variables it passes, the pool, the specs, the
+// ledger entries and the scope.
 func runBatchInputDigest(j *runJob, ticketID string, fixture, cfgSum wire.Digest, specs []string, l *ticket.ObligationLedger, ids []string, role string) (wire.Digest, string) {
 	impl, err := implementationDigest()
 	if err != nil {
@@ -884,8 +885,17 @@ func runBatchInputDigest(j *runJob, ticketID string, fixture, cfgSum wire.Digest
 		sort.Strings(x)
 		scope = strings.Join(x, ",")
 	}
-	return wire.Sum([]byte("corvint-tasks-run-batch-input/0\nimplementation " + impl + "\nticket " + strconv.Quote(ticketID) +
-		"\ncommit " + j.commit + "\nfixture " + string(fixture) + "\nconfig " + string(cfgSum) + "\nspecs " + strconv.Quote(strings.Join(s, "\n")) +
+	envs := make([]wire.Value, 0, len(j.cfg.Env))
+	for _, name := range j.cfg.Env {
+		v := wire.NewObject().Set("name", wire.String(name)).Set("value", wire.Null())
+		if value, set := os.LookupEnv(name); set {
+			v.Set("value", wire.String(string(wire.Sum([]byte(value)))))
+		}
+		envs = append(envs, wire.ObjectValue(v))
+	}
+	return wire.Sum([]byte("corvint-tasks-run-batch-input/1\nimplementation " + impl + "\nticket " + strconv.Quote(ticketID) +
+		"\ncommit " + j.commit + "\nfixture " + string(fixture) + "\nconfig " + string(cfgSum) +
+		"\nenv " + string(wire.Sum(wire.Encode(wire.Array(envs...)))) + "\npool " + strconv.Quote(j.pool) + "\nspecs " + strconv.Quote(strings.Join(s, "\n")) +
 		"\nledger " + string(wire.Sum(wire.Encode(l.EntriesValue()))) + "\nids " + scope + "\nrole " + role + "\n")), ""
 }
 

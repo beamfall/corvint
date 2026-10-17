@@ -61,3 +61,37 @@ agent-drafted and accepted under the owner's standing auto-accept of lane requir
   selection, learning or authority", enforced by `TestSTRV0011ReceiptsHaveNoOtherReader`. That is an
   amendment to an owner-accepted requirement, outside the standing auto-accept for new lane
   requirements, so V1-1609 stays open for an owner decision on the STR-V0-011 amendment.
+
+## Review fix round (one Codex round, nine findings)
+
+An independent static review of PR #1062 raised two P1 and seven P2 findings; each is fixed with a
+regression test, and no further review round was run.
+
+- Ambiguous failures (PWR-V0-043): an identity any candidate report holds ambiguously now always
+  blocks `IDENTITY_AMBIGUOUS`, even when another report fails it unambiguously
+  (`TestPWRV0043_AmbiguousFailureNeverExcused`).
+- Own-file protection fails closed (PWR-V0-043): with `--own`, a known failure in a candidate whose
+  test root cannot be located blocks `TEST_ROOT_UNRESOLVED` instead of being compared by its
+  root-relative name (`TestPWRV0043_RunsBaselineOwnFailsClosed`).
+- A relative `--root` (PWR-V0-041): report paths are recorded as given and read against the root
+  once at diff time (`TestPWRV0042_RunsBaselineRelativeRoot`).
+- Known entries bind the failing full-run report whatever the report order (PWR-V0-041,
+  `TestPWRV0041_KnownBindsFailingFullReport`), and the baseline is opened nonblocking so a FIFO
+  refuses instead of hanging (`TestPWRV0041_ReadBaselineRefusesFIFO`).
+- The run-batch input digest (TOL-V0-051) adds the sha256 of each passed environment variable's
+  value or its absence, and the `--pool`, so a corrected `BASE_URL` or another pool is a new input;
+  the digest profile moves to `corvint-tasks-run-batch-input/1`, so existing entries simply age out
+  (`TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool`).
+- Signatures keep structural identifiers (TOL-V0-051 amended): only bare digit runs fold, so `AC-1`
+  and `AC-2` failures never share a count (`TestTOLV0051_SignatureKeepsStructuralIDs`).
+- One remediation allows exactly one run (TOL-V0-053 amended): the admitted run keeps the count, so
+  its identical failure refuses the next run at any N (`TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold`).
+- The ledger is serialized (TOL-V0-054 amended): admit re-reads, checks and spends a remediation, and
+  record re-reads and updates, under one exclusive `flock` on `.lock` in the ledger directory; a lock
+  not taken in 10 s, or a platform other than Darwin and Linux, runs unguarded with `SKIPPED`
+  (`TestTOLV0054_ConcurrentRunsSerializeTheLedger`). One ledger-wide lock file keeps the directory
+  within its 1,024-entry bound.
+
+The TOL-V0-051, 053 and 054 amendments are lane requirement amendments accepted under the owner's
+standing auto-accept (2026-10-11). The README TOL-V0 row now names TOL-V0-001..054, agreeing with the
+spec header and INDEX.

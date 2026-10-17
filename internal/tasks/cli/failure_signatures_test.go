@@ -1,9 +1,12 @@
 package cli_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -133,7 +136,7 @@ func TestTOLV0053_RemediationClearsOnceWithAudit(t *testing.T) {
 	admitted := atm(t, r.Root, nil, "preflight", id, "--refuse-repeat", "1", "--cache", "--remediation", "fixed in abc123")
 	am := signatureMember(t, admitted)
 	if admitted.res.Outcome != wire.OutcomeRefused || cacheStatus(t, admitted) != "MISS" || field(am, "remediation").Str != "fixed in abc123" ||
-		field(am, "status").Str != "RECORDED" || field(am, "count").Str != "1" {
+		field(am, "status").Str != "RECORDED" || field(am, "count").Str != "2" {
 		t.Fatalf("remediation run: %s", admitted.stdout)
 	}
 	lines := auditLines(t, dir)
@@ -219,4 +222,149 @@ func TestTOLV0052_RunBatchRefusesRepeatedSignature(t *testing.T) {
 		}
 	}
 	t.Fatal("three identical failing batches were never refused")
+}
+
+const guardInput = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+
+func guardCode(err error) string {
+	var e *wire.Error
+	if errors.As(err, &e) {
+		return string(e.Code)
+	}
+	return ""
+}
+
+// TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold: at --refuse-repeat
+// 3 a remediation admits exactly one run; its identical failure refuses
+// the next run at once rather than allowing N more.
+func TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold(t *testing.T) {
+	ledgerDir(t)
+	lines := []string{"AC-1\tFAILED\tError: total was 0"}
+	for i := 1; i <= 3; i++ {
+		if st, n, err := cli.FailureGuardRun(guardInput, 3, "", true, lines); err != nil || st != "RECORDED" || n != strconv.Itoa(i) {
+			t.Fatalf("failure %d: %s %s %v", i, st, n, err)
+		}
+	}
+	if _, _, err := cli.FailureGuardRun(guardInput, 3, "", true, lines); guardCode(err) != string(wire.CodeLoopDetected) {
+		t.Fatalf("fourth run: %v", err)
+	}
+	if st, n, err := cli.FailureGuardRun(guardInput, 3, "fixed in abc123", true, lines); err != nil || st != "RECORDED" || n != "4" {
+		t.Fatalf("remediated run: %s %s %v", st, n, err)
+	}
+	if _, _, err := cli.FailureGuardRun(guardInput, 3, "", true, lines); guardCode(err) != string(wire.CodeLoopDetected) || !strings.Contains(err.Error(), "FAILURE_SIGNATURE_REPEATED:") {
+		t.Fatalf("the run after the remediated failure was admitted: %v", err)
+	}
+	if _, _, err := cli.FailureGuardRun(guardInput, 3, "fixed in abc123", true, lines); guardCode(err) != string(wire.CodeLoopDetected) || !strings.Contains(err.Error(), "FAILURE_REMEDIATION_REUSED:") {
+		t.Fatalf("a spent remediation was admitted: %v", err)
+	}
+}
+
+// TestTOLV0051_SignatureKeepsStructuralIDs: normalization folds durations,
+// ports and line numbers but keeps identifier digits, so alternating
+// failures of AC-1 and AC-2 are different signatures that never
+// accumulate one count.
+func TestTOLV0051_SignatureKeepsStructuralIDs(t *testing.T) {
+	a := cli.NormalizeFailure("AC-1\tFAILED\tTimeout 5000ms exceeded at localhost:3000 (e2e/cart.spec.ts:12:5)")
+	if b := cli.NormalizeFailure("AC-1  FAILED Timeout 7000ms exceeded at localhost:3001 (e2e/cart.spec.ts:14:9)"); a != b {
+		t.Fatalf("run-specific numbers split one signature: %q %q", a, b)
+	}
+	if c := cli.NormalizeFailure("AC-2\tFAILED\tTimeout 5000ms exceeded at localhost:3000 (e2e/cart.spec.ts:12:5)"); a == c {
+		t.Fatalf("AC-1 and AC-2 normalize alike: %q", a)
+	}
+	if !strings.Contains(a, "AC-1") || !strings.Contains(a, "e2e/cart.spec.ts") || strings.Contains(a, "5000") {
+		t.Fatalf("normalized: %q", a)
+	}
+	if x, y := cli.NormalizeFailure("V1-1605 failed"), cli.NormalizeFailure("V1-1606 failed"); x == y {
+		t.Fatalf("ticket ids normalize alike: %q", x)
+	}
+	ledgerDir(t)
+	for i := 0; i < 4; i++ {
+		id := []string{"AC-1", "AC-2"}[i%2]
+		if st, n, err := cli.FailureGuardRun(guardInput, 2, "", true, []string{id + "\tFAILED\tError: timeout"}); err != nil || st != "RECORDED" || n != "1" {
+			t.Fatalf("alternating failure %d (%s): %s %s %v", i, id, st, n, err)
+		}
+	}
+}
+
+// TestTOLV0054_ConcurrentRunsSerializeTheLedger: concurrent failures at one
+// input digest each count once, and one remediation reference given to
+// two concurrent runs admits exactly one of them.
+func TestTOLV0054_ConcurrentRunsSerializeTheLedger(t *testing.T) {
+	ledgerDir(t)
+	lines := []string{"AC-1\tFAILED\tError: total was 0"}
+	const runs = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, runs)
+	for i := 0; i < runs; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, _, err := cli.FailureGuardRun(guardInput, 20, "", true, lines); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("concurrent run: %v", err)
+	}
+	if st, n, err := cli.FailureGuardRun(guardInput, 20, "", true, lines); err != nil || st != "RECORDED" || n != "9" {
+		t.Fatalf("after %d concurrent failures: %s %s %v (lost updates)", runs, st, n, err)
+	}
+	other := "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	if _, _, err := cli.FailureGuardRun(other, 1, "", true, lines); err != nil {
+		t.Fatal(err)
+	}
+	var mu sync.Mutex
+	admitted, reused := 0, 0
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _, err := cli.FailureGuardRun(other, 1, "fixed in abc123", true, lines)
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case err == nil:
+				admitted++
+			case strings.Contains(err.Error(), "FAILURE_REMEDIATION_REUSED:"):
+				reused++
+			}
+		}()
+	}
+	wg.Wait()
+	if admitted != 1 || reused != 1 {
+		t.Fatalf("one remediation given twice: admitted %d, reused %d", admitted, reused)
+	}
+}
+
+// TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool: the run-batch input
+// digest moves with the value of a passed environment variable, with its
+// presence and with the pool, so a corrected BASE_URL or another pool is
+// a new input.
+func TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool(t *testing.T) {
+	env := []string{"CORVINT_TOL_BASE_URL"}
+	digest := func(pool string) string {
+		t.Helper()
+		d, reason := cli.RunBatchInputDigest(pool, env)
+		if reason != "" || d == "" {
+			t.Fatalf("digest: %q %q", d, reason)
+		}
+		return d
+	}
+	t.Setenv("CORVINT_TOL_BASE_URL", "http://localhost:3000")
+	a := digest("")
+	if again := digest(""); again != a {
+		t.Fatal("the digest is not stable")
+	}
+	t.Setenv("CORVINT_TOL_BASE_URL", "http://localhost:4000")
+	b := digest("")
+	os.Unsetenv("CORVINT_TOL_BASE_URL")
+	unset := digest("")
+	t.Setenv("CORVINT_TOL_BASE_URL", "http://localhost:3000")
+	pooled := digest("lanes")
+	if a == b || a == unset || b == unset || a == pooled {
+		t.Fatalf("digest ignores an input: value %v, presence %v, pool %v", a == b, a == unset || b == unset, a == pooled)
+	}
 }

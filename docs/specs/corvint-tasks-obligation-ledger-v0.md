@@ -636,12 +636,15 @@ input changes or the agent declares what it fixed.
   `failureSignature: {threshold, status, inputDigest, signature, count, remediation, reason}`.
   - The input digest of `preflight` is its TOL-V0-047 cache key. That of `run-batch` is the
     sha256 of the running executable, the ticket id, the commit (whose clean checkout the job
-    already proves), the TOL-V0-031 fixture digest, the config sha256, the sorted `--spec` paths,
-    the canonical ledger entries, the `--ids` scope and the role.
+    already proves), the TOL-V0-031 fixture digest, the config sha256, the sha256 of each
+    environment variable the config passes (or its absence), the `--pool`, the sorted `--spec`
+    paths, the canonical ledger entries, the `--ids` scope and the role.
   - A failure is a refused preflight, or a batch whose outcome is not OK or that records a
     `FAILED` obligation. Its signature is the sha256 of its sorted failure lines (each preflight
     finding; each `FAILED` obligation's id and error, the `NOT_RUN` reason and the outcome codes
-    of a batch) with every digit run folded to `#` and whitespace collapsed.
+    of a batch) with every bare digit run folded to `#` and whitespace collapsed. Digits inside an
+    identifier token (a letter, then letters and digits, with `-` or `_` joined parts, such as
+    `AC-1` or `V1-1605`) are kept, so failures of different obligations never share a signature.
   - The ledger keeps one entry per verb, ticket and input digest. A failure with the stored
     signature counts one more (`RECORDED`); another signature restarts at 1; a pass removes the
     entry (`CLEARED`, count 0).
@@ -657,14 +660,17 @@ input changes or the agent declares what it fixed.
   - Before the run, one `corvint-tasks-remediation-audit/0` line naming the time, verb, ticket,
     input digest, signature, count and reference is appended to `remediations.jsonl` in the
     ledger directory. A failed append or a log at 4 MiB refuses rather than running unaudited.
-  - The admitted run resets the count, so the next identical failure is refused again. A
+  - The admitted run keeps the count, so its identical failure refuses the next run at any N. A
     reference already spent on the entry refuses `LOOP_DETECTED` with
     `FAILURE_REMEDIATION_REUSED:`; more than 16 references on one entry refuse `LIMIT_EXCEEDED`.
   - A preflight the remediation admits runs its checks even under `--cache`.
 - `TOL-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1048)) The ledger MUST live in
   `corvint-tasks/failure-signatures` under the user cache directory, created mode 0700, beside
   the TOL-V0-050 cache and outside every repository, Tasks store and trace store, so both verbs
-  keep product invariant 4. Each entry is one closed `corvint-tasks-failure-signature/0`
+  keep product invariant 4. Each read-check-write of an entry, the remediation spend and the audit
+  append hold an exclusive lock on `.lock` in that directory, so concurrent runs neither lose a
+  count nor spend one reference twice; a lock not taken within 10 s, or a platform without one,
+  makes the ledger unavailable. Each entry is one closed `corvint-tasks-failure-signature/0`
   document of at most 64 KiB written atomically; entries older than 30 days are empty and are
   pruned, with at most 1,024 kept. Only the verb that wrote an entry reads it, to decide whether
   to run; it is never evidence, a witness, a gate result or authority. An input digest or ledger
@@ -760,7 +766,7 @@ fixture passes.
 | TOL-V0-034..036 (accepted, decision 0519) | V1-1177 (GitHub #792) | `internal/tasks/wire/obligations.go` (alias grammar), `internal/tasks/ticket/obligations.go` (seed and entry codec, `admitAlias`), `internal/tasks/obligation/names.go` (alias whole-token matching), report, batch and source readers, `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0034_SeedWithAliases` (aliased and alias-free entries, later aliased seed, grammar refusals, audit), `TestTOLV0035_AliasDuplicateAndCollision` (in one seed, against the ledger, a ledger id, its own id, an id inside, an other-prefix alias admitted), `TestTOLV0036_PreflightMatchesAliases` (test title, `test.step` title, contract annotation, alias inside longer tokens stays `UNNAMED`), `TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID` (credit, evidence and lists keyed to native ids, defect-shaped alias in a `test.fail` step, audit `CONSISTENT`) (`internal/tasks/cli`); `TestTOLV0036_AliasWholeToken`, `TestTOLV0036_AliasMasksDefectIDs`, `TestTOLV0036_ContractAliasAndNamedTests` (`internal/tasks/obligation`), on synthetic json reports | the adopter's suite and a live Playwright 1.63 report naming aliases (`NOT_RUN`) |
 | TOL-V0-037..046 (accepted, owner's standing auto-accept 2026-10-11) | GitHub #813 | `internal/tasks/ticket/obligations.go` (review-source codec, set and entry), `internal/tasks/intent/policy.go` (`requireSourceReview`), `internal/tasks/obligation/review.go` (preflight findings, legacy-cases reader, digest comparison), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/obligation_sources.go` (show and plan `sourceReview`), `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0037_ReviewSourceCodec`, `TestTOLV0039_LegacyLedgerBytesUnchanged` (`internal/tasks/ticket`); `TestTOLV0039_PolicyLeavesLedgerBytes`, `TestTOLV0040_PreflightRequiresSourceReview` (missing, blank query, empty searched, DEFERRED skipped, secret screen, policy off), `TestTOLV0042_StaleSourcesListed` (legacy-case, manual-case and legacy-spec staleness, WITNESSED kept, unresolved reasons, plan `ok` unchanged, no state written, schema, trailing-data and repeated-member refusal), `TestTOLV0043_LegacyCasesFIFORefused` (`internal/tasks/cli`) | a live test-management export imported and reviewed against a migrated suite (`NOT_RUN`) |
 | TOL-V0-047..050 (accepted, owner's standing auto-accept 2026-10-11) | V1-1594 (GitHub #1037) | `internal/tasks/store/worktree_state.go` (working-tree digest), `internal/tasks/cli/preflight_cache.go` (key, entry codec, replay, prune), `internal/tasks/cli/preflight.go` | `TestTOLV0047_PreflightCacheReplaysIdenticalInputs` (HIT replay, untracked, tracked, commit and implementation misses), `TestTOLV0048_PreflightFreshBypassesTheCache` (FRESH replace, refused replay, usage, SKIPPED), `TestTOLV0049_PreflightCacheIsBounded` (age miss, count and age pruning, foreign file kept), `TestTOLV0050_PreflightCacheStaysOutsideTheRepository` (`internal/tasks/cli`) | measured hit rate and saved time over a day of agent sessions (`NOT_RUN`) |
-| TOL-V0-051..054 (accepted, owner's standing auto-accept 2026-10-11) | V1-1605 (GitHub #1048) | `internal/tasks/cli/failure_signatures.go` (flags, signature, ledger, audit), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/run_batch.go` | `TestTOLV0051_FailureLedgerIsOffByDefault` (off by default, flag validation, RECORDED count, CLEARED pass), `TestTOLV0052_RepeatedSignatureRefusesNamingSignatureAndCount` (typed refusal naming signature, count and digest; changed input admits), `TestTOLV0052_RunBatchRefusesRepeatedSignature` (refused before the test command and results directory, across `--out` dirs), `TestTOLV0053_RemediationClearsOnceWithAudit` (audit line, reuse refused, cache bypass), `TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning` (no repository or store change, mode 0700, SKIPPED) (`internal/tasks/cli`) | measured loop reduction across agent sessions (`NOT_RUN`) |
+| TOL-V0-051..054 (accepted, owner's standing auto-accept 2026-10-11) | V1-1605 (GitHub #1048) | `internal/tasks/cli/failure_signatures.go` (flags, signature, ledger, audit), `internal/tasks/cli/failure_lock_unix.go` (ledger lock), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/run_batch.go` | `TestTOLV0051_FailureLedgerIsOffByDefault` (off by default, flag validation, RECORDED count, CLEARED pass), `TestTOLV0052_RepeatedSignatureRefusesNamingSignatureAndCount` (typed refusal naming signature, count and digest; changed input admits), `TestTOLV0052_RunBatchRefusesRepeatedSignature` (refused before the test command and results directory, across `--out` dirs), `TestTOLV0053_RemediationClearsOnceWithAudit` (audit line, reuse refused, cache bypass), `TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning` (no repository or store change, mode 0700, SKIPPED), `TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold` (N=3), `TestTOLV0051_SignatureKeepsStructuralIDs` (AC-1 and AC-2 apart, run-specific numbers folded), `TestTOLV0054_ConcurrentRunsSerializeTheLedger` (eight concurrent failures, one reference given twice), `TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool` (`internal/tasks/cli`) | measured loop reduction across agent sessions (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1

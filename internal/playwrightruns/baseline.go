@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"os"
 	"regexp"
 	"sort"
 )
@@ -72,9 +71,10 @@ var (
 // ReadBaseline reads a baseline document through one bounded read and returns it with the sha256
 // of its bytes. Unknown members, another profile, a revision that is not a full object id, an
 // entry without its evidence, a known entry without an isolated report, a duplicate identity or
-// more than MaxBaselineEntries entries refuse (PWR-V0-041).
+// more than MaxBaselineEntries entries refuse (PWR-V0-041). Like ReadFile, it opens without
+// blocking on a FIFO and reads only a regular file.
 func ReadBaseline(name string) (Baseline, string, error) {
-	f, err := os.Open(name)
+	f, err := openNonblocking(name)
 	if err != nil {
 		return Baseline{}, "", err
 	}
@@ -141,7 +141,9 @@ func firstFailure(runs []NamedRun, key string, flakyToo bool) (Evidence, bool) {
 // RecordBaseline builds the baseline at revision from a full run and an isolated re-run of its
 // failures (PWR-V0-041). A test is known only when it failed in the full run and in the isolated
 // re-run; a test that failed (or was flaky) in the full run only is a suspected flake. Identities
-// a report holds ambiguously are left out, so they are never excused.
+// a report holds ambiguously are left out, so they are never excused. A known entry's full-run
+// evidence is the first report that holds the test failing, so it does not depend on whether a
+// report holding it flaky comes earlier.
 func RecordBaseline(revision string, full, isolated []NamedRun) Baseline {
 	b := Baseline{Profile: BaselineProfile, Revision: revision, Known: []BaselineEntry{}, Flaky: []BaselineEntry{}}
 	seen := map[string]bool{}
@@ -157,8 +159,9 @@ func RecordBaseline(revision string, full, isolated []NamedRun) Baseline {
 			}
 			seen[key] = true
 			e := BaselineEntry{Identity: t.Identity.presented(), Full: ev}
-			if _, hard := firstFailure(full, key, false); hard {
+			if hardEv, hard := firstFailure(full, key, false); hard {
 				if iso, ok := firstFailure(isolated, key, false); ok {
+					e.Full = hardEv
 					e.Isolated = &iso
 					b.Known = append(b.Known, e)
 					continue
@@ -247,10 +250,11 @@ func verifyKnown(e BaselineEntry, load EvidenceLoader) string {
 
 // DiffBaseline gates candidate runs on a baseline (PWR-V0-042..044). Every unambiguous failing
 // test is new, known or a suspected flake. A known failure is excused only when its evidence
-// re-reads and the test is not in an own file; a suspected flake is never excused. Baseline
+// re-reads and own names no reason to block it (own returns "" for a file it does not hold, else
+// the blocking reason, such as OWN_FILE); a suspected flake is never excused. Baseline
 // entries that pass in the candidate are fixed, and those the candidate did not run are
 // unobserved. A candidate report with top-level errors blocks.
-func DiffBaseline(b Baseline, baselineSha string, candidate []NamedRun, own func(file string) bool, load EvidenceLoader, staleness Staleness) BaselineDiff {
+func DiffBaseline(b Baseline, baselineSha string, candidate []NamedRun, own func(file string) string, load EvidenceLoader, staleness Staleness) BaselineDiff {
 	d := BaselineDiff{Profile: BaselineDiffProfile, BaselineRevision: b.Revision, BaselineSha256: baselineSha, Staleness: staleness,
 		Reasons: []string{}, Runs: []Evidence{}, New: []DiffTest{}, Known: []DiffTest{}, Flaky: []DiffTest{}, Fixed: []Identity{}, Unobserved: []Identity{}}
 	known, flaky := map[string]BaselineEntry{}, map[string]bool{}
@@ -282,17 +286,18 @@ func DiffBaseline(b Baseline, baselineSha string, candidate []NamedRun, own func
 			}
 		}
 	}
+	// An identity any candidate report holds ambiguously while failing is blocking, even when
+	// another report holds it failing unambiguously (PWR-V0-043).
 	for key, id := range ambiguous {
-		if _, ok := fail[key]; !ok {
-			d.New = append(d.New, DiffTest{Identity: id, Reason: ReasonAmbiguous})
-		}
+		delete(fail, key)
+		d.New = append(d.New, DiffTest{Identity: id, Reason: ReasonAmbiguous})
 	}
 	for key, id := range fail {
 		switch e, isKnown := known[key]; {
 		case isKnown:
 			reason := verifyKnown(e, load)
-			if reason == "" && own != nil && own(id.File) {
-				reason = ReasonOwnFile
+			if reason == "" && own != nil {
+				reason = own(id.File)
 			}
 			if reason == "" {
 				d.Known = append(d.Known, DiffTest{Identity: id, Excused: true, Reason: ReasonKnownVerified})
@@ -308,12 +313,13 @@ func DiffBaseline(b Baseline, baselineSha string, candidate []NamedRun, own func
 	for _, list := range [][]BaselineEntry{b.Known, b.Flaky} {
 		for _, e := range list {
 			key := e.Key()
-			if _, failed := fail[key]; failed {
+			_, failed := fail[key]
+			if _, amb := ambiguous[key]; failed || amb {
 				continue
 			}
 			if pass[key] {
 				d.Fixed = append(d.Fixed, e.Identity)
-			} else if _, amb := ambiguous[key]; !amb {
+			} else {
 				d.Unobserved = append(d.Unobserved, e.Identity)
 			}
 		}

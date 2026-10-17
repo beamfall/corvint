@@ -209,7 +209,12 @@ func TestPWRV0043_OwnFileAndReportErrorsBlock(t *testing.T) {
 	iso := named(t, dir, "iso.json", bt("a.spec.ts", "known", "unexpected"))
 	b := RecordBaseline(baselineRev, []NamedRun{full}, []NamedRun{iso})
 	cand := named(t, dir, "cand.json", bt("a.spec.ts", "known", "unexpected"))
-	d := DiffBaseline(b, "sum", []NamedRun{cand}, func(f string) bool { return f == "a.spec.ts" }, fileLoader, notObserved)
+	d := DiffBaseline(b, "sum", []NamedRun{cand}, func(f string) string {
+		if f == "a.spec.ts" {
+			return ReasonOwnFile
+		}
+		return ""
+	}, fileLoader, notObserved)
 	if d.Verdict != VerdictBaselineBlocked || diffReasons(d.Known) != "known="+ReasonOwnFile {
 		t.Fatalf("own file: %s %v", diffReasons(d.Known), d.Verdict)
 	}
@@ -217,5 +222,44 @@ func TestPWRV0043_OwnFileAndReportErrorsBlock(t *testing.T) {
 	d = DiffBaseline(b, "sum", []NamedRun{cand}, nil, fileLoader, notObserved)
 	if d.Verdict != VerdictBaselineBlocked || len(d.Reasons) != 1 || d.Reasons[0] != ReasonReportHasErrors {
 		t.Fatalf("report errors: %+v", d)
+	}
+}
+
+// PWR-V0-043: an identity one candidate report holds ambiguously while failing blocks, even when
+// another candidate report holds it failing unambiguously and the baseline knows it.
+func TestPWRV0043_AmbiguousFailureNeverExcused(t *testing.T) {
+	dir := t.TempDir()
+	full := named(t, dir, "full.json", bt("a.spec.ts", "dup", "unexpected"))
+	iso := named(t, dir, "iso.json", bt("a.spec.ts", "dup", "unexpected"))
+	b := RecordBaseline(baselineRev, []NamedRun{full}, []NamedRun{iso})
+	amb := named(t, dir, "amb.json", bt("a.spec.ts", "dup", "unexpected"), bt("a.spec.ts", "dup", "unexpected"))
+	if !amb.Run.Ambiguous[b.Known[0].Key()] {
+		t.Fatalf("fixture is not ambiguous: %+v", amb.Run.Ambiguous)
+	}
+	clear := named(t, dir, "clear.json", bt("a.spec.ts", "dup", "unexpected"))
+	for name, runs := range map[string][]NamedRun{"ambiguous first": {amb, clear}, "ambiguous last": {clear, amb}} {
+		d := DiffBaseline(b, "sum", runs, nil, fileLoader, notObserved)
+		if d.Verdict != VerdictBaselineBlocked || d.Counts.Excused != 0 || d.Counts.Known != 0 || diffReasons(d.New) != "dup="+ReasonAmbiguous {
+			t.Errorf("%s: new=%s known=%s %+v", name, diffReasons(d.New), diffReasons(d.Known), d.Counts)
+		}
+	}
+}
+
+// PWR-V0-041: a known entry binds the full-run report that holds the test failing, whatever the
+// order of the full reports, so a flaky result in an earlier report never becomes its evidence.
+func TestPWRV0041_KnownBindsFailingFullReport(t *testing.T) {
+	dir := t.TempDir()
+	flakyRun := named(t, dir, "full1.json", bt("a.spec.ts", "t", "flaky"))
+	failRun := named(t, dir, "full2.json", bt("a.spec.ts", "t", "unexpected"))
+	iso := named(t, dir, "iso.json", bt("a.spec.ts", "t", "unexpected"))
+	cand := named(t, dir, "cand.json", bt("a.spec.ts", "t", "unexpected"))
+	for name, fulls := range map[string][]NamedRun{"flaky first": {flakyRun, failRun}, "failing first": {failRun, flakyRun}} {
+		b := RecordBaseline(baselineRev, fulls, []NamedRun{iso})
+		if len(b.Known) != 1 || b.Known[0].Full.Path != failRun.Path || b.Known[0].Full.Sha256 != failRun.Run.Sha256 {
+			t.Fatalf("%s: known = %+v flaky = %+v", name, b.Known, b.Flaky)
+		}
+		if d := DiffBaseline(b, "sum", []NamedRun{cand}, nil, fileLoader, notObserved); d.Verdict != VerdictBaselinePass || d.Counts.Excused != 1 {
+			t.Fatalf("%s: diff = %s %+v", name, diffReasons(d.Known), d.Counts)
+		}
 	}
 }

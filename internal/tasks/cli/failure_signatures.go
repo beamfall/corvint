@@ -35,6 +35,8 @@ const (
 	maxRemediationsPerEntry = 16
 	maxRemediationBytes     = 256
 	remediationAuditFile    = "remediations.jsonl"
+	failureLedgerLock       = ".lock"
+	failureLedgerLockWait   = 10 * time.Second
 )
 
 // Detail prefixes of the TOL-V0-052 and TOL-V0-053 refusals.
@@ -98,12 +100,23 @@ type failureGuard struct {
 	reason              string // non-empty: the ledger is unavailable for this run
 }
 
-var signatureDigits = regexp.MustCompile(`[0-9]+`)
+// signatureTokens matches an identifier token (a letter, then letters and
+// digits, with "-" or "_" joined parts, such as AC-1 or V1-1605), kept
+// whole, or a bare digit run, folded to "#".
+var signatureTokens = regexp.MustCompile(`[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)*|[0-9]+`)
 
 // normalizeFailure folds run-specific numbers and spacing out of an error
-// line, so durations, ports and counts do not split one signature.
+// line, so durations, ports and counts do not split one signature, while
+// the digits of structural identifiers keep AC-1 and AC-2 apart
+// (TOL-V0-051).
 func normalizeFailure(s string) string {
-	return strings.Join(strings.Fields(signatureDigits.ReplaceAllString(s, "#")), " ")
+	s = signatureTokens.ReplaceAllStringFunc(s, func(t string) string {
+		if t[0] >= '0' && t[0] <= '9' {
+			return "#"
+		}
+		return t
+	})
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // failureSignature digests sorted normalized failure lines.
@@ -139,20 +152,36 @@ func startFailureGuard(verb, ticketID string, input wire.Digest, reason string, 
 		return g
 	}
 	g.dir = dir
-	e, problem := readFailureEntry(g.entryPath())
-	if problem != "" {
-		g.reason = problem
-		return g
-	}
-	g.prior = e
 	return g
+}
+
+// lock takes the ledger lock, so that each read-check-write of an entry
+// and the audit append are serialized across concurrent runs (TOL-V0-054).
+func (g *failureGuard) lock() (func(), error) {
+	return lockFailureLedger(filepath.Join(g.dir, failureLedgerLock), failureLedgerLockWait)
 }
 
 // admit refuses the run when the stored signature has already repeated
 // threshold times at this input digest (TOL-V0-052), unless an unspent
-// --remediation admits it once and is audited (TOL-V0-053).
+// --remediation admits it once and is audited (TOL-V0-053). The entry is
+// read, checked and the remediation spent under the ledger lock.
 func (g *failureGuard) admit() error {
-	if g == nil || g.reason != "" || g.prior.count < g.threshold {
+	if g == nil || g.reason != "" {
+		return nil
+	}
+	unlock, err := g.lock()
+	if err != nil {
+		g.reason = "the failure-signature ledger is unavailable: " + err.Error()
+		return nil
+	}
+	defer unlock()
+	e, problem := readFailureEntry(g.entryPath())
+	if problem != "" {
+		g.reason = problem
+		return nil
+	}
+	g.prior = e
+	if g.prior.count < g.threshold {
 		return nil
 	}
 	if g.remediation == "" {
@@ -172,8 +201,9 @@ func (g *failureGuard) admit() error {
 		return err
 	}
 	g.admitted = true
+	// The count is kept: the admitted run is the one run the remediation
+	// allows, so its identical failure refuses the next run at any N.
 	g.prior.remediations = append(g.prior.remediations, g.remediation)
-	g.prior.count = 0
 	return writeFailureEntry(g.entryPath(), g.prior)
 }
 
@@ -190,20 +220,34 @@ func (g *failureGuard) record(failed bool, lines []string) wire.Value {
 			Set("signature", wire.Null()).Set("count", wire.String("0")).Set("remediation", wire.Null()).Set("reason", wire.String(prose(g.reason))))
 	}
 	e, status, sig := g.prior, "CLEARED", ""
-	var err error
+	// Re-read under the lock: a concurrent run may have counted a failure
+	// or spent a remediation since admit (TOL-V0-054).
+	unlock, err := g.lock()
+	if err == nil {
+		defer unlock()
+		cur, problem := readFailureEntry(g.entryPath())
+		if problem != "" {
+			err = errors.New(problem)
+		} else {
+			e = cur
+		}
+	}
 	if failed {
-		sig = failureSignature(lines)
+		sig, status = failureSignature(lines), "RECORDED"
 		if e.signature == sig {
 			e.count++
 		} else {
 			e.signature, e.count = sig, 1
 		}
-		status = "RECORDED"
-		err = writeFailureEntry(g.entryPath(), e)
+		if err == nil {
+			err = writeFailureEntry(g.entryPath(), e)
+		}
 	} else {
 		e.count = 0
-		if rerr := os.Remove(g.entryPath()); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
-			err = rerr
+		if err == nil {
+			if rerr := os.Remove(g.entryPath()); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+				err = rerr
+			}
 		}
 	}
 	reason := wire.Null()

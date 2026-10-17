@@ -52,13 +52,36 @@ func runsNamed(option string, names []string, diagnostic io.Writer) ([]playwrigh
 	return named, true
 }
 
+// runsNamedUnder reads names resolved against root but names each run by the path as given.
+func runsNamedUnder(root, option string, names []string, diagnostic io.Writer) ([]playwrightruns.NamedRun, bool) {
+	runs, ok := runsNamed(option, runsUnder(root, names), diagnostic)
+	for i := range runs {
+		runs[i].Path = names[i]
+	}
+	return runs, ok
+}
+
+// runsUnder resolves each relative name against root.
+func runsUnder(root string, names []string) []string {
+	out := make([]string, len(names))
+	for i, name := range names {
+		if root != "" && !filepath.IsAbs(name) {
+			name = filepath.Join(root, name)
+		}
+		out[i] = name
+	}
+	return out
+}
+
 func runRunsBaselineRecord(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	f := flag.NewFlagSet("runs baseline record", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
+	// Evidence paths are recorded as given, relative to --root, so a diff with the same --root
+	// re-reads the same files.
 	full, isolated := []string{}, []string{}
 	rev := f.String("rev", "", "the revision both runs tested")
-	f.Func("full", "full-run Playwright JSON reports", runsFiles(root, &full))
-	f.Func("isolated", "isolated re-run Playwright JSON reports", runsFiles(root, &isolated))
+	f.Func("full", "full-run Playwright JSON reports", runsFiles("", &full))
+	f.Func("isolated", "isolated re-run Playwright JSON reports", runsFiles("", &isolated))
 	if f.Parse(args) != nil || f.NArg() != 0 || *rev == "" || len(full) == 0 || len(isolated) == 0 {
 		return runsRefuse(diagnostic, "runs-invalid-arguments", nil)
 	}
@@ -66,11 +89,11 @@ func runRunsBaselineRecord(ctx context.Context, root string, args []string, out,
 	if !ok {
 		return runsRefuse(diagnostic, "runs-revision-unresolved", map[string]any{"option": "rev"})
 	}
-	fullRuns, ok := runsNamed("full", full, diagnostic)
+	fullRuns, ok := runsNamedUnder(root, "full", full, diagnostic)
 	if !ok {
 		return 2
 	}
-	isoRuns, ok := runsNamed("isolated", isolated, diagnostic)
+	isoRuns, ok := runsNamedUnder(root, "isolated", isolated, diagnostic)
 	if !ok {
 		return 2
 	}
@@ -125,28 +148,37 @@ func runRunsBaselineDiff(ctx context.Context, root string, args []string, out, d
 	if !ok {
 		return 2
 	}
-	roots := []string{""}
+	// A file is own when, under any candidate's test root, it is an --own path or lies under one.
+	// With --own given, a candidate whose test root does not resolve fails closed: a known failure
+	// that matches no own path blocks as TEST_ROOT_UNRESOLVED, since it may be an own file.
+	roots, unresolved := []string{""}, false
 	for _, nr := range runs {
-		if r := nr.Run.TestRootPath; r != "" && r != "." && locatableTestFile(r) {
-			roots = append(roots, r)
+		if prefix, located := runTestRoot(ctx, root, nr.Run); !located {
+			unresolved = true
+		} else if prefix != "" {
+			roots = append(roots, prefix)
 		}
 	}
-	isOwn := func(file string) bool {
+	isOwn := func(file string) string {
+		if len(own) == 0 {
+			return ""
+		}
 		for _, r := range roots {
 			p := path.Join(r, file)
 			for _, o := range own {
 				if p == o || strings.HasPrefix(p, o+"/") {
-					return true
+					return playwrightruns.ReasonOwnFile
 				}
 			}
 		}
-		return false
-	}
-	load := func(name string) (*playwrightruns.Run, error) {
-		if root != "" && !filepath.IsAbs(name) {
-			name = filepath.Join(root, name)
+		if unresolved {
+			return reasonTestRootUnresolved
 		}
-		return playwrightruns.ReadFile(name)
+		return ""
+	}
+	// Recorded evidence paths are relative to --root (runs baseline record keeps them as given).
+	load := func(name string) (*playwrightruns.Run, error) {
+		return playwrightruns.ReadFile(runsUnder(root, []string{name})[0])
 	}
 	d := playwrightruns.DiffBaseline(b, sum, runs, isOwn, load, baselineStaleness(ctx, root, b.Revision, *base, maxAge))
 	if code := runsEmit(d, out, diagnostic); code != 0 {

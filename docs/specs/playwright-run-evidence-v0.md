@@ -222,12 +222,15 @@ own tests.
   `corvint-run-baseline/0` document `{profile, revision, known, flaky}` for the caller to retain,
   with `revision` the full commit id REV resolves to. A test is `known` only when it failed
   unambiguously (Playwright `unexpected`) in a full-run report and in an isolated re-run report;
-  each known entry binds both reports' paths and sha256. A test that failed, or was flaky, in the
+  each known entry binds the paths and sha256 of the first full-run and isolated reports that show
+  that failure, whatever the report order. Report paths are recorded as given, relative to the
+  caller's directory, and read against `--root` at diff time. A test that failed, or was flaky, in the
   full run only is listed under `flaky` with its full-run evidence. Identities a report holds
   ambiguously are left out. A report that declares an `applicationRevision` other than REV refuses
   `runs-baseline-unavailable` (`APPLICATION_REVISION_DIFFERS`); more than 4096 entries refuse
   (`BASELINE_BOUND_EXCEEDED`); an unresolvable REV refuses `runs-revision-unresolved`.
 - `PWR-V0-042`: `runs baseline diff --baseline B --runs R...` MUST read B strictly (at most 16 MiB,
+  opened without blocking so a FIFO refuses as unreadable,
   unknown members, another profile, a revision that is not a full object id, a known entry without
   isolated evidence or a duplicate identity refuse `runs-baseline-unavailable`). A candidate failure
   that is a known entry is excused (`KNOWN_VERIFIED`) only when both recorded reports re-read at diff
@@ -235,8 +238,10 @@ own tests.
   `EVIDENCE_MISSING`, `EVIDENCE_CHANGED` or `EVIDENCE_PASSING`.
 - `PWR-V0-043`: A candidate failure in a `flaky` entry MUST block as `SUSPECTED_FLAKE` and is never
   excused. A known failure whose file is under an `--own` path (resolved through each candidate's
-  `testRootPath`) MUST block as `OWN_FILE`. A failure not in the baseline blocks as `NOT_IN_BASELINE`,
-  an ambiguous failure as `IDENTITY_AMBIGUOUS`, and a candidate report with top-level errors blocks
+  `testRootPath`) MUST block as `OWN_FILE`; with `--own` given, a known failure in a candidate whose
+  test root cannot be located blocks as `TEST_ROOT_UNRESOLVED`. A failure not in the baseline blocks
+  as `NOT_IN_BASELINE`, and an identity any candidate report holds ambiguously blocks as
+  `IDENTITY_AMBIGUOUS` even when another report fails it unambiguously; and a candidate report with top-level errors blocks
   the verdict with `REPORT_HAS_ERRORS`.
 - `PWR-V0-044`: The diff MUST print a `corvint-runs-baseline-diff/0` receipt with `verdict`
   (`PASS` or `BLOCKED`) and `reasons`, bound to the baseline `revision` and the sha256 of its bytes
@@ -373,9 +378,9 @@ the full and isolated runs is `NOT_RUN`.
 | PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-040 | `cmd/corvint/runs_reuse.go` | `TestRunsReusableCLI`, `TestRunsRedundancyCLI`, `TestReusableSummaryForm`, `TestReaderCheck` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-041 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RecordKnownNeedsBothRuns`, `TestPWRV0041_ReadBaselineShape`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-042 | `internal/playwrightruns/baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0042_EvidenceReReadUnexcuses`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-043 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0043_OwnFileAndReportErrorsBlock`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-041 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RecordKnownNeedsBothRuns`, `TestPWRV0041_ReadBaselineShape`, `TestPWRV0041_KnownBindsFailingFullReport`, `TestPWRV0041_RunsBaselineCLI`, `TestPWRV0042_RunsBaselineRelativeRoot` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-042 | `internal/playwrightruns/baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0042_EvidenceReReadUnexcuses`, `TestPWRV0041_ReadBaselineRefusesFIFO`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-043 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0043_OwnFileAndReportErrorsBlock`, `TestPWRV0043_AmbiguousFailureNeverExcused`, `TestPWRV0043_RunsBaselineOwnFailsClosed`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-044 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-045 | `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 
