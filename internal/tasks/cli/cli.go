@@ -420,7 +420,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
-		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]]",
+		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]]",
 		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
