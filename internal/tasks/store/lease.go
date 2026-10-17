@@ -74,6 +74,9 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 		if err != nil || len(report.Expired) == 0 {
 			report.Reaped = reaped
 			report.ReapReceipts = reapReceipts
+			if err == nil && (choice.Lease.Verb == transaction.LeaseSlotAcquire || choice.Lease.Verb == transaction.LeaseSlotRelease) {
+				return report, slotObservation(ctx, repo, choice.Lease, report)
+			}
 			if err == nil && (choice.Lease.Verb == transaction.LeasePoolAcquire || choice.Lease.Verb == transaction.LeasePoolRelease) {
 				return report, pooledAttempt(ctx, repo, choice.Lease.AttemptID, report)
 			}

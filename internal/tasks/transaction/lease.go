@@ -5,6 +5,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -36,9 +37,12 @@ const (
 	LeaseRelease         = "RELEASE"
 	LeaseReap            = "REAP"
 	LeaseWiden           = "WIDEN"
-	DefaultLeaseMinutes  = 60
-	MinLeaseMinutes      = 5
-	MaxLeaseMinutes      = 1440
+	// PSR-V0-032, PSR-V0-036: capacity slots of a declared resource.
+	LeaseSlotAcquire    = "SLOT_ACQUIRE"
+	LeaseSlotRelease    = "SLOT_RELEASE"
+	DefaultLeaseMinutes = 60
+	MinLeaseMinutes     = 5
+	MaxLeaseMinutes     = 1440
 	// MaxRetries is the legacy default, not the policy enforcement limit.
 	MaxRetries         = 3
 	wholeRepositoryKey = "repo"
@@ -73,6 +77,12 @@ type LeaseRequest struct {
 	// stage of a clean RELEASE; empty when not requested.
 	HandoffTo, HandoffReason string
 	Tree, Gate, Commit       string
+	// Slots names a declared capacity-slot resource (PSR-V0-030); SlotCount,
+	// SlotExclusive and SlotClass shape a SLOT_ACQUIRE. All empty otherwise.
+	Slots         string
+	SlotCount     wire.Count
+	SlotExclusive bool
+	SlotClass     string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -124,6 +134,10 @@ const (
 	fieldAuthors
 	fieldShare
 	fieldExpiry
+	fieldSlots
+	fieldSlotCount
+	fieldSlotExclusive
+	fieldSlotClass
 )
 
 type leaseShape struct{ required, allowed int }
@@ -153,10 +167,12 @@ var leaseShapes = map[string]leaseShape{
 	LeaseRunOutcome:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence},
 	LeaseEscalate:        {fieldEvidence, fieldEvidence},
 	LeaseAnswer:          {fieldEvidence, fieldEvidence},
+	LeaseSlotAcquire:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots | fieldSlotCount | fieldSlotExclusive | fieldSlotClass},
+	LeaseSlotRelease:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots},
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -180,6 +196,9 @@ func checkShape(l *LeaseRequest) error {
 	}
 	if l.Verb == LeaseWiden && (bits&fieldScope != 0) == (bits&fieldWhole != 0) {
 		return malformed("WIDEN takes paths or the whole repository, exactly one")
+	}
+	if l.SlotExclusive && bits&(fieldSlotCount|fieldSlotClass) != 0 {
+		return malformed("an exclusive slot request takes no count or class")
 	}
 	return nil
 }
@@ -299,7 +318,7 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return malformed("lease ticket names another queue")
 		}
 	}
-	if e := checkLabels(map[string]string{"holder": l.Holder, "branch": l.Branch, "pool": l.Pool, "member": l.Member}); e != nil {
+	if e := checkLabels(map[string]string{"holder": l.Holder, "branch": l.Branch, "pool": l.Pool, "member": l.Member, "slots": l.Slots, "slotClass": l.SlotClass}); e != nil {
 		return e
 	}
 	if l.Base != "" {
@@ -338,6 +357,15 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolRecover {
 		if _, e := wire.ParseProse("reason", l.Reason, 1, 4096); e != nil {
 			return e
+		}
+	}
+	if l.SlotCount != "" {
+		n, e := wire.ParseCount("slotCount", string(l.SlotCount))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > intent.MaxSlotCapacity {
+			return limit("slotCount outside 1..64")
 		}
 	}
 	if l.SweepSeconds != "" {
@@ -423,6 +451,19 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	// CAL-V0-191: likewise omitted, so every earlier REAP keeps its digest.
 	if l.LeaseExpiresAt != "" {
 		v.Obj.Set("leaseExpiresAt", s(string(l.LeaseExpiresAt)))
+	}
+	// PSR-V0-037: the slot fields join only the slot verbs' preimages.
+	if l.Slots != "" {
+		v.Obj.Set("slots", s(l.Slots))
+	}
+	if l.SlotCount != "" {
+		v.Obj.Set("slotCount", s(string(l.SlotCount)))
+	}
+	if l.SlotExclusive {
+		v.Obj.Set("slotExclusive", wire.Bool(true))
+	}
+	if l.SlotClass != "" {
+		v.Obj.Set("slotClass", s(l.SlotClass))
 	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
@@ -515,6 +556,9 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	// ESC-V0-010: a typed question or answer posts the ticket and its events.
 	LeaseEscalate: planEscalation,
 	LeaseAnswer:   planEscalation,
+	// PSR-V0-032..036: capacity slots.
+	LeaseSlotAcquire: planSlotAcquire,
+	LeaseSlotRelease: planSlotRelease,
 }
 
 func planLease(r Request, in Input, st inputState) leaseOutcome {

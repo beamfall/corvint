@@ -49,6 +49,11 @@ func loadPools(r Request, in Input, st inputState) (*snapshot.PoolState, error) 
 			}
 		}
 	}
+	for _, en := range p.Slots {
+		if st.head != nil && en.Seq.Uint64() > st.head.LastSeq.Uint64() {
+			return nil, malformed("slot sequence exceeds head")
+		}
+	}
 	if r.Operation == Lease {
 		for _, a := range st.attempts {
 			if a.Live() && a.PoolAllocation != nil {
