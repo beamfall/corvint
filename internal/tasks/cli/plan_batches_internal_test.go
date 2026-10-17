@@ -319,3 +319,86 @@ func TestNTPV0024_UnresolvableCandidateIsReportedUngrouped(t *testing.T) {
 		t.Fatalf("absent intent branch: %v", err)
 	}
 }
+
+// NTP-V0-021: a shared path is exempt only when both overlapping paths are
+// shared; a non-shared path of either candidate collides, in both orders.
+func TestNTPV0021_SharedPathCollisionIsSymmetric(t *testing.T) {
+	shared := []string{"d/"}
+	for _, c := range []struct {
+		member, cand []string
+		want         bool
+	}{
+		{[]string{"d"}, []string{"d/e"}, false},
+		{[]string{"d/e"}, []string{"d"}, false},
+		{[]string{"d/e"}, []string{"d/e"}, true},
+		{[]string{"d/e"}, []string{"d/f"}, true},
+	} {
+		grp := &batchGroup{members: []*batchCandidate{{paths: c.member}}}
+		if got := batchDisjoint(grp, &batchCandidate{paths: c.cand}, shared); got != c.want {
+			t.Fatalf("member %v candidate %v: disjoint %v, want %v", c.member, c.cand, got, c.want)
+		}
+	}
+}
+
+// NTP-V0-022: a candidate that would join an existing group is still
+// checked against the tip: B, built on the old base, merges cleanly onto
+// A's identical edit but conflicts with the tip, so it is STALE_TREE.
+func TestNTPV0022_JoiningCandidateIsCheckedAgainstTip(t *testing.T) {
+	root, base := pbRepo(t)
+	line := func(first string) string { return first + "\n2\n3\n4\n5\n6\n7\n8\n9\n10\n" }
+	tip := pbGit(t, root, nil, "commit-tree", pbTree(t, root, base, map[string]string{"CHANGELOG": line("b")}), "-p", base, "-m", "tip")
+	pbGit(t, root, nil, "update-ref", "refs/heads/main", tip)
+	a := pbTree(t, root, tip, map[string]string{"CHANGELOG": line("c")})
+	b := pbTree(t, root, base, map[string]string{"CHANGELOG": line("c")})
+	v := pbPlan(t, root, []*batchCandidate{pbCand("A", tip, a), pbCand("B", base, b)}, []string{"CHANGELOG"}, 8)
+	if got, want := pbGroups(v), [][]string{{"A"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("groups %v, want %v", got, want)
+	}
+	if got := pbList(v, "ungrouped", "ticketId", "reason"); !reflect.DeepEqual(got, [][]string{{"B", wire.CodeStaleTree}}) {
+		t.Fatalf("ungrouped %v", got)
+	}
+}
+
+// NTP-V0-022 / NTP-V0-025: repository configuration and attributes never
+// reach the dry merge, so a configured merge driver does not run.
+func TestNTPV0025_RepositoryMergeDriverDoesNotRun(t *testing.T) {
+	root, base := pbRepo(t)
+	marker := filepath.Join(t.TempDir(), "driver-ran")
+	config, err := os.OpenFile(filepath.Join(root, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.WriteString("[merge \"evil\"]\n\tdriver = touch '" + marker + "'; exit 1\n[core]\n\thooksPath = " + t.TempDir() + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	config.Close()
+	fixture.Write(t, filepath.Join(root, ".git", "info", "attributes"), []byte("* merge=evil\n"))
+	fixture.Write(t, filepath.Join(root, ".gitattributes"), []byte("* merge=evil\n"))
+	one := pbTree(t, root, base, map[string]string{"CHANGELOG": "one\n2\n3\n4\n5\n6\n7\n8\n9\n10\n"})
+	two := pbTree(t, root, base, map[string]string{"CHANGELOG": "1\n2\n3\n4\n5\n6\n7\n8\n9\nten\n"})
+	v := pbPlan(t, root, []*batchCandidate{pbCand("T1", base, one), pbCand("T2", base, two)}, []string{"CHANGELOG"}, 8)
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("the repository's merge driver ran during the read: %v", err)
+	}
+	if got, want := pbGroups(v), [][]string{{"T1", "T2"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("groups %v, want %v", got, want)
+	}
+}
+
+// NTP-V0-024: a missing tree object below the candidate's root tree leaves
+// the candidate ungrouped MISSING_EVIDENCE.
+func TestNTPV0024_MissingNestedTreeIsUngrouped(t *testing.T) {
+	root, base := pbRepo(t)
+	nested := pbTree(t, root, base, map[string]string{"n/q": "Q\n"})
+	sub := pbGit(t, root, nil, "rev-parse", nested+":n")
+	if err := os.Remove(filepath.Join(root, ".git", "objects", sub[:2], sub[2:])); err != nil {
+		t.Fatal(err)
+	}
+	v := pbPlan(t, root, []*batchCandidate{pbCand("T1", base, nested), pbCand("T2", base, pbTree(t, root, base, map[string]string{"a/x": "A\n"}))}, []string{}, 8)
+	if got, want := pbGroups(v), [][]string{{"T2"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("groups %v, want %v", got, want)
+	}
+	if got := pbList(v, "ungrouped", "ticketId", "reason"); !reflect.DeepEqual(got, [][]string{{"T1", wire.CodeMissingEvidence}}) {
+		t.Fatalf("ungrouped %v", got)
+	}
+}

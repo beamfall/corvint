@@ -2650,10 +2650,10 @@ NTP-V0-007	docs/specs/native-taskman-planning-v0.md	63	Deferral history MUST be 
 NTP-V0-008	docs/specs/native-taskman-planning-v0.md	67	Existing command/WQO behavior MUST remain intact. The new command MUST mutate no	unrecorded	-
 NTP-V0-020	docs/specs/native-taskman-planning-v0.md	79	Candidates MUST be, for each OPEN or HELD ticket, its highest-generation attempt	unrecorded	-
 NTP-V0-021	docs/specs/native-taskman-planning-v0.md	84	Each candidate's changed paths MUST be the recursive, rename-free `diff-tree` fr	unrecorded	-
-NTP-V0-022	docs/specs/native-taskman-planning-v0.md	90	Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree	unrecorded	-
-NTP-V0-023	docs/specs/native-taskman-planning-v0.md	100	`--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item	unrecorded	-
-NTP-V0-024	docs/specs/native-taskman-planning-v0.md	102	A candidate whose base commit is absent or unresolvable, or whose candidate tree	unrecorded	-
-NTP-V0-025	docs/specs/native-taskman-planning-v0.md	107	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
+NTP-V0-022	docs/specs/native-taskman-planning-v0.md	91	Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree	unrecorded	-
+NTP-V0-023	docs/specs/native-taskman-planning-v0.md	107	`--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item	unrecorded	-
+NTP-V0-024	docs/specs/native-taskman-planning-v0.md	109	A candidate whose base commit is absent or unresolvable, whose candidate tree or	unrecorded	-
+NTP-V0-025	docs/specs/native-taskman-planning-v0.md	115	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	47	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	53	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	59	After all three temporary allocations succeed, the offline-build entrypoint	unrecorded	-

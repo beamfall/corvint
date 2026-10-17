@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -26,8 +27,11 @@ const (
 	batchMaxSharedPaths   = 64
 	batchMaxConflictPaths = 16
 	batchGitOutputBytes   = 16 << 20
-	batchGitTimeout       = 2 * time.Minute
+	batchGitWaitDelay     = 2 * time.Second
 )
+
+// batchGitTimeout is the deadline of one Git run (NTP-V0-022).
+var batchGitTimeout = 2 * time.Minute
 
 // batchPhases are the attempt phases that carry a submitted or ready
 // candidate (NTP-V0-020).
@@ -161,28 +165,41 @@ func batchCandidates(inv *ticket.Inventory, attempts map[string]*snapshot.Attemp
 	return out
 }
 
-// batchGit runs Git in the primary worktree with the store's isolated
-// environment, every new object redirected into objects, the repository's
-// object store as a read-only alternate, a deadline and bounded output. It
-// returns stdout and the exit status; a timeout, signal or overflow refuses.
+// batchGit runs Git with GIT_DIR set to gitDir and no worktree, under the
+// store's isolated environment, a deadline that kills the run's process
+// group, a bounded wait for inherited pipes and bounded output. It returns
+// stdout and the exit status; an interrupt, timeout or overflow refuses.
 type batchGit struct {
-	root, objects, alternate string
+	ctx    context.Context
+	gitDir string
 }
 
 func (g batchGit) run(args ...string) ([]byte, int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), batchGitTimeout)
+	if g.ctx.Err() != nil {
+		return nil, 0, wire.Errorf(wire.CodeUnsupported, "git "+args[0], "plan batches was interrupted")
+	}
+	ctx, cancel := context.WithTimeout(g.ctx, batchGitTimeout)
 	defer cancel()
-	c := exec.CommandContext(ctx, "git", append([]string{"-c", "credential.helper=", "-c", "core.fsmonitor=false"}, args...)...)
-	c.Dir = g.root
-	c.Env = append(batchGitEnvironment(), "GIT_OBJECT_DIRECTORY="+g.objects, "GIT_ALTERNATE_OBJECT_DIRECTORIES="+g.alternate)
+	c := exec.CommandContext(ctx, "git", append([]string{"-c", "credential.helper=", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
+	c.Dir = g.gitDir
+	c.Env = append(batchGitEnvironment(), "GIT_DIR="+g.gitDir)
+	c.SysProcAttr = batchProcAttr()
+	c.Cancel = func() error { return batchKill(c.Process) }
+	c.WaitDelay = batchGitWaitDelay
 	out := &boundedBuffer{max: batchGitOutputBytes}
 	c.Stdout = out
 	err := c.Run()
 	if out.over {
 		return nil, 0, wire.Errorf(wire.CodeLimitExceeded, "git "+args[0], "git output exceeds %d bytes", batchGitOutputBytes)
 	}
+	if g.ctx.Err() != nil {
+		return nil, 0, wire.Errorf(wire.CodeUnsupported, "git "+args[0], "plan batches was interrupted")
+	}
+	if ctx.Err() != nil {
+		return nil, 0, wire.Errorf(wire.CodeUnsupported, "git "+args[0], "git did not finish within %v", batchGitTimeout)
+	}
 	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() >= 1 && ctx.Err() == nil {
+	if errors.As(err, &exit) && exit.ExitCode() >= 1 {
 		return out.buf.Bytes(), exit.ExitCode(), nil
 	}
 	if err != nil {
@@ -268,35 +285,49 @@ func nonEmpty(in []string) []string {
 }
 
 // batchPlan resolves each candidate, groups by path disjointness and confirms
-// each join with a dry chained merge (NTP-V0-021..023).
+// each join with a dry chained merge (NTP-V0-021..023). Only ref lookups
+// read the repository's Git directory; every object read, diff and merge
+// runs in a throw-away bare view whose only link to the repository is an
+// object alternate, so its configuration, attributes, hooks and index (and
+// any merge driver or filter they name) never apply. An interrupt cancels
+// the running Git, and the view is removed before the read refuses.
 func batchPlan(rc *readCtx, queueID, branch string, cands []*batchCandidate, shared []string, maxSize int) (wire.Value, error) {
+	ctx, stop := signal.NotifyContext(context.Background(), batchSignals...)
+	defer stop()
 	tmp, err := os.MkdirTemp("", "corvint-plan-batches-")
 	if err != nil {
 		return wire.Value{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "temporary object directory: %v", err)
 	}
 	defer os.RemoveAll(tmp)
-	objects := filepath.Join(tmp, "objects")
-	if err := os.Mkdir(objects, 0o700); err != nil {
-		return wire.Value{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "temporary object directory: %v", err)
+	common, err := filepath.Abs(rc.repo.CommonDir)
+	if err != nil {
+		return wire.Value{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "repository directory: %v", err)
 	}
-	g := batchGit{root: rc.repo.PrimaryWorktree, objects: objects, alternate: filepath.Join(rc.repo.CommonDir, "objects")}
+	repo := batchGit{ctx: ctx, gitDir: common}
+	view, err := batchView(repo, tmp, filepath.Join(common, "objects"))
+	if err != nil {
+		return wire.Value{}, err
+	}
 	ref := "refs/heads/" + branch
-	target, err := g.resolve(ref, "commit")
+	target, err := repo.resolve(ref, "commit")
 	if err != nil {
 		return wire.Value{}, err
 	}
 	if target == "" {
 		return wire.Value{}, wire.Errorf(wire.CodeMissingEvidence, ref, "the intent branch %s does not resolve to a commit", ref)
 	}
-	targetTree, err := g.resolve(target, "tree")
-	if err != nil || targetTree == "" {
+	targetTree, err := view.resolve(target, "tree")
+	if err != nil {
+		return wire.Value{}, err
+	}
+	if targetTree == "" {
 		return wire.Value{}, wire.Errorf(wire.CodeMissingEvidence, ref, "the intent branch tree does not resolve")
 	}
 	var groups []*batchGroup
 	var splits []batchSplit
 	var ungrouped []batchUngrouped
 	for _, c := range cands {
-		detail, err := resolveCandidate(g, c)
+		detail, err := resolveCandidate(repo, view, c)
 		if err != nil {
 			return wire.Value{}, err
 		}
@@ -304,12 +335,22 @@ func batchPlan(rc *readCtx, queueID, branch string, cands []*batchCandidate, sha
 			ungrouped = append(ungrouped, batchUngrouped{c.ticketID, c.attemptID, wire.CodeMissingEvidence, detail})
 			continue
 		}
+		// Every candidate must merge onto the tip itself, even one that
+		// would merge cleanly onto a group's accumulated tree.
+		onTip, conflicts, err := view.merge(c.base, targetTree, c.candTree)
+		if err != nil {
+			return wire.Value{}, err
+		}
+		if conflicts != nil {
+			ungrouped = append(ungrouped, batchUngrouped{c.ticketID, c.attemptID, wire.CodeStaleTree, "the candidate does not merge cleanly onto " + ref + " at " + target + ": " + strings.Join(clip(conflicts), ", ")})
+			continue
+		}
 		joined := false
 		for gi, grp := range groups {
 			if len(grp.members) >= maxSize || !batchDisjoint(grp, c, shared) {
 				continue
 			}
-			merged, conflicts, err := g.merge(c.base, grp.tree, c.candTree)
+			merged, conflicts, err := view.merge(c.base, grp.tree, c.candTree)
 			if err != nil {
 				return wire.Value{}, err
 			}
@@ -320,29 +361,51 @@ func batchPlan(rc *readCtx, queueID, branch string, cands []*batchCandidate, sha
 			grp.members, grp.tree, joined = append(grp.members, c), merged, true
 			break
 		}
-		if joined {
-			continue
+		if !joined {
+			groups = append(groups, &batchGroup{members: []*batchCandidate{c}, tree: onTip})
 		}
-		merged, conflicts, err := g.merge(c.base, targetTree, c.candTree)
-		if err != nil {
-			return wire.Value{}, err
-		}
-		if conflicts != nil {
-			ungrouped = append(ungrouped, batchUngrouped{c.ticketID, c.attemptID, wire.CodeStaleTree, "the candidate does not merge cleanly onto " + ref + " at " + target + ": " + strings.Join(clip(conflicts), ", ")})
-			continue
-		}
-		groups = append(groups, &batchGroup{members: []*batchCandidate{c}, tree: merged})
 	}
 	return batchValue(queueID, ref, target, maxSize, shared, groups, splits, ungrouped), nil
 }
 
+// batchView writes a bare repository under tmp with the repository's object
+// format, an empty object directory and the repository's objects as its
+// only alternate; nothing else of the repository is visible to it.
+func batchView(repo batchGit, tmp, alternate string) (batchGit, error) {
+	out, code, err := repo.run("rev-parse", "--show-object-format")
+	if err != nil {
+		return batchGit{}, err
+	}
+	format := strings.TrimSpace(string(out))
+	if code != 0 || (format != "sha1" && format != "sha256") {
+		return batchGit{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "the repository object format is unavailable")
+	}
+	config := "[core]\n\trepositoryformatversion = 0\n\tbare = true\n"
+	if format == "sha256" {
+		config = "[core]\n\trepositoryformatversion = 1\n\tbare = true\n[extensions]\n\tobjectformat = sha256\n"
+	}
+	view := filepath.Join(tmp, "view")
+	for _, dir := range []string{"refs", filepath.Join("objects", "info")} {
+		if err := os.MkdirAll(filepath.Join(view, dir), 0o700); err != nil {
+			return batchGit{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "temporary repository view: %v", err)
+		}
+	}
+	for name, body := range map[string]string{"HEAD": "ref: refs/heads/plan-batches\n", "config": config, filepath.Join("objects", "info", "alternates"): alternate + "\n"} {
+		if err := os.WriteFile(filepath.Join(view, name), []byte(body), 0o600); err != nil {
+			return batchGit{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "temporary repository view: %v", err)
+		}
+	}
+	return batchGit{ctx: repo.ctx, gitDir: view}, nil
+}
+
 // resolveCandidate fills the candidate's base tree, candidate tree and changed
-// paths. A nonempty detail reports it unresolvable (NTP-V0-024).
-func resolveCandidate(g batchGit, c *batchCandidate) (string, error) {
+// paths. A nonempty detail reports it unresolvable (NTP-V0-024); a Git
+// failure that is not a missing object refuses.
+func resolveCandidate(repo, view batchGit, c *batchCandidate) (string, error) {
 	if _, err := wire.ParseOID("baseCommit", c.base); err != nil {
 		return "the attempt records no base commit", nil
 	}
-	baseTree, err := g.resolve(c.base, "tree")
+	baseTree, err := view.resolve(c.base, "tree")
 	if err != nil {
 		return "", err
 	}
@@ -351,41 +414,55 @@ func resolveCandidate(g batchGit, c *batchCandidate) (string, error) {
 	}
 	candTree := ""
 	if c.tree != nil {
-		if candTree, err = g.resolve(*c.tree, "tree"); err != nil {
+		if candTree, err = view.resolve(*c.tree, "tree"); err != nil {
 			return "", err
 		}
 		if candTree == "" {
 			return "candidate tree " + *c.tree + " does not resolve in this repository", nil
 		}
 	} else {
-		if candTree, err = g.resolve("refs/heads/"+c.branch, "tree"); err != nil {
+		commit, err := repo.resolve("refs/heads/"+c.branch, "commit")
+		if err != nil {
 			return "", err
+		}
+		if commit != "" {
+			if candTree, err = view.resolve(commit, "tree"); err != nil {
+				return "", err
+			}
 		}
 		if candTree == "" {
 			return "candidate branch refs/heads/" + c.branch + " does not resolve in this repository", nil
 		}
 	}
-	out, code, err := g.run("diff-tree", "-r", "--name-only", "--no-renames", "-z", "--end-of-options", baseTree, candTree)
+	out, code, err := view.run("diff-tree", "-r", "--name-only", "--no-renames", "-z", "--end-of-options", baseTree, candTree)
 	if err != nil {
 		return "", err
 	}
 	if code != 0 {
-		return "changed paths between the base and the candidate are unavailable", nil
+		// diff-tree --name-only reads trees only: report a missing tree
+		// object, and refuse any other failure.
+		missing, mcode, err := view.run("rev-list", "--objects", "--missing=print", "--filter=blob:none", "--no-object-names", "--end-of-options", baseTree, candTree)
+		if err != nil {
+			return "", err
+		}
+		if mcode == 0 && (bytes.HasPrefix(missing, []byte("?")) || bytes.Contains(missing, []byte("\n?"))) {
+			return "a tree object between the base and the candidate is missing in this repository", nil
+		}
+		return "", wire.Errorf(wire.CodeUnsupported, "git diff-tree", "git diff-tree exited %d", code)
 	}
 	c.baseTree, c.candTree, c.paths = baseTree, candTree, nonEmpty(strings.Split(string(out), "\x00"))
 	return "", nil
 }
 
-// batchDisjoint holds when no non-shared changed path of c overlaps one of
-// the group's: equal paths, or one a directory prefix of the other.
+// batchDisjoint holds when no changed path of c overlaps one of the group's
+// (equal paths, or one a directory prefix of the other) unless both paths of
+// the overlapping pair are shared: a non-shared path of either side collides.
 func batchDisjoint(grp *batchGroup, c *batchCandidate, shared []string) bool {
 	for _, m := range grp.members {
 		for _, p := range c.paths {
-			if batchShared(p, shared) {
-				continue
-			}
 			for _, q := range m.paths {
-				if p == q || strings.HasPrefix(q, p+"/") || strings.HasPrefix(p, q+"/") {
+				overlap := p == q || strings.HasPrefix(q, p+"/") || strings.HasPrefix(p, q+"/")
+				if overlap && !(batchShared(p, shared) && batchShared(q, shared)) {
 					return false
 				}
 			}
