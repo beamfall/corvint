@@ -66,7 +66,7 @@ var leaseValueFlags = map[string]bool{
 	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 	"--lock-wait": true, "--lease-expires-at": true,
-	"--slots": true, "--count": true, "--class": true,
+	"--slots": true, "--count": true, "--class": true, "--source": true,
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait:
@@ -202,7 +202,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")

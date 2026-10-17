@@ -41,6 +41,9 @@ type PoolEntry struct {
 	// Shared lists the further bound attempts in binding order; it is
 	// written only when non-empty, so legacy bytes stay identical.
 	Shared []PoolShare
+	// Source is the approved pair `pool acquire --source` targeted
+	// (PSR-V0-081); written only when present.
+	Source *intent.PoolSource
 }
 type PoolState struct {
 	QueueID wire.QueueID
@@ -49,6 +52,9 @@ type PoolState struct {
 	// "slots" key is written only when non-empty, so legacy bytes stay
 	// identical.
 	Slots []SlotEntry
+	// Identities are the last recorded identity observation per member
+	// (PSR-V0-083); the key is written only when non-empty.
+	Identities []PoolIdentity
 }
 
 func ReadPoolAllocation(r *wire.Reader) *PoolAllocation {
@@ -78,18 +84,24 @@ func DecodePools(data []byte) (*PoolState, error) {
 	if e := r.Profile(ProfilePools); e != nil {
 		return nil, e
 	}
-	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "entries"}, "slots")...)
+	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "entries"}, "slots", "identities")...)
 	r.Field("profile").Exact(ProfilePools)
 	p := &PoolState{QueueID: r.Field("queueId").QueueID(), Entries: []PoolEntry{}}
 	seen := map[string]bool{}
 	for _, x := range r.Field("entries").Array(intent.MaxPoolMembers, true) {
-		x.Closed(wire.OptionalKeys(x.Value(), []string{"allocation", "state", "holder", "stage", "attemptId", "generation", "changedSeq", "policySha256", "requestSha256", "observationSha256", "reason", "runnerPid", "runnerStarted", "commandKind", "commandRevision", "cleanupPassed"}, "sweep", "shared")...)
+		x.Closed(wire.OptionalKeys(x.Value(), []string{"allocation", "state", "holder", "stage", "attemptId", "generation", "changedSeq", "policySha256", "requestSha256", "observationSha256", "reason", "runnerPid", "runnerStarted", "commandKind", "commandRevision", "cleanupPassed"}, "sweep", "shared", "source")...)
 		en := PoolEntry{RunnerPID: x.Field("runnerPid").Count(), RunnerStarted: x.Field("runnerStarted").Prose(0, 128), CommandKind: x.Field("commandKind").String(), CommandRevision: x.Field("commandRevision").String(), CleanupPassed: x.Field("cleanupPassed").Bool(), PoolAllocation: *ReadPoolAllocation(x.Field("allocation")), State: x.Field("state").Enum("PREPARING", "ALLOCATED", "QUARANTINED", "CLEANING"), Holder: x.Field("holder").Label(), Stage: x.Field("stage").String(), AttemptID: x.Field("attemptId").String(), Generation: x.Field("generation").Size(), ChangedSeq: x.Field("changedSeq").Size(), PolicySha256: x.Field("policySha256").Digest(), RequestSha256: x.Field("requestSha256").Digest(), ObservationSha256: x.Field("observationSha256").DigestOrNull(), Reason: x.Field("reason").Prose(0, 4096)}
 		if wire.Has(x.Value(), "sweep") {
 			en.Sweep = ReadPoolSweepOwner(x.Field("sweep"))
 		}
 		if wire.Has(x.Value(), "shared") {
 			en.Shared = readPoolShares(x.Field("shared"), p.QueueID, en)
+		}
+		if wire.Has(x.Value(), "source") {
+			en.Source = readPoolSourceOrNull(x.Field("source"))
+			if en.Source == nil {
+				x.Fail(wire.CodeMalformed, "a recorded source is a pair")
+			}
 		}
 		if en.Stage != "" {
 			x.Field("stage").Enum(intent.StageRoles...)
@@ -123,6 +135,20 @@ func DecodePools(data []byte) (*PoolState, error) {
 	if r.Err() == nil && wire.Has(v, "slots") {
 		p.Slots = readSlotEntries(r.Field("slots"), p.QueueID)
 	}
+	if r.Err() == nil && wire.Has(v, "identities") {
+		members := map[string]bool{}
+		for _, x := range r.Field("identities").Array(intent.MaxPoolMembers, true) {
+			id := readPoolIdentity(x)
+			if members[id.MemberID] || (len(p.Identities) > 0 && p.Identities[len(p.Identities)-1].MemberID > id.MemberID) {
+				x.Fail(wire.CodeMalformed, "identities are sorted by member, one per member")
+			}
+			members[id.MemberID] = true
+			p.Identities = append(p.Identities, id)
+		}
+		if len(p.Identities) == 0 {
+			r.Fail(wire.CodeMalformed, "identities must be non-empty when present")
+		}
+	}
 	return p, r.Err()
 }
 func (p *PoolState) Encode() ([]byte, error) {
@@ -144,11 +170,23 @@ func (p *PoolState) Encode() ([]byte, error) {
 			}
 			value.Obj.Set("shared", wire.Array(shares...))
 		}
+		if e.Source != nil {
+			value.Obj.Set("source", PoolSourceValue(e.Source))
+		}
 		values = append(values, value)
 	}
 	doc := wire.NewObject().Set("profile", wire.String(ProfilePools)).Set("queueId", wire.String(p.QueueID.Raw)).Set("entries", wire.Array(values...))
 	if len(p.Slots) > 0 {
 		doc.Set("slots", slotEntriesValue(p.Slots))
+	}
+	if len(p.Identities) > 0 {
+		ids := append([]PoolIdentity{}, p.Identities...)
+		sort.Slice(ids, func(i, j int) bool { return ids[i].MemberID < ids[j].MemberID })
+		values := []wire.Value{}
+		for _, x := range ids {
+			values = append(values, x.Value())
+		}
+		doc.Set("identities", wire.Array(values...))
 	}
 	raw := wire.EncodeFile(wire.ObjectValue(doc))
 	_, err := DecodePools(raw)
