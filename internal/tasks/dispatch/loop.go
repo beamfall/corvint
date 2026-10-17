@@ -108,6 +108,9 @@ type Dispatcher struct {
 	// It is never persisted: after a restart the first tick takes a new
 	// baseline and counts every non-ignored child busy.
 	childCPU map[string]childCPU
+	// treeSeen names the workers whose process tree the last supervise
+	// pass observed; the lease keeper acts only for them (CAL-V0-317).
+	treeSeen map[string]bool
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -413,6 +416,9 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 			return err
 		}
 	}
+	// CAL-V0-312: keep the leases of live keepLease workers on the
+	// observation heal acted on.
+	d.keepLeases(ctx, obs)
 	granted, pending, unparked, err := d.admitProgress(ctx, obs, ended)
 	if err != nil {
 		return err
@@ -638,6 +644,7 @@ var superviseProcs = observeProcs
 // over-wall and orphaned trees, and returns the workers whose tree is empty.
 // With no worker it reads no process table.
 func (d *Dispatcher) supervise() []*Worker {
+	d.treeSeen = map[string]bool{}
 	if len(d.ledger.Workers) == 0 {
 		return nil
 	}
@@ -679,6 +686,7 @@ func (d *Dispatcher) supervise() []*Worker {
 			w.LastActive = now
 		}
 		seen = append(seen, observed{w, exempt})
+		d.treeSeen[w.ID] = true
 	}
 	var ended []*Worker
 	for _, o := range seen {

@@ -199,7 +199,13 @@ but whose attempt's lease has been expired for longer than its role's `expiredLe
 its pool member through the usual quarantine and cleanup; only when the store reports that reap is
 the worker stopped like a wall-capped worker, with a `lease-expired` event. A running worker whose
 attempt the store holds as reaped is stopped on every tick, so a restart does not lose the stop
-(CAL-V0-191, proposed). A run that changes no durable ticket state cools the ticket down; after
+(CAL-V0-191, proposed). A role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the
+dispatcher keep the attempt of each running worker that holds one: every `intervalSeconds` it records
+the attempt heartbeat, and renews for `leaseMinutes` once the lease no longer covers two intervals.
+It writes nothing for an exited worker or one whose supervision activity (output growth,
+`activityPaths`, a busy child) is older than `maxIdleSeconds`, so that worker's lease runs out as
+above, and it stops once, with one `lease-keeper` event, when the attempt is fenced, released or
+regenerated; `dispatch status` shows each worker's `keeper` (CAL-V0-311..318). A run that changes no durable ticket state cools the ticket down; after
 `parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the

@@ -69,6 +69,9 @@ type Worker struct {
 	// from its launch to its finish, left its ticket's work state UNKNOWN
 	// (CAL-V0-272): its finish events then record that state.
 	WorkStateUnknown bool `json:"workStateUnknown,omitempty"`
+	// Keeper is the CAL-V0-315 lease keeper record of a worker whose
+	// launch role declares keepLease; absent otherwise.
+	Keeper *KeeperState `json:"keeper,omitempty"`
 }
 
 // EscalationState is the CAL-V0-057 ladder record of one ticket: the
@@ -163,7 +166,7 @@ type OpenRequest struct {
 	RecordedAt string `json:"recordedAt"`
 }
 
-// Ledger is the dispatcher's private taskman-dispatch-state/5 file. It is
+// Ledger is the dispatcher's private taskman-dispatch-state/6 file. It is
 // never an input to the native store. Version 1 added the CAL-V0-127 config
 // record and the CAL-V0-125 CPU sample fields to version 0 (CAL-V0-131);
 // version 2 added the CAL-V0-156 budget history and the worker effort and
@@ -359,15 +362,17 @@ func ledgerFormat(raw []byte, members map[string]json.RawMessage) (drained strin
 // (CAL-V0-160); version 3 added the CAL-V0-185 stall counts; version 4
 // added each count's TOL-V0-021 high-water baseline and the TOL-V0-017
 // observed obligation counts; version 5 added the CAL-V0-270 work-state
-// health and the worker's CAL-V0-272 mark.
+// health and the worker's CAL-V0-272 mark; version 6 added the worker's
+// CAL-V0-315 lease keeper record.
 var laterMembers = map[string]map[reflect.Type][]string{
 	drainedStateProfile: {
 		reflect.TypeFor[Ledger](): {"budget", "stall", "workState"},
-		reflect.TypeFor[Worker](): {"effort", "usage", "workStateUnknown"},
+		reflect.TypeFor[Worker](): {"effort", "usage", "workStateUnknown", "keeper"},
 	},
-	drainedState2Profile: {reflect.TypeFor[Ledger](): {"stall", "workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
-	drainedState3Profile: {reflect.TypeFor[StallState](): {"witnessed"}, reflect.TypeFor[Seen](): {"obligations"}, reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
-	drainedState4Profile: {reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown"}},
+	drainedState2Profile: {reflect.TypeFor[Ledger](): {"stall", "workState"}, reflect.TypeFor[Worker](): {"workStateUnknown", "keeper"}},
+	drainedState3Profile: {reflect.TypeFor[StallState](): {"witnessed"}, reflect.TypeFor[Seen](): {"obligations"}, reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown", "keeper"}},
+	drainedState4Profile: {reflect.TypeFor[Ledger](): {"workState"}, reflect.TypeFor[Worker](): {"workStateUnknown", "keeper"}},
+	drainedState5Profile: {reflect.TypeFor[Worker](): {"keeper"}},
 }
 
 // exactLedger walks the ledger's JSON tokens against the Ledger type, because
@@ -654,6 +659,9 @@ func LoadLedger(dir, program string) (*Ledger, error) {
 		if err := w.Usage.validate(); err != nil {
 			return nil, fmt.Errorf("dispatch state: worker %s: %w", w.ID, err)
 		}
+		if err := w.Keeper.validate(); err != nil {
+			return nil, fmt.Errorf("dispatch state: worker %s: %w", w.ID, err)
+		}
 	}
 	if drained == drainedState2Profile {
 		if err := provenGone(l.Workers, drained, program); err != nil {
@@ -759,7 +767,9 @@ func strictProgressJSON(raw []byte) bool {
 			case "sweep-result":
 				fields = []string{"pending", "evidence", "receipt", "receiptSeq", "outcome"}
 			case "worker":
-				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model", "effort", "usage", "workStateUnknown"}
+				fields = []string{"id", "role", "host", "slot", "key", "ticket", "pool", "member", "pid", "leaderIdentity", "members", "started", "lastActive", "logBytes", "activityPaths", "activityMtime", "state", "killReason", "killDeadline", "fingerprint", "baseFingerprint", "progressDigest", "tier", "model", "effort", "usage", "workStateUnknown", "keeper"}
+			case "keeper":
+				fields = []string{"state", "attempt", "generation", "reason", "due", "lastKept", "lastAction", "renewals", "heartbeats", "failing"} // CAL-V0-315
 			case "usage":
 				fields = []string{"format", "offset", "input", "output", "records", "lost", "malformed", "failed", "skipping", "open", "stopped"}
 			case "budget":
@@ -811,7 +821,7 @@ func strictProgressJSON(raw []byte) bool {
 						child = "config-refusal"
 					}
 				case "worker":
-					if key == "members" || key == "usage" {
+					if key == "members" || key == "usage" || key == "keeper" {
 						child = key
 					}
 				case "budget":
@@ -1161,7 +1171,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled", "lease-expired", "reader-recovered"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled", "lease-expired", "reader-recovered", "lease-keeper"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.
