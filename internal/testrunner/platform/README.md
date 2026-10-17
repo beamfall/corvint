@@ -118,3 +118,7 @@ Robolectric requires prepared compiled classes/runtime jars, pinned Console jar
 and the exact pinned API-35 android-all-instrumented artifact for Robolectric
 4.16.1. The fixed invocation sets offline mode and enabledSdks=35. Other SDKs,
 resource/application variants and complete dependency closure remain unqualified.
+A JUnit Vintage `[runner:…]` leaf with no outcome is never a pass. This is how a class whose
+`@Config(sdk=…)` lies outside enabledSdks is reported, with every child filtered out. It
+becomes `CONTAINER_WITHOUT_TESTS`, and the observation is incomplete. This applies to
+robolectric and junit4 (TRE-V0-077).
