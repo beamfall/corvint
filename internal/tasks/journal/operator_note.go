@@ -119,12 +119,10 @@ func (n *noteAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 		for i, t := range n.tickets {
 			pre, known := n.st.notes.refs[t.path]
 			if !known && t.prior.seq != "" {
-				// A checkpoint-resumed read cannot see a reference posted
-				// before its checkpoint; the complete audit binds it. A
-				// writer resume binds it to the reference its checkpoint
-				// carries, and otherwise declines (CAL-V0-116, proposed).
-				if w := n.st.elided; w != nil && t.raw != nil && t.prior.seq.Uint64() <= w.Seq.Uint64() && !w.sameNote(t.path, posts[i]) {
-					return errCheckpoint(t.path, "note reference differs from the writer checkpoint")
+				if t.raw != nil {
+					if err := n.prefixReference(t, posts[i]); err != nil {
+						return err
+					}
 				}
 				continue
 			}
@@ -222,13 +220,45 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	return nil
 }
 
+// prefixReference binds the note reference of a ticket post whose prior
+// afterimage a resumed walk did not walk: it was last posted at or before the
+// checkpoint. A writer resume compares it with the reference its checkpoint
+// carries (CAL-V0-116); a read resume reads that prior afterimage from the
+// one receipt that posted it, bound to the checkpoint entry digest
+// (ON-V0-013). Any difference declines the checkpoint, so the complete audit
+// classifies the change; it never passes unverified. A complete walk, or a
+// prior that is a deletion, has no earlier reference to bind.
+func (n *noteAudit) prefixReference(t notePost, post *ticket.OperatorNoteReference) error {
+	if n.st.resumed == 0 || t.prior.digest == nil || t.prior.seq.Uint64() > n.st.resumed {
+		return nil
+	}
+	if w := n.st.elided; w != nil && t.prior.seq.Uint64() <= w.Seq.Uint64() {
+		if !w.sameNote(t.path, post) {
+			return errCheckpoint(t.path, "note reference differs from the writer checkpoint")
+		}
+		return nil
+	}
+	raw, err := n.prePost(t.prior, t.path)
+	if err != nil {
+		return err
+	}
+	pre, err := ticket.Decode(raw)
+	if err != nil {
+		return errCheckpoint(t.path, "checkpoint pre-state does not bind: "+err.Error())
+	}
+	if !sameReference(pre.OperatorNote, post) {
+		return errCheckpoint(t.path, "note reference differs from the checkpoint pre-state")
+	}
+	return nil
+}
+
 // prePost is priorPost for a note transition's pre-state. A resumed walk
 // reads a pre-state last posted at or before its checkpoint from that one
 // prefix receipt, bound by the checkpoint entry's digest rather than by the
 // chain it does not walk (ON-V0-013); any failure there declines the
 // checkpoint, so the complete audit classifies the prefix.
 func (n *noteAudit) prePost(prior latest, path string) ([]byte, error) {
-	raw, err := n.r.priorPost(prior, path)
+	raw, err := n.r.priorPost(prior, path, n.st.generation)
 	if err != nil && n.st.resumed != 0 && prior.seq != "" && prior.seq.Uint64() <= n.st.resumed {
 		return nil, errCheckpoint(path, "checkpoint pre-state does not bind: "+err.Error())
 	}
@@ -236,8 +266,11 @@ func (n *noteAudit) prePost(prior latest, path string) ([]byte, error) {
 }
 
 // priorPost re-reads the exact retained afterimage a canonical latest names
-// from the receipt that posted it; its digest binds the bytes.
-func (r Reader) priorPost(prior latest, path string) ([]byte, error) {
+// from the receipt that posted it; its digest binds the bytes. The receipt
+// must also hold the chain position the complete audit checks for it: its
+// own sequence, a previous digest exactly when it is not receipt 1, and a
+// head generation no later than the walk's (ON-V0-014).
+func (r Reader) priorPost(prior latest, path string, generation uint64) ([]byte, error) {
 	if prior.seq == "" || prior.digest == nil {
 		return nil, noteForked(path, "no audited prior afterimage")
 	}
@@ -252,6 +285,9 @@ func (r Reader) priorPost(prior latest, path string) ([]byte, error) {
 	rc, err := snapshot.DecodeReceipt(raw)
 	if err != nil {
 		return nil, err
+	}
+	if rc.Seq != prior.seq || (rc.Prev == nil) != (prior.seq.Uint64() == 1) || rc.HeadGeneration.Uint64() > generation {
+		return nil, noteForked(path, "prior receipt sequence/prev/generation differs from its chain position")
 	}
 	for _, p := range rc.Post {
 		if p.Path == path && equalDigest(p.Sha256, prior.digest) {

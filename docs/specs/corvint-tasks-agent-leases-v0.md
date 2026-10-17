@@ -1074,7 +1074,8 @@ how much of it a read must replay, never what a read may conclude.
   `ON-V0-013` in [operator notes](corvint-tasks-operator-notes-v0.md) (V1-1650): a tail note
   event's pre-ticket and pre-policy are read from the receipt that last posted each, bound to the
   checkpoint entry digest, so the replay reads at most two receipts before the checkpoint per note
-  event.
+  event, plus one per ticket first posted in the tail by another receipt, whose note reference it
+  binds the same way.
 
 The checkpoint has the same local trust as the journal directory it sits beside and no more:
 its entries and semantic coverage are not re-derived from the receipts before its sequence. A

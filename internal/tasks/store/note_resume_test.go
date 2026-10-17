@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -214,6 +215,9 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 		{"prefix-post-digest", func(t *testing.T, repo *intent.Repository, path string, prior uint64) {
 			editReceipt(t, repo, prior, func(v wire.Value) { retitle(postOf(t, v, path), true) })
 		}, "checkpoint pre-state does not bind", wire.CodeJournalForked},
+		{"prefix-seq", func(t *testing.T, repo *intent.Repository, _ string, prior uint64) {
+			editReceipt(t, repo, prior, func(v wire.Value) { v.Obj.Set("seq", wire.String(strconv.FormatUint(prior+1, 10))) })
+		}, "checkpoint pre-state does not bind", wire.CodeJournalForked},
 		{"prefix-elided", func(t *testing.T, repo *intent.Repository, _ string, prior uint64) {
 			editReceipt(t, repo, prior, func(v wire.Value) { v.Obj.Set("profile", wire.String(snapshot.ProfileElidedReceipt)) })
 		}, "checkpoint pre-state does not bind", "oracle"},
@@ -312,6 +316,160 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 			t.Fatalf("write: %+v %v %v", run.rep, run.err, run.stages)
 		}
 	})
+}
+
+// ON-V0-013/ON-V0-014 (proposed): the read and writer resumes bind the
+// same prefix state and decline the same forged tails, so neither passes
+// what the complete audit refuses. Each forgery is made after both
+// checkpoints hold ticket A's note:
+//   - a tail REFINE of A drops its note reference without a note event, with
+//     its digest and projection rewritten, followed by a valid note on B;
+//   - the prefix receipt that last posted B's pre-note afterimage carries
+//     another sequence, its posted record and digest unchanged.
+//
+// The read resume falls back and the complete audit refuses JOURNAL_FORKED;
+// the writer route declines and the complete route refuses the same way,
+// publishing nothing.
+func TestONV0014_ReadAndWriterResumesBindPrefixState(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name     string
+		forge    func(t *testing.T, repo *intent.Repository, a, b string, cp *journal.Checkpoint)
+		declined string
+	}{
+		{"reference-dropped-without-event", func(t *testing.T, repo *intent.Repository, a, b string, _ *journal.Checkpoint) {
+			noteOn(t, repo, b, "tail-note-b")
+			projection := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", strings.TrimPrefix(a, "intent/tickets/"))
+			rec, err := ticket.Decode(mustReadFile(t, projection))
+			if err != nil {
+				t.Fatal(err)
+			}
+			refine := historyObject(
+				"profile", wire.String(mutation.Profile),
+				"requestId", wire.String("tail-refine-a"),
+				"actor", historyObject("id", wire.String(historyActor.ID), "role", wire.String(historyActor.Role)),
+				"queueId", wire.String(fixture.QueueID),
+				"targetId", wire.String(rec.TicketID.Raw),
+				"expectedRevision", wire.String(string(rec.Revision)),
+				"operation", wire.String(mutation.OpRefine),
+				"payload", historyObject("title", wire.String("Refined in the tail")),
+				"issuedAt", wire.String("2026-09-07T12:00:00Z"),
+			)
+			if run := stagedWrite(writerEnvelope(repo, wire.EncodeFile(refine), WallClock()), nil); !run.completed() || !run.fast() {
+				t.Fatalf("refine: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			editReceipt(t, repo, headSeqOf(t, repo), func(v wire.Value) {
+				post := postOf(t, v, a)
+				record, _ := post.Get("record")
+				if _, ok := record.Obj.Get("operatorNote"); !ok {
+					t.Fatal("tail REFINE does not carry the note reference")
+				}
+				delete(record.Obj.Vals, "operatorNote")
+				keys := record.Obj.Keys[:0]
+				for _, k := range record.Obj.Keys {
+					if k != "operatorNote" {
+						keys = append(keys, k)
+					}
+				}
+				record.Obj.Keys = keys
+				raw := wire.EncodeFile(record)
+				post.Set("sha256", wire.String(string(wire.Sum(raw))))
+				historyWrite(t, projection, raw)
+			})
+		}, "note reference differs from the writer checkpoint"},
+		{"prefix-receipt-sequence", func(t *testing.T, repo *intent.Repository, _, b string, cp *journal.Checkpoint) {
+			noteOn(t, repo, b, "tail-note-b")
+			var prior uint64
+			for _, e := range cp.Entries {
+				if e.Path == b {
+					prior = e.Seq.Uint64()
+				}
+			}
+			editReceipt(t, repo, prior, func(v wire.Value) {
+				v.Obj.Set("seq", wire.String(strconv.FormatUint(prior+1, 10)))
+			})
+		}, "checkpoint pre-state does not bind"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			repo := writerStore(t, 70)
+			entries, err := os.ReadDir(filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets"))
+			if err != nil || len(entries) < 2 {
+				t.Fatalf("tickets: %v", err)
+			}
+			a, b := "intent/tickets/"+entries[0].Name(), "intent/tickets/"+entries[1].Name()
+			noteOn(t, repo, a, "prefix-note-a")
+			// Re-base the writer checkpoint past A's note, and take the read
+			// checkpoint from the same settled journal.
+			if err := os.Remove(journal.WriterCheckpointPath(repo.StateDir)); err != nil {
+				t.Fatal(err)
+			}
+			if run := writerMutate(t, repo, "note-rebase", nil); !run.completed() || run.fast() {
+				t.Fatalf("rebase: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			cp := readResume(t, repo, nil).Checkpoint()
+			tc.forge(t, repo, a, b, cp)
+
+			res, err := readResumeErr(t, repo, cp)
+			if wire.CodeOf(err) != wire.CodeJournalForked || (res != nil && res.Mode == journal.ModeCheckpoint) {
+				t.Fatalf("read from the checkpoint: %+v %v, want the complete audit's %s", res, err, wire.CodeJournalForked)
+			}
+			if _, full := readResumeErr(t, repo, nil); wire.CodeOf(full) != wire.CodeJournalForked {
+				t.Fatalf("complete audit: %v", full)
+			}
+
+			before := mutationPublished(t, repo)
+			write := writerCreate(repo, "after-"+tc.name, WallClock())
+			run := stagedWrite(write, nil)
+			if run.fast() || !strings.Contains(run.declined(), tc.declined) || run.completed() || wire.CodeOf(run.err) != wire.CodeJournalForked {
+				t.Fatalf("write: %+v %v %v", run.rep, run.err, run.stages)
+			}
+			if after := mutationPublished(t, repo); after != before {
+				t.Fatalf("published %s, before %s", after, before)
+			}
+			sameDecision(t, run, writerOracle(t, repo, write))
+		})
+	}
+}
+
+// noteOn sets a note on the ticket at path through the writer route.
+func noteOn(t *testing.T, repo *intent.Repository, path, id string) {
+	t.Helper()
+	target := fixture.TicketID(strings.TrimSuffix(strings.TrimPrefix(path, "intent/tickets/"), ".json"))
+	if run := stagedWrite(writerEnvelope(repo, writerNoteEnvelope(id, target, "0", "Note "+id+"."), WallClock()), nil); !run.completed() || !run.fast() || run.declined() != "" {
+		t.Fatalf("%s: %+v %v %v", id, run.rep, run.err, run.stages)
+	}
+}
+
+func mustReadFile(t *testing.T, path string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// readResumeErr audits repo's journal from cp, or completely when cp is nil.
+func readResumeErr(t *testing.T, repo *intent.Repository, cp *journal.Checkpoint) (*journal.Result, error) {
+	t.Helper()
+	head, err := readHead(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := journalReader(repo, head)
+	reader.Checkpoint = cp
+	return reader.Audit()
+}
+
+func readResume(t *testing.T, repo *intent.Repository, cp *journal.Checkpoint) *journal.Result {
+	t.Helper()
+	res, err := readResumeErr(t, repo, cp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
 }
 
 // TestONV0012_NoteInterleavedHistoryProfile is an opt-in profile, not a

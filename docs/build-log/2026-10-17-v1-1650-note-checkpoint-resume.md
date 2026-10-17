@@ -116,3 +116,50 @@ extrapolates to roughly 57 s at 47k and matches the issue's 45 s. A "before" run
   change still relies on are the CAL-V0-116 writer decline list and the CAL-V0-061 tail rule. The
   journal hunks cite the amended CAL-V0-116 decline list in the citation plan. Omission is not a
   claim that those constraints hold; the focused tests above are the evidence.
+
+## Review round 1 (Codex)
+
+- P1: the read resume skipped a tail post of a ticket whose prior reference it did not know. A
+  forged tail REFINE that dropped a prefix note reference, followed by a valid note event for
+  another ticket, kept `CHECKPOINT_PLUS_TAIL`; the complete audit and the writer route (through the
+  writer checkpoint's note reference) refused it as JOURNAL_FORKED. The read now binds that
+  reference from the one prefix receipt the checkpoint entry names, by digest, and falls back on a
+  difference (ON-V0-013). `TestONV0014_ReadAndWriterResumesBindPrefixState` asserts the read and
+  writer resumes refuse the same forged tails, with the no-checkpoint decision as oracle.
+- P2: a prefix receipt with another `seq` but the same posted record and digest was accepted on both
+  resumed routes. The prefix receipt's sequence, previous-digest presence and head generation are
+  now checked against its chain position (ON-V0-014). Its previous digest's value is not
+  verifiable without reading the receipt before it, and stays unchecked on resumed routes; the
+  complete audit checks it.
+- Cost: the read resume now reads one prefix receipt for each ticket first posted in its tail by a
+  non-note receipt. This was not re-measured.
+- Both regression tests failed with the round-0 `operator_note.go` (the read stayed in checkpoint
+  mode; the writer completed the prefix-seq case fast) and pass with the fix.
+
+## Concurrent note writes (issue comment, LOCK_TIMEOUT)
+
+The issue reported that at about 47.9k receipts, 9 concurrent `ticket note set` calls from
+separate processes, each on its own ticket, left 5 failing with LOCK_TIMEOUT. Each write held the
+store lock for a complete audit.
+
+Profile: `TestONV0012_ConcurrentNoteWritesAfterNote`, run with `CORVINT_TASKS_NOTE_CONCURRENCY` and
+`CORVINT_TASKS_HISTORY_SIZES`.
+
+- Setup: a CREATE and then a NOTE_SET on the first ticket.
+- Then 9 processes re-executing the test binary (fresh processes, as CLI calls are) are released at
+  the same instant. Each sets a note on a different ticket last posted in the prefix.
+- The test fails on any LOCK_TIMEOUT or any write that does not commit.
+- Per-write wall times include waiting for the store lock.
+
+| receipts | build | committed | LOCK_TIMEOUT | writer declines | per-write wall, min / max ms | report load (1/5/15 min) |
+|---|---|---|---|---|---|---|
+| 2000 | before (journal at the lane base) | 4 | 5 | 4 (note pre-state precedes the checkpoint) | 15449 / 31413 | 70.4 63.3 59.6 |
+| 2000 | after | 9 | 0 | 0 | 668 / 6631 | 53.9 57.8 55.4 |
+| 20000 | after | 9 | 0 | 0 | 153 / 1516 | 56.7 61.2 59.6 |
+| 47000 | after | 9 | 0 | 0 | 986 / 9183 | 60.9 55.5 56.4 |
+
+The "before" row reproduces the issue's 5 of 9 at 2000 receipts. Each complete audit took about
+15 s under load, so the queue passed the 30 s lock wait. After the fix, the last of the nine writes
+commits within 9.2 s at 47k receipts. A first 47k attempt was killed by the 580 s command bound
+during fixture setup, under the load of other lanes, and wrote no result. The retry completed in
+442 s.
