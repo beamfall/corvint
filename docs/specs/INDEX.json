@@ -3670,5 +3670,20 @@
       "tools/test-commands-check",
       "tools/test-commands-run"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-closeout-debt-v0.md",
+    "title": "Corvint Tasks closeout debt V0",
+    "reqPrefix": "TCD-V0",
+    "intent": "TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615)",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/cli",
+      "internal/tasks/store"
+    ]
   }
 ]
