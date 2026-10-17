@@ -6881,8 +6881,8 @@ refusals on tamper or corruption, receipts and ordering stay the same.
   commit, not only at the resumed audit. Under the writer lock, after modelling and after the head,
   intent and branch rebind, a resumed write MUST run the CAL-V0-332 base checks again against the
   files as they are then, with each request shard listed afresh. It MUST do this before it reports a
-  result, retains a checkpoint or publishes anything. Any difference declines the resume as in
-  CAL-V0-332.
+  result, retains a checkpoint or publishes anything. As in CAL-V0-332, any difference declines the
+  resume.
 - `CAL-V0-337`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
   amendment) The base checks of CAL-V0-332 and CAL-V0-336 read through a read lifetime of their own.
   A failed close of that lifetime, or of any file or directory read within it, is a cleanup failure,
