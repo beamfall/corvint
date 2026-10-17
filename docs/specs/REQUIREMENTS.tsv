@@ -304,6 +304,16 @@ AMAP-V0-079	docs/specs/application-map-v0.md	571	When NAME in `createBrowserRout
 AMAP-V0-080	docs/specs/application-map-v0.md	586	`flows appmap entries` MUST accept an optional `--ledger FILE` naming an	unrecorded	-
 AMAP-V0-081	docs/specs/application-map-v0.md	594	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
 AMAP-V0-082	docs/specs/application-map-v0.md	603	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
+AMAP-V0-090	docs/specs/application-map-v0.md	609	`flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --ful	unrecorded	-
+AMAP-V0-091	docs/specs/application-map-v0.md	617	References MUST be read from dotted calls in the map's test files with the	unrecorded	-
+AMAP-V0-092	docs/specs/application-map-v0.md	626	A whole string literal argument MUST be an `exact` value. A template with a	unrecorded	-
+AMAP-V0-093	docs/specs/application-map-v0.md	636	A route reference MUST be checked against the map's resolved, non-abstract	unrecorded	-
+AMAP-V0-094	docs/specs/application-map-v0.md	644	Selector and endpoint names MUST be checked at name level only: an exact name is	unrecorded	-
+AMAP-V0-095	docs/specs/application-map-v0.md	653	Known false-positive classes MUST be labelled on the miss: `catch-all-route`	unrecorded	-
+AMAP-V0-096	docs/specs/application-map-v0.md	659	Each miss MUST report its `kind` (`route`, `selector`, `endpoint`), `value`,	unrecorded	-
+AMAP-V0-097	docs/specs/application-map-v0.md	667	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
+AMAP-V0-098	docs/specs/application-map-v0.md	673	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
+AMAP-V0-099	docs/specs/application-map-v0.md	676	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-

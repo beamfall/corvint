@@ -41,6 +41,9 @@ type token struct {
 	unsure bool
 	// glued marks punctuation written directly after other punctuation (the second `+` of `++`).
 	glued bool
+	// regex is a regular-expression literal's source, slashes and flags included; the token is
+	// otherwise an inexact empty string (AMAP-V0-092).
+	regex string
 }
 
 // literal reports whether t is a string or substitution-free template whose value is exact.
@@ -240,7 +243,7 @@ func lexJS(text string) ([]token, string) {
 			}
 			blank(i+1, j-1)
 			// A regex is a value but never a literal string: a pattern is not the text it matches.
-			toks = append(toks, token{kind: tokString, text: "", line: line, inexact: true})
+			toks = append(toks, token{kind: tokString, text: "", line: line, inexact: true, regex: text[i:j]})
 			i = j
 		case isIdentStart(c):
 			j := i + 1
