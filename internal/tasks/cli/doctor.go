@@ -63,6 +63,15 @@ var (
 		"SETUP_ONLY_PROOF":    "Witness the core obligations or reopen the ticket; its completion proved only setup.",
 		"FALSE_IDLE":          "The session's process tree is busy while its heartbeat is stale; inspect the run before reaping or relaunching.",
 		"PLUGIN_FAILED":       "Fix or remove the project plugin named in `who`.",
+		"QUEUE_LOCK_HELD":     "Inspect the named process; if it is wedged, stop it so the queue lock is released, then rerun the doctor.",
+		"SLOW_QUEUE_COMMAND":  "Inspect the named command; a queue command this slow is usually waiting on the lock or a large journal read.",
+		"NO_COMPLETIONS":      "Ready tickets and free capacity exist but nothing completed; check the dispatcher and the workers' recent output.",
+		"FD_PRESSURE":         "Close idle sessions or raise the system file limit before launches start failing.",
+		"NOTIFY_FAILED":       "Fix the notify hook named in the doctor config; the doctor retries it at the next change of findings.",
+		"HOST_RETRY_STORM":    "The host keeps restarting turns without finishing one; check its provider limits and the worker's stdout.log lines cited.",
+		"HOST_ERRORS":         "The host reported repeated errors; read the cited stdout.log lines before relaunching the worker.",
+		"EARLY_REFUSAL":       "The session's first tool calls were all refused; check the worker's sandbox and permission profile.",
+		"WORK_STATE_FAILING":  "The dispatcher cannot read its work-state source; run dispatch status and repair the source named in lastError.",
 	}
 )
 
@@ -107,24 +116,30 @@ type doctorScan struct {
 	lanesTotal      int
 	runningSessions int
 	completions24h  string
+	// dispatchers is each configured dispatcher's work-state health
+	// (TQD-V0-031), in configuration order.
+	dispatchers []wire.Value
 	// elidedBases caches, per attempt path, the retained record an elided
 	// liveness receipt in the walk restores from (CAL-V0-300).
 	elidedBases map[string]doctorBase
 }
 
 func doctorUsage() error {
-	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR], or --line alone")
+	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR] [--config FILE], or --line alone")
 }
 
 func doctorCommand(env Env, args []string) *wire.Result {
 	cmd := []string{"doctor"}
-	refresh, plugins, pluginsSet := false, "", false
+	refresh, plugins, pluginsSet, configPath := false, "", false, ""
 	for i := 0; i < len(args); i++ {
 		switch a := args[i]; {
 		case a == "--refresh" && !refresh:
 			refresh = true
 		case a == "--plugins" && !pluginsSet && i+1 < len(args) && args[i+1] != "" && !strings.HasPrefix(args[i+1], "--"):
 			plugins, pluginsSet = args[i+1], true
+			i++
+		case a == "--config" && configPath == "" && i+1 < len(args) && args[i+1] != "" && !strings.HasPrefix(args[i+1], "--"):
+			configPath = args[i+1]
 			i++
 		default:
 			return failure(cmd, nil, doctorUsage())
@@ -139,6 +154,16 @@ func doctorCommand(env Env, args []string) *wire.Result {
 			return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--plugins", "plugin directory %q is not a directory", given))
 		}
 	}
+	cfg := defaultDoctorConfig()
+	if configPath != "" {
+		if !filepath.IsAbs(configPath) {
+			configPath = filepath.Join(env.Cwd, configPath)
+		}
+		var err error
+		if cfg, err = readDoctorConfig(configPath); err != nil {
+			return failure(cmd, nil, err)
+		}
+	}
 	scan := &doctorScan{}
 	var findings []doctorFinding
 	// The inventory read admits an absent journal so that a store with valid
@@ -147,29 +172,67 @@ func doctorCommand(env Env, args []string) *wire.Result {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		*scan = doctorScan{}
 		var e error
-		findings, e = doctorStoreFindings(rc, scan)
+		findings, e = doctorStoreFindings(rc, scan, cfg.thresholds)
 		return e
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
 	findings = append(findings, doctorFalseIdle(rc.repo, scan)...)
+	findings = append(findings, doctorLockFindings(rc.repo.CommonDir, cfg.thresholds, scan)...)
+	findings = append(findings, doctorFDPressure(cfg.thresholds, scan)...)
+	findings = append(findings, doctorDispatchers(cfg, scan)...)
 	if pluginsSet {
 		findings = append(findings, doctorPlugins(plugins, rc.repo.PrimaryWorktree)...)
 	}
 	cacheDir := filepath.Join(rc.repo.CommonDir, doctorCacheDirName)
-	carry, cerr := doctorCarry(filepath.Join(cacheDir, doctorCacheFileName))
-	item := doctorItem(rc, scan, findings, carry, doctorProfile, 0)
+	cachePath := filepath.Join(cacheDir, doctorCacheFileName)
+	carry, cerr := doctorCarry(cachePath)
 	if refresh {
 		// A cache written by a later build is never replaced (TQD-V0-011).
 		if wire.CodeOf(cerr) == wire.CodeUnsupportedVersion {
 			return failure(cmd, rc, cerr)
 		}
-		cache := doctorItem(rc, scan, findings, carry, doctorCacheProfile, doctorCacheBytes)
-		if e := writeDoctorCache(rc.repo.CommonDir, wire.EncodeFile(cache)); e != nil {
+		// The notify decision is made under the cache lock against the
+		// cache's current notify state (TQD-V0-026).
+		reported := findings
+		render := func(prev []byte) ([]byte, error) {
+			reported = findings
+			if cfg.notify == nil {
+				// A refresh without a hook keeps the recorded notify state,
+				// so a later configured refresh neither reruns the hook for
+				// a set it already ran for nor loses a recorded failure.
+				if !doctorHasNotify(prev) {
+					return wire.EncodeFile(doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes)), nil
+				}
+				cache := doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes-4096)
+				cache.Obj.Set("notify", doctorNotifyStateOf(prev).value())
+				return wire.EncodeFile(cache), nil
+			}
+			summary := wire.EncodeFile(doctorItem(rc, scan, findings, carry, doctorProfile, 0))
+			st := doctorNotifyStep(cfg.notify, doctorNotifyStateOf(prev), doctorFindingSet(findings), scan.observedAt, summary, rc.repo.PrimaryWorktree)
+			if st.failure != "" {
+				reported = append(append([]doctorFinding{}, findings...), doctorNotifyFinding(st.failure))
+			}
+			// The notify member is at most a few hundred bytes; the bound
+			// leaves room for it.
+			cache := doctorItem(rc, scan, reported, carry, doctorCacheProfile, doctorCacheBytes-4096)
+			cache.Obj.Set("notify", st.value())
+			return wire.EncodeFile(cache), nil
+		}
+		if e := writeDoctorCache(rc.repo.CommonDir, render); e != nil {
 			return failure(cmd, rc, e)
 		}
+		findings = reported
+	} else if cfg.notify != nil {
+		// A plain doctor re-emits the last recorded hook failure.
+		if raw, err := readBounded(cachePath, doctorCacheBytes); err == nil {
+			if st := doctorNotifyStateOf(raw); st.failure != "" {
+				findings = append(findings, doctorNotifyFinding(st.failure))
+			}
+		}
 	}
+	item := doctorItem(rc, scan, findings, carry, doctorProfile, 0)
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	res.Untrusted = pluginsSet
@@ -179,7 +242,7 @@ func doctorCommand(env Env, args []string) *wire.Result {
 
 // doctorStoreFindings reads everything the doctor needs from the store
 // inside one TM-V0-008 read; process and plugin probes run after it.
-func doctorStoreFindings(rc *readCtx, scan *doctorScan) ([]doctorFinding, error) {
+func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]doctorFinding, error) {
 	if rc.journalAbsent {
 		return nil, wire.Errorf(wire.CodeMissingEvidence, "journal", "no journal: the doctor reads journal history")
 	}
@@ -223,20 +286,35 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan) ([]doctorFinding, error)
 	if v, ok := counts.Obj.Get("last24Hours"); ok {
 		scan.completions24h = v.Str
 	}
-	src := journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}
+	// One read session serves the whole scan, so each receipt and blob read
+	// is one openat beneath pinned parents (TQD-V0-033).
+	src, closeSrc := doctorJournalSource(journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()})
+	defer func() {
+		if err := closeSrc(); err != nil {
+			scan.warnings = append(scan.warnings, prose("doctor journal read session close: "+err.Error()))
+		}
+	}()
 	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
 	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc))...)
 	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
+	out = append(out, doctorNoCompletions(rc, in, th, scan)...)
 	return out, nil
+}
+
+// doctorJournalSource opens the scan's journal source; a test swaps in
+// per-read sessions to measure the TQD-V0-033 cost.
+var doctorJournalSource = func(n journal.Native) (journal.Source, func() error) {
+	s := n.Session()
+	return s, s.Close
 }
 
 // doctorScanReceipts walks receipts backward from the head within the
 // receipt and time bounds (TQD-V0-004). Any unreadable or unverifiable
 // receipt stops the walk and marks it truncated.
-func doctorScanReceipts(src journal.Native, head uint64, scan *doctorScan) {
+func doctorScanReceipts(src journal.Source, head uint64, scan *doctorScan) {
 	scan.head = head
 	cutoff := scan.observedAt.Add(-doctorWindow)
 	var events []doctorEvent
@@ -265,7 +343,7 @@ func doctorScanReceipts(src journal.Native, head uint64, scan *doctorScan) {
 	scan.events = events
 }
 
-func doctorReadReceipt(src journal.Native, seq uint64, scan *doctorScan) (doctorEvent, time.Time, error) {
+func doctorReadReceipt(src journal.Source, seq uint64, scan *doctorScan) (doctorEvent, time.Time, error) {
 	ev := doctorEvent{seq: seq}
 	name, err := snapshot.ReceiptName(seq)
 	if err != nil {
@@ -327,7 +405,7 @@ type doctorBase struct {
 // at seq omits (CAL-V0-300) from the latest retained record of the attempt
 // before it, read backward within the receipt bound. Compaction keeps that
 // record within snapshot.MaxElidedRun receipts (CAL-V0-302), well inside it.
-func doctorElidedRecord(src journal.Native, seq uint64, tombstone []byte, path string, scan *doctorScan) ([]byte, error) {
+func doctorElidedRecord(src journal.Source, seq uint64, tombstone []byte, path string, scan *doctorScan) ([]byte, error) {
 	if b, ok := scan.elidedBases[path]; ok && b.seq < seq {
 		return snapshot.ElidedRecord(tombstone, b.raw)
 	}
@@ -365,7 +443,7 @@ func doctorElidedRecord(src journal.Native, seq uint64, tombstone []byte, path s
 	return nil, fmt.Errorf("%s: no retained record within %d receipts before elided receipt %d", path, doctorMaxReceipts, seq)
 }
 
-func doctorPostBytes(src journal.Native, p snapshot.PostEntry) ([]byte, error) {
+func doctorPostBytes(src journal.Source, p snapshot.PostEntry) ([]byte, error) {
 	var b []byte
 	switch {
 	case p.Record != nil:
@@ -416,31 +494,44 @@ func doctorEndings(scan *doctorScan) (map[string][]doctorEnded, []string) {
 
 // doctorHandoffCandidate reports whether a ticket can still be in a hand-off
 // loop: its current audited record is not COMPLETED, ARCHIVED or HELD
-// (TQD-V0-013). A ticket absent from the inventory stays a candidate.
-func doctorHandoffCandidate(rc *readCtx) func(string) bool {
-	return func(id string) bool {
+// (TQD-V0-013). A ticket absent from the inventory stays a candidate. It
+// also returns the ticket's acceptance revision ("" when absent): only
+// generations claimed at that revision count, so a reopen, which bumps it,
+// starts a new streak (TQD-V0-032), as LoopHoldOf does (CAL-V0-103).
+func doctorHandoffCandidate(rc *readCtx) func(string) (bool, wire.Count) {
+	return func(id string) (bool, wire.Count) {
 		rec, ok := rc.store.Inventory.Get(id)
 		if !ok {
-			return true
+			return true, ""
 		}
 		switch rec.Status {
 		case ticket.StatusCompleted, ticket.StatusArchived, ticket.StatusHeld:
-			return false
+			return false, ""
 		}
-		return true
+		return true, rec.AcceptanceRevision
 	}
 }
 
 // doctorNoProgress applies the CAL-V0-102 no-progress test to each candidate
 // ticket's newest ended generations (TQD-V0-005, TQD-V0-013).
-func doctorNoProgress(scan *doctorScan, candidate func(string) bool) []doctorFinding {
+func doctorNoProgress(scan *doctorScan, candidate func(string) (bool, wire.Count)) []doctorFinding {
 	endings, order := doctorEndings(scan)
 	var out []doctorFinding
 	for _, t := range order {
-		if !candidate(t) {
+		ok, rev := candidate(t)
+		if !ok {
 			continue
 		}
 		gens := endings[t]
+		if rev != "" {
+			cur := gens[:0:0]
+			for _, g := range gens {
+				if g.a.TicketRevision == rev {
+					cur = append(cur, g)
+				}
+			}
+			gens = cur
+		}
 		verdicts := make([]bool, len(gens))
 		var tree *string
 		known := true
@@ -476,7 +567,7 @@ type doctorRefusal struct {
 }
 
 // doctorGateReader reads one gate result from its verified evidence blob.
-func doctorGateReader(src journal.Native) func(string) (*snapshot.GateResult, error) {
+func doctorGateReader(src journal.Source) func(string) (*snapshot.GateResult, error) {
 	return func(d string) (*snapshot.GateResult, error) {
 		raw, err := src.Read("evidence/"+d, snapshot.MaxGateRecordBytes)
 		if err != nil {
@@ -1018,6 +1109,9 @@ func doctorItemOf(rc *readCtx, scan *doctorScan, arr []wire.Value, cut bool, tot
 	o.Set("observedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
 	o.Set("summary", wire.ObjectValue(summary)).Set("findings", wire.Array(arr...)).Set("scan", wire.ObjectValue(sc))
 	o.Set("mutationAuthority", wire.Bool(false))
+	if len(scan.dispatchers) > 0 {
+		o.Set("dispatchers", wire.Array(scan.dispatchers...))
+	}
 	if cache {
 		o.Set("refreshedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
 	}

@@ -66,7 +66,7 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
@@ -74,7 +74,7 @@ var ReadVerbs = []string{
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
 	"ticket revoke-approval", "ticket attach-evidence",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
-	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview",
+	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch recover-reader", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
@@ -164,6 +164,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
+		case "closeout-debt":
+			return emitCloseoutDebt(env, args[2:])
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
 		}
@@ -461,7 +463,7 @@ func LiveFormats() []string {
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
 		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
-		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile,
+		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile, doctorConfigProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,

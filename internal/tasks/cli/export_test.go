@@ -12,6 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -204,6 +205,16 @@ func WriteDoctorTestRun(root, attemptID, generation string, pid int, identity st
 		SupervisorPid: pid, SupervisorIdentity: identity, CommandPid: &pid, CommandIdentity: &identity})
 }
 
+// DecodeDoctorConfig decodes one doctor --config file (TQD-V0-020).
+func DecodeDoctorConfig(raw []byte) error {
+	v, err := wire.ParseInput(raw)
+	if err != nil {
+		return err
+	}
+	_, err = decodeDoctorConfig(v, "")
+	return err
+}
+
 // DecodeDoctorCache decodes one doctor summary cache (TQD-V0-011).
 func DecodeDoctorCache(raw []byte) error {
 	_, err := decodeDoctorCache(raw)
@@ -280,6 +291,99 @@ func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
 // exactly as attempt show and queue status do (CAL-V0-048, CAL-V0-120).
 func HolderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
 	return holderStatus(a, now, ttlSeconds)
+}
+
+// The doctor's host probes (TQD-V0-021, TQD-V0-022, TQD-V0-024) default to
+// an idle host in tests, so findings never depend on what else the test
+// host runs; a test opts in to the real probes with UseRealDoctorProbes.
+var realDoctorProbes = struct {
+	table   func() ([]doctorCmdProc, error)
+	holder  func(string) (bool, int, error)
+	openers func([]string, []int) (map[string][]int, error)
+	files   func() (uint64, uint64, error)
+}{doctorCommandTable, doctorLockHolder, doctorLockOpeners, doctorFileTable}
+
+func init() { idleDoctorProbes() }
+
+func idleDoctorProbes() {
+	doctorCommandTable = func() ([]doctorCmdProc, error) { return nil, nil }
+	doctorLockHolder = func(string) (bool, int, error) { return false, 0, nil }
+	doctorLockOpeners = func([]string, []int) (map[string][]int, error) { return map[string][]int{}, nil }
+	doctorFileTable = func() (uint64, uint64, error) { return 0, 100, nil }
+}
+
+// UseRealDoctorProbes restores the real host probes until the returned
+// function puts the idle ones back.
+func UseRealDoctorProbes() func() {
+	doctorCommandTable, doctorLockHolder = realDoctorProbes.table, realDoctorProbes.holder
+	doctorLockOpeners, doctorFileTable = realDoctorProbes.openers, realDoctorProbes.files
+	return idleDoctorProbes
+}
+
+// DoctorTestProc is one fake process-table row.
+type DoctorTestProc struct {
+	Pid     int
+	Elapsed time.Duration
+	Command string
+}
+
+// DoctorTestHost is a fake host: its process table, the holder pid of each
+// lock file by base name (-1: held, holder not recorded), the pids that
+// have each lock file open by base name, and the file table.
+type DoctorTestHost struct {
+	Procs           []DoctorTestProc
+	Holders         map[string]int
+	Openers         map[string][]int
+	FilesUsed, FMax uint64
+	ProbeErr        error
+}
+
+// SetDoctorTestHost installs a fake host until the returned function puts
+// the idle one back.
+func SetDoctorTestHost(h DoctorTestHost) func() {
+	doctorCommandTable = func() ([]doctorCmdProc, error) {
+		var out []doctorCmdProc
+		for _, p := range h.Procs {
+			out = append(out, doctorCmdProc{pid: p.Pid, elapsed: p.Elapsed, command: p.Command})
+		}
+		return out, h.ProbeErr
+	}
+	doctorLockHolder = func(path string) (bool, int, error) {
+		pid, ok := h.Holders[filepath.Base(path)]
+		if pid < 0 {
+			pid = 0
+		}
+		return ok, pid, nil
+	}
+	doctorLockOpeners = func(paths []string, _ []int) (map[string][]int, error) {
+		out := map[string][]int{}
+		for _, p := range paths {
+			out[p] = h.Openers[filepath.Base(p)]
+		}
+		return out, nil
+	}
+	doctorFileTable = func() (uint64, uint64, error) { return h.FilesUsed, h.FMax, nil }
+	return idleDoctorProbes
+}
+
+// RealDoctorFileTable reads the host's file table with the real probe.
+func RealDoctorFileTable() (uint64, uint64, error) { return realDoctorProbes.files() }
+
+// ParseDoctorProcLocksForTest, ParseDoctorLsofForTest, ParseDoctorFileNrForTest
+// and ParseDoctorElapsedForTest expose the neutral probe parsers.
+func ParseDoctorProcLocksForTest(text string, major, minor, ino uint64) []int {
+	return parseDoctorProcLocks(text, major, minor, ino)
+}
+func ParseDoctorLsofForTest(text string) map[uint64][]int       { return parseDoctorLsof(text) }
+func ParseDoctorFileNrForTest(s string) (uint64, uint64, error) { return parseDoctorFileNr(s) }
+func ParseDoctorElapsedForTest(s string) (time.Duration, error) { return parseDoctorElapsed(s) }
+
+// SetDoctorPerReadJournal makes every doctor journal read open its own
+// session, the cost before TQD-V0-033, until the returned function runs.
+func SetDoctorPerReadJournal() func() {
+	old := doctorJournalSource
+	doctorJournalSource = func(n journal.Native) (journal.Source, func() error) { return n, func() error { return nil } }
+	return func() { doctorJournalSource = old }
 }
 
 // LeaseDetachDir is the private record directory of a detached claim or

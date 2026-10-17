@@ -191,6 +191,12 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if strings.HasPrefix(name, "ticket escalation ") {
 		o.Set("note", wire.String("Pure read: writes no ledger and hydrates no evidence. program is UNKNOWN and retryState NOT_OBSERVED until a producer mapping and dispatcher ledger exist; ageSeconds is clockUncertain when the local clock is behind the recorded time."))
 	}
+	if name == "ticket closeout-debt" {
+		o.Set("note", wire.String("Pure read, no lock and no writes (TCD-V0): OPEN tickets that commits on the integration ref cite by ticket ID or by a linked issue a commit closes, each a candidate with its pending native closeout step, as taskman-closeout-debt/0. --ref defaults to origin/<intentBranch>, else the local intent branch; --limit (default 1000, max 10000) caps the commit scan and a truncated scan is reported. Exit 0 with no candidates, 1 with candidates, 2 on a refusal or error."))
+	}
+	if name == "plan batches" {
+		o.Set("note", wire.String("Pure read, no lock and no store writes (NTP-V0-020..025): groups the latest submitted or ready candidate of each OPEN or HELD ticket by pairwise-disjoint changed paths against its base, apart from --shared-path paths, and confirms every join with a dry chained git merge-tree whose objects go to a throw-away object directory that is removed afterwards, so the repository gains no object and no ref. A conflict splits the candidate into a later group; an unresolvable candidate is reported in ungrouped. --max-group-size defaults to 8 (1..64)."))
+	}
 	if name == "critical-path" {
 		o.Set("note", wire.String("Pure read, no lock and no writes: the transitive unsatisfied dependency closure of one ticket (a gate ticket is a ticket) as taskman-critical-path/0, longest chain first, bounded to 256 nodes and 32 chains with truncated and totals. Blocker codes are an open set; facts this reader cannot observe are NOT_OBSERVED, and estimate is always NOT_OBSERVED in v0."))
 	}
@@ -237,6 +243,7 @@ var commandUsage = map[string]string{
 	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
+	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
 	"ticket export":           "corvint-tasks ticket export [--offset N] [--limit N]",
 	"queue status":            "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
 	"roadmap":                 "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
@@ -296,6 +303,7 @@ var commandUsage = map[string]string{
 	"service run":             "corvint-tasks service run --program ID --manifest FILE   (manager-started foreground main; not for interactive use)",
 	"service run-helper":      "corvint-tasks service run-helper --program ID --manifest FILE --helper ID   (manager-started foreground helper wrapper, Linux only; not for interactive use)",
 	"config":                  "corvint-tasks config (execution NOT_RUN)",
+	"plan batches":            "corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...",
 	"plan record":             "corvint-tasks plan record (execution NOT_RUN)",
 	"receipt show":            "corvint-tasks receipt show (execution NOT_RUN)",
 	"receipt replay":          "corvint-tasks receipt replay (execution NOT_RUN)",
