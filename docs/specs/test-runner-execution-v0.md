@@ -79,7 +79,7 @@ not resolve arbitrary Appium backends or behavioral qualification for shaders, H
 need an actual domain/application assertion harness, not syntax validation presented as tests.
 
 Cypress 16.1.1 and Rails 8.1.4 now have shared-executor runtime witnesses. MTP has separate
-xUnit/NUnit/MSTest profiles; 17 of the 18 native profiles have macOS arm64 shared-executor witnesses for every TRE-V0-009 case and Ginkgo v2 has none (Native qualification matrix 2026-10-17 (V1-0593)). SwiftPM 6.4 macOS serial
+xUnit/NUnit/MSTest profiles; all 18 native profiles have macOS arm64 shared-executor witnesses for every TRE-V0-009 case (Native qualification matrix 2026-10-17 (V1-0593)). SwiftPM 6.4 macOS serial
 XCTest and Robolectric 4.16.1/API35 also have shared-executor witnesses. These do not erase remaining
 limits: TestCafe's current common-executor remote-Chrome CLI witness is qualified in
 `/private/tmp/cem10-build/dynamic/testcafe-cli-proof/qualification.json`; its prior permission
@@ -1060,10 +1060,10 @@ are the directory names under `cases/`.
 | catch2 | Catch2 3.16.0 amalgamated | W `catch2-pass-r2`, `-fail-r2`, `-skip-r2`, `-hidden-r2`, `-mixed-r2` | W `catch2-zero-r2` | W `catch2-infra-r2`, `-collection-r2` | W `catch2-timeout-r2` |
 | cmocka-xml | CMocka 2.0.2 static | W `cmocka-mixed`, `-pass-only`, `-skip-only` | W `cmocka-zero`, `-wrong-target` | W `cmocka-test-setup`, `-test-teardown`, `-group-setup`, `-group-teardown` | W `cmocka-timeout` |
 | boost-test-junit | Boost 1.92.0 headers | W `boost-mixed`, `-pass`, `-selected-pass-r2`; opt-in `TestBoostTestLiveExecution` PASS | W `boost-zero` (exit 200, no report) | W `boost-infra`, `boost-exception` | W `boost-timeout` |
-| ginkgo-v2 | Ginkgo v2.33.0 source pins only | P (synthetic) | P | P | N |
+| ginkgo-v2 | Ginkgo v2.33.0 with Gomega 1.40.0, `go test -c` suite binaries | W `ginkgo-mixed` (pass, fail, runtime skip, pending), `ginkgo-pass`, `-fail`, `-skip` | W `ginkgo-zero` (exit 1, fail-on-empty) | W `ginkgo-beforesuite-fail`, `-beforesuite-skip`, `-ordered`, `-wrong-target` | W `ginkgo-timeout` |
 
 Totals cover 108 applicable cases, 18 profiles times six cases. Before this
-work there were 37 W, 30 P and 41 N. After it there are 102 W, 5 P and 1 N.
+work there were 37 W, 30 P and 41 N. After it there are 108 W, 0 P and 0 N.
 Every zero-test, build, collection, infrastructure and timeout witness is
 incomplete, and its tests are `UNKNOWN` or absent. Every timeout fixture
 spawned a descendant `/bin/sleep` with a unique argument. After each serial
@@ -1088,9 +1088,25 @@ Toolchains not already on the host were installed in user space under
 Each was checksum-verified. The 2026-10-17 V1-0593 build log lists versions,
 URLs and checksums.
 
+Ginkgo v2 live qualification. The fixture module `example.com/gq` pins
+`github.com/onsi/ginkgo/v2` v2.33.0 (`h1:C8gBA6Uc2ZEubiV+SXiu5tZnMTwEmXHgkJwGozKtZf8=`)
+and `github.com/onsi/gomega` v1.40.0 in `go.sum`, resolved through the Go proxy
+and checksum database (`go mod verify`: all modules verified). Its suite
+binaries were built offline with `go test -c`; their digests are in
+`fixtures/ginkgo/SHA256SUMS`. The `ginkgo-v2` adapter did not change. These
+runs replace, for this host tuple, the NOT_RUN statement in "Ginkgo v2
+(experimental)" and confirm three of its source-derived limits:
+- The reported `SuitePath` equals the symlink-resolved Root in every run.
+- A runtime `Skip()` in `BeforeSuite` exits 0 with `SuiteSucceeded` true and the
+  reason `Suite skipped in BeforeSuite`; it is incomplete
+  (`GINKGO_SUITE_FAILURE_REASON`, `GINKGO_NOT_ENTERED`).
+- A leaf failure in an `Ordered` container leaves the next spec skipped with
+  zero attempts; it is incomplete (`GINKGO_NOT_ENTERED`).
+A suite with no specs exits 1 with the fail-on-empty reason and is incomplete.
+A `BeforeSuite` failure is incomplete (`GINKGO_SUITE_PROBLEM`). A Target whose
+description differs from the report is refused (`GINKGO_TARGET_MISMATCH`).
+
 Release blockers (TRE-V0-009 tuples not qualified):
-- Ginkgo v2 runtime. Missing: the Ginkgo v2.33.0 module and CLI. The session
-  permission classifier denied `go install github.com/onsi/ginkgo/v2/ginkgo@v2.33.0`.
 - Linux (amd64 and arm64) and Windows tuples for all 18 profiles. Missing: a
   Linux or Windows host.
 - Other runtimes. Missing: .NET 8 and 10 runtimes, other MTP and adapter
