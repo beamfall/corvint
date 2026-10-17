@@ -99,7 +99,7 @@ way the command can fail is one closed provider row with no partial record.
   The trusted local executable and parent paths MUST stay immutable between hashing and launch;
   concurrent hostile substitution is outside this local operator trust contract. Executable hashing
   precedes the runner timeout. A saved invocation's expected pins MUST NOT update automatically.
-- `EEP-TR-012`: A record on any transport MAY carry one optional top-level member `capabilities`
+- `EEP-TR-012`: (accepted, owner 2026-10-17, decision 0539; V1-0102) A record on any transport MAY carry one optional top-level member `capabilities`
   with the optional lists `schemas` and `evidence_kinds`, each of at most 32 unique identifiers
   under the `EEP-V0-012` identifier bound. An absent member, or an absent list inside it, is
   undeclared and changes nothing: a record without the member decodes and composes exactly as
@@ -107,7 +107,7 @@ way the command can fail is one closed provider row with no partial record.
   inside `capabilities`, a duplicate, or a non-identifier makes the record
   `invalid` under `EEP-V0-001`. No transport adds a handshake of its own: negotiation is the
   record member.
-- `EEP-TR-013`: When a list is declared, Core MUST check it against what the invocation requires
+- `EEP-TR-013`: (accepted, owner 2026-10-17, decision 0539; V1-0102) When a list is declared, Core MUST check it against what the invocation requires
   before anything from the record composes: `schemas` must contain the record's own `schema`;
   under `impact`, `evidence_kinds` must contain every kind a relation in the record uses; under
   `affected`, `evidence_kinds` must contain `declared` or `observed`, the only kinds that qualify
@@ -116,7 +116,7 @@ way the command can fail is one closed provider row with no partial record.
   capability, and carries nothing from the record: no `results`, `downstream`, `verification`,
   `path_relations`, or `unknowns` under `impact`, and `blocked` (`provider-unsupported`) under
   `affected`. The check is deterministic: the same bytes and verb always yield the same row.
-- `EEP-TR-014`: A declared capability never widens what Core accepts: an unknown identifier in
+- `EEP-TR-014`: (accepted, owner 2026-10-17, decision 0539; V1-0102) A declared capability never widens what Core accepts: an unknown identifier in
   either list is carried as declared and ignored, `learned` stays excluded whether or not it is
   declared, and no declaration changes ranking, authority, freshness, or the core receipt.
 

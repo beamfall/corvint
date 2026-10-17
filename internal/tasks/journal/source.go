@@ -70,6 +70,19 @@ func (n Native) List(p string, max int) (out Listing, err error) {
 	return s.List(p, max)
 }
 
+// NativeSession is one bounded read session over a Native source: each
+// parent directory is opened and pinned once, so every later read beneath
+// it is one no-follow openat (CAL-V0-070) instead of a fresh root walk. A
+// session observes the directories it first opened; Close releases them.
+type NativeSession struct{ s *nativeRead }
+
+// Session starts a read session; the caller must Close it.
+func (n Native) Session() *NativeSession { return &NativeSession{newNativeRead(n)} }
+
+func (x *NativeSession) Read(p string, max int) ([]byte, error)  { return x.s.Read(p, max) }
+func (x *NativeSession) List(p string, max int) (Listing, error) { return x.s.List(p, max) }
+func (x *NativeSession) Close() error                            { return x.s.close() }
+
 // nativeRead lives for exactly one audit attempt. It retains every listed
 // no-follow parent; file reads never reopen the original absolute parent.
 // Each read parent is also pinned once as a descriptor, so a file read is one

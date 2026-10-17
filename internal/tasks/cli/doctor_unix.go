@@ -38,8 +38,11 @@ func doctorOwned(st fs.FileInfo) bool {
 // is refused UNSUPPORTED_FILESYSTEM before anything is changed or written
 // through it. Under an exclusive
 // flock on taskman-doctor/.lock the destination is re-read and a cache
-// written by a later build is refused UNSUPPORTED_VERSION, unchanged.
-func writeDoctorCache(commonDir string, raw []byte) (err error) {
+// written by a later build is refused UNSUPPORTED_VERSION, unchanged;
+// render then receives the destination's current bytes (nil when absent)
+// and returns the bytes to write, so the notify hook (TQD-V0-026) runs
+// at most once per finding set across concurrent refreshes.
+func writeDoctorCache(commonDir string, render func(prev []byte) ([]byte, error)) (err error) {
 	root, err := safeopen.Root(commonDir)
 	if err != nil {
 		return err
@@ -101,13 +104,15 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	if err := inPlace(); err != nil {
 		return err
 	}
+	var old []byte
 	cur, err := doctorCacheFile(dir, doctorCacheFileName, os.O_RDONLY, "file")
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
 	case err != nil:
 		return err
 	default:
-		old, rerr := io.ReadAll(io.LimitReader(cur, doctorCacheBytes+1))
+		var rerr error
+		old, rerr = io.ReadAll(io.LimitReader(cur, doctorCacheBytes+1))
 		cur.Close()
 		if rerr != nil {
 			return rerr
@@ -115,6 +120,10 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 		if err := doctorNewerCache(old); err != nil {
 			return err
 		}
+	}
+	raw, err := render(old)
+	if err != nil {
+		return err
 	}
 	at, err := safeopen.RootOf(dir)
 	if err != nil {
