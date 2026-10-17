@@ -413,6 +413,9 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 			return err
 		}
 	}
+	// CAL-V0-312: keep the leases of live keepLease workers on the
+	// observation heal acted on.
+	d.keepLeases(ctx, obs)
 	granted, pending, unparked, err := d.admitProgress(ctx, obs, ended)
 	if err != nil {
 		return err

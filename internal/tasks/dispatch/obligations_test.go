@@ -281,7 +281,7 @@ func TestTOLV0021_PreviousLedgerVersionAdopted(t *testing.T) {
 		for name, c := range map[string][3]string{
 			"a /4 baseline in /3":  {drainedState3Profile, `{"` + key + `":{"status":"OPEN","sessions":2,"witnessed":{"acceptanceRevision":"1","highWater":1}}}`, ``},
 			"/4 seen counts in /3": {drainedState3Profile, `{"` + key + `":{"status":"OPEN","sessions":2}}`, `"seen":{"tickets":{},"claims":{},"lanes":{},"obligations":{"` + key + `":"1/3"}},`},
-			"next version":         {"taskman-dispatch-state/6", `{"` + key + `":{"status":"OPEN","sessions":2}}`, ``},
+			"next version":         {"taskman-dispatch-state/7", `{"` + key + `":{"status":"OPEN","sessions":2}}`, ``},
 		} {
 			if _, err := load(c[0], c[1], c[2]); wire.CodeOf(err) != wire.CodeUnsupportedVersion {
 				t.Errorf("%s: %v", name, err)

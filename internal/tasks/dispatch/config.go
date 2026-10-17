@@ -21,18 +21,20 @@ import (
 
 const (
 	ConfigProfile = "taskman-dispatch/0"
-	StateProfile  = "taskman-dispatch-state/5"
+	StateProfile  = "taskman-dispatch-state/6"
 	// drainedStateProfile and drainedState2Profile are the previous ledger
 	// versions, each adopted only when it records no worker (CAL-V0-132,
 	// proposed amendment; CAL-V0-185 added version 3). Version 3 is adopted
 	// as recorded, with every stall count's TOL-V0-021 high-water baseline
 	// absent (version 4). Version 4 is adopted as recorded, with no
 	// CAL-V0-270 work-state health and no worker's CAL-V0-272 mark
-	// (version 5).
+	// (version 5). Version 5 is adopted as recorded, with no worker's
+	// CAL-V0-315 lease keeper record (version 6).
 	drainedStateProfile  = "taskman-dispatch-state/1"
 	drainedState2Profile = "taskman-dispatch-state/2"
 	drainedState3Profile = "taskman-dispatch-state/3"
 	drainedState4Profile = "taskman-dispatch-state/4"
+	drainedState5Profile = "taskman-dispatch-state/5"
 	EventProfile         = "taskman-dispatch-event/0"
 	MaxConfig            = 256 << 10
 )
@@ -254,6 +256,9 @@ type Role struct {
 	// 600) is how long a running worker's attempt may stay past its lease
 	// expiry before heal.reap reaps it and stops the worker.
 	ExpiredLeaseGraceSeconds *int `json:"expiredLeaseGraceSeconds,omitempty"`
+	// KeepLease (CAL-V0-311, optional) has the dispatcher keep the lease
+	// of the attempt each live worker of this role holds (keeper.go).
+	KeepLease *KeepLease `json:"keepLease,omitempty"`
 	// Model, Escalate and DeescalateOnProgress are the CAL-V0-057
 	// escalation ladder. The role's host must render {model}.
 	Model                string `json:"model,omitempty"`
@@ -285,6 +290,34 @@ func (r *Role) ExpiredLeaseGrace() time.Duration {
 		return defaultExpiredLeaseGrace * time.Second
 	}
 	return time.Duration(*r.ExpiredLeaseGraceSeconds) * time.Second
+}
+
+// KeepLease is the CAL-V0-311 lease keeper of one role: every
+// IntervalSeconds the dispatcher records the heartbeat of the attempt a
+// live, active worker holds, renewing it for LeaseMinutes when the lease
+// would not cover the next interval, and stops once the worker has shown
+// no activity for MaxIdleSeconds.
+type KeepLease struct {
+	IntervalSeconds int `json:"intervalSeconds"`
+	LeaseMinutes    int `json:"leaseMinutes"`
+	MaxIdleSeconds  int `json:"maxIdleSeconds"`
+}
+
+// validate is the CAL-V0-311 bound: every member present and in range, and
+// a renewed lease longer than two intervals, so a renew always outlasts the
+// window in which the keeper skips renewal.
+func (k *KeepLease) validate() error {
+	switch {
+	case k.IntervalSeconds < 30 || k.IntervalSeconds > 3600:
+		return fmt.Errorf("keepLease intervalSeconds must be 30..3600")
+	case k.LeaseMinutes < 5 || k.LeaseMinutes > 1440:
+		return fmt.Errorf("keepLease leaseMinutes must be 5..1440")
+	case k.MaxIdleSeconds < 30 || k.MaxIdleSeconds > 86400:
+		return fmt.Errorf("keepLease maxIdleSeconds must be 30..86400")
+	case k.LeaseMinutes*60 <= 2*k.IntervalSeconds:
+		return fmt.Errorf("keepLease leaseMinutes must exceed two intervals")
+	}
+	return nil
 }
 
 // Tier is one escalation step: from After consecutive no-progress sessions
@@ -571,6 +604,11 @@ func (c *Config) validate() error {
 		}
 		if g := r.ExpiredLeaseGraceSeconds; g != nil && (*g < 0 || *g > maxExpiredLeaseGrace) {
 			return fail("role %s expiredLeaseGraceSeconds must be 0..%d", r.Name, maxExpiredLeaseGrace)
+		}
+		if r.KeepLease != nil {
+			if err := r.KeepLease.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)

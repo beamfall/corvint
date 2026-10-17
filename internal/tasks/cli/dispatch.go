@@ -372,6 +372,17 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 			o.Set("effort", str(w.Effort))
 		}
 		o.Set("usage", dispatchWorkerUsageValue(w.Usage))
+		if k := w.Keeper; k != nil {
+			// CAL-V0-316: present only for a keepLease role's worker.
+			ko := wire.NewObject().Set("state", str(k.State)).Set("attempt", str(k.Attempt)).Set("generation", str(k.Generation)).Set("reason", str(k.Reason)).Set("lastAction", str(k.LastAction)).Set("renewals", str(strconv.Itoa(k.Renewals))).Set("heartbeats", str(strconv.Itoa(k.Heartbeats))).Set("failing", wire.Bool(k.Failing))
+			if !k.Due.IsZero() {
+				ko.Set("due", ts(k.Due))
+			}
+			if !k.LastKept.IsZero() {
+				ko.Set("lastKept", ts(k.LastKept))
+			}
+			o.Set("keeper", wire.ObjectValue(ko))
+		}
 		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	keys := make([]string, 0, len(l.Backoff))
@@ -868,6 +879,26 @@ func (q dispatchQueue) Reap(ctx context.Context, a dispatch.Attempt, requestID s
 func (q dispatchQueue) ReapExpired(ctx context.Context, a dispatch.Attempt, requestID string) (bool, error) {
 	expires := a.LeaseExpires.UTC().Format("2006-01-02T15:04:05Z")
 	return reapedOutcome(leaseCommand(q.quiet(), "reap", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-expires-at", expires, "--request-id", requestID}))
+}
+
+// Renew is the CAL-V0-313 keeper renewal, fenced on the bound generation; a
+// current-generation renew also records the heartbeat (CAL-V0-231).
+func (q dispatchQueue) Renew(ctx context.Context, a dispatch.Attempt, minutes int, requestID string) error {
+	return keeperOutcome(leaseCommand(q.quiet(), "renew", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-minutes", strconv.Itoa(minutes), "--request-id", requestID}))
+}
+
+// Heartbeat is the CAL-V0-313 keeper heartbeat, which never extends the lease.
+func (q dispatchQueue) Heartbeat(ctx context.Context, a dispatch.Attempt, requestID string) error {
+	return keeperOutcome(leaseCommand(q.quiet(), "attempt heartbeat", []string{"--attempt", a.ID, "--generation", a.Generation, "--request-id", requestID}))
+}
+
+// keeperOutcome marks a FENCED refusal with dispatch.ErrFenced (CAL-V0-314).
+func keeperOutcome(r *wire.Result) error {
+	err := leaseOutcome(r)
+	if err != nil && slices.Contains(r.Codes, wire.CodeFenced) {
+		return fmt.Errorf("%w: %w", dispatch.ErrFenced, err)
+	}
+	return err
 }
 
 // reapedOutcome reports whether a per-attempt reap moved its attempt: a
