@@ -3373,6 +3373,7 @@ STR-V0-015	docs/specs/session-test-runner-v0.md	238	The run SHALL be bounded: th
 STR-V0-016	docs/specs/session-test-runner-v0.md	251	Adapters execute repository code with the invoking user's authority. The local	unrecorded	-
 STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
 STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
+STR-V0-019	docs/specs/session-test-runner-v0.md	264	Every `go test` command that a `make gate` step recipe runs SHALL carry a	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-
