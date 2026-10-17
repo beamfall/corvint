@@ -611,14 +611,18 @@ but does not read it; only non-Go syntax impact does.
   test files and the regular files under 1..16 unique repository-relative `--source` directories
   that are trees at that revision. It writes `application-map-refs/0` to stdout and no file,
   index, ledger or trace. Zero or more than 16 sources, a duplicate, escaping or non-directory
-  source, or an out-of-range budget refuse with `appmap-invalid-query`; a map revision that is not
+  source, or an out-of-range budget (an explicit `--budget 0` included) or `--budget` with
+  `--full` refuse with `appmap-invalid-query`; a map revision that is not
   a commit of `--root` refuses with `appmap-invalid-revision`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
 - `AMAP-V0-091`: References MUST be read from dotted calls in the map's test files with the
   AMAP-V0-007 lexer: `goto`, `waitForURL` and `toHaveURL` give route references; `route` gives
   one endpoint reference per checkable path segment of its first argument; `getByTestId` gives a
   test-id name, `locator` gives the test id of an exact `[data-testid=...]` and otherwise the `#id`,
-  `.class`, `data-*` attribute names and `data-*`/`id` attribute values of its CSS text. Text-level
+  `.class`, `data-*` attribute names and `data-*`/`id` attribute values of its CSS text, with
+  whitespace allowed around the attribute name and operator. An `#id` or `.class` starting with a
+  digit is not CSS and is skipped; an attribute value is checked whatever its first character
+  (`[data-status="404"]` checks `404`). Text-level
   locators (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`, `getByTitle`,
   `getByText`, `text=`, `role=`), XPath and CSS without such a name MUST be counted as unchecked
   with a reason, never as a miss.
@@ -628,7 +632,8 @@ but does not read it; only non-Go syntax impact does.
   part (a leading substitution before `/` is an origin and skipped). A regular-expression
   literal MUST be a `prefix` of its leading literal text (`^` dropped, escaped punctuation read as
   the character, stopping at a metacharacter, class escape or optional character) labelled
-  `regular-expression`. A URL glob is a prefix of the text before its first `*`. A value with no
+  `regular-expression` (an escaped `\*` in it is a literal character, not a glob, and the label
+  stays). A string URL glob is a prefix of the text before its first `*`. A value with no
   literal start, or any other argument, MUST be unchecked with the reasons `dynamic-value`,
   `regex-without-literal`, `glob-without-literal` or `non-literal-value`; a value over 256 bytes is
   unchecked as `value-too-long`.
@@ -665,9 +670,10 @@ but does not read it; only non-Go syntax impact does.
   `appmap-budget-too-small`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
 - `AMAP-V0-097`: The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,
-  1 MiB per file, 128 MiB in total, else `appmap-bound-exceeded`); a source file over 1 MiB or
-  holding a NUL byte is skipped and counted in `source_files_skipped`, and a map test file is not
-  part of the corpus. A map test file read from an aliased root, or whose blob at the revision
+  1 MiB per file, 128 MiB in total, else `appmap-bound-exceeded`); the total counts every source
+  path, even when paths share one blob. A source file over 1 MiB or holding a NUL byte is skipped
+  and counted in `source_files_skipped`, and no map test file of `--root`, read or unread, is part
+  of the corpus. A map test file read from an aliased root, or whose blob at the revision
   differs from its anchor, is not read and is counted in `test_files_unread`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
 - `AMAP-V0-098`: The command MUST exit 1 after writing the report when at least one unlabelled
