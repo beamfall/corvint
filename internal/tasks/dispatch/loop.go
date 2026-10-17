@@ -696,7 +696,7 @@ func (d *Dispatcher) supervise() []*Worker {
 		if d.active(w, procs, d.launchConfig(w).Hosts[w.Host], now) {
 			w.LastActive = now
 		}
-		seen = append(seen, observed{w, exempt})
+		seen = append(seen, observed{w, exempt, d.noteContext(w, now)})
 		d.treeSeen[w.ID] = true
 	}
 	var ended []*Worker
