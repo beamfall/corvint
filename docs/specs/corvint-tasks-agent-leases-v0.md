@@ -1070,7 +1070,11 @@ how much of it a read must replay, never what a read may conclude.
   one reported; a head that moves between captures is retried at most four times first. An
   unusable checkpoint therefore never produces a refusal, a different projection or a weaker
   verdict than no checkpoint. Every mutation, barrier removal, reconciliation, request lookup
-  and `receipt audit` MUST keep the complete audit (`journalAudit` `FULL`).
+  and `receipt audit` MUST keep the complete audit (`journalAudit` `FULL`). Amended by
+  `ON-V0-013` in [operator notes](corvint-tasks-operator-notes-v0.md) (V1-1650): a tail note
+  event's pre-ticket and pre-policy are read from the receipt that last posted each, bound to the
+  checkpoint entry digest, so the replay reads at most two receipts before the checkpoint per note
+  event.
 
 The checkpoint has the same local trust as the journal directory it sits beside and no more:
 its entries and semantic coverage are not re-derived from the receipts before its sequence. A
@@ -3546,7 +3550,10 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - It MUST decline in each of these cases:
     - the tail exceeds 256 receipts;
     - the head is 4,096 or more receipts past `FullSeq`;
-    - the tail holds a note receipt whose pre-state precedes the checkpoint;
+    - the tail holds a note receipt whose pre-state precedes the checkpoint and does not bind to
+      the checkpoint entry digest (amended by `ON-V0-012`/`ON-V0-014` in
+      [operator notes](corvint-tasks-operator-notes-v0.md), V1-1650: a pre-state that binds keeps
+      the writer route);
     - the journal is not plainly settled.
   - Serving the write. The writer models the request against an inventory that summarizes receipts
     1..Seq and their requests from the checkpoint counts. Before effects it rechecks the head and
