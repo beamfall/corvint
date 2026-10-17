@@ -1171,7 +1171,7 @@ type Event struct {
 }
 
 // EventKinds is the closed CAL-V0-058 event vocabulary.
-var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled", "lease-expired", "reader-recovered", "lease-keeper"}
+var EventKinds = []string{"started", "stopped", "adopted", "launched", "launch-failed", "finished", "killing", "killed", "handoff", "handoff-refused", "reaped", "state", "claim", "release", "lane", "cooldown", "parked", "unparked", "alert", "needs-owner", "throttled", "escalated", "config", "budget", "stalled", "lease-expired", "reader-recovered", "lease-keeper", "context"}
 
 // appendEvent writes one event line, rotating the log once at 16 MiB.
 // Tests replace it to inject partial writes and close failures.

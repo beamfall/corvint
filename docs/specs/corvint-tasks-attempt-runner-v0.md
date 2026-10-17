@@ -2,10 +2,11 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
+owner requests [issue 1005](https://github.com/beamfall/corvint/issues/1005) and [issue 1007](https://github.com/beamfall/corvint/issues/1007) and native tickets V1-1547 and V1-1549 (ATR-V0-020..039);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -13,7 +14,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17).
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -89,6 +90,301 @@ path (ATR-V0-015 retires only ended runs of terminal attempts, from a supervisor
   ended: a malformed record, a missing command identity, or an unreadable liveness check. It writes
   no lease, receipt or journal entry, and a failure is left for a later pass. `--attach` and every
   other read path MUST NOT retire anything (invariant 4).
+
+### V1-1547 detached claim and pool acquire (issue 1005)
+
+CAL-V0 IDs in this subsection are defined in `corvint-tasks-agent-leases-v0.md`.
+
+Human-owned input: GitHub [issue 1005](https://github.com/beamfall/corvint/issues/1005) (2026-10-17,
+native ticket V1-1547). An agent's tool call has its own timeout, often shorter than a claim that
+waits for the preparation gate. When the host kills the call, the agent cannot tell whether the
+claim committed, and a blind retry under a new request id can start a second mutation. Intent: let
+a caller start `claim` or `pool acquire` in its own process session under the caller's
+`--request-id`, return at once with that id as the handle, and later read the outcome. This builds
+on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-008..015).
+
+- `ATR-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1547)
+  `claim ... --detach [--wait SECONDS]` and `pool acquire ... --detach [--wait SECONDS]` MUST
+  require `--request-id`, which is the handle. They MUST run the unchanged lease command in a child
+  started with `setsid`, with no inherited stdin or stdout, its stderr written to a private
+  `child.log` (bounded and rotated per run, ATR-V0-028), and its own process group, so the caller's death or signals do not reach it.
+  `claim --attach --request-id ID [--holder LABEL] [--wait SECONDS]` and
+  `pool acquire --attach --request-id ID [--wait SECONDS]` MUST only read. The records live in
+  `<git common dir>/taskman-requests/<sha256(request id)>/` beside the journal, never in the store:
+  `request.json` (`taskman-detached-lease/0`: command, request id, holder and an argv digest),
+  `child.json` (pid, process identity, start and ceiling times), `result.json` (the child's
+  result envelope), `child.log` and `child.1.log`, and the `lock` and `running` lock files. Each is written by temporary file, fsync and rename, and read bounded with
+  unknown members refused. `taskman-detached-lease/0` is in the CAL-V0-131 live format set, so a
+  `request.json` naming another version is refused `UNSUPPORTED_VERSION` before it is decoded. `--detach`, `--attach` and `--wait` are refused `MALFORMED` before any
+  record or start when combined wrongly (both modes, a repeat, `--wait` without a mode, a wait
+  outside whole seconds 0..600, `--attach` with any other flag or a positional, `--detach` without
+  `--request-id`). On a host other than Darwin or Linux they are refused `UNSUPPORTED`.
+- `ATR-V0-021`: (accepted, V1-1547) A repeated `--detach` with the same command, request id and
+  arguments MUST NOT start a second mutation. A launch takes an exclusive lock on the record's
+  `lock` file, bounded at 10 seconds (`LOCK_TIMEOUT` past it); with the lock held it starts a child
+  only when no `result.json` exists and no child is live. A child is live while it holds the
+  exclusive `running` lock, which it takes before running and keeps until it exits, or, before
+  that, while its recorded child is not proven ended (ATR-V0-027). A child that cannot take
+  `running`, or finds `result.json` once it has it, exits without running. The same request id with another command, holder or argument digest is refused
+  `REQUEST_ID_CONFLICT` without a start; so is an attach naming another command or holder. A
+  child that ended without a result is reported by attach as `REFUSED` `SUPERVISOR_LOST`, state
+  `LOST`, not retryable; a repeated `--detach` then starts a new child under the same request id,
+  and the store's request-id replay (CAL-V0-069) returns a committed claim's attempt and
+  generation instead of a second claim. The child checks that `request.json` matches its own
+  argv before running.
+- `ATR-V0-022`: (accepted, V1-1547) The child MUST keep the lease command's complete result
+  envelope as `result.json`. `--detach` and `--attach` MUST return those bytes unchanged, with
+  exit 0 for `OK` and 1 otherwise: a claim's `attemptId` and `generation`, or a refusal's
+  outcome, codes, warnings and items exactly as the plain command would emit them, never a
+  generic timeout or `SUPERVISOR_LOST`. Repeated attaches return the same bytes.
+- `ATR-V0-023`: (accepted, V1-1547) The child MUST be bounded by a 600-second ceiling: the lease
+  command runs under a context deadline at the ceiling, which bounds its lock waits and writer
+  (the ceiling exceeds the 300-second `--lock-wait` maximum, CAL-V0-216), and a process still
+  running 60 seconds past the ceiling exits 124 without a result, so attach reports it `LOST`.
+  The command's own result at the deadline is kept like any other (ATR-V0-022); it is not `OK`.
+  `child.json` records `ceilingAt`.
+- `ATR-V0-024`: (accepted, V1-1547) `--wait SECONDS` MUST return within its bound plus the record
+  poll (200 ms) and process start: the kept result when it appears, otherwise `REFUSED` with one
+  item whose `state` is `PENDING` (request id, command, holder, child pid, start and ceiling
+  times), exit 75. `--wait 0` or no `--wait` returns at once. The caller's wait never bounds or
+  cancels the child.
+- `ATR-V0-025`: (accepted, V1-1547) A finished record (one with `result.json`) older than 7 days
+  MUST be pruned, best effort and bounded, when a later `--detach` starts; a live or unfinished
+  record is never pruned. An attach of an unknown or pruned handle is `REFUSED`
+  `MISSING_EVIDENCE`.
+- `ATR-V0-026`: (accepted, V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and
+  `pool acquire` commands MUST be byte-identical to before: the same route, envelope and exit
+  code, and no `taskman-requests` record. A lease flag's value (`--branch --detach`) is a value,
+  not a detach flag. `claim --help` and `pool acquire --help` document the modes, the ceiling and
+  the platforms.
+- `ATR-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1547 review
+  repair) A recorded child that does not hold `running` MUST be reported ended (`LOST`, or
+  restartable by a repeated `--detach`) only on positive evidence: no process at its recorded pid,
+  a different process identity at that pid, or, when its identity cannot be confirmed (the launcher
+  recorded `unknown`, or the probe fails now), no `running` lock once a 60-second startup window
+  from `startedAt` has passed. Inside that window an unconfirmed child is `PENDING` and is not
+  replaced, so a child still starting is never reported `LOST` and then commits.
+- `ATR-V0-028`: (accepted, V1-1547 review repair) `child.log` MUST be bounded: each launch moves
+  the previous run's `child.log` to `child.1.log` (replacing it) and starts an empty `child.log`,
+  and what the child itself writes there is capped at 64 KiB, the rest dropped. Restarts therefore
+  keep at most two runs' logs; both live in the record directory and are removed with it.
+- `ATR-V0-029`: (accepted, V1-1547 review repair) Retention (ATR-V0-025) MUST page through the
+  whole `taskman-requests` directory, 256 entries at a time and at most 65,536 entries per prune,
+  and remove every expired finished record it has seen after the scan, so unfinished or lost
+  records listed first never hide finished ones.
+
+Non-goals: returning a holder's live attempt to a claim under a different request id (an exact
+retry under the same id already replays it); detaching other lease verbs; a daemon, queue or
+retry loop in the child; changing the store's request-id replay, its retention or any receipt;
+Windows support.
+
+Failure modes: a caller killed mid-launch, after the child started but before `child.json` was
+written, leaves no `child.json`; the child is still found live by its `running` lock, so attach
+reports `PENDING` and a repeated `--detach` starts nothing. If the caller dies before the child
+has taken `running`, attach reports `PENDING` while the child is confirmed live or inside its
+startup window (ATR-V0-027); should a repeated `--detach` still start a second child, only one of
+the two takes `running` and runs, and the other exits without running. A host reboot or a `SIGKILL`
+of the child is likewise `LOST`. A `result.json` that cannot be written leaves the record `LOST`
+after the child exits, with the reason in `child.log`. Process identity unavailable on the host is
+recorded as `unknown`; such a child is `PENDING` through its 60-second startup window and then
+live only while it holds `running` (ATR-V0-027). A Go runtime crash report is written to
+`child.log` by the runtime itself, outside the 64 KiB cap; it is bounded by the child's few
+goroutines and by the per-run rotation (ATR-V0-028). More than 65,536 records in
+`taskman-requests` leave the rest for a later prune (ATR-V0-029). Store refusals and cancellations
+write nothing to the store (S19), so the kept `result.json` is the only copy of a refusal; it is
+pruned after 7 days like the rest of the record.
+
+Acceptance evidence (`internal/tasks/cli`, Darwin; the Linux path shares the code):
+`TestATRV0021_DetachedClaimSurvivesKilledCaller` starts a detached claim from a launcher process
+while the preparation gate is held, waits for the child, `SIGKILL`s the launcher's process group,
+checks the child is alive and attach reports `PENDING` (exit 75), removes `child.json` and
+checks a repeated `--detach` stays `PENDING` without starting a child, releases the gate, and reads
+`OK` with `attemptId` and `generation` from attach; a second attach and a repeated `--detach`
+return the same bytes with `head.json` unchanged, and the plain claim with the same request id
+replays the same attempt. `TestATRV0021_LostChildRestartsWithoutASecondClaim` removes the kept
+records, reads `SUPERVISOR_LOST`, refuses a changed holder, argument, attach holder and command
+`REQUEST_ID_CONFLICT` without a start, and restarts to the replayed attempt with `head.json`
+unchanged. `TestATRV0022_RefusalIsReturnedVerbatim` compares a detached refusal of a held ticket
+and of a `pool acquire` with the plain commands' outcome, codes, warnings, exit and bytes.
+`TestATRV0024_WaitReturnsWithinItsBound` times `--detach --wait 1`, `--attach --wait 1` and
+`--attach` against the held gate. `TestATRV0023_CeilingEndsTheDetachedClaim` lowers the ceiling to
+1.5 seconds and reads a kept, non-`OK` result. `TestATRV0026_WithoutDetachNothingChanges` checks no
+record for plain claims, the `--branch --detach` value, every `MALFORMED` combination without a
+record, `MISSING_EVIDENCE` for an unknown handle, and pruning inside and past retention.
+`TestATRV0027_StartingChildIsNeverLost` makes the identity probe fail and delays the child's start
+by 1.5 seconds: `--detach` and an immediate attach read `PENDING` with identity `unknown`, and the
+child then commits; recorded children without `running` read `LOST` for a reaped pid, `PENDING` for
+an unconfirmed identity inside the window and `LOST` after it.
+`TestATRV0028_ChildLogIsCappedAndRotated` has the child write 4 KiB past the cap on each of three
+restarted runs and reads a 64 KiB `child.log` and a 64 KiB `child.1.log` after each.
+`TestATRV0029_PruneReachesEveryFinishedRecord` interleaves 100 unfinished and 100 expired finished
+records and checks that every finished one is pruned and every unfinished one kept; the earlier
+65-entry listing could remove at most 65. See `docs/build-log/2026-10-17-v1-1547-claim-detach.md`.
+
+Rollback: revert the code and this amendment. The store, receipts, request-id replay and policy
+are unchanged; leftover `taskman-requests` directories are inert and can be deleted.
+
+### V1-1549 dispatch context thresholds (issue 1007)
+
+CAL-V0 IDs in this subsection are defined in `corvint-tasks-agent-leases-v0.md`.
+
+Human-owned input: GitHub [issue 1007](https://github.com/beamfall/corvint/issues/1007) (2026-10-17,
+native ticket V1-1549). A dispatched session kept working long after its context grew too large to
+work well. Nothing told the worker or the operator, and nothing handed the attempt to a fresh
+session. Intent: each role declares context thresholds. The dispatcher estimates a running
+session's context from the host event stream it already reads (CAL-V0-157), shows the estimate and
+its age, and tells the worker once per crossing. Past the hard threshold it stops the worker and
+hands the attempt off with a recorded reason. An estimate the dispatcher cannot read is unknown,
+and an unknown estimate never stops a worker.
+
+- `ATR-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A role MAY
+  declare `context`, an object with optional `warnTokens`, `handoffTokens` and `hardTokens`. Each
+  member, when present, is a JSON integer from 1 to 1000000000. At least one member is present.
+  Present members strictly ascend in the order warn, handoff, hard. The object is decoded exactly:
+  an unknown, repeated or case-folded member, `null`, `0` or a non-integer is refused with the
+  configuration. `context` requires the role's `usageFormat` to be `claude-code` or `opencode`.
+  Codex reports no per-call figure (ATR-V0-031), and a role without a usage format reads no usage.
+  `hardTokens` requires `heal.handoff` to be `true`, so the hard stop always hands the attempt off.
+- `ATR-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker's
+  context estimate comes only from the CAL-V0-157 incremental read of its `stdout.log`, from these
+  recognised lines:
+  - `claude-code`: an `assistant` event whose top-level members are exact and unrepeated, whose
+    `parent_tool_use_id` is present and `null`, and whose `message.usage` carries integer
+    `input_tokens` and `output_tokens`, plus `cache_creation_input_tokens` and
+    `cache_read_input_tokens` when present. The estimate is their sum. An event with a non-null
+    `parent_tool_use_id` is a subagent's message and leaves the estimate unchanged.
+  - `opencode`: a `step_finish` event that CAL-V0-077 reads. The estimate is that step's input
+    (including cache read and write) plus its output (including reasoning).
+
+  Each recognised line replaces the estimate; it is never summed with an earlier one. The estimate
+  becomes UNKNOWN on any of these:
+  - a recognised line that cannot be read: a member missing, `null`, repeated, case-folded or not a
+    non-negative integer, or a sum that overflows
+  - a `claude-code` `assistant` event without `parent_tool_use_id`
+  - a line the usage reader marks malformed (CAL-V0-157) because it may be a context line
+
+  Every other line leaves the estimate unchanged, including `codex` events, other event types and
+  result totals. The dispatcher MUST NOT infer an estimate from output size, elapsed time, a
+  tokenizer, or any line it does not recognise. The estimate's observation time is the tick that
+  read the line.
+- `ATR-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) `dispatch
+  status` MUST give each running worker a `context` object with these members:
+  - `tokens`: the estimate in decimal, or `UNKNOWN`.
+  - `observedAt` and `ageSeconds`: when the estimate was observed and how long ago. Both are
+    `UNKNOWN` when the worker has no observation.
+  - `level`: the highest recorded crossing (`NONE`, `WARN`, `HANDOFF` or `HARD`), or `UNKNOWN`
+    when the record cannot be read.
+  - `warnTokens`, `handoffTokens` and `hardTokens`: the applied configuration's thresholds for the
+    worker's role, `NONE` when unset.
+
+  A worker whose role reads no context estimate shows `tokens` `UNKNOWN` and level `NONE`. An
+  unknown or unread estimate is never shown as `0`.
+- `ATR-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) For a worker
+  with a context-capable usage format, the dispatcher keeps a record at
+  `<stateDir>/<program>/workers/<worker>/context.json` (profile `taskman-dispatch-context/0`). It
+  holds the estimate, its observation time, the applied thresholds, the level and the recorded
+  crossings. The record is closed, bounded to 64 KiB and written atomically. On each supervising
+  tick, for each threshold of the applied role whose value the observed estimate meets or exceeds
+  and whose level has no crossing recorded for this worker, the dispatcher MUST:
+  - append one crossing (level, threshold, estimate and time) to the record
+  - after the record is written, append one `context` event naming the worker, role, ticket, level,
+    threshold and estimate
+
+  A level crossed once is never recorded or reported again for that worker, across dispatcher
+  restarts, even if the estimate later drops or the threshold is lowered and crossed again. An
+  UNKNOWN estimate crosses nothing. A record that cannot be written raises one alert per run of
+  failed writes, records no crossing and emits no `context` event; the next tick tries again. A
+  record that cannot be read raises an alert once and is replaced by a fresh one. The CAL-V0-131
+  live format set gains `taskman-dispatch-context/0`, so replacing this build in place with an
+  earlier one needs a drain (CAL-V0-130).
+- `ATR-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker
+  launched with a context-capable usage format MUST receive `CORVINT_DISPATCH_CONTEXT_FILE`, the
+  absolute path of its ATR-V0-033 record. The record is the worker's notice. A worker that finds
+  level `HANDOFF` should end its turn and leave its attempt for hand-off. Until the hard stop, the
+  dispatcher takes no action on a crossing beyond the record and the event. The record is first
+  written on the worker's first supervising tick; until then, and while `tokens` is `UNKNOWN`, no
+  estimate is known.
+- `ATR-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) When a
+  supervising tick observes a running worker whose estimate is known and meets or exceeds the
+  applied role's `hardTokens`, and the worker is not already stopping, the dispatcher MUST stop its
+  whole process tree with reason `CONTEXT`, through the same TERM-then-KILL path and kill grace
+  (from the worker's launch configuration) as the wall cap. After the tree is gone, heal MUST hand
+  off each live attempt the worker holds through the fenced release (CAL-V0-104). The `handoff`
+  event, or the `handoff-refused` event with its exit recovery, carries `reason` `CONTEXT`, plus
+  `contextTokens` and `hardTokens` from the record (`UNKNOWN` when unreadable). Every later event of
+  the same hand-off carries them too: each exit-recovery retry (`handoff` or `handoff-refused`),
+  and a detached-run deferral's `handoff-deferred` event and its eventual hand-off. The `finished`
+  event keeps `killReason` `CONTEXT`. The decision uses the estimate, not the recorded crossings,
+  so a restart between the stop and the hand-off still stops and hands off. An UNKNOWN estimate,
+  or a role without `hardTokens`, never stops a worker.
+- `ATR-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) Context
+  thresholds come from the applied configuration on every tick, not from the worker's launch
+  configuration. A CAL-V0-127 reload that adds, raises, lowers or removes a role's `context` takes
+  effect at the next tick for every running worker of that role. This is the one exception to
+  CAL-V0-127's rule that a reload does not stop a running worker: a reload that sets a `hardTokens`
+  at or below a running worker's known estimate stops it under ATR-V0-035. A role removed by a
+  reload has no thresholds. Its running workers record no further crossings and are not stopped
+  for context, and their earlier crossings stay recorded.
+- `ATR-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) The estimate
+  also becomes UNKNOWN when the read may have missed a context line:
+  - an `opencode` line that the CAL-V0-077 reader refuses for a repeated or case-folded member,
+    since such a member may hide an escaped `step_finish` type
+  - output the read skipped under the CAL-V0-143 cut
+  - a `stdout.log` shorter than the read offset
+
+  An earlier known estimate, however high, then stops nothing until a later recognised line
+  replaces it.
+- `ATR-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) An estimate
+  read back from a ATR-V0-033 record (after a dispatcher restart) is shown by `dispatch status` but
+  is not acted on. It records no crossing and makes no ATR-V0-035 stop until the dispatcher reads a
+  fresh recognised line for that worker. A record written after a later stop or hand-off may
+  therefore hold an estimate the current run never observed; that estimate stops nothing.
+- `ATR-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) This
+  amends ATR-V0-032's threshold members. `warnTokens`, `handoffTokens` and `hardTokens` show the
+  thresholds the dispatcher last applied to the worker, read from its ATR-V0-033 record, and are
+  `NONE` when that record holds none. For a worker with a context-capable usage format whose record
+  is absent or cannot be read, they are `UNKNOWN`. They are never taken from the configuration
+  file, which may be invalid or edited but not yet reloaded. A worker whose role reads no context
+  estimate shows `NONE`.
+
+Non-goals: a Codex context estimate; a tokenizer or inferred estimate; a notice inside
+`corvint-tasks` verb output (the worker reads its file); forcing a turn end at `WARN` or `HANDOFF`;
+changing the CAL-V0-157 totals or budgets; a dispatcher ledger change (the record is beside the
+worker logs and the ledger stays `taskman-dispatch-state/5`).
+
+Failure modes:
+- A host that changes its event shape leaves the estimate UNKNOWN or unchanged, so no stop happens;
+  `ageSeconds` shows the staleness.
+- A Claude Code session that compacts its context reports a smaller estimate on its next call.
+  Recorded crossings stay recorded, so lowering does not re-arm a notice.
+- A worker that ignores `HANDOFF` runs on to `hardTokens`, or to its wall or idle cap.
+- A damaged record loses its crossings, so a level may be reported once more after the alert.
+- A record that cannot be written leaves the worker without a notice until a write succeeds. The
+  hard stop still follows the estimate.
+- After a restart, a crossing whose record write failed before the restart is reported only after
+  the worker's next recognised line (ATR-V0-038).
+- After a restart, a detached-run deferral whose worker is no longer in the ledger hands off
+  without the context detail. The strict detached marker cannot carry it, and the deferral's
+  `handoff-deferred` event already did.
+- An `opencode` line refused for a repeated member leaves the context estimate UNKNOWN, but the
+  CAL-V0-157 usage totals still skip it as before.
+
+Acceptance evidence: `TestATRV0030_ContextConfigIsExactAndBounded`,
+`TestATRV0031_ContextEstimateFromRecognisedLinesOnly`,
+`TestATRV0033_CrossingsRecordedOncePerSession`, `TestATRV0034_WorkerGetsContextFile`,
+`TestATRV0035_HardStopHandsOffWithReason`, `TestATRV0035_UnknownEstimateNeverStops`,
+`TestATRV0035_DeferredAndRecoveredHandoffsKeepContext`, `TestATRV0036_ThresholdsHotReload`,
+`TestATRV0037_HiddenOrLostContextLinesAreUnknown` and
+`TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`), and
+`TestATRV0032_DispatchStatusShowsContextEstimate` and
+`TestATRV0039_DispatchStatusShowsAppliedThresholds` (`internal/tasks/cli`). See
+`docs/build-log/2026-10-17-v1-1549-dispatch-context-thresholds.md`. Live qualification with real
+Claude Code or OpenCode sessions is NOT_RUN.
+
+Rollback: remove `context` from every role, drain the dispatcher (its live format set differs,
+CAL-V0-130), then revert the code and this amendment. The ledger version does not change. An
+earlier build ignores the `context.json` records and refuses a configuration that still declares
+`context`.
 
 ## Outcome document
 
@@ -219,6 +515,8 @@ output; queue status of detached runs outside the dispatcher.
 | Run record or kept result altered or malformed | `MALFORMED`; nothing is replayed (ATR-V0-010, ATR-V0-011). |
 | Run record written by a build with another run-record version | `UNSUPPORTED_VERSION`; nothing is replayed (ATR-V0-010 as amended by CAL-V0-131). |
 | Finished record or result not written | The supervisor logs it to `supervisor.log` and exits; attach then reports `SUPERVISOR_LOST`, and the `RUN_OUTCOME` receipt, when written, stays the native record (ATR-V0-009, ATR-V0-012). |
+| Dispatcher context estimate unreadable, from an unrecognised host line, a subagent message or a Codex stream, or a context line hidden by a repeated member or lost to a log cut | The estimate is UNKNOWN or unchanged, shown with its age; UNKNOWN crosses no threshold and never stops a worker (ATR-V0-031, ATR-V0-032, ATR-V0-035, ATR-V0-037). |
+| Dispatcher context record damaged, unwritable, or the dispatcher restarts mid-session | Crossings are recorded once in the worker's `context.json` before the event; a write failure alerts once and retries; the hard stop follows the estimate; an estimate read back after a restart acts only after a fresh line, and a worker already stopped is still handed off with reason `CONTEXT`, including through exit recovery and a detached-run deferral (ATR-V0-033, ATR-V0-035, ATR-V0-038). |
 
 ## Acceptance and rollback
 
@@ -228,6 +526,10 @@ live store, required CI, owner acceptance of the profile, integration and native
 remain open and are not implied by this document. For detached runs (V1-0856) the same holds, plus
 Linux qualification of the new-session launch and `/proc` start identity, and owner acceptance and live
 qualification of the dispatcher integration CAL-V0-145..154 (V1-0936).
+
+Detached claim and pool acquire (ATR-V0-020..029, V1-1547) and dispatch context thresholds (ATR-V0-030..039, V1-1549): the focused tests in their subsections and in Traceability on Darwin;
+Linux qualification of the detached lease commands and live Claude Code or OpenCode qualification of
+the context thresholds are NOT_RUN.
 
 Rollback: revert the task-owned commit. Program mode, existing lease verbs and existing receipts are
 unaffected. Already-recorded `RUN_OUTCOME` receipts stay in journals and a binary without the verb
@@ -258,3 +560,23 @@ receipt or wire shape changes.
 | ATR-V0-013 | `internal/tasks/cli/attempt_detach.go` (`superviseRun`), `internal/tasks/cli/attempt_run.go` (`execute`) | TestATRV0013_FencedAttemptKillsTheDetachedCommand, TestATRV0008_DetachedRunSurvivesItsLauncher |
 | ATR-V0-014 | `internal/tasks/cli/attempt_detach_other.go`, `internal/tasks/cli/attempt_detach.go` (`launch`, `attemptAttach`) | NOT_PRODUCED: no test runs on a platform without new-session support; `GOOS=windows go vet` only |
 | ATR-V0-015 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRuns`, `runEnded`), `internal/tasks/cli/attempt_detach.go` (`superviseRun`, `replayRun`), `internal/tasks/store/attempt_run.go` (`AttemptRecords`) | TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts, TestATRV0015_AttachOfARunRetiredMidReadIsMissing |
+| ATR-V0-020 | `internal/tasks/cli/lease_detach.go`, `internal/tasks/cli/lease_detach_unix.go`, `internal/tasks/cli/lease_detach_other.go` | `TestATRV0021_DetachedClaimSurvivesKilledCaller`, `TestATRV0026_WithoutDetachNothingChanges` (`internal/tasks/cli`) |
+| ATR-V0-021 | `internal/tasks/cli/lease_detach.go` | `TestATRV0021_DetachedClaimSurvivesKilledCaller`, `TestATRV0021_LostChildRestartsWithoutASecondClaim` (`internal/tasks/cli`) |
+| ATR-V0-022 | `internal/tasks/cli/lease_detach.go` | `TestATRV0022_RefusalIsReturnedVerbatim`, `TestATRV0021_DetachedClaimSurvivesKilledCaller` (`internal/tasks/cli`) |
+| ATR-V0-023 | `internal/tasks/cli/lease_detach.go` | `TestATRV0023_CeilingEndsTheDetachedClaim` (`internal/tasks/cli`) |
+| ATR-V0-024 | `internal/tasks/cli/lease_detach.go` | `TestATRV0024_WaitReturnsWithinItsBound` (`internal/tasks/cli`) |
+| ATR-V0-025 | `internal/tasks/cli/lease_detach.go` | `TestATRV0026_WithoutDetachNothingChanges` (pruning) (`internal/tasks/cli`) |
+| ATR-V0-026 | `internal/tasks/cli/lease_detach.go` | `TestATRV0026_WithoutDetachNothingChanges` (`internal/tasks/cli`); `docs/build-log/2026-10-17-v1-1547-claim-detach.md` |
+| ATR-V0-027 | `internal/tasks/cli/lease_detach.go` | `TestATRV0027_StartingChildIsNeverLost` (`internal/tasks/cli`) |
+| ATR-V0-028 | `internal/tasks/cli/lease_detach.go` | `TestATRV0028_ChildLogIsCappedAndRotated` (`internal/tasks/cli`) |
+| ATR-V0-029 | `internal/tasks/cli/lease_detach.go` | `TestATRV0029_PruneReachesEveryFinishedRecord` (`internal/tasks/cli`) |
+| ATR-V0-030 | `internal/tasks/dispatch/config.go`, `internal/tasks/dispatch/context.go` | `TestATRV0030_ContextConfigIsExactAndBounded` (`internal/tasks/dispatch`); `docs/build-log/2026-10-17-v1-1549-dispatch-context-thresholds.md` |
+| ATR-V0-031 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/usage.go` | `TestATRV0031_ContextEstimateFromRecognisedLinesOnly` (`internal/tasks/dispatch`) |
+| ATR-V0-032 | `internal/tasks/cli/dispatch.go`, `internal/tasks/dispatch/context.go` | `TestATRV0032_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
+| ATR-V0-033 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/loop.go` | `TestATRV0033_CrossingsRecordedOncePerSession` (`internal/tasks/dispatch`); `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
+| ATR-V0-034 | `internal/tasks/dispatch/loop.go` | `TestATRV0034_WorkerGetsContextFile` (`internal/tasks/dispatch`) |
+| ATR-V0-035 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/loop.go`, `internal/tasks/dispatch/detached.go` | `TestATRV0035_HardStopHandsOffWithReason`, `TestATRV0035_UnknownEstimateNeverStops`, `TestATRV0035_DeferredAndRecoveredHandoffsKeepContext` (`internal/tasks/dispatch`) |
+| ATR-V0-036 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/loop.go` | `TestATRV0036_ThresholdsHotReload` (`internal/tasks/dispatch`) |
+| ATR-V0-037 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/usage.go` | `TestATRV0037_HiddenOrLostContextLinesAreUnknown` (`internal/tasks/dispatch`) |
+| ATR-V0-038 | `internal/tasks/dispatch/context.go` | `TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`) |
+| ATR-V0-039 | `internal/tasks/cli/dispatch.go`, `internal/tasks/dispatch/context.go` | `TestATRV0039_DispatchStatusShowsAppliedThresholds`, `TestATRV0032_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |

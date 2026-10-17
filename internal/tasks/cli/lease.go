@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -321,7 +322,13 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		defer stop()
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 	} else {
-		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		base := writerContext()
+		if !env.leaseDeadline.IsZero() {
+			var cancel context.CancelFunc
+			base, cancel = context.WithDeadline(base, env.leaseDeadline)
+			defer cancel()
+		}
+		ctx, stop := signal.NotifyContext(base, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		if lockWait > 0 {
 			ctx = store.WithLeaseLockWait(ctx, lockWait)

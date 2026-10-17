@@ -369,6 +369,7 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 			}
 			if kept != nil {
 				d.deferredNow[w.ID] = kept.RunID
+				d.keepDeferredContext(a.ID, w)
 				continue
 			}
 			runs := d.verifiedRuns(a, w.PID)
@@ -411,10 +412,29 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 			fresh[m.RunID] = true
 			done[a.ID] = true
 			d.deferredNow[w.ID] = m.RunID
-			d.emit(Event{Kind: "handoff", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("deferred the hand-off of %s (attempt %s) after %s ended: its detached run %s is still running, at most until %s", d.local(obs, a.Ticket), a.ID, w.ID, run.RunID, until.UTC().Format(time.RFC3339)), Detail: map[string]string{"attempt": a.ID, "generation": a.Generation, "phase": a.Phase, "handoff": "DEFERRED", "detachedRun": run.RunID}})
+			detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "phase": a.Phase, "handoff": "DEFERRED", "detachedRun": run.RunID}
+			maps.Copy(detail, d.keepDeferredContext(a.ID, w))
+			d.emit(Event{Kind: "handoff", Ticket: a.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("deferred the hand-off of %s (attempt %s) after %s ended: its detached run %s is still running, at most until %s", d.local(obs, a.Ticket), a.ID, w.ID, run.RunID, until.UTC().Format(time.RFC3339)), Detail: detail})
 		}
 	}
 	return fresh
+}
+
+// keepDeferredContext keeps the ATR-V0-035 detail of context-stopped
+// worker w for the deferred hand-off of attempt id, and returns it (nil for
+// any other worker). It is held in memory only: a hand-off deferred across
+// a dispatcher restart carries it when the restarted run still finds w
+// ended in the ledger (ATR-V0-035).
+func (d *Dispatcher) keepDeferredContext(id string, w *Worker) map[string]string {
+	detail := d.contextHandoffDetail(w)
+	if detail == nil {
+		return nil
+	}
+	if d.deferredContext == nil {
+		d.deferredContext = map[string]map[string]string{}
+	}
+	d.deferredContext[id] = detail
+	return detail
 }
 
 // advanceDetached moves every marker not created this tick one step
@@ -463,8 +483,11 @@ func (d *Dispatcher) advanceDetached(ctx context.Context, obs *Observation, done
 			}
 			if ours {
 				done[a.ID], wrote = true, true
-				d.handoff(ctx, obs, m.Worker, m.Role, *a, map[string]string{"detachedRun": m.RunID})
+				extra := map[string]string{"detachedRun": m.RunID}
+				maps.Copy(extra, d.deferredContext[a.ID])
+				d.handoff(ctx, obs, m.Worker, m.Role, *a, extra)
 			}
+			delete(d.deferredContext, m.AttemptID)
 			m.Phase = DetachedHandedOff
 			if !finished && !running {
 				d.endDetached(obs, m, run, readErr)
