@@ -3670,5 +3670,17 @@
       "tools/test-commands-check",
       "tools/test-commands-run"
     ]
+  },
+  {
+    "path": "docs/specs/shared-path-change-policy-v0.md",
+    "title": "Shared-path change policy V0",
+    "reqPrefix": "SPC-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591)",
+    "delivery": "experimental",
+    "claim": "A shared-path check names commits that change shared test infrastructure without a labelled commit, listing or run citation; a local splitter separates them.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

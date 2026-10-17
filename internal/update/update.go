@@ -40,6 +40,18 @@ type Config struct {
 	// has a snapshot store (UPD-V0-008).
 	RefreshRoots []string
 	WorkDir      string
+	// ServiceProgram is the operator's service-control executable that apply
+	// stops before and starts after the switch (UPD-V0-011, UPD-V0-013).
+	ServiceProgram string
+	// PostSwitch are shell commands run after a switch that stands, each with
+	// HookAttempts bounded attempts of HookTimeout (UPD-V0-012).
+	PostSwitch   []string
+	HookTimeout  time.Duration
+	HookAttempts int
+	// DrainTimeout bounds the wait for zero live attempts in DRAIN mode, and
+	// StartTimeout the wait for a started service to report running.
+	DrainTimeout time.Duration
+	StartTimeout time.Duration
 }
 type Result struct {
 	Component        string `json:"component"`
@@ -70,6 +82,13 @@ type Result struct {
 	// IndexRefresh is the outcome of each snapshot refresh after a Core
 	// switch (UPD-V0-008).
 	IndexRefresh []IndexRefresh `json:"indexRefresh,omitempty"`
+	// Switched is true when the new build stays installed at the end of an
+	// apply, whatever its hooks did (UPD-V0-012).
+	Switched bool `json:"switched,omitempty"`
+	// Service is the service restart around the switch, and Hooks every
+	// post-switch hook's outcome (UPD-V0-011 to UPD-V0-014).
+	Service *ServiceOutcome `json:"service,omitempty"`
+	Hooks   []HookOutcome   `json:"hooks,omitempty"`
 }
 
 // IndexRefresh is one checkout's snapshot refresh: State is built, fresh,
@@ -100,6 +119,9 @@ type engine struct {
 	inspect  func(string, string) error
 	// refreshCtx bounds the post-switch snapshot refresh; nil means none.
 	refreshCtx context.Context
+	// servicePoll is the service status, drain and hook retry interval; zero
+	// means one second.
+	servicePoll time.Duration
 }
 
 func Run(ctx context.Context, command string, c Config) (Result, error) {
@@ -116,7 +138,10 @@ func Run(ctx context.Context, command string, c Config) (Result, error) {
 // snapshot refresh keeps the caller's context instead (UPD-V0-008).
 func (e engine) execute(ctx context.Context, command string) (Result, error) {
 	e.refreshCtx = ctx
-	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	if err := validateService(command, &e.config); err != nil {
+		return Result{Component: e.config.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED"}, err
+	}
+	runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute+serviceBudget(e.config))
 	defer cancel()
 	return e.run(runCtx, command)
 }
@@ -444,6 +469,30 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.Freshness = "CURRENT"
 		return r, nil
 	}
+	var svc *service
+	if c.ServiceProgram != "" {
+		svc = &service{program: c.ServiceProgram, component: c.Component, binary: destination, poll: e.poll()}
+		var installedFormats, candidateFormats []string
+		if c.Component == "tasks" {
+			installedFormats, candidateFormats = tasksFormats(ctx, destination, ""), tasksFormats(ctx, candidate, home)
+		}
+		if r.Service, err = e.quiesce(ctx, *svc, serviceMode(c.Component, installedFormats, candidateFormats)); err != nil {
+			return r, err
+		}
+		if r.Service.WasRunning {
+			// Any failure before the switch stands starts the old build again.
+			defer func() {
+				if r.Service.State == "STOPPED" && !r.Switched {
+					r.Service.State = "FAILED"
+					if svc.start(ctx, c.StartTimeout) == nil {
+						r.Service.State = "RESUMED_OLD"
+					}
+				}
+			}()
+		} else {
+			svc = nil
+		}
+	}
 	previous, err := readRegular(destination, archiveLimit)
 	if err != nil {
 		return r, err
@@ -467,17 +516,53 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 		r.Qualification += "; supplied Tasks source/manifest retained: " + extracted
 	}
 	r.Receipt = filepath.Join(stage, "receipt.json")
+	installedVersion, installedBuild := r.InstalledVersion, r.InstalledBuild
 	err = activate(ctx, candidate, destination, oldDigest)
-	if err == nil {
-		r.Action = "applied"
-		r.InstalledVersion = candidateVersion
-		r.InstalledBuild = build
-		r.Freshness = "CURRENT"
-		removed, left := retainCommitted(c.StateDir, stage, candidate, rec)
-		r.Removed, r.Left = append(r.Removed, removed...), append(r.Left, left...)
-		e.switched(&r)
+	if err != nil {
+		return r, err
 	}
-	return r, err
+	r.Action = "applied"
+	r.InstalledVersion = candidateVersion
+	r.InstalledBuild = build
+	r.Freshness = "CURRENT"
+	removed, left := retainCommitted(c.StateDir, stage, candidate, rec)
+	r.Removed, r.Left = append(r.Removed, removed...), append(r.Left, left...)
+	if svc != nil {
+		if startErr := svc.start(ctx, c.StartTimeout); startErr != nil {
+			// The new build did not start: restore the previous bytes and the
+			// service on them (UPD-V0-013).
+			_ = svc.ok(ctx, "stop")
+			r.Action, r.InstalledVersion, r.InstalledBuild = "rolled-back", installedVersion, installedBuild
+			r.Service.State, r.Service.Reason = "ROLLED_BACK", "new build: "+startErr.Error()
+			if _, rollbackErr := e.rollback(ctx, destination); rollbackErr != nil {
+				r.Service.State, r.Service.Reason = "FAILED", r.Service.Reason+"; rollback: "+rollbackErr.Error()
+				r.Action, r.InstalledVersion, r.InstalledBuild = "applied", candidateVersion, build
+				r.Switched = true
+				return r, errors.New("service did not start on the new build and rollback failed: " + rollbackErr.Error())
+			}
+			if restartErr := svc.start(ctx, c.StartTimeout); restartErr != nil {
+				r.Service.State, r.Service.Reason = "FAILED", r.Service.Reason+"; previous build: "+restartErr.Error()
+			}
+			e.switched(&r)
+			r.Switched = false
+			return r, errors.New("service did not start on the new build; rolled back to the previous build")
+		}
+		r.Service.State = "RESUMED"
+	}
+	r.Switched = true
+	e.switched(&r)
+	if len(c.PostSwitch) > 0 {
+		hookCtx := e.refreshCtx
+		if hookCtx == nil {
+			hookCtx = context.Background()
+		}
+		var failed bool
+		r.Hooks, failed = e.runHooks(hookCtx, destination, build)
+		if failed {
+			return r, errors.New("post-switch hook failed; the switch to the new build stands")
+		}
+	}
+	return r, nil
 }
 
 // transactionName matches the directories apply creates with

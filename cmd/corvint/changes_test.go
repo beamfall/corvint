@@ -66,3 +66,76 @@ func TestChangesCLI(t *testing.T) {
 		}
 	})
 }
+
+func TestSPCV0008ChangesSharedCLI(t *testing.T) {
+	root, e := filepath.EvalSymlinks(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	git := func(args ...string) string {
+		t.Helper()
+		c := exec.Command("git", append([]string{"-C", root}, args...)...)
+		c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+		b, e := c.CombinedOutput()
+		if e != nil {
+			t.Fatalf("git %v: %v %s", args, e, b)
+		}
+		return strings.TrimSpace(string(b))
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if e := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); e != nil {
+			t.Fatal(e)
+		}
+	}
+	git("init", "-q", "-b", "work")
+	write(".corvint/shared-paths.json", `{"profile":"corvint-shared-paths/0","shared":["internal/testutil/**"],"generated":["docs/specs/REQUIREMENTS.tsv"],"marker":"shared-path:"}`)
+	git("add", "-A")
+	git("commit", "-q", "-m", "base")
+	base := git("rev-parse", "HEAD")
+	write("internal/testutil/a.go", "a\n")
+	write("cmd/b.go", "b\n")
+	git("add", "-A")
+	git("commit", "-q", "-m", "feat: mixed")
+	head := git("rev-parse", "HEAD")
+	call := func(args ...string) (int, map[string]any, string) {
+		t.Helper()
+		var out, err bytes.Buffer
+		code := run(append([]string{"--root", root, "changes"}, args...), strings.NewReader(""), &out, &err)
+		var v map[string]any
+		_ = json.Unmarshal(out.Bytes(), &v)
+		return code, v, err.String()
+	}
+	if code, v, _ := call("check-shared", "--base", base); code != 1 || v["profile"] != "corvint-shared-path-check/0" || v["ok"] != false {
+		t.Fatalf("check-shared: %d %v", code, v)
+	}
+	if code, v, _ := call("split-shared", "--base", base, "--branch", "work"); code != 0 || v["applied"] != false || v["oldHead"] != head || git("rev-parse", "work") != head {
+		t.Fatalf("split plan: %d %v", code, v)
+	}
+	for _, args := range [][]string{
+		{"split-shared", "--base", base, "--branch", "work", "--apply"},
+		{"split-shared", "--base", base, "--branch", "work", "--expect-head", head},
+		{"check-shared"},
+		{"check-shared", "--base", base, "--branch", "work"},
+	} {
+		if code, _, stderr := call(args...); code != 2 || !strings.Contains(stderr, "changes-invalid-arguments") {
+			t.Fatalf("%v: %d %s", args, code, stderr)
+		}
+	}
+	if code, _, stderr := call("check-shared", "--base", base, "--config", "absent.json"); code != 2 || !strings.Contains(stderr, "changes-shared-config-unavailable") {
+		t.Fatalf("absent config: %d %s", code, stderr)
+	}
+	if code, _, stderr := call("split-shared", "--base", base, "--branch", "work", "--apply", "--expect-head", base); code != 2 || !strings.Contains(stderr, "changes-shared-head-mismatch") || git("rev-parse", "work") != head {
+		t.Fatalf("head mismatch: %d %s", code, stderr)
+	}
+	code, v, _ := call("split-shared", "--base", base, "--branch", "work", "--apply", "--expect-head", head)
+	if code != 0 || v["applied"] != true || v["oldHead"] != head || v["newHead"] != git("rev-parse", "work") || v["pushed"] != false {
+		t.Fatalf("split apply: %d %v", code, v)
+	}
+	if git("rev-parse", "work^{tree}") != git("rev-parse", head+"^{tree}") {
+		t.Fatal("final tree changed")
+	}
+}
