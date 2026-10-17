@@ -17,3 +17,6 @@ func changeTime(info os.FileInfo) (int64, bool) {
 	}
 	return st.Ctim.Nano(), true
 }
+
+// haveChangeTime says changeTime reports a change time on this platform.
+const haveChangeTime = true

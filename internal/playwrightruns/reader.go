@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/runhygiene"
@@ -132,6 +133,16 @@ type Run struct {
 	// RepeatEach is config.projects[].repeatEach by project name, kept only when it is above 1 and
 	// every configured entry of that name agrees (PWR-V0-011).
 	RepeatEach map[string]int
+	// TestRevision and TestRootPath are the test-suite revision and the repository-relative path of
+	// config.rootDir declared under corvintRunIdentity; Category is config.metadata.corvintRunCategory
+	// (PWR-V0-033, PWR-V0-037). Each is "" when undeclared and is never inferred.
+	TestRevision string
+	TestRootPath string
+	Category     string
+	RootDir      string // config.rootDir as a cleaned slash path, "" when absent
+	// StartTime is stats.startTime; HasStartTime is false when it is absent or not RFC 3339.
+	StartTime    time.Time
+	HasStartTime bool
 }
 
 // repeats is how many repeat observations of one test of project the run declares; 1 unless
@@ -189,6 +200,24 @@ type jsonReport struct {
 	} `json:"config"`
 	Errors []json.RawMessage `json:"errors"`
 	Suites *[]jsonSuite      `json:"suites"`
+	// Stats is decoded leniently by statsStartTime: an ill-typed member is absent (PWR-V0-033).
+	Stats json.RawMessage `json:"stats"`
+}
+
+// statsStartTime is stats.startTime when stats is an object whose startTime is an RFC 3339 string.
+func statsStartTime(raw json.RawMessage) (time.Time, bool) {
+	var stats struct {
+		StartTime json.RawMessage `json:"startTime"`
+	}
+	var text string
+	if json.Unmarshal(raw, &stats) != nil || json.Unmarshal(stats.StartTime, &text) != nil {
+		return time.Time{}, false
+	}
+	at, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return at.UTC(), true
 }
 
 type jsonSuite struct {
@@ -290,6 +319,11 @@ func Parse(raw []byte) (*Run, error) {
 	run := &Run{Sha256: hex.EncodeToString(sum[:]), Version: doc.Config.Version, Workers: doc.Config.Workers,
 		ReportErrors: len(doc.Errors), Ambiguous: map[string]bool{}, Tests: []Test{}}
 	run.Inputs, run.InputsDeclared = declaredInputs(doc.Config.Metadata)
+	run.TestRevision, run.TestRootPath, run.Category = declaredRunFacts(doc.Config.Metadata)
+	if doc.Config.RootDir != "" {
+		run.RootDir = slashPath(doc.Config.RootDir)
+	}
+	run.StartTime, run.HasStartTime = statsStartTime(doc.Stats)
 	run.Shard = doc.Config.Shard
 	run.ConfiguredProjects = []string{}
 	configured := map[string]bool{}
@@ -523,6 +557,35 @@ func declaredInputs(raw json.RawMessage) (Inputs, bool) {
 		sort.Strings(in.conflicts[key])
 	}
 	return in, true
+}
+
+// declaredRunFacts reads the reuse facts a run declares (PWR-V0-033, PWR-V0-037):
+// corvintRunIdentity.testRevision and .testRootPath, and corvintRunCategory. A malformed value
+// counts as absent.
+func declaredRunFacts(raw json.RawMessage) (testRevision, testRootPath, category string) {
+	var meta struct {
+		Identity *struct {
+			TestRevision string `json:"testRevision"`
+			TestRootPath string `json:"testRootPath"`
+		} `json:"corvintRunIdentity"`
+		Category string `json:"corvintRunCategory"`
+	}
+	if len(raw) == 0 {
+		return "", "", ""
+	}
+	if json.Unmarshal(raw, &meta) != nil {
+		// One malformed member must not hide the others: read each alone.
+		var parts map[string]json.RawMessage
+		if json.Unmarshal(raw, &parts) != nil {
+			return "", "", ""
+		}
+		_ = json.Unmarshal(parts["corvintRunIdentity"], &meta.Identity)
+		_ = json.Unmarshal(parts["corvintRunCategory"], &meta.Category)
+	}
+	if meta.Identity != nil {
+		testRevision, testRootPath = meta.Identity.TestRevision, meta.Identity.TestRootPath
+	}
+	return testRevision, testRootPath, meta.Category
 }
 
 func durationMS(ms float64) int64 {

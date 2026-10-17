@@ -18,6 +18,9 @@ type PhysicalFile struct {
 type PhysicalObservation struct {
 	Files   map[string]PhysicalFile
 	Cleanup error
+	// capture is the settled attempt's first capture, published with Files;
+	// Result.ResumeBase binds a later resumed audit to its stamps.
+	capture *observation
 }
 
 type physicalReads struct {
@@ -48,6 +51,9 @@ func (p *physicalReads) add(path string, raw []byte) error {
 // returns bounded physical metadata for same-guard inventory assembly. It is
 // not a cross-command cache or authority. Ordinary readers do not collect it.
 func (r Reader) AuditForWriteObserved() (*Result, PhysicalObservation, error) {
+	if r.PrefixFallback {
+		return r.auditPrefixFallback()
+	}
 	observation := PhysicalObservation{}
 	r.writerCache, r.physical = true, &observation
 	result, err := r.Audit()
