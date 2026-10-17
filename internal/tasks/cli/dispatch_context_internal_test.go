@@ -108,3 +108,27 @@ func TestATRV0039_DispatchStatusShowsAppliedThresholds(t *testing.T) {
 		}
 	}
 }
+
+// ATR-V0-054: a context record another build wrote shows UNKNOWN throughout,
+// never a guessed level.
+func TestATRV0054_DispatchStatusShowsNewerRecordUnknown(t *testing.T) {
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	dir := t.TempDir()
+	path := dispatch.ContextRecordPath(dir, "w1")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"profile":"taskman-dispatch-context/1","worker":"w1","level":"HARD"}`+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c := &dispatch.Config{Roles: []dispatch.Role{{Name: "impl", UsageFormat: "claude-code"}}}
+	l := &dispatch.Ledger{Program: "prog", Backoff: map[string]*dispatch.BackoffState{}, Workers: []*dispatch.Worker{
+		{ID: "w1", Role: "impl", Key: "ticket:a:q:t1", Usage: &dispatch.WorkerUsage{Format: "claude-code"}},
+	}}
+	workers, _ := statusField(t, dispatchStatusValue(c, dir, l, nil, now), "workers")
+	ctx, ok := statusField(t, workers.Arr[0], "context")
+	if !ok {
+		t.Fatal("no context")
+	}
+	statusStrings(t, ctx, map[string]string{"tokens": "UNKNOWN", "observedAt": "UNKNOWN", "level": "UNKNOWN", "warnTokens": "UNKNOWN", "handoffTokens": "UNKNOWN", "hardTokens": "UNKNOWN"})
+}
