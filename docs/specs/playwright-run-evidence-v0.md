@@ -8,12 +8,13 @@ Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requ
 #809 (repeat-each) and #810 (shards) for PWR-V0-011..023, agent-drafted and accepted under the
 owner's standing auto-accept (2026-10-11) after independent review; V1-1578 / GitHub #1021 (result
 reuse) and #1024 (evidence freshness) for PWR-V0-033..040, agent-drafted and accepted under the same
-standing auto-accept; AGENTS.md invariants 1, 2, 4, 7 and 8.
+standing auto-accept; V1-1590 / GitHub #1033 (a revision-pinned failure baseline for the run gate)
+for PWR-V0-041..045, agent-drafted and accepted on 2026-10-17 under the same standing auto-accept; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
 - Status: accepted (decision 0520; V1-1230, V1-1229)/experimental
-- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023); `corvint runs reusable` lists each selected test as `REUSABLE` or `MUST_RUN` with a reason from fingerprinted prior passes, `corvint runs redundancy` reports re-run test minutes by category, and `corvint runs fresh` reads evidence freshness over the repository-declared reach in `.corvint/evidence-reach.json` (PWR-V0-033..040).
+- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023); `corvint runs reusable` lists each selected test as `REUSABLE` or `MUST_RUN` with a reason from fingerprinted prior passes, `corvint runs redundancy` reports re-run test minutes by category, and `corvint runs fresh` reads evidence freshness over the repository-declared reach in `.corvint/evidence-reach.json` (PWR-V0-033..040); `corvint runs baseline record` and `diff` gate candidate runs on a revision-pinned failure baseline whose known entries were confirmed by an isolated re-run (PWR-V0-041..045).
 - Blocked on: owner acceptance; fixture durations, cleanup and passing assertions are not in the JSON reporter output.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -210,6 +211,49 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
   `runs-report-unavailable` naming the option and position, offer `--summary` (counts and verdict
   without per-test or per-run rows, such as `priors` and `shardSets`, or path lists), and be documented in `corvint runs` topic help.
 
+### Revision-pinned failure baseline (GitHub #1033, V1-1590)
+
+The run gate today fails on every failing test, so a branch that inherits a broken test from its
+base is blocked by failures it did not cause. PWR-V0-041..045 let the gate block only on failures
+that are not in a baseline recorded at a pinned revision, without ever excusing a flake or a change's
+own tests.
+
+- `PWR-V0-041`: `corvint runs baseline record --rev REV --full R... --isolated R...` MUST print a
+  `corvint-run-baseline/0` document `{profile, revision, known, flaky}` for the caller to retain,
+  with `revision` the full commit id REV resolves to. A test is `known` only when it failed
+  unambiguously (Playwright `unexpected`) in a full-run report and in an isolated re-run report;
+  each known entry binds the paths and sha256 of the first full-run and isolated reports that show
+  that failure, whatever the report order. Report paths are recorded as given, relative to the
+  caller's directory, and read against `--root` at diff time. A test that failed, or was flaky, in the
+  full run only is listed under `flaky` with its full-run evidence. Identities a report holds
+  ambiguously are left out. A report that declares an `applicationRevision` other than REV refuses
+  `runs-baseline-unavailable` (`APPLICATION_REVISION_DIFFERS`); more than 4096 entries refuse
+  (`BASELINE_BOUND_EXCEEDED`); an unresolvable REV refuses `runs-revision-unresolved`.
+- `PWR-V0-042`: `runs baseline diff --baseline B --runs R...` MUST read B strictly (at most 16 MiB,
+  opened without blocking so a FIFO refuses as unreadable,
+  unknown members, another profile, a revision that is not a full object id, a known entry without
+  isolated evidence or a duplicate identity refuse `runs-baseline-unavailable`). A candidate failure
+  that is a known entry is excused (`KNOWN_VERIFIED`) only when both recorded reports re-read at diff
+  time with their recorded sha256 and still fail the test unambiguously; otherwise it blocks with
+  `EVIDENCE_MISSING`, `EVIDENCE_CHANGED` or `EVIDENCE_PASSING`.
+- `PWR-V0-043`: A candidate failure in a `flaky` entry MUST block as `SUSPECTED_FLAKE` and is never
+  excused. A known failure whose file is under an `--own` path (resolved through each candidate's
+  `testRootPath`) MUST block as `OWN_FILE`; with `--own` given, a known failure in a candidate whose
+  test root cannot be located blocks as `TEST_ROOT_UNRESOLVED`. A failure not in the baseline blocks
+  as `NOT_IN_BASELINE`, and an identity any candidate report holds ambiguously blocks as
+  `IDENTITY_AMBIGUOUS` even when another report fails it unambiguously; and a candidate report with top-level errors blocks
+  the verdict with `REPORT_HAS_ERRORS`.
+- `PWR-V0-044`: The diff MUST print a `corvint-runs-baseline-diff/0` receipt with `verdict`
+  (`PASS` or `BLOCKED`) and `reasons`, bound to the baseline `revision` and the sha256 of its bytes
+  and to each candidate report's path and sha256, listing the `new`, `known` (each `excused` with a
+  reason), `flaky`, `fixed` (baseline entries the candidate passed) and `unobserved` sets, sorted,
+  with `counts` of each plus `excused` and `blocking`. It exits 1 when `BLOCKED`, 0 on `PASS`.
+- `PWR-V0-045`: With `--base REV`, the receipt MUST report `staleness` as `STALE` when the baseline
+  revision is not an ancestor of the branch point (the merge base of `HEAD` and REV) or is more than
+  `--max-age` commits (default 50) behind it, `FRESH` otherwise with the commit count, and
+  `NOT_OBSERVED` with a reason (`BASE_NOT_GIVEN`, `REVISION_UNRESOLVED`, `BRANCH_POINT_UNRESOLVED`,
+  `COUNT_UNAVAILABLE`) when it cannot be read. Staleness is reported, not a verdict input.
+
 ## Boundaries and failure modes
 
 Non-goals: running Playwright, fetching reports, reading HTML/blob/JUnit reporters, directory or glob
@@ -238,8 +282,17 @@ graphs, rename tracking, `corvint test` (STR-V0) receipts, and skipping tests: t
 decisions. Reuse limits: the decision trusts declared fingerprints exactly as stability does; a
 `FRESH_PASS` is as good as the declared reach, which covers only cited and declared shared paths, so
 an undeclared dependency outside them can still change behaviour. A report from another machine
-needs `testRootPath` to locate its test files. Redundancy undercounts tests without a start time or
+needs `testRootPath` to locate its test files; without it the decision is `MUST_RUN` with
+`FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`, never a guess from `config.rootDir` (V1-1611). Redundancy undercounts tests without a start time or
 fingerprint, which it reports as excluded or unfingerprinted rather than guessing.
+
+Baseline non-goals (PWR-V0-041..045): running the suite or the isolated re-run (the caller runs both
+and names the reports), storing the baseline (the caller retains the printed document), a baseline
+cache or index, excusing a flake after any number of observations, and blocking on staleness.
+Baseline failure modes: a moved or rewritten evidence report un-excuses its known failure, which is
+the intended fail-closed direction; a test whose presented identity was secret-screened never
+matches its candidate key and so blocks as new; a candidate `flaky` result is neither failing nor
+fixed and leaves its baseline entry unobserved.
 
 ## Implementation, rollout and rollback
 
@@ -250,6 +303,9 @@ Reuse and freshness (PWR-V0-033..040) roll back by removing the `reusable`, `red
 `cmd/corvint/runs_reuse.go`, `internal/playwrightruns/reuse.go` and `redundancy.go`, the declared-fact
 fields, `internal/evidencereach` and `.corvint/evidence-reach.json`; nothing is persisted. They extend
 `corvint runs` rather than adding a top-level verb so the root dispatch and its receipts stay unchanged.
+The baseline (PWR-V0-041..045) rolls back by removing the `baseline` dispatch case and help,
+`cmd/corvint/runs_baseline.go` and `internal/playwrightruns/baseline.go`; retained baseline documents
+are caller files and become inert.
 Promotion beyond experimental needs owner acceptance of these requirements.
 
 ## Acceptance evidence
@@ -278,6 +334,14 @@ same-file-content re-runs, ignores ties and later passes, and keeps `--since` hi
 returns `FRESH`, `STALE` for cited, shared and declaration changes, and `UNRESOLVED` for each
 resolution error; the repository is byte-unchanged after the reads. Live qualification ran the three
 reads on this repository's retained reports and commits (2026-10-17 V1-1578 build-log entry).
+
+Baseline (synthetic reports and a temporary Git repository): a failure in both runs is known and one
+in the full run only, or flaky there, is a suspected flake; a verified known failure passes the gate;
+new and flaky failures block; missing, changed and passing evidence and an own file un-excuse a known
+failure; report errors block; passing entries are fixed; a malformed baseline, a revision-declaring
+report at another revision and an unresolved revision refuse; staleness is `FRESH` at 3 of 3 commits,
+`STALE` past `--max-age 2` and `NOT_OBSERVED` without `--base`. Running real Playwright suites for
+the full and isolated runs is `NOT_RUN`.
 
 ## Delivery
 
@@ -309,10 +373,15 @@ reads on this repository's retained reports and commits (2026-10-17 V1-1578 buil
 | PWR-V0-033 | `internal/playwrightruns` | `TestRunFactsDeclaration`, `TestReusableDecisions` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-034 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-035 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` (including a report from another machine: a foreign `config.rootDir` with `testRootPath` declared resolves `FRESH_PASS` or `STALE`, and without it, or with an escaping one, `FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`; V1-1611) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-037 | `internal/playwrightruns` | `TestRedundancy`, `TestRunsRedundancyCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-040 | `cmd/corvint/runs_reuse.go` | `TestRunsReusableCLI`, `TestRunsRedundancyCLI`, `TestReusableSummaryForm`, `TestReaderCheck` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-041 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RecordKnownNeedsBothRuns`, `TestPWRV0041_ReadBaselineShape`, `TestPWRV0041_KnownBindsFailingFullReport`, `TestPWRV0041_RunsBaselineCLI`, `TestPWRV0042_RunsBaselineRelativeRoot` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-042 | `internal/playwrightruns/baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0042_EvidenceReReadUnexcuses`, `TestPWRV0041_ReadBaselineRefusesFIFO`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-043 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0043_OwnFileAndReportErrorsBlock`, `TestPWRV0043_AmbiguousFailureNeverExcused`, `TestPWRV0043_RunsBaselineOwnFailsClosed`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-044 | `internal/playwrightruns/baseline.go`, `cmd/corvint/runs_baseline.go` | `TestPWRV0042_DiffExcusesOnlyVerifiedKnown`, `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-045 | `cmd/corvint/runs_baseline.go` | `TestPWRV0041_RunsBaselineCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.
