@@ -2,9 +2,13 @@
 
 Date: 2026-10-17
 Ticket: V1-1560 (GitHub issue beamfall/corvint#1010, P1)
-Requirements: CAL-V0-330..335 (`docs/specs/corvint-tasks-agent-leases-v0.md`, section "V1-1560 pool
+Requirements: PSR-V0-050..055 (`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`, section "V1-1560 pool
 acquire under a moving journal"). They are accepted under the owner's standing auto-accept of lane
 requirements (2026-10-11). CAL-V0-264 stays declined, and this change does not revive it.
+
+Re-homed (owner-approved, 2026-10-17): these requirements were first numbered CAL-V0-330..337 in the
+agent leases spec; they moved to PSR-V0-050..057 in `docs/specs/corvint-tasks-pool-safe-reuse-v0.md`
+with the same text so the leases spec stays within the 256-obligation bound.
 
 ## Problem
 
@@ -21,16 +25,16 @@ being longer than the audit itself.
 
 Each lease command reuses its own settled audit from receipt 1. Nothing is shared or persisted.
 
-1. **Prefix fallback (CAL-V0-330).** The preparation audit makes one complete attempt. That attempt
+1. **Prefix fallback (PSR-V0-050).** The preparation audit makes one complete attempt. That attempt
    stops early when `head.json` moves, checked every 512 items. The audit then walks the prefix to
    the head it captured, using the CAL-V0-265 walk. A prefix walk never decides a refusal: when it
    refuses, the result is `ErrPrefixDeclined`, and for the rest of the command the complete audit
    decides.
-2. **Resume base (CAL-V0-331).** A settled `ModeFull` or `ModePrefix` result, with its own
+2. **Resume base (PSR-V0-051).** A settled `ModeFull` or `ModePrefix` result, with its own
    observation, yields an in-memory base. The base holds the writer checkpoint plus, for every
    receipt, request, evidence and pinned file the audit read, its stamps, change time, digest and a
    "settled" flag.
-3. **Resumed write (CAL-V0-332).** A round that ended `SNAPSHOT_MOVED` with a base retries through
+3. **Resumed write (PSR-V0-052).** A round that ended `SNAPSHOT_MOVED` with a base retries through
    `leaseWriter` under the gate and the writer lock, for any lease verb. The audit is
    `AuditForWriter` from the base's checkpoint (tail of 256 or fewer) plus `held()`, which checks
    that:
@@ -42,16 +46,16 @@ Each lease command reuses its own settled audit from receipt 1. Nothing is share
    - the invalidation token is unchanged.
 
    Any difference is a decline: nothing is written, and that round's ordinary preparation runs.
-4. **Tamper detection (CAL-V0-333).** The CAL-V0-116 rewritten-prefix detection is kept because
+4. **Tamper detection (PSR-V0-053).** The CAL-V0-116 rewritten-prefix detection is kept because
    the base came from this command's complete or prefix audit. Any later rewrite changes the change
    time, so the resume declines, and the complete route then refuses the journal as before.
-5. **Overtaken guard (CAL-V0-334).** Debugging the first load run showed that `WatchChanges`, which
+5. **Overtaken guard (PSR-V0-054).** Debugging the first load run showed that `WatchChanges`, which
    registers the change guard and visits every store file, was itself overtaken on most rounds
    (up to 13 rounds). A resumable round whose guard registration moved now still runs the bounded
    audit, only to derive a base, and ends `SNAPSHOT_MOVED`. Without a guard it never refuses,
    never takes the complete route and never commits.
 
-Bound (CAL-V0-335): before its first resume, a command spends at most one early-stopped complete
+Bound (PSR-V0-055): before its first resume, a command spends at most one early-stopped complete
 attempt and one prefix walk. After that, each round costs one bounded writer section, plus one
 more preparation audit per declined resume. Neither cost depends on the writer rate or on the
 number of retries.
@@ -62,12 +66,12 @@ Focused tests (Darwin, Go 1.27.2):
 
 | Test | Base cc487c92e | After |
 |---|---|---|
-| `TestCALV0332_PoolAcquireResumesUnderWriter` (a writer appends during every preparation) | 16 complete audits, 16 rounds, `SNAPSHOT_MOVED` | completed, 1 audit, `Resumed` 1 |
-| `TestCALV0333_ResumeKeepsRewrittenPrefixDetection` | n/a | rewritten receipt (mtime restored) never commits; head unchanged |
-| `TestCALV0334_OvertakenGuardStillResumes` / `...KeepsRewrittenPrefixDetection` | n/a | completes with the guard always overtaken; tamper still refused |
-| `TestCALV0330/0331/0332_*` (`internal/tasks/journal`) | n/a | prefix fallback, settled-only base, 6 decline cases × settled/unsettled stamps |
+| `TestPSRV0052_PoolAcquireResumesUnderWriter` (a writer appends during every preparation) | 16 complete audits, 16 rounds, `SNAPSHOT_MOVED` | completed, 1 audit, `Resumed` 1 |
+| `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection` | n/a | rewritten receipt (mtime restored) never commits; head unchanged |
+| `TestPSRV0054_OvertakenGuardStillResumes` / `...KeepsRewrittenPrefixDetection` | n/a | completes with the guard always overtaken; tamper still refused |
+| `TestPSRV0050/0051/0052_*` (`internal/tasks/journal`) | n/a | prefix fallback, settled-only base, 6 decline cases × settled/unsettled stamps |
 
-Opt-in load harness `TestCALV0335_PoolAcquireLoad` run settings:
+Opt-in load harness `TestPSRV0055_PoolAcquireLoad` run settings:
 - 10,000 receipts, 8 acquirer processes and one writer every 3,000 ms;
 - 240 s of load, a 180 s grace and a 420 s hard stop;
 - 12 CPUs on local Darwin, with host load 53 to 68 throughout (other lanes running).
@@ -84,7 +88,7 @@ Each acquirer cycles through claim, acquire, pool release, confirm-safe and rele
 | wall p50 / max | 417.6 s / 443.2 s | 42.9 s / 65.2 s |
 
 The base binary was built from a worktree at cc487c92e, with the same harness except that the
-`Resumed` field was replaced by 0. Before the CAL-V0-334 change, the branch completed 20 of 20
+`Resumed` field was replaced by 0. Before the PSR-V0-054 change, the branch completed 20 of 20
 acquires with up to 13 rounds (max 64 s).
 
 ## Limits
@@ -111,9 +115,9 @@ regression tests that fail on c843d6aab:
 1. **High: the base check did not hold through commit.** `held` ran once, inside the resumed audit.
    No change guard watches the resumed route, and the commit rebind checks only the head and the
    intent tree. A receipt rewritten after the check could therefore be committed over.
-   `TestCALV0336_ResumeRechecksBaseBeforeCommit` rewrites receipt 2 at `fast.lease.observe` and at
+   `TestPSRV0056_ResumeRechecksBaseBeforeCommit` rewrites receipt 2 at `fast.lease.observe` and at
    `fast.lease.model`. On c843d6aab the acquire completed and committed receipt 77 in both cases.
-   Fix (CAL-V0-336): `leaseWriter` calls `journal.Reader.RecheckResume` under the lock, after
+   Fix (PSR-V0-056): `leaseWriter` calls `journal.Reader.RecheckResume` under the lock, after
    modelling and the rebind and before it reports, retains or publishes anything. Every request
    shard is now listed afresh rather than taken from the audit's capture, so a shard made after
    the capture is also seen. The recheck costs one more receipt and request listing per resumed
@@ -121,9 +125,9 @@ regression tests that fail on c843d6aab:
 2. **Medium: native-close failures in the base check became declines.** The check read through
    `Native.List` and `Native.Read`, each with its own lifetime, so a failed close turned into an
    ordinary decline. The command then fell back to preparation, against CAL-V0-116.
-   `TestCALV0337_ResumeCheckCloseFailureIsCleanup` fails the close of the check's receipts listing.
+   `TestPSRV0057_ResumeCheckCloseFailureIsCleanup` fails the close of the check's receipts listing.
    On c843d6aab the result was "checkpoint unusable" with no cleanup error.
-   Fix (CAL-V0-337): the check reads through one `nativeRead` of its own. The resumed audit folds
+   Fix (PSR-V0-057): the check reads through one `nativeRead` of its own. The resumed audit folds
    that lifetime's close into its own cleanup channel (`UNSUPPORTED_FILESYSTEM`, read lifetime,
    `PhysicalObservation.Cleanup`), which `observeWriter` treats as terminal. `RecheckResume`
    returns a close failure as cleanup, and `leaseWriter` returns it as terminal.

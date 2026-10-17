@@ -48,7 +48,7 @@ type acquireLoadSample struct {
 	Declines        []string
 }
 
-// TestCALV0335_PoolAcquireLoad is the opt-in V1-1560 / GH1010 starvation
+// TestPSRV0055_PoolAcquireLoad is the opt-in V1-1560 / GH1010 starvation
 // harness, not a timing assertion; a plain `go test` skips it. It builds a
 // settled historyStoreAt journal of CORVINT_TASKS_POOL_ACQUIRE_LOAD_RECEIPTS
 // receipts (default 45000) with a pool "db" of one member per acquirer, then
@@ -62,7 +62,7 @@ type acquireLoadSample struct {
 // CORVINT_TASKS_POOL_ACQUIRE_LOAD_GRACE_SECONDS (default 300) after the
 // deadline is cancelled and recorded as unfinished. The report at
 // CORVINT_TASKS_POOL_ACQUIRE_LOAD keeps raw samples and per-verb percentiles.
-func TestCALV0335_PoolAcquireLoad(t *testing.T) {
+func TestPSRV0055_PoolAcquireLoad(t *testing.T) {
 	output := os.Getenv("CORVINT_TASKS_POOL_ACQUIRE_LOAD")
 	if output == "" {
 		t.Skip("set CORVINT_TASKS_POOL_ACQUIRE_LOAD to a report path")
@@ -138,7 +138,7 @@ func TestCALV0335_PoolAcquireLoad(t *testing.T) {
 		}
 		outs[i] = filepath.Join(real, fmt.Sprintf("worker-%d.jsonl", i))
 		spec, _ := json.Marshal(acquireLoadWorker{Repo: repo.PrimaryWorktree, Root: root, Role: role, Tickets: own, Out: outs[i], Index: i, PeriodMS: period, Start: start.UnixMilli(), Deadline: deadline.UnixMilli(), HardStop: hardStop.UnixMilli()})
-		cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0335_PoolAcquireLoadWorker$", "-test.count=1", "-test.timeout=0")
+		cmd := exec.Command(os.Args[0], "-test.run=^TestPSRV0055_PoolAcquireLoadWorker$", "-test.count=1", "-test.timeout=0")
 		cmd.Env = append(os.Environ(), "CORVINT_TASKS_POOL_ACQUIRE_LOAD=", "CORVINT_TASKS_POOL_ACQUIRE_LOAD_WORKER="+string(spec))
 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 		if err := cmd.Start(); err != nil {
@@ -214,7 +214,7 @@ func TestCALV0335_PoolAcquireLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := map[string]any{
-		"ticket": "V1-1560", "issue": "beamfall/corvint#1010", "requirement": "CAL-V0-335",
+		"ticket": "V1-1560", "issue": "beamfall/corvint#1010", "requirement": "PSR-V0-055",
 		"fixture":   fmt.Sprintf("historyStoreAt with %d tickets and %d receipts; pool db of %d members", tickets, receipts, acquirers),
 		"workers":   fmt.Sprintf("1 dispatcher creating a ticket every %d ms; %d acquirers, each repeating claim, pool acquire, pool release, pool confirm-safe and release on its own tickets, moving to the next when a ticket's retry budget is spent; in-process lease audit cache cleared before every call", period, acquirers),
 		"statistic": "per-verb nearest-rank percentiles over all calls; WallMS is the whole Lease call; an unfinished call was cancelled at the hard stop and its WallMS is a lower bound",
@@ -239,12 +239,12 @@ func TestCALV0335_PoolAcquireLoad(t *testing.T) {
 	}
 }
 
-// TestCALV0335_PoolAcquireLoadWorker is one process of
-// TestCALV0335_PoolAcquireLoad; it runs only when that harness starts it.
-func TestCALV0335_PoolAcquireLoadWorker(t *testing.T) {
+// TestPSRV0055_PoolAcquireLoadWorker is one process of
+// TestPSRV0055_PoolAcquireLoad; it runs only when that harness starts it.
+func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 	raw := os.Getenv("CORVINT_TASKS_POOL_ACQUIRE_LOAD_WORKER")
 	if raw == "" {
-		t.Skip("started only by TestCALV0335_PoolAcquireLoad")
+		t.Skip("started only by TestPSRV0055_PoolAcquireLoad")
 	}
 	var w acquireLoadWorker
 	if err := json.Unmarshal([]byte(raw), &w); err != nil {

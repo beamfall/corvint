@@ -272,8 +272,8 @@ type Role struct {
 	// UsageFormat names the usage vocabulary of the role's worker standard
 	// output, or is empty when its token usage is not read (CAL-V0-157).
 	UsageFormat string `json:"usageFormat,omitempty"`
-	// Context is the optional CAL-V0-340 context thresholds; they apply
-	// from the applied configuration on every tick (CAL-V0-346).
+	// Context is the optional ATR-V0-030 context thresholds; they apply
+	// from the applied configuration on every tick (ATR-V0-036).
 	Context *ContextLimits `json:"context,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
@@ -515,7 +515,7 @@ func presentNull(raw []byte, name string) bool {
 	return false
 }
 
-// roleContextNull reports whether any role's CAL-V0-340 context member is a
+// roleContextNull reports whether any role's ATR-V0-030 context member is a
 // JSON null, which would otherwise decode as no thresholds.
 func roleContextNull(raw []byte) bool {
 	var members map[string]json.RawMessage

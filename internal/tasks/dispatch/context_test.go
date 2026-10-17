@@ -31,7 +31,7 @@ func contextOf(t *testing.T, format, out string) (bool, bool, uint64) {
 	return u.ctxSeen, u.ctxKnown, u.ctxTokens
 }
 
-func TestCALV0341_ContextEstimateFromRecognisedLinesOnly(t *testing.T) {
+func TestATRV0031_ContextEstimateFromRecognisedLinesOnly(t *testing.T) {
 	main := claudeAssistant(30, 5) // 65
 	sub := strings.Replace(claudeAssistant(900000, 5), `"parent_tool_use_id":null`, `"parent_tool_use_id":"toolu_1"`, 1)
 	type want struct {
@@ -81,7 +81,7 @@ func TestCALV0341_ContextEstimateFromRecognisedLinesOnly(t *testing.T) {
 	}
 }
 
-func TestCALV0340_ContextConfigIsExactAndBounded(t *testing.T) {
+func TestATRV0030_ContextConfigIsExactAndBounded(t *testing.T) {
 	base := func() *Config {
 		c := testConfig(t, "exit 0")
 		c.Roles[0].UsageFormat = "claude-code"
@@ -151,7 +151,7 @@ func TestCALV0340_ContextConfigIsExactAndBounded(t *testing.T) {
 	}
 }
 
-func TestCALV0343_CrossingsRecordedOncePerSession(t *testing.T) {
+func TestATRV0033_CrossingsRecordedOncePerSession(t *testing.T) {
 	c := testConfig(t, "exit 0")
 	c.Roles[0].UsageFormat = "claude-code"
 	c.Roles[0].Context = &ContextLimits{WarnTokens: 100, HandoffTokens: 200, HardTokens: 300}
@@ -313,7 +313,7 @@ func ctxObserved(d *Dispatcher, w *Worker) func() bool {
 	return func() bool { st := d.contexts[w.ID]; return st != nil && st.rec.ObservedAt != UsageUnknown }
 }
 
-func TestCALV0344_WorkerGetsContextFile(t *testing.T) {
+func TestATRV0034_WorkerGetsContextFile(t *testing.T) {
 	q := &fakeQueue{}
 	c := testConfig(t, `printf '%s\n' "${CORVINT_DISPATCH_CONTEXT_FILE-unset}" >&2; exec sleep 300`)
 	c.GlobalCap = 2
@@ -344,7 +344,7 @@ func TestCALV0344_WorkerGetsContextFile(t *testing.T) {
 	// tickUntil may return without ticking: a fast worker writes stderr
 	// before any later tick, and the launching tick supervised before it
 	// launched. The record is promised only after a supervising tick of the
-	// running worker (CAL-V0-344), so take one.
+	// running worker (ATR-V0-034), so take one.
 	tick(t, d)
 	for _, w := range d.ledger.Workers {
 		want := "unset"
@@ -365,7 +365,7 @@ func TestCALV0344_WorkerGetsContextFile(t *testing.T) {
 	}
 }
 
-func TestCALV0345_HardStopHandsOffWithReason(t *testing.T) {
+func TestATRV0035_HardStopHandsOffWithReason(t *testing.T) {
 	q := &fakeQueue{}
 	d, w, _ := contextRig(t, q, claudeAssistant(4970, 0), func(c *Config) {
 		c.Roles[0].Context = &ContextLimits{WarnTokens: 1000, HardTokens: 4000}
@@ -399,7 +399,7 @@ func TestCALV0345_HardStopHandsOffWithReason(t *testing.T) {
 	}
 }
 
-func TestCALV0345_UnknownEstimateNeverStops(t *testing.T) {
+func TestATRV0035_UnknownEstimateNeverStops(t *testing.T) {
 	// A null counter, then a subagent's large message: the estimate stays
 	// UNKNOWN and a hard threshold of one token never stops the worker.
 	sub := strings.Replace(claudeAssistant(900000, 5), `"parent_tool_use_id":null`, `"parent_tool_use_id":"toolu_1"`, 1)
@@ -419,7 +419,7 @@ func TestCALV0345_UnknownEstimateNeverStops(t *testing.T) {
 	}
 }
 
-func TestCALV0346_ThresholdsHotReload(t *testing.T) {
+func TestATRV0036_ThresholdsHotReload(t *testing.T) {
 	q := &fakeQueue{}
 	c := testConfig(t, "printf '%s\\n' '"+claudeAssistant(4970, 0)+"'\nexec sleep 300")
 	c.GlobalCap = 1
@@ -494,11 +494,11 @@ func contextDispatcher(t *testing.T, limits *ContextLimits) (*Dispatcher, *Worke
 	return d, w
 }
 
-// CAL-V0-347: a line whose repeated or case-folded member hides an escaped
+// ATR-V0-037: a line whose repeated or case-folded member hides an escaped
 // step_finish type, and output the read never reached (a CAL-V0-143 cut or
 // a file cut by something else), leave the estimate UNKNOWN, so an earlier
 // high estimate stops nothing.
-func TestCALV0347_HiddenOrLostContextLinesAreUnknown(t *testing.T) {
+func TestATRV0037_HiddenOrLostContextLinesAreUnknown(t *testing.T) {
 	high := strings.Replace(openCodeStep("tool-calls"), `"input":5`, `"input":5000`, 1)
 	hidden := strings.Replace(openCodeStep("stop"), `"type":"step_finish"`, `"type":"step\u005ffinish","sessionID":"ses_1"`, 1)
 	if strings.Contains(hidden, `"step_finish"`) {
@@ -550,11 +550,11 @@ func TestCALV0347_HiddenOrLostContextLinesAreUnknown(t *testing.T) {
 	}
 }
 
-// CAL-V0-348: after a restart, a reloaded record's estimate may predate an
+// ATR-V0-038: after a restart, a reloaded record's estimate may predate an
 // observation whose record write failed while the ledger's usage offset
 // moved past it, so it crosses nothing and stops nothing until a line read
 // by the restarted run replaces it; it is still shown.
-func TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine(t *testing.T) {
+func TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine(t *testing.T) {
 	d, w := contextDispatcher(t, &ContextLimits{WarnTokens: 100})
 	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
 	step := func(tokens uint64, observe bool) bool {
@@ -609,10 +609,10 @@ func writeContextRecord(t *testing.T, d *Dispatcher, tokens, hard string) {
 	}
 }
 
-// CAL-V0-345: the hand-off of a context-stopped worker keeps reason,
+// ATR-V0-035: the hand-off of a context-stopped worker keeps reason,
 // contextTokens and hardTokens on every exit-recovery event after a refused
 // release, and on a hand-off that waited for a detached run.
-func TestCALV0345_DeferredAndRecoveredHandoffsKeepContext(t *testing.T) {
+func TestATRV0035_DeferredAndRecoveredHandoffsKeepContext(t *testing.T) {
 	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
 	q := &refusingQueue{fakeQueue: &fakeQueue{}, releaseFails: 2}
 	d := exitRig(t, q, now.Add(24*time.Hour), &now, nil)

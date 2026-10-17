@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,12 +62,12 @@ func detachedChildPid(t *testing.T, dir string) int {
 	return child.Pid
 }
 
-// TestCALV0321_DetachedClaimSurvivesKilledCaller: the caller of a detached
+// TestATRV0021_DetachedClaimSurvivesKilledCaller: the caller of a detached
 // claim is killed while the claim waits for the store; the claim still
 // commits exactly once, attach returns it, repeated attaches and detaches
 // return the same bytes without a second mutation, and the plain command
-// with the same request id replays the same attempt (CAL-V0-320..322).
-func TestCALV0321_DetachedClaimSurvivesKilledCaller(t *testing.T) {
+// with the same request id replays the same attempt (ATR-V0-020..022).
+func TestATRV0021_DetachedClaimSurvivesKilledCaller(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	held := holdPreparation(t, repo)
 	released := false
@@ -117,11 +118,11 @@ func TestCALV0321_DetachedClaimSurvivesKilledCaller(t *testing.T) {
 		t.Fatalf("attach: code %d %s", got.code, got.stdout)
 	}
 	head := headBytes(t, repo)
-	// CAL-V0-322: attaching again is idempotent.
+	// ATR-V0-022: attaching again is idempotent.
 	if again := cliRun(t, root, "claim", "--attach", "--request-id", "claim-detached"); again.code != 0 || !bytes.Equal(again.stdout, got.stdout) {
 		t.Fatalf("second attach differs: %s", again.stdout)
 	}
-	// CAL-V0-321: the same detach returns the kept result; no second mutation.
+	// ATR-V0-021: the same detach returns the kept result; no second mutation.
 	if again := cliRun(t, root, append(claim, "--detach")...); again.code != 0 || !bytes.Equal(again.stdout, got.stdout) || !bytes.Equal(headBytes(t, repo), head) {
 		t.Fatalf("repeated detach: code %d %s", again.code, again.stdout)
 	}
@@ -132,11 +133,11 @@ func TestCALV0321_DetachedClaimSurvivesKilledCaller(t *testing.T) {
 	}
 }
 
-// TestCALV0321_LostChildRestartsWithoutASecondClaim: a child that ended
+// TestATRV0021_LostChildRestartsWithoutASecondClaim: a child that ended
 // without keeping its result is reported SUPERVISOR_LOST; a repeated detach
-// restarts it and the store replays the committed attempt (CAL-V0-321). A
+// restarts it and the store replays the committed attempt (ATR-V0-021). A
 // changed argv or holder under the same request id refuses without a start.
-func TestCALV0321_LostChildRestartsWithoutASecondClaim(t *testing.T) {
+func TestATRV0021_LostChildRestartsWithoutASecondClaim(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-lost"}
 	first := cliRun(t, root, append(claim, "--detach", "--wait", "60")...)
@@ -174,11 +175,11 @@ func TestCALV0321_LostChildRestartsWithoutASecondClaim(t *testing.T) {
 	}
 }
 
-// TestCALV0322_RefusalIsReturnedVerbatim: a detached claim the store refuses
+// TestATRV0022_RefusalIsReturnedVerbatim: a detached claim the store refuses
 // returns that refusal, byte for byte as kept, with the same outcome, codes
-// and warnings as the plain command, not a generic timeout (CAL-V0-322). The
+// and warnings as the plain command, not a generic timeout (ATR-V0-022). The
 // same holds for pool acquire.
-func TestCALV0322_RefusalIsReturnedVerbatim(t *testing.T) {
+func TestATRV0022_RefusalIsReturnedVerbatim(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	if x := atm(t, root, nil, "claim", id, "--holder", "first", "--request-id", "claim-first"); x.code != 0 {
 		t.Fatalf("first claim: %s", x.stdout)
@@ -204,9 +205,9 @@ func TestCALV0322_RefusalIsReturnedVerbatim(t *testing.T) {
 	}
 }
 
-// TestCALV0324_WaitReturnsWithinItsBound: --wait returns PENDING within its
-// bound plus a small margin while the claim cannot finish (CAL-V0-324).
-func TestCALV0324_WaitReturnsWithinItsBound(t *testing.T) {
+// TestATRV0024_WaitReturnsWithinItsBound: --wait returns PENDING within its
+// bound plus a small margin while the claim cannot finish (ATR-V0-024).
+func TestATRV0024_WaitReturnsWithinItsBound(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	held := holdPreparation(t, repo)
 	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-wait"}
@@ -237,10 +238,10 @@ func TestCALV0324_WaitReturnsWithinItsBound(t *testing.T) {
 	}
 }
 
-// TestCALV0323_CeilingEndsTheDetachedClaim: a detached claim still waiting
+// TestATRV0023_CeilingEndsTheDetachedClaim: a detached claim still waiting
 // at its ceiling ends with a kept, non-OK result rather than running on
-// (CAL-V0-323).
-func TestCALV0323_CeilingEndsTheDetachedClaim(t *testing.T) {
+// (ATR-V0-023).
+func TestATRV0023_CeilingEndsTheDetachedClaim(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	t.Setenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS", "1500")
 	held := holdPreparation(t, repo)
@@ -255,11 +256,11 @@ func TestCALV0323_CeilingEndsTheDetachedClaim(t *testing.T) {
 	}
 }
 
-// TestCALV0326_WithoutDetachNothingChanges: the plain command keeps no
+// TestATRV0026_WithoutDetachNothingChanges: the plain command keeps no
 // detached record; a detach-like value is a value; flag misuse refuses
 // MALFORMED before any record or start; finished records past retention are
-// pruned (CAL-V0-325, CAL-V0-326).
-func TestCALV0326_WithoutDetachNothingChanges(t *testing.T) {
+// pruned (ATR-V0-025, ATR-V0-026).
+func TestATRV0026_WithoutDetachNothingChanges(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	base := filepath.Join(repo.CommonDir, "taskman-requests")
 	if x := atm(t, root, nil, "claim", id, "--holder", "agent", "--request-id", "claim-plain-1"); x.code != 0 {
@@ -292,7 +293,7 @@ func TestCALV0326_WithoutDetachNothingChanges(t *testing.T) {
 	if x := cliRun(t, root, "claim", "--attach", "--request-id", "never"); x.res.Outcome != wire.OutcomeRefused || !hasCode(x.res, wire.CodeMissingEvidence) {
 		t.Fatalf("unknown handle: %s", x.stdout)
 	}
-	// CAL-V0-325: a finished record older than the retention is pruned when
+	// ATR-V0-025: a finished record older than the retention is pruned when
 	// a later detach starts; a fresh one is kept.
 	if x := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-old", "--detach", "--wait", "60"); x.code == 75 {
 		t.Fatalf("old detach pending: %s", x.stdout)
@@ -308,13 +309,13 @@ func TestCALV0326_WithoutDetachNothingChanges(t *testing.T) {
 	}
 }
 
-// TestCALV0327_StartingChildIsNeverLost: a child still starting, before it
+// TestATRV0027_StartingChildIsNeverLost: a child still starting, before it
 // holds its running lock, whose identity the launcher and attach cannot read
 // is PENDING, never LOST, inside the startup window, and then commits; a
 // recorded child is LOST only on positive evidence: no process at its pid,
 // or an unconfirmed identity and no running lock after the window
-// (CAL-V0-327).
-func TestCALV0327_StartingChildIsNeverLost(t *testing.T) {
+// (ATR-V0-027).
+func TestATRV0027_StartingChildIsNeverLost(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	t.Setenv("CORVINT_TEST_LEASE_DETACH_START_MS", "1500")
 	t.Cleanup(cli.SetLeaseDetachIdentity(func(int) (string, error) { return "", errors.New("identity probe unavailable") }))
@@ -368,10 +369,35 @@ func TestCALV0327_StartingChildIsNeverLost(t *testing.T) {
 	}
 }
 
-// TestCALV0328_ChildLogIsCappedAndRotated: what a child writes to child.log
+// TestATRV0026_ChildKeepsUnsupportedVersion: a detached child that finds a
+// request.json another build wrote under another taskman-detached-lease
+// version reports UNSUPPORTED_VERSION (CAL-V0-131), not a usage error, and
+// runs nothing (ATR-V0-026).
+func TestATRV0026_ChildKeepsUnsupportedVersion(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	requestID := "claim-other-version"
+	dir := cli.LeaseDetachDir(repo, requestID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeJSON(t, filepath.Join(dir, "request.json"), map[string]string{"profile": "taskman-detached-lease/1", "command": "claim", "requestId": requestID, "holder": "agent", "argvSha256": "0"})
+	head := headBytes(t, repo)
+	x := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", requestID, "--detached-child")
+	if x.code == 0 || !hasCode(x.res, wire.CodeUnsupportedVersion) {
+		t.Fatalf("child over another version: exit %d %s", x.code, x.stdout)
+	}
+	if !bytes.Equal(headBytes(t, repo), head) {
+		t.Fatal("the child changed the store")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "result.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the child kept a result: %v", err)
+	}
+}
+
+// TestATRV0028_ChildLogIsCappedAndRotated: what a child writes to child.log
 // is capped, and each run starts a fresh log with the previous run's kept as
-// child.1.log, so restarts never grow it (CAL-V0-328).
-func TestCALV0328_ChildLogIsCappedAndRotated(t *testing.T) {
+// child.1.log, so restarts never grow it (ATR-V0-028).
+func TestATRV0028_ChildLogIsCappedAndRotated(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	t.Setenv("CORVINT_TEST_LEASE_DETACH_LOG_BYTES", strconv.Itoa(cli.MaxLeaseDetachLog+4096))
 	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-log", "--detach", "--wait", "60"}
@@ -404,10 +430,10 @@ func TestCALV0328_ChildLogIsCappedAndRotated(t *testing.T) {
 	}
 }
 
-// TestCALV0329_PruneReachesEveryFinishedRecord: retention pages through the
+// TestATRV0029_PruneReachesEveryFinishedRecord: retention pages through the
 // whole records directory, so expired finished records behind many
-// unfinished ones are pruned and the unfinished ones are kept (CAL-V0-329).
-func TestCALV0329_PruneReachesEveryFinishedRecord(t *testing.T) {
+// unfinished ones are pruned and the unfinished ones are kept (ATR-V0-029).
+func TestATRV0029_PruneReachesEveryFinishedRecord(t *testing.T) {
 	_, repo, _ := detachClaimStore(t)
 	base := filepath.Join(repo.CommonDir, "taskman-requests")
 	var finished, unfinished []string

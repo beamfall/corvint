@@ -10,10 +10,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 )
 
-// CAL-V0-342: dispatch status shows each worker's context estimate, its age,
+// ATR-V0-032: dispatch status shows each worker's context estimate, its age,
 // the highest recorded crossing and the applied role's thresholds; an
 // unobserved, unread or unknown estimate is UNKNOWN, never 0.
-func TestCALV0342_DispatchStatusShowsContextEstimate(t *testing.T) {
+func TestATRV0032_DispatchStatusShowsContextEstimate(t *testing.T) {
 	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
 	dir := t.TempDir()
 	record := func(worker string, raw []byte) {
@@ -71,11 +71,11 @@ func TestCALV0342_DispatchStatusShowsContextEstimate(t *testing.T) {
 	}
 }
 
-// CAL-V0-349: status shows the thresholds the dispatcher applied, from the
+// ATR-V0-039: status shows the thresholds the dispatcher applied, from the
 // worker's record, not the configuration file's: an invalid file (which
 // leaves only the state directory) or a valid edit awaiting reload changes
 // nothing, and a worker without a record shows UNKNOWN thresholds.
-func TestCALV0349_DispatchStatusShowsAppliedThresholds(t *testing.T) {
+func TestATRV0039_DispatchStatusShowsAppliedThresholds(t *testing.T) {
 	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
 	dir := t.TempDir()
 	rec := dispatch.ContextRecord{Profile: dispatch.ContextProfile, Worker: "w1", Tokens: "150000", ObservedAt: now.Format(time.RFC3339),

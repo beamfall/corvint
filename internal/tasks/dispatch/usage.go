@@ -60,7 +60,7 @@ type WorkerUsage struct {
 	Open    bool `json:"open,omitempty"`
 	Stopped bool `json:"stopped,omitempty"`
 	// ctxSeen, ctxKnown and ctxTokens carry this process's latest
-	// CAL-V0-341 context observation to noteContext; they are not recorded.
+	// ATR-V0-031 context observation to noteContext; they are not recorded.
 	ctxSeen, ctxKnown bool
 	ctxTokens         uint64
 }
@@ -124,7 +124,7 @@ func (u *WorkerUsage) line(b []byte) {
 		if t := bytes.TrimSpace(b); bytes.Contains(b, usageMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
 			u.Malformed = true
 		}
-		// CAL-V0-341: an unreadable line that may be a context line leaves
+		// ATR-V0-031: an unreadable line that may be a context line leaves
 		// the estimate UNKNOWN.
 		if t := bytes.TrimSpace(b); bytes.Contains(b, contextMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
 			u.observeContext(0, false)
@@ -190,7 +190,7 @@ func (u *WorkerUsage) line(b []byte) {
 			u.observeContext(0, false)
 			return
 		case !ok && kind == "":
-			// CAL-V0-347: a repeated or case-folded member may hide an
+			// ATR-V0-037: a repeated or case-folded member may hide an
 			// escaped step_finish type, so the line may be a context line.
 			u.observeContext(0, false)
 			return
@@ -248,7 +248,7 @@ func nullCodexCounter(b []byte) bool {
 func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 	if end < u.Offset {
 		u.Lost, u.Skipping, u.Offset = true, true, 0
-		u.observeContext(0, false) // CAL-V0-347: lost bytes may hold a newer estimate
+		u.observeContext(0, false) // ATR-V0-037: lost bytes may hold a newer estimate
 	}
 	stop := min(end, u.Offset+maxUsageRead)
 	if stop <= u.Offset {
@@ -304,7 +304,7 @@ func (u *WorkerUsage) measured(b []byte) {
 // one and is skipped, which keeps the counters a lower bound.
 func (u *WorkerUsage) cut() {
 	u.Lost, u.Skipping, u.Offset = true, true, 0
-	// CAL-V0-347: the lost bytes may hold a newer context observation, so
+	// ATR-V0-037: the lost bytes may hold a newer context observation, so
 	// the estimate is UNKNOWN until a line read after the cut replaces it.
 	u.observeContext(0, false)
 }

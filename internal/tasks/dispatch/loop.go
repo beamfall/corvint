@@ -77,7 +77,7 @@ type Dispatcher struct {
 	// memberSince holds the lane member state episodes observed by this
 	// run (CAL-V0-129).
 	memberSince map[string]memberEpisode
-	// contexts holds each running worker's CAL-V0-343 context record.
+	// contexts holds each running worker's ATR-V0-033 context record.
 	contexts map[string]*contextState
 	// launchedUnder keeps, for each worker running when a reload applied,
 	// the configuration it launched under: supervision deadlines and kill
@@ -130,7 +130,7 @@ type Dispatcher struct {
 	detached     map[string]*detachedMarker
 	detachedHeld map[string]bool
 	deferredNow  map[string]string
-	// deferredContext keeps, by attempt ID, the CAL-V0-345 detail of a
+	// deferredContext keeps, by attempt ID, the ATR-V0-035 detail of a
 	// context-stopped worker whose hand-off waits for its detached run.
 	deferredContext map[string]map[string]string
 	heldBy          map[string][]Attempt
@@ -679,7 +679,7 @@ func (d *Dispatcher) supervise() []*Worker {
 	type observed struct {
 		w      *Worker
 		exempt map[int]string
-		hard   bool // CAL-V0-345
+		hard   bool // ATR-V0-035
 	}
 	var seen []observed
 	for _, w := range d.ledger.Workers {
@@ -745,7 +745,7 @@ var killText = map[string]string{
 	"IDLE":     "no session activity and no busy tool process within the idle timeout",
 	"WALL":     "the wall-clock cap was reached",
 	"ORPHANED": "the worker exited but left processes behind",
-	// CAL-V0-345: the applied role's hardTokens was reached.
+	// ATR-V0-035: the applied role's hardTokens was reached.
 	"CONTEXT": "its context estimate reached the role's hardTokens",
 	// CAL-V0-191: set by heal after it reaps the worker's expired attempt.
 	"LEASE_EXPIRED": "its attempt's lease expired beyond the grace and was reaped",
@@ -1021,7 +1021,7 @@ type exitRecovery struct {
 	releases, reaps     int
 	next                time.Time
 	releaseErr, reapErr string
-	// context is the CAL-V0-345 detail every event of the recovery carries.
+	// context is the ATR-V0-035 detail every event of the recovery carries.
 	context map[string]string
 	// exhausted marks a recovery that already reported needs-owner. It stays
 	// recorded, writing nothing, until the attempt ends or is superseded, so
@@ -1568,7 +1568,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		env = append(env, hostEnv...)
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
 		if contextFormat(role.UsageFormat) {
-			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // CAL-V0-344
+			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}
 		if run != nil {
 			env = append(env, detachedEnv(run)...)

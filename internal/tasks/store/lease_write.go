@@ -49,7 +49,7 @@ type preparedLease struct {
 	writer      *journal.WriterCheckpoint
 	writerToken writerToken
 	// base and baseObs are a settled audit from receipt 1 that a later round
-	// may resume from (CAL-V0-331, proposed); noResume is set when the
+	// may resume from (PSR-V0-051, proposed); noResume is set when the
 	// prefix walk declined, so the command keeps the complete audit.
 	base     *journal.Result
 	baseObs  journal.PhysicalObservation
@@ -57,7 +57,7 @@ type preparedLease struct {
 }
 
 // leaseResume is a resume base and the invalidation token read before the
-// audit that derived it (CAL-V0-332, proposed). It lives for one command.
+// audit that derived it (PSR-V0-052, proposed). It lives for one command.
 type leaseResume struct {
 	base  *journal.ResumeBase
 	token writerToken
@@ -160,14 +160,14 @@ func leaseAuditObserved(repo *intent.Repository, guard *authority.ChangeGuard, i
 }
 
 // prepareLease audits the journal outside the writer lock and plans request.
-// resumable selects the bounded preparation audit (CAL-V0-330, proposed):
+// resumable selects the bounded preparation audit (PSR-V0-050, proposed):
 // one complete attempt and, when the journal moved under it, the prefix walk
 // to the head it captured. A complete or prefix result is kept as the round's
 // resume base. A moved journal ends the round as SNAPSHOT_MOVED without the
 // second complete audit; a declined prefix walk and every other result keep
 // the complete audit below. A change guard overtaken while it registered
 // cannot serve the complete route, but a resumable round still runs the
-// bounded audit for its resume base (CAL-V0-334, proposed): the audit checks
+// bounded audit for its resume base (PSR-V0-054, proposed): the audit checks
 // its own captures and the resumed write needs no change guard, so a journal
 // that moves faster than the guard registers still makes progress.
 func prepareLease(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, facts claimObserver, resumable bool) (prepared *preparedLease, err error) {
@@ -414,7 +414,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	}()
 	hooks := hooksForInventory(ctx)
 	// A round that ended SNAPSHOT_MOVED after a settled audit from receipt 1
-	// resumes from it in the next round (CAL-V0-332, proposed). A declined
+	// resumes from it in the next round (PSR-V0-052, proposed). A declined
 	// resume falls through to that round's preparation; a declined prefix
 	// walk keeps the complete audit for the rest of the command.
 	var resume *leaseResume

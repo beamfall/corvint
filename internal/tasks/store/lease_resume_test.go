@@ -112,14 +112,14 @@ func movingStaged(t *testing.T, f resumeFixture, write func(context.Context) (*R
 	return run
 }
 
-// CAL-V0-330, CAL-V0-331 and CAL-V0-332 (proposed), V1-1560: a pool acquire
+// PSR-V0-050, PSR-V0-051 and PSR-V0-052 (proposed), V1-1560: a pool acquire
 // whose every complete preparation audit is overtaken by a dispatcher write
 // starves on the base, where each of the 16 rounds reruns the complete audit
 // and moves. Here the first round's audit is the resume base and the second
 // round resumes from it under the writer lock: one complete audit, one
 // resumed write, the same bytes and report as the complete route on the
 // same pre-state.
-func TestCALV0332_PoolAcquireResumesUnderWriter(t *testing.T) {
+func TestPSRV0052_PoolAcquireResumesUnderWriter(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -162,9 +162,9 @@ func TestCALV0332_PoolAcquireResumesUnderWriter(t *testing.T) {
 	}
 }
 
-// CAL-V0-332 (proposed): widen, which stays off the retained-checkpoint
+// PSR-V0-052 (proposed): widen, which stays off the retained-checkpoint
 // route (CAL-V0-116), also resumes from its own audit when overtaken.
-func TestCALV0332_WidenResumesUnderWriter(t *testing.T) {
+func TestPSRV0052_WidenResumesUnderWriter(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -175,12 +175,12 @@ func TestCALV0332_WidenResumesUnderWriter(t *testing.T) {
 	}
 }
 
-// CAL-V0-333 (proposed): a prefix receipt rewritten in place, its
+// PSR-V0-053 (proposed): a prefix receipt rewritten in place, its
 // modification time restored, or a stray request file, between the base
 // audit and the resumed write, is never committed over: the resumed audit
 // declines, the command keeps the complete audit, and the acquire ends with
 // the complete route's own refusal for the held journal.
-func TestCALV0333_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
+func TestPSRV0053_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -223,12 +223,12 @@ func TestCALV0333_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
 	}
 }
 
-// CAL-V0-336 (proposed): a base receipt rewritten after the resumed audit
+// PSR-V0-056 (proposed): a base receipt rewritten after the resumed audit
 // passed, while the resumed write observes or models under the writer lock,
 // is seen by the recheck before commit. The resume declines, nothing is
 // committed over the rewritten prefix, and the command keeps the complete
 // route's own decision for that journal.
-func TestCALV0336_ResumeRechecksBaseBeforeCommit(t *testing.T) {
+func TestPSRV0056_ResumeRechecksBaseBeforeCommit(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -256,12 +256,12 @@ func TestCALV0336_ResumeRechecksBaseBeforeCommit(t *testing.T) {
 	}
 }
 
-// CAL-V0-334 (proposed): a change guard overtaken on every registration, as
+// PSR-V0-054 (proposed): a change guard overtaken on every registration, as
 // on a 45,000-receipt journal whose registration outlasts the gap between
 // writes, serves no complete route, yet the round still audits for its resume
 // base and the next round resumes under the writer lock: on the base every
 // round ends at the guard and the acquire runs out of rounds.
-func TestCALV0334_OvertakenGuardStillResumes(t *testing.T) {
+func TestPSRV0054_OvertakenGuardStillResumes(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}
@@ -279,11 +279,11 @@ func TestCALV0334_OvertakenGuardStillResumes(t *testing.T) {
 	}
 }
 
-// CAL-V0-333 and CAL-V0-334 (proposed): with the change guard overtaken on
+// PSR-V0-053 and PSR-V0-054 (proposed): with the change guard overtaken on
 // every registration, a rewritten prefix receipt still never commits: the
 // resumed audit declines, the guardless rounds decide nothing, and the
 // acquire ends with nothing written.
-func TestCALV0334_OvertakenGuardKeepsRewrittenPrefixDetection(t *testing.T) {
+func TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection(t *testing.T) {
 	if !journal.ResumableAudits() {
 		t.Skip("platform reports no change time")
 	}

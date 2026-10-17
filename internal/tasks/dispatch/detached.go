@@ -420,11 +420,11 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 	return fresh
 }
 
-// keepDeferredContext keeps the CAL-V0-345 detail of context-stopped
+// keepDeferredContext keeps the ATR-V0-035 detail of context-stopped
 // worker w for the deferred hand-off of attempt id, and returns it (nil for
 // any other worker). It is held in memory only: a hand-off deferred across
 // a dispatcher restart carries it when the restarted run still finds w
-// ended in the ledger (CAL-V0-345).
+// ended in the ledger (ATR-V0-035).
 func (d *Dispatcher) keepDeferredContext(id string, w *Worker) map[string]string {
 	detail := d.contextHandoffDetail(w)
 	if detail == nil {

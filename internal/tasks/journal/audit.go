@@ -137,7 +137,7 @@ type Reader struct {
 	// so its outer reader re-probes instead (V1-1060).
 	ExpectHeadSha256 wire.Digest
 	// PrefixFallback makes AuditForWriteObserved a lease preparation's
-	// bounded audit (CAL-V0-330, proposed): one complete attempt, which gives
+	// bounded audit (PSR-V0-050, proposed): one complete attempt, which gives
 	// up as soon as head.json moves under it, then, only if the journal moved,
 	// the prefix walk to the head that attempt captured (ModePrefix). A prefix
 	// walk that refuses returns ErrPrefixDeclined, never its own refusal, so
@@ -223,7 +223,7 @@ type observation struct {
 	receiptsStaging   bool
 	receiptsQuiescent bool
 	// at is when the capture began; ResumeBase trusts a file's stamps only
-	// when they were already settled then (CAL-V0-332).
+	// when they were already settled then (PSR-V0-052).
 	at time.Time
 }
 
@@ -439,9 +439,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if r.resume != nil && bodyErr == nil {
 		// The walk resumed from a base this command audited from receipt 1;
-		// the base files must still be exactly what it read (CAL-V0-332).
+		// the base files must still be exactly what it read (PSR-V0-052).
 		// Its own read lifetime closes into this attempt's cleanup, so a
-		// failed close terminates as the audit's would (CAL-V0-337).
+		// failed close terminates as the audit's would (PSR-V0-057).
 		check := newNativeRead(native.native)
 		bodyErr = r.resume.held(check, result, lim)
 		native.closeErr = errors.Join(native.closeErr, check.close())

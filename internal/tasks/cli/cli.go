@@ -43,7 +43,7 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
-	// leaseDeadline bounds a detached claim or pool acquire (CAL-V0-323).
+	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
 
 	afterRead  func()                                   // deterministic snapshot-move tests only

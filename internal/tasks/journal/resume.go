@@ -10,14 +10,14 @@ import (
 )
 
 // ErrPrefixDeclined is the SNAPSHOT_MOVED a PrefixFallback audit returns
-// when its prefix walk refused on an unchanged observation (CAL-V0-330,
+// when its prefix walk refused on an unchanged observation (PSR-V0-050,
 // proposed). The prefix walk never decides a refusal for a lease: the caller
 // runs the complete audit, which derives the refusal itself.
 var ErrPrefixDeclined = wire.Errorf(wire.CodeSnapshotMoved, "receipts", "prefix walk declined; the complete audit decides")
 
 // resumeQuiescence is how long before a base capture began a file's
 // modification and change times must lie for ResumeBase to trust its stat
-// stamps instead of its bytes (CAL-V0-332). It is receiptsQuiescence; the
+// stamps instead of its bytes (PSR-V0-052). It is receiptsQuiescence; the
 // focused tests set it to zero or to an hour to select one path.
 var resumeQuiescence = receiptsQuiescence
 
@@ -90,7 +90,7 @@ func (r Reader) headMoved(o *observation) bool {
 const abortEvery = 512
 
 // ResumeBase is what one lease command's own settled audit from receipt 1
-// established (CAL-V0-331, proposed): the writer checkpoint it derives and,
+// established (PSR-V0-051, proposed): the writer checkpoint it derives and,
 // for every receipt, request, evidence and pinned file the audit read
 // (receipts 1..H and every afterimage latest at H among them), the stat
 // stamps the audit's capture observed and the digest of the bytes it read.
@@ -190,7 +190,7 @@ func resumeFamily(p string) bool {
 }
 
 // AuditForResume is AuditForWriter from a resume base instead of a retained
-// writer checkpoint (CAL-V0-332, proposed). On top of every AuditForWriter
+// writer checkpoint (PSR-V0-052, proposed). On top of every AuditForWriter
 // check it requires each base file to be what the base audit read: the same
 // file with the same mode, size, modification time and change time, and,
 // for a file whose stamps were not yet settled when the base capture began,
@@ -206,13 +206,13 @@ func (r Reader) AuditForResume(base *ResumeBase, requestID string) (*Result, Phy
 	return r.AuditForWriter(base.wc, requestID, false)
 }
 
-// RecheckResume repeats AuditForResume's base check (CAL-V0-332) against the
+// RecheckResume repeats AuditForResume's base check (PSR-V0-052) against the
 // files as they are now. A caller that resumed holds the writer lock and runs
 // it after modelling, immediately before it commits, so no base file can
-// change between the check and the commit unseen (CAL-V0-336, proposed).
+// change between the check and the commit unseen (PSR-V0-056, proposed).
 // result is what AuditForResume returned. A difference is a decline. As in
 // an audit, a failed close of the check's own read lifetime is cleanup, which
-// terminates the command and is never a decline (CAL-V0-337, proposed).
+// terminates the command and is never a decline (PSR-V0-057, proposed).
 func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanup error) {
 	n, ok := r.Source.(Native)
 	if !ok || base == nil {
@@ -229,7 +229,7 @@ func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanu
 // held is the base check after a successful walkWriter, and RecheckResume's.
 // Its listings and reads go through s, a read lifetime of its own that the
 // caller closes: they are not physical reads of the audit, but a failed close
-// is the caller's cleanup failure (CAL-V0-337, proposed).
+// is the caller's cleanup failure (PSR-V0-057, proposed).
 func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits) error {
 	if result == nil || result.chain == nil || result.LastSeq.Uint64() < b.seq {
 		return errCheckpoint("resume", "head precedes the base")

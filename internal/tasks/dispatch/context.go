@@ -16,10 +16,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// ContextProfile is the profile of a worker's CAL-V0-343 context record.
+// ContextProfile is the profile of a worker's ATR-V0-033 context record.
 const ContextProfile = "taskman-dispatch-context/0"
 
-// Context levels (CAL-V0-342, CAL-V0-343), in ascending order after NONE.
+// Context levels (ATR-V0-032, ATR-V0-033), in ascending order after NONE.
 const (
 	ContextNone    = "NONE"
 	ContextWarn    = "WARN"
@@ -28,7 +28,7 @@ const (
 )
 
 const (
-	// maxContextTokens bounds each CAL-V0-340 threshold.
+	// maxContextTokens bounds each ATR-V0-030 threshold.
 	maxContextTokens = 1_000_000_000
 	// maxContextRecord bounds a context record's bytes.
 	maxContextRecord = 64 << 10
@@ -36,7 +36,7 @@ const (
 	contextFile = "context.json"
 )
 
-// ContextLimits is a role's CAL-V0-340 context thresholds. Zero is unset.
+// ContextLimits is a role's ATR-V0-030 context thresholds. Zero is unset.
 type ContextLimits struct {
 	WarnTokens    uint64 `json:"warnTokens,omitempty"`
 	HandoffTokens uint64 `json:"handoffTokens,omitempty"`
@@ -90,7 +90,7 @@ func (c *ContextLimits) levels() []contextLevel {
 	return out
 }
 
-// validateContext checks a role's CAL-V0-340 thresholds against its usage
+// validateContext checks a role's ATR-V0-030 thresholds against its usage
 // format and the heal settings.
 func (r *Role) validateContext(h Heal) error {
 	c := r.Context
@@ -118,23 +118,23 @@ func (r *Role) validateContext(h Heal) error {
 	return nil
 }
 
-// contextFormat reports a usage format whose stream carries a CAL-V0-341
+// contextFormat reports a usage format whose stream carries a ATR-V0-031
 // context figure.
 func contextFormat(format string) bool { return format == "claude-code" || format == "opencode" }
 
 // contextMarker is the event type of a context line, so an unreadable one
-// is recognised (CAL-V0-341).
+// is recognised (ATR-V0-031).
 var contextMarker = map[string][]byte{"claude-code": []byte(`"assistant"`), "opencode": []byte(`"step_finish"`)}
 
 // observeContext records one context observation of this read for
-// noteContext; known false is an UNKNOWN estimate (CAL-V0-341).
+// noteContext; known false is an UNKNOWN estimate (ATR-V0-031).
 func (u *WorkerUsage) observeContext(tokens uint64, known bool) {
 	if contextFormat(u.Format) {
 		u.ctxSeen, u.ctxKnown, u.ctxTokens = true, known, tokens
 	}
 }
 
-// claudeContext reads a claude-code line as a CAL-V0-341 context line: a
+// claudeContext reads a claude-code line as a ATR-V0-031 context line: a
 // main-session assistant event's message usage. Other events are ignored.
 func (u *WorkerUsage) claudeContext(b []byte, typ string) {
 	if supervisor.ExactMembers(b, []string{"type", "message", "parent_tool_use_id"}) != nil {
@@ -203,7 +203,7 @@ func exactObject(raw json.RawMessage, names ...string) (map[string]json.RawMessa
 	return m, true
 }
 
-// ContextCrossing is one recorded threshold crossing (CAL-V0-343).
+// ContextCrossing is one recorded threshold crossing (ATR-V0-033).
 type ContextCrossing struct {
 	Level     string `json:"level"`
 	Threshold string `json:"threshold"`
@@ -211,7 +211,7 @@ type ContextCrossing struct {
 	At        string `json:"at"`
 }
 
-// ContextRecord is a worker's CAL-V0-343 record and CAL-V0-344 notice.
+// ContextRecord is a worker's ATR-V0-033 record and ATR-V0-034 notice.
 // Tokens is decimal or UNKNOWN, ObservedAt RFC 3339 or UNKNOWN, and each
 // threshold decimal or NONE.
 type ContextRecord struct {
@@ -290,7 +290,7 @@ func (r *ContextRecord) validate(worker string) error {
 	return nil
 }
 
-// ContextRecordPath is worker's CAL-V0-343 record under the state directory.
+// ContextRecordPath is worker's ATR-V0-033 record under the state directory.
 func ContextRecordPath(dir, worker string) string {
 	return filepath.Join(dir, "workers", worker, contextFile)
 }
@@ -330,12 +330,12 @@ type contextState struct {
 	// reloaded marks a record read back after a restart: its estimate may
 	// predate lines the ledger's usage offset already passed (a failed
 	// write), so it crosses nothing and stops nothing until a line read by
-	// this run replaces it (CAL-V0-348).
+	// this run replaces it (ATR-V0-038).
 	reloaded bool
 }
 
 // contextFor returns worker w's state, loading its record after a restart.
-// An unreadable record alerts once and is replaced (CAL-V0-343).
+// An unreadable record alerts once and is replaced (ATR-V0-033).
 func (d *Dispatcher) contextFor(w *Worker) *contextState {
 	if st := d.contexts[w.ID]; st != nil {
 		return st
@@ -358,8 +358,8 @@ func (d *Dispatcher) contextFor(w *Worker) *contextState {
 }
 
 // noteContext applies worker w's latest context observation and the applied
-// role's thresholds (CAL-V0-341, CAL-V0-343, CAL-V0-346), and reports
-// whether its known estimate reached hardTokens (CAL-V0-345).
+// role's thresholds (ATR-V0-031, ATR-V0-033, ATR-V0-036), and reports
+// whether its known estimate reached hardTokens (ATR-V0-035).
 func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 	u := w.Usage
 	if u == nil || !contextFormat(u.Format) {
@@ -422,10 +422,10 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 	return known && lim != nil && lim.HardTokens > 0 && tokens >= lim.HardTokens
 }
 
-// contextDetailKeys are the CAL-V0-345 members a context hand-off carries.
+// contextDetailKeys are the ATR-V0-035 members a context hand-off carries.
 var contextDetailKeys = []string{"reason", "contextTokens", "hardTokens"}
 
-// contextOnly is the CAL-V0-345 part of a hand-off detail, nil without one.
+// contextOnly is the ATR-V0-035 part of a hand-off detail, nil without one.
 func contextOnly(detail map[string]string) map[string]string {
 	if detail["reason"] != "CONTEXT" {
 		return nil
@@ -437,7 +437,7 @@ func contextOnly(detail map[string]string) map[string]string {
 	return out
 }
 
-// contextHandoffDetail is the CAL-V0-345 hand-off detail of a worker
+// contextHandoffDetail is the ATR-V0-035 hand-off detail of a worker
 // stopped for context, from its record; nil for any other worker.
 func (d *Dispatcher) contextHandoffDetail(w *Worker) map[string]string {
 	if w.KillReason != "CONTEXT" {

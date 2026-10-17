@@ -201,10 +201,10 @@ func leaseDeclined(ctx context.Context, request transaction.Request, why string)
 // reports that the scheduled complete audit is due.
 //
 // With resume, the route serves any lease verb from the command's own resume
-// base (CAL-V0-332, proposed) instead of a retained writer checkpoint: the
+// base (PSR-V0-052, proposed) instead of a retained writer checkpoint: the
 // base came from this command's audit from receipt 1, so the verb keeps that
 // audit's detection of a rewritten prefix, and checks the base again just
-// before it reports or commits (CAL-V0-336, proposed).
+// before it reports or commits (PSR-V0-056, proposed).
 func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report, resume *leaseResume) (handled, refresh bool, proof *journal.Result, err error) {
 	if resume == nil && !writerRouteReady(repo, request) {
 		return false, false, nil, nil
@@ -290,7 +290,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if resume != nil {
 		// No change guard watches a resumed route, so the base check runs
 		// again here, under the lock and after modelling, before any
-		// result is reported or retained (CAL-V0-336, proposed).
+		// result is reported or retained (PSR-V0-056, proposed).
 		decline, cleanup := journalReader(repo, headState).RecheckResume(resume.base, w.proof)
 		if cleanup != nil {
 			return true, false, nil, cleanup

@@ -539,10 +539,10 @@ func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
 	return wire.ObjectValue(o)
 }
 
-// dispatchWorkerContextValue is a running worker's CAL-V0-342 context
+// dispatchWorkerContextValue is a running worker's ATR-V0-032 context
 // estimate, its age, the highest recorded crossing and the thresholds the
 // dispatcher last applied, all from its record: the configuration file may
-// be invalid or not yet reloaded (CAL-V0-349). An unread or unknown value is
+// be invalid or not yet reloaded (ATR-V0-039). An unread or unknown value is
 // UNKNOWN, never 0.
 func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
 	unknown := dispatch.UsageUnknown

@@ -15,14 +15,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0330_PrefixFallback covers CAL-V0-330 (proposed). On a journal
+// TestPSRV0050_PrefixFallback covers PSR-V0-050 (proposed). On a journal
 // that holds still a PrefixFallback audit is the complete audit in one
 // attempt. When a writer appends during every capture, the complete attempt
 // moves once and the prefix walk settles at the head it captured, instead
 // of four complete attempts that all move. A prefix walk that refuses on an
 // unchanged observation is ErrPrefixDeclined, never a refusal, and the
 // complete audit decides that refusal.
-func TestCALV0330_PrefixFallback(t *testing.T) {
+func TestPSRV0050_PrefixFallback(t *testing.T) {
 	repo, r := refreshStore(t)
 	r.PrefixFallback = true
 	captures := 0
@@ -84,10 +84,10 @@ func resumeBase(t *testing.T, r Reader) *ResumeBase {
 	return base
 }
 
-// TestCALV0331_ResumeBaseOnlyFromSettledAudit covers CAL-V0-331 (proposed):
+// TestPSRV0051_ResumeBaseOnlyFromSettledAudit covers PSR-V0-051 (proposed):
 // a resume base comes only from a settled complete or prefix audit with its
 // own physical observation, never from a tail or writer audit.
-func TestCALV0331_ResumeBaseOnlyFromSettledAudit(t *testing.T) {
+func TestPSRV0051_ResumeBaseOnlyFromSettledAudit(t *testing.T) {
 	_, r := refreshStore(t)
 	base := resumeBase(t, r)
 	if base.Seq() != 8 || base.WriterCheckpoint() == nil || base.WriterCheckpoint().FullSeq != 8 {
@@ -112,14 +112,14 @@ func TestCALV0331_ResumeBaseOnlyFromSettledAudit(t *testing.T) {
 	}
 }
 
-// TestCALV0332_ResumeDeclinesOnChangedBase covers CAL-V0-332 (proposed). A
+// TestPSRV0052_ResumeDeclinesOnChangedBase covers PSR-V0-052 (proposed). A
 // resumed audit walks only the tail the writer appended after the base, and
 // declines whenever a base receipt, request, evidence blob or pinned file
 // differs from what the base audit read, a base request is gone, or a
 // request file appears that neither the base nor the tail accounts for. It
 // runs once with every base file settled (stamps decide) and once with none
 // settled (bytes are re-read).
-func TestCALV0332_ResumeDeclinesOnChangedBase(t *testing.T) {
+func TestPSRV0052_ResumeDeclinesOnChangedBase(t *testing.T) {
 	request, _ := snapshot.RequestPath("refresh-2")
 	second, _ := snapshot.ReceiptName(2)
 	blob := "evidence/" + string(wire.Sum(fixture.Ticket("A").Encode()))
@@ -186,14 +186,14 @@ func rewriteKeepingStamps(t *testing.T, p string) {
 	}
 }
 
-// TestCALV0337_ResumeCheckCloseFailureIsCleanup covers CAL-V0-337
+// TestPSRV0057_ResumeCheckCloseFailureIsCleanup covers PSR-V0-057
 // (proposed): the base check reads through its own read lifetime, and a
 // failed close in that lifetime is the audit's cleanup failure
 // (UNSUPPORTED_FILESYSTEM, PhysicalObservation.Cleanup set), which terminates
 // the command as CAL-V0-116 requires, never a decline the caller falls back
 // from. The resumed audit lists receipts/ at its first capture, in the base
 // check, and at its second capture; the close of the check's listing fails.
-func TestCALV0337_ResumeCheckCloseFailureIsCleanup(t *testing.T) {
+func TestPSRV0057_ResumeCheckCloseFailureIsCleanup(t *testing.T) {
 	repo, r := refreshStore(t)
 	base := resumeBase(t, r)
 	appendRequest(t, repo, "tail-1")
@@ -223,11 +223,11 @@ func TestCALV0337_ResumeCheckCloseFailureIsCleanup(t *testing.T) {
 	}
 }
 
-// TestCALV0336_RecheckResumeSeesChangeAfterAudit covers CAL-V0-336
+// TestPSRV0056_RecheckResumeSeesChangeAfterAudit covers PSR-V0-056
 // (proposed): a base file changed, or a request shard made, after the
 // resumed audit passed is a decline at the recheck before commit, and a
-// failed close of the recheck's read lifetime is cleanup (CAL-V0-337).
-func TestCALV0336_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
+// failed close of the recheck's read lifetime is cleanup (PSR-V0-057).
+func TestPSRV0056_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
 	second, _ := snapshot.ReceiptName(2)
 	for _, tc := range []struct {
 		name   string

@@ -21,7 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// Detached claim and pool acquire (CAL-V0-320..329, issue 1005). `--detach`
+// Detached claim and pool acquire (ATR-V0-020..029, issue 1005). `--detach`
 // starts the unchanged lease command in its own session under the caller's
 // request ID and returns at once (or after --wait); `--attach` reads its
 // kept result. The request ID is the handle. The store's request-ID replay
@@ -43,22 +43,22 @@ const (
 	// maxLeaseDetachWait is the largest --wait, in seconds.
 	maxLeaseDetachWait = 600
 	// leaseDetachRetention: a finished record older than this is removed
-	// when a later detach starts (CAL-V0-325).
+	// when a later detach starts (ATR-V0-025).
 	leaseDetachRetention = 7 * 24 * time.Hour
 	maxLeaseDetachRecord = 4096
 	maxLeaseDetachResult = 4 << 20
 	// maxLeaseDetachLog caps what a child writes to its child.log; the
-	// previous run's log is kept as child.1.log (CAL-V0-328).
+	// previous run's log is kept as child.1.log (ATR-V0-028).
 	maxLeaseDetachLog = 64 << 10
 	// leaseDetachPruneBatch and maxLeaseDetachPruneScan page the retention
-	// scan through the whole records directory, bounded overall (CAL-V0-329).
+	// scan through the whole records directory, bounded overall (ATR-V0-029).
 	leaseDetachPruneBatch   = 256
 	maxLeaseDetachPruneScan = 1 << 16
 )
 
 var (
 	// leaseDetachCeiling bounds the detached child's lease command
-	// (CAL-V0-323); it exceeds the 300-second --lock-wait maximum.
+	// (ATR-V0-023); it exceeds the 300-second --lock-wait maximum.
 	leaseDetachCeiling = 600 * time.Second
 	// leaseDetachPoll separates a detach or attach wait's record reads.
 	leaseDetachPoll = 200 * time.Millisecond
@@ -66,7 +66,7 @@ var (
 	leaseDetachLockBound = 10 * time.Second
 	// leaseDetachStartBound is the startup window in which a recorded child
 	// whose identity cannot be confirmed is still taken as starting
-	// (CAL-V0-327).
+	// (ATR-V0-027).
 	leaseDetachStartBound = 60 * time.Second
 	// leaseDetachIdentity probes a process identity; tests make it fail.
 	leaseDetachIdentity = supervisor.ProcessIdentity
@@ -75,7 +75,7 @@ var (
 	leaseDetachChildStarting = func(io.Writer) {}
 )
 
-// leaseDetachHelp is the claim and pool acquire help member (CAL-V0-320).
+// leaseDetachHelp is the claim and pool acquire help member (ATR-V0-020).
 const leaseDetachHelp = "--detach runs the unchanged command in its own session under --request-id (the handle) and returns at once, or after --wait SECONDS (0..600): the command's own result, or REFUSED with state PENDING and exit 75. --attach --request-id ID [--wait SECONDS] only reads: the kept result byte for byte (CLAIMED with attemptId and generation, or the refusal verbatim), PENDING, or SUPERVISOR_LOST when the process ended without a result. A repeated --detach with the same arguments never starts a second mutation; after LOST it restarts and the store replays a committed request. The detached process is bounded by a 600-second ceiling (hard stop at 660). Darwin and Linux only. Records live in taskman-requests beside the journal; finished ones older than 7 days are pruned."
 
 // leaseDetachMode is the parsed detach, attach or child flag set.
@@ -87,7 +87,7 @@ type leaseDetachMode struct {
 
 // leaseDetachRequested reports whether a claim or pool acquire argv carries
 // a detach flag; without one the command is the unchanged lease command
-// (CAL-V0-326).
+// (ATR-V0-026).
 func leaseDetachRequested(args []string) bool {
 	_, found, _ := splitLeaseDetach(args)
 	return found
@@ -190,7 +190,7 @@ func writeLeaseDetachJSON(dir, name string, v any) error {
 
 // leaseDetach is `claim|pool acquire ... --detach [--wait N]`,
 // `... --attach --request-id ID [--holder H] [--wait N]` and the internal
-// child (CAL-V0-320..329).
+// child (ATR-V0-020..029).
 func leaseDetach(env Env, name string, args []string) int {
 	cmd := strings.Fields(name)
 	m, _, err := splitLeaseDetach(args)
@@ -258,7 +258,7 @@ func leaseDetachConflict(cmd []string, requestID string) *wire.Result {
 }
 
 // leaseDetachLaunch records the request and starts its child unless a live
-// child or a kept result already answers it (CAL-V0-321). It returns nil
+// child or a kept result already answers it (ATR-V0-021). It returns nil
 // when the caller should wait for the result.
 func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest []string) *wire.Result {
 	cmd := strings.Fields(name)
@@ -304,7 +304,7 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 		return errorResult(cmd, err)
 	}
 	// Each run gets a fresh child.log; the previous run's log, the evidence
-	// of a lost child, is kept as child.1.log (CAL-V0-328).
+	// of a lost child, is kept as child.1.log (ATR-V0-028).
 	logPath := filepath.Join(dir, leaseDetachLogName)
 	if err := os.Rename(logPath, filepath.Join(dir, leaseDetachPrevLog)); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return errorResult(cmd, err)
@@ -345,7 +345,7 @@ const leaseDetachUnknownIdentity = "unknown"
 // taken that lock, its recorded process is live. Only positive evidence ends
 // a recorded child: no process at its pid, a different identity there, or,
 // when its identity cannot be confirmed, no running lock once the startup
-// window has passed (CAL-V0-327). child receives the record.
+// window has passed (ATR-V0-027). child receives the record.
 func leaseDetachChildLive(dir string, child *leaseDetachChild, now time.Time) (bool, error) {
 	if leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName)) {
 		_ = readLeaseDetachJSON(filepath.Join(dir, leaseDetachChildName), child)
@@ -371,14 +371,18 @@ func leaseDetachChildLive(dir string, child *leaseDetachChild, now time.Time) (b
 }
 
 // leaseDetachRunChild is the detached child: the unchanged lease command
-// under the ceiling, its exact result bytes kept for attach (CAL-V0-322,
-// CAL-V0-323).
+// under the ceiling, its exact result bytes kept for attach (ATR-V0-022,
+// ATR-V0-023).
 func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest []string) int {
 	var rec leaseDetachRecord
-	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachRequest), &rec); err != nil || rec != want {
+	// A record this build cannot read keeps its own code, such as
+	// UNSUPPORTED_VERSION for another taskman-detached-lease version.
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachRequest), &rec); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return emit(env.Stdout, errorResult(strings.Fields(name), err))
+	} else if err != nil || rec != want {
 		return emit(env.Stdout, usage(strings.Fields(name), leaseDetachChildFlag+" is internal to a detached "+name))
 	}
-	// What the child itself writes to child.log is capped (CAL-V0-328).
+	// What the child itself writes to child.log is capped (ATR-V0-028).
 	env.Stderr = &leaseDetachLogWriter{w: env.Stderr, left: maxLeaseDetachLog}
 	leaseDetachChildStarting(env.Stderr)
 	// One child at a time runs a record, and none after a kept result:
@@ -407,7 +411,7 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 }
 
 // leaseDetachAwait answers from the kept result, or reports PENDING or LOST,
-// waiting up to wait seconds for the result (CAL-V0-322, CAL-V0-324). It
+// waiting up to wait seconds for the result (ATR-V0-022, ATR-V0-024). It
 // only reads.
 func leaseDetachAwait(env Env, name, dir, requestID, holder string, wait int) int {
 	cmd := strings.Fields(name)
@@ -468,7 +472,7 @@ func leaseDetachItem(name, dir, requestID, holder, state string, child *leaseDet
 // pruneLeaseDetach removes finished records (a kept result) older than
 // leaseDetachRetention; a pending or lost record is kept. It pages through
 // the whole directory, at most maxLeaseDetachPruneScan entries, so unfinished
-// records never hide finished ones behind them (CAL-V0-329). Best effort.
+// records never hide finished ones behind them (ATR-V0-029). Best effort.
 func pruneLeaseDetach(base string, now time.Time) {
 	f, err := openDirNonblock(base)
 	if err != nil {
@@ -500,7 +504,7 @@ func pruneLeaseDetach(base string, now time.Time) {
 
 // leaseDetachLogWriter caps the bytes a detached child writes to its
 // child.log; past the cap it reports success and drops the rest
-// (CAL-V0-328).
+// (ATR-V0-028).
 type leaseDetachLogWriter struct {
 	w    io.Writer
 	left int

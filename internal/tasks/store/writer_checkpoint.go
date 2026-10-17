@@ -194,7 +194,7 @@ func (w *writerObservation) tail() uint64 {
 // route may retry past.
 //
 // With resume, the audit resumes from the lease command's own resume base
-// instead of the retained checkpoint (CAL-V0-332, proposed); the
+// instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
 func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool, resume *leaseResume) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {

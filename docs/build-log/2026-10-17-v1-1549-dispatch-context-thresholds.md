@@ -1,8 +1,12 @@
 # 2026-10-17 V1-1549: dispatch context thresholds (issue 1007)
 
 Decision. A dispatch role may declare `context: {warnTokens, handoffTokens, hardTokens}`
-(`CAL-V0-340`..`CAL-V0-346` in `docs/specs/corvint-tasks-agent-leases-v0.md`). The requirements
+(`ATR-V0-030`..`ATR-V0-036` in `docs/specs/corvint-tasks-attempt-runner-v0.md`). The requirements
 were accepted under the owner's standing auto-accept of lane requirements (2026-10-11).
+
+Re-homed (owner-approved, 2026-10-17): these requirements were first numbered CAL-V0-340..349 in the
+agent leases spec; they moved to ATR-V0-030..039 in `docs/specs/corvint-tasks-attempt-runner-v0.md`
+with the same text so the leases spec stays within the 256-obligation bound.
 
 Design:
 
@@ -28,11 +32,11 @@ Design:
   `heal.handoff`. An UNKNOWN estimate never stops a worker.
 - A write failure keeps the estimate, which still decides the hard stop. It records no crossing
   and raises one alert per run of failed writes. The temporary file name is random, so the alert
-  is not keyed per error text. That change was made during testing and recorded in `CAL-V0-343`.
+  is not keyed per error text. That change was made during testing and recorded in `ATR-V0-033`.
 
 Evidence:
 
-- Focused tests trace every requirement (`TestCALV0340`..`TestCALV0346`):
+- Focused tests trace every requirement (`TestATRV0030`..`TestATRV0036`):
   - 7 tests in `internal/tasks/dispatch`
   - 1 test in `internal/tasks/cli`
 - The whole `internal/tasks/dispatch` package was run once. Its only failure was a `t.TempDir`
@@ -57,23 +61,23 @@ tests on the reviewed head before the fix:
 
 1. An opencode line with a repeated or case-folded member can hide an escaped `step_finish`. The
    reader refused it without changing a known estimate, so a stale high estimate could still stop
-   the worker. Fixed: such a line makes the estimate UNKNOWN (`CAL-V0-347`).
+   the worker. Fixed: such a line makes the estimate UNKNOWN (`ATR-V0-037`).
 2. After a restart, the estimate reloaded from `context.json` could record crossings and stop the
    worker with no fresh observation. Fixed: a reloaded estimate is shown but acts only after a
-   fresh recognised line (`CAL-V0-348`). The ledger is unchanged.
+   fresh recognised line (`ATR-V0-038`). The ledger is unchanged.
 3. Output skipped by the `CAL-V0-143` cut, or a log shorter than the read offset, kept the earlier
-   estimate. Fixed: both make it UNKNOWN (`CAL-V0-347`).
+   estimate. Fixed: both make it UNKNOWN (`ATR-V0-037`).
 4. Exit-recovery retries and detached-run deferrals dropped the `CONTEXT` detail. Fixed: the
    recovery carries it, and a deferral keeps it in memory and puts it on `handoff-deferred`
-   (`CAL-V0-345` clarified).
+   (`ATR-V0-035` clarified).
 5. `dispatch status` showed thresholds from the configuration file, which may be invalid or not
    yet reloaded. Fixed: it shows the applied thresholds from the record, and `UNKNOWN` without a
-   readable record (`CAL-V0-349`, amending `CAL-V0-342`).
+   readable record (`ATR-V0-039`, amending `ATR-V0-032`).
 
-The review-fix tests are `TestCALV0345_DeferredAndRecoveredHandoffsKeepContext`,
-`TestCALV0347_HiddenOrLostContextLinesAreUnknown` and
-`TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`), and
-`TestCALV0349_DispatchStatusShowsAppliedThresholds` (`internal/tasks/cli`).
+The review-fix tests are `TestATRV0035_DeferredAndRecoveredHandoffsKeepContext`,
+`TestATRV0037_HiddenOrLostContextLinesAreUnknown` and
+`TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`), and
+`TestATRV0039_DispatchStatusShowsAppliedThresholds` (`internal/tasks/cli`).
 
 CI fixes (PR #1016, Linux shard 5 on 4f95382a4):
 
@@ -83,11 +87,11 @@ CI fixes (PR #1016, Linux shard 5 on 4f95382a4):
   `ReadContextRecord` refuses a newer-version record as `UNSUPPORTED_VERSION`, not `MALFORMED`;
   `TestCALV0131_EveryLiveFormatRefusesANewerVersion` gained the row and fails without that check.
   Residual: the dispatcher still replaces an unreadable record, including a newer build's, with a
-  fresh one after the alert (CAL-V0-343).
-- `TestCALV0344_WorkerGetsContextFile` assumed a supervising tick after the worker started.
+  fresh one after the alert (ATR-V0-033).
+- `TestATRV0034_WorkerGetsContextFile` assumed a supervising tick after the worker started.
   `tickUntil` checks its condition before ticking, and the launching tick supervises before it
   launches, so a fast worker could be checked with no supervising tick. The test now takes one
-  explicit tick before asserting (CAL-V0-344 promises the record only after one). A one-second
+  explicit tick before asserting (ATR-V0-034 promises the record only after one). A one-second
   sleep before the wait reproduced the CI failure locally; with the fix the test passes five runs.
 
 Rollback: remove `context` from the role configurations, which disables the feature. To remove it
