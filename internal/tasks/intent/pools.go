@@ -8,8 +8,8 @@ import (
 
 const MaxPoolMembers = 256
 
-// MaxPoolCommandSeconds bounds one memberConfig health or cleanup command
-// (CAL-V0-033, PSR-V0-011). Inside pool sweep the member's shared safeReuse
+// MaxPoolCommandSeconds bounds one memberConfig health, cleanup or prepare command
+// (CAL-V0-033, PSR-V0-011, PSR-V0-024). Inside pool sweep the member's shared safeReuse
 // deadline and the sweep's total budget still bound it.
 const MaxPoolCommandSeconds = 3600
 
@@ -36,7 +36,11 @@ type PoolCommand struct {
 type MemberConfig struct {
 	ConfigRef       *ConfigRef
 	Health, Cleanup *PoolCommand
-	SafeReuse       *SafeReuse
+	// Prepare is the optional sweep step that runs after a passed verify and
+	// before delegated confirmation, while the member stays owned and
+	// quarantined (PSR-V0-024..026). It requires SafeReuse.
+	Prepare   *PoolCommand
+	SafeReuse *SafeReuse
 }
 type Pool struct {
 	ID           string
@@ -126,7 +130,7 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					p.ReservedFor[name] = cr.Enum(StageRoles...)
 					continue
 				}
-				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "safeReuse")...)
+				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "prepare", "safeReuse")...)
 				c := MemberConfig{}
 				if wire.Has(cr.Value(), "configRef") {
 					c.ConfigRef = ReadConfigRef(cr.Field("configRef"))
@@ -144,8 +148,16 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					c.Cleanup = readPoolCommand(cr.Field("cleanup"))
 					subsetOf(cr, c.Cleanup.Env, env, "pool cleanup environment")
 				}
+				if wire.Has(cr.Value(), "prepare") {
+					c.Prepare = readPoolCommand(cr.Field("prepare"))
+					subsetOf(cr, c.Prepare.Env, env, "pool prepare environment")
+				}
 				if wire.Has(cr.Value(), "safeReuse") {
 					c.SafeReuse = readSafeReuse(cr.Field("safeReuse"), env)
+				}
+				// PSR-V0-024: only pool sweep runs prepare, so it needs safeReuse.
+				if c.Prepare != nil && c.SafeReuse == nil {
+					cr.Fail(wire.CodeMalformed, "pool prepare requires safeReuse")
 				}
 				p.MemberConfig[name] = c
 			}
