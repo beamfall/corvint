@@ -127,6 +127,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	}
 	st := &chain{canonical: map[string]latest{}, restore: &snapshot.ReceiptRestorer{}}
 	for i, name := range o.receipts {
+		if i%abortEvery == abortEvery-1 && r.headMoved(o) {
+			return result, moved("head.json")
+		}
 		if err := r.step(o, st, result, name, uint64(i+1), headSeq, selected, request, lim); err != nil {
 			return result, err
 		}
@@ -614,7 +617,10 @@ func sortedPaths[V any](m map[string]V) []string {
 }
 
 func (r Reader) projections(o *observation, canonical map[string]latest, checkIntent bool) error {
-	for _, p := range sortedPaths(canonical) {
+	for i, p := range sortedPaths(canonical) {
+		if i%abortEvery == abortEvery-1 && r.headMoved(o) {
+			return moved("head.json")
+		}
 		record := canonical[p]
 		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
 			continue

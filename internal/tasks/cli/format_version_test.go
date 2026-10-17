@@ -268,6 +268,24 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			}
 			return bad["0123456789abcdef.json"]
 		},
+		dispatch.ContextProfile: func(t *testing.T, p string) error {
+			dir := resolvedTempDir(t)
+			if err := os.MkdirAll(filepath.Dir(dispatch.ContextRecordPath(dir, "w1")), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(dispatch.ContextRecordPath(dir, "w1"), enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadContextRecord(dir, "w1")
+			return err
+		},
+		cli.LeaseDetachProfile: func(t *testing.T, p string) error {
+			file := filepath.Join(resolvedTempDir(t), "request.json")
+			if err := os.WriteFile(file, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			return cli.ReadLeaseDetachRequest(file)
+		},
 		service.ProfileName:         plain(func(b []byte) error { _, e := service.DecodeProfile(b); return e }),
 		service.ManifestName:        plain(func(b []byte) error { _, e := service.DecodeManifest(b); return e }),
 		service.ControlName:         plain(func(b []byte) error { _, e := service.DecodeControl(b); return e }),

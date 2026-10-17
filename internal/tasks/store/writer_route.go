@@ -35,7 +35,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	start := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true)
+	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, nil)
 	if terminal != nil {
 		out, err = guardFailure(report, env.RequestID, terminal)
 		return true, out, err
@@ -199,8 +199,14 @@ func leaseDeclined(ctx context.Context, request transaction.Request, why string)
 // Mutate does. handled is false, with nothing written, whenever the route
 // declines; leaseWrite then prepares the complete route as before. refresh
 // reports that the scheduled complete audit is due.
-func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report) (handled, refresh bool, proof *journal.Result, err error) {
-	if !writerRouteReady(repo, request) {
+//
+// With resume, the route serves any lease verb from the command's own resume
+// base (PSR-V0-052, proposed) instead of a retained writer checkpoint: the
+// base came from this command's audit from receipt 1, so the verb keeps that
+// audit's detection of a rewritten prefix, and checks the base again just
+// before it reports or commits (PSR-V0-056, proposed).
+func leaseWriter(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver, report *Report, resume *leaseResume) (handled, refresh bool, proof *journal.Result, err error) {
+	if resume == nil && !writerRouteReady(repo, request) {
 		return false, false, nil, nil
 	}
 	timing, wait := leaseTimingOf(ctx), time.Now()
@@ -223,7 +229,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return leaseDeclined(ctx, request, "guards")
 	}
 	read := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false)
+	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, resume)
 	timing.SnapshotRead += time.Since(read)
 	if terminal != nil {
 		return true, false, nil, terminal
@@ -280,6 +286,18 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	// cannot commit (the complete route then decides it).
 	if branch, err := primaryBranch(repo); err != nil || branch != w.branch {
 		return leaseDeclined(ctx, request, "branch")
+	}
+	if resume != nil {
+		// No change guard watches a resumed route, so the base check runs
+		// again here, under the lock and after modelling, before any
+		// result is reported or retained (PSR-V0-056, proposed).
+		decline, cleanup := journalReader(repo, headState).RecheckResume(resume.base, w.proof)
+		if cleanup != nil {
+			return true, false, nil, cleanup
+		}
+		if decline != nil {
+			return leaseDeclined(ctx, request, "resume recheck: "+decline.Error())
+		}
 	}
 	bound := writerStage(ctx, "lease.bind", modeled)
 	if !planned {
