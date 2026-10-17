@@ -79,7 +79,7 @@ func TestSTRV0050CLIShardsPlan(t *testing.T) {
 		t.Fatalf("fallback %d %q %s", code, stderr, stdout)
 	}
 	code, _, stderr = runCLI(t, "test", "shards", "--count", "2", "--files", files, "--durations", filepath.Join(dir, "absent.json"))
-	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: shards FALLBACK invalid run durations: ") {
+	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: shards FALLBACK test-shards-history-invalid: ") {
 		t.Fatalf("absent history %d %q", code, stderr)
 	}
 	duplicate := writeShardsInput(t, t.TempDir(), "dup.txt", "a\na\n")

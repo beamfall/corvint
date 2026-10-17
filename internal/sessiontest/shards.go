@@ -22,6 +22,9 @@ const (
 	// DefaultHistoryRuns is K, the retained full runs a weight is the median
 	// of, when --runs is not given (STR-V0-051).
 	DefaultHistoryRuns = 5
+	// HistoryInvalidCode begins the fallback reason when a supplied table
+	// is not admitted (STR-V0-056).
+	HistoryInvalidCode = "test-shards-history-invalid"
 	// MaxHistoryRuns bounds K and the number of supplied tables.
 	MaxHistoryRuns = 64
 	// MaxShardPlanShards bounds the shard count, as the cishards partition.
@@ -266,7 +269,7 @@ func historyWeights(files []string, runs int, history []History, plan *ShardPlan
 	for _, entry := range history {
 		table, err := readHistory(entry)
 		if err != nil {
-			return nil, "invalid run durations: " + err.Error()
+			return nil, HistoryInvalidCode + ": " + err.Error()
 		}
 		tables = append(tables, table)
 	}

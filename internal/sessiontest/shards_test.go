@@ -200,6 +200,11 @@ func TestSTRV0053FallbackIsCompleteRoundRobin(t *testing.T) {
 		if got := planFiles(plan); !reflect.DeepEqual(got, [][]string{{"a", "c", "e"}, {"b", "d"}}) {
 			t.Fatalf("%s: round-robin %v", name, got)
 		}
+		// STR-V0-056: a table that is not admitted names the code.
+		admitted := name == "no history" || name == "no listed file" || name == "too many tables"
+		if named := strings.HasPrefix(plan.Fallback, HistoryInvalidCode+": "); named == admitted {
+			t.Fatalf("%s: fallback %q", name, plan.Fallback)
+		}
 	}
 }
 
