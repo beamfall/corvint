@@ -353,7 +353,10 @@ Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path
 `timeoutSeconds` from 1 to 3600. `cwd` is `"REPOSITORY"` or a pinned external checkout
 `{"kind":"PINNED_REPOSITORY","path":"/abs","revision":"<full sha>"}`, which runs only while that
 worktree's HEAD is the revision and its tree is clean (otherwise STALE_TREE, DIRTY_WORKTREE or
-MISSING_EVIDENCE, nothing runs). Inside `pool sweep` a cleanup still shares the safeReuse deadline. Health failures are skipped and reported in occupancy with reason,
+MISSING_EVIDENCE, nothing runs). Inside `pool sweep` a cleanup still shares the safeReuse deadline.
+An optional `prepare` command (same shape; requires `safeReuse`) runs in `pool sweep` after a passed
+verify and before confirmation, while the member is still quarantined and under the same deadline; a
+failed prepare leaves the member QUARANTINED with reason `CLASS; pool prepare failed` (PSR-V0-024..026). Health failures are skipped and reported in occupancy with reason,
 command kind and observation digest. Commands require clean repository inputs outside `.taskman`.
 The runner bounds captured output to 64 KiB and retains its digest only. It cleans the owned process
 group; detached processes and external databases remain the operator's responsibility.

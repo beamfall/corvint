@@ -18,8 +18,8 @@ Sixteen concrete profiles exist:
 | maven-surefire | Maven 3.9.16 / Surefire 3.6.0 XML 3.0.2 | Actual Java/Jupiter four-case matrix, rerun offline |
 | swift-xctest | SwiftPM 6.4 macOS serial native XCTest text | Pass/two assertions/exception/skip; setup and build failures; shared executor witness |
 | robolectric | Robolectric 4.16.1, API 35, Console 6.1.3 Vintage | Actual Android runtime four-case matrix; initialization failure and zero tests; shared executor witness |
-| swift-testing | Swift 6.4, native version-0 event stream | Pass/expectation failure/disabled |
-| xcode-xctest | Xcode 27.0 macOS XCTest, xcresulttool schema 0.4.0 | Swift and Objective-C pass/assertion/skip |
+| swift-testing | Swift 6.4, native version-0 event stream | Pass/expectation failure/disabled; zero, build error and timeout through the shared executor (V1-0594) |
+| xcode-xctest | Xcode 27.0 macOS XCTest, xcresulttool schema 0.4.0 | Swift and Objective-C pass/assertion/skip; shared executor pass/assertion/skip, zero, build error and timeout (V1-0594) |
 | bats | Bats Core 1.14.0 native TAP | Pass/failure/skip; failure kind remains unknown |
 | shellspec | ShellSpec 0.28.1 native JUnit formatter | Pass/expectation failure/skip |
 | android-junit | AndroidJUnitRunner 1.7.0, raw instrumentation stream | Android emulator pass/assertion/exception/skip and zero tests; shared executor witness |
@@ -118,3 +118,7 @@ Robolectric requires prepared compiled classes/runtime jars, pinned Console jar
 and the exact pinned API-35 android-all-instrumented artifact for Robolectric
 4.16.1. The fixed invocation sets offline mode and enabledSdks=35. Other SDKs,
 resource/application variants and complete dependency closure remain unqualified.
+A JUnit Vintage `[runner:…]` leaf with no outcome is never a pass. This is how a class whose
+`@Config(sdk=…)` lies outside enabledSdks is reported, with every child filtered out. It
+becomes `CONTAINER_WITHOUT_TESTS`, and the observation is incomplete. This applies to
+robolectric and junit4 (TRE-V0-077).

@@ -41,3 +41,20 @@ func TestRobolectricZeroIsNotPass(t *testing.T) {
 		t.Fatalf("empty native inventory admitted: %+v", o)
 	}
 }
+
+// TRE-V0-077: a Robolectric class whose SDK is outside enabledSdks ran no test;
+// the outcome-free Vintage runner leaf must not become a pass (V1-0594 witness).
+func TestVintageRunnerLeafIsNotPass(t *testing.T) {
+	xml := `<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="JUnit Vintage" tests="1" skipped="0" failures="0" errors="0">
+<testcase name="proof.BrokenTest" classname="proof.BrokenTest"><system-out><![CDATA[
+unique-id: [engine:junit-vintage]/[runner:proof.BrokenTest]
+]]></system-out></testcase>
+</testsuite>`
+	for _, runner := range []string{"robolectric", "junit4"} {
+		o, e := Parse(tr.Input{Runner: runner, ExitCode: 0, Reports: map[string][]byte{"TEST-junit-vintage.xml": []byte(xml)}})
+		if e != nil || o.Complete || len(o.Tests) != 0 {
+			t.Fatalf("%s: runner leaf admitted: %+v %v", runner, o, e)
+		}
+	}
+}
