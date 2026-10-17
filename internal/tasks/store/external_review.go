@@ -145,9 +145,9 @@ func ExternalReviewBlob(repo *intent.Repository) transaction.ExternalReviewBlob 
 // pending receipt use it, so a review event that does not reproduce its
 // receipt's transition refuses as JOURNAL_FORKED wherever it is consumed.
 func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (*transaction.ExternalReviewReceiptAudit, error) {
-	blob := ExternalReviewBlob(repo)
+	b := newSealBlob(repo)
 	fold := &transaction.ExternalReviewReceiptAudit{}
-	err := foldReceipts(repo, last, pending, func(rc *snapshot.Receipt, sum wire.Digest) error { return fold.Step(rc, sum, blob) })
+	err := foldReceipts(repo, b, last, pending, fold.Seed, func(rc *snapshot.Receipt, sum wire.Digest) error { return fold.Step(rc, sum, b.blob) })
 	if err != nil {
 		return nil, err
 	}
@@ -161,7 +161,8 @@ func FoldExternalReviews(repo *intent.Repository, last uint64, pending []byte) (
 // audit and redo use it, so a rehashed but untrue review, escalation, ledger
 // event or gate reuse refuses as JOURNAL_FORKED.
 func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) error {
-	return foldReceipts(repo, last, pending, ReceiptBindingFold(repo))
+	f := newBindingFold(repo)
+	return foldReceipts(repo, f.b, last, pending, f.seed, f.step)
 }
 
 // ReceiptBindingFold returns a fresh FoldReceiptBindings step for receipts
@@ -169,35 +170,109 @@ func FoldReceiptBindings(repo *intent.Repository, last uint64, pending []byte) e
 // the receipts it has just validated instead of reading them again. Each
 // ticket post is read and decoded once for the review and escalation audits.
 func ReceiptBindingFold(repo *intent.Repository) func(*snapshot.Receipt, wire.Digest) error {
-	blob := ExternalReviewBlob(repo)
-	reviews, escalations := &transaction.ExternalReviewReceiptAudit{}, &transaction.EscalationReceiptAudit{}
-	obligations := &transaction.ObligationReceiptAudit{Source: func(commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
-		return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
-	}}
-	memo := &transaction.TicketPosts{}
-	reuses := &transaction.GateReuseReceiptAudit{}
+	f := newBindingFold(repo)
+	started := false
 	return func(rc *snapshot.Receipt, sum wire.Digest) error {
-		if err := reviews.StepPosts(rc, sum, blob, memo); err != nil {
-			return err
+		if !started {
+			// A complete audit of a sealed store supplies receipts from the
+			// anchor's successor: seed the folds there first (JRT-V0-008).
+			started = true
+			if err := seedFold(repo, f.b, rc, f.seed); err != nil {
+				f.err = err
+			}
 		}
-		if err := escalations.StepPosts(rc, sum, blob, memo); err != nil {
-			return err
+		if f.err != nil {
+			return f.err
 		}
-		if err := obligations.Step(rc, sum, blob); err != nil {
-			return err
-		}
-		return reuses.Step(rc, sum, blob)
+		return f.step(rc, sum)
 	}
 }
 
-func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step func(*snapshot.Receipt, wire.Digest) error) (err error) {
-	// The walk starts at receipt 1, so an elided liveness receipt is folded
-	// as its restored original (CAL-V0-301).
+type bindingFold struct {
+	b           *sealBlob
+	reviews     *transaction.ExternalReviewReceiptAudit
+	escalations *transaction.EscalationReceiptAudit
+	obligations *transaction.ObligationReceiptAudit
+	memo        *transaction.TicketPosts
+	reuses      *transaction.GateReuseReceiptAudit
+	err         error
+}
+
+func newBindingFold(repo *intent.Repository) *bindingFold {
+	return &bindingFold{
+		b:           newSealBlob(repo),
+		reviews:     &transaction.ExternalReviewReceiptAudit{},
+		escalations: &transaction.EscalationReceiptAudit{},
+		obligations: &transaction.ObligationReceiptAudit{Source: func(commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
+			return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
+		}},
+		memo:   &transaction.TicketPosts{},
+		reuses: &transaction.GateReuseReceiptAudit{},
+	}
+}
+
+func (f *bindingFold) seed(posts []snapshot.PostEntry, blob transaction.ExternalReviewBlob) error {
+	if err := f.reviews.Seed(posts, blob); err != nil {
+		return err
+	}
+	if err := f.escalations.Seed(posts, blob); err != nil {
+		return err
+	}
+	if err := f.obligations.Seed(posts, blob); err != nil {
+		return err
+	}
+	return f.reuses.Seed(posts, blob)
+}
+
+func (f *bindingFold) step(rc *snapshot.Receipt, sum wire.Digest) error {
+	blob := f.b.blob
+	if err := f.reviews.StepPosts(rc, sum, blob, f.memo); err != nil {
+		return err
+	}
+	if err := f.escalations.StepPosts(rc, sum, blob, f.memo); err != nil {
+		return err
+	}
+	if err := f.obligations.Step(rc, sum, blob); err != nil {
+		return err
+	}
+	return f.reuses.Step(rc, sum, blob)
+}
+
+// foldReceipts folds receipts 1..last, then pending. On a sealed store it
+// seeds the fold with the anchor afterimages and folds from the anchor's
+// successor, which must link to the anchor (JRT-V0-008); a fold that ends
+// inside the retired prefix refuses.
+func foldReceipts(repo *intent.Repository, b *sealBlob, last uint64, pending []byte, seed func([]snapshot.PostEntry, transaction.ExternalReviewBlob) error, step func(*snapshot.Receipt, wire.Digest) error) (err error) {
+	seal, err := readSeal(repo)
+	if err != nil {
+		return err
+	}
+	first := uint64(1)
+	var link *wire.Digest
+	if seal != nil {
+		if last < seal.Seq() {
+			return wire.Errorf(wire.CodeUnsupported, journal.RetiredPrefixFile, "receipts through %d were retired; their bindings are in the retained archive", seal.Retired())
+		}
+		if err := seed(b.sealPosts(seal), b.blob); err != nil {
+			return err
+		}
+		first, link = seal.Seq()+1, &seal.Anchor.ReceiptSha256
+	}
+	// The walk starts at receipt 1 (or the anchor of a sealed store, whose
+	// later receipts are never elided: compaction refuses there), so an
+	// elided liveness receipt is folded as its restored original
+	// (CAL-V0-301).
 	restore := &snapshot.ReceiptRestorer{}
 	fold := func(raw []byte) error {
 		rc, original, err := restore.Next(raw)
 		if err != nil {
 			return err
+		}
+		if link != nil {
+			if rc.Seq.Uint64() != first || rc.Prev == nil || *rc.Prev != *link {
+				return wire.Errorf(wire.CodeJournalForked, "receipts", "the receipt after a retired prefix must link to its anchor")
+			}
+			link = nil
 		}
 		return step(rc, wire.Sum(original))
 	}
@@ -207,7 +282,7 @@ func foldReceipts(repo *intent.Repository, last uint64, pending []byte, step fun
 			err = closeErr
 		}
 	}()
-	for seq := uint64(1); seq <= last; seq++ {
+	for seq := first; seq <= last; seq++ {
 		raw, err := files.read(seq)
 		if err != nil {
 			return err

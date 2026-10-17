@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"path/filepath"
+
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -77,5 +79,57 @@ func receiptCompact(env Env, args []string) *wire.Result {
 	item.Set("alreadyElided", wire.String(string(wire.CountOf(int64(report.AlreadyElided)))))
 	item.Set("receiptBytesBefore", wire.String(string(wire.SizeOf(uint64(report.BytesBefore)))))
 	item.Set("receiptBytesAfter", wire.String(string(wire.SizeOf(uint64(report.BytesAfter)))))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
+}
+
+// receiptRetire runs `receipt retire --archive FILE [--dry-run]` or
+// `receipt unretire --archive FILE` (JRT-V0-002, JRT-V0-011).
+func receiptRetire(env Env, verb string, args []string) *wire.Result {
+	cmd := []string{"receipt", verb}
+	archivePath, dryRun := "", false
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--dry-run" && verb == "retire" && !dryRun:
+			dryRun = true
+		case args[i] == "--archive" && archivePath == "" && i+1 < len(args) && args[i+1] != "":
+			archivePath = args[i+1]
+			i++
+		default:
+			return usage(cmd, "receipt retire accepts --archive FILE and --dry-run; receipt unretire accepts --archive FILE")
+		}
+	}
+	if archivePath == "" && !dryRun {
+		return usage(cmd, "receipt "+verb+" needs --archive FILE")
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	if archivePath != "" && !filepath.IsAbs(archivePath) {
+		archivePath = filepath.Join(env.Cwd, archivePath)
+	}
+	var report *store.RetireReport
+	if verb == "retire" {
+		report, err = store.RetirePrefix(writerContext(), repo, archivePath, dryRun)
+	} else {
+		report, err = store.UnretirePrefix(writerContext(), repo, archivePath)
+	}
+	if err != nil {
+		return failure(cmd, &readCtx{repo: repo}, err)
+	}
+	item := wire.NewObject()
+	item.Set("dryRun", wire.Bool(report.DryRun))
+	if report.Recovered != "" {
+		item.Set("recovered", wire.String(report.Recovered))
+	}
+	item.Set("anchorSeq", wire.String(string(wire.SizeOf(report.AnchorSeq))))
+	item.Set("retired", wire.String(string(wire.CountOf(int64(report.Retired)))))
+	item.Set("receiptBytesBefore", wire.String(string(wire.SizeOf(report.ReceiptBytesBefore))))
+	item.Set("receiptBytesAfter", wire.String(string(wire.SizeOf(report.ReceiptBytesAfter))))
+	item.Set("sealBytes", wire.String(string(wire.SizeOf(report.SealBytes))))
+	if report.ArchiveSha256 != "" {
+		item.Set("archiveSha256", wire.String(string(report.ArchiveSha256)))
+		item.Set("archiveBytes", wire.String(string(wire.SizeOf(report.ArchiveBytes))))
+	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
 }

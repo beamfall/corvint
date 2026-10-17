@@ -35,7 +35,7 @@ func inventory(repo *intent.Repository) (*transaction.Inventory, error) {
 	if err != nil {
 		return nil, err
 	}
-	return transaction.NewInventory(files, dirs)
+	return retainedInventory(repo, files, dirs)
 }
 
 type inventoryReader func(string, int) ([]byte, error)

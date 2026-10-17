@@ -61,7 +61,7 @@ func maxCheckpointEntries() int {
 // checkpoint is never extended from a read checkpoint and never taken over a
 // pending receipt.
 func (res *Result) Checkpoint() *Checkpoint {
-	if res == nil || res.chain == nil || res.Pending || res.StagingPresent || res.Head == nil || res.LastSeq != res.Head.LastSeq {
+	if res == nil || res.chain == nil || res.chain.seal != nil || res.Pending || res.StagingPresent || res.Head == nil || res.LastSeq != res.Head.LastSeq {
 		return nil
 	}
 	full := res.Mode == ModeFull && res.StructuralConsistency == "CONSISTENT"

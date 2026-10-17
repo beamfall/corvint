@@ -3670,5 +3670,17 @@
       "tools/test-commands-check",
       "tools/test-commands-run"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-journal-retention-v0.md",
+    "title": "Corvint Tasks journal retention V0",
+    "reqPrefix": "JRT-V0",
+    "intent": "JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055)",
+    "delivery": "experimental",
+    "claim": "`receipt retire` bounds the live journal by sealing the head receipt over a verified archive of the prefix; `receipt unretire` restores it.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

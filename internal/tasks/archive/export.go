@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -156,6 +157,11 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 	var streamExceeded bool
 	SnapshotOnFailure = nil
 	repo := opts.Repo
+	// journal.RetiredPrefixFile: a store with a retired prefix no longer holds
+	// receipt 1, so its export would not verify (JRT-V0-010).
+	if _, err := os.Lstat(filepath.Join(repo.StateDir, "RETIRED_PREFIX")); !errors.Is(err, fs.ErrNotExist) {
+		return nil, wire.Errorf(wire.CodeUnsupported, "RETIRED_PREFIX", "the store carries a retired prefix (or it is unobservable); its archive is the export retire retained")
+	}
 	staging, err := checkStaging(opts.Staging, repo)
 	if err != nil {
 		return nil, err

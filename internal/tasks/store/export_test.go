@@ -100,3 +100,12 @@ func PoolBoundedProbeErrorForTest(class string) error {
 func PSRTestLiftObservationBounds(ctx context.Context, bound time.Duration) context.Context {
 	return context.WithValue(ctx, sweepObservationBoundKey{}, bound)
 }
+
+// SetRetireStageForTest runs f after each durable retire or unretire step
+// (JRT-V0-009); a non-nil return stops the run there as a crash would. The
+// returned function restores the previous hook.
+func SetRetireStageForTest(f func(string) error) func() {
+	prev := retireStage
+	retireStage = f
+	return func() { retireStage = prev }
+}

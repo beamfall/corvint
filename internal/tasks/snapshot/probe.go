@@ -111,6 +111,10 @@ func Probe(stateDir string) (*Snapshot, error) {
 	if _, err := os.Lstat(filepath.Join(stateDir, "RESTORE_INCOMPLETE")); err == nil {
 		return nil, wire.Errorf(wire.CodeRestoreIncomplete, stateDir, "an interrupted restore left its marker; only `archive restore` may continue")
 	}
+	// journal.RetireIncompleteFile (JRT-V0-009); snapshot cannot import journal.
+	if _, err := os.Lstat(filepath.Join(stateDir, "RETIRE_INCOMPLETE")); err == nil {
+		return nil, wire.Errorf(wire.CodeRestoreIncomplete, stateDir, "an interrupted retire left its marker; only `receipt retire` or `receipt unretire` may finish it")
+	}
 	s := &Snapshot{StateDir: stateDir}
 	ver, err := intent.ReadFile(filepath.Join(stateDir, "VERSION"), 64)
 	if err != nil {

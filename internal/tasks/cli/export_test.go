@@ -333,3 +333,11 @@ func ReadLeaseDetachRequest(p string) error {
 	var rec leaseDetachRecord
 	return readLeaseDetachJSON(p, &rec)
 }
+
+// SetDoctorJournalThresholds lowers the JOURNAL_GROWTH thresholds for a test
+// and returns the restore function.
+func SetDoctorJournalThresholds(receipts, bytes uint64) func() {
+	r, b := doctorJournalReceipts, doctorJournalBytes
+	doctorJournalReceipts, doctorJournalBytes = receipts, bytes
+	return func() { doctorJournalReceipts, doctorJournalBytes = r, b }
+}

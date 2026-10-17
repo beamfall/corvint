@@ -95,6 +95,11 @@ func (n *noteAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 	if len(n.events) > 1 {
 		return noteForked("receipt", "more than one note event in one receipt")
 	}
+	for _, t := range n.tickets {
+		if err := n.st.sealedNote(t.path, t.prior); err != nil {
+			return err
+		}
+	}
 	posts := make([]*ticket.OperatorNoteReference, len(n.tickets))
 	for i, t := range n.tickets {
 		if t.raw == nil {
@@ -179,7 +184,7 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if env.RequestID != *rc.RequestID || env.RequestID != req.Entry.RequestID || env.QueueID != n.r.QueueID {
 		return noteForked("receipt", "retained request identity differs from the receipt and request index")
 	}
-	preRaw, err := n.r.priorPost(t.prior, t.path)
+	preRaw, err := n.st.priorPost(n.r, t.prior, t.path)
 	if err != nil {
 		return err
 	}
@@ -187,7 +192,7 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if err != nil {
 		return err
 	}
-	policyRaw, err := n.r.priorPost(n.st.canonical["intent/policy.json"], "intent/policy.json")
+	policyRaw, err := n.st.priorPost(n.r, n.st.canonical["intent/policy.json"], "intent/policy.json")
 	if err != nil {
 		return err
 	}
