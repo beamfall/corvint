@@ -45,6 +45,9 @@ var Build = "0"
 type Env struct {
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
+	// leaseProgress receives a detached lease command's timing after each
+	// preparation round (PSR-V0-112).
+	leaseProgress func(store.LeaseTiming)
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures

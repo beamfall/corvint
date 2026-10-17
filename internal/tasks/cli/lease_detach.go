@@ -17,6 +17,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -38,7 +39,10 @@ const (
 	leaseDetachPrevLog    = "child.1.log"
 	leaseDetachLockName   = "lock"
 	leaseDetachRunName    = "running"
-	leaseDetachChildFlag  = "--detached-child"
+	// leaseDetachProgressName is the child's advisory round count and
+	// audit time, rewritten after each preparation round (PSR-V0-112).
+	leaseDetachProgressName = "progress.json"
+	leaseDetachChildFlag    = "--detached-child"
 
 	// maxLeaseDetachWait is the largest --wait, in seconds.
 	maxLeaseDetachWait = 600
@@ -140,6 +144,28 @@ type leaseDetachRecord struct {
 	RequestID  string `json:"requestId"`
 	Holder     string `json:"holder"`
 	ArgvSha256 string `json:"argvSha256"`
+}
+
+// leaseDetachProgress is progress.json: how far the child's lease command
+// got. It is advisory, decides nothing, and is absent before the first
+// preparation round ends (PSR-V0-112).
+type leaseDetachProgress struct {
+	Profile           string `json:"profile"`
+	PreparationRounds int    `json:"preparationRounds"`
+	ResumedRounds     int    `json:"resumedRounds"`
+	AuditMillis       int64  `json:"auditMillis"`
+	UpdatedAt         string `json:"updatedAt"`
+}
+
+// leaseDetachProgressValue is the PENDING item's progress member: null when
+// the child has not yet finished a round or its record does not read.
+func leaseDetachProgressValue(dir string) wire.Value {
+	var p leaseDetachProgress
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &p); err != nil || p.PreparationRounds < 0 || p.ResumedRounds < 0 || p.AuditMillis < 0 {
+		return wire.Null()
+	}
+	n := func(v int64) wire.Value { return wire.String(string(wire.SizeOf(uint64(v)))) }
+	return wire.ObjectValue(wire.NewObject().Set("preparationRounds", n(int64(p.PreparationRounds))).Set("resumedRounds", n(int64(p.ResumedRounds))).Set("auditMillis", n(p.AuditMillis)).Set("updatedAt", wire.String(p.UpdatedAt)))
 }
 
 // leaseDetachChild is child.json: the detached process and its bound.
@@ -401,6 +427,12 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	stop := time.AfterFunc(leaseDetachCeiling+time.Minute, func() { os.Exit(124) })
 	defer stop.Stop()
 	env.leaseDeadline = time.Now().Add(leaseDetachCeiling)
+	env.leaseProgress = func(t store.LeaseTiming) {
+		p := leaseDetachProgress{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: max(t.SnapshotRead.Milliseconds(), 0), UpdatedAt: time.Now().UTC().Format(time.RFC3339)}
+		if err := writeLeaseDetachJSON(dir, leaseDetachProgressName, p); err != nil {
+			_, _ = env.Stderr.Write([]byte("corvint-tasks detached " + name + ": progress: " + err.Error() + "\n"))
+		}
+	}
 	var out bytes.Buffer
 	code := emit(&out, leaseCommand(env, name, rest))
 	if err := writeRunFile(dir, leaseDetachResultName, out.Bytes()); err != nil {
@@ -451,9 +483,11 @@ func leaseDetachAwait(env Env, name, dir, requestID, holder string, wait int) in
 				Items:    []wire.Value{leaseDetachItem(name, dir, requestID, holder, state, &child)}})
 		}
 		if !time.Now().Before(deadline) {
+			item := leaseDetachItem(name, dir, requestID, holder, state, &child)
+			item.Obj.Set("progress", leaseDetachProgressValue(dir))
 			return emitCode(env.Stdout, &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused,
 				Warnings: []string{prose("the detached " + name + " has not finished; attach again with " + name + " --attach --request-id " + requestID)},
-				Items:    []wire.Value{leaseDetachItem(name, dir, requestID, holder, state, &child)}}, runExitPending)
+				Items:    []wire.Value{item}}, runExitPending)
 		}
 		time.Sleep(min(leaseDetachPoll, time.Until(deadline)))
 	}

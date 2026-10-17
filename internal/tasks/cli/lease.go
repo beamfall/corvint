@@ -333,6 +333,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		if lockWait > 0 {
 			ctx = store.WithLeaseLockWait(ctx, lockWait)
 		}
+		if env.leaseProgress != nil {
+			ctx = store.WithLeaseProgress(store.WithLeaseTiming(ctx, new(store.LeaseTiming)), env.leaseProgress)
+		}
 		if parsed.timing {
 			return timedLease(ctx, started, cmd, repo, actor, choice, now)
 		}
