@@ -43,6 +43,9 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
+	// leaseDeadline bounds a detached claim or pool acquire (CAL-V0-323).
+	leaseDeadline time.Time
+
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
 	Cwd        string
@@ -196,6 +199,9 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
 	case "health", "claim", "renew", "reap", "widen", "submit", "complete":
+		if args[0] == "claim" && leaseDetachRequested(args[1:]) {
+			return leaseDetach(env, "claim", args[1:])
+		}
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
 	case "doctor":
 		// --line is the documented plain-text exception (TQD-V0-012).
@@ -212,6 +218,9 @@ func Run(env Env) int {
 		}
 		if len(args) == 2 && args[1] == "--help" {
 			return emit(env.Stdout, usage([]string{"pool"}, "pool confirm-safe --member MEMBER --allocation SHA256 --evidence LOCAL_REF --reason REASON"))
+		}
+		if len(args) > 1 && args[1] == "acquire" && leaseDetachRequested(args[2:]) {
+			return leaseDetach(env, "pool acquire", args[2:])
 		}
 		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))

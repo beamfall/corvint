@@ -43,6 +43,9 @@ func TestATRV0009_DetachedSupervisorHelper(t *testing.T) {
 	if n, err := strconv.ParseInt(os.Getenv("CORVINT_TEST_RUN_SEGMENT"), 10, 64); err == nil && n > 0 {
 		cli.SetRunSegmentBytes(n)
 	}
+	if ms, err := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS")); err == nil && ms > 0 {
+		cli.SetLeaseDetachCeiling(time.Duration(ms) * time.Millisecond)
+	}
 	cli.SetDetachExecutable(os.Args[0], detachHelperPrefix...)
 	args := os.Args
 	for i, a := range args {

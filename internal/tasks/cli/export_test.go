@@ -281,3 +281,28 @@ func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
 func HolderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
 	return holderStatus(a, now, ttlSeconds)
 }
+
+// LeaseDetachDir is the private record directory of a detached claim or
+// pool acquire (CAL-V0-320).
+func LeaseDetachDir(repo *intent.Repository, requestID string) string {
+	return leaseDetachDir(repo, requestID)
+}
+
+// SetLeaseDetachCeiling shortens a detached child's ceiling (CAL-V0-323).
+func SetLeaseDetachCeiling(d time.Duration) func() {
+	was := leaseDetachCeiling
+	leaseDetachCeiling = d
+	return func() { leaseDetachCeiling = was }
+}
+
+// SetLeaseDetachPoll shortens a detach or attach wait's poll.
+func SetLeaseDetachPoll(d time.Duration) func() {
+	was := leaseDetachPoll
+	leaseDetachPoll = d
+	return func() { leaseDetachPoll = was }
+}
+
+// PruneLeaseDetach runs the finished-record retention at now (CAL-V0-325).
+func PruneLeaseDetach(repo *intent.Repository, now time.Time) {
+	pruneLeaseDetach(filepath.Join(repo.CommonDir, leaseDetachBase), now)
+}
