@@ -280,3 +280,44 @@ func TestSTRV0055ShardPlanReadIsBounded(t *testing.T) {
 		t.Fatalf("regular plan %d %q %s", code, stderr, stdout)
 	}
 }
+
+// STR-V0-057: with --test-slices and --split-allow a split package is placed
+// as its slices on distinct shards, stderr counts it, and the plan reads
+// back; one flag alone or an unreadable input exits 2, and unusable slice
+// files split nothing.
+func TestSTRV0057CLIShardsSlices(t *testing.T) {
+	dir := t.TempDir()
+	files := writeShardsInput(t, dir, "files.txt", "example.test/m/a\nexample.test/m/b\nexample.test/m/c\n")
+	history := writeShardsInput(t, dir, "run.json", shardsHistory("1", `"example.test/m/a": 9000, "example.test/m/b": 1000, "example.test/m/c": 1000`))
+	allow := writeShardsInput(t, dir, "allow.json", `{"packages":{"example.test/m/a":"fixture: tests are order-independent"},"profile":"corvint-ci-test-split-allow/0"}`)
+	slices := writeShardsInput(t, dir, "slices.json", `{"packages":{"example.test/m/a":{"named":[{"milliseconds":2000,"tests":["TestA1"]},{"milliseconds":2000,"tests":["TestA2"]}],"restMilliseconds":2000}},`+
+		`"profile":"corvint-ci-test-slices/0","source":{"goVersion":"go1.27.2","revision":"`+strings.Repeat("d", 40)+`","runURL":"https://github.com/beamfall/corvint/actions/runs/1"}}`)
+	base := []string{"test", "shards", "--count", "3", "--files", files, "--durations", history}
+	code, stdout, stderr := runCLITwice(t, append(base, "--test-slices", slices, "--split-allow", allow)...)
+	if code != 0 || stderr != "corvint-test: shards 3 files over 3 shards from 1 runs, 0 unknown, 1 sliced\n" {
+		t.Fatalf("sliced %d %q", code, stderr)
+	}
+	planPath := writeShardsInput(t, t.TempDir(), "plan.json", stdout)
+	plan, err := readTestShardPlan(planPath)
+	if err != nil {
+		t.Fatalf("the sliced plan does not read back: %v\n%s", err, stdout)
+	}
+	for i, shard := range plan.Shards {
+		if len(shard.Slices) != 1 || shard.Slices[0].Index != i || shard.WeightMilliseconds > 4000 {
+			t.Fatalf("shard %d %+v", i, shard)
+		}
+	}
+	code, stdout, stderr = runCLI(t, append(base, "--test-slices", history, "--split-allow", allow)...)
+	if code != 0 || stderr != "corvint-test: shards 3 files over 3 shards from 1 runs, 0 unknown\n" || strings.Contains(stdout, `"slices"`) {
+		t.Fatalf("unusable slices %d %q", code, stderr)
+	}
+	for _, refused := range [][]string{
+		append(append([]string{}, base...), "--test-slices", slices),
+		append(append([]string{}, base...), "--split-allow", allow),
+		append(append([]string{}, base...), "--test-slices", filepath.Join(dir, "absent.json"), "--split-allow", allow),
+	} {
+		if code, stdout, stderr := runCLI(t, refused...); code != 2 || stdout != "" || stderr == "" {
+			t.Errorf("%v: code %d stdout %q", refused, code, stdout)
+		}
+	}
+}

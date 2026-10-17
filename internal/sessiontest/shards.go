@@ -7,10 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 const (
@@ -39,8 +43,14 @@ const (
 	// twice its bytes, and a name appears at most three times (a shard, the
 	// weights, unknown); each appearance adds at most 16 bytes of quotes,
 	// separators and an 8-digit weight. 64 KiB covers the fixed members,
-	// 64 shard headers, 64 revisions and the bounded fallback reason.
-	MaxShardPlanBytes = 6*MaxDocumentBytes + 3*16*MaxUnits + 64<<10
+	// 64 shard headers, 64 revisions and the bounded fallback reason;
+	// MaxPlannedSliceBytes and 64 KiB more cover STR-V0-057 slices and
+	// their per-shard members.
+	MaxShardPlanBytes = 6*MaxDocumentBytes + 3*16*MaxUnits + 64<<10 + MaxPlannedSliceBytes + 64<<10
+	// MaxPlannedSlices and MaxPlannedSliceBytes bound the test slices one
+	// plan carries; over either the plan splits nothing (STR-V0-057).
+	MaxPlannedSlices     = 256
+	MaxPlannedSliceBytes = 4 << 20
 )
 
 // History is one supplied retained full-run table: its name for reports and
@@ -51,11 +61,25 @@ type History struct {
 }
 
 // PlannedShard is one shard of a ShardPlan: its index, its files in lexical
-// order and their summed weight (0 under the round-robin fallback).
+// order, its test slices by package and index (STR-V0-057; omitted when it
+// has none) and their summed weight (0 under the round-robin fallback).
 type PlannedShard struct {
-	Files              []string `json:"files"`
-	Index              int      `json:"index"`
-	WeightMilliseconds int64    `json:"weightMilliseconds"`
+	Files              []string       `json:"files"`
+	Index              int            `json:"index"`
+	Slices             []PlannedSlice `json:"slices,omitempty"`
+	WeightMilliseconds int64          `json:"weightMilliseconds"`
+}
+
+// PlannedSlice is one AFP-V0-041 test slice of a listed entry: slices
+// 0..Count-2 run their named tests with -run, slice Count-1 runs the rest
+// with -skip (STR-V0-057).
+type PlannedSlice struct {
+	Count              int    `json:"count"`
+	Flag               string `json:"flag"`
+	Index              int    `json:"index"`
+	Package            string `json:"package"`
+	Pattern            string `json:"pattern"`
+	WeightMilliseconds int64  `json:"weightMilliseconds"`
 }
 
 // ShardPlan is the STR-V0-050 corvint-test-shards/0 document.
@@ -78,13 +102,27 @@ type ShardPlan struct {
 }
 
 // ShardPartitionDigest binds the assignment alone: the profile, the shard
-// count and each shard's files in order (STR-V0-052).
+// count and each shard's files in order (STR-V0-052), and, when any shard
+// has test slices, each shard's slices without their weights (STR-V0-057).
 func ShardPartitionDigest(count int, shards []PlannedShard) (string, error) {
 	files := make([][]string, len(shards))
+	slices := make([][]map[string]any, len(shards))
+	sliced := false
 	for i, shard := range shards {
 		files[i] = shard.Files
+		slices[i] = []map[string]any{}
+		for _, slice := range shard.Slices {
+			sliced = true
+			slices[i] = append(slices[i], map[string]any{
+				"count": slice.Count, "flag": slice.Flag, "index": slice.Index, "package": slice.Package, "pattern": slice.Pattern,
+			})
+		}
 	}
-	return Digest(map[string]any{"count": count, "profile": ShardPlanProfile, "shards": files})
+	bound := map[string]any{"count": count, "profile": ShardPlanProfile, "shards": files}
+	if sliced {
+		bound["slices"] = slices
+	}
+	return Digest(bound)
 }
 
 // ListedFiles parses the listed universe: whitespace-separated entries, at
@@ -183,6 +221,14 @@ func median(values []int64) int64 {
 // file with a recorded duration falls back to the complete round-robin and
 // says why. files must come from ListedFiles.
 func PlanShards(files []string, count, runs int, history []History) (ShardPlan, error) {
+	return PlanShardsSliced(files, count, runs, history, nil, nil)
+}
+
+// PlanShardsSliced is PlanShards that, when history decides, places each
+// listed entry the AFP-V0-041 allow-list and slice file split for count
+// shards as its test slices, each on a distinct shard (STR-V0-057). Unusable
+// slice inputs, or slices over the plan's slice bounds, split nothing.
+func PlanShardsSliced(files []string, count, runs int, history []History, allowRaw, slicesRaw []byte) (ShardPlan, error) {
 	if count < 1 || count > MaxShardPlanShards {
 		return ShardPlan{}, fmt.Errorf("shard count must be 1 to %d", MaxShardPlanShards)
 	}
@@ -205,26 +251,7 @@ func PlanShards(files []string, count, runs int, history []History) (ShardPlan, 
 			shards[i%count].Files = append(shards[i%count].Files, file)
 		}
 	} else {
-		order := append([]string{}, files...)
-		sort.SliceStable(order, func(i, j int) bool {
-			if weights[order[i]] != weights[order[j]] {
-				return weights[order[i]] > weights[order[j]]
-			}
-			return order[i] < order[j]
-		})
-		for _, file := range order {
-			lightest := 0
-			for i := 1; i < count; i++ {
-				if shards[i].WeightMilliseconds < shards[lightest].WeightMilliseconds {
-					lightest = i
-				}
-			}
-			shards[lightest].Files = append(shards[lightest].Files, file)
-			shards[lightest].WeightMilliseconds += weights[file]
-		}
-		for i := range shards {
-			sort.Strings(shards[i].Files)
-		}
+		placeUnits(shards, planUnits(files, weights, sliceUnits(files, count, weights, allowRaw, slicesRaw)))
 		plan.WeightMilliseconds = weights
 	}
 	plan.Shards = shards
@@ -234,6 +261,116 @@ func PlanShards(files []string, count, runs int, history []History) (ShardPlan, 
 	}
 	plan.PartitionDigest = digest
 	return plan, nil
+}
+
+// planUnit is one placed unit: a whole listed entry (slice nil) or one of
+// its test slices.
+type planUnit struct {
+	name   string
+	slice  *PlannedSlice
+	weight int64
+}
+
+// sliceUnits returns the weighted test slices of every listed entry the
+// allow-list and slice file split for count shards, or nil when there are
+// none or they exceed MaxPlannedSlices or MaxPlannedSliceBytes (STR-V0-057).
+// Slice i weighs max(1, w*m_i/sum(m)), rounded down.
+func sliceUnits(files []string, count int, weights map[string]int64, allowRaw, slicesRaw []byte) map[string][]PlannedSlice {
+	if allowRaw == nil || slicesRaw == nil {
+		return nil
+	}
+	split := cishards.SplitPackages(files, count, allowRaw, slicesRaw)
+	out := map[string][]PlannedSlice{}
+	all := []PlannedSlice{}
+	for _, file := range files {
+		parts := split[file]
+		if len(parts) == 0 {
+			continue
+		}
+		var sum int64
+		for _, part := range parts {
+			sum += part.Milliseconds
+		}
+		for _, part := range parts {
+			slice := PlannedSlice{
+				Count: part.Count, Flag: part.Flag, Index: part.Index, Package: file, Pattern: part.Pattern,
+				WeightMilliseconds: max(1, weights[file]*part.Milliseconds/sum),
+			}
+			out[file] = append(out[file], slice)
+			all = append(all, slice)
+		}
+	}
+	if len(all) == 0 || len(all) > MaxPlannedSlices {
+		return nil
+	}
+	if encoded, err := gokernel.CanonicalJSON(all); err != nil || len(encoded) > MaxPlannedSliceBytes {
+		return nil
+	}
+	return out
+}
+
+// planUnits lists every listed entry once: whole, or as all its slices.
+func planUnits(files []string, weights map[string]int64, sliced map[string][]PlannedSlice) []planUnit {
+	units := []planUnit{}
+	for _, file := range files {
+		if parts, ok := sliced[file]; ok {
+			for i := range parts {
+				units = append(units, planUnit{name: file, slice: &parts[i], weight: parts[i].WeightMilliseconds})
+			}
+			continue
+		}
+		units = append(units, planUnit{name: file, weight: weights[file]})
+	}
+	return units
+}
+
+// placeUnits puts the units heaviest first (ties by name, then slice index)
+// on the lightest shard (ties by lowest index) that holds no sibling slice
+// (STR-V0-052, STR-V0-057); a package has at most as many slices as shards.
+func placeUnits(shards []PlannedShard, units []planUnit) {
+	sort.SliceStable(units, func(i, j int) bool {
+		a, b := units[i], units[j]
+		if a.weight != b.weight {
+			return a.weight > b.weight
+		}
+		if a.name != b.name {
+			return a.name < b.name
+		}
+		return a.slice != nil && b.slice != nil && a.slice.Index < b.slice.Index
+	})
+	holds := map[string]map[int]bool{}
+	for _, unit := range units {
+		lightest := -1
+		for i := range shards {
+			if unit.slice != nil && holds[unit.name][i] {
+				continue
+			}
+			if lightest < 0 || shards[i].WeightMilliseconds < shards[lightest].WeightMilliseconds {
+				lightest = i
+			}
+		}
+		if unit.slice == nil {
+			shards[lightest].Files = append(shards[lightest].Files, unit.name)
+		} else {
+			if holds[unit.name] == nil {
+				holds[unit.name] = map[int]bool{}
+			}
+			holds[unit.name][lightest] = true
+			shards[lightest].Slices = append(shards[lightest].Slices, *unit.slice)
+		}
+		shards[lightest].WeightMilliseconds += unit.weight
+	}
+	for i := range shards {
+		sort.Strings(shards[i].Files)
+		sort.Slice(shards[i].Slices, func(a, b int) bool { return sliceBefore(shards[i].Slices[a], shards[i].Slices[b]) })
+	}
+}
+
+func sliceBefore(a, b PlannedSlice) bool {
+	if a.Package != b.Package {
+		return a.Package < b.Package
+	}
+	return a.Index < b.Index
 }
 
 // EncodeShardPlan is the canonical plan bytes, refused over
@@ -330,8 +467,12 @@ func DecodeShardPlan(name string, raw []byte) (ShardPlan, error) {
 			seen[file] = true
 		}
 	}
-	if len(seen) == 0 || len(seen) > MaxUnits {
-		return ShardPlan{}, fmt.Errorf("the shard plan places %d files, want 1 to %d", len(seen), MaxUnits)
+	sliced, err := checkPlannedSlices(plan, seen)
+	if err != nil {
+		return ShardPlan{}, err
+	}
+	if units := len(seen) + sliced; units == 0 || units > MaxUnits {
+		return ShardPlan{}, fmt.Errorf("the shard plan places %d files, want 1 to %d", units, MaxUnits)
 	}
 	digest, err := ShardPartitionDigest(plan.Count, plan.Shards)
 	if err != nil {
@@ -341,4 +482,61 @@ func DecodeShardPlan(name string, raw []byte) (ShardPlan, error) {
 		return ShardPlan{}, errors.New("the shard plan's partitionDigest does not match its shards")
 	}
 	return plan, nil
+}
+
+// checkPlannedSlices checks a plan's STR-V0-057 slices and returns how many
+// packages they split: each slice well formed (-run on all but the last,
+// -skip on the last, a compiling pattern within the AFP-V0-041 bound), every
+// package complete with each index once, no sibling on one shard, no package
+// also placed whole, and each shard's slices in package and index order.
+func checkPlannedSlices(plan ShardPlan, whole map[string]bool) (int, error) {
+	counts := map[string]int{}
+	indexes := map[string]map[int]bool{}
+	total := 0
+	for _, shard := range plan.Shards {
+		if shard.Slices != nil && len(shard.Slices) == 0 {
+			return 0, fmt.Errorf("the shard plan's shard %d has an empty slices member", shard.Index)
+		}
+		onShard := map[string]bool{}
+		for i, slice := range shard.Slices {
+			total++
+			name := slice.Package
+			switch {
+			case i > 0 && !sliceBefore(shard.Slices[i-1], slice):
+				return 0, fmt.Errorf("the shard plan's shard %d slices are out of order", shard.Index)
+			case name == "" || whole[name]:
+				return 0, fmt.Errorf("the shard plan places %q both whole and as slices, or names an empty package", name)
+			case slice.Count < 2 || slice.Count > cishards.MaxSlices || slice.Count > plan.Count || slice.Index < 0 || slice.Index >= slice.Count:
+				return 0, fmt.Errorf("the shard plan's slice %d/%d of %s is out of range", slice.Index, slice.Count, name)
+			case (slice.Index < slice.Count-1 && slice.Flag != "-run") || (slice.Index == slice.Count-1 && slice.Flag != "-skip"):
+				return 0, fmt.Errorf("the shard plan's slice %d/%d of %s has flag %q", slice.Index, slice.Count, name, slice.Flag)
+			case slice.Pattern == "" || len(slice.Pattern) > cishards.MaxPatternBytes || slice.WeightMilliseconds < 1:
+				return 0, fmt.Errorf("the shard plan's slice %d/%d of %s has no usable pattern or weight", slice.Index, slice.Count, name)
+			case onShard[name]:
+				return 0, fmt.Errorf("the shard plan puts two slices of %s on shard %d", name, shard.Index)
+			case counts[name] != 0 && counts[name] != slice.Count:
+				return 0, fmt.Errorf("the shard plan's slices of %s disagree on their count", name)
+			case indexes[name][slice.Index]:
+				return 0, fmt.Errorf("the shard plan places slice %d of %s twice", slice.Index, name)
+			}
+			if _, err := regexp.Compile(slice.Pattern); err != nil {
+				return 0, fmt.Errorf("the shard plan's slice %d/%d of %s has an invalid pattern", slice.Index, slice.Count, name)
+			}
+			onShard[name] = true
+			counts[name] = slice.Count
+			if indexes[name] == nil {
+				indexes[name] = map[int]bool{}
+			}
+			indexes[name][slice.Index] = true
+		}
+	}
+	if total > MaxPlannedSlices {
+		return 0, fmt.Errorf("the shard plan carries %d slices, over the %d bound", total, MaxPlannedSlices)
+	}
+	for name, count := range counts {
+		if len(indexes[name]) != count {
+			return 0, fmt.Errorf("the shard plan places %d of the %d slices of %s", len(indexes[name]), count, name)
+		}
+	}
+	return len(counts), nil
 }

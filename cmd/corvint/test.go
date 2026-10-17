@@ -32,6 +32,7 @@ Usage:
     [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
+      [--test-slices PATH --split-allow PATH]
 
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
@@ -47,8 +48,10 @@ over the shards by the cost table; FULL keeps the universe partition. It
 executes only in the local profile (ci: --dry-run only), and a sharded run
 needs every shard to match one --manifest from a --dry-run.
 --placement measured (experimental, local execution only, like balanced)
-puts each Go package whole on the shard a --shard-plan assigns it; a plan
-for another shard count or one that omits a run-set package is INCOMPLETE.
+puts each Go package whole, or each of its planned test slices, on the shard
+a --shard-plan assigns it; a plan for another shard count or one that omits
+a run-set package is INCOMPLETE. An unreadable plan is
+test-shard-plan-unreadable before any Git work.
 
 shards reads the listed files (for Go, package import paths) and the
 retained full-run duration tables (corvint-ci-package-costs/0, oldest
@@ -56,7 +59,9 @@ first) and prints a corvint-test-shards/0 plan: each file weighs the median
 of the last K runs (default 5), a file no used run records the median
 weight (listed in unknown), longest first onto the lightest shard, with a
 partition digest. Missing or invalid history prints corvint-test: shards FALLBACK
-<reason> and plans the complete round-robin. It writes only stdout.
+<reason> and plans the complete round-robin. With --test-slices and
+--split-allow (both or neither) a package those AFP-V0-041 files split is
+placed as its slices, each on a different shard. It writes only stdout.
 
 --dry-run prints the shard's argv as JSON and runs nothing but Git;
 --manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
@@ -659,12 +664,26 @@ func runTestVerifyShards(args []string, stdout, stderr io.Writer) int {
 // runTestShards is the STR-V0-050 duration-balanced shard planner. It is a
 // read command: it reads the listed files and the duration tables and
 // writes only stdout and stderr (invariant 4).
+// plannedSlicedPackages counts the packages a plan carries as test slices
+// (STR-V0-057).
+func plannedSlicedPackages(plan sessiontest.ShardPlan) int {
+	packages := map[string]bool{}
+	for _, shard := range plan.Shards {
+		for _, slice := range shard.Slices {
+			packages[slice.Package] = true
+		}
+	}
+	return len(packages)
+}
+
 func runTestShards(args []string, stdout, stderr io.Writer) int {
 	f := flag.NewFlagSet("test shards", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	count := f.Int("count", 0, "")
 	runs := f.Int("runs", sessiontest.DefaultHistoryRuns, "")
 	files := f.String("files", "", "")
+	testSlices := f.String("test-slices", "", "")
+	splitAllow := f.String("split-allow", "", "")
 	var durations []string
 	f.Func("durations", "", func(value string) error {
 		if value == "" {
@@ -673,9 +692,9 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 		durations = append(durations, value)
 		return nil
 	})
-	usage := fmt.Sprintf("usage: corvint test shards --count N (1 to %d) --files PATH [--durations PATH]... [--runs K (1 to %d)]", sessiontest.MaxShardPlanShards, sessiontest.MaxHistoryRuns)
+	usage := fmt.Sprintf("usage: corvint test shards --count N (1 to %d) --files PATH [--durations PATH]... [--runs K (1 to %d)] [--test-slices PATH --split-allow PATH]", sessiontest.MaxShardPlanShards, sessiontest.MaxHistoryRuns)
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || *files == "" || *count < 1 || *count > sessiontest.MaxShardPlanShards ||
-		*runs < 1 || *runs > sessiontest.MaxHistoryRuns {
+		*runs < 1 || *runs > sessiontest.MaxHistoryRuns || (*testSlices == "") != (*splitAllow == "") {
 		emitError(stderr, argumentError(usage))
 		return 2
 	}
@@ -689,6 +708,21 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 		emitError(stderr, argumentError("--files "+*files+": "+err.Error()))
 		return 2
 	}
+	// STR-V0-057: both slice inputs or neither; an unreadable one is refused,
+	// an unusable one splits nothing.
+	var allowRaw, slicesRaw []byte
+	for _, input := range []struct {
+		flag, path string
+		raw        *[]byte
+	}{{"--test-slices", *testSlices, &slicesRaw}, {"--split-allow", *splitAllow, &allowRaw}} {
+		if input.path == "" {
+			continue
+		}
+		if *input.raw = testReadOptional(input.path); *input.raw == nil {
+			emitError(stderr, argumentError(input.flag+" "+input.path+" is not a readable regular file of at most 1 MiB"))
+			return 2
+		}
+	}
 	history := make([]sessiontest.History, 0, len(durations))
 	// Over MaxHistoryRuns tables is the STR-V0-053 fallback; none is read.
 	for _, name := range durations {
@@ -698,7 +732,7 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 		}
 		history = append(history, entry)
 	}
-	plan, err := sessiontest.PlanShards(listed, *count, *runs, history)
+	plan, err := sessiontest.PlanShardsSliced(listed, *count, *runs, history, allowRaw, slicesRaw)
 	if err != nil {
 		emitError(stderr, argumentError(err.Error()))
 		return 2
@@ -711,7 +745,11 @@ func runTestShards(args []string, stdout, stderr io.Writer) int {
 	if plan.Fallback != "" {
 		fmt.Fprintln(stderr, "corvint-test: shards FALLBACK "+plan.Fallback)
 	} else {
-		fmt.Fprintf(stderr, "corvint-test: shards %d files over %d shards from %d runs, %d unknown\n", len(listed), plan.Count, len(plan.History), len(plan.Unknown))
+		sliced := ""
+		if packages := plannedSlicedPackages(plan); packages != 0 {
+			sliced = fmt.Sprintf(", %d sliced", packages)
+		}
+		fmt.Fprintf(stderr, "corvint-test: shards %d files over %d shards from %d runs, %d unknown%s\n", len(listed), plan.Count, len(plan.History), len(plan.Unknown), sliced)
 	}
 	_, _ = stdout.Write(encoded)
 	return 0

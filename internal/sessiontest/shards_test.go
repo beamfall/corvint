@@ -388,3 +388,183 @@ func TestSTRV0053FallbackReasonIsDeterministic(t *testing.T) {
 		t.Fatalf("long fallback %d bytes: %v", len(plan.Fallback), err)
 	}
 }
+
+// sliceFixtures is an AFP-V0-041 allow-list admitting example.test/m/a and a
+// slice file splitting it into two named slices and the rest, 2 s each.
+func sliceFixtures() (allow, slices []byte) {
+	allow = []byte(`{"packages":{"example.test/m/a":"fixture: tests are order-independent"},"profile":"corvint-ci-test-split-allow/0"}`)
+	slices = []byte(`{"packages":{"example.test/m/a":{"named":[{"milliseconds":2000,"tests":["TestA1"]},{"milliseconds":2000,"tests":["TestA2"]}],"restMilliseconds":2000}},` +
+		`"profile":"corvint-ci-test-slices/0","source":{"goVersion":"go1.27.2","revision":"` + strings.Repeat("d", 40) + `","runURL":"https://github.com/beamfall/corvint/actions/runs/1"}}`)
+	return allow, slices
+}
+
+func slicedHistory() []History {
+	return []History{{Name: "run", Raw: historyTableJSON('1', map[string]int64{"example.test/m/a": 9000, "example.test/m/b": 1000, "example.test/m/c": 1000})}}
+}
+
+// STR-V0-057: when history decides, an allow-listed package the slice file
+// splits is placed as its slices, each weighing its share of the package's
+// median, heaviest first onto the lightest shard holding no sibling, so the
+// package no longer sets the shard floor; every listed entry appears exactly
+// once, the digest binds the slices, and a plan with no slice is
+// byte-identical to an unsliced plan.
+func TestSTRV0057SlicedPlan(t *testing.T) {
+	files := []string{"example.test/m/a", "example.test/m/b", "example.test/m/c"}
+	allow, slices := sliceFixtures()
+	plan, err := PlanShardsSliced(files, 3, 5, slicedHistory(), allow, slices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole, err := PlanShards(files, 3, 5, slicedHistory())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := planFiles(whole); !reflect.DeepEqual(got, [][]string{{"example.test/m/a"}, {"example.test/m/b"}, {"example.test/m/c"}}) || whole.Shards[0].WeightMilliseconds != 9000 {
+		t.Fatalf("unsliced floor %v", got)
+	}
+	if got := planFiles(plan); !reflect.DeepEqual(got, [][]string{{"example.test/m/b"}, {"example.test/m/c"}, {}}) {
+		t.Fatalf("sliced files %v", got)
+	}
+	weights := []int64{}
+	for i, shard := range plan.Shards {
+		weights = append(weights, shard.WeightMilliseconds)
+		if len(shard.Slices) != 1 || shard.Slices[0].Package != "example.test/m/a" || shard.Slices[0].Index != i || shard.Slices[0].Count != 3 || shard.Slices[0].WeightMilliseconds != 3000 {
+			t.Fatalf("shard %d slices %+v", i, shard.Slices)
+		}
+	}
+	if !reflect.DeepEqual(weights, []int64{4000, 4000, 3000}) {
+		t.Fatalf("weights %v", weights)
+	}
+	if got := plan.Shards[0].Slices[0]; got.Flag != "-run" || got.Pattern != "^(TestA1)$" || plan.Shards[2].Slices[0].Flag != "-skip" || plan.Shards[2].Slices[0].Pattern != "^(TestA1|TestA2)$" {
+		t.Fatalf("slice flags %+v %+v", got, plan.Shards[2].Slices[0])
+	}
+	if plan.PartitionDigest == whole.PartitionDigest {
+		t.Fatal("the digest does not bind the slices")
+	}
+	encoded, err := Encode(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := PlanShardsSliced(files, 3, 5, slicedHistory(), allow, slices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encodedAgain, _ := Encode(again); string(encodedAgain) != string(encoded) {
+		t.Fatal("the sliced plan is not deterministic")
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "plan.json")
+	if err := os.WriteFile(path, encoded, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if read, err := readShardPlanFile(path); err != nil || !reflect.DeepEqual(read, plan) {
+		t.Fatalf("round trip %v", err)
+	}
+	wholeEncoded, _ := Encode(whole)
+	if strings.Contains(string(wholeEncoded), `"slices"`) {
+		t.Fatal("an unsliced plan encodes a slices member")
+	}
+	for name, args := range map[string]struct {
+		count         int
+		history       []History
+		allow, slices []byte
+	}{
+		"no allow-list":           {3, slicedHistory(), nil, slices},
+		"unusable slice file":     {3, slicedHistory(), allow, []byte(`{}`)},
+		"more slices than shards": {2, slicedHistory(), allow, slices},
+		"fallback":                {3, nil, allow, slices},
+	} {
+		got, err := PlanShardsSliced(files, args.count, 5, args.history, args.allow, args.slices)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, _ := PlanShards(files, args.count, 5, args.history)
+		gotEncoded, _ := Encode(got)
+		wantEncoded, _ := Encode(want)
+		if string(gotEncoded) != string(wantEncoded) {
+			t.Errorf("%s: the plan split a package", name)
+		}
+	}
+}
+
+// STR-V0-057: the plan reader refuses malformed slices even under a
+// recomputed digest: a wrong flag, an invalid or empty pattern, two siblings
+// on one shard, a missing or duplicated slice, a package both whole and
+// sliced, slices out of order, a count over the plan's, an empty member.
+func TestSTRV0057ReadShardPlanSliceRefusals(t *testing.T) {
+	files := []string{"example.test/m/a", "example.test/m/b", "example.test/m/c"}
+	allow, slices := sliceFixtures()
+	dir := t.TempDir()
+	for name, mutate := range map[string]func(*ShardPlan){
+		"flag":          func(p *ShardPlan) { p.Shards[0].Slices[0].Flag = "-skip" },
+		"last flag":     func(p *ShardPlan) { p.Shards[2].Slices[0].Flag = "-run" },
+		"pattern":       func(p *ShardPlan) { p.Shards[1].Slices[0].Pattern = "^(" },
+		"empty pattern": func(p *ShardPlan) { p.Shards[1].Slices[0].Pattern = "" },
+		"zero weight":   func(p *ShardPlan) { p.Shards[1].Slices[0].WeightMilliseconds = 0 },
+		"sibling": func(p *ShardPlan) {
+			p.Shards[0].Slices = append(p.Shards[0].Slices, p.Shards[1].Slices[0])
+			p.Shards[1].Slices = nil
+		},
+		"missing":   func(p *ShardPlan) { p.Shards[2].Slices = nil },
+		"duplicate": func(p *ShardPlan) { p.Shards[2].Slices[0] = p.Shards[1].Slices[0] },
+		"whole and sliced": func(p *ShardPlan) {
+			p.Shards[2].Files = []string{"example.test/m/a"}
+		},
+		"out of order": func(p *ShardPlan) {
+			extra := p.Shards[0].Slices[0]
+			extra.Package = "example.test/m/0"
+			p.Shards[0].Slices = append(p.Shards[0].Slices, extra)
+		},
+		"count over plan": func(p *ShardPlan) {
+			for i := range p.Shards {
+				p.Shards[i].Slices[0].Count = 4
+			}
+		},
+		"empty member": func(p *ShardPlan) { p.Shards[2].Slices = []PlannedSlice{} },
+	} {
+		plan, err := PlanShardsSliced(files, 3, 5, slicedHistory(), allow, slices)
+		if err != nil {
+			t.Fatal(err)
+		}
+		mutate(&plan)
+		if plan.PartitionDigest, err = ShardPartitionDigest(plan.Count, plan.Shards); err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := Encode(plan)
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(dir, strings.ReplaceAll(name, " ", "-")+".json")
+		if err := os.WriteFile(path, encoded, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readShardPlanFile(path); err == nil {
+			t.Errorf("%s: accepted", name)
+		}
+	}
+}
+
+// STR-V0-057: measured placement runs each slice of a sliced package on its
+// planned shard with its flag and pattern, NARROWED and FULL alike, and a
+// sliced package counts as planned.
+func TestSTRV0057MeasuredPlacementRunsSlices(t *testing.T) {
+	allow, slices := sliceFixtures()
+	plan, err := PlanShardsSliced([]string{"example.test/m/a", "example.test/m/b", "example.test/m/c"}, 3, 5, slicedHistory(), allow, slices)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := fixtureInput()
+	input.Placement, input.ShardCount, input.ShardPlan = PlacementMeasured, 3, &plan
+	input.GoSelection = "run example.test/m/b example.test/m/a"
+	m, err := Build(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"0 go:example.test/m/a 0/3", "0 go:example.test/m/b whole", "1 go:example.test/m/a 1/3", "2 go:example.test/m/a 2/3"}
+	if got := unitIDs(m); !reflect.DeepEqual(got, want) || len(m.Incomplete) != 0 || m.PartitionDigest != plan.PartitionDigest {
+		t.Fatalf("units %v incomplete %v", got, m.Incomplete)
+	}
+	if m.Units[0].Flag != "-run" || m.Units[0].Pattern != "^(TestA1)$" || m.Units[3].Flag != "-skip" || m.Units[3].Pattern != "^(TestA1|TestA2)$" {
+		t.Fatalf("slice flags %+v %+v", m.Units[0], m.Units[3])
+	}
+}
