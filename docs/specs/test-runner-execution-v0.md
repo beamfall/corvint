@@ -1007,3 +1007,121 @@ exclude tags are not admitted.
 Rollback removes `storybookSkipTags` and the `--skipTags` append. A plan with a
 non-empty `Target` would then rebuild without the pair and be refused as not
 matching the profile; empty-`Target` plans are unchanged.
+
+## Platform qualification matrix 2026-10-17 (V1-0594)
+
+Gap matrix for the 16 platform, two SQL and one Appium Android profiles against the
+`TRE-V0-009` cases: P pass, F assertion failure, S skip, Z zero tests, B collection or
+build error, T timeout with cleanup. Retry (R) is not applicable: none of these profiles
+requests or reports native retries. Cell values:
+
+- A: actual witness retained on 2026-10-17 through `corvint-test-runner plan`/`run`, with
+  version tuple, raw native report, receipt and command.
+- H: historic actual native bytes committed as a parser fixture, or a spec-recorded live
+  run. Its raw report, receipt and command were purged from `/private/tmp/cem10-build`,
+  so it counts as parser-only.
+- -: no evidence.
+
+| Profile | P | F | S | Z | B | T |
+| --- | --- | --- | --- | --- | --- | --- |
+| swift-testing | A | A | A | A | A | A |
+| swift-xctest | A | A | A | A | A | A |
+| xcode-xctest | A | A | A | A | A | A |
+| junit-platform | H | H | H | - | - | - |
+| junit4 | - | H | - | - | - | - |
+| testng | H | H | H | - | - | - |
+| kotlin-test | H | H | H | - | - | - |
+| kotest | H | H | H | - | - | - |
+| gradle-junit | H | H | H | H | - | H |
+| maven-surefire | H | H | H | - | - | - |
+| robolectric | H | H | H | H | H | - |
+| android-junit | H | H | H | H | - | - |
+| espresso | H | H | H | - | H | - |
+| uiautomator | H | H | H | - | - | - |
+| bats | H | H | H | - | - | - |
+| shellspec | H | H | H | - | - | - |
+| sql-pgtap | H | H | H | H | H | - |
+| sql-sqllogictest-sqlite | H | H | H | H | H | - |
+| appium-uiautomator2-wdio | H | H | H | H | H | H |
+
+Totals over 114 applicable cells:
+
+| | A | H (parser-only) | NONE |
+| --- | --- | --- | --- |
+| Before | 0 | 71 | 43 |
+| After | 18 | 59 | 37 |
+
+`shader-behavior`, `html-behavior` and `structured-data-behavior` stay unavailable registry
+IDs. Their disposition is unchanged: domain compiler success is not assertion-test success.
+
+Apple tuple: macOS 26.6.2 (25G83) arm64; Swift 6.4 (swiftlang-6.4.0.34.1),
+`/usr/bin/swift` sha256 `b8763cf2…`; Xcode 27.0 (27A266a), `/usr/bin/xcodebuild`;
+independently pinned `xcresulttool` 25115, schema 0.4.0. Evidence lives under
+`/private/tmp/cem10-build/platform-2026-10-17/`. Each case directory under `runs/` holds
+`request.json`, `plan.json`, `receipt.json`, `command.txt` and the raw `report/`. The
+fixtures are under `fixtures/`.
+
+- **swift-testing** (`runs/swift-testing/`):
+  - `pass-fail-skip`: complete. Results are PASSED, FAILED (ASSERTION) and SKIPPED; the
+    `.disabled` trait is never a pass.
+  - `zero` (exit 0): incomplete with `NO_TESTS`.
+  - `build-error`: incomplete with `INVALID_NATIVE_REPORT`, because there is no event stream.
+  - `timeout` (60 s): incomplete with `PROCESS_TIMEOUT`, and no process survived.
+  - The live run found an adapter bug, fixed by `TRE-V0-075`. Before the fix, a selected run
+    executed nothing (`selector-anchor-bug-before-fix`).
+- **swift-xctest** (`runs/swift-xctest/`):
+  - `five-outcomes`: complete. Results are PASSED, FAILED (ASSERTION), SKIPPED from `XCTSkip`,
+    and FAILED (INFRASTRUCTURE) for both a thrown error and a `setUpWithError` error.
+  - `zero`, `build-error` and `timeout` (45 s) are each incomplete.
+  - In `timeout`, the detached `xctest` process and its helper were retired by ancestry, and
+    no process survived.
+  - Opt-in `TestSwiftPMXCTestLiveThreeOutcomes` and `TestSwiftPMXCTestLiveDetachedTeardown`
+    passed on the same package (`runs/swift-xctest/go-live/`). In the contained-only,
+    timeout and interrupt modes, no process survived.
+- **xcode-xctest** (`runs/xcode-xctest/`), using a handcrafted `XcodeProof.xcodeproj` and
+  its shared scheme:
+  - `pass-fail-skip`: exit 65. Both xcresult DECODE phases completed, and the results are
+    PASSED, FAILED (ASSERTION) and SKIPPED.
+  - `zero`: exit 0. The summary has no destination, so the run is refused as incomplete.
+  - `build-error`: exit 65, incomplete.
+  - `timeout` (60 s): `testHang` had started, the decode never ran, the run is incomplete,
+    and no `xctest` or `xcodebuild` process survived.
+
+Requirement added by the live witness:
+
+- `TRE-V0-075`: (proposed; V1-0594) For `swift-testing`, each selector MUST remain the
+  exact module-qualified discovery name, without `/`. Its SwiftPM `--filter` MUST be
+  anchored as `^<quoted selector>(/|$)`. This is because SwiftPM 6.4 matches the full Swift
+  Testing ID, which ends in `/<File>.swift:<line>:<column>` for functions. A selector
+  MUST NOT match a longer name or a different module.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-075 | `platform/platform.go` swift-testing `Build`; `TestSwiftTestingSelectorMatchesSourceSuffixedID` | Live before/after: `runs/swift-testing/selector-anchor-bug-before-fix` (warning "No matching test cases were run", `NO_TESTS`), then `runs/swift-testing/pass-fail-skip` complete with three rows |
+
+Release blockers. These are retained and were not installed: the session permission system
+refused network downloads and reads of user dependency caches.
+
+- JVM profiles need jars or distributions that are absent from the host:
+  - junit-platform, junit4 and kotlin-test: JUnit Platform Console Standalone 6.1.3.
+  - testng: TestNG 7.12.0.
+  - kotlin-test: Kotlin 2.4.0 compiler and stdlib.
+  - kotest: Kotest 6.2.5.
+  - robolectric: Robolectric 4.16.1 with `android-all-instrumented-15-robolectric-13954326-i7.jar`.
+  - gradle-junit: Gradle 9.6.1.
+  - maven-surefire: Maven 3.9.16 with Surefire 3.6.0.
+  - Host java is OpenJDK 17.
+- Android (android-junit, espresso, uiautomator): test APKs need the androidx.test runner
+  1.7.0, Espresso 3.5.1 and UIAutomator 2.3.0 AARs. The `emulator` binary is not on PATH.
+  Without them, no actual app or device identity binds and the device blocker stays open.
+- bats: Bats Core 1.14.0. shellspec: ShellSpec 0.28.1.
+- sql-pgtap: the pgTAP 1.3.4 extension, on a PostgreSQL server whose share directory has it.
+  The host has PostgreSQL 18.6 client and server binaries, but no pgTAP.
+- sql-sqllogictest-sqlite: the `sqllogictest` binary at revision db57eba9. Host sqlite3 is 3.50.6.
+- appium-uiautomator2-wdio: Appium 3.8.0, UiAutomator2 driver 8.7.0, WebdriverIO 9.32 and
+  Node 22.23.3, plus an Android device.
+- Every profile: no retry case applies. Collection error and zero tests are still missing for
+  every JVM and shell profile.
+
+Rollback reverts the `(/|$)` anchor to `$`, and removes the test and this section.
+Swift Testing selectors would then select nothing again on SwiftPM 6.4.
