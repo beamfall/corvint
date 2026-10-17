@@ -185,3 +185,91 @@ func rewriteKeepingStamps(t *testing.T, p string) {
 		t.Fatal(err)
 	}
 }
+
+// TestCALV0337_ResumeCheckCloseFailureIsCleanup covers CAL-V0-337
+// (proposed): the base check reads through its own read lifetime, and a
+// failed close in that lifetime is the audit's cleanup failure
+// (UNSUPPORTED_FILESYSTEM, PhysicalObservation.Cleanup set), which terminates
+// the command as CAL-V0-116 requires, never a decline the caller falls back
+// from. The resumed audit lists receipts/ at its first capture, in the base
+// check, and at its second capture; the close of the check's listing fails.
+func TestCALV0337_ResumeCheckCloseFailureIsCleanup(t *testing.T) {
+	repo, r := refreshStore(t)
+	base := resumeBase(t, r)
+	appendRequest(t, repo, "tail-1")
+	savedClose, savedNames := closeReadFile, afterReadNames
+	t.Cleanup(func() { closeReadFile, afterReadNames = savedClose, savedNames })
+	listings, armed, failed := 0, false, false
+	afterReadNames = func(p string) {
+		if p == "receipts" {
+			listings++
+			armed = listings == 2
+		}
+	}
+	closeReadFile = func(f *os.File) error {
+		err := savedClose(f)
+		if armed {
+			armed, failed = false, true
+			return errors.Join(err, errors.New("injected close failure"))
+		}
+		return err
+	}
+	res, obs, err := r.AuditForResume(base, "")
+	if !failed || listings != 3 {
+		t.Fatalf("receipts listed %d times, close failed %v", listings, failed)
+	}
+	if res != nil || obs.Cleanup == nil || wire.CodeOf(err) != wire.CodeUnsupportedFilesystem {
+		t.Fatalf("resumed audit over a failed close: %+v cleanup %v err %v", res, obs.Cleanup, err)
+	}
+}
+
+// TestCALV0336_RecheckResumeSeesChangeAfterAudit covers CAL-V0-336
+// (proposed): a base file changed, or a request shard made, after the
+// resumed audit passed is a decline at the recheck before commit, and a
+// failed close of the recheck's read lifetime is cleanup (CAL-V0-337).
+func TestCALV0336_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
+	second, _ := snapshot.ReceiptName(2)
+	for _, tc := range []struct {
+		name   string
+		change func(t *testing.T, repo *fixture.Repo)
+	}{
+		{"untouched", func(*testing.T, *fixture.Repo) {}},
+		{"rewritten-receipt", func(t *testing.T, repo *fixture.Repo) {
+			rewriteKeepingStamps(t, filepath.Join(repo.StateDir, "receipts", second))
+		}},
+		{"stray-request-in-new-shard", func(t *testing.T, repo *fixture.Repo) {
+			fixture.Write(t, filepath.Join(repo.StateDir, "requests", "zz", "stray.json"), []byte("{}\n"))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, r := refreshStore(t)
+			base := resumeBase(t, r)
+			appendRequest(t, repo, "tail-1")
+			res, _, err := r.AuditForResume(base, "")
+			if err != nil || res.Mode != ModeWriter {
+				t.Fatalf("resumed audit: %+v %v", res, err)
+			}
+			tc.change(t, repo)
+			decline, cleanup := r.RecheckResume(base, res)
+			if cleanup != nil || (decline == nil) != (tc.name == "untouched") {
+				t.Fatalf("recheck: decline %v cleanup %v", decline, cleanup)
+			}
+		})
+	}
+	t.Run("failed-close", func(t *testing.T) {
+		repo, r := refreshStore(t)
+		base := resumeBase(t, r)
+		appendRequest(t, repo, "tail-1")
+		res, _, err := r.AuditForResume(base, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved := closeReadFile
+		t.Cleanup(func() { closeReadFile = saved })
+		closeReadFile = func(f *os.File) error { return errors.Join(saved(f), errors.New("injected close failure")) }
+		decline, cleanup := r.RecheckResume(base, res)
+		if decline != nil || wire.CodeOf(cleanup) != wire.CodeUnsupportedFilesystem {
+			t.Fatalf("recheck over a failed close: decline %v cleanup %v", decline, cleanup)
+		}
+	})
+}

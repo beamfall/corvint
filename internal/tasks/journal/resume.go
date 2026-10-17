@@ -206,14 +206,35 @@ func (r Reader) AuditForResume(base *ResumeBase, requestID string) (*Result, Phy
 	return r.AuditForWriter(base.wc, requestID, false)
 }
 
-// held is AuditForResume's check after a successful walkWriter over o. Its
-// listings and reads use their own handles and are not physical reads of the
-// audit.
-func (b *ResumeBase) held(source Native, o *observation, result *Result, lim limits) error {
-	if result == nil || result.chain == nil || o.head == nil || o.head.LastSeq.Uint64() < b.seq {
+// RecheckResume repeats AuditForResume's base check (CAL-V0-332) against the
+// files as they are now. A caller that resumed holds the writer lock and runs
+// it after modelling, immediately before it commits, so no base file can
+// change between the check and the commit unseen (CAL-V0-336, proposed).
+// result is what AuditForResume returned. A difference is a decline. As in
+// an audit, a failed close of the check's own read lifetime is cleanup, which
+// terminates the command and is never a decline (CAL-V0-337, proposed).
+func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanup error) {
+	n, ok := r.Source.(Native)
+	if !ok || base == nil {
+		return errCheckpoint("resume", "recheck needs a base and a native source"), nil
+	}
+	s := newNativeRead(n)
+	decline = base.held(s, result, profileLimits)
+	if cleanup = s.close(); cleanup != nil {
+		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v; close: %v", decline, cleanup)
+	}
+	return decline, nil
+}
+
+// held is the base check after a successful walkWriter, and RecheckResume's.
+// Its listings and reads go through s, a read lifetime of its own that the
+// caller closes: they are not physical reads of the audit, but a failed close
+// is the caller's cleanup failure (CAL-V0-337, proposed).
+func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits) error {
+	if result == nil || result.chain == nil || result.LastSeq.Uint64() < b.seq {
 		return errCheckpoint("resume", "head precedes the base")
 	}
-	listing, err := source.List("receipts", lim.scan)
+	listing, err := s.List("receipts", lim.scan)
 	if err != nil {
 		return errCheckpoint("receipts", err.Error())
 	}
@@ -226,24 +247,30 @@ func (b *ResumeBase) held(source Native, o *observation, result *Result, lim lim
 		if err != nil {
 			return err
 		}
-		if err := b.same(source, "receipts/"+name, now[name]); err != nil {
+		if err := b.same(s, "receipts/"+name, now[name]); err != nil {
 			return err
 		}
 	}
+	// Every shard is listed as it is now, so a shard made after the
+	// audit's capture is seen too.
+	shards, err := s.List("requests", lim.scan)
+	if err != nil && !(os.IsNotExist(err) && b.requests == 0) {
+		return errCheckpoint("requests", err.Error())
+	}
 	seen := 0
-	for _, dir := range sortedPaths(o.files) {
-		shard, ok := strings.CutPrefix(dir, "requests/")
-		if !ok || strings.Contains(shard, "/") || !o.files[dir].IsDir() {
-			continue
+	for _, shard := range shards.Entries {
+		dir := "requests/" + shard.Name
+		if shard.Info == nil || !shard.Info.IsDir() {
+			return errCheckpoint(dir, "request shard is not a directory")
 		}
-		listing, err := source.List(dir, lim.scan)
+		listing, err := s.List(dir, lim.scan)
 		if err != nil {
 			return errCheckpoint(dir, err.Error())
 		}
 		for _, e := range listing.Entries {
 			p := dir + "/" + e.Name
 			if _, ok := b.files[p]; ok {
-				if err := b.same(source, p, e.Info); err != nil {
+				if err := b.same(s, p, e.Info); err != nil {
 					return err
 				}
 				seen++
@@ -263,7 +290,7 @@ func (b *ResumeBase) held(source Native, o *observation, result *Result, lim lim
 		if !strings.HasPrefix(p, "evidence/") && !strings.HasPrefix(p, "pinned/") {
 			continue
 		}
-		full, err := source.path(p)
+		full, err := s.native.path(p)
 		if err != nil {
 			return errCheckpoint(p, err.Error())
 		}
@@ -271,7 +298,7 @@ func (b *ResumeBase) held(source Native, o *observation, result *Result, lim lim
 		if err != nil {
 			info = nil
 		}
-		if err := b.same(source, p, info); err != nil {
+		if err := b.same(s, p, info); err != nil {
 			return err
 		}
 	}
@@ -287,7 +314,7 @@ func (b *ResumeBase) held(source Native, o *observation, result *Result, lim lim
 		if err != nil {
 			return err
 		}
-		raw, err := source.Read(p, bound)
+		raw, err := s.Read(p, bound)
 		if err != nil || wire.Sum(raw) != *l.digest {
 			return errCheckpoint(p, "afterimage differs from latest canonical afterimage")
 		}
@@ -297,7 +324,7 @@ func (b *ResumeBase) held(source Native, o *observation, result *Result, lim lim
 
 // same says base file p is still the file the base audit read; see
 // AuditForResume.
-func (b *ResumeBase) same(source Native, p string, info os.FileInfo) error {
+func (b *ResumeBase) same(s *nativeRead, p string, info os.FileInfo) error {
 	f := b.files[p]
 	if info == nil || !sameStat(f.info, info) {
 		return errCheckpoint(p, "base file changed since the base audit")
@@ -317,7 +344,7 @@ func (b *ResumeBase) same(source Native, p string, info os.FileInfo) error {
 			return err
 		}
 	}
-	raw, err := source.Read(p, bound)
+	raw, err := s.Read(p, bound)
 	if err != nil || wire.Sum(raw) != f.sum {
 		return errCheckpoint(p, "base file bytes changed since the base audit")
 	}

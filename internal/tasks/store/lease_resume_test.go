@@ -77,6 +77,12 @@ type movingRun struct {
 
 func moving(t *testing.T, f resumeFixture, write func(context.Context) (*Report, error), writes int, after func(n int), tweak ...func(*inventoryHooks)) movingRun {
 	t.Helper()
+	return movingStaged(t, f, write, writes, after, nil, tweak...)
+}
+
+// movingStaged is moving with stage, when set, as the command's stage hook.
+func movingStaged(t *testing.T, f resumeFixture, write func(context.Context) (*Report, error), writes int, after func(n int), stage func(string), tweak ...func(*inventoryHooks)) movingRun {
+	t.Helper()
 	var run movingRun
 	hooks := hooksForInventory(context.Background())
 	for _, fn := range tweak {
@@ -102,7 +108,7 @@ func moving(t *testing.T, f resumeFixture, write func(context.Context) (*Report,
 	run.writerRun = stagedWrite(func(ctx context.Context) (*Report, error) {
 		ctx = context.WithValue(ctx, inventoryHooksKey{}, hooks)
 		return write(WithLeaseTiming(ctx, &run.timing))
-	}, nil)
+	}, stage)
 	return run
 }
 
@@ -212,6 +218,39 @@ func TestCALV0333_ResumeKeepsRewrittenPrefixDetection(t *testing.T) {
 				t.Fatalf("head moved from %d to %d over a changed base", tampered, got)
 			}
 			oracle := stagedWrite(f.acquire("tamper-oracle"), nil)
+			sameDecision(t, run.writerRun, oracle)
+		})
+	}
+}
+
+// CAL-V0-336 (proposed): a base receipt rewritten after the resumed audit
+// passed, while the resumed write observes or models under the writer lock,
+// is seen by the recheck before commit. The resume declines, nothing is
+// committed over the rewritten prefix, and the command keeps the complete
+// route's own decision for that journal.
+func TestCALV0336_ResumeRechecksBaseBeforeCommit(t *testing.T) {
+	if !journal.ResumableAudits() {
+		t.Skip("platform reports no change time")
+	}
+	second, _ := snapshot.ReceiptName(2)
+	for _, stage := range []string{"fast.lease.observe", "fast.lease.model"} {
+		t.Run(stage, func(t *testing.T) {
+			f := newResumeFixture(t)
+			var tampered uint64
+			run := movingStaged(t, f, f.acquire("recheck-acquire"), 1, nil, at(stage, func() {
+				rewriteReceiptKeepingStamps(t, filepath.Join(f.repo.StateDir, "receipts", second))
+				tampered = headSeqOf(t, f.repo)
+			}))
+			if tampered == 0 {
+				t.Fatalf("the resumed write never reached %s: %+v %v %v", stage, run.rep, run.err, run.stages)
+			}
+			if run.completed() || run.fast() || run.timing.Resumed != 0 {
+				t.Fatalf("acquire over a prefix rewritten at %s: %+v %v resumed %d stages %v", stage, run.rep, run.err, run.timing.Resumed, run.stages)
+			}
+			if got := headSeqOf(t, f.repo); got != tampered {
+				t.Fatalf("head moved from %d to %d over a rewritten prefix", tampered, got)
+			}
+			oracle := stagedWrite(f.acquire("recheck-oracle"), nil)
 			sameDecision(t, run.writerRun, oracle)
 		})
 	}

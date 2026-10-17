@@ -440,7 +440,11 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if r.resume != nil && bodyErr == nil {
 		// The walk resumed from a base this command audited from receipt 1;
 		// the base files must still be exactly what it read (CAL-V0-332).
-		bodyErr = r.resume.held(native.native, before, result, lim)
+		// Its own read lifetime closes into this attempt's cleanup, so a
+		// failed close terminates as the audit's would (CAL-V0-337).
+		check := newNativeRead(native.native)
+		bodyErr = r.resume.held(check, result, lim)
+		native.closeErr = errors.Join(native.closeErr, check.close())
 	}
 	if r.writer != nil {
 		r.writerBefore = before

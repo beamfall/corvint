@@ -103,8 +103,33 @@ acquires with up to 13 rounds (max 64 s).
 - **Platforms without change times.** These never resume.
 - **Large tails.** A tail beyond 256 receipts declines.
 
+## Independent review findings (PR #1018 at c843d6aab)
+
+An independent Codex review found two defects. Both were confirmed against the code with
+regression tests that fail on c843d6aab:
+
+1. **High: the base check did not hold through commit.** `held` ran once, inside the resumed audit.
+   No change guard watches the resumed route, and the commit rebind checks only the head and the
+   intent tree. A receipt rewritten after the check could therefore be committed over.
+   `TestCALV0336_ResumeRechecksBaseBeforeCommit` rewrites receipt 2 at `fast.lease.observe` and at
+   `fast.lease.model`. On c843d6aab the acquire completed and committed receipt 77 in both cases.
+   Fix (CAL-V0-336): `leaseWriter` calls `journal.Reader.RecheckResume` under the lock, after
+   modelling and the rebind and before it reports, retains or publishes anything. Every request
+   shard is now listed afresh rather than taken from the audit's capture, so a shard made after
+   the capture is also seen. The recheck costs one more receipt and request listing per resumed
+   write.
+2. **Medium: native-close failures in the base check became declines.** The check read through
+   `Native.List` and `Native.Read`, each with its own lifetime, so a failed close turned into an
+   ordinary decline. The command then fell back to preparation, against CAL-V0-116.
+   `TestCALV0337_ResumeCheckCloseFailureIsCleanup` fails the close of the check's receipts listing.
+   On c843d6aab the result was "checkpoint unusable" with no cleanup error.
+   Fix (CAL-V0-337): the check reads through one `nativeRead` of its own. The resumed audit folds
+   that lifetime's close into its own cleanup channel (`UNSUPPORTED_FILESYSTEM`, read lifetime,
+   `PhysicalObservation.Cleanup`), which `observeWriter` treats as terminal. `RecheckResume`
+   returns a close failure as cleanup, and `leaseWriter` returns it as terminal.
+
 ## Rollback
 
-Revert the commit. A resume base exists only in one command's memory, and no store format, receipt,
+Revert the commits. A resume base exists only in one command's memory, and no store format, receipt,
 checkpoint format or wire result changes. Resumed writes advance the existing writer checkpoint
 under CAL-V0-117, which is the same format either build reads.
