@@ -49,6 +49,10 @@ type Env struct {
 	// leaseProgress receives a detached lease command's timing after each
 	// preparation round (PSR-V0-112).
 	leaseProgress func(store.LeaseTiming)
+	// leaseInterrupted, when set, is the detached child's own interrupt
+	// context, taken before any store work so an early SIGINT or SIGTERM
+	// still keeps a result (ATR-V0-053).
+	leaseInterrupted context.Context
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures

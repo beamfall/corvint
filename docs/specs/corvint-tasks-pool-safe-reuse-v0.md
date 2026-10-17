@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -210,6 +210,102 @@ the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, thei
 resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
 so stores written by either build are read by the other.
 
+### V1-1572 older binaries and slots
+
+Human-owned input: native ticket V1-1572 (2026-10-17), a follow-up of V1-1550 asking that the
+inferred older-binary refusal of a store with slots be observed, not only inferred from the closed
+decoders.
+
+- `PSR-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1572) Compatibility
+  statement: a corvint-tasks binary that predates slots (V1-1550) refuses, on its first audited read
+  and without writing, a store whose `policy.json` declares `slots` (`MALFORMED`, `policy.json:
+  closed object violated (unknown keys: slots)`) and a store whose `pools.json` carries a `slots` key
+  after the policy dropped them (`MALFORMED`, `/: closed object violated (unknown keys: slots)`); the
+  same store without slots is read normally. Such a binary therefore cannot operate a queue while
+  slots are declared or held, and nothing in the store is misread or rewritten. The remedy is the
+  slots rollback of PSR-V0-030..043 (release every entry, run one slot write, publish policy without
+  `slots`) or a binary that includes V1-1550. No code, format or decoder changes.
+
+  Acceptance evidence: the opt-in `TestPSRV0080_OlderBinaryRefusesSlots`
+  (`internal/tasks/cli`, `CORVINT_TASKS_OLDER_BINARY=<binary>`) ran on 2026-10-17 against
+  corvint-tasks built from source at tag `v1.0.0-rc.2` (154d663f051b7a1c8767a0934fc8e92100ae323d,
+  go1.27.2, Darwin, unverified source build in a temporary directory, not installed): the control
+  `queue status` was OK; `queue status` and `attempt show` were `MALFORMED` (exit 1) on both slot
+  stores, with the state tree unchanged. Rollback: delete the test and this statement.
+
+### V1-1586 member source identity and drift guard (issue 1029)
+
+Human-owned input: GitHub issue #1029 and native ticket V1-1586 (2026-10-17): each pool member
+reports the source it holds, a pool names the approved sources, and a member whose source drifted
+never returns to FREE. Acceptance: a source outside the allow-list is refused at acquire with a
+typed reason; a drifted member stays QUARANTINED with `SOURCE_DRIFT` and both pairs; a failing or
+malformed identity command never frees the member; `pool status` shows the observed identity and
+when it was observed; removing an allow-list pair does not strand a live allocation and the guard
+applies at release; pools without `allowedSources` behave as before.
+
+- `PSR-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool may
+  declare `allowedSources`, 1..16 distinct `{"revision","tree"}` pairs of full Git object ids, and
+  `defaultSource`, one of them; both are declared or neither (`MALFORMED`, a duplicate pair
+  `DUPLICATE_ID`). `pool acquire --source REV:TREE` asks for a member on that pair. Before any
+  allocation or health preparation, a pair outside the pool's current `allowedSources`, or any
+  `--source` on a pool without them, is refused `BLOCKED` `OUT_OF_SCOPE` with a detail starting
+  `SOURCE_NOT_ALLOWED`; a malformed pair is `MALFORMED`. An admitted acquire records the pair on the
+  pools.json entry as an optional `source`. The wire code set is unchanged; the typed reason is the
+  detail token.
+
+- `PSR-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) In a pool
+  with `allowedSources`, every member declares `memberConfig[M].identity`, a pool command with the
+  existing argv, cwd, env and timeoutSeconds rules, and no member of another pool declares one
+  (`MALFORMED`). It is read-only by contract and prints one JSON object `{"revision","tree"}`. It
+  does not combine with `safeReuse` in this slice (`MALFORMED`), so `pool sweep` never frees a
+  guarded member. The identity command is part of the member definition and is immutable while the
+  member is occupied; `allowedSources` and `defaultSource` are pool-level and may change while it
+  is.
+
+- `PSR-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586)
+  `pool confirm-safe` of a guarded QUARANTINED member runs its identity command in the lease
+  observer, against the policy and pool state the transaction decides on (memoized over that state,
+  so an observer retry over unchanged state does not run it again, and the writer-checkpoint route
+  is kept), through the owned process-group runner (timeout, group kill, bounded output). The
+  observation binds pool, member, allocation and definition digest and carries the class
+  (`REPORTED`, a runner class, or `MALFORMED_OUTPUT`), the reported pair when `REPORTED`, the stdout
+  digest and the runner's wall-clock `observedAt`; the transaction records it in pools.json as the
+  member's last `identities` entry with the receipt `observedSeq`. `pool status` for such a pool
+  shows `defaultSource`, `allowedSources` and, per member, the allocation's `source` and the last
+  `identity` (class, source, allocationId, outputSha256, observedAt, observedSeq) or `NOT_OBSERVED`.
+
+- `PSR-V0-084`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarded
+  member becomes FREE only when its identity is `REPORTED` with the pool's current `defaultSource`.
+  A reported other pair keeps it QUARANTINED with reason `SOURCE_DRIFT: observed R:T; default R:T`;
+  any other class (failure, timeout, over-limit, malformed or trailing output) keeps it QUARANTINED
+  with reason `SOURCE_IDENTITY_UNPROVED: identity command CLASS; default R:T`. Both are committed
+  receipts with outcome `BLOCKED` and code `QUIESCENCE_UNPROVED`, so a request-id replay returns
+  the refusal and frees nothing; a confirm-safe with no observation is refused and writes nothing.
+
+- `PSR-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guard
+  applies at release, not at policy update: a policy update that removes a pair from
+  `allowedSources` leaves every live allocation on it ALLOCATED, and only later acquires of that
+  pair are refused. A lane-untouched release of a guarded member does not remove its entry; it is
+  quarantined like any other release and freed only through PSR-V0-084.
+
+- `PSR-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool
+  without `allowedSources` is unchanged: its policy, pools.json and `pool status` bytes carry no
+  `source`, `identities`, `identity` or source keys, and its members free exactly as before.
+
+  Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
+  timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
+  observation (refused, nothing written); an observation bound to another allocation or definition
+  (`MALFORMED`, nothing written); an allow-list narrowed while occupied (allocation kept, guard at
+  release). Non-goals: no identity probe in `pool sweep` or the dispatcher's sweep, no identity at
+  claim or acquire time, no retargeting of a member to another source (V1-1585), no trust in the
+  command's report beyond its exit and output shape, and no new wire code. Acceptance evidence:
+  `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0082_IdentityPolicyRules`,
+  `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` and `TestPSRV0086_PoolsWithoutSourcesUnchanged`
+  (`internal/tasks/cli`). Rollback: free every guarded member (confirm-safe with a matching
+  identity), publish policy without `allowedSources`, `defaultSource` and `identity`, then revert the
+  source; an older binary refuses a policy or pools.json carrying these keys as `MALFORMED` (unknown
+  key), the recorded compatibility limit. No receipt or record is rewritten.
+
 ### V1-1617 bounded acquire calls (issue 1010 follow-up)
 
 Human-owned input: native ticket V1-1617, a follow-up to GitHub
@@ -241,10 +337,12 @@ calls without an unverified on-disk base. Route (b) is taken; (a) is declined by
   --wait N`, or repeat the same `--detach` (ATR-V0-020..024). The one detached child keeps its
   in-memory resume base across the client's calls, up to its 600-second ceiling (ATR-V0-023).
   Nothing about the audit or the base is persisted or shared between processes, so PSR-V0-051 is
-  unchanged. A call without `--detach`, or with a new request id, starts over. Once the child keeps
-  a result, including its retryable result at the ceiling, that result answers the request id: a
-  repeated `--detach` returns it and starts nothing (ATR-V0-021, ATR-V0-022), and only a new request
-  id starts a fresh child. Detach is available on Darwin and Linux only, the platforms that resume.
+  unchanged. A call without `--detach`, or with a new request id, starts over. A child that reaches
+  its ceiling keeps a retryable `LOCK_TIMEOUT` (ATR-V0-053). Once no child runs the record, a
+  repeated `--detach` under the same request id starts a new child, which builds its base again,
+  and the store's request-ID replay keeps the mutation exactly once (ATR-V0-066). Any other kept
+  result answers the request id and starts nothing (ATR-V0-021, ATR-V0-022). Detach is available on
+  Darwin and Linux only, the platforms that resume.
 - `PSR-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1617) The `PENDING`
   item of a detached `claim` or `pool acquire` (ATR-V0-024) MUST carry a `progress` member. It is
   `null` until the child has finished its first preparation round, or when the record does not read.
@@ -300,11 +398,11 @@ CAL-V0-264; a writer-checkpoint start or checkpoint-bounded walk for pool acquir
 Failure modes:
 - A client that cuts each call and starts a new process without `--detach` still never resumes.
   At 47,000 receipts its first audit alone is extrapolated past 150 s.
-- A detached child that reaches its ceiling ends with its own retryable result, which is kept
-  (ATR-V0-022). A later `--detach` with the same request id returns that kept result and starts
-  nothing (ATR-V0-021); the client continues with a new request id, which starts a fresh child that
-  builds its base again (PSR-V0-111). Only a child that exits without a result (`LOST`) is restarted
-  by the same `--detach`.
+- A detached child that reaches its ceiling ends with its own retryable `LOCK_TIMEOUT`, which is
+  kept (ATR-V0-022, ATR-V0-053). A later `--detach` with the same request id, once no child runs the
+  record, moves that result to `result.1.json` and starts a new child, which builds its base again
+  (ATR-V0-066, PSR-V0-111). A child that exits without a result (`LOST`) is also restarted by the
+  same `--detach`; any other kept result answers it and starts nothing (ATR-V0-021).
 - A stale or missing `progress.json` reports `null` or an older round; it never changes a result.
 
 Acceptance evidence:
@@ -314,7 +412,7 @@ Acceptance evidence:
   `rewritten-tail-receipt` and `rewritten-tail-request` cases of
   `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` in `internal/tasks/journal`; each fails without
   the PSR-V0-116 recheck.
-- `TestPSRV0111_CeilingNeedsAFreshRequestID` in `internal/tasks/cli`.
+- `TestPSRV0111_CeilingRelaunchesOnSameRequestID` in `internal/tasks/cli`.
 - `TestPSRV0112_PendingReportsProgress` and `TestPSRV0114_CompactHelpNotesWalkCost` in
   `internal/tasks/cli`; `TestPSRV0115_ResumeAfterCompaction` in `internal/tasks/store`.
 - The opt-in harness `TestPSRV0055_PoolAcquireLoad`, extended with three variables:
@@ -410,12 +508,24 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-056 | `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestPSRV0056_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
 | PSR-V0-057 | `TestPSRV0057_ResumeCheckCloseFailureIsCleanup`, `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
 
+## Traceability (PSR-V0-080..)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-080 | opt-in `TestPSRV0080_OlderBinaryRefusesSlots` (`internal/tasks/cli`), executed against a `v1.0.0-rc.2` source build |
+| PSR-V0-081 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
+| PSR-V0-082 | `TestPSRV0082_IdentityPolicyRules` (`internal/tasks/cli`) |
+| PSR-V0-083 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
+
 ## Traceability (PSR-V0-110..116)
 
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-110 | `TestPSRV0113_ResumeDecidesNonHeartbeatTail`, `TestPSRV0113_ForgedHeartbeatTailNeverCommits` (`internal/tasks/store`) |
-| PSR-V0-111 | opt-in `TestPSRV0055_PoolAcquireLoad` with `CORVINT_TASKS_POOL_ACQUIRE_LOAD_CALL_MODE=detach` (`internal/tasks/store`); `TestPSRV0111_CeilingNeedsAFreshRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-17-v1-1617-acquire-bounded-calls.md` |
+| PSR-V0-111 | opt-in `TestPSRV0055_PoolAcquireLoad` with `CORVINT_TASKS_POOL_ACQUIRE_LOAD_CALL_MODE=detach` (`internal/tasks/store`); `TestPSRV0111_CeilingRelaunchesOnSameRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-17-v1-1617-acquire-bounded-calls.md` |
 | PSR-V0-112 | `TestPSRV0112_LeaseProgressAfterEachRound` (`internal/tasks/store`); `TestPSRV0112_PendingReportsProgress` (`internal/tasks/cli`) |
 | PSR-V0-113 | `TestPSRV0113_ResumeDecidesNonHeartbeatTail`, `TestPSRV0113_ForgedHeartbeatTailNeverCommits` (`internal/tasks/store`) |
 | PSR-V0-114 | `TestPSRV0114_CompactHelpNotesWalkCost` (`internal/tasks/cli`) |

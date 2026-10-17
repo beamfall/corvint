@@ -139,6 +139,13 @@ One independent review round (Codex) on PR #1069 raised two findings. Both are f
   - `TestPSRV0111_CeilingNeedsAFreshRequestID` checks both:
     - a repeat after the ceiling returns the kept bytes;
     - a new request id completes.
+- Merge with `origin/main` (8cb1f080c): main's ATR-V0-066 (V1-1558, #1061) changed the P2
+  behavior. A kept detached `LOCK_TIMEOUT`, which is what the ceiling keeps (ATR-V0-053), no longer
+  answers a repeat `--detach`. Once no child runs the record, the repeat starts a new child under the
+  same request id.
+  - PSR-V0-111 and its failure mode now follow ATR-V0-066.
+  - The test is renamed `TestPSRV0111_CeilingRelaunchesOnSameRequestID`. It checks that the repeat
+    `--detach` completes and that `--attach` returns the new kept result.
 
 ## Notes
 
