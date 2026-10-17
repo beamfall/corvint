@@ -148,6 +148,14 @@ func TestTQDV0021_QueueLockHeld(t *testing.T) {
 	if len(findingsOf(item, "QUEUE_LOCK_HELD")) != 0 || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "not a corvint-tasks command") {
 		t.Fatalf("foreign holder: %s", x.stdout)
 	}
+	// A known foreign holder is never replaced by the longest-waiting
+	// corvint-tasks opener (pid 4242 has waited 90 s with it open).
+	restore = cli.SetDoctorTestHost(lockHost(4244))
+	x, item = doctorOK(t, root)
+	restore()
+	if len(findingsOf(item, "QUEUE_LOCK_HELD")) != 0 || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "held by pid 4244, which is not a corvint-tasks command") {
+		t.Fatalf("known foreign holder with a waiting opener: %s %v", x.stdout, x.res.Warnings)
+	}
 }
 
 // TQD-V0-022: a short-lived corvint-tasks command with a queue lock open
@@ -446,8 +454,13 @@ func TestTQDV0026_NotifyOncePerChange(t *testing.T) {
 	if err := json.Unmarshal(stdin(), &summary); err != nil || summary["profile"] != "taskman-doctor/0" || !bytes.Contains(stdin(), []byte(`"FD_PRESSURE"`)) {
 		t.Fatalf("hook stdin: %s %v", stdin(), err)
 	}
+	// A refresh without the notify config keeps the notify history: the
+	// next configured refresh of the same set does not run the hook again.
+	restore := cli.SetDoctorTestHost(pressure)
+	doctorOK(t, root, "--refresh")
+	restore()
 	refresh(pressure)
-	restore := cli.SetDoctorTestHost(cli.DoctorTestHost{FilesUsed: 1, FMax: 100})
+	restore = cli.SetDoctorTestHost(cli.DoctorTestHost{FilesUsed: 1, FMax: 100})
 	doctorOK(t, root, "--config", cfg)
 	restore()
 	if runs() != 1 {
@@ -502,10 +515,11 @@ func TestTQDV0026_NotifyFailureIsAFinding(t *testing.T) {
 			restore()
 			t.Fatalf("%s: %s", name, wire.Encode(item))
 		}
+		doctorOK(t, root, "--refresh")
 		_, item = doctorOK(t, root, "--config", cfg)
 		if len(findingsOf(item, "NOTIFY_FAILED")) != 1 {
 			restore()
-			t.Fatalf("%s: plain doctor lost the failure: %s", name, wire.Encode(item))
+			t.Fatalf("%s: a plain doctor after an unconfigured refresh lost the failure: %s", name, wire.Encode(item))
 		}
 		_, item = doctorOK(t, root, "--refresh", "--config", cfg)
 		restore()
@@ -590,6 +604,31 @@ func TestTQDV0027_HostSessionFindings(t *testing.T) {
 	}
 }
 
+// TQD-V0-027: past 256 recent sessions the doctor reads the first 256 by
+// worker name, whatever order the directory lists them in.
+func TestTQDV0027_WorkerLimitInNameOrder(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	prog := filepath.Join(t.TempDir(), "many-prog")
+	errLine := `{"type":"error","message":"stream disconnected"}`
+	quiet := `{"type":"turn.started"}`
+	// Created in reverse name order, so a directory listing in creation
+	// order would put the last-named worker first.
+	writeWorkerLog(t, prog, "w999", errLine, errLine, errLine)
+	for i := 255; i >= 1; i-- {
+		writeWorkerLog(t, prog, fmt.Sprintf("w%03d", i), quiet)
+	}
+	writeWorkerLog(t, prog, "w000", errLine, errLine, errLine)
+	cfg := writeDoctorConfig(t, `{"profile":"taskman-doctor-config/0","dispatchers":[{"programDir":"`+prog+`","format":"codex"}]}`)
+	x, item := doctorOK(t, root, "--config", cfg)
+	got := findingsOf(item, "HOST_ERRORS")
+	if len(got) != 1 || field(got[0], "who").Str != "w000" {
+		t.Fatalf("want only w000 read past the limit: %s", wire.Encode(item))
+	}
+	if !strings.Contains(strings.Join(x.res.Warnings, "\n"), "more than 256 recent worker sessions") {
+		t.Fatalf("limit not warned: %s", x.stdout)
+	}
+}
+
 // writeLedger writes a dispatcher state.json with the given health.
 func writeLedger(t *testing.T, programDir string, h *dispatch.WorkStateHealth) {
 	t.Helper()
@@ -645,6 +684,18 @@ func TestTQDV0031_WorkStateHealth(t *testing.T) {
 	ws, _, x := health()
 	if field(ws, "health").Str != "UNREADABLE" || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "state unreadable") {
 		t.Fatalf("unreadable: %s", x.stdout)
+	}
+	// A FIFO in place of state.json is refused without blocking on it.
+	state := filepath.Join(prog, "state.json")
+	if err := os.Remove(state); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(state, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ws, _, x = health()
+	if field(ws, "health").Str != "UNREADABLE" || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "not a regular file") {
+		t.Fatalf("fifo: %s", x.stdout)
 	}
 	if _, item := doctorOK(t, root); field(item, "dispatchers").Kind != 0 && len(field(item, "dispatchers").Arr) != 0 {
 		t.Fatalf("dispatchers without a config: %s", wire.Encode(item))
@@ -720,6 +771,8 @@ func TestTQDV0033_ScanCostMeasurement(t *testing.T) {
 	}
 	var wall, used [2]time.Duration
 	var items [2]wire.Value
+	restoreClock := cli.SetDoctorClock(func() time.Time { return built })
+	defer restoreClock()
 	for i := 0; i < 10; i++ {
 		mode := i % 2
 		restore := func() {}
@@ -739,7 +792,35 @@ func TestTQDV0033_ScanCostMeasurement(t *testing.T) {
 	}
 	old, item := items[0], items[1]
 	t.Logf("doctor best of 5 (wall / cpu): per-read sessions %v / %v, one session %v / %v; scan %s", wall[0], used[0], wall[1], used[1], wire.Encode(field(item, "scan")))
-	if len(field(old, "findings").Arr) != len(field(item, "findings").Arr) || field(field(old, "scan"), "receipts").Str != field(field(item, "scan"), "receipts").Str {
-		t.Fatalf("findings differ: %s / %s", wire.Encode(old), wire.Encode(item))
+	assertDoctorModesEqual(t, old, item)
+}
+
+// assertDoctorModesEqual requires the complete findings and scan values of
+// a per-read run and a one-session run to be identical.
+func assertDoctorModesEqual(t *testing.T, perRead, session wire.Value) {
+	t.Helper()
+	for _, name := range []string{"findings", "scan"} {
+		if a, b := wire.Encode(field(perRead, name)), wire.Encode(field(session, name)); !bytes.Equal(a, b) {
+			t.Fatalf("%s differ between read modes:\n%s\n%s", name, a, b)
+		}
 	}
+}
+
+// TQD-V0-033: with the observation clock frozen, the one-session journal
+// read and per-read sessions produce identical findings and scan values.
+func TestTQDV0033_ReadModesEquivalent(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	id := planTicket(t, root, "modes", "P1", `["src/"]`)
+	loopCLIHandoffs(t, root, id, 3)
+	frozen := time.Now().UTC()
+	restoreClock := cli.SetDoctorClock(func() time.Time { return frozen })
+	defer restoreClock()
+	restore := cli.SetDoctorPerReadJournal()
+	_, perRead := doctorOK(t, root)
+	restore()
+	_, session := doctorOK(t, root)
+	if len(field(session, "findings").Arr) == 0 || field(field(session, "scan"), "receipts").Str == "0" {
+		t.Fatalf("no findings or receipts to compare: %s", wire.Encode(session))
+	}
+	assertDoctorModesEqual(t, perRead, session)
 }

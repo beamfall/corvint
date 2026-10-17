@@ -136,6 +136,13 @@ func ClaudeResultFailed(raw []byte) bool {
 	return e != nil || r.Subtype != "success" || r.IsError == nil || *r.IsError
 }
 
+// ClaudeResultAdmitted reports whether raw is a Claude Code result object
+// under the CAL-V0-075 member rules, whether it succeeded or failed.
+func ClaudeResultAdmitted(raw []byte) bool {
+	_, e := readClaudeResult(raw)
+	return e == nil
+}
+
 // ObservedClaudeSession is the bounded session of a Claude Code result
 // object, or "" when the output is not one.
 func ObservedClaudeSession(raw []byte) string {
