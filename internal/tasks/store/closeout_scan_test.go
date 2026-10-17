@@ -62,3 +62,43 @@ func TestTCDV0002_ScanIsBoundedAndPlain(t *testing.T) {
 		t.Fatalf("unresolvable revision: %v", err)
 	}
 }
+
+// TestTCDV0002_ScanForcesUTF8: a repository configured with
+// i18n.logOutputEncoding=UTF-16 still yields whole, UTF-8 messages, because
+// UTF-16 output holds NUL bytes the -z split would treat as record ends
+// (TCD-V0-002).
+func TestTCDV0002_ScanForcesUTF8(t *testing.T) {
+	if !slices.Contains(CloseoutLogArgs("REF", "", 1), "--encoding=UTF-8") {
+		t.Fatal("scan argv does not force UTF-8")
+	}
+	root := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		c := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
+		c.Dir = root
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	run("commit", "-q", "--allow-empty", "-m", "base")
+	run("commit", "-q", "--allow-empty", "-m", "fix it\n\nCloses V1-7 for good")
+	run("config", "i18n.logOutputEncoding", "UTF-16")
+	head, err := CloseoutRevision(root, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scan, err := ScanCommits(root, head, "", 10)
+	if err != nil || len(scan.Commits) != 2 || scan.Commits[0].Subject != "fix it" || !strings.Contains(scan.Commits[0].Message, "Closes V1-7 for good") {
+		t.Fatalf("scan under UTF-16 log encoding: %+v %v", scan, err)
+	}
+}
+
+// TestTCDV0002_RevisionRefusals: a revision that names no commit is
+// MALFORMED, but a Git failure (no repository, corrupt object) is
+// UNSUPPORTED, not a bad argument (TCD-V0-002).
+func TestTCDV0002_RevisionRefusals(t *testing.T) {
+	if _, err := CloseoutRevision(t.TempDir(), "HEAD"); wire.CodeOf(err) != wire.CodeUnsupported {
+		t.Fatalf("non-repository: %v", err)
+	}
+}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -63,5 +64,36 @@ func TestTCDV0004_CitationMatching(t *testing.T) {
 	}
 	if got := truncateUTF8("abé", 3); got != "ab" {
 		t.Errorf("truncateUTF8 cut a rune: %q", got)
+	}
+}
+
+// TestTCDV0007_FanOutKeepsFirstRowsOnly: a fan-out of many tickets linking
+// one issue times many commits closing it is counted in full, but the
+// collector never holds more than the row bound and keeps the first rows in
+// (ticket ID, commit) order whatever the arrival order (TCD-V0-007).
+func TestTCDV0007_FanOutKeepsFirstRowsOnly(t *testing.T) {
+	const tickets, commits = 40, 50
+	var all []closeoutRow
+	for c := 0; c < commits; c++ {
+		// Commits arrive newest first, in no particular hash order.
+		commit := fmt.Sprintf("%040x", (c*7919)%commits)
+		for k := tickets - 1; k >= 0; k-- {
+			all = append(all, closeoutRow{ticketID: fmt.Sprintf("ticket:corvint:main:V1-%04d", k), commit: commit, kind: citeUmbrella, issue: "77"})
+		}
+	}
+	want := append([]closeoutRow(nil), all...)
+	sort.Slice(want, func(i, j int) bool { return closeoutRowLess(want[i], want[j]) })
+	for _, max := range []int{0, 1, 7, len(all) - 1, len(all), len(all) + 1} {
+		c := closeoutRows{max: max}
+		for _, r := range all {
+			c.add(r)
+			if len(c.kept) > max {
+				t.Fatalf("max %d: collector holds %d rows", max, len(c.kept))
+			}
+		}
+		keep := min(max, len(all))
+		if got := c.sorted(); c.total != len(all) || len(got) != keep || (keep > 0 && !reflect.DeepEqual(got, want[:keep])) {
+			t.Errorf("max %d: total %d, kept %d, want total %d and the first %d rows in order", max, c.total, len(got), len(all), keep)
+		}
 	}
 }

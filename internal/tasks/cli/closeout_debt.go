@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"container/heap"
 	"errors"
 	"regexp"
 	"sort"
@@ -49,7 +50,8 @@ var (
 	closeoutIssueSlug = regexp.MustCompile(`\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]{1,9})\b`)
 )
 
-// closeoutIndex maps citations to the OPEN tickets they name.
+// closeoutIndex maps citations to the tickets they name, of every status
+// (TCD-V0-004); only OPEN ones become rows (TCD-V0-005).
 type closeoutIndex struct {
 	tokens map[string]string   // folded local or full ID -> ticket ID
 	issues map[string][]string // issue number -> ticket IDs, ascending
@@ -92,7 +94,7 @@ func (x *closeoutIndex) ticketIssues(rec *ticket.Record) []string {
 	return out
 }
 
-// add indexes one OPEN ticket.
+// add indexes one ticket.
 func (x *closeoutIndex) add(rec *ticket.Record) {
 	id := rec.TicketID.Raw
 	x.tokens[wire.FoldToken(rec.TicketID.Local)] = id
@@ -150,6 +152,54 @@ func (x *closeoutIndex) cites(message string) []closeoutCite {
 // closeoutRow is one candidate (TCD-V0-007).
 type closeoutRow struct {
 	ticketID, local, commit, subject, kind, issue, step, gate string
+}
+
+func closeoutRowLess(a, b closeoutRow) bool {
+	if a.ticketID != b.ticketID {
+		return a.ticketID < b.ticketID
+	}
+	return a.commit < b.commit
+}
+
+// closeoutRowHeap is a max-heap in row order: its root is the last row kept.
+type closeoutRowHeap []closeoutRow
+
+func (h closeoutRowHeap) Len() int           { return len(h) }
+func (h closeoutRowHeap) Less(i, j int) bool { return closeoutRowLess(h[j], h[i]) }
+func (h closeoutRowHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *closeoutRowHeap) Push(x any)        { *h = append(*h, x.(closeoutRow)) }
+func (h *closeoutRowHeap) Pop() any {
+	old := *h
+	x := old[len(old)-1]
+	*h = old[:len(old)-1]
+	return x
+}
+
+// closeoutRows counts every candidate row but keeps only the first max in
+// row order (TCD-V0-007), so a citation fan-out holds at most max rows
+// however many it matches.
+type closeoutRows struct {
+	max, total int
+	kept       closeoutRowHeap
+}
+
+func (c *closeoutRows) add(r closeoutRow) {
+	c.total++
+	switch {
+	case c.max <= 0:
+	case len(c.kept) < c.max:
+		heap.Push(&c.kept, r)
+	case closeoutRowLess(r, c.kept[0]):
+		c.kept[0] = r
+		heap.Fix(&c.kept, 0)
+	}
+}
+
+// sorted returns the kept rows in row order.
+func (c *closeoutRows) sorted() []closeoutRow {
+	out := append([]closeoutRow(nil), c.kept...)
+	sort.Slice(out, func(i, j int) bool { return closeoutRowLess(out[i], out[j]) })
+	return out
 }
 
 // closeoutStep derives the pending native closeout step of one OPEN ticket
@@ -263,7 +313,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	}
 	var (
 		index    *closeoutIndex
-		locals   map[string]string
+		locals   map[string]string            // OPEN tickets only
 		attempts map[string]*snapshot.Attempt // nil = NOT_OBSERVED
 		branch   string
 	)
@@ -272,8 +322,8 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		locals, attempts, branch = map[string]string{}, nil, rc.store.Queue.IntentBranch
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
+			index.add(rec)
 			if rec.Status == ticket.StatusOpen {
-				index.add(rec)
 				locals[id] = rec.TicketID.Local
 			}
 		}
@@ -294,8 +344,11 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	ref := fl["ref"]
 	if _, given := fl["ref"]; !given {
 		ref = "refs/heads/" + branch
-		if _, e := store.CloseoutRevision(root, "refs/remotes/origin/"+branch); e == nil {
+		switch _, e := store.CloseoutRevision(root, "refs/remotes/origin/"+branch); {
+		case e == nil:
 			ref = "refs/remotes/origin/" + branch
+		case wire.CodeOf(e) != wire.CodeMalformed:
+			return failure(cmd, rc, e), 0
 		}
 	}
 	refCommit, err := store.CloseoutRevision(root, ref)
@@ -322,33 +375,29 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		return snapshot.DecodeGateResult(raw)
 	}
-	type stepOf struct{ step, gate string }
-	steps := map[string]stepOf{}
-	var rows []closeoutRow
+	collected := closeoutRows{max: maxCloseoutRows}
 	for _, c := range scan.Commits {
+		subject := truncateUTF8(c.Subject, maxCloseoutSubjectBytes)
 		for _, cite := range index.cites(c.Message) {
-			st, ok := steps[cite.ticketID]
-			if !ok {
-				st.step = notObserved
-				if attempts != nil {
-					rec, _ := rc.store.Inventory.Get(cite.ticketID)
-					st.step, st.gate = closeoutStep(rc, rec, attempts[cite.ticketID], gateOf)
-				}
-				steps[cite.ticketID] = st
+			if local, open := locals[cite.ticketID]; open {
+				collected.add(closeoutRow{ticketID: cite.ticketID, local: local, commit: c.Commit, subject: subject, kind: cite.kind, issue: cite.issue})
 			}
-			rows = append(rows, closeoutRow{ticketID: cite.ticketID, local: locals[cite.ticketID], commit: c.Commit,
-				subject: truncateUTF8(c.Subject, maxCloseoutSubjectBytes), kind: cite.kind, issue: cite.issue, step: st.step, gate: st.gate})
 		}
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].ticketID != rows[j].ticketID {
-			return rows[i].ticketID < rows[j].ticketID
+	type stepOf struct{ step, gate string }
+	steps := map[string]stepOf{}
+	rows, total := collected.sorted(), collected.total
+	for i := range rows {
+		st, ok := steps[rows[i].ticketID]
+		if !ok {
+			st.step = notObserved
+			if attempts != nil {
+				rec, _ := rc.store.Inventory.Get(rows[i].ticketID)
+				st.step, st.gate = closeoutStep(rc, rec, attempts[rows[i].ticketID], gateOf)
+			}
+			steps[rows[i].ticketID] = st
 		}
-		return rows[i].commit < rows[j].commit
-	})
-	total := len(rows)
-	if len(rows) > maxCloseoutRows {
-		rows = rows[:maxCloseoutRows]
+		rows[i].step, rows[i].gate = st.step, st.gate
 	}
 	res := success(cmd, rc)
 	if scan.Truncated {

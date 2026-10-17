@@ -30,8 +30,9 @@ type CommitScan struct {
 }
 
 // CloseoutRevision resolves rev to a full commit ID in root. A revision that
-// is empty, starts with `-` or holds a control byte, or that names no commit,
-// is refused MALFORMED.
+// is empty, starts with `-` or holds a control byte, or that names no commit
+// (rev-parse exit 1), is refused MALFORMED; any other Git failure, such as a
+// corrupt object or a directory that is no repository, is UNSUPPORTED.
 func CloseoutRevision(root, rev string) (string, error) {
 	if rev == "" || strings.HasPrefix(rev, "-") || strings.IndexFunc(rev, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0 {
 		return "", wire.Errorf(wire.CodeMalformed, "revision", "revision must be non-empty, must not start with '-' and must hold no control byte")
@@ -41,7 +42,7 @@ func CloseoutRevision(root, rev string) (string, error) {
 	out, err := c.Output()
 	if err != nil {
 		var exit *exec.ExitError
-		if errors.As(err, &exit) {
+		if errors.As(err, &exit) && exit.ExitCode() == 1 {
 			return "", wire.Errorf(wire.CodeMalformed, "revision", "revision %q does not resolve to a commit", rev)
 		}
 		return "", wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
@@ -67,8 +68,10 @@ func OriginSlug(root string) string {
 // CloseoutLogArgs is the `git log` argv for a scan of at most limit commits
 // reachable from ref and not from since (empty for none). Both are resolved
 // commit IDs; no --first-parent, so second-parent constituents count.
+// --encoding=UTF-8 overrides i18n.logOutputEncoding, whose UTF-16 output would
+// hold NUL bytes the -z split treats as record ends.
 func CloseoutLogArgs(ref, since string, limit int) []string {
-	args := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "log", "--no-show-signature", "--no-color", "-z",
+	args := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "log", "--no-show-signature", "--no-color", "--encoding=UTF-8", "-z",
 		"--format=%H%n%B", "--max-count="+strconv.Itoa(limit+1), "--end-of-options", ref)
 	if since != "" {
 		args = append(args, "^"+since)

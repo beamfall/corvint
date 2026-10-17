@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -182,7 +183,9 @@ func TestTCDV0005_CandidatesThroughTheCLI(t *testing.T) {
 
 // TestTCDV0003_ClosedTicketsAndTruncation covers V1-1615 acceptance (f) and
 // (h): a COMPLETED cited ticket is never listed (exit 0), and --limit 1
-// truncates the scan with a warning (TCD-V0-003, TCD-V0-005, TCD-V0-009).
+// truncates the scan with a warning; a commit citing the OPEN and the
+// COMPLETED ticket is umbrella for the OPEN row (TCD-V0-003, TCD-V0-004,
+// TCD-V0-005, TCD-V0-009).
 func TestTCDV0003_ClosedTicketsAndTruncation(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
@@ -190,6 +193,7 @@ func TestTCDV0003_ClosedTicketsAndTruncation(t *testing.T) {
 	completeReleaseTicket(t, root, "complete-done", done)
 	_, openLocal := tcdTicket(t, root, "open", "")
 	tcdCommit(t, root, "Refs "+openLocal)
+	tcdCommit(t, root, "batch\n\nRefs "+openLocal+" and "+doneLocal)
 	tcdCommit(t, root, "feat: finished\n\nRefs "+doneLocal)
 
 	code, res := tcdRun(t, root, "--limit", "1")
@@ -204,8 +208,48 @@ func TestTCDV0003_ClosedTicketsAndTruncation(t *testing.T) {
 		t.Fatalf("no truncation warning: %v", res.Warnings)
 	}
 	code, res = tcdRun(t, root)
-	if _, rows = tcdRows(t, res); code != 1 || len(rows) != 1 || rows[0].citation != "direct-id" || rows[0].step != "NO_ATTEMPT" {
-		t.Fatalf("exit %d rows %+v: want only the OPEN ticket", code, rows)
+	if _, rows = tcdRows(t, res); code != 1 || len(rows) != 2 {
+		t.Fatalf("exit %d rows %+v: want only the OPEN ticket's two commits", code, rows)
+	}
+	for _, r := range rows {
+		want := map[string]string{"Refs " + openLocal: "direct-id", "batch": "umbrella"}[r.subject]
+		if want == "" || r.citation != want || r.step != "NO_ATTEMPT" || !strings.HasSuffix(r.ticket, ":"+openLocal) {
+			t.Errorf("row %+v: want the OPEN ticket, citation %q", r, want)
+		}
+	}
+}
+
+// TestTCDV0002_GitFailureIsUnsupported: a ref whose commit object is corrupt
+// refuses UNSUPPORTED with exit 2, given as --ref or found by the default
+// origin probe, while a ref that names nothing stays MALFORMED (TCD-V0-002,
+// TCD-V0-009).
+func TestTCDV0002_GitFailureIsUnsupported(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	tcdCommit(t, root, "base")
+	out, err := exec.Command("git", "-C", root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit-tree", "-p", "HEAD", "-m", "side", "HEAD^{tree}").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	side := strings.TrimSpace(string(out))
+	git(t, root, "update-ref", "refs/heads/side", side)
+	git(t, root, "update-ref", "refs/remotes/origin/main", side)
+	object := filepath.Join(root, ".git", "objects", side[:2], side[2:])
+	if err := os.Chmod(object, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(object, []byte("garbage"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"--ref", "side"}, {}, {"--ref", "main", "--since", "side"}} {
+		code, res := tcdRun(t, root, args...)
+		if code != 2 || res.Outcome == wire.OutcomeOK || !hasCode(res, wire.CodeUnsupported) {
+			t.Errorf("%v: exit %d %+v, want 2 UNSUPPORTED", args, code, res)
+		}
+	}
+	code, res := tcdRun(t, root, "--ref", "no-such-ref")
+	if code != 2 || !hasCode(res, wire.CodeMalformed) {
+		t.Errorf("no-such-ref: exit %d %+v, want 2 MALFORMED", code, res)
 	}
 }
 
