@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
-Intent status: accepted (decision 0524; V1-0040); STR-V0-050..054 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022)
+Intent status: accepted (decision 0524; V1-0040); STR-V0-050..057 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583)
 Delivery status: experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
@@ -12,8 +12,8 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0524; V1-0040); STR-V0-050..054 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)
-- Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, built from its own pin `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047) while the driver pins stay empty, so it plans and retains each PR shard's selection without deciding; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider); `corvint test shards` and `--placement measured` (STR-V0-050..054, experimental: a duration-balanced shard plan from retained full-run cost tables, executed locally only).
+- Status: accepted (decision 0524; V1-0040); STR-V0-050..057 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583)/experimental (slice 1: Go adapter, dry-run, receipts, universe placement, verify-shards; slice 2: driver parity report, local balanced placement; redesign: project-owned test-commands declaration and gate; slice 3: `make gate-affected` on `corvint test`, CI shadow dry-run beside the driver; V1-1257: the promotion measurements are met, `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, but STR-V0-004's versioned capability manifest and STR-V0-011 have no executable evidence yet)
+- Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, built from its own pin `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047) while the driver pins stay empty, so it plans and retains each PR shard's selection without deciding; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider); `corvint test shards` and `--placement measured` (STR-V0-050..057, experimental: a duration-balanced shard plan from retained full-run cost tables, optionally carrying AFP-V0-041 test slices, executed locally only); `tools/ci-shard-costs refresh --history` retains each refreshed table as a dated, count-bounded file (STR-V0-056).
 - Blocked on: `implemented` waits for executable evidence of STR-V0-004's versioned LPCV-V0-021 capability manifest and of STR-V0-011 (no other `corvint test` reader), or an owner amendment narrowing them; CI narrowing waits for the AFP-V0-029 shadow bar (met at 2026-10-14T17:59:52Z, NOT MET again at 1/5 failing rows on 2026-10-16) and V1-0812 before `corvint test` decides or narrows anything in CI; balanced placement stays unpromoted until the local 20% bar is measured or an accepted AFP-V0-028 amendment defines the CI comparison; the AFP-V0-011 list stays `NOT_OBSERVED`; the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
 
@@ -283,7 +283,8 @@ STR-V0-009 fan-in through a third placement.
   most 1 MiB of it. The encoded plan is bounded by what those inputs admit: 6 MiB (each name
   escapes to at most twice its bytes and appears at most three times) plus 16 bytes per
   appearance of each of the 4096 entries plus 64 KiB for the fixed members, 64 shard headers,
-  64 revisions and the fallback reason, so a plan from admitted inputs always encodes. It is a
+  64 revisions and the fallback reason, plus 4 MiB and 64 KiB for STR-V0-057 slices, so a plan
+  from admitted inputs always encodes. It is a
   read command (invariant 4): it reads only its named inputs and writes only stdout and one
   stderr line, never the repository, the index, trace stores or the `.corvint/` ledgers. A usage
   error (bad count, K or list, unreadable list) exits 2 and prints no plan; a plan exits 0.
@@ -309,7 +310,8 @@ STR-V0-009 fan-in through a third placement.
   run, and the reason is cut to at most 1024 bytes of valid UTF-8.
 - `STR-V0-054`: `corvint test --placement measured --shard-plan PATH` (experimental, off by
   default) SHALL place every Go package of the run set, NARROWED or FULL, as one whole execution
-  unit on the shard the plan assigns it; AFP-V0-041 test slices do not apply. The plan is read
+  unit on the shard the plan assigns it, or, for a package the plan carries as AFP-V0-041 test
+  slices (STR-V0-057), each slice as one unit on its planned shard. The plan is read
   strictly: canonical bytes of the profile within the STR-V0-050 plan bound, `count` shards
   indexed in order, no file twice, 1 to 4096 files, and a partition digest that recomputes,
   else exit 2. The manifest's
@@ -319,6 +321,41 @@ STR-V0-009 fan-in through a third placement.
   Go unit and is `INCOMPLETE`. `--shard-plan` applies only to measured placement. As for balanced
   placement (STR-V0-008), measured placement executes only in the local profile (`--profile ci`
   with `--dry-run` only), and a sharded execution needs one `--manifest` from a `--dry-run`.
+- `STR-V0-055`: `--shard-plan PATH` SHALL be read as the STR-V0-050 inputs are: through its
+  opened descriptor without following a symbolic link and without blocking, only when it is a
+  regular file, and at most the STR-V0-050 plan bound. A FIFO, device, directory, symbolic link,
+  missing or oversized file SHALL be refused promptly, before any git work or runner starts, with exit 2 and
+  the error code `test-shard-plan-unreadable`; the refusal never waits for a writer. A readable
+  regular file decodes and is checked exactly as STR-V0-054 says, and a plan that fails those
+  checks keeps `invalid-arguments`. (V1-1613)
+- `STR-V0-056`: `tools/ci-shard-costs refresh --history DIR [--keep N] [--at TIME]` SHALL, after
+  the refreshed table is admitted and before the table is replaced, write the same bytes to
+  `DIR/<YYYYMMDDTHHMMSSZ>-<revision>.json` through a sibling temporary file and a rename, the time
+  being `--at` (RFC 3339, UTC) or the current UTC time. It then deletes, by name order, every file
+  of DIR whose name matches `^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{40}\.json$` beyond the newest N (1 to
+  64, default 5, the STR-V0-051 default K) and no other file. A retained file is byte-identical to
+  the table, so `corvint test shards --durations` reads it directly, and name order is oldest
+  first. A refused refresh writes neither the table nor a retained file. When a supplied table is
+  not admitted, the STR-V0-053 fallback reason SHALL begin with the named code
+  `test-shards-history-invalid` (unreadable, oversized, malformed, wrong profile, no full source
+  revision, or an invalid duration). (V1-1584)
+- `STR-V0-057`: `corvint test shards ... --test-slices PATH --split-allow PATH` (both or neither,
+  read as STR-V0-050 inputs) SHALL, when history decides, place each listed entry that the
+  AFP-V0-041 slice file and allow-list split for N shards as its test slices instead of whole.
+  Slice `i` weighs `max(1, w * m_i / sum(m))`, rounded down, where `w` is the entry's STR-V0-051
+  weight and `m` the slice file's slice times. Whole entries and slices go heaviest first (ties by
+  name, then slice index) onto the lightest shard that holds no sibling slice, so the slices of
+  one package land on distinct shards. A shard records its slices under `slices` (package, index,
+  count, flag, pattern, weight), sorted by package and index; a shard without slices omits the
+  member, so a plan with no slices is byte-identical to STR-V0-050..052. Every listed entry
+  appears exactly once: in one shard's `files`, or as all `count` of its slices with each index
+  once. When any shard has slices the partition digest also binds each shard's slices (package,
+  index, count, flag and pattern). An unusable slice file or allow-list, more than 256 slices, or
+  slices whose canonical encoding exceeds 4 MiB split nothing; the fallback never slices, and
+  stderr counts the sliced packages. STR-V0-054 reads a sliced plan strictly: complete slices of
+  2 to 16 per package and at most the plan's count, `-run` on every slice but the last and `-skip`
+  on the last, a compiling pattern of at most 64 KiB, no sibling on a shard, no package both whole
+  and sliced. (V1-1583)
 
 ## Non-goals
 
@@ -328,10 +365,13 @@ STR-V0-009 fan-in through a third placement.
 - Retry and flake policy (AFP-V0-029 owns reruns), remote execution, or a hosted service.
 - Test-level selection inside a package beyond the existing AFP-V0-041 slices.
 - Relaxing any AFP-V0-028..030 admission condition or the shadow bar.
-- Retaining durations: the shard planner reads tables an operator already retained (STR-V0-051);
-  it fetches no hosted run and never reads `corvint-test-run/0` receipts (STR-V0-011).
-- Splitting one listed file across shards: a file heavier than the ideal shard sets the floor of
-  a measured plan.
+- Fetching durations: the shard planner reads tables an operator already retained (STR-V0-051;
+  `refresh --history` retains them locally, STR-V0-056); it fetches no hosted run and never
+  reads `corvint-test-run/0` receipts (STR-V0-011). Wiring `--history` into the CI workflow is a
+  `.github/` change outside these requirements.
+- Splitting one listed file across shards other than by its AFP-V0-041 slices (STR-V0-057): an
+  unsplit file heavier than the ideal shard still sets the floor of a measured plan.
+- Age-based retention: STR-V0-056 bounds the retained tables by count only.
 
 ## Boundaries and failure modes
 
@@ -353,7 +393,13 @@ STR-V0-009 fan-in through a third placement.
 | CI admission fails (pins, queue rules, `.github/` change, trip, kill switch) | `FULL` |
 | `test shards` history absent, unreadable, not admitted, over 64 tables, or naming no listed file | complete round-robin, `fallback` reason, stderr `FALLBACK`, exit 0 (STR-V0-053) |
 | `test shards` list empty, oversized, repeated or malformed entry; bad count or K | exit 2, no plan |
-| `--shard-plan` unreadable, non-canonical, incomplete or with a foreign digest | exit 2, nothing runs |
+| `--shard-plan` a FIFO, device, directory, symbolic link, missing or oversized (STR-V0-055) | exit 2 `test-shard-plan-unreadable` at once, nothing runs |
+| `--shard-plan` non-canonical, incomplete, with a foreign digest, or with an incomplete, misflagged, oversized or co-located slice set | exit 2, nothing runs |
+| `test shards` supplied table not admitted (STR-V0-056) | STR-V0-053 fallback, reason begins `test-shards-history-invalid` |
+| `test shards` only one of `--test-slices` and `--split-allow`, or either unreadable | exit 2, no plan |
+| Slice file or allow-list unusable, over 256 slices or 4 MiB of slices, or history fallback (STR-V0-057) | nothing split, every entry whole |
+| `refresh --history` refused refresh, bad `--keep` or `--at` | exit 2, neither table nor retained file written |
+| `refresh --history` retained-file write or prune fails | exit 2; the table is unchanged when the write fails |
 | Measured plan for another shard count, or omitting a run-set package | no Go unit, `INCOMPLETE` |
 
 Every failure fails closed toward a larger run or a nonzero exit. No path narrows on missing
@@ -403,7 +449,15 @@ Testing matrix (all `NOT_RUN` until implementation):
   once for 1 to 16 shards, repeats its bytes and digest, falls back to the reported round-robin for
   each history failure, and writes nothing but stdout and stderr; a measured plan drives a
   two-shard local run whose union `verify-shards` accepts and whose missing receipt is
-  `INCOMPLETE`.
+  `INCOMPLETE`;
+- a FIFO `--shard-plan` is refused with `test-shard-plan-unreadable` within a bounded time while
+  no writer opens it (STR-V0-055);
+- `refresh --history` writes byte-identical dated tables, keeps exactly the newest N matching
+  names and no other file, and the retained files plan without fallback; a malformed table names
+  `test-shards-history-invalid` (STR-V0-056);
+- a sliced plan places every slice once on distinct shards, binds its slices in the digest,
+  round-trips through `ReadShardPlan`, and runs each slice as a measured unit (STR-V0-057). The
+  STR-V0-057 wall-clock comparison against whole-package measured placement is `NOT_RUN`.
 
 Promotion from experimental requires the parity report, 20 merged PRs through the queue on the new
 CI call site with complete forward rows and no trip, and median and p90 PR wall time and
@@ -441,8 +495,12 @@ above, which removes balanced placement only.
 5. Further adapters, each with its own fixture qualification, before its language may narrow.
 6. Duration-balanced shard plans (STR-V0-050..054): `corvint test shards` and local measured
    placement, experimental; CI keeps universe placement and `.github/` is unchanged. Promotion
-   follows balanced placement's local 20% bar against universe placement.
+   follows balanced placement's local 20% bar against universe placement. STR-V0-055..057 keep
+   that status: sliced measured plans need the same executed 20% comparison, `NOT_RUN`.
 
+Rollback of STR-V0-055..057: revert their commits. STR-V0-055 restores the earlier plain open;
+`--history`, `--test-slices` and `--split-allow` are additive flags, a plan without slices is
+byte-identical, and retained files under a `--history` directory may be deleted by hand.
 Rollback of STR-V0-050..054: revert their commit; `test shards` and `--placement measured` are
 additive, read no state other than their named inputs, and change no default, CI step or receipt
 reader. Rollback of the V1-1257 evidence edits: revert their commit; they change no code, CI or selection.
@@ -482,6 +540,9 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-052 | `PlanShards` placement, `ShardPartitionDigest` | TestSTRV0052LongestFirstExactlyOnceDeterministic (a worked longest-first example; 97 files on 1 to 16 shards placed once with equal bytes and digest on repeat) |
 | STR-V0-053 | `historyWeights` fallback reasons, round-robin branch of `PlanShards` | TestSTRV0053FallbackIsCompleteRoundRobin (thirteen history failures), TestSTRV0053FallbackReasonIsDeterministic (sixteen invalid durations give identical plan bytes over 50 runs; a long reason is cut), TestSTRV0053CLIShardsOverTableBound (65 tables: exit 0, FALLBACK), TestSTRV0050CLIShardsPlan (absent and missing history) |
 | STR-V0-054 | `ReadShardPlan`; `placeMeasured` and the measured partition digest in `Build`; `--placement measured --shard-plan` in `parseTestOptions` and `runTest` | TestSTRV0054ReadShardPlan (seven malformed plans), TestSTRV0054MeasuredPlacement (NARROWED, FULL, other count, omitted package, no plan); TestSTRV0054CLIMeasuredShards (two-shard run, `verify-shards` PASS and missing-shard `INCOMPLETE`, five usage refusals) |
+| STR-V0-055 | `DecodeShardPlan` in `internal/sessiontest/shards.go`; `readBoundedFile` of `--shard-plan` in `runTest` (`cmd/corvint/test.go`) | `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0055ShardPlanReadIsBounded (FIFO with no writer refused with `test-shard-plan-unreadable` within the deadline; symbolic link, directory and missing file refused; a regular plan still runs); TestSTRV0054ReadShardPlan |
+| STR-V0-056 | `retain` and the `--history`, `--keep`, `--at` flags in `tools/ci-shard-costs/main.go`; `HistoryInvalidCode` in `historyWeights` | `tools/ci-shard-costs/main_test.go` TestSTRV0056RefreshRetainsDatedTables (byte-identical retained tables, newest N kept, foreign files untouched, refused refresh writes nothing, bad flags refused, retained files plan with no fallback); `internal/sessiontest/shards_test.go` TestSTRV0053FallbackIsCompleteRoundRobin (reasons begin `test-shards-history-invalid`); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0050CLIShardsPlan (absent table's reason begins `test-shards-history-invalid`) |
+| STR-V0-057 | `PlanShardsSliced`, `sliceUnits`, `placeUnits`, `checkPlannedSlices` in `DecodeShardPlan`, `ShardPartitionDigest` in `internal/sessiontest/shards.go`; `placeMeasured` slice units; `--test-slices`, `--split-allow` in `runTestShards` | `internal/sessiontest/shards_test.go` TestSTRV0057SlicedPlan (weights, distinct shards, digest binds slices, round trip, no-slice plans byte-identical, fallback and unusable inputs split nothing), TestSTRV0057ReadShardPlanSliceRefusals (flags, patterns, weights, siblings, missing, duplicate, whole and sliced, order, count, empty member, each under a recomputed digest), TestSTRV0057MeasuredPlacementRunsSlices (each slice on its planned shard with its flag and pattern); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0057CLIShardsSlices |
 
 ## Open decisions
 

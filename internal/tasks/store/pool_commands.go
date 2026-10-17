@@ -70,9 +70,19 @@ func poolConfig(root string, ref *intent.ConfigRef) error {
 	return nil
 }
 func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
+	var probe identityProbe
 	return func(proof *journal.Result, in *transaction.Input) (transaction.LeaseFacts, error) {
 		f := transaction.LeaseFacts{Pool: choice.pool}
 		l := choice.Lease
+		if l.Verb == transaction.LeasePoolSafe && choice.pool.Identity == nil {
+			// PSR-V0-083: the guarded member's identity, observed against
+			// the state this transaction decides on.
+			raw, e := probe.facts(ctx, repo, choice, in.Policy, in.Pools)
+			if e != nil {
+				return f, e
+			}
+			f.Pool.Identity = raw
+		}
 		if l.Verb == transaction.LeasePoolPrepare || l.Verb == transaction.LeasePoolCleanup {
 			rev, _, e := poolSource(leaseRoot(repo, choice))
 			if e != nil {

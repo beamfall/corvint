@@ -26,6 +26,10 @@ Usage:
     [--summary]
   corvint [--root PATH] runs fresh --old REV --new REV [--cite PATH[,PATH...]]
     [--summary]
+  corvint [--root PATH] runs baseline record --rev REV --full FILE[,FILE...]
+    --isolated FILE[,FILE...]
+  corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...]
+    [--own PATH[,PATH...]] [--base REV] [--max-age N]
 
 stability pools each test (project, file, title path) across runs whose
 identity inputs match: Playwright version plus the applicationRevision,
@@ -98,15 +102,30 @@ DIFF_BOUND_EXCEEDED); UNRESOLVED is never FRESH. Shared patterns come from
 "corvint-evidence-reach/0","shared":[...]}, repository-relative globs where
 ** spans directories and a trailing / covers a directory.
 
+baseline record prints a corvint-run-baseline/0 document for the caller to
+retain: the tests that failed both in the --full run and in the --isolated
+re-run at --rev are known, each bound to both reports' paths and sha256; a
+test that failed or was flaky in the full run only is a suspected flake.
+baseline diff gates --runs on it: every unambiguous failing test is new
+(NOT_IN_BASELINE, IDENTITY_AMBIGUOUS), known or flaky (SUSPECTED_FLAKE,
+never excused). A known failure is excused (KNOWN_VERIFIED) only when both
+recorded reports re-read with their digests and still fail it, and its file
+is not under --own; otherwise EVIDENCE_MISSING, EVIDENCE_CHANGED,
+EVIDENCE_PASSING or OWN_FILE. The receipt binds the baseline revision and
+sha256 and lists new, known, flaky, fixed and unobserved sets with counts;
+staleness is FRESH, STALE (more than --max-age commits, default 50, from the
+baseline revision to the branch point of HEAD and --base, or not an
+ancestor) or NOT_OBSERVED. Exit 1 when the verdict is BLOCKED.
+
 --summary prints the compact form: counts without per-test, per-run or path
 rows. Reads only the named regular files (relative to --root when given; at
-most 64 per option, 64 MiB each) and, for fresh and --fresh, bounded Git
-reads of the repository at --root; writes nothing and uses no network. Exit 0
+most 64 per option, 64 MiB each; a baseline 16 MiB) and, for fresh, --fresh
+and baseline, bounded Git reads of the repository at --root; writes nothing and uses no network. Exit 0
 with JSON on stdout. Refusals: runs-invalid-arguments,
-runs-report-unavailable (stability, reusable, redundancy),
-runs-output-unavailable.
+runs-report-unavailable (stability, reusable, redundancy, baseline),
+runs-baseline-unavailable, runs-revision-unresolved, runs-output-unavailable.
 Contract: docs/specs/playwright-run-evidence-v0.md (proposed; V1-1230,
-V1-1229, V1-1578).
+V1-1229, V1-1578, V1-1590).
 `
 
 var errRunsArgument = errors.New("runs-invalid-arguments")
@@ -175,6 +194,8 @@ func runRuns(ctx context.Context, root string, args []string, out, diagnostic io
 		return runRunsRedundancy(root, args[1:], out, diagnostic)
 	case "fresh":
 		return runRunsFresh(ctx, root, args[1:], out, diagnostic)
+	case "baseline":
+		return runRunsBaseline(ctx, root, args[1:], out, diagnostic)
 	}
 	return runsRefuse(diagnostic, "runs-invalid-arguments", nil)
 }

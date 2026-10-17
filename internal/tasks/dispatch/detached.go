@@ -61,7 +61,10 @@ type RunReader interface {
 }
 
 const (
-	detachedProfile = "taskman-dispatch-detached-run/0"
+	// detachedProfile is written; detachedProfileV0, the same marker
+	// without the context member, is still read (ATR-V0-057).
+	detachedProfile   = "taskman-dispatch-detached-run/1"
+	detachedProfileV0 = "taskman-dispatch-detached-run/0"
 	// detachedDirName holds one marker per deferred run, beside the ledger
 	// and never inside it.
 	detachedDirName        = "detached"
@@ -112,6 +115,10 @@ type detachedMarker struct {
 	Result             string    `json:"result"`
 	Output             string    `json:"output"`
 	Successor          string    `json:"successor"`
+	// Context is the ATR-V0-035 hand-off detail of a worker stopped for
+	// context, kept so a hand-off made after a restart still carries it
+	// (ATR-V0-057); absent for any other worker.
+	Context map[string]string `json:"context,omitempty"`
 }
 
 func validRunName(s string) bool {
@@ -132,9 +139,12 @@ func decodeDetachedMarker(raw []byte, name string) (*detachedMarker, error) {
 	if len(raw) > maxDetachedMarkerBytes {
 		return nil, errors.New("marker too large")
 	}
-	// Another build's marker version is refused, not misread (CAL-V0-131).
+	// Another build's marker version is refused, not misread (CAL-V0-131);
+	// the earlier version /0 is read (ATR-V0-057).
 	if err := wire.RawProfileVersion("/profile", raw, detachedProfile); err != nil {
-		return nil, err
+		if wire.RawProfileVersion("/profile", raw, detachedProfileV0) != nil {
+			return nil, err
+		}
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
@@ -146,8 +156,10 @@ func decodeDetachedMarker(raw []byte, name string) (*detachedMarker, error) {
 		return nil, errors.New("marker has trailing data")
 	}
 	switch {
-	case m.Profile != detachedProfile:
+	case m.Profile != detachedProfile && m.Profile != detachedProfileV0:
 		return nil, fmt.Errorf("marker profile is not %s", detachedProfile)
+	case m.Context != nil && (m.Profile == detachedProfileV0 || !validMarkerContext(m.Context)):
+		return nil, errors.New("marker context is not a CONTEXT hand-off detail")
 	case !validRunName(m.RunID) || name != m.RunID+".json":
 		return nil, errors.New("marker does not name its run")
 	case m.AttemptID == "" || m.Generation == "" || m.Ticket == "" || m.Role == "" || m.Worker == "":
@@ -169,6 +181,22 @@ func decodeDetachedMarker(raw []byte, name string) (*detachedMarker, error) {
 	}
 	return &m, nil
 }
+
+// validMarkerContext reports that c is exactly the ATR-V0-035 detail:
+// reason CONTEXT, and contextTokens and hardTokens each a decimal or UNKNOWN.
+func validMarkerContext(c map[string]string) bool {
+	if len(c) != 3 || c["reason"] != "CONTEXT" {
+		return false
+	}
+	for _, k := range []string{"contextTokens", "hardTokens"} {
+		if v, ok := c[k]; !ok || v != UsageUnknown && !isDecimal(v) {
+			return false
+		}
+	}
+	return true
+}
+
+func isDecimal(s string) bool { _, ok := decimal(s); return ok }
 
 func (d *Dispatcher) detachedDir() string { return filepath.Join(d.dir, detachedDirName) }
 
@@ -250,8 +278,9 @@ func (d *Dispatcher) loadDetached() {
 	}
 }
 
-// saveDetached writes one marker atomically.
+// saveDetached writes one marker atomically, in the current version.
 func (d *Dispatcher) saveDetached(m *detachedMarker) error {
+	m.Profile = detachedProfile
 	raw, err := json.Marshal(m)
 	if err != nil {
 		return err
@@ -393,7 +422,7 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: w.ID, Message: fmt.Sprintf("%d detached runs are already tracked; %s is handed off now although its detached run %s still runs", maxDetachedMarkers, d.local(obs, a.Ticket), run.RunID)})
 				continue
 			}
-			m := &detachedMarker{Profile: detachedProfile, RunID: run.RunID, AttemptID: a.ID, Generation: a.Generation, Ticket: a.Ticket, Role: w.Role, Worker: w.ID, SupervisorPID: run.SupervisorPID, SupervisorIdentity: run.SupervisorIdentity, Phase: DetachedDeferred, DeferredAt: now.UTC(), DeferUntil: until.UTC()}
+			m := &detachedMarker{Profile: detachedProfile, RunID: run.RunID, AttemptID: a.ID, Generation: a.Generation, Ticket: a.Ticket, Role: w.Role, Worker: w.ID, SupervisorPID: run.SupervisorPID, SupervisorIdentity: run.SupervisorIdentity, Phase: DetachedDeferred, DeferredAt: now.UTC(), DeferUntil: until.UTC(), Context: d.contextHandoffDetail(w)}
 			if old := d.detached[run.RunID]; old != nil {
 				continue // the same run already defers another attempt or worker
 			}
@@ -422,9 +451,9 @@ func (d *Dispatcher) deferHandoffs(obs *Observation, ended []*Worker, done map[s
 
 // keepDeferredContext keeps the ATR-V0-035 detail of context-stopped
 // worker w for the deferred hand-off of attempt id, and returns it (nil for
-// any other worker). It is held in memory only: a hand-off deferred across
-// a dispatcher restart carries it when the restarted run still finds w
-// ended in the ledger (ATR-V0-035).
+// any other worker). The deferral marker also carries it (ATR-V0-057), so a
+// hand-off deferred across a dispatcher restart keeps it even after w has
+// left the ledger (ATR-V0-035).
 func (d *Dispatcher) keepDeferredContext(id string, w *Worker) map[string]string {
 	detail := d.contextHandoffDetail(w)
 	if detail == nil {
@@ -484,6 +513,7 @@ func (d *Dispatcher) advanceDetached(ctx context.Context, obs *Observation, done
 			if ours {
 				done[a.ID], wrote = true, true
 				extra := map[string]string{"detachedRun": m.RunID}
+				maps.Copy(extra, m.Context)
 				maps.Copy(extra, d.deferredContext[a.ID])
 				d.handoff(ctx, obs, m.Worker, m.Role, *a, extra)
 			}

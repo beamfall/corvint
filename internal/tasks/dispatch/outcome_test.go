@@ -1,6 +1,7 @@
 package dispatch
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -39,9 +40,29 @@ func TestTQDV0030_ClassifyHostLine(t *testing.T) {
 		{"other", `{"type":"turn.started"}`, HostNone},
 		{"codex", `{"type":"turn.started","pad":"` + strings.Repeat("x", maxUsageLine) + `"}`, HostNone},
 	} {
-		if got := ClassifyHostLine(c.format, []byte(c.line)); got != c.want {
+		var want []HostEvent
+		if c.want != HostNone {
+			want = []HostEvent{c.want}
+		}
+		if got := ClassifyHostLine(c.format, []byte(c.line)); !slices.Equal(got, want) {
 			n := min(len(c.line), 120)
-			t.Errorf("%s %s: got %v, want %v", c.format, c.line[:n], got, c.want)
+			t.Errorf("%s %s: got %v, want %v", c.format, c.line[:n], got, want)
+		}
+	}
+	// A Claude Code result the CAL-V0-075 member rules reject is no event,
+	// never a host error; each tool_result block is one call, in order.
+	failed := `{"type":"tool_result","is_error":true,"content":"denied"}`
+	for _, c := range []struct {
+		line string
+		want []HostEvent
+	}{
+		{`{"type":"result","type":"result","subtype":"error_during_execution","is_error":true,"session_id":"s"}`, nil},
+		{`{"type":"result","Type":"result","subtype":"error_during_execution","is_error":true,"session_id":"s"}`, nil},
+		{`{"type":"user","message":{"content":[` + failed + `,` + failed + `,` + failed + `]}}`, []HostEvent{HostToolFailed, HostToolFailed, HostToolFailed}},
+		{`{"type":"user","message":{"content":[{"type":"tool_result","content":"ok"},` + failed + `]}}`, []HostEvent{HostToolOK, HostToolFailed}},
+	} {
+		if got := ClassifyHostLine("claude-code", []byte(c.line)); !slices.Equal(got, c.want) {
+			t.Errorf("claude-code %s: got %v, want %v", c.line, got, c.want)
 		}
 	}
 }

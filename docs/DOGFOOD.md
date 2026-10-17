@@ -944,6 +944,8 @@ correctness against a preregistered equal-tool baseline when one exists. Until p
 exists, report raw observations and product misses only; do not claim token savings from a single
 dogfood run.
 
+After merges land, run `corvint-tasks ticket closeout-debt` and finish each listed candidate through the native claim, submit, gate and complete path (TCD-V0-010).
+
 ## Enrolled local completion policy
 
 The separate [local completion policy](specs/local-completion-policy-v0.md) coordinates the loop

@@ -67,18 +67,7 @@ func runRunsReusable(ctx context.Context, root string, args []string, out, diagn
 // config.rootDir under the repository top level, else the check is unresolved (PWR-V0-036).
 func testFileFreshness(ctx context.Context, root string, selection *playwrightruns.Run) playwrightruns.FreshnessCheck {
 	reader := evidencereach.NewReader(root)
-	prefix, located := "", false
-	switch rel := selection.TestRootPath; {
-	case rel == ".":
-		located = true
-	case rel != "":
-		prefix, located = rel, evidencereach.ValidPath(rel)
-	case selection.RootDir != "":
-		toplevel, err := sourceGitText(ctx, root, 8192, "rev-parse", "--show-toplevel")
-		if err == nil {
-			prefix, located = repositoryRelative(toplevel, selection.RootDir)
-		}
-	}
+	prefix, located := runTestRoot(ctx, root, selection)
 	return func(oldRevision, newRevision, testFile string) playwrightruns.FreshVerdict {
 		cited := path.Join(prefix, testFile)
 		if !located || !locatableTestFile(testFile) || !evidencereach.ValidPath(cited) {
@@ -91,6 +80,24 @@ func testFileFreshness(ctx context.Context, root string, selection *playwrightru
 		}
 		return playwrightruns.FreshVerdict{Verdict: res.Verdict, Reason: res.Reason, Paths: paths, Truncated: res.DecidingTruncated}
 	}
+}
+
+// runTestRoot is the repository-relative directory a report's rootDir-relative test files are
+// under: its declared testRootPath, else its config.rootDir under the repository top level.
+// located is false when neither resolves inside the repository.
+func runTestRoot(ctx context.Context, root string, run *playwrightruns.Run) (prefix string, located bool) {
+	switch rel := run.TestRootPath; {
+	case rel == ".":
+		return "", true
+	case rel != "":
+		return rel, evidencereach.ValidPath(rel)
+	case run.RootDir != "":
+		toplevel, err := sourceGitText(ctx, root, 8192, "rev-parse", "--show-toplevel")
+		if err == nil {
+			return repositoryRelative(toplevel, run.RootDir)
+		}
+	}
+	return "", false
 }
 
 // locatableTestFile reports whether a report's rootDir-relative test file name may be joined to

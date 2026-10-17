@@ -164,6 +164,37 @@ func TestRunsReusableCLI(t *testing.T) {
 			}
 		}
 	})
+	t.Run("PWR-V0-036 a report from another machine resolves through its declared testRootPath", func(t *testing.T) {
+		// V1-1611: config.rootDir is another machine's path, so only testRootPath can locate the file.
+		withRoot := func(body, rootPath string) string {
+			return strings.Replace(body, `"testRevision":`, `"testRootPath":`+jsonString(rootPath)+`,"testRevision":`, 1)
+		}
+		foreign := "/home/ci/build/e2e"
+		writeRunsReports(t, repo, map[string]string{
+			"ci-prior.json":    withRoot(runsReuseReport("passed", a, a, foreign, ""), "e2e"),
+			"ci-sel-b.json":    withRoot(runsReuseReport("passed", b, a, foreign, ""), "e2e"),
+			"ci-sel-c.json":    withRoot(runsReuseReport("passed", c, a, foreign, ""), "e2e"),
+			"ci-sel-bad.json":  withRoot(runsReuseReport("passed", b, a, foreign, ""), "../e2e"),
+			"ci-sel-none.json": runsReuseReport("passed", b, a, foreign, ""),
+		})
+		t.Cleanup(func() {
+			for _, n := range []string{"ci-prior.json", "ci-sel-b.json", "ci-sel-c.json", "ci-sel-bad.json", "ci-sel-none.json"} {
+				_ = os.Remove(filepath.Join(repo, n))
+			}
+		})
+		want := map[string]string{"ci-sel-b.json": "FRESH_PASS", "ci-sel-c.json": "STALE", "ci-sel-bad.json": "FRESHNESS_UNRESOLVED", "ci-sel-none.json": "FRESHNESS_UNRESOLVED"}
+		for sel, reason := range want {
+			_, out, _ := runsCLI(t, "--root", repo, "runs", "reusable", "--prior", "ci-prior.json", "--selection", sel, "--fresh")
+			var doc reuseDoc
+			decodeRuns(t, out, &doc)
+			if len(doc.Tests) != 1 || doc.Tests[0].Reason != reason {
+				t.Fatalf("%s: want %s: %s", sel, reason, out)
+			}
+			if reason == "FRESHNESS_UNRESOLVED" && doc.Tests[0].Detail != "TEST_ROOT_UNRESOLVED" {
+				t.Fatalf("%s: untyped unresolved: %s", sel, out)
+			}
+		}
+	})
 	t.Run("PWR-V0-039 PWR-V0-040 runs fresh reads the declared reach", func(t *testing.T) {
 		var res struct {
 			Verdict  string `json:"verdict"`

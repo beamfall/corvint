@@ -332,10 +332,15 @@ type contextState struct {
 	// write), so it crosses nothing and stops nothing until a line read by
 	// this run replaces it (ATR-V0-038).
 	reloaded bool
+	// foreign marks a record another build wrote (UNSUPPORTED_VERSION):
+	// this run never writes over it (ATR-V0-054).
+	foreign bool
 }
 
 // contextFor returns worker w's state, loading its record after a restart.
-// An unreadable record alerts once and is replaced (ATR-V0-033).
+// A damaged record alerts once and is replaced (ATR-V0-033, ATR-V0-055); a
+// record of another profile version alerts once and is preserved
+// (ATR-V0-054).
 func (d *Dispatcher) contextFor(w *Worker) *contextState {
 	if st := d.contexts[w.ID]; st != nil {
 		return st
@@ -349,6 +354,9 @@ func (d *Dispatcher) contextFor(w *Worker) *contextState {
 		st.rec, st.reloaded = *rec, true
 	case errors.Is(err, fs.ErrNotExist):
 		st.dirty = true // first written on the first supervising tick
+	case wire.CodeOf(err) == wire.CodeUnsupportedVersion:
+		st.foreign = true
+		d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("the context record of %s was written by another build; it is kept unchanged and this dispatcher records no crossing for the worker: %v", w.ID, err)})
 	default:
 		st.dirty = true
 		d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("the context record of %s is unreadable; starting a fresh one: %v", w.ID, err)})
@@ -403,7 +411,12 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 			next.Level = c.Level
 		}
 	}
-	if st.dirty || !bytes.Equal(next.encode(), st.rec.encode()) {
+	if st.foreign {
+		// Nothing is written or reported; the hard stop still follows the
+		// estimate (ATR-V0-054).
+		next.Crossings, next.Level = st.rec.Crossings, st.rec.Level
+		st.rec = next
+	} else if st.dirty || !bytes.Equal(next.encode(), st.rec.encode()) {
 		if err := writeAtomic(ContextRecordPath(d.dir, w.ID), next.encode()); err != nil {
 			// The estimate is kept; the crossings wait for a written record.
 			next.Crossings, next.Level = st.rec.Crossings, st.rec.Level
