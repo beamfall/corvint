@@ -90,6 +90,11 @@ func planSupervisor(c leaseContext) leaseOutcome {
 		if a.ReleasedPoolAllocation != nil {
 			return c.fail(wire.Errorf(wire.CodeUnsupported, "pool", "an attempt that returned its allocation early cannot attach to a supervisor"))
 		}
+		// PSR-V0-039: a supervised attempt is never expired, reaped or
+		// slot-released, so slots it held or waited for would never free.
+		if c.holdsSlots(a) {
+			return c.fail(wire.Errorf(wire.CodeUnsupported, "slots", "an attempt holding or waiting for capacity slots cannot attach to a supervisor; release them first"))
+		}
 		if a.Supervision != nil || a.RuntimeID != snapshot.RuntimeExternalAgent || a.Phase != "RUNNING" {
 			return c.fail(malformed("supervised attach phase"))
 		}

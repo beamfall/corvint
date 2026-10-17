@@ -2936,6 +2936,11 @@ PSR-V0-035	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	71	(accepted under the
 PSR-V0-036	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	72	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) `slots r	standing	2026-10-11; V1-1550
 PSR-V0-037	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	73	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Acquire	standing	2026-10-11; V1-1550
 PSR-V0-038	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	74	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Every `s	standing	2026-10-11; V1-1550
+PSR-V0-039	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	75	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) An attem	standing	2026-10-11; V1-1550
+PSR-V0-040	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	76	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Grants f	standing	2026-10-11; V1-1550
+PSR-V0-041	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	77	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) An exclu	standing	2026-10-11; V1-1550
+PSR-V0-042	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	78	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) Every `s	standing	2026-10-11; V1-1550
+PSR-V0-043	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	79	(accepted under the owner's standing auto-accept (2026-10-11), V1-1550) A replay	standing	2026-10-11; V1-1550
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-

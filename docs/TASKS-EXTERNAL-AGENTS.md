@@ -334,7 +334,7 @@ lane-untouched. Ending an attempt that still holds an acquired allocation quaran
 
 A scarce stateless resource (an API rate budget, a licence seat count) needs no member, cleanup or
 quarantine: declare it in policy `slots` as `{"id":"gpu","capacity":"4","reserved":{"ci":"1"}}` and
-take shared capacity from a live attempt (PSR-V0-030..038):
+take shared capacity from a live attempt (PSR-V0-030..043):
 
 ```sh
 corvint-tasks slots acquire --attempt ATTEMPT --generation G --slots gpu --count 2 --request-id slots-0
@@ -346,7 +346,8 @@ request ID; waiters are granted by ticket priority, then request order. `--exclu
 whole capacity and stops new shared grants until it is granted; `--class LABEL` draws on that
 class's reservation, which other classes never take. Ending, reaping or crashing frees the
 attempt's slots without operator action, and `queue status` reports occupancy and waiters under
-`slots`.
+`slots`. Every accepted request records a receipt, so a retried request ID replays with `slot` null
+rather than acting on, or reporting, a later state. Release slots before attaching a supervisor.
 
 Optional `memberConfig` supplies immutable regular Git `configRef:{revision,path,blob}` references and
 `health`/`cleanup` commands. Each command has `argv`, `cwd`, declared `env` names and

@@ -75,6 +75,11 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 			report.Reaped = reaped
 			report.ReapReceipts = reapReceipts
 			if err == nil && (choice.Lease.Verb == transaction.LeaseSlotAcquire || choice.Lease.Verb == transaction.LeaseSlotRelease) {
+				// PSR-V0-043: a replay reports no slot; the current state may
+				// be a later request's grant.
+				if report.Outcome.Replayed {
+					return report, nil
+				}
 				return report, slotObservation(ctx, repo, choice.Lease, report)
 			}
 			if err == nil && (choice.Lease.Verb == transaction.LeasePoolAcquire || choice.Lease.Verb == transaction.LeasePoolRelease) {

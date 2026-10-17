@@ -21,8 +21,16 @@ import (
 func slotsStore(t *testing.T, capacity string, reserved ...string) *leaseStore {
 	t.Helper()
 	s := newLeaseStore(t)
+	s.slotsPolicy(t, now(t), "2", capacity, reserved...)
+	return s
+}
+
+// slotsPolicy publishes, at at, the policy version after expected declaring
+// gpu with capacity and the class reservations.
+func (s *leaseStore) slotsPolicy(t *testing.T, at wire.Timestamp, expected, capacity string, reserved ...string) {
+	t.Helper()
 	v := fixture.PolicyValue()
-	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("policyVersion", str(string(wire.SizeOf(wire.Size(expected).Uint64()+1))))
 	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
 	budgets, _ := v.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
@@ -35,11 +43,10 @@ func slotsStore(t *testing.T, capacity string, reserved ...string) *leaseStore {
 		gpu.Obj.Set("reserved", wire.ObjectValue(classes))
 	}
 	v.Obj.Set("slots", wire.Array(gpu))
-	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("slots", "2", wire.EncodeFile(v)), now(t))
+	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("slots-"+expected, expected, wire.EncodeFile(v)), at)
 	if e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("policy %+v %v", rep, e)
 	}
-	return s
 }
 
 func slotAcquire(a *store.Report, count string) transaction.LeaseRequest {
@@ -209,16 +216,16 @@ func TestPSRV0035_ReservedClassNeverStarved(t *testing.T) {
 }
 
 // TestPSRV0036_ReleaseAndRefusals: release drops a waiting entry, releasing
-// nothing is a no-change, a barrier pauses acquire but not release, and a
-// fenced, unknown or re-parameterized request refuses without a write.
+// nothing changes no entry (its receipt is PSR-V0-042's), a barrier pauses
+// acquire but not release, and a fenced, unknown or re-parameterized request
+// refuses without a write.
 func TestPSRV0036_ReleaseAndRefusals(t *testing.T) {
 	t.Parallel()
 	s := slotsStore(t, "1")
 	one, two := s.ticket(t, "one"), s.ticket(t, "two")
 	a := s.claim(t, "claim-a", one, 0, "a/")
 	b := s.claim(t, "claim-b", two, 0, "b/")
-	before := storeDigest(t, s.repo)
-	if r := s.lease(t, "none", slotRelease(a), 1, nil); r.Kind != "NoChange" || r.Slot == nil || r.Slot.State != "NONE" || storeDigest(t, s.repo) != before {
+	if r := s.lease(t, "none", slotRelease(a), 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted || r.Slot == nil || r.Slot.State != "NONE" || len(s.slotEntries(t)) != 0 {
 		t.Fatalf("empty release %+v", r)
 	}
 	slotIs(t, s.lease(t, "a-1", slotAcquire(a, "1"), 1, nil), snapshot.SlotHeld, 0)
@@ -256,9 +263,9 @@ func TestPSRV0036_ReleaseAndRefusals(t *testing.T) {
 }
 
 // TestPSRV0037_AcquireIdempotentByRequestID: retrying a request ID replays
-// its committed receipt without a write, and the replay's slot member is the
-// current state; a poll with a fresh ID and the same parameters writes
-// nothing while nothing changes.
+// its committed receipt without a write (with no slot member, PSR-V0-043); a
+// poll with a fresh ID and the same parameters leaves pools.json unchanged
+// while nothing changes.
 func TestPSRV0037_AcquireIdempotentByRequestID(t *testing.T) {
 	t.Parallel()
 	s := slotsStore(t, "1")
@@ -269,17 +276,139 @@ func TestPSRV0037_AcquireIdempotentByRequestID(t *testing.T) {
 	slotIs(t, first, snapshot.SlotHeld, 0)
 	before := storeDigest(t, s.repo)
 	again := s.lease(t, "a-1", slotAcquire(a, "1"), 2, nil)
-	if again.Kind != "Replay" || !again.Outcome.Replayed || again.Outcome.ReceiptSeq == nil || first.Outcome.ReceiptSeq == nil || *again.Outcome.ReceiptSeq != *first.Outcome.ReceiptSeq || storeDigest(t, s.repo) != before {
+	if again.Kind != "Replay" || !again.Outcome.Replayed || again.Outcome.ReceiptSeq == nil || first.Outcome.ReceiptSeq == nil || *again.Outcome.ReceiptSeq != *first.Outcome.ReceiptSeq || storeDigest(t, s.repo) != before || again.Slot != nil {
 		t.Fatalf("replay %+v", again)
 	}
-	slotIs(t, again, snapshot.SlotHeld, 0)
-	if poll := s.lease(t, "a-2", slotAcquire(a, "1"), 2, nil); poll.Kind != "NoChange" || storeDigest(t, s.repo) != before {
-		t.Fatalf("poll %+v", poll)
+	pools := s.poolsBytes(t)
+	poll := s.lease(t, "a-2", slotAcquire(a, "1"), 2, nil)
+	slotIs(t, poll, snapshot.SlotHeld, 0)
+	if string(s.poolsBytes(t)) != string(pools) {
+		t.Fatalf("poll changed pools.json %+v", poll)
 	}
 	slotIs(t, s.lease(t, "b-1", slotAcquire(b, "1"), 3, nil), snapshot.SlotWaiting, 1)
 	before = storeDigest(t, s.repo)
 	if r := s.lease(t, "b-1", slotAcquire(b, "1"), 4, nil); r.Kind != "Replay" || storeDigest(t, s.repo) != before {
 		t.Fatalf("waiting replay %+v", r)
+	}
+	auditOK(t, s.repo)
+}
+
+func (s *leaseStore) poolsBytes(t *testing.T) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// TestPSRV0039_SupervisorAttachRefusedWithSlots is in the transaction
+// package (planSupervisor).
+
+// TestPSRV0040_GrantsFollowCurrentPolicy: after the capacity drops, a queued
+// exclusive request is granted the current capacity, not its enqueue-time
+// count, and a waiter the new policy can never grant neither is granted nor
+// blocks a later waiter; its own poll refuses as a fresh acquire would.
+func TestPSRV0040_GrantsFollowCurrentPolicy(t *testing.T) {
+	t.Parallel()
+	s := slotsStore(t, "2")
+	one, two, three := s.ticket(t, "one"), s.ticket(t, "two"), s.ticket(t, "three")
+	a := s.claim(t, "claim-a", one, 0, "a/")
+	x := s.claim(t, "claim-x", two, 0, "x/")
+	b := s.claim(t, "claim-b", three, 0, "b/")
+	slotIs(t, s.lease(t, "a-1", slotAcquire(a, "1"), 1, nil), snapshot.SlotHeld, 0)
+	slotIs(t, s.lease(t, "x-1", slotExclusive(x), 2, nil), snapshot.SlotWaiting, 1)
+	s.slotsPolicy(t, s.at(t, 3), "3", "1")
+	slotIs(t, s.lease(t, "a-2", slotRelease(a), 4, nil), "NONE", 0)
+	if en := s.slotEntries(t)[x.AttemptID]; en.State != snapshot.SlotHeld || en.Count != "1" {
+		t.Fatalf("exclusive granted above the current capacity %+v", en)
+	}
+	slotIs(t, s.lease(t, "x-2", slotExclusive(x), 5, nil), snapshot.SlotHeld, 0)
+	slotIs(t, s.lease(t, "x-3", slotRelease(x), 6, nil), "NONE", 0)
+	s.slotsPolicy(t, s.at(t, 7), "4", "3")
+	slotIs(t, s.lease(t, "a-3", slotAcquire(a, "1"), 8, nil), snapshot.SlotHeld, 0)
+	slotIs(t, s.lease(t, "b-1", slotAcquire(b, "3"), 9, nil), snapshot.SlotWaiting, 1)
+	slotIs(t, s.lease(t, "x-4", slotAcquire(x, "1"), 10, nil), snapshot.SlotWaiting, 2)
+	s.slotsPolicy(t, s.at(t, 11), "5", "2")
+	slotIs(t, s.lease(t, "x-5", slotAcquire(x, "1"), 12, nil), snapshot.SlotHeld, 0)
+	refusedWith(t, s.lease(t, "b-2", slotAcquire(b, "3"), 13, nil), mutation.OutcomeValidationFailed, wire.CodeLimitExceeded)
+	if en := s.slotEntries(t); en[b.AttemptID].State != snapshot.SlotWaiting || en[a.AttemptID].State != snapshot.SlotHeld {
+		t.Fatalf("entries %+v", en)
+	}
+	slotIs(t, s.lease(t, "b-3", slotRelease(b), 14, nil), "NONE", 0)
+	auditOK(t, s.repo)
+}
+
+// TestPSRV0041_ExclusiveDemandCannotStarveReservedClass: two P0 exclusive
+// requesters alternating cannot pass a P3 reserved-class request enqueued
+// before the next exclusive one, and a reserved-class request enqueued after
+// an exclusive one still waits for it (PSR-V0-033).
+func TestPSRV0041_ExclusiveDemandCannotStarveReservedClass(t *testing.T) {
+	t.Parallel()
+	s := slotsStore(t, "2", "ci", "1")
+	x1t, x2t := s.planned(t, "x1", "P0", "x/"), s.planned(t, "x2", "P0", "y/")
+	wt, w2t := s.planned(t, "w", "P3", "w/"), s.planned(t, "w2", "P3", "v/")
+	x1 := s.claim(t, "claim-x1", x1t, 0, "x/")
+	x2 := s.claim(t, "claim-x2", x2t, 0, "y/")
+	w := s.claim(t, "claim-w", wt, 0, "w/")
+	w2 := s.claim(t, "claim-w2", w2t, 0, "v/")
+	slotIs(t, s.lease(t, "x1-1", slotExclusive(x1), 1, nil), snapshot.SlotHeld, 0)
+	slotIs(t, s.lease(t, "w-1", slotClass(w, "1", "ci"), 2, nil), snapshot.SlotWaiting, 1)
+	slotIs(t, s.lease(t, "x2-1", slotExclusive(x2), 3, nil), snapshot.SlotWaiting, 1)
+	slotIs(t, s.lease(t, "x1-2", slotRelease(x1), 4, nil), "NONE", 0)
+	if en := s.slotEntries(t); en[w.AttemptID].State != snapshot.SlotHeld || en[x2.AttemptID].State != snapshot.SlotWaiting {
+		t.Fatalf("a later exclusive passed the reserved class %+v", en)
+	}
+	slotIs(t, s.lease(t, "x1-3", slotExclusive(x1), 5, nil), snapshot.SlotWaiting, 2)
+	slotIs(t, s.lease(t, "w2-1", slotClass(w2, "1", "ci"), 6, nil), snapshot.SlotWaiting, 3)
+	slotIs(t, s.lease(t, "w-2", slotRelease(w), 7, nil), "NONE", 0)
+	if en := s.slotEntries(t); en[x2.AttemptID].State != snapshot.SlotHeld || en[w2.AttemptID].State != snapshot.SlotWaiting {
+		t.Fatalf("exclusive not granted after the earlier reserved request %+v", en)
+	}
+	slotIs(t, s.lease(t, "x2-2", slotRelease(x2), 8, nil), "NONE", 0)
+	if en := s.slotEntries(t); en[x1.AttemptID].State != snapshot.SlotHeld || en[w2.AttemptID].State != snapshot.SlotWaiting {
+		t.Fatalf("earlier exclusive not granted before the later reserved request %+v", en)
+	}
+	slotIs(t, s.lease(t, "x1-4", slotRelease(x1), 9, nil), "NONE", 0)
+	slotIs(t, s.lease(t, "w2-2", slotClass(w2, "1", "ci"), 10, nil), snapshot.SlotHeld, 0)
+	auditOK(t, s.repo)
+}
+
+// TestPSRV0042_NoChangeRequestsReplay: a release with no entry and a poll
+// that grants nothing each record a receipt, so retrying either request id
+// replays it instead of releasing a later grant or re-enqueueing.
+func TestPSRV0042_NoChangeRequestsReplay(t *testing.T) {
+	t.Parallel()
+	s := slotsStore(t, "1")
+	a := s.claim(t, "claim-a", s.ticket(t, "one"), 0, "a/")
+	if r := s.lease(t, "none", slotRelease(a), 1, nil); r.Kind != "Transaction" || r.Outcome.Outcome != mutation.OutcomeCompleted || r.Receipt == "" {
+		t.Fatalf("empty release not recorded %+v", r)
+	}
+	slotIs(t, s.lease(t, "a-1", slotAcquire(a, "1"), 2, nil), snapshot.SlotHeld, 0)
+	if r := s.lease(t, "none", slotRelease(a), 3, nil); !r.Outcome.Replayed || s.slotEntries(t)[a.AttemptID].State != snapshot.SlotHeld {
+		t.Fatalf("retried empty release released a later grant %+v", r)
+	}
+	if r := s.lease(t, "poll", slotAcquire(a, "1"), 4, nil); r.Kind != "Transaction" || r.Receipt == "" {
+		t.Fatalf("no-change poll not recorded %+v", r)
+	}
+	slotIs(t, s.lease(t, "a-2", slotRelease(a), 5, nil), "NONE", 0)
+	if r := s.lease(t, "poll", slotAcquire(a, "1"), 6, nil); !r.Outcome.Replayed || len(s.slotEntries(t)) != 0 {
+		t.Fatalf("retried poll re-enqueued %+v", r)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestPSRV0043_ReplayCarriesNoSlot: a replay does not report a later
+// request's grant as its own.
+func TestPSRV0043_ReplayCarriesNoSlot(t *testing.T) {
+	t.Parallel()
+	s := slotsStore(t, "2")
+	a := s.claim(t, "claim-a", s.ticket(t, "one"), 0, "a/")
+	slotIs(t, s.lease(t, "r", slotAcquire(a, "1"), 1, nil), snapshot.SlotHeld, 0)
+	slotIs(t, s.lease(t, "release", slotRelease(a), 2, nil), "NONE", 0)
+	slotIs(t, s.lease(t, "s", slotAcquire(a, "2"), 3, nil), snapshot.SlotHeld, 0)
+	if r := s.lease(t, "r", slotAcquire(a, "1"), 4, nil); !r.Outcome.Replayed || r.Slot != nil {
+		t.Fatalf("replay reported %+v slot %+v", r, r.Slot)
 	}
 	auditOK(t, s.repo)
 }

@@ -11,8 +11,8 @@ import (
 
 // SlotObservation is the attempt's current place on one capacity-slot
 // resource after a slot command (PSR-V0-038): HELD, WAITING with its 1-based
-// position in wait order, or NONE. It is a fresh audited read, so a replay
-// reports the current state, not the state at the original commit.
+// position in wait order, or NONE. It is a fresh audited read after a
+// committed command; a replay carries none (PSR-V0-043).
 type SlotObservation struct {
 	SlotsID   string
 	State     string

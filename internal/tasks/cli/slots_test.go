@@ -27,7 +27,8 @@ func slotsCLIRepo(t *testing.T) *fixture.Repo {
 }
 
 // TestPSRV0038_CLISlotResultsAndQueueStatus: slots acquire and release
-// report the attempt's `slot`, a replay reports the receipt as replayed, and
+// report the attempt's `slot`, a replay reports the receipt as replayed with
+// `slot` null (PSR-V0-043), and
 // queue status shows each resource's occupancy, holders and waiters in wait
 // order as a pure read; release accepts --lock-wait; help names both verbs'
 // flags.
@@ -49,7 +50,7 @@ func TestPSRV0038_CLISlotResultsAndQueueStatus(t *testing.T) {
 	if x.res.Outcome != wire.OutcomeOK || field(slot, "state").Str != "HELD" || field(slot, "count").Str != "1" || field(slot, "position").Kind != wire.KindNull || field(slot, "class").Kind != wire.KindNull {
 		t.Fatalf("acquire %s", x.stdout)
 	}
-	if again := atm(t, r.Root, nil, acquire...); !field(again.res.Items[0], "replayed").Bool || field(field(again.res.Items[0], "slot"), "state").Str != "HELD" {
+	if again := atm(t, r.Root, nil, acquire...); !field(again.res.Items[0], "replayed").Bool || field(again.res.Items[0], "slot").Kind != wire.KindNull {
 		t.Fatalf("replay %s", again.stdout)
 	}
 	// One slot is reserved for ci, so b's unreserved request waits.

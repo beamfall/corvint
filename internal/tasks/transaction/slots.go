@@ -88,13 +88,17 @@ func SlotAvailable(res *intent.SlotResource, u SlotUsage, class string) int64 {
 	return n
 }
 
-// settleSlots grants waiters of one resource in wait order (PSR-V0-033..035)
-// in one pass, updating entries through index, and reports whether any
-// entry changed. An exclusive waiter is granted only
-// when nothing is held and no exclusive is ahead of it; a shared waiter is
-// skipped while an exclusive waiter is ahead of it in wait order or was
-// enqueued before it; once a shared waiter does not fit, a later one is
-// granted only within its own class's unused reservation.
+// settleSlots grants waiters of one resource in wait order (PSR-V0-033..035,
+// PSR-V0-040, PSR-V0-041) in one pass, updating entries through index, and
+// reports whether any entry changed. Grants are checked against the current
+// policy: a waiter its own acquire would now refuse is neither granted nor
+// blocks a later one, and an exclusive grant takes the current capacity. An
+// exclusive waiter is eligible only when no reserved-class waiter was
+// enqueued before it, and the first eligible one in wait order is granted
+// only when nothing is held. A shared waiter is skipped while an exclusive
+// waiter was enqueued before it or, when unreserved, is ahead of it in wait
+// order; once a shared waiter does not fit, a later one is granted only
+// within its own class's unused reservation.
 func settleSlots(res *intent.SlotResource, live []snapshot.SlotEntry, index map[string]int, entries []snapshot.SlotEntry) bool {
 	u := SlotUsageOf(res.ID, live)
 	if u.Exclusive {
@@ -102,28 +106,32 @@ func settleSlots(res *intent.SlotResource, live []snapshot.SlotEntry, index map[
 	}
 	waiters := []snapshot.SlotEntry{}
 	for _, en := range live {
-		if en.SlotsID == res.ID && en.State == snapshot.SlotWaiting {
+		if en.SlotsID == res.ID && en.State == snapshot.SlotWaiting && slotFits(res, en) {
 			waiters = append(waiters, en)
 		}
 	}
 	waiters = SlotWaitOrder(waiters)
-	exclusives := []snapshot.SlotEntry{}
+	exclusives, eligible := []snapshot.SlotEntry{}, []snapshot.SlotEntry{}
 	for _, w := range waiters {
 		if w.Exclusive {
 			exclusives = append(exclusives, w)
+			if !slotReservedBefore(w, waiters) {
+				eligible = append(eligible, w)
+			}
 		}
 	}
 	changed, blocked := false, false
-	grant := func(w snapshot.SlotEntry) {
-		entries[index[res.ID+"\x00"+w.AttemptID]].State = snapshot.SlotHeld
-		u.Held += w.Count.Int()
-		u.ByClass[w.Class] += w.Count.Int()
+	grant := func(w snapshot.SlotEntry, n int64) {
+		i := index[res.ID+"\x00"+w.AttemptID]
+		entries[i].State, entries[i].Count = snapshot.SlotHeld, wire.CountOf(n)
+		u.Held += n
+		u.ByClass[w.Class] += n
 		changed = true
 	}
 	for _, w := range waiters {
 		if w.Exclusive {
-			if u.Held == 0 && !blocked && exclusives[0].AttemptID == w.AttemptID {
-				grant(w)
+			if u.Held == 0 && !blocked && len(eligible) > 0 && eligible[0].AttemptID == w.AttemptID {
+				grant(w, res.Capacity.Int())
 				return true
 			}
 			continue
@@ -133,7 +141,7 @@ func settleSlots(res *intent.SlotResource, live []snapshot.SlotEntry, index map[
 		}
 		n := w.Count.Int()
 		if SlotAvailable(res, u, w.Class) >= n && (!blocked || n <= u.unusedReserved(res, w.Class)) {
-			grant(w)
+			grant(w, n)
 			continue
 		}
 		blocked = true
@@ -141,12 +149,51 @@ func settleSlots(res *intent.SlotResource, live []snapshot.SlotEntry, index map[
 	return changed
 }
 
-// slotBehindExclusive reports an exclusive waiter ahead of w in wait order
-// or enqueued before it: new shared grants stop behind an exclusive request
-// so it is eventually granted (PSR-V0-033).
+// slotCeiling is the most a shared request of class can ever hold: capacity
+// minus every other class's reservation (PSR-V0-035).
+func slotCeiling(res *intent.SlotResource, class string) int64 {
+	n := res.Capacity.Int()
+	for _, k := range res.Classes() {
+		if k != class {
+			n -= res.ReservedFor(k)
+		}
+	}
+	return n
+}
+
+// slotFits reports whether the current policy could still grant a waiter
+// (PSR-V0-040): an exclusive always (it takes the current capacity), a
+// shared one while its class is still reserved and its count is within its
+// ceiling.
+func slotFits(res *intent.SlotResource, w snapshot.SlotEntry) bool {
+	if w.Exclusive {
+		return true
+	}
+	if w.Class != "" && res.ReservedFor(w.Class) == 0 {
+		return false
+	}
+	return w.Count.Int() <= slotCeiling(res, w.Class)
+}
+
+// slotBehindExclusive reports an exclusive waiter enqueued before w, or, for
+// an unreserved w, ahead of it in wait order: new shared grants stop behind
+// an exclusive request so it is eventually granted (PSR-V0-033), while a
+// reserved-class waiter is not passed by a later exclusive (PSR-V0-041).
 func slotBehindExclusive(w snapshot.SlotEntry, exclusives []snapshot.SlotEntry) bool {
 	for _, x := range exclusives {
-		if slotBefore(x, w) || x.Seq.Uint64() < w.Seq.Uint64() {
+		if x.Seq.Uint64() < w.Seq.Uint64() || w.Class == "" && slotBefore(x, w) {
+			return true
+		}
+	}
+	return false
+}
+
+// slotReservedBefore reports a reserved-class waiter enqueued before the
+// exclusive waiter x, which goes first whatever the priorities, so
+// continuous exclusive demand cannot starve a reserved class (PSR-V0-041).
+func slotReservedBefore(x snapshot.SlotEntry, waiters []snapshot.SlotEntry) bool {
+	for _, w := range waiters {
+		if !w.Exclusive && w.Class != "" && w.Seq.Uint64() < x.Seq.Uint64() {
 			return true
 		}
 	}
@@ -172,12 +219,7 @@ func (c leaseContext) slotResource() (*intent.SlotResource, int64, *leaseOutcome
 	if c.l.SlotCount != "" {
 		n = c.l.SlotCount.Int()
 	}
-	ceiling := res.Capacity.Int()
-	for _, k := range res.Classes() {
-		if k != c.l.SlotClass {
-			ceiling -= res.ReservedFor(k)
-		}
-	}
+	ceiling := slotCeiling(res, c.l.SlotClass)
 	if n > ceiling {
 		out := c.fail(wire.Errorf(wire.CodeLimitExceeded, "slotCount", "%d slots can never be granted on slots %s; at most %d for this class", n, res.ID, ceiling))
 		return nil, 0, &out
@@ -238,7 +280,8 @@ func planSlotAcquire(c leaseContext) leaseOutcome {
 	want := snapshot.SlotEntry{SlotsID: res.ID, AttemptID: a.AttemptID, Generation: a.Generation, Holder: a.Lease.Holder, Count: wire.CountOf(n), Exclusive: c.l.SlotExclusive, Class: c.l.SlotClass, State: snapshot.SlotWaiting, Seq: c.seq}
 	for _, en := range live {
 		if en.SlotsID == res.ID && en.AttemptID == a.AttemptID {
-			if en.Count != want.Count || en.Exclusive != want.Exclusive || en.Class != want.Class {
+			// An exclusive entry's count follows the capacity (PSR-V0-040).
+			if en.Exclusive != want.Exclusive || en.Class != want.Class || !want.Exclusive && en.Count != want.Count {
 				return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "attempt already "+en.State+" "+string(en.Count)+" slots of "+res.ID+" with other parameters; release first")
 			}
 			return c.slotWrite(a, live)
@@ -274,9 +317,26 @@ func planSlotRelease(c leaseContext) leaseOutcome {
 		kept = append(kept, en)
 	}
 	if !found {
-		return c.unchanged()
+		return c.slotNoop(a)
 	}
 	return c.slotWrite(a, kept)
+}
+
+// slotNoop records a slot command that changes nothing (PSR-V0-042): the
+// receipt posts only the request entry, so a retry of its request id replays
+// it instead of acting on a later state.
+func (c leaseContext) slotNoop(a *snapshot.Attempt) leaseOutcome {
+	return leaseOutcome{posts: map[string][]byte{}, effect: &leaseEffect{kind: "TRANSITION", attemptID: a.AttemptID, generation: a.Generation, outcome: mutation.OutcomeCompleted, codes: []string{}}}
+}
+
+// holdsSlots reports a live slot entry of the attempt, held or waiting.
+func (c leaseContext) holdsSlots(a *snapshot.Attempt) bool {
+	for _, en := range SlotLive(c.st.policy, c.st.pools.Slots, c.liveAttempt) {
+		if en.AttemptID == a.AttemptID {
+			return true
+		}
+	}
+	return false
 }
 
 // slotWrite settles every declared resource over the live entries and posts
@@ -299,7 +359,7 @@ func (c leaseContext) slotWrite(a *snapshot.Attempt, live []snapshot.SlotEntry) 
 		return c.fail(e)
 	}
 	if bytes.Equal(raw, c.in.Pools) || len(c.in.Pools) == 0 && len(entries) == 0 && len(state.Entries) == 0 {
-		return c.unchanged()
+		return c.slotNoop(a)
 	}
 	return leaseOutcome{posts: map[string][]byte{"pools.json": raw}, effect: &leaseEffect{kind: "TRANSITION", attemptID: a.AttemptID, generation: a.Generation, outcome: mutation.OutcomeCompleted, codes: []string{}}}
 }
