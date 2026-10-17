@@ -7056,7 +7056,7 @@ worker keeps its attempt and an idle, hung or fenced one does not.
 
 - `CAL-V0-311`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A role MAY
   declare `keepLease`, a closed object of three required integers: `intervalSeconds` (30..3600),
-  `leaseMinutes` (5..1440, the CAL-V0-005 renew bound) and `maxIdleSeconds` (30..86400), with
+  `leaseMinutes` (5..1440, inside the store's `MaxLeaseMinutes`) and `maxIdleSeconds` (30..86400), with
   `leaseMinutes` × 60 greater than two intervals. An unknown member, a missing member, a value out
   of range or a lease within two intervals refuses the configuration. A worker is kept under the
   role of the configuration it launched under (CAL-V0-127). Without `keepLease` the dispatcher
@@ -7068,9 +7068,9 @@ worker keeps its attempt and an idle, hung or fenced one does not.
   ended or stopping (`KILLING`) worker is never kept. It binds to the live attempt whose holder is
   the worker, recording the attempt and generation; a new binding is due at once. The worker is
   idle when the time since its `lastActive` exceeds `maxIdleSeconds`, where `lastActive` is the
-  supervision activity signal the dispatcher already records each tick (CAL-V0-218: growth of the
-  worker's `stdout.log`/`stderr.log`, an advanced mtime of a host `activityPaths` entry, or a busy
-  child process). An idle worker's attempt is not written; the keeper records `IDLE` with one
+  supervision activity signal the dispatcher already records each tick (CAL-V0-056, as amended
+  by CAL-V0-218: growth of the worker's `stdout.log`/`stderr.log`, an advanced mtime of a host
+  `activityPaths` entry, or a busy child process). An idle worker's attempt is not written; the keeper records `IDLE` with one
   event per idle episode, and resumes with one event when activity returns. An idle worker's lease
   therefore runs out and CAL-V0-191 reaps it as before; the role's `idleSeconds` stop is unchanged.
 - `CAL-V0-313`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A kept,

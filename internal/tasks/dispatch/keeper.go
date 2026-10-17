@@ -138,7 +138,7 @@ func (d *Dispatcher) keepLease(ctx context.Context, w *Worker, kl *KeepLease, ob
 		k = w.Keeper
 		d.keeperEvent(w, "bound", fmt.Sprintf("keeping the lease of attempt %s (generation %s) held by %s every %ds", cur.ID, cur.Generation, w.ID, kl.IntervalSeconds), nil)
 	}
-	// CAL-V0-312: idle is the supervision activity signal (CAL-V0-218)
+	// CAL-V0-312: idle is the supervision activity signal (CAL-V0-056, CAL-V0-218)
 	// older than maxIdleSeconds; an idle worker's lease is left to run out.
 	idleFor := now.Sub(w.LastActive)
 	if idleFor > time.Duration(kl.MaxIdleSeconds)*time.Second {

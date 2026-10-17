@@ -8,8 +8,8 @@ it applies that standing acceptance to this lane's requirements.
 ## Decisions
 
 - **Idle signal.** The dispatcher already records `lastActive` for every worker each tick
-  (CAL-V0-218): growth of the worker's `stdout.log`/`stderr.log`, an advanced mtime of a host
-  `activityPaths` entry, or a busy child process. The keeper reuses it and adds no new signal; a
+  (CAL-V0-056 as amended by CAL-V0-218): growth of the worker's `stdout.log`/`stderr.log`, an
+  advanced mtime of a host `activityPaths` entry, or a busy child process. The keeper reuses it and adds no new signal; a
   worker is idle when `now - lastActive > maxIdleSeconds`. An idle worker's attempt is not written,
   so its lease runs out and the existing CAL-V0-191 reap ends it.
 - **Heartbeat as well as renew.** A renew alone left the holder `STALE_HOLDER` before V1-1313; the
