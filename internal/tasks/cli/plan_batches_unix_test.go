@@ -87,20 +87,28 @@ func TestNTPV0022_InterruptRemovesTemporaryDirectory(t *testing.T) {
 	was := batchSignals
 	batchSignals = []os.Signal{syscall.SIGUSR2}
 	defer func() { batchSignals = was }()
+	// The bound runs from the signal, not from the start: on a loaded host the
+	// Git calls before the merge can take tens of seconds on their own.
+	sent := make(chan time.Time, 1)
 	go func() {
-		for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		for deadline := time.Now().Add(120 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
 			if _, err := os.Stat(started); err == nil {
+				sent <- time.Now()
 				_ = syscall.Kill(os.Getpid(), syscall.SIGUSR2)
 				return
 			}
 		}
 	}()
-	start := time.Now()
 	if err := pbPlanErr(t, root, []*batchCandidate{pbCand("T1", base, tree)}); err == nil {
 		t.Fatal("an interrupted read produced a plan")
 	}
-	if elapsed := time.Since(start); elapsed > 30*time.Second {
-		t.Fatalf("the interrupt did not end the read: %v", elapsed)
+	select {
+	case at := <-sent:
+		if elapsed := time.Since(at); elapsed > 20*time.Second {
+			t.Fatalf("the interrupt did not end the read: %v", elapsed)
+		}
+	default:
+		t.Fatal("the read ended before the merge started")
 	}
 	pbNoTemp(t, tmp)
 }
