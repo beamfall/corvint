@@ -25,6 +25,13 @@ rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
   dogfood changes. The tally starts at
   `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
 
+### Tasks slots compatibility (V1-1572)
+
+- A corvint-tasks binary from before capacity slots (V1-1550; observed with `v1.0.0-rc.2`) refuses
+  a store whose policy declares `slots`, or whose `pools.json` still holds a slot entry, as
+  `MALFORMED` (unknown key) and writes nothing. Release every slot and publish policy without
+  `slots` before running such a binary on that queue (`PSR-V0-080`).
+
 ### Decision 0523 recorded limits (V1-1267)
 
 Under decision 0521 §2 and
