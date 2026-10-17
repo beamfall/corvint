@@ -146,6 +146,7 @@ one.
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
+| V1-1560 | CAL-V0-330..337 | Accepted (standing auto-accept, 2026-10-17): a lease write whose round moves resumes from its own settled audit from receipt 1 under the writer lock, auditing only the tail; tamper detection unchanged; focused tests and an opt-in load harness (10,000 receipts: 18/18 acquires under 66 s versus 2/8 on base) |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -6805,6 +6806,135 @@ Rollback: revert the gate scope in `leaseWrite`, the `writerRouteReady` precheck
 fallback and their tests, and this amendment. No store format, receipt, checkpoint format or wire
 result changes, so stores written by either build are read by the other.
 
+### V1-1560 pool acquire under a moving journal (issue 1010)
+
+Human-owned input: GitHub [issue 1010](https://github.com/beamfall/corvint/issues/1010)
+(2026-10-17, native ticket V1-1560). On a journal of about 45,000 receipts, with a dispatcher
+committing every few seconds and 8 acquirers, `pool acquire` waited 10 to 40 minutes. Every one of
+its 16 rounds (CAL-V0-263) reran the complete audit from receipt 1, and any write during that audit
+made the round `SNAPSHOT_MOVED`, so the cost of a wait grew with retries and the writer rate. The
+owner declined extending the writer route to every lease verb (CAL-V0-264), because it drops the
+CAL-V0-116 detection of a rewritten prefix. Intent: a lease write that loses its round to a moving
+journal reuses its own settled audit from receipt 1 in the next round, so every acquire completes
+within a bound that does not depend on the writer rate or the number of retries. Integrity checks,
+refusals on tamper or corruption, receipts and ordering stay the same.
+
+- `CAL-V0-330`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
+  write's preparation audit from receipt 1 MUST make one complete attempt that stops early once
+  `head.json` is no longer the file its capture observed (checked every 512 receipts or
+  projections). When that attempt is `SNAPSHOT_MOVED`, the audit MUST walk receipts 1..H for the
+  head H it captured, with the complete audit's validators, as the CAL-V0-265 refresh does. That
+  prefix walk MUST never decide a refusal for a lease. A walk that refuses on an unchanged
+  observation is `SNAPSHOT_MOVED` (prefix declined), and for the rest of the command the complete
+  audit decides, deriving any refusal itself. This applies only on a platform that reports a file
+  change time and at a head at or above the writer-checkpoint floor.
+- `CAL-V0-331`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A resume
+  base MUST come only from a settled complete (`ModeFull`) or prefix (`ModePrefix`) audit from
+  receipt 1 that the same command ran, together with that audit's own physical observation. Tail,
+  writer and cached results never yield one. The base records the writer checkpoint the audit
+  derives and, for every receipt, request, evidence and pinned file the audit read, the file stamps
+  its capture observed, its change time and the digest of the bytes it read. Receipts 1..H, every
+  canonical afterimage at H and every listed request file MUST be among them, or there is no base.
+  A base lives only in that command's memory: it is never written, shared or reused by another
+  command or process.
+- `CAL-V0-332`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A lease
+  write whose round ended `SNAPSHOT_MOVED` after it derived a resume base MUST, in later rounds,
+  first try the writer route under the preparation gate and writer lock, auditing only the tail
+  after the base (at most 256 receipts) for any lease verb. Before it commits, it MUST hold that:
+  - every base receipt is the same file, with the same mode, size, modification time and change
+    time;
+  - every base request, evidence and pinned file is likewise unchanged;
+  - a base file whose stamps were not yet settled when the base capture began is re-read and
+    matches its digest;
+  - every request file in every shard is a base file or one the tail posted, and no base request
+    is missing;
+  - every evidence and pinned afterimage the tail posted matches its canonical digest;
+  - the writer-checkpoint invalidation token read before the base audit is unchanged.
+  Any difference MUST decline the resume, write nothing and fall through to that round's ordinary
+  preparation. The receipt a resumed write commits is the one the complete route would commit.
+  Resumed writes advance the retained writer checkpoint under CAL-V0-117.
+- `CAL-V0-333`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) A tampered
+  prefix MUST never commit through a resume. Examples are a base receipt rewritten in place with its
+  modification time restored, or a stray or removed request file. The command keeps the refusal or
+  `SNAPSHOT_MOVED` that the complete route gives that journal, and CAL-V0-116 detection is unchanged
+  for every lease verb.
+- `CAL-V0-334`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) When the
+  change-guard registration, which visits every store file, is overtaken (`SNAPSHOT_MOVED`) in a
+  round that may resume, the preparation MUST still run the CAL-V0-330 audit, but only to derive a
+  resume base, and then end the round `SNAPSHOT_MOVED`. Without a guard it MUST never decide a
+  refusal, use the complete route or commit. A prefix walk declined there disables resume for the
+  command.
+- `CAL-V0-335`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560) Bound. Once
+  a lease write has a resume base, each later round costs at most one bounded writer section: the
+  gate and lock wait, a tail of at most 256 receipts, and a listing of the receipts and request
+  shards. That cost is independent of the writer rate and of the number of rounds. A command
+  therefore runs at most:
+  - one early-stopped complete attempt and one prefix walk before its first resume, plus one more
+    preparation audit per declined resume;
+  - the CAL-V0-263 bounded sections.
+  CPU per waiting acquirer does not grow with retries. The documented acquire bound is under 2
+  minutes for 8 acquirers and a writer every 3 seconds, measured at 10,000 receipts on a loaded
+  12-CPU Darwin host (the opt-in load harness). Qualification at 45,000 receipts remains NOT_RUN,
+  and by linear extrapolation the prefix walk alone would take about 3 minutes at host load 60.
+  `Timing.Resumed` counts resumed rounds.
+- `CAL-V0-336`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
+  amendment) No change guard watches a resumed write, so the CAL-V0-332 checks MUST hold up to the
+  commit, not only at the resumed audit. Under the writer lock, after modelling and after the head,
+  intent and branch rebind, a resumed write MUST run the CAL-V0-332 base checks again against the
+  files as they are then, with each request shard listed afresh. It MUST do this before it reports a
+  result, retains a checkpoint or publishes anything. As in CAL-V0-332, any difference declines the
+  resume.
+- `CAL-V0-337`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review
+  amendment) The base checks of CAL-V0-332 and CAL-V0-336 read through a read lifetime of their own.
+  A failed close of that lifetime, or of any file or directory read within it, is a cleanup failure,
+  as an audit's own is: `UNSUPPORTED_FILESYSTEM` (`read lifetime`), carried in the resumed audit's
+  physical observation. It MUST terminate the command, as CAL-V0-116 requires. It is never a
+  decline that falls back to preparation.
+
+Non-goals: the retryable result's retry count and audit duration (issue 1010 option, NOT_PRODUCED);
+exposing `Resumed` in the CLI; resuming on a platform without file change times; resuming past a
+tail of 256 receipts; a persisted or shared resume base; changing the CAL-V0-264 decision; a
+liveness-latency bound for heartbeat or renew.
+
+Failure modes: a resume declined because the base changed (any rewrite, a stray request, an
+invalidation-token change, a tail beyond 256) costs one more preparation audit in that round. A
+command whose prefix walk is declined, whose model reads an elided path, or whose request is a
+handoff-policy candidate keeps the complete route each round and can still fail `SNAPSHOT_MOVED`
+after 16 rounds (retryable), as under CAL-V0-263. The listings under the writer lock grow with the
+receipt and request-file count. Without change times (platforms other than Darwin and Linux) lease
+writes behave as before.
+
+Acceptance evidence:
+- `TestCALV0330_PrefixFallback`, `TestCALV0331_ResumeBaseOnlyFromSettledAudit` and
+  `TestCALV0332_ResumeDeclinesOnChangedBase` (6 cases with settled and unsettled stamps) in
+  `internal/tasks/journal`.
+- `TestCALV0332_PoolAcquireResumesUnderWriter`, `TestCALV0332_WidenResumesUnderWriter`,
+  `TestCALV0333_ResumeKeepsRewrittenPrefixDetection`, `TestCALV0334_OvertakenGuardStillResumes` and
+  `TestCALV0334_OvertakenGuardKeepsRewrittenPrefixDetection` in `internal/tasks/store`.
+- Review amendment (independent Codex review of PR #1018): `TestCALV0336_ResumeRechecksBaseBeforeCommit`
+  (`internal/tasks/store`) rewrites receipt 2 at the resumed write's `fast.lease.observe` and
+  `fast.lease.model` stages. On the reviewed head c843d6aab the acquire committed over the rewritten
+  prefix, and after the change it keeps the complete route's decision. In `internal/tasks/journal`,
+  `TestCALV0336_RecheckResumeSeesChangeAfterAudit` covers a rewritten receipt, a stray request in a
+  new shard and a failed close. `TestCALV0337_ResumeCheckCloseFailureIsCleanup` fails the close of
+  the base check's receipts listing. On c843d6aab that was an ordinary decline, and after the change
+  it is the audit's cleanup failure.
+  `TestCALV0332_PoolAcquireResumesUnderWriter` fails on base cc487c92e: 16 complete audits and 16
+  rounds, then `SNAPSHOT_MOVED`. After the change it completes with one audit and one resumed round.
+- The opt-in harness `TestCALV0335_PoolAcquireLoad` (`CORVINT_TASKS_POOL_ACQUIRE_LOAD=<report>`).
+  At 10,000 receipts, 8 acquirers and a writer every 3 seconds (12 CPUs, host load 53 to 68):
+  - base: 2 of 8 acquires completed (252 s and 288 s), 1 ended `SNAPSHOT_MOVED` after 16 rounds
+    (374 s), and 5 were unfinished at 420 s;
+  - after the change: 18 of 18 completed, all resumed, with at most 3 rounds, p50 42.9 s and
+    max 65.2 s.
+  See `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md`.
+- Linux, quiet-host and 45,000-receipt qualification remain NOT_RUN.
+
+Rollback: revert the resume route in `prepareLease`/`leaseWrite`, `observeWriter` and `leaseWriter`,
+the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, their tests and this amendment. A
+resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
+so stores written by either build are read by the other.
+
 ### V1-1510 work-state reader health (issue 984)
 
 Status: CAL-V0-270..274 accepted under the owner's standing auto-accept (2026-10-11) (V1-1510);
@@ -7634,6 +7764,14 @@ and removes the new configuration members.
 | CAL-V0-262 | `TestCALV0262_WriterHelpNamesRedo` (`internal/tasks/cli`) |
 | CAL-V0-263 | `TestCALV0263_NoCompleteAuditUnderGate`, `TestCALV0026_PreparationGateStore`, `TestGH494PreparationAdmissionStore` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad`; `docs/build-log/2026-10-16-v1-1494-lease-gate-scope.md` |
 | CAL-V0-265 | `TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`, `TestCALV0265_PrefixRecheckAfterWalk` (`internal/tasks/journal`); `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
+| CAL-V0-330 | `TestCALV0330_PrefixFallback` (`internal/tasks/journal`); `TestCALV0332_PoolAcquireResumesUnderWriter` (`internal/tasks/store`) |
+| CAL-V0-331 | `TestCALV0331_ResumeBaseOnlyFromSettledAudit` (`internal/tasks/journal`) |
+| CAL-V0-332 | `TestCALV0332_ResumeDeclinesOnChangedBase` (`internal/tasks/journal`); `TestCALV0332_PoolAcquireResumesUnderWriter`, `TestCALV0332_WidenResumesUnderWriter` (`internal/tasks/store`) |
+| CAL-V0-333 | `TestCALV0333_ResumeKeepsRewrittenPrefixDetection`, `TestCALV0334_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
+| CAL-V0-334 | `TestCALV0334_OvertakenGuardStillResumes`, `TestCALV0334_OvertakenGuardKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
+| CAL-V0-335 | opt-in `TestCALV0335_PoolAcquireLoad` (`internal/tasks/store`); `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md` |
+| CAL-V0-336 | `TestCALV0336_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestCALV0336_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
+| CAL-V0-337 | `TestCALV0337_ResumeCheckCloseFailureIsCleanup`, `TestCALV0336_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
 | CAL-V0-270 | `TestCALV0270_FailingWorkStateCommandHealthEscalatesOnceAndRecovers`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusShowsFailingWorkStateAfterOneTick`, `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`); `docs/build-log/2026-10-16-v1-1510-dispatch-workstate-health.md` |
 | CAL-V0-271 | `TestCALV0270_FailingWorkStateCommandHealthEscalatesOnceAndRecovers` (`internal/tasks/dispatch`) |
 | CAL-V0-272 | `TestCALV0272_UnknownWorkStateRunsAreRecorded` (`internal/tasks/dispatch`) |

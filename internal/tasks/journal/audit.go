@@ -136,20 +136,29 @@ type Reader struct {
 	// falling back: the caller would discard any verdict about that head,
 	// so its outer reader re-probes instead (V1-1060).
 	ExpectHeadSha256 wire.Digest
-	afterCapture     func() // deterministic capture/body boundary witness
-	afterPrefixWalk  func() // deterministic prefix walk/recheck boundary witness
-	divergentIntent  string // set only on a value copy by Reconciliation
-	unpauseTickets   bool   // set only on a value copy by BarrierRemoval or PendingBarrierRemoval
-	pendingUnpause   bool   // set only on a value copy by PendingBarrierRemoval
-	physical         *PhysicalObservation
-	writerCache      bool
-	intentOnly       bool
-	handoffPolicy    *HandoffPolicySelector
-	observedIntent   bool              // AuditForMutation: select queue, policy and observed tickets/releases
-	writer           *WriterCheckpoint // AuditForWriter only
-	writerBefore     *observation      // AuditForWriter's first capture, set for its second only
-	prefix           bool              // AuditWriterRefresh's prefix walk only
-	fullAttempts     int               // AuditWriterRefresh: complete attempts before the prefix walk
+	// PrefixFallback makes AuditForWriteObserved a lease preparation's
+	// bounded audit (CAL-V0-330, proposed): one complete attempt, which gives
+	// up as soon as head.json moves under it, then, only if the journal moved,
+	// the prefix walk to the head that attempt captured (ModePrefix). A prefix
+	// walk that refuses returns ErrPrefixDeclined, never its own refusal, so
+	// the caller's complete audit derives every refusal itself.
+	PrefixFallback  bool
+	afterCapture    func() // deterministic capture/body boundary witness
+	afterPrefixWalk func() // deterministic prefix walk/recheck boundary witness
+	divergentIntent string // set only on a value copy by Reconciliation
+	unpauseTickets  bool   // set only on a value copy by BarrierRemoval or PendingBarrierRemoval
+	pendingUnpause  bool   // set only on a value copy by PendingBarrierRemoval
+	physical        *PhysicalObservation
+	writerCache     bool
+	intentOnly      bool
+	handoffPolicy   *HandoffPolicySelector
+	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
+	writer          *WriterCheckpoint // AuditForWriter only
+	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
+	prefix          bool              // AuditWriterRefresh's prefix walk only
+	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
+	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
+	resume          *ResumeBase       // AuditForResume only
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -213,6 +222,9 @@ type observation struct {
 	receiptsListed    int
 	receiptsStaging   bool
 	receiptsQuiescent bool
+	// at is when the capture began; ResumeBase trusts a file's stamps only
+	// when they were already settled then (CAL-V0-332).
+	at time.Time
 }
 
 // receiptsQuiescence is how long receipts/ must have been unmodified and
@@ -365,6 +377,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 		*r.physical = PhysicalObservation{}
 	}
 	var native *nativeRead
+	var captured *observation
 	switch n := r.Source.(type) {
 	case Native:
 		native = newNativeRead(n)
@@ -389,6 +402,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 				r.physical.Cleanup = cleanup
 				if err == nil && result != nil && (result.Mode == ModeFull || result.Mode == ModeWriter || result.Mode == ModePrefix) && !result.Pending && !result.StagingPresent && result.IntentError == nil && result.selectErr == nil && result.intentErr == nil {
 					r.physical.Files = native.physical.files
+					r.physical.capture = captured
 				}
 			}
 		}()
@@ -400,6 +414,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	if e != nil {
 		return nil, e
 	}
+	captured = before
 	if r.afterCapture != nil {
 		r.afterCapture()
 	}
@@ -421,6 +436,15 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if result != nil && r.observedIntent {
 		result.selection = selected
+	}
+	if r.resume != nil && bodyErr == nil {
+		// The walk resumed from a base this command audited from receipt 1;
+		// the base files must still be exactly what it read (CAL-V0-332).
+		// Its own read lifetime closes into this attempt's cleanup, so a
+		// failed close terminates as the audit's would (CAL-V0-337).
+		check := newNativeRead(native.native)
+		bodyErr = r.resume.held(check, result, lim)
+		native.closeErr = errors.Join(native.closeErr, check.close())
 	}
 	if r.writer != nil {
 		r.writerBefore = before
@@ -496,7 +520,7 @@ func requiredRead(s Source, p string, max int) ([]byte, error) {
 }
 
 func (r Reader) capture(lim limits, lite bool) (*observation, error) {
-	o := &observation{files: map[string]os.FileInfo{}, lite: lite, writer: r.writer != nil, intentDigests: map[string]wire.Digest{}}
+	o := &observation{files: map[string]os.FileInfo{}, lite: lite, writer: r.writer != nil, intentDigests: map[string]wire.Digest{}, at: time.Now()}
 	if o.writer {
 		o.intentRaw = map[string][]byte{}
 	}
