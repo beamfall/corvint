@@ -8,6 +8,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"os"
 	"runtime"
@@ -45,6 +46,10 @@ var Build = "0"
 type Env struct {
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
+	// leaseInterrupted, when set, is the detached child's own interrupt
+	// context, taken before any store work so an early SIGINT or SIGTERM
+	// still keeps a result (ATR-V0-053).
+	leaseInterrupted context.Context
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures

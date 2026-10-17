@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -10,9 +11,11 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -382,6 +385,11 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	} else if err != nil || rec != want {
 		return emit(env.Stdout, usage(strings.Fields(name), leaseDetachChildFlag+" is internal to a detached "+name))
 	}
+	// An interrupt from here on ends the command with a kept result: the
+	// store write's ended context is LOCK_TIMEOUT (ATR-V0-053).
+	interrupted, stopInterrupt := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopInterrupt()
+	env.leaseInterrupted = interrupted
 	// What the child itself writes to child.log is capped (ATR-V0-028).
 	env.Stderr = &leaseDetachLogWriter{w: env.Stderr, left: maxLeaseDetachLog}
 	leaseDetachChildStarting(env.Stderr)

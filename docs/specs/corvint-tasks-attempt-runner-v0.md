@@ -2,11 +2,12 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
 owner requests [issue 1005](https://github.com/beamfall/corvint/issues/1005) and [issue 1007](https://github.com/beamfall/corvint/issues/1007) and native tickets V1-1547 and V1-1549 (ATR-V0-020..039);
+owner request [issue 1026](https://github.com/beamfall/corvint/issues/1026) and native ticket V1-1558 (ATR-V0-050..053);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -14,7 +15,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17).
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -386,6 +387,66 @@ CAL-V0-130), then revert the code and this amendment. The ledger version does no
 earlier build ignores the `context.json` records and refuses a configuration that still declares
 `context`.
 
+### V1-1558 contended store writes (issue 1026)
+
+Human-owned input: GitHub [issue 1026](https://github.com/beamfall/corvint/issues/1026) (2026-10-17)
+and native ticket V1-1558. Under heavy writer contention an attached `run --timeout N` exited 1 with
+`ERROR`, `MALFORMED`, the warning `context deadline exceeded` and no item; a detached `claim` whose
+ceiling expired, or that was interrupted, reported the same `MALFORMED`. A bare context error reached
+`wire.CodeOf`, which maps every uncoded error to `MALFORMED`. Intent: a store write that ran out of
+time or was interrupted reports one documented retryable code, and a run that started a command
+never ends `MALFORMED`.
+
+- `ATR-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A store
+  write whose context expired or was cancelled MUST report `LOCK_TIMEOUT`, marked retryable, and
+  MUST NOT report `MALFORMED`. This covers a write budget, the detached ceiling (ATR-V0-023) and an
+  interrupt. It applies at the store write boundary (`administrativeWriteWith`), to the runner's
+  pre-launch writes and reads, and to the lease command. Every context check in a write runs before
+  that write commits. A command repeated with the same `--request-id` replays any step that
+  committed earlier, so the retry is safe. The error still matches the context error under
+  `errors.Is`. An error that already carries a code keeps it. A pre-launch failure of this kind
+  exits 1, starts nothing, records nothing and carries no item.
+- `ATR-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) The runner's
+  outcome write MUST use one request id. It retries a retryable write error (such as
+  `LOCK_TIMEOUT`, `SNAPSHOT_MOVED` or `RESOURCE_EXHAUSTED`) with a 250 ms backoff inside one
+  60-second write budget. The lease's coverage margin (ATR-V0-002) keeps that budget inside the
+  lease. An outcome that is still not recorded when the budget ends exits 127, or 2 under `HOLD`,
+  with the class's own code plus the write's code. A timeout whose outcome is recorded still exits
+  124. Once the command has started, the run never reports `MALFORMED` for a store write.
+- `ATR-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) Whenever the
+  command was started, the envelope MUST carry exactly one run item, whether or not the outcome was
+  recorded. An unrecorded outcome has `outcomeReceipt` `null` and `exitStatus` `127`.
+- `ATR-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A detached
+  `claim` or `pool acquire` (ATR-V0-020) whose ceiling expires, or whose child receives SIGINT or
+  SIGTERM, while its store write waits MUST keep a result coded `LOCK_TIMEOUT`, marked retryable,
+  never `MALFORMED`. The child takes its interrupt handling before its first store read, so an
+  interrupt from then on keeps that result. An interrupt that arrives before then ends the child
+  without a result, and `--attach` reports `SUPERVISOR_LOST` as before (ATR-V0-022).
+
+Non-goals: a new wire code; a change to the lock wait budgets (`--lock-wait`, CAL-V0-263); retrying
+pre-launch writes inside one command (the caller retries `LOCK_TIMEOUT`); and changing the
+`authority` lock functions, which still return the bare context error to their callers.
+
+Failure modes:
+- A writer that holds the lock longer than the outcome budget leaves the outcome unrecorded. The
+  run exits 127 with `LOCK_TIMEOUT`, and the attempt shows no outcome; reissuing `run` would run the
+  command again.
+- A context that ends after a write committed but before its reply (a post-commit read) still
+  reports `LOCK_TIMEOUT`. The retry with the same request id replays the committed step.
+- An interrupt that reaches a detached child before its handler is installed loses the result
+  (`SUPERVISOR_LOST`), as before.
+
+Acceptance evidence: the writer-contention tests hold the store writer lock and preparation gate
+from a helper process: `TestATRV0050_ContendedPrelaunchWriteIsLockTimeout`,
+`TestATRV0051_ContendedTimedOutRunExits127WithOneItem`,
+`TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees` and
+`TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`), plus
+`TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`). Run against origin/main
+072a306f1 with only the write-budget test hook ported, the contention tests fail with `MALFORMED`
+`context deadline exceeded` (see `docs/build-log/2026-10-17-v1-1558-contended-store-writes.md`).
+
+Rollback: revert the code and this amendment. No record, receipt, profile or wire code changes.
+
 ## Outcome document
 
 Profile `taskman-attempt-run-outcome/0`, at most 4096 bytes, compact canonical JSON with one trailing
@@ -425,8 +486,8 @@ so output after a `HOLD`, which leaves the leader unreaped, never reaches the ca
 | Spawn failure | 126 | `ERROR`, `NOEXEC` |
 | Runner interrupted by SIGINT, SIGTERM, SIGHUP or SIGQUIT | 128 + the runner's signal | `REFUSED`; `childSignal` is the child's own (usually 9, the group SIGKILL) |
 | Cleanup `HOLD` | 2 (outranks every other status) | `ERROR`, `SURVIVORS` |
-| Outcome not recorded after a released run | 127 | `ERROR` plus the write's code |
-| Usage, other pre-launch refusal, unsupported platform | 1 | `REFUSED`/`ERROR` |
+| Outcome not recorded after a released run (after ATR-V0-051 retries) | 127 | `ERROR` plus the write's code; one run item (ATR-V0-052) |
+| Usage, other pre-launch refusal, unsupported platform | 1 | `REFUSED`/`ERROR`; a contended pre-launch write is retryable `LOCK_TIMEOUT` (ATR-V0-050) |
 | Detached launch: command running | 0 | `OK`, one run item with `state` `RUNNING` |
 | Detached launch or attach: run finished | the run's own status | the kept envelope, byte for byte |
 | Detached launch or attach: run not finished (launch not ready, or `--wait` elapsed) | 75 | `REFUSED`, no code, one run item |
@@ -580,3 +641,7 @@ receipt or wire shape changes.
 | ATR-V0-037 | `internal/tasks/dispatch/context.go`, `internal/tasks/dispatch/usage.go` | `TestATRV0037_HiddenOrLostContextLinesAreUnknown` (`internal/tasks/dispatch`) |
 | ATR-V0-038 | `internal/tasks/dispatch/context.go` | `TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`) |
 | ATR-V0-039 | `internal/tasks/cli/dispatch.go`, `internal/tasks/dispatch/context.go` | `TestATRV0039_DispatchStatusShowsAppliedThresholds`, `TestATRV0032_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
+| ATR-V0-050 | `internal/tasks/wire/context.go` (`ContextEnded`), `internal/tasks/wire/retry.go`, `internal/tasks/store/policy.go` (`administrativeWriteWith`), `internal/tasks/cli/attempt_run.go` (`prepare`) | `TestATRV0050_ContendedPrelaunchWriteIsLockTimeout` (`internal/tasks/cli`), `TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`) |
+| ATR-V0-051 | `internal/tasks/cli/attempt_run.go` (`recordOutcome`, `finish`) | `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`, `TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees` (`internal/tasks/cli`) |
+| ATR-V0-052 | `internal/tasks/cli/attempt_run.go` (`finish`) | `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`, `TestATRV0004_UnrecordedOutcomeExits127` (`internal/tasks/cli`) |
+| ATR-V0-053 | `internal/tasks/cli/lease.go`, `internal/tasks/cli/lease_detach.go` (`leaseDetachRunChild`), `internal/tasks/cli/cli.go` | `TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`) |

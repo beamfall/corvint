@@ -333,3 +333,11 @@ func ReadLeaseDetachRequest(p string) error {
 	var rec leaseDetachRecord
 	return readLeaseDetachJSON(p, &rec)
 }
+
+// SetRunWriteBudget shortens the runner's per-write budget and outcome retry
+// window (ATR-V0-051); it returns the restore function.
+func SetRunWriteBudget(d time.Duration) func() {
+	was := runWriteBudget
+	runWriteBudget = d
+	return func() { runWriteBudget = was }
+}
