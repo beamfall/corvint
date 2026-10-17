@@ -46,6 +46,9 @@ var Build = "0"
 type Env struct {
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
+	// leaseProgress receives a detached lease command's timing after each
+	// preparation round (PSR-V0-112).
+	leaseProgress func(store.LeaseTiming)
 	// leaseInterrupted, when set, is the detached child's own interrupt
 	// context, taken before any store work so an early SIGINT or SIGTERM
 	// still keeps a result (ATR-V0-053).
