@@ -3088,37 +3088,42 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	262	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	263	The reporter emits `attemptDetails` only under `/3`; the provider validates the	unrecorded	-
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	264	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	500	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
-PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	33	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
-PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	47	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
-PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	54	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
-PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	63	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
-PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	67	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
-PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	76	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
-PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	86	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
-PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	93	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
-PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	103	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
-PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	107	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
-PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	113	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
-PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	118	A test identity that occurs more than once in a logical run stays	unrecorded	-
-PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	123	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
-PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	127	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
-PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	131	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
-PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	134	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
-PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	140	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
-PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	144	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
-PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	147	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
-PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	150	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
-PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	153	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
-PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	156	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
-PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	158	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
-PWR-V0-033	docs/specs/playwright-run-evidence-v0.md	161	A retained result's fingerprint MUST be (Playwright version, declared	unrecorded	-
-PWR-V0-034	docs/specs/playwright-run-evidence-v0.md	169	`Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or	unrecorded	-
-PWR-V0-035	docs/specs/playwright-run-evidence-v0.md	176	A prior whose fingerprint differs from the selection in any input MUST NOT make	unrecorded	-
-PWR-V0-036	docs/specs/playwright-run-evidence-v0.md	180	With the freshness condition (`--fresh`), a prior that differs only in	unrecorded	-
-PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	188	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
-PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	195	The shared-code reach MUST be declared by the repository in	unrecorded	-
-PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	201	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
-PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	207	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	34	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	48	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	55	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	64	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	68	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	77	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	87	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	94	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	104	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	108	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
+PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	114	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
+PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	119	A test identity that occurs more than once in a logical run stays	unrecorded	-
+PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	124	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
+PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	128	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
+PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	132	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
+PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	135	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
+PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	141	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
+PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	145	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
+PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	148	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
+PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	151	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
+PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	154	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
+PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	157	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
+PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	159	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
+PWR-V0-033	docs/specs/playwright-run-evidence-v0.md	162	A retained result's fingerprint MUST be (Playwright version, declared	unrecorded	-
+PWR-V0-034	docs/specs/playwright-run-evidence-v0.md	170	`Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or	unrecorded	-
+PWR-V0-035	docs/specs/playwright-run-evidence-v0.md	177	A prior whose fingerprint differs from the selection in any input MUST NOT make	unrecorded	-
+PWR-V0-036	docs/specs/playwright-run-evidence-v0.md	181	With the freshness condition (`--fresh`), a prior that differs only in	unrecorded	-
+PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	189	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
+PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	196	The shared-code reach MUST be declared by the repository in	unrecorded	-
+PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	202	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
+PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	208	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
+PWR-V0-041	docs/specs/playwright-run-evidence-v0.md	221	`corvint runs baseline record --rev REV --full R... --isolated R...` MUST print	unrecorded	-
+PWR-V0-042	docs/specs/playwright-run-evidence-v0.md	232	`runs baseline diff --baseline B --runs R...` MUST read B strictly (at most 16 M	unrecorded	-
+PWR-V0-043	docs/specs/playwright-run-evidence-v0.md	239	A candidate failure in a `flaky` entry MUST block as `SUSPECTED_FLAKE` and is ne	unrecorded	-
+PWR-V0-044	docs/specs/playwright-run-evidence-v0.md	246	The diff MUST print a `corvint-runs-baseline-diff/0` receipt with `verdict`	unrecorded	-
+PWR-V0-045	docs/specs/playwright-run-evidence-v0.md	251	With `--base REV`, the receipt MUST report `staleness` as `STALE` when the basel	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -3456,10 +3461,13 @@ STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bi
 STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
 STR-V0-019	docs/specs/session-test-runner-v0.md	264	Every `go test` command that a `make gate` step recipe runs SHALL carry a	unrecorded	-
 STR-V0-050	docs/specs/session-test-runner-v0.md	274	`corvint test shards --count N --files PATH [--durations PATH]... [--runs K]` SH	unrecorded	-
-STR-V0-051	docs/specs/session-test-runner-v0.md	290	Each `--durations` file is one retained full run in the `corvint-ci-package-cost	unrecorded	-
-STR-V0-052	docs/specs/session-test-runner-v0.md	298	The plan SHALL take the files heaviest first (ties by name) and put each on the	unrecorded	-
-STR-V0-053	docs/specs/session-test-runner-v0.md	303	When no table is supplied, more than 64 are, any supplied table is unreadable or	unrecorded	-
-STR-V0-054	docs/specs/session-test-runner-v0.md	310	`corvint test --placement measured --shard-plan PATH` (experimental, off by	unrecorded	-
+STR-V0-051	docs/specs/session-test-runner-v0.md	291	Each `--durations` file is one retained full run in the `corvint-ci-package-cost	unrecorded	-
+STR-V0-052	docs/specs/session-test-runner-v0.md	299	The plan SHALL take the files heaviest first (ties by name) and put each on the	unrecorded	-
+STR-V0-053	docs/specs/session-test-runner-v0.md	304	When no table is supplied, more than 64 are, any supplied table is unreadable or	unrecorded	-
+STR-V0-054	docs/specs/session-test-runner-v0.md	311	`corvint test --placement measured --shard-plan PATH` (experimental, off by	unrecorded	-
+STR-V0-055	docs/specs/session-test-runner-v0.md	324	`--shard-plan PATH` SHALL be read as the STR-V0-050 inputs are: through its	unrecorded	-
+STR-V0-056	docs/specs/session-test-runner-v0.md	331	`tools/ci-shard-costs refresh --history DIR [--keep N] [--at TIME]` SHALL, after	unrecorded	-
+STR-V0-057	docs/specs/session-test-runner-v0.md	342	`corvint test shards ... --test-slices PATH --split-allow PATH` (both or neither	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-
@@ -3684,52 +3692,60 @@ TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	170	(accepte
 TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	234	(accepted, decision 0483; V1-1066; GitHub #709; V1-1175 amendment accepted, deci	owner	decision 0483; V1-1066; #709; V1-1175; decision 0519
 TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	296	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`	owner	decision 0483; V1-1067; #709
 TJAA-V0-021	docs/specs/typescript-javascript-affected-adapter-v0.md	305	(accepted, decision 0519 (V1-1175); GitHub #790) A project `grep` or	owner	decision 0519; V1-1175; #790
-TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	65	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
-TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	74	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
-TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	91	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
-TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	100	Witness evidence MUST be the closed object `{source, eventSha256, commit,	unrecorded	-
-TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	114	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa	unrecorded	-
-TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	122	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the	unrecorded	-
-TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	127	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi	unrecorded	-
-TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	136	`corvint-tasks ticket obligations witness` MUST apply operation	unrecorded	-
-TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	147	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at	unrecorded	-
-TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	161	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`	unrecorded	-
-TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	173	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th	unrecorded	-
-TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	180	Each match MUST pass a source presence check. Its `spec.file` (relative to	unrecorded	-
-TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	186	Validation and audit are source-specific.	unrecorded	-
-TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	204	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses	unrecorded	-
-TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	215	Roles are as follows.	unrecorded	-
-TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	230	`highWater` MUST be monotone within one acceptance revision.	unrecorded	-
-TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	236	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l	unrecorded	-
-TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	246	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its	unrecorded	-
-TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	257	`queue status` and `queue status --summary` MUST add the key `obligations`	unrecorded	-
-TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	265	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional	unrecorded	-
-TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	276	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed	unrecorded	-
-TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	287	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M	unrecorded	-
-TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	305	Any other obligation named in a `test.fail` test (in its title path or a step,	unrecorded	-
-TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	310	`witness --from-playwright-report` MUST accept `--post-check LOG	unrecorded	-
-TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	319	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check	unrecorded	-
-TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	350	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at	unrecorded	-
-TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	354	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le	unrecorded	-
-TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	377	`run-batch` and `qualify` MUST read their commands from one closed local	unrecorded	-
-TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	390	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS	unrecorded	-
-TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	406	A job MUST run only in a clean checkout of the commit: a checkout at another com	unrecorded	-
-TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	418	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT	unrecorded	-
-TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	430	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS	unrecorded	-
-TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	448	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema	unrecorded	-
-TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	476	A seed item MAY carry an optional adopter `alias`, so a suite that already names	unrecorded	-
-TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	489	A seed MUST refuse, and write nothing, when an alias repeats an alias already in	unrecorded	-
-TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	497	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title	unrecorded	-
-TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	525	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A fo	standing	2026-10-11; #813
-TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `	standing	2026-10-11; #813
-TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An e	standing	2026-10-11; #813
-TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	546	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The	standing	2026-10-11; #813
-TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	550	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Unde	standing	2026-10-11; #813
-TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	554	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When	standing	2026-10-11; #813
-TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	563	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
-TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	570	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `l	standing	2026-10-11; #813
-TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	574	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Sour	standing	2026-10-11; #813
-TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	576	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	69	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
+TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	78	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	95	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	104	Witness evidence MUST be the closed object `{source, eventSha256, commit,	unrecorded	-
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	118	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa	unrecorded	-
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	126	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the	unrecorded	-
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	131	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi	unrecorded	-
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	140	`corvint-tasks ticket obligations witness` MUST apply operation	unrecorded	-
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	151	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at	unrecorded	-
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	165	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`	unrecorded	-
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	177	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th	unrecorded	-
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	184	Each match MUST pass a source presence check. Its `spec.file` (relative to	unrecorded	-
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	190	Validation and audit are source-specific.	unrecorded	-
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	208	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses	unrecorded	-
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	219	Roles are as follows.	unrecorded	-
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	234	`highWater` MUST be monotone within one acceptance revision.	unrecorded	-
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	240	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l	unrecorded	-
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	250	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its	unrecorded	-
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	261	`queue status` and `queue status --summary` MUST add the key `obligations`	unrecorded	-
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	269	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional	unrecorded	-
+TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	280	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed	unrecorded	-
+TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	291	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M	unrecorded	-
+TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	309	Any other obligation named in a `test.fail` test (in its title path or a step,	unrecorded	-
+TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	314	`witness --from-playwright-report` MUST accept `--post-check LOG	unrecorded	-
+TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	323	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check	unrecorded	-
+TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	354	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at	unrecorded	-
+TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	358	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le	unrecorded	-
+TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	381	`run-batch` and `qualify` MUST read their commands from one closed local	unrecorded	-
+TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	394	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS	unrecorded	-
+TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	410	A job MUST run only in a clean checkout of the commit: a checkout at another com	unrecorded	-
+TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	422	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT	unrecorded	-
+TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	434	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS	unrecorded	-
+TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	452	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema	unrecorded	-
+TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	480	A seed item MAY carry an optional adopter `alias`, so a suite that already names	unrecorded	-
+TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	493	A seed MUST refuse, and write nothing, when an alias repeats an alias already in	unrecorded	-
+TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	501	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title	unrecorded	-
+TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	529	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A fo	standing	2026-10-11; #813
+TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `	standing	2026-10-11; #813
+TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	547	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An e	standing	2026-10-11; #813
+TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	550	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The	standing	2026-10-11; #813
+TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	554	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Unde	standing	2026-10-11; #813
+TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	558	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When	standing	2026-10-11; #813
+TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	567	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	574	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `l	standing	2026-10-11; #813
+TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	578	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Sour	standing	2026-10-11; #813
+TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	580	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-047	docs/specs/corvint-tasks-obligation-ledger-v0.md	590	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) `pr	standing	2026-10-11; #1037
+TOL-V0-048	docs/specs/corvint-tasks-obligation-ledger-v0.md	599	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The	standing	2026-10-11; #1037
+TOL-V0-049	docs/specs/corvint-tasks-obligation-ledger-v0.md	611	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) Ent	standing	2026-10-11; #1037
+TOL-V0-050	docs/specs/corvint-tasks-obligation-ledger-v0.md	618	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The	standing	2026-10-11; #1037
+TOL-V0-051	docs/specs/corvint-tasks-obligation-ledger-v0.md	633	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1048)) The	standing	2026-10-11; #1048
+TOL-V0-052	docs/specs/corvint-tasks-obligation-ledger-v0.md	651	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1048)) Whe	standing	2026-10-11; #1048
+TOL-V0-053	docs/specs/corvint-tasks-obligation-ledger-v0.md	657	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1048)) `--	standing	2026-10-11; #1048
+TOL-V0-054	docs/specs/corvint-tasks-obligation-ledger-v0.md	667	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1048)) The	standing	2026-10-11; #1048
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica	unrecorded	-
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and	unrecorded	-
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed	unrecorded	-

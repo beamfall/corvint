@@ -18,6 +18,11 @@ const KnowHowSecretDetail = "KNOWHOW_SECRET_DETECTED"
 // TOL-V0-009 obligation screen reuses it.
 func matchesSecretScreen(s string) bool { return secretscreen.MatchString(s) }
 
+// MatchesSecretScreen exposes the same single screen call to the Tasks CLI,
+// so the TOL-V0-053 remediation screen reuses this sanctioned edge instead of
+// importing the Core secret screen itself.
+func MatchesSecretScreen(s string) bool { return matchesSecretScreen(s) }
+
 // ScreenKnowHowArgs refuses a know-how command whose raw arguments match the
 // secret screen before any parse or pin error can echo them (KHN-V0-004).
 // The error is SECRET_DETECTED with the KnowHowSecretDetail prefix and never
