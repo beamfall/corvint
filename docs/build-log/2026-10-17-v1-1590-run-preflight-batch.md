@@ -30,3 +30,19 @@ agent-drafted and accepted under the owner's standing auto-accept of lane requir
   is real; reusing it is refused, so an agent cannot replay one excuse.
 - An unreadable ledger runs the job unguarded (`SKIPPED`): the guard saves effort and must never
   block honest work on a corrupt private file.
+
+## V1-1590: revision-pinned failure baseline (PWR-V0-041..045)
+
+- Deviation from the issue's proposal: `corvint runs baseline record` does not run the suite or
+  the isolated re-run. It reads the retained full and isolated reports and prints the baseline
+  for the caller to retain, so `corvint runs` stays read-only under product invariant 4 and the
+  baseline remains a caller file, never Corvint state.
+- Known requires a failure in both runs, and every excuse re-reads both reports at diff time
+  against their recorded sha256; a moved, rewritten or now-passing report un-excuses. Full-run-only
+  failures, including flaky results, are suspected flakes and are never excused.
+- The specs live in PWR-V0 rather than CAL-V0 or the obligation ledger: the gate consumes
+  Playwright report identities, and the existing `runs` reader already owns identity, ambiguity
+  and report-error rules, which the diff reuses.
+- Staleness is reported, not blocking: a stale baseline still excuses only verified failures, and
+  making age a verdict input would turn an unrelated base move into a red gate.
+- Accepted on 2026-10-17 under the owner's standing auto-accept (2026-10-11).
