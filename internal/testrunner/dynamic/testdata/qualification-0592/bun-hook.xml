@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="bun test" tests="1" assertions="0" failures="1" skipped="0" time="0.027674">
+  <testsuite name="a.test.ts" file="a.test.ts" tests="1" assertions="0" failures="1" skipped="0" time="0" hostname="Russells-Mac-Studio.local">
+    <testcase name="(unnamed)" classname="" time="0.000986" file="a.test.ts" assertions="0">
+      <failure type="AssertionError" />
+    </testcase>
+  </testsuite>
+</testsuites>

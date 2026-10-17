@@ -133,6 +133,9 @@ func run(root, makefile, declaration string, stdout, stderr io.Writer) int {
 	if len(none) != 0 && steps != nil {
 		problems = append(problems, checkGateSteps(root, makefile, steps, none)...)
 	}
+	if steps != nil {
+		problems = append(problems, checkGoTestTimeouts(root, makefile, steps)...)
+	}
 	if len(problems) != 0 {
 		for _, problem := range problems {
 			fmt.Fprintln(stderr, "test-commands-check: "+problem)
@@ -618,6 +621,32 @@ func checkGateSteps(root, makefile string, steps, none []string) []string {
 		}
 		for _, found := range runnerWords(recipe, none) {
 			problems = append(problems, fmt.Sprintf("languages.%s is none, but make gate step %s runs %q: a suite the gate runs must be declared as its command", found[0], step, found[1]))
+		}
+	}
+	return problems
+}
+
+// checkGoTestTimeouts dry-runs the GATE_STEPS steps and reports each `go test`
+// command, split at &&, ;, | and &, that carries no -timeout flag: Go's 600s
+// default panics cmd/corvint under load, so every gate-reachable invocation is
+// bound by GO_TEST_TIMEOUT (STR-V0-019, decision 0082).
+func checkGoTestTimeouts(root, makefile string, steps []string) []string {
+	recipe, err := dryRun(root, makefile, steps...)
+	if err != nil {
+		return nil // reported by the other gate-step checks
+	}
+	problems := []string{}
+	for _, line := range strings.Split(recipe, "\n") {
+		for _, command := range strings.FieldsFunc(line, func(r rune) bool { return r == '&' || r == ';' || r == '|' }) {
+			words := strings.Fields(command)
+			for i := 0; i+1 < len(words); i++ {
+				if path.Base(strings.Trim(words[i], "@-()\"'")) != "go" || words[i+1] != "test" {
+					continue
+				}
+				if !slices.ContainsFunc(words[i+2:], func(w string) bool { return w == "-timeout" || strings.HasPrefix(w, "-timeout=") }) {
+					problems = append(problems, fmt.Sprintf("make gate runs `go test` without -timeout: %q (pass -timeout $(GO_TEST_TIMEOUT), STR-V0-019)", strings.TrimSpace(command)))
+				}
+			}
 		}
 	}
 	return problems

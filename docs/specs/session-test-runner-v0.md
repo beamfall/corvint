@@ -261,6 +261,10 @@ of every requirement below and the binding gate until this spec is promoted.
   shard count, holding the expanded execution units and their shard assignment, at most 1 MiB. Its
   digest is recorded in every receipt. `--dry-run` writes it; in CI one job SHALL compute it and
   pass it to every shard and to the fan-in, and each shard SHALL recompute and match it.
+- `STR-V0-019`: Every `go test` command that a `make gate` step recipe runs SHALL carry a
+  `-timeout` flag (`$(GO_TEST_TIMEOUT)`, decision 0082), because Go's 600s default panics
+  `cmd/corvint` under load. `make test-commands-check` dry-runs the `GATE_STEPS` steps and
+  fails naming each `go test` command without it.
 
 ## Non-goals
 
@@ -400,6 +404,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-016 | local profile claims no containment (help text); the slice-3 shadow steps run under the workflow's existing read-only permissions with no persisted credentials | help text; `make ci-least-privilege-check`; the AFP-V0-047 shadow checkout keeps `persist-credentials: false`; hosted shadow runs observed from AFP-V0-047 (`docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`: 142 hosted runs retained shadow selections; the permissions themselves rest on `make ci-least-privilege-check`) |
 | STR-V0-017 | `internal/sessiontest/identity.go`, drift rechecks in `Execute` | TestSTRV0017Identify, TestSTRV0017RunnerDrift |
 | STR-V0-018 | `internal/sessiontest/manifest.go`, `--dry-run --manifest`, shard recompute match | TestSTRV0018ManifestStrictRoundTrip, TestSTRV0018CLIDryRunLaunchesNoRunner, TestSTRV0009CLIShardsAndVerify |
+| STR-V0-019 | `checkGoTestTimeouts` in `tools/test-commands-check/main.go`; `host-adapter-test` passes `-timeout $(GO_TEST_TIMEOUT)` (V1-1552) | `tools/test-commands-check/main_test.go` TestSTRV0019GateGoTestHasTimeout (repository pass; an unbounded gate-step `go test` refused; `-timeout=` passes) |
 
 ## Open decisions
 

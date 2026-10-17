@@ -40,7 +40,7 @@ type PoolSweepOwner struct {
 
 func ReadPoolSweepOwner(r *wire.Reader) *PoolSweepOwner {
 	r.Closed("requestSha256", "previous", "phase", "attempt", "tree")
-	o := &PoolSweepOwner{r.Field("requestSha256").Digest(), r.Field("previous").DigestOrNull(), r.Field("phase").Enum("cleanup", "reset", "verify", "confirm"), r.Field("attempt").Count(), r.Field("tree").OID()}
+	o := &PoolSweepOwner{r.Field("requestSha256").Digest(), r.Field("previous").DigestOrNull(), r.Field("phase").Enum("cleanup", "reset", "verify", "prepare", "confirm"), r.Field("attempt").Count(), r.Field("tree").OID()}
 	if o.Attempt.Int() < 1 || o.Attempt.Int() > 2 {
 		r.Fail(wire.CodeMalformed, "sweep attempt outside1..2")
 	}
@@ -88,7 +88,7 @@ func DecodePoolSweepObservation(raw []byte) (*PoolSweepObservation, error) {
 	}
 	r.Closed("profile", "allocationId", "definitionSha256", "owner", "previous", "phase", "attempt", "revision", "tree", "class", "exit", "passed", "groupClean", "log", "environment", "envFile", "stdout", "stderr", "signal", "timing")
 	r.Field("profile").Exact("taskman-pool-sweep-observation/0")
-	o := &PoolSweepObservation{AllocationID: r.Field("allocationId").Digest(), DefinitionSha256: r.Field("definitionSha256").Digest(), Owner: r.Field("owner").Digest(), Previous: r.Field("previous").DigestOrNull(), Phase: r.Field("phase").Enum("cleanup", "reset", "verify"), Attempt: r.Field("attempt").Count(), Revision: r.Field("revision").OID(), Tree: r.Field("tree").OID(), Class: r.Field("class").Enum("EXIT_ZERO", "EXIT_NONZERO", "STDOUT_MISMATCH", "SPAWN_FAILED", "TIMEOUT", "INTERRUPTED", "OUTPUT_LIMIT", "UNKNOWN", "SOURCE_CHANGED", "SIGNAL"), Passed: r.Field("passed").Bool(), GroupClean: r.Field("groupClean").Bool(), Log: r.Field("log").Digest(), Environment: r.Field("environment").Digest(), EnvFile: r.Field("envFile").Digest()}
+	o := &PoolSweepObservation{AllocationID: r.Field("allocationId").Digest(), DefinitionSha256: r.Field("definitionSha256").Digest(), Owner: r.Field("owner").Digest(), Previous: r.Field("previous").DigestOrNull(), Phase: r.Field("phase").Enum("cleanup", "reset", "verify", "prepare"), Attempt: r.Field("attempt").Count(), Revision: r.Field("revision").OID(), Tree: r.Field("tree").OID(), Class: r.Field("class").Enum("EXIT_ZERO", "EXIT_NONZERO", "STDOUT_MISMATCH", "SPAWN_FAILED", "TIMEOUT", "INTERRUPTED", "OUTPUT_LIMIT", "UNKNOWN", "SOURCE_CHANGED", "SIGNAL"), Passed: r.Field("passed").Bool(), GroupClean: r.Field("groupClean").Bool(), Log: r.Field("log").Digest(), Environment: r.Field("environment").Digest(), EnvFile: r.Field("envFile").Digest()}
 	o.Stdout = r.Field("stdout").Digest()
 	o.Stderr = r.Field("stderr").Digest()
 	o.Timing = readSweepTiming(r.Field("timing"))

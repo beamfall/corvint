@@ -33,6 +33,10 @@ requirement, a verified mutation kill, browser/application identity or release q
 | `test-unit` | explicit Ruby files, fixed Test::Unit reporter | Ruby 2.6.10, Test::Unit 3.2.9 pass/fail/omission; reporter live test |
 | `rails-test` | explicit Rails test files and pinned boot helper in `Config`, Minitest reporter | Ruby 3.4.11 / Rails 8.1.4 / Minitest 6.0.6 on Linux arm64; real application boot, HTTP route, pass/fail/skip and collection error through common executor |
 
+The 2026-10-17 P/F/S/Z/C/R/T re-qualification of every profile, with version tuples and retained
+blockers, is the "Dynamic qualification matrix 2026-10-17 (V1-0592)" section of
+`docs/specs/test-runner-execution-v0.md`.
+
 Missing runtime/device qualification blocks a release support claim. Fixture success does not
 qualify other runner versions, operating systems, browsers, workers, child dependencies,
 all lifecycle cases or full application execution. All profiles remain experimental. No

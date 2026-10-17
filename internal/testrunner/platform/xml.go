@@ -157,7 +157,7 @@ func parseJUnit(in tr.Input, o *tr.Observation) error {
 			return err
 		}
 	}
-	actual := map[string]int{}
+	actual, containers := map[string]int{}, 0
 	for _, c := range n.children {
 		switch c.name {
 		case "properties", "system-out", "system-err":
@@ -214,9 +214,17 @@ func parseJUnit(in tr.Input, o *tr.Observation) error {
 		if !strings.HasPrefix(id, "[engine:"+engine+"]/") {
 			return fmt.Errorf("wrong engine or missing JUnit unique ID")
 		}
+		// JUnit Vintage reports a runner whose children were all filtered
+		// (for example a Robolectric SDK outside enabledSdks) as an outcome-free
+		// leaf. No test ran, so it is never a pass (TRE-V0-077).
+		if engine == "junit-vintage" && state == tr.Passed && strings.HasPrefix(id[strings.LastIndex(id, "/")+1:], "[runner:") {
+			containers++
+			problem(o, "CONTAINER_WITHOUT_TESTS", "a JUnit Vintage runner reported no executed test")
+			continue
+		}
 		o.Tests = append(o.Tests, test(id, name, "", class, state, kind, message))
 	}
-	if total != len(o.Tests) {
+	if total != len(o.Tests)+containers {
 		return fmt.Errorf("JUnit testcase count mismatch")
 	}
 	for k, v := range wanted {
