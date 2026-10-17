@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -89,12 +90,19 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 	case "catch2":
 		v.Argv = []string{"--reporter", "junit", "--out", report("catch2.xml"), "--order", "lex"}
+		// Catch2 ANDs separate test-spec arguments; one comma-joined
+		// argument is the OR of the exact names (TRE-V0-046).
+		var specs []string
 		for _, s := range r.Selectors {
 			if strings.ContainsAny(s, "*?,[]~\\\"") || strings.HasPrefix(s, "-") {
 				return v, errors.New("ambiguous Catch2 selector")
 			}
-			v.Argv = append(v.Argv, "\""+s+"\"")
+			specs = append(specs, "\""+s+"\"")
 		}
+		if len(specs) > 0 {
+			v.Argv = append(v.Argv, strings.Join(specs, ","))
+		}
+		v.SuccessExitCodes = []int{0, catch2AllSkippedExit}
 	case "dotnet-vstest-nunit", "dotnet-vstest-mstest", "dotnet-vstest-xunit":
 		if r.Project == "" || strings.HasPrefix(r.Project, "-") {
 			return v, errors.New("explicit test project or assembly required")
@@ -117,6 +125,11 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 		if len(r.Selectors) > 1 {
 			return v, errors.New("Cargo exact profile admits one selector per invocation")
+		}
+		// rustdoc splits each --test-args value on whitespace, so an exact
+		// doctest name ("src/lib.rs - f (line 3)") can never match (TRE-V0-045).
+		if r.Runner == "cargo-doctest" && len(r.Selectors) == 1 && strings.ContainsFunc(r.Selectors[0], unicode.IsSpace) {
+			return v, errors.New("cargo-doctest selector contains whitespace that rustdoc splits; doctest selection is unsupported")
 		}
 		mode := "--lib"
 		if r.Runner == "cargo-doctest" {
@@ -189,6 +202,10 @@ func failureExits(runner string) []int {
 		return []int{1}
 	}
 }
+
+// catch2AllSkippedExit is Catch2 3.16.0's AllTestsSkippedExitCode.
+const catch2AllSkippedExit = 4
+
 func containsExit(codes []int, n int) bool {
 	for _, code := range codes {
 		if code == n {
@@ -262,13 +279,14 @@ func Parse(in tr.Input) (tr.Observation, error) {
 		return o, err
 	}
 	seen := map[string]bool{}
-	failed := false
+	failed, allSkipped := false, len(o.Tests) > 0
 	for _, t := range o.Tests {
 		if t.ID == "" || seen[t.ID] {
 			return o, errors.New("empty or duplicate native test identity")
 		}
 		seen[t.ID] = true
 		failed = failed || t.State == tr.Failed
+		allSkipped = allSkipped && t.State == tr.Skipped
 		if len(t.Attempts) > tr.MaxAttempts {
 			return o, errors.New("attempt bound exceeded")
 		}
@@ -279,7 +297,10 @@ func Parse(in tr.Input) (tr.Observation, error) {
 	if len(o.Tests) == 0 {
 		o.Problems = append(o.Problems, tr.Problem{Code: "NO_TESTS", Detail: "native runner reported no tests"})
 	}
-	if (failed && !containsExit(failureExits(in.Runner), in.ExitCode)) || (!failed && in.ExitCode != 0) {
+	// Catch2 3.x exits 4 exactly when every executed test case was skipped
+	// (TRE-V0-047); any other report with that exit stays a contradiction.
+	okExit := in.ExitCode == 0 || (in.Runner == "catch2" && in.ExitCode == catch2AllSkippedExit && allSkipped)
+	if (failed && !containsExit(failureExits(in.Runner), in.ExitCode)) || (!failed && !okExit) {
 		o.Problems = append(o.Problems, tr.Problem{Code: "EXIT_REPORT_CONTRADICTION", Detail: fmt.Sprintf("exit %d does not agree with native cases", in.ExitCode)})
 	}
 	o.Complete = len(o.Problems) == 0

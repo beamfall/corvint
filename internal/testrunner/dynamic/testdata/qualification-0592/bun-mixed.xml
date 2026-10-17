@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="bun test" tests="6" assertions="3" failures="1" skipped="2" time="0.008657">
+  <testsuite name="a.test.ts" file="a.test.ts" tests="6" assertions="3" failures="1" skipped="2" time="0" hostname="Russells-Mac-Studio.local">
+    <testsuite name="s" file="a.test.ts" line="1" tests="6" assertions="3" failures="1" skipped="2" time="0" hostname="Russells-Mac-Studio.local">
+      <testcase name="pass" classname="s" time="0" file="a.test.ts" line="1" assertions="0" />
+      <testcase name="fail" classname="s" time="0.000276" file="a.test.ts" line="1" assertions="1">
+        <failure type="AssertionError" />
+      </testcase>
+      <testcase name="skip" classname="s" time="0" file="a.test.ts" line="1" assertions="0">
+        <skipped />
+      </testcase>
+      <testcase name="todo" classname="s" time="0" file="a.test.ts" line="1" assertions="0">
+        <skipped message="TODO" />
+      </testcase>
+      <testcase name="param 1" classname="s" time="0.00003" file="a.test.ts" line="1" assertions="1" />
+      <testcase name="param 2" classname="s" time="0" file="a.test.ts" line="1" assertions="1" />
+    </testsuite>
+  </testsuite>
+</testsuites>
