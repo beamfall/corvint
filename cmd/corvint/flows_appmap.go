@@ -23,6 +23,7 @@ Application map usage (experimental, AMAP-V0):
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
+  corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
@@ -83,6 +84,14 @@ screens resolved/total, the top 5 unknown reasons with example anchors, test-joi
 page-object binding counts, edges by basis and the selector strength histogram (default cap
 6144 bytes). --min-resolved PCT exits 1 below the threshold, naming the dominant reasons.
 
+Reference check (experimental, V1-1581): refs reads the map's test files and up to 16 --source
+directories at the map revision and lists the routes, selector names (test ids, CSS id, class
+and data-* names) and mocked endpoint segments tests reference that the source lacks, with kind,
+value, match (exact or prefix) and test locations (default cap 6144 bytes). It is name-level
+only. Templated values are prefixes; catch-all routes, regular-expression patterns and
+application-templated names are labelled; text-level selectors and dynamic values are counted
+as unchecked. An unlabelled miss exits 1; refusals exit 2. No repository file changes.
+
 Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
 external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
 printed step then gets a learned fact (source run-verification) whose kind is VERIFIED at the
@@ -93,7 +102,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -145,6 +154,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "stats" {
 		return runFlowsAppmapStats(ctx, root, args, out)
 	}
+	if verb == "refs" {
+		return runFlowsAppmapRefs(ctx, root, args, out)
+	}
 	if verb == "plan" {
 		return runFlowsAppmapPlan(ctx, root, args, out)
 	}
@@ -153,7 +165,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

@@ -38,12 +38,18 @@ func commitAll(t *testing.T, root, message string) string {
 // fixtureRepo commits testdata/fixture into a fresh repository and returns its root and revision.
 func fixtureRepo(t *testing.T) (string, string) {
 	t.Helper()
+	return fixtureRepoFrom(t, "testdata/fixture")
+}
+
+// fixtureRepoFrom commits one testdata fixture directory into a fresh repository.
+func fixtureRepoFrom(t *testing.T, dir string) (string, string) {
+	t.Helper()
 	root := t.TempDir()
-	err := filepath.WalkDir("testdata/fixture", func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		rel, _ := filepath.Rel("testdata/fixture", p)
+		rel, _ := filepath.Rel(dir, p)
 		data, err := os.ReadFile(p)
 		if err != nil {
 			return err
