@@ -11,8 +11,8 @@ states, expected-fail annotations, `preflight`), decision 0397, and the in-tree 
 `internal/tasks/defects`, `internal/tasks/intent` and `internal/tasks/cli`.
 
 ## Agent digest
-- Claim: A local append-only defect register records suspected and confirmed product and environment faults with stable ids; preflight checks that obligations and expected-fail annotations cite known, live defects and that a blocked-by-defect obligation rests on a product defect.
-- Status: TDR-V0-001..010 accepted under the owner's standing auto-accept (2026-10-11) (V1-1593); experimental; implemented with focused tests.
+- Claim: A local append-only register records product and environment defects; preflight checks that obligations and expected failures cite known, live product defects.
+- Status: TDR-V0-001..010 accepted under the owner's standing auto-accept (2026-10-11) (V1-1593; GitHub #1036); experimental; implemented with focused tests.
 - Exists: the `internal/tasks/defects` register, the optional policy `defects {prefix, path}`, `corvint-tasks defects add|update|list`, and the preflight `DEFECT_UNKNOWN`, `DEFECT_NOT_A_BUG` and `DEFECT_ENVIRONMENT` findings.
 - Blocked on: nothing for V0; harvesting defects from test reports is a residual (see Non-goals).
 - Read next: Requirements; Failure modes; Traceability.

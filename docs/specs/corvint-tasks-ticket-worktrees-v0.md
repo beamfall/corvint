@@ -10,8 +10,8 @@ built in tree), the [intent worktree contract](corvint-tasks-intent-worktree-v0.
 sources under `internal/tasks/intent`, `internal/tasks/store` and `internal/tasks/cli`.
 
 ## Agent digest
-- Claim: `corvint-tasks worktree ensure <ticket>` creates or reuses one Git worktree per ticket, on a branch derived only from the ticket id and a declared pattern, inside a declared repository root, and reports its identity, head and dirtiness without ever resetting it.
-- Status: TWT-V0-001..007 accepted under the owner's standing auto-accept (2026-10-11) (V1-1588); experimental; implemented with focused tests.
+- Claim: `corvint-tasks worktree ensure <ticket>` creates or reuses one worktree per ticket on a pattern-derived branch inside a declared root and never resets it.
+- Status: TWT-V0-001..007 accepted under the owner's standing auto-accept (2026-10-11) (V1-1588; GitHub #1031); experimental; implemented with focused tests.
 - Exists: the optional policy `worktrees {repository, base, branchPattern}`, `store.EnsureTicketWorktree`, and the `worktree ensure` verb.
 - Blocked on: nothing for V0; recording the worktree head on release or completion is a residual (see Non-goals).
 - Read next: Requirements; Failure modes; Traceability.
