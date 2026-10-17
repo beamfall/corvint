@@ -112,6 +112,19 @@ at probe.cc:7
 </testsuites>
 `
 
+// TRE-V0-046: Catch2 reads an exclude: prefix even inside quotes, so the OR
+// join must refuse it instead of widening the selection.
+func TestCatch2RefusesExcludePrefix(t *testing.T) {
+	for _, sel := range [][]string{{"pass", "exclude:fail"}, {"Exclude:x"}, {"EXCLUDE:x"}} {
+		if _, e := Build(tr.Request{Runner: "catch2", Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: sel}); e == nil || e.Error() != "ambiguous Catch2 selector" {
+			t.Fatal(sel, e)
+		}
+	}
+	if _, e := Build(tr.Request{Runner: "catch2", Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: []string{"excluded name"}}); e != nil {
+		t.Fatal(e)
+	}
+}
+
 func TestCatch2ExactSelectionAndAllSkippedExit(t *testing.T) {
 	v, e := Build(tr.Request{Runner: "catch2", Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: []string{"pass", "fail"}})
 	if e != nil || v.Argv[len(v.Argv)-1] != `"pass","fail"` || len(v.Argv) != 7 || !reflect.DeepEqual(v.SuccessExitCodes, []int{0, 4}) {

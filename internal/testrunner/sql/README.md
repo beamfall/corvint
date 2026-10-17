@@ -26,6 +26,9 @@ operator-owned database reachable through one Unix socket. The adapter neither
 starts a server nor selects a default database. SQL and psql scripts remain
 executable project code; this profile is not a SQL sandbox or permission grant.
 Database state, server identity and dependency authority are `NOT_OBSERVED`.
+psql starts with `PGOPTIONS=-c client_connection_check_interval=1000`. Without it, a
+psql retired on timeout or interruption left its server backend running the statement,
+with its transaction open (TRE-V0-076, V1-0594 live witness).
 
 Raw pgTAP stdout supplies one plan and sequential result ordinals. Case identities
 combine the caller-bound source file, native ordinal and native description;

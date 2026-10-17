@@ -476,40 +476,40 @@ BSD-004	docs/specs/beamfall-shadow-dogfood-v1.md	33	Manifest and artifact reads 
 BSD-005	docs/specs/beamfall-shadow-dogfood-v1.md	37	A new private `0600` receipt is emitted for every outcome after a	unrecorded	-
 BSD-006	docs/specs/beamfall-shadow-dogfood-v1.md	40	Literal external fixture artifacts and source inputs exist for Go;	unrecorded	-
 BSD-007	docs/specs/beamfall-shadow-dogfood-v1.md	44	The one-pass artifact byte count and non-race allocation ceiling	unrecorded	-
-CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	168	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
-CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	172	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
-CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	175	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
-CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	180	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit	unrecorded	-
-CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	188	After the switch, `import` MUST refuse and write nothing, so a later foreign exp	unrecorded	-
-CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	190	The switch MUST leave every record file byte-identical: imported records keep th	unrecorded	-
-CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	195	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]	unrecorded	-
-CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	202	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the	unrecorded	-
-CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	211	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,	unrecorded	-
-CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	215	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc	unrecorded	-
-CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	217	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence	unrecorded	-
-CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	226	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i	unrecorded	-
-CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	235	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a	unrecorded	-
-CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	461	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00	unrecorded	-
-CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	482	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL	unrecorded	-
-CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	485	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's	unrecorded	-
-CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	490	`complete --commit <oid>` MUST refuse unless the commit is reachable from the	unrecorded	-
-CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	510	A first import MUST cost one full audit plus work proportional to the records it	unrecorded	-
-CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	612	A named test suite MUST show, for `external-agent` attempts: two concurrent	unrecorded	-
-CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	617	`cutover --execution --decision <ref> --qualification <file>` MUST, under an	unrecorded	-
-CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	524	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit	unrecorded	-
-CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	532	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's	unrecorded	-
-CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	546	Two live attempts MUST collide exactly when their resource sets collide under	unrecorded	-
-CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	552	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,	unrecorded	-
-CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	560	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a	unrecorded	-
-CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	565	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat	unrecorded	-
-CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	628	A non-fixture queue with null `importMapSha256` MUST admit release creation,	unrecorded	-
-CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	661	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant	unrecorded	-
-CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	669	Claim and claim-next MUST atomically reserve one eligible free member of an	unrecorded	-
-CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	680	By default, release, expiry/reap and completion MUST quarantine the exact alloca	unrecorded	-
-CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	694	A configured health command MUST acquire durable PREPARING ownership before	unrecorded	-
-CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	700	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman	unrecorded	-
-CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	707	Pool commands MUST use bounded trusted operator argv, declared environment keys,	unrecorded	-
-CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	714	Queue occupancy and plan preview MUST remain read-only and execute no probes.	unrecorded	-
+CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	167	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
+CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	171	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
+CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	174	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
+CAL-V0-004	docs/specs/corvint-tasks-agent-leases-v0.md	179	`corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit	unrecorded	-
+CAL-V0-005	docs/specs/corvint-tasks-agent-leases-v0.md	187	After the switch, `import` MUST refuse and write nothing, so a later foreign exp	unrecorded	-
+CAL-V0-006	docs/specs/corvint-tasks-agent-leases-v0.md	189	The switch MUST leave every record file byte-identical: imported records keep th	unrecorded	-
+CAL-V0-007	docs/specs/corvint-tasks-agent-leases-v0.md	194	`corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]	unrecorded	-
+CAL-V0-008	docs/specs/corvint-tasks-agent-leases-v0.md	201	`claim --next --holder <label>` MUST claim the first `SELECTED` entry of the	unrecorded	-
+CAL-V0-009	docs/specs/corvint-tasks-agent-leases-v0.md	210	Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,	unrecorded	-
+CAL-V0-010	docs/specs/corvint-tasks-agent-leases-v0.md	214	`renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` onc	unrecorded	-
+CAL-V0-011	docs/specs/corvint-tasks-agent-leases-v0.md	216	`release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence	unrecorded	-
+CAL-V0-012	docs/specs/corvint-tasks-agent-leases-v0.md	225	A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default i	unrecorded	-
+CAL-V0-013	docs/specs/corvint-tasks-agent-leases-v0.md	234	A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again a	unrecorded	-
+CAL-V0-014	docs/specs/corvint-tasks-agent-leases-v0.md	460	`corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00	unrecorded	-
+CAL-V0-015	docs/specs/corvint-tasks-agent-leases-v0.md	481	`submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUIL	unrecorded	-
+CAL-V0-016	docs/specs/corvint-tasks-agent-leases-v0.md	484	`gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's	unrecorded	-
+CAL-V0-017	docs/specs/corvint-tasks-agent-leases-v0.md	489	`complete --commit <oid>` MUST refuse unless the commit is reachable from the	unrecorded	-
+CAL-V0-018	docs/specs/corvint-tasks-agent-leases-v0.md	509	A first import MUST cost one full audit plus work proportional to the records it	unrecorded	-
+CAL-V0-019	docs/specs/corvint-tasks-agent-leases-v0.md	611	A named test suite MUST show, for `external-agent` attempts: two concurrent	unrecorded	-
+CAL-V0-020	docs/specs/corvint-tasks-agent-leases-v0.md	616	`cutover --execution --decision <ref> --qualification <file>` MUST, under an	unrecorded	-
+CAL-V0-021	docs/specs/corvint-tasks-agent-leases-v0.md	523	Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources wit	unrecorded	-
+CAL-V0-022	docs/specs/corvint-tasks-agent-leases-v0.md	531	A `DERIVED` scope MUST come from Corvint's local context index for the ticket's	unrecorded	-
+CAL-V0-023	docs/specs/corvint-tasks-agent-leases-v0.md	545	Two live attempts MUST collide exactly when their resource sets collide under	unrecorded	-
+CAL-V0-024	docs/specs/corvint-tasks-agent-leases-v0.md	551	`submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,	unrecorded	-
+CAL-V0-025	docs/specs/corvint-tasks-agent-leases-v0.md	559	`widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a	unrecorded	-
+CAL-V0-026	docs/specs/corvint-tasks-agent-leases-v0.md	564	Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gat	unrecorded	-
+CAL-V0-027	docs/specs/corvint-tasks-agent-leases-v0.md	627	A non-fixture queue with null `importMapSha256` MUST admit release creation,	unrecorded	-
+CAL-V0-028	docs/specs/corvint-tasks-agent-leases-v0.md	660	Policy MAY add optional `pools`; tickets MAY add acceptance-relevant	unrecorded	-
+CAL-V0-029	docs/specs/corvint-tasks-agent-leases-v0.md	668	Claim and claim-next MUST atomically reserve one eligible free member of an	unrecorded	-
+CAL-V0-030	docs/specs/corvint-tasks-agent-leases-v0.md	679	By default, release, expiry/reap and completion MUST quarantine the exact alloca	unrecorded	-
+CAL-V0-031	docs/specs/corvint-tasks-agent-leases-v0.md	693	A configured health command MUST acquire durable PREPARING ownership before	unrecorded	-
+CAL-V0-032	docs/specs/corvint-tasks-agent-leases-v0.md	699	Cleanup MUST acquire durable CLEANING ownership before execution. Pending comman	unrecorded	-
+CAL-V0-033	docs/specs/corvint-tasks-agent-leases-v0.md	706	Pool commands MUST use bounded trusted operator argv, declared environment keys,	unrecorded	-
+CAL-V0-034	docs/specs/corvint-tasks-agent-leases-v0.md	713	Queue occupancy and plan preview MUST remain read-only and execute no probes.	unrecorded	-
 CAL-V0-035	docs/specs/corvint-tasks-agent-leases-v0.md	752	The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned	unrecorded	-
 CAL-V0-036	docs/specs/corvint-tasks-agent-leases-v0.md	756	Implement, independent review, repair and integrate MUST be native attempt stage	unrecorded	-
 CAL-V0-037	docs/specs/corvint-tasks-agent-leases-v0.md	769	A live owner MUST NOT be stolen. Explicit quiescent owner release or native iden	unrecorded	-
@@ -517,16 +517,16 @@ CAL-V0-038	docs/specs/corvint-tasks-agent-leases-v0.md	774	WAIT MUST preserve th
 CAL-V0-039	docs/specs/corvint-tasks-agent-leases-v0.md	778	Every dispatch MUST reserve a turn under the native writer lock. Concurrent lane	unrecorded	-
 CAL-V0-040	docs/specs/corvint-tasks-agent-leases-v0.md	784	Every assignment/stage MUST use a distinct registered worktree/private Git direc	unrecorded	-
 CAL-V0-041	docs/specs/corvint-tasks-agent-leases-v0.md	790	Foreground role workers MUST pull eligible work without a daemon, select existin	unrecorded	-
-CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	651	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,	unrecorded	-
+CAL-V0-042	docs/specs/corvint-tasks-agent-leases-v0.md	650	A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,	unrecorded	-
 CAL-V0-043	docs/specs/corvint-tasks-agent-leases-v0.md	807	`ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`	unrecorded	-
-CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	248	Only an upgraded writer's verified terminal external-agent handoff MAY preserve	unrecorded	-
-CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	342	Claim (explicit and next), pure plan preview (including pool/stage selection), a	unrecorded	-
-CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	353	An external-agent `release --reason HANDOFF --evidence REF` MUST support work	unrecorded	-
-CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	379	Every implemented and omitted public command path and command family MUST return	unrecorded	-
-CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	391	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST	unrecorded	-
-CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	408	`ticket show`, full `plan preview` entries and `queue status --retries` (CAL-V0-	unrecorded	-
-CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	440	Read-only `policy show` MUST return effective canonical policy, policyVersion	unrecorded	-
-CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	447	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.	unrecorded	-
+CAL-V0-044	docs/specs/corvint-tasks-agent-leases-v0.md	247	Only an upgraded writer's verified terminal external-agent handoff MAY preserve	unrecorded	-
+CAL-V0-045	docs/specs/corvint-tasks-agent-leases-v0.md	341	Claim (explicit and next), pure plan preview (including pool/stage selection), a	unrecorded	-
+CAL-V0-046	docs/specs/corvint-tasks-agent-leases-v0.md	352	An external-agent `release --reason HANDOFF --evidence REF` MUST support work	unrecorded	-
+CAL-V0-047	docs/specs/corvint-tasks-agent-leases-v0.md	378	Every implemented and omitted public command path and command family MUST return	unrecorded	-
+CAL-V0-048	docs/specs/corvint-tasks-agent-leases-v0.md	390	`attempt heartbeat --attempt ID --generation G --request-id ID` MUST	unrecorded	-
+CAL-V0-049	docs/specs/corvint-tasks-agent-leases-v0.md	407	`ticket show`, full `plan preview` entries and `queue status --retries` (CAL-V0-	unrecorded	-
+CAL-V0-050	docs/specs/corvint-tasks-agent-leases-v0.md	439	Read-only `policy show` MUST return effective canonical policy, policyVersion	unrecorded	-
+CAL-V0-051	docs/specs/corvint-tasks-agent-leases-v0.md	446	CREATE help MUST omit --target and --expected-revision, which CREATE refuses.	unrecorded	-
 CAL-V0-052	docs/specs/corvint-tasks-agent-leases-v0.md	893	`dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed	unrecorded	-
 CAL-V0-053	docs/specs/corvint-tasks-agent-leases-v0.md	917	The optional per-ticket work state MUST come from either a `status-line` reader	unrecorded	-
 CAL-V0-054	docs/specs/corvint-tasks-agent-leases-v0.md	922	The roster MUST be a pure function of the configuration, one observation, the	unrecorded	-
@@ -543,11 +543,11 @@ CAL-V0-064	docs/specs/corvint-tasks-agent-leases-v0.md	1162	A command work-state
 CAL-V0-065	docs/specs/corvint-tasks-agent-leases-v0.md	1227	CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of	unrecorded	-
 CAL-V0-067	docs/specs/corvint-tasks-agent-leases-v0.md	1259	RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under	unrecorded	-
 CAL-V0-068	docs/specs/corvint-tasks-agent-leases-v0.md	1324	The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:	unrecorded	-
-CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	599	`claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolea	unrecorded	-
+CAL-V0-069	docs/specs/corvint-tasks-agent-leases-v0.md	598	`claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolea	unrecorded	-
 CAL-V0-070	docs/specs/corvint-tasks-agent-leases-v0.md	1479	`store.Mutate` MUST take its request lookup and its canonical intent records fro	unrecorded	-
 CAL-V0-071	docs/specs/corvint-tasks-agent-leases-v0.md	1878	The optional policy `supervision` object MAY carry `repositories`, a closed obje	unrecorded	-
 CAL-V0-072	docs/specs/corvint-tasks-agent-leases-v0.md	1896	After `implement`, each repository with changes MUST receive a candidate commit	unrecorded	-
-CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7728	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
+CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	7614	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-074	docs/specs/corvint-tasks-agent-leases-v0.md	2058	The optional policy `supervision` object MAY carry `host`, whose admitted	unrecorded	-
 CAL-V0-075	docs/specs/corvint-tasks-agent-leases-v0.md	2141	A `claude-code` stage MUST invoke the pinned executable with the prompt on	unrecorded	-
 CAL-V0-076	docs/specs/corvint-tasks-agent-leases-v0.md	2275	The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be	unrecorded	-
@@ -574,7 +574,7 @@ CAL-V0-102	docs/specs/corvint-tasks-agent-leases-v0.md	2960	A policy MAY carry t
 CAL-V0-103	docs/specs/corvint-tasks-agent-leases-v0.md	2994	The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes	unrecorded	-
 CAL-V0-104	docs/specs/corvint-tasks-agent-leases-v0.md	3118	With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a	unrecorded	-
 CAL-V0-105	docs/specs/corvint-tasks-agent-leases-v0.md	3174	When the dispatcher has a work-state reader, a ticket MUST count as held exactly	unrecorded	-
-CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7913	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
+CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	7799	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-107	docs/specs/corvint-tasks-agent-leases-v0.md	3215	When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explici	unrecorded	-
 CAL-V0-108	docs/specs/corvint-tasks-agent-leases-v0.md	3261	CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: prio	unrecorded	-
 CAL-V0-109	docs/specs/corvint-tasks-agent-leases-v0.md	1379	On macOS the memory signal MUST be the kernel memory-pressure level	unrecorded	-
@@ -651,7 +651,7 @@ CAL-V0-184	docs/specs/corvint-tasks-agent-leases-v0.md	4812	(accepted by decisio
 CAL-V0-185	docs/specs/corvint-tasks-agent-leases-v0.md	4823	(accepted by decision 0447; V1-0966) The dispatcher MUST count, per	owner	decision 0447; V1-0966
 CAL-V0-186	docs/specs/corvint-tasks-agent-leases-v0.md	5126	(proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh	unrecorded	-
 CAL-V0-187	docs/specs/corvint-tasks-agent-leases-v0.md	4915	proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST	unrecorded	-
-CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7980	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
+CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	7866	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-189	docs/specs/corvint-tasks-agent-leases-v0.md	4967	(proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A	unrecorded	-
 CAL-V0-190	docs/specs/corvint-tasks-agent-leases-v0.md	4980	(proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.	unrecorded	-
 CAL-V0-191	docs/specs/corvint-tasks-agent-leases-v0.md	5163	(proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer	unrecorded	-
@@ -720,20 +720,12 @@ CAL-V0-277	docs/specs/corvint-tasks-agent-leases-v0.md	6958	(accepted under the 
 CAL-V0-278	docs/specs/corvint-tasks-agent-leases-v0.md	6971	(accepted under the owner's standing auto-accept (2026-10-11), V1-1511) `policy	standing	2026-10-11; V1-1511
 CAL-V0-280	docs/specs/corvint-tasks-agent-leases-v0.md	6898	(accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the C	owner	2026-10-16; #993; V1-1510
 CAL-V0-290	docs/specs/corvint-tasks-agent-leases-v0.md	6679	(accepted under the owner's standing auto-accept (2026-10-11), V1-1518) A role's	standing	2026-10-11; V1-1518
-CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	8013	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
-CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	8025	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
-CAL-V0-302	docs/specs/corvint-tasks-agent-leases-v0.md	8038	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
-CAL-V0-303	docs/specs/corvint-tasks-agent-leases-v0.md	8054	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
-CAL-V0-304	docs/specs/corvint-tasks-agent-leases-v0.md	8059	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
+CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	7899	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
+CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	7911	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
+CAL-V0-302	docs/specs/corvint-tasks-agent-leases-v0.md	7924	(accepted, decision 0538; V1-1508)	owner	decision 0538; V1-1508
+CAL-V0-303	docs/specs/corvint-tasks-agent-leases-v0.md	7940	(accepted, decision 0538; V1-1508) `taskman-receipt/1`	owner	decision 0538; V1-1508
+CAL-V0-304	docs/specs/corvint-tasks-agent-leases-v0.md	7945	(accepted, decision 0538; V1-1508) An issue-shaped fixture	owner	decision 0538; V1-1508
 CAL-V0-310	docs/specs/corvint-tasks-agent-leases-v0.md	7013	(accepted under the owner's standing auto-accept (2026-10-11), V1-1526) When a	standing	2026-10-11; V1-1526
-CAL-V0-311	docs/specs/corvint-tasks-agent-leases-v0.md	7057	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A role M	standing	2026-10-11; V1-1548
-CAL-V0-312	docs/specs/corvint-tasks-agent-leases-v0.md	7065	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) On each	standing	2026-10-11; V1-1548
-CAL-V0-313	docs/specs/corvint-tasks-agent-leases-v0.md	7076	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A kept,	standing	2026-10-11; V1-1548
-CAL-V0-314	docs/specs/corvint-tasks-agent-leases-v0.md	7086	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A bindin	standing	2026-10-11; V1-1548
-CAL-V0-315	docs/specs/corvint-tasks-agent-leases-v0.md	7094	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) Each kep	standing	2026-10-11; V1-1548
-CAL-V0-316	docs/specs/corvint-tasks-agent-leases-v0.md	7105	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548)	standing	2026-10-11; V1-1548
-CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	7109	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The	standing	2026-10-11; V1-1548
-CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	7117	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
 CATN-V0-001	docs/specs/cross-audience-truth-nondivergence-v0.md	97	Compilation MUST bind one `corvint-human-documentation-plan/0` admitted plan tha	unrecorded	-
 CATN-V0-002	docs/specs/cross-audience-truth-nondivergence-v0.md	102	The compiler MUST reuse plan claims without extracting evidence, inferring	unrecorded	-
 CATN-V0-003	docs/specs/cross-audience-truth-nondivergence-v0.md	104	The truth corpus MUST store each claim ID exactly once and MUST preserve the pla	unrecorded	-
@@ -2932,6 +2924,9 @@ PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visi
 PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only	unrecorded	-
 PSR-V0-022	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounde	standing	2026-10-11; V1-1406
 PSR-V0-023	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	55	(owner delegated to the orchestrator (2026-10-16), decision 0536, V1-1492) Withi	unrecorded	-
+PSR-V0-024	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	56	(accepted under the owner's standing auto-accept (2026-10-11), V1-1551, GitHub #	standing	2026-10-11; V1-1551; #1009
+PSR-V0-025	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	57	Within an owned sweep attempt the phase order becomes cleanup (if declared), res	unrecorded	-
+PSR-V0-026	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	58	A prepare that does not pass (any class, including TIMEOUT at the shared deadlin	unrecorded	-
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-
@@ -3381,6 +3376,7 @@ STR-V0-015	docs/specs/session-test-runner-v0.md	238	The run SHALL be bounded: th
 STR-V0-016	docs/specs/session-test-runner-v0.md	251	Adapters execute repository code with the invoking user's authority. The local	unrecorded	-
 STR-V0-017	docs/specs/session-test-runner-v0.md	254	The source identity SHALL bind the bytes that execute: the HEAD commit and tree,	unrecorded	-
 STR-V0-018	docs/specs/session-test-runner-v0.md	259	Before execution the command SHALL derive one canonical `corvint-test-manifest/0	unrecorded	-
+STR-V0-019	docs/specs/session-test-runner-v0.md	264	Every `go test` command that a `make gate` step recipe runs SHALL carry a	unrecorded	-
 TAT-V0-001	docs/specs/test-attack-v0.md	27	`prove --base FULL_SHA --mutate --attack-tests` MUST be an explicit opt-in. The	unrecorded	-
 TAT-V0-002	docs/specs/test-attack-v0.md	28	The attack MUST reuse the immutable range export and changed-line spans, evaluat	unrecorded	-
 TAT-V0-003	docs/specs/test-attack-v0.md	29	Every judged mutation row MUST expose an additive `attack` object with `mutants`	unrecorded	-
@@ -3695,7 +3691,14 @@ TRE-V0-043	docs/specs/test-runner-execution-v0.md	939	New `gradle-junit` plans M
 TRE-V0-044	docs/specs/test-runner-execution-v0.md	985	(accepted under the owner's standing auto-accept (2026-10-11); V1-0612) For `sto	standing	2026-10-11; V1-0612
 TRE-V0-045	docs/specs/test-runner-execution-v0.md	1023	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `cargo-d	standing	2026-10-11; V1-0593
 TRE-V0-046	docs/specs/test-runner-execution-v0.md	1027	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
-TRE-V0-047	docs/specs/test-runner-execution-v0.md	1031	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
+TRE-V0-047	docs/specs/test-runner-execution-v0.md	1033	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
+TRE-V0-060	docs/specs/test-runner-execution-v0.md	1182	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592; amended	standing	2026-10-11; V1-0592
+TRE-V0-061	docs/specs/test-runner-execution-v0.md	1188	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
+TRE-V0-062	docs/specs/test-runner-execution-v0.md	1191	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-063	docs/specs/test-runner-execution-v0.md	1195	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-075	docs/specs/test-runner-execution-v0.md	1373	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
+TRE-V0-076	docs/specs/test-runner-execution-v0.md	1378	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
+TRE-V0-077	docs/specs/test-runner-execution-v0.md	1382	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -248,5 +249,45 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 		if _, err := readFixture(root, "capture"); err == nil {
 			t.Fatal("invalid declaration accepted")
 		}
+	}
+}
+
+// TestSwiftTestingSelectorMatchesSourceSuffixedID is the TRE-V0-075 unit
+// witness: SwiftPM 6.4 matches --filter against the full Swift Testing ID,
+// whose function form ends in "/File.swift:line:column", so the exact
+// selector ends at that "/" or at the end of a suite ID and nowhere else.
+func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
+	r := tr.Request{Runner: "swift-testing", Root: "/source", Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", Selectors: []string{"ProofTests.passCriterion()", "ProofTests.Suite"}}
+	v, e := Build(r)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var filters []*regexp.Regexp
+	for n, a := range v.Argv {
+		if a == "--filter" {
+			filters = append(filters, regexp.MustCompile(v.Argv[n+1]))
+		}
+	}
+	match := func(id string) bool {
+		for _, f := range filters {
+			if f.MatchString(id) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, id := range []string{"ProofTests.passCriterion()/Proof.swift:4:2", "ProofTests.Suite", "ProofTests.Suite/inner()/Proof.swift:9:3"} {
+		if !match(id) {
+			t.Fatalf("exact selector missed native ID %q (filters %v)", id, filters)
+		}
+	}
+	for _, id := range []string{"ProofTests.passCriterion()x/Proof.swift:4:2", "ProofTests.passCriterion2()/Proof.swift:5:2", "ProofTests.SuiteTwo", "Other.ProofTests.passCriterion()/P.swift:1:1"} {
+		if match(id) {
+			t.Fatalf("selector widened to %q", id)
+		}
+	}
+	r.Selectors = []string{"ProofTests.passCriterion()/Proof.swift:4:2"}
+	if _, e = Build(r); e == nil {
+		t.Fatal("source-suffixed selector admitted")
 	}
 }

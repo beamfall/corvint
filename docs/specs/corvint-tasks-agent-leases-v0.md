@@ -721,11 +721,12 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
   default plan's per-pool cap under the same rule.
 
 The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
-memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND}},
+memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND,prepare:COMMAND}},
 priorityAdmission:BOOL}]` (`priorityAdmission` is CAL-V0-101's opt-in priority yield).
 Each map is closed over declared member names; each nested addition is optional. A command is
 `{argv:[ARG],cwd:"REPOSITORY"|PINNED,env:[NAME],timeoutSeconds:"N"}`, where PINNED is PSR-V0-012's
-`{kind:"PINNED_REPOSITORY",path,revision}`. Git references return only identity,
+`{kind:"PINNED_REPOSITORY",path,revision}`. `prepare` is PSR-V0-024's sweep step and requires
+`safeReuse`. Git references return only identity,
 never configuration bodies. Duplicate identical configuration references refuse; differently named
 references cannot prove distinct physical environments. The command interpreter and external services
 are operator-provided dependencies, not attested deployed lineage. Commands run in the caller's

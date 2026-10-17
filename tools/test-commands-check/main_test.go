@@ -295,3 +295,22 @@ func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
 		t.Errorf("shell-test prerequisites %q, want the GATE_STEPS steps that run a script/*_test.sh %q", got, want)
 	}
 }
+
+// STR-V0-019: every go test a gate step runs carries -timeout; the repository
+// passes, an unbounded host-adapter-test is refused, and -timeout= is accepted.
+func TestSTRV0019GateGoTestHasTimeout(t *testing.T) {
+	root := requireMake(t)
+	_, steps := checkMakefile(root, "Makefile")
+	if got := checkGoTestTimeouts(root, "Makefile", steps); len(got) != 0 {
+		t.Fatalf("repository Makefile: %q", got)
+	}
+	bad := mutate(t, filepath.Join(root, "Makefile"), "go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint", "go test -count=1 ./cmd/corvint")
+	got := checkGoTestTimeouts(filepath.Dir(bad), filepath.Base(bad), steps)
+	if len(got) != 1 || !strings.Contains(got[0], "without -timeout") {
+		t.Errorf("unbounded host-adapter-test: %q, want one refusal", got)
+	}
+	eq := mutate(t, filepath.Join(root, "Makefile"), "-timeout $(GO_TEST_TIMEOUT) ./cmd/corvint", "-timeout=30m ./cmd/corvint")
+	if got := checkGoTestTimeouts(filepath.Dir(eq), filepath.Base(eq), steps); len(got) != 0 {
+		t.Errorf("-timeout=30m: %q, want pass", got)
+	}
+}

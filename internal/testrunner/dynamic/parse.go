@@ -66,11 +66,11 @@ func Parse(in tr.Input) (tr.Observation, error) {
 			var err error
 			switch in.Runner {
 			case "jest", "vitest", "detox", "storybook-test-runner", "storybook-vitest":
-				err = parseJest(b, &o)
+				err = parseJest(b, &o, in.Runner == "storybook-test-runner")
 			case "node-test":
 				err = parseNode(b, &o)
 			case "bun-test", "deno-test", "pytest":
-				err = parseXML(b, &o)
+				err = parseXML(b, &o, in.Runner == "bun-test")
 			case "playwright":
 				err = parsePlaywright(b, &o)
 			case "rspec":
@@ -188,7 +188,11 @@ type jestAssertion struct {
 	Invocations                                  *int
 }
 
-func parseJest(b []byte, o *tr.Observation) error {
+// parseJest reads a native Jest/Vitest JSON report. For the legacy Storybook test-runner
+// (storybookRunner), the sole skipped "no-op" row of a file is the placeholder the runner
+// generates for a CSF file without stories (TRE-V0-063): it is reconciled against the native
+// counts but is not a story outcome, so a run of only such files reports no tests.
+func parseJest(b []byte, o *tr.Observation, storybookRunner bool) error {
 	var r struct {
 		NumTotalTests                                                 *int
 		NumPassedTests, NumFailedTests, NumPendingTests, NumTodoTests *int
@@ -206,7 +210,7 @@ func parseJest(b []byte, o *tr.Observation) error {
 	if r.NumTotalTests == nil || r.Success == nil || r.TestResults == nil || r.NumPassedTests == nil || r.NumFailedTests == nil || r.NumPendingTests == nil || r.NumTodoTests == nil {
 		return fmt.Errorf("missing native Jest/Vitest report fields")
 	}
-	count := 0
+	count, placeholders := 0, 0
 	passed, failed, pending, todo := 0, 0, 0, 0
 	allAttempts := true
 	for _, f := range r.TestResults {
@@ -222,6 +226,10 @@ func parseJest(b []byte, o *tr.Observation) error {
 				pending++
 			case "todo":
 				todo++
+			}
+			if storybookRunner && len(f.AssertionResults) == 1 && a.Title == "no-op" && a.FullName != "" && state(a.Status) == tr.Skipped {
+				placeholders++
+				continue
 			}
 			if a.Invocations != nil && (*a.Invocations < 0 || (*a.Invocations == 0 && state(a.Status) != tr.Skipped)) {
 				return fmt.Errorf("invalid invocation count")
@@ -296,7 +304,7 @@ func parseJest(b []byte, o *tr.Observation) error {
 			problem(o, "runner-unsuccessful", "native report success=false")
 		}
 	}
-	if allAttempts && count > 0 {
+	if allAttempts && count > placeholders {
 		o.RetryInformation = tr.Retained
 	} else {
 		o.RetryInformation = tr.NotReported
