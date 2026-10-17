@@ -134,6 +134,9 @@ type Dispatcher struct {
 	// context-stopped worker whose hand-off waits for its detached run.
 	deferredContext map[string]map[string]string
 	heldBy          map[string][]Attempt
+	// drainAlerted keeps one alert per drain-signal write or removal
+	// failure until a write succeeds (ATR-V0-058).
+	drainAlerted bool
 	// tickSeq numbers this run's full ticks and workStateTick is the tick
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
@@ -393,6 +396,7 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	}()
 	// CAL-V0-127: a changed configuration applies before this tick acts.
 	d.reloadConfig()
+	d.syncDrainSignal()
 	obs, err := d.observe(ctx)
 	if d.readerErr != nil {
 		return d.readerErr
@@ -1567,6 +1571,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
+		env = append(env, "CORVINT_DISPATCH_DRAIN_FILE="+DrainSignalPath(d.dir)) // ATR-V0-058
 		if contextFormat(role.UsageFormat) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}

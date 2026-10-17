@@ -268,6 +268,14 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			}
 			return bad["0123456789abcdef.json"]
 		},
+		dispatch.DrainSignalProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "drain-pending.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadDrainSignal(path)
+			return err
+		},
 		dispatch.ContextProfile: func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
 			if err := os.MkdirAll(filepath.Dir(dispatch.ContextRecordPath(dir, "w1")), 0o700); err != nil {
