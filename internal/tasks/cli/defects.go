@@ -55,17 +55,25 @@ func defectsCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	var d *defects.Defect
+	// The store read may retry its callback when Tasks state moves, so it
+	// only resolves the register; the one append runs after it returns
+	// (TDR-V0-010).
+	var path, prefix string
+	var private bool
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		path, private := defects.Location(rc.repo, rc.store.Policy)
-		var werr error
-		if id == "" {
-			d, werr = defects.Add(path, private, rc.store.Policy.DefectPrefix(), f, now)
-		} else {
-			d, werr = defects.Update(path, private, id, f, now)
-		}
-		return werr
+		path, private = defects.Location(rc.repo, rc.store.Policy)
+		prefix = rc.store.Policy.DefectPrefix()
+		return nil
 	})
+	if err != nil {
+		return failure(cmd, rc, err)
+	}
+	var d *defects.Defect
+	if id == "" {
+		d, err = defects.Add(path, private, prefix, f, now)
+	} else {
+		d, err = defects.Update(path, private, id, f, now)
+	}
 	if err != nil {
 		return failure(cmd, rc, err)
 	}

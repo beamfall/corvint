@@ -334,7 +334,8 @@ of lane requirements (2026-10-11) for V1-1602 (GitHub #1045); see
   Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1602).
 - `KHN-V0-029`: While the screen is declared, each fresh screened write reads the values file from
   the primary worktree for that write only, bounded at 1 MiB. Each line is one value, or an
-  env-style `KEY=VALUE` line (optionally `export`-prefixed and quoted) whose value is compared;
+  env-style `KEY=VALUE` line (optionally `export`-prefixed and quoted) whose value is compared; a
+  line whose `KEY=VALUE` value would be under 8 bytes, such as padded base64, is compared whole;
   blank lines, `#` comments and values under 8 bytes are ignored. The bytes are never stored,
   logged, hashed into a receipt or echoed. A declared file that cannot be read refuses the write
   `MISSING_EVIDENCE` with the detail prefix `SCREEN_VALUES_UNAVAILABLE`, never letting it through

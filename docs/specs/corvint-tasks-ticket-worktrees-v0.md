@@ -41,7 +41,8 @@ declared policy, and its only effect is `git worktree add` when the worktree doe
   the root), creating the branch at the base commit when it does not exist. A `--path` that
   differs from the branch's existing worktree, or an existing path that is not the branch's
   worktree, refuses `RESOURCE_COLLISION`. A concurrent ensure that wins the add is observed and
-  returned.
+  returned: while the path is empty or already holds its `.git` entry, the loser re-observes for
+  up to 30 seconds before it refuses.
 - `TWT-V0-004`: The base must name a commit (`MISSING_EVIDENCE` otherwise). An existing branch is
   attached only when the base commit is an ancestor of its tip; otherwise ensure refuses
   `PREREQUISITE_UNSATISFIED` and attaches nothing. On reuse the result reports `baseAncestor`
@@ -97,7 +98,7 @@ with `git worktree remove` and `git branch -d`. An older binary refuses a policy
 | --- | --- |
 | `TWT-V0-001` | `TestTWTV0001_PolicyWorktrees`; `TestTWTV0007_WorktreeEnsureThroughTheCLI` (undeclared refusal) |
 | `TWT-V0-002` | `TestTWTV0002_TWTV0003_TWTV0006_EnsureIsIdempotentAndNeverResets` |
-| `TWT-V0-003` | `TestTWTV0002_TWTV0003_TWTV0006_EnsureIsIdempotentAndNeverResets`; `TestTWTV0007_WorktreeEnsureThroughTheCLI` |
+| `TWT-V0-003` | `TestTWTV0002_TWTV0003_TWTV0006_EnsureIsIdempotentAndNeverResets`; `TestTWTV0003_ConcurrentEnsureConvergesOnTheWinner`; `TestTWTV0007_WorktreeEnsureThroughTheCLI` |
 | `TWT-V0-004` | `TestTWTV0004_TWTV0005_RefusesOutsideRootAndUnrelatedBranch` |
 | `TWT-V0-005` | `TestTWTV0004_TWTV0005_RefusesOutsideRootAndUnrelatedBranch`; `TestTWTV0007_WorktreeEnsureThroughTheCLI` |
 | `TWT-V0-006` | `TestTWTV0002_TWTV0003_TWTV0006_EnsureIsIdempotentAndNeverResets`; `TestTWTV0007_WorktreeEnsureThroughTheCLI` |

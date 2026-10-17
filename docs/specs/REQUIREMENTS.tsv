@@ -2256,8 +2256,8 @@ KHN-V0-026	docs/specs/corvint-tasks-know-how-notes-v0.md	304	A repository note's
 KHN-V0-027	docs/specs/corvint-tasks-know-how-notes-v0.md	309	`ticket know-how list` and `claim` (with or without `--next`) MUST accept a	unrecorded	-
 KHN-V0-028	docs/specs/corvint-tasks-know-how-notes-v0.md	329	Policy MAY declare `knowHow.screen` as a closed object `{denyValuesFile,	unrecorded	-
 KHN-V0-029	docs/specs/corvint-tasks-know-how-notes-v0.md	335	While the screen is declared, each fresh screened write reads the values file fr	unrecorded	-
-KHN-V0-030	docs/specs/corvint-tasks-know-how-notes-v0.md	345	A screened write whose text contains a declared value or a declared class refuse	unrecorded	-
-KHN-V0-031	docs/specs/corvint-tasks-know-how-notes-v0.md	349	The screen applies to the stored text of `NOTE_SET` (the operator note, which is	unrecorded	-
+KHN-V0-030	docs/specs/corvint-tasks-know-how-notes-v0.md	346	A screened write whose text contains a declared value or a declared class refuse	unrecorded	-
+KHN-V0-031	docs/specs/corvint-tasks-know-how-notes-v0.md	350	The screen applies to the stored text of `NOTE_SET` (the operator note, which is	unrecorded	-
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-
@@ -3656,12 +3656,12 @@ TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	31	Policy MAY declare 
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	35	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	40	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
 TDR-V0-004	docs/specs/corvint-tasks-defect-register-v0.md	44	The register is JSONL with profile `taskman-defect/0`. Each `add` or `update`	unrecorded	-
-TDR-V0-005	docs/specs/corvint-tasks-defect-register-v0.md	48	Writers hold an exclusive `flock` on `<register>.lock` across read, validation a	unrecorded	-
-TDR-V0-006	docs/specs/corvint-tasks-defect-register-v0.md	53	Every text field is checked against the shared credential screen; a match refuse	unrecorded	-
-TDR-V0-007	docs/specs/corvint-tasks-defect-register-v0.md	56	`preflight` reads the register at its location when it exists or when policy	unrecorded	-
-TDR-V0-008	docs/specs/corvint-tasks-defect-register-v0.md	61	A `DEFECT` or `BLOCKED` obligation whose cited register ids all resolve (through	unrecorded	-
-TDR-V0-009	docs/specs/corvint-tasks-defect-register-v0.md	65	The default register is `<git-common-dir>/taskman-defects/register.jsonl`	unrecorded	-
-TDR-V0-010	docs/specs/corvint-tasks-defect-register-v0.md	69	`corvint-tasks defects add|update <id>|list [--status S] [--category C]` return	unrecorded	-
+TDR-V0-005	docs/specs/corvint-tasks-defect-register-v0.md	49	Writers hold an exclusive `flock` on `<register>.lock` across read, validation a	unrecorded	-
+TDR-V0-006	docs/specs/corvint-tasks-defect-register-v0.md	56	Every text field is checked against the shared credential screen; a match refuse	unrecorded	-
+TDR-V0-007	docs/specs/corvint-tasks-defect-register-v0.md	59	`preflight` reads the register at its location when it exists or when policy	unrecorded	-
+TDR-V0-008	docs/specs/corvint-tasks-defect-register-v0.md	64	A `DEFECT` or `BLOCKED` obligation whose cited register ids all resolve (through	unrecorded	-
+TDR-V0-009	docs/specs/corvint-tasks-defect-register-v0.md	68	The default register is `<git-common-dir>/taskman-defects/register.jsonl`	unrecorded	-
+TDR-V0-010	docs/specs/corvint-tasks-defect-register-v0.md	75	`corvint-tasks defects add|update <id>|list [--status S] [--category C]` return	unrecorded	-
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M	unrecorded	-
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST	unrecorded	-
@@ -3846,10 +3846,10 @@ TTG-V0-010	docs/specs/traceability-test-gate-v0.md	82	The gate MUST be wired as 
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	29	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	35	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	38	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
-TWT-V0-004	docs/specs/corvint-tasks-ticket-worktrees-v0.md	45	The base must name a commit (`MISSING_EVIDENCE` otherwise). An existing branch i	unrecorded	-
-TWT-V0-005	docs/specs/corvint-tasks-ticket-worktrees-v0.md	49	The repository must resolve to the top level of a Git worktree. The target path	unrecorded	-
-TWT-V0-006	docs/specs/corvint-tasks-ticket-worktrees-v0.md	54	The result carries the ticket id, `repository {root, sha256}` (the SHA-256 of th	unrecorded	-
-TWT-V0-007	docs/specs/corvint-tasks-ticket-worktrees-v0.md	58	`worktree ensure <ticket> [--path PATH]` resolves the ticket in the queue	unrecorded	-
+TWT-V0-004	docs/specs/corvint-tasks-ticket-worktrees-v0.md	46	The base must name a commit (`MISSING_EVIDENCE` otherwise). An existing branch i	unrecorded	-
+TWT-V0-005	docs/specs/corvint-tasks-ticket-worktrees-v0.md	50	The repository must resolve to the top level of a Git worktree. The target path	unrecorded	-
+TWT-V0-006	docs/specs/corvint-tasks-ticket-worktrees-v0.md	55	The result carries the ticket id, `repository {root, sha256}` (the SHA-256 of th	unrecorded	-
+TWT-V0-007	docs/specs/corvint-tasks-ticket-worktrees-v0.md	59	`worktree ensure <ticket> [--path PATH]` resolves the ticket in the queue	unrecorded	-
 UCL1142-V0-001	docs/specs/upgrade-checklist-v0.md	26	`corvint [--root SOURCE] changes --from SHA --to SHA` MUST resolve hexadecimal	unrecorded	-
 UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	31	The deterministic range MUST use first-parent commits in FROM..TO. Only merge	unrecorded	-
 UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	39	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC	unrecorded	-

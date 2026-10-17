@@ -17,6 +17,13 @@ func TestKHNV0029_ValueScreenMatchesDeclaredValuesAndOptInClasses(t *testing.T) 
 		t.Fatalf("ParseDenyValues: %q", got)
 	}
 	none := mutation.NewValueScreen(deny, nil)
+	// A padded base64 line is not KEY=VALUE with VALUE "=": it is compared
+	// whole, quoted or not.
+	b64 := []byte("c2VjcmV0MTIzNDU2Nzg5MA==\n\"Zm9vYmFyYmF6cXV4=\"\nFOO=bar\n")
+	if got := mutation.ParseDenyValues(b64); len(got) != 2 || got[0] != "c2VjcmV0MTIzNDU2Nzg5MA==" || got[1] != "Zm9vYmFyYmF6cXV4=" {
+		t.Fatalf("ParseDenyValues base64: %q", got)
+	}
+	padded := mutation.NewValueScreen(b64, nil)
 	all := mutation.NewValueScreen(nil, []string{intent.ScreenClassCard, intent.ScreenClassEmail, intent.ScreenClassPhone})
 	cases := []struct {
 		screen *mutation.ValueScreen
@@ -24,6 +31,8 @@ func TestKHNV0029_ValueScreenMatchesDeclaredValuesAndOptInClasses(t *testing.T) 
 		want   string
 	}{
 		{none, "rerun with tok-7f3a9c2e1b set", intent.ScreenClassDenyValue},
+		{padded, "token c2VjcmV0MTIzNDU2Nzg5MA== leaked", intent.ScreenClassDenyValue},
+		{padded, "token Zm9vYmFyYmF6cXV4= leaked", intent.ScreenClassDenyValue},
 		{none, "see plain-value-123456", intent.ScreenClassDenyValue},
 		{none, "short is not compared", ""},
 		{none, "mail ops@example.com", ""},

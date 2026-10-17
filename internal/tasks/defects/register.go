@@ -208,8 +208,13 @@ func decodeLine(raw []byte, where string) (*Defect, string, error) {
 		return nil, "", wire.Errorf(wire.CodeMalformed, where, "register line is not one JSON object")
 	}
 	r := wire.NewReader(v, where)
+	// The version is checked first, so a line from a later build refuses
+	// UNSUPPORTED_VERSION rather than MALFORMED for its new members.
+	if err := wire.ProfileVersion(where+"/profile", v, Profile); err != nil {
+		return nil, "", err
+	}
 	r.Closed("profile", "op", "id", "title", "location", "evidence", "severity", "status", "category", "duplicateOf", "recordedAt")
-	if err := r.Field("profile").Profile(Profile); err != nil {
+	if err := wire.CheckProfile(where+"/profile", r.Field("profile").String(), Profile); err != nil {
 		return nil, "", err
 	}
 	op := r.Field("op").Enum(OpAdd, OpUpdate)
@@ -360,8 +365,18 @@ func locked(path string, private bool, fn func(*Register) ([]byte, error)) error
 	if private {
 		mode = 0o700
 	}
-	if err := os.MkdirAll(filepath.Dir(path), mode); err != nil {
+	// Readers refuse a symlinked ancestor, so a writer refuses one too,
+	// before and after creating the directory: a symlinked parent never
+	// places the register outside its root (TDR-V0-009).
+	dir := filepath.Dir(path)
+	if err := noSymlinkedAncestor(dir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dir, mode); err != nil {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, "/defects/path", "cannot create the register directory: %v", err)
+	}
+	if err := noSymlinkedAncestor(dir); err != nil {
+		return err
 	}
 	lock, err := os.OpenFile(path+".lock", os.O_RDWR|os.O_CREATE, 0o600)
 	if err != nil {
@@ -384,10 +399,21 @@ func locked(path string, private bool, fn func(*Register) ([]byte, error)) error
 	if err != nil {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, "/defects/path", "cannot open the register: %v", err)
 	}
-	if info, err := f.Stat(); err == nil && info.Size() > 0 && !endsWithLF(path, info.Size()) {
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return wire.Errorf(wire.CodeUnsupportedFilesystem, "/defects/path", "cannot stat the register: %v", err)
+	}
+	if info.Size() > 0 && !endsWithLF(path, info.Size()) {
 		// Seal an unterminated tail left by an interrupted writer so the
 		// new line stays whole; Read already ignored that tail.
 		line = append([]byte{'\n'}, line...)
+	}
+	if info.Size()+int64(len(line)) > MaxRegisterBytes {
+		// Every reader refuses a register over the bound, so a write that
+		// would cross it refuses instead and the register stays readable.
+		f.Close()
+		return wire.Errorf(wire.CodeLimitExceeded, "/defects/path", "the append would grow the register past %d bytes", MaxRegisterBytes)
 	}
 	if _, err := f.Write(line); err != nil {
 		f.Close()
@@ -409,4 +435,24 @@ func endsWithLF(path string, size int64) bool {
 	b := make([]byte, 1)
 	n, err := r.ReadAt(b, size-1)
 	return err != nil || n != 1 || b[0] == '\n'
+}
+
+// noSymlinkedAncestor refuses UNSUPPORTED_FILESYSTEM when the existing part
+// of dir resolves through a symbolic link.
+func noSymlinkedAncestor(dir string) error {
+	cur := filepath.Clean(dir)
+	for {
+		if _, err := os.Lstat(cur); err == nil {
+			break
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			break
+		}
+		cur = parent
+	}
+	if real, err := filepath.EvalSymlinks(cur); err != nil || real != cur {
+		return wire.Errorf(wire.CodeUnsupportedFilesystem, "/defects/path", "the register directory %s is reached through a symbolic link", dir)
+	}
+	return nil
 }

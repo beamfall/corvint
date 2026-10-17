@@ -44,12 +44,15 @@ authority, and preflight only reads it.
 - `TDR-V0-004`: The register is JSONL with profile `taskman-defect/0`. Each `add` or `update`
   appends one line holding the entry's full new state; no line is ever rewritten or removed, and
   the fold takes the last line per id. An `update` of an unknown id refuses `MISSING_EVIDENCE`.
-  A second `ADD` of an id or an `UPDATE` before its `ADD` is `MALFORMED` on read.
+  A second `ADD` of an id or an `UPDATE` before its `ADD` is `MALFORMED` on read, as is a line of
+  another profile; a line of a later `taskman-defect` version is `UNSUPPORTED_VERSION`.
 - `TDR-V0-005`: Writers hold an exclusive `flock` on `<register>.lock` across read, validation and
   the `O_APPEND` write, then `fsync`, so concurrent appends receive distinct ids and never tear a
   line. Readers take no lock and create nothing: a missing register is empty, bytes after the last
   LF (an interrupted write) are ignored, and the next writer seals them with an LF so the torn
-  bytes become a complete line that a later read reports `MALFORMED` rather than skips.
+  bytes become a complete line that a later read reports `MALFORMED` rather than skips. An append
+  that would grow the register past the 8 MiB read bound refuses `LIMIT_EXCEEDED` and writes
+  nothing, so the register stays readable.
 - `TDR-V0-006`: Every text field is checked against the shared credential screen; a match refuses
   `SECRET_DETECTED` with the detail prefix `DEFECT_SECRET_SCREENED`, naming the flag and no part
   of the value, and writes nothing.
@@ -65,9 +68,13 @@ authority, and preflight only reads it.
 - `TDR-V0-009`: The default register is `<git-common-dir>/taskman-defects/register.jsonl`
   (directory mode 0700): outside every worktree, the Tasks state directory and therefore
   `archive export`, and never pushed. Declaring `defects.path` places it in the primary worktree
-  instead, where the adopter decides whether it is committed or published.
+  instead, where the adopter decides whether it is committed or published. A writer refuses
+  `UNSUPPORTED_FILESYSTEM`, as readers do, when the existing part of the register directory
+  resolves through a symbolic link, before and after creating it, so a symlinked parent never
+  places the register outside its root.
 - `TDR-V0-010`: `corvint-tasks defects add|update <id>|list [--status S] [--category C]` return the
-  entries as untrusted data. `add` and `update` write only the register and its lock file; `list`
+  entries as untrusted data. `add` and `update` append exactly one line per invocation, even when
+  the Tasks state read behind them retries, and write only the register and its lock file; `list`
   writes nothing, and none of them writes the Tasks journal, receipts or intent.
 
 ## Non-goals and simpler baseline
@@ -88,6 +95,9 @@ V1-1593), a Core `corvint defects` verb (the Core verb surface is frozen; the ve
 | Obligation cites a closed or unknown defect | `DEFECT_NOT_A_BUG` or `DEFECT_UNKNOWN` finding (`TDR-V0-007`). |
 | Blocked obligation rests on an environment fault | `DEFECT_ENVIRONMENT` finding (`TDR-V0-008`). |
 | Platform without `flock` | Writes refuse `UNSUPPORTED`; reads still work (`TDR-V0-005`). |
+| Append would cross the 8 MiB read bound | `LIMIT_EXCEEDED`; nothing written (`TDR-V0-005`). |
+| Declared register parent is a symlink | `UNSUPPORTED_FILESYSTEM`; nothing created at its target (`TDR-V0-009`). |
+| Tasks state moves during `defects add` | The read retries; the register still gains one line (`TDR-V0-010`). |
 
 ## Acceptance evidence
 
@@ -108,10 +118,10 @@ path) removes it. An older binary refuses a policy carrying `defects` closed and
 | `TDR-V0-001` | `TestTDRV0001_PolicyDefects` |
 | `TDR-V0-002` | `TestTDRV0002_AddAssignsIDsAndDefaults`; `TestTDRV0010_DefectsVerbsThroughTheCLI` |
 | `TDR-V0-003` | `TestTDRV0002_AddAssignsIDsAndDefaults`; `TestTDRV0004_UpdatesAppendAndLaterLinesOverride` |
-| `TDR-V0-004` | `TestTDRV0004_UpdatesAppendAndLaterLinesOverride` |
-| `TDR-V0-005` | `TestTDRV0005_ConcurrentAddsSerializeAndReadsIgnoreAPartialTail` |
+| `TDR-V0-004` | `TestTDRV0004_UpdatesAppendAndLaterLinesOverride`; `TestTDRV0004_LineProfileIsChecked`; `TestCALV0131_EveryLiveFormatRefusesANewerVersion` |
+| `TDR-V0-005` | `TestTDRV0005_ConcurrentAddsSerializeAndReadsIgnoreAPartialTail`; `TestTDRV0005_AppendNeverCrossesTheReadBound` |
 | `TDR-V0-006` | `TestTDRV0006_TextIsSecretScreenedWithoutEcho`; `TestTDRV0010_DefectsVerbsThroughTheCLI` |
 | `TDR-V0-007` | `TestTDRV0007_TDRV0008_Findings`; `TestTDRV0007_TDRV0008_PreflightDefectFindings` |
 | `TDR-V0-008` | `TestTDRV0007_TDRV0008_Findings`; `TestTDRV0007_TDRV0008_PreflightDefectFindings` |
-| `TDR-V0-009` | `TestTDRV0009_PrivateDefaultAndDeclaredPath`; `TestTDRV0010_DefectsVerbsThroughTheCLI` |
-| `TDR-V0-010` | `TestTDRV0010_DefectsVerbsThroughTheCLI` |
+| `TDR-V0-009` | `TestTDRV0009_PrivateDefaultAndDeclaredPath`; `TestTDRV0009_SymlinkedParentRefusesBeforeWriting`; `TestTDRV0010_DefectsVerbsThroughTheCLI` |
+| `TDR-V0-010` | `TestTDRV0010_DefectsVerbsThroughTheCLI`; `TestTDRV0010_DefectWriteAppendsOnceAcrossStoreRetries` |

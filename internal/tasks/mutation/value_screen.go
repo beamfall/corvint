@@ -34,8 +34,10 @@ func NewValueScreen(denyFile []byte, classes []string) *ValueScreen {
 
 // ParseDenyValues reads an adopter values file: one value per line, or an
 // env-style KEY=VALUE line (optionally `export`-prefixed and quoted), whose
-// value is compared. Blank lines, `#` comments and values shorter than
-// MinDenyValueBytes are ignored.
+// value is compared. A line whose KEY=VALUE value would be shorter than
+// MinDenyValueBytes, such as a padded base64 value read as KEY "abc" and
+// VALUE "=", is compared whole instead. Blank lines, `#` comments and values
+// shorter than MinDenyValueBytes are ignored.
 func ParseDenyValues(raw []byte) []string {
 	var out []string
 	for _, line := range bytes.Split(raw, []byte("\n")) {
@@ -45,16 +47,23 @@ func ParseDenyValues(raw []byte) []string {
 		}
 		s = strings.TrimSpace(strings.TrimPrefix(s, "export "))
 		if i := strings.IndexByte(s, '='); i > 0 && envKey.MatchString(s[:i]) {
-			s = strings.TrimSpace(s[i+1:])
+			if v := unquote(strings.TrimSpace(s[i+1:])); len(v) >= MinDenyValueBytes {
+				s = v
+			}
 		}
-		if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
-			s = s[1 : len(s)-1]
-		}
+		s = unquote(s)
 		if len(s) >= MinDenyValueBytes {
 			out = append(out, s)
 		}
 	}
 	return out
+}
+
+func unquote(s string) string {
+	if len(s) >= 2 && (s[0] == '"' || s[0] == '\'') && s[len(s)-1] == s[0] {
+		return s[1 : len(s)-1]
+	}
+	return s
 }
 
 var (

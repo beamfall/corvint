@@ -227,3 +227,76 @@ func TestTDRV0007_TDRV0008_Findings(t *testing.T) {
 		t.Fatalf("findings\n got %s\nwant %s", strings.Join(got, ","), want)
 	}
 }
+
+// TestTDRV0009_SymlinkedParentRefusesBeforeWriting: a declared register whose
+// parent directory is a symlink out of the worktree refuses
+// UNSUPPORTED_FILESYSTEM, as its readers do, and creates nothing at the
+// symlink's target.
+func TestTDRV0009_SymlinkedParentRefusesBeforeWriting(t *testing.T) {
+	root, outside := tempDir(t), tempDir(t)
+	if err := os.Symlink(outside, filepath.Join(root, "qa")); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"qa/defects.jsonl", "qa/deeper/defects.jsonl"} {
+		_, err := defects.Add(filepath.Join(root, filepath.FromSlash(rel)), false, "DEF", defects.Fields{Title: s("t"), Location: s("l"), Evidence: s("e")}, now)
+		if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem {
+			t.Fatalf("%s: want UNSUPPORTED_FILESYSTEM, got %v", rel, err)
+		}
+	}
+	if entries, err := os.ReadDir(outside); err != nil || len(entries) != 0 {
+		t.Fatalf("wrote outside the worktree: %v %v", entries, err)
+	}
+}
+
+// TestTDRV0005_AppendNeverCrossesTheReadBound: an append that would grow the
+// register past the 8 MiB read bound refuses LIMIT_EXCEEDED, writes nothing,
+// and leaves the register readable; the appends below the bound succeed.
+func TestTDRV0005_AppendNeverCrossesTheReadBound(t *testing.T) {
+	path := filepath.Join(tempDir(t), defects.RegisterFile)
+	first := add(t, path, "first", defects.CategoryProduct)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Pad with an unterminated tail, which readers ignore, to just under
+	// the bound.
+	pad := strings.Repeat("x", defects.MaxRegisterBytes-len(raw)-64)
+	if err := os.WriteFile(path, append(raw, pad...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := defects.Add(path, true, "DEF", defects.Fields{Title: s("second"), Location: s("l"), Evidence: s("e")}, now); wire.CodeOf(err) != wire.CodeLimitExceeded {
+		t.Fatalf("want LIMIT_EXCEEDED, got %v", err)
+	}
+	if after, err := os.ReadFile(path); err != nil || string(after) != string(before) {
+		t.Fatalf("a refused append changed the register: %v", err)
+	}
+	reg, err := defects.Read(path, true)
+	if err != nil || reg.Get(first.ID) == nil || len(reg.Defects()) != 1 {
+		t.Fatalf("register unreadable after the refusal: %v", err)
+	}
+}
+
+// TestTDRV0004_LineProfileIsChecked: a register line of another profile is
+// MALFORMED and one from a later build of this profile is
+// UNSUPPORTED_VERSION, never folded as a defect.
+func TestTDRV0004_LineProfileIsChecked(t *testing.T) {
+	path := filepath.Join(tempDir(t), defects.RegisterFile)
+	add(t, path, "first", defects.CategoryProduct)
+	good, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for profile, code := range map[string]string{"taskman-other/0": wire.CodeMalformed, "taskman-defect/1": wire.CodeUnsupportedVersion} {
+		line := strings.Replace(string(good), defects.Profile, profile, 1)
+		if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := defects.Read(path, true); wire.CodeOf(err) != code {
+			t.Fatalf("%s: want %s, got %v", profile, code, err)
+		}
+	}
+}

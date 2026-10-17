@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -70,7 +71,18 @@ func EnsureTicketWorktree(repo *intent.Repository, p *intent.WorktreePolicy, loc
 	if want, err = realPathWithin(root, want); err != nil {
 		return nil, err
 	}
+	// A concurrent ensure of the same ticket can register the worktree, or
+	// hold its path half-made, between this ensure's lookup and its add; the
+	// loser re-observes for a bounded settle and returns the winner
+	// (TWT-V0-003).
+	deadline := time.Now().Add(ensureSettle)
 	for try := 0; ; try++ {
+		if try > 0 {
+			if time.Now().After(deadline) {
+				break
+			}
+			time.Sleep(ensurePoll)
+		}
 		existing, err := branchWorktree(root, branch)
 		if err != nil {
 			return nil, err
@@ -78,10 +90,11 @@ func EnsureTicketWorktree(repo *intent.Repository, p *intent.WorktreePolicy, loc
 		if existing != "" {
 			return reuseTicketWorktree(out, root, existing, want, requested != "")
 		}
-		if try > 0 {
-			return nil, wire.Errorf(wire.CodeUnsupported, "git worktree add", "the worktree for %s could not be created at %s", branch, want)
-		}
+		afterWorktreeLookup()
 		if _, err := os.Lstat(want); !os.IsNotExist(err) {
+			if worktreePending(want) {
+				continue
+			}
 			return nil, wire.Errorf(wire.CodeResourceCollision, "--path", "%s already exists and is not the worktree of branch %s", want, branch)
 		}
 		args := []string{"worktree", "add", "--quiet", "-b", branch, want, out.BaseCommit}
@@ -97,8 +110,35 @@ func EnsureTicketWorktree(repo *intent.Repository, p *intent.WorktreePolicy, loc
 			out.Created = true
 			return observeTicketWorktree(out, root, want)
 		}
-		// A concurrent ensure may have added it: look once more.
+		// A concurrent ensure may have added it: look again.
 	}
+	if _, err := os.Lstat(want); !os.IsNotExist(err) {
+		return nil, wire.Errorf(wire.CodeResourceCollision, "--path", "%s did not become the worktree of branch %s within %s", want, branch, ensureSettle)
+	}
+	return nil, wire.Errorf(wire.CodeUnsupported, "git worktree add", "the worktree for %s could not be created at %s", branch, want)
+}
+
+// Concurrent-ensure settle bounds; afterWorktreeLookup is replaced only by
+// deterministic concurrent-ensure tests.
+var (
+	ensureSettle        = 30 * time.Second
+	ensurePoll          = 20 * time.Millisecond
+	afterWorktreeLookup = func() {}
+)
+
+// worktreePending reports whether path looks like a worktree another ensure
+// is still adding: an empty directory, or one already holding its .git entry.
+// Anything else at path is a collision.
+func worktreePending(path string) bool {
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return false
+	}
+	if len(entries) == 0 {
+		return true
+	}
+	_, err = os.Lstat(filepath.Join(path, ".git"))
+	return err == nil
 }
 
 // reuseTicketWorktree returns the branch's existing worktree unchanged

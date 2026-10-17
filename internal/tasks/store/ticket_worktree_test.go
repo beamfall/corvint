@@ -120,3 +120,56 @@ func TestTWTV0004_TWTV0005_RefusesOutsideRootAndUnrelatedBranch(t *testing.T) {
 		t.Fatalf("unknown base: %v", err)
 	}
 }
+
+// TestTWTV0003_ConcurrentEnsureConvergesOnTheWinner: an ensure that loses the
+// race to a concurrent ensure of the same ticket, whose worktree appears
+// between the loser's lookup and its path check, returns the winner's
+// worktree instead of refusing RESOURCE_COLLISION; ensures racing for real
+// all return the one worktree.
+func TestTWTV0003_ConcurrentEnsureConvergesOnTheWinner(t *testing.T) {
+	repo, root := worktreeRepo(t)
+	p := &intent.WorktreePolicy{Repository: ".", Base: "main", BranchPattern: "t/{ticket}"}
+	want := filepath.Join(root, store.TicketWorktreeDir, "V1-0007")
+	once := false
+	restore := store.SetAfterWorktreeLookupForTest(func() {
+		if !once {
+			once = true
+			worktreeGitT(t, root, "worktree", "add", "--quiet", "-b", "t/V1-0007", want, "main")
+		}
+	})
+	got, err := store.EnsureTicketWorktree(repo, p, "V1-0007", "")
+	restore()
+	if err != nil || got.Created || got.Path != want || got.Branch != "t/V1-0007" {
+		t.Fatalf("lost race: %+v %v", got, err)
+	}
+
+	const racers = 4
+	type ensured struct {
+		w   *store.TicketWorktree
+		err error
+	}
+	results := make(chan ensured, racers)
+	for i := 0; i < racers; i++ {
+		go func() {
+			w, err := store.EnsureTicketWorktree(repo, p, "V1-0008", "")
+			results <- ensured{w, err}
+		}()
+	}
+	created := 0
+	for i := 0; i < racers; i++ {
+		r := <-results
+		w, err := r.w, r.err
+		if err != nil {
+			t.Fatalf("racer: %v", err)
+		}
+		if w.Path != filepath.Join(root, store.TicketWorktreeDir, "V1-0008") {
+			t.Fatalf("racer path %s", w.Path)
+		}
+		if w.Created {
+			created++
+		}
+	}
+	if created != 1 {
+		t.Fatalf("%d racers created the worktree", created)
+	}
+}
