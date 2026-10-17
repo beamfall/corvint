@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,6 +17,7 @@ type xmlCase struct {
 	Name     string `xml:"name,attr"`
 	Class    string `xml:"classname,attr"`
 	File     string `xml:"file,attr"`
+	Line     string `xml:"line,attr"`
 	Failures []struct {
 		Message string `xml:"message,attr"`
 	} `xml:"failure"`
@@ -35,7 +37,7 @@ type xmlSuite struct {
 	Suites   []xmlSuite `xml:"testsuite"`
 }
 
-func parseXML(b []byte, o *tr.Observation) error {
+func parseXML(b []byte, o *tr.Observation, bun bool) error {
 	if err := closedXML(b); err != nil {
 		return err
 	}
@@ -49,10 +51,11 @@ func parseXML(b []byte, o *tr.Observation) error {
 	if root.XMLName.Local != "testsuites" && root.XMLName.Local != "testsuite" {
 		return fmt.Errorf("not a native JUnit report")
 	}
-	var walk func(xmlSuite) int
-	walk = func(s xmlSuite) int {
+	var walk func(xmlSuite) (int, int)
+	walk = func(s xmlSuite) (int, int) {
 		n := len(s.Cases)
 		start := len(o.Tests)
+		hooks := 0
 		if len(s.Cases) > 0 && s.Tests == nil {
 			problem(o, "missing-count", s.Name)
 		}
@@ -71,6 +74,13 @@ func parseXML(b []byte, o *tr.Observation) error {
 			if c.Name == "" {
 				problem(o, "missing-name", s.Name)
 			}
+			// Bun reports a failing beforeAll/afterAll hook as an unnamed case with no
+			// source line; it is a setup error, not a test outcome (TRE-V0-062).
+			if bun && c.Name == "(unnamed)" && c.Line == "" && (len(c.Failures) > 0 || len(c.Errors) > 0) {
+				st = tr.Unknown
+				hooks++
+				problem(o, "setup-or-runtime-error", s.Name)
+			}
 			if c.Skipped != nil && (len(c.Errors) > 0 || len(c.Failures) > 0) {
 				problem(o, "conflicting-outcomes", c.Name)
 			}
@@ -78,9 +88,11 @@ func parseXML(b []byte, o *tr.Observation) error {
 			add(o, tr.Test{ID: id, Name: c.Name, File: c.File, Suite: s.Name, State: st})
 		}
 		for _, child := range s.Suites {
-			n += walk(child)
+			cn, ch := walk(child)
+			n, hooks = n+cn, hooks+ch
 		}
-		fail, errs, skip := 0, 0, 0
+		// A Bun hook case is declared as a failure; reconcile it as one.
+		fail, errs, skip := hooks, -hooks, 0
 		for _, t := range o.Tests[start:] {
 			switch t.State {
 			case tr.Failed:
@@ -102,7 +114,7 @@ func parseXML(b []byte, o *tr.Observation) error {
 		if s.Tests != nil && *s.Tests != n {
 			problem(o, "count-mismatch", s.Name)
 		}
-		return n
+		return n, hooks
 	}
 	walk(root.xmlSuite)
 	return nil
@@ -113,6 +125,11 @@ func parseNode(b []byte, o *tr.Observation) error {
 	scanner.Buffer(make([]byte, 4096), tr.MaxReportBytes)
 	final := false
 	reported := 0
+	// Node reports a file-level test event (nesting 0 at 1:1, named after its file) only
+	// when the file produced no test or failed outside its tests (TRE-V0-060). Neither is a
+	// test outcome: an empty file is no-tests, a failing one is a collection/load error.
+	var fileProblems []tr.Problem
+	filePassed, fileFailed := 0, 0
 	for scanner.Scan() {
 		var e struct {
 			Type string
@@ -148,6 +165,16 @@ func parseNode(b []byte, o *tr.Observation) error {
 					if !explained {
 						problem(o, "node-suite-error", e.Data.Name)
 					}
+				}
+				continue
+			}
+			if e.Data.Details.Type == "test" && nodeFileEvent(e.Data.Nesting, e.Data.Line, e.Data.Column, e.Data.File, e.Data.Name) {
+				if e.Type == "test:pass" && e.Data.Details.Error == nil {
+					filePassed++
+					fileProblems = append(fileProblems, tr.Problem{Code: "no-tests", Detail: e.Data.File})
+				} else {
+					fileFailed++
+					fileProblems = append(fileProblems, tr.Problem{Code: "collection-or-hook-error", Detail: e.Data.File})
 				}
 				continue
 			}
@@ -195,6 +222,7 @@ func parseNode(b []byte, o *tr.Observation) error {
 						sk++
 					}
 				}
+				p, f = p+filePassed, f+fileFailed
 				counts := e.Data.Counts
 				if counts.Passed != p || counts.Failed != f || counts.Cancelled != c || counts.Skipped+counts.Todo != sk || counts.Skipped < 0 || counts.Todo < 0 {
 					problem(o, "count-mismatch", "Node categories")
@@ -203,7 +231,7 @@ func parseNode(b []byte, o *tr.Observation) error {
 					problem(o, "success-conflict", "Node successful summary with errors")
 				}
 				if !e.Data.Success {
-					hasFail := false
+					hasFail := fileFailed > 0
 					for _, t := range o.Tests {
 						hasFail = hasFail || t.State == tr.Failed || t.State == tr.TimedOut || t.State == tr.Interrupted
 					}
@@ -219,17 +247,29 @@ func parseNode(b []byte, o *tr.Observation) error {
 	if err := scanner.Err(); err != nil {
 		return err
 	}
+	for _, x := range fileProblems {
+		problem(o, x.Code, x.Detail)
+	}
 	if !final {
 		problem(o, "missing-summary", "Node final summary absent")
 	}
-	if final && reported != len(o.Tests) {
+	if final && reported != len(o.Tests)+filePassed+fileFailed {
 		problem(o, "count-mismatch", "Node summary")
 	}
 	return nil
 }
+
+// nodeFileEvent recognizes Node's synthetic per-file test: top level at 1:1 and named
+// after the file it reports (Node names it by the path it was given).
+func nodeFileEvent(nesting, line, column int, file, name string) bool {
+	return nesting == 0 && line == 1 && column == 1 && file != "" && name != "" &&
+		(name == file || strings.HasSuffix(file, "/"+name))
+}
 func meaningful(b json.RawMessage) bool {
 	return len(b) > 0 && string(b) != "false" && string(b) != "null" && string(b) != `""`
 }
+
+var avaRemaining = regexp.MustCompile(`^# [0-9]+ tests? remaining in `)
 
 func parseTAP(b []byte, o *tr.Observation) error {
 	if len(b) == 0 {
@@ -248,6 +288,12 @@ func parseTAP(b []byte, o *tr.Observation) error {
 		}
 		if strings.HasPrefix(line, "Bail out!") {
 			problem(o, "tap-bailout", line)
+			continue
+		}
+		// AVA writes this comment when a file's declared tests never ran, as after a
+		// failing before hook; the inventory is then incomplete (TRE-V0-061).
+		if avaRemaining.MatchString(line) {
+			problem(o, "collection-or-hook-error", strings.TrimPrefix(line, "# "))
 			continue
 		}
 		if strings.HasPrefix(line, "1..") {
