@@ -277,7 +277,8 @@ graphs, rename tracking, `corvint test` (STR-V0) receipts, and skipping tests: t
 decisions. Reuse limits: the decision trusts declared fingerprints exactly as stability does; a
 `FRESH_PASS` is as good as the declared reach, which covers only cited and declared shared paths, so
 an undeclared dependency outside them can still change behaviour. A report from another machine
-needs `testRootPath` to locate its test files. Redundancy undercounts tests without a start time or
+needs `testRootPath` to locate its test files; without it the decision is `MUST_RUN` with
+`FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`, never a guess from `config.rootDir` (V1-1611). Redundancy undercounts tests without a start time or
 fingerprint, which it reports as excluded or unfingerprinted rather than guessing.
 
 Baseline non-goals (PWR-V0-041..045): running the suite or the isolated re-run (the caller runs both
@@ -367,7 +368,7 @@ the full and isolated runs is `NOT_RUN`.
 | PWR-V0-033 | `internal/playwrightruns` | `TestRunFactsDeclaration`, `TestReusableDecisions` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-034 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-035 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
-| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` (including a report from another machine: a foreign `config.rootDir` with `testRootPath` declared resolves `FRESH_PASS` or `STALE`, and without it, or with an escaping one, `FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED`; V1-1611) | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-037 | `internal/playwrightruns` | `TestRedundancy`, `TestRunsRedundancyCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |

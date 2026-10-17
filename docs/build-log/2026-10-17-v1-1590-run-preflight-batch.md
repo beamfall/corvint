@@ -46,3 +46,18 @@ agent-drafted and accepted under the owner's standing auto-accept of lane requir
 - Staleness is reported, not blocking: a stale baseline still excuses only verified failures, and
   making age a verdict input would turn an unrelated base move into a red gate.
 - Accepted on 2026-10-17 under the owner's standing auto-accept (2026-10-11).
+
+## V1-1611: reports from another machine (PWR-V0-036, no new requirement)
+
+- #1051 already resolves a test file through a declared `testRootPath` and returns
+  `TEST_ROOT_UNRESOLVED` otherwise, but no CLI test drove a report whose `config.rootDir` is another
+  machine's path. The added `TestRunsReusableCLI` subtest covers `FRESH_PASS`, `STALE`, a missing
+  root and an escaping root; the behaviour needed no code change.
+
+## V1-1609: not delivered in this batch
+
+- Letting `runs reusable` classify `corvint test` units needs `corvint test` receipts to feed a
+  reuse decision, which STR-V0-011 (decision 0524) forbids: receipts "MUST NOT feed ranking,
+  selection, learning or authority", enforced by `TestSTRV0011ReceiptsHaveNoOtherReader`. That is an
+  amendment to an owner-accepted requirement, outside the standing auto-accept for new lane
+  requirements, so V1-1609 stays open for an owner decision on the STR-V0-011 amendment.
