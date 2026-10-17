@@ -109,3 +109,10 @@ extrapolates to roughly 57 s at 47k and matches the issue's 45 s. A "before" run
 - NOT_RUN: `make gate`; `go test ./...`; the rest of `internal/tasks/store`; the other packages the
   `corvint affected` plan selected through unbounded-reader edges; a live 47k-receipt store; a
   "before" run at 47k.
+- Dogfood intents: the first `make dogfood-finish` bind refused `ocm-aggregate:
+  too-many-obligations`, because the agent-leases spec alone carries 256 CAL-V0 requirements. That
+  spec was dropped from the intents file (DOGFOOD.md, "Choosing intents when the aggregate refuses a
+  bound"); the owning spec, operator notes (ON-V0-012..014), stays. The leases constraints this
+  change still relies on are the CAL-V0-116 writer decline list and the CAL-V0-061 tail rule. The
+  journal hunks cite the amended CAL-V0-116 decline list in the citation plan. Omission is not a
+  claim that those constraints hold; the focused tests above are the evidence.
