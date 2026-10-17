@@ -244,7 +244,7 @@ func dispatchAuxConfig(cmd []string, verb string, values map[string]string) (*di
 // file the running dispatcher consumes on its next tick).
 func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	cmd := []string{"dispatch", verb}
-	valued := map[string]bool{"--program": true, "--config": true, "--events": true}
+	valued := map[string]bool{"--program": true, "--config": true, "--events": true, "--worker": true}
 	if verb == "unpark" {
 		valued = map[string]bool{"--program": true, "--config": true, "--key": true}
 	}
@@ -296,7 +296,21 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	now := time.Now()
+	status := dispatchStatusValue(c, dir, l, events, now)
+	// ATR-V0-056: one worker's context notice, read from its record.
+	if id := values["--worker"]; id != "" {
+		var w *dispatch.Worker
+		for _, x := range l.Workers {
+			if x.ID == id {
+				w = x
+			}
+		}
+		if w == nil {
+			return usage(cmd, "--worker names no worker of this program's ledger")
+		}
+		status.Obj.Set("contextNotice", dispatchContextNoticeValue(dir, w, now))
+	}
 	if invalid != nil {
 		// Escalation, pressure caps and the retry policy come from a file
 		// that does not decode: the views are kept, the policy is UNKNOWN.
@@ -428,6 +442,12 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if churn := dispatchSessionChurnValue(dir, now); churn != nil {
+		o.Set("shortSessions", *churn)
+	}
+	if slept := dispatchHostSleepValue(dir); slept != nil {
+		o.Set("hostSleep", *slept)
+	}
 	if held := dispatchEscalationPending(l); len(held) > 0 {
 		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
@@ -571,6 +591,30 @@ func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) w
 	o.Set("handoffTokens", wire.String(handoff))
 	o.Set("hardTokens", wire.String(hard))
 	return wire.ObjectValue(o)
+}
+
+// dispatchContextNoticeValue is the ATR-V0-056 notice of worker w: its
+// ATR-V0-032 context view, the record file and the recorded crossings
+// (empty when the record is absent or does not read).
+func dispatchContextNoticeValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	v := dispatchWorkerContextValue(dir, w, now)
+	v.Obj.Set("worker", wire.String(w.ID))
+	v.Obj.Set("file", wire.String(dispatch.ContextRecordPath(dir, w.ID)))
+	crossings := []wire.Value{}
+	if lvl, _ := v.Obj.Get("level"); lvl.Str != dispatch.ContextNone && lvl.Str != dispatch.UsageUnknown {
+		if r, err := dispatch.ReadContextRecord(dir, w.ID); err == nil {
+			for _, c := range r.Crossings {
+				o := wire.NewObject()
+				o.Set("level", wire.String(c.Level))
+				o.Set("threshold", wire.String(c.Threshold))
+				o.Set("tokens", wire.String(c.Tokens))
+				o.Set("at", wire.String(c.At))
+				crossings = append(crossings, wire.ObjectValue(o))
+			}
+		}
+	}
+	v.Obj.Set("crossings", wire.Array(crossings...))
+	return v
 }
 
 // dispatchBudgetValue is the CAL-V0-158 view of the rolling window: each
@@ -1181,4 +1225,52 @@ func dispatchStallValue(c *dispatch.Config, rows []dispatch.StallView, omitted i
 		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(r.Ticket)).Set("status", wire.String(r.Status)).Set("sessions", wire.String(strconv.Itoa(r.Sessions))).Set("stalled", wire.Bool(stalled))))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("threshold", threshold).Set("tickets", wire.Array(items...)).Set("omitted", wire.String(strconv.Itoa(omitted))))
+}
+
+// dispatchSessionChurnValue is the ATR-V0-061 short-session streak of each
+// ticket, present only while the record exists; an unreadable record is
+// UNKNOWN.
+// dispatchHostSleepValue is the ATR-V0-065 hostSleep member: the last
+// recorded suspend gap and the number kept, nil without a record, and
+// UNKNOWN with the reason when the record does not read.
+func dispatchHostSleepValue(dir string) *wire.Value {
+	rec, err := dispatch.ReadHostSleep(dispatch.HostSleepPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	g := rec.Gaps[len(rec.Gaps)-1]
+	last := wire.NewObject().Set("from", wire.String(g.From)).Set("to", wire.String(g.To)).Set("seconds", wire.String(strconv.Itoa(g.Seconds)))
+	v := wire.ObjectValue(wire.NewObject().Set("lastGap", wire.ObjectValue(last)).Set("gaps", wire.String(strconv.Itoa(len(rec.Gaps)))))
+	return &v
+}
+
+func dispatchSessionChurnValue(dir string, now time.Time) *wire.Value {
+	rec, err := dispatch.ReadSessionChurn(dispatch.SessionChurnPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	keys := make([]string, 0, len(rec.Tickets))
+	for k := range rec.Tickets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []wire.Value{}
+	for _, k := range keys {
+		s := rec.Tickets[k]
+		o := wire.NewObject().Set("key", wire.String(k)).Set("sessions", wire.String(strconv.Itoa(s.Streak))).Set("medianSeconds", wire.String(strconv.Itoa(s.MedianSeconds()))).Set("firstSeen", wire.String(s.FirstSeen)).Set("lastEnd", wire.String(s.LastEnd)).Set("held", wire.Bool(s.Held(now))).Set("reason", wire.String(dispatch.ChurnReason))
+		if s.HoldUntil != "" {
+			o.Set("holdUntil", wire.String(s.HoldUntil))
+		}
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	v := wire.Array(rows...)
+	return &v
 }

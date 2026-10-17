@@ -21,6 +21,9 @@ type PoolFacts struct {
 	RunnerPID               wire.Count
 	RunnerStarted, Revision string
 	RunnerGone              bool
+	// Identity is the PSR-V0-083 identity observation a POOL_CONFIRM_SAFE
+	// of a guarded member carries; empty otherwise.
+	Identity []byte
 }
 
 func (c leaseContext) poolEntry() *snapshot.PoolEntry {

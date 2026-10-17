@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -65,7 +66,7 @@ var leaseValueFlags = map[string]bool{
 	"--handoff-to": true, "--handoff-reason": true, "--share-allocation": true,
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 	"--lock-wait": true, "--lease-expires-at": true,
-	"--slots": true, "--count": true, "--class": true,
+	"--slots": true, "--count": true, "--class": true, "--source": true,
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait:
@@ -201,7 +202,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"]}
 	if verb == transaction.LeaseClaim {
 		if len(a.pos) != 1 {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "claim takes exactly one ticket id or local token")
@@ -221,7 +222,10 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 // leaseCommand runs one lease write. Each commits through the §5.2 writer
 // under the store lock; a claim first reaps, one receipt each, the expired
 // leases that would block it.
-func leaseCommand(env Env, name string, args []string) *wire.Result {
+func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
+	if name == "claim" {
+		defer func() { res = withDrainNotice(res) }()
+	}
 	started := time.Now()
 	cmd := strings.Fields(name)
 	parsed, err := parseLeaseArgs(args)
@@ -323,6 +327,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
 	} else {
 		base := writerContext()
+		if env.leaseInterrupted != nil {
+			base = store.WithClock(env.leaseInterrupted, store.WallClock)
+		}
 		if !env.leaseDeadline.IsZero() {
 			var cancel context.CancelFunc
 			base, cancel = context.WithDeadline(base, env.leaseDeadline)
@@ -337,6 +344,9 @@ func leaseCommand(env Env, name string, args []string) *wire.Result {
 			return timedLease(ctx, started, cmd, repo, actor, choice, now)
 		}
 		report, err = store.Lease(ctx, repo, actor, choice, now)
+		// A deadline (the detached ceiling) or an interrupt is LOCK_TIMEOUT,
+		// never MALFORMED (ATR-V0-053).
+		err = wire.ContextEnded(err, "lease")
 	}
 	return unretryableResult(cmd, report, err)
 }
@@ -713,4 +723,20 @@ func claimedAnswersValue(d *store.ClaimDelivery) wire.Value {
 	}
 	o.Set("state", wire.String("CURRENT")).Set("answers", answers)
 	return wire.ObjectValue(o)
+}
+
+// withDrainNotice adds the drain-pending notice to a claim result while the
+// signal named by CORVINT_DISPATCH_DRAIN_FILE is present (ATR-V0-059). The
+// claim itself is unchanged; a signal that does not read adds nothing.
+func withDrainNotice(res *wire.Result) *wire.Result {
+	path := os.Getenv("CORVINT_DISPATCH_DRAIN_FILE")
+	if res == nil || path == "" {
+		return res
+	}
+	s, err := dispatch.ReadDrainSignal(path)
+	if err != nil {
+		return res
+	}
+	res.Warnings = append(res.Warnings, "DRAIN_PENDING since "+s.Since+": "+s.Notice)
+	return res
 }

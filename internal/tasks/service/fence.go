@@ -184,6 +184,22 @@ func (l *launchControl) Admit(intent string) (func(bool), error) {
 	}, nil
 }
 
+var _ dispatch.DrainObserver = (*launchControl)(nil)
+
+// Draining reports whether the bound control is DRAINING, for the
+// dispatcher's drain-pending signal (ATR-V0-058). It reads without F: the
+// control file is replaced atomically, and the signal is advisory.
+func (l *launchControl) Draining() (bool, error) {
+	c, err := l.o.readControl(l.root)
+	if err != nil {
+		return false, err
+	}
+	if c.ManifestIdentity != l.ident {
+		return false, errors.New("control is not bound to this dispatcher's manifest")
+	}
+	return c.Desired == "DRAINING", nil
+}
+
 // Boundary runs between dispatcher ticks under F. A recorded tick resolves
 // this dispatcher's own unresolved intent; a settled tick of a bound
 // DRAINING control with no unresolved intent saves STOPPED at R+1 and ends

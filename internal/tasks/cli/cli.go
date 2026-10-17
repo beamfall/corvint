@@ -8,6 +8,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"os"
 	"runtime"
@@ -46,6 +47,10 @@ var Build = "0"
 type Env struct {
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
+	// leaseInterrupted, when set, is the detached child's own interrupt
+	// context, taken before any store work so an early SIGINT or SIGTERM
+	// still keeps a result (ATR-V0-053).
+	leaseInterrupted context.Context
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
@@ -431,7 +436,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
-		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]]",
+		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]]",
 		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
@@ -470,14 +475,14 @@ func LiveFormats() []string {
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
-		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile, doctorConfigProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/0", dispatch.ContextProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}
