@@ -1,0 +1,309 @@
+package update
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/procgroup"
+)
+
+// Service and hook bounds (UPD-V0-011 to UPD-V0-014). The run budget grows by
+// at most the drain and two start bounds plus four service steps, so a run
+// stays under the 30-minute incomplete-transaction age (UPD-V0-007).
+const (
+	defaultHookTimeout  = 2 * time.Minute
+	maxHookTimeout      = 10 * time.Minute
+	defaultHookAttempts = 3
+	maxHookAttempts     = 5
+	maxHooks            = 8
+	maxHookCommandBytes = 4096
+	defaultDrainTimeout = 10 * time.Minute
+	maxDrainTimeout     = 15 * time.Minute
+	defaultStartTimeout = 30 * time.Second
+	maxStartTimeout     = 2 * time.Minute
+	serviceStepTimeout  = 30 * time.Second
+	hookOutputTail      = 2048
+)
+
+// ServiceOutcome is the restart of the operator's service around a switch.
+// Mode is ADOPT (equal Tasks formats: stop, switch, start; the restarted
+// service adopts live attempts), DRAIN (formats differ or are unknown: stop and
+// wait for zero live attempts first) or RESTART (Core: stop, switch, start).
+// State is STOPPED only while the switch is in progress; it ends as RESUMED,
+// NOT_RUNNING_BEFORE, RESUMED_OLD (the switch did not happen
+// and the service runs the old build again), ROLLED_BACK or FAILED.
+type ServiceOutcome struct {
+	Program      string `json:"program"`
+	Mode         string `json:"mode"`
+	WasRunning   bool   `json:"wasRunning"`
+	LiveAttempts *int   `json:"liveAttempts,omitempty"`
+	State        string `json:"state"`
+	Reason       string `json:"reason,omitempty"`
+}
+
+// HookOutcome is one post-switch hook: State is SUCCEEDED or FAILED, Attempts
+// the runs made, ExitStatus the last run's status (-1 when it did not exit,
+// for example on timeout), Output the last bytes of its combined output.
+type HookOutcome struct {
+	Command    string `json:"command"`
+	Attempts   int    `json:"attempts"`
+	ExitStatus int    `json:"exitStatus"`
+	State      string `json:"state"`
+	Output     string `json:"output,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+// validateService checks the service and hook options before any network or
+// state work; they are accepted only by apply.
+func validateService(command string, c *Config) error {
+	if c.ServiceProgram == "" && len(c.PostSwitch) == 0 {
+		return nil
+	}
+	if command != "apply" {
+		return errors.New("--restart-service and --post-switch apply only to apply")
+	}
+	if c.ServiceProgram != "" {
+		if !filepath.IsAbs(c.ServiceProgram) || filepath.Clean(c.ServiceProgram) != c.ServiceProgram {
+			return errors.New("--restart-service must be a clean absolute path")
+		}
+		info, err := os.Stat(c.ServiceProgram)
+		if err != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0o111 == 0 {
+			return errors.New("--restart-service must name an executable regular file")
+		}
+	}
+	if len(c.PostSwitch) > maxHooks {
+		return fmt.Errorf("at most %d --post-switch hooks", maxHooks)
+	}
+	for _, h := range c.PostSwitch {
+		if strings.TrimSpace(h) == "" || len(h) > maxHookCommandBytes || strings.ContainsRune(h, 0) {
+			return errors.New("invalid --post-switch command")
+		}
+	}
+	if c.HookTimeout == 0 {
+		c.HookTimeout = defaultHookTimeout
+	}
+	if c.HookAttempts == 0 {
+		c.HookAttempts = defaultHookAttempts
+	}
+	if c.DrainTimeout == 0 {
+		c.DrainTimeout = defaultDrainTimeout
+	}
+	if c.StartTimeout == 0 {
+		c.StartTimeout = defaultStartTimeout
+	}
+	if c.HookTimeout < 0 || c.HookTimeout > maxHookTimeout || c.HookAttempts < 1 || c.HookAttempts > maxHookAttempts ||
+		c.DrainTimeout < 0 || c.DrainTimeout > maxDrainTimeout || c.StartTimeout < 0 || c.StartTimeout > maxStartTimeout {
+		return errors.New("hook or service bound out of range")
+	}
+	return nil
+}
+
+// serviceBudget is the extra run time a configured service may use.
+func serviceBudget(c Config) time.Duration {
+	if c.ServiceProgram == "" {
+		return 0
+	}
+	return c.DrainTimeout + 2*c.StartTimeout + 4*serviceStepTimeout
+}
+
+// service drives the operator's service-control program, invoked as
+// `PROGRAM status|stop|start|live-attempts` with the component and the
+// managed binary in its environment.
+type service struct {
+	program, component, binary string
+	poll                       time.Duration
+}
+
+func (s service) step(ctx context.Context, verb string) procgroup.Observation {
+	env := append(os.Environ(), "CORVINT_UPDATE_COMPONENT="+s.component, "CORVINT_UPDATE_BINARY="+s.binary)
+	return procgroup.Run(ctx, procgroup.Spec{Argv: []string{s.program, verb}, Dir: filepath.Dir(s.binary), Env: env, Timeout: serviceStepTimeout, ShutdownTimeout: 2 * time.Second, OutputLimit: 64 << 10, ObserveDescendants: true})
+}
+
+func (s service) ok(ctx context.Context, verb string) error {
+	o := s.step(ctx, verb)
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		return fmt.Errorf("service %s failed: exit %d", verb, o.ExitStatus)
+	}
+	return nil
+}
+
+func (s service) running(ctx context.Context) bool {
+	o := s.step(ctx, "status")
+	return o.Err == nil && o.ExitStatus == 0 && o.OwnedProcessGroupCleanup
+}
+
+func (s service) liveAttempts(ctx context.Context) (int, error) {
+	o := s.step(ctx, "live-attempts")
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		return 0, fmt.Errorf("service live-attempts failed: exit %d", o.ExitStatus)
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(o.Stdout)))
+	if err != nil || n < 0 {
+		return 0, errors.New("service live-attempts printed no count")
+	}
+	return n, nil
+}
+
+// start starts the service and waits until status reports it running.
+func (s service) start(ctx context.Context, bound time.Duration) error {
+	if err := s.ok(ctx, "start"); err != nil {
+		return err
+	}
+	deadline := time.Now().Add(bound)
+	for {
+		if s.running(ctx) {
+			return nil
+		}
+		if time.Now().After(deadline) || ctx.Err() != nil {
+			return errors.New("service did not report running")
+		}
+		time.Sleep(s.poll)
+	}
+}
+
+// serviceMode applies the Tasks compatibility rule (CAL-V0-130, CAL-V0-131):
+// equal, non-empty `formats` sets adopt live attempts; anything else drains.
+func serviceMode(component string, installed, candidate []string) string {
+	if component == "core" {
+		return "RESTART"
+	}
+	if len(installed) > 0 && slices.Equal(installed, candidate) {
+		return "ADOPT"
+	}
+	return "DRAIN"
+}
+
+// tasksFormats reads the sorted `formats` a Tasks build reports in its
+// version command result; any failure yields none, which drains.
+func tasksFormats(ctx context.Context, binary, home string) []string {
+	o := runProcess(ctx, binary, home, "version")
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		return nil
+	}
+	var env struct {
+		Profile string
+		Items   []struct{ Formats []string }
+	}
+	if json.Unmarshal(o.Stdout, &env) != nil || env.Profile != "taskman-command-result/0" || len(env.Items) != 1 {
+		return nil
+	}
+	formats := slices.Clone(env.Items[0].Formats)
+	slices.Sort(formats)
+	return formats
+}
+
+// quiesce records whether the service runs and stops it for the switch. In
+// DRAIN mode it waits for zero live attempts; when they do not reach zero in
+// the bound it starts the old build again and refuses, leaving the
+// destination unchanged.
+func (e engine) quiesce(ctx context.Context, s service, mode string) (*ServiceOutcome, error) {
+	out := &ServiceOutcome{Program: s.program, Mode: mode, State: "NOT_RUNNING_BEFORE"}
+	out.WasRunning = s.running(ctx)
+	if !out.WasRunning {
+		return out, nil
+	}
+	if n, err := s.liveAttempts(ctx); err == nil {
+		out.LiveAttempts = &n
+	} else if mode == "DRAIN" {
+		out.State, out.Reason = "RESUMED_OLD", err.Error()
+		return out, err
+	}
+	if err := s.ok(ctx, "stop"); err != nil {
+		out.State, out.Reason = "FAILED", err.Error()
+		if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
+			out.State = "RESUMED_OLD"
+		}
+		return out, err
+	}
+	out.State = "STOPPED"
+	if mode != "DRAIN" {
+		return out, nil
+	}
+	deadline := time.Now().Add(e.config.DrainTimeout)
+	for {
+		n, err := s.liveAttempts(ctx)
+		if err == nil {
+			out.LiveAttempts = &n
+		}
+		if err == nil && n == 0 {
+			return out, nil
+		}
+		if err != nil || time.Now().After(deadline) || ctx.Err() != nil {
+			reason := "live attempts did not drain before the bound; destination unchanged"
+			if err != nil {
+				reason = err.Error()
+			}
+			out.State, out.Reason = "FAILED", reason
+			if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
+				out.State = "RESUMED_OLD"
+			}
+			return out, errors.New("service drain: " + reason)
+		}
+		time.Sleep(s.poll)
+	}
+}
+
+// runHooks runs each post-switch hook through /bin/sh with bounded attempts
+// and per-attempt timeouts, after a switch that stands. A failed hook never
+// reverses the switch (UPD-V0-012).
+func (e engine) runHooks(ctx context.Context, binary string, build int) ([]HookOutcome, bool) {
+	c := e.config
+	dir := c.WorkDir
+	if dir == "" {
+		dir = c.BinDir
+	}
+	env := append(os.Environ(), "CORVINT_UPDATE_COMPONENT="+c.Component, "CORVINT_UPDATE_BINARY="+binary, "CORVINT_UPDATE_BUILD="+strconv.Itoa(build))
+	failed := false
+	var outcomes []HookOutcome
+	for _, command := range c.PostSwitch {
+		h := HookOutcome{Command: command, State: "FAILED"}
+		for h.Attempts < c.HookAttempts && ctx.Err() == nil {
+			if h.Attempts > 0 {
+				time.Sleep(e.poll())
+			}
+			h.Attempts++
+			o := procgroup.Run(ctx, procgroup.Spec{Argv: []string{"/bin/sh", "-c", command}, Dir: dir, Env: env, Timeout: c.HookTimeout, ShutdownTimeout: 2 * time.Second, OutputLimit: 64 << 10, ObserveDescendants: true})
+			combined := append(append([]byte{}, o.Stdout...), o.Stderr...)
+			if len(combined) > hookOutputTail {
+				combined = combined[len(combined)-hookOutputTail:]
+			}
+			h.Output, h.ExitStatus, h.Reason = string(combined), o.ExitStatus, ""
+			if !o.ExitObserved {
+				h.ExitStatus = -1
+			}
+			switch {
+			case o.TimedOut:
+				h.Reason = "timed out after " + c.HookTimeout.String()
+			case o.Err != nil:
+				h.Reason = o.Err.Error()
+			case !o.OwnedProcessGroupCleanup:
+				h.Reason = "descendant cleanup not observed"
+			case o.ExitStatus == 0:
+				h.State = "SUCCEEDED"
+			}
+			if h.State == "SUCCEEDED" {
+				break
+			}
+		}
+		if h.State != "SUCCEEDED" {
+			failed = true
+		}
+		outcomes = append(outcomes, h)
+	}
+	return outcomes, failed
+}
+
+func (e engine) poll() time.Duration {
+	if e.servicePoll > 0 {
+		return e.servicePoll
+	}
+	return time.Second
+}
