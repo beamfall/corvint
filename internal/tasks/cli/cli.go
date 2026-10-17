@@ -8,6 +8,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"os"
 	"runtime"
@@ -69,7 +70,7 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
@@ -167,6 +168,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
+		case "closeout-debt":
+			return emitCloseoutDebt(env, args[2:])
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
 		}
@@ -423,7 +426,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
 		"corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
-		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]]",
+		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]]",
 		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
@@ -462,14 +465,14 @@ func LiveFormats() []string {
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
-		snapshot.ProfilePools, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile, doctorConfigProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/0", dispatch.ContextProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}

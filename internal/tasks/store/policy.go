@@ -52,8 +52,15 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 
 // administrativeWriteWith is administrativeWrite for a Lease request: it
 // also audits every attempt record, hands the model the head receipt, and
-// takes the claim facts observed from the audit under the same lock.
+// takes the claim facts observed from the audit under the same lock. A
+// write whose context ended before it committed reports the retryable
+// LOCK_TIMEOUT, never MALFORMED (ATR-V0-050).
 func administrativeWriteWith(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (*Report, *journal.Result, error) {
+	report, proof, err := administrativeWriteRound(ctx, repo, request, now, beforeCommit, facts)
+	return report, proof, wire.ContextEnded(err, "store write")
+}
+
+func administrativeWriteRound(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (*Report, *journal.Result, error) {
 	if request.Operation == transaction.Lease {
 		return leaseWrite(ctx, repo, request, now, beforeCommit, facts)
 	}

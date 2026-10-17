@@ -22,6 +22,14 @@
 // by more than --factor, that the table is missing, or that the table still
 // lists but the run did not execute.
 //
+//	ci-shard-costs refresh ... --history DIR [--keep N] [--at TIME] shard0.log ...
+//
+// --history (STR-V0-056) also retains the refreshed table, byte for byte, as
+// DIR/<YYYYMMDDTHHMMSSZ>-<revision>.json, written before the table is replaced,
+// and then deletes the retained tables beyond the newest --keep (1 to 64,
+// default 5) by name; no other file of DIR is touched. `corvint test shards
+// --durations` reads the retained files directly, oldest first in name order.
+//
 //	ci-shard-costs check --advisory --shards 8 [--share 10] [--summary FILE] shard0.json ... shard7.json
 //
 // The advisory form (AFP-V0-040) is the CI report: it needs exactly one raw
@@ -45,6 +53,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -57,7 +66,14 @@ const (
 	defaultTable  = ".github/cishards/package-costs.json"
 	defaultAllow  = ".github/cishards/test-split-allow.json"
 	defaultSlices = ".github/cishards/test-slices.json"
+	// defaultKeep and maxKeep bound the retained tables (STR-V0-056): the
+	// default is the planner's default K, the maximum its table bound.
+	defaultKeep = 5
+	maxKeep     = 64
 )
+
+// retainedName is the only name `refresh --history` writes or deletes.
+var retainedName = regexp.MustCompile(`^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{40}\.json$`)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -85,8 +101,15 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 	summary := fs.String("summary", "", "check --advisory: append the Markdown report to this file")
 	allow := fs.String("allow", defaultAllow, "AFP-V0-041 test-split allow-list")
 	slices := fs.String("slices", defaultSlices, "AFP-V0-041 test slice file")
+	history := fs.String("history", "", "refresh: retain the refreshed table in this directory (STR-V0-056)")
+	keep := fs.Int("keep", defaultKeep, "refresh --history: retained tables to keep, 1 to 64")
+	at := fs.String("at", "", "refresh --history: retention time, RFC 3339 in UTC (default now)")
 	if err := fs.Parse(args); err != nil {
 		return 2, nil
+	}
+	retainedAt, err := retentionTime(mode, *history, *keep, *at, *revision)
+	if err != nil {
+		return 2, err
 	}
 	if (mode != "refresh" && mode != "check") || fs.NArg() == 0 || !(*factor >= 1) || math.IsInf(*factor, 0) || *floor < 0 {
 		return 2, errors.New("usage: ci-shard-costs refresh|check --shards N [flags] LOG...")
@@ -142,8 +165,18 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 		if err != nil {
 			return 2, err
 		}
+		if *history != "" {
+			if err := retain(*history, retainedAt.Format("20060102T150405Z")+"-"+*revision+".json", raw); err != nil {
+				return 2, fmt.Errorf("retaining the table: %w", err)
+			}
+		}
 		if err := replace(*table, raw); err != nil {
 			return 2, err
+		}
+		if *history != "" {
+			if err := prune(*history, *keep); err != nil {
+				return 2, fmt.Errorf("pruning retained tables: %w", err)
+			}
 		}
 		return 0, nil
 	}
@@ -161,6 +194,60 @@ func run(mode string, args []string, out io.Writer) (int, error) {
 		return 1, nil
 	}
 	return 0, nil
+}
+
+// retentionTime checks the STR-V0-056 flags and returns the retention time:
+// --history only with refresh, --keep 1 to 64, --at only with --history and in
+// UTC, and a lowercase full revision so the retained name can be pruned.
+func retentionTime(mode, history string, keep int, at, revision string) (time.Time, error) {
+	usage := errors.New("usage: ci-shard-costs refresh --history DIR [--keep N (1 to 64)] [--at RFC3339-UTC] --revision SHA ...")
+	if keep < 1 || keep > maxKeep || (history == "" && at != "") || (history != "" && mode != "refresh") {
+		return time.Time{}, usage
+	}
+	if history == "" {
+		return time.Time{}, nil
+	}
+	if !regexp.MustCompile(`^[0-9a-f]{40}$`).MatchString(revision) {
+		return time.Time{}, errors.New("refresh --history needs a lowercase 40-hex --revision")
+	}
+	if at == "" {
+		return time.Now().UTC(), nil
+	}
+	parsed, err := time.Parse(time.RFC3339, at)
+	if err != nil || !strings.HasSuffix(at, "Z") {
+		return time.Time{}, usage
+	}
+	return parsed, nil
+}
+
+// retain writes one retained table into dir through the same sibling
+// temporary file and rename as the table (STR-V0-056).
+func retain(dir, name string, raw []byte) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return replace(filepath.Join(dir, name), raw)
+}
+
+// prune deletes the retained tables of dir beyond the newest keep by name,
+// which orders them by time; a file of any other name or type is left alone.
+func prune(dir string, keep int) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	retained := []string{}
+	for _, entry := range entries {
+		if entry.Type().IsRegular() && retainedName.MatchString(entry.Name()) {
+			retained = append(retained, entry.Name())
+		}
+	}
+	for _, name := range retained[:max(0, len(retained)-keep)] {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // replace writes the table through a sibling temporary file so an interrupted

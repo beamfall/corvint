@@ -301,6 +301,8 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
 	out = append(out, doctorNoCompletions(rc, in, th, scan)...)
+	handoff := doctorHandoffCandidate(rc)
+	out = append(out, doctorSessionChurn(scan, func(id string) bool { ok, _ := handoff(id); return ok }, out)...)
 	return out, nil
 }
 

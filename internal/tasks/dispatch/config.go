@@ -67,6 +67,9 @@ type Config struct {
 	// last changed reaches it gets one typed `stalled` event. It never
 	// holds, parks or blocks anything.
 	StalledAfterSessions *int `json:"stalledAfterSessions,omitempty"`
+	// ShortSessions is the optional global ATR-V0-060 short-session
+	// cooldown; a role's own setting replaces it for that role.
+	ShortSessions *ShortSessions `json:"shortSessions,omitempty"`
 	// Prompts are the CAL-V0-175 shared role prompt fragments. DecodeConfig
 	// expands every reference and leaves this nil.
 	Prompts PromptFragments `json:"prompts,omitempty"`
@@ -275,6 +278,9 @@ type Role struct {
 	// Context is the optional ATR-V0-030 context thresholds; they apply
 	// from the applied configuration on every tick (ATR-V0-036).
 	Context *ContextLimits `json:"context,omitempty"`
+	// ShortSessions is the role's optional ATR-V0-060 short-session
+	// cooldown, replacing the global one.
+	ShortSessions *ShortSessions `json:"shortSessions,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
 }
@@ -541,6 +547,11 @@ func (c *Config) validate() error {
 	if n := c.StalledAfterSessions; n != nil && (*n < 1 || *n > maxStalledAfter) {
 		return fail("stalledAfterSessions must be 1..%d", maxStalledAfter)
 	}
+	if s := c.ShortSessions; s != nil {
+		if err := s.validate(); err != nil {
+			return fail("%v", err)
+		}
+	}
 	if c.PoolSweep != nil && (c.PoolSweep.TimeoutSeconds < 1 || c.PoolSweep.TimeoutSeconds > 1800 || c.PoolSweep.IntervalSeconds < 1 || c.PoolSweep.IntervalSeconds > 3600) {
 		return fail("poolSweep requires timeoutSeconds 1..1800 and intervalSeconds 1..3600")
 	}
@@ -684,6 +695,11 @@ func (c *Config) validate() error {
 		}
 		if err := r.validateContext(c.Heal); err != nil {
 			return fail("role %s %v", r.Name, err)
+		}
+		if s := r.ShortSessions; s != nil {
+			if err := s.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
 		}
 		if b := r.Budget; b != nil {
 			if err := b.validate(); err != nil {

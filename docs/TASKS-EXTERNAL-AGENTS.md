@@ -636,6 +636,20 @@ and `lastAttemptEndedAt`, `UNKNOWN` where the records cannot prove the time. A d
 `stalledAfterSessions` N emits one advisory `stalled` event that holds nothing (CAL-V0-181 to
 CAL-V0-185, proposed).
 
+The opt-in `shortSessions {seconds, count, holdSeconds}`, global or per role (the role's wins),
+holds a ticket's next launch for `holdSeconds` after `count` consecutive finished sessions each
+shorter than `seconds`; one longer session resets the streak. The hold is a `cooldown` event with
+`reason=SHORT_SESSIONS`, the session count, median length and first-seen time, and `dispatch
+status` lists each streak under `shortSessions`. Running sessions are never stopped, and removing
+the setting lifts every hold on the next tick (ATR-V0-060, ATR-V0-061).
+
+The dispatcher notices a host suspend as a wall-clock jump of at least 30 seconds over the
+monotonic clock between two ticks. It records each gap once in `host-sleep.json`, emits one
+`alert` with detail `hostSlept`, `from` and `to`, and leaves the gap out of the wall and idle
+caps, the lease keeper's idle check and the expired-lease grace, so a worker is not stopped or
+reaped for time the host slept. `dispatch status` shows the last gap under `hostSleep`. The store
+lease itself is not extended, and there is no keep-awake option (ATR-V0-063 to ATR-V0-065).
+
 ## Read beside concurrent writers
 
 A read that probes a writer between its receipt link-in and its head rename waits it out for up
@@ -752,6 +766,10 @@ during `--refresh`, once per change of the finding set and at most once per inte
 refreshed doctor item on stdin and the plugin bounds below. A failing, timed-out or noisy hook
 becomes a NOTIFY_FAILED finding and never fails the doctor; the same finding set never notifies
 twice.
+
+SESSION_CHURN reports a ticket whose newest three or more ended generations each lasted under 300
+seconds, with the count, median length and first-seen time, unless the ticket is already reported
+as NO_PROGRESS_HANDOFF (ATR-V0-062).
 
 `--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
 timeout and 64 KiB of stdout, in its own process group, which is killed once the plugin exits, so

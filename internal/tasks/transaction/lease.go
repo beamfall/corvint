@@ -83,6 +83,9 @@ type LeaseRequest struct {
 	SlotCount     wire.Count
 	SlotExclusive bool
 	SlotClass     string
+	// Source is the REVISION:TREE pair a POOL_ACQUIRE targets, which the
+	// pool's allowedSources must hold (PSR-V0-081); empty otherwise.
+	Source string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -138,6 +141,7 @@ const (
 	fieldSlotCount
 	fieldSlotExclusive
 	fieldSlotClass
+	fieldSource
 )
 
 type leaseShape struct{ required, allowed int }
@@ -145,7 +149,7 @@ type leaseShape struct{ required, allowed int }
 var leaseShapes = map[string]leaseShape{
 	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
 	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
-	LeasePoolAcquire:     {fieldAttempt | fieldGeneration | fieldPool, fieldAttempt | fieldGeneration | fieldPool | fieldExclusions | fieldAuthors},
+	LeasePoolAcquire:     {fieldAttempt | fieldGeneration | fieldPool, fieldAttempt | fieldGeneration | fieldPool | fieldExclusions | fieldAuthors | fieldSource},
 	LeasePoolRelease:     {fieldAttempt | fieldGeneration | fieldAllocation, fieldAttempt | fieldGeneration | fieldAllocation},
 	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
 	LeaseProgram:         {fieldEvidence, fieldEvidence},
@@ -172,7 +176,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -326,6 +330,11 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return e
 		}
 	}
+	if l.Source != "" {
+		if _, e := intent.ParsePoolSource("source", l.Source); e != nil {
+			return e
+		}
+	}
 	if e := checkMinutes(l.LeaseMinutes); e != nil {
 		return e
 	}
@@ -465,6 +474,11 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.SlotClass != "" {
 		v.Obj.Set("slotClass", s(l.SlotClass))
 	}
+	// PSR-V0-081: omitted when absent, so every earlier POOL_ACQUIRE keeps
+	// its digest.
+	if l.Source != "" {
+		v.Obj.Set("source", s(l.Source))
+	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -530,6 +544,8 @@ type leaseContext struct {
 	// authors is the CAL-V0-098 derivation of a fresh claim, nil without
 	// --exclude-authors.
 	authors *AuthorExclusion
+	// source is the allow-listed pair a POOL_ACQUIRE records (PSR-V0-081).
+	source *intent.PoolSource
 }
 
 var leasePlanners = map[string]func(leaseContext) leaseOutcome{
