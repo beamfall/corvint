@@ -82,11 +82,14 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		}
 		i.Argv = []string{"test", "--package-path", pkg, "--disable-xctest", "--enable-swift-testing", "--no-parallel", "--event-stream-version", "0", "--event-stream-output-path", filepath.Join(r.ReportDir, "swift-events.jsonl")}
 		for _, s := range r.Selectors {
-			// SwiftPM filters the discovery identifier, not the event's source suffix.
+			// SwiftPM 6.4 matches --filter against the full test ID, which
+			// carries a "/File.swift:line:column" suffix for functions; a "$"
+			// anchor therefore selected nothing (V1-0594 live witness). The
+			// selector stays exact: it ends at "/" or at the end of a suite ID.
 			if strings.Contains(s, "/") || !strings.Contains(s, ".") {
 				return i, fmt.Errorf("Swift selector must be the exact module-qualified discovery name")
 			}
-			i.Argv = append(i.Argv, "--filter", "^"+regexp.QuoteMeta(s)+"$")
+			i.Argv = append(i.Argv, "--filter", "^"+regexp.QuoteMeta(s)+"(/|$)")
 		}
 		i.ReportPaths = []string{"swift-events.jsonl"}
 	case "junit-platform", "junit4", "kotlin-test", "kotest", "robolectric":

@@ -1027,7 +1027,9 @@ was incomplete, never falsely complete.
 - `TRE-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST pass its exact selectors as one quoted, comma-joined
   test-spec argument. Catch2 3.16.0 ORs the names in that argument and ANDs
   separate arguments. The existing refusal of wildcard, tag, exclusion,
-  escape, quote and option-like selectors is unchanged.
+  escape, quote and option-like selectors is unchanged, and a selector whose
+  prefix is `exclude:` (any case) MUST be refused too, because Catch2 3.16.0
+  interprets it as an exclusion even inside quotes.
 - `TRE-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2` MUST accept native exit 4 (`AllTestsSkippedExitCode`) as
   success only when the report has at least one test and every test is
   `SKIPPED`. Exit 4 with any other report, and exit 4 for any other runner,
@@ -1036,7 +1038,7 @@ was incomplete, never falsely complete.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-045 | `native/native.go` `Build`; `TestBuildExactSelectorsAndFixedProfiles` | Failing before: `cases/cargo-doctest-pass` selected 0 of 1 doctests (`NO_TESTS`, incomplete). After: `cases/cargo-doctest-select-refused` is refused at plan |
-| TRE-V0-046 | `native/native.go` `Build`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-mixed` gave exit 2 with no tests. After: `cases/catch2-mixed-r2` gave exit 42, complete PASSED, FAILED and SKIPPED |
+| TRE-V0-046 | `native/native.go` `Build`; `TestCatch2ExactSelectionAndAllSkippedExit`, `TestCatch2RefusesExcludePrefix` | Failing before: `cases/catch2-mixed` gave exit 2 with no tests. After: `cases/catch2-mixed-r2` gave exit 42, complete PASSED, FAILED and SKIPPED |
 | TRE-V0-047 | `native/native.go` `Parse`; `TestCatch2ExactSelectionAndAllSkippedExit` | Failing before: `cases/catch2-skip` gave exit 4 and `EXIT_REPORT_CONTRADICTION`. After: `cases/catch2-skip-r2` gave exit 4, complete SKIPPED. A passed-only or empty report with exit 4 stays incomplete |
 
 Matrix. W means an actual shared-executor witness, P means parser-only and N
@@ -1239,3 +1241,177 @@ Release blockers that remain, each with the missing piece:
 
 Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
 retained evidence. Plans and receipts are unchanged in shape.
+
+## Platform qualification matrix 2026-10-17 (V1-0594)
+
+Gap matrix for the 16 platform, two SQL and one Appium Android profiles against the
+`TRE-V0-009` cases: P pass, F assertion failure, S skip, Z zero tests, B collection or
+build error, T timeout with cleanup. Retry (R) is not applicable: none of these profiles
+requests or reports native retries. Cell values:
+
+- A: actual witness retained on 2026-10-17 through `corvint-test-runner plan`/`run`, with
+  version tuple, raw native report, receipt and command.
+- H: historic actual native bytes committed as a parser fixture, or a spec-recorded live
+  run. Its raw report, receipt and command were purged from `/private/tmp/cem10-build`,
+  so it counts as parser-only.
+- -: no evidence.
+
+| Profile | P | F | S | Z | B | T |
+| --- | --- | --- | --- | --- | --- | --- |
+| swift-testing | A | A | A | A | A | A |
+| swift-xctest | A | A | A | A | A | A |
+| xcode-xctest | A | A | A | A | A | A |
+| junit-platform | A | A | A | A | A | A |
+| junit4 | A | A | A | A | A | A |
+| testng | A | A | A | A | A | A |
+| kotlin-test | A | A | A | A | A | A |
+| kotest | A | A | A | A | A | A |
+| gradle-junit | A | A | A | A | A | A |
+| maven-surefire | A | A | A | A | A | A |
+| robolectric | A | A | A | A | A | A |
+| android-junit | A | A | A | A | A | A-r |
+| espresso | A | A | A | A | A | A-r |
+| uiautomator | A | A | A | A | A | A-r |
+| bats | A | A | A | A | A | A |
+| shellspec | A | A | A | A | A | A |
+| sql-pgtap | A | A | A | A | A | A |
+| sql-sqllogictest-sqlite | A | A | A | A | A | A |
+| appium-uiautomator2-wdio | A | A | A | A | A | A |
+
+A-r: the runner timeout is witnessed and every host process was retired, but the on-device
+instrumentation was not retired by the runner (see the Android residual below). It is not a
+clean timeout-with-cleanup witness.
+
+Totals over 114 applicable cells:
+
+| | A | A-r | H (parser-only) | NONE |
+| --- | --- | --- | --- | --- |
+| Before | 0 | 0 | 71 | 43 |
+| After (Apple slice) | 18 | 0 | 59 | 37 |
+| After (this section) | 111 | 3 | 0 | 0 |
+
+`shader-behavior`, `html-behavior` and `structured-data-behavior` stay unavailable registry
+IDs. Their disposition is unchanged: domain compiler success is not assertion-test success.
+
+Apple tuple: macOS 26.6.2 (25G83) arm64; Swift 6.4 (swiftlang-6.4.0.34.1),
+`/usr/bin/swift` sha256 `b8763cf2…`; Xcode 27.0 (27A266a), `/usr/bin/xcodebuild`;
+independently pinned `xcresulttool` 25115, schema 0.4.0. Evidence lives under
+`/private/tmp/cem10-build/platform-2026-10-17/`. Each case directory under `runs/` holds
+`request.json`, `plan.json`, `receipt.json`, `command.txt` and the raw `report/`. The
+fixtures are under `fixtures/`.
+
+- **swift-testing** (`runs/swift-testing/`):
+  - `pass-fail-skip`: complete. Results are PASSED, FAILED (ASSERTION) and SKIPPED; the
+    `.disabled` trait is never a pass.
+  - `zero` (exit 0): incomplete with `NO_TESTS`.
+  - `build-error`: incomplete with `INVALID_NATIVE_REPORT`, because there is no event stream.
+  - `timeout` (60 s): incomplete with `PROCESS_TIMEOUT`, and no process survived.
+  - The live run found an adapter bug, fixed by `TRE-V0-075`. Before the fix, a selected run
+    executed nothing (`selector-anchor-bug-before-fix`).
+- **swift-xctest** (`runs/swift-xctest/`):
+  - `five-outcomes`: complete. Results are PASSED, FAILED (ASSERTION), SKIPPED from `XCTSkip`,
+    and FAILED (INFRASTRUCTURE) for both a thrown error and a `setUpWithError` error.
+  - `zero`, `build-error` and `timeout` (45 s) are each incomplete.
+  - In `timeout`, the detached `xctest` process and its helper were retired by ancestry, and
+    no process survived.
+  - Opt-in `TestSwiftPMXCTestLiveThreeOutcomes` and `TestSwiftPMXCTestLiveDetachedTeardown`
+    passed on the same package (`runs/swift-xctest/go-live/`). In the contained-only,
+    timeout and interrupt modes, no process survived.
+- **xcode-xctest** (`runs/xcode-xctest/`), using a handcrafted `XcodeProof.xcodeproj` and
+  its shared scheme:
+  - `pass-fail-skip`: exit 65. Both xcresult DECODE phases completed, and the results are
+    PASSED, FAILED (ASSERTION) and SKIPPED.
+  - `zero`: exit 0. The summary has no destination, so the run is refused as incomplete.
+  - `build-error`: exit 65, incomplete.
+  - `timeout` (60 s): `testHang` had started, the decode never ran, the run is incomplete,
+    and no `xctest` or `xcodebuild` process survived.
+
+Non-Apple tuple, installed user-space under `/private/tmp/cem10-build/toolchains-2026-10-17/`
+(owner-approved 2026-10-17; browsers excluded): OpenJDK 17.0.20.1; JUnit Platform Console
+Standalone 6.1.3; TestNG 7.12.0; Kotlin 2.4.0; Kotest 6.2.5; Robolectric 4.16.1 with
+`android-all-instrumented` 13954326 (jar sha256 `06c4c860…`); Gradle 9.6.1; Maven 3.9.16
+with Surefire 3.0.2 as reported; Bats Core 1.14.0; ShellSpec 0.28.1; pgTAP 1.3.4 on
+PostgreSQL 17.11; `sqllogictest` db57eba9 on SQLite; Android SDK 36 build, AGP 9.5.0-alpha10
+(resolved from `9.+`), API 34 `google_apis` arm64 emulator `cem10-platform-0594` (fingerprint
+`google/sdk_gphone64_arm64/emu64a:14/UE1A.230829.050/12077443`); Appium 3.8.0, UiAutomator2
+8.7.0, WebdriverIO 9.32.0 and Node 22.23.3. `RUNNER-SHAS` maps every receipt to the runner
+binary that wrote it.
+
+- **JVM direct profiles** (junit-platform, junit4, testng, kotlin-test, kotest):
+  `pass-fail-skip` is complete with PASSED, FAILED (ASSERTION), SKIPPED and FAILED
+  (INFRASTRUCTURE) for a thrown exception. `zero` is incomplete (`NO_TESTS`,
+  `EXIT_CONTRADICTION`). `build-error` uses a missing class: junit-platform, junit4 and
+  kotlin-test report a FAILED (INFRASTRUCTURE) row; testng reports `CONFIGURATION_FAILED` or a
+  missing report; kotest is refused as contradictory JUnit outcomes. `timeout` is incomplete
+  with `PROCESS_TIMEOUT` and no surviving process.
+- **robolectric**: same four outcomes. `build-error-missing-dependency` is FAILED
+  (INFRASTRUCTURE) `initializationError`. `build-error-sdk-not-enabled` found the
+  `TRE-V0-077` false pass (`runs/robolectric/pre-0077/`) and is now incomplete.
+- **gradle-junit** and **maven-surefire**: `pass-fail-skip` is complete (Gradle classifies the
+  thrown exception as FAILED UNKNOWN). `zero` and `build-error` are incomplete: no native
+  report. `timeout` is incomplete; the Gradle daemon and worker were retired by ancestry.
+- **android-junit**, **espresso**, **uiautomator**: each request binds `emulator-5584`, the
+  instrumentation component and both APK hashes. `device-identity.txt` in every case records
+  the AVD name, fingerprint, SDK, ABI and the installed `base.apk` sha256, which matched the
+  built APKs. `pass-fail-skip` is complete with PASSED, FAILED and SKIPPED (`@Ignore`);
+  `ComparisonFailure` and Espresso assertion errors are FAILED UNKNOWN. `zero` (an APK with no
+  tests) is `NO_TESTS`. `build-error` is a static initializer failure (FAILED UNKNOWN), because
+  a compile error produces no installable APK. `timeout` is incomplete with `PROCESS_TIMEOUT`.
+- **bats**, **shellspec**: complete pass-fail-skip; `zero`, `build-error` and `timeout` are
+  incomplete.
+- **sql-pgtap**, **sql-sqllogictest-sqlite**: separate pass, fail, skip and infrastructure
+  cases; `zero` and `build-error` are refused; `timeout` is `PROCESS_INCOMPLETE`. pgTAP
+  `timeout` found the `TRE-V0-076` residual server session (`runs/sql-pgtap/pre-0076/`).
+- **appium-uiautomator2-wdio**: an Appium server on `127.0.0.1:4734`, owned by the
+  qualification harness. `pass-fail-skip` reads the real `greeting` view (PASSED, FAILED,
+  SKIPPED). `zero` is refused for missing session identity. `build-error` (a spec syntax error)
+  is incomplete. `timeout` is incomplete, and no client process survived. Appium retired the
+  orphaned session after `newCommandTimeout` (60 s), and the harness then stopped the server.
+
+Requirements added by the live witnesses:
+
+- `TRE-V0-075`: (proposed; V1-0594) For `swift-testing`, each selector MUST remain the
+  exact module-qualified discovery name, without `/`. Its SwiftPM `--filter` MUST be
+  anchored as `^<quoted selector>(/|$)`. This is because SwiftPM 6.4 matches the full Swift
+  Testing ID, which ends in `/<File>.swift:<line>:<column>` for functions. A selector
+  MUST NOT match a longer name or a different module.
+- `TRE-V0-076`: (proposed; V1-0594) `sql-pgtap` MUST start psql with
+  `PGOPTIONS=-c client_connection_check_interval=1000`. Retiring psql on timeout or
+  interruption otherwise leaves its server backend running the statement, with its
+  transaction open.
+- `TRE-V0-077`: (proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a
+  `[runner:…]` segment, reported without an outcome, MUST NOT be a pass. It MUST be
+  `CONTAINER_WITHOUT_TESTS`, and the observation MUST be incomplete. Example: a Robolectric
+  `@Config(sdk=…)` outside `enabledSdks` filters out every child.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-075 | `platform/platform.go` swift-testing `Build`; `TestSwiftTestingSelectorMatchesSourceSuffixedID` | Live before/after: `runs/swift-testing/selector-anchor-bug-before-fix` (warning "No matching test cases were run", `NO_TESTS`), then `runs/swift-testing/pass-fail-skip` complete with three rows |
+| TRE-V0-076 | `sql/sql.go` pgTAP `Build`; `TestFixedInvocations` | Before: `runs/sql-pgtap/pre-0076/timeout-residual-backend-before-fix/cleanup-check.txt` (backend still in `pg_sleep`). After: `runs/sql-pgtap/timeout/cleanup-check.txt` (0 rows) |
+| TRE-V0-077 | `platform/xml.go` `parseJUnit`; `TestVintageRunnerLeafIsNotPass` | Before: `runs/robolectric/pre-0077/build-error-sdk-not-enabled` (complete, one PASSED `[runner:proof.BrokenTest]`). After: `runs/robolectric/build-error-sdk-not-enabled` (incomplete, `CONTAINER_WITHOUT_TESTS`) |
+
+Open residuals, retained and not fixed in this slice:
+
+- Android timeout: after a runner timeout, the instrumentation (`mFinished=false`) and the
+  target app process stayed alive on the device. Killing the adb client does not end a
+  device-side process, and the runner has no device cleanup phase. Only
+  `am force-stop <target package>` ended it; `force-stop` of the test package did not. Every
+  T case did that by hand (`runs/{android-junit,espresso,uiautomator}/timeout/cleanup-check.txt`).
+  This is a device-cleanup blocker for those three profiles.
+- The installed-APK identity is checked by the qualification harness, not bound by the receipt.
+- Failure kinds stay UNKNOWN for Android assertion errors, pgTAP, sqllogictest, WebdriverIO
+  and Gradle exceptions.
+- Kotest reports two errors for one failure, and the build-error case is refused rather than
+  classified. Bats `timeout` reports a count mismatch instead of a plain timeout.
+- `xcode-xctest` `zero` and `build-error` are refused because destination reports disagree.
+- Gradle and Maven write `build/` and `target/` into the fixture tree. Java ignores `TMPDIR`
+  on macOS.
+- The Robolectric SDK jar the toolchain first supplied (12650502) is not the one Robolectric
+  4.16.1 requests for API 35. The lane resolved 13954326 instead.
+- Retry (R) is not applicable to any of these profiles.
+
+Rollback reverts each fix and its test: the `(/|$)` anchor goes back to `$`, the `PGOPTIONS`
+entry is removed, and the Vintage runner-leaf refusal is removed. This section is removed with
+them. Swift Testing selectors would then select nothing again on SwiftPM 6.4. pgTAP timeouts
+would again leave server sessions running, and a filtered Robolectric runner would again be a
+pass.

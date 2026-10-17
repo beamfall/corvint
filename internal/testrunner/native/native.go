@@ -94,7 +94,7 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		// argument is the OR of the exact names (TRE-V0-046).
 		var specs []string
 		for _, s := range r.Selectors {
-			if strings.ContainsAny(s, "*?,[]~\\\"") || strings.HasPrefix(s, "-") {
+			if strings.ContainsAny(s, "*?,[]~\\\"") || strings.HasPrefix(s, "-") || strings.HasPrefix(strings.ToLower(s), "exclude:") {
 				return v, errors.New("ambiguous Catch2 selector")
 			}
 			specs = append(specs, "\""+s+"\"")

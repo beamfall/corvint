@@ -121,7 +121,12 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	if e != nil {
 		return c.fail(e)
 	}
-	if wire.Sum(stdout) != o.Stdout || wire.Sum(stderr) != o.Stderr {
+	if o.Phase == "prepare" {
+		// PSR-V0-025: prepare output is digest-only; its log stays empty.
+		if len(stdout) != 0 || len(stderr) != 0 {
+			return c.fail(malformed("prepare log retains output"))
+		}
+	} else if wire.Sum(stdout) != o.Stdout || wire.Sum(stderr) != o.Stderr {
 		return c.fail(malformed("sweep stream digests"))
 	}
 	p := c.st.policy.Pool(en.PoolID)
@@ -136,10 +141,18 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	owner.Previous = &d
 	en.ObservationSha256 = &d
 	en.ChangedSeq = c.seq
-	// Under ALL only an owned successful verify may still finalize; no further
+	// Under ALL only an owned successful final phase (verify, or a declared
+	// prepare) may still finalize; no further
 	// cleanup/reset/verify command is authorized, so other outcomes end here.
 	all := c.st.barrier != nil && c.st.barrier.Scope == "ALL"
-	if o.Passed && (!all || o.Phase == "verify") {
+	// PSR-V0-025: a declared prepare runs after a passed verify and must pass
+	// before confirmation; under ALL it is a further command, so it never starts.
+	prepare := p.MemberConfig[en.MemberID].Prepare != nil
+	final := "verify"
+	if prepare {
+		final = "prepare"
+	}
+	if o.Passed && (!all || o.Phase == final) {
 		switch o.Phase {
 		case "cleanup":
 			en.CleanupPassed = true
@@ -148,8 +161,13 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 			owner.Phase = "verify"
 		case "verify":
 			owner.Phase = "confirm"
+			if prepare {
+				owner.Phase = "prepare"
+			}
+		case "prepare":
+			owner.Phase = "confirm"
 		}
-	} else if !all && o.GroupClean && (o.Class == "EXIT_NONZERO" || o.Class == "STDOUT_MISMATCH") && owner.Attempt.Int() < safe.MaxAttempts.Int() {
+	} else if !all && o.Phase != "prepare" && o.GroupClean && (o.Class == "EXIT_NONZERO" || o.Class == "STDOUT_MISMATCH") && owner.Attempt.Int() < safe.MaxAttempts.Int() {
 		owner.Attempt = wire.CountOf(owner.Attempt.Int() + 1)
 		owner.Phase = "reset"
 		if p.MemberConfig[en.MemberID].Cleanup != nil {
@@ -159,6 +177,10 @@ func planPoolSweepObserve(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	} else {
 		en.State = "QUARANTINED"
 		en.Reason = o.Class + "; safe reuse failed"
+		// PSR-V0-026: a failed prepare is terminal and never retried or freed.
+		if o.Phase == "prepare" {
+			en.Reason = o.Class + "; pool prepare failed"
+		}
 		if all {
 			en.Reason = o.Class + "; ALL barrier ended sweep before next phase"
 		}
@@ -192,7 +214,13 @@ func planPoolSweepSafe(c leaseContext, en *snapshot.PoolEntry) leaseOutcome {
 	if e != nil {
 		return c.fail(e)
 	}
-	if !o.Passed || !o.GroupClean || o.Phase != "verify" || o.Owner != en.Sweep.RequestSha256 || wire.Sum(raw) != *en.ObservationSha256 || en.Sweep.Previous == nil || wire.Sum(raw) != *en.Sweep.Previous || o.AllocationID != en.AllocationID || o.DefinitionSha256 != en.DefinitionSha256 || !c.in.Inventory.matches("evidence/"+string(wire.Sum(raw)), raw) {
+	// PSR-V0-025: with a declared prepare the confirmed witness is its passed
+	// observation, reachable only from a passed verify.
+	witness := "verify"
+	if p := c.st.policy.Pool(en.PoolID); p != nil && p.MemberConfig[en.MemberID].Prepare != nil {
+		witness = "prepare"
+	}
+	if !o.Passed || !o.GroupClean || o.Phase != witness || o.Owner != en.Sweep.RequestSha256 || wire.Sum(raw) != *en.ObservationSha256 || en.Sweep.Previous == nil || wire.Sum(raw) != *en.Sweep.Previous || o.AllocationID != en.AllocationID || o.DefinitionSha256 != en.DefinitionSha256 || !c.in.Inventory.matches("evidence/"+string(wire.Sum(raw)), raw) {
 		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "successful owned witness differs")
 	}
 	if c.st.policy.MemberDefinition(en.PoolID, en.MemberID) != en.DefinitionSha256 {

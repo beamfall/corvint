@@ -99,6 +99,10 @@ type sweepMember struct {
 	env    sweepEnvironment
 }
 
+// sweepMaxRounds bounds the owned steps of one member: two attempts of
+// cleanup, reset and verify, then prepare and confirm (PSR-V0-026).
+const sweepMaxRounds = 8
+
 // The recorded cleanup allowance is the enforced post-wait group cleanup bound.
 const poolCleanupAllowance = 5 * time.Second
 
@@ -237,7 +241,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 						return transaction.LeaseFacts{}, e
 					}
 					// PSR-V0-012: every pinned phase cwd must match before admission.
-					for _, def := range []*intent.PoolCommand{config.Cleanup, &config.SafeReuse.Reset} {
+					for _, def := range []*intent.PoolCommand{config.Cleanup, &config.SafeReuse.Reset, config.Prepare} {
 						if _, _, e = poolCommandDir(run, def, c.Root); e != nil {
 							return transaction.LeaseFacts{}, e
 						}
@@ -245,6 +249,9 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 					keys := append([]string{}, config.SafeReuse.Reset.Env...)
 					if config.Cleanup != nil {
 						keys = append(keys, config.Cleanup.Env...)
+					}
+					if config.Prepare != nil {
+						keys = append(keys, config.Prepare.Env...)
 					}
 					env, e := loadSweepEnvironment(c.Root, keys, config.SafeReuse.EnvFile)
 					if e != nil {
@@ -298,7 +305,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		success := false
 		attemptCtx, stopAttempt := context.WithTimeout(run, time.Duration(member.config.SafeReuse.TimeoutSeconds.Int())*time.Second)
 		currentAttempt := wire.Count("1")
-		for round := 0; round < 7; round++ {
+		for round := 0; round < sweepMaxRounds; round++ {
 			_, state, e := poolSnapshot(writeContext(), repo)
 			if e != nil {
 				stopAttempt()
@@ -339,6 +346,11 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 			}
 			if phase == "verify" {
 				def = &member.config.SafeReuse.Verify
+			}
+			// PSR-V0-025: prepare runs in the same owned, quarantined attempt
+			// under the shared attempt deadline and sweep budget.
+			if phase == "prepare" {
+				def = member.config.Prepare
 			}
 			env, envDigest := member.env.phase(def.Env)
 			// phasePasses is the phase predicate on the command's own result,
@@ -401,6 +413,11 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 				}
 			}
 			log := snapshot.EncodePoolSweepLog(result.Stdout, result.Stderr)
+			// PSR-V0-025: like health and cleanup, prepare retains only the
+			// stdout/stderr digests; its private log carries no output bytes.
+			if phase == "prepare" {
+				log = snapshot.EncodePoolSweepLog(nil, nil)
+			}
 			o := snapshot.PoolSweepObservation{AllocationID: en.AllocationID, DefinitionSha256: en.DefinitionSha256, Owner: owner, Previous: en.Sweep.Previous, Phase: phase, Attempt: en.Sweep.Attempt, Revision: en.CommandRevision, Tree: en.Sweep.Tree, Class: result.Class, Exit: result.Exit, Passed: passed, GroupClean: result.Clean, Log: wire.Sum(log), Environment: envDigest, EnvFile: member.env.file}
 			if result.Timing.Deadline == "" {
 				at := time.Now()
@@ -463,7 +480,7 @@ func reconcileSweep(ctx context.Context, repo *intent.Repository, actor mutation
 		en := selected
 		var last wire.Digest
 		complete, free := false, false
-		for round := 0; round < 7; round++ {
+		for round := 0; round < sweepMaxRounds; round++ {
 			if en.Sweep == nil {
 				return out, wire.Errorf(wire.CodeJournalForked, "sweep", "phase owner absent")
 			}

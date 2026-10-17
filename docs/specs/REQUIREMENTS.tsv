@@ -2934,6 +2934,9 @@ PSR-V0-020	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	52	The binding is visi
 PSR-V0-021	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	53	The encoding is additive: pools.json entries gain the optional `shared` key only	unrecorded	-
 PSR-V0-022	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11), V1-1406) A bounde	standing	2026-10-11; V1-1406
 PSR-V0-023	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	55	(owner delegated to the orchestrator (2026-10-16), decision 0536, V1-1492) Withi	unrecorded	-
+PSR-V0-024	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	56	(accepted under the owner's standing auto-accept (2026-10-11), V1-1551, GitHub #	standing	2026-10-11; V1-1551; #1009
+PSR-V0-025	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	57	Within an owned sweep attempt the phase order becomes cleanup (if declared), res	unrecorded	-
+PSR-V0-026	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	58	A prepare that does not pass (any class, including TIMEOUT at the shared deadlin	unrecorded	-
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-
@@ -3698,11 +3701,14 @@ TRE-V0-043	docs/specs/test-runner-execution-v0.md	939	New `gradle-junit` plans M
 TRE-V0-044	docs/specs/test-runner-execution-v0.md	985	(accepted under the owner's standing auto-accept (2026-10-11); V1-0612) For `sto	standing	2026-10-11; V1-0612
 TRE-V0-045	docs/specs/test-runner-execution-v0.md	1023	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `cargo-d	standing	2026-10-11; V1-0593
 TRE-V0-046	docs/specs/test-runner-execution-v0.md	1027	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
-TRE-V0-047	docs/specs/test-runner-execution-v0.md	1031	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
-TRE-V0-060	docs/specs/test-runner-execution-v0.md	1180	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592; amended	standing	2026-10-11; V1-0592
-TRE-V0-061	docs/specs/test-runner-execution-v0.md	1186	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
-TRE-V0-062	docs/specs/test-runner-execution-v0.md	1189	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
-TRE-V0-063	docs/specs/test-runner-execution-v0.md	1193	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-047	docs/specs/test-runner-execution-v0.md	1033	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
+TRE-V0-060	docs/specs/test-runner-execution-v0.md	1182	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592; amended	standing	2026-10-11; V1-0592
+TRE-V0-061	docs/specs/test-runner-execution-v0.md	1188	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
+TRE-V0-062	docs/specs/test-runner-execution-v0.md	1191	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-063	docs/specs/test-runner-execution-v0.md	1195	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-075	docs/specs/test-runner-execution-v0.md	1373	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
+TRE-V0-076	docs/specs/test-runner-execution-v0.md	1378	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
+TRE-V0-077	docs/specs/test-runner-execution-v0.md	1382	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-
