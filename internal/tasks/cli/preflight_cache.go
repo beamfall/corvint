@@ -291,12 +291,12 @@ type preflightCacheRun struct {
 	reason string // non-empty: the inputs could not be keyed, so nothing is replayed or stored
 }
 
-// startPreflightCache keys the inputs. A failure to key them (no HEAD, a
-// bound, an unreadable executable or cache directory) skips the cache with
-// the reason, and the checks run (TOL-V0-048).
-func startPreflightCache(root string, in preflightInputs, fresh bool) *preflightCacheRun {
+// startPreflightCache opens the cache for the preflightInputKey result. A
+// failure to key the inputs (no HEAD, a bound, an unreadable executable) or
+// an unavailable cache directory skips the cache with the reason, and the
+// checks run (TOL-V0-048).
+func startPreflightCache(key wire.Digest, reason string, fresh bool) *preflightCacheRun {
 	c := &preflightCacheRun{fresh: fresh}
-	key, reason := preflightInputKey(root, in)
 	if reason != "" {
 		c.reason = reason
 		return c

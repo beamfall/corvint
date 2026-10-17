@@ -17,3 +17,16 @@ agent-drafted and accepted under the owner's standing auto-accept of lane requir
   `preflight` remains a read under product invariant 4 and nothing can mistake an entry for
   evidence. Any keying failure runs the checks (`SKIPPED`), never replays.
 - `--cache --deep` is refused: gate commands are not static and depend on the environment.
+
+## V1-1605: refuse identical failing re-runs (TOL-V0-051..054)
+
+- Off by default (`--refuse-repeat N`), as the issue asks; TOL-V0-031's per-`--out` refusal is
+  unchanged and still applies.
+- The input digest reuses the preflight cache key, and for `run-batch` the clean commit, fixture
+  digest, config, specs, ledger and scope, plus the executable digest. A rebuilt tool, a new
+  commit or a ledger change is a new input, so honest progress is never refused.
+- Signatures fold digit runs and whitespace so durations and ports do not split one failure.
+- A remediation is a single-use reference audited before the run, not a judgement that the fix
+  is real; reusing it is refused, so an agent cannot replay one excuse.
+- An unreadable ledger runs the job unguarded (`SKIPPED`): the guard saves effort and must never
+  block honest work on a corrupt private file.

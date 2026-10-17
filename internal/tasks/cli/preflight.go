@@ -50,9 +50,14 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	commit, planPath := "HEAD", ""
 	var gates, prefixes []string
 	deep, useCache, fresh := false, false, false
-	if res := pairFlags(cmd, args[1:], map[string]*string{"--commit": &commit, "--plan": &planPath},
+	var guardArgs failureGuardArgs
+	if res := pairFlags(cmd, args[1:], guardArgs.singles(map[string]*string{"--commit": &commit, "--plan": &planPath}),
 		map[string]*[]string{"--gate": &gates, "--path": &prefixes}, map[string]*bool{"--deep": &deep, "--cache": &useCache, "--fresh": &fresh}); res != nil {
 		return res
+	}
+	threshold, bad := guardArgs.check(cmd)
+	if bad != nil {
+		return bad
 	}
 	if fresh && !useCache {
 		return usage(cmd, "--fresh bypasses the cache: give it with --cache")
@@ -107,13 +112,27 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if resolved == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMissingEvidence, "--commit", "the repository holds no commit %s", prose(commit)))
 	}
+	// The cache key (TOL-V0-047) is also the failure-signature input
+	// digest (TOL-V0-051); it is computed only when one of them is asked.
+	var key wire.Digest
+	keyReason := ""
+	if useCache || threshold > 0 {
+		key, keyReason = preflightInputKey(root, preflightInputs{ticketID: rec.TicketID.Raw, record: wire.Sum(wire.Encode(rec.Value())),
+			ledger: wire.Sum(wire.Encode(ledger.EntriesValue())), policy: policySum, commit: resolved, prefixes: prefixes,
+			plan: planPath, deep: deep, gates: gates})
+	}
+	guard := startFailureGuard("preflight", rec.TicketID.Raw, key, keyReason, threshold, guardArgs.remediation)
+	if err := guard.admit(); err != nil {
+		return failure(cmd, rc, err)
+	}
 	var cache *preflightCacheRun
 	if useCache {
-		cache = startPreflightCache(root, preflightInputs{ticketID: rec.TicketID.Raw, record: wire.Sum(wire.Encode(rec.Value())),
-			ledger: wire.Sum(wire.Encode(ledger.EntriesValue())), policy: policySum, commit: resolved, prefixes: prefixes,
-			plan: planPath, deep: deep, gates: gates}, fresh)
-		if hit := cache.replay(cmd, rc); hit != nil {
-			return hit
+		cache = startPreflightCache(key, keyReason, fresh)
+		// A run a remediation admitted runs the checks (TOL-V0-053).
+		if guard == nil || !guard.admitted {
+			if hit := cache.replay(cmd, rc); hit != nil {
+				return hit
+			}
 		}
 	}
 	paths, err := store.TreePathsAtCommit(root, resolved, prefixes, func(p string) bool {
@@ -216,6 +235,15 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	}
 	if cache != nil {
 		cache.finish(res, item)
+	}
+	if guard != nil {
+		// Recorded after the cache stores the report, so a replay never
+		// carries a stale ledger member (TOL-V0-051).
+		lines := make([]string, 0, len(items))
+		for _, v := range items {
+			lines = append(lines, string(wire.Encode(v)))
+		}
+		item.Set("failureSignature", guard.record(!ok, lines))
 	}
 	return res
 }

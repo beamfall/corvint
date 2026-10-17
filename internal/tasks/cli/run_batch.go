@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -653,11 +654,16 @@ func runBatch(env Env, cmd []string, args []string) (result *wire.Result) {
 	target := args[0]
 	a := commonRunArgs{commit: "HEAD"}
 	role, idsArg := "OWNER", ""
-	if res := pairFlags(cmd, args[1:], a.singles(map[string]*string{"--role": &role, "--ids": &idsArg}),
+	var guardArgs failureGuardArgs
+	if res := pairFlags(cmd, args[1:], guardArgs.singles(a.singles(map[string]*string{"--role": &role, "--ids": &idsArg})),
 		map[string]*[]string{"--spec": &a.specs}, nil); res != nil {
 		return res
 	}
 	if res := a.check(cmd); res != nil {
+		return res
+	}
+	threshold, res := guardArgs.check(cmd)
+	if res != nil {
 		return res
 	}
 	if role == "WORKER" && a.attempt == "" {
@@ -697,6 +703,16 @@ func runBatch(env Env, cmd []string, args []string) (result *wire.Result) {
 	// TOL-V0-031: a repeated failure refuses before any lane is acquired.
 	if err := repeatFailures(filepath.Dir(j.dir), rec.TicketID.Raw, string(fixture), ledger, ids); err != nil {
 		return errorResult(cmd, err)
+	}
+	// TOL-V0-052: with --refuse-repeat, a signature that already repeated
+	// at these inputs refuses before any lane is acquired or results written.
+	var guard *failureGuard
+	if threshold > 0 {
+		input, reason := runBatchInputDigest(j, rec.TicketID.Raw, fixture, cfgSum, a.specs, ledger, ids, role)
+		guard = startFailureGuard("run-batch", rec.TicketID.Raw, input, reason, threshold, guardArgs.remediation)
+		if err := guard.admit(); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	_, present, content, err := store.FilesAtCommit(j.root, j.commit, files)
 	if err != nil {
@@ -834,8 +850,43 @@ func runBatch(env Env, cmd []string, args []string) (result *wire.Result) {
 	}
 	result.NotRetryable = true
 	result.Untrusted = true
-	result.Items = []wire.Value{wire.ObjectValue(batchItem(summary, filepath.Join(j.dir, "summary.json"), sum))}
+	item := batchItem(summary, filepath.Join(j.dir, "summary.json"), sum)
+	if guard != nil {
+		failed, lines := result.Outcome != wire.OutcomeOK, append([]string{}, result.Codes...)
+		if rep == nil {
+			lines = append(lines, "NOT_RUN\t"+earlier)
+		}
+		for _, c := range summary.Obligations {
+			if c.Cause == obligation.CauseFailed {
+				failed, lines = true, append(lines, c.ID+"\t"+c.Cause+"\t"+c.Error)
+			}
+		}
+		item.Set("failureSignature", guard.record(failed, lines))
+	}
+	result.Items = []wire.Value{wire.ObjectValue(item)}
 	return result
+}
+
+// runBatchInputDigest is the TOL-V0-051 input digest of a batch: the
+// implementation, the commit (whose clean checkout prepareJob proved), the
+// fixture digest over the fixture and spec files there, the config, the
+// specs, the ledger entries and the scope.
+func runBatchInputDigest(j *runJob, ticketID string, fixture, cfgSum wire.Digest, specs []string, l *ticket.ObligationLedger, ids []string, role string) (wire.Digest, string) {
+	impl, err := implementationDigest()
+	if err != nil {
+		return "", "the run-batch implementation digest is unavailable: " + err.Error()
+	}
+	s := append([]string{}, specs...)
+	sort.Strings(s)
+	scope := "ALL"
+	if ids != nil {
+		x := append([]string{}, ids...)
+		sort.Strings(x)
+		scope = strings.Join(x, ",")
+	}
+	return wire.Sum([]byte("corvint-tasks-run-batch-input/0\nimplementation " + impl + "\nticket " + strconv.Quote(ticketID) +
+		"\ncommit " + j.commit + "\nfixture " + string(fixture) + "\nconfig " + string(cfgSum) + "\nspecs " + strconv.Quote(strings.Join(s, "\n")) +
+		"\nledger " + string(wire.Sum(wire.Encode(l.EntriesValue()))) + "\nids " + scope + "\nrole " + role + "\n")), ""
 }
 
 // readPriorSummary reads an earlier summary through one regular-file
