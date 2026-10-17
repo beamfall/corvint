@@ -67,7 +67,7 @@ func (f *fixture) commit(msg string, files map[string]string) string {
 	}
 	f.git("add", "-A")
 	f.tick++
-	f.git("-c", "user.useConfigOnly=false", "commit", "-q", "--allow-empty", "-m", msg, "--date", "2026-01-0"+string(rune('0'+f.tick))+"T10:00:00+0200")
+	f.git("-c", "maintenance.auto=false", "-c", "gc.auto=0", "-c", "user.useConfigOnly=false", "commit", "-q", "--allow-empty", "-m", msg, "--date", "2026-01-0"+string(rune('0'+f.tick))+"T10:00:00+0200")
 	return f.git("rev-parse", "HEAD")
 }
 
