@@ -20,9 +20,11 @@ const (
 	CandidateNote    = "pairs are candidates for review, not verdicts: shared assertion lines suggest, but do not prove, that two tests check the same behaviour"
 	maxDecisionBytes = 1 << 20
 	maxDecisions     = 10000
-	maxPairs         = 1000
 	maxTests         = 50000
 )
+
+// maxPairs bounds each of the unresolved and resolved lists; a variable so a test can lower it.
+var maxPairs = 1000
 
 // DuplicatesOptions select the revision, the gate and the thresholds (TSA-V0-020, TSA-V0-021).
 type DuplicatesOptions struct {
@@ -61,7 +63,8 @@ type IgnoredDecision struct {
 	Problem string `json:"problem"`
 }
 
-// DuplicatesReport is the deterministic `corvint tests duplicates` result.
+// DuplicatesReport is the deterministic `corvint tests duplicates` result. UnresolvedCount and
+// ResolvedCount count every pair, including any beyond the output bound of the two lists.
 type DuplicatesReport struct {
 	Schema           string            `json:"schema"`
 	Note             string            `json:"note"`
@@ -73,6 +76,8 @@ type DuplicatesReport struct {
 	Tests            int               `json:"tests"`
 	ChangedTests     []string          `json:"changedTests,omitempty"`
 	ExcludedLines    int               `json:"excludedLines"`
+	UnresolvedCount  int               `json:"unresolvedCount"`
+	ResolvedCount    int               `json:"resolvedCount"`
 	Unresolved       []Pair            `json:"unresolved"`
 	Resolved         []Pair            `json:"resolved"`
 	IgnoredDecisions []IgnoredDecision `json:"ignoredDecisions"`
@@ -135,7 +140,7 @@ func Duplicates(r Repo, options DuplicatesOptions) (DuplicatesReport, error) {
 	report := DuplicatesReport{Schema: DuplicatesSchema, Note: CandidateNote, Revision: revision, Gate: options.Gate,
 		Threshold: options.Threshold, MaxLineTests: options.MaxLineTests, Unresolved: []Pair{}, Resolved: []Pair{},
 		IgnoredDecisions: []IgnoredDecision{}, Uncertain: []string{}}
-	var changed map[string]map[int]bool
+	var changed map[string]*lineChanges
 	if options.Gate != "" {
 		if report.Base, err = r.Resolve(options.Base); err != nil {
 			return DuplicatesReport{}, err
@@ -173,27 +178,34 @@ func Duplicates(r Repo, options DuplicatesOptions) (DuplicatesReport, error) {
 	if changed != nil {
 		focus = map[int]bool{}
 		for i, tc := range tests {
-			for line := tc.line; line <= tc.end; line++ {
-				if changed[tc.path][line] {
-					focus[i] = true
-					report.ChangedTests = append(report.ChangedTests, tc.id)
-					break
-				}
+			if changed[tc.path].touches(tc.line, tc.end) {
+				focus[i] = true
+				report.ChangedTests = append(report.ChangedTests, tc.id)
 			}
 		}
 		if report.ChangedTests == nil {
 			report.ChangedTests = []string{}
 		}
 	}
-	pairs, excluded, truncated := scorePairs(tests, focus, options)
-	report.ExcludedLines, report.Truncated = excluded, truncated
+	pairs, excluded := scorePairs(tests, focus, options)
+	report.ExcludedLines = excluded
 	resolveDecisions(&report, pairs, decisions)
+	// Counts and the gate are taken before the lists are truncated, so a pair beyond the output
+	// bound still fails the gate (TSA-V0-020, TSA-V0-021).
+	report.UnresolvedCount, report.ResolvedCount = len(report.Unresolved), len(report.Resolved)
+	if len(report.Unresolved) > maxPairs {
+		report.Unresolved, report.Truncated = report.Unresolved[:maxPairs], true
+	}
+	if len(report.Resolved) > maxPairs {
+		report.Resolved, report.Truncated = report.Resolved[:maxPairs], true
+	}
 	return report, nil
 }
 
 // scorePairs scores every pair of tests in different files that share at least two assertion
-// lines that are not frequent; with a focus set, only pairs touching it.
-func scorePairs(tests []testCase, focus map[int]bool, options DuplicatesOptions) ([]Pair, int, bool) {
+// lines that are not frequent; with a focus set, only pairs touching it. Every pair is returned;
+// the caller bounds the output after resolving decisions.
+func scorePairs(tests []testCase, focus map[int]bool, options DuplicatesOptions) ([]Pair, int) {
 	holders := map[string][]int{}
 	for i, tc := range tests {
 		for _, line := range tc.assertions {
@@ -256,11 +268,7 @@ func scorePairs(tests []testCase, focus map[int]bool, options DuplicatesOptions)
 		}
 		return pairs[a].Other < pairs[b].Other
 	})
-	truncated := len(pairs) > maxPairs
-	if truncated {
-		pairs = pairs[:maxPairs]
-	}
-	return pairs, excluded, truncated
+	return pairs, excluded
 }
 
 // resolveDecisions files every pair as resolved or unresolved (TSA-V0-022). A distinct-from

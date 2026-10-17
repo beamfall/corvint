@@ -272,7 +272,7 @@ func runTestsDuplicates(repo testsource.Repo, args []string, out, diagnostic io.
 	if code := testsWrite(out, diagnostic, report); code != 0 {
 		return code
 	}
-	if options.Gate != "" && len(report.Unresolved) > 0 {
+	if options.Gate != "" && report.UnresolvedCount > 0 {
 		return 1
 	}
 	return 0

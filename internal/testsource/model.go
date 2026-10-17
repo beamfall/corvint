@@ -267,7 +267,9 @@ func (s *source) readExpect(i int) (expectChain, bool) {
 }
 
 // render renders a token range canonically: strings quoted, words separated by one space, all
-// other spacing dropped, so formatting differences do not change it (TSA-V0-020).
+// other spacing dropped, so formatting differences do not change it (TSA-V0-020). A regular
+// expression or a template with substitutions renders its source, so different patterns or
+// substitution expressions never render alike.
 func (s *source) render(start, end int) string {
 	var b strings.Builder
 	previousWord := false
@@ -277,10 +279,12 @@ func (s *source) render(start, end int) string {
 		if word && previousWord {
 			b.WriteByte(' ')
 		}
-		switch t.Kind {
-		case appmap.JSString:
+		switch {
+		case t.Source != "":
+			b.WriteString(t.Source)
+		case t.Kind == appmap.JSString:
 			b.WriteString(strconv.Quote(t.Text))
-		case appmap.JSTemplate:
+		case t.Kind == appmap.JSTemplate:
 			b.WriteString("`" + t.Text + "`")
 		default:
 			b.WriteString(t.Text)

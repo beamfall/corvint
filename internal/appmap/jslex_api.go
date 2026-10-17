@@ -1,5 +1,7 @@
 package appmap
 
+import "strings"
+
 // This file exposes the application map's JavaScript/TypeScript lexer to the static test-source
 // analysis (docs/specs/test-source-analysis-v0.md, TSA-V0-010) without a second lexer: the tokens
 // are the ones every application-map reader uses, so a lexing repair reaches both at once.
@@ -18,13 +20,16 @@ const (
 // JSToken is one token: an identifier, punctuation character, number, or a string or template
 // literal's decoded body. Literal is true only for a string or substitution-free template whose
 // value is exact; a regular expression is a JSString that is never Literal. Glued marks
-// punctuation written directly after the previous punctuation (the `>` of `=>`).
+// punctuation written directly after the previous punctuation (the `>` of `=>`). Source keeps
+// what Text loses: a regular expression's source, slashes and flags included, or a template with
+// substitutions from its opening backtick, its substitution expressions written as in the file.
 type JSToken struct {
 	Kind    JSTokenKind
 	Text    string
 	Line    int
 	Literal bool
 	Glued   bool
+	Source  string
 }
 
 // JSComment is one comment: the line it starts on and its text, delimiters included.
@@ -42,7 +47,12 @@ func LexJS(text string) (tokens []JSToken, comments []JSComment, unsure bool) {
 	tokens = make([]JSToken, 0, len(toks))
 	for _, t := range toks {
 		kind := map[tokKind]JSTokenKind{tokIdent: JSIdent, tokString: JSString, tokTemplate: JSTemplate, tokNumber: JSNumber, tokPunct: JSPunct}[t.kind]
-		tokens = append(tokens, JSToken{Kind: kind, Text: t.text, Line: t.line, Literal: literal(t), Glued: t.glued})
+		source := t.regex
+		if t.kind == tokTemplate && t.subst {
+			prefix, _, _ := strings.Cut(t.text, substMark)
+			source = "`" + prefix + t.code
+		}
+		tokens = append(tokens, JSToken{Kind: kind, Text: t.text, Line: t.line, Literal: literal(t), Glued: t.glued, Source: source})
 		unsure = unsure || t.unsure
 	}
 	comments = make([]JSComment, 0, len(collected))

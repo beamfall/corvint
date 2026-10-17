@@ -176,57 +176,136 @@ func (r Repo) readFiles(rev string, keep func(string) bool) (map[string]string, 
 	return texts, oids, nil
 }
 
-// changedLines returns, for every file added or modified from base to rev that keep accepts, the
-// set of new-side line numbers the diff adds or changes. A rename is a delete and an add.
-func (r Repo) changedLines(base, rev string, keep func(string) bool) (map[string]map[int]bool, error) {
-	out, err := r.git(maxDiffBytes, nil, "diff", "--no-ext-diff", "--no-color", "--no-renames", "--no-textconv",
-		"--unified=0", "--diff-filter=AM", base, rev)
+// lineChanges is what a diff changed in one file: the new-side lines it adds or changes, and the
+// new-side lines a deletion-only hunk follows (a deletion between line n and n+1 is recorded as n).
+type lineChanges struct {
+	lines, deletedAfter map[int]bool
+}
+
+// touches reports whether the change adds or changes a line in [start, end], or deletes lines
+// strictly inside it (TSA-V0-012, TSA-V0-021).
+func (c *lineChanges) touches(start, end int) bool {
+	if c == nil {
+		return false
+	}
+	for line := start; line <= end; line++ {
+		if c.lines[line] || (line < end && c.deletedAfter[line]) {
+			return true
+		}
+	}
+	return false
+}
+
+// diffArgs makes every changed-path read independent of Git attributes, repository diff
+// configuration and external drivers: textual hunks always, fixed a/ and b/ prefixes (TSA-V0-010).
+var diffArgs = []string{"diff", "--no-ext-diff", "--no-color", "--no-renames", "--no-textconv", "--text",
+	"--src-prefix=a/", "--dst-prefix=b/", "--diff-filter=AM"}
+
+// changedLines returns, for every file added or modified from base to rev that keep accepts, what
+// the diff changed. Paths come from a NUL-delimited inventory; every patch header must decode to an
+// inventory path. A rename is a delete and an add.
+func (r Repo) changedLines(base, rev string, keep func(string) bool) (map[string]*lineChanges, error) {
+	inventory, err := r.git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--name-only", "-z", base, rev)...)
 	if err != nil {
 		return nil, err
 	}
-	changed, current := map[string]map[int]bool{}, ""
+	changed, listed := map[string]*lineChanges{}, map[string]bool{}
+	for _, name := range strings.Split(strings.TrimSuffix(string(inventory), "\x00"), "\x00") {
+		if name == "" {
+			continue
+		}
+		listed[name] = true
+		if keep(name) {
+			changed[name] = &lineChanges{lines: map[int]bool{}, deletedAfter: map[int]bool{}}
+			if len(changed) > MaxFiles {
+				return nil, refuse("tests-bound-exceeded", "more than %d changed test files", MaxFiles)
+			}
+		}
+	}
+	if len(changed) == 0 {
+		return changed, nil
+	}
+	out, err := r.git(maxDiffBytes, nil, append(append([]string{}, diffArgs...), "--unified=0", base, rev)...)
+	if err != nil {
+		return nil, err
+	}
+	var current *lineChanges
+	remaining := 0
 	for _, line := range strings.Split(string(out), "\n") {
-		switch {
-		case strings.HasPrefix(line, "diff --git "):
-			current = ""
-		case strings.HasPrefix(line, "+++ "):
-			name := strings.TrimPrefix(line, "+++ ")
-			if name == "/dev/null" {
+		if remaining > 0 {
+			if strings.HasPrefix(line, "\\") {
 				continue
 			}
-			if !strings.HasPrefix(name, "b/") {
+			remaining--
+			continue
+		}
+		switch {
+		case strings.HasPrefix(line, "diff --git "):
+			current = nil
+		case strings.HasPrefix(line, "+++ "):
+			name, ok := patchPath(strings.TrimPrefix(line, "+++ "))
+			if !ok || !listed[name] {
 				return nil, refuse("tests-source-unavailable", "a changed path cannot be read from the diff")
 			}
-			current = ""
-			if name = strings.TrimPrefix(name, "b/"); keep(name) {
-				current = name
-				if changed[current] == nil {
-					changed[current] = map[int]bool{}
-				}
-				if len(changed) > MaxFiles {
-					return nil, refuse("tests-bound-exceeded", "more than %d changed test files", MaxFiles)
-				}
-			}
-		case strings.HasPrefix(line, "@@ ") && current != "":
-			start, count, ok := hunkNewSide(line)
+			current = changed[name]
+		case strings.HasPrefix(line, "@@ "):
+			oldCount, start, count, ok := hunkCounts(line)
 			if !ok {
 				return nil, refuse("tests-source-unavailable", "a diff hunk cannot be read")
 			}
+			remaining = oldCount + count
+			if current == nil {
+				continue
+			}
+			if count == 0 {
+				current.deletedAfter[start] = true
+			}
 			for n := start; n < start+count; n++ {
-				changed[current][n] = true
+				current.lines[n] = true
 			}
 		}
+	}
+	if remaining > 0 {
+		return nil, refuse("tests-source-unavailable", "a diff hunk cannot be read")
 	}
 	return changed, nil
 }
 
-// hunkNewSide reads `@@ -a[,b] +c[,d] @@`: the new-side start line and line count.
-func hunkNewSide(line string) (int, int, bool) {
-	fields := strings.Fields(line)
-	if len(fields) < 3 || !strings.HasPrefix(fields[2], "+") {
-		return 0, 0, false
+// patchPath decodes a `+++` header path: Git appends a tab after a name holding a space and
+// C-quotes a name holding a quote, backslash or control byte.
+func patchPath(header string) (string, bool) {
+	header, tabbed := strings.CutSuffix(header, "\t")
+	if strings.HasPrefix(header, "\"") {
+		unquoted, err := strconv.Unquote(header)
+		if err != nil {
+			return "", false
+		}
+		header = unquoted
 	}
-	startText, countText, hasCount := strings.Cut(strings.TrimPrefix(fields[2], "+"), ",")
+	if strings.Contains(header, " ") != tabbed {
+		return "", false
+	}
+	name, ok := strings.CutPrefix(header, "b/")
+	return name, ok && name != ""
+}
+
+// hunkCounts reads `@@ -a[,b] +c[,d] @@`: the old-side line count and the new-side start line and
+// line count.
+func hunkCounts(line string) (int, int, int, bool) {
+	fields := strings.Fields(line)
+	if len(fields) < 3 || !strings.HasPrefix(fields[1], "-") || !strings.HasPrefix(fields[2], "+") {
+		return 0, 0, 0, false
+	}
+	_, oldCount, ok := hunkRange(strings.TrimPrefix(fields[1], "-"))
+	if !ok {
+		return 0, 0, 0, false
+	}
+	start, count, ok := hunkRange(strings.TrimPrefix(fields[2], "+"))
+	return oldCount, start, count, ok
+}
+
+func hunkRange(text string) (int, int, bool) {
+	startText, countText, hasCount := strings.Cut(text, ",")
 	start, err := strconv.Atoi(startText)
 	if err != nil || start < 0 {
 		return 0, 0, false

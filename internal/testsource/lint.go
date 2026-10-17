@@ -88,7 +88,12 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 	if err != nil {
 		return LintReport{}, err
 	}
-	texts, _, err := r.readFiles(revision, func(name string) bool { _, ok := changed[name]; return ok })
+	// --all-lines reads every test and page-object file at the revision, changed or not (TSA-V0-012).
+	keep := func(name string) bool { _, ok := changed[name]; return ok }
+	if options.AllLines {
+		keep = isLintTarget
+	}
+	texts, _, err := r.readFiles(revision, keep)
 	if err != nil {
 		return LintReport{}, err
 	}
@@ -103,15 +108,7 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 	sort.Strings(report.Files)
 	for _, name := range report.Files {
 		inScope := func(start, end int) bool {
-			if options.AllLines {
-				return true
-			}
-			for line := start; line <= end; line++ {
-				if changed[name][line] {
-					return true
-				}
-			}
-			return false
+			return options.AllLines || changed[name].touches(start, end)
 		}
 		lintFile(&report, parseSource(name, texts[name]), inScope)
 	}

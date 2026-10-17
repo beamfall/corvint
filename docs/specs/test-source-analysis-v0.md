@@ -41,6 +41,12 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   `test.skip(...)` call without a callback is a runtime annotation. A file the lexer cannot place,
   or with unbalanced brackets, is listed as uncertain rather than silently dropped. At most 5000
   files of at most 1 MiB each (64 MiB in total) are read; more refuses with `tests-bound-exceeded`.
+  Changed paths come from a NUL-delimited `git diff --name-only -z` inventory, and every patch
+  header MUST decode (Git's trailing tab after a name with a space, C-quoting) to an inventory path
+  or the read refuses with `tests-source-unavailable`. Diff reads MUST be independent of Git
+  attributes, repository diff configuration and external drivers (`--text`, `--no-textconv`,
+  `--no-ext-diff`, fixed `a/` and `b/` prefixes), so no local attribute can hide a hunk (amended
+  2026-10-17 under the standing auto-accept after the PR #1054 review).
 - `TSA-V0-011`: (standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned apart
   from tokens, so a mention inside a comment never counts as code (an import, a registry lookup, an
   assertion), and annotations are read from comments only.
@@ -53,13 +59,17 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   `export ... from`, a literal `import()` or a literal `require()`, transitively, skipping type-only
   imports. It also reaches a setup file through a literal key of a declared string-key registry
   (the AMAP registry dialect): the key's bound module is a data context, and every setup file that
-  imports that module directly is selected. Mode is `selected`.
+  imports that module directly is selected and is itself traversed like any reached file, so its
+  own setup dependencies are selected and its unresolved imports return ALL (amended 2026-10-17 after
+  the PR #1054 review). Mode is `selected`.
 - `TSA-V0-002`: (standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hub
   (a non-setup file that imports every setup file in a universe of at least two) MUST NOT be
   followed and MUST be listed under `notFollowed` with reason `registry` or `hub`, so a barrel never
   widens a selection to everything.
 - `TSA-V0-003`: (standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, the
-  result MUST be mode `all` with every setup file and at least one typed reason: `computed-lookup` (a
+  result MUST be mode `all` with every setup file and at least one typed reason. The setup universe
+  is every tracked setup path at the revision, including generated or oversized files the index does
+  not read, so ALL is the whole safe superset (amended 2026-10-17 after the PR #1054 review). Reasons: `computed-lookup` (a
   non-literal registry key, `import()` or `require()`), `unknown-key` (a literal key the registry
   does not declare), `registry-unresolved`, `missing-path` (a spec that is not a clean, tracked JS/TS
   path at the revision), `empty-spec-list`, `import-unresolved`, `source-unreadable` or
@@ -76,9 +86,10 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
 
 - `TSA-V0-012`: (standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--rev
   REV]` MUST lint the test and page-object files at the revision and, by default, report only
-  findings whose line range touches a line added or changed since `--base` (`scope:
-  changed-lines`); `--all-lines` reports every finding (`scope: all-lines`). An unknown revision
-  refuses with `tests-invalid-revision`.
+  findings whose line range touches a line added or changed since `--base`, or strictly contains a
+  deletion (`scope: changed-lines`); `--all-lines` reads every test and page-object file at the
+  revision, changed or not, and reports every finding (`scope: all-lines`) (amended 2026-10-17 after
+  the PR #1054 review). An unknown revision refuses with `tests-invalid-revision`.
 - `TSA-V0-013`: (standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with stable
   IDs: `no-assertion` (a test with no assertion call), `weak-assertion-only` (every assertion is a
   visibility or URL matcher), `conditional-assertion` (an assertion inside `if`, `switch`, a ternary
@@ -101,14 +112,19 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
 
 - `TSA-V0-020`: (standing auto-accept, 2026-10-11; V1-1592) `corvint tests duplicates [--ref REV]`
   MUST normalise each non-skipped test's `expect` chains (canonical token rendering, so quoting and
-  line breaks do not matter), drop a line held by more than `--max-line-tests` tests (default 5,
+  line breaks do not matter, keeping a regular expression's source and a template's substitution
+  expressions so different patterns or expressions never render alike), drop a line held by more than `--max-line-tests` tests (default 5,
   range 2..100), and report pairs of tests in different files that share at least two remaining lines
   with a Jaccard score at least `--threshold` (default 0.5, range (0,1]). A test is identified as
-  `path :: describe > title`, with ` [n]` for a repeat. Pairs are sorted by score, then identifiers,
-  and at most 1000 are kept (`truncated`).
+  `path :: describe > title`, with ` [n]` for a repeat. Pairs are sorted by score, then identifiers.
+  Decisions are applied to every pair first; then at most 1000 unresolved and 1000 resolved pairs are
+  listed (`truncated`), while `unresolvedCount` and `resolvedCount` count them all (amended
+  2026-10-17 after the PR #1054 review).
 - `TSA-V0-021`: (standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only pairs
-  where at least one test was added or changed since the base MUST be considered, the changed tests are
-  listed, and the command exits 1 while any such pair is unresolved; report mode exits 0.
+  where at least one test was added or changed since the base (an added or changed line in its span,
+  or a deletion strictly inside it) MUST be considered, the changed tests are listed, and the command
+  exits 1 while `unresolvedCount` is above zero, including pairs beyond the listed bound; report mode
+  exits 0 (amended 2026-10-17 after the PR #1054 review).
 - `TSA-V0-022`: (standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file
   `.corvint/test-duplicates.json` (schema `corvint-test-duplicate-decisions/0`, at most 1 MiB and
   10 000 decisions, read at the analysed revision) MUST resolve a pair by a `distinct-from` decision
@@ -178,19 +194,19 @@ lines across files, honour the cutoff, gate on changed tests and resolve with re
 
 | Requirement | Implementation | Focused evidence | Status |
 |---|---|---|---|
-| TSA-V0-001 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
+| TSA-V0-001 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure`, `TestSelectSetupTraversesRegistrySeeders` | experimental |
 | TSA-V0-002 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
-| TSA-V0-003 | `internal/contextindex/setup_select.go` | `TestSelectSetupAll` | experimental |
+| TSA-V0-003 | `internal/contextindex/setup_select.go` | `TestSelectSetupAll`, `TestSelectSetupUniverseIncludesUnindexedFiles` | experimental |
 | TSA-V0-004 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
 | TSA-V0-005 | `internal/contextindex/setup_select.go`, `cmd/corvint/tests.go` | `TestSelectSetupDigest`, `TestTestsCLI` | experimental |
-| TSA-V0-010 | `internal/testsource`, `internal/appmap/jslex_api.go` | `TestSourceModel` | experimental |
+| TSA-V0-010 | `internal/testsource`, `internal/appmap/jslex_api.go` | `TestSourceModel`, `TestChangedPathsIgnoreAttributesAndDecodeNames` | experimental |
 | TSA-V0-011 | `internal/appmap/jslex.go` | `TestLexJSComments` | experimental |
-| TSA-V0-012 | `internal/testsource/lint.go` | `TestLintChangedLinesOnly` | experimental |
-| TSA-V0-013 | `internal/testsource/lint.go` | `TestLintRuleFixtures`, `TestLintRuleDetails` | experimental |
+| TSA-V0-012 | `internal/testsource/lint.go` | `TestLintChangedLinesOnly`, `TestLintAllLinesReadsUnchangedFiles` | experimental |
+| TSA-V0-013 | `internal/testsource/lint.go` | `TestLintRuleFixtures`, `TestLintRuleDetails`, `TestRenderKeepsRegexAndSubstitutions` | experimental |
 | TSA-V0-014 | `internal/testsource/lint_test.go` | `TestLintRuleFixtures`, `TestLintChangedLinesOnly` | experimental |
 | TSA-V0-015 | `internal/testsource/lint.go` | `TestLintSuppression` | experimental |
 | TSA-V0-016 | `internal/testsource/lint.go`, `cmd/corvint/tests.go` | `TestLintTextDeterministic`, `TestTestsCLI` | experimental |
-| TSA-V0-020 | `internal/testsource/duplicates.go` | `TestDuplicatesReport` | experimental |
-| TSA-V0-021 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesGateAndDecisions`, `TestTestsCLI` | experimental |
+| TSA-V0-020 | `internal/testsource/duplicates.go` | `TestDuplicatesReport`, `TestRenderKeepsRegexAndSubstitutions` | experimental |
+| TSA-V0-021 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesGateAndDecisions`, `TestDuplicatesGateCountsBeyondOutputBound`, `TestDuplicatesGateSeesDeletionOnlyChange`, `TestTestsCLI` | experimental |
 | TSA-V0-022 | `internal/testsource/duplicates.go` | `TestDuplicatesGateAndDecisions` | experimental |
 | TSA-V0-023 | `internal/testsource/duplicates.go` | `TestDuplicatesReport`, `TestTestsCLI` | experimental |

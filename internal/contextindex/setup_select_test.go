@@ -123,3 +123,50 @@ func TestSelectSetupDigest(t *testing.T) {
 		t.Fatalf("header = %+v", first)
 	}
 }
+
+// TestSelectSetupTraversesRegistrySeeders proves a setup file selected through a registry key is
+// itself traversed: a setup it imports is selected, and an unresolved import there returns ALL
+// (TSA-V0-001, TSA-V0-003).
+func TestSelectSetupTraversesRegistrySeeders(t *testing.T) {
+	files := setupSelectFiles()
+	files["setup/alpha.setup.ts"] = "import { AlphaContext } from '../src/contexts/alpha';\nimport './base.setup';\nexport default new AlphaContext();\n"
+	files["setup/base.setup.ts"] = "export const base = 1;\n"
+	root := impactRepositoryWithFiles(t, files)
+	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := SelectSetup(index, []string{"tests/alpha.spec.ts"})
+	if selection.Mode != "selected" || !reflect.DeepEqual(selection.SetupFiles, []string{"setup/alpha.setup.ts", "setup/base.setup.ts"}) {
+		t.Fatalf("mode=%s files=%v reasons=%+v", selection.Mode, selection.SetupFiles, selection.Reasons)
+	}
+	files["setup/base.setup.ts"] = "import './absent.setup';\nexport const base = 1;\n"
+	root = impactRepositoryWithFiles(t, files)
+	if index, err = BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD"))); err != nil {
+		t.Fatal(err)
+	}
+	selection = SelectSetup(index, []string{"tests/alpha.spec.ts"})
+	if selection.Mode != "all" || !reflect.DeepEqual(reasonCodes(selection), []string{"import-unresolved"}) {
+		t.Fatalf("mode=%s reasons=%+v", selection.Mode, selection.Reasons)
+	}
+}
+
+// TestSelectSetupUniverseIncludesUnindexedFiles proves ALL names every tracked setup file,
+// including a generated one the index does not read (TSA-V0-003).
+func TestSelectSetupUniverseIncludesUnindexedFiles(t *testing.T) {
+	files := setupSelectFiles()
+	files["setup/gen/omega.setup.ts"] = "export const omega = 1;\n"
+	root := impactRepositoryWithFiles(t, files)
+	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, indexed := index.Sources["setup/gen/omega.setup.ts"]; indexed {
+		t.Fatal("the generated setup file was indexed; the fixture no longer exercises an unindexed path")
+	}
+	selection := SelectSetup(index, nil)
+	if selection.Mode != "all" || selection.Universe != 5 || selection.SetupFiles[len(selection.SetupFiles)-1] != "setup/users.seed.ts" ||
+		!strings.Contains(strings.Join(selection.SetupFiles, ","), "setup/gen/omega.setup.ts") {
+		t.Fatalf("mode=%s universe=%d files=%v", selection.Mode, selection.Universe, selection.SetupFiles)
+	}
+}

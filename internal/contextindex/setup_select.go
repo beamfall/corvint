@@ -80,8 +80,10 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 	s := &setupSelector{index: index, resolver: NewWebImportResolver(index), dialect: loadRegistryDialect(index),
 		universe: map[string]bool{}, registries: map[string]bool{}, read: map[string]string{},
 		notFollowed: map[string]string{}, visited: map[string]bool{}, keyTargets: map[string]bool{}, seeds: map[string]bool{}}
-	for name := range index.Sources {
-		if IsSetupFile(name) {
+	// The universe is every tracked setup path, including generated or oversized files the index
+	// does not read, so ALL is always the whole safe superset (TSA-V0-003).
+	for name := range index.Tracked {
+		if _, skipped := index.Skipped[name]; !skipped && IsSetupFile(name) {
 			s.universe[name] = true
 		}
 	}
@@ -120,17 +122,25 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 		}
 		s.enqueue(name, true)
 	}
+	// A seeder a registry key selects is itself traversed, and the seeders of any key it reaches
+	// are selected in turn, until the closure stops growing (TSA-V0-001).
+	for s.drain() && s.seedersOfKeyTargets() {
+	}
+	return s.result(index, cleaned)
+}
+
+// drain visits the queued closure, reporting false when the bound stopped it.
+func (s *setupSelector) drain() bool {
 	for len(s.queue) > 0 {
 		name := s.queue[0]
 		s.queue = s.queue[1:]
 		if len(s.visited) > maxSetupClosure {
 			s.reason("bound-exceeded", "", 0, "the dependency closure exceeds the bound")
-			break
+			return false
 		}
 		s.visit(name)
 	}
-	s.seedersOfKeyTargets()
-	return s.result(index, cleaned)
+	return true
 }
 
 func (s *setupSelector) reason(code, name string, line int, detail string) {
@@ -281,18 +291,20 @@ func (s *setupSelector) lookup(site registrySite) {
 }
 
 // seedersOfKeyTargets selects every setup file that directly imports a module a registry key
-// resolved to: the setup that seeds a data context the specs read (TSA-V0-002).
-func (s *setupSelector) seedersOfKeyTargets() {
+// resolved to: the setup that seeds a data context the specs read (TSA-V0-001). Each new seeder
+// is enqueued so its own dependencies are traversed; it reports whether any was.
+func (s *setupSelector) seedersOfKeyTargets() bool {
 	if len(s.keyTargets) == 0 {
-		return
+		return false
 	}
+	enqueued := false
 	names := make([]string, 0, len(s.universe))
 	for name := range s.universe {
 		names = append(names, name)
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if s.visited[name] {
+		if s.visited[name] || s.seeds[name] {
 			continue
 		}
 		text, ok := s.text(name)
@@ -306,7 +318,12 @@ func (s *setupSelector) seedersOfKeyTargets() {
 				s.seeds[name] = true
 			}
 		}
+		if s.seeds[name] {
+			s.enqueue(name, false)
+			enqueued = true
+		}
 	}
+	return enqueued
 }
 
 func (s *setupSelector) result(index *Index, specs []string) SetupSelection {
