@@ -3,6 +3,7 @@ package playwrightruns
 import (
 	"encoding/json"
 	"sort"
+	"time"
 )
 
 // Shard-set vocabulary (PWR-V0-016 to PWR-V0-020).
@@ -123,7 +124,7 @@ func shardGroupKey(run *Run) string {
 		app, config = run.Inputs.ApplicationRevision, run.Inputs.ConfigDigest
 		blobs, conflicts = run.Inputs.TestFileBlobs, run.Inputs.conflicts
 	}
-	raw, _ := json.Marshal([]any{run.Version, app, config, blobs, conflicts, run.Shard.Total, inputsComplete(run), run.RepeatEach})
+	raw, _ := json.Marshal([]any{run.Version, app, config, blobs, conflicts, run.Shard.Total, inputsComplete(run), run.RepeatEach, run.TestRevision})
 	return string(raw)
 }
 
@@ -136,7 +137,20 @@ func mergeShards(members []*Run) *Run {
 	sort.SliceStable(sorted, func(i, j int) bool { return sorted[i].Shard.Current < sorted[j].Shard.Current })
 	first := sorted[0]
 	out := &Run{Version: first.Version, Inputs: first.Inputs, InputsDeclared: first.InputsDeclared,
-		RepeatEach: first.RepeatEach, Shard: first.Shard, Tests: []Test{}}
+		RepeatEach: first.RepeatEach, Shard: first.Shard, Tests: []Test{},
+		TestRevision: first.TestRevision, TestRootPath: first.TestRootPath, Category: first.Category, RootDir: first.RootDir}
+	// The set starts when its earliest shard started, and has a start only when every shard has one
+	// (PWR-V0-037).
+	out.HasStartTime = true
+	for _, m := range sorted {
+		if !m.HasStartTime {
+			out.HasStartTime, out.StartTime = false, time.Time{}
+			break
+		}
+		if out.StartTime.IsZero() || m.StartTime.Before(out.StartTime) {
+			out.StartTime = m.StartTime
+		}
+	}
 	projects, configured := map[string]bool{}, map[string]bool{}
 	for _, m := range sorted {
 		out.Workers += m.Workers

@@ -1,0 +1,10 @@
+{
+  "schema": "application-map-manifest/0",
+  "app": "shop",
+  "routers": [{"path": "src/routes.ts", "dialect": "react-router/0"}],
+  "tests": {
+    "root": "e2e",
+    "specs": ["e2e/specs"],
+    "page_objects": ["e2e/pages"]
+  }
+}
