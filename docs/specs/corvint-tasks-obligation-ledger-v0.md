@@ -19,7 +19,9 @@ experimental. The agent-drafted TOL-V0-034..036 (adopter obligation aliases, Git
 beamfall/corvint#792, V1-1177) were accepted on 2026-10-11 under the owner's standing auto-accept
 (decision 0519), and are experimental. The agent-drafted TOL-V0-037..046 (per-obligation review
 sources and an auditable "none found", GitHub beamfall/corvint#813) were accepted on 2026-10-11
-under the owner's standing auto-accept, and are experimental.
+under the owner's standing auto-accept, and are experimental. The agent-drafted TOL-V0-047..050
+(a private preflight result cache, GitHub beamfall/corvint#1037, V1-1594) were accepted on
+2026-10-17 under the owner's standing auto-accept, and are experimental.
 The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
@@ -31,7 +33,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -576,6 +578,47 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
 - `TOL-V0-046`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `show`, `plan` and `preflight` stay reads: the review-source checks write no queue,
   intent or evidence state. Review sources never reach witness evidence, counts, high water, gates
   or completion.
+### Preflight result cache (GitHub #1037)
+
+Agents repeat the same static preflight over unchanged trees many times a day. TOL-V0-047..050
+let `preflight` replay a stored report when every input it reads is unchanged. The cache is a
+private, local convenience: a replayed report is the same untrusted read result a fresh run
+returns, and nothing reads the cache except `preflight --cache`.
+
+- `TOL-V0-047`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) `preflight --cache` MUST key its report on the sha256 of: the check
+  implementation (the sha256 of the running executable, so any rebuild or version change misses);
+  the ticket id, the canonical ticket record and the canonical folded ledger entries; the policy
+  sha256; the resolved `--commit` and `HEAD`; the binary diff of tracked files against `HEAD`
+  (no external diff, no textconv); the path, type and content digest (or link target) of every
+  untracked file Git does not ignore; and the `--path` prefixes (sorted) and `--plan` path. The
+  working tree is read with repository hooks and the file-system monitor disabled and
+  `GIT_OPTIONAL_LOCKS=0`. More than 4,096 untracked files or 256 MiB of untracked bytes, an unborn
+  `HEAD`, an unreadable executable or any failed read makes the key unavailable.
+- `TOL-V0-048`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The report item gains `cache: {status, key, storedAt, reason}`.
+  - `HIT`: an entry for an identical key replays the stored item, warnings and outcome (a stored
+    `PREFLIGHT_FAILED` still refuses) and adds a `PREFLIGHT_CACHE_HIT:` warning naming the
+    stored time and key.
+  - `MISS`: no valid entry; the checks run and their report is stored.
+  - `FRESH`: `--fresh` runs the checks without reading the cache and replaces the entry.
+  - `SKIPPED`: the key is unavailable (TOL-V0-047); the checks run and the reason is reported,
+    so a cache fault never replays and never refuses. An unreadable entry is a `MISS` with the
+    reason and is replaced; a failed store keeps `MISS` or `FRESH` with `storedAt` null and the
+    reason.
+  - Without `--cache` the item and output are unchanged. `--fresh` without `--cache` and
+    `--cache` with `--deep` are usage errors: `--deep` runs gates, which are not static checks.
+- `TOL-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) Entries MUST be bounded.
+  - Each entry is one closed `corvint-tasks-preflight-cache/0` JSON document of at most 4 MiB,
+    named by its key and written atomically.
+  - An entry older than 7 days, dated more than a minute in the future, not a regular file,
+    oversize, malformed or naming another key is a miss.
+  - Every store prunes entries older than 7 days, then the oldest beyond 256, and abandoned
+    temporary files older than an hour. Pruning never removes a file the cache did not name.
+- `TOL-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The cache MUST live in `corvint-tasks/preflight` under the user cache
+  directory (`os.UserCacheDir`), created mode 0700, outside every repository, Tasks store and
+  trace store. This keeps product invariant 4: `preflight` stays a read that writes no repository,
+  queue, intent, evidence or trace state. A cached report is never evidence, a witness, a gate
+  result, a completion input or authority: no other verb or reader opens the directory, and its
+  item stays `untrusted`. Deleting the directory loses only speed.
 
 ## Failure modes and trust
 
@@ -606,6 +649,8 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
 | A migrated test is credited with a free-text "none found", or the legacy case it replaces changes after review | A reviewer cannot check the claim, and a false negative hides | Review sources pin the reviewed case or spec by digest, or record the query and the searched source ids. `requireSourceReview` makes preflight refuse missing sources or an unaudited `none`. `show` and `plan` list a changed digest as stale without demoting the state (TOL-V0-037..046). |
 | An adopter suite names obligations in its own scheme (`M001`), so titles never hold the native id | Every title must be renamed or no obligation is credited | A seeded alias names its entry as a whole token in reports, steps, source, preflight and the audit, with every result keyed to the native id (TOL-V0-034..036). A duplicate alias, or one holding a native id, refuses at seed (TOL-V0-035); an alias inside a longer token never matches, and a defect-shaped alias is never read as a defect. |
 | Older binary meets an alias-bearing seed event | — | Its closed seed reader refuses the retained request, so `show` is `UNKNOWN` and the audit `INCONSISTENT` for that ticket (fail-closed); see Rollout and rollback. |
+| A preflight replays a report for a tree, untracked file or check build it was not computed on | A stale "ready" hides a new finding | The key covers the commit, `HEAD`, the tracked diff, every non-ignored untracked file and the executable digest; any read that cannot be keyed runs the checks (`SKIPPED`), and `--fresh` forces a run (TOL-V0-047, 048). |
+| The cache directory grows without bound, or holds a planted or corrupted entry | Disk fills, or a forged report replays | Entries are bounded at 256 and 7 days; a non-regular, oversize, malformed, future-dated or wrong-key entry is a miss; a replayed item is untrusted and never evidence (TOL-V0-049, 050). |
 | Older binary meets a record with the member | — | The closed reader refuses the record (fail-closed); see Rollout and rollback. |
 
 ## Non-goals and simpler baseline
@@ -632,6 +677,8 @@ evidence: they never credit, demote or block an obligation, satisfy a gate, or c
 - Dispatcher role predicates that match on witnessed counts.
 - A foreign-queue importer carrying the member.
 - Storing reports, screenshots or traces.
+- Caching `preflight --deep` gate runs, `run-batch`, `qualify` or witness results, sharing the
+  preflight cache across machines, or reading it as evidence (TOL-V0-047..050).
 
 The simpler baseline stays available: a body checklist plus the external script. This profile is
 justified only if the owner wants the queue and dispatcher to see proven progress natively.
@@ -656,6 +703,7 @@ fixture passes.
 | TOL-V0-028..033 (decision 0485) | GitHub #714 | `internal/tasks/obligation/batch.go` (outcomes, causes, named tests), `internal/tasks/store/batch_run.go` (command runner, checkout state, fixture digest, detached worktree), `internal/tasks/cli/run_batch.go`, `internal/tasks/cli/qualify.go` | `TestTOLV0028_RunConfigIsClosed`, `TestTOLV0029_RunBatchCreditsAndWritesCauses` (WITNESSED, FAILED with the step error, NOT_REACHED, NOT_NAMED, request id reuse), `TestTOLV0029_RunBatchPrepFailureIsNotReached`, `TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout`, `TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire` (refusal before acquire, `--ids` subset on a pool lane with capture and release, new fixture evidence admits), `TestTOLV0032_QualifyVerdicts` (qualified, retry, candidate failure, post-check, new and pre-existing neighbour failure, static check, manifest, no leftover worktree, retried pre-existing neighbour, neighbour top-level errors with and without a failing test), `TestTOLV0030_RefusedReleaseFailsTheJob`, `TestTOLV0030_AcquireRefusalCodeIsTheJobs`, `TestTOLV0031_RootFixturePathIsDigested`, `TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing`, `TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests`, `TestTOLV0033_ManifestStreamsAnOversizedArtifact`, `TestTOLV0033_ReportPathMustBeARegularFile` (a FIFO report, a FIFO or changed report swapped in by the capture, qualify), `TestTOLV0033_ManifestRecordsNonRegularEntriesByType` (symlink to `/dev/zero`, FIFO, 1025 MiB sparse file), `TestTOLV0033_PlantedSummarySymlinkIsRefused`, `TestTOLV0033_ZeroCreditInterruptIsLaneFailed`, `TestTOLV0032_AbnormalNeighbourRunDisqualifies` (neighbour and base timeouts), `TestTOLV0033_InterruptDuringLastManifestHashRefuses`, `TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor` (a prior summary that grows past 4 MiB or is swapped for a FIFO after its check) (`internal/tasks/cli`), all with a fake shell test command that writes Playwright-shaped json; the interrupt tests replace the job context, the release refusal is injected, and the manifest-hash and prior-summary swap points are test hooks; the FIFO and symlink tests skip on Windows | a real Playwright suite under `run-batch` and `qualify`; a real `SIGINT`/`SIGTERM` delivered to a running job; untracked-file change detection (`NOT_RUN`) |
 | TOL-V0-034..036 (accepted, decision 0519) | V1-1177 (GitHub #792) | `internal/tasks/wire/obligations.go` (alias grammar), `internal/tasks/ticket/obligations.go` (seed and entry codec, `admitAlias`), `internal/tasks/obligation/names.go` (alias whole-token matching), report, batch and source readers, `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0034_SeedWithAliases` (aliased and alias-free entries, later aliased seed, grammar refusals, audit), `TestTOLV0035_AliasDuplicateAndCollision` (in one seed, against the ledger, a ledger id, its own id, an id inside, an other-prefix alias admitted), `TestTOLV0036_PreflightMatchesAliases` (test title, `test.step` title, contract annotation, alias inside longer tokens stays `UNNAMED`), `TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID` (credit, evidence and lists keyed to native ids, defect-shaped alias in a `test.fail` step, audit `CONSISTENT`) (`internal/tasks/cli`); `TestTOLV0036_AliasWholeToken`, `TestTOLV0036_AliasMasksDefectIDs`, `TestTOLV0036_ContractAliasAndNamedTests` (`internal/tasks/obligation`), on synthetic json reports | the adopter's suite and a live Playwright 1.63 report naming aliases (`NOT_RUN`) |
 | TOL-V0-037..046 (accepted, owner's standing auto-accept 2026-10-11) | GitHub #813 | `internal/tasks/ticket/obligations.go` (review-source codec, set and entry), `internal/tasks/intent/policy.go` (`requireSourceReview`), `internal/tasks/obligation/review.go` (preflight findings, legacy-cases reader, digest comparison), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/obligation_sources.go` (show and plan `sourceReview`), `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0037_ReviewSourceCodec`, `TestTOLV0039_LegacyLedgerBytesUnchanged` (`internal/tasks/ticket`); `TestTOLV0039_PolicyLeavesLedgerBytes`, `TestTOLV0040_PreflightRequiresSourceReview` (missing, blank query, empty searched, DEFERRED skipped, secret screen, policy off), `TestTOLV0042_StaleSourcesListed` (legacy-case, manual-case and legacy-spec staleness, WITNESSED kept, unresolved reasons, plan `ok` unchanged, no state written, schema, trailing-data and repeated-member refusal), `TestTOLV0043_LegacyCasesFIFORefused` (`internal/tasks/cli`) | a live test-management export imported and reviewed against a migrated suite (`NOT_RUN`) |
+| TOL-V0-047..050 (accepted, owner's standing auto-accept 2026-10-11) | V1-1594 (GitHub #1037) | `internal/tasks/store/worktree_state.go` (working-tree digest), `internal/tasks/cli/preflight_cache.go` (key, entry codec, replay, prune), `internal/tasks/cli/preflight.go` | `TestTOLV0047_PreflightCacheReplaysIdenticalInputs` (HIT replay, untracked, tracked, commit and implementation misses), `TestTOLV0048_PreflightFreshBypassesTheCache` (FRESH replace, refused replay, usage, SKIPPED), `TestTOLV0049_PreflightCacheIsBounded` (age miss, count and age pruning, foreign file kept), `TestTOLV0050_PreflightCacheStaysOutsideTheRepository` (`internal/tasks/cli`) | measured hit rate and saved time over a day of agent sessions (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -744,3 +792,8 @@ reader, so the ledger is `UNKNOWN`, never silently stripped. The `requireSourceR
 and the `sourceReview` output add no stored state. Rollback is reverting the change before any set
 carries sources; after that, run the newer binary or restore the store from a backup taken before
 the first sources write. The same CAL-V0-131 profile question applies.
+
+The accepted TOL-V0-047..050 add no repository, queue or trace state. The cache directory under
+the user cache directory is the only new file state; it is opt-in per call and holds derived
+reports only. Rollback is reverting the change and, optionally, deleting
+`corvint-tasks/preflight` from the user cache directory; an older binary never reads it.

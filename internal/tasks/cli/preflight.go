@@ -49,10 +49,16 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	target := args[0]
 	commit, planPath := "HEAD", ""
 	var gates, prefixes []string
-	deep := false
+	deep, useCache, fresh := false, false, false
 	if res := pairFlags(cmd, args[1:], map[string]*string{"--commit": &commit, "--plan": &planPath},
-		map[string]*[]string{"--gate": &gates, "--path": &prefixes}, map[string]*bool{"--deep": &deep}); res != nil {
+		map[string]*[]string{"--gate": &gates, "--path": &prefixes}, map[string]*bool{"--deep": &deep, "--cache": &useCache, "--fresh": &fresh}); res != nil {
 		return res
+	}
+	if fresh && !useCache {
+		return usage(cmd, "--fresh bypasses the cache: give it with --cache")
+	}
+	if useCache && deep {
+		return usage(cmd, "--cache covers the static checks only: --deep runs gates, so give it without --cache")
 	}
 	if deep != (len(gates) > 0) {
 		return usage(cmd, "--deep runs the named gates: give --deep with one or more --gate GATE")
@@ -66,6 +72,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	var ledger *ticket.ObligationLedger
 	var defs []*intent.GateDefinition
 	reviewSources := false
+	var policySum wire.Digest
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		r, l, ferr := obligationTarget(rc, target)
 		if ferr != nil {
@@ -76,6 +83,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		}
 		rec, ledger = r, l
 		reviewSources = rc.store.Policy.ObligationSourceReviewRequired()
+		policySum = rc.store.Policy.PolicySha256()
 		if deep {
 			d, err := store.PreflightGateDefinitions(rc.store.Policy, gates)
 			if err != nil {
@@ -98,6 +106,15 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	}
 	if resolved == "" {
 		return errorResult(cmd, wire.Errorf(wire.CodeMissingEvidence, "--commit", "the repository holds no commit %s", prose(commit)))
+	}
+	var cache *preflightCacheRun
+	if useCache {
+		cache = startPreflightCache(root, preflightInputs{ticketID: rec.TicketID.Raw, record: wire.Sum(wire.Encode(rec.Value())),
+			ledger: wire.Sum(wire.Encode(ledger.EntriesValue())), policy: policySum, commit: resolved, prefixes: prefixes,
+			plan: planPath, deep: deep, gates: gates}, fresh)
+		if hit := cache.replay(cmd, rc); hit != nil {
+			return hit
+		}
 	}
 	paths, err := store.TreePathsAtCommit(root, resolved, prefixes, func(p string) bool {
 		return obligation.SpecFile(p) && underAny(p, prefixes)
@@ -187,14 +204,18 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		status = preflightFailed
 	}
 	res := success(cmd, rc)
-	res.Items = []wire.Value{wire.ObjectValue(wire.NewObject().Set("ok", wire.Bool(ok)).Set("status", wire.String(status)).
+	item := wire.NewObject().Set("ok", wire.Bool(ok)).Set("status", wire.String(status)).
 		Set("ticketId", wire.String(rec.TicketID.Raw)).Set("commit", wire.String(resolved)).
-		Set("specFileCount", wire.String(string(wire.CountOf(int64(len(files)))))).Set("findings", wire.Array(items...)))}
+		Set("specFileCount", wire.String(string(wire.CountOf(int64(len(files)))))).Set("findings", wire.Array(items...))
+	res.Items = []wire.Value{wire.ObjectValue(item)}
 	res.Untrusted = true
 	res.Warnings = append(res.Warnings, warnings...)
 	if !ok {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, preflightFailed+": the ticket's obligations are not ready to run at this commit; each finding names its remedy")
+	}
+	if cache != nil {
+		cache.finish(res, item)
 	}
 	return res
 }

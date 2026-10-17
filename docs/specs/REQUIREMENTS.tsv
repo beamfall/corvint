@@ -3611,52 +3611,56 @@ TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	170	(accepte
 TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	234	(accepted, decision 0483; V1-1066; GitHub #709; V1-1175 amendment accepted, deci	owner	decision 0483; V1-1066; #709; V1-1175; decision 0519
 TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	296	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`	owner	decision 0483; V1-1067; #709
 TJAA-V0-021	docs/specs/typescript-javascript-affected-adapter-v0.md	305	(accepted, decision 0519 (V1-1175); GitHub #790) A project `grep` or	owner	decision 0519; V1-1175; #790
-TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	65	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
-TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	74	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
-TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	91	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
-TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	100	Witness evidence MUST be the closed object `{source, eventSha256, commit,	unrecorded	-
-TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	114	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa	unrecorded	-
-TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	122	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the	unrecorded	-
-TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	127	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi	unrecorded	-
-TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	136	`corvint-tasks ticket obligations witness` MUST apply operation	unrecorded	-
-TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	147	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at	unrecorded	-
-TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	161	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`	unrecorded	-
-TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	173	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th	unrecorded	-
-TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	180	Each match MUST pass a source presence check. Its `spec.file` (relative to	unrecorded	-
-TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	186	Validation and audit are source-specific.	unrecorded	-
-TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	204	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses	unrecorded	-
-TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	215	Roles are as follows.	unrecorded	-
-TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	230	`highWater` MUST be monotone within one acceptance revision.	unrecorded	-
-TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	236	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l	unrecorded	-
-TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	246	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its	unrecorded	-
-TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	257	`queue status` and `queue status --summary` MUST add the key `obligations`	unrecorded	-
-TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	265	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional	unrecorded	-
-TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	276	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed	unrecorded	-
-TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	287	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M	unrecorded	-
-TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	305	Any other obligation named in a `test.fail` test (in its title path or a step,	unrecorded	-
-TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	310	`witness --from-playwright-report` MUST accept `--post-check LOG	unrecorded	-
-TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	319	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check	unrecorded	-
-TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	350	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at	unrecorded	-
-TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	354	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le	unrecorded	-
-TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	377	`run-batch` and `qualify` MUST read their commands from one closed local	unrecorded	-
-TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	390	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS	unrecorded	-
-TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	406	A job MUST run only in a clean checkout of the commit: a checkout at another com	unrecorded	-
-TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	418	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT	unrecorded	-
-TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	430	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS	unrecorded	-
-TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	448	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema	unrecorded	-
-TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	476	A seed item MAY carry an optional adopter `alias`, so a suite that already names	unrecorded	-
-TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	489	A seed MUST refuse, and write nothing, when an alias repeats an alias already in	unrecorded	-
-TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	497	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title	unrecorded	-
-TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	525	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A fo	standing	2026-10-11; #813
-TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `	standing	2026-10-11; #813
-TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An e	standing	2026-10-11; #813
-TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	546	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The	standing	2026-10-11; #813
-TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	550	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Unde	standing	2026-10-11; #813
-TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	554	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When	standing	2026-10-11; #813
-TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	563	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
-TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	570	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `l	standing	2026-10-11; #813
-TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	574	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Sour	standing	2026-10-11; #813
-TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	576	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	67	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
+TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	76	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
+TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	93	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
+TOL-V0-004	docs/specs/corvint-tasks-obligation-ledger-v0.md	102	Witness evidence MUST be the closed object `{source, eventSha256, commit,	unrecorded	-
+TOL-V0-005	docs/specs/corvint-tasks-obligation-ledger-v0.md	116	`corvint-tasks ticket obligations seed --target T --expected-revision N --payloa	unrecorded	-
+TOL-V0-006	docs/specs/corvint-tasks-obligation-ledger-v0.md	124	`corvint-tasks ticket obligations show --target T` is a read. It MUST print the	unrecorded	-
+TOL-V0-007	docs/specs/corvint-tasks-obligation-ledger-v0.md	129	`corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` wi	unrecorded	-
+TOL-V0-008	docs/specs/corvint-tasks-obligation-ledger-v0.md	138	`corvint-tasks ticket obligations witness` MUST apply operation	unrecorded	-
+TOL-V0-009	docs/specs/corvint-tasks-obligation-ledger-v0.md	149	`witness --from-playwright-report FILE --commit SHA [--ids ID,...]` MUST read at	unrecorded	-
+TOL-V0-010	docs/specs/corvint-tasks-obligation-ledger-v0.md	163	Crediting MUST use only results with `retry` `0` of tests whose `expectedStatus`	unrecorded	-
+TOL-V0-011	docs/specs/corvint-tasks-obligation-ledger-v0.md	175	Every match of an id in the report MUST pass, and be bound by TOL-V0-012, for th	unrecorded	-
+TOL-V0-012	docs/specs/corvint-tasks-obligation-ledger-v0.md	182	Each match MUST pass a source presence check. Its `spec.file` (relative to	unrecorded	-
+TOL-V0-013	docs/specs/corvint-tasks-obligation-ledger-v0.md	188	Validation and audit are source-specific.	unrecorded	-
+TOL-V0-014	docs/specs/corvint-tasks-obligation-ledger-v0.md	206	Every `OBLIGATIONS_*` write MUST be an ordinary receipt-backed mutation. It uses	unrecorded	-
+TOL-V0-015	docs/specs/corvint-tasks-obligation-ledger-v0.md	217	Roles are as follows.	unrecorded	-
+TOL-V0-016	docs/specs/corvint-tasks-obligation-ledger-v0.md	232	`highWater` MUST be monotone within one acceptance revision.	unrecorded	-
+TOL-V0-017	docs/specs/corvint-tasks-obligation-ledger-v0.md	238	For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint l	unrecorded	-
+TOL-V0-018	docs/specs/corvint-tasks-obligation-ledger-v0.md	248	A WORKER witness that raises `highWater.witnessed` MUST set `lastRaise` to its	unrecorded	-
+TOL-V0-019	docs/specs/corvint-tasks-obligation-ledger-v0.md	259	`queue status` and `queue status --summary` MUST add the key `obligations`	unrecorded	-
+TOL-V0-020	docs/specs/corvint-tasks-obligation-ledger-v0.md	267	`corvint-tasks ticket obligations plan --target T --plan FILE` is an optional	unrecorded	-
+TOL-V0-021	docs/specs/corvint-tasks-obligation-ledger-v0.md	278	A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed	unrecorded	-
+TOL-V0-022	docs/specs/corvint-tasks-obligation-ledger-v0.md	289	A `test.fail` test MUST never credit, and an obligation it marks expected-fail M	unrecorded	-
+TOL-V0-023	docs/specs/corvint-tasks-obligation-ledger-v0.md	307	Any other obligation named in a `test.fail` test (in its title path or a step,	unrecorded	-
+TOL-V0-024	docs/specs/corvint-tasks-obligation-ledger-v0.md	312	`witness --from-playwright-report` MUST accept `--post-check LOG	unrecorded	-
+TOL-V0-025	docs/specs/corvint-tasks-obligation-ledger-v0.md	321	`corvint-tasks preflight <ticket> [--commit OID] [--path PREFIX ...]` MUST check	unrecorded	-
+TOL-V0-026	docs/specs/corvint-tasks-obligation-ledger-v0.md	352	`preflight --plan PATH` MUST add the TOL-V0-020 findings of the plan document at	unrecorded	-
+TOL-V0-027	docs/specs/corvint-tasks-obligation-ledger-v0.md	356	`preflight --deep --gate GATE ...` MUST run each named policy gate, under the le	unrecorded	-
+TOL-V0-028	docs/specs/corvint-tasks-obligation-ledger-v0.md	379	`run-batch` and `qualify` MUST read their commands from one closed local	unrecorded	-
+TOL-V0-029	docs/specs/corvint-tasks-obligation-ledger-v0.md	392	`run-batch <ticket> --config FILE --spec PATH ... --out DIR --request-id ID` MUS	unrecorded	-
+TOL-V0-030	docs/specs/corvint-tasks-obligation-ledger-v0.md	408	A job MUST run only in a clean checkout of the commit: a checkout at another com	unrecorded	-
+TOL-V0-031	docs/specs/corvint-tasks-obligation-ledger-v0.md	420	Before any lane is acquired or command run, `run-batch` MUST refuse `LOOP_DETECT	unrecorded	-
+TOL-V0-032	docs/specs/corvint-tasks-obligation-ledger-v0.md	432	`qualify --config FILE --spec PATH ... --base REV --out DIR --request-id ID` MUS	unrecorded	-
+TOL-V0-033	docs/specs/corvint-tasks-obligation-ledger-v0.md	450	`qualify` MUST write `<DIR>/<ID>/verdict.json` (schema	unrecorded	-
+TOL-V0-034	docs/specs/corvint-tasks-obligation-ledger-v0.md	478	A seed item MAY carry an optional adopter `alias`, so a suite that already names	unrecorded	-
+TOL-V0-035	docs/specs/corvint-tasks-obligation-ledger-v0.md	491	A seed MUST refuse, and write nothing, when an alias repeats an alias already in	unrecorded	-
+TOL-V0-036	docs/specs/corvint-tasks-obligation-ledger-v0.md	499	Wherever TOL-V0-010..013 and 022..029 find an obligation named in a report title	unrecorded	-
+TOL-V0-037	docs/specs/corvint-tasks-obligation-ledger-v0.md	527	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A fo	standing	2026-10-11; #813
+TOL-V0-038	docs/specs/corvint-tasks-obligation-ledger-v0.md	541	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An `	standing	2026-10-11; #813
+TOL-V0-039	docs/specs/corvint-tasks-obligation-ledger-v0.md	545	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) An e	standing	2026-10-11; #813
+TOL-V0-040	docs/specs/corvint-tasks-obligation-ledger-v0.md	548	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) The	standing	2026-10-11; #813
+TOL-V0-041	docs/specs/corvint-tasks-obligation-ledger-v0.md	552	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Unde	standing	2026-10-11; #813
+TOL-V0-042	docs/specs/corvint-tasks-obligation-ledger-v0.md	556	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) When	standing	2026-10-11; #813
+TOL-V0-043	docs/specs/corvint-tasks-obligation-ledger-v0.md	565	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-044	docs/specs/corvint-tasks-obligation-ledger-v0.md	572	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) A `l	standing	2026-10-11; #813
+TOL-V0-045	docs/specs/corvint-tasks-obligation-ledger-v0.md	576	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) Sour	standing	2026-10-11; #813
+TOL-V0-046	docs/specs/corvint-tasks-obligation-ledger-v0.md	578	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #813)) `sho	standing	2026-10-11; #813
+TOL-V0-047	docs/specs/corvint-tasks-obligation-ledger-v0.md	588	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) `pr	standing	2026-10-11; #1037
+TOL-V0-048	docs/specs/corvint-tasks-obligation-ledger-v0.md	597	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The	standing	2026-10-11; #1037
+TOL-V0-049	docs/specs/corvint-tasks-obligation-ledger-v0.md	609	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) Ent	standing	2026-10-11; #1037
+TOL-V0-050	docs/specs/corvint-tasks-obligation-ledger-v0.md	616	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1037)) The	standing	2026-10-11; #1037
 TPN-V0-001	docs/specs/trusted-project-navigation-v0.md	29	Execution requires explicit `--trusted-project`. Accept only the closed canonica	unrecorded	-
 TPN-V0-002	docs/specs/trusted-project-navigation-v0.md	32	Stage only the complete admitted immutable Git manifest, with regular files and	unrecorded	-
 TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-party configuration, check the interpreter and installed	unrecorded	-

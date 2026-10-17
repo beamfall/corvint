@@ -281,3 +281,30 @@ func SetRunConfigOpenForTest(open func(string) (io.ReadCloser, error)) func() {
 func HolderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
 	return holderStatus(a, now, ttlSeconds)
 }
+
+// SetImplementationDigest replaces the preflight cache's check
+// implementation digest for a test and returns the restore function.
+func SetImplementationDigest(f func() (string, error)) func() {
+	was := implementationDigest
+	implementationDigest = f
+	return func() { implementationDigest = was }
+}
+
+// SetLocalNow replaces the local cache and ledger clock for a test and
+// returns the restore function.
+func SetLocalNow(f func() time.Time) func() {
+	was := localNow
+	localNow = f
+	return func() { localNow = was }
+}
+
+// PruneCacheDir is pruneCacheDir for a test.
+func PruneCacheDir(dir string, maxEntries int, maxAge time.Duration) {
+	pruneCacheDir(dir, maxEntries, maxAge)
+}
+
+// PreflightCacheBounds are the cache's entry count and age bounds.
+const (
+	PreflightCacheMaxEntries = preflightCacheMaxEntries
+	PreflightCacheMaxAge     = preflightCacheMaxAge
+)
