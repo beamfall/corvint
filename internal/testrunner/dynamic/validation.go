@@ -87,7 +87,7 @@ func closedXML(b []byte) error {
 	children := map[string]string{"": " testsuite testsuites ", "testsuites": " testsuite properties ", "testsuite": " testsuite testcase properties system-out system-err ", "testcase": " failure error skipped properties system-out system-err ", "properties": " property "}
 	attrs := map[string]string{
 		"testsuites": " name tests failures errors skipped disabled assertions time ",
-		"testsuite":  " name tests failures errors skipped disabled assertions time timestamp hostname file id package ",
+		"testsuite":  " name tests failures errors skipped disabled assertions time timestamp hostname file line id package ",
 		"testcase":   " name classname time file line col assertions ",
 		"failure":    " message type ", "error": " message type ", "skipped": " message type ", "property": " name value ",
 	}
