@@ -79,7 +79,7 @@ func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 			t.Fatalf("%s: %v", r, e)
 		}
 	}
-	for _, c := range []struct{ runner, selector string }{{"googletest", "X.*"}, {"catch2", "[all]"}, {"dotnet-vstest-nunit", "X|Y"}, {"go-test", "Test/Sub"}, {"nextest", "x) | all("}} {
+	for _, c := range []struct{ runner, selector string }{{"googletest", "X.*"}, {"catch2", "[all]"}, {"dotnet-vstest-nunit", "X|Y"}, {"go-test", "Test/Sub"}, {"nextest", "x) | all("}, {"cargo-doctest", "src/lib.rs - double (line 3)"}, {"cargo-doctest", "a\tb"}} {
 		if _, e := Build(tr.Request{Runner: c.runner, Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: []string{c.selector}}); e == nil {
 			t.Fatal(c)
 		}
@@ -87,6 +87,51 @@ func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 	v, e := Build(tr.Request{Runner: "nextest", Executable: "/tool", ReportDir: "/out", Project: "Cargo.toml"})
 	if e != nil || !strings.Contains(string(v.Files["nextest.toml"]), "retries=0") {
 		t.Fatal(v, e)
+	}
+}
+
+// Actual Catch2 3.16.0 (AppleClang 21.0.0, macOS arm64) junit bytes from the
+// V1-0593 live run catch2-skip, whose native exit was 4 (TRE-V0-046, TRE-V0-047).
+const catch2AllSkippedReport = `<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="cprobe" errors="0" failures="0" skipped="1" tests="1" hostname="tbd" time="0.000" timestamp="2026-10-17T01:41:16Z">
+    <properties>
+      <property name="random-seed" value="2885424839"/>
+      <property name="filters" value="&quot;&quot;skip&quot;&quot;"/>
+    </properties>
+    <testcase classname="cprobe.global" name="skip" time="0.000" status="run">
+      <skipped type="SKIP">
+SKIPPED
+CATCH_SKIP
+at probe.cc:7
+      </skipped>
+    </testcase>
+    <system-out/>
+    <system-err/>
+  </testsuite>
+</testsuites>
+`
+
+func TestCatch2ExactSelectionAndAllSkippedExit(t *testing.T) {
+	v, e := Build(tr.Request{Runner: "catch2", Executable: "/tool", ReportDir: "/out", Project: "fixture", Selectors: []string{"pass", "fail"}})
+	if e != nil || v.Argv[len(v.Argv)-1] != `"pass","fail"` || len(v.Argv) != 7 || !reflect.DeepEqual(v.SuccessExitCodes, []int{0, 4}) {
+		t.Fatal(v.Argv, v.SuccessExitCodes, e)
+	}
+	skipped := tr.Input{Runner: "catch2", ExitCode: 4, SuccessExitCodes: v.SuccessExitCodes, FailureExitCodes: v.FailureExitCodes, Reports: map[string][]byte{"catch2.xml": []byte(catch2AllSkippedReport)}}
+	o, e := Parse(skipped)
+	if e != nil || !o.Complete || len(o.Tests) != 1 || o.Tests[0].State != tr.Skipped {
+		t.Fatalf("%+v %v", o, e)
+	}
+	if n := tr.Normalize(skipped, o); !n.Complete || n.Tests[0].State != tr.Skipped {
+		t.Fatalf("normalized %+v", n)
+	}
+	passed := strings.Replace(catch2AllSkippedReport, `skipped="1"`, `skipped="0"`, 1)
+	passed = passed[:strings.Index(passed, "<skipped ")] + passed[strings.Index(passed, "</skipped>")+len("</skipped>"):]
+	for _, in := range []tr.Input{{Runner: "catch2", ExitCode: 4, Reports: map[string][]byte{"catch2.xml": []byte(passed)}}, {Runner: "catch2", ExitCode: 4, Reports: map[string][]byte{"catch2.xml": []byte(`<testsuite tests="0"/>`)}}, {Runner: "ctest", ExitCode: 4, Reports: map[string][]byte{"ctest.xml": []byte(catch2AllSkippedReport)}}} {
+		o, e := Parse(in)
+		if e != nil || o.Complete {
+			t.Fatalf("exit 4 accepted for %s: %+v %v", in.Runner, o, e)
+		}
 	}
 }
 func TestGoStructuredStreamAndBuildFailure(t *testing.T) {
@@ -260,7 +305,11 @@ func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 		if (len(v.Argv) == 0 && runner != cmockaRunner) || (len(v.Argv) > 0 && v.Argv[0] == "/tools/runner") {
 			t.Fatal(runner, v.Argv)
 		}
-		if len(v.SuccessExitCodes) != 1 || v.SuccessExitCodes[0] != 0 || !reflect.DeepEqual(v.FailureExitCodes, failureExits(runner)) {
+		success := []int{0}
+		if runner == "catch2" {
+			success = []int{0, catch2AllSkippedExit} // TRE-V0-047
+		}
+		if !reflect.DeepEqual(v.SuccessExitCodes, success) || !reflect.DeepEqual(v.FailureExitCodes, failureExits(runner)) {
 			t.Fatal(runner, v)
 		}
 	}
