@@ -2569,8 +2569,8 @@ MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	517	proposed (V1-0632 S2). `cor
 MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	527	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
 MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	582	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	663	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
-MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	677	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
-MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	681	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
+MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	683	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
+MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	688	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
@@ -3404,13 +3404,13 @@ SOP-V0-011	docs/specs/stable-operations-v0.md	120	`docs/RELEASE-NOTES.md` is the
 SOP-V0-012	docs/specs/stable-operations-v0.md	123	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean	unrecorded	-
 SOP-V0-013	docs/specs/stable-operations-v0.md	127	(accepted under the owner's standing auto-accept (2026-10-11); V1-1114) A	standing	2026-10-11; V1-1114
 SPC-V0-001	docs/specs/shared-path-change-policy-v0.md	27	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The poli	standing	2026-10-11; V1-1591
-SPC-V0-002	docs/specs/shared-path-change-policy-v0.md	36	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
-SPC-V0-003	docs/specs/shared-path-change-policy-v0.md	49	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The chec	standing	2026-10-11; V1-1591
-SPC-V0-004	docs/specs/shared-path-change-policy-v0.md	54	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
-SPC-V0-005	docs/specs/shared-path-change-policy-v0.md	65	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Before a	standing	2026-10-11; V1-1591
-SPC-V0-006	docs/specs/shared-path-change-policy-v0.md	72	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) An appli	standing	2026-10-11; V1-1591
-SPC-V0-007	docs/specs/shared-path-change-policy-v0.md	76	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) `--apply	standing	2026-10-11; V1-1591
-SPC-V0-008	docs/specs/shared-path-change-policy-v0.md	81	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Both	standing	2026-10-11; V1-1591
+SPC-V0-002	docs/specs/shared-path-change-policy-v0.md	37	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
+SPC-V0-003	docs/specs/shared-path-change-policy-v0.md	50	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The chec	standing	2026-10-11; V1-1591
+SPC-V0-004	docs/specs/shared-path-change-policy-v0.md	56	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
+SPC-V0-005	docs/specs/shared-path-change-policy-v0.md	68	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Before a	standing	2026-10-11; V1-1591
+SPC-V0-006	docs/specs/shared-path-change-policy-v0.md	75	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) An appli	standing	2026-10-11; V1-1591
+SPC-V0-007	docs/specs/shared-path-change-policy-v0.md	79	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) `--apply	standing	2026-10-11; V1-1591
+SPC-V0-008	docs/specs/shared-path-change-policy-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Both	standing	2026-10-11; V1-1591
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	89	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	93	accepted, decision 0506. The generator MUST recognise a requirement id as a toke	unrecorded	-
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	98	accepted, decision 0506. The generator MUST classify each occurrence of an id in	unrecorded	-
@@ -3845,9 +3845,9 @@ UPD-V0-008	docs/specs/operator-update-v0.md	91	(proposed (V1-1078)) An index sna
 UPD-V0-009	docs/specs/operator-update-v0.md	117	(proposed (V1-0639)) Every `check` result that observes a release MUST state	unrecorded	-
 UPD-V0-010	docs/specs/operator-update-v0.md	139	(accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An insta	standing	2026-10-11; V1-1364
 UPD-V0-011	docs/specs/operator-update-v0.md	162	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599)	standing	2026-10-11; V1-1599
-UPD-V0-012	docs/specs/operator-update-v0.md	179	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Each	standing	2026-10-11; V1-1599
-UPD-V0-013	docs/specs/operator-update-v0.md	192	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) When a	standing	2026-10-11; V1-1599
-UPD-V0-014	docs/specs/operator-update-v0.md	202	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Live	standing	2026-10-11; V1-1599
+UPD-V0-012	docs/specs/operator-update-v0.md	181	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Each	standing	2026-10-11; V1-1599
+UPD-V0-013	docs/specs/operator-update-v0.md	194	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) When a	standing	2026-10-11; V1-1599
+UPD-V0-014	docs/specs/operator-update-v0.md	206	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Live	standing	2026-10-11; V1-1599
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

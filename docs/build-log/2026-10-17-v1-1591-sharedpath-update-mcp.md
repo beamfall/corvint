@@ -37,3 +37,26 @@ requirements (2026-10-11), which this entry records for every new requirement ID
   - Every response echoes a `corvint-mcp-follow-ref/0` block that carries the resolved commit.
 
 Rollback is per capability, as each spec states. Neither the CLI nor the spec changes stored state.
+
+## Review fix round
+
+An independent Codex review of PR #1059 reported 11 findings. Each fix has a regression test.
+
+- Shared-path (`SPC-V0-001`, `003`, `004`):
+  - Config and notes files are opened without blocking and read only when they are regular files.
+  - The merge probe writes into a temporary object directory that is removed afterwards, so it
+    writes no object into the repository.
+  - Git runs with `GIT_OPTIONAL_LOCKS=0`, so planning leaves the index bytes unchanged.
+- Update service (`UPD-V0-011`, `013`, `014`):
+  - `status` uses exit 0 for running and exit 3 for stopped; any other result refuses before a stop.
+  - No rollback is attempted when the new build cannot be stopped, or in `DRAIN` mode.
+  - `DRAIN` mode waits even when the service is already stopped.
+  - The service tests fail on this host before they reach the new code. `ps` takes 2-5 s at load
+    70-80, which exceeds procgroup's 1 s descendant snapshot bound. The unchanged `TestUPDV0010`
+    fails the same way, so these tests are NOT_RUN locally and left to CI.
+- Follow-ref (`MCPV0-039..041`):
+  - The binding is pinned to the registry's canonical root and its identities (`ROOT_CHANGED`).
+  - Git runs with the sanitized environment.
+  - One lock covers both the move and the answer.
+  - The dirty and attached checks run even when HEAD is current.
+  - Checkout uses `--no-overwrite-ignore`.

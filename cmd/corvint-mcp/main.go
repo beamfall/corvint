@@ -89,7 +89,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		bindings[registry] = roots[0].root
 		if followRefName != "" {
 			var refusal string
-			handler.follow, refusal = newFollowRef(ctx, git, roots[0].root, followRefName)
+			handler.follow, refusal = newFollowRef(ctx, git, registry, followRefName)
 			if refusal != "" {
 				_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
 				return 2
@@ -262,12 +262,13 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		return nil, protocol.InvalidParams("Invalid params")
 	}
 	if handler.follow != nil {
-		state, code := handler.follow.sync(ctx)
-		echo := withFollowRef(&state, handler.follow.ref)
-		if code != "" {
-			return echo(handler.withWorktreeNotice(handler.registry)(handler.toolFailure(name, code, "")))
-		}
-		return echo(handler.answer(ctx, name, arguments))
+		return handler.follow.bound(ctx, func(state followState, code string) (map[string]any, *protocol.RPCError) {
+			echo := withFollowRef(&state, handler.follow.ref)
+			if code != "" {
+				return echo(handler.withWorktreeNotice(handler.registry)(handler.toolFailure(name, code, "")))
+			}
+			return echo(handler.answer(ctx, name, arguments))
+		})
 	}
 	return handler.answer(ctx, name, arguments)
 }

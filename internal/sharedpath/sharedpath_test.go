@@ -1,6 +1,7 @@
 package sharedpath
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -8,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fixture is a throwaway repository with a fixed identity and clock.
@@ -400,5 +402,73 @@ func TestSPCV0007HeadMismatchAbortsWithoutChanges(t *testing.T) {
 	g := git{ctx: context.Background(), root: f.root}
 	if _, code, err := g.run(nil, nil, "update-ref", "refs/heads/work", base, base); err != nil || code == 0 {
 		t.Fatal("update-ref accepted a stale old value")
+	}
+}
+
+// objectFiles lists every file under the repository's object store.
+func (f *fixture) objectFiles() []string {
+	f.t.Helper()
+	var files []string
+	store := filepath.Join(f.root, ".git", "objects")
+	err := filepath.WalkDir(store, func(p string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			files = append(files, p)
+		}
+		return nil
+	})
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	return files
+}
+
+// Codex finding 10 on #1059: the merge probe of divergent branches writes no
+// object into the repository, for a clean merge and for a conflict alike.
+func TestSPCV0003MergeProbeWritesNoRepositoryObject(t *testing.T) {
+	f := newFixture(t)
+	f.commit("base", map[string]string{"cmd/x.go": "x\n", "cmd/y.go": "y\n"})
+	f.git("checkout", "-q", "-b", "feature")
+	f.commit("feat: edit y", map[string]string{"cmd/y.go": "feature y\n"})
+	f.git("checkout", "-q", "main")
+	f.commit("main: edit x", map[string]string{"cmd/x.go": "main x\n"})
+	for _, conflict := range []bool{false, true} {
+		if conflict {
+			f.commit("main: edit y", map[string]string{"cmd/y.go": "main y\n"})
+		}
+		before := f.objectFiles()
+		report, err := Check(context.Background(), CheckRequest{Root: f.root, Base: "main", Head: "feature", Config: testConfig()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if report.Mutates || report.OK == conflict {
+			t.Fatalf("conflict=%v report: %+v", conflict, report)
+		}
+		if after := f.objectFiles(); !reflect.DeepEqual(before, after) {
+			t.Fatalf("conflict=%v: check-shared wrote objects: %d -> %d files", conflict, len(before), len(after))
+		}
+	}
+}
+
+// Codex finding 9 on #1059: planning never rewrites the index, even when its
+// stat data is stale and `git status` could refresh it.
+func TestSPCV0004PlanningLeavesIndexBytesUnchanged(t *testing.T) {
+	f, base, _ := splitFixture(t)
+	index := filepath.Join(f.root, ".git", "index")
+	future := time.Now().Add(time.Hour)
+	if err := os.Chtimes(filepath.Join(f.root, "cmd", "a.go"), future, future); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := SplitShared(context.Background(), SplitRequest{Root: f.root, Base: base, Branch: "work", Config: testConfig()}); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := os.ReadFile(index); err != nil || !bytes.Equal(before, after) {
+		t.Fatalf("planning rewrote the index: %v", err)
 	}
 }

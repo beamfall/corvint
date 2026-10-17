@@ -135,9 +135,29 @@ func (s service) ok(ctx context.Context, verb string) error {
 	return nil
 }
 
-func (s service) running(ctx context.Context) bool {
+// Service status values: `status` exits 0 for a running service and 3 (the
+// LSB "not running" status) for a stopped one; anything else is unknown.
+const (
+	statusRunning = "RUNNING"
+	statusStopped = "STOPPED"
+	statusUnknown = "UNKNOWN"
+)
+
+func (s service) status(ctx context.Context) string {
 	o := s.step(ctx, "status")
-	return o.Err == nil && o.ExitStatus == 0 && o.OwnedProcessGroupCleanup
+	switch {
+	case o.Err != nil || !o.ExitObserved || !o.OwnedProcessGroupCleanup:
+		return statusUnknown
+	case o.ExitStatus == 0:
+		return statusRunning
+	case o.ExitStatus == 3:
+		return statusStopped
+	}
+	return statusUnknown
+}
+
+func (s service) running(ctx context.Context) bool {
+	return s.status(ctx) == statusRunning
 }
 
 func (s service) liveAttempts(ctx context.Context) (int, error) {
@@ -200,30 +220,37 @@ func tasksFormats(ctx context.Context, binary, home string) []string {
 	return formats
 }
 
-// quiesce records whether the service runs and stops it for the switch. In
-// DRAIN mode it waits for zero live attempts; when they do not reach zero in
-// the bound it starts the old build again and refuses, leaving the
-// destination unchanged.
+// quiesce records whether the service runs and stops it for the switch. A
+// status that is neither running nor stopped refuses before any stop. In DRAIN
+// mode it then waits for zero live attempts whether or not the service ran,
+// because attempts can outlive a stopped dispatcher; when they do not reach
+// zero in the bound it starts the old build again if it ran and refuses,
+// leaving the destination unchanged.
 func (e engine) quiesce(ctx context.Context, s service, mode string) (*ServiceOutcome, error) {
 	out := &ServiceOutcome{Program: s.program, Mode: mode, State: "NOT_RUNNING_BEFORE"}
-	out.WasRunning = s.running(ctx)
-	if !out.WasRunning {
-		return out, nil
+	switch s.status(ctx) {
+	case statusUnknown:
+		out.State, out.Reason = "FAILED", "service status is neither running (exit 0) nor stopped (exit 3); destination unchanged"
+		return out, errors.New("service status unknown")
+	case statusRunning:
+		out.WasRunning = true
 	}
-	if n, err := s.liveAttempts(ctx); err == nil {
-		out.LiveAttempts = &n
-	} else if mode == "DRAIN" {
-		out.State, out.Reason = "RESUMED_OLD", err.Error()
-		return out, err
-	}
-	if err := s.ok(ctx, "stop"); err != nil {
-		out.State, out.Reason = "FAILED", err.Error()
-		if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
-			out.State = "RESUMED_OLD"
+	if out.WasRunning {
+		if n, err := s.liveAttempts(ctx); err == nil {
+			out.LiveAttempts = &n
+		} else if mode == "DRAIN" {
+			out.State, out.Reason = "RESUMED_OLD", err.Error()
+			return out, err
 		}
-		return out, err
+		if err := s.ok(ctx, "stop"); err != nil {
+			out.State, out.Reason = "FAILED", err.Error()
+			if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
+				out.State = "RESUMED_OLD"
+			}
+			return out, err
+		}
+		out.State = "STOPPED"
 	}
-	out.State = "STOPPED"
 	if mode != "DRAIN" {
 		return out, nil
 	}
@@ -241,14 +268,36 @@ func (e engine) quiesce(ctx context.Context, s service, mode string) (*ServiceOu
 			if err != nil {
 				reason = err.Error()
 			}
-			out.State, out.Reason = "FAILED", reason
-			if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
-				out.State = "RESUMED_OLD"
+			out.Reason = reason
+			if out.WasRunning {
+				out.State = "FAILED"
+				if startErr := s.start(ctx, e.config.StartTimeout); startErr == nil {
+					out.State = "RESUMED_OLD"
+				}
 			}
 			return out, errors.New("service drain: " + reason)
 		}
 		time.Sleep(s.poll)
 	}
+}
+
+// rollbackPermitted stops a service whose new build did not report running
+// and reports whether the previous build may be restored under it. Rollback
+// needs a stopped service, and a DRAIN-mode Tasks switch is never rolled back
+// automatically, because the candidate may already have written formats the
+// previous build cannot read (CAL-V0-130). On refusal out is FAILED and the new
+// build stays installed.
+func rollbackPermitted(ctx context.Context, s service, out *ServiceOutcome, startErr error) error {
+	out.Reason = "new build: " + startErr.Error()
+	if err := s.ok(ctx, "stop"); err != nil {
+		out.State, out.Reason = "FAILED", out.Reason+"; stop: "+err.Error()+"; rollback not attempted"
+		return errors.New("service did not start on the new build and could not be stopped; the new build stays installed")
+	}
+	if out.Mode == "DRAIN" {
+		out.State, out.Reason = "FAILED", out.Reason+"; automatic rollback refused: Tasks formats differ or are unknown"
+		return errors.New("service did not start on the new build; automatic rollback refused across differing or unknown Tasks formats; the new build stays installed and the service is stopped")
+	}
+	return nil
 }
 
 // runHooks runs each post-switch hook through /bin/sh with bounded attempts

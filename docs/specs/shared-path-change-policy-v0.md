@@ -32,7 +32,8 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   `path.Match`, with `**` matching zero or more whole segments; at most 256 globs per list. A path
   matching a `generated` glob is generated (never shared); otherwise a `shared` match is shared.
   An absent, oversized, unknown-field, wrong-profile or invalid file refuses with
-  `changes-shared-config-unavailable`.
+  `changes-shared-config-unavailable`. The config and `--notes` files are opened without blocking
+  and read only when they are regular files, so a FIFO or device refuses instead of hanging.
 - `SPC-V0-002`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591)
   `corvint changes check-shared --base REV [--head REV] [--config FILE] [--notes FILE]` MUST read
   the non-merge commits of `base..head` (at most 512) and, for each shared path a commit changes,
@@ -47,8 +48,9 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   Refusals: `changes-invalid-arguments`, `changes-shared-range-unavailable`,
   `changes-shared-notes-unavailable` (absent, non-regular or over 1 MiB), `changes-git-unavailable`.
 - `SPC-V0-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The check
-  MUST probe merging head into base with `git merge-tree --write-tree`, which writes only
-  unreachable objects. A conflicted path matching a `generated` glob is listed in
+  MUST probe merging head into base with `git merge-tree --write-tree` against a private temporary
+  object directory (`GIT_OBJECT_DIRECTORY`, with the repository's object store as an alternate),
+  removed afterwards, so the probe writes no object into the repository. A conflicted path matching a `generated` glob is listed in
   `exemptConflicts` and is not a finding; any other conflicted path emits
   `shared-path-merge-conflict` (`clean-merge`).
 - `SPC-V0-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591)
@@ -61,7 +63,8 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   and moves nothing. The output (`corvint-shared-path-split/0`) prints `oldHead`, `newHead`, each
   split, and a restore command. It rewrites only `refs/heads/NAME`, through a private temporary
   index, and never pushes, fetches or contacts a remote (`pushed` is always false). Without
-  `--apply` it writes nothing.
+  `--apply` it writes nothing: every Git command runs with `GIT_OPTIONAL_LOCKS=0`, so planning's
+  `git status` never refreshes the repository index.
 - `SPC-V0-005`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Before any
   write the splitter MUST refuse, leaving every ref unchanged: a configured session marker present
   in the checkout, or a Git index lock or a merge, cherry-pick, revert, rebase or bisect in progress
@@ -109,10 +112,10 @@ depends on them.
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| SPC-V0-001 | `LoadConfig`, `Match`, `Config.Class` | `TestSPCV0001ConfigIsClosedAndClassifiesPaths` |
+| SPC-V0-001 | `LoadConfig`, `Match`, `Config.Class`, `readRegular` | `TestSPCV0001ConfigIsClosedAndClassifiesPaths`, `TestSPCV0001FIFOInputsRefusedWithoutBlocking` |
 | SPC-V0-002 | `Check` | `TestSPCV0002CheckFindingsNameCommitPathAndMissingElement` |
-| SPC-V0-003 | `mergeProbe` | `TestSPCV0003GeneratedConflictsAreExempt` |
-| SPC-V0-004 | `SplitShared`, `overlay`, `commitTree` | `TestSPCV0004SplitKeepsTreeIdentityAndMessage` |
+| SPC-V0-003 | `mergeProbe` | `TestSPCV0003GeneratedConflictsAreExempt`, `TestSPCV0003MergeProbeWritesNoRepositoryObject` |
+| SPC-V0-004 | `SplitShared`, `overlay`, `commitTree` | `TestSPCV0004SplitKeepsTreeIdentityAndMessage`, `TestSPCV0004PlanningLeavesIndexBytesUnchanged` |
 | SPC-V0-005 | `refuseLiveSession`, `SplitShared` | `TestSPCV0005SplitRefusesUnsafeStates` |
 | SPC-V0-006 | `manualFollowUps` | `TestSPCV0006ManualFollowUpsAreOnlyListingAndCitation` |
 | SPC-V0-007 | expected-head check and `update-ref` compare-and-swap | `TestSPCV0007HeadMismatchAbortsWithoutChanges` |

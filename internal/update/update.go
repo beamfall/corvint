@@ -530,10 +530,14 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if svc != nil {
 		if startErr := svc.start(ctx, c.StartTimeout); startErr != nil {
 			// The new build did not start: restore the previous bytes and the
-			// service on them (UPD-V0-013).
-			_ = svc.ok(ctx, "stop")
+			// service on them (UPD-V0-013) when rollback is safe.
+			if err := rollbackPermitted(ctx, *svc, r.Service, startErr); err != nil {
+				r.Switched = true
+				e.switched(&r)
+				return r, err
+			}
 			r.Action, r.InstalledVersion, r.InstalledBuild = "rolled-back", installedVersion, installedBuild
-			r.Service.State, r.Service.Reason = "ROLLED_BACK", "new build: "+startErr.Error()
+			r.Service.State = "ROLLED_BACK"
 			if _, rollbackErr := e.rollback(ctx, destination); rollbackErr != nil {
 				r.Service.State, r.Service.Reason = "FAILED", r.Service.Reason+"; rollback: "+rollbackErr.Error()
 				r.Action, r.InstalledVersion, r.InstalledBuild = "applied", candidateVersion, build

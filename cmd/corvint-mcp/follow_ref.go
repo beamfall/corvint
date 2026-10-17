@@ -14,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 )
 
@@ -56,14 +57,21 @@ func validFollowRef(ref string) bool {
 }
 
 // followRef keeps a dedicated detached worktree on the commit a ref names.
-// Calls are serialized so a move and its index refresh finish before the
-// answer that follows them.
+// Calls are serialized through bound: the move, its index refresh and the
+// answer that follows them run under one lock, so a concurrent call cannot
+// move the worktree under an answer.
 type followRef struct {
 	mu      sync.Mutex
 	git     string
-	root    string
 	ref     string
 	indexed string
+	// pinned is the registry's canonical root and its identities; every Git
+	// command runs in pinned.Root() and nothing is mutated unless
+	// pinned.SameRoot() still holds.
+	pinned interface {
+		Root() string
+		SameRoot() bool
+	}
 	// refresh brings the index snapshot of root up to date and reports
 	// whether it wrote one; tests replace it.
 	refresh func(context.Context, string) (bool, error)
@@ -76,11 +84,12 @@ type followState struct {
 	Stale, Mutated      bool
 }
 
-// newFollowRef checks the startup contract: root is a linked worktree whose
-// HEAD is detached, and ref resolves to a commit.
-func newFollowRef(ctx context.Context, git, root, ref string) (*followRef, string) {
-	f := &followRef{git: git, root: root, ref: ref, refresh: refreshIndex}
-	if marker, err := os.Lstat(filepath.Join(root, ".git")); err != nil || !marker.Mode().IsRegular() {
+// newFollowRef checks the startup contract against the registry's pinned
+// canonical root: it is a linked worktree whose HEAD is detached, and ref
+// resolves to a commit.
+func newFollowRef(ctx context.Context, git string, registry *bridge.Registry, ref string) (*followRef, string) {
+	f := &followRef{git: git, ref: ref, pinned: registry, refresh: refreshIndex}
+	if marker, err := os.Lstat(filepath.Join(registry.Root(), ".git")); err != nil || !marker.Mode().IsRegular() || !registry.SameRoot() {
 		return nil, followRefNotDedicated
 	}
 	if _, code, err := f.run(ctx, followRefGitTimeout, "symbolic-ref", "-q", "HEAD"); err != nil || code != 1 {
@@ -92,11 +101,14 @@ func newFollowRef(ctx context.Context, git, root, ref string) (*followRef, strin
 	return f, ""
 }
 
+// run runs Git in the pinned root with the Core sanitized environment, so no
+// inherited GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE or object override can
+// redirect a read or the checkout to another repository.
 func (f *followRef) run(ctx context.Context, bound time.Duration, arguments ...string) ([]byte, int, error) {
 	ctx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
-	command := exec.CommandContext(ctx, f.git, append([]string{"-C", f.root, "-c", "core.hooksPath=/dev/null"}, arguments...)...)
-	command.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "LC_ALL=C")
+	command := exec.CommandContext(ctx, f.git, append([]string{"-C", f.pinned.Root(), "-c", "core.hooksPath=" + os.DevNull}, arguments...)...)
+	command.Env = gokernel.SanitizedGitEnvironment()
 	var stdout bytes.Buffer
 	command.Stdout = &stdout
 	err := command.Run()
@@ -118,13 +130,22 @@ func (f *followRef) resolve(ctx context.Context) (string, bool) {
 	return strings.TrimSpace(string(out)), true
 }
 
-// sync binds the worktree to the ref before an answer: a moved ref on a clean,
-// detached worktree checks the new commit out and refreshes the index; a dirty
-// or attached worktree is never modified and the answer is flagged stale. It
-// returns followRefMissing when the ref no longer resolves.
-func (f *followRef) sync(ctx context.Context) (followState, string) {
+// bound syncs the worktree to the ref and produces the answer under one lock.
+func (f *followRef) bound(ctx context.Context, answer func(followState, string) (map[string]any, *protocol.RPCError)) (map[string]any, *protocol.RPCError) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	state, code := f.sync(ctx)
+	return answer(state, code)
+}
+
+// sync binds the worktree to the ref before an answer; the caller holds f.mu.
+// The root identity, a detached HEAD and a clean tree are checked on every
+// call, whether or not the ref moved. A moved ref on a clean, detached
+// worktree checks the new commit out without overwriting ignored files and
+// refreshes the index; a changed root, a dirty or attached worktree, or a
+// checkout collision is never modified and the answer is flagged stale. It
+// returns followRefMissing when the ref no longer resolves.
+func (f *followRef) sync(ctx context.Context) (followState, string) {
 	state := followState{State: "CURRENT"}
 	if out, code, err := f.run(ctx, followRefGitTimeout, "rev-parse", "--verify", "--quiet", "HEAD"); err == nil && code == 0 {
 		state.Head = strings.TrimSpace(string(out))
@@ -135,24 +156,36 @@ func (f *followRef) sync(ctx context.Context) (followState, string) {
 		return state, followRefMissing
 	}
 	state.Commit = commit
+	if !f.pinned.SameRoot() {
+		state.State, state.Stale = "ROOT_CHANGED", true
+		return state, ""
+	}
+	if _, code, err := f.run(ctx, followRefGitTimeout, "symbolic-ref", "-q", "HEAD"); err != nil || code != 1 {
+		state.State, state.Stale = "NOT_DETACHED", true
+		return state, ""
+	}
+	status, code, err := f.run(ctx, followRefGitTimeout, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
+	if err != nil || code != 0 || len(status) != 0 {
+		state.State, state.Stale = "DIRTY", true
+		return state, ""
+	}
 	if state.Head != commit {
-		if _, code, err := f.run(ctx, followRefGitTimeout, "symbolic-ref", "-q", "HEAD"); err != nil || code != 1 {
-			state.State, state.Stale = "NOT_DETACHED", true
+		if !f.pinned.SameRoot() {
+			state.State, state.Stale = "ROOT_CHANGED", true
 			return state, ""
 		}
-		status, code, err := f.run(ctx, followRefGitTimeout, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
-		if err != nil || code != 0 || len(status) != 0 {
-			state.State, state.Stale = "DIRTY", true
-			return state, ""
-		}
-		if _, code, err := f.run(ctx, followRefMoveTimeout, "checkout", "--detach", "--quiet", commit); err != nil || code != 0 {
+		if _, code, err := f.run(ctx, followRefMoveTimeout, "checkout", "--detach", "--quiet", "--no-overwrite-ignore", commit); err != nil || code != 0 {
 			state.State, state.Stale = "CHECKOUT_FAILED", true
 			return state, ""
 		}
 		state.Head, state.State, state.Mutated = commit, "REFRESHED", true
 	}
 	if f.indexed != commit {
-		wrote, err := f.refresh(ctx, f.root)
+		if !f.pinned.SameRoot() {
+			state.State, state.Stale = "ROOT_CHANGED", true
+			return state, ""
+		}
+		wrote, err := f.refresh(ctx, f.pinned.Root())
 		state.Mutated = state.Mutated || wrote
 		if err != nil {
 			state.State, state.Stale = "INDEX_FAILED", true

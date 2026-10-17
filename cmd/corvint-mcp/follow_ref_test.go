@@ -45,7 +45,7 @@ func followHandler(t *testing.T, lane, ref string) *toolHandler {
 	if registryErr != nil {
 		t.Fatal(registryErr)
 	}
-	follow, refusal := newFollowRef(context.Background(), "git", lane, ref)
+	follow, refusal := newFollowRef(context.Background(), "git", registry, ref)
 	if refusal != "" {
 		t.Fatal(refusal)
 	}

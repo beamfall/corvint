@@ -2,6 +2,7 @@ package update
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,10 +11,11 @@ import (
 )
 
 // serviceFixture writes a service-control program whose state lives in dir:
-// `running` marks a running service, `live` holds the live-attempt count
-// (decremented on each read when `draining` exists), and `fail-new` makes a
-// start of build 163 never report running. Every call is logged with the
-// build of the managed binary.
+// `running` marks a running service (status exits 0, otherwise 3),
+// `status-broken` makes status exit 2, `live` holds the live-attempt count
+// (decremented on each read when `draining` exists), `fail-new` makes a start
+// of build 163 never report running and `stop-fails-new` makes a stop of build
+// 163 fail. Every call is logged with the build of the managed binary.
 func serviceFixture(t *testing.T, dir string) string {
 	t.Helper()
 	program := filepath.Join(dir, "service")
@@ -21,8 +23,12 @@ func serviceFixture(t *testing.T, dir string) string {
 d='` + dir + `'
 echo "$1 $("$CORVINT_UPDATE_BINARY" --version 2>/dev/null) $CORVINT_UPDATE_COMPONENT" >> "$d/log"
 case "$1" in
-status) [ -f "$d/running" ] ;;
-stop) rm -f "$d/running" ;;
+status)
+  if [ -f "$d/status-broken" ]; then exit 2; fi
+  [ -f "$d/running" ] || exit 3 ;;
+stop)
+  if [ -f "$d/stop-fails-new" ] && "$CORVINT_UPDATE_BINARY" --version | grep -q 'build 163'; then exit 1; fi
+  rm -f "$d/running" ;;
 start)
   if [ -f "$d/fail-new" ] && "$CORVINT_UPDATE_BINARY" --version | grep -q 'build 163'; then exit 0; fi
   : > "$d/running" ;;
@@ -239,5 +245,90 @@ func TestUPDV0014LiveAttemptsAdoptedOrDrained(t *testing.T) {
 	out, err = e.quiesce(context.Background(), s, "DRAIN")
 	if err == nil || out.State != "RESUMED_OLD" || *out.LiveAttempts != 3 || !exists(filepath.Join(dir, "running")) || !strings.Contains(out.Reason, "did not drain") {
 		t.Fatalf("drain timeout: %+v %v", out, err)
+	}
+}
+
+// Codex findings 2 and 3 on #1059: a new build that cannot be stopped, or a
+// DRAIN-mode Tasks switch, is never rolled back underneath the service.
+func TestUPDV0013NoRollbackWithoutStopOrAcrossFormats(t *testing.T) {
+	e, dir, dest := serviceEngine(t)
+	for _, name := range []string{"running", "fail-new", "stop-fails-new"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r, err := e.execute(context.Background(), "apply")
+	if err == nil || !strings.Contains(err.Error(), "could not be stopped; the new build stays installed") {
+		t.Fatalf("stop failure not reported: %v", err)
+	}
+	if d, _ := digest(dest); d != hash(scriptBinary(163, 0)) {
+		t.Fatal("previous binary installed under a service that did not stop")
+	}
+	if r.Action != "applied" || !r.Switched || r.InstalledBuild != 163 || r.Service.State != "FAILED" || !strings.Contains(r.Service.Reason, "rollback not attempted") {
+		t.Fatalf("result: %+v %+v", r, r.Service)
+	}
+	if strings.Contains(readLog(t, dir), "start Corvint 1.0.0-rc.1 (build 162)") {
+		t.Fatalf("old build started:\n%s", readLog(t, dir))
+	}
+	// DRAIN mode: the service is stopped, the rollback refused.
+	e, dir, dest = serviceEngine(t)
+	if err := os.WriteFile(filepath.Join(dir, "running"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeScript(t, dest, 163)
+	s := service{program: e.config.ServiceProgram, component: "tasks", binary: dest, poll: e.servicePoll}
+	out := &ServiceOutcome{Mode: "DRAIN", State: "STOPPED", WasRunning: true}
+	err = rollbackPermitted(context.Background(), s, out, errors.New("service did not report running"))
+	if err == nil || !strings.Contains(err.Error(), "automatic rollback refused") || out.State != "FAILED" || !strings.Contains(out.Reason, "formats differ or are unknown") || exists(filepath.Join(dir, "running")) {
+		t.Fatalf("drain rollback: %+v %v", out, err)
+	}
+	for _, mode := range []string{"ADOPT", "RESTART"} {
+		out = &ServiceOutcome{Mode: mode, State: "STOPPED", WasRunning: true}
+		if err := rollbackPermitted(context.Background(), s, out, errors.New("x")); err != nil {
+			t.Fatalf("%s rollback refused: %v", mode, err)
+		}
+	}
+}
+
+// Codex finding 1 on #1059: an unknown status refuses before any stop, and
+// DRAIN waits for live attempts even when the dispatcher is stopped.
+func TestUPDV0014StoppedDispatcherStillDrainsAndUnknownStatusRefuses(t *testing.T) {
+	e, dir, dest := serviceEngine(t)
+	if err := os.WriteFile(filepath.Join(dir, "status-broken"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r, err := e.execute(context.Background(), "apply")
+	if err == nil || !strings.Contains(err.Error(), "service status unknown") || r.Service == nil || r.Service.State != "FAILED" || r.Switched || strings.Contains(readLog(t, dir), "stop") {
+		t.Fatalf("unknown status: %+v %v\n%s", r, err, readLog(t, dir))
+	}
+	if d, _ := digest(dest); d != hash(scriptBinary(162, 0)) {
+		t.Fatal("switched under an unknown service status")
+	}
+	s := service{program: e.config.ServiceProgram, component: "tasks", binary: dest, poll: e.servicePoll}
+	// Stopped dispatcher, three live attempts that never drain: refused.
+	if err := os.Remove(filepath.Join(dir, "status-broken")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "live"), []byte("3\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err := e.quiesce(context.Background(), s, "DRAIN")
+	if err == nil || out.WasRunning || out.State != "NOT_RUNNING_BEFORE" || out.LiveAttempts == nil || *out.LiveAttempts != 3 || !strings.Contains(out.Reason, "did not drain") || exists(filepath.Join(dir, "running")) {
+		t.Fatalf("stopped dispatcher drain: %+v %v", out, err)
+	}
+	// Stopped dispatcher whose attempts drain: the switch may proceed.
+	if err := os.WriteFile(filepath.Join(dir, "draining"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	out, err = e.quiesce(context.Background(), s, "DRAIN")
+	if err != nil || out.WasRunning || out.State != "NOT_RUNNING_BEFORE" || *out.LiveAttempts != 0 {
+		t.Fatalf("stopped dispatcher drained: %+v %v", out, err)
+	}
+	// A count that cannot be read refuses as well.
+	if err := os.WriteFile(filepath.Join(dir, "live"), []byte("many\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if out, err = e.quiesce(context.Background(), s, "DRAIN"); err == nil || !strings.Contains(out.Reason, "no count") {
+		t.Fatalf("unreadable count: %+v %v", out, err)
 	}
 }

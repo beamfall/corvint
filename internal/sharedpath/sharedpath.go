@@ -72,16 +72,8 @@ type Config struct {
 // LoadConfig reads and validates a bounded, closed configuration file.
 func LoadConfig(file string) (Config, error) {
 	var c Config
-	f, err := os.Open(file)
+	raw, err := readRegular(file, maxConfigBytes)
 	if err != nil {
-		return c, errors.New(CodeConfigUnavailable)
-	}
-	defer f.Close()
-	if info, err := f.Stat(); err != nil || !info.Mode().IsRegular() {
-		return c, errors.New(CodeConfigUnavailable)
-	}
-	raw, err := io.ReadAll(io.LimitReader(f, maxConfigBytes+1))
-	if err != nil || len(raw) > maxConfigBytes {
 		return c, errors.New(CodeConfigUnavailable)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -102,6 +94,27 @@ func LoadConfig(file string) (Config, error) {
 		}
 	}
 	return c, nil
+}
+
+// readRegular reads at most limit bytes of a regular file. The open does not
+// block on a FIFO or device, and the descriptor is checked before any read.
+func readRegular(file string, limit int) ([]byte, error) {
+	f, err := openInput(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("not a regular file")
+	}
+	raw, err := io.ReadAll(io.LimitReader(f, int64(limit)+1))
+	if err != nil || len(raw) > limit {
+		return nil, errors.New("unreadable or oversized")
+	}
+	if raw == nil {
+		raw = []byte{}
+	}
+	return raw, nil
 }
 
 var trailerKey = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9-]{0,63}$`)
@@ -201,7 +214,9 @@ func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, err
 			cmd.Env = append(cmd.Env, v)
 		}
 	}
-	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
+	// GIT_OPTIONAL_LOCKS=0 keeps reads such as `status` from refreshing the
+	// index (SPC-V0-004).
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
 	cmd.Env = append(cmd.Env, extra...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)

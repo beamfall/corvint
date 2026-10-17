@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -158,8 +158,25 @@ func Check(ctx context.Context, request CheckRequest) (Report, error) {
 
 // mergeProbe reports conflicts of merging head into base; conflicts
 // confined to configured generated files are recorded as exempt, not findings.
+// The objects merge-tree writes go to a private object directory that reads
+// the repository's objects as an alternate and is removed afterwards, so the
+// repository's object store is never written (AGENTS.md invariant 4).
 func mergeProbe(g git, c Config, base, head string, r *Report) error {
-	out, code, err := g.run(nil, nil, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", base, head)
+	objects, err := g.ok("rev-parse", "--path-format=absolute", "--git-path", "objects")
+	if err != nil {
+		return err
+	}
+	store := strings.TrimSuffix(string(objects), "\n")
+	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") {
+		return errors.New(CodeGitUnavailable)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-shared-merge-")
+	if err != nil {
+		return errors.New(CodeGitUnavailable)
+	}
+	defer os.RemoveAll(scratch)
+	env := []string{"GIT_OBJECT_DIRECTORY=" + scratch, "GIT_ALTERNATE_OBJECT_DIRECTORIES=" + store}
+	out, code, err := g.run(nil, env, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", base, head)
 	if err != nil {
 		return err
 	}
@@ -188,20 +205,9 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 }
 
 func readNotes(file string) ([]byte, error) {
-	f, err := os.Open(file)
+	raw, err := readRegular(file, maxNotesBytes)
 	if err != nil {
 		return nil, errors.New(CodeNotesUnavailable)
-	}
-	defer f.Close()
-	if info, err := f.Stat(); err != nil || !info.Mode().IsRegular() {
-		return nil, errors.New(CodeNotesUnavailable)
-	}
-	raw, err := io.ReadAll(io.LimitReader(f, maxNotesBytes+1))
-	if err != nil || len(raw) > maxNotesBytes {
-		return nil, errors.New(CodeNotesUnavailable)
-	}
-	if raw == nil {
-		raw = []byte{}
 	}
 	return raw, nil
 }

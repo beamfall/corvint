@@ -164,8 +164,10 @@ The baseline is manual archive verification and copying binaries, with external 
   `PROGRAM status|stop|start|live-attempts`, each a bounded owned process (30 s per step) run with
   `CORVINT_UPDATE_COMPONENT` and `CORVINT_UPDATE_BINARY` (the managed destination) in its environment.
   `PROGRAM` MUST be a clean absolute path to an executable regular file; the service and hook options
-  are refused by `check` and `rollback`. The run reads `status` before the switch: a service that was
-  not running is switched under and left stopped (`NOT_RUNNING_BEFORE`); a running one is stopped
+  are refused by `check` and `rollback`. `status` exits 0 when the service is running and 3 (the LSB
+  code) when it is stopped; any other exit, or an unobserved exit, is unknown and refuses before any
+  stop or switch (`FAILED`, destination unchanged). The run reads `status` before the switch: a
+  service that was not running is switched under and left stopped (`NOT_RUNNING_BEFORE`); a running one is stopped
   before activation and started on the new build afterwards, and `start` succeeds only when `status`
   reports running within `--start-timeout` (default 30 s, at most 2 min). The result carries
   `service` with `program`, `mode`, `wasRunning`, `liveAttempts` and a final `state` (`RESUMED`,
@@ -194,8 +196,10 @@ The baseline is manual archive verification and copying binaries, with external 
   MUST stop it, restore the previous binary through the same verified rollback as `UPD-V0-005`, start
   the service on the previous build, run no hooks, and report action `rolled-back`, `switched` false,
   the previous build as installed, service state `ROLLED_BACK` (or `FAILED` when the old build does
-  not start or the rollback itself fails, the latter leaving `switched` true) and an error. Failure
-  modes: a service that starts and then crashes after the bound is not observed. Falsifier: a failed
+  not start or the rollback itself fails, the latter leaving `switched` true) and an error. No
+  rollback is attempted when the new build's service cannot be stopped, or in `DRAIN` mode (Tasks
+  formats differ or are unknown): the new build stays installed, `switched` is true, the state is
+  `FAILED` and the error says so. Failure modes: a service that starts and then crashes after the bound is not observed. Falsifier: a failed
   start that leaves the new binary installed, leaves the service stopped while reporting
   `ROLLED_BACK`, or runs hooks. Rollback of this requirement: remove the automatic rollback; the
   operator runs `rollback` by hand.
@@ -205,8 +209,10 @@ The baseline is manual archive verification and copying binaries, with external 
   run in `ADOPT` mode (stop, switch, start; the restarted service adopts live attempts and
   `liveAttempts` records how many there were); different or unreadable sets run in `DRAIN` mode,
   where the update waits after `stop` until `live-attempts` prints 0, within `--drain-timeout`
-  (default 10 min, at most 15 min). A drain that does not reach zero, or a count that cannot be read,
-  refuses before activation, starts the old build again and leaves the destination unchanged. Core
+  (default 10 min, at most 15 min). `DRAIN` mode waits even when the service was already stopped,
+  since stopped dispatchers can leave live attempts. A drain that does not reach zero, or a count
+  that cannot be read, refuses before activation, starts the old build again when it was running
+  and leaves the destination unchanged. Core
   runs in `RESTART` mode. The run budget grows by the drain bound, two start bounds and four steps.
   Failure modes: a control program that reports zero while attempts still run is trusted.
   Falsifier: a `DRAIN` mode switch while `live-attempts` is non-zero, or an `ADOPT` choice for
@@ -261,10 +267,10 @@ With it, only the operator's control program is run (`UPD-V0-011`).
 | UPD-V0-008 | `refreshIndexes`, `--refresh-index` | `TestUPDV0008CoreSwitchRefreshesIndexedCheckouts`: an apply and a rollback refresh a named root once when it also encloses the working directory; outcomes `failed` (exit status and stderr line), `built`, `fresh` in order, an unindexed enclosing checkout `skipped` without a run, no outcome outside any checkout, exact argv, no refresh after an unchanged apply or a successful Tasks rollback; live: the installed Core build 404 reported `built` then `fresh` on a scratch indexed repository (2026-10-09) |
 | UPD-V0-009 | `relate`, `declaredTasksBuild`, `compareSemver` | `TestUPDV0009CheckStatesRelation`: Core `CURRENT`, `LOCAL_NEWER`, `UPDATE_AVAILABLE` (including a prerelease below its release, numeric prerelease order beyond machine integers, and build metadata ignored) and `UNKNOWN` for a non-semantic tag, leading zeros or a malformed installed label; Tasks `LOCAL_NEWER` with the downgrade reason (declared 202 against installed 407), `CURRENT`, `UPDATE_AVAILABLE`, and `UNKNOWN` for an unbound or missing declaration; no state written |
 | UPD-V0-010 | `version`, `errUnnumbered`, `relate`, apply refusal | `TestUPDV0010UnnumberedLocalBuild`: Core and Tasks installs with build 0 and with no build number check as `UNNUMBERED` / `UNKNOWN` with the available tag (and Tasks declared build 500), write no state, and apply refuses with the destination unchanged and no transaction created; a `build -1` label stays `invalid numeric build`; a build-0 candidate is refused as an unknown candidate build; live (2026-10-14): installed Core `1.0.0-rc.3 (build 0)` and Tasks `+build.0` reported `v1.0.0-rc.2` and `tasks-dev-20260929.2` (build 202) |
-| UPD-V0-011 | `validateService`, `service`, `quiesce`, apply restart | `TestUPDV0011ServiceRestartsAroundSwitch`: stop on build 162 before start on build 163 with component and binary in the environment, `RESUMED`; a stopped service switched under and not started; check and relative-program refusals; hook bound refusal |
+| UPD-V0-011 | `validateService`, `service`, `quiesce`, apply restart | `TestUPDV0011ServiceRestartsAroundSwitch`: stop on build 162 before start on build 163 with component and binary in the environment, `RESUMED`; a stopped service switched under and not started; check and relative-program refusals; hook bound refusal; `TestUPDV0014StoppedDispatcherStillDrainsAndUnknownStatusRefuses`: status exit 2 refuses before stop or switch |
 | UPD-V0-012 | `runHooks` | `TestUPDV0012PostSwitchHooksReportedAndSwitchStands`: four hooks (success, success on the third attempt, exit 7 three times, timeout with exit -1) reported with attempts and output tails; error says the switch stands; new build stays installed |
-| UPD-V0-013 | apply rollback on failed start | `TestUPDV0013RollbackWhenServiceDoesNotStart`: build 163 never reports running; previous digest restored, service running on build 162, action `rolled-back`, no hooks run |
-| UPD-V0-014 | `serviceMode`, `tasksFormats`, `quiesce` drain | `TestUPDV0014LiveAttemptsAdoptedOrDrained`: mode table, sorted formats and unreadable output; adopt stops with two live attempts; drain waits to zero; a drain past the bound resumes the old build and refuses |
+| UPD-V0-013 | apply rollback on failed start | `TestUPDV0013RollbackWhenServiceDoesNotStart`: build 163 never reports running; previous digest restored, service running on build 162, action `rolled-back`, no hooks run; `TestUPDV0013NoRollbackWithoutStopOrAcrossFormats`: a new build that cannot be stopped stays installed with `FAILED`, and `DRAIN` refuses rollback |
+| UPD-V0-014 | `serviceMode`, `tasksFormats`, `quiesce` drain | `TestUPDV0014LiveAttemptsAdoptedOrDrained`: mode table, sorted formats and unreadable output; adopt stops with two live attempts; drain waits to zero; a drain past the bound resumes the old build and refuses; `TestUPDV0014StoppedDispatcherStillDrainsAndUnknownStatusRefuses`: a stopped service still drains |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the
