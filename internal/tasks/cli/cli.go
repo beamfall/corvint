@@ -80,6 +80,8 @@ var ReadVerbs = []string{
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
 	"preflight",
+	"worktree ensure",
+	"defects add", "defects update", "defects list",
 	"run-batch",
 	"qualify",
 	"gate record", "gate resubmit", "gate history",
@@ -144,6 +146,12 @@ func Run(env Env) int {
 		return emit(env.Stdout, versionResult())
 	case "preflight":
 		return emit(env.Stdout, preflight(env, []string{"preflight"}, args[1:]))
+	case "worktree":
+		// TWT-V0-002..007: the per-ticket worktree.
+		return emit(env.Stdout, worktreeCommand(env, args[1:]))
+	case "defects":
+		// TDR-V0-010: the defect register.
+		return emit(env.Stdout, defectsCommand(env, args[1:]))
 	case "run-batch":
 		return emit(env.Stdout, runBatch(env, []string{"run-batch"}, args[1:]))
 	case "qualify":

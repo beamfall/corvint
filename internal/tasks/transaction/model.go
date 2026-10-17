@@ -150,6 +150,10 @@ type Input struct {
 	// re-hashes and folds the chain against the canonical reference.
 	ObligationEvents map[wire.Digest][]byte
 	ObligationReport *mutation.ObligationReportCheck
+	// ValueScreen is the KHN-V0-028 adopter value screen the store built
+	// for a fresh NOTE_SET, KNOWHOW_* or OBLIGATIONS_* write; nil screens
+	// nothing beyond the shared credential screen.
+	ValueScreen *mutation.ValueScreen
 }
 
 type HandoffPolicyObservation struct {
@@ -675,6 +679,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		ctx.RetryRecovery = retryRecovery(state, env)
 		ctx.PriorNoteEvent = in.PriorNoteEvent
 		ctx.ObligationEvents, ctx.ObligationReport = in.ObligationEvents, in.ObligationReport
+		ctx.Screen = in.ValueScreen
 		if mutation.IsReviewOperation(env.Operation) {
 			ctx.ExternalReview = externalReviewPost(r, in, state, env)
 		}

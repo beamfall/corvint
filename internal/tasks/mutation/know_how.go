@@ -67,6 +67,9 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		if r := screenKnowHow(fields, p); r != nil {
 			return r
 		}
+		if r := ctx.Screen.screenValues(knowHowScreenFields(fields, p.Anchors, p.Routes, p.EvidencePath)); r != nil {
+			return r
+		}
 		if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
 			return refuseErr(err)
 		}
@@ -88,6 +91,9 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 		if r := screenKnowHow(map[string]string{"reason": p.Reason}, nil); r != nil {
 			return r
 		}
+		if r := ctx.Screen.screenValues([]screenField{{"/payload/reason", p.Reason}}); r != nil {
+			return r
+		}
 		reason := p.Reason
 		entry.Operation = ticket.KnowHowRetract
 		entry.Note = p.Note
@@ -100,6 +106,9 @@ func (ctx *Context) knowHowStep(work *ticket.Record, p Payload) *refusal {
 			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s", why)
 		}
 		if r := screenKnowHowPaths(p.Anchors, nil, nil); r != nil {
+			return r
+		}
+		if r := ctx.Screen.screenValues(knowHowScreenFields(nil, p.Anchors, nil, nil)); r != nil {
 			return r
 		}
 		if err := CheckKnowHowProvenance(ctx.KnowHowAttempts, work.TicketID, p.Attempt, p.Generation); err != nil {
@@ -141,6 +150,27 @@ func screenKnowHow(fields map[string]string, add *KnowHowAddPayload) *refusal {
 		return nil
 	}
 	return screenKnowHowPaths(add.Anchors, add.Routes, add.EvidencePath)
+}
+
+// knowHowScreenFields names a know-how write's stored text, route tokens
+// and paths for the KHN-V0-030 value screen.
+func knowHowScreenFields(fields map[string]string, anchors []ticket.KnowHowAnchor, routes []string, evidencePath *string) []screenField {
+	var out []screenField
+	for _, name := range []string{"text", "reason"} {
+		if s, ok := fields[name]; ok {
+			out = append(out, screenField{"/payload/" + name, s})
+		}
+	}
+	for _, r := range routes {
+		out = append(out, screenField{"/payload/routes", r})
+	}
+	for _, a := range anchors {
+		out = append(out, screenField{"/payload/anchors", a.Path}, screenField{"/payload/anchors", a.Symbol})
+	}
+	if evidencePath != nil {
+		out = append(out, screenField{"/payload/evidencePath", *evidencePath})
+	}
+	return out
 }
 
 // screenKnowHowPaths refuses route tokens, anchor paths, symbol names or an
