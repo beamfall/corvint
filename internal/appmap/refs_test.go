@@ -3,7 +3,9 @@ package appmap
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -123,6 +125,7 @@ func TestAMAPV0092ValueModes(t *testing.T) {
 		{`page.toHaveURL(/^\/orders\/\d+$/)`, "/orders/", matchPrefix, classRegex, ""},
 		{`page.toHaveURL(/.*settings/)`, "", "", "", "regex-without-literal"},
 		{"page.waitForURL('/files/**')", "/files/", matchPrefix, "", ""},
+		{`page.toHaveURL(/^\/missing\*/)`, "/missing*", matchPrefix, classRegex, ""}, // an escaped `*` is not a glob
 		{"page.waitForURL('**/files')", "", "", "", "glob-without-literal"},
 		{"page.goto('/" + strings.Repeat("a", maxRefValue) + "')", "", "", "", "value-too-long"},
 	} {
@@ -191,6 +194,11 @@ func TestAMAPV0094NameLevelCheck(t *testing.T) {
 		`[data-region="orders"] > li`:     {{value: "data-region", mode: matchExact}, {value: "orders", mode: matchExact}},
 		`[data-id^=row-]`:                 {{value: "data-id", mode: matchExact}, {value: "row-", mode: matchPrefix}},
 		`[id='main']`:                     {{value: "main", mode: matchExact}},
+		`[ id = 'main' ]`:                 {{value: "main", mode: matchExact}},
+		`[data-state = "deleted"]`:        {{value: "data-state", mode: matchExact}, {value: "deleted", mode: matchExact}},
+		`[data-id ^= row-]`:               {{value: "data-id", mode: matchExact}, {value: "row-", mode: matchPrefix}},
+		`[data-status="404"]`:             {{value: "data-status", mode: matchExact}, {value: "404", mode: matchExact}},
+		`#7a`:                             {},
 		`div.1x`:                          {},
 		`[aria-label="Close"]`:            {},
 		`#a:nth-child(2) .b::after`:       {{value: "a", mode: matchExact}, {value: "b", mode: matchExact}},
@@ -332,5 +340,54 @@ func TestAMAPV0099SecretShapedValues(t *testing.T) {
 	refs := scanRefs("page.goto('" + value + "'); page.getByTestId('" + value + "')")
 	if len(refs) != 2 || refs[0].v.reason != "secret-shaped" || refs[1].v.reason != "secret-shaped" || refs[0].v.value != "" {
 		t.Fatalf("%+v", refs)
+	}
+}
+
+// AMAP-V0-097: a map test file that is not read (its blob differs from the anchor) still stays out
+// of the corpus, so its names cannot satisfy another test's reference.
+func TestAMAPV0097UnreadTestNotCorpus(t *testing.T) {
+	root, _ := refsFixture(t)
+	writeFile(t, root, "e2e/specs/ghost.spec.ts", "test('g', async ({ page }) => { await page.getByTestId('ghost-only').click(); });\n")
+	writeFile(t, root, "e2e/pages/ghost.page.ts", "export const ghost = 'ghost-only';\n")
+	m := build(t, root, commitAll(t, root, "ghost"))
+	mismatch := *m
+	mismatch.Files = append([]TestFile{}, m.Files...)
+	found := false
+	for i, f := range mismatch.Files {
+		if f.Path == "e2e/pages/ghost.page.ts" {
+			mismatch.Files[i].Anchor.Blob, found = strings.Repeat("1", 40), true
+		}
+	}
+	if !found {
+		t.Fatalf("fixture files %+v", m.Files)
+	}
+	doc, _ := checkRefs(t, root, &mismatch, Options{Full: true}, "src", "e2e")
+	if doc.TestFilesUnread != 1 || doc.SourceFiles != 3 || !reflect.DeepEqual(missKeys(doc)[:4], []string{
+		"endpoint|invoices|exact|", "selector|cancel-order|exact|", "selector|ghost-only|exact|", "selector|secondary|exact|"}) {
+		t.Fatalf("%+v", doc)
+	}
+}
+
+// AMAP-V0-097: the 128 MiB corpus bound counts every source path, so identical blobs under many
+// paths cannot pass it by sharing one object.
+func TestAMAPV0097DuplicateBlobsBound(t *testing.T) {
+	root, _ := refsFixture(t)
+	writeFile(t, root, "src/big.ts", strings.Repeat("x", maxTestFileBytes))
+	commitAll(t, root, "big")
+	oid := gitTest(t, root, "rev-parse", "HEAD:src/big.ts")
+	var index strings.Builder
+	for i := 0; i < maxTestBytes/maxTestFileBytes; i++ {
+		fmt.Fprintf(&index, "100644 %s\tsrc/dup/%03d.ts\n", oid, i)
+	}
+	c := exec.Command("git", "update-index", "--index-info")
+	c.Dir, c.Stdin = root, strings.NewReader(index.String())
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("%v %s", err, out)
+	}
+	gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "dup")
+	m := build(t, root, gitTest(t, root, "rev-parse", "HEAD"))
+	if _, err := CheckRefs(context.Background(), m, []string{"src"}, Options{Root: root, Full: true}); codeOf(err) != "appmap-bound-exceeded" {
+		t.Fatalf("admitted %d paths of one blob: %v", maxTestBytes/maxTestFileBytes+1, err)
 	}
 }
