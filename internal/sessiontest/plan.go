@@ -41,15 +41,19 @@ type Input struct {
 	Partition      PartitionFiles
 	PlanDigest     string
 	PlanError      string
-	// Placement is PlacementUniverse (or empty, the same) or
-	// PlacementBalanced; the manifest records it (STR-V0-018).
+	// Placement is PlacementUniverse (or empty, the same),
+	// PlacementBalanced or PlacementMeasured; the manifest records it
+	// (STR-V0-018).
 	Placement     string
 	RunnerProfile string
 	Selected      []string // plan.selected unit ids
 	ShardCount    int
-	Source        SourceIdentity
-	Universe      []string // the graph's Go import paths
-	Unknown       []Unknown
+	// ShardPlan is the read corvint-test-shards/0 plan PlacementMeasured
+	// places by; its partition digest is the manifest's (STR-V0-054).
+	ShardPlan *ShardPlan
+	Source    SourceIdentity
+	Universe  []string // the graph's Go import paths
+	Unknown   []Unknown
 }
 
 // allowedUnknown is the closed AFP-V0-028 allowlist: every other plan.unknown
@@ -97,8 +101,16 @@ func Build(input Input) (Manifest, error) {
 	case "":
 		placement = PlacementUniverse
 	case PlacementUniverse, PlacementBalanced:
+	case PlacementMeasured:
+		if input.ShardPlan == nil {
+			return Manifest{}, fmt.Errorf("placement %s needs a shard plan", PlacementMeasured)
+		}
 	default:
-		return Manifest{}, fmt.Errorf("placement must be %s or %s", PlacementUniverse, PlacementBalanced)
+		return Manifest{}, fmt.Errorf("placement must be %s, %s or %s", PlacementUniverse, PlacementBalanced, PlacementMeasured)
+	}
+	partitionDigest := PartitionDigest(input.Partition)
+	if placement == PlacementMeasured {
+		partitionDigest = input.ShardPlan.PartitionDigest
 	}
 	sourceDigest, err := Digest(input.Source)
 	if err != nil {
@@ -110,7 +122,7 @@ func Build(input Input) (Manifest, error) {
 	}
 	manifest := Manifest{
 		Base: input.Base, Checks: nonNil(input.Checks), DeclaredDigest: declaredDigest,
-		GraphDigest: input.GraphDigest, Incomplete: []string{}, NoSuite: []string{}, PartitionDigest: PartitionDigest(input.Partition),
+		GraphDigest: input.GraphDigest, Incomplete: []string{}, NoSuite: []string{}, PartitionDigest: partitionDigest,
 		Placement: placement, PlanDigest: input.PlanDigest, Profile: ManifestProfile,
 		RunnerProfile: input.RunnerProfile, ShardCount: input.ShardCount, Source: input.Source,
 		SourceDigest: sourceDigest, Units: []Unit{},
@@ -211,6 +223,10 @@ func (m *Manifest) placeGo(input Input, run []string) {
 	// Longest first into the least-loaded shard puts the first N units on N
 	// different shards, so a run set of at least N units uses every shard.
 	// FULL keeps the complete-universe partition in either mode.
+	if m.Placement == PlacementMeasured {
+		m.placeMeasured(*input.ShardPlan, input.ShardCount, run)
+		return
+	}
 	placed, partition := input.Universe, "universe"
 	if m.Placement == PlacementBalanced && m.Scope == ScopeNarrowed {
 		set := map[string]bool{}
@@ -242,6 +258,41 @@ func (m *Manifest) placeGo(input Input, run []string) {
 				})
 			}
 		}
+	}
+}
+
+// placeMeasured puts every Go package of the run set, NARROWED or FULL,
+// whole on the shard the shard plan assigns it (STR-V0-054). A plan for
+// another shard count or one that omits a run-set package places nothing:
+// the run is INCOMPLETE rather than run on a guessed shard.
+func (m *Manifest) placeMeasured(plan ShardPlan, count int, run []string) {
+	if plan.Count != count {
+		m.Incomplete = append(m.Incomplete, fmt.Sprintf("go: the shard plan has %d shards, the run %d", plan.Count, count))
+		return
+	}
+	shardOf := map[string]int{}
+	for _, shard := range plan.Shards {
+		for _, file := range shard.Files {
+			shardOf[file] = shard.Index
+		}
+	}
+	set := map[string]bool{}
+	for _, pkg := range run {
+		set[pkg] = true
+	}
+	packages := sortedKeys(set)
+	missing := []string{}
+	for _, pkg := range packages {
+		if _, ok := shardOf[pkg]; !ok {
+			missing = append(missing, pkg)
+		}
+	}
+	if len(missing) != 0 {
+		m.Incomplete = append(m.Incomplete, fmt.Sprintf("go: the shard plan omits %d run-set packages, first %s", len(missing), missing[0]))
+		return
+	}
+	for _, pkg := range packages {
+		m.Units = append(m.Units, Unit{Adapter: AdapterGo, Shard: shardOf[pkg], Slice: SliceWhole, Unit: "go:" + pkg})
 	}
 }
 
