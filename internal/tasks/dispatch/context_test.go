@@ -341,6 +341,11 @@ func TestCALV0344_WorkerGetsContextFile(t *testing.T) {
 		return strings.TrimSpace(string(b))
 	}
 	tickUntil(t, d, func() bool { return stderr(d.ledger.Workers[0]) != "" && stderr(d.ledger.Workers[1]) != "" })
+	// tickUntil may return without ticking: a fast worker writes stderr
+	// before any later tick, and the launching tick supervised before it
+	// launched. The record is promised only after a supervising tick of the
+	// running worker (CAL-V0-344), so take one.
+	tick(t, d)
 	for _, w := range d.ledger.Workers {
 		want := "unset"
 		if w.Role == "impl" {

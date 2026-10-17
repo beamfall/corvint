@@ -7113,7 +7113,9 @@ and an unknown estimate never stops a worker.
   restarts, even if the estimate later drops or the threshold is lowered and crossed again. An
   UNKNOWN estimate crosses nothing. A record that cannot be written raises one alert per run of
   failed writes, records no crossing and emits no `context` event; the next tick tries again. A
-  record that cannot be read raises an alert once and is replaced by a fresh one.
+  record that cannot be read raises an alert once and is replaced by a fresh one. The CAL-V0-131
+  live format set gains `taskman-dispatch-context/0`, so replacing this build in place with an
+  earlier one needs a drain (CAL-V0-130).
 - `CAL-V0-344`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker
   launched with a context-capable usage format MUST receive `CORVINT_DISPATCH_CONTEXT_FILE`, the
   absolute path of its CAL-V0-343 record. The record is the worker's notice. A worker that finds
@@ -7198,9 +7200,10 @@ Acceptance evidence: `TestCALV0340_ContextConfigIsExactAndBounded`,
 `docs/build-log/2026-10-17-v1-1549-dispatch-context-thresholds.md`. Live qualification with real
 Claude Code or OpenCode sessions is NOT_RUN.
 
-Rollback: remove `context` from every role, then revert the code and this amendment. The ledger
-version does not change. An earlier build ignores the `context.json` records and refuses a
-configuration that still declares `context`.
+Rollback: remove `context` from every role, drain the dispatcher (its live format set differs,
+CAL-V0-130), then revert the code and this amendment. The ledger version does not change. An
+earlier build ignores the `context.json` records and refuses a configuration that still declares
+`context`.
 
 ## Amendments to TCP-00
 
@@ -7691,7 +7694,7 @@ and removes the new configuration members.
 | CAL-V0-340 | `TestCALV0340_ContextConfigIsExactAndBounded` (`internal/tasks/dispatch`); `docs/build-log/2026-10-17-v1-1549-dispatch-context-thresholds.md` |
 | CAL-V0-341 | `TestCALV0341_ContextEstimateFromRecognisedLinesOnly` (`internal/tasks/dispatch`) |
 | CAL-V0-342 | `TestCALV0342_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
-| CAL-V0-343 | `TestCALV0343_CrossingsRecordedOncePerSession` (`internal/tasks/dispatch`) |
+| CAL-V0-343 | `TestCALV0343_CrossingsRecordedOncePerSession` (`internal/tasks/dispatch`); `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
 | CAL-V0-344 | `TestCALV0344_WorkerGetsContextFile` (`internal/tasks/dispatch`) |
 | CAL-V0-345 | `TestCALV0345_HardStopHandsOffWithReason`, `TestCALV0345_UnknownEstimateNeverStops`, `TestCALV0345_DeferredAndRecoveredHandoffsKeepContext` (`internal/tasks/dispatch`) |
 | CAL-V0-346 | `TestCALV0346_ThresholdsHotReload` (`internal/tasks/dispatch`) |

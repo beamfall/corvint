@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // ContextProfile is the profile of a worker's CAL-V0-343 context record.
@@ -299,6 +300,10 @@ func ContextRecordPath(dir, worker string) string {
 func ReadContextRecord(dir, worker string) (*ContextRecord, error) {
 	raw, err := readBounded(ContextRecordPath(dir, worker), maxContextRecord)
 	if err != nil {
+		return nil, err
+	}
+	// A record another build wrote is UNSUPPORTED_VERSION (CAL-V0-131).
+	if err := wire.RawProfileVersion("/profile", raw, ContextProfile); err != nil {
 		return nil, err
 	}
 	var r ContextRecord

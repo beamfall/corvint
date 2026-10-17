@@ -75,5 +75,20 @@ The review-fix tests are `TestCALV0345_DeferredAndRecoveredHandoffsKeepContext`,
 `TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`), and
 `TestCALV0349_DispatchStatusShowsAppliedThresholds` (`internal/tasks/cli`).
 
+CI fixes (PR #1016, Linux shard 5 on 4f95382a4):
+
+- `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` failed because `taskman-dispatch-context/0` is
+  persisted and decoded again but was not in the CAL-V0-131 live format set. It is now in
+  `LiveFormats`, so an in-place replacement across this build needs a drain (CAL-V0-130).
+  `ReadContextRecord` refuses a newer-version record as `UNSUPPORTED_VERSION`, not `MALFORMED`;
+  `TestCALV0131_EveryLiveFormatRefusesANewerVersion` gained the row and fails without that check.
+  Residual: the dispatcher still replaces an unreadable record, including a newer build's, with a
+  fresh one after the alert (CAL-V0-343).
+- `TestCALV0344_WorkerGetsContextFile` assumed a supervising tick after the worker started.
+  `tickUntil` checks its condition before ticking, and the launching tick supervises before it
+  launches, so a fast worker could be checked with no supervising tick. The test now takes one
+  explicit tick before asserting (CAL-V0-344 promises the record only after one). A one-second
+  sleep before the wait reproduced the CI failure locally; with the fix the test passes five runs.
+
 Rollback: remove `context` from the role configurations, which disables the feature. To remove it
 completely, revert the change. Leftover `context.json` sidecars are inert.
