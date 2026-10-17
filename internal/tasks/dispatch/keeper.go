@@ -145,7 +145,7 @@ func (d *Dispatcher) keepLease(ctx context.Context, w *Worker, kl *KeepLease, ob
 	}
 	// CAL-V0-312: idle is the supervision activity signal (CAL-V0-056, CAL-V0-218)
 	// older than maxIdleSeconds; an idle worker's lease is left to run out.
-	idleFor := now.Sub(w.LastActive) - d.slept(w.LastActive, now)
+	idleFor := d.awake(w.LastActive, now)
 	if idleFor > time.Duration(kl.MaxIdleSeconds)*time.Second {
 		if k.State != keeperIdle {
 			k.State = keeperIdle

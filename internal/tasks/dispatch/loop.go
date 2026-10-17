@@ -735,9 +735,9 @@ func (d *Dispatcher) supervise() []*Worker {
 			reason = "ORPHANED"
 		case o.hard:
 			reason = "CONTEXT"
-		case role != nil && now.Sub(w.Started)-d.slept(w.Started, now) > time.Duration(role.WallSeconds)*time.Second:
+		case role != nil && d.awake(w.Started, now) > time.Duration(role.WallSeconds)*time.Second:
 			reason = "WALL"
-		case role != nil && now.Sub(w.LastActive)-d.slept(w.LastActive, now) > time.Duration(role.IdleSeconds)*time.Second:
+		case role != nil && d.awake(w.LastActive, now) > time.Duration(role.IdleSeconds)*time.Second:
 			reason = "IDLE"
 		}
 		if reason == "" {
@@ -909,7 +909,7 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 func (d *Dispatcher) reapRunningExpired(ctx context.Context, obs *Observation, w *Worker, a Attempt, now time.Time) bool {
 	grace := d.launchConfig(w).roleNamed(w.Role).ExpiredLeaseGrace()
 	// ATR-V0-064: time the host slept after the expiry does not count.
-	if now.Sub(a.LeaseExpires)-d.slept(a.LeaseExpires, now) <= grace {
+	if d.awake(a.LeaseExpires, now) <= grace {
 		return false
 	}
 	local := d.local(obs, a.Ticket)

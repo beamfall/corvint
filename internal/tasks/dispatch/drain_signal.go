@@ -1,7 +1,6 @@
 package dispatch
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -51,12 +50,10 @@ func ReadDrainSignal(path string) (*DrainSignal, error) {
 		return nil, err
 	}
 	var s DrainSignal
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&s); err != nil {
+	if err := decodeRecord(raw, &s); err != nil {
 		return nil, err
 	}
-	if _, err := time.Parse(time.RFC3339, s.Since); err != nil || s.Program == "" || s.Notice == "" {
+	if _, err := time.Parse(time.RFC3339, s.Since); err != nil || s.Profile != DrainSignalProfile || s.Program == "" || s.Notice == "" {
 		return nil, errors.New("drain signal is incomplete")
 	}
 	return &s, nil

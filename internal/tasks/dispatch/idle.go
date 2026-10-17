@@ -180,6 +180,7 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		early(d.retireConfirm) // a pending CAL-V0-144 confirmation
 	}
 	d.laneAgeDeadlines(early)
+	d.churnDeadlines(early)
 	if d.Config.PoolSweep != nil {
 		early(d.sweepNext)
 	}

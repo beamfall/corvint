@@ -451,7 +451,9 @@ Acceptance evidence: the writer-contention tests hold the store writer lock and 
 from a helper process: `TestATRV0050_ContendedPrelaunchWriteIsLockTimeout`,
 `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`,
 `TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees` and
-`TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`), plus
+`TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`), with
+`TestATRV0051_FailedOutcomeWriteIsRetried` (a first try that fails is retried under the same
+request id and recorded; tries that keep failing stop inside one budget), plus
 `TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`). Run against origin/main
 072a306f1 with only the write-budget test hook ported, the contention tests fail with `MALFORMED`
 `context deadline exceeded` (see `docs/build-log/2026-10-17-v1-1558-contended-store-writes.md`).
@@ -545,11 +547,16 @@ Intent: a documented signal that workers launched before the drain can read, a n
   detail `drain=PENDING`. When the control no longer drains, or the dispatcher is uncontrolled,
   the file MUST be removed, with one `alert` event `drain=LIFTED` when it existed. A failed control
   read leaves the file as it is. A failed write or removal alerts once. The CAL-V0-131 live
-  format set gains the profile.
+  format set gains the profile. This record, the ATR-V0-061 session-churn record and the
+  ATR-V0-063 host-sleep record read only when `profile` names their own profile and the object
+  is the whole file: a missing or other profile, an unknown member or data after the object does
+  not read.
 - `ATR-V0-059`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1600) While
   the file named by `CORVINT_DISPATCH_DRAIN_FILE` reads as that profile, every `claim` result,
   plain or detached, admitted, replayed or refused, MUST carry the warning
-  `DRAIN_PENDING since <since>: <notice>`. The claim itself is unchanged: during a drain the
+  `DRAIN_PENDING since <since>: <notice>`, exactly once. For a detached claim this covers the
+  `PENDING`, `LOST` and refused envelopes and a kept result that `--attach` replays after the
+  drain began. The claim itself is unchanged: during a drain the
   dispatcher launches no new worker (SERVICE500-003), so a claim comes from a worker already
   running, which the notice tells to finish, release and end. A signal that is absent or does not
   read adds nothing.
@@ -562,9 +569,11 @@ The signal can lag the control by one tick. A dispatcher killed during a drain l
 until its next tick, which removes it if the drain has lifted.
 
 Acceptance evidence: `TestATRV0058_DrainSignalReachesLiveWorkerAndClears` and
-`TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal` (`internal/tasks/dispatch`),
+`TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal` and
+`TestATRV0058_RecordReadersAreClosed` (`internal/tasks/dispatch`),
 `TestATRV0058_LaunchControlReportsDrain` (`internal/tasks/service`),
-`TestATRV0059_ClaimCarriesDrainNotice` (`internal/tasks/cli`), and the CAL-V0-131 row of
+`TestATRV0059_ClaimCarriesDrainNotice` and `TestATRV0059_DetachedEnvelopesCarryDrainNotice`
+(`internal/tasks/cli`), and the CAL-V0-131 row of
 `format_version_test.go`.
 
 Rollback: revert the code and this amendment. A leftover signal file is inert for an earlier
@@ -586,7 +595,9 @@ no result. Intent: an opt-in hold after repeated short sessions on one ticket, v
   hold new launches of that ticket until `holdSeconds` after that session's end; a later short
   session extends the streak and renews the hold. When no role and no global setting is applied,
   the dispatcher MUST track nothing and hold nothing, and a reload that removes the setting lifts
-  every hold on its next tick. Lane keys are not tracked.
+  every hold on its next tick. Lane keys are not tracked. A hold's `holdUntil` MUST be a wake
+  deadline of an idle StoreWitness dispatcher (CAL-V0-139), so the held ticket launches when its
+  hold ends rather than at the next full pass.
 - `ATR-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The streaks MUST be kept in `session-churn.json` in the program's
   state directory, in the closed profile `taskman-dispatch-session-churn/0`, so that they survive a
   dispatcher restart and `dispatch status` can read them. Each hold MUST emit one `cooldown` event
@@ -614,8 +625,8 @@ bound is fixed.
 
 Acceptance evidence: `TestATRV0060_ShortSessionsHoldThenLongSessionResets`,
 `TestATRV0060_AbsentSettingIsUnchangedAndRoleOverrides`,
-`TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation`
-and `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`),
+`TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation`,
+`TestATRV0060_IdleGateWakesAtHoldEnd` and `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`),
 `TestATRV0061_DispatchStatusShowsShortSessionHold` and `TestATRV0062_DoctorSessionChurn`
 (`internal/tasks/cli`), and the CAL-V0-131 row of `format_version_test.go`.
 
@@ -641,8 +652,10 @@ suspend, report it once, and keep it out of the dispatcher's own timers.
 - `ATR-V0-064`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time of recorded gaps MUST be excluded from a running
   worker's wall cap (from launch), idle cap and lease-keeper `maxIdleSeconds` (from last activity),
   and from the CAL-V0-191 expired-lease grace (from the lease's expiry), so that none fires because
-  of a suspend and each counts again from the wake. Without a recorded gap these timers are
-  unchanged.
+  of a suspend and each counts again from the wake. Where both instants carry a monotonic
+  reading, the elapsed time is their monotonic difference, which already omits a suspend, and no
+  gap is subtracted again; gaps are subtracted only from a wall-clock difference, such as a
+  timestamp read back from a record. Without a recorded gap these timers are unchanged.
 - `ATR-V0-065`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatch status` MUST show a `hostSleep` member with
   `lastGap` (`from`, `to`, `seconds`) and `gaps` (the number kept) when the record exists, and
   `state=UNKNOWN` with the reason when it does not read.
@@ -658,10 +671,10 @@ excluded as one; the gap is attributed to the start of the interval between the 
 Acceptance evidence: `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers` (a three-hour gap is
 recorded once, neither the wall nor the idle cap fires and the expired lease is not reaped, then
 the grace counts from the wake), `TestATRV0063_NoGapLeavesTimersUnchanged` and
-`TestATRV0063_RecordVersions` (`internal/tasks/dispatch`),
-`TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`), and the CAL-V0-131 row of
-`format_version_test.go`. The lease keeper's idle check uses the same exclusion and has no
-separate test.
+`TestATRV0063_RecordVersions` and `TestATRV0064_MonotonicTimestampsAreNotDiscountedTwice` (the
+wall cap, idle cap and keeper idle check over timestamps with monotonic readings)
+(`internal/tasks/dispatch`), `TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`), and the CAL-V0-131 row of
+`format_version_test.go`.
 
 Rollback: revert the code and this amendment; a leftover record file is inert for an earlier
 build.
@@ -861,7 +874,7 @@ receipt or wire shape changes.
 | ATR-V0-038 | `internal/tasks/dispatch/context.go` | `TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`) |
 | ATR-V0-039 | `internal/tasks/cli/dispatch.go`, `internal/tasks/dispatch/context.go` | `TestATRV0039_DispatchStatusShowsAppliedThresholds`, `TestATRV0032_DispatchStatusShowsContextEstimate` (`internal/tasks/cli`) |
 | ATR-V0-050 | `internal/tasks/wire/context.go` (`ContextEnded`), `internal/tasks/wire/retry.go`, `internal/tasks/store/policy.go` (`administrativeWriteWith`), `internal/tasks/cli/attempt_run.go` (`prepare`) | `TestATRV0050_ContendedPrelaunchWriteIsLockTimeout` (`internal/tasks/cli`), `TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`) |
-| ATR-V0-051 | `internal/tasks/cli/attempt_run.go` (`recordOutcome`, `finish`) | `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`, `TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees` (`internal/tasks/cli`) |
+| ATR-V0-051 | `internal/tasks/cli/attempt_run.go` (`recordOutcome`, `finish`) | `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`, `TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees`, `TestATRV0051_FailedOutcomeWriteIsRetried` (`internal/tasks/cli`) |
 | ATR-V0-052 | `internal/tasks/cli/attempt_run.go` (`finish`) | `TestATRV0051_ContendedTimedOutRunExits127WithOneItem`, `TestATRV0004_UnrecordedOutcomeExits127` (`internal/tasks/cli`) |
 | ATR-V0-053 | `internal/tasks/cli/lease.go`, `internal/tasks/cli/lease_detach.go` (`leaseDetachRunChild`), `internal/tasks/cli/cli.go` | `TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`) |
 | ATR-V0-066 | `internal/tasks/cli/lease_detach.go` (`leaseDetachKept`, `leaseDetachLaunch`) | `TestATRV0066_KeptLockTimeoutRelaunchesOnSameRequestID` (`internal/tasks/cli`) |
@@ -869,11 +882,11 @@ receipt or wire shape changes.
 | ATR-V0-055 | `internal/tasks/dispatch/context.go` (`contextFor`) | `TestATRV0055_CorruptContextRecordIsReplacedAfterOneAlert` (`internal/tasks/dispatch`) |
 | ATR-V0-056 | `internal/tasks/cli/dispatch.go` (`dispatchAux`, `dispatchContextNoticeValue`), `internal/tasks/cli/command_help.go` | `TestATRV0056_DispatchStatusWorkerShowsContextNotice` (`internal/tasks/cli`) |
 | ATR-V0-057 | `internal/tasks/dispatch/detached.go` (`decodeDetachedMarker`, `validMarkerContext`, `advanceDetached`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0057_DeferredContextHandoffSurvivesRestart`, `TestATRV0057_MarkerVersionsAndContextMember` (`internal/tasks/dispatch`) |
-| ATR-V0-058 | `internal/tasks/dispatch/drain_signal.go`, `internal/tasks/dispatch/loop.go` (`tick`, worker env), `internal/tasks/service/fence.go` (`Draining`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0058_DrainSignalReachesLiveWorkerAndClears`, `TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal` (`internal/tasks/dispatch`), `TestATRV0058_LaunchControlReportsDrain` (`internal/tasks/service`) |
-| ATR-V0-059 | `internal/tasks/cli/lease.go` (`withDrainNotice`) | `TestATRV0059_ClaimCarriesDrainNotice` (`internal/tasks/cli`) |
-| ATR-V0-060 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/dispatch/config.go` (`shortSessions`), `internal/tasks/dispatch/loop.go` (`finish`, `launchRoster`, `tick`) | `TestATRV0060_ShortSessionsHoldThenLongSessionResets`, `TestATRV0060_AbsentSettingIsUnchangedAndRoleOverrides`, `TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation` (`internal/tasks/dispatch`) |
-| ATR-V0-061 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/cli/dispatch.go` (`dispatchSessionChurnValue`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`), `TestATRV0061_DispatchStatusShowsShortSessionHold` (`internal/tasks/cli`) |
+| ATR-V0-058 | `internal/tasks/dispatch/drain_signal.go`, `internal/tasks/dispatch/loop.go` (`tick`, worker env), `internal/tasks/service/fence.go` (`Draining`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0058_DrainSignalReachesLiveWorkerAndClears`, `TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal`, `TestATRV0058_RecordReadersAreClosed` (`internal/tasks/dispatch`), `TestATRV0058_LaunchControlReportsDrain` (`internal/tasks/service`) |
+| ATR-V0-059 | `internal/tasks/cli/lease.go` (`withDrainNotice`, `leaseDetachClaim`) | `TestATRV0059_ClaimCarriesDrainNotice`, `TestATRV0059_DetachedEnvelopesCarryDrainNotice` (`internal/tasks/cli`) |
+| ATR-V0-060 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/dispatch/config.go` (`shortSessions`), `internal/tasks/dispatch/loop.go` (`finish`, `launchRoster`, `tick`), `internal/tasks/dispatch/idle.go` (`idleSettle`) | `TestATRV0060_ShortSessionsHoldThenLongSessionResets`, `TestATRV0060_AbsentSettingIsUnchangedAndRoleOverrides`, `TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation`, `TestATRV0060_IdleGateWakesAtHoldEnd` (`internal/tasks/dispatch`) |
+| ATR-V0-061 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/cli/dispatch.go` (`dispatchSessionChurnValue`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0061_RecordVersions`, `TestATRV0058_RecordReadersAreClosed` (`internal/tasks/dispatch`), `TestATRV0061_DispatchStatusShowsShortSessionHold` (`internal/tasks/cli`) |
 | ATR-V0-062 | `internal/tasks/cli/doctor_churn.go`, `internal/tasks/cli/doctor.go` (`doctorStoreFindings`) | `TestATRV0062_DoctorSessionChurn` (`internal/tasks/cli`) |
-| ATR-V0-063 | `internal/tasks/dispatch/host_sleep.go` (`noteHostSleep`), `internal/tasks/dispatch/loop.go` (`tick`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0063_RecordVersions` (`internal/tasks/dispatch`) |
-| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged` (`internal/tasks/dispatch`) |
+| ATR-V0-063 | `internal/tasks/dispatch/host_sleep.go` (`noteHostSleep`), `internal/tasks/dispatch/loop.go` (`tick`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0063_RecordVersions`, `TestATRV0058_RecordReadersAreClosed` (`internal/tasks/dispatch`) |
+| ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`, `awake`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0064_MonotonicTimestampsAreNotDiscountedTwice` (`internal/tasks/dispatch`) |
 | ATR-V0-065 | `internal/tasks/cli/dispatch.go` (`dispatchHostSleepValue`) | `TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`) |

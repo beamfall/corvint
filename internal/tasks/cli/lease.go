@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -737,6 +739,32 @@ func withDrainNotice(res *wire.Result) *wire.Result {
 	if err != nil {
 		return res
 	}
-	res.Warnings = append(res.Warnings, "DRAIN_PENDING since "+s.Since+": "+s.Notice)
+	notice := "DRAIN_PENDING since " + s.Since + ": " + s.Notice
+	if !slices.Contains(res.Warnings, notice) {
+		res.Warnings = append(res.Warnings, notice)
+	}
 	return res
+}
+
+// leaseDetachClaim runs a detached claim and gives whatever envelope it
+// prints, PENDING, LOST, refused or a kept result replayed after the drain
+// began, the drain notice (ATR-V0-059). Output it cannot decode, and an
+// envelope that needs no notice, pass through byte for byte.
+func leaseDetachClaim(env Env, args []string) int {
+	out := env.Stdout
+	var buf bytes.Buffer
+	env.Stdout = &buf
+	code := leaseDetach(env, "claim", args)
+	raw := buf.Bytes()
+	if res, err := wire.DecodeResult(raw); err == nil {
+		before := len(res.Warnings)
+		if withDrainNotice(res); len(res.Warnings) != before {
+			if emit(out, res) != 0 && code == 0 {
+				return 1
+			}
+			return code
+		}
+	}
+	_, _ = out.Write(raw)
+	return code
 }

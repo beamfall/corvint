@@ -208,7 +208,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
 	case "health", "claim", "renew", "reap", "widen", "submit", "complete":
 		if args[0] == "claim" && leaseDetachRequested(args[1:]) {
-			return leaseDetach(env, "claim", args[1:])
+			return leaseDetachClaim(env, args[1:])
 		}
 		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
 	case "doctor":

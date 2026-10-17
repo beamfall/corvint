@@ -36,6 +36,15 @@ func SetAttemptWriteFault(fault func(verb string) error) func() {
 	return func() { attemptWriteFault = was }
 }
 
+// SetRunOutcomeTryFault makes fault decide, before each try of the
+// runner's outcome write, whether that try fails; it returns the restore
+// function.
+func SetRunOutcomeTryFault(fault func(requestID string) error) func() {
+	was := runOutcomeTryFault
+	runOutcomeTryFault = fault
+	return func() { runOutcomeTryFault = was }
+}
+
 // SetAttemptGroupSignalFault makes the owned group's SIGKILL fail without
 // being sent, so retirement cannot be proved and cleanup HOLDs; it returns
 // the restore function. Use it only with a command that exits by itself.

@@ -1,7 +1,6 @@
 package dispatch
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -95,12 +94,10 @@ func ReadSessionChurn(path string) (*SessionChurn, error) {
 		return nil, err
 	}
 	var c SessionChurn
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&c); err != nil {
+	if err := decodeRecord(raw, &c); err != nil {
 		return nil, err
 	}
-	if c.Program == "" || c.Tickets == nil {
+	if c.Profile != SessionChurnProfile || c.Program == "" || c.Tickets == nil {
 		return nil, errors.New("session churn record is incomplete")
 	}
 	for k, s := range c.Tickets {
@@ -237,6 +234,20 @@ func (d *Dispatcher) noteSession(w *Worker, now time.Time) {
 			Detail: map[string]string{"reason": ChurnReason, "sessions": strconv.Itoa(s.Streak), "medianSeconds": strconv.Itoa(s.MedianSeconds()), "firstSeen": s.FirstSeen, "holdUntil": s.HoldUntil}})
 	}
 	d.saveChurn()
+}
+
+// churnDeadlines passes early the end of every short-session hold
+// (ATR-V0-060): a hold ends on the clock with no store change, so the idle
+// gate must wake for it.
+func (d *Dispatcher) churnDeadlines(early func(time.Time)) {
+	if !d.Config.shortSessionsConfigured() || d.churn == nil {
+		return
+	}
+	for _, s := range d.churn.Tickets {
+		if t, err := time.Parse(time.RFC3339, s.HoldUntil); err == nil {
+			early(t)
+		}
+	}
 }
 
 // churnHeld marks every ticket whose streak holds launches at now.

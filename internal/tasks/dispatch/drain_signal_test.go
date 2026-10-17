@@ -4,6 +4,7 @@ package dispatch
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -113,5 +114,58 @@ func TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal(t *testing.T) {
 	}
 	if _, err := os.Stat(signal); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("leftover signal kept: %v", err)
+	}
+}
+
+// ATR-V0-058, ATR-V0-061, ATR-V0-063: the drain signal, session churn and
+// host sleep readers accept only their own profile and exactly one object:
+// a record without a profile, with an empty one, or followed by any other
+// data is refused.
+func TestATRV0058_RecordReadersAreClosed(t *testing.T) {
+	at := "2026-10-17T09:00:00Z"
+	for name, tc := range map[string]struct {
+		valid any
+		read  func(string) error
+	}{
+		"drain": {DrainSignal{Profile: DrainSignalProfile, Program: "p", Since: at, Notice: "draining"},
+			func(p string) error { _, err := ReadDrainSignal(p); return err }},
+		"churn": {SessionChurn{Profile: SessionChurnProfile, Program: "p", Tickets: map[string]*ChurnStreak{"k": {Durations: []int{10}, Streak: 1, FirstSeen: at, LastEnd: at}}},
+			func(p string) error { _, err := ReadSessionChurn(p); return err }},
+		"sleep": {HostSleep{Profile: HostSleepProfile, Program: "p", Gaps: []SleepGap{{From: at, To: "2026-10-17T10:00:00Z", Seconds: 3600}}},
+			func(p string) error { _, err := ReadHostSleep(p); return err }},
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := json.Marshal(tc.valid)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var m map[string]any
+			if err := json.Unmarshal(raw, &m); err != nil {
+				t.Fatal(err)
+			}
+			delete(m, "profile")
+			missing, _ := json.Marshal(m)
+			m["profile"] = ""
+			empty, _ := json.Marshal(m)
+			path := filepath.Join(t.TempDir(), "record.json")
+			for _, c := range []struct {
+				label string
+				body  string
+				ok    bool
+			}{
+				{"valid", string(raw) + "\n", true},
+				{"missing profile", string(missing), false},
+				{"empty profile", string(empty), false},
+				{"trailing garbage", string(raw) + "garbage", false},
+				{"second object", string(raw) + "\n{}", false},
+			} {
+				if err := os.WriteFile(path, []byte(c.body), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := tc.read(path); (err == nil) != c.ok {
+					t.Fatalf("%s: err %v, want ok=%v", c.label, err, c.ok)
+				}
+			}
+		})
 	}
 }

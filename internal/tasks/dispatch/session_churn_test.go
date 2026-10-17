@@ -4,6 +4,7 @@ package dispatch
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -208,4 +209,50 @@ func TestATRV0060_ShortSessionsValidation(t *testing.T) {
 			t.Fatalf("role accepted %+v", s)
 		}
 	}
+}
+
+// ATR-V0-060: on the production store-witness path the idle gate wakes at a
+// short-session hold's end, so the held ticket launches when the hold
+// expires rather than at the gate's full-read fallback.
+func TestATRV0060_IdleGateWakesAtHoldEnd(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Cap = 1
+	c.Backoff.ParkAfter = 100
+	c.ShortSessions = &ShortSessions{Seconds: 60, Count: 3, HoldSeconds: 600}
+	q := &witnessQueue{witness: "w1"}
+	q.obs.Tickets = []Ticket{ticket("t1", "P1", 1)}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	clock := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	d.Now = func() time.Time { return clock }
+	tick(t, d)
+	for _, secs := range []int{10, 20, 15} {
+		waitEnded(t, d)
+		clock = clock.Add(time.Duration(secs) * time.Second)
+		tick(t, d)
+	}
+	launched := func() int { return len(eventsOf(t, d, "launched")) }
+	if n := launched(); n != 3 {
+		t.Fatalf("%d launches before the hold, want 3", n)
+	}
+	// Reach the fixed point: unchanged ticks arm the idle gate.
+	for i := 0; i < 3; i++ {
+		clock = clock.Add(time.Second)
+		tick(t, d)
+	}
+	before := q.observes
+	clock = clock.Add(time.Second)
+	tick(t, d)
+	if q.observes != before || d.idle == nil {
+		t.Fatalf("the idle gate is not armed during the hold: %d -> %d observations", before, q.observes)
+	}
+	clock = clock.Add(600 * time.Second) // past holdUntil, well before the gate's fallback
+	tick(t, d)
+	if n := launched(); n != 4 || q.observes == before {
+		t.Fatalf("the hold's end did not wake the idle gate: %d launches, %d observations", n, q.observes)
+	}
+	waitEnded(t, d)
 }

@@ -49,3 +49,57 @@ func TestATRV0059_ClaimCarriesDrainNotice(t *testing.T) {
 		t.Fatalf("claim after the drain lifted: %s", again.stdout)
 	}
 }
+
+// ATR-V0-059: every envelope a detached claim prints carries the drain
+// notice: PENDING, a refused attach, and a replay of a result the child
+// kept before the drain began, which carries it exactly once.
+func TestATRV0059_DetachedEnvelopesCarryDrainNotice(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	signal := filepath.Join(t.TempDir(), "drain-pending.json")
+	t.Setenv("CORVINT_DISPATCH_DRAIN_FILE", signal)
+	drain := func() {
+		t.Helper()
+		if err := os.WriteFile(signal, []byte(`{"profile":"taskman-dispatch-drain-pending/0","program":"prog","since":"2026-10-17T09:00:00Z","notice":"finish and end"}`+"\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	notices := func(r *wire.Result) int {
+		n := 0
+		for _, w := range r.Warnings {
+			if strings.HasPrefix(w, "DRAIN_PENDING ") {
+				n++
+			}
+		}
+		return n
+	}
+	drain()
+	held := holdPreparation(t, repo)
+	released := false
+	t.Cleanup(func() {
+		if !released {
+			_ = held.Close()
+		}
+	})
+	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-pending"}
+	if x := cliRun(t, root, append(claim, "--detach")...); x.code != 75 || field(x.res.Items[0], "state").Str != "PENDING" || !drainWarned(x.res) {
+		t.Fatalf("PENDING detached claim during the drain: code %d %s", x.code, x.stdout)
+	}
+	if x := cliRun(t, root, "claim", "--attach", "--request-id", "claim-unknown"); x.res.Outcome == wire.OutcomeOK || !drainWarned(x.res) {
+		t.Fatalf("refused attach during the drain: %s", x.stdout)
+	}
+	// The child commits after the drain lifts, so its kept result has no notice.
+	if err := os.Remove(signal); err != nil {
+		t.Fatal(err)
+	}
+	released = true
+	if err := held.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if x := cliRun(t, root, "claim", "--attach", "--request-id", "claim-pending", "--wait", "60"); x.code != 0 || notices(x.res) != 0 {
+		t.Fatalf("attach without a drain: code %d %s", x.code, x.stdout)
+	}
+	drain()
+	if x := cliRun(t, root, "claim", "--attach", "--request-id", "claim-pending"); x.code != 0 || notices(x.res) != 1 || !drainWarned(x.res) {
+		t.Fatalf("replayed detached claim during the drain: code %d %s", x.code, x.stdout)
+	}
+}

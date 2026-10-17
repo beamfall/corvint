@@ -113,3 +113,67 @@ func TestATRV0063_RecordVersions(t *testing.T) {
 		})
 	}
 }
+
+// monoGap records one suspend gap of length gap starting at wall time from,
+// as an earlier tick of this process would have.
+func monoGap(d *Dispatcher, from time.Time, gap time.Duration) {
+	d.loadSleep()
+	from = from.Round(0).UTC().Truncate(time.Second)
+	d.sleep.Gaps = append(d.sleep.Gaps, SleepGap{From: from.Format(time.RFC3339), To: from.Add(gap).Format(time.RFC3339), Seconds: int(gap / time.Second)})
+}
+
+// ATR-V0-064: timestamps that carry Go's monotonic reading already exclude a
+// suspend, so a recorded gap inside them is not subtracted a second time
+// from the wall cap, the idle cap or the lease keeper's idle check.
+func TestATRV0064_MonotonicTimestampsAreNotDiscountedTwice(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		after   time.Duration
+		reason  string
+		wall    int
+		idle    int
+		gapFrom time.Duration
+	}{
+		{"wall", 2*time.Hour + time.Second, "WALL", 7200, 100000, 10 * time.Minute},
+		{"idle", time.Hour + time.Second, "IDLE", 100000, 3600, 10 * time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			start := time.Now() // carries a monotonic reading
+			if !hasMonotonic(start) {
+				t.Fatal("time.Now has no monotonic reading")
+			}
+			now := start
+			q := &refusingQueue{fakeQueue: &fakeQueue{}}
+			d, w := leaseRig(t, q, &now, start.Add(48*time.Hour), func(c *Config) {
+				c.Roles[0].WallSeconds, c.Roles[0].IdleSeconds = tc.wall, tc.idle
+			})
+			monoGap(d, start.Add(tc.gapFrom), 30*time.Minute)
+			now = start.Add(tc.after) // monotonic and wall advance together
+			tick(t, d)
+			if w.State != "KILLING" || w.KillReason != tc.reason {
+				t.Fatalf("state %q reason %q, want %s: the recorded gap was subtracted from a monotonic difference", w.State, w.KillReason, tc.reason)
+			}
+		})
+	}
+	t.Run("keeper", func(t *testing.T) {
+		start := time.Now()
+		now := start
+		q := &keeperQueue{fakeQueue: &fakeQueue{}, now: &now}
+		d, w := keeperRig(t, q, q.fakeQueue, &now, start.Add(5*time.Minute), &KeepLease{IntervalSeconds: 30, LeaseMinutes: 5, MaxIdleSeconds: 120})
+		tick(t, d)
+		monoGap(d, start.Add(10*time.Second), 100*time.Second)
+		now = start.Add(150 * time.Second)
+		tick(t, d)
+		if w.Keeper == nil || w.Keeper.State != keeperIdle {
+			t.Fatalf("keeper %+v, want idle after 150 awake seconds over maxIdleSeconds 120", w.Keeper)
+		}
+	})
+	// Without monotonic readings the recorded gap is still excluded.
+	d := &Dispatcher{}
+	d.sleep = &HostSleep{Profile: HostSleepProfile, Program: "p"}
+	base := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	monoGap(d, base, time.Hour)
+	if got := d.awake(base, base.Add(90*time.Minute)); got != 30*time.Minute {
+		t.Fatalf("wall awake %s, want 30m", got)
+	}
+}

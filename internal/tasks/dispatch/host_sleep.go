@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"path/filepath"
 	"strconv"
@@ -61,12 +62,10 @@ func ReadHostSleep(path string) (*HostSleep, error) {
 		return nil, err
 	}
 	var h HostSleep
-	dec := json.NewDecoder(bytes.NewReader(raw))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&h); err != nil {
+	if err := decodeRecord(raw, &h); err != nil {
 		return nil, err
 	}
-	if h.Program == "" || len(h.Gaps) == 0 || len(h.Gaps) > maxSleepGaps {
+	if h.Profile != HostSleepProfile || h.Program == "" || len(h.Gaps) == 0 || len(h.Gaps) > maxSleepGaps {
 		return nil, errors.New("host sleep record is incomplete")
 	}
 	for _, g := range h.Gaps {
@@ -75,6 +74,21 @@ func ReadHostSleep(path string) (*HostSleep, error) {
 		}
 	}
 	return &h, nil
+}
+
+// decodeRecord decodes exactly one JSON object with no unknown member into v
+// and refuses any data after it (ATR-V0-058, ATR-V0-061, ATR-V0-063 closed
+// records).
+func decodeRecord(raw []byte, v any) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return errors.New("record has data after its object")
+	}
+	return nil
 }
 
 // noteHostSleep compares the wall and monotonic clocks since the previous
@@ -144,6 +158,23 @@ func (d *Dispatcher) loadSleep() {
 	}
 	d.sleep = &HostSleep{Profile: HostSleepProfile, Program: d.Program}
 }
+
+// awake is the time in [since, now] that the host was not suspended
+// (ATR-V0-064). When both readings carry Go's monotonic clock, which does not
+// advance during a suspend, their difference already excludes the suspend and
+// the recorded gaps are not subtracted again; otherwise (a reading restored
+// from disk, a store time or an injected wall clock) it is the wall
+// difference less the recorded gaps.
+func (d *Dispatcher) awake(since, now time.Time) time.Duration {
+	if hasMonotonic(since) && hasMonotonic(now) {
+		return now.Sub(since)
+	}
+	return now.Round(0).Sub(since.Round(0)) - d.slept(since, now)
+}
+
+// hasMonotonic reports whether t carries a monotonic clock reading, which
+// Round(0) strips.
+func hasMonotonic(t time.Time) bool { return t != t.Round(0) }
 
 // slept is the suspended time inside [since, now] across the recorded gaps
 // (ATR-V0-064). Without a recorded gap it is zero.

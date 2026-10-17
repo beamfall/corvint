@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"syscall"
 	"testing"
 	"time"
@@ -131,9 +132,10 @@ func TestATRV0051_ContendedTimedOutRunExits127WithOneItem(t *testing.T) {
 	}
 }
 
-// TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees: a retryable outcome
-// write is retried with the same request id within the budget, so a holder
-// that releases in time leaves a recorded timeout that exits 124.
+// TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees: an outcome write
+// contended by a holder that releases within the budget leaves a recorded
+// timeout that exits 124. TestATRV0051_FailedOutcomeWriteIsRetried proves
+// the retry itself.
 func TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees(t *testing.T) {
 	root, a := attemptStore(t)
 	defer cli.SetRunWriteBudget(20 * time.Second)()
@@ -152,6 +154,60 @@ func TestATRV0051_OutcomeWriteRetriesUntilTheLockFrees(t *testing.T) {
 		t.Fatalf("want a recorded timeout exiting 124: code %d %s", r.code, r.stdout)
 	}
 	recordedOutcome(t, root, r)
+}
+
+// TestATRV0051_FailedOutcomeWriteIsRetried: an outcome write whose try
+// fails with a retryable code is tried again under the same request id, so
+// a run whose first try fails is still recorded and exits 124; tries that
+// keep failing stop within the one budget and exit 127 (ATR-V0-051).
+func TestATRV0051_FailedOutcomeWriteIsRetried(t *testing.T) {
+	t.Run("retried", func(t *testing.T) {
+		root, a := attemptStore(t)
+		defer cli.SetRunWriteBudget(10 * time.Second)()
+		var ids []string
+		defer cli.SetRunOutcomeTryFault(func(id string) error {
+			ids = append(ids, id)
+			if len(ids) == 1 {
+				return wire.Errorf(wire.CodeLockTimeout, "run outcome", "injected first-try failure")
+			}
+			return nil
+		})()
+		r := runAttempt(t, root, a, gen(a), []string{"--timeout", "1"}, "/bin/sh", "-c", "exec sleep 30")
+		noMalformed(t, r)
+		if r.code != 124 || len(r.res.Items) != 1 || field(r.res.Items[0], "class").Str != transaction.RunTimeout {
+			t.Fatalf("want a recorded timeout exiting 124: code %d %s", r.code, r.stdout)
+		}
+		if len(ids) != 2 || ids[0] == "" || ids[0] != ids[1] {
+			t.Fatalf("want two tries under one request id, got %q", ids)
+		}
+		recordedOutcome(t, root, r)
+	})
+	t.Run("budget", func(t *testing.T) {
+		root, a := attemptStore(t)
+		const budget = 1500 * time.Millisecond
+		defer cli.SetRunWriteBudget(budget)()
+		var ids []string
+		var first time.Time
+		defer cli.SetRunOutcomeTryFault(func(id string) error {
+			if first.IsZero() {
+				first = time.Now()
+			}
+			ids = append(ids, id)
+			return wire.Errorf(wire.CodeLockTimeout, "run outcome", "injected failure")
+		})()
+		r := runAttempt(t, root, a, gen(a), []string{"--timeout", "1"}, "/bin/sh", "-c", "exec sleep 30")
+		spent := time.Since(first)
+		noMalformed(t, r)
+		if r.code != 127 || !hasCode(r.res, wire.CodeLockTimeout) || len(r.res.Items) != 1 {
+			t.Fatalf("want 127 with LOCK_TIMEOUT: code %d %s", r.code, r.stdout)
+		}
+		if len(ids) < 2 || slices.ContainsFunc(ids, func(id string) bool { return id != ids[0] }) {
+			t.Fatalf("want repeated tries under one request id, got %q", ids)
+		}
+		if spent > budget+2*time.Second {
+			t.Fatalf("tries outlived the one budget: %v", spent)
+		}
+	})
 }
 
 // TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout: a detached

@@ -58,9 +58,12 @@ const runOutcomeBackoff = 250 * time.Millisecond
 // Test-only fault injection; both are zero in production. attemptWriteFault,
 // when set, can fail a lease write of the named verb before it is attempted;
 // attemptGroupPrimitives replaces the owned group's host operations.
+// runOutcomeTryFault, when set, can fail one try of the outcome write
+// before it reaches the store.
 var (
 	attemptWriteFault      func(verb string) error
 	attemptGroupPrimitives groupreap.Primitives
+	runOutcomeTryFault     func(requestID string) error
 )
 
 // runnerSignals end a started run through the group stop and outcome path
@@ -609,10 +612,17 @@ func (r *attemptRunner) finish(out transaction.RunOutcome) int {
 func (r *attemptRunner) recordOutcome(raw []byte) (*store.Report, error) {
 	id, deadline := r.nextID(), time.Now().Add(runWriteBudget)
 	for {
-		ctx, cancel := context.WithDeadline(writerContext(), deadline)
-		report, err := store.RecordRunOutcome(ctx, r.repo, r.actor, r.queueID, id, r.attemptID, r.generation, raw, nowStamp())
-		cancel()
-		err = wire.ContextEnded(err, "run outcome")
+		var report *store.Report
+		var err error
+		if runOutcomeTryFault != nil {
+			err = runOutcomeTryFault(id)
+		}
+		if err == nil {
+			ctx, cancel := context.WithDeadline(writerContext(), deadline)
+			report, err = store.RecordRunOutcome(ctx, r.repo, r.actor, r.queueID, id, r.attemptID, r.generation, raw, nowStamp())
+			cancel()
+			err = wire.ContextEnded(err, "run outcome")
+		}
 		if err == nil || !wire.RetryOf(wire.CodeOf(err)).Retryable || time.Now().Add(runOutcomeBackoff).After(deadline) {
 			return report, err
 		}
