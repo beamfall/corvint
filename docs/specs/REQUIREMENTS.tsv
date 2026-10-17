@@ -1667,9 +1667,9 @@ EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	85	stderr MUST
 EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	88	MCP MUST be selected only through the accepted bounded stdio profile in	unrecorded	-
 EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	91	A remote (network) transport is NO-GO on the default local path (decision 0318).	unrecorded	-
 EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	95	The optional authoring-kit checker MUST require and verify an exact lowercase	unrecorded	-
-EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record on any transport MAY carry one optional top-level member `capabilities`	unrecorded	-
-EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires	unrecorded	-
-EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in	unrecorded	-
+EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	(accepted, owner 2026-10-17, decision 0539; V1-0102) A record on any transport M	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	(accepted, owner 2026-10-17, decision 0539; V1-0102) When a list is declared, Co	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	(accepted, owner 2026-10-17, decision 0539; V1-0102) A declared capability never	owner	2026-10-17; decision 0539; V1-0102
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly	unrecorded	-
 EEP-V0-002	docs/specs/external-evidence-provider-v0.md	70	`corvint impact --provider FILE PATH...` selects a provider record; the option M	unrecorded	-
 EEP-V0-003	docs/specs/external-evidence-provider-v0.md	74	Provider output appears only under `context.external`. With the same paths, limi	unrecorded	-
