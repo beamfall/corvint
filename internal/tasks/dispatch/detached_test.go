@@ -5,6 +5,7 @@ package dispatch
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -511,7 +512,7 @@ func TestCALV0147_MalformedMarkerIsRemoved(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, ".tmp-1"), nil, 0o600)
 	// Another build's marker version is held unread, not removed (CAL-V0-131).
 	const newer = "00000000000000ff"
-	os.WriteFile(filepath.Join(dir, newer+".json"), []byte(`{"profile":"taskman-dispatch-detached-run/1","runId":"`+newer+`","zzNewerMember":1}`), 0o600)
+	os.WriteFile(filepath.Join(dir, newer+".json"), []byte(`{"profile":"taskman-dispatch-detached-run/2","runId":"`+newer+`","zzNewerMember":1}`), 0o600)
 	views, bad, err := DetachedMarkers(ProgramDir(c, "prog"))
 	if err != nil || len(views) != 0 || len(bad) != 2 || wire.CodeOf(bad[newer+".json"]) != wire.CodeUnsupportedVersion {
 		t.Fatalf("status view %v bad %v err %v", views, bad, err)
@@ -578,5 +579,72 @@ func TestCALV0149_InfraRetryCarriesTheOutcome(t *testing.T) {
 	}
 	if m.Phase != DetachedLaunched || m.Successor != id || lastDetail(t, d, "launched")["detachedRun"] != testRunID {
 		t.Fatalf("marker %+v launched %v", m, lastDetail(t, d, "launched"))
+	}
+}
+
+// ATR-V0-057: the deferral marker of a context-stopped worker keeps the
+// ATR-V0-035 detail, so the hand-off made after a restart, with the worker
+// gone from the ledger, still carries reason CONTEXT.
+func TestATRV0057_DeferredContextHandoffSurvivesRestart(t *testing.T) {
+	r := newDetachedRig(t)
+	r.d.ledger.Workers[0].KillReason = "CONTEXT"
+	rec := freshContextRecord(r.w.ID)
+	rec.Tokens, rec.ObservedAt, rec.HardTokens = "5000", "2026-10-17T09:00:00Z", "4000"
+	if err := writeAtomic(ContextRecordPath(r.d.dir, r.w.ID), rec.encode()); err != nil {
+		t.Fatal(err)
+	}
+	r.q.set(r.attemptID, r.run(RunRunning, nil))
+	r.endWorker(t)
+	raw, err := os.ReadFile(filepath.Join(r.d.detachedDir(), testRunID+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(raw), `"profile":"taskman-dispatch-detached-run/1"`) || !strings.Contains(string(raw), `"context":{"contextTokens":"5000","hardTokens":"4000","reason":"CONTEXT"}`) {
+		t.Fatalf("marker %s", raw)
+	}
+	r.reopen(t)
+	if len(r.d.deferredContext) != 0 || r.d.worker(r.w.ID) != nil {
+		t.Fatal("the restart kept the worker or its in-memory detail")
+	}
+	exit := 0
+	r.q.set(r.attemptID, r.run(RunFinished, &exit))
+	tick(t, r.d)
+	h := eventsWith(t, r.d, "handoff", "detachedRun", testRunID)
+	var made []Event
+	for _, e := range h {
+		if e.Detail["handoff"] != "DEFERRED" {
+			made = append(made, e)
+		}
+	}
+	if len(made) != 1 || made[0].Detail["reason"] != "CONTEXT" || made[0].Detail["contextTokens"] != "5000" || made[0].Detail["hardTokens"] != "4000" || len(r.q.released) != 1 {
+		t.Fatalf("hand-off after restart %+v released %v", made, r.q.released)
+	}
+}
+
+// ATR-V0-057: a version-0 marker is still read; a context member must be
+// the exact CONTEXT detail and never appears in a version-0 marker.
+func TestATRV0057_MarkerVersionsAndContextMember(t *testing.T) {
+	base := `{"profile":"%s","runId":"0123456789abcdef","attemptId":"a1","generation":"1","ticket":"t","role":"impl","worker":"w1","supervisorPid":4242,"supervisorIdentity":"x","phase":"DEFERRED","deferredAt":"2026-10-17T09:00:00Z","deferUntil":"2026-10-17T10:00:00Z","readyAt":"0001-01-01T00:00:00Z","exitStatus":null,"result":"","output":"","successor":""%s}`
+	good := `,"context":{"contextTokens":"5000","hardTokens":"UNKNOWN","reason":"CONTEXT"}`
+	for name, c := range map[string]struct {
+		profile, extra string
+		ok             bool
+	}{
+		"v0 without context": {"taskman-dispatch-detached-run/0", "", true},
+		"v1 without context": {"taskman-dispatch-detached-run/1", "", true},
+		"v1 with context":    {"taskman-dispatch-detached-run/1", good, true},
+		"v0 with context":    {"taskman-dispatch-detached-run/0", good, false},
+		"other reason":       {"taskman-dispatch-detached-run/1", strings.Replace(good, `"CONTEXT"`, `"WALL"`, 1), false},
+		"extra key":          {"taskman-dispatch-detached-run/1", strings.Replace(good, `"reason"`, `"x":"1","reason"`, 1), false},
+		"non-decimal tokens": {"taskman-dispatch-detached-run/1", strings.Replace(good, `"5000"`, `"05000"`, 1), false},
+		"later version":      {"taskman-dispatch-detached-run/2", "", false},
+	} {
+		m, err := decodeDetachedMarker([]byte(fmt.Sprintf(base, c.profile, c.extra)), "0123456789abcdef.json")
+		if (err == nil) != c.ok {
+			t.Errorf("%s: %+v %v", name, m, err)
+		}
+		if name == "later version" && wire.CodeOf(err) != wire.CodeUnsupportedVersion {
+			t.Errorf("later version refused as %v", err)
+		}
 	}
 }

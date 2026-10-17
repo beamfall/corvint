@@ -287,8 +287,9 @@ var outputOnlyProfiles = []string{
 // writes, such as a drained taskman-dispatch-state/1, /2, /3, /4 or /5 ledger
 // (CAL-V0-132, proposed amendment), or a taskman-dispatch-reader-lifecycle/0
 // marker an older build left, read only to report and recover it
-// (CAL-V0-227); they are not part of the CAL-V0-131 format set.
-var adoptOnlyProfiles = []string{"taskman-dispatch-reader-lifecycle/0", "taskman-dispatch-state/1", "taskman-dispatch-state/2", "taskman-dispatch-state/3", "taskman-dispatch-state/4", "taskman-dispatch-state/5"}
+// (CAL-V0-227), or a taskman-dispatch-detached-run/0 marker (ATR-V0-057);
+// they are not part of the CAL-V0-131 format set.
+var adoptOnlyProfiles = []string{"taskman-dispatch-detached-run/0", "taskman-dispatch-reader-lifecycle/0", "taskman-dispatch-state/1", "taskman-dispatch-state/2", "taskman-dispatch-state/3", "taskman-dispatch-state/4", "taskman-dispatch-state/5"}
 
 // CAL-V0-131 and CAL-V0-134: the reported set is sorted and unique, holds the
 // store version, and holds every profile the tasks packages name except the

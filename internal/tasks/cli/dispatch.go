@@ -244,7 +244,7 @@ func dispatchAuxConfig(cmd []string, verb string, values map[string]string) (*di
 // file the running dispatcher consumes on its next tick).
 func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	cmd := []string{"dispatch", verb}
-	valued := map[string]bool{"--program": true, "--config": true, "--events": true}
+	valued := map[string]bool{"--program": true, "--config": true, "--events": true, "--worker": true}
 	if verb == "unpark" {
 		valued = map[string]bool{"--program": true, "--config": true, "--key": true}
 	}
@@ -296,7 +296,21 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	status := dispatchStatusValue(c, dir, l, events, time.Now())
+	now := time.Now()
+	status := dispatchStatusValue(c, dir, l, events, now)
+	// ATR-V0-056: one worker's context notice, read from its record.
+	if id := values["--worker"]; id != "" {
+		var w *dispatch.Worker
+		for _, x := range l.Workers {
+			if x.ID == id {
+				w = x
+			}
+		}
+		if w == nil {
+			return usage(cmd, "--worker names no worker of this program's ledger")
+		}
+		status.Obj.Set("contextNotice", dispatchContextNoticeValue(dir, w, now))
+	}
 	if invalid != nil {
 		// Escalation, pressure caps and the retry policy come from a file
 		// that does not decode: the views are kept, the policy is UNKNOWN.
@@ -571,6 +585,30 @@ func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) w
 	o.Set("handoffTokens", wire.String(handoff))
 	o.Set("hardTokens", wire.String(hard))
 	return wire.ObjectValue(o)
+}
+
+// dispatchContextNoticeValue is the ATR-V0-056 notice of worker w: its
+// ATR-V0-032 context view, the record file and the recorded crossings
+// (empty when the record is absent or does not read).
+func dispatchContextNoticeValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	v := dispatchWorkerContextValue(dir, w, now)
+	v.Obj.Set("worker", wire.String(w.ID))
+	v.Obj.Set("file", wire.String(dispatch.ContextRecordPath(dir, w.ID)))
+	crossings := []wire.Value{}
+	if lvl, _ := v.Obj.Get("level"); lvl.Str != dispatch.ContextNone && lvl.Str != dispatch.UsageUnknown {
+		if r, err := dispatch.ReadContextRecord(dir, w.ID); err == nil {
+			for _, c := range r.Crossings {
+				o := wire.NewObject()
+				o.Set("level", wire.String(c.Level))
+				o.Set("threshold", wire.String(c.Threshold))
+				o.Set("tokens", wire.String(c.Tokens))
+				o.Set("at", wire.String(c.At))
+				crossings = append(crossings, wire.ObjectValue(o))
+			}
+		}
+	}
+	v.Obj.Set("crossings", wire.Array(crossings...))
+	return v
 }
 
 // dispatchBudgetValue is the CAL-V0-158 view of the rolling window: each

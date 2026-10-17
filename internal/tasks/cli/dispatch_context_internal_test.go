@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // ATR-V0-032: dispatch status shows each worker's context estimate, its age,
@@ -131,4 +133,76 @@ func TestATRV0054_DispatchStatusShowsNewerRecordUnknown(t *testing.T) {
 		t.Fatal("no context")
 	}
 	statusStrings(t, ctx, map[string]string{"tokens": "UNKNOWN", "observedAt": "UNKNOWN", "level": "UNKNOWN", "warnTokens": "UNKNOWN", "handoffTokens": "UNKNOWN", "hardTokens": "UNKNOWN"})
+}
+
+// ATR-V0-056: `dispatch status --worker ID` shows that worker's context
+// notice read from its record, writes nothing, and refuses an ID the
+// ledger does not name.
+func TestATRV0056_DispatchStatusWorkerShowsContextNotice(t *testing.T) {
+	stateDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(stateDir, "prog")
+	at := time.Now().UTC().Truncate(time.Second).Format(time.RFC3339)
+	rec := dispatch.ContextRecord{Profile: dispatch.ContextProfile, Worker: "prog.impl.1.ab-1", Tokens: "150000", ObservedAt: at,
+		WarnTokens: "100000", HandoffTokens: "140000", HardTokens: "200000", Level: dispatch.ContextHandoff,
+		Crossings: []dispatch.ContextCrossing{{Level: dispatch.ContextWarn, Threshold: "100000", Tokens: "120000", At: at}, {Level: dispatch.ContextHandoff, Threshold: "140000", Tokens: "150000", At: at}}}
+	raw, _ := json.Marshal(rec)
+	path := dispatch.ContextRecordPath(dir, rec.Worker)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, append(raw, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	l := &dispatch.Ledger{Profile: dispatch.StateProfile, Program: "prog", Backoff: map[string]*dispatch.BackoffState{}, Workers: []*dispatch.Worker{
+		{ID: rec.Worker, Role: "impl", Key: "ticket:a:q:t1", Usage: &dispatch.WorkerUsage{Format: "claude-code"}},
+	}}
+	if raw, err = json.Marshal(l); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "state.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(stateDir, "dispatch.json")
+	if err := os.WriteFile(config, []byte(`{"profile":"nope","stateDir":`+jsonQuote(stateDir)+`}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cli := func(args ...string) *wire.Result {
+		t.Helper()
+		var out, errb bytes.Buffer
+		Run(Env{Cwd: stateDir, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+		res, err := wire.DecodeResult(out.Bytes())
+		if err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out.Bytes())
+		}
+		return res
+	}
+	before, _ := os.ReadFile(path)
+	res := cli("dispatch", "status", "--program", "prog", "--config", config, "--worker", rec.Worker)
+	if res.Outcome != wire.OutcomeOK {
+		t.Fatalf("status --worker: %+v", res)
+	}
+	notice, ok := statusField(t, res.Items[0], "contextNotice")
+	if !ok {
+		t.Fatalf("no contextNotice: %+v", res.Items[0])
+	}
+	statusStrings(t, notice, map[string]string{"worker": rec.Worker, "file": path, "tokens": "150000", "level": "HANDOFF", "warnTokens": "100000", "handoffTokens": "140000", "hardTokens": "200000", "observedAt": at})
+	crossings, _ := statusField(t, notice, "crossings")
+	if len(crossings.Arr) != 2 {
+		t.Fatalf("crossings %+v", crossings)
+	}
+	statusStrings(t, crossings.Arr[1], map[string]string{"level": "HANDOFF", "threshold": "140000", "tokens": "150000", "at": at})
+	if after, _ := os.ReadFile(path); !bytes.Equal(before, after) {
+		t.Fatal("status --worker rewrote the record")
+	}
+	if res := cli("dispatch", "status", "--program", "prog", "--config", config); res.Outcome != wire.OutcomeOK {
+		t.Fatalf("status: %+v", res)
+	} else if _, ok := statusField(t, res.Items[0], "contextNotice"); ok {
+		t.Fatal("contextNotice without --worker")
+	}
+	if res := cli("dispatch", "status", "--program", "prog", "--config", config, "--worker", "../other"); res.Outcome == wire.OutcomeOK {
+		t.Fatalf("unknown worker accepted: %+v", res)
+	}
 }

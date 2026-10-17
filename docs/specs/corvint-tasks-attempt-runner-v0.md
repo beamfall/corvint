@@ -2,13 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
 owner requests [issue 1005](https://github.com/beamfall/corvint/issues/1005) and [issue 1007](https://github.com/beamfall/corvint/issues/1007) and native tickets V1-1547 and V1-1549 (ATR-V0-020..039);
 owner request [issue 1026](https://github.com/beamfall/corvint/issues/1026) and native ticket V1-1558 (ATR-V0-050..053);
 native ticket V1-1575 (ATR-V0-054..055);
+native ticket V1-1562 (ATR-V0-056..057);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -16,7 +17,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -480,6 +481,45 @@ the first fails because the newer record is overwritten with a `taskman-dispatch
 
 Rollback: revert the code and this amendment. No record, profile or wire code changes.
 
+### V1-1562 context notice verb and detached hand-off detail
+
+Human-owned input: native ticket V1-1562 (2026-10-17), from the V1-1549 residuals. No
+`corvint-tasks` verb showed a worker its context notice; the worker had to read the record file.
+And a detached-run deferral whose worker had left the ledger after a dispatcher restart handed off
+without the `CONTEXT` detail, because the strict marker could not carry it.
+
+- `ATR-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1562)
+  `dispatch status` MUST accept `--worker ID`. When `ID` names a worker in the program's ledger,
+  the status item gains a `contextNotice` object read from that worker's ATR-V0-033 record. It holds
+  the ATR-V0-032 `context` members, `worker`, `file` (the record path) and `crossings`, each with
+  `level`, `threshold`, `tokens` and `at`, in record order. An absent, unread or other-version
+  record gives `UNKNOWN` members as ATR-V0-032 and ATR-V0-054 state, and an empty `crossings`
+  array. An `ID` the ledger does not name is a usage error. The verb writes nothing.
+- `ATR-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1562) The
+  CAL-V0-147 marker profile becomes `taskman-dispatch-detached-run/1`. It adds one optional
+  closed member, `context`, with exactly `reason` (`CONTEXT`), `contextTokens` and `hardTokens`
+  (each a canonical decimal or `UNKNOWN`). A deferral of a context-stopped worker MUST record it.
+  The hand-off made from that marker, including after a restart when the worker has left the
+  ledger, MUST carry those members as ATR-V0-035 states. A `/0` marker is still read, and it must
+  not carry `context`. A marker with any other `context` value does not decode (CAL-V0-147). The
+  CAL-V0-131 live format set lists `/1` in place of `/0`, so an earlier build holds a `/1` marker
+  unread and hands its run off without a deferral, and replacing this build in place needs a
+  drain (CAL-V0-130).
+
+Non-goals: a notice push to the worker, an `attempt show` member, and migrating `/0` markers.
+
+Failure modes: an earlier build that meets a `/1` marker hands off without the deferral, as
+CAL-V0-147 states for another version. A `/0` marker written before the upgrade still hands off
+without the `CONTEXT` detail when its worker has left the ledger.
+
+Acceptance evidence: `TestATRV0056_DispatchStatusWorkerShowsContextNotice` (`internal/tasks/cli`),
+`TestATRV0057_DeferredContextHandoffSurvivesRestart` and
+`TestATRV0057_MarkerVersionsAndContextMember` (`internal/tasks/dispatch`), and the CAL-V0-131
+`/1` row of `format_version_test.go`.
+
+Rollback: revert the code and this amendment. A `/1` marker left behind is held unread by the
+reverted build, whose run then hands off without a deferral.
+
 ## Outcome document
 
 Profile `taskman-attempt-run-outcome/0`, at most 4096 bytes, compact canonical JSON with one trailing
@@ -610,7 +650,7 @@ output; queue status of detached runs outside the dispatcher.
 | Run record written by a build with another run-record version | `UNSUPPORTED_VERSION`; nothing is replayed (ATR-V0-010 as amended by CAL-V0-131). |
 | Finished record or result not written | The supervisor logs it to `supervisor.log` and exits; attach then reports `SUPERVISOR_LOST`, and the `RUN_OUTCOME` receipt, when written, stays the native record (ATR-V0-009, ATR-V0-012). |
 | Dispatcher context estimate unreadable, from an unrecognised host line, a subagent message or a Codex stream, or a context line hidden by a repeated member or lost to a log cut | The estimate is UNKNOWN or unchanged, shown with its age; UNKNOWN crosses no threshold and never stops a worker (ATR-V0-031, ATR-V0-032, ATR-V0-035, ATR-V0-037). |
-| Dispatcher context record damaged, unwritable, or the dispatcher restarts mid-session | Crossings are recorded once in the worker's `context.json` before the event; a write failure alerts once and retries; the hard stop follows the estimate; an estimate read back after a restart acts only after a fresh line, and a worker already stopped is still handed off with reason `CONTEXT`, including through exit recovery and a detached-run deferral (ATR-V0-033, ATR-V0-035, ATR-V0-038); a damaged record alerts once and is replaced, and one of another profile version alerts once and is never overwritten (ATR-V0-054, ATR-V0-055). |
+| Dispatcher context record damaged, unwritable, or the dispatcher restarts mid-session | Crossings are recorded once in the worker's `context.json` before the event; a write failure alerts once and retries; the hard stop follows the estimate; an estimate read back after a restart acts only after a fresh line, and a worker already stopped is still handed off with reason `CONTEXT`, including through exit recovery and a detached-run deferral, whose marker carries the detail across a restart (ATR-V0-033, ATR-V0-035, ATR-V0-038, ATR-V0-057); a damaged record alerts once and is replaced, and one of another profile version alerts once and is never overwritten (ATR-V0-054, ATR-V0-055). |
 
 ## Acceptance and rollback
 
@@ -680,3 +720,5 @@ receipt or wire shape changes.
 | ATR-V0-053 | `internal/tasks/cli/lease.go`, `internal/tasks/cli/lease_detach.go` (`leaseDetachRunChild`), `internal/tasks/cli/cli.go` | `TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout` (`internal/tasks/cli`) |
 | ATR-V0-054 | `internal/tasks/dispatch/context.go` (`contextFor`, `noteContext`), `internal/tasks/cli/dispatch.go` (`dispatchWorkerContextValue`) | `TestATRV0054_NewerContextRecordIsPreserved` (`internal/tasks/dispatch`), `TestATRV0054_DispatchStatusShowsNewerRecordUnknown` (`internal/tasks/cli`) |
 | ATR-V0-055 | `internal/tasks/dispatch/context.go` (`contextFor`) | `TestATRV0055_CorruptContextRecordIsReplacedAfterOneAlert` (`internal/tasks/dispatch`) |
+| ATR-V0-056 | `internal/tasks/cli/dispatch.go` (`dispatchAux`, `dispatchContextNoticeValue`), `internal/tasks/cli/command_help.go` | `TestATRV0056_DispatchStatusWorkerShowsContextNotice` (`internal/tasks/cli`) |
+| ATR-V0-057 | `internal/tasks/dispatch/detached.go` (`decodeDetachedMarker`, `validMarkerContext`, `advanceDetached`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0057_DeferredContextHandoffSurvivesRestart`, `TestATRV0057_MarkerVersionsAndContextMember` (`internal/tasks/dispatch`) |

@@ -254,7 +254,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := dispatch.ReadReaderLeader(dir, "prog")
 			return err
 		},
-		"taskman-dispatch-detached-run/0": func(t *testing.T, p string) error {
+		"taskman-dispatch-detached-run/1": func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
 			if err := os.MkdirAll(filepath.Join(dir, "detached"), 0o700); err != nil {
 				t.Fatal(err)

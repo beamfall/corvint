@@ -282,7 +282,7 @@ var commandUsage = map[string]string{
 	"program show":            "corvint-tasks program show",
 	"dispatch":                "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]; dispatch <status|unpark|recover-reader> --help",
 	"dispatch recover-reader": "corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID",
-	"dispatch status":         "corvint-tasks dispatch status --program ID --config FILE [--events N]",
+	"dispatch status":         "corvint-tasks dispatch status --program ID --config FILE [--events N] [--worker ID]",
 	"dispatch unpark":         "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET|lane:POOL/MEMBER",
 	"service install":         "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]",
 	"service status":          "corvint-tasks service status --program ID",

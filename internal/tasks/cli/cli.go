@@ -471,7 +471,7 @@ func LiveFormats() []string {
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/0", dispatch.ContextProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}
