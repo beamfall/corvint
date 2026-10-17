@@ -447,18 +447,19 @@ ATR-V0-050	docs/specs/corvint-tasks-attempt-runner-v0.md	405	(accepted under the
 ATR-V0-051	docs/specs/corvint-tasks-attempt-runner-v0.md	414	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) The runn	standing	2026-10-11; V1-1558
 ATR-V0-052	docs/specs/corvint-tasks-attempt-runner-v0.md	421	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) Whenever	standing	2026-10-11; V1-1558
 ATR-V0-053	docs/specs/corvint-tasks-attempt-runner-v0.md	424	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A detach	standing	2026-10-11; V1-1558
-ATR-V0-054	docs/specs/corvint-tasks-attempt-runner-v0.md	462	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) When a	standing	2026-10-11; V1-1575
-ATR-V0-055	docs/specs/corvint-tasks-attempt-runner-v0.md	468	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) A record	standing	2026-10-11; V1-1575
-ATR-V0-056	docs/specs/corvint-tasks-attempt-runner-v0.md	494	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562)	standing	2026-10-11; V1-1562
-ATR-V0-057	docs/specs/corvint-tasks-attempt-runner-v0.md	501	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562) The	standing	2026-10-11; V1-1562
-ATR-V0-058	docs/specs/corvint-tasks-attempt-runner-v0.md	533	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) Every	standing	2026-10-11; V1-1600
-ATR-V0-059	docs/specs/corvint-tasks-attempt-runner-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) While	standing	2026-10-11; V1-1600
-ATR-V0-060	docs/specs/corvint-tasks-attempt-runner-v0.md	574	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) A dispat	standing	2026-10-11; V1-1595
-ATR-V0-061	docs/specs/corvint-tasks-attempt-runner-v0.md	584	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The stre	standing	2026-10-11; V1-1595
-ATR-V0-062	docs/specs/corvint-tasks-attempt-runner-v0.md	593	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The doct	standing	2026-10-11; V1-1595
-ATR-V0-063	docs/specs/corvint-tasks-attempt-runner-v0.md	626	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) Each dis	standing	2026-10-11; V1-1597
-ATR-V0-064	docs/specs/corvint-tasks-attempt-runner-v0.md	635	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time	standing	2026-10-11; V1-1597
-ATR-V0-065	docs/specs/corvint-tasks-attempt-runner-v0.md	640	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatc	standing	2026-10-11; V1-1597
+ATR-V0-054	docs/specs/corvint-tasks-attempt-runner-v0.md	468	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) When a	standing	2026-10-11; V1-1575
+ATR-V0-055	docs/specs/corvint-tasks-attempt-runner-v0.md	474	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) A record	standing	2026-10-11; V1-1575
+ATR-V0-056	docs/specs/corvint-tasks-attempt-runner-v0.md	500	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562)	standing	2026-10-11; V1-1562
+ATR-V0-057	docs/specs/corvint-tasks-attempt-runner-v0.md	507	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562) The	standing	2026-10-11; V1-1562
+ATR-V0-058	docs/specs/corvint-tasks-attempt-runner-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) Every	standing	2026-10-11; V1-1600
+ATR-V0-059	docs/specs/corvint-tasks-attempt-runner-v0.md	549	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) While	standing	2026-10-11; V1-1600
+ATR-V0-060	docs/specs/corvint-tasks-attempt-runner-v0.md	580	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) A dispat	standing	2026-10-11; V1-1595
+ATR-V0-061	docs/specs/corvint-tasks-attempt-runner-v0.md	590	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The stre	standing	2026-10-11; V1-1595
+ATR-V0-062	docs/specs/corvint-tasks-attempt-runner-v0.md	599	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The doct	standing	2026-10-11; V1-1595
+ATR-V0-063	docs/specs/corvint-tasks-attempt-runner-v0.md	632	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) Each dis	standing	2026-10-11; V1-1597
+ATR-V0-064	docs/specs/corvint-tasks-attempt-runner-v0.md	641	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time	standing	2026-10-11; V1-1597
+ATR-V0-065	docs/specs/corvint-tasks-attempt-runner-v0.md	646	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatc	standing	2026-10-11; V1-1597
+ATR-V0-066	docs/specs/corvint-tasks-attempt-runner-v0.md	430	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A kept	standing	2026-10-11; V1-1558
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,	unrecorded	-
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio	unrecorded	-
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,	unrecorded	-

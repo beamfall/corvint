@@ -5,6 +5,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -208,4 +209,46 @@ func TestATRV0053_DetachedClaimCeilingAndInterruptAreLockTimeout(t *testing.T) {
 			t.Fatalf("interrupt under contention: code %d %s", y.code, y.stdout)
 		}
 	})
+}
+
+// TestATRV0066_KeptLockTimeoutRelaunchesOnSameRequestID: a detached claim
+// that kept LOCK_TIMEOUT runs again when --detach is repeated under the same
+// request id, keeping the earlier result as result.1.json, and claims once.
+func TestATRV0066_KeptLockTimeoutRelaunchesOnSameRequestID(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS", "1500")
+	release := holdWriterLock(t, root)
+	x := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-retry", "--detach", "--wait", "60")
+	if !hasCode(x.res, wire.CodeLockTimeout) {
+		t.Fatalf("want a kept LOCK_TIMEOUT: code %d %s", x.code, x.stdout)
+	}
+	release()
+	// The first child ends once its result is kept; while it still runs the
+	// record, a repeat --detach keeps replaying LOCK_TIMEOUT.
+	dir := cli.LeaseDetachDir(repo, "claim-retry")
+	var child struct {
+		Pid int `json:"pid"`
+	}
+	if raw, err := os.ReadFile(filepath.Join(dir, "child.json")); err != nil || json.Unmarshal(raw, &child) != nil || child.Pid <= 0 {
+		t.Fatalf("no child record: %v", err)
+	}
+	for i := 0; syscall.Kill(child.Pid, 0) == nil; i++ {
+		if i > 3000 {
+			t.Fatal("the first detached child never ended")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS", "120000")
+	y := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-retry", "--detach", "--wait", "60")
+	if y.code != 0 || y.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("same-id retry replayed instead of relaunching: code %d %s", y.code, y.stdout)
+	}
+	if prev, err := os.ReadFile(filepath.Join(dir, "result.1.json")); err != nil || !bytes.Equal(prev, x.stdout) {
+		t.Fatalf("earlier LOCK_TIMEOUT result not kept as result.1.json: %v", err)
+	}
+	// The OK result is final: a third --detach replays it.
+	z := cliRun(t, root, "claim", id, "--holder", "agent", "--request-id", "claim-retry", "--detach", "--wait", "60")
+	if z.code != 0 || !bytes.Equal(z.stdout, y.stdout) {
+		t.Fatalf("an OK result was not replayed: code %d %s", z.code, z.stdout)
+	}
 }

@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -39,6 +40,7 @@ const (
 	leaseDetachResultName = "result.json"
 	leaseDetachLogName    = "child.log"
 	leaseDetachPrevLog    = "child.1.log"
+	leaseDetachPrevResult = "result.1.json"
 	leaseDetachLockName   = "lock"
 	leaseDetachRunName    = "running"
 	leaseDetachChildFlag  = "--detached-child"
@@ -289,7 +291,10 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	case rec != want:
 		return leaseDetachConflict(cmd, want.RequestID)
 	}
-	if _, err := os.Lstat(filepath.Join(dir, leaseDetachResultName)); err == nil {
+	switch kept, err := leaseDetachKept(dir); {
+	case err != nil:
+		return errorResult(cmd, err)
+	case kept:
 		return nil
 	}
 	var child leaseDetachChild
@@ -337,6 +342,27 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 		return errorResult(cmd, err)
 	}
 	return nil
+}
+
+// leaseDetachKept reports whether a kept result answers a repeat --detach.
+// A kept LOCK_TIMEOUT means the store write never completed, so once no
+// child still runs the record it is moved to result.1.json and the request
+// runs again under the same request id; the store's request-ID replay keeps
+// the mutation exactly once (ATR-V0-066).
+func leaseDetachKept(dir string) (bool, error) {
+	p := filepath.Join(dir, leaseDetachResultName)
+	raw, err := readBounded(p, maxLeaseDetachResult)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return false, nil
+	case err != nil:
+		return false, err
+	}
+	res, err := wire.DecodeResult(raw)
+	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) || leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName)) {
+		return true, nil
+	}
+	return false, os.Rename(p, filepath.Join(dir, leaseDetachPrevResult))
 }
 
 // leaseDetachUnknownIdentity is child.json's identity when the launcher

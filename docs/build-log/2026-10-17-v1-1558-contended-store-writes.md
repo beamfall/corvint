@@ -54,3 +54,28 @@ ceiling and an interrupt took the same path.
   The retry test passes on both.
 - `TestATRV0050_ContextEndedIsRetryableLockTimeout` (`internal/tasks/wire`) covers the mapping.
 - Linux: NOT_RUN.
+
+## Review fix: same-id retry of a kept LOCK_TIMEOUT (ATR-V0-066)
+
+The coordinator review found a gap. A detached `claim` or `pool acquire` keeps its `LOCK_TIMEOUT`
+in `result.json` (ATR-V0-053). The launcher returned early whenever `result.json` existed, so a
+repeat `--detach` with the same request id replayed that timeout and never retried.
+
+Decision: keep the result, so `--attach` still reports the retryable timeout. Before a relaunch:
+
+- A launcher that finds a kept `LOCK_TIMEOUT` moves it to `result.1.json`, then starts a child.
+- It does so only when no child holds the record's running lock.
+- The store's request-ID replay keeps the claim exactly once.
+- Any other kept result still answers verbatim.
+
+The other option was a mandatory new request id. It was rejected because the `LOCK_TIMEOUT`
+warning tells callers to retry with the same id.
+
+Evidence:
+
+- `TestATRV0066_KeptLockTimeoutRelaunchesOnSameRequestID` (`internal/tasks/cli`) covers three steps:
+  1. A contended detached claim times out.
+  2. Once the lock is released, the same-id `--detach` claims and the timeout is kept as `result.1.json`.
+  3. A third `--detach` replays the OK result.
+- The ATR-V0-020..029 and ATR-V0-053 detach tests pass with it, 3 times each under load.
+- Linux: NOT_RUN.
