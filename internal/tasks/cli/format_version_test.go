@@ -255,7 +255,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := dispatch.ReadReaderLeader(dir, "prog")
 			return err
 		},
-		"taskman-dispatch-detached-run/0": func(t *testing.T, p string) error {
+		"taskman-dispatch-detached-run/1": func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
 			if err := os.MkdirAll(filepath.Join(dir, "detached"), 0o700); err != nil {
 				t.Fatal(err)
@@ -268,6 +268,30 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 				return err
 			}
 			return bad["0123456789abcdef.json"]
+		},
+		dispatch.SessionChurnProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "session-churn.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadSessionChurn(path)
+			return err
+		},
+		dispatch.HostSleepProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "host-sleep.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadHostSleep(path)
+			return err
+		},
+		dispatch.DrainSignalProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "drain-pending.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadDrainSignal(path)
+			return err
 		},
 		dispatch.ContextProfile: func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
