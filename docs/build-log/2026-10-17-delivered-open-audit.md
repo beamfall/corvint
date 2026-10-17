@@ -10,11 +10,11 @@ checked each criterion against the merged PRs, the tests and the build-log entri
 required gate that no lane ran is a closeout step, not an acceptance criterion, so it does not
 change a verdict here.
 
-Result: 43 `CONFIRMED`, 29 `PARTIAL` and 3 `NOT_DELIVERED`. A `PARTIAL` ticket has a split text for
+Result: 42 `CONFIRMED`, 30 `PARTIAL` and 3 `NOT_DELIVERED`. A `PARTIAL` ticket has a split text for
 its residual, kept with the orchestrator for filing. The owner's answers on the 46 blocked tickets
 from the same day are in decision 0539.
 
-## CONFIRMED (43)
+## CONFIRMED (42)
 
 | Ticket | Merge | Evidence |
 |---|---|---|
@@ -37,8 +37,8 @@ from the same day are in decision 0539.
 | V1-1429 | 85ba6321a (#933) | Post-run calls at most 5.9 s against the 15 s bound at load 48-59; no INCONCLUSIVE at loads 42-73 |
 | V1-0161 | d867347d7 (#283) | daily-loop-v1 harness sets `EXPECTED_REFUSAL` per case and marks a mismatch non-informative (code reading only) |
 | V1-0162 | d867347d7 (#283) | Harness refuses `preregistration-digest-mismatch` or `seal-missing`; `PCCO-V0-015` names the seal (code reading only) |
-| V1-0181 | 3c1b894c3 (#239) | `docs/DOGFOOD.md` states OCM maps are local-only and names the rebuild and read-only status commands |
-| V1-0289 | 3c1b894c3 (#240) | Plugin frontier and build-constraint variant scoping; regression tests in `internal/liveverify/affected` |
+| V1-0181 | a9cd7afce (#239) | `docs/DOGFOOD.md` states OCM maps are local-only and names the rebuild and read-only status commands |
+| V1-0289 | c27ad137c (#240) | Plugin frontier and build-constraint variant scoping; regression tests in `internal/liveverify/affected` |
 | V1-0292 | 94ca556f5 (#287) | Corroboration limited to names of at least 4 bytes; `TestTaskContextSwiftImporterNeedsMoreThanAnInitializerOrAMember` |
 | V1-0352 | c21e7c19d | `TestCEMV1210LRFRefusesEveryMapBeforeAnyInput`; the 0.1/0.2 criterion is superseded by decision 0525 |
 | V1-0372 | 39bcf1ba6 | Personalized PageRank exact-map and scan-once tests; graph-off parity by `TestContextGraphDefaultBytes` |
@@ -59,13 +59,13 @@ from the same day are in decision 0539.
 | V1-0362 | 5cd9419a6 | Sanitized Git environments in the named runners; each changed runner has a revert-failing test |
 | V1-1115 | b524b5ed4 (#743) | `-count=200` passed under concurrent package runs |
 | V1-1169 | 47dcf29bc | `AMAP-V0-078/079` accepted (decisions 0519, 0520); React route-array tests; computed arrays stay UNKNOWN |
-| V1-0215 | 26d0b7e36 | `TestRelativePathsLinkedWorktree` (gitauth read path, not the CLI) |
 | V1-0113 | 101be79c0 | `TestInitAdoptInterruptedRunLeavesNoStateAndRetriesCleanly` kills init and adopt at five delays |
 
-## PARTIAL (29)
+## PARTIAL (30)
 
 | Ticket | Merge | Met / not met |
 |---|---|---|
+| V1-0215 | 26d0b7e36 | Criterion 1 met by `TestRelativePathsLinkedWorktree` on the gitauth read path; criterion 2 (a command-level linked-worktree test) not met |
 | V1-0632 | 01f95dbe4 (#804) .. eb53998e0 (#836) | Per-slice evidence met; capsule and dashboard cem/1.0 positive cases, portable envelope and Tasks-to-verify chain not met |
 | V1-1266 | 3fcc1d11c (#893), f81114713 (#944), c2bcf9147 (#961) | Held tier and release notes met; the 30-change held-share tally waits for V1-1449 |
 | V1-1022 | 29cc7fd4e (#697) | TOL-V0 implemented and accepted; live Playwright 1.63 qualification `NOT_RUN` |
@@ -129,6 +129,13 @@ GOOS=<os> GOARCH=amd64 GOTOOLCHAIN=local go vet ./...
 
 No CI job vets these targets, so the debt is invisible. V1-1615 is the follow-up that makes it
 visible. V1-0393 stays `PARTIAL` until then.
+
+## Corrections after review (2026-10-17)
+
+The independent review of #1053 found two wrong merge citations and one overstated row. V1-0181
+and V1-0289 now cite their own merges, a9cd7afce (#239) and c27ad137c (#240), not the integration
+merge 3c1b894c3 (#241). V1-0215 moved from `CONFIRMED` to `PARTIAL`: no command-level test covers
+its second criterion.
 
 ## Not done here
 
