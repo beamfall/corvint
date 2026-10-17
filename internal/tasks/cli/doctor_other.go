@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 )
@@ -21,8 +22,9 @@ func doctorOwned(st fs.FileInfo) bool { return true }
 // serialized (a documented limit). The rest follows no link: a cache directory or file that is a
 // link, not a directory or regular file, or not owned by the caller is
 // refused UNSUPPORTED_FILESYSTEM before anything is created, changed or
-// written through it.
-func writeDoctorCache(commonDir string, raw []byte) (err error) {
+// written through it. render receives the destination's current bytes (nil
+// when absent) and returns the bytes to write.
+func writeDoctorCache(commonDir string, render func(prev []byte) ([]byte, error)) (err error) {
 	root, err := os.OpenRoot(commonDir)
 	if err != nil {
 		return err
@@ -56,12 +58,25 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	if here, err := sub.Stat("."); err != nil || !os.SameFile(here, st) {
 		return refuse("directory changed while it was opened")
 	}
+	var old []byte
 	if cur, err := sub.Lstat(doctorCacheFileName); err == nil {
 		if !cur.Mode().IsRegular() {
 			return refuse("file is a link or not a regular file")
 		}
 		if !doctorOwned(cur) {
 			return refuse("file is not owned by this user")
+		}
+		rf, err := sub.Open(doctorCacheFileName)
+		if err != nil {
+			return err
+		}
+		old, err = io.ReadAll(io.LimitReader(rf, doctorCacheBytes+1))
+		rf.Close()
+		if err != nil {
+			return err
+		}
+		if err := doctorNewerCache(old); err != nil {
+			return err
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
@@ -73,6 +88,10 @@ func writeDoctorCache(commonDir string, raw []byte) (err error) {
 	}
 	if doctorCacheHook != nil {
 		doctorCacheHook("lock")
+	}
+	raw, err := render(old)
+	if err != nil {
+		return err
 	}
 	var nonce [8]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
