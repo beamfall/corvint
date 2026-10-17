@@ -305,15 +305,15 @@ AMAP-V0-080	docs/specs/application-map-v0.md	586	`flows appmap entries` MUST acc
 AMAP-V0-081	docs/specs/application-map-v0.md	594	With a ledger, each row's `proven_path` MUST be the shortest screen sequence fro	unrecorded	-
 AMAP-V0-082	docs/specs/application-map-v0.md	603	A path MUST NOT start at, end at or cross a screen whose entry verification is n	unrecorded	-
 AMAP-V0-090	docs/specs/application-map-v0.md	609	`flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --ful	unrecorded	-
-AMAP-V0-091	docs/specs/application-map-v0.md	617	References MUST be read from dotted calls in the map's test files with the	unrecorded	-
-AMAP-V0-092	docs/specs/application-map-v0.md	626	A whole string literal argument MUST be an `exact` value. A template with a	unrecorded	-
-AMAP-V0-093	docs/specs/application-map-v0.md	636	A route reference MUST be checked against the map's resolved, non-abstract	unrecorded	-
-AMAP-V0-094	docs/specs/application-map-v0.md	644	Selector and endpoint names MUST be checked at name level only: an exact name is	unrecorded	-
-AMAP-V0-095	docs/specs/application-map-v0.md	653	Known false-positive classes MUST be labelled on the miss: `catch-all-route`	unrecorded	-
-AMAP-V0-096	docs/specs/application-map-v0.md	659	Each miss MUST report its `kind` (`route`, `selector`, `endpoint`), `value`,	unrecorded	-
-AMAP-V0-097	docs/specs/application-map-v0.md	667	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
-AMAP-V0-098	docs/specs/application-map-v0.md	673	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
-AMAP-V0-099	docs/specs/application-map-v0.md	676	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
+AMAP-V0-091	docs/specs/application-map-v0.md	618	References MUST be read from dotted calls in the map's test files with the	unrecorded	-
+AMAP-V0-092	docs/specs/application-map-v0.md	630	A whole string literal argument MUST be an `exact` value. A template with a	unrecorded	-
+AMAP-V0-093	docs/specs/application-map-v0.md	641	A route reference MUST be checked against the map's resolved, non-abstract	unrecorded	-
+AMAP-V0-094	docs/specs/application-map-v0.md	649	Selector and endpoint names MUST be checked at name level only: an exact name is	unrecorded	-
+AMAP-V0-095	docs/specs/application-map-v0.md	658	Known false-positive classes MUST be labelled on the miss: `catch-all-route`	unrecorded	-
+AMAP-V0-096	docs/specs/application-map-v0.md	664	Each miss MUST report its `kind` (`route`, `selector`, `endpoint`), `value`,	unrecorded	-
+AMAP-V0-097	docs/specs/application-map-v0.md	672	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
+AMAP-V0-098	docs/specs/application-map-v0.md	679	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
+AMAP-V0-099	docs/specs/application-map-v0.md	682	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	69	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	75	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	83	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -1667,9 +1667,9 @@ EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	85	stderr MUST
 EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	88	MCP MUST be selected only through the accepted bounded stdio profile in	unrecorded	-
 EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	91	A remote (network) transport is NO-GO on the default local path (decision 0318).	unrecorded	-
 EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	95	The optional authoring-kit checker MUST require and verify an exact lowercase	unrecorded	-
-EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record on any transport MAY carry one optional top-level member `capabilities`	unrecorded	-
-EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires	unrecorded	-
-EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in	unrecorded	-
+EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	(accepted, owner 2026-10-17, decision 0539; V1-0102) A record on any transport M	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	(accepted, owner 2026-10-17, decision 0539; V1-0102) When a list is declared, Co	owner	2026-10-17; decision 0539; V1-0102
+EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	(accepted, owner 2026-10-17, decision 0539; V1-0102) A declared capability never	owner	2026-10-17; decision 0539; V1-0102
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly	unrecorded	-
 EEP-V0-002	docs/specs/external-evidence-provider-v0.md	70	`corvint impact --provider FILE PATH...` selects a provider record; the option M	unrecorded	-
 EEP-V0-003	docs/specs/external-evidence-provider-v0.md	74	Provider output appears only under `context.external`. With the same paths, limi	unrecorded	-
@@ -2678,6 +2678,12 @@ NTP-V0-005	docs/specs/native-taskman-planning-v0.md	51	Collision sets MUST inclu
 NTP-V0-006	docs/specs/native-taskman-planning-v0.md	57	The plan MUST bind queueId, policySha256, headSeq, intentTreeSha256,	unrecorded	-
 NTP-V0-007	docs/specs/native-taskman-planning-v0.md	63	Deferral history MUST be explicitly observed, including a complete empty history	unrecorded	-
 NTP-V0-008	docs/specs/native-taskman-planning-v0.md	67	Existing command/WQO behavior MUST remain intact. The new command MUST mutate no	unrecorded	-
+NTP-V0-020	docs/specs/native-taskman-planning-v0.md	79	Candidates MUST be, for each OPEN or HELD ticket, its highest-generation attempt	unrecorded	-
+NTP-V0-021	docs/specs/native-taskman-planning-v0.md	84	Each candidate's changed paths MUST be the recursive, rename-free `diff-tree` fr	unrecorded	-
+NTP-V0-022	docs/specs/native-taskman-planning-v0.md	91	Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree	unrecorded	-
+NTP-V0-023	docs/specs/native-taskman-planning-v0.md	107	`--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item	unrecorded	-
+NTP-V0-024	docs/specs/native-taskman-planning-v0.md	109	A candidate whose base commit is absent or unresolvable, whose candidate tree or	unrecorded	-
+NTP-V0-025	docs/specs/native-taskman-planning-v0.md	115	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	47	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	53	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	59	After all three temporary allocations succeed, the offline-build entrypoint	unrecorded	-
@@ -3706,19 +3712,32 @@ TPN-V0-003	docs/specs/trusted-project-navigation-v0.md	37	Before loading third-p
 TPN-V0-004	docs/specs/trusted-project-navigation-v0.md	43	Bind source, environment, fixed probe, snapshot, span, replacement, candidate co	unrecorded	-
 TPN-V0-005	docs/specs/trusted-project-navigation-v0.md	48	Return a deterministic bounded canonical artifact on stdout: `NAVIGATION_VALIDAT	unrecorded	-
 TPN-V0-006	docs/specs/trusted-project-navigation-v0.md	52	Use one 120-second deadline, bounded input/output and process groups on Darwin/L	unrecorded	-
-TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	39	`corvint-tasks doctor [--refresh] [--plugins DIR]` is a pure read under TM-V0-00	unrecorded	-
-TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	40	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
-TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	41	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
-TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	42	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
-TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	43	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
-TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	44	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
-TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	45	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
-TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	46	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
-TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	47	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
-TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	48	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
-TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	49	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
-TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	50	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
-TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	51	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	41	`corvint-tasks doctor [--refresh] [--plugins DIR] [--config FILE]` is a pure rea	unrecorded	-
+TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	42	`summary` is `{lanes:{free,total}, runningSessions, completions24h, alerts}`. `l	unrecorded	-
+TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	43	Each finding is `{kind, source, who, detail, remedy, firstSeen, ageSeconds, evid	unrecorded	-
+TQD-V0-004	docs/specs/corvint-tasks-doctor-v0.md	44	Journal-derived detectors read one bounded backward scan of receipts from the sn	unrecorded	-
+TQD-V0-005	docs/specs/corvint-tasks-doctor-v0.md	45	NO_PROGRESS_HANDOFF names a ticket whose newest three or more ended generations	unrecorded	-
+TQD-V0-006	docs/specs/corvint-tasks-doctor-v0.md	46	REPEAT_REFUSAL names a ticket and candidate tree refused three or more times in	unrecorded	-
+TQD-V0-007	docs/specs/corvint-tasks-doctor-v0.md	47	SLOW_LANE_RECOVERY names a pool member whose allocation entered CLEANING (a clea	unrecorded	-
+TQD-V0-008	docs/specs/corvint-tasks-doctor-v0.md	48	SETUP_ONLY_PROOF names a ticket COMPLETED within the window whose obligation led	unrecorded	-
+TQD-V0-009	docs/specs/corvint-tasks-doctor-v0.md	49	FALSE_IDLE names a live attempt whose holder status is STALE_HOLDER or LEASE_EXP	unrecorded	-
+TQD-V0-010	docs/specs/corvint-tasks-doctor-v0.md	50	Plugins run only when `--plugins DIR` names a directory. Discovery opens it with	unrecorded	-
+TQD-V0-011	docs/specs/corvint-tasks-doctor-v0.md	51	`doctor --refresh` writes the item, with profile `taskman-doctor-cache/0` and `r	unrecorded	-
+TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	52	`doctor --line` reads only the cache, through the repository resolution walk to	unrecorded	-
+TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	53	NO_PROGRESS_HANDOFF is not reported for a ticket whose current audited record ha	unrecorded	-
+TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	54	`--config FILE` names an operator file (relative to the working directory, at mo	unrecorded	-
+TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	55	QUEUE_LOCK_HELD names this queue's `taskman.lock` or `taskman.prepare.lock` (in	unrecorded	-
+TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	56	SLOW_QUEUE_COMMAND names (`who` `pid N`) each other `corvint-tasks` process with	unrecorded	-
+TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	57	NO_COMPLETIONS names the queue when no completion has been recorded for at least	unrecorded	-
+TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	58	FD_PRESSURE names `system` when the system file table's in-use handles are at le	unrecorded	-
+TQD-V0-026	docs/specs/corvint-tasks-doctor-v0.md	59	With `notify` configured, `doctor --refresh` runs the hook at most once per chan	unrecorded	-
+TQD-V0-027	docs/specs/corvint-tasks-doctor-v0.md	60	For each configured dispatcher, the doctor reads each worker directory's `stdout	unrecorded	-
+TQD-V0-028	docs/specs/corvint-tasks-doctor-v0.md	61	HOST_ERRORS names the worker id when the log holds at least `hostErrors` host er	unrecorded	-
+TQD-V0-029	docs/specs/corvint-tasks-doctor-v0.md	62	EARLY_REFUSAL names the worker id when at least `earlyRefusal` tool calls failed	unrecorded	-
+TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	63	Host-session findings derive only from lines a known usage format recognises (`d	unrecorded	-
+TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	64	For each configured dispatcher the item's `dispatchers` array (in configuration	unrecorded	-
+TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	65	NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acce	unrecorded	-
+TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	66	One doctor scan reads the journal through one read session that pins the store's	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-
