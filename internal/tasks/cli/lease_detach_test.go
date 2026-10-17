@@ -9,12 +9,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -95,6 +97,7 @@ func TestCALV0321_DetachedClaimSurvivesKilledCaller(t *testing.T) {
 	}
 	// Without its child record, the running child is still found by the
 	// lock it holds: attach waits and a repeated detach starts nothing.
+	waitRunningHeld(t, dir)
 	if err := os.Remove(filepath.Join(dir, "child.json")); err != nil {
 		t.Fatal(err)
 	}
@@ -302,6 +305,172 @@ func TestCALV0326_WithoutDetachNothingChanges(t *testing.T) {
 	cli.PruneLeaseDetach(repo, time.Now().Add(8*24*time.Hour))
 	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a record past retention was kept: %v", err)
+	}
+}
+
+// TestCALV0327_StartingChildIsNeverLost: a child still starting, before it
+// holds its running lock, whose identity the launcher and attach cannot read
+// is PENDING, never LOST, inside the startup window, and then commits; a
+// recorded child is LOST only on positive evidence: no process at its pid,
+// or an unconfirmed identity and no running lock after the window
+// (CAL-V0-327).
+func TestCALV0327_StartingChildIsNeverLost(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_START_MS", "1500")
+	t.Cleanup(cli.SetLeaseDetachIdentity(func(int) (string, error) { return "", errors.New("identity probe unavailable") }))
+	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-starting"}
+	if x := cliRun(t, root, append(claim, "--detach")...); x.code != 75 || field(x.res.Items[0], "state").Str != "PENDING" {
+		t.Fatalf("detach of a starting child: code %d %s", x.code, x.stdout)
+	}
+	dir := cli.LeaseDetachDir(repo, "claim-starting")
+	if raw, err := os.ReadFile(filepath.Join(dir, "child.json")); err != nil || !bytes.Contains(raw, []byte(`"identity":"unknown"`)) {
+		t.Fatalf("child record %s: %v", raw, err)
+	}
+	if x := cliRun(t, root, "claim", "--attach", "--request-id", "claim-starting"); x.code != 75 || hasCode(x.res, wire.CodeSupervisorLost) || field(x.res.Items[0], "state").Str != "PENDING" {
+		t.Fatalf("attach of a starting child: code %d %s", x.code, x.stdout)
+	}
+	if x := cliRun(t, root, "claim", "--attach", "--request-id", "claim-starting", "--wait", "60"); x.code != 0 || field(x.res.Items[0], "attemptId").Str == "" {
+		t.Fatalf("starting child did not commit: code %d %s", x.code, x.stdout)
+	}
+
+	// Recorded children without a running lock or a result.
+	gone := exec.Command("true")
+	if err := gone.Run(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name      string
+		pid       int
+		started   time.Time
+		probeFail bool
+		state     string
+	}{
+		{"no-process", gone.Process.Pid, time.Now(), false, "LOST"},
+		{"unknown-in-window", os.Getpid(), time.Now(), true, "PENDING"},
+		{"unknown-after-window", os.Getpid(), time.Now().Add(-2 * time.Minute), true, "LOST"},
+	} {
+		restore := func() {}
+		if !c.probeFail {
+			restore = cli.SetLeaseDetachIdentity(supervisor.ProcessIdentity)
+		}
+		requestID := "claim-" + c.name
+		dir := cli.LeaseDetachDir(repo, requestID)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeJSON(t, filepath.Join(dir, "request.json"), map[string]string{"profile": "taskman-detached-lease/0", "command": "claim", "requestId": requestID, "holder": "", "argvSha256": "0"})
+		writeJSON(t, filepath.Join(dir, "child.json"), map[string]any{"pid": c.pid, "identity": "unknown", "startedAt": c.started.UTC().Format(time.RFC3339), "ceilingAt": c.started.UTC().Format(time.RFC3339)})
+		x := cliRun(t, root, "claim", "--attach", "--request-id", requestID)
+		restore()
+		if field(x.res.Items[0], "state").Str != c.state || hasCode(x.res, wire.CodeSupervisorLost) != (c.state == "LOST") {
+			t.Fatalf("%s: %s", c.name, x.stdout)
+		}
+	}
+}
+
+// TestCALV0328_ChildLogIsCappedAndRotated: what a child writes to child.log
+// is capped, and each run starts a fresh log with the previous run's kept as
+// child.1.log, so restarts never grow it (CAL-V0-328).
+func TestCALV0328_ChildLogIsCappedAndRotated(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_LOG_BYTES", strconv.Itoa(cli.MaxLeaseDetachLog+4096))
+	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-log", "--detach", "--wait", "60"}
+	dir := cli.LeaseDetachDir(repo, "claim-log")
+	for run := 0; run < 3; run++ {
+		x := cliRun(t, root, claim...)
+		// The previous child may still hold running between its result
+		// and its exit; its detach then reports it LOST once.
+		for tries := 0; hasCode(x.res, wire.CodeSupervisorLost) && tries < 50; tries++ {
+			time.Sleep(50 * time.Millisecond)
+			x = cliRun(t, root, claim...)
+		}
+		if x.code != 0 {
+			t.Fatalf("run %d: code %d %s", run, x.code, x.stdout)
+		}
+		info, err := os.Stat(filepath.Join(dir, "child.log"))
+		if err != nil || info.Size() != int64(cli.MaxLeaseDetachLog) {
+			t.Fatalf("run %d: child.log %v %v", run, info, err)
+		}
+		prev, err := os.Stat(filepath.Join(dir, "child.1.log"))
+		if run == 0 && !errors.Is(err, os.ErrNotExist) || run > 0 && (err != nil || prev.Size() != int64(cli.MaxLeaseDetachLog)) {
+			t.Fatalf("run %d: child.1.log %v %v", run, prev, err)
+		}
+		// Lose the child's result so the next detach restarts it.
+		for _, name := range []string{"result.json", "child.json"} {
+			if err := os.Remove(filepath.Join(dir, name)); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+// TestCALV0329_PruneReachesEveryFinishedRecord: retention pages through the
+// whole records directory, so expired finished records behind many
+// unfinished ones are pruned and the unfinished ones are kept (CAL-V0-329).
+func TestCALV0329_PruneReachesEveryFinishedRecord(t *testing.T) {
+	_, repo, _ := detachClaimStore(t)
+	base := filepath.Join(repo.CommonDir, "taskman-requests")
+	var finished, unfinished []string
+	for i := 0; i < 200; i++ {
+		dir := cli.LeaseDetachDir(repo, "prune-"+strconv.Itoa(i))
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "request.json"), []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if i%2 == 1 {
+			unfinished = append(unfinished, dir)
+			continue
+		}
+		if err := os.WriteFile(filepath.Join(dir, "result.json"), []byte("{}\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		finished = append(finished, dir)
+	}
+	cli.PruneLeaseDetach(repo, time.Now().Add(8*24*time.Hour))
+	for _, dir := range finished {
+		if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expired finished record %s kept: %v", dir, err)
+		}
+	}
+	for _, dir := range unfinished {
+		if _, err := os.Stat(dir); err != nil {
+			t.Fatalf("unfinished record %s pruned: %v", dir, err)
+		}
+	}
+	if entries, err := os.ReadDir(base); err != nil || len(entries) != len(unfinished) {
+		t.Fatalf("records left: %d %v", len(entries), err)
+	}
+}
+
+// waitRunningHeld waits until a detached child holds its running lock.
+func waitRunningHeld(t *testing.T, dir string) {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		if f, err := os.Open(filepath.Join(dir, "running")); err == nil {
+			err = syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB)
+			_ = f.Close()
+			if errors.Is(err, syscall.EWOULDBLOCK) {
+				return
+			}
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the detached child never took its running lock")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func writeJSON(t *testing.T, p string, v any) {
+	t.Helper()
+	raw, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(p, append(raw, '\n'), 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

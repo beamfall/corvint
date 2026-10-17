@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -45,6 +46,14 @@ func TestATRV0009_DetachedSupervisorHelper(t *testing.T) {
 	}
 	if ms, err := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS")); err == nil && ms > 0 {
 		cli.SetLeaseDetachCeiling(time.Duration(ms) * time.Millisecond)
+	}
+	startMS, _ := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_START_MS"))
+	logBytes, _ := strconv.Atoi(os.Getenv("CORVINT_TEST_LEASE_DETACH_LOG_BYTES"))
+	if startMS > 0 || logBytes > 0 {
+		cli.SetLeaseDetachChildStarting(func(stderr io.Writer) {
+			_, _ = stderr.Write(bytes.Repeat([]byte("x"), logBytes))
+			time.Sleep(time.Duration(startMS) * time.Millisecond)
+		})
 	}
 	cli.SetDetachExecutable(os.Args[0], detachHelperPrefix...)
 	args := os.Args

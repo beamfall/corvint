@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -20,7 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// Detached claim and pool acquire (CAL-V0-320..326, issue 1005). `--detach`
+// Detached claim and pool acquire (CAL-V0-320..329, issue 1005). `--detach`
 // starts the unchanged lease command in its own session under the caller's
 // request ID and returns at once (or after --wait); `--attach` reads its
 // kept result. The request ID is the handle. The store's request-ID replay
@@ -34,6 +35,7 @@ const (
 	leaseDetachChildName  = "child.json"
 	leaseDetachResultName = "result.json"
 	leaseDetachLogName    = "child.log"
+	leaseDetachPrevLog    = "child.1.log"
 	leaseDetachLockName   = "lock"
 	leaseDetachRunName    = "running"
 	leaseDetachChildFlag  = "--detached-child"
@@ -45,6 +47,13 @@ const (
 	leaseDetachRetention = 7 * 24 * time.Hour
 	maxLeaseDetachRecord = 4096
 	maxLeaseDetachResult = 4 << 20
+	// maxLeaseDetachLog caps what a child writes to its child.log; the
+	// previous run's log is kept as child.1.log (CAL-V0-328).
+	maxLeaseDetachLog = 64 << 10
+	// leaseDetachPruneBatch and maxLeaseDetachPruneScan page the retention
+	// scan through the whole records directory, bounded overall (CAL-V0-329).
+	leaseDetachPruneBatch   = 256
+	maxLeaseDetachPruneScan = 1 << 16
 )
 
 var (
@@ -55,6 +64,15 @@ var (
 	leaseDetachPoll = 200 * time.Millisecond
 	// leaseDetachLockBound bounds the wait for another caller's launch.
 	leaseDetachLockBound = 10 * time.Second
+	// leaseDetachStartBound is the startup window in which a recorded child
+	// whose identity cannot be confirmed is still taken as starting
+	// (CAL-V0-327).
+	leaseDetachStartBound = 60 * time.Second
+	// leaseDetachIdentity probes a process identity; tests make it fail.
+	leaseDetachIdentity = supervisor.ProcessIdentity
+	// leaseDetachChildStarting runs before a child takes its running lock,
+	// with the child's capped log; tests delay a start and write there.
+	leaseDetachChildStarting = func(io.Writer) {}
 )
 
 // leaseDetachHelp is the claim and pool acquire help member (CAL-V0-320).
@@ -167,7 +185,7 @@ func writeLeaseDetachJSON(dir, name string, v any) error {
 
 // leaseDetach is `claim|pool acquire ... --detach [--wait N]`,
 // `... --attach --request-id ID [--holder H] [--wait N]` and the internal
-// child (CAL-V0-320..326).
+// child (CAL-V0-320..329).
 func leaseDetach(env Env, name string, args []string) int {
 	cmd := strings.Fields(name)
 	m, _, err := splitLeaseDetach(args)
@@ -267,7 +285,7 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 		return nil
 	}
 	var child leaseDetachChild
-	switch live, err := leaseDetachChildLive(dir, &child); {
+	switch live, err := leaseDetachChildLive(dir, &child, time.Now()); {
 	case err != nil:
 		return errorResult(cmd, err)
 	case live:
@@ -280,7 +298,13 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	logFile, err := os.OpenFile(filepath.Join(dir, leaseDetachLogName), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o600)
+	// Each run gets a fresh child.log; the previous run's log, the evidence
+	// of a lost child, is kept as child.1.log (CAL-V0-328).
+	logPath := filepath.Join(dir, leaseDetachLogName)
+	if err := os.Rename(logPath, filepath.Join(dir, leaseDetachPrevLog)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return errorResult(cmd, err)
+	}
+	logFile, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -296,9 +320,9 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	}
 	// Reap the child if it ends while this caller still lives.
 	go func() { _ = c.Wait() }()
-	identity, err := supervisor.ProcessIdentity(c.Process.Pid)
+	identity, err := leaseDetachIdentity(c.Process.Pid)
 	if err != nil || identity == "" {
-		identity = "unknown"
+		identity = leaseDetachUnknownIdentity
 	}
 	rec2 := leaseDetachChild{Pid: c.Process.Pid, Identity: identity, StartedAt: started.Format(time.RFC3339), CeilingAt: started.Add(leaseDetachCeiling).Format(time.RFC3339)}
 	if err := writeLeaseDetachJSON(dir, leaseDetachChildName, rec2); err != nil {
@@ -307,10 +331,17 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	return nil
 }
 
-// leaseDetachChildLive reports whether a child of this record still runs:
+// leaseDetachUnknownIdentity is child.json's identity when the launcher
+// could not read the child's.
+const leaseDetachUnknownIdentity = "unknown"
+
+// leaseDetachChildLive reports whether a child of this record may still run:
 // it holds the record's running lock for its whole life, or, before it has
-// taken that lock, its recorded process is live. child receives the record.
-func leaseDetachChildLive(dir string, child *leaseDetachChild) (bool, error) {
+// taken that lock, its recorded process is live. Only positive evidence ends
+// a recorded child: no process at its pid, a different identity there, or,
+// when its identity cannot be confirmed, no running lock once the startup
+// window has passed (CAL-V0-327). child receives the record.
+func leaseDetachChildLive(dir string, child *leaseDetachChild, now time.Time) (bool, error) {
 	if leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName)) {
 		_ = readLeaseDetachJSON(filepath.Join(dir, leaseDetachChildName), child)
 		return true, nil
@@ -321,8 +352,17 @@ func leaseDetachChildLive(dir string, child *leaseDetachChild) (bool, error) {
 	case err != nil:
 		return false, err
 	}
-	live, err := processLive(child.Pid, child.Identity)
-	return err == nil && live, nil
+	id, err := leaseDetachIdentity(child.Pid)
+	switch {
+	case child.Pid <= 0 || (err == nil && id == ""):
+		return false, nil // no such process
+	case err == nil && child.Identity != leaseDetachUnknownIdentity:
+		return id == child.Identity, nil // a different identity is a reused pid
+	}
+	// The identity is not yet known: a child still starting has not taken
+	// running, so it is taken as live until the startup window has passed.
+	started, perr := time.Parse(time.RFC3339, child.StartedAt)
+	return perr == nil && now.Before(started.Add(leaseDetachStartBound)), nil
 }
 
 // leaseDetachRunChild is the detached child: the unchanged lease command
@@ -333,6 +373,9 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachRequest), &rec); err != nil || rec != want {
 		return emit(env.Stdout, usage(strings.Fields(name), leaseDetachChildFlag+" is internal to a detached "+name))
 	}
+	// What the child itself writes to child.log is capped (CAL-V0-328).
+	env.Stderr = &leaseDetachLogWriter{w: env.Stderr, left: maxLeaseDetachLog}
+	leaseDetachChildStarting(env.Stderr)
 	// One child at a time runs a record, and none after a kept result:
 	// a launcher whose caller died before recording this child may have
 	// started another.
@@ -382,7 +425,7 @@ func leaseDetachAwait(env Env, name, dir, requestID, holder string, wait int) in
 		}
 		var child leaseDetachChild
 		state := "PENDING"
-		live, err := leaseDetachChildLive(dir, &child)
+		live, err := leaseDetachChildLive(dir, &child, time.Now())
 		if err != nil {
 			return emit(env.Stdout, errorResult(cmd, err))
 		}
@@ -418,19 +461,51 @@ func leaseDetachItem(name, dir, requestID, holder, state string, child *leaseDet
 }
 
 // pruneLeaseDetach removes finished records (a kept result) older than
-// leaseDetachRetention; a pending or lost record is kept. Best effort.
+// leaseDetachRetention; a pending or lost record is kept. It pages through
+// the whole directory, at most maxLeaseDetachPruneScan entries, so unfinished
+// records never hide finished ones behind them (CAL-V0-329). Best effort.
 func pruneLeaseDetach(base string, now time.Time) {
-	entries, err := listRuns(base)
+	f, err := openDirNonblock(base)
 	if err != nil {
 		return
 	}
-	for _, e := range entries {
-		if !e.IsDir() || len(e.Name()) != sha256.Size*2 {
-			continue
+	defer f.Close()
+	var expired []string
+	for scanned := 0; scanned < maxLeaseDetachPruneScan; {
+		entries, err := f.ReadDir(min(leaseDetachPruneBatch, maxLeaseDetachPruneScan-scanned))
+		for _, e := range entries {
+			if !e.IsDir() || len(e.Name()) != sha256.Size*2 {
+				continue
+			}
+			info, err := os.Lstat(filepath.Join(base, e.Name(), leaseDetachResultName))
+			if err == nil && info.Mode().IsRegular() && now.Sub(info.ModTime()) > leaseDetachRetention {
+				expired = append(expired, e.Name())
+			}
 		}
-		info, err := os.Lstat(filepath.Join(base, e.Name(), leaseDetachResultName))
-		if err == nil && info.Mode().IsRegular() && now.Sub(info.ModTime()) > leaseDetachRetention {
-			_ = os.RemoveAll(filepath.Join(base, e.Name()))
+		scanned += len(entries)
+		if err != nil || len(entries) == 0 {
+			break
 		}
 	}
+	// Removal waits for the scan so the open listing is never reordered.
+	for _, name := range expired {
+		_ = os.RemoveAll(filepath.Join(base, name))
+	}
+}
+
+// leaseDetachLogWriter caps the bytes a detached child writes to its
+// child.log; past the cap it reports success and drops the rest
+// (CAL-V0-328).
+type leaseDetachLogWriter struct {
+	w    io.Writer
+	left int
+}
+
+func (l *leaseDetachLogWriter) Write(p []byte) (int, error) {
+	n := min(len(p), l.left)
+	if n > 0 {
+		l.left -= n
+		_, _ = l.w.Write(p[:n])
+	}
+	return len(p), nil
 }
