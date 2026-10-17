@@ -3710,9 +3710,9 @@ TRE-V0-060	docs/specs/test-runner-execution-v0.md	1182	(accepted under the owner
 TRE-V0-061	docs/specs/test-runner-execution-v0.md	1188	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
 TRE-V0-062	docs/specs/test-runner-execution-v0.md	1191	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
 TRE-V0-063	docs/specs/test-runner-execution-v0.md	1195	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
-TRE-V0-075	docs/specs/test-runner-execution-v0.md	1373	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
-TRE-V0-076	docs/specs/test-runner-execution-v0.md	1378	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
-TRE-V0-077	docs/specs/test-runner-execution-v0.md	1382	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
+TRE-V0-075	docs/specs/test-runner-execution-v0.md	1379	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
+TRE-V0-076	docs/specs/test-runner-execution-v0.md	1384	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
+TRE-V0-077	docs/specs/test-runner-execution-v0.md	1388	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-
