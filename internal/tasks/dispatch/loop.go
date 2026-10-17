@@ -77,6 +77,8 @@ type Dispatcher struct {
 	// memberSince holds the lane member state episodes observed by this
 	// run (CAL-V0-129).
 	memberSince map[string]memberEpisode
+	// contexts holds each running worker's CAL-V0-343 context record.
+	contexts map[string]*contextState
 	// launchedUnder keeps, for each worker running when a reload applied,
 	// the configuration it launched under: supervision deadlines and kill
 	// grace follow it, so a reload affects only later launches (CAL-V0-127).
@@ -656,12 +658,18 @@ func (d *Dispatcher) supervise() []*Worker {
 			delete(d.childCPU, id)
 		}
 	}
+	for id := range d.contexts {
+		if !live[id] {
+			delete(d.contexts, id)
+		}
+	}
 	// Every tree and its activity are observed before any stop, so a stop
 	// that blocks cannot age the CPU samples taken for a later worker
 	// (CAL-V0-218).
 	type observed struct {
 		w      *Worker
 		exempt map[int]string
+		hard   bool // CAL-V0-345
 	}
 	var seen []observed
 	for _, w := range d.ledger.Workers {
@@ -678,7 +686,7 @@ func (d *Dispatcher) supervise() []*Worker {
 		if d.active(w, procs, d.launchConfig(w).Hosts[w.Host], now) {
 			w.LastActive = now
 		}
-		seen = append(seen, observed{w, exempt})
+		seen = append(seen, observed{w, exempt, d.noteContext(w, now)})
 	}
 	var ended []*Worker
 	for _, o := range seen {
@@ -694,6 +702,8 @@ func (d *Dispatcher) supervise() []*Worker {
 			reason = w.KillReason
 		case !leaderAlive(w):
 			reason = "ORPHANED"
+		case o.hard:
+			reason = "CONTEXT"
 		case role != nil && now.Sub(w.Started) > time.Duration(role.WallSeconds)*time.Second:
 			reason = "WALL"
 		case role != nil && now.Sub(w.LastActive) > time.Duration(role.IdleSeconds)*time.Second:
@@ -724,6 +734,8 @@ var killText = map[string]string{
 	"IDLE":     "no session activity and no busy tool process within the idle timeout",
 	"WALL":     "the wall-clock cap was reached",
 	"ORPHANED": "the worker exited but left processes behind",
+	// CAL-V0-345: the applied role's hardTokens was reached.
+	"CONTEXT": "its context estimate reached the role's hardTokens",
 	// CAL-V0-191: set by heal after it reaps the worker's expired attempt.
 	"LEASE_EXPIRED": "its attempt's lease expired beyond the grace and was reaped",
 }
@@ -821,7 +833,7 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 					continue
 				}
 				done[a.ID], wrote = true, true
-				d.handoff(ctx, obs, w.ID, w.Role, a, nil)
+				d.handoff(ctx, obs, w.ID, w.Role, a, d.contextHandoffDetail(w))
 			}
 		}
 	}
@@ -1540,6 +1552,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
+		if contextFormat(role.UsageFormat) {
+			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // CAL-V0-344
+		}
 		if run != nil {
 			env = append(env, detachedEnv(run)...)
 		}

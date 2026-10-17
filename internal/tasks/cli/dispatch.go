@@ -364,6 +364,7 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 		o.Set("state", str(w.State))
 		o.Set("started", ts(w.Started))
 		o.Set("lastActive", ts(w.LastActive))
+		o.Set("context", dispatchWorkerContextValue(c, dir, w, now))
 		if w.Model != "" {
 			o.Set("tier", str(strconv.Itoa(w.Tier)))
 			o.Set("model", str(w.Model))
@@ -524,6 +525,46 @@ func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
 	o.Set("inputTokens", wire.String(in))
 	o.Set("outputTokens", wire.String(out))
 	o.Set("tokens", wire.String(total))
+	return wire.ObjectValue(o)
+}
+
+// dispatchWorkerContextValue is a running worker's CAL-V0-342 context
+// estimate, its age, the highest recorded crossing and the applied role's
+// thresholds. An unread or unknown estimate is UNKNOWN, never 0.
+func dispatchWorkerContextValue(c *dispatch.Config, dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	unknown := dispatch.UsageUnknown
+	tokens, at, age, level := unknown, unknown, unknown, dispatch.ContextNone
+	if w.Usage != nil && (w.Usage.Format == "claude-code" || w.Usage.Format == "opencode") {
+		switch r, err := dispatch.ReadContextRecord(dir, w.ID); {
+		case err == nil:
+			tokens, at, level = r.Tokens, r.ObservedAt, r.Level
+			if t, e := time.Parse(time.RFC3339, r.ObservedAt); e == nil {
+				age = strconv.FormatInt(max(0, int64(now.Sub(t)/time.Second)), 10)
+			}
+		case !errors.Is(err, fs.ErrNotExist):
+			level = unknown
+		}
+	}
+	limit := func(n uint64) wire.Value {
+		if n == 0 {
+			return wire.String(dispatch.ContextNone)
+		}
+		return wire.String(strconv.FormatUint(n, 10))
+	}
+	var lim dispatch.ContextLimits
+	for _, r := range c.Roles {
+		if r.Name == w.Role && r.Context != nil {
+			lim = *r.Context
+		}
+	}
+	o := wire.NewObject()
+	o.Set("tokens", wire.String(tokens))
+	o.Set("observedAt", wire.String(at))
+	o.Set("ageSeconds", wire.String(age))
+	o.Set("level", wire.String(level))
+	o.Set("warnTokens", limit(lim.WarnTokens))
+	o.Set("handoffTokens", limit(lim.HandoffTokens))
+	o.Set("hardTokens", limit(lim.HardTokens))
 	return wire.ObjectValue(o)
 }
 

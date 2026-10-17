@@ -59,6 +59,10 @@ type WorkerUsage struct {
 	// reason was "stop".
 	Open    bool `json:"open,omitempty"`
 	Stopped bool `json:"stopped,omitempty"`
+	// ctxSeen, ctxKnown and ctxTokens carry this process's latest
+	// CAL-V0-341 context observation to noteContext; they are not recorded.
+	ctxSeen, ctxKnown bool
+	ctxTokens         uint64
 }
 
 func (u *WorkerUsage) validate() error {
@@ -120,6 +124,11 @@ func (u *WorkerUsage) line(b []byte) {
 		if t := bytes.TrimSpace(b); bytes.Contains(b, usageMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
 			u.Malformed = true
 		}
+		// CAL-V0-341: an unreadable line that may be a context line leaves
+		// the estimate UNKNOWN.
+		if t := bytes.TrimSpace(b); bytes.Contains(b, contextMarker[u.Format]) || t[0] == '{' && json.Valid(t) {
+			u.observeContext(0, false)
+		}
 		return
 	}
 	var in, out uint64
@@ -150,6 +159,7 @@ func (u *WorkerUsage) line(b []byte) {
 		}
 		u.Open = false
 	case "claude-code":
+		u.claudeContext(b, head.Type)
 		if head.Type != "result" {
 			return
 		}
@@ -177,6 +187,7 @@ func (u *WorkerUsage) line(b []byte) {
 		switch {
 		case !ok && (kind == "step_finish" || bytes.Contains(b, usageMarker[u.Format])):
 			u.Malformed = true
+			u.observeContext(0, false)
 			return
 		case !ok:
 			return
@@ -190,6 +201,7 @@ func (u *WorkerUsage) line(b []byte) {
 			return
 		}
 		in, out = i, o
+		u.observeContext(i+o, i+o >= i)
 		u.Open, u.Stopped = false, part == "step-finish" && reason == "stop"
 	default:
 		return
@@ -252,6 +264,7 @@ func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 				// The line is already longer than the bound: skip to
 				// its end, which a later scan finds.
 				u.Malformed, u.Skipping = true, true
+				u.observeContext(0, false)
 			default:
 				return // an incomplete line waits for its newline
 			}
@@ -272,6 +285,7 @@ func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 func (u *WorkerUsage) measured(b []byte) {
 	if len(b) > maxUsageLine {
 		u.Malformed = true
+		u.observeContext(0, false)
 		return
 	}
 	u.line(b)
