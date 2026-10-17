@@ -66,14 +66,17 @@ func states0592(o tr.Observation) map[string]int {
 
 // TRE-V0-060: Node's synthetic file-level event is a no-tests or a collection result, never a test.
 func TestNodeFileLevelEventsAreNotTests(t *testing.T) {
-	for _, c := range []struct{ file, code string }{{"node-zero.jsonl", "no-tests"}, {"node-collection.jsonl", "collection-or-hook-error"}} {
-		o := qualification0592(t, "node-test", c.file)
+	// The zero and collection runs report Node's file-level event; the collision runs report a
+	// real top-level test at 1:1 named after its file (path or basename), which Node 22.23.3
+	// reports with the same fields. Neither may become a test or a no-tests/collection verdict.
+	for _, file := range []string{"node-zero.jsonl", "node-collection.jsonl", "node-filename-collision.jsonl", "node-filename-collision-fail.jsonl", "node-basename-collision.jsonl"} {
+		o := qualification0592(t, "node-test", file)
 		codes := problemCodes(o)
-		if o.Complete || len(o.Tests) != 0 || !codes[c.code] {
-			t.Fatalf("%s: complete=%v tests=%+v problems=%+v", c.file, o.Complete, o.Tests, o.Problems)
+		if o.Complete || len(o.Tests) != 0 || !codes["ambiguous-test-identity"] {
+			t.Fatalf("%s: complete=%v tests=%+v problems=%+v", file, o.Complete, o.Tests, o.Problems)
 		}
-		if codes["count-mismatch"] || codes["success-conflict"] || codes["node-run-unsuccessful"] {
-			t.Fatalf("%s: misleading reconciliation codes %+v", c.file, o.Problems)
+		if codes["collection-or-hook-error"] || codes["count-mismatch"] || codes["success-conflict"] || codes["node-run-unsuccessful"] {
+			t.Fatalf("%s: unproven or misleading codes %+v", file, o.Problems)
 		}
 	}
 	o := qualification0592(t, "node-test", "node-mixed.jsonl")
@@ -82,7 +85,6 @@ func TestNodeFileLevelEventsAreNotTests(t *testing.T) {
 	}
 }
 
-// TRE-V0-061: AVA's "N tests remaining" comment after a failing before hook keeps the run incomplete.
 func TestAVARemainingTestsAfterHookFailure(t *testing.T) {
 	o := qualification0592(t, "ava", "ava-hook.tap")
 	if o.Complete || !problemCodes(o)["collection-or-hook-error"] {

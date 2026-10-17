@@ -169,13 +169,15 @@ func parseNode(b []byte, o *tr.Observation) error {
 				continue
 			}
 			if e.Data.Details.Type == "test" && nodeFileEvent(e.Data.Nesting, e.Data.Line, e.Data.Column, e.Data.File, e.Data.Name) {
+				// No reported field separates Node's file-level event from a real top-level test
+				// named after its file, so the event stays unresolved rather than a test or a
+				// no-tests/collection verdict.
 				if e.Type == "test:pass" && e.Data.Details.Error == nil {
 					filePassed++
-					fileProblems = append(fileProblems, tr.Problem{Code: "no-tests", Detail: e.Data.File})
 				} else {
 					fileFailed++
-					fileProblems = append(fileProblems, tr.Problem{Code: "collection-or-hook-error", Detail: e.Data.File})
 				}
+				fileProblems = append(fileProblems, tr.Problem{Code: "ambiguous-test-identity", Detail: "Node file-level event or a test named after " + e.Data.File})
 				continue
 			}
 			if e.Data.Details.Type != "test" {
@@ -259,8 +261,9 @@ func parseNode(b []byte, o *tr.Observation) error {
 	return nil
 }
 
-// nodeFileEvent recognizes Node's synthetic per-file test: top level at 1:1 and named
-// after the file it reports (Node names it by the path it was given).
+// nodeFileEvent recognizes the shape of Node's synthetic per-file test: top level at 1:1 and
+// named after the file it reports (Node names it by the path it was given). A real top-level
+// test at 1:1 named after its file has the same shape.
 func nodeFileEvent(nesting, line, column int, file, name string) bool {
 	return nesting == 0 && line == 1 && column == 1 && file != "" && name != "" &&
 		(name == file || strings.HasSuffix(file, "/"+name))

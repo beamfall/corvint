@@ -3688,10 +3688,10 @@ TRE-V0-044	docs/specs/test-runner-execution-v0.md	985	(accepted under the owner'
 TRE-V0-045	docs/specs/test-runner-execution-v0.md	1023	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `cargo-d	standing	2026-10-11; V1-0593
 TRE-V0-046	docs/specs/test-runner-execution-v0.md	1027	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
 TRE-V0-047	docs/specs/test-runner-execution-v0.md	1031	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
-TRE-V0-060	docs/specs/test-runner-execution-v0.md	1153	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
-TRE-V0-061	docs/specs/test-runner-execution-v0.md	1157	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
-TRE-V0-062	docs/specs/test-runner-execution-v0.md	1160	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
-TRE-V0-063	docs/specs/test-runner-execution-v0.md	1164	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-060	docs/specs/test-runner-execution-v0.md	1164	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592; amended	standing	2026-10-11; V1-0592
+TRE-V0-061	docs/specs/test-runner-execution-v0.md	1170	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For `ava	standing	2026-10-11; V1-0592
+TRE-V0-062	docs/specs/test-runner-execution-v0.md	1173	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
+TRE-V0-063	docs/specs/test-runner-execution-v0.md	1177	(accepted under the owner's standing auto-accept (2026-10-11); V1-0592) For	standing	2026-10-11; V1-0592
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	81	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	86	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	108	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-
