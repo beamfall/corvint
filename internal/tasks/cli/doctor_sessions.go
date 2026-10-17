@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
@@ -49,29 +52,31 @@ func doctorClassifySession(format string, raw []byte) doctorSessionCounts {
 		} else {
 			line = nil
 		}
-		switch dispatch.ClassifyHostLine(format, cur) {
-		case dispatch.HostStart:
-			if run == 0 {
-				runFrom = n
-			}
-			if run++; run > c.storm {
-				c.storm, c.stormFrom, c.stormTo = run, runFrom, n
-			}
-		case dispatch.HostFinish:
-			run = 0
-		case dispatch.HostError:
-			if c.errs++; c.errs == 1 {
-				c.errFrom = n
-			}
-			c.errTo = n
-		case dispatch.HostToolOK:
-			toolOK = true
-		case dispatch.HostToolFailed:
-			if !toolOK {
-				if c.refusals++; c.refusals == 1 {
-					c.refusalFrom = n
+		for _, ev := range dispatch.ClassifyHostLine(format, cur) {
+			switch ev {
+			case dispatch.HostStart:
+				if run == 0 {
+					runFrom = n
 				}
-				c.refuseTo = n
+				if run++; run > c.storm {
+					c.storm, c.stormFrom, c.stormTo = run, runFrom, n
+				}
+			case dispatch.HostFinish:
+				run = 0
+			case dispatch.HostError:
+				if c.errs++; c.errs == 1 {
+					c.errFrom = n
+				}
+				c.errTo = n
+			case dispatch.HostToolOK:
+				toolOK = true
+			case dispatch.HostToolFailed:
+				if !toolOK {
+					if c.refusals++; c.refusals == 1 {
+						c.refusalFrom = n
+					}
+					c.refuseTo = n
+				}
 			}
 		}
 	}
@@ -113,7 +118,7 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 	}
 	var out []doctorFinding
 	formats := map[string]string{}
-	ledger, err := dispatch.LoadLedger(d.programDir, filepath.Base(d.programDir))
+	ledger, err := doctorLoadLedger(d.programDir)
 	health := wire.NewObject().Set("programDir", wire.String(prose(d.programDir)))
 	if err != nil {
 		warn("state unreadable: %v", err)
@@ -151,6 +156,9 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 		warn("more than %d worker entries; sessions not read", doctorMaxWorkerDirs)
 		return out
 	}
+	// Name order, so which sessions fit under the read limit never
+	// depends on directory order.
+	slices.SortFunc(entries, func(a, b fs.DirEntry) int { return strings.Compare(a.Name(), b.Name()) })
 	read := 0
 	for _, e := range entries {
 		if !e.IsDir() {
@@ -180,6 +188,21 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 		out = append(out, doctorSessionFindings(th, e.Name(), format, path, doctorClassifySession(format, raw))...)
 	}
 	return out
+}
+
+// doctorLoadLedger reads a dispatcher's state.json without following a
+// final symlink or blocking on a FIFO, refusing anything but a regular file,
+// then decodes it as LoadLedger does; a missing file is a fresh ledger.
+func doctorLoadLedger(programDir string) (*dispatch.Ledger, error) {
+	program := filepath.Base(programDir)
+	raw, err := readBounded(filepath.Join(programDir, "state.json"), dispatch.MaxLedgerBytes)
+	if errors.Is(err, os.ErrNotExist) {
+		return &dispatch.Ledger{}, nil // never written: NOT_OBSERVED
+	}
+	if err != nil {
+		return nil, err
+	}
+	return dispatch.DecodeLedger(raw, program)
 }
 
 // doctorWorkStateValue is the CAL-V0-270 reader health as dispatch status

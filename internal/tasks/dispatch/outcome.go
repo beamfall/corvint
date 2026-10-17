@@ -30,37 +30,45 @@ var codexToolItems = []string{"command_execution", "file_change", "mcp_tool_call
 
 // ClassifyHostLine reads one line of a worker's stdout.log under format,
 // one of UsageFormats, with the member rules the usage reader applies
-// (CAL-V0-157): a line that is not a qualified event of the format, longer
-// than the usage line bound, or of an unknown format is HostNone.
-func ClassifyHostLine(format string, b []byte) HostEvent {
+// (CAL-V0-157), returning its events in line order: one for most events,
+// one per tool_result block of a Claude Code user message. A line that is
+// not a qualified event of the format, longer than the usage line bound, or
+// of an unknown format has none.
+func ClassifyHostLine(format string, b []byte) []HostEvent {
 	if len(b) > maxUsageLine || len(bytes.TrimSpace(b)) == 0 || !slices.Contains(UsageFormats, format) {
-		return HostNone
+		return nil
 	}
 	var head struct {
 		Type string `json:"type"`
 	}
 	if json.Unmarshal(b, &head) != nil {
-		return HostNone
+		return nil
+	}
+	one := func(e HostEvent) []HostEvent {
+		if e == HostNone {
+			return nil
+		}
+		return []HostEvent{e}
 	}
 	switch format {
 	case "codex":
-		return codexHostEvent(head.Type, b)
+		return one(codexHostEvent(head.Type, b))
 	case "opencode":
 		kind, _, _, _, _, ok := supervisor.OpenCodeLineUsage(b)
 		switch {
 		case !ok:
-			return HostNone
+			return nil
 		case kind == "error":
-			return HostError
+			return one(HostError)
 		case kind == "step_start":
-			return HostStart
+			return one(HostStart)
 		case kind == "step_finish":
-			return HostFinish
+			return one(HostFinish)
 		}
 	case "claude-code":
-		return claudeHostEvent(head.Type, b)
+		return claudeHostEvents(head.Type, b)
 	}
-	return HostNone
+	return nil
 }
 
 func codexHostEvent(kind string, b []byte) HostEvent {
@@ -101,20 +109,24 @@ func codexHostEvent(kind string, b []byte) HostEvent {
 	return HostNone
 }
 
-// claudeHostEvent reads Claude Code stream-json: a result object is a
-// finish or, under ClaudeResultFailed, an error; a top-level user message's
-// tool_result blocks are tool calls (a subagent's, with a parent tool use,
-// are not the session's own).
-func claudeHostEvent(kind string, b []byte) HostEvent {
+// claudeHostEvents reads Claude Code stream-json: a result object the
+// CAL-V0-075 member rules admit is a finish or, under ClaudeResultFailed, an
+// error, and a rejected one is nothing; each tool_result block of a
+// top-level user message is one tool call, in block order (a subagent's,
+// with a parent tool use, are not the session's own).
+func claudeHostEvents(kind string, b []byte) []HostEvent {
 	switch kind {
 	case "result":
-		if supervisor.ClaudeResultFailed(b) {
-			return HostError
+		switch {
+		case !supervisor.ClaudeResultAdmitted(b):
+			return nil
+		case supervisor.ClaudeResultFailed(b):
+			return []HostEvent{HostError}
 		}
-		return HostFinish
+		return []HostEvent{HostFinish}
 	case "user":
 		if supervisor.ExactMembers(b, []string{"type", "message"}) != nil {
-			return HostNone
+			return nil
 		}
 		var ev struct {
 			Parent  json.RawMessage `json:"parent_tool_use_id"`
@@ -126,22 +138,23 @@ func claudeHostEvent(kind string, b []byte) HostEvent {
 			} `json:"message"`
 		}
 		if json.Unmarshal(b, &ev) != nil {
-			return HostNone
+			return nil
 		}
 		if p := bytes.TrimSpace(ev.Parent); len(p) > 0 && !bytes.Equal(p, []byte("null")) {
-			return HostNone
+			return nil
 		}
-		out := HostNone
+		var out []HostEvent
 		for _, c := range ev.Message.Content {
 			if c.Type != "tool_result" {
 				continue
 			}
 			if c.IsError != nil && *c.IsError {
-				return HostToolFailed
+				out = append(out, HostToolFailed)
+			} else {
+				out = append(out, HostToolOK)
 			}
-			out = HostToolOK
 		}
 		return out
 	}
-	return HostNone
+	return nil
 }

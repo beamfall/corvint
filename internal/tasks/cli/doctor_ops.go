@@ -191,10 +191,13 @@ func doctorLockFindings(commonDir string, th doctorThresholds, scan *doctorScan)
 			continue
 		}
 		others := 0
-		if _, ok := byPid[holder]; !ok {
-			// Without a recorded holder the oldest corvint-tasks opener is
+		if _, ok := byPid[holder]; !ok && holder != 0 {
+			warn(fmt.Sprintf("%s is held by pid %d, which is not a corvint-tasks command of this host", doctorQueueLocks[i], holder))
+			continue
+		}
+		if holder == 0 {
+			// Without a known holder the oldest corvint-tasks opener is
 			// named; it is the holder or a waiter that has waited longest.
-			holder = 0
 			for _, pid := range openers[path] {
 				if holder == 0 || byPid[pid].elapsed > byPid[holder].elapsed {
 					holder = pid
