@@ -67,7 +67,9 @@ func scanRefs(text string) []testRef {
 		add := func(kind string, v refValue) { out = append(out, testRef{kind: kind, v: v, line: t.line}) }
 		switch {
 		case t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL":
-			if g := strings.IndexByte(arg.value, '*'); arg.reason == "" && g >= 0 {
+			// A string's `*` is a URL glob; a regular expression's escaped `*` is a literal and keeps
+			// its label (AMAP-V0-092/095).
+			if g := strings.IndexByte(arg.value, '*'); arg.reason == "" && arg.class != classRegex && g >= 0 {
 				arg = prefixValue(arg.value[:g]) // a URL glob is a prefix of its literal start
 				if arg.reason != "" {
 					arg.reason = "glob-without-literal"
@@ -210,7 +212,7 @@ func nameByte(c byte) bool {
 func cssNames(s string, prefix bool) []refValue {
 	out := []refValue{}
 	add := func(name string, atEnd bool) {
-		if name == "" || name[0] >= '0' && name[0] <= '9' {
+		if name == "" {
 			return
 		}
 		mode := matchExact
@@ -229,7 +231,9 @@ func cssNames(s string, prefix bool) []refValue {
 		switch s[k] {
 		case '#', '.':
 			e := run(k + 1)
-			add(s[k+1:e], e == len(s))
+			if e > k+1 && (s[k+1] < '0' || s[k+1] > '9') { // `.1x` is not a CSS class or id
+				add(s[k+1:e], e == len(s))
+			}
 			k = e - 1
 		case ':':
 			k = run(k+1) - 1 // a pseudo-class name is CSS, not the application's
@@ -240,13 +244,22 @@ func cssNames(s string, prefix bool) []refValue {
 			}
 			k += e + 1
 		case '[':
-			e := run(k + 1)
-			attr := s[k+1 : e]
+			space := func(e int) int {
+				for e < len(s) && strings.IndexByte(" \t\n\r\f", s[e]) >= 0 {
+					e++
+				}
+				return e
+			}
+			a := space(k + 1)
+			e := run(a)
+			attr := s[a:e]
+			e = space(e)
 			op := ""
 			for e < len(s) && strings.IndexByte("~|^$*=", s[e]) >= 0 {
 				op += s[e : e+1]
 				e++
 			}
+			e = space(e)
 			value, atEnd := "", false
 			if e < len(s) && (s[e] == '"' || s[e] == '\'') {
 				q := strings.IndexByte(s[e+1:], s[e])
@@ -535,15 +548,27 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 	if err != nil {
 		return nil, err
 	}
-	corpus, skipped := []blobEntry{}, 0
+	// Every map test path of --root stays out of the corpus, read or not (AMAP-V0-097).
+	testPaths := map[string]bool{}
+	for _, f := range m.Files {
+		if f.Anchor.Repo == "" {
+			testPaths[f.Path] = true
+		}
+	}
+	corpus, skipped, corpusBytes := []blobEntry{}, 0, 0
 	for _, e := range entries {
 		switch {
-		case tests[e.path] != nil:
+		case testPaths[e.path]:
 		case e.size > maxTestFileBytes:
 			skipped++
 		default:
 			corpus = append(corpus, e)
+			corpusBytes += e.size
 		}
+	}
+	// Each path is scanned, so the total counts every path even when blobs repeat (AMAP-V0-097).
+	if corpusBytes > maxTestBytes {
+		return nil, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
 	}
 	data, err := r.blobs(corpus, maxTestFileBytes, maxTestBytes)
 	if err != nil {

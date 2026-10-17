@@ -23,9 +23,16 @@ func runFlowsAppmapRefs(ctx context.Context, root string, args []string, out io.
 		sources = append(sources, v)
 		return nil
 	})
-	if f.Parse(args) != nil || *mapFile == "" || len(sources) == 0 || f.NArg() != 0 {
+	if f.Parse(args) != nil || *mapFile == "" || f.NArg() != 0 {
 		return errors.New("flows appmap refs requires --map FILE, --source DIR (repeatable) and optional --budget N or --full")
 	}
+	// An explicit --budget 0 is out of range, not the default, and still conflicts with --full
+	// (AMAP-V0-090/096); zero sources refuse in CheckRefs with appmap-invalid-query.
+	f.Visit(func(fl *flag.Flag) {
+		if fl.Name == "budget" && *budget == 0 {
+			*budget = -1
+		}
+	})
 	m, err := appmap.LoadMap(*mapFile)
 	if err != nil {
 		return err
