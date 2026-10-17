@@ -42,6 +42,9 @@ type Report struct {
 	// ReleasedPoolAllocation is the allocation a completed pool release
 	// returned (CAL-V0-201), nil otherwise.
 	ReleasedPoolAllocation *snapshot.ReleasedPoolAllocation
+	// Slot is the attempt's PSR-V0-038 place on the named capacity-slot
+	// resource after a slot command, nil otherwise.
+	Slot *SlotObservation
 	// Delivery is what a claim or claim-next delivers from its admission.
 	Delivery *ClaimDelivery
 	// AuthorExclusion is the model's CAL-V0-098 derivation on a fresh

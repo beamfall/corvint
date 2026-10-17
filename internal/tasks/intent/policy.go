@@ -136,7 +136,10 @@ type Policy struct {
 	// Milestones is the optional CAL-V0-195 milestone policy; nil (the key
 	// absent) keeps milestone optional on CREATE and REFINE.
 	Milestones *MilestonePolicy
-	Raw        []byte
+	// Slots are the optional PSR-V0-030 capacity-slot resources; empty
+	// (the key absent) declares none.
+	Slots []SlotResource
+	Raw   []byte
 }
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
@@ -302,7 +305,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones", "slots")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -454,6 +457,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "pools") {
 		p.Pools = readPools(r.Field("pools"), p.AllowedEnvKeys)
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "slots") {
+		p.Slots = readSlots(r.Field("slots"))
 		if err := r.Err(); err != nil {
 			return nil, err
 		}
