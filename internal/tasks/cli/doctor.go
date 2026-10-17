@@ -230,6 +230,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan) ([]doctorFinding, error)
 	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
+	out = append(out, doctorSessionChurn(scan, doctorHandoffCandidate(rc), out)...)
 	return out, nil
 }
 

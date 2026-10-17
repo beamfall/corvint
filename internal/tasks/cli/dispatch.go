@@ -442,6 +442,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
 	o.Set("parked", wire.Strings(parked))
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if churn := dispatchSessionChurnValue(dir, now); churn != nil {
+		o.Set("shortSessions", *churn)
+	}
 	if held := dispatchEscalationPending(l); len(held) > 0 {
 		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
@@ -1219,4 +1222,34 @@ func dispatchStallValue(c *dispatch.Config, rows []dispatch.StallView, omitted i
 		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(r.Ticket)).Set("status", wire.String(r.Status)).Set("sessions", wire.String(strconv.Itoa(r.Sessions))).Set("stalled", wire.Bool(stalled))))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("threshold", threshold).Set("tickets", wire.Array(items...)).Set("omitted", wire.String(strconv.Itoa(omitted))))
+}
+
+// dispatchSessionChurnValue is the ATR-V0-061 short-session streak of each
+// ticket, present only while the record exists; an unreadable record is
+// UNKNOWN.
+func dispatchSessionChurnValue(dir string, now time.Time) *wire.Value {
+	rec, err := dispatch.ReadSessionChurn(dispatch.SessionChurnPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	keys := make([]string, 0, len(rec.Tickets))
+	for k := range rec.Tickets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []wire.Value{}
+	for _, k := range keys {
+		s := rec.Tickets[k]
+		o := wire.NewObject().Set("key", wire.String(k)).Set("sessions", wire.String(strconv.Itoa(s.Streak))).Set("medianSeconds", wire.String(strconv.Itoa(s.MedianSeconds()))).Set("firstSeen", wire.String(s.FirstSeen)).Set("lastEnd", wire.String(s.LastEnd)).Set("held", wire.Bool(s.Held(now))).Set("reason", wire.String(dispatch.ChurnReason))
+		if s.HoldUntil != "" {
+			o.Set("holdUntil", wire.String(s.HoldUntil))
+		}
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	v := wire.Array(rows...)
+	return &v
 }

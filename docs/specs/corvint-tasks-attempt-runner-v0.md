@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
@@ -11,6 +11,7 @@ owner request [issue 1026](https://github.com/beamfall/corvint/issues/1026) and 
 native ticket V1-1575 (ATR-V0-054..055);
 native ticket V1-1562 (ATR-V0-056..057);
 native ticket V1-1600 (ATR-V0-058..059, issue 1043);
+native ticket V1-1595 (ATR-V0-060..062, issue 1038);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -18,7 +19,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -562,6 +563,58 @@ Acceptance evidence: `TestATRV0058_DrainSignalReachesLiveWorkerAndClears` and
 Rollback: revert the code and this amendment. A leftover signal file is inert for an earlier
 build.
 
+### V1-1595 short-session cooldown
+
+Human-owned input: native ticket V1-1595, from GitHub issue 1038 (2026-10-17). A ticket whose
+sessions kept ending within seconds was relaunched at once, again and again, spending sessions with
+no result. Intent: an opt-in hold after repeated short sessions on one ticket, visible in events,
+`dispatch status` and the doctor, that never stops a running session.
+
+- `ATR-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1595) A dispatch configuration MAY set `shortSessions` with
+  `seconds` (1..86400), `count` (2..100) and `holdSeconds` (1..86400), globally or on a role; a
+  role's own setting replaces the global one for that role's sessions. When a ticket's session
+  finishes, the applied setting of its role (from the configuration applied at that tick,
+  CAL-V0-127) MUST extend the ticket's streak when the session lasted less than `seconds` from
+  launch to finish, and MUST reset it otherwise. When the streak reaches `count`, the dispatcher MUST
+  hold new launches of that ticket until `holdSeconds` after that session's end; a later short
+  session extends the streak and renews the hold. When no role and no global setting is applied,
+  the dispatcher MUST track nothing and hold nothing, and a reload that removes the setting lifts
+  every hold on its next tick. Lane keys are not tracked.
+- `ATR-V0-061`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The streaks MUST be kept in `session-churn.json` in the program's
+  state directory, in the closed profile `taskman-dispatch-session-churn/0`, so that they survive a
+  dispatcher restart and `dispatch status` can read them. Each hold MUST emit one `cooldown` event
+  with detail `reason=SHORT_SESSIONS`, `sessions`, `medianSeconds`, `firstSeen` and `holdUntil`.
+  `dispatch status` MUST list each streak under `shortSessions` with `key`, `sessions`,
+  `medianSeconds`, `firstSeen`, `lastEnd`, `held`, `reason` and `holdUntil` when set, and shows
+  `state=UNKNOWN` for an unreadable record. A hold MUST NOT stop, signal or reap any running worker.
+  A newer-version record is kept and disables tracking after one alert; another unreadable record
+  is replaced after one alert. The CAL-V0-131 live format set gains the profile.
+- `ATR-V0-062`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The doctor MUST report `SESSION_CHURN` for a ticket that is not
+  COMPLETED, ARCHIVED or HELD whose newest ended generations in the scan, at least three in a row,
+  each lasted less than 300 seconds from the receipt that began the generation to the receipt that
+  ended it. The finding names the ticket in `who`, and its detail gives the count, the median length
+  and the first-seen time, which is also its `firstSeen`. A generation that began before the scan
+  has an unknown length and ends the run. A ticket already reported as `NO_PROGRESS_HANDOFF` in the
+  same run is not reported again. The finding carries its own remedy and no authority.
+
+Non-goals: stopping or shortening running sessions, a dispatch-configured doctor threshold (the
+doctor reads the journal, not dispatch configuration), and tracking pool-lane keys.
+
+Failure modes: the streak counts dispatcher sessions, so sessions run outside the dispatcher do
+not count toward a hold, while the doctor counts every ended generation. A record that cannot be
+written alerts and the streak is kept only in memory until the next write. The doctor's 300-second
+bound is fixed.
+
+Acceptance evidence: `TestATRV0060_ShortSessionsHoldThenLongSessionResets`,
+`TestATRV0060_AbsentSettingIsUnchangedAndRoleOverrides`,
+`TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation`
+and `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`),
+`TestATRV0061_DispatchStatusShowsShortSessionHold` and `TestATRV0062_DoctorSessionChurn`
+(`internal/tasks/cli`), and the CAL-V0-131 row of `format_version_test.go`.
+
+Rollback: revert the code and this amendment. A configuration that sets `shortSessions` is then
+refused as an unknown member; a leftover record file is inert for an earlier build.
+
 ## Outcome document
 
 Profile `taskman-attempt-run-outcome/0`, at most 4096 bytes, compact canonical JSON with one trailing
@@ -766,3 +819,6 @@ receipt or wire shape changes.
 | ATR-V0-057 | `internal/tasks/dispatch/detached.go` (`decodeDetachedMarker`, `validMarkerContext`, `advanceDetached`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0057_DeferredContextHandoffSurvivesRestart`, `TestATRV0057_MarkerVersionsAndContextMember` (`internal/tasks/dispatch`) |
 | ATR-V0-058 | `internal/tasks/dispatch/drain_signal.go`, `internal/tasks/dispatch/loop.go` (`tick`, worker env), `internal/tasks/service/fence.go` (`Draining`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0058_DrainSignalReachesLiveWorkerAndClears`, `TestATRV0058_UncontrolledDispatcherClearsLeftoverSignal` (`internal/tasks/dispatch`), `TestATRV0058_LaunchControlReportsDrain` (`internal/tasks/service`) |
 | ATR-V0-059 | `internal/tasks/cli/lease.go` (`withDrainNotice`) | `TestATRV0059_ClaimCarriesDrainNotice` (`internal/tasks/cli`) |
+| ATR-V0-060 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/dispatch/config.go` (`shortSessions`), `internal/tasks/dispatch/loop.go` (`finish`, `launchRoster`, `tick`) | `TestATRV0060_ShortSessionsHoldThenLongSessionResets`, `TestATRV0060_AbsentSettingIsUnchangedAndRoleOverrides`, `TestATRV0060_ReloadLiftsHoldAndRunningWorkersContinue`, `TestATRV0060_ShortSessionsValidation` (`internal/tasks/dispatch`) |
+| ATR-V0-061 | `internal/tasks/dispatch/session_churn.go`, `internal/tasks/cli/dispatch.go` (`dispatchSessionChurnValue`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0061_RecordVersions` (`internal/tasks/dispatch`), `TestATRV0061_DispatchStatusShowsShortSessionHold` (`internal/tasks/cli`) |
+| ATR-V0-062 | `internal/tasks/cli/doctor_churn.go`, `internal/tasks/cli/doctor.go` (`doctorStoreFindings`) | `TestATRV0062_DoctorSessionChurn` (`internal/tasks/cli`) |

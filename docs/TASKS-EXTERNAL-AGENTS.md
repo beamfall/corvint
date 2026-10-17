@@ -631,6 +631,13 @@ and `lastAttemptEndedAt`, `UNKNOWN` where the records cannot prove the time. A d
 `stalledAfterSessions` N emits one advisory `stalled` event that holds nothing (CAL-V0-181 to
 CAL-V0-185, proposed).
 
+The opt-in `shortSessions {seconds, count, holdSeconds}`, global or per role (the role's wins),
+holds a ticket's next launch for `holdSeconds` after `count` consecutive finished sessions each
+shorter than `seconds`; one longer session resets the streak. The hold is a `cooldown` event with
+`reason=SHORT_SESSIONS`, the session count, median length and first-seen time, and `dispatch
+status` lists each streak under `shortSessions`. Running sessions are never stopped, and removing
+the setting lifts every hold on the next tick (ATR-V0-060, ATR-V0-061).
+
 ## Read beside concurrent writers
 
 A read that probes a writer between its receipt link-in and its head rename waits it out for up
@@ -721,6 +728,10 @@ REPEAT_REFUSAL (one candidate tree returned or failed three times), SLOW_LANE_RE
 allocation entered cleanup three times), SETUP_ONLY_PROOF (a recent completion that witnessed no
 core obligation) and FALSE_IDLE (a stale or lease-expired holder whose detached run supervisor
 still has a live descendant). `scan.truncated` marks a partial scan.
+
+SESSION_CHURN reports a ticket whose newest three or more ended generations each lasted under 300
+seconds, with the count, median length and first-seen time, unless the ticket is already reported
+as NO_PROGRESS_HANDOFF (ATR-V0-062).
 
 `--plugins DIR` runs each executable file in DIR from the primary worktree with no stdin, a 10 s
 timeout and 64 KiB of stdout, in its own process group, which is killed once the plugin exits, so

@@ -137,6 +137,10 @@ type Dispatcher struct {
 	// drainAlerted keeps one alert per drain-signal write or removal
 	// failure until a write succeeds (ATR-V0-058).
 	drainAlerted bool
+	// churn is the ATR-V0-061 short-session record, read once; churnForeign
+	// marks a newer-version record that is kept and not tracked.
+	churn        *SessionChurn
+	churnForeign bool
 	// tickSeq numbers this run's full ticks and workStateTick is the tick
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
@@ -397,6 +401,7 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	// CAL-V0-127: a changed configuration applies before this tick acts.
 	d.reloadConfig()
 	d.syncDrainSignal()
+	d.syncChurn()
 	obs, err := d.observe(ctx)
 	if d.readerErr != nil {
 		return d.readerErr
@@ -1225,6 +1230,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		d.finishUsage(w, detail)
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
+		d.noteSession(w, now)
 		if stalled != nil {
 			d.emit(*stalled)
 		}
@@ -1447,6 +1453,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
 	}
+	d.churnHeld(skip, now)
 	for k := range d.ledger.InfraRetry {
 		if d.infraHolds(obs, k) {
 			skip[k] = true
