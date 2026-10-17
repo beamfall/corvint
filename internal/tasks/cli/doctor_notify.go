@@ -79,6 +79,19 @@ func doctorNotifyStateOf(raw []byte) doctorNotifyState {
 	return st
 }
 
+// doctorHasNotify reports whether cache bytes decode with a notify member.
+func doctorHasNotify(raw []byte) bool {
+	if raw == nil {
+		return false
+	}
+	v, err := decodeDoctorCache(raw)
+	if err != nil {
+		return false
+	}
+	n, ok := v.Obj.Get("notify")
+	return ok && n.Kind == wire.KindObject && n.Obj != nil
+}
+
 func (s doctorNotifyState) value() wire.Value {
 	o := wire.NewObject().Set("notifiedSet", wire.String(s.notifiedSet))
 	at := wire.Null()
