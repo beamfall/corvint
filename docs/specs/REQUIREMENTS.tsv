@@ -3040,29 +3040,37 @@ PWP-V3-004	docs/specs/playwright-external-provider-v0.md	262	Every `/3` attempt 
 PWP-V3-005	docs/specs/playwright-external-provider-v0.md	263	The reporter emits `attemptDetails` only under `/3`; the provider validates the	unrecorded	-
 PWP-V3-006	docs/specs/playwright-external-provider-v0.md	264	`/3` is non-promotable until the changed reporter completes the live matrix of `	unrecorded	-
 PWP-V3-007	docs/specs/playwright-external-provider-v0.md	500	The `/3` exact project identity permits an explicitly observed empty project nam	unrecorded	-
-PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	31	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
-PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	45	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
-PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	52	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
-PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	61	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
-PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	65	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
-PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	74	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
-PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	84	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
-PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	91	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
-PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	101	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
-PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	105	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
-PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	111	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
-PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	116	A test identity that occurs more than once in a logical run stays	unrecorded	-
-PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	121	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
-PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	125	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
-PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	129	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
-PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	132	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
-PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	138	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
-PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	142	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
-PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	145	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
-PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	148	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
-PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	151	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
-PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	154	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
-PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	156	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
+PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	33	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
+PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	47	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
+PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	54	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
+PWR-V0-004	docs/specs/playwright-run-evidence-v0.md	63	An `INTERMITTENT` pool whose test is expected to fail (`expectedStatus` `failed`	unrecorded	-
+PWR-V0-005	docs/specs/playwright-run-evidence-v0.md	67	`corvint [--root PATH] runs stability --runs FILE[,FILE...] [--runs ...] [--min-	unrecorded	-
+PWR-V0-006	docs/specs/playwright-run-evidence-v0.md	76	`Compare(baseline, candidate)` MUST match tests by the `PWR-V0-001` identity acr	unrecorded	-
+PWR-V0-007	docs/specs/playwright-run-evidence-v0.md	86	A failed assertion's origin MUST come only from its reported location: `TEST_FIL	unrecorded	-
+PWR-V0-008	docs/specs/playwright-run-evidence-v0.md	93	The overall verdict MUST be `INCOMPARABLE` with every applicable reason, in the	unrecorded	-
+PWR-V0-009	docs/specs/playwright-run-evidence-v0.md	103	Each admitted report MUST be listed per side with its position, SHA-256, Playwri	unrecorded	-
+PWR-V0-010	docs/specs/playwright-run-evidence-v0.md	107	`corvint [--root PATH] runs compare --baseline FILE[,FILE...] --candidate FILE[,	unrecorded	-
+PWR-V0-011	docs/specs/playwright-run-evidence-v0.md	113	The reader MUST read `config.projects[].repeatEach` and, for a project whose	unrecorded	-
+PWR-V0-012	docs/specs/playwright-run-evidence-v0.md	118	A test identity that occurs more than once in a logical run stays	unrecorded	-
+PWR-V0-013	docs/specs/playwright-run-evidence-v0.md	123	Stability output MUST add `repeatEach` to a run summary and `repeats[]` (the rep	unrecorded	-
+PWR-V0-014	docs/specs/playwright-run-evidence-v0.md	127	Compare MUST lay each test out over observation slots: per admitted logical run,	unrecorded	-
+PWR-V0-015	docs/specs/playwright-run-evidence-v0.md	131	Unsharded single-repeat inputs MUST produce stability and compare documents	unrecorded	-
+PWR-V0-016	docs/specs/playwright-run-evidence-v0.md	134	A report declaring `config.shard` MUST have `1 <= current <= total` (else	unrecorded	-
+PWR-V0-017	docs/specs/playwright-run-evidence-v0.md	140	A shard set is admitted only when shards 1..total are each present exactly once	unrecorded	-
+PWR-V0-018	docs/specs/playwright-run-evidence-v0.md	144	An admitted set is read as one run at its shared inputs: tests concatenated in s	unrecorded	-
+PWR-V0-019	docs/specs/playwright-run-evidence-v0.md	147	Stability MUST count an admitted set as one run, giving the same entries as one	unrecorded	-
+PWR-V0-020	docs/specs/playwright-run-evidence-v0.md	150	Compare MUST treat an admitted set as one report of its side. A refused set adds	unrecorded	-
+PWR-V0-021	docs/specs/playwright-run-evidence-v0.md	153	Sharding and repeat-each MUST compose: Playwright shards repeat instances, so a	unrecorded	-
+PWR-V0-022	docs/specs/playwright-run-evidence-v0.md	156	`merge-reports` JSON output (no `config.shard`, projects listed once per merged	unrecorded	-
+PWR-V0-023	docs/specs/playwright-run-evidence-v0.md	158	`corvint runs` topic help MUST document repeat observations, shard sets, the thr	unrecorded	-
+PWR-V0-033	docs/specs/playwright-run-evidence-v0.md	161	A retained result's fingerprint MUST be (Playwright version, declared	unrecorded	-
+PWR-V0-034	docs/specs/playwright-run-evidence-v0.md	169	`Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or	unrecorded	-
+PWR-V0-035	docs/specs/playwright-run-evidence-v0.md	176	A prior whose fingerprint differs from the selection in any input MUST NOT make	unrecorded	-
+PWR-V0-036	docs/specs/playwright-run-evidence-v0.md	180	With the freshness condition (`--fresh`), a prior that differs only in	unrecorded	-
+PWR-V0-037	docs/specs/playwright-run-evidence-v0.md	187	`Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without	unrecorded	-
+PWR-V0-038	docs/specs/playwright-run-evidence-v0.md	194	The shared-code reach MUST be declared by the repository in	unrecorded	-
+PWR-V0-039	docs/specs/playwright-run-evidence-v0.md	200	`runs fresh` MUST read the paths changed between the OLD and NEW commits through	unrecorded	-
+PWR-V0-040	docs/specs/playwright-run-evidence-v0.md	206	`corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	36	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	37	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	38	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-

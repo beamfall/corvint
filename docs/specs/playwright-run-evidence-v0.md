@@ -6,12 +6,14 @@ Intent status: accepted (decision 0520; V1-1230, V1-1229)
 Delivery status: experimental
 Authoritative inputs: V1-1230 / GitHub #798 and V1-1229 / GitHub #797 owner requests; GitHub
 #809 (repeat-each) and #810 (shards) for PWR-V0-011..023, agent-drafted and accepted under the
-owner's standing auto-accept (2026-10-11) after independent review; AGENTS.md invariants 1, 2, 4, 7 and 8.
+owner's standing auto-accept (2026-10-11) after independent review; V1-1578 / GitHub #1021 (result
+reuse) and #1024 (evidence freshness) for PWR-V0-033..040, agent-drafted and accepted under the same
+standing auto-accept; AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: A read-only reader of Playwright JSON reports classifies per-test outcome stability across runs and behaviour parity between baseline and candidate runs.
 - Status: accepted (decision 0520; V1-1230, V1-1229)/experimental
-- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023).
+- Exists: `internal/playwrightruns` and the experimental `corvint runs stability` and `corvint runs compare` commands; each `--repeat-each` repeat is one observation, and shard reports merge into one logical run only as a complete set, else `SHARD_SET_INCOMPLETE`, `SHARD_DUPLICATE` or `SHARD_INPUTS_NOT_DECLARED` (PWR-V0-011..023); `corvint runs reusable` lists each selected test as `REUSABLE` or `MUST_RUN` with a reason from fingerprinted prior passes, `corvint runs redundancy` reports re-run test minutes by category, and `corvint runs fresh` reads evidence freshness over the repository-declared reach in `.corvint/evidence-reach.json` (PWR-V0-033..040).
 - Blocked on: owner acceptance; fixture durations, cleanup and passing assertions are not in the JSON reporter output.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -132,7 +134,7 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
 - `PWR-V0-016`: A report declaring `config.shard` MUST have `1 <= current <= total` (else
   `REPORT_NOT_PLAYWRIGHT_JSON`) and `total <= 1024` (else `REPORT_BOUND_EXCEEDED`). Shard reports
   group into one logical run by shard total, Playwright version, declared `applicationRevision`,
-  `configDigest` and `testFileBlobs`, and `repeatEach` declaration; reports that differ in any of
+  `testRevision` (PWR-V0-033), `configDigest` and `testFileBlobs`, and `repeatEach` declaration; reports that differ in any of
   these are never merged. A logical run is indexed by its first report's
   position; a report without `config.shard` is its own logical run.
 - `PWR-V0-017`: A shard set is admitted only when shards 1..total are each present exactly once at
@@ -156,6 +158,56 @@ verdict that abstains, with a named reason, whenever the runs cannot be shown to
 - `PWR-V0-023`: `corvint runs` topic help MUST document repeat observations, shard sets, the three
   shard refusals and the `shardSets[]` and `repeats[]` fields, and both commands MUST carry them end to
   end without writing.
+- `PWR-V0-033`: A retained result's fingerprint MUST be (Playwright version, declared
+  `applicationRevision`, declared `testRevision`, the declared `testFileBlobs` entry of the test's
+  file, declared `configDigest`, project). `testRevision`, the optional repository-relative
+  `testRootPath` of `config.rootDir`, the optional `corvintRunCategory` and `stats.startTime`
+  (RFC 3339) are read from the report as declared, never inferred from Git; an unreadable or
+  ill-typed member is absent. A qualified pass is an observation of an admitted logical run whose
+  outcome is `passed` with status `expected`, that is not ambiguous, not interrupted, not in a report
+  with top-level errors, and not in a refused shard set.
+- `PWR-V0-034`: `Reusable` MUST give every distinct selected test exactly one row, `REUSABLE` or
+  `MUST_RUN`, with one reason. `EXACT_PASS` (`REUSABLE`) needs at least one prior at the selected
+  fingerprint and every such prior a qualified pass. Otherwise it fails closed: `IDENTITY_AMBIGUOUS`
+  for an ambiguous selected identity, `IDENTITY_INPUT_MISSING` naming the undeclared selected inputs
+  (or detail `prior` when only undeclared priors exist), `NO_PRIOR_RESULT`, `PRIOR_NOT_PASSED`
+  (failed, flaky, skipped or unexpected) or `PRIOR_NOT_QUALIFIED` (interrupted, ambiguous, report
+  errors, refused shard set) naming the prior runs and detail.
+- `PWR-V0-035`: A prior whose fingerprint differs from the selection in any input MUST NOT make the
+  test reusable; without a freshness condition the row is `FINGERPRINT_CHANGED` naming the differing
+  fields of the nearest prior in the fixed order playwrightVersion, applicationRevision,
+  testRevision, testFileBlob, configDigest. A different project is a different test.
+- `PWR-V0-036`: With the freshness condition (`--fresh`), a prior that differs only in
+  `applicationRevision` and/or `testRevision` is `FRESH_PASS` (`REUSABLE`) only when every differing
+  revision pair is `FRESH` for the test file under PWR-V0-039 and every prior at that revision pair is
+  a qualified pass. A `STALE` pair is `STALE` naming the fields and at most 16 deciding paths plus a
+  truncated count; an unresolved pair is `FRESHNESS_UNRESOLVED` with the freshness reason, including
+  `TEST_ROOT_UNRESOLVED` when the test file cannot be located through `testRootPath` or a `rootDir`
+  inside the repository. Freshness never overrides a blob, config, version or project change.
+- `PWR-V0-037`: `Redundancy` MUST order logical runs by `stats.startTime`, exclude a run without one
+  (`START_TIME_MISSING`) or a refused shard set (`SHARD_SET_REFUSED`), and with `--since` keep earlier
+  runs as `HISTORY` whose passes still count. For each counted executed test it MUST tally total
+  time, exact re-run time (a qualified pass at the full fingerprint strictly earlier), same-file-content
+  re-run time (else a strictly earlier qualified pass at the same version, test-file blob, config
+  digest and project) and unfingerprinted time, per `corvintRunCategory` (else `UNDECLARED`) and in
+  total, with minutes rounded to 0.01 and shares of total time to 0.0001.
+- `PWR-V0-038`: The shared-code reach MUST be declared by the repository in
+  `.corvint/evidence-reach.json` (profile `corvint-evidence-reach/0`, a `shared` array of at most 256
+  patterns, at most 64 KiB, unknown fields refused), read from the NEW commit's tree as a regular
+  blob. A pattern is a clean repository-relative slash path whose segments are `path.Match` globs; a
+  whole `**` segment spans any number of segments (at most 4), and a trailing `/` covers a directory.
+  No shared-code path is hard-coded; the declaration file itself is always in reach.
+- `PWR-V0-039`: `runs fresh` MUST read the paths changed between the OLD and NEW commits through
+  bounded pinned Git (`diff-tree --no-renames`, at most 16 MiB) and return `FRESH` only when no
+  changed path is cited, matches a shared pattern or is the declaration; `STALE` naming each deciding
+  path and why (`cited`, `shared`, `reach-config`, sorted, at most 256 plus a truncated count); or
+  `UNRESOLVED`, never `FRESH`, with `REVISION_UNRESOLVED`, `REACH_UNDECLARED`, `REACH_INVALID`,
+  `REACH_UNREADABLE`, `DIFF_FAILED`, `DIFF_BOUND_EXCEEDED` or `CITED_PATH_INVALID`.
+- `PWR-V0-040`: `corvint runs reusable --selection R --prior R...`, `runs redundancy --runs R...
+  [--since T]` and `runs fresh --old REV --new REV [--cite PATH,...]` MUST be read-only, refuse
+  malformed arguments as `runs-invalid-arguments` and unreadable reports as
+  `runs-report-unavailable` naming the option and position, offer `--summary` (counts and verdict
+  without rows or path lists), and be documented in `corvint runs` topic help.
 
 ## Boundaries and failure modes
 
@@ -179,11 +231,24 @@ Undeclared configs are compared only on version and projects and stay an explici
 screening is heuristic. The JSON reporter omits fixture timings, cleanup and
 passing `expect` calls, so they stay `NOT_OBSERVED`.
 
+Reuse and freshness non-goals (PWR-V0-033..040): writing or caching results, a retained-result store
+beyond the reports the caller names, computing fingerprints from the working tree, per-test import
+graphs, rename tracking, `corvint test` (STR-V0) receipts, and skipping tests: the read only lists
+decisions. Reuse limits: the decision trusts declared fingerprints exactly as stability does; a
+`FRESH_PASS` is as good as the declared reach, which covers only cited and declared shared paths, so
+an undeclared dependency outside them can still change behaviour. A report from another machine
+needs `testRootPath` to locate its test files. Redundancy undercounts tests without a start time or
+fingerprint, which it reports as excluded or unfingerprinted rather than guessing.
+
 ## Implementation, rollout and rollback
 
 Keep parsing in `internal/playwrightruns`, CLI parsing in `cmd/corvint/runs.go` and the dispatch and
 help edits minimal. This additive experimental profile changes no Core profile or persisted format.
 Rollback removes the dispatch line, the help entries and the package; there is no data migration.
+Reuse and freshness (PWR-V0-033..040) roll back by removing the `reusable`, `redundancy` and `fresh` dispatch cases and help,
+`cmd/corvint/runs_reuse.go`, `internal/playwrightruns/reuse.go` and `redundancy.go`, the declared-fact
+fields, `internal/evidencereach` and `.corvint/evidence-reach.json`; nothing is persisted. They extend
+`corvint runs` rather than adding a top-level verb so the root dispatch and its receipts stay unchanged.
 Promotion beyond experimental needs owner acceptance of these requirements.
 
 ## Acceptance evidence
@@ -201,6 +266,17 @@ Repeat-each and shard reports produced by `@playwright/test` 1.61.1 and sanitize
 output equal one unsharded run; two of three shards is `SHARD_SET_INCOMPLETE` naming shard 3; a
 rerun shard is `SHARD_DUPLICATE`; a shard at another application revision is not merged; a test in
 two shards is ambiguous; a sharded `--repeat-each 2` run is `INTERMITTENT` with `k/N` 1/2.
+
+Reuse and freshness (synthetic reports and temporary Git repositories): a qualified prior at the same
+fingerprint is `EXACT_PASS`; each changed fingerprint input is `FINGERPRINT_CHANGED` naming it; missing
+inputs, no prior, a failed, flaky, interrupted, error-carrying or refused-shard prior are `MUST_RUN`;
+`--fresh` turns a changed application revision into `FRESH_PASS` when only out-of-reach paths
+changed, `STALE` naming `e2e/support/login.ts` when a shared path changed, and
+`FRESHNESS_UNRESOLVED`/`TEST_ROOT_UNRESOLVED` for an unlocated test root. Redundancy splits exact from
+same-file-content re-runs, ignores ties and later passes, and keeps `--since` history. `runs fresh`
+returns `FRESH`, `STALE` for cited, shared and declaration changes, and `UNRESOLVED` for each
+resolution error; the repository is byte-unchanged after the reads. Live qualification ran the three
+reads on this repository's retained reports and commits (2026-10-17 V1-1578 build-log entry).
 
 ## Delivery
 
@@ -229,5 +305,13 @@ two shards is ambiguous; a sharded `--repeat-each 2` run is `INTERMITTENT` with 
 | PWR-V0-021 | `internal/playwrightruns` | `TestShardedRepeatEachComposes` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-022 | `internal/playwrightruns` | `TestCompleteShardSetMatchesWholeRun` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 | PWR-V0-023 | `cmd/corvint/runs.go` | `TestRunsRepeatAndShardCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-033 | `internal/playwrightruns` | `TestRunFactsDeclaration`, `TestReusableDecisions` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-034 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-035 | `internal/playwrightruns` | `TestReusableDecisions`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-036 | `internal/playwrightruns`, `cmd/corvint/runs_reuse.go` | `TestReusableFreshness`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-037 | `internal/playwrightruns` | `TestRedundancy`, `TestRunsRedundancyCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-038 | `internal/evidencereach` | `TestParseConfig`, `TestClassify` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-039 | `internal/evidencereach` | `TestClassify`, `TestReaderCheck`, `TestRunsReusableCLI` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
+| PWR-V0-040 | `cmd/corvint/runs_reuse.go` | `TestRunsReusableCLI`, `TestRunsRedundancyCLI`, `TestReusableSummaryForm`, `TestReaderCheck` | accepted under the owner's standing auto-accept (2026-10-11)/experimental |
 
 Repository-wide gate is `NOT_RUN` in this scoped lane.
