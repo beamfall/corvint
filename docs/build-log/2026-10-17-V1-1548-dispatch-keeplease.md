@@ -1,6 +1,6 @@
 # V1-1548: dispatcher lease keeper (`keepLease`, issue 1006)
 
-Ticket V1-1548, GitHub issue 1006. Requirements CAL-V0-311..316 in
+Ticket V1-1548, GitHub issue 1006. Requirements CAL-V0-311..318 in
 [corvint-tasks-agent-leases-v0](../specs/corvint-tasks-agent-leases-v0.md), accepted under the
 owner's standing auto-accept of lane requirements (2026-10-11). This is not a new owner decision;
 it applies that standing acceptance to this lane's requirements.
@@ -21,7 +21,14 @@ it applies that standing acceptance to this lane's requirements.
 - **Stops.** `FENCED`, `NOT_HELD` and `GENERATION_CHANGED` stop the binding once with one
   `lease-keeper` event and no alert (acceptance 3). Other failures alert once per episode and retry.
 - **Idempotence.** Request IDs derive from attempt, generation, write kind and the due time, so a
-  write repeated after a lost ledger save replays instead of writing twice.
+  write repeated after a lost ledger save replays instead of committing twice.
+- **Review findings (Codex, one round).** Both P2 findings reproduced as failing tests before the
+  fix. (1) A worker whose tree the tick could not observe was kept on its recorded members, so a
+  dead worker could be renewed while `ps` failed; CAL-V0-317 keeps only trees observed this tick.
+  (2) A replayed renewal after a lost save was scheduled as if it acted now, so the lease could
+  lapse (renewed 12:00 to 12:05, replayed at 12:04:30, next due 12:05:30); CAL-V0-318 follows a
+  replay with one write under a request ID of the current time. The adapter reports the store's
+  `replayed` result.
 - **Ledger version.** The worker `keeper` record moves the ledger to `taskman-dispatch-state/6`;
   version 5 is adopted as recorded. Earlier builds refuse /6, so rollback drains first.
 

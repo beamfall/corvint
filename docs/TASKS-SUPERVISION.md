@@ -205,7 +205,7 @@ the attempt heartbeat, and renews for `leaseMinutes` once the lease no longer co
 It writes nothing for an exited worker or one whose supervision activity (output growth,
 `activityPaths`, a busy child) is older than `maxIdleSeconds`, so that worker's lease runs out as
 above, and it stops once, with one `lease-keeper` event, when the attempt is fenced, released or
-regenerated; `dispatch status` shows each worker's `keeper` (CAL-V0-311..316). A run that changes no durable ticket state cools the ticket down; after
+regenerated; `dispatch status` shows each worker's `keeper` (CAL-V0-311..318). A run that changes no durable ticket state cools the ticket down; after
 `parkAfter` such runs it is parked until its state changes or the operator unparks it. Exhausted
 retries are reported as `needs-owner`; readmission stays the owner's `ticket reopen`. Every
 decision is a plain-language line on stderr and in `events.jsonl`. The `finished` summary is the

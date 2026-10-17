@@ -20,27 +20,40 @@ import (
 
 // keeperQueue is a fake store with the CAL-V0-311 LeaseKeeper capability:
 // a renew moves the observed lease to now plus its minutes, a heartbeat
-// moves nothing, and either can be fenced or fail.
+// moves nothing, and either can be fenced or fail. Like the native store, a
+// request ID already committed replays: it reports replayed and acts on
+// nothing (CAL-V0-318).
 type keeperQueue struct {
 	*fakeQueue
 	now           *time.Time
 	ids           []string
 	renews, beats []string
+	committed     map[string]bool
 	fence         bool
 	fail          error
 }
 
-func (q *keeperQueue) write(a Attempt, id string) error {
+func (q *keeperQueue) write(a Attempt, id string) (bool, error) {
 	q.ids = append(q.ids, id)
 	if q.fence {
-		return fmt.Errorf("%w: REVISION_CONFLICT FENCED", ErrFenced)
+		return false, fmt.Errorf("%w: REVISION_CONFLICT FENCED", ErrFenced)
 	}
-	return q.fail
+	if q.fail != nil {
+		return false, q.fail
+	}
+	if q.committed[id] {
+		return true, nil
+	}
+	if q.committed == nil {
+		q.committed = map[string]bool{}
+	}
+	q.committed[id] = true
+	return false, nil
 }
 
-func (q *keeperQueue) Renew(_ context.Context, a Attempt, minutes int, id string) error {
-	if err := q.write(a, id); err != nil {
-		return err
+func (q *keeperQueue) Renew(_ context.Context, a Attempt, minutes int, id string) (bool, error) {
+	if replayed, err := q.write(a, id); err != nil || replayed {
+		return replayed, err
 	}
 	q.renews = append(q.renews, a.ID+"@"+a.Generation)
 	for i := range q.obs.Attempts {
@@ -48,15 +61,15 @@ func (q *keeperQueue) Renew(_ context.Context, a Attempt, minutes int, id string
 			q.obs.Attempts[i].LeaseExpires = q.now.Add(time.Duration(minutes) * time.Minute)
 		}
 	}
-	return nil
+	return false, nil
 }
 
-func (q *keeperQueue) Heartbeat(_ context.Context, a Attempt, id string) error {
-	if err := q.write(a, id); err != nil {
-		return err
+func (q *keeperQueue) Heartbeat(_ context.Context, a Attempt, id string) (bool, error) {
+	if replayed, err := q.write(a, id); err != nil || replayed {
+		return replayed, err
 	}
 	q.beats = append(q.beats, a.ID+"@"+a.Generation)
-	return nil
+	return false, nil
 }
 
 // keeperRig launches one real, quiet worker on t1 under a fake clock whose
@@ -374,6 +387,96 @@ func TestCALV0312_ExitedWorkerIsNotKept(t *testing.T) {
 	tick(t, d)
 	if len(q.ids) != 1 {
 		t.Fatalf("an exited worker was kept: %v", q.ids)
+	}
+}
+
+// TestCALV0317_UnobservedTreeIsNotKept: when the process table cannot be
+// read after the worker exited, its recorded tree still names a live
+// leader, but the keeper writes nothing for a tree this tick did not
+// observe; the tick's alert records the failed observation. Once the
+// table reads again the exited worker ends and is never kept.
+func TestCALV0317_UnobservedTreeIsNotKept(t *testing.T) {
+	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	q := &keeperQueue{fakeQueue: &fakeQueue{}, now: &now}
+	c := &KeepLease{IntervalSeconds: 60, LeaseMinutes: 5, MaxIdleSeconds: 3600}
+	d, w := keeperRig(t, q, q.fakeQueue, &now, now.Add(90*time.Second), c)
+	tick(t, d)
+	if len(q.renews) != 1 {
+		t.Fatalf("%d renews for a live worker", len(q.renews))
+	}
+	syscall.Kill(-w.PID, syscall.SIGKILL)
+	syscall.Kill(w.PID, syscall.SIGKILL)
+	if !gone(w.PID) {
+		t.Fatal("worker survived SIGKILL")
+	}
+	prev := superviseProcs
+	defer func() { superviseProcs = prev }()
+	superviseProcs = func() (map[int]proc, error) { return nil, errors.New("ps: resource unavailable") }
+	for i := 0; i < 6; i++ { // past the lease the first renewal left
+		now = now.Add(time.Minute)
+		tick(t, d)
+		if w.State != "RUNNING" || len(w.Members) == 0 || !leaderAlive(w) {
+			t.Fatalf("the unobserved worker's recorded tree changed: %s %v", w.State, w.Members)
+		}
+	}
+	if len(q.ids) != 1 {
+		t.Fatalf("an unobserved, exited worker was kept: %v", q.ids)
+	}
+	if count(kinds(t, d), "alert") == 0 {
+		t.Fatalf("the failed process observation is not visible: %v", kinds(t, d))
+	}
+	superviseProcs = prev
+	now = now.Add(time.Minute)
+	tick(t, d)
+	if len(q.ids) != 1 {
+		t.Fatalf("an exited worker was kept once observed: %v", q.ids)
+	}
+}
+
+// TestCALV0318_ReplayedRenewalAfterRestartWritesAgain is the lost-save
+// recovery: interval 60s, lease 5 minutes. A due renewal at 12:00 moves
+// the lease to 12:05, then the dispatcher loses the save of its due time
+// and next runs at 12:04:30. The repeated request replays without moving
+// the lease, so the keeper renews once more under a request ID of this
+// time; the lease never lapses and the next due time is one interval on.
+func TestCALV0318_ReplayedRenewalAfterRestartWritesAgain(t *testing.T) {
+	now := time.Date(2026, 10, 17, 11, 59, 0, 0, time.UTC)
+	q := &keeperQueue{fakeQueue: &fakeQueue{}, now: &now}
+	c := &KeepLease{IntervalSeconds: 60, LeaseMinutes: 5, MaxIdleSeconds: 3600}
+	d, w := keeperRig(t, q, q.fakeQueue, &now, now.Add(3*time.Minute), c)
+	tick(t, d) // 11:59, 3 minutes left: bound and heartbeat, due 12:00
+	if len(q.beats) != 1 || len(q.renews) != 0 {
+		t.Fatalf("beats %v renews %v", q.beats, q.renews)
+	}
+	saved := *w.Keeper
+	now = time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	tick(t, d) // 12:00, 2 minutes left: renewed to 12:05
+	if len(q.renews) != 1 || !q.obs.Attempts[0].LeaseExpires.Equal(now.Add(5*time.Minute)) {
+		t.Fatalf("renews %v lease %s", q.renews, q.obs.Attempts[0].LeaseExpires)
+	}
+	// The ledger save of 12:00 is lost: the keeper restarts from 11:59's record.
+	*w.Keeper = saved
+	now = time.Date(2026, 10, 17, 12, 4, 30, 0, time.UTC)
+	writes := len(q.ids)
+	tick(t, d)
+	if len(q.ids) != writes+2 || q.ids[writes] != q.ids[writes-1] {
+		t.Fatalf("writes after restart %v", q.ids[writes:])
+	}
+	lease := q.obs.Attempts[0].LeaseExpires
+	if len(q.renews) != 2 || !lease.Equal(now.Add(5*time.Minute)) {
+		t.Fatalf("renews %v lease %s", q.renews, lease)
+	}
+	if k := w.Keeper; !k.Due.Equal(now.Add(time.Minute)) || k.LastAction != keeperRenewed || k.Failing {
+		t.Fatalf("keeper %+v", k)
+	}
+	for end := now.Add(10 * time.Minute); now.Before(end); now = now.Add(30 * time.Second) {
+		tick(t, d)
+		if a := q.obs.Attempts[0]; !a.LeaseExpires.After(now) || w.Keeper.State != keeperKeeping {
+			t.Fatalf("at %s the lease %s lapsed, keeper %+v", now, a.LeaseExpires, w.Keeper)
+		}
+	}
+	if len(q.reaped) != 0 || has(kinds(t, d), "alert") {
+		t.Fatalf("reaped %v events %v", q.reaped, kinds(t, d))
 	}
 }
 

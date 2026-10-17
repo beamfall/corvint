@@ -25,33 +25,40 @@ func TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced(t *testing.T) {
 	}
 	ctx := context.Background()
 	a := observedAttempt(t, q, claimed[0].AttemptID)
-	if err := k.Heartbeat(ctx, a, "keep-beat"); err != nil {
-		t.Fatalf("heartbeat: %v", err)
+	if replayed, err := k.Heartbeat(ctx, a, "keep-beat"); err != nil || replayed {
+		t.Fatalf("heartbeat: replayed %v %v", replayed, err)
 	}
 	if after := observedAttempt(t, q, a.ID); !after.LeaseExpires.Equal(a.LeaseExpires) || !after.Live {
 		t.Fatalf("the heartbeat moved the lease: %+v", after)
 	}
 	before := time.Now().UTC().Truncate(time.Second)
-	if err := k.Renew(ctx, a, 30, "keep-renew"); err != nil {
-		t.Fatalf("renew: %v", err)
+	if replayed, err := k.Renew(ctx, a, 30, "keep-renew"); err != nil || replayed {
+		t.Fatalf("renew: replayed %v %v", replayed, err)
 	}
 	renewed := observedAttempt(t, q, a.ID)
 	if renewed.LeaseExpires.Before(before.Add(30*time.Minute)) || renewed.LeaseExpires.After(time.Now().Add(31*time.Minute)) {
 		t.Fatalf("renewed lease %s, want about 30 minutes from %s", renewed.LeaseExpires, before)
 	}
+	// CAL-V0-318: the same request again replays and moves nothing.
+	if replayed, err := k.Renew(ctx, a, 30, "keep-renew"); err != nil || !replayed {
+		t.Fatalf("repeated renew: replayed %v %v", replayed, err)
+	}
+	if again := observedAttempt(t, q, a.ID); !again.LeaseExpires.Equal(renewed.LeaseExpires) {
+		t.Fatalf("a replayed renew moved the lease %s to %s", renewed.LeaseExpires, again.LeaseExpires)
+	}
 	stale := a
 	stale.Generation = "99"
-	if err := k.Renew(ctx, stale, 30, "keep-stale-renew"); !errors.Is(err, dispatch.ErrFenced) {
+	if _, err := k.Renew(ctx, stale, 30, "keep-stale-renew"); !errors.Is(err, dispatch.ErrFenced) {
 		t.Fatalf("stale renew: %v", err)
 	}
-	if err := k.Heartbeat(ctx, stale, "keep-stale-beat"); !errors.Is(err, dispatch.ErrFenced) {
+	if _, err := k.Heartbeat(ctx, stale, "keep-stale-beat"); !errors.Is(err, dispatch.ErrFenced) {
 		t.Fatalf("stale heartbeat: %v", err)
 	}
 	release := atm(t, root, nil, "release", "--attempt", a.ID, "--generation", a.Generation, "--request-id", "release-first")
 	if release.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("release: %+v", release.res)
 	}
-	if err := k.Renew(ctx, a, 30, "keep-late-renew"); !errors.Is(err, dispatch.ErrFenced) {
+	if _, err := k.Renew(ctx, a, 30, "keep-late-renew"); !errors.Is(err, dispatch.ErrFenced) {
 		t.Fatalf("renew after release: %v", err)
 	}
 	if after := observedAttempt(t, q, a.ID); after.Live {

@@ -11,10 +11,12 @@ import (
 // LeaseKeeper is the optional Queue capability of the CAL-V0-311..316 lease
 // keeper: a renew that also records the attempt heartbeat (CAL-V0-231) and
 // a heartbeat that never extends the lease, each fenced on the attempt's
-// generation. A write the store refuses as stale wraps ErrFenced.
+// generation. A write the store refuses as stale wraps ErrFenced. A write
+// the store answers as the replay of an earlier request with the same ID
+// reports replayed: the store did not act at this call (CAL-V0-318).
 type LeaseKeeper interface {
-	Renew(ctx context.Context, a Attempt, minutes int, requestID string) error
-	Heartbeat(ctx context.Context, a Attempt, requestID string) error
+	Renew(ctx context.Context, a Attempt, minutes int, requestID string) (replayed bool, err error)
+	Heartbeat(ctx context.Context, a Attempt, requestID string) (replayed bool, err error)
 }
 
 // ErrFenced marks a keeper write the store refused FENCED: the attempt is no
@@ -76,7 +78,10 @@ func (k *KeeperState) validate() error {
 // keepLeases is the CAL-V0-312..314 keeper pass of one readable tick, run
 // after heal on its observation. It acts only for a running worker with a
 // live leader and a nonempty tree whose launch role declares keepLease, so
-// an exited, ended or stopping worker is never kept.
+// an exited, ended or stopping worker is never kept. The tree and leader
+// must come from this tick's process observation (CAL-V0-317): a worker
+// whose tree supervise could not observe keeps only its recorded members,
+// which may name processes that have exited, and is not kept this tick.
 func (d *Dispatcher) keepLeases(ctx context.Context, obs *Observation) {
 	if obs == nil {
 		return
@@ -87,7 +92,7 @@ func (d *Dispatcher) keepLeases(ctx context.Context, obs *Observation) {
 			return
 		}
 		role := d.launchConfig(w).roleNamed(w.Role)
-		if role == nil || role.KeepLease == nil || len(w.Members) == 0 || w.State != "RUNNING" || !leaderAlive(w) {
+		if role == nil || role.KeepLease == nil || !d.treeSeen[w.ID] || len(w.Members) == 0 || w.State != "RUNNING" || !leaderAlive(w) {
 			continue
 		}
 		d.keepLease(ctx, w, role.KeepLease, obs, now)
@@ -164,12 +169,23 @@ func (d *Dispatcher) keepLease(ctx context.Context, w *Worker, kl *KeepLease, ob
 	// CAL-V0-313: a lease that still covers two intervals is not renewed;
 	// the heartbeat alone keeps the holder from STALE_HOLDER.
 	due := k.Due.UTC().Format(time.RFC3339Nano)
-	action, err := keeperBeat, error(nil)
-	if cur.LeaseExpires.Sub(now) > 2*interval {
-		err = lk.Heartbeat(ctx, *cur, requestID("keep", cur.ID, cur.Generation, "heartbeat", due))
-	} else {
-		action = keeperRenewed
-		err = lk.Renew(ctx, *cur, kl.LeaseMinutes, requestID("keep", cur.ID, cur.Generation, "renew", due))
+	action, kind := keeperBeat, "heartbeat"
+	if cur.LeaseExpires.Sub(now) <= 2*interval {
+		action, kind = keeperRenewed, "renew"
+	}
+	write := func(id string) (bool, error) {
+		if action == keeperBeat {
+			return lk.Heartbeat(ctx, *cur, id)
+		}
+		return lk.Renew(ctx, *cur, kl.LeaseMinutes, id)
+	}
+	replayed, err := write(requestID("keep", cur.ID, cur.Generation, kind, due))
+	if err == nil && replayed {
+		// CAL-V0-318: the replay answers an earlier write, made before a
+		// lost ledger save, and moved neither the lease nor the heartbeat
+		// now. Write once more under a request ID of this time, so the next
+		// due time follows a write that acted now.
+		_, err = write(requestID("keep", cur.ID, cur.Generation, kind, due, "after-replay", now.UTC().Format(time.RFC3339Nano)))
 	}
 	switch {
 	case errors.Is(err, ErrFenced):

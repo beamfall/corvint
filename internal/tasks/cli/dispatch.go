@@ -883,22 +883,29 @@ func (q dispatchQueue) ReapExpired(ctx context.Context, a dispatch.Attempt, requ
 
 // Renew is the CAL-V0-313 keeper renewal, fenced on the bound generation; a
 // current-generation renew also records the heartbeat (CAL-V0-231).
-func (q dispatchQueue) Renew(ctx context.Context, a dispatch.Attempt, minutes int, requestID string) error {
+func (q dispatchQueue) Renew(ctx context.Context, a dispatch.Attempt, minutes int, requestID string) (bool, error) {
 	return keeperOutcome(leaseCommand(q.quiet(), "renew", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-minutes", strconv.Itoa(minutes), "--request-id", requestID}))
 }
 
 // Heartbeat is the CAL-V0-313 keeper heartbeat, which never extends the lease.
-func (q dispatchQueue) Heartbeat(ctx context.Context, a dispatch.Attempt, requestID string) error {
+func (q dispatchQueue) Heartbeat(ctx context.Context, a dispatch.Attempt, requestID string) (bool, error) {
 	return keeperOutcome(leaseCommand(q.quiet(), "attempt heartbeat", []string{"--attempt", a.ID, "--generation", a.Generation, "--request-id", requestID}))
 }
 
-// keeperOutcome marks a FENCED refusal with dispatch.ErrFenced (CAL-V0-314).
-func keeperOutcome(r *wire.Result) error {
-	err := leaseOutcome(r)
-	if err != nil && slices.Contains(r.Codes, wire.CodeFenced) {
-		return fmt.Errorf("%w: %w", dispatch.ErrFenced, err)
+// keeperOutcome marks a FENCED refusal with dispatch.ErrFenced (CAL-V0-314)
+// and reports whether the store replayed an earlier write (CAL-V0-318).
+func keeperOutcome(r *wire.Result) (bool, error) {
+	if err := leaseOutcome(r); err != nil {
+		if slices.Contains(r.Codes, wire.CodeFenced) {
+			return false, fmt.Errorf("%w: %w", dispatch.ErrFenced, err)
+		}
+		return false, err
 	}
-	return err
+	if len(r.Items) == 0 || r.Items[0].Obj == nil {
+		return false, fmt.Errorf("keeper result has no item")
+	}
+	replayed, _ := r.Items[0].Obj.Get("replayed")
+	return replayed.Bool, nil
 }
 
 // reapedOutcome reports whether a per-attempt reap moved its attempt: a
