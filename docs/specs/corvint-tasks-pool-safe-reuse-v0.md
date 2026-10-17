@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -222,7 +222,7 @@ decoders.
   after the policy dropped them (`MALFORMED`, `/: closed object violated (unknown keys: slots)`); the
   same store without slots is read normally. Such a binary therefore cannot operate a queue while
   slots are declared or held, and nothing in the store is misread or rewritten. The remedy is the
-  PSR-V0-030..043 rollback (release every entry, run one slot write, publish policy without
+  slots rollback of PSR-V0-030..043 (release every entry, run one slot write, publish policy without
   `slots`) or a binary that includes V1-1550. No code, format or decoder changes.
 
   Acceptance evidence: the opt-in `TestPSRV0080_OlderBinaryRefusesSlots`
@@ -231,6 +231,79 @@ decoders.
   go1.27.2, Darwin, unverified source build in a temporary directory, not installed): the control
   `queue status` was OK; `queue status` and `attempt show` were `MALFORMED` (exit 1) on both slot
   stores, with the state tree unchanged. Rollback: delete the test and this statement.
+
+### V1-1586 member source identity and drift guard (issue 1029)
+
+Human-owned input: GitHub issue #1029 and native ticket V1-1586 (2026-10-17): each pool member
+reports the source it holds, a pool names the approved sources, and a member whose source drifted
+never returns to FREE. Acceptance: a source outside the allow-list is refused at acquire with a
+typed reason; a drifted member stays QUARANTINED with `SOURCE_DRIFT` and both pairs; a failing or
+malformed identity command never frees the member; `pool status` shows the observed identity and
+when it was observed; removing an allow-list pair does not strand a live allocation and the guard
+applies at release; pools without `allowedSources` behave as before.
+
+- `PSR-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool may
+  declare `allowedSources`, 1..16 distinct `{"revision","tree"}` pairs of full Git object ids, and
+  `defaultSource`, one of them; both are declared or neither (`MALFORMED`, a duplicate pair
+  `DUPLICATE_ID`). `pool acquire --source REV:TREE` asks for a member on that pair. Before any
+  allocation or health preparation, a pair outside the pool's current `allowedSources`, or any
+  `--source` on a pool without them, is refused `BLOCKED` `OUT_OF_SCOPE` with a detail starting
+  `SOURCE_NOT_ALLOWED`; a malformed pair is `MALFORMED`. An admitted acquire records the pair on the
+  pools.json entry as an optional `source`. The wire code set is unchanged; the typed reason is the
+  detail token.
+
+- `PSR-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) In a pool
+  with `allowedSources`, every member declares `memberConfig[M].identity`, a pool command with the
+  existing argv, cwd, env and timeoutSeconds rules, and no member of another pool declares one
+  (`MALFORMED`). It is read-only by contract and prints one JSON object `{"revision","tree"}`. It
+  does not combine with `safeReuse` in this slice (`MALFORMED`), so `pool sweep` never frees a
+  guarded member. The identity command is part of the member definition and is immutable while the
+  member is occupied; `allowedSources` and `defaultSource` are pool-level and may change while it
+  is.
+
+- `PSR-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586)
+  `pool confirm-safe` of a guarded QUARANTINED member runs its identity command in the lease
+  observer, against the policy and pool state the transaction decides on (memoized over that state,
+  so an observer retry over unchanged state does not run it again, and the writer-checkpoint route
+  is kept), through the owned process-group runner (timeout, group kill, bounded output). The
+  observation binds pool, member, allocation and definition digest and carries the class
+  (`REPORTED`, a runner class, or `MALFORMED_OUTPUT`), the reported pair when `REPORTED`, the stdout
+  digest and the runner's wall-clock `observedAt`; the transaction records it in pools.json as the
+  member's last `identities` entry with the receipt `observedSeq`. `pool status` for such a pool
+  shows `defaultSource`, `allowedSources` and, per member, the allocation's `source` and the last
+  `identity` (class, source, allocationId, outputSha256, observedAt, observedSeq) or `NOT_OBSERVED`.
+
+- `PSR-V0-084`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarded
+  member becomes FREE only when its identity is `REPORTED` with the pool's current `defaultSource`.
+  A reported other pair keeps it QUARANTINED with reason `SOURCE_DRIFT: observed R:T; default R:T`;
+  any other class (failure, timeout, over-limit, malformed or trailing output) keeps it QUARANTINED
+  with reason `SOURCE_IDENTITY_UNPROVED: identity command CLASS; default R:T`. Both are committed
+  receipts with outcome `BLOCKED` and code `QUIESCENCE_UNPROVED`, so a request-id replay returns
+  the refusal and frees nothing; a confirm-safe with no observation is refused and writes nothing.
+
+- `PSR-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guard
+  applies at release, not at policy update: a policy update that removes a pair from
+  `allowedSources` leaves every live allocation on it ALLOCATED, and only later acquires of that
+  pair are refused. A lane-untouched release of a guarded member does not remove its entry; it is
+  quarantined like any other release and freed only through PSR-V0-084.
+
+- `PSR-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool
+  without `allowedSources` is unchanged: its policy, pools.json and `pool status` bytes carry no
+  `source`, `identities`, `identity` or source keys, and its members free exactly as before.
+
+  Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
+  timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
+  observation (refused, nothing written); an observation bound to another allocation or definition
+  (`MALFORMED`, nothing written); an allow-list narrowed while occupied (allocation kept, guard at
+  release). Non-goals: no identity probe in `pool sweep` or the dispatcher's sweep, no identity at
+  claim or acquire time, no retargeting of a member to another source (V1-1585), no trust in the
+  command's report beyond its exit and output shape, and no new wire code. Acceptance evidence:
+  `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0082_IdentityPolicyRules`,
+  `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` and `TestPSRV0086_PoolsWithoutSourcesUnchanged`
+  (`internal/tasks/cli`). Rollback: free every guarded member (confirm-safe with a matching
+  identity), publish policy without `allowedSources`, `defaultSource` and `identity`, then revert the
+  source; an older binary refuses a policy or pools.json carrying these keys as `MALFORMED` (unknown
+  key), the recorded compatibility limit. No receipt or record is rewritten.
 
 ## Acceptance evidence
 
@@ -308,3 +381,9 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | Requirement | Evidence |
 | --- | --- |
 | PSR-V0-080 | opt-in `TestPSRV0080_OlderBinaryRefusesSlots` (`internal/tasks/cli`), executed against a `v1.0.0-rc.2` source build |
+| PSR-V0-081 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
+| PSR-V0-082 | `TestPSRV0082_IdentityPolicyRules` (`internal/tasks/cli`) |
+| PSR-V0-083 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |

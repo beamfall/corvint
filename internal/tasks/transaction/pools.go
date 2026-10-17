@@ -176,10 +176,12 @@ func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) er
 			state.Entries[i].RunnerStarted = ""
 			d := wire.Sum(c.in.LeaseFacts.Pool.Observation)
 			state.Entries[i].ObservationSha256 = &d
+			state.Entries[i].Source = c.source
 			posts["evidence/"+string(d)] = c.in.LeaseFacts.Pool.Observation
 		}
-		// Only the fresh validated explicit release may omit this occupancy.
-		if !a.Live() && c.l.Verb == LeaseRelease && c.l.LaneUntouched && a.LaneUntouchedAttestation != nil {
+		// Only the fresh validated explicit release may omit this occupancy;
+		// a source-guarded member still proves its identity first (PSR-V0-085).
+		if !a.Live() && c.l.Verb == LeaseRelease && c.l.LaneUntouched && a.LaneUntouchedAttestation != nil && !identityGuarded(c.st.policy, &en) {
 			state.Entries = append(state.Entries[:i], state.Entries[i+1:]...)
 			break
 		}
@@ -193,7 +195,7 @@ func (c leaseContext) poolPosts(a *snapshot.Attempt, posts map[string][]byte) er
 		if !a.Live() {
 			return malformed("terminal attempt lacks pool allocation")
 		}
-		state.Entries = append(state.Entries, snapshot.PoolEntry{PoolAllocation: *a.PoolAllocation, State: "ALLOCATED", Holder: a.Lease.Holder, Stage: a.Stage, AttemptID: a.AttemptID, Generation: a.Generation, ChangedSeq: c.seq, PolicySha256: a.PolicySha256, RequestSha256: wire.Sum([]byte(c.r.RequestID)), Reason: ""})
+		state.Entries = append(state.Entries, snapshot.PoolEntry{PoolAllocation: *a.PoolAllocation, State: "ALLOCATED", Holder: a.Lease.Holder, Stage: a.Stage, AttemptID: a.AttemptID, Generation: a.Generation, ChangedSeq: c.seq, PolicySha256: a.PolicySha256, RequestSha256: wire.Sum([]byte(c.r.RequestID)), Reason: "", Source: c.source})
 	}
 	raw, e := state.Encode()
 	if e == nil {
@@ -227,6 +229,15 @@ func planPoolSafe(c leaseContext) leaseOutcome {
 	}
 	if c.st.policy.Pool(found.PoolID).MemberConfig[found.MemberID].Cleanup != nil && !found.CleanupPassed {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "configured cleanup observation required")
+	}
+	// PSR-V0-083, PSR-V0-084: a guarded member is FREE only once its
+	// identity reports the pool's current defaultSource.
+	id, refusal := c.identityGuard(found, state)
+	if refusal != nil {
+		return *refusal
+	}
+	if id != nil {
+		state.Identities = withIdentity(state.Identities, *id)
 	}
 	raw, e := state.Encode()
 	if e != nil {

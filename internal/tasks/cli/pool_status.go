@@ -38,6 +38,7 @@ func poolStatus(env Env, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "--pool", "unknown pool %q", poolFilter)
 		}
 		occupied := map[string]snapshot.PoolEntry{}
+		identities := map[string]snapshot.PoolIdentity{}
 		if len(rc.store.Policy.Pools) > 0 {
 			proof, e := auditState(rc, "pools.json")
 			if e != nil {
@@ -51,6 +52,9 @@ func poolStatus(env Env, args []string) *wire.Result {
 				}
 				for _, en := range state.Entries {
 					occupied[en.MemberID] = en
+				}
+				for _, id := range state.Identities {
+					identities[id.PoolID+"\x00"+id.MemberID] = id
 				}
 			}
 		}
@@ -67,15 +71,29 @@ func poolStatus(env Env, args []string) *wire.Result {
 				}
 				found = true
 				o := wire.NewObject().Set("memberId", wire.String(m)).Set("reservedFor", stringOrNull(p.ReservedFor[m]))
-				if en, ok := occupied[m]; ok {
+				en, ok := occupied[m]
+				if ok {
 					poolMemberOccupied(o, en, evidence)
 				} else {
 					poolMemberFree(o)
 				}
+				if p.DefaultSource != nil {
+					poolMemberIdentity(o, en, ok, identities[p.ID+"\x00"+m])
+				}
 				members = append(members, wire.ObjectValue(o))
 			}
 			if memberFilter == "" || len(members) > 0 {
-				pools = append(pools, wire.ObjectValue(wire.NewObject().Set("poolId", wire.String(p.ID)).Set("members", wire.Array(members...))))
+				po := wire.NewObject().Set("poolId", wire.String(p.ID))
+				// PSR-V0-083: only a pool that declares sources shows them, so
+				// every other pool's status bytes are unchanged (PSR-V0-086).
+				if p.DefaultSource != nil {
+					allowed := []wire.Value{}
+					for _, x := range p.AllowedSources {
+						allowed = append(allowed, snapshot.PoolSourceValue(&x))
+					}
+					po.Set("defaultSource", snapshot.PoolSourceValue(p.DefaultSource)).Set("allowedSources", wire.Array(allowed...))
+				}
+				pools = append(pools, wire.ObjectValue(po.Set("members", wire.Array(members...))))
 			}
 		}
 		if memberFilter != "" && !found {
@@ -97,6 +115,22 @@ func poolStatus(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res
+}
+
+// poolMemberIdentity renders a source-guarded member's requested source and
+// its last identity observation (PSR-V0-083): the class, the reported pair,
+// the runner's wall clock when the command ended and the receipt that
+// recorded it. A member never observed shows NOT_OBSERVED.
+func poolMemberIdentity(o *wire.Object, en snapshot.PoolEntry, occupied bool, id snapshot.PoolIdentity) {
+	o.Set("source", wire.Null())
+	if occupied && en.Source != nil {
+		o.Set("source", snapshot.PoolSourceValue(en.Source))
+	}
+	if id.MemberID == "" {
+		o.Set("identity", wire.String(poolNotObserved))
+		return
+	}
+	o.Set("identity", wire.ObjectValue(wire.NewObject().Set("class", wire.String(id.Class)).Set("source", snapshot.PoolSourceValue(id.Source)).Set("allocationId", wire.String(string(id.AllocationID))).Set("outputSha256", wire.String(string(id.OutputSha256))).Set("observedAt", wire.String(string(id.ObservedAt))).Set("observedSeq", wire.String(string(id.ObservedSeq)))))
 }
 
 // poolMemberFree renders a member with no audited occupancy. Nothing holds

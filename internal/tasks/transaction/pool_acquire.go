@@ -38,8 +38,13 @@ func planPoolAcquire(c leaseContext) leaseOutcome {
 	if rec.RequiresPool != "" && rec.RequiresPool != c.l.Pool {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "ticket requires pool "+rec.RequiresPool)
 	}
-	if c.st.policy.Pool(c.l.Pool) == nil {
+	pool := c.st.policy.Pool(c.l.Pool)
+	if pool == nil {
 		return c.fail(malformed("unknown pool"))
+	}
+	var refused *leaseOutcome
+	if c.source, refused = c.acquireSource(pool); refused != nil {
+		return *refused
 	}
 	if e := CheckExcludeAuthors(c.l.ExcludeAuthors, c.l.Pool, a.Stage); e != nil {
 		return c.fail(e)

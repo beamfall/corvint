@@ -25,6 +25,15 @@ rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
   dogfood changes. The tally starts at
   `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
 
+### Tasks pool source identity (V1-1586)
+
+A pool may declare `allowedSources` and `defaultSource`, with a per-member `identity` command.
+`pool acquire --source REV:TREE` outside the allow-list is refused `OUT_OF_SCOPE`
+(`SOURCE_NOT_ALLOWED`); `pool confirm-safe` frees a member only when its identity reports the
+default pair, otherwise it stays QUARANTINED with `SOURCE_DRIFT` or `SOURCE_IDENTITY_UNPROVED`.
+`pool status` shows the last identity observation. Pools without these keys are unchanged; older
+binaries refuse a store that uses them as `MALFORMED` (PSR-V0-081..086).
+
 ### Tasks slots compatibility (V1-1572)
 
 - A corvint-tasks binary from before capacity slots (V1-1550; observed with `v1.0.0-rc.2`) refuses
