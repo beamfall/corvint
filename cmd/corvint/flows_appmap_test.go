@@ -17,8 +17,14 @@ import (
 // appmapCLIRepo commits the internal/appmap fixture application into a fresh repository.
 func appmapCLIRepo(t *testing.T) string {
 	t.Helper()
+	return appmapCLIRepoFrom(t, "fixture")
+}
+
+// appmapCLIRepoFrom commits one internal/appmap/testdata fixture into a fresh repository.
+func appmapCLIRepoFrom(t *testing.T, fixture string) string {
+	t.Helper()
 	root := t.TempDir()
-	src := filepath.Join("..", "..", "internal", "appmap", "testdata", "fixture")
+	src := filepath.Join("..", "..", "internal", "appmap", "testdata", fixture)
 	err := filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err

@@ -20,7 +20,7 @@ one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches. AMAP-V0-090..099 are accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025); `flows appmap refs`, a name-level check of test-referenced routes, selectors and mocked endpoints the declared source lacks, experimental.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -606,6 +606,76 @@ but does not read it; only non-Go syntax impact does.
   no application code runs, and the entry itself stays a static candidate, so classification,
   `verification` and `last_verified_revision` are unchanged by the ledger (AMAP-V0-055/059).
   Status: accepted (decision 0520; V1-1168).
+- `AMAP-V0-090`: `flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]`
+  MUST read only the map file and committed objects of `--root` at the map's revision: the map's
+  test files and the regular files under 1..16 unique repository-relative `--source` directories
+  that are trees at that revision. It writes `application-map-refs/0` to stdout and no file,
+  index, ledger or trace. Zero or more than 16 sources, a duplicate, escaping or non-directory
+  source, or an out-of-range budget refuse with `appmap-invalid-query`; a map revision that is not
+  a commit of `--root` refuses with `appmap-invalid-revision`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-091`: References MUST be read from dotted calls in the map's test files with the
+  AMAP-V0-007 lexer: `goto`, `waitForURL` and `toHaveURL` give route references; `route` gives
+  one endpoint reference per checkable path segment of its first argument; `getByTestId` gives a
+  test-id name, `locator` gives the test id of an exact `[data-testid=...]` and otherwise the `#id`,
+  `.class`, `data-*` attribute names and `data-*`/`id` attribute values of its CSS text. Text-level
+  locators (`getByRole`, `getByLabel`, `getByPlaceholder`, `getByAltText`, `getByTitle`,
+  `getByText`, `text=`, `role=`), XPath and CSS without such a name MUST be counted as unchecked
+  with a reason, never as a miss.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-092`: A whole string literal argument MUST be an `exact` value. A template with a
+  substitution, or a literal followed by `+`, MUST be a `prefix` value up to the first dynamic
+  part (a leading substitution before `/` is an origin and skipped). A regular-expression
+  literal MUST be a `prefix` of its leading literal text (`^` dropped, escaped punctuation read as
+  the character, stopping at a metacharacter, class escape or optional character) labelled
+  `regular-expression`. A URL glob is a prefix of the text before its first `*`. A value with no
+  literal start, or any other argument, MUST be unchecked with the reasons `dynamic-value`,
+  `regex-without-literal`, `glob-without-literal` or `non-literal-value`; a value over 256 bytes is
+  unchecked as `value-too-long`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-093`: A route reference MUST be checked against the map's resolved, non-abstract
+  screens through the AMAP-V0-003 URL rules (authority, hash prefix, query and fragment removed;
+  `{}` and splat templates). An exact value is present when some template matches it; a prefix is
+  present when some template can still match a URL that starts with it (complete segments match,
+  the partial last segment starts the template segment's literal text, a splat matches once its
+  literal segments do). A value that does not start with `/` after that removal is unchecked as
+  `relative-url`. Screens that are not resolved are counted in `screens_unknown` and never match.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-094`: Selector and endpoint names MUST be checked at name level only: an exact name is
+  present when it occurs as a maximal run of `[A-Za-z0-9_-]` in a source file, a prefix when such
+  a run starts with it, and a name holding other characters when it occurs as a substring.
+  Endpoint segments drop the scheme and authority (or a leading `host.tld`/`host:port` segment),
+  the query and fragment, and empty, glob-only and digit-only segments; a segment holding a glob
+  character is a prefix of its literal start. Every report MUST carry `check: "name-level"` and
+  the fixed `limits` sentence saying rendering, reachability, attribute placement and
+  runtime request matching are not checked.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-095`: Known false-positive classes MUST be labelled on the miss: `catch-all-route`
+  when only a root-level splat screen matches the route, `regular-expression` for a value taken
+  from a regular expression, and `app-templated-name` for an exact name a proper prefix of which,
+  ending in `-` or `_`, occurs as a source name. Labelled misses are reported and counted in
+  `misses_labelled`; they never fail the check.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-096`: Each miss MUST report its `kind` (`route`, `selector`, `endpoint`), `value`,
+  `match` (`exact` or `prefix`), optional `class`, `occurrences` and up to three `path:line` test
+  locations, grouped by kind, value, match and class, unlabelled misses first. Unchecked references
+  are grouped by kind and reason with a count and one example location. The document MUST fit
+  `--budget` (256..65536, default 6144) or `--full` (1 MiB) through the AMAP-V0-011 renderer with
+  per-section `omitted` counts, and a budget that cannot hold the head refuses with
+  `appmap-budget-too-small`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-097`: The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,
+  1 MiB per file, 128 MiB in total, else `appmap-bound-exceeded`); a source file over 1 MiB or
+  holding a NUL byte is skipped and counted in `source_files_skipped`, and a map test file is not
+  part of the corpus. A map test file read from an aliased root, or whose blob at the revision
+  differs from its anchor, is not read and is counted in `test_files_unread`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-098`: The command MUST exit 1 after writing the report when at least one unlabelled
+  miss exists, 0 when none exists, and 2 with no stdout on any refusal.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-099`: A secret-shaped reference value (the `internal/secretscreen` writer matcher)
+  MUST be counted as unchecked with reason `secret-shaped` and never printed or looked up.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
 
 ## Wire contract
 
@@ -625,16 +695,23 @@ scope changes cannot leave derived screens FRESH; draw context anchors join `nam
 [--budget N | --full] [--revision REV]` writes `application-map-screen/0`,
 `application-map-flow/0`, `application-map-find/0` or `application-map-scaffold/0`. Refusals exit 2
 with one coded JSON error on stderr and nothing on stdout.
+`corvint flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]` writes
+`application-map-refs/0`: `schema`, `app`, `map_revision`, `map_digest`, `budget`, `full`,
+`check`, `limits`, `sources`, `source_files`, `source_files_skipped`, `test_files_read`,
+`test_files_unread`, `screens_unknown`, `references`, `checked`, `unchecked_total`,
+`misses_unlabelled`, `misses_labelled`, then `misses` (`kind`, `value`, `match`, optional
+`class`, `occurrences`, `tests`), `unchecked` (`kind`, `reason`, `count`, `example`) and
+`omitted` (AMAP-V0-090..099).
 
 ### Owned error codes
 
 | Code | Meaning |
 | --- | --- |
 | `appmap-invalid-manifest` | The manifest is absent, not closed, over its bound, or names an escaping path, unknown dialect, directory outside `tests.root`, or declared directory absent at the revision. |
-| `appmap-invalid-revision` | The build revision does not resolve to a commit. |
+| `appmap-invalid-revision` | The build revision does not resolve to a commit, or a `refs` map revision is not a commit of `--root`. |
 | `appmap-invalid-flows` | A flow intent under the manifest's `flows` directory does not decode. |
 | `appmap-invalid-map` | A map file is not a regular file, is over 64 MiB, is not closed, has trailing data, a wrong schema or a digest mismatch. |
-| `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, or a `find` query is not 2..128 bytes. |
+| `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, a `find` query is not 2..128 bytes, or a `refs` `--source` list is empty, over 16, duplicated, escaping or not a directory at the map revision. |
 | `appmap-budget-too-small` | The budget cannot hold the projection head. |
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
 | `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-019). |
@@ -916,3 +993,50 @@ the application. Rollback removes the flag; the static projection is unchanged.
 
 Promotion needs owner acceptance; runtime verification, non-UI-router entry
 metadata, dynamic resolves/params interpretation and adopter-scale qualification remain deferred.
+
+## Test reference check slice (V1-1581)
+
+Owner input: [issue 1025](https://github.com/beamfall/corvint/issues/1025) (V1-1581). The
+requirements AMAP-V0-090..099 are accepted under the owner's standing auto-accept of 2026-10-11
+and delivered experimental. Job: before a Playwright suite runs, list the routes, selectors and
+mocked endpoint segments the tests name that the application source does not, so a stale test
+reference is found statically. The check reuses the map's test files and URL matching
+(AMAP-V0-003, AMAP-V0-007) and the V1-1134 call scan; it adds no map member, manifest member or
+error code.
+
+| Requirement | Implementation | Focused evidence |
+| --- | --- | --- |
+| AMAP-V0-090 | `internal/appmap/refs.go`, `cmd/corvint/flows_appmap_refs.go` | `TestAMAPV0090RefsReadOnlyContract`, `TestAMAPV0098RefsCLI` |
+| AMAP-V0-091 | `internal/appmap/refs.go` | `TestAMAPV0091ScanRefs`, `TestAMAPV0095LabelledClasses` |
+| AMAP-V0-092 | `internal/appmap/refs.go`, `internal/appmap/jslex.go` | `TestAMAPV0092ValueModes` |
+| AMAP-V0-093 | `internal/appmap/refs.go`, `internal/appmap/router.go` | `TestAMAPV0093RouteCheck` |
+| AMAP-V0-094 | `internal/appmap/refs.go` | `TestAMAPV0094NameLevelCheck`, `TestAMAPV0090RefsReadOnlyContract` |
+| AMAP-V0-095 | `internal/appmap/refs.go` | `TestAMAPV0095LabelledClasses` |
+| AMAP-V0-096 | `internal/appmap/refs.go` | `TestAMAPV0096BoundedOutput`, `TestAMAPV0098RefsCLI` |
+| AMAP-V0-097 | `internal/appmap/refs.go` | `TestAMAPV0097CorpusBounds` |
+| AMAP-V0-098 | `cmd/corvint/flows_appmap_refs.go` | `TestAMAPV0098RefsCLI`, `TestAMAPV0098UnlabelledCount` |
+| AMAP-V0-099 | `internal/appmap/refs.go` | `TestAMAPV0099SecretShapedValues` |
+
+Fixture: `internal/appmap/testdata/refs` (a `react-router/0` app with Playwright specs and a page
+object). Live qualification runs the command over the committed AMAP-V0 fixture and over this one
+and retains the bounded output in the build log.
+
+Non-goals: no usage, reachability, rendering or attribute-placement analysis (a name that occurs
+anywhere in the source is present); no runtime request matching of `route` globs or regular
+expressions; no Cypress, WebdriverIO or framework-specific `testIdAttribute` configuration; no
+text-level selector check; no reading of an aliased root, generated files or build output; no map
+rebuild. Simpler baseline: grep each test literal across the source. It has no route semantics,
+no prefix handling for templated values and no false-positive labels.
+
+Failure modes: a name present only in a comment or unrelated string reads present (name-level
+false negative); a name the application builds at run time without a literal prefix reads as an
+unlabelled miss (false positive); a route served by a router the manifest does not declare, or by
+a screen that stays UNKNOWN, reads as a miss and `screens_unknown` says how many screens could not
+match; an unanchored regular expression is treated as a path prefix and labelled. Each outcome is
+named in the report rather than resolved by guessing.
+
+Rollback: remove `internal/appmap/refs.go`, `cmd/corvint/flows_appmap_refs.go`, the `refs` verb
+in `runFlowsAppmap` and its help text, the `regex` token member in `internal/appmap/jslex.go`
+(nothing else reads it) and this section's requirements and fixture; `urlPath` in
+`internal/appmap/router.go` is a behavior-preserving extraction that may stay. No stored state,
+map schema or ledger needs migration; the report is an explicit stdout document.
