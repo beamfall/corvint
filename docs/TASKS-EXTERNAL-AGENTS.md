@@ -638,6 +638,13 @@ shorter than `seconds`; one longer session resets the streak. The hold is a `coo
 status` lists each streak under `shortSessions`. Running sessions are never stopped, and removing
 the setting lifts every hold on the next tick (ATR-V0-060, ATR-V0-061).
 
+The dispatcher notices a host suspend as a wall-clock jump of at least 30 seconds over the
+monotonic clock between two ticks. It records each gap once in `host-sleep.json`, emits one
+`alert` with detail `hostSlept`, `from` and `to`, and leaves the gap out of the wall and idle
+caps, the lease keeper's idle check and the expired-lease grace, so a worker is not stopped or
+reaped for time the host slept. `dispatch status` shows the last gap under `hostSleep`. The store
+lease itself is not extended, and there is no keep-awake option (ATR-V0-063 to ATR-V0-065).
+
 ## Read beside concurrent writers
 
 A read that probes a writer between its receipt link-in and its head rename waits it out for up

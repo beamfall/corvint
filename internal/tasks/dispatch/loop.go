@@ -33,6 +33,10 @@ type Dispatcher struct {
 	Queue   Queue
 	Out     io.Writer
 	Now     func() time.Time
+	// Mono, when set, replaces the monotonic reading time.Now carries in
+	// host-suspend detection (ATR-V0-063); it does not advance while the
+	// host sleeps.
+	Mono func() time.Duration
 
 	dir       string
 	nonce     string
@@ -141,6 +145,12 @@ type Dispatcher struct {
 	// marks a newer-version record that is kept and not tracked.
 	churn        *SessionChurn
 	churnForeign bool
+	// sleep is the ATR-V0-063 host-sleep record; lastNow and lastMono are
+	// the previous tick's clock readings.
+	sleep        *HostSleep
+	sleepForeign bool
+	lastNow      time.Time
+	lastMono     time.Duration
 	// tickSeq numbers this run's full ticks and workStateTick is the tick
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
@@ -400,6 +410,7 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	}()
 	// CAL-V0-127: a changed configuration applies before this tick acts.
 	d.reloadConfig()
+	d.noteHostSleep()
 	d.syncDrainSignal()
 	d.syncChurn()
 	obs, err := d.observe(ctx)
@@ -724,9 +735,9 @@ func (d *Dispatcher) supervise() []*Worker {
 			reason = "ORPHANED"
 		case o.hard:
 			reason = "CONTEXT"
-		case role != nil && now.Sub(w.Started) > time.Duration(role.WallSeconds)*time.Second:
+		case role != nil && now.Sub(w.Started)-d.slept(w.Started, now) > time.Duration(role.WallSeconds)*time.Second:
 			reason = "WALL"
-		case role != nil && now.Sub(w.LastActive) > time.Duration(role.IdleSeconds)*time.Second:
+		case role != nil && now.Sub(w.LastActive)-d.slept(w.LastActive, now) > time.Duration(role.IdleSeconds)*time.Second:
 			reason = "IDLE"
 		}
 		if reason == "" {
@@ -897,7 +908,8 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 // a store write.
 func (d *Dispatcher) reapRunningExpired(ctx context.Context, obs *Observation, w *Worker, a Attempt, now time.Time) bool {
 	grace := d.launchConfig(w).roleNamed(w.Role).ExpiredLeaseGrace()
-	if now.Sub(a.LeaseExpires) <= grace {
+	// ATR-V0-064: time the host slept after the expiry does not count.
+	if now.Sub(a.LeaseExpires)-d.slept(a.LeaseExpires, now) <= grace {
 		return false
 	}
 	local := d.local(obs, a.Ticket)

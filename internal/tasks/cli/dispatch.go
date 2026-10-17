@@ -445,6 +445,9 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if churn := dispatchSessionChurnValue(dir, now); churn != nil {
 		o.Set("shortSessions", *churn)
 	}
+	if slept := dispatchHostSleepValue(dir); slept != nil {
+		o.Set("hostSleep", *slept)
+	}
 	if held := dispatchEscalationPending(l); len(held) > 0 {
 		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
 	}
@@ -1227,6 +1230,24 @@ func dispatchStallValue(c *dispatch.Config, rows []dispatch.StallView, omitted i
 // dispatchSessionChurnValue is the ATR-V0-061 short-session streak of each
 // ticket, present only while the record exists; an unreadable record is
 // UNKNOWN.
+// dispatchHostSleepValue is the ATR-V0-065 hostSleep member: the last
+// recorded suspend gap and the number kept, nil without a record, and
+// UNKNOWN with the reason when the record does not read.
+func dispatchHostSleepValue(dir string) *wire.Value {
+	rec, err := dispatch.ReadHostSleep(dispatch.HostSleepPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	g := rec.Gaps[len(rec.Gaps)-1]
+	last := wire.NewObject().Set("from", wire.String(g.From)).Set("to", wire.String(g.To)).Set("seconds", wire.String(strconv.Itoa(g.Seconds)))
+	v := wire.ObjectValue(wire.NewObject().Set("lastGap", wire.ObjectValue(last)).Set("gaps", wire.String(strconv.Itoa(len(rec.Gaps)))))
+	return &v
+}
+
 func dispatchSessionChurnValue(dir string, now time.Time) *wire.Value {
 	rec, err := dispatch.ReadSessionChurn(dispatch.SessionChurnPath(dir))
 	if errors.Is(err, fs.ErrNotExist) {
