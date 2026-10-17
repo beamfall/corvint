@@ -189,6 +189,11 @@ func (u *WorkerUsage) line(b []byte) {
 			u.Malformed = true
 			u.observeContext(0, false)
 			return
+		case !ok && kind == "":
+			// CAL-V0-347: a repeated or case-folded member may hide an
+			// escaped step_finish type, so the line may be a context line.
+			u.observeContext(0, false)
+			return
 		case !ok:
 			return
 		case kind == "step_start":
@@ -243,6 +248,7 @@ func nullCodexCounter(b []byte) bool {
 func (u *WorkerUsage) scan(f *os.File, end int64, final bool) {
 	if end < u.Offset {
 		u.Lost, u.Skipping, u.Offset = true, true, 0
+		u.observeContext(0, false) // CAL-V0-347: lost bytes may hold a newer estimate
 	}
 	stop := min(end, u.Offset+maxUsageRead)
 	if stop <= u.Offset {
@@ -298,6 +304,9 @@ func (u *WorkerUsage) measured(b []byte) {
 // one and is skipped, which keeps the counters a lower bound.
 func (u *WorkerUsage) cut() {
 	u.Lost, u.Skipping, u.Offset = true, true, 0
+	// CAL-V0-347: the lost bytes may hold a newer context observation, so
+	// the estimate is UNKNOWN until a line read after the cut replaces it.
+	u.observeContext(0, false)
 }
 
 // drainUsage is the final bounded read of an ended worker's stdout.log.

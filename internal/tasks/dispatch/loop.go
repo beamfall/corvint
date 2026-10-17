@@ -127,7 +127,10 @@ type Dispatcher struct {
 	detached     map[string]*detachedMarker
 	detachedHeld map[string]bool
 	deferredNow  map[string]string
-	heldBy       map[string][]Attempt
+	// deferredContext keeps, by attempt ID, the CAL-V0-345 detail of a
+	// context-stopped worker whose hand-off waits for its detached run.
+	deferredContext map[string]map[string]string
+	heldBy          map[string][]Attempt
 	// tickSeq numbers this run's full ticks and workStateTick is the tick
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
@@ -976,7 +979,7 @@ func (d *Dispatcher) handoff(ctx context.Context, obs *Observation, worker, role
 		if d.Config.Heal.ExitRecoveryOn() {
 			detail["recovery"] = "RETRYING"
 			d.emit(Event{Kind: "handoff-refused", Ticket: a.Ticket, Role: role, Worker: worker, Message: fmt.Sprintf("could not hand off %s attempt %s after %s ended: %v; retrying, then reaping once its lease expires", d.local(obs, a.Ticket), a.ID, worker, err), Detail: detail})
-			r := &exitRecovery{attempt: a, worker: worker, role: role, releases: 1, releaseErr: err.Error()}
+			r := &exitRecovery{attempt: a, worker: worker, role: role, releases: 1, releaseErr: err.Error(), context: contextOnly(extra)}
 			if now := d.Now(); a.LeaseExpires.IsZero() || a.LeaseExpires.After(now) {
 				r.next = now.Add(d.recoveryBackoff(1))
 			}
@@ -1010,6 +1013,8 @@ type exitRecovery struct {
 	releases, reaps     int
 	next                time.Time
 	releaseErr, reapErr string
+	// context is the CAL-V0-345 detail every event of the recovery carries.
+	context map[string]string
 	// exhausted marks a recovery that already reported needs-owner. It stays
 	// recorded, writing nothing, until the attempt ends or is superseded, so
 	// the same attempt is never recovered or reported twice.
@@ -1043,6 +1048,7 @@ func (d *Dispatcher) recoverExits(ctx context.Context, obs *Observation, done ma
 			}
 		}
 		detail := map[string]string{"attempt": id, "generation": r.attempt.Generation, "holder": r.worker}
+		maps.Copy(detail, r.context)
 		if r.exhausted {
 			// Already reported to the owner; only heal.reap still applies.
 			if cur == nil || !cur.Live || cur.Generation != r.attempt.Generation || cur.Holder != r.attempt.Holder {
@@ -1087,6 +1093,7 @@ func (d *Dispatcher) stepRecovery(ctx context.Context, obs *Observation, r *exit
 	}
 	local := d.local(obs, a.Ticket)
 	detail := map[string]string{"attempt": a.ID, "generation": a.Generation, "holder": r.worker, "phase": a.Phase}
+	maps.Copy(detail, r.context)
 	expired := !a.LeaseExpires.IsZero() && !a.LeaseExpires.After(now)
 	wrote := false
 	switch {

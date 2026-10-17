@@ -364,7 +364,7 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 		o.Set("state", str(w.State))
 		o.Set("started", ts(w.Started))
 		o.Set("lastActive", ts(w.LastActive))
-		o.Set("context", dispatchWorkerContextValue(c, dir, w, now))
+		o.Set("context", dispatchWorkerContextValue(dir, w, now))
 		if w.Model != "" {
 			o.Set("tier", str(strconv.Itoa(w.Tier)))
 			o.Set("model", str(w.Model))
@@ -529,15 +529,21 @@ func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
 }
 
 // dispatchWorkerContextValue is a running worker's CAL-V0-342 context
-// estimate, its age, the highest recorded crossing and the applied role's
-// thresholds. An unread or unknown estimate is UNKNOWN, never 0.
-func dispatchWorkerContextValue(c *dispatch.Config, dir string, w *dispatch.Worker, now time.Time) wire.Value {
+// estimate, its age, the highest recorded crossing and the thresholds the
+// dispatcher last applied, all from its record: the configuration file may
+// be invalid or not yet reloaded (CAL-V0-349). An unread or unknown value is
+// UNKNOWN, never 0.
+func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
 	unknown := dispatch.UsageUnknown
-	tokens, at, age, level := unknown, unknown, unknown, dispatch.ContextNone
+	none := dispatch.ContextNone
+	tokens, at, age, level := unknown, unknown, unknown, none
+	warn, handoff, hard := none, none, none
 	if w.Usage != nil && (w.Usage.Format == "claude-code" || w.Usage.Format == "opencode") {
+		warn, handoff, hard = unknown, unknown, unknown
 		switch r, err := dispatch.ReadContextRecord(dir, w.ID); {
 		case err == nil:
 			tokens, at, level = r.Tokens, r.ObservedAt, r.Level
+			warn, handoff, hard = r.WarnTokens, r.HandoffTokens, r.HardTokens
 			if t, e := time.Parse(time.RFC3339, r.ObservedAt); e == nil {
 				age = strconv.FormatInt(max(0, int64(now.Sub(t)/time.Second)), 10)
 			}
@@ -545,26 +551,14 @@ func dispatchWorkerContextValue(c *dispatch.Config, dir string, w *dispatch.Work
 			level = unknown
 		}
 	}
-	limit := func(n uint64) wire.Value {
-		if n == 0 {
-			return wire.String(dispatch.ContextNone)
-		}
-		return wire.String(strconv.FormatUint(n, 10))
-	}
-	var lim dispatch.ContextLimits
-	for _, r := range c.Roles {
-		if r.Name == w.Role && r.Context != nil {
-			lim = *r.Context
-		}
-	}
 	o := wire.NewObject()
 	o.Set("tokens", wire.String(tokens))
 	o.Set("observedAt", wire.String(at))
 	o.Set("ageSeconds", wire.String(age))
 	o.Set("level", wire.String(level))
-	o.Set("warnTokens", limit(lim.WarnTokens))
-	o.Set("handoffTokens", limit(lim.HandoffTokens))
-	o.Set("hardTokens", limit(lim.HardTokens))
+	o.Set("warnTokens", wire.String(warn))
+	o.Set("handoffTokens", wire.String(handoff))
+	o.Set("hardTokens", wire.String(hard))
 	return wire.ObjectValue(o)
 }
 

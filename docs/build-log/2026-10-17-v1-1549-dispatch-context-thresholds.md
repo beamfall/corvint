@@ -46,7 +46,34 @@ Residuals:
 
 - Codex has no per-call estimate.
 - No `corvint-tasks` verb surfaces the notice. The worker reads the record file.
-- The detached-run hand-off path does not carry the `CONTEXT` detail.
+- After a restart, a detached-run deferral whose worker has left the ledger hands off without the
+  `CONTEXT` detail. The strict detached marker cannot carry it. Its `handoff-deferred` event did.
+- An opencode line refused for a repeated or case-folded member leaves the context estimate
+  UNKNOWN, but the `CAL-V0-157` usage totals still skip it without marking the session malformed.
+  That is outside this change.
+
+Independent review (Codex, one round, PR #1016). All five findings were reproduced as failing
+tests on the reviewed head before the fix:
+
+1. An opencode line with a repeated or case-folded member can hide an escaped `step_finish`. The
+   reader refused it without changing a known estimate, so a stale high estimate could still stop
+   the worker. Fixed: such a line makes the estimate UNKNOWN (`CAL-V0-347`).
+2. After a restart, the estimate reloaded from `context.json` could record crossings and stop the
+   worker with no fresh observation. Fixed: a reloaded estimate is shown but acts only after a
+   fresh recognised line (`CAL-V0-348`). The ledger is unchanged.
+3. Output skipped by the `CAL-V0-143` cut, or a log shorter than the read offset, kept the earlier
+   estimate. Fixed: both make it UNKNOWN (`CAL-V0-347`).
+4. Exit-recovery retries and detached-run deferrals dropped the `CONTEXT` detail. Fixed: the
+   recovery carries it, and a deferral keeps it in memory and puts it on `handoff-deferred`
+   (`CAL-V0-345` clarified).
+5. `dispatch status` showed thresholds from the configuration file, which may be invalid or not
+   yet reloaded. Fixed: it shows the applied thresholds from the record, and `UNKNOWN` without a
+   readable record (`CAL-V0-349`, amending `CAL-V0-342`).
+
+The review-fix tests are `TestCALV0345_DeferredAndRecoveredHandoffsKeepContext`,
+`TestCALV0347_HiddenOrLostContextLinesAreUnknown` and
+`TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine` (`internal/tasks/dispatch`), and
+`TestCALV0349_DispatchStatusShowsAppliedThresholds` (`internal/tasks/cli`).
 
 Rollback: remove `context` from the role configurations, which disables the feature. To remove it
 completely, revert the change. Leftover `context.json` sidecars are inert.

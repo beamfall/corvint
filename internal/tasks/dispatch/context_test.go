@@ -469,3 +469,194 @@ func TestCALV0346_ThresholdsHotReload(t *testing.T) {
 		t.Fatalf("handoff %+v", h)
 	}
 }
+
+// contextDispatcher opens a dispatcher whose impl role reads claude-code
+// context under limits, with worker w1's directory created.
+func contextDispatcher(t *testing.T, limits *ContextLimits) (*Dispatcher, *Worker) {
+	t.Helper()
+	c := testConfig(t, "exit 0")
+	c.Roles[0].UsageFormat = "claude-code"
+	c.Roles[0].Context = limits
+	d, err := Open("ctx", c, &fakeQueue{}, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	w := &Worker{ID: "w1", Role: "impl", Ticket: "ticket:a:q:t1", Usage: &WorkerUsage{Format: "claude-code"}}
+	if err := os.MkdirAll(d.workerDir(w.ID), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return d, w
+}
+
+// CAL-V0-347: a line whose repeated or case-folded member hides an escaped
+// step_finish type, and output the read never reached (a CAL-V0-143 cut or
+// a file cut by something else), leave the estimate UNKNOWN, so an earlier
+// high estimate stops nothing.
+func TestCALV0347_HiddenOrLostContextLinesAreUnknown(t *testing.T) {
+	high := strings.Replace(openCodeStep("tool-calls"), `"input":5`, `"input":5000`, 1)
+	hidden := strings.Replace(openCodeStep("stop"), `"type":"step_finish"`, `"type":"step\u005ffinish","sessionID":"ses_1"`, 1)
+	if strings.Contains(hidden, `"step_finish"`) {
+		t.Fatal("the hidden type is not escaped")
+	}
+	if seen, known, _ := contextOf(t, "opencode", high+"\n"+hidden+"\n"); !seen || known {
+		t.Errorf("a hidden step_finish kept the estimate: seen %v known %v", seen, known)
+	}
+	if seen, known, n := contextOf(t, "opencode", high+"\n"+openCodeStart+"\n"); !seen || !known || n != 5003 {
+		t.Errorf("an ordinary event changed the estimate: seen %v known %v tokens %d", seen, known, n)
+	}
+
+	dir := t.TempDir()
+	log := filepath.Join(dir, "stdout.log")
+	main := claudeAssistant(4970, 0)
+	if err := os.WriteFile(log, []byte(main+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	u := &WorkerUsage{Format: "claude-code"}
+	readUsage(dir, u)
+	if !u.ctxKnown || u.ctxTokens != 5000 {
+		t.Fatalf("estimate %v %d", u.ctxKnown, u.ctxTokens)
+	}
+	u.cut()
+	if !u.ctxSeen || u.ctxKnown {
+		t.Errorf("a cut kept the estimate: seen %v known %v", u.ctxSeen, u.ctxKnown)
+	}
+	u = &WorkerUsage{Format: "claude-code"}
+	readUsage(dir, u)
+	if err := os.WriteFile(log, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	readUsage(dir, u)
+	if !u.ctxSeen || u.ctxKnown {
+		t.Errorf("a shrunk log kept the estimate: seen %v known %v", u.ctxSeen, u.ctxKnown)
+	}
+
+	// The supervising decision: the known estimate stops, the cut one not.
+	d, w := contextDispatcher(t, &ContextLimits{HardTokens: 4000})
+	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	w.Usage.observeContext(5000, true)
+	w.Usage.cut()
+	if d.noteContext(w, now) {
+		t.Fatal("an estimate whose newer output was lost stopped the worker")
+	}
+	w.Usage.observeContext(5000, true)
+	if !d.noteContext(w, now.Add(time.Second)) {
+		t.Fatal("a known estimate over hardTokens did not stop the worker")
+	}
+}
+
+// CAL-V0-348: after a restart, a reloaded record's estimate may predate an
+// observation whose record write failed while the ledger's usage offset
+// moved past it, so it crosses nothing and stops nothing until a line read
+// by the restarted run replaces it; it is still shown.
+func TestCALV0348_ReloadedEstimateActsOnlyAfterAFreshLine(t *testing.T) {
+	d, w := contextDispatcher(t, &ContextLimits{WarnTokens: 100})
+	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	step := func(tokens uint64, observe bool) bool {
+		t.Helper()
+		if observe {
+			w.Usage.observeContext(tokens, true)
+		}
+		now = now.Add(time.Second)
+		return d.noteContext(w, now)
+	}
+	step(250, true)
+	// A compacted, smaller estimate cannot be written; then a restart with
+	// a hardTokens below the stale 250.
+	dir := d.workerDir(w.ID)
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	step(50, true)
+	os.Chmod(dir, 0o700)
+	d.contexts = nil
+	d.Config.Roles[0].Context = &ContextLimits{WarnTokens: 100, HardTokens: 200}
+	if step(0, false) || step(0, false) {
+		t.Fatal("a reloaded estimate stopped the worker")
+	}
+	rec, err := ReadContextRecord(d.dir, w.ID)
+	if err != nil || rec.Tokens != "250" || rec.crossed(ContextHard) != nil || rec.HardTokens != "200" {
+		t.Fatalf("record after restart %+v %v", rec, err)
+	}
+	if !step(260, true) {
+		t.Fatal("a fresh estimate over hardTokens did not stop the worker")
+	}
+	var levels []string
+	for _, e := range eventsOf(t, d, "context") {
+		levels = append(levels, e.Detail["level"]+"@"+e.Detail["tokens"])
+	}
+	if got := strings.Join(levels, ","); got != "WARN@250,HARD@260" {
+		t.Fatalf("crossings %s", got)
+	}
+}
+
+// writeContextRecord writes a record for w1 with the estimate and hard
+// threshold, as a context-stopped worker leaves it.
+func writeContextRecord(t *testing.T, d *Dispatcher, tokens, hard string) {
+	t.Helper()
+	rec := freshContextRecord("w1")
+	rec.Tokens, rec.ObservedAt, rec.HardTokens = tokens, "2026-10-17T09:00:00Z", hard
+	if err := os.MkdirAll(d.workerDir("w1"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAtomic(ContextRecordPath(d.dir, "w1"), rec.encode()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// CAL-V0-345: the hand-off of a context-stopped worker keeps reason,
+// contextTokens and hardTokens on every exit-recovery event after a refused
+// release, and on a hand-off that waited for a detached run.
+func TestCALV0345_DeferredAndRecoveredHandoffsKeepContext(t *testing.T) {
+	now := time.Date(2026, 10, 17, 9, 0, 0, 0, time.UTC)
+	q := &refusingQueue{fakeQueue: &fakeQueue{}, releaseFails: 2}
+	d := exitRig(t, q, now.Add(24*time.Hour), &now, nil)
+	d.ledger.Workers[0].KillReason = "CONTEXT"
+	writeContextRecord(t, d, "5000", "4000")
+	for i := 0; i < 3; i++ {
+		tick(t, d)
+		now = now.Add(10 * time.Minute)
+	}
+	events, err := ReadEvents(d.dir, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen []string
+	for _, e := range events {
+		if e.Kind != "handoff" && e.Kind != "handoff-refused" {
+			continue
+		}
+		seen = append(seen, e.Kind+":"+e.Detail["recovery"])
+		if e.Detail["reason"] != "CONTEXT" || e.Detail["contextTokens"] != "5000" || e.Detail["hardTokens"] != "4000" {
+			t.Errorf("%s event without the context detail: %+v", e.Kind, e.Detail)
+		}
+	}
+	if got := strings.Join(seen, ","); got != "handoff-refused:RETRYING,handoff-refused:RETRYING,handoff:RELEASED" {
+		t.Fatalf("hand-off events %s", got)
+	}
+
+	// A hand-off deferred for a detached run (here re-found from its marker
+	// after a restart) carries the detail when it is finally made.
+	rq := &runQueue{fakeQueue: &fakeQueue{}, runs: map[string][]DetachedRun{}}
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match.Labels = []string{"do-not-launch"}
+	rq.obs.Tickets = []Ticket{ticket("t1", "P1", 1)}
+	dd, err := Open("ctx", c, rq, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { dd.Close() })
+	tk := rq.obs.Tickets[0].ID
+	dd.ledger.Workers = append(dd.ledger.Workers, &Worker{ID: "w1", Role: "impl", Host: "sh", Key: tk, Ticket: tk, PID: -1, Started: now, LastActive: now, KillReason: "CONTEXT"})
+	rq.obs.Attempts = []Attempt{{ID: "a1", Ticket: tk, Holder: "w1", Phase: "RUNNING", Generation: "7", Live: true, LeaseExpires: now.Add(time.Hour)}}
+	writeContextRecord(t, dd, "5000", "4000")
+	dd.detached = map[string]*detachedMarker{testRunID: {Profile: detachedProfile, RunID: testRunID, AttemptID: "a1", Generation: "7", Ticket: tk, Role: "impl", Worker: "w1", Phase: DetachedDeferred, DeferredAt: now, DeferUntil: now.Add(time.Hour)}}
+	tick(t, dd)
+	h := eventsWith(t, dd, "handoff", "detachedRun", testRunID)
+	if len(h) != 1 || h[0].Detail["reason"] != "CONTEXT" || h[0].Detail["contextTokens"] != "5000" || h[0].Detail["hardTokens"] != "4000" || len(rq.released) != 1 {
+		t.Fatalf("deferred hand-off %+v released %v", h, rq.released)
+	}
+	if len(dd.deferredContext) != 0 {
+		t.Fatalf("deferred context kept after the hand-off: %v", dd.deferredContext)
+	}
+}

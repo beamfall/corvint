@@ -322,6 +322,11 @@ type contextState struct {
 	// writes alerts once.
 	dirty   bool
 	failing bool
+	// reloaded marks a record read back after a restart: its estimate may
+	// predate lines the ledger's usage offset already passed (a failed
+	// write), so it crosses nothing and stops nothing until a line read by
+	// this run replaces it (CAL-V0-348).
+	reloaded bool
 }
 
 // contextFor returns worker w's state, loading its record after a restart.
@@ -336,7 +341,7 @@ func (d *Dispatcher) contextFor(w *Worker) *contextState {
 	st := &contextState{rec: freshContextRecord(w.ID)}
 	switch rec, err := ReadContextRecord(d.dir, w.ID); {
 	case err == nil:
-		st.rec = *rec
+		st.rec, st.reloaded = *rec, true
 	case errors.Is(err, fs.ErrNotExist):
 		st.dirty = true // first written on the first supervising tick
 	default:
@@ -363,7 +368,7 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 		if u.ctxKnown {
 			next.Tokens = strconv.FormatUint(u.ctxTokens, 10)
 		}
-		u.ctxSeen = false
+		u.ctxSeen, st.reloaded = false, false
 	}
 	var lim *ContextLimits
 	if r := d.Config.roleNamed(w.Role); r != nil {
@@ -380,6 +385,7 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 		next.WarnTokens, next.HandoffTokens, next.HardTokens = text(lim.WarnTokens), text(lim.HandoffTokens), text(lim.HardTokens)
 	}
 	tokens, known := next.Estimate()
+	known = known && !st.reloaded
 	var crossed []ContextCrossing
 	for _, l := range lim.levels() {
 		if known && tokens >= l.tokens && next.crossed(l.level) == nil {
@@ -409,6 +415,21 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 		}
 	}
 	return known && lim != nil && lim.HardTokens > 0 && tokens >= lim.HardTokens
+}
+
+// contextDetailKeys are the CAL-V0-345 members a context hand-off carries.
+var contextDetailKeys = []string{"reason", "contextTokens", "hardTokens"}
+
+// contextOnly is the CAL-V0-345 part of a hand-off detail, nil without one.
+func contextOnly(detail map[string]string) map[string]string {
+	if detail["reason"] != "CONTEXT" {
+		return nil
+	}
+	out := map[string]string{}
+	for _, k := range contextDetailKeys {
+		out[k] = detail[k]
+	}
+	return out
 }
 
 // contextHandoffDetail is the CAL-V0-345 hand-off detail of a worker
