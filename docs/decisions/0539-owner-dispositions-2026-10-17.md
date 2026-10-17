@@ -124,9 +124,18 @@ CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1 (openai/codex); and V1-1246 (Claude Cod
   intent branch's configured remote-tracking upstream, never fetches or moves a ref, and refuses an
   unintegrated commit with `COMMIT_NOT_INTEGRATED`): approved by the owner on 2026-10-16. The
   spec now records it as accepted by this decision.
-- `EEP-TR-012..014` (V1-0102): not recorded. Decision 0351 calls them "a delegated call" on issue
-  #64, and no owner approval of these three requirements was found in the repository. They stay
-  `unrecorded` until the owner accepts them.
+- `EEP-TR-012..014` (V1-0102: optional provider `capabilities` declaration, the Core check before
+  composition, and no widening): approved by the owner on 2026-10-17, after #1053 recorded them as
+  unaccepted (decision 0351 had only "a delegated call" on issue #64). The spec now records them
+  as accepted by this decision.
+
+## Amendment after review (2026-10-17)
+
+The independent review of #1053 found the V1-1096 and V1-1094 rows overstated. Their code and
+decisions are delivered, but the acceptance evidence is not: V1-1096 lacks ten paired shard timing
+runs, and V1-1094 lacks three hosted runs of 17 minutes or less. Both are `PARTIAL`, not
+`ALREADY_DONE`, and stay open until that evidence is retained. The `ALREADY_DONE` count in the
+classification above is therefore 6.
 
 ## Limits
 

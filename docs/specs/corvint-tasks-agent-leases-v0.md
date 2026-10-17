@@ -504,7 +504,7 @@ S5, gates and completion.
   recovery (fetch the upstream so the remote-tracking ref contains the commit); a reachable commit
   whose tree differs, or whose extra repository is not integrated (CAL-V0-087), refuses
   `STALE_TREE` alone. (Upstream reachability and the second code:
-  amendment proposed by V1-1081, owner acceptance pending.)
+  amendment by V1-1081, accepted by decision 0539.)
 
 S6, import cost.
 
