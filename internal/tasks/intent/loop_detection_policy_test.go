@@ -56,3 +56,33 @@ func TestCALV0102_PolicyLoopDetectionOptIn(t *testing.T) {
 		}
 	})
 }
+
+// TestATRV0080_PolicyProgressSignal: a policy without progressSignal keeps
+// its bytes and declares none; HANDOFF_EVIDENCE decodes; any other value,
+// null or a non-string refuses.
+func TestATRV0080_PolicyProgressSignal(t *testing.T) {
+	t.Run("ATR-V0-080 PolicyProgressSignal", func(t *testing.T) {
+		raw := fixture.PolicyBytes()
+		if p, err := intent.DecodePolicy(raw); err != nil || p.ProgressSignal != "" || bytes.Contains(raw, []byte("progressSignal")) {
+			t.Fatalf("default policy: %v %+v", err, p)
+		}
+		decode := func(def wire.Value) (*intent.Policy, error) {
+			v := fixture.PolicyValue()
+			v.Obj.Set("progressSignal", def)
+			return intent.DecodePolicy(wire.EncodeFile(v))
+		}
+		if p, err := decode(wire.String("HANDOFF_EVIDENCE")); err != nil || p.ProgressSignal != intent.ProgressSignalHandoffEvidence || p.LoopDetection != nil {
+			t.Fatalf("declared: %v %+v", err, p)
+		}
+		for name, bad := range map[string]wire.Value{
+			"unknown": wire.String("OBLIGATIONS"),
+			"empty":   wire.String(""),
+			"null":    wire.Null(),
+			"object":  wire.ObjectValue(wire.NewObject()),
+		} {
+			if _, err := decode(bad); err == nil {
+				t.Errorf("%s accepted", name)
+			}
+		}
+	})
+}
