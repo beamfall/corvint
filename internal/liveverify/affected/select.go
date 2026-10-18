@@ -25,6 +25,11 @@ const (
 	// WitnessDeclaredReadScope names a unit whose declared read scope holds a
 	// dirty path (AFP-V0-023).
 	WitnessDeclaredReadScope = "DECLARED_READ_SCOPE"
+	// WitnessAdvisoryConstant names a unit reached through at least one
+	// advisory edge, such as a Ruby constant reference that autoloading maps
+	// to the dirty unit (RUBY-AFFECTED-V0-009): the dependency is inferred
+	// from a naming convention, not from an explicit load.
+	WitnessAdvisoryConstant = "ADVISORY_CONSTANT_REFERENCE"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
@@ -427,18 +432,30 @@ func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 	sort.Strings(frontier)
 	for len(frontier) != 0 {
 		next := make([]string, 0, len(frontier))
-		for _, id := range frontier {
-			for _, dependent := range graph.dependents[id] {
-				if _, seen := reached[dependent]; seen {
-					continue
+		// Explicit import edges are taken before advisory ones at each
+		// depth, so a unit reached both ways keeps the explicit witness.
+		for _, advisory := range []bool{false, true} {
+			edges := graph.dependents
+			if advisory {
+				edges = graph.advisory
+			}
+			for _, id := range frontier {
+				for _, dependent := range edges[id] {
+					if _, seen := reached[dependent]; seen {
+						continue
+					}
+					parent := reached[id]
+					kind := WitnessDependency
+					if advisory || parent.Kind == WitnessAdvisoryConstant {
+						kind = WitnessAdvisoryConstant
+					}
+					reached[dependent] = Witness{
+						Kind:      kind,
+						DirtyPath: parent.DirtyPath,
+						Via:       append(append([]string(nil), parent.Via...), dependent),
+					}
+					next = append(next, dependent)
 				}
-				parent := reached[id]
-				reached[dependent] = Witness{
-					Kind:      WitnessDependency,
-					DirtyPath: parent.DirtyPath,
-					Via:       append(append([]string(nil), parent.Via...), dependent),
-				}
-				next = append(next, dependent)
 			}
 		}
 		sort.Strings(next)

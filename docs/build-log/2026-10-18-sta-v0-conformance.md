@@ -106,3 +106,11 @@ One independent review of `4a3879444..c19709927` raised five findings; each was 
 `corvint affected --base` used before the focused tests; `dogfood` keyed workflow used for the
 change binding. `prove`, mutation and evaluation routes not applicable: the change adds a CI job,
 pins and prose, and no ranking or evidence code.
+
+## Closeout (2026-10-18)
+
+The sealed binding of this change (base `4a3879444d`, seal `c197099277`) left its touched hunks
+`cited`, so the `touched-anchored` cem-verdict gate refused completion with `tier-below-anchored`.
+This addendum is bound to `STA-V0-011`, the conformance job this change delivered together with
+`STA-V0-001`, `STA-V0-012` and `STA-V0-013` and the `OIF-V0` intent acceptance (decision 0541), and
+V1-1697 completes at its seal. V1-1760 tracks the missing warning before seal.

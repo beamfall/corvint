@@ -10,7 +10,7 @@ Authoritative inputs: operator request dated 2026-08-29,
 ## Agent digest
 - Claim: Static Ruby analysis conservatively maps changes to RSpec, Minitest, Test::Unit, and Rails test files without executing code.
 - Status: proposed/experimental
-- Exists: `internal/liveverify/affected/ruby` static planning adapter and focused seam tests.
+- Exists: `internal/liveverify/affected/ruby` static planning adapter, advisory autoload constant edges, and focused seam tests.
 - Blocked on: qualified runtime tuple and full repository/CLI-parity evidence remain `NOT_RUN`.
 - Read next: User and measurable job; Acceptance evidence and rollback; Traceability.
 
@@ -61,7 +61,7 @@ or Cucumber scenarios.
   bounded form without executing Rake or claiming the `Rakefile` as a Ruby unit.
 - `RUBY-AFFECTED-V0-005`: Unreadable or undecodable Ruby, dynamic/interpolated loading, ambiguous
   repository loads, conditional loading, reflection/metaprogramming that can define tests, Rails
-  autoloading, Cucumber feature presence, and a nonliteral, absolute, or repository-escaping
+  autoloading that `RUBY-AFFECTED-V0-010` cannot bound, Cucumber feature presence, and a nonliteral, absolute, or repository-escaping
   escaped, nonliteral, absolute, or repository-escaping `Rake::TestTask` `.libs` declaration MUST
   produce stable frontier reasons. A frontier makes
   selection `UNKNOWN_SCOPE`; it MUST NOT silently omit a potentially runnable test.
@@ -78,6 +78,52 @@ or Cucumber scenarios.
   Cucumber non-ownership. At least one real Ruby corpus MUST be compared with an independent count,
   and discovered-versus-actual counts MUST be reported without converting the observation into a
   qualification claim.
+
+- `RUBY-AFFECTED-V0-009`: In a Rails application whose autoload mapping is resolved (see
+  `RUBY-AFFECTED-V0-010`), each observed Ruby file MUST carry an advisory edge to every other observed
+  file whose autoloaded constant it references, resolved by the `internal/rubyautoload` mapper against
+  the lexical namespaces the file opens, and to the target of each `has_many`, `has_one`,
+  `belongs_to`, or `has_and_belongs_to_many` association named by a literal `class_name:` or by the
+  conventional camelized (singular) association name. The seam carries these as
+  `Unit.AdvisoryImports`, a sorted, deduplicated list that is part of the graph digest only when
+  non-empty, so graphs without advisory edges keep their existing bytes. `Select` MUST traverse an
+  advisory edge like an import, and every test reached through one, directly or transitively, MUST
+  carry the `ADVISORY_CONSTANT_REFERENCE` witness; an explicit import edge at the same depth wins.
+  An edge to the file itself is omitted, and an explicit import is not repeated as advisory.
+- `RUBY-AFFECTED-V0-010`: `ruby:rails-autoload` MUST be raised only when constant edges cannot bound
+  a Rails application with tests: a `constantize`, `safe_constantize`, or `const_get` call; a
+  polymorphic association, a non-literal `class_name:`, or an association whose target resolves to no
+  observed file; no root `config/application.rb` or a nested one; a present but unreadable or
+  invalid `.corvint/ruby-autoload.json` declaration (including a duplicate key); or an inflection or
+  autoload configuration the mapper reports as unresolved. When the mapping is bounded, a Rails test
+  without a literal load or counterpart but with a constant edge MUST NOT raise
+  `ruby:implicit-test-dependency`.
+- `RUBY-AFFECTED-V0-011`: In a bounded Rails application, every test MUST carry advisory edges to each
+  observed Ruby file under `config/`, and a request, system, feature, integration, routing, or
+  controller test (by directory) MUST also carry advisory edges to each observed file under
+  `app/controllers/` and `app/helpers/`, because routing dispatches to them without a constant
+  reference in the test.
+- `RUBY-AFFECTED-V0-012`: `spec_helper.rb`, `rails_helper.rb`, and `test_helper.rb` MUST remain
+  source units even when a runner hint names them. Every test in a `spec/` or `test/` suite MUST
+  import that suite's helpers and each observed file below its `support/` directory, so a change to
+  any of them selects every test of the suite. A literal support-loading glob in such a helper
+  (`Dir[Rails.root.join("spec/support/**/*.rb")]` or `Dir[File.join(__dir__, "support", "**",
+  "*.rb")]`, iterated with `require`) is covered by these edges and MUST NOT raise
+  `ruby:dynamic-load`; any other glob still does. `shared_examples` and `shared_context` definitions
+  in support source files do not define runnable tests and MUST NOT raise the dynamic-test frontier.
+
+### Autoload edge failure modes
+
+- A dynamic constant lookup or unresolvable association hides its target: the slice keeps
+  `ruby:rails-autoload` (`UNKNOWN_SCOPE`) rather than guessing an edge.
+- Lexical nesting is approximated by the namespaces a file opens, and heredoc text is not masked:
+  both can add false advisory edges, which only widen selection.
+- A constant defined outside an observed `.rb` file (gem, engine, generated code) has no edge; the
+  referencing test still selects on its own file and on boot/support edges, and an unmapped
+  association raises the frontier.
+- More than `affected.MaxPathsPerUnit` imports or advisory edges on one unit drop both lists and raise
+  `ruby:implicit-test-dependency` instead of truncating.
+- Non-Ruby views, templates, and assets stay unowned and produce `UNOWNED_DIRTY_PATH` when dirty.
 
 ## Cross-language ownership decision required
 
@@ -118,6 +164,9 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
   edges are not; they raise a frontier.
 - Rollback is removal of the `ruby` plugin from callers and fixtures. Existing Go/Python graph bytes
   must remain unchanged when the plugin is not supplied.
+- Rollback of `RUBY-AFFECTED-V0-009..012` is reverting their change: the Ruby plugin returns to the
+  coarse `ruby:rails-autoload` frontier, and because `advisoryImports` is omitted when empty, no Go or
+  Python graph digest or plan changes in either direction.
 
 ## Deterministic acceptance matrix
 
@@ -130,14 +179,18 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
 | Cucumber | `.feature` unclaimed; explicit ownership frontier and written decision | `UNKNOWN_SCOPE` |
 | Dynamic/reflection-driven tests | explicit frontier; no safe-exclusion claim | `UNKNOWN_SCOPE` |
 | Determinism and seam composition | shared conformance suite, repeated canonical bytes | experimental |
+| Rails autoload constant edges (#1130) | fixture change to an autoloaded client selects its spec and the referencing service spec with `ADVISORY_CONSTANT_REFERENCE`; frontier only for unbounded lookup | experimental |
+| Suite helpers and support | helpers stay source; a helper or `support/**` change selects every suite test | experimental |
 | Real Ruby corpus | independent discovered/actual file count | observed: 24/24, 40/40, and conservative 34/31; not qualification |
 | Full repository and CLI parity | unchanged existing receipts with explicit candidate proof | `NOT_RUN` until recorded |
 
 ## Non-goals and promotion gate
 
 This slice does not execute Ruby tests, inspect runtime coverage, parse the full Ruby grammar,
-discover individual examples/scenarios/methods, claim Cucumber assets, change `Language`, change
-`Select`, qualify safe omission, or advertise Ruby support. The simpler recovery remains each
+discover individual examples/scenarios/methods, claim Cucumber assets, change `Language`, qualify
+safe omission, or advertise Ruby support. The only seam change is the additive, digest-neutral-when-
+empty `Unit.AdvisoryImports` edge and its `Select` witness (`RUBY-AFFECTED-V0-009`); it does not
+evaluate Ruby, boot Rails, or read Zeitwerk at runtime. The simpler recovery remains each
 repository's declared full test command.
 
 Promotion requires an accepted provider/runner contract, owner resolution of neutral-file
@@ -152,6 +205,10 @@ affected tuple.
 | `RUBY-AFFECTED-V0-001..003`, `RUBY-AFFECTED-V0-006..007` | `internal/liveverify/affected/ruby/` | focused package and seam conformance tests |
 | `RUBY-AFFECTED-V0-004..005` | literal-load and frontier logic in `internal/liveverify/affected/ruby/` | `TestRakeTestTaskLiteralLoadPathResolvesRequire`, `TestRakeTestTaskDynamicLoadPathRaisesFrontier`, `TestRakeTestTaskEscapedLoadPathRaisesFrontier`, and existing load-resolution/frontier tests |
 | `RUBY-AFFECTED-V0-008` | Ruby fixtures and real-corpus observation | build-log evidence |
+| `RUBY-AFFECTED-V0-009` | `Unit.AdvisoryImports` and `Select` in `internal/liveverify/affected/`; `internal/liveverify/affected/ruby/autoload.go` | `TestAdvisoryEdgeSelectsWithAnAdvisoryWitness_RUBYAFFECTEDV0009`, `TestConstantEdgeSelectsAutoloadedDependentSpec_RUBYAFFECTEDV0009` |
+| `RUBY-AFFECTED-V0-010` | `newRailsAutoload` and `edges` in `internal/liveverify/affected/ruby/autoload.go` | `TestUnboundedConstantLookupKeepsRailsAutoloadFrontier_RUBYAFFECTEDV0010`, `TestUnitsDetectsConcurrentFrameworksAndRunnerIdentities` |
+| `RUBY-AFFECTED-V0-011` | `bootEdges` in `internal/liveverify/affected/ruby/autoload.go` | `TestRailsBootAndRouteEdgesSelectTheirSpecs_RUBYAFFECTEDV0011` |
+| `RUBY-AFFECTED-V0-012` | helper classification and `supportEdges` in `internal/liveverify/affected/ruby/` | `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012` |
 
 ## Unresolved decisions
 

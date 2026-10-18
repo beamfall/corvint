@@ -15,15 +15,20 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
+
+// EvidenceDirectory is the worktree-relative retained-evidence location. It
+// equals testvaliditydoc.EvidenceDirectory, which Discover reads
+// (TestEvidenceDirectoryMatchesDiscovery). The package imports no other
+// Corvint package, so a provider package that testvaliditydoc imports, such as
+// rubytestprovider, can call IgnoreRetained (V1-1811).
+const EvidenceDirectory = ".corvint/test-evidence"
 
 // MaxRetained bounds how many documents one producer keeps.
 const MaxRetained = 32
 
 // Retain atomically writes document as <producer>-<unix-nanos>-<hex>.json
-// under testvaliditydoc.EvidenceDirectory of worktree, creating missing
+// under EvidenceDirectory of worktree, creating missing
 // directories 0700 and the file 0600, refusing a symlinked or non-directory
 // component, then prunes that directory to the producer's newest MaxRetained
 // names. It returns the retained file name; a document its own prune removed is
@@ -53,7 +58,7 @@ func Retain(worktree, producer string, document []byte) (string, error) {
 
 func openEvidence(worktree *os.Root) (*os.Root, error) {
 	parent := worktree
-	for _, component := range strings.Split(testvaliditydoc.EvidenceDirectory, "/") {
+	for _, component := range strings.Split(EvidenceDirectory, "/") {
 		next, err := openDirectory(parent, component)
 		if parent != worktree {
 			parent.Close()

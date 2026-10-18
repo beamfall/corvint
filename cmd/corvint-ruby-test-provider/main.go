@@ -7,7 +7,8 @@
 // refusal (2), an infrastructure failure or a retention failure (1); a failed
 // example is itself an observation and exits zero. With --retain the same
 // document bytes are retained under .corvint/test-evidence of the enclosing
-// Git worktree (LPCV-V0-055), and .corvint/.gitignore is created when absent.
+// Git worktree (LPCV-V0-055) by testevidence.Retain, which keeps it out of
+// `git status` (LPCV-V0-084).
 package main
 
 import (
@@ -147,9 +148,6 @@ func retain(stderr io.Writer, enabled bool, dir string, data []byte) error {
 		return nil
 	}
 	worktree, err := rubytestprovider.EnclosingWorktree(dir)
-	if err == nil {
-		err = rubytestprovider.IgnoreEvidence(worktree)
-	}
 	if err == nil {
 		_, err = testevidence.Retain(worktree, rubytestprovider.Producer, data)
 	}

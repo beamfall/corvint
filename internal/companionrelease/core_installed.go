@@ -137,7 +137,7 @@ func RunCoreInstalledQualification(ctx context.Context, opts CoreInstalledOption
 	}
 	inventory, e := inventoryForManifest(verified.Manifest)
 	if e != nil || !inventory.core {
-		return report, fmt.Errorf("core qualification requires companion profile /2")
+		return report, fmt.Errorf("core qualification requires companion profile /2 or /3")
 	}
 	commit, tree, sourceMember, e := verified.CorvintSourceIdentity()
 	if e != nil {

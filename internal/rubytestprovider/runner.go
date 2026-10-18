@@ -22,6 +22,7 @@ import (
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
+	"github.com/Beamfall/corvint/internal/testevidence"
 )
 
 const (
@@ -33,9 +34,6 @@ const (
 	maxRunnerOutputBytes = 1 << 20
 	maxRSpecIDBytes      = 512
 	reportDirectory      = ".corvint/rspec"
-	// evidenceDirectory is testvaliditydoc.EvidenceDirectory, which imports
-	// this package.
-	evidenceDirectory = ".corvint/test-evidence"
 	// DefaultTimeout bounds one RSpec run.
 	DefaultTimeout = 30 * time.Minute
 )
@@ -601,9 +599,13 @@ func readBounded(root *os.Root, name string, limit int64) ([]byte, error) {
 }
 
 // ensureReportDirectory creates .corvint/rspec under the project directory,
-// refusing a symlinked component, and ignores .corvint so the run's own
-// artifacts never make the repository dirty (LPCV-V0-095).
+// refusing a symlinked component, and keeps the run's reports out of `git
+// status` with the shared retained-evidence helper (LPCV-V0-095, LPCV-V0-084):
+// a .corvint this run created gets .corvint/.gitignore, an existing one gets
+// .corvint/rspec/.gitignore, and an existing non-empty file is never rewritten.
 func ensureReportDirectory(root *os.Root) error {
+	_, err := root.Lstat(".corvint")
+	createdCorvint := errors.Is(err, fs.ErrNotExist)
 	for _, name := range []string{".corvint", reportDirectory} {
 		if err := root.Mkdir(name, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
 			return err
@@ -615,59 +617,13 @@ func ensureReportDirectory(root *os.Root) error {
 		if !info.IsDir() {
 			return fmt.Errorf("%s is not a directory", name)
 		}
-		if name == ".corvint" {
-			if err := ensureIgnored(root, name); err != nil {
-				return err
-			}
-		}
 	}
-	// A pre-existing .corvint/.gitignore may not ignore rspec/, so the report
-	// directory carries its own (LPCV-V0-095).
-	return ensureIgnored(root, reportDirectory)
-}
-
-// ensureIgnored writes directory/.gitignore containing "*" when absent and
-// never overwrites an existing one (LPCV-V0-095).
-func ensureIgnored(root *os.Root, directory string) error {
-	file, err := root.OpenFile(directory+"/.gitignore", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-	if errors.Is(err, fs.ErrExist) {
-		return nil
-	}
+	reports, err := root.OpenRoot(reportDirectory)
 	if err != nil {
 		return err
 	}
-	if _, err := file.Write([]byte("*\n")); err != nil {
-		file.Close()
-		return err
-	}
-	return file.Close()
-}
-
-// IgnoreEvidence ensures the worktree's .corvint/ and its test-evidence
-// directory are ignored before a retained document is written there, whatever
-// an existing .corvint/.gitignore says (LPCV-V0-095).
-func IgnoreEvidence(worktree string) error {
-	root, err := os.OpenRoot(worktree)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
-	for _, name := range []string{".corvint", evidenceDirectory} {
-		if err := root.Mkdir(name, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
-			return err
-		}
-		info, err := root.Lstat(name)
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("%s is not a directory", name)
-		}
-		if err := ensureIgnored(root, name); err != nil {
-			return err
-		}
-	}
-	return nil
+	defer reports.Close()
+	return testevidence.IgnoreRetained(root, reports, createdCorvint)
 }
 
 func randomHex() (string, error) {

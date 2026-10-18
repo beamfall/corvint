@@ -53,6 +53,7 @@ AFP-V0-051	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
 AFP-V0-053	docs/specs/affected-plan-v0.md	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
 AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
+AFP-V0-060	docs/specs/affected-plan-v0.md	(accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016	owner	2026-10-18
 AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
 AFP-V0-072	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no	standing	2026-10-11; V1-1806
 AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
@@ -991,7 +992,8 @@ CRB-V0-015	docs/specs/corvint-rebrand-v0.md	The standalone Console MUST present 
 CRB-V0-016	docs/specs/corvint-rebrand-v0.md	Standalone builds from the retained MCP and live-provider source packages MUST b	unrecorded	-
 CRB-V0-017	docs/specs/corvint-rebrand-v0.md	Current companion writers MUST emit manifest profile `corvint-companion-bundle/1	unrecorded	-
 CRB-V0-018	docs/specs/corvint-rebrand-v0.md	Runtime settings are read from exactly `CORVINT_CPUPROFILE`,	unrecorded	-
-CRB-V0-019	docs/specs/corvint-rebrand-v0.md	The current core companion writer MUST emit `corvint-companion-bundle/2` with	unrecorded	-
+CRB-V0-019	docs/specs/corvint-rebrand-v0.md	(writer selection superseded by `CRB-V0-020` on 2026-10-18; `/2` stays a closed	unrecorded	-
+CRB-V0-020	docs/specs/corvint-rebrand-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1809; GitHub	standing	2026-10-11; V1-1809
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -2708,7 +2710,7 @@ LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
 LPCV-V0-093	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
 LPCV-V0-094	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discover	standing	2026-10-11; V1-1797
-LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before t	standing	2026-10-11; V1-1797
+LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797; amended	standing	2026-10-11; V1-1797
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
@@ -3036,6 +3038,9 @@ NGI-V0-038	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-039	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
 NGI-V0-040	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
 NGI-V0-027	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796) When an	standing	2026-10-11; V1-1796
+NGI-V0-051	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1804) A	standing	2026-10-11; V1-1804
+NGI-V0-052	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) The	standing	2026-10-11; V1-1805
+NGI-V0-053	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) When	standing	2026-10-11; V1-1805
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-
@@ -3529,6 +3534,10 @@ RUBY-AFFECTED-V0-005	docs/specs/ruby-affected-test-adapter-v0.md	Unreadable or u
 RUBY-AFFECTED-V0-006	docs/specs/ruby-affected-test-adapter-v0.md	Units, paths, imports, and frontier reasons MUST be sorted and reproducible.	unrecorded	-
 RUBY-AFFECTED-V0-007	docs/specs/ruby-affected-test-adapter-v0.md	Framework-qualified unit IDs MUST preserve the runner class and runnable	unrecorded	-
 RUBY-AFFECTED-V0-008	docs/specs/ruby-affected-test-adapter-v0.md	Focused fixtures MUST cover mixed frameworks, dependency closure,	unrecorded	-
+RUBY-AFFECTED-V0-009	docs/specs/ruby-affected-test-adapter-v0.md	In a Rails application whose autoload mapping is resolved (see	unrecorded	-
+RUBY-AFFECTED-V0-010	docs/specs/ruby-affected-test-adapter-v0.md	`ruby:rails-autoload` MUST be raised only when constant edges cannot bound	unrecorded	-
+RUBY-AFFECTED-V0-011	docs/specs/ruby-affected-test-adapter-v0.md	In a bounded Rails application, every test MUST carry advisory edges to each	unrecorded	-
+RUBY-AFFECTED-V0-012	docs/specs/ruby-affected-test-adapter-v0.md	`spec_helper.rb`, `rails_helper.rb`, and `test_helper.rb` MUST remain	unrecorded	-
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
@@ -4085,6 +4094,21 @@ TSA-V0-049	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-050	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) The RSpec reader MUST	standing	2026-10-11; V1-1784; #1124
 TSA-V0-051	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124)	standing	2026-10-11; V1-1784; #1124
 TSA-V0-052	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783, V1-1784) `ValidityFindings` MUST rea	standing	2026-10-11; V1-1783; V1-1784
+TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) The RSpec reader MUST	standing	2026-10-11; V1-1824; #1140
+TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
+TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
+TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
+TSA-V0-062	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128, #1130)	standing	2026-10-11; V1-1798; #1128; #1130
+TSA-V0-063	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128
+TSA-V0-064	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128
+TSA-V0-065	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example declared	standing	2026-10-11; V1-1798; #1128
+TSA-V0-066	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) An example MUST get a	standing	2026-10-11; V1-1798; #1130
+TSA-V0-067	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) `expectations` MUST	standing	2026-10-11; V1-1798; #1130
+TSA-V0-068	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798, V1-1787)	standing	2026-10-11; V1-1798; V1-1787
+TSA-V0-069	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) Strength MUST stay	standing	2026-10-11; V1-1798; #1130
+TSA-V0-070	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128)	standing	2026-10-11; V1-1798; #1128
+TSA-V0-071	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1787, V1-1798)	standing	2026-10-11; V1-1787; V1-1798
+TSA-V0-072	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798, V1-1787) These readings MUST be	standing	2026-10-11; V1-1798; V1-1787
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

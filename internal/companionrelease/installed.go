@@ -71,7 +71,7 @@ func RunInstalledQualification(ctx context.Context, opts InstalledOptions) (repo
 	}
 	inventory, err := inventoryForManifest(verified.Manifest)
 	if err != nil || inventory.core {
-		return report, fmt.Errorf("editor qualification refuses core companion profile /2")
+		return report, fmt.Errorf("editor qualification refuses core companion profiles /2 and /3")
 	}
 	commit, tree, sourceMember, err := verified.CorvintSourceIdentity()
 	if err != nil {

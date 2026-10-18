@@ -193,7 +193,9 @@ func HelperSetDigest(helpers []BoundFile) string {
 
 // ProjectExample recomputes one example's projection (LPCV-V0-093): the
 // example is associated with its own file:line, execution follows its status,
-// hygiene is not produced for Ruby, and strength is never measured here.
+// and strength is never measured here. Hygiene is INELIGIBLE for a pending
+// example (TSA-V0-070) and otherwise not produced from the document alone;
+// discovery reads the bound spec source for it (TSA-V0-068).
 func ProjectExample(document Document, example Example) testvalidity.Projection {
 	anchors := []string{example.ID}
 	claim := testvalidity.ClaimFacts{AssociationState: tcq.AssociationAssociated, HygieneState: tcq.HygieneEligible, ReportState: reportState(example.Status), Anchors: anchors}
@@ -203,6 +205,9 @@ func ProjectExample(document Document, example Example) testvalidity.Projection 
 	}
 	projection := testvalidity.Project(input)
 	projection.Hygiene = testvalidity.Axis{State: testvalidity.HygieneUnsupported, Reason: "ruby-hygiene-not-produced"}
+	if example.Status == statusPending {
+		projection.Hygiene = testvalidity.Axis{State: testvalidity.HygieneIneligible, Reason: testvalidity.HygieneReasonRSpecPending, Anchors: anchors}
+	}
 	return projection
 }
 
