@@ -100,3 +100,12 @@ func PoolBoundedProbeErrorForTest(class string) error {
 func PSRTestLiftObservationBounds(ctx context.Context, bound time.Duration) context.Context {
 	return context.WithValue(ctx, sweepObservationBoundKey{}, bound)
 }
+
+// SetAfterWorktreeLookupForTest runs f between a ticket-worktree ensure's
+// branch lookup and its path check until the returned function restores the
+// previous hook.
+func SetAfterWorktreeLookupForTest(f func()) func() {
+	prev := afterWorktreeLookup
+	afterWorktreeLookup = f
+	return func() { afterWorktreeLookup = prev }
+}

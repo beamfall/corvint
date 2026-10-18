@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,7 +15,7 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
 - Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023). Proposed: `--repo ALIAS=ROOT` pins a note in another repository of a multi-repository program, stores its anchors as `ALIAS/PATH` and resolves its freshness only where the alias is mapped (KHN-V0-024..027).
 - Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963) and KHN-V0-021..023 (V1-0987); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
@@ -322,6 +322,38 @@ unchanged.
   mapped with --repo; its notes are UNKNOWN` per unmapped alias among the matched notes. Status:
   accepted (decision 0462; V1-1029; GitHub #687).
 
+Adopter value screen, KHN-V0-028 to KHN-V0-031, is accepted under the owner's standing auto-accept
+of lane requirements (2026-10-11) for V1-1602 (GitHub #1045); see
+`docs/build-log/2026-10-17-v1-1588-tasks-worktree-defects-secrets.md`.
+
+- `KHN-V0-028`: Policy MAY declare `knowHow.screen` as a closed object `{denyValuesFile,
+  classes}`. `denyValuesFile` is null or a repository-relative path without `..`; `classes` is a
+  byte-sorted, duplicate-free subset of `EMAIL`, `PHONE` and `CARD`. At least one of a values file
+  or one class is required. Any other shape, an absolute path or an unknown class refuses
+  `MALFORMED`. Without the key nothing below applies and every write keeps its prior behavior.
+  Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1602).
+- `KHN-V0-029`: While the screen is declared, each fresh screened write reads the values file from
+  the primary worktree for that write only, bounded at 1 MiB. Each line is one value, or an
+  env-style `KEY=VALUE` line (optionally `export`-prefixed and quoted) whose value is compared; a
+  line whose `KEY=VALUE` value would be under 8 bytes, such as padded base64, is compared whole;
+  blank lines, `#` comments and values under 8 bytes are ignored. The bytes are never stored,
+  logged, hashed into a receipt or echoed. A declared file that cannot be read refuses the write
+  `MISSING_EVIDENCE` with the detail prefix `SCREEN_VALUES_UNAVAILABLE`, never letting it through
+  unscreened. A personal-data class matches only when it is declared: `EMAIL` an address shape,
+  `PHONE` an international `+` number of 10 to 15 digits or a separated North American number,
+  `CARD` a 13 to 19 digit run that passes the Luhn check and is not part of a longer digit run.
+  Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1602).
+- `KHN-V0-030`: A screened write whose text contains a declared value or a declared class refuses
+  `SECRET_DETECTED` with the detail prefix `VALUE_SCREEN_MATCHED`, naming the field and the class
+  (`DENY_VALUE`, `EMAIL`, `PHONE` or `CARD`) and no part of the value. The refusal writes nothing.
+  Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1602).
+- `KHN-V0-031`: The screen applies to the stored text of `NOTE_SET` (the operator note, which is
+  also checked against the shared credential screen while the screen is declared), every
+  `KNOWHOW_*` write (text, reason, anchors, routes and evidence path) and every obligation
+  write (each text field the shared credential screen already covers). It runs only on a fresh write; the replay of a committed
+  request is never screened again, so a later change to the values file cannot change a replay.
+  Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1602).
+
 ## Failure modes and trust
 
 - **Note content is unverified.** Note text is a claim by the writing principal. Since V1-0964
@@ -417,6 +449,10 @@ unchanged.
 | KHN-V0-025 | V1-1029 (GitHub #687) | `internal/tasks/wire` (alias rule); `internal/tasks/ticket` (codec); `internal/tasks/mutation` (payload); `internal/taskman` (Core reader) | `TestKHNV0025_CodecRepositoryEntry` (round trip; legacy fixture has no key; unprefixed, partially prefixed, non-token and over-long aliases refused); `TestKHNV0025_RepositoryPayload` (entry composed; legacy payload and entry bytes keep no key; null, empty, alias-only and outside anchors refused; RECONFIRM refuses the key); `TestKHNV0025_ReaderRepositoryEntry`; `TestKHNV0020_LegacyKnowHowReadsExactlyAsBefore` (unchanged) | an older released binary refusing a repository-bearing store |
 | KHN-V0-026 | V1-1029 (GitHub #687) | `internal/tasks/store` (selection, unchanged rule) | `TestKHNV0026_QualifiedAnchorsMatchTouchPaths`; `TestKHNV0024_RepositoryKnowHowThroughTheCLI` (claim of an `e2e/src/` ticket delivers the note; a WORKER bare-path anchor is refused out of scope and a `--repo` anchor admitted) | none |
 | KHN-V0-027 | V1-1029 (GitHub #687) | `internal/tasks/store` (per-alias freshness, projection, warnings); `internal/tasks/cli` (list and claim `--repo`) | `TestKHNV0027_RepositoryFreshness` (mapped CURRENT and STALE at the alias root's HEAD; unmapped UNKNOWN with a null head even where the store checkout holds the identical blob; legacy note unchanged; projection keys; warning); `TestKHNV0027_RepositoryArguments`; `TestKHNV0024_RepositoryKnowHowThroughTheCLI` (list unmapped UNKNOWN with warning, mapped CURRENT then STALE then CURRENT after reconfirm; claim `--repo` delivers CURRENT with the head; replay without `--repo` is UNKNOWN with a warning; duplicate alias and bad root refuse a claim before it commits; `--repo` refused on release) | none |
+| KHN-V0-028 | V1-1602 (GitHub #1045) | `internal/tasks/intent` (policy) | `TestKHNV0028_PolicyKnowHowScreen` | none |
+| KHN-V0-029 | V1-1602 criteria 1, 3 | `internal/tasks/mutation` (screen); `internal/tasks/store` (values file load) | `TestKHNV0029_ValueScreenMatchesDeclaredValuesAndOptInClasses`; `TestKHNV0030_KHNV0031_ValueScreenRefusesWithoutEcho` (PHONE not opted in accepted; missing values file `SCREEN_VALUES_UNAVAILABLE`) | none |
+| KHN-V0-030 | V1-1602 criteria 1-2 | `internal/tasks/mutation` (refusal) | `TestKHNV0030_KHNV0031_ValueScreenRefusesWithoutEcho` (SECRET_DETECTED, class named, value absent, state unchanged) | none |
+| KHN-V0-031 | V1-1602 criterion 4 | `internal/tasks/mutation` (note, know-how, obligations); `internal/tasks/store` (writer route) | `TestKHNV0030_KHNV0031_ValueScreenRefusesWithoutEcho` (note, know-how and obligation seed refused) | none |
 
 ## Resolved decisions
 
@@ -531,3 +567,8 @@ The multi-repository additions (KHN-V0-024..027) follow the same rule. Without `
 changes; reverting the change is safe until a store holds an entry with `repository`, after which
 an older binary refuses that record closed. Recovery is the newer binary or a backup from before the
 first repository note; a RETRACT keeps the entry in history, so it does not help.
+
+The adopter value screen (KHN-V0-028..031) rolls back by removing `knowHow.screen` from policy,
+which stops the screen at once. It stores nothing: no record, receipt or archive byte depends on
+it, so reverting the code is safe at any time. An older binary refuses a policy carrying the
+`screen` key closed.

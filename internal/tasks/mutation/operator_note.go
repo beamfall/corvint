@@ -149,6 +149,11 @@ func (c Context) note(plan *Plan, env *Envelope) *Plan {
 		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMalformed, "target %s does not exist in the queue", env.TargetID.Raw))
 	}
 	plan.Pre = pre
+	if n, ok := env.Payload.(*NotePayload); ok && n.Op == OpNoteSet {
+		if r := c.Screen.noteScreen(n.Text); r != nil {
+			return plan.refused(r)
+		}
+	}
 	if pre.OperatorNote != nil && len(c.PriorNoteEvent) == 0 {
 		return plan.refused(refuse(OutcomeValidationFailed, wire.CodeMissingEvidence, "operator note head %s is unavailable", pre.OperatorNote.Head))
 	}

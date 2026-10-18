@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/defects"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -303,6 +304,14 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err := dispatch.ReadContextRecord(dir, "w1")
+			return err
+		},
+		defects.Profile: func(t *testing.T, p string) error {
+			file := filepath.Join(resolvedTempDir(t), defects.RegisterFile)
+			if err := os.WriteFile(file, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := defects.Read(file, true)
 			return err
 		},
 		cli.LeaseDetachProfile: func(t *testing.T, p string) error {

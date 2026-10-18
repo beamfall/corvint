@@ -756,7 +756,7 @@
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
     "title": "Corvint Tasks pool safe reuse V0",
     "reqPrefix": "PSR-V0",
-    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029)",
+    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063)",
     "delivery": "experimental",
     "claim": "Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.",
     "dependsOn": [
@@ -836,7 +836,7 @@
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
     "title": "Corvint Tasks know-how notes V0",
     "reqPrefix": "KHN-V0",
-    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687)",
+    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)",
     "delivery": "experimental",
     "claim": "Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.",
     "dependsOn": [
@@ -3693,6 +3693,30 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-defect-register-v0.md",
+    "title": "Corvint Tasks defect register V0",
+    "reqPrefix": "TDR-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11) (V1-1593; GitHub #1036)",
+    "delivery": "experimental",
+    "claim": "A local append-only register records product and environment defects; preflight checks that obligations and expected failures cite known, live product defects.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-ticket-worktrees-v0.md",
+    "title": "Corvint Tasks ticket worktrees V0",
+    "reqPrefix": "TWT-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11) (V1-1588; GitHub #1031)",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks worktree ensure <ticket>` creates or reuses one worktree per ticket on a pattern-derived branch inside a declared root and never resets it.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/corvint-tasks-closeout-debt-v0.md",
     "title": "Corvint Tasks closeout debt V0",
     "reqPrefix": "TCD-V0",
@@ -3706,5 +3730,17 @@
       "internal/tasks/cli",
       "internal/tasks/store"
     ]
+  },
+  {
+    "path": "docs/specs/test-source-analysis-v0.md",
+    "title": "Test Source Analysis V0",
+    "reqPrefix": "TSA-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592)",
+    "delivery": "experimental",
+    "claim": "Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines and lists candidate duplicate tests.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

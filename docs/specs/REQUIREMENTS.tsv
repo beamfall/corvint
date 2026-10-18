@@ -2286,6 +2286,10 @@ KHN-V0-024	docs/specs/corvint-tasks-know-how-notes-v0.md	282	`ticket know-how ad
 KHN-V0-025	docs/specs/corvint-tasks-know-how-notes-v0.md	296	The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key	unrecorded	-
 KHN-V0-026	docs/specs/corvint-tasks-know-how-notes-v0.md	304	A repository note's anchors are matched in their stored, qualified form by the	unrecorded	-
 KHN-V0-027	docs/specs/corvint-tasks-know-how-notes-v0.md	309	`ticket know-how list` and `claim` (with or without `--next`) MUST accept a	unrecorded	-
+KHN-V0-028	docs/specs/corvint-tasks-know-how-notes-v0.md	329	Policy MAY declare `knowHow.screen` as a closed object `{denyValuesFile,	unrecorded	-
+KHN-V0-029	docs/specs/corvint-tasks-know-how-notes-v0.md	335	While the screen is declared, each fresh screened write reads the values file fr	unrecorded	-
+KHN-V0-030	docs/specs/corvint-tasks-know-how-notes-v0.md	346	A screened write whose text contains a declared value or a declared class refuse	unrecorded	-
+KHN-V0-031	docs/specs/corvint-tasks-know-how-notes-v0.md	350	The screen applies to the stored text of `NOTE_SET` (the operator note, which is	unrecorded	-
 LAC-V0-001	docs/specs/local-admin-console-v0.md	77	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	80	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	82	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-
@@ -3028,13 +3032,20 @@ PSR-V0-054	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	135	(accepted under th
 PSR-V0-055	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	141	(accepted under the owner's standing auto-accept (2026-10-11), V1-1560) Bound. O	standing	2026-10-11; V1-1560
 PSR-V0-056	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	154	(accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review	standing	2026-10-11; V1-1560
 PSR-V0-057	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	161	(accepted under the owner's standing auto-accept (2026-10-11), V1-1560 review	standing	2026-10-11; V1-1560
-PSR-V0-080	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	218	(accepted under the owner's standing auto-accept (2026-10-11), V1-1572) Compatib	standing	2026-10-11; V1-1572
-PSR-V0-081	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	245	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool m	standing	2026-10-11; V1-1586
-PSR-V0-082	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	255	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) In a poo	standing	2026-10-11; V1-1586
-PSR-V0-083	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	264	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586)	standing	2026-10-11; V1-1586
-PSR-V0-084	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	276	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarde	standing	2026-10-11; V1-1586
-PSR-V0-085	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	284	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guar	standing	2026-10-11; V1-1586
-PSR-V0-086	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	290	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool	standing	2026-10-11; V1-1586
+PSR-V0-080	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	219	(accepted under the owner's standing auto-accept (2026-10-11), V1-1572) Compatib	standing	2026-10-11; V1-1572
+PSR-V0-081	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	246	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool m	standing	2026-10-11; V1-1586
+PSR-V0-082	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	256	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) In a poo	standing	2026-10-11; V1-1586
+PSR-V0-083	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	265	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586)	standing	2026-10-11; V1-1586
+PSR-V0-084	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	277	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarde	standing	2026-10-11; V1-1586
+PSR-V0-085	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	285	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guar	standing	2026-10-11; V1-1586
+PSR-V0-086	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	291	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool	standing	2026-10-11; V1-1586
+PSR-V0-110	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	323	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) No tail	standing	2026-10-11; V1-1617
+PSR-V0-111	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	334	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) Progress	standing	2026-10-11; V1-1617
+PSR-V0-112	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	346	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) The `PEN	standing	2026-10-11; V1-1617
+PSR-V0-113	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	358	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) Negative	standing	2026-10-11; V1-1617
+PSR-V0-114	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	368	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; GitHub #	standing	2026-10-11; V1-1617; #1063
+PSR-V0-115	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	372	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; GitHub #	standing	2026-10-11; V1-1617; #1063
+PSR-V0-116	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	376	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; review r	standing	2026-10-11; V1-1617
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-
@@ -3698,6 +3709,16 @@ TCQ-V0-060	docs/specs/test-claim-qualification-v0.md	742	(accepted under the own
 TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	749	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	758	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-063	docs/specs/test-claim-qualification-v0.md	784	(accepted under the owner's standing auto-accept (2026-10-11); V1-1453) A	standing	2026-10-11; V1-1453
+TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	31	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
+TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	35	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
+TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	40	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
+TDR-V0-004	docs/specs/corvint-tasks-defect-register-v0.md	44	The register is JSONL with profile `taskman-defect/0`. Each `add` or `update`	unrecorded	-
+TDR-V0-005	docs/specs/corvint-tasks-defect-register-v0.md	49	Writers hold an exclusive `flock` on `<register>.lock` across read, validation a	unrecorded	-
+TDR-V0-006	docs/specs/corvint-tasks-defect-register-v0.md	56	Every text field is checked against the shared credential screen; a match refuse	unrecorded	-
+TDR-V0-007	docs/specs/corvint-tasks-defect-register-v0.md	59	`preflight` reads the register at its location when it exists or when policy	unrecorded	-
+TDR-V0-008	docs/specs/corvint-tasks-defect-register-v0.md	64	A `DEFECT` or `BLOCKED` obligation whose cited register ids all resolve (through	unrecorded	-
+TDR-V0-009	docs/specs/corvint-tasks-defect-register-v0.md	68	The default register is `<git-common-dir>/taskman-defects/register.jsonl`	unrecorded	-
+TDR-V0-010	docs/specs/corvint-tasks-defect-register-v0.md	75	`corvint-tasks defects add|update <id>|list [--status S] [--category C]` return	unrecorded	-
 TEA-V0-001	docs/specs/corvint-tasks-evidence-attachments-v0.md	38	`corvint-tasks ticket attach-evidence --target T --expected-revision N --payload	unrecorded	-
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M	unrecorded	-
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST	unrecorded	-
@@ -3871,6 +3892,22 @@ TRJ-V0-009	docs/specs/trial-replay-journal-v0.md	145	The report MUST list every 
 TRJ-V0-010	docs/specs/trial-replay-journal-v0.md	150	Matching MUST be by key, never by position. With `--workers` above 1 the replay	unrecorded	-
 TRJ-V0-011	docs/specs/trial-replay-journal-v0.md	152	The key's `upstream` MUST list the `{key, record_sha256}` of every step whose ou	unrecorded	-
 TRJ-V0-012	docs/specs/trial-replay-journal-v0.md	156	The journal is private derived state of the trial tools. No `corvint` command, a	unrecorded	-
+TSA-V0-001	docs/specs/test-source-analysis-v0.md	56	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
+TSA-V0-002	docs/specs/test-source-analysis-v0.md	65	(standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hu	standing	2026-10-11; V1-1587
+TSA-V0-003	docs/specs/test-source-analysis-v0.md	69	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
+TSA-V0-004	docs/specs/test-source-analysis-v0.md	77	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
+TSA-V0-005	docs/specs/test-source-analysis-v0.md	79	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
+TSA-V0-010	docs/specs/test-source-analysis-v0.md	33	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
+TSA-V0-011	docs/specs/test-source-analysis-v0.md	50	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
+TSA-V0-012	docs/specs/test-source-analysis-v0.md	87	(standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--re	standing	2026-10-11; V1-1589
+TSA-V0-013	docs/specs/test-source-analysis-v0.md	93	(standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with st	standing	2026-10-11; V1-1589
+TSA-V0-014	docs/specs/test-source-analysis-v0.md	101	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589
+TSA-V0-015	docs/specs/test-source-analysis-v0.md	103	(standing auto-accept, 2026-10-11; V1-1589) A comment `corvint-lint-allow RULE:	standing	2026-10-11; V1-1589
+TSA-V0-016	docs/specs/test-source-analysis-v0.md	107	(standing auto-accept, 2026-10-11; V1-1589) `--json` output (schema	standing	2026-10-11; V1-1589
+TSA-V0-020	docs/specs/test-source-analysis-v0.md	113	(standing auto-accept, 2026-10-11; V1-1592) `corvint tests duplicates [--ref REV	standing	2026-10-11; V1-1592
+TSA-V0-021	docs/specs/test-source-analysis-v0.md	123	(standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only	standing	2026-10-11; V1-1592
+TSA-V0-022	docs/specs/test-source-analysis-v0.md	128	(standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file	standing	2026-10-11; V1-1592
+TSA-V0-023	docs/specs/test-source-analysis-v0.md	135	(standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs a	standing	2026-10-11; V1-1592
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
@@ -3887,6 +3924,13 @@ TTG-V0-007	docs/specs/traceability-test-gate-v0.md	73	The gate MUST evaluate eve
 TTG-V0-008	docs/specs/traceability-test-gate-v0.md	76	The gate MUST print a single summary line of the form "traceability tests: N	unrecorded	-
 TTG-V0-009	docs/specs/traceability-test-gate-v0.md	79	When one or more names fail TTG-V0-005, the gate MUST print a header line follow	unrecorded	-
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	82	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST	unrecorded	-
+TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	29	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
+TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	35	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
+TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	38	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
+TWT-V0-004	docs/specs/corvint-tasks-ticket-worktrees-v0.md	46	The base must name a commit (`MISSING_EVIDENCE` otherwise). An existing branch i	unrecorded	-
+TWT-V0-005	docs/specs/corvint-tasks-ticket-worktrees-v0.md	50	The repository must resolve to the top level of a Git worktree. The target path	unrecorded	-
+TWT-V0-006	docs/specs/corvint-tasks-ticket-worktrees-v0.md	55	The result carries the ticket id, `repository {root, sha256}` (the SHA-256 of th	unrecorded	-
+TWT-V0-007	docs/specs/corvint-tasks-ticket-worktrees-v0.md	59	`worktree ensure <ticket> [--path PATH]` resolves the ticket in the queue	unrecorded	-
 UCL1142-V0-001	docs/specs/upgrade-checklist-v0.md	26	`corvint [--root SOURCE] changes --from SHA --to SHA` MUST resolve hexadecimal	unrecorded	-
 UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	31	The deterministic range MUST use first-parent commits in FROM..TO. Only merge	unrecorded	-
 UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	39	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC	unrecorded	-

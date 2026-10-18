@@ -7,6 +7,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Beamfall/corvint/internal/tasks/defects"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -77,6 +78,8 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	var ledger *ticket.ObligationLedger
 	var defs []*intent.GateDefinition
 	reviewSources := false
+	var register *defects.Register
+	defectPrefix := ""
 	var policySum wire.Digest
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		r, l, ferr := obligationTarget(rc, target)
@@ -88,6 +91,16 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 		}
 		rec, ledger = r, l
 		reviewSources = rc.store.Policy.ObligationSourceReviewRequired()
+		// TDR-V0-007: the defect register is consulted while the policy
+		// declares it or the private register exists.
+		path, private := defects.Location(rc.repo, rc.store.Policy)
+		reg, rerr := defects.Read(path, private)
+		if rerr != nil {
+			return rerr
+		}
+		if reg.Exists || rc.store.Policy.Defects != nil {
+			register, defectPrefix = reg, rc.store.Policy.DefectPrefix()
+		}
 		policySum = rc.store.Policy.PolicySha256()
 		if deep {
 			d, err := store.PreflightGateDefinitions(rc.store.Policy, gates)
@@ -170,6 +183,9 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	findings = append(findings, obligation.CheckSources(ledger, files)...)
 	if reviewSources {
 		findings = append(findings, obligation.CheckReviewSources(ledger)...)
+	}
+	if register != nil {
+		findings = append(findings, defects.Findings(register, defectPrefix, ledger, files)...)
 	}
 	if planPath != "" {
 		pf, err := preflightPlan(root, resolved, planPath, rec, ledger)

@@ -413,6 +413,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		}
 	}()
 	hooks := hooksForInventory(ctx)
+	progress := leaseProgressOf(ctx)
 	// A round that ended SNAPSHOT_MOVED after a settled audit from receipt 1
 	// resumes from it in the next round (PSR-V0-052, proposed). A declined
 	// resume falls through to that round's preparation; a declined prefix
@@ -488,6 +489,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			// preparation audit derives a fresh base or decides.
 		}
 		p, err := prepareLease(ctx, repo, request, now, facts, !noResume)
+		progress(*timing)
 		if p != nil && len(p.fatalCleanup) > 0 {
 			p.recordCleanup("change guard close", hooks.closeGuard(p.guard))
 			return report, nil, p.fatalError()

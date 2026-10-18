@@ -124,3 +124,8 @@ func sortedUnique(in []string) []string {
 	}
 	return out
 }
+
+// MatchesSecretScreen reports whether s matches the shared secret screen. It
+// keeps the decision 0397 #712 import edge in this one file while the
+// TDR-V0-006 defect register reuses the screen.
+func MatchesSecretScreen(s string) bool { return s != "" && secretscreen.MatchString(s) }
