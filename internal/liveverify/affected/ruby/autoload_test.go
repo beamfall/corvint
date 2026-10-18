@@ -2,6 +2,7 @@ package ruby
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -188,5 +189,47 @@ func TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012(t *testing.T) {
 	}
 	if !contains(result.Frontier, FrontierDynamicLoad) {
 		t.Fatalf("foreign glob did not widen: %v", result.Frontier)
+	}
+}
+
+// stockApplication is config/application.rb as Rails 7.0 `rails new`
+// generates it. The 7.1 `config.autoload_lib` line is autoload-root
+// configuration, which RUBY-AFFECTED-V0-010 still reports as unresolved.
+const stockApplication = "require_relative \"boot\"\n\nrequire \"rails/all\"\n\n" +
+	"# Require the gems listed in Gemfile, including any gems\n# you've limited to :test, :development, or :production.\n" +
+	"Bundler.require(*Rails.groups)\n\nmodule Fixture\n  class Application < Rails::Application\n" +
+	"    config.load_defaults 7.0\n  end\nend\n"
+
+// TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013: the stock
+// gem-group load in config/application.rb is not a dynamic application load,
+// so an app/models change in a generated Rails app stays BOUNDED, while any
+// other dynamic require, or the same call elsewhere, keeps ruby:dynamic-load.
+func TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013(t *testing.T) {
+	root := writeIssue1130(t, true)
+	write(t, root, "config/application.rb", stockApplication)
+	write(t, root, "app/models/widget.rb", "class Widget\n  def client = FooClient.new\nend\n")
+	write(t, root, "spec/models/widget_spec.rb", "require \"rails_helper\"\n\nRSpec.describe Widget do\n  it \"builds\" do\n    expect(described_class.new.client).to be_a(FooClient)\n  end\nend\n")
+	got := plan(t, root, "app/models/widget.rb")
+	if tests := got.SelectedTests(); got.Scope != affected.ScopeBounded || !equal(tests, []string{"spec/models/widget_spec.rb"}) {
+		t.Fatalf("scope=%s selected=%v unknown=%v", got.Scope, tests, got.Unknown)
+	}
+	for name, change := range map[string][2]string{
+		"other groups":       {"config/application.rb", strings.Replace(stockApplication, "*Rails.groups)", "*Rails.groups(:assets))", 1)},
+		"computed groups":    {"config/application.rb", strings.Replace(stockApplication, "*Rails.groups)", "*groups)", 1)},
+		"conditional":        {"config/application.rb", strings.Replace(stockApplication, "Bundler.require", "  Bundler.require", 1)},
+		"trailing statement": {"config/application.rb", strings.Replace(stockApplication, "*Rails.groups)", "*Rails.groups); require name", 1)},
+		"other owner":        {"lib/boot_gems.rb", "Bundler.require(*Rails.groups)\n"},
+		"computed require":   {"app/models/loader.rb", "class Loader\n  def load(name) = require(name)\nend\n"},
+	} {
+		variant := writeIssue1130(t, true)
+		write(t, variant, "config/application.rb", stockApplication)
+		write(t, variant, change[0], change[1])
+		result, err := New().Units(context.Background(), variant)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !contains(result.Frontier, FrontierDynamicLoad) {
+			t.Fatalf("%s: dynamic load not raised: %v", name, result.Frontier)
+		}
 	}
 }
