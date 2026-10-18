@@ -46,8 +46,8 @@ the checkout or contacting a service. This is evidence to review, not permission
   explicit unknowns and a boolean `truncated`. Bound history to 256 first-parent commits, 256
   introduced commits per PR, 64 KiB per message, 4 MiB total Git output, 16 files of 1 MiB each,
   4096 scanned references per file, and 1024 issue/hint rows each. Any omitted evidence MUST set `truncated`; incomplete message
-  bytes MUST NOT create closure evidence. A 30-second total deadline or Git failure refuses with
-  `changes-git-unavailable`; output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment accepted, decision 0519 (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
+  bytes MUST NOT create closure evidence. Git that cannot run or a repository that cannot be read refuses with
+  `changes-git-unavailable`; the range bound and the 30-second total deadline refuse as `UCL1142-V0-008` defines (amendment recorded under the 2026-10-11 standing auto-accept, V1-1699); output failure refuses with `changes-output-unavailable`. Cancellation or the deadline MUST close an open `--refs-file` descriptor so its reader is released rather than kept until process exit; only a read the kernel cannot interrupt may hold it until that system call returns (amendment accepted, decision 0519 (V1-1155)). No Git stderr, commit bodies or adopter text is reflected; summaries
   and paths use the existing secret screen; paths preserve whitespace. Summaries are limited to 240 bytes after screening.
 - `UCL1142-V0-005`: Root and topic help MUST mark the command experimental and document the workflow,
   local evidence limits, explicit-file input, coded refusals and missing evidence. Reopen/revert
@@ -78,6 +78,18 @@ the checkout or contacting a service. This is evidence to review, not permission
   at most 64 names; over a bound, `new_flags` is empty, `new_flags_basis` is `NOT_OBSERVED` and the
   report is `truncated`. Otherwise `new_flags_basis` is `cmd-corvint-go-source-diff`. This is a
   source-literal heuristic, not a verified CLI surface diff; `new_commands` stays `NOT_OBSERVED`.
+- `UCL1142-V0-008`: (accepted under the 2026-10-11 standing auto-accept, V1-1699 / GitHub #1083)
+  Before reading any commit message, parent list or diff, Compile MUST count every commit in
+  `FROM..TO` with one bounded `git rev-list --count`. A count above 512 refuses at once with
+  `changes-range-too-large`, and the CLI refusal names `limit` (512) and `commits` (the count).
+  A count that cannot be read or parsed refuses with `changes-git-unavailable`. Reaching the
+  command's own 30-second total deadline refuses with `changes-timeout`, naming `limitMs` and
+  `elapsedMs`; a caller's cancellation and every other Git failure keep `changes-git-unavailable`.
+  Whichever of the two fires first decides: a caller cancelling after the command's own deadline
+  fired, while Git is still being reaped, MUST still refuse with `changes-timeout` (amended
+  2026-10-18 after the PR #1096 review).
+  Help lists both codes and says a wide range is checked hop by hop over narrower build pairs.
+  Paging and a `--max-commits` override are non-goals.
 
 ## Boundaries and failure modes
 
@@ -90,6 +102,9 @@ does not prove closure. Reverts, reopened issues, cross-repository references, s
 and closures before FROM are not resolved. Secret screening is heuristic, not a general detector
 for arbitrary sensitive prose; raw messages and adopter lines are withheld. A bound means partial
 evidence, never a complete empty result. Missing objects in shallow/partial clones refuse offline.
+The 512-commit range bound is measured, not derived: on the Corvint checkout a 666-commit range
+completed in about 26 s and a 920-commit range reached the 30-second deadline (V1-1699), so a range
+within the bound can still time out on a slower host and then refuses with `changes-timeout`.
 
 ## Implementation, rollout and rollback
 
@@ -112,6 +127,7 @@ remain `NOT_RUN` and are not a prerequisite for this locally testable experiment
 | UCL1142-V0-005 | `cmd/corvint/changes.go`, `docs/INSTALL.md` | `TestChangesCLI` | experimental |
 | UCL1142-V0-006 | `internal/upgradechanges` (`readIssueStates`), `cmd/corvint/changes.go` | `TestCompileIssueStateFile`, `TestChangesCLI` | accepted (decision 0519; V1-1158); experimental |
 | UCL1142-V0-007 | `internal/upgradechanges` (`newFlags`) | `TestCompileNewFlags` | accepted (decision 0519; V1-1158); experimental |
+| UCL1142-V0-008 | `internal/upgradechanges` (`Compile`, `RangeTooLargeError`, `TimeoutError`), `cmd/corvint/changes.go` | `TestCompileRangeBoundAndTimeout`, `TestChangesCLI` | accepted (standing auto-accept 2026-10-11; V1-1699); experimental |
 
 Acceptance requires the focused fixtures, CLI tests, documentation gates and independent review.
 Repository-wide gate and final committed CEM/OCM seal are `NOT_RUN` in this no-commit builder scope.

@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, and V1-1698 / GitHub #1082 for shared-constant keys, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines and lists candidate duplicate tests.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698)/experimental
 - Exists: `internal/testsource`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
 - Blocked on: an MCP tool for setup-select and a preflight lint hookup are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -71,7 +71,7 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   is every tracked setup path at the revision, including generated or oversized files the index does
   not read, so ALL is the whole safe superset (amended 2026-10-17 after the PR #1054 review). Reasons: `computed-lookup` (a
   non-literal registry key, `import()` or `require()`), `unknown-key` (a literal key the registry
-  does not declare), `registry-unresolved`, `missing-path` (a spec that is not a clean, tracked JS/TS
+  does not declare), `shared-constant-key-unresolved` (TSA-V0-007), `registry-unresolved`, `missing-path` (a spec that is not a clean, tracked JS/TS
   path at the revision), `empty-spec-list`, `import-unresolved`, `source-unreadable` or
   `bound-exceeded` (at most 10 000 files in the closure, 100 reasons).
 - `TSA-V0-004`: (standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import or a
@@ -81,6 +81,39 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   `inputDigest` (`sha256:` over the sorted path and blob of every file read, the registries and the
   application-map manifests), deterministic across calls. `--format lines` MUST print only the setup
   paths, one per line, usable as a test provider's setup project list.
+- `TSA-V0-006`: (standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is an
+  exported object literal (`export const|let|var NAME [: T] = {`, `export default {`, or a local
+  object constant exported through `export { NAME [as ALIAS] }`). An import of it is followed through
+  `export * from`, `export * as NS from` and `export { A as B } from` re-exports, renamed imports and
+  `NS.NAME` namespace members (also nested, `NS.INNER.NAME`, and `require("m").NAME` or
+  `import("m").NAME` with a literal module), at most 8 hops. An `export *` cycle MUST NOT hide a
+  constant another path reaches: a resolution shaped by a module already being resolved or by a
+  bound is never cached (amended 2026-10-18 after the PR #1096 review). A read is also seen in the
+  module that declares the constant (`export const C = {...}; ... C.key`). When a reached file
+  reads a literal property of a
+  shared constant (`C.key`, `C?.key`, `C!.key`, `C["key"]`, `C?.["key"]`, a `${}` template
+  substitution, or a `{ key, key: alias } = C` destructuring), every setup file that reads the same
+  literal property of the same constant MUST be selected and traversed like a registry seeder
+  (TSA-V0-001); a setup file that reads that constant only non-literally is also selected while any
+  key of it is reached. A spec that reaches no shared constant is unaffected: it stays `selected`,
+  with an empty list when nothing else is reached. `typeof C`, import and export clauses and
+  comments (TSA-V0-011) are not reads, nor is a declaration that shadows the name (`const|let|var|
+  function|class C`, `C =>`, or a simple `function`, arrow or `catch` parameter `C`); reads of a
+  shadowing binding are attributed to the imported constant, which can only over-select.
+- `TSA-V0-007`: (standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A reached read of a
+  shared constant that is not a literal property (a computed `C[k]`, a whole-object use such as
+  `use(C)` or `Object.keys(C)`, or a namespace used other than as `NS.NAME`) MUST return mode `all`
+  with reason `shared-constant-key-unresolved`, naming the file and line, whenever a setup file not
+  already selected reads the same constant (for a namespace, any shared constant); it MUST NOT fail
+  open to `selected`. A reached read the selector cannot attribute to one constant MUST return ALL
+  the same way whenever an unselected setup file reads any shared constant: a namespace used as a
+  value, a literal `require("m")` or `import("m")` used other than as `.NAME` (CommonJS and dynamic
+  import bindings are not resolved), a re-export chain past 8 hops or 4096 export-table lookups, a
+  re-export through an unreadable or unresolved module, or a template literal whose `${}`
+  substitutions nest deeper than 8 (amended 2026-10-18 after the PR #1096 review). While any
+  shared-constant read is reached, an unselected setup file holding such a read itself MUST return
+  ALL with `shared-constant-key-unresolved` naming that setup file and line, and an unreadable setup
+  file adds `source-unreadable`. Reaching an analysis bound is never the same as "not a constant".
 
 ### Lint (V1-1589)
 
@@ -173,6 +206,15 @@ false-negative lint rule is possible for an assertion helper not named `expect*`
 assertions over different setup are reported, and two tests that check the same behaviour through
 different assertions are not.
 
+Shared-constant keys (TSA-V0-006/007) over-select by design: every setup that reads a reached key is
+selected, even one that only reads it for a different purpose, and a read through a parameter or
+local that shadows the constant's name counts as a read of the constant. Non-goals that therefore
+fail closed through TSA-V0-007 rather than being resolved: local aliasing of the object
+(`const d = C`), spread, CommonJS `require` and dynamic `import()` bindings of a constant, keys built
+at runtime, chains longer than 8 hops, templates nested deeper than 8, and a destructured or method
+parameter that shadows the name (read as a whole-object use). The selector does no scope analysis.
+A shared constant written by a setup at runtime is not seen, nor is a JSON module's object.
+
 ## Implementation, rollout and rollback
 
 Parsing lives in `internal/testsource` (lint, duplicates, Git reads) and
@@ -185,7 +227,15 @@ dispatch line, the help entries and the two packages' new files; there is no dat
 
 Synthetic Git repositories: a registry-keyed spec selects its context's setup only; a hub and the
 registry are not followed; comment-only mentions select nothing; computed, unknown, missing and empty
-inputs return ALL with typed reasons; the digest is stable and changes with the spec list. Each lint
+inputs return ALL with typed reasons; a spec reading `SHARED.scenario_a` (the #1082 fixture, also
+through a fixture file, a barrel, a renamed re-export, a namespace member, a template substitution
+or destructuring) selects only the setup reading the same key, while a computed `SHARED[k]`, a
+whole-object use or a namespace used as a value returns ALL with `shared-constant-key-unresolved`;
+the PR #1096 review forms (an `export * as` re-export, an `export *` cycle, exactly 8 hops, a read
+in the declaring module, `require("m").NAME` and shadowing parameters) select, while a 9-hop setup,
+a namespace-valued setup read, literal `require()`/`import()` bindings and a template nested 9 deep
+return ALL,
+and a spec reaching no shared constant stays `selected` with an empty list; the digest is stable and changes with the spec list. Each lint
 rule fires on its positive fixture and not on its negative one; changed-lines scope excludes old
 findings; suppressions apply to exactly the named rule and are echoed. Duplicates pair normalised
 lines across files, honour the cutoff, gate on changed tests and resolve with reasoned decisions.
@@ -199,6 +249,8 @@ lines across files, honour the cutoff, gate on changed tests and resolve with re
 | TSA-V0-003 | `internal/contextindex/setup_select.go` | `TestSelectSetupAll`, `TestSelectSetupUniverseIncludesUnindexedFiles` | experimental |
 | TSA-V0-004 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
 | TSA-V0-005 | `internal/contextindex/setup_select.go`, `cmd/corvint/tests.go` | `TestSelectSetupDigest`, `TestTestsCLI` | experimental |
+| TSA-V0-006 | `internal/contextindex/setup_shared.go`, `internal/contextindex/setup_select.go` | `TestSelectSetupSharedConstantKeys`, `TestSelectSetupSharedConstantReviewForms` | experimental |
+| TSA-V0-007 | `internal/contextindex/setup_shared.go` | `TestSelectSetupSharedConstantFailsClosed`, `TestSelectSetupSharedConstantReviewForms`, `TestSelectSetupSharedConstantOpenSetups` | experimental |
 | TSA-V0-010 | `internal/testsource`, `internal/appmap/jslex_api.go` | `TestSourceModel`, `TestChangedPathsIgnoreAttributesAndDecodeNames` | experimental |
 | TSA-V0-011 | `internal/appmap/jslex.go` | `TestLexJSComments` | experimental |
 | TSA-V0-012 | `internal/testsource/lint.go` | `TestLintChangedLinesOnly`, `TestLintAllLinesReadsUnchangedFiles` | experimental |
