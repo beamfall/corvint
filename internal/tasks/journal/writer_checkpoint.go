@@ -701,7 +701,7 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if from == headSeq && (*head.LastReceiptSha256 != wc.ReceiptSha256 || head.Generation != wc.Generation) {
 		return result, errCheckpoint("head.json", "head digest/generation differs")
 	}
-	st := &chain{canonical: make(map[string]latest, len(wc.Entries)), prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc}
+	st := &chain{canonical: make(map[string]latest, len(wc.Entries)), prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from}
 	for _, e := range wc.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
 	}

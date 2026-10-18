@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -118,8 +119,17 @@ func TestCALV0061_CheckpointTailEqualsFullAudit(t *testing.T) {
 	cp := checkpointed(t, repo, r)
 
 	// No tail: the checkpoint names the head receipt.
+	// A tail post of a ticket last posted at or before the checkpoint may read
+	// that ticket's one prefix receipt to bind its note reference (ON-V0-013).
+	var tailTickets []string
 	check := func(want string, paths ...string) *Result {
 		t.Helper()
+		allowed := map[uint64]bool{}
+		for _, e := range cp.Entries {
+			if slices.Contains(tailTickets, e.Path) {
+				allowed[e.Seq.Uint64()] = true
+			}
+		}
 		full, err := Reader{Source: r.Source, QueueID: r.QueueID, PrimaryWorktree: r.PrimaryWorktree}.Audit(paths...)
 		if err != nil {
 			t.Fatal(err)
@@ -152,7 +162,7 @@ func TestCALV0061_CheckpointTailEqualsFullAudit(t *testing.T) {
 			for _, c := range strings.TrimSuffix(strings.TrimPrefix(p, "receipts/"), ".json") {
 				seq = seq*10 + uint64(c-'0')
 			}
-			if seq < cp.Seq.Uint64() {
+			if seq < cp.Seq.Uint64() && !allowed[seq] {
 				t.Fatalf("fast audit read prefix receipt %s", p)
 			}
 		}
@@ -167,6 +177,7 @@ func TestCALV0061_CheckpointTailEqualsFullAudit(t *testing.T) {
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("C"): c.Encode()}, "", true, true, false)
 	b := fixture.Ticket("B")
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("B"): b.Encode()}, "", true, true, false)
+	tailTickets = []string{ticketPath("A"), ticketPath("C")}
 	fast := check("6", ticketPath("A"), ticketPath("B"), ticketPath("C"), "reservations.json", "intent/queue.json")
 	if !bytes.Equal(fast.Records[ticketPath("A")].Raw, a.Encode()) || !bytes.Equal(fast.Records[ticketPath("B")].Raw, b.Encode()) || fast.Records[ticketPath("C")].Seq != "5" {
 		t.Fatal("tail not applied")

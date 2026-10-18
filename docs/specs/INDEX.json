@@ -3687,12 +3687,12 @@
     ]
   },
   {
-    "path": "docs/specs/shared-path-change-policy-v0.md",
-    "title": "Shared-path change policy V0",
-    "reqPrefix": "SPC-V0",
-    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591)",
+    "path": "docs/specs/test-source-analysis-v0.md",
+    "title": "Test Source Analysis V0",
+    "reqPrefix": "TSA-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592)",
     "delivery": "experimental",
-    "claim": "A shared-path check names commits that change shared test infrastructure without a labelled commit, listing or run citation; a local splitter separates them.",
+    "claim": "Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines and lists candidate duplicate tests.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

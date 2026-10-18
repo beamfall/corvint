@@ -807,7 +807,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests"}
 )
 
 func knownHost(value string) bool {
@@ -1058,6 +1058,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if root, rest, requested := testInvocation(arguments); requested {
 			return runTest(ctx, root, rest, stdout, stderr)
+		}
+		if root, rest, requested := testsInvocation(arguments); requested {
+			return runTests(ctx, root, rest, stdout, stderr)
 		}
 		if root, rest, requested := flowInvocation(arguments); requested {
 			return runFlows(ctx, root, rest, stdout, stderr)

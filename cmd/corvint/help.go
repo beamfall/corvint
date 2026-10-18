@@ -219,6 +219,8 @@ func helpText(topic string) string {
 		return runsHelp
 	case "test":
 		return testHelp
+	case "tests":
+		return testsHelp
 	case "breakage":
 		return breakageHelp
 	case "necessity":
@@ -295,12 +297,13 @@ Commands:
   changes  offline upgrade checklist
   runs  Playwright verdicts
   test  affected tests
+  tests  setup, lint, duplicates
   harness event  one agent lifecycle event
   adapter  one native host adapter
   dogfood  evidence: change, check, seal, batch-check
   dogfood-ocm  verify dogfood OCM maps
-  cem  Change Evidence Map producer/verifier
-  ocm  Obligation Closure Map producer/verifier
+  cem  Change Evidence Map tool
+  ocm  Obligation Closure Map tool
   lrf  lexical relevance floor
   frontier  Change Frontier review queue
   record  record one local task outcome
@@ -313,7 +316,7 @@ Commands:
   affected  affected-test plan
   flows  application flows and assertions
   obligations  CEM external-obligations sidecar
-  prove  query packet with falsifier verdicts
+  prove  packet with falsifier verdicts
   prove-observe  record prove verdict counts
   index  write the index snapshot
   batch  batched query, context, impact
@@ -321,16 +324,16 @@ Commands:
   docs  source-derived documentation
   depsource  cite pinned Go module source
   necessity  label packet file necessity
-  surprise  touched set versus delivered packet
+  surprise  touched set vs delivered packet
   answerability  retrieval channel agreement
   kernel  compaction kernel
   lease  local scope lease over paths
   reads  opt-in unplanned-read digest
-  calibrate  packet stances versus outcomes
+  calibrate  packet stances vs outcomes
   skill-export  learned traces as SKILL.md
   witness  unwitnessed surface of a range
   test-validity  project a live-test receipt
-  test-plan  candidate test consolidation plan
+  test-plan  test consolidation plan
   step  declared authoring scope receipts
   delta  source-free record of one change
 
@@ -1445,7 +1448,7 @@ const commandMaturityHelp = `Command maturity:
     test-plan (TCN-V0), features (RGV-V0), overview (RGV-V0), review (RGV-V0),
     migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0),
     breakage (BKM-V0), step (ASS-V0), delta (DLT-V0), changes (UCL1142-V0),
-    runs (PWR-V0), test (STR-V0)
+    runs (PWR-V0), test (STR-V0), tests (TSA-V0)
 
 `
 

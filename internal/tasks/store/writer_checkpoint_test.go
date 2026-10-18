@@ -433,21 +433,20 @@ func TestCALV0116_WriterRouteParity(t *testing.T) {
 			"issuedAt", s("2026-09-07T12:00:00Z"),
 		))
 	}
-	// A note receipt in the tail declines the next writer, whose complete
-	// audit re-bases the checkpoint past it (the read checkpoint's
-	// CAL-V0-061 rule, which the writer audit shares).
-	rebase := func(id string) {
+	// A note receipt in the tail keeps the next writer on the route: it binds
+	// the note's pre-state to the checkpoint entry (ON-V0-012).
+	afterNote := func(id string) {
 		t.Helper()
 		run := writerMutate(t, repo, id, nil)
-		if !run.completed() || run.fast() || !strings.Contains(run.declined(), "note transition pre-state precedes the checkpoint") {
+		if !run.completed() || !run.fast() || run.declined() != "" {
 			t.Fatalf("write after a note: %+v %v %v", run.rep, run.err, run.stages)
 		}
 	}
 	writerParity(t, repo, writerEnvelope(repo, note("parity-note-1", "0", "First."), now))
-	rebase("parity-after-note-1")
+	afterNote("parity-after-note-1")
 	now = WallClock()
 	writerParity(t, repo, writerEnvelope(repo, note("parity-note-2", "1", "Second."), now))
-	rebase("parity-after-note-2")
+	afterNote("parity-after-note-2")
 	now = WallClock()
 	lease := func(id string, l transaction.LeaseRequest) func(context.Context) (*Report, error) {
 		return func(ctx context.Context) (*Report, error) {
@@ -456,6 +455,9 @@ func TestCALV0116_WriterRouteParity(t *testing.T) {
 	}
 	claim := writerParity(t, repo, lease("parity-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-1", LeaseMinutes: "60"}))
 	writerParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
+	// The heartbeat's tail holds a note on its own claimed ticket.
+	writerParity(t, repo, writerEnvelope(repo, note("parity-note-3", "2", "Third."), now))
+	now = WallClock()
 	writerParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 	writerParity(t, repo, lease("parity-release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 }
