@@ -43,7 +43,7 @@ branch's binary:
   - After, verification is `["bundle exec rspec","git diff --check"]` and the line is gone.
 - `corvint affected --base 3306177…`:
   - Before, `advice.checks` was `[]`.
-  - After, it holds the advisory `bundle exec rspec 'spec/api_clients/foo_client_spec.rb'`.
+  - After, it holds the advisory `bundle exec rspec './spec/api_clients/foo_client_spec.rb'` (round-1 form).
   - `NO_ADVISORY_GO_COMMAND` stays.
 
 Focused tests:
@@ -53,6 +53,21 @@ Focused tests:
   top-level tests and 152 PASS lines.
 
 Neither `make gate` nor `go test ./...` was run: the owner's standing preference is focused tests.
+
+## Review round 1 (Codex, two P2 findings, both fixed)
+
+- Option injection. A selected spec file such as `--format=broken_spec.rb` would have been read
+  as an RSpec option. Every operand is now prefixed `./`
+  (`TestAFPV0066DashLeadingSpecFileIsNeverAnOption`).
+- Repository-wide suppression. `lacksLanguageVerification` passed the RSpec signal into its
+  repository-wide loop, so a JS receipt in an RSpec repository lost the unknown-language line.
+  The loop no longer considers RSpec. Only a receipt whose own plan names `bundle exec rspec`
+  drops the line (`TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine`). That test failed
+  against the round-0 code, as expected. The `IDX-SNAP-V0-017` digest was repinned again; the
+  schema stays `corvint-analyzer/124`.
+- Focused reruns:
+  - `./internal/contextindex`: 105 top-level tests, 218 PASS lines.
+  - `./cmd/corvint`: 101 top-level tests, 153 PASS lines.
 
 ## Residual
 

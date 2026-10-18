@@ -1093,7 +1093,13 @@ func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []str
 		return nil, []string{fmt.Sprintf(adviceRSpecBoundUnknown, len(files), adviceMaxRSpecFiles)}
 	}
 	sort.Strings(files)
-	command := adviceAdvisoryRSpec + " " + shellQuoteJoin(files)
+	// A leading `./` keeps a dash-leading spec file from being read as an
+	// RSpec option; selected tests are repository-relative slash paths.
+	operands := make([]string, len(files))
+	for index, file := range files {
+		operands[index] = "./" + file
+	}
+	command := adviceAdvisoryRSpec + " " + shellQuoteJoin(operands)
 	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile, so these spec files are the plausible first pass", units)
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }

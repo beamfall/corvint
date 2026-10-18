@@ -161,3 +161,40 @@ func TestNGIV0027RubyCommandAppearsOnceAcrossPaths(t *testing.T) {
 		t.Fatalf("verification = %v", got)
 	}
 }
+
+// TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine: NGI-V0-027. An RSpec
+// project's Gemfile and spec/ do not answer for a receipt without Ruby
+// evidence: a JS path with no test script keeps the full receipt's
+// `git diff --check` plan and the unknown-language line, as it did before.
+func TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine(t *testing.T) {
+	files := rubyVerificationFiles(map[string]string{
+		"Gemfile":       "source \"https://rubygems.org\"\ngem \"rspec\"\n",
+		"lib/widget.js": "export const widget = 1;\n",
+	})
+	commands, uncertainty := impactVerificationOf(t, files, "lib/widget.js")
+	if !reflect.DeepEqual(commands, []any{"git diff --check"}) {
+		t.Fatalf("verification = %v", commands)
+	}
+	if !anyContains(uncertainty, unknownLanguageVerification) {
+		t.Fatalf("a non-Ruby receipt must keep the unknown-language line: %v", uncertainty)
+	}
+
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	withRuby, err := Impact(index, []string{"lib/widget.js"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	index.Tracked = nil
+	delete(index.Sources, "Gemfile")
+	withoutRuby, err := Impact(index, []string{"lib/widget.js"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(withRuby["verification"], withoutRuby["verification"]) ||
+		!reflect.DeepEqual(withRuby["coverage"].(map[string]any)["uncertainty"], withoutRuby["coverage"].(map[string]any)["uncertainty"]) {
+		t.Fatalf("Ruby signals changed a JS receipt: with=%v without=%v", withRuby["coverage"], withoutRuby["coverage"])
+	}
+}

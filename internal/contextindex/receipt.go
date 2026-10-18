@@ -732,13 +732,15 @@ func lacksLanguageVerification(index *Index, receipt map[string]any) bool {
 		return false
 	}
 	hasLanguage := false
-	rspec := rspecProject(index)
 	for sourcePath := range index.Sources {
 		if !hasSourceLanguageSuffix(sourcePath) {
 			continue
 		}
 		hasLanguage = true
-		if command, complete := toolchainCommand(sourcePath, index.Sources, rspec); complete && command != "" {
+		// The RSpec signal is not repository-wide: it clears this line only
+		// through a receipt whose own plan names `bundle exec rspec`, which
+		// already returned above (NGI-V0-027).
+		if command, complete := toolchainCommand(sourcePath, index.Sources, false); complete && command != "" {
 			return false
 		}
 	}

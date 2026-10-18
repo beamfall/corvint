@@ -66,7 +66,7 @@ func TestAFPV0066AdviceListsSelectedRSpecFiles(t *testing.T) {
 		t.Fatalf("expected one advisory RSpec check: %v", checks)
 	}
 	check := checks[0]
-	if check["command"] != "bundle exec rspec 'spec/api_clients/foo_client_spec.rb'" ||
+	if check["command"] != "bundle exec rspec './spec/api_clients/foo_client_spec.rb'" ||
 		check["kind"] != adviceKindAdvisory || check["source"] != adviceSourcePlan {
 		t.Fatalf("advisory RSpec check = %v", check)
 	}
@@ -121,7 +121,7 @@ func TestAFPV0066RSpecAdviceOrderBoundAndScope(t *testing.T) {
 	if len(advice.Checks) != 2 || !strings.HasPrefix(advice.Checks[0].Command, adviceAdvisoryGoTest) {
 		t.Fatalf("the Go advisory check must come first and stay unchanged: %v", advice.Checks)
 	}
-	want := `bundle exec rspec 'spec/it'\''s_spec.rb' 'spec/z_spec.rb'`
+	want := `bundle exec rspec './spec/it'\''s_spec.rb' './spec/z_spec.rb'`
 	if advice.Checks[1].Command != want {
 		t.Fatalf("RSpec command = %q, want %q", advice.Checks[1].Command, want)
 	}
@@ -146,6 +146,34 @@ func TestAFPV0066RSpecAdviceOrderBoundAndScope(t *testing.T) {
 	for _, line := range none.Unknown {
 		if strings.HasPrefix(line, "NO_ADVISORY_RSPEC_COMMAND") {
 			t.Fatalf("a plan with no RSpec unit adds no RSpec line: %v", none.Unknown)
+		}
+	}
+}
+
+// TestAFPV0066DashLeadingSpecFileIsNeverAnOption: AFP-V0-066. Every selected
+// spec file is passed as a `./` path, so a file named like an RSpec option
+// stays an operand.
+func TestAFPV0066DashLeadingSpecFileIsNeverAnOption(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("source \"https://rubygems.org\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Plan{Selected: []affected.Selection{
+		{UnitID: "ruby:rspec:--format=broken_spec", Tests: []string{"--format=broken_spec.rb"}},
+		{UnitID: "ruby:rspec:-r/tmp/x_spec", Tests: []string{"-r/tmp/x_spec.rb"}},
+	}}
+	advice := compileAffectedAdvice(root, plan, affectedGoProvider{State: providerStateEmpty})
+	if len(advice.Checks) != 1 {
+		t.Fatalf("expected one advisory RSpec check: %v", advice.Checks)
+	}
+	want := "bundle exec rspec './--format=broken_spec.rb' './-r/tmp/x_spec.rb'"
+	if advice.Checks[0].Command != want {
+		t.Fatalf("RSpec command = %q, want %q", advice.Checks[0].Command, want)
+	}
+	for _, word := range strings.Fields(strings.TrimPrefix(advice.Checks[0].Command, adviceAdvisoryRSpec+" ")) {
+		if !strings.HasPrefix(word, "'./") {
+			t.Fatalf("operand %q could be read as an option", word)
 		}
 	}
 }

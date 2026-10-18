@@ -1521,8 +1521,8 @@ and container qualification; full fallback remains available.
   `plan.selected` holds a unit whose id begins `ruby:rspec:`, `advice.checks` MUST gain one
   `advisory` entry with source `affected-plan`, placed after the Go advisory entry when there is
   one, whose command is `bundle exec rspec` followed by the sorted, deduplicated `tests` files of
-  those units, each POSIX single-quoted as AFP-V0-009 quotes packages, and whose reason counts the
-  RSpec units. (2) The entry exists only when the working-tree root holds a regular-file `Gemfile`,
+  those units, each prefixed `./` so a dash-leading file name is never read as an RSpec option and
+  POSIX single-quoted as AFP-V0-009 quotes packages, and whose reason counts the RSpec units. (2) The entry exists only when the working-tree root holds a regular-file `Gemfile`,
   observed by `lstat` and never opened. Otherwise `unknown` gains
   `NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the repository root has no Gemfile`.
   (3) More than 1024 distinct spec files yield no entry and
@@ -1538,7 +1538,8 @@ and container qualification; full fallback remains available.
   checks stay required (AFP-V0-004). A Gemfile that does not declare `rspec` still gets the advisory
   command, because the selected units were classified as RSpec by their own source.
   Acceptance evidence: `TestAFPV0066AdviceListsSelectedRSpecFiles`,
-  `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`, and a
+  `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`,
+  `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`, and a
   `corvint affected` run on the GitHub #1130 reproduction (build log
   2026-10-18-v1-1796-ruby-verification-command). Rollback: delete `advisoryRSpecCheck`, its
   constants and the tests.
@@ -1665,7 +1666,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-051 | `FilePathTokens` in `internal/liveverify/affected/golang/golang.go`; `check`, `named`, `covered`, `locatesRoot`, `tracked` and `readLiterals` in `tools/test-read-scopes-check`; `.corvint/test-read-scope-literals.json`; the `test-read-scopes-check` Makefile target in `GATE_STEPS` and the `doc-gates` step list of `.github/workflows/ci.yml` | `TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351` (the V1-1340 shape: a root-locating package naming the tamper matrix with the entry, its parent or a file below it declared, removed, or only a sibling declared; a recorded and a stale literal; blank-reason, empty-package, unknown-member and invalid-declaration refusals; a non-root-locating package, the package's ancestor, a case-folded literal and the change-evidence map never reported; a literal naming both an in-package and a root path reports the undeclared root path); the real tree with the `internal/cem/verify` tamper-matrix entry removed exits 1 naming the package and path, and the current tree exits 0; mutations in build log 2026-10-15-gate-tooling |
 | AFP-V0-053 | `toolIdentity` Git field, `testEnv`, the `execute` Git guards in `tools/corvint-pr-tests/main.go`; the resume identity check in `shadow` and `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestSelectedFailureAndFallback` (Git drift refuses execution; `frozenWithoutGit`: a corpus frozen without a Git identity or under another Git is refused before any checkout, and its row is not reused), `TestExecuteRequiresGitIdentity`, `TestTestEnvironmentSilencesGraftAdvice`, `TestExecuteGivesTestsSilencedGraftEnvironment`, `TestContainerRunResult`; controlled base/target replay in build log 2026-10-16-ci-shadow-historical-compat; hosted re-qualification NOT_RUN |
 | AFP-V0-054 | `windows-vet` and `WINDOWS_VET_ENV` in `Makefile`; the `make windows-vet` fence and scoping sentence of the `AGENTS.md` Verify section | `TestAFPV0054WindowsVetTargetMatchesTheCIStep` (parity with the go-static step and its effective env, `GOENV=off`, the `go-version` prerequisite), `TestAFPV0054StepEnvOverridesJobEnv` (step-level env mutation), `TestAFPV0054WindowsVetIgnoresSavedGoEnv` (saved `go env -w` GOFLAGS), `TestAFPV0054AffectedListsWindowsVet` (conditional advice check from the real `AGENTS.md`), `TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper` (unix-only helper fixture: native vet passes, the recipe fails); mutations and the `corvint affected` run in build log 2026-10-18-v1-1719-local-windows-vet |
-| AFP-V0-066 | `advisoryRSpecCheck`, `adviceAdvisoryRSpec`, `adviceMaxRSpecFiles`, `adviceNoRSpecGemfile` in `cmd/corvint/affected.go` | `TestAFPV0066AdviceListsSelectedRSpecFiles`, `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`; the reproduction run in build log 2026-10-18-v1-1796-ruby-verification-command |
+| AFP-V0-066 | `advisoryRSpecCheck`, `adviceAdvisoryRSpec`, `adviceMaxRSpecFiles`, `adviceNoRSpecGemfile` in `cmd/corvint/affected.go` | `TestAFPV0066AdviceListsSelectedRSpecFiles`, `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`, `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`; the reproduction run in build log 2026-10-18-v1-1796-ruby-verification-command |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

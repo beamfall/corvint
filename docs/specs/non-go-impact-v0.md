@@ -265,8 +265,11 @@ impact of a changed `.rb` path; the historical default receipt and range impact 
   `no language-specific verification command is known for this repository` line (the GPK
   unknown-language rule). Without a tracked root `Gemfile`, a nested `Gemfile` only, or a
   `Gemfile` with neither `.rspec` nor `spec/`, no Ruby command is named and the unknown-language
-  line stays. Plans for Go, Python, JS/TS, web and Makefile-gated paths, and every receipt
-  without a qualifying Ruby path, MUST keep their exact bytes; this amends `NGI-V0-020` only for
+  line stays. The RSpec signal is not repository-wide: a receipt whose plan does not name
+  `bundle exec rspec` (for example a JS path with no test script in an RSpec repository) MUST
+  keep the unknown-language line exactly as before. Plans for Go, Python, JS/TS, web and
+  Makefile-gated paths, and every receipt without a qualifying Ruby path, MUST keep their exact
+  bytes; this amends `NGI-V0-020` only for
   the `verification` member and the unknown-language line of a Ruby path in a qualifying
   repository.
   Non-goals: committed-range receipts keep their separate Go-only `rangeVerification` plan and
@@ -278,7 +281,8 @@ impact of a changed `.rb` path; the historical default receipt and range impact 
   `Gemfile` does not count, so the unknown-language line stays.
   Acceptance evidence: `TestNGIV0027RubyImpactNamesBundleExecRSpec`,
   `TestNGIV0027GoAndWebPlansUnchangedByRubySignals`,
-  `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`, and the GitHub #1130 reproduction run in
+  `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`,
+  `TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine`, and the GitHub #1130 reproduction run in
   `../build-log/2026-10-18-v1-1796-ruby-verification-command-1796.md`. Rollback: remove the
   `.rb` case in `toolchainCommand`, `rspecProject` and `indexTracks`, and the tests.
 
@@ -347,7 +351,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultReceiptUnchanged`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |
-| `NGI-V0-027` | `toolchainCommand`, `rspecProject`, `indexTracks` (`internal/contextindex/receipt.go`) | `TestNGIV0027RubyImpactNamesBundleExecRSpec`, `TestNGIV0027GoAndWebPlansUnchangedByRubySignals`, `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`; real CLI output in `../build-log/2026-10-18-v1-1796-ruby-verification-command-1796.md` |
+| `NGI-V0-027` | `toolchainCommand`, `rspecProject`, `indexTracks` (`internal/contextindex/receipt.go`) | `TestNGIV0027RubyImpactNamesBundleExecRSpec`, `TestNGIV0027GoAndWebPlansUnchangedByRubySignals`, `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`, `TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine`; real CLI output in `../build-log/2026-10-18-v1-1796-ruby-verification-command-1796.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
