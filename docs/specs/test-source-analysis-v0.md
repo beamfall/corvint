@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123 and V1-1784 / GitHub #1124 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124 and V1-1824 / GitHub #1140 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -422,6 +422,58 @@ command calls it yet.
   TSA-V0-049, and returns no finding for any other file. It MUST be deterministic over the same
   input. It never reports a finding it could not place.
 
+Ticket V1-1824 (GitHub #1140) adds a third rule to the same RSpec reader: a spec helper that
+takes a block and hands an assertion a block that only references it, or never calls it, makes
+every example that passes it a block vacuous. TSA-V0-048 still treats a `def` as opaque for
+`MEMOIZED-BLOCK-EXPECTATION`; this rule reads the `def` itself.
+
+- `TSA-V0-053`: (standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) The RSpec reader MUST
+  read as a helper each `def` whose innermost enclosing block is an example group, or that is
+  outside every block. It is a block helper when its parameter list ends with a named block
+  parameter (`&block`), or when it has no block parameter and its body calls `block_given?`.
+  Its body is read outside string literals and comments. In the body:
+  - a call of the block is `yield`, `super` (which forwards the block), `binding`, or any use of
+    the block parameter other than a reference-only use;
+  - a reference-only use is the parameter, optionally with `.itself`, as the whole body of a
+    one-line literal block (`{ block }`, `{ |x| block }`), or as a whole line inside a multi-line
+    `do` or brace block opened in the body. A bare reference at the def's own level, or inside an
+    `if`, `unless`, `case`, `while` or `begin` there, may be the return value, so it is a call;
+  - an assertion is a call named `assert`, `assert_*`, `refute`, `refute_*`, `expect` or
+    `perform_enqueued_jobs`, with parenthesised arguments, or unparenthesised arguments before a
+    `do` block.
+- `TSA-V0-054`: (standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLED`
+  MUST report, with severity `invalid`, a block helper when either holds:
+  - an assertion in its body takes a literal block (`{ ... }` on one line, `do` ... `end`, or a
+    brace block over three lines) whose whole body is reference-only uses of the named block
+    parameter. The finding's location is the first such assertion line;
+  - the body has no call of the block. The finding's location is the def line.
+  The helper's finding names the def's `path:line` as both test and cause, and the helper's name
+  as title. Each example in the same file that calls the helper with a block (`name { }`,
+  `name(args) { }`, `name args do`, or a `&` argument) inherits a finding of the same rule and
+  severity. That finding names the example's `path:line` and title, the call's `path:line` as
+  location and the def's `path:line` as cause. The call resolves along the example's group chain
+  to the innermost group that defines that name, and to the last such def in that group. A file
+  level def is the outermost. The helper's finding comes first, then its callers in source order.
+- `TSA-V0-055`: (standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MUST
+  NOT report:
+  - a block forwarded with `&block` (`assert_no_enqueued_jobs(&block)`, `instance_exec(&block)`,
+    `instance_eval(&block)`);
+  - `block.call`, `yield`, `super`, or any other use it does not classify as reference-only;
+  - a helper that calls the block on every path and hands no assertion a reference-only block;
+  - a helper with an anonymous `&` or a `...` parameter, a nested `def`, a string interpolation
+    or a heredoc, which is not read;
+  - a `block_given?` helper whose body calls `raise`, `fail`, `enum_for` or `to_enum`;
+  - a `def self.` method, or a `def` inside a class, module or any other non-group block;
+  - a def with no block parameter and no `block_given?`;
+  - an example that calls the helper without a block, or whose chain resolves the name to
+    another def.
+  When it cannot place the file, it abstains with the TSA-V0-050 reasons and bounds, so a block
+  helper never yields a finding from an uncertain report.
+- `TSA-V0-056`: (standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)
+  `testvalidity.ApplySourceFindings` MUST make the hygiene axis `INELIGIBLE` with reason
+  `block-not-called` for an invalid `BLOCK-NOT-CALLED` finding. The TSA-V0-051 anchor, existing
+  reason and other-axis rules apply unchanged.
+
 Non-goals (V1-1783, V1-1784):
 - the "creates its own fixture data and session" heuristic for isolation, and runtime
   annotations pushed from a test body;
@@ -436,6 +488,11 @@ Non-goals (V1-1783, V1-1784):
 - a general Ruby parser;
 - a CLI, MCP or preflight surface for these findings.
 
+Non-goals (V1-1824): path-sensitive reading of a helper that calls its block on some paths but not
+others; a helper defined in another file (`spec/support`), a module included from it, or a
+`define_method` helper; a hook, let or helper that calls a block helper (only examples inherit the
+finding); and any assertion name outside the TSA-V0-053 list.
+
 Failure modes:
 - The Ruby reading is line-based. A trailing `if ... end` on one line, an endless `def`, or a
   string literal holding a brace or an interpolated quote can misplace a block. An imbalance makes
@@ -443,6 +500,9 @@ Failure modes:
 - A ternary's middle branch reads like a hash key, so it is not counted as an invocation.
 - A Playwright isolation marker held in a variable, or a configure call on a renamed `test`
   import, is not seen.
+- `BLOCK-NOT-CALLED` matches the block helper by name. A local variable with the helper's name
+  followed by a brace, or a def in a module included elsewhere in the file, can be misread. Any
+  unclassified use of the parameter counts as a call, so the rule errs towards silence.
 
 Acceptance evidence: synthetic fixtures only.
 - The issue's alpha/beta serial repro.
@@ -455,12 +515,19 @@ Acceptance evidence: synthetic fixtures only.
 - RSpec negatives: a sibling-group before, `described_class.new.perform`, no memoizing ancestor,
   `before(:all)` and a shadowing local.
 - RSpec abstention for an unbalanced block, a stray end, depth and size.
+- The #1140 helper and its two calling examples; one-line brace, `.itself`, unparenthesised
+  arguments, a three-line brace block, a vacuous branch beside a calling one, a helper that never
+  calls its block, a `block_given?` helper that never yields, and a file-level helper.
+- `BLOCK-NOT-CALLED` negatives: `&block` forwarded, `block.call`, `yield`, `instance_exec`,
+  `instance_eval`, every path calling, `super`, a returned bare block, a def in a module or class,
+  `&` and `...` parameters, a call without a block and a nested override.
 - A test-consolidation witness refused as `WitnessIneligible` once its RSpec finding is applied,
   while an advisory finding leaves a passing witness reusable.
 
 No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testvalidity/source_rules.go`, `internal/testsource/validity*.go`, their tests and this
-section. Nothing is persisted, and no existing projection, report or wire contract changes.
+section. `BLOCK-NOT-CALLED` alone rolls back by removing `internal/testsource/validity_rspec_block.go`,
+its test, the helper capture in `validity_rspec.go`, the rule ID and reason, and TSA-V0-053..056. Nothing is persisted, and no existing projection, report or wire contract changes.
 
 ## Refusals
 
@@ -748,3 +815,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains`, `TestMemoizedBlockExpectationDepthInsideExample` | experimental |
 | TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
 | TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |
+| TSA-V0-053 | `internal/testsource/validity_rspec_block.go`, `internal/testsource/validity_rspec.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
+| TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
+| TSA-V0-055 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledNegatives`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |
+| TSA-V0-056 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsBlockNotCalled`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |

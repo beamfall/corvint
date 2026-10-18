@@ -55,3 +55,11 @@ experimental, so nothing is promoted or advertised as delivered.
 - CCE-V0-003: one hand-written `.corvint/e2e-blocks.json`.
 - CCE-V0-010..014 are out of scope for this slice.
 - Folding the other test companions into `corvint-test` is V1-1667.
+
+## Closeout (2026-10-18)
+
+The sealed binding of this slice (base `c976d521ef`, seal `f66f7753e3`) left its touched hunks
+`cited`, so the `touched-anchored` cem-verdict gate refused completion with `tier-below-anchored`.
+This addendum is bound to `CCE-V0-001`, the catalog requirement the slice delivered together with
+`CCE-V0-002`, `CCE-V0-004` to `CCE-V0-009` and `CCE-V0-015`, and V1-1665 completes at its seal.
+V1-1760 tracks the missing warning before seal.
