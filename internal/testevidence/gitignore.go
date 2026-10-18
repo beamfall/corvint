@@ -6,8 +6,6 @@ import (
 	"io/fs"
 	"os"
 	"strings"
-
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 // retainedIgnore ignores everything in its directory, itself included, so
@@ -15,7 +13,7 @@ import (
 const retainedIgnore = "*\n"
 
 // corvintDirectory is the top component of the retained-evidence location.
-var corvintDirectory = strings.Split(testvaliditydoc.EvidenceDirectory, "/")[0]
+var corvintDirectory = strings.Split(EvidenceDirectory, "/")[0]
 
 // IgnoreRetained keeps a retention out of `git status` (LPCV-V0-084). When the
 // retention created the worktree's .corvint directory, the whole directory is

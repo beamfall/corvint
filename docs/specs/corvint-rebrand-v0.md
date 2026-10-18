@@ -22,7 +22,8 @@ Authoritative inputs: the owner's 2026-09-15 choice, “I don't care about dotco
   source activity icon, standalone Corvint Console/Tasks discovery and presentation, and standalone
   MCP/live-provider executable presentation with exact MCP client compatibility, runtime/helper
   environment names with retained storage compatibility, and the current closed companion bundle
-  inventory (full assembled qualification remains pending). The full brand asset family is separately
+  inventory (profile `/3` adds the Ruby test provider, `CRB-V0-020`; full assembled qualification
+  remains pending). The full brand asset family is separately
   manually qualified; its binary-patch native refusal remains explicit.
 - Preserved: frozen wire/profile identifiers, `.corvint/change.cem.json`, canonical `nextActions` executable literal `corvint`, historical evidence, and legal facts.
 - Retained compatibility: contractual `.corvint/` and `.context-corvint/` storage, without automatic migration.
@@ -123,7 +124,8 @@ The user needs the unreleased product to acquire one coherent public identity be
   or host load may migrate installed or repository state. Runtime settings do not authorize a new
   storage root or promote an experimental format.
 
-- `CRB-V0-019`: The current core companion writer MUST emit `corvint-companion-bundle/2` with
+- `CRB-V0-019`: (writer selection superseded by `CRB-V0-020` on 2026-10-18; `/2` stays a closed
+  readable profile) The current core companion writer MUST emit `corvint-companion-bundle/2` with
   exactly the existing nine Corvint binaries, their two complete verified source archives and
   legal notice groups, and five exact exported host trees: Codex, Claude Code, Gemini CLI,
   OpenCode and Pi. Every host artifact MUST remain labelled `FALLBACK`; exact runtime FULL
@@ -136,6 +138,20 @@ The user needs the unreleased product to acquire one coherent public identity be
   mixed identities or inventory, extra or missing members, and profile-removal downgrade attempts
   MUST refuse. Existing exact source, mode, digest, reproducibility, no-overwrite and atomic
   retention requirements remain. Building `/2` MUST NOT invoke npm, Node or the VSIX builder.
+
+- `CRB-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1809; GitHub
+  #1128, #1130) The current core companion writer MUST emit `corvint-companion-bundle/3`: exactly
+  the `/2` manifest fields, source archives, notices and five `FALLBACK` host trees, plus a tenth
+  Corvint binary, `corvint-ruby-test-provider`, built from `./cmd/corvint-ruby-test-provider` of the
+  same verified Corvint source as the other Corvint components and listed in `MANIFEST.json` and
+  `SHA256SUMS` like them. A `/3` reader MUST require exactly those ten components and refuse a
+  missing or extra one; a `/2` reader MUST keep requiring exactly the nine `/2` components, so a
+  `/2` bundle carrying the Ruby provider, or a `/3` bundle without it, is refused. The `/3` smoke
+  record MUST add exactly one step, `corvint-ruby-test-provider-help`, bound to that component: the
+  binary run with no arguments exits 2 with its usage line on stderr and starts no RSpec. Core
+  installed qualification MUST accept the binary inventory of either profile, each closed. The
+  provider stays experimental (`LPCV-V0-090..095`); bundling it qualifies no RSpec execution, and
+  no installed Ruby qualification is claimed.
 
 ## Non-goals and baseline
 
@@ -180,6 +196,7 @@ compatibility identities.
 | CRB-V0-014 | `assets/brand/corvint-{lockup,mark}-{light,dark,universal}.{svg,png}`, root `README.md`, and `extensions/vscode/media/corvint.svg` | SVG parse and reference checks, matching geometry across variants, PNG format/dimensions, README theme selection, and independent visual review; PNG binary patches remain unsupported by native CEM |
 | CRB-V0-015 | `cmd/corvint-console`, `cmd/corvint-dashboard-snapshot`, `internal/console` | focused compatibility/default tests and the isolated standalone console proof |
 | CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository`, and `script/runtime-environment_test.sh` |
+| CRB-V0-020 | `internal/companionrelease` (`inventory.go`, `companionrelease.go`, `retained.go`, `workflow_smoke.go`, `core_evidence.go`) | `TestRubyProviderBundleProfileThree`, `TestRubyProviderUsageAdmitsTheBuiltProvider`, `TestCoreBundleRejectsProfileDowngrade`; two-build and installed `/3` qualification `NOT_RUN` |
 | CRB-V0-016 | three retained MCP command packages, two retained live-provider command packages, and `extensions/vscode/src/mcp.ts` | isolated five-binary handshake proof, MCP conformance, provider regressions, and current/unknown/drift client fixtures |
 
 ## Unresolved decisions and promotion gate
@@ -188,6 +205,17 @@ Exact release repository rename, registry/package ownership, compatibility remov
 final combined companion bundle and installed editor qualification, and public URLs remain pending. Promotion from
 foundation to complete rebrand requires every later leaf, a path-classified residue report, the
 full frozen gate, independent review, and explicit publication authorization.
+
+`CRB-V0-020` failure modes: a release omits the Ruby provider that test-validity's Ruby producer
+hint names (prevented by the writer's component list and the `/3` closed reader); a `/2` bundle is
+silently re-read as `/3` or the reverse (each profile's component set is closed); a Ruby provider
+from different source is shipped (the shared Corvint source identity check); the smoke step claims
+RSpec qualification (it checks only exit 2 usage admission). Non-goals: building or publishing a
+release, installing Ruby or RSpec, qualifying the provider's RSpec execution or wiring it into the
+VS Code extension. Acceptance evidence: `TestRubyProviderBundleProfileThree`,
+`TestRubyProviderUsageAdmitsTheBuiltProvider` and `TestCoreBundleRejectsProfileDowngrade` in `internal/companionrelease`; exact two-build and
+installed qualification of a `/3` bundle remain `NOT_RUN` until a release is cut. Rollback: restore
+the `/2` writer and drop the `/3` reader branch; no retained `/3` bundle exists to migrate.
 
 Companion inventory evidence: `TestCurrentAndLegacyClosedBundleProfiles`, `TestCurrentBundleRejectsInvalidProfilesAndMixedIdentities`, and opt-in `TestCurrentExportedTasksAndVSIX` cover CRB-V0-017; final bundle/installed qualification is deferred to the combined source gate.
 

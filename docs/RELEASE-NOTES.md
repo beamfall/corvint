@@ -25,6 +25,15 @@ rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
   dogfood changes. The tally starts at
   `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
 
+### Ruby test provider in the workflow bundle (V1-1809)
+
+The companion writer now emits `corvint-companion-bundle/3`: the `/2` core inventory plus
+`corvint-ruby-test-provider` as a tenth binary, with its manifest row, `SHA256SUMS` line and one
+smoke step that admits only its usage line (`CRB-V0-020`). Readers keep `/2` closed and readable. The
+provider stays experimental and preview: RSpec execution is not qualified, and no `/3` bundle has
+been built twice or qualified installed (`NOT_RUN`). Its reports and retained evidence now use the
+shared `testevidence` ignore helper (`LPCV-V0-084`, `LPCV-V0-095` amended for V1-1811).
+
 ### Tasks pool source identity (V1-1586)
 
 A pool may declare `allowedSources` and `defaultSource`, with a per-member `identity` command.

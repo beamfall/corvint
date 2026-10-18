@@ -987,7 +987,8 @@ CRB-V0-015	docs/specs/corvint-rebrand-v0.md	The standalone Console MUST present 
 CRB-V0-016	docs/specs/corvint-rebrand-v0.md	Standalone builds from the retained MCP and live-provider source packages MUST b	unrecorded	-
 CRB-V0-017	docs/specs/corvint-rebrand-v0.md	Current companion writers MUST emit manifest profile `corvint-companion-bundle/1	unrecorded	-
 CRB-V0-018	docs/specs/corvint-rebrand-v0.md	Runtime settings are read from exactly `CORVINT_CPUPROFILE`,	unrecorded	-
-CRB-V0-019	docs/specs/corvint-rebrand-v0.md	The current core companion writer MUST emit `corvint-companion-bundle/2` with	unrecorded	-
+CRB-V0-019	docs/specs/corvint-rebrand-v0.md	(writer selection superseded by `CRB-V0-020` on 2026-10-18; `/2` stays a closed	unrecorded	-
+CRB-V0-020	docs/specs/corvint-rebrand-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1809; GitHub	standing	2026-10-11; V1-1809
 ASD-V0-001	docs/specs/corvint-self-development-v0.md	One shared repository-owned stage guide maps every inventoried family to an appl	unrecorded	-
 ASD-V0-002	docs/specs/corvint-self-development-v0.md	Both generic host skills use the shared guide only when repository-owned instruc	unrecorded	-
 ASD-V0-003	docs/specs/corvint-self-development-v0.md	A real source-change slice captures original task context, appropriate impact an	unrecorded	-
@@ -2704,7 +2705,7 @@ LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
 LPCV-V0-093	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
 LPCV-V0-094	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discover	standing	2026-10-11; V1-1797
-LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before t	standing	2026-10-11; V1-1797
+LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797; amended	standing	2026-10-11; V1-1797
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
