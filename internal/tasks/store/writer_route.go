@@ -35,7 +35,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	start := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, nil)
+	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, nil, nil)
 	if terminal != nil {
 		out, err = guardFailure(report, env.RequestID, terminal)
 		return true, out, err
@@ -234,12 +234,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return leaseDeclined(ctx, request, "guards")
 	}
 	read := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, resume)
+	// Only the audit attempts the resumed route ran are resumed walks: a
+	// decline before its audit charges none (PSR-V0-151).
+	var walks journal.WalkStats
+	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, resume, &walks)
 	timing.SnapshotRead += time.Since(read)
-	if resume != nil {
-		timing.ResumedWalks++
-		timing.ResumedWalk += time.Since(read)
-	}
+	timing.walked(walks)
 	if terminal != nil {
 		return true, false, nil, terminal
 	}

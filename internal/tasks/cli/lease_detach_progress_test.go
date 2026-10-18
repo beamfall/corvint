@@ -4,6 +4,8 @@ package cli_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,15 +16,15 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// leaseProgressFields is the closed member list of the PENDING progress
+// object (PSR-V0-112, PSR-V0-152) in canonical member order.
+var leaseProgressFields = []string{"auditMillis", "completeMillis", "completeWalks", "completeWalksMoved", "prefixMillis", "prefixWalks", "prefixWalksMoved", "preparationRounds", "resumeDeclines", "resumedMillis", "resumedRounds", "resumedWalks", "updatedAt"}
+
 // TestPSRV0112_PendingReportsProgress: a detached lease command still
 // waiting for the store reports, in its PENDING item, the child's
 // preparation rounds, resumed rounds and audit time after its first round,
 // and progress null before it (PSR-V0-112, V1-1617). The member is advisory:
 // the kept result is unchanged.
-// leaseProgressFields is the closed member list of the PENDING progress
-// object (PSR-V0-112, PSR-V0-152) in canonical member order.
-var leaseProgressFields = []string{"auditMillis", "completeMillis", "completeWalks", "completeWalksMoved", "prefixMillis", "prefixWalks", "prefixWalksMoved", "preparationRounds", "resumeDeclines", "resumedMillis", "resumedRounds", "resumedWalks", "updatedAt"}
-
 func TestPSRV0112_PendingReportsProgress(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	held := holdPreparation(t, repo)
@@ -56,6 +58,36 @@ func TestPSRV0112_PendingReportsProgress(t *testing.T) {
 	}
 	if _, err := time.Parse(time.RFC3339, field(p, "updatedAt").Str); err != nil {
 		t.Fatalf("updatedAt: %v %s", err, x.stdout)
+	}
+	// PSR-V0-152: progress.json keeps the closed shape the base revision's
+	// reader decodes strictly, so an older --attach still reports its
+	// counters; the walk split lives only in progress-walks.json.
+	dir := cli.LeaseDetachDir(repo, "claim-progress")
+	raw, err := os.ReadFile(filepath.Join(dir, "progress.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var older struct {
+		Profile           string `json:"profile"`
+		PreparationRounds int    `json:"preparationRounds"`
+		ResumedRounds     int    `json:"resumedRounds"`
+		AuditMillis       int64  `json:"auditMillis"`
+		UpdatedAt         string `json:"updatedAt"`
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&older); err != nil || older.PreparationRounds != 1 || older.Profile != "taskman-detached-lease/0" || older.UpdatedAt != field(p, "updatedAt").Str {
+		t.Fatalf("older reader over a new progress.json: %+v %v (%s)", older, err, raw)
+	}
+	// A progress.json an older child wrote, with no sibling, reports its
+	// counters with the walk split as 0.
+	if err := os.Remove(filepath.Join(dir, "progress-walks.json")); err != nil {
+		t.Fatal(err)
+	}
+	x = cliRun(t, root, "claim", "--attach", "--request-id", "claim-progress", "--wait", "0")
+	p = field(x.res.Items[0], "progress")
+	if x.code != 75 || p.Obj == nil || !slices.Equal(p.Obj.Keys, leaseProgressFields) || field(p, "preparationRounds").Str != "1" || field(p, "completeWalks").Str != "0" {
+		t.Fatalf("attach over an older child's progress.json: code %d %s", x.code, x.stdout)
 	}
 	if err := held.Close(); err != nil {
 		t.Fatal(err)

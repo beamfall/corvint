@@ -170,7 +170,7 @@ type Reader struct {
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
 	resume          *ResumeBase       // AuditForResume only
-	walks           *WalkStats        // AuditForWriteObserved: per-walk accounting, outlives the physical reset
+	walks           *WalkStats        // AuditForWriteObserved, AuditForResume: per-walk accounting, outlives the physical reset
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -392,7 +392,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if r.walks != nil {
 		started := time.Now()
-		defer func() { r.walks.record(r.prefix, time.Since(started), wire.CodeOf(err) == wire.CodeSnapshotMoved) }()
+		defer func() {
+			r.walks.record(r.prefix, r.resume != nil, time.Since(started), wire.CodeOf(err) == wire.CodeSnapshotMoved)
+		}()
 	}
 	var native *nativeRead
 	var captured *observation

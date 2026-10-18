@@ -73,20 +73,29 @@ func (r Reader) AuditForWriteObserved() (*Result, PhysicalObservation, error) {
 	return result, observation, err
 }
 
-// WalkStats is one AuditForWriteObserved's walk accounting (PSR-V0-151):
-// complete attempts (ModeFull, from receipt 1) and prefix walks (ModePrefix,
-// to the head a complete attempt captured), how many of each ended
-// SNAPSHOT_MOVED, and their summed wall time.
+// WalkStats is one audit's walk accounting (PSR-V0-151): for
+// AuditForWriteObserved, complete attempts (ModeFull, from receipt 1) and
+// prefix walks (ModePrefix, to the head a complete attempt captured), how
+// many of each ended SNAPSHOT_MOVED, and their summed wall time; for
+// AuditForResume, each attempt it ran from the base, a SNAPSHOT_MOVED retry
+// included, and their summed wall time.
 type WalkStats struct {
 	Complete      int
 	CompleteMoved int
 	Prefix        int
 	PrefixMoved   int
+	Resumed       int
 	CompleteTime  time.Duration
 	PrefixTime    time.Duration
+	ResumedTime   time.Duration
 }
 
-func (w *WalkStats) record(prefix bool, took time.Duration, moved bool) {
+func (w *WalkStats) record(prefix, resumed bool, took time.Duration, moved bool) {
+	if resumed {
+		w.Resumed++
+		w.ResumedTime += took
+		return
+	}
 	if prefix {
 		w.Prefix++
 		w.PrefixTime += took

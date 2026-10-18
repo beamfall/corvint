@@ -47,7 +47,11 @@ const (
 	// leaseDetachProgressName is the child's advisory round count and
 	// audit time, rewritten after each preparation round (PSR-V0-112).
 	leaseDetachProgressName = "progress.json"
-	leaseDetachChildFlag    = "--detached-child"
+	// leaseDetachWalksName is the same record with the PSR-V0-152 walk
+	// split, a sibling no older build opens, so progress.json keeps the
+	// closed shape older readers decode (PSR-V0-152).
+	leaseDetachWalksName = "progress-walks.json"
+	leaseDetachChildFlag = "--detached-child"
 
 	// maxLeaseDetachWait is the largest --wait, in seconds.
 	maxLeaseDetachWait = 600
@@ -153,14 +157,23 @@ type leaseDetachRecord struct {
 
 // leaseDetachProgress is progress.json: how far the child's lease command
 // got. It is advisory, decides nothing, and is absent before the first
-// preparation round ends (PSR-V0-112).
+// preparation round ends (PSR-V0-112). Its members are closed: an older
+// reader decodes it strictly, so new members go in leaseDetachWalks.
 type leaseDetachProgress struct {
 	Profile           string `json:"profile"`
 	PreparationRounds int    `json:"preparationRounds"`
 	ResumedRounds     int    `json:"resumedRounds"`
 	AuditMillis       int64  `json:"auditMillis"`
-	// The walk split (PSR-V0-152, V1-1626): absent members read as zero, so
-	// a record an older child wrote still reports.
+	UpdatedAt         string `json:"updatedAt"`
+}
+
+// leaseDetachWalks is progress-walks.json: the progress.json members and
+// the walk split of the same report (PSR-V0-152, V1-1626).
+type leaseDetachWalks struct {
+	Profile            string `json:"profile"`
+	PreparationRounds  int    `json:"preparationRounds"`
+	ResumedRounds      int    `json:"resumedRounds"`
+	AuditMillis        int64  `json:"auditMillis"`
 	CompleteWalks      int    `json:"completeWalks"`
 	CompleteWalksMoved int    `json:"completeWalksMoved"`
 	PrefixWalks        int    `json:"prefixWalks"`
@@ -173,20 +186,38 @@ type leaseDetachProgress struct {
 	UpdatedAt          string `json:"updatedAt"`
 }
 
-// leaseDetachProgressOf is the child's record of t (PSR-V0-112, PSR-V0-152).
-func leaseDetachProgressOf(t store.LeaseTiming, at time.Time) leaseDetachProgress {
+// leaseDetachWalksOf is the child's record of t (PSR-V0-112, PSR-V0-152).
+func leaseDetachWalksOf(t store.LeaseTiming, at time.Time) leaseDetachWalks {
 	ms := func(d time.Duration) int64 { return max(d.Milliseconds(), 0) }
-	return leaseDetachProgress{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: ms(t.SnapshotRead),
+	return leaseDetachWalks{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: ms(t.SnapshotRead),
 		CompleteWalks: t.CompleteWalks, CompleteWalksMoved: t.CompleteMoved, PrefixWalks: t.PrefixWalks, PrefixWalksMoved: t.PrefixMoved, ResumedWalks: t.ResumedWalks, ResumeDeclines: t.ResumeDeclines,
 		CompleteMillis: ms(t.CompleteWalk), PrefixMillis: ms(t.PrefixWalk), ResumedMillis: ms(t.ResumedWalk), UpdatedAt: at.UTC().Format(time.RFC3339)}
 }
 
+// writeLeaseDetachProgress writes one report: the sibling first, then
+// progress.json in the shape every build reads (PSR-V0-152).
+func writeLeaseDetachProgress(dir string, w leaseDetachWalks) error {
+	if err := writeLeaseDetachJSON(dir, leaseDetachWalksName, w); err != nil {
+		return err
+	}
+	return writeLeaseDetachJSON(dir, leaseDetachProgressName, leaseDetachProgress{Profile: w.Profile, PreparationRounds: w.PreparationRounds, ResumedRounds: w.ResumedRounds, AuditMillis: w.AuditMillis, UpdatedAt: w.UpdatedAt})
+}
+
 // leaseDetachProgressValue is the PENDING item's progress member: null when
-// the child has not yet finished a round or its record does not read.
+// the child has not yet finished a round or progress.json does not read.
+// The walk split comes from the sibling when it reads and carries the same
+// report as progress.json; otherwise (an older child wrote progress.json, or
+// a read fell between the two writes) the split reads 0.
 func leaseDetachProgressValue(dir string) wire.Value {
-	var p leaseDetachProgress
-	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &p); err != nil {
+	var base leaseDetachProgress
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &base); err != nil {
 		return wire.Null()
+	}
+	p := leaseDetachWalks{PreparationRounds: base.PreparationRounds, ResumedRounds: base.ResumedRounds, AuditMillis: base.AuditMillis, UpdatedAt: base.UpdatedAt}
+	var w leaseDetachWalks
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachWalksName), &w); err == nil &&
+		w.PreparationRounds == p.PreparationRounds && w.ResumedRounds == p.ResumedRounds && w.AuditMillis == p.AuditMillis && w.UpdatedAt == p.UpdatedAt {
+		p = w
 	}
 	counts := []int64{int64(p.PreparationRounds), int64(p.ResumedRounds), p.AuditMillis, int64(p.CompleteWalks), int64(p.CompleteWalksMoved), int64(p.PrefixWalks), int64(p.PrefixWalksMoved), int64(p.ResumedWalks), int64(p.ResumeDeclines), p.CompleteMillis, p.PrefixMillis, p.ResumedMillis}
 	for _, c := range counts {
@@ -490,7 +521,7 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	defer stop.Stop()
 	env.leaseDeadline = time.Now().Add(leaseDetachCeiling)
 	env.leaseProgress = func(t store.LeaseTiming) {
-		if err := writeLeaseDetachJSON(dir, leaseDetachProgressName, leaseDetachProgressOf(t, time.Now())); err != nil {
+		if err := writeLeaseDetachProgress(dir, leaseDetachWalksOf(t, time.Now())); err != nil {
 			_, _ = env.Stderr.Write([]byte("corvint-tasks detached " + name + ": progress: " + err.Error() + "\n"))
 		}
 	}

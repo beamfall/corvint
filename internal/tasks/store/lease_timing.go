@@ -46,14 +46,16 @@ type LeaseTiming struct {
 	ResumedWalk    time.Duration
 }
 
-// walked adds one preparation audit's walks.
+// walked adds one write audit's walks.
 func (t *LeaseTiming) walked(w journal.WalkStats) {
 	t.CompleteWalks += w.Complete
 	t.CompleteMoved += w.CompleteMoved
 	t.PrefixWalks += w.Prefix
 	t.PrefixMoved += w.PrefixMoved
+	t.ResumedWalks += w.Resumed
 	t.CompleteWalk += w.CompleteTime
 	t.PrefixWalk += w.PrefixTime
+	t.ResumedWalk += w.ResumedTime
 }
 
 type leaseTimingKey struct{}

@@ -1,7 +1,11 @@
+//go:build darwin || linux
+
 package store
 
 import (
+	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -131,6 +135,29 @@ func TestPSRV0151_TimingSplitsResumedAcquire(t *testing.T) {
 	timing = run.timing
 	if timing.CompleteWalks != 1 || timing.CompleteMoved != 1 || timing.PrefixWalks != 1 || timing.PrefixMoved != 0 || timing.ResumedWalks != 1 || timing.PrefixWalk <= 0 {
 		t.Fatalf("walk split after a moved complete attempt: %+v", timing)
+	}
+}
+
+// PSR-V0-151 (V1-1626): a resumed route that declines before its audit,
+// here because the writer checkpoint was invalidated after the resume base
+// was captured, charges a resume decline and no resumed walk; the complete
+// route then serves the write. The retry inside a resumed audit is
+// TestPSRV0151_ResumedWalksCountEachAttempt in internal/tasks/journal.
+func TestPSRV0151_DeclinedResumeChargesNoResumedWalk(t *testing.T) {
+	if !journal.ResumableAudits() {
+		t.Skip("platform reports no change time")
+	}
+	f := newResumeFixture(t)
+	invalidate := func(int) { invalidateWriterCheckpoint(context.Background(), f.repo) }
+	run := moving(t, f, f.acquire("split-decline"), 1, invalidate)
+	if !run.completed() || run.fast() || run.timing.Resumed != 0 {
+		t.Fatalf("acquire: %+v %v resumed %d stages %v", run.rep, run.err, run.timing.Resumed, run.stages)
+	}
+	if !strings.Contains(strings.Join(run.stages, "\n"), "invalidated since the resume base") {
+		t.Fatalf("resumed route did not decline on the token: %v", run.stages)
+	}
+	if timing := run.timing; timing.ResumedWalks != 0 || timing.ResumedWalk != 0 || timing.ResumeDeclines < 1 {
+		t.Fatalf("walk split after a declined resume: %+v", timing)
 	}
 }
 

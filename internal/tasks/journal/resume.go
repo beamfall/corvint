@@ -204,8 +204,13 @@ func (r Reader) AuditForResume(base *ResumeBase, requestID string) (*Result, Phy
 	if base == nil {
 		return nil, PhysicalObservation{}, errCheckpoint("resume", "absent")
 	}
-	r.resume = base
-	return r.AuditForWriter(base.wc, requestID, false)
+	// Every attempt AuditForWriter runs is one resumed walk, its
+	// SNAPSHOT_MOVED retry included (PSR-V0-151).
+	var walks WalkStats
+	r.resume, r.walks = base, &walks
+	result, observation, err := r.AuditForWriter(base.wc, requestID, false)
+	observation.Walks = walks
+	return result, observation, err
 }
 
 // RecheckResume repeats AuditForResume's base check (PSR-V0-052) against the

@@ -470,16 +470,24 @@ resumed in round 2 after one prefix walk, so the decline itself is a preconditio
   `LeaseTiming` MUST split its audit time by walk: complete walks from receipt 1 and prefix walks
   to a captured head, each with the number that ended `SNAPSHOT_MOVED` and the summed wall time;
   resumed walks from the command's base with their wall time; and the resumes declined (a resumed
-  route that declined, a prefix walk that declined, or a base that could not be derived). Every
-  write audit charges its walks (`PhysicalObservation.Walks`); the split is a diagnostic that
+  route that declined, a prefix walk that declined, or a base that could not be derived). Each
+  count is of audit attempts actually run, never of route calls: a resumed route that declines
+  before its audit (an invalidated writer token, for one) charges a decline and no resumed walk,
+  and a resumed audit's `SNAPSHOT_MOVED` retry is a second resumed walk with its own wall time.
+  Every write audit charges its walks (`PhysicalObservation.Walks`); the split is a diagnostic that
   decides nothing and reaches no receipt, record, evidence or authority. `--timing`
   (`taskman-lease-timing/0`) is unchanged.
 - `PSR-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
   The PSR-V0-112 `progress` member MUST also carry the PSR-V0-151 split as decimal strings:
   `completeWalks`, `completeWalksMoved`, `prefixWalks`, `prefixWalksMoved`, `resumedWalks`,
   `resumeDeclines`, `completeMillis`, `prefixMillis` and `resumedMillis`, in the object's
-  canonical (byte-sorted) member order with the PSR-V0-112 members. A `progress.json` an older child wrote reads with those members as `0`. The
-  member stays advisory (PSR-V0-112).
+  canonical (byte-sorted) member order with the PSR-V0-112 members. `progress.json` keeps exactly
+  its PSR-V0-112 members (`profile`, `preparationRounds`, `resumedRounds`, `auditMillis`,
+  `updatedAt`), because an older reader decodes it with unknown members refused; the child writes
+  the same report with the split to a sibling `progress-walks.json` first, which no older build
+  opens. A reader takes the split from the sibling only when its PSR-V0-112 members equal
+  `progress.json`'s; otherwise (an older child wrote `progress.json`, or the read fell between the
+  two writes) the split reads `0`. The member stays advisory (PSR-V0-112).
 - `PSR-V0-153`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
   Negative evidence for PSR-V0-150: a receipt rewritten with its stamps restored while the bounded
   complete attempt walks, as the journal also moves, never commits. That attempt is
@@ -496,19 +504,26 @@ Failure modes:
   complete audit is unchanged.
 - A refusal is still derived twice in its round (the preparation audit and the guarded audit);
   that cost is unchanged and bounded by the refusal.
+- A read that falls between the child's two progress writes, or an older child's record, shows the
+  walk split as `0` for that report; the PSR-V0-112 counters are always the latest written.
 
 Acceptance evidence:
-- `TestPSRV0150_DeclinedResumeWalksOncePerRound` (2 cases), `TestPSRV0151_TimingSplitsResumedAcquire`
-  and `TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection` in `internal/tasks/store`;
-  `TestPSRV0112_PendingReportsProgress` in `internal/tasks/cli` checks the closed member list.
+- `TestPSRV0150_DeclinedResumeWalksOncePerRound` (2 cases), `TestPSRV0151_TimingSplitsResumedAcquire`,
+  `TestPSRV0151_DeclinedResumeChargesNoResumedWalk` and
+  `TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection` in `internal/tasks/store`;
+  `TestPSRV0151_ResumedWalksCountEachAttempt` (a `SNAPSHOT_MOVED` retry is two resumed walks) in
+  `internal/tasks/journal`; `TestPSRV0112_PendingReportsProgress` in `internal/tasks/cli` checks the
+  closed member list, decodes the new child's `progress.json` strictly with the base revision's
+  record shape, and reads an older child's `progress.json` without a sibling.
 - The opt-in harness `TestPSRV0055_PoolAcquireLoad` reports per-round rows (`rows`: each
   preparation audit's mode or code and wall time, each progress report's round counts). Its
   47,000-receipt before/after runs with hardware and host load are in the build log.
 
 Rollback: revert `Reader.StopOnMove`, `PhysicalObservation.Walks`, the `LeaseTiming` split, the
-nine `progress` members, the harness rows, the tests and this subsection. No store, receipt,
-checkpoint, kept result or wire profile changes; a `progress.json` with the nine members is read
-by an older build, which ignores them.
+nine `progress` members, `progress-walks.json`, the harness rows, the tests and this subsection.
+No store, receipt, checkpoint, kept result or wire profile changes. `progress.json` keeps its
+PSR-V0-112 shape, so an older build reads a new child's record with its counters, and a leftover
+`progress-walks.json` is never opened by it and is pruned with its record directory (ATR-V0-025).
 
 ## Acceptance evidence
 

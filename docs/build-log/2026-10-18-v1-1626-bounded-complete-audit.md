@@ -106,3 +106,25 @@ reproduced only by the forced test, not by this harness.
   or prefix walk (56 s above). A ticket candidate, out of this lane's scope.
 - A refusal is derived twice in its round (preparation audit, then the guarded audit); bounded by
   the refusal, unchanged here.
+
+## Review repair (Codex round on PR #1089 at 34b9fcf9c)
+
+Two P2 findings, both fixed in this lane under the same standing auto-accept (2026-10-11); the
+PSR-V0-151 and PSR-V0-152 text was amended in place.
+
+- Resumed walks were counted per resumed-route call. A route that declined before
+  `AuditForResume` (writer token invalidated after the base was captured) still charged one, and a
+  resumed audit's `SNAPSHOT_MOVED` retry charged one for two attempts. `AuditForResume` now
+  records each attempt in `PhysicalObservation.Walks` (`Resumed`, `ResumedTime`), `observeWriter`
+  hands the walks back, and `leaseWriter` charges them through `LeaseTiming.walked`. Evidence:
+  `TestPSRV0151_DeclinedResumeChargesNoResumedWalk` (store) and
+  `TestPSRV0151_ResumedWalksCountEachAttempt` (journal).
+- The walk split had been added to `progress.json`, which the base revision reads with unknown
+  members refused, so an older `--attach` lost even the PSR-V0-112 counters (`progress: null`).
+  `progress.json` is back to its PSR-V0-112 shape; the full report goes to a sibling
+  `progress-walks.json`, written first and used only when its PSR-V0-112 members match.
+  Evidence: `TestPSRV0112_PendingReportsProgress` decodes the new child's `progress.json`
+  strictly with the base revision's record struct, and reads a record without the sibling.
+- The same push also gives `lease_bounded_audit_test.go` the `darwin || linux` constraint of the
+  resume fixture it uses; `GOOS=windows go vet` failed on the undefined helpers in CI
+  (AFP-V0-042).
