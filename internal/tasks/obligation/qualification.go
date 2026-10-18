@@ -3,13 +3,13 @@ package obligation
 import (
 	_ "embed"
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -107,11 +107,23 @@ func Qualify(r *Report) (*Qualification, error) {
 	}
 	sort.Slice(l.Entries, func(i, j int) bool { return l.Entries[i].ID < l.Entries[j].ID })
 	root := filepath.Clean(r.RootDir)
-	src := Source{Present: map[string]bool{}, Content: map[string][]byte{}}
-	for _, p := range r.SourcePaths(NamesOf(l), root) {
-		if path.Base(p) == FixtureName {
-			src.Present[p], src.Content[p] = true, fixture
+	// Every match, whatever its outcome, must come from one fixture file
+	// beneath config.rootDir; the TOL-V0-012 check alone binds only passing
+	// matches.
+	fixturePath := ""
+	found := r.collect(NamesOf(l))
+	for _, id := range sortedKeys(found) {
+		for _, m := range found[id] {
+			p := r.repoPath(root, m.file)
+			if p == "" || path.Base(p) != FixtureName || (fixturePath != "" && p != fixturePath) {
+				return nil, qualificationErr("%s is matched in %q, not in the one %s beneath config.rootDir", id, m.file, FixtureName)
+			}
+			fixturePath = p
 		}
+	}
+	src := Source{Present: map[string]bool{}, Content: map[string][]byte{}}
+	if fixturePath != "" {
+		src.Present[fixturePath], src.Content[fixturePath] = true, fixture
 	}
 	res, err := Classify(r, l, root, src, nil)
 	if err != nil {
@@ -175,25 +187,19 @@ func allowListErr(code, f string, args ...any) error {
 	return wire.Errorf(code, AllowListFile, f, args...)
 }
 
-// ReadAllowList reads the allow-list at p through a MaxAllowListBytes bound.
-// A missing file is an empty list; any other unreadable, oversize or
-// non-regular file is MALFORMED, never an empty list.
+// ReadAllowList reads the allow-list at p with the bounded no-follow reader
+// every Tasks read uses: the final entry is opened O_NOFOLLOW|O_NONBLOCK, the
+// descriptor is fstat-ed and must be the regular file that was stat-ed, and
+// at most MaxAllowListBytes are read. A missing file is an empty list; any
+// other unreadable, oversize, symlinked or non-regular file is MALFORMED,
+// never an empty list. Platforms without that boundary refuse the read.
 func ReadAllowList(p string) (*AllowList, error) {
-	st, err := os.Lstat(p)
+	raw, err := intent.ReadFile(p, MaxAllowListBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return &AllowList{Entries: map[string]Qualification{}}, nil
 	}
-	if err != nil || !st.Mode().IsRegular() || st.Size() > MaxAllowListBytes {
-		return nil, allowListErr(wire.CodeMalformed, "the qualification allow-list is not a readable regular file of at most %d bytes", MaxAllowListBytes)
-	}
-	f, err := os.Open(p)
 	if err != nil {
-		return nil, allowListErr(wire.CodeMalformed, "the qualification allow-list is unreadable")
-	}
-	defer f.Close()
-	raw, err := io.ReadAll(io.LimitReader(f, MaxAllowListBytes+1))
-	if err != nil || len(raw) > MaxAllowListBytes {
-		return nil, allowListErr(wire.CodeMalformed, "the qualification allow-list is unreadable or exceeds %d bytes", MaxAllowListBytes)
+		return nil, allowListErr(wire.CodeMalformed, "the qualification allow-list is not a readable regular file of at most %d bytes: %v", MaxAllowListBytes, err)
 	}
 	return DecodeAllowList(raw)
 }
@@ -250,6 +256,47 @@ func (a *AllowList) Versions() []string {
 	out := make([]string, 0, len(a.Entries))
 	for v := range a.Entries {
 		out = append(out, v)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Admitted returns the sorted versions whose entry is evidence of the
+// shipped fixture: its fixtureSha256 is the embedded fixture's digest and its
+// credited, failed and defectConfirmed lists are exactly the fixture's
+// expected classes. Any other entry, such as one qualified against an
+// earlier fixture or edited by hand, admits nothing; qualify-version
+// replaces it (TOL-V0-063).
+func (a *AllowList) Admitted() []string {
+	credited, failed, defects := FixtureExpected()
+	var out []string
+	for _, v := range a.Versions() {
+		q := a.Entries[v]
+		if q.FixtureSha256 == FixtureSha256() && sameStrings(q.Credited, credited) && sameStrings(q.Failed, failed) && sameStrings(q.DefectConfirmed, defects) {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func sameStrings(got, want []string) bool {
+	g := append([]string{}, got...)
+	sort.Strings(g)
+	if len(g) != len(want) {
+		return false
+	}
+	for i := range g {
+		if g[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
 	}
 	sort.Strings(out)
 	return out

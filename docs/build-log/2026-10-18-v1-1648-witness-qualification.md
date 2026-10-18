@@ -65,9 +65,30 @@ collision.
 - `NOT_RUN`: run-batch with a store-local version, which is exercised only through the shared
   admission helper.
 
+## Independent review findings (Codex, PR #1103)
+
+One Codex round found five P2 defects. All five are fixed, each with a focused regression test,
+and the TOL-V0-061..066 text is tightened to match. The tightened text stays under the owner's
+standing auto-accept (2026-10-11).
+
+- Allow-list entries were admitted on their version label alone, so a hand-edited or stale entry
+  could admit a version. Now only an entry with the shipped fixture's digest and exact expected
+  classes admits it (TOL-V0-063). Decoding stays structural: other entries admit nothing and
+  `qualify-version` replaces them, which avoids a stuck allow-list after a fixture change.
+- `failed` and `defectConfirmed` matches skipped the source binding. Every match must now be in
+  the one fixture file beneath `config.rootDir` (TOL-V0-061).
+- The writer bound only the test repository's name. It now binds the declared path the command
+  resolved, and refuses `STALE_POLICY` if the mapping changed before the write (TOL-V0-065).
+- A declared directory that lost its `.git` resolved to the enclosing repository. The witness
+  and the audit now require the declared directory itself to be a worktree root (TOL-V0-064..066).
+- The allow-list read raced between `Lstat` and `Open`. It now uses the shared no-follow,
+  nonblocking, fstat-checked bounded reader. Windows refuses the read (TOL-V0-062).
+
 ## Limits
 
 - `qualify-version` takes no store lock. Two concurrent runs are last-writer-wins on the
   allow-list file, and each run's own entry is atomic.
 - run-batch, preflight and qualify still run only in the store's worktree. Only the witness verb
   takes `--test-repository`.
+- The allow-list read is unsupported on Windows, which has no no-follow descriptor boundary in
+  the shared reader; a Windows operator cannot record or admit a qualified version.

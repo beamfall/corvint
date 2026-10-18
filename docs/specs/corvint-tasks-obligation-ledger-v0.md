@@ -770,8 +770,10 @@ precedent: absent, it keeps the exact earlier bytes.
   classifier and a synthetic `OPEN` ledger of the nine ids, without reading any Tasks record.
   - Any `config.version` label is admitted for this check only. The shape bound, the size bound
     and the refusals of TOL-V0-009 are unchanged and keep `OBLIGATION_REPORT:`.
-  - The source of every match MUST be a file named `obligation-qualification.spec.ts` under
-    `config.rootDir`, read as the embedded fixture bytes. Any other file is `ABSENT_AT_COMMIT`.
+  - Every match of every id, whatever its outcome, MUST be in one file named
+    `obligation-qualification.spec.ts` beneath `config.rootDir`, read as the embedded fixture
+    bytes. A match in any other file, a second such file or a path outside `config.rootDir`
+    refuses as below, naming the id and the file.
   - The check passes only when the report has no top-level `errors` and each id's class equals its
     expected class: no id is `unknown`, `unbound`, `conflicting`, `mixedExpectedFail`, missing or
     in another class.
@@ -791,12 +793,18 @@ precedent: absent, it keeps the exact earlier bytes.
   - A file written by a later build refuses `UNSUPPORTED_VERSION` (CAL-V0-131). A malformed,
     oversize or non-regular file refuses `MALFORMED` for every verb that reads it, and is never
     read as an empty list.
+  - The read opens the final entry no-follow and nonblocking, fstats that descriptor, requires a
+    regular file and reads at most the bound, so a symlink or FIFO swapped in refuses `MALFORMED`
+    without blocking. A platform without that boundary (Windows) refuses the read.
   - The file is local operator state. It is outside the journal, the archive and the intent tree,
     and it is never evidence, a grant or a gate result. Deleting it, or one entry, withdraws the
     version.
 - `TOL-V0-063`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))
   `witness` and `run-batch` MUST admit a report whose `config.version` is in the shipped list or
-  in the store-local allow-list of the repository they run in. Every other version keeps the
+  in the store-local allow-list of the repository they run in. An allow-list entry admits its
+  version only when its `fixtureSha256` is the shipped fixture's and its `credited`, `failed` and
+  `defectConfirmed` lists are exactly the fixture's expected classes; any other entry admits
+  nothing until `qualify-version` replaces it. Every other version keeps the
   TOL-V0-009 refusal unchanged: `UNSUPPORTED_VERSION` with `OBLIGATION_REPORT_VERSION_UNQUALIFIED:`.
   An admitted report is credited by TOL-V0-010..013 unchanged.
 - `TOL-V0-064`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070)) The
@@ -814,7 +822,11 @@ precedent: absent, it keeps the exact earlier bytes.
     `testRepository: NAME`. A witness without the flag keeps its exact payload and evidence bytes.
   - A name the policy does not declare refuses `MALFORMED` with the detail prefix
     `OBLIGATION_TEST_REPOSITORY_UNDECLARED:`, at the command and in the writer, and writes nothing.
-  - A declared path that is not a Git worktree refuses `MISSING_EVIDENCE` and writes nothing.
+  - A declared path that is not itself the root of a Git worktree, including a directory inside
+    another repository, refuses `MISSING_EVIDENCE` and writes nothing.
+  - The writer binds the declared path the command resolved. If the policy at write time declares
+    the name with another path, or no resolved path is bound, it refuses `REVISION_CONFLICT`
+    `STALE_POLICY` and writes nothing.
   - The writer's TOL-V0-013 recomputation binds the name: a payload whose `testRepository`
     differs from the recomputation refuses `OBLIGATION_CREDIT_MISMATCH:`.
 - `TOL-V0-066`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))
@@ -822,8 +834,8 @@ precedent: absent, it keeps the exact earlier bytes.
   resolved from the policy the history had posted at that receipt (TOL-V0-013).
   - A report witness re-checks each match's path at the commit.
   - A declared witness checks that the commit exists.
-  - A name that policy does not declare, a repository that is not observable or a missing commit
-    or path is `INCONSISTENT`.
+  - A name that policy does not declare, a declared directory that is not itself a worktree root,
+    a repository that is not observable or a missing commit or path is `INCONSISTENT`.
 - `TOL-V0-067`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))
   Without `--test-repository`, every refusal MUST stay as before.
   - A spec outside the store's repository is `unbound` `OUTSIDE_REPOSITORY`.
@@ -843,7 +855,7 @@ precedent: absent, it keeps the exact earlier bytes.
 | Missing, truncated, oversize or foreign-format report | — | Refuses with `OBLIGATION_REPORT:` and writes nothing (TOL-V0-009). |
 | Unqualified Playwright version | — | Refuses `UNSUPPORTED_VERSION` with `OBLIGATION_REPORT_VERSION_UNQUALIFIED:`. |
 | A qualification report that does not behave like the fixture (a soft failure credited, a retry credited, a step dropped) | The version would be trusted on assertion | `qualify-version` refuses `GATE_FAILED` with `OBLIGATION_QUALIFICATION_FAILED:` naming the first differing id, and records nothing (TOL-V0-061). |
-| The allow-list file is edited by hand, truncated, oversize or written by a later build | A forged or unreadable list could admit or hide versions | Closed bounded reader: `MALFORMED`, or `UNSUPPORTED_VERSION` for a later profile, for every verb that reads it; never read as empty (TOL-V0-062). The file is local and admits only a version label; crediting still runs TOL-V0-010..013 against Git. |
+| The allow-list file is edited by hand, truncated, oversize or written by a later build | A forged or unreadable list could admit or hide versions | Closed bounded reader: `MALFORMED`, or `UNSUPPORTED_VERSION` for a later profile, for every verb that reads it; never read as empty (TOL-V0-062). An entry admits its version only with the shipped fixture's digest and exact classes (TOL-V0-063). The file is local and admits only a version label; crediting still runs TOL-V0-010..013 against Git. |
 | The suite lives in another repository | Every id is `unbound` `OUTSIDE_REPOSITORY`, or the commit is missing | A policy-declared `testRepositories` name moves commit resolution and source presence there (TOL-V0-064, 065); without it the refusals are unchanged (TOL-V0-067). |
 | A witness names an undeclared test repository, or the declaration is later removed | Credit from an unknown checkout | The command and the writer refuse `OBLIGATION_TEST_REPOSITORY_UNDECLARED:`; the audit resolves the name from the policy posted at that receipt, and an undeclared name or unobservable repository is `INCONSISTENT` (TOL-V0-065, 066). |
 | Secrets in report output | — | The report is never stored; the WITNESS event carries ids, paths and titles only, and they are secret-screened before storage; a detected secret refuses `SECRET_DETECTED`. |
@@ -937,7 +949,7 @@ fixture passes.
 | TOL-V0-047..050 (accepted, owner's standing auto-accept 2026-10-11) | V1-1594 (GitHub #1037) | `internal/tasks/store/worktree_state.go` (working-tree digest), `internal/tasks/cli/preflight_cache.go` (key, entry codec, replay, prune), `internal/tasks/cli/preflight.go` | `TestTOLV0047_PreflightCacheReplaysIdenticalInputs` (HIT replay, untracked, tracked, commit and implementation misses), `TestTOLV0048_PreflightFreshBypassesTheCache` (FRESH replace, refused replay, usage, SKIPPED), `TestTOLV0049_PreflightCacheIsBounded` (age miss, count and age pruning, foreign file kept), `TestTOLV0050_PreflightCacheStaysOutsideTheRepository` (`internal/tasks/cli`) | measured hit rate and saved time over a day of agent sessions (`NOT_RUN`) |
 | TOL-V0-051..054 (accepted, owner's standing auto-accept 2026-10-11) | V1-1605 (GitHub #1048) | `internal/tasks/cli/failure_signatures.go` (flags, signature, ledger, audit), `internal/tasks/cli/failure_lock_unix.go` (ledger lock), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/run_batch.go` | `TestTOLV0051_FailureLedgerIsOffByDefault` (off by default, flag validation, RECORDED count, CLEARED pass), `TestTOLV0052_RepeatedSignatureRefusesNamingSignatureAndCount` (typed refusal naming signature, count and digest; changed input admits), `TestTOLV0052_RunBatchRefusesRepeatedSignature` (refused before the test command and results directory, across `--out` dirs), `TestTOLV0053_RemediationClearsOnceWithAudit` (audit line, reuse refused, cache bypass), `TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning` (no repository or store change, mode 0700, SKIPPED), `TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold` (N=3), `TestTOLV0051_SignatureKeepsStructuralIDs` (AC-1 and AC-2 apart, run-specific numbers folded), `TestTOLV0054_ConcurrentRunsSerializeTheLedger` (eight concurrent failures, one reference given twice), `TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool` (`internal/tasks/cli`) | measured loop reduction across agent sessions (`NOT_RUN`) |
 | TOL-V0-055..059 (accepted, owner's standing auto-accept 2026-10-11) | V1-1649 (GitHub #1071) | `internal/tasks/wire/obligations.go` (alias limit), `internal/tasks/ticket/obligations.go` (`PARTIAL`, `ObligationPending`, provenance codec, witness fold), `internal/tasks/ticket/obligation_plan.go` (`rerun`, `RERUN_NOT_WITNESSED`, core-only `UNASSIGNED`), `internal/tasks/cli/obligations.go` (provenance flags, `reruns`), `internal/tasks/cli/preflight.go` (remedy), `internal/tasks/mutation/obligations.go` (screen), the pending checks in `internal/tasks/obligation` and `internal/tasks/cli/run_batch.go` | `TestTOLV0055_AliasLimit128` (110-row seed with 78-byte aliases, 128 admitted, 129 refused naming the limit, audit), `TestTOLV0056_0057_PlanRerunAndNonCore` (110-row plan with witnessed reruns and omitted non-core, `BLOCKED` and `DEFECT` rows passes; `RERUN_NOT_WITNESSED`, listed `SPLIT`, core `UNASSIGNED`, both-lists `MALFORMED`, old output unchanged), `TestTOLV0058_PartialNeverWitnessed` (counts, reason required, plan, witness credits), `TestTOLV0059_WitnessProvenance` (per-entry provenance, absent member kept, bad OID, secret) (`internal/tasks/cli`); `TestTOLV0020_PlanCheck` and `TestTOLV0026_PreflightPlanCheck` updated for TOL-V0-057; `TestTOLV0034_SeedWithAliases` refuses 129 bytes | the adopter's 4,562-row ledger migrated end to end (`NOT_RUN`) |
-| TOL-V0-060..067 (accepted, owner's standing auto-accept 2026-10-11) | V1-1648 (GitHub #1070) | `internal/tasks/obligation/obligation-qualification.spec.ts` (fixture), `internal/tasks/obligation/qualification.go` (`Qualify`, allow-list codec), `internal/tasks/obligation/report.go` (any-version qualification read), `internal/tasks/cli/obligation_qualify.go` (`qualify-version`), `internal/tasks/cli/obligations.go` (`--test-repository`, admitted versions), `internal/tasks/cli/run_batch.go` (admitted versions), `internal/tasks/intent/policy.go` (`obligations.testRepositories`), `internal/tasks/ticket/obligations.go` (`testRepository` member), `internal/tasks/mutation/obligations.go` (writer check), `internal/tasks/transaction/obligation_audit.go` and `internal/tasks/store/external_review.go` (audit in the test repository) | `TestTOLV0060_FixtureExpectedClasses`, `TestTOLV0061_QualifyMatchesFixture` (soft parent, retry-0, sibling, expected-fail and other-file differences), `TestTOLV0062_AllowListCodec` (round trip, newer profile, unknown member, 65th version) (`internal/tasks/obligation`); `TestTOLV0060_PrintFixture`, `TestTOLV0061_QualificationRefusals`, `TestTOLV0062_AllowListRecorded`, `TestTOLV0063_QualifiedVersionAdmitted`, `TestTOLV0064_PolicyTestRepositories`, `TestTOLV0065_SeparateTestRepository1_64` (AC3), `TestTOLV0066_AuditInTestRepository`, `TestTOLV0067_UndeclaredRefusalsUnchanged` (`internal/tasks/cli`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` classifies `taskman-obligation-qualifications/0` | a live Playwright run of the fixture recorded by `qualify-version` (`NOT_RUN`); run-batch with a store-local version (code path only, `NOT_RUN`) |
+| TOL-V0-060..067 (accepted, owner's standing auto-accept 2026-10-11) | V1-1648 (GitHub #1070) | `internal/tasks/obligation/obligation-qualification.spec.ts` (fixture), `internal/tasks/obligation/qualification.go` (`Qualify`, allow-list codec), `internal/tasks/obligation/report.go` (any-version qualification read), `internal/tasks/cli/obligation_qualify.go` (`qualify-version`), `internal/tasks/cli/obligations.go` (`--test-repository`, admitted versions), `internal/tasks/cli/run_batch.go` (admitted versions), `internal/tasks/intent/policy.go` (`obligations.testRepositories`), `internal/tasks/ticket/obligations.go` (`testRepository` member), `internal/tasks/mutation/obligations.go` (writer check), `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/store/external_review.go` and `internal/tasks/store/obligations.go` (`ExactWorktreeRoot`; audit in the test repository) | `TestTOLV0060_FixtureExpectedClasses`, `TestTOLV0061_QualifyMatchesFixture` (soft parent, retry-0, sibling, expected-fail differences; passing, failed and defect matches outside the one fixture file), `TestTOLV0062_AllowListCodec` (round trip, newer profile, unknown member, 65th version), `TestTOLV0062_AllowListReadRefusesSymlinkAndFIFO`, `TestTOLV0063_AllowListAdmitsOnlyFixtureEvidence` (`internal/tasks/obligation`); `TestTOLV0060_PrintFixture`, `TestTOLV0061_QualificationRefusals`, `TestTOLV0062_AllowListRecorded`, `TestTOLV0063_QualifiedVersionAdmitted`, `TestTOLV0063_ForgedAllowListEntryNotAdmitted`, `TestTOLV0064_PolicyTestRepositories`, `TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot`, `TestTOLV0065_SeparateTestRepository1_64` (AC3), `TestTOLV0065_WriterBindsDeclaredPath`, `TestTOLV0066_AuditInTestRepository`, `TestTOLV0066_AuditRequiresExactTestRepositoryRoot`, `TestTOLV0067_UndeclaredRefusalsUnchanged` (`internal/tasks/cli`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` classifies `taskman-obligation-qualifications/0` | a live Playwright run of the fixture recorded by `qualify-version` (`NOT_RUN`); run-batch with a store-local version (code path only, `NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1

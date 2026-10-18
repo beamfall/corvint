@@ -111,8 +111,8 @@ func TestTOLV0060_FixtureExpectedClasses(t *testing.T) {
 
 // TestTOLV0061_QualifyMatchesFixture: the expected-outcome report qualifies
 // with its evidence; every class difference refuses GATE_FAILED with
-// OBLIGATION_QUALIFICATION_FAILED: naming the id; a report of another file
-// leaves every id missing.
+// OBLIGATION_QUALIFICATION_FAILED: naming the id; a match of any outcome
+// outside the one fixture file beneath config.rootDir refuses the same way.
 func TestTOLV0061_QualifyMatchesFixture(t *testing.T) {
 	raw := fixtureReport(t, "1.64.0", fixtureSpecs())
 	q, err := qualifyRaw(t, raw)
@@ -126,11 +126,14 @@ func TestTOLV0061_QualifyMatchesFixture(t *testing.T) {
 		edit func([]qSpec)
 		want string
 	}{
-		"soft parent passes": {func(s []qSpec) { s[0].Tests[0].Results[0].Steps[3].Error = nil }, "TOLQ-4 expected failed, observed credited"},
-		"retry 0 credited":   {func(s []qSpec) { s[2].Tests[0].Results[0].Status = "passed" }, "TOLQ-7 expected failed, observed credited"},
-		"sibling fails":      {func(s []qSpec) { s[0].Tests[0].Results[0].Steps[2] = qs("TOLQ-3 passes after a soft failure", true) }, "TOLQ-3 expected credited, observed failed"},
-		"no expected fail":   {func(s []qSpec) { s[4].Tests[0].ExpectedStatus = "passed"; s[4].Tests[0].Annotations = nil }, "TOLQ-9 expected defectConfirmed"},
-		"other file":         {func(s []qSpec) { s[3].File = "other.spec.ts" }, "TOLQ-8 expected credited, observed unbound"},
+		"soft parent passes":  {func(s []qSpec) { s[0].Tests[0].Results[0].Steps[3].Error = nil }, "TOLQ-4 expected failed, observed credited"},
+		"retry 0 credited":    {func(s []qSpec) { s[2].Tests[0].Results[0].Status = "passed" }, "TOLQ-7 expected failed, observed credited"},
+		"sibling fails":       {func(s []qSpec) { s[0].Tests[0].Results[0].Steps[2] = qs("TOLQ-3 passes after a soft failure", true) }, "TOLQ-3 expected credited, observed failed"},
+		"no expected fail":    {func(s []qSpec) { s[4].Tests[0].ExpectedStatus = "passed"; s[4].Tests[0].Annotations = nil }, "TOLQ-9 expected defectConfirmed"},
+		"other file":          {func(s []qSpec) { s[3].File = "other.spec.ts" }, "TOLQ-8 is matched in \"other.spec.ts\""},
+		"failed escapes root": {func(s []qSpec) { s[2].File = "../other.spec.ts" }, "TOLQ-7 is matched in \"../other.spec.ts\""},
+		"defect other file":   {func(s []qSpec) { s[4].File = "other.spec.ts" }, "TOLQ-9 is matched in \"other.spec.ts\""},
+		"second fixture":      {func(s []qSpec) { s[2].File = "nested/" + FixtureName }, "TOLQ-7 is matched in"},
 	}
 	for name, c := range cases {
 		specs := fixtureSpecs()
@@ -151,7 +154,11 @@ func TestTOLV0062_AllowListCodec(t *testing.T) {
 		t.Fatal(err)
 	}
 	q.QualifiedAt = "2026-10-18T12:00:00Z"
-	p := AllowListPath(t.TempDir())
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := AllowListPath(dir)
 	a, err := ReadAllowList(p)
 	if err != nil || len(a.Entries) != 0 {
 		t.Fatalf("missing file: %v %v", a, err)
@@ -186,5 +193,50 @@ func TestTOLV0062_AllowListCodec(t *testing.T) {
 	}
 	if err := full.Put(*q); wire.CodeOf(err) != wire.CodeLimitExceeded {
 		t.Fatalf("65th version: %v", err)
+	}
+}
+
+// TestTOLV0063_AllowListAdmitsOnlyFixtureEvidence: only an entry whose
+// fixtureSha256 is the shipped fixture's and whose class lists are exactly
+// the fixture's expected classes admits its version; an empty, partial or
+// overlapping list or another digest admits nothing, and qualify-version's
+// Put replaces it.
+func TestTOLV0063_AllowListAdmitsOnlyFixtureEvidence(t *testing.T) {
+	q, err := qualifyRaw(t, fixtureReport(t, "1.64.0", fixtureSpecs()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	q.QualifiedAt = "2026-10-18T12:00:00Z"
+	a := &AllowList{Entries: map[string]Qualification{}}
+	forged := map[string]func(*Qualification){
+		"1.70.0": func(v *Qualification) { v.Credited, v.Failed, v.DefectConfirmed = nil, nil, nil },
+		"1.71.0": func(v *Qualification) { v.Credited = v.Credited[:2] },
+		"1.72.0": func(v *Qualification) { v.Failed = append(append([]string{}, v.Failed...), "TOLQ-1") },
+		"1.73.0": func(v *Qualification) { v.FixtureSha256 = wire.Digest(strings.Repeat("0", 64)) },
+		"1.74.0": func(v *Qualification) { v.Credited, v.DefectConfirmed = v.DefectConfirmed, v.Credited },
+	}
+	for version, edit := range forged {
+		v := *q
+		v.Credited, v.Failed, v.DefectConfirmed = append([]string{}, q.Credited...), append([]string{}, q.Failed...), append([]string{}, q.DefectConfirmed...)
+		v.Version = version
+		edit(&v)
+		if err := a.Put(v); err != nil {
+			t.Fatalf("%s: %v", version, err)
+		}
+	}
+	if err := a.Put(*q); err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := DecodeAllowList(wire.EncodeFile(a.Value()))
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got := strings.Join(decoded.Admitted(), ","); got != "1.64.0" || len(decoded.Versions()) != 6 {
+		t.Fatalf("admitted %q of %v", got, decoded.Versions())
+	}
+	fixed := *q
+	fixed.Version = "1.73.0"
+	if err := decoded.Put(fixed); err != nil || strings.Join(decoded.Admitted(), ",") != "1.64.0,1.73.0" {
+		t.Fatalf("requalified: %v %v", decoded.Admitted(), err)
 	}
 }

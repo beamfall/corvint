@@ -9,6 +9,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -362,5 +363,137 @@ func TestTOLV0067_UndeclaredRefusalsUnchanged(t *testing.T) {
 	}
 	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
 		t.Fatal("a refused witness wrote state")
+	}
+}
+
+// TestTOLV0063_ForgedAllowListEntryNotAdmitted: an allow-list entry whose
+// evidence is not the shipped fixture's (another fixtureSha256, or empty
+// class lists) admits nothing, so its version still refuses
+// UNSUPPORTED_VERSION; qualify-version replaces it.
+func TestTOLV0063_ForgedAllowListEntryNotAdmitted(t *testing.T) {
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	if x := qualifyVersion(t, r.Root, fixtureRun(t, qualifiedVersion, nil)); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("qualify: %s", x.stdout)
+	}
+	p := obligation.AllowListPath(r.CommonDir)
+	report := writeReport(t, t.TempDir(), r.Root, qualifiedVersion, pwSpec{Title: "AC-1 login", ID: "s1", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}})
+	for name, forge := range map[string]func(*obligation.Qualification){
+		"digest": func(q *obligation.Qualification) { q.FixtureSha256 = wire.Digest(strings.Repeat("0", 64)) },
+		"empty": func(q *obligation.Qualification) {
+			q.Credited, q.Failed, q.DefectConfirmed = []string{}, []string{}, []string{}
+		},
+	} {
+		a, err := obligation.ReadAllowList(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		q := a.Entries[qualifiedVersion]
+		forge(&q)
+		if err := a.Put(q); err != nil {
+			t.Fatal(err)
+		}
+		if err := obligation.WriteAllowList(p, a); err != nil {
+			t.Fatal(err)
+		}
+		x := atm(t, r.Root, nil, witnessArgs(id, "w-forged-"+name, obligationRevision(t, r.Root, id), head, "--from-playwright-report", report)...)
+		if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeUnsupportedVersion) || !strings.Contains(string(x.stdout), "OBLIGATION_REPORT_VERSION_UNQUALIFIED:") {
+			t.Fatalf("%s entry admitted: %s", name, x.stdout)
+		}
+		if y := qualifyVersion(t, r.Root, fixtureRun(t, qualifiedVersion, nil)); y.res.Outcome != wire.OutcomeOK || !field(y.res.Items[0], "replaced").Bool {
+			t.Fatalf("requalify: %s", y.stdout)
+		}
+	}
+	if x := atm(t, r.Root, nil, witnessArgs(id, "w-requalified", obligationRevision(t, r.Root, id), head, "--from-playwright-report", report)...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("requalified witness: %s", x.stdout)
+	}
+}
+
+// TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot: a declared test
+// repository directory that is not itself a worktree root, such as a
+// directory inside the store's repository, refuses MISSING_EVIDENCE rather
+// than resolving to the enclosing repository.
+func TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot(t *testing.T) {
+	r, id, head := obligationRepoWith(t, testRepoPolicy(map[string]string{"nested": "nested"}))
+	seedObligations(t, r.Root, id)
+	nested := filepath.Join(r.Root, "nested")
+	fixture.Write(t, filepath.Join(nested, "e2e", "login.spec.ts"), []byte(obligationSpec))
+	if x := qualifyVersion(t, r.Root, fixtureRun(t, qualifiedVersion, nil)); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("qualify: %s", x.stdout)
+	}
+	report := writeReport(t, t.TempDir(), mustEval(t, nested), qualifiedVersion, pwSpec{Title: "AC-1 login", ID: "s1", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}})
+	before := fixture.TreeSnapshot(t, r.StateDir)
+	x := atm(t, r.Root, nil, witnessArgs(id, "w-nested", obligationRevision(t, r.Root, id), head, "--from-playwright-report", report, "--test-repository", "nested")...)
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeMissingEvidence) || !strings.Contains(string(x.stdout), "is not the root of a Git worktree") {
+		t.Fatalf("nested directory resolved to the enclosing repository: %s", x.stdout)
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
+		t.Fatal("a refused witness wrote state")
+	}
+}
+
+// TestTOLV0065_WriterBindsDeclaredPath: the writer refuses STALE_POLICY,
+// writing nothing, when the testRepository's declared path at write time is
+// not the one the witness resolved, or when no resolved path is bound.
+func TestTOLV0065_WriterBindsDeclaredPath(t *testing.T) {
+	app, appHead := separateTestRepo(t)
+	other, _ := separateTestRepo(t)
+	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
+	seedObligations(t, r.Root, id)
+	before := fixture.TreeSnapshot(t, r.StateDir)
+	name := "app"
+	payload := ticket.ObligationWitnessPayload{Source: ticket.ObligationSourceDeclared, Commit: appHead, TestRepository: &name,
+		Declaration: &ticket.ObligationDeclaration{ManifestSha256: wire.Digest(strings.Repeat("d", 64)), TestID: "manual", Reason: "checked"},
+		Credits:     []ticket.ObligationCredit{{ID: "AC-1"}}}
+	for label, check := range map[string]*mutation.ObligationReportCheck{
+		"changed mapping": {TestRepository: name, TestRepositoryPath: other},
+		"unbound":         nil,
+	} {
+		res := cli.SubmitObligationWitness(cli.Env{Cwd: r.Root}, id, obligationRevision(t, r.Root, id), "w-"+strings.ReplaceAll(label, " ", "-"), check, payload.Value())
+		if enc := string(wire.Encode(res.Value())); res.Outcome == wire.OutcomeOK || !strings.Contains(enc, wire.CodeStalePolicy) {
+			t.Fatalf("%s: %s", label, enc)
+		}
+	}
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
+		t.Fatal("a refused witness wrote state")
+	}
+	res := cli.SubmitObligationWitness(cli.Env{Cwd: r.Root}, id, obligationRevision(t, r.Root, id), "w-bound",
+		&mutation.ObligationReportCheck{TestRepository: name, TestRepositoryPath: app}, payload.Value())
+	if enc := string(wire.Encode(res.Value())); strings.Contains(enc, wire.CodeStalePolicy) {
+		t.Fatalf("bound path refused: %s", enc)
+	}
+}
+
+// TestTOLV0066_AuditRequiresExactTestRepositoryRoot: receipt audit resolves
+// the declared directory only when it is itself a worktree root; a linked
+// worktree that loses its .git, so Git would resolve its directory to the
+// enclosing repository at the same commit, makes the audit inconsistent.
+func TestTOLV0066_AuditRequiresExactTestRepositoryRoot(t *testing.T) {
+	encl := filepath.Join(t.TempDir(), "encl")
+	fixture.Write(t, filepath.Join(encl, "e2e", "login.spec.ts"), []byte(obligationSpec))
+	git(t, encl, "init", "-q")
+	git(t, encl, "add", "e2e")
+	git(t, encl, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "app spec")
+	encl = mustEval(t, encl)
+	app := filepath.Join(encl, "app")
+	git(t, encl, "worktree", "add", "-q", "--detach", app)
+	appHead := headOID(t, app)
+	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
+	seedObligations(t, r.Root, id)
+	if x := qualifyVersion(t, r.Root, fixtureRun(t, qualifiedVersion, nil)); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("qualify: %s", x.stdout)
+	}
+	report := writeReport(t, t.TempDir(), app, qualifiedVersion, pwSpec{Title: "AC-1 login", ID: "s1", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}})
+	if x := atm(t, r.Root, nil, witnessArgs(id, "w-app", obligationRevision(t, r.Root, id), appHead, "--from-playwright-report", report, "--test-repository", "app")...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("witness: %s", x.stdout)
+	}
+	if !auditConsistent(t, r.Root) {
+		t.Fatal("audit before the worktree lost its .git")
+	}
+	if err := os.Remove(filepath.Join(app, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if auditConsistent(t, r.Root) {
+		t.Fatal("audit resolved the declared directory to the enclosing repository")
 	}
 }

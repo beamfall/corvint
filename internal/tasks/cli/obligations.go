@@ -33,7 +33,7 @@ func admittedVersions(commonDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(append([]string{}, obligationQualifiedVersions()...), a.Versions()...), nil
+	return append(append([]string{}, obligationQualifiedVersions()...), a.Admitted()...), nil
 }
 
 // admittedVersionsAt is admittedVersions for the store holding cwd.
@@ -46,12 +46,12 @@ func admittedVersionsAt(cwd string) ([]string, error) {
 }
 
 // declaredTestRepository resolves a policy-declared test repository name to
-// its worktree root (TOL-V0-064, TOL-V0-065). An undeclared name refuses
-// MALFORMED; a declared path that is not a Git worktree refuses
-// MISSING_EVIDENCE.
-func declaredTestRepository(rc *readCtx, name string) (string, error) {
+// its worktree root and the path the policy declares for it (TOL-V0-064,
+// TOL-V0-065). An undeclared name refuses MALFORMED; a declared path that is
+// not itself the root of a Git worktree refuses MISSING_EVIDENCE.
+func declaredTestRepository(rc *readCtx, name string) (root, declared string, err error) {
 	if _, err := wire.ParseLabel("--test-repository", name); err != nil {
-		return "", err
+		return "", "", err
 	}
 	var policy *intent.Policy
 	if rc != nil && rc.store != nil {
@@ -59,13 +59,13 @@ func declaredTestRepository(rc *readCtx, name string) (string, error) {
 	}
 	dir, ok := policy.ObligationTestRepository(name)
 	if !ok {
-		return "", wire.Errorf(wire.CodeMalformed, "--test-repository", "%s %s is not declared by the policy's obligations.testRepositories", ticket.ObligationTestRepositoryDetail, name)
+		return "", "", wire.Errorf(wire.CodeMalformed, "--test-repository", "%s %s is not declared by the policy's obligations.testRepositories", ticket.ObligationTestRepositoryDetail, name)
 	}
-	root, err := store.WorktreeRoot(intent.ResolveTestRepository(rc.repo.PrimaryWorktree, dir))
+	root, err = store.ExactWorktreeRoot(intent.ResolveTestRepository(rc.repo.PrimaryWorktree, dir))
 	if err != nil {
-		return "", wire.Errorf(wire.CodeMissingEvidence, "--test-repository", "test repository %s (%s) is not a Git worktree", name, prose(dir))
+		return "", "", wire.Errorf(wire.CodeMissingEvidence, "--test-repository", "test repository %s (%s) is not the root of a Git worktree", name, prose(dir))
 	}
-	return root, nil
+	return root, dir, nil
 }
 
 // obligationsCommand runs `ticket obligations seed|set|witness|show|plan`
@@ -474,11 +474,12 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	testRepoPath := ""
 	w := ticket.ObligationWitnessPayload{Commit: commit, Provenance: witnessProvenance(given, testCommit, envTree, evidenceRef, testTitle)}
 	if given["--test-repository"] {
 		// TOL-V0-065: commit resolution and source presence run in the
 		// policy-declared test repository.
-		if root, err = declaredTestRepository(rc, testRepo); err != nil {
+		if root, testRepoPath, err = declaredTestRepository(rc, testRepo); err != nil {
 			return errorResult(cmd, err)
 		}
 		w.TestRepository = &testRepo
@@ -539,7 +540,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		if err != nil {
 			return errorResult(cmd, err)
 		}
-		check = &mutation.ObligationReportCheck{ReportSha256: rep.Sha256, PlaywrightVersion: rep.Version, Commit: resolved, IDs: ids, Eligible: res.Eligible, TestRepository: testRepo}
+		check = &mutation.ObligationReportCheck{ReportSha256: rep.Sha256, PlaywrightVersion: rep.Version, Commit: resolved, IDs: ids, Eligible: res.Eligible, TestRepository: testRepo, TestRepositoryPath: testRepoPath}
 		version, sum := rep.Version, rep.Sha256
 		w.Source, w.Commit, w.ReportSha256, w.PlaywrightVersion = ticket.ObligationSourceReport, resolved, &sum, &version
 		w.Credits = check.ExpectedCredits(ledger)
@@ -564,6 +565,10 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		out.Items = []wire.Value{wire.ObjectValue(o)}
 		out.Untrusted = true
 		return out
+	}
+	if check == nil && w.TestRepository != nil {
+		// A DECLARED witness binds only the test repository mapping it used.
+		check = &mutation.ObligationReportCheck{TestRepository: testRepo, TestRepositoryPath: testRepoPath}
 	}
 	ctx := writerContext()
 	if check != nil {

@@ -207,7 +207,7 @@ func newBindingFold(repo *intent.Repository) *bindingFold {
 			root := repo.PrimaryWorktree
 			if dir != "" {
 				var err error
-				if root, err = WorktreeRoot(intent.ResolveTestRepository(repo.PrimaryWorktree, dir)); err != nil {
+				if root, err = ExactWorktreeRoot(intent.ResolveTestRepository(repo.PrimaryWorktree, dir)); err != nil {
 					return "", nil, nil, err
 				}
 			}
