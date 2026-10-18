@@ -199,11 +199,16 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		snapshot.ProfileExternalReviewEvent:   plain(func(b []byte) error { _, e := snapshot.DecodeExternalReviewEvent(b); return e }),
 		snapshot.ProfilePools:                 plain(func(b []byte) error { _, e := snapshot.DecodePools(b); return e }),
 		snapshot.ProfilePoolIdentity:          plain(func(b []byte) error { _, e := snapshot.DecodePoolIdentity(b); return e }),
-		"taskman-pool-observation/0":          plain(func(b []byte) error { _, e := snapshot.DecodePoolObservation(b); return e }),
-		"taskman-pool-sweep-observation/0":    plain(func(b []byte) error { _, e := snapshot.DecodePoolSweepObservation(b); return e }),
-		"taskman-pool-sweep-result/0":         plain(func(b []byte) error { _, _, e := transaction.DecodePoolSweepResult(b); return e }),
-		"taskman-programs/0":                  plain(func(b []byte) error { _, e := snapshot.DecodePrograms(b); return e }),
-		"taskman-stage/0":                     plain(func(b []byte) error { _, e := snapshot.DecodeStageDescriptor(b); return e }),
+		snapshot.ProfilePoolOperation: func(t *testing.T, p string) error {
+			pools := wire.ObjectValue(wire.NewObject().Set("profile", wire.String(snapshot.ProfilePools)).Set("queueId", wire.String("queue:acme:main")).Set("entries", wire.Array()).Set("operations", wire.Array(newerRecord(t, p))))
+			_, err := snapshot.DecodePools(wire.EncodeFile(pools))
+			return err
+		},
+		"taskman-pool-observation/0":       plain(func(b []byte) error { _, e := snapshot.DecodePoolObservation(b); return e }),
+		"taskman-pool-sweep-observation/0": plain(func(b []byte) error { _, e := snapshot.DecodePoolSweepObservation(b); return e }),
+		"taskman-pool-sweep-result/0":      plain(func(b []byte) error { _, _, e := transaction.DecodePoolSweepResult(b); return e }),
+		"taskman-programs/0":               plain(func(b []byte) error { _, e := snapshot.DecodePrograms(b); return e }),
+		"taskman-stage/0":                  plain(func(b []byte) error { _, e := snapshot.DecodeStageDescriptor(b); return e }),
 		"taskman-operator-note-cursor/0": plain(func(b []byte) error {
 			_, e := store.DecodeOperatorNoteCursor(base64.RawURLEncoding.EncodeToString(b))
 			return e
