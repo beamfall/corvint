@@ -89,11 +89,49 @@ type LoopEvidence struct {
 	Disposition          string
 	CandidateTreeOid     *string
 	GateResults, Reviews wire.Count
+	// Progress is the optional ATR-V0-081 `progress` member: the declared
+	// progress signal and the generation's fingerprint under it, recorded
+	// only while the policy declares progressSignal; nil otherwise.
+	Progress *LoopProgress
+}
+
+// LoopProgress is one generation's ATR-V0-081 progress fingerprint: the
+// declared signal that judged it and the fingerprint, nil when the
+// generation recorded none (for HANDOFF_EVIDENCE, no --evidence reference).
+type LoopProgress struct {
+	Signal      string
+	Fingerprint *string
+}
+
+// LatestHandoffEvidence is the attempt's latest recorded HANDOFF_EVIDENCE
+// reference (ATR-V0-084): the current generation's hand-off reference, else
+// the newest prior generation's recorded progress fingerprint; empty when no
+// generation recorded one. A claim clears the current reference, so a
+// generation that records none carries the latest earlier one.
+func LatestHandoffEvidence(a *Attempt) string {
+	if a.HandoffEvidence != "" {
+		return a.HandoffEvidence
+	}
+	for i := len(a.PriorGenerations) - 1; i >= 0; i-- {
+		h := a.PriorGenerations[i].History
+		if h == nil || h.Loop == nil || h.Loop.Progress == nil {
+			continue
+		}
+		if p := h.Loop.Progress; p.Signal == intent.ProgressSignalHandoffEvidence && p.Fingerprint != nil {
+			return *p.Fingerprint
+		}
+	}
+	return ""
 }
 
 // LoopEvidenceOf copies the CAL-V0-102 work evidence of an ended
 // external-agent generation; nil when it recorded no retry accounting.
-func LoopEvidenceOf(a *Attempt) *LoopEvidence {
+func LoopEvidenceOf(a *Attempt) *LoopEvidence { return LoopEvidenceWith(a, "") }
+
+// LoopEvidenceWith is LoopEvidenceOf that also records the generation's
+// fingerprint under a declared ATR-V0-080 progress signal; an empty signal
+// records none.
+func LoopEvidenceWith(a *Attempt, signal string) *LoopEvidence {
 	if a == nil || a.RuntimeID != RuntimeExternalAgent || a.RetryAccounting == nil {
 		return nil
 	}
@@ -101,6 +139,13 @@ func LoopEvidenceOf(a *Attempt) *LoopEvidence {
 	if a.CandidateTreeOid != nil {
 		tree := *a.CandidateTreeOid
 		e.CandidateTreeOid = &tree
+	}
+	if signal == intent.ProgressSignalHandoffEvidence {
+		e.Progress = &LoopProgress{Signal: signal}
+		if a.HandoffEvidence != "" {
+			ref := a.HandoffEvidence
+			e.Progress.Fingerprint = &ref
+		}
 	}
 	return e
 }
@@ -415,8 +460,15 @@ func readPriorLoop(p *wire.Reader, h *GenerationHistory) {
 		return
 	}
 	x := p.Field("loopEvidence")
-	x.Closed("disposition", "candidateTreeOid", "gateResults", "reviews")
+	x.Closed(wire.OptionalKeys(x.Value(), []string{"disposition", "candidateTreeOid", "gateResults", "reviews"}, "progress")...)
 	e := &LoopEvidence{Disposition: x.Field("disposition").Enum("NONE", wire.CodeHandoff, wire.CodeReviewReturned), CandidateTreeOid: x.Field("candidateTreeOid").StringOrNull((*wire.Reader).OID), GateResults: x.Field("gateResults").Count(), Reviews: x.Field("reviews").Count()}
+	if wire.Has(x.Value(), "progress") {
+		// ATR-V0-081: the declared signal and the generation's fingerprint;
+		// a HANDOFF_EVIDENCE fingerprint is an Identifier (1..128 bytes).
+		g := x.Field("progress")
+		g.Closed("signal", "fingerprint")
+		e.Progress = &LoopProgress{Signal: g.Field("signal").Enum(intent.ProgressSignalHandoffEvidence), Fingerprint: g.Field("fingerprint").StringOrNull((*wire.Reader).Identifier)}
+	}
 	if p.Err() != nil {
 		return
 	}
@@ -426,6 +478,10 @@ func readPriorLoop(p *wire.Reader, h *GenerationHistory) {
 	}
 	if e.Disposition == wire.CodeReviewReturned && (h.Stage == nil || *h.Stage != "review") {
 		p.Fail(wire.CodeMalformed, "a REVIEW_RETURNED generation held review")
+		return
+	}
+	if e.Progress != nil && e.Progress.Fingerprint != nil && e.Disposition == "NONE" {
+		p.Fail(wire.CodeMalformed, "a hand-off evidence fingerprint requires a HANDOFF or REVIEW_RETURNED loopEvidence disposition")
 		return
 	}
 	h.Loop = e
@@ -720,7 +776,11 @@ func priorValue(ps []PriorGeneration) wire.Value {
 				o.Set("handoffReason", wire.String(h.HandoffReason))
 			}
 			if e := h.Loop; e != nil {
-				o.Set("loopEvidence", wire.ObjectValue(wire.NewObject().Set("disposition", wire.String(e.Disposition)).Set("candidateTreeOid", wire.StringOrNull(e.CandidateTreeOid)).Set("gateResults", wire.String(string(e.GateResults))).Set("reviews", wire.String(string(e.Reviews)))))
+				le := wire.NewObject().Set("disposition", wire.String(e.Disposition)).Set("candidateTreeOid", wire.StringOrNull(e.CandidateTreeOid)).Set("gateResults", wire.String(string(e.GateResults))).Set("reviews", wire.String(string(e.Reviews)))
+				if g := e.Progress; g != nil {
+					le.Set("progress", wire.ObjectValue(wire.NewObject().Set("signal", wire.String(g.Signal)).Set("fingerprint", wire.StringOrNull(g.Fingerprint))))
+				}
+				o.Set("loopEvidence", wire.ObjectValue(le))
 			}
 		}
 		vs = append(vs, wire.ObjectValue(o))

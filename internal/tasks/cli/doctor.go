@@ -300,8 +300,8 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
 	out = append(out, doctorJournalGrowth(scan)...)
-	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc))...)
-	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
+	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc), rc.store.Policy.ProgressSignal)...)
+	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan, rc.store.Policy.ProgressSignal)...)
 	out = append(out, doctorSlowLane(scan)...)
 	out = append(out, doctorSetupOnly(rc, scan)...)
 	out = append(out, doctorNoCompletions(rc, in, th, scan)...)
@@ -522,8 +522,11 @@ func doctorHandoffCandidate(rc *readCtx) func(string) (bool, wire.Count) {
 }
 
 // doctorNoProgress applies the CAL-V0-102 no-progress test to each candidate
-// ticket's newest ended generations (TQD-V0-005, TQD-V0-013).
-func doctorNoProgress(scan *doctorScan, candidate func(string) (bool, wire.Count)) []doctorFinding {
+// ticket's newest ended generations (TQD-V0-005, TQD-V0-013). Under a
+// declared progress signal a generation whose hand-off evidence fingerprint
+// is new or changed is progress, and the finding names the signal
+// (TQD-V0-040).
+func doctorNoProgress(scan *doctorScan, candidate func(string) (bool, wire.Count), signal string) []doctorFinding {
 	endings, order := doctorEndings(scan)
 	var out []doctorFinding
 	for _, t := range order {
@@ -544,13 +547,19 @@ func doctorNoProgress(scan *doctorScan, candidate func(string) (bool, wire.Count
 		verdicts := make([]bool, len(gens))
 		var tree *string
 		known := true
+		fingerprint := ""
 		for i, g := range gens {
 			a := g.a
 			comparable := a.CandidateTreeOid == nil || (known && tree != nil && *tree == *a.CandidateTreeOid)
 			if a.CandidateTreeOid != nil {
 				tree, known = a.CandidateTreeOid, true
 			}
-			verdicts[i] = a.RetryAccounting.Disposition == wire.CodeHandoff && len(a.GateResults) == 0 && len(a.Reviews) == 0 && comparable
+			unchanged := true
+			if signal == intent.ProgressSignalHandoffEvidence && a.HandoffEvidence != "" {
+				unchanged = fingerprint == a.HandoffEvidence
+				fingerprint = a.HandoffEvidence
+			}
+			verdicts[i] = a.RetryAccounting.Disposition == wire.CodeHandoff && len(a.GateResults) == 0 && len(a.Reviews) == 0 && comparable && unchanged
 		}
 		start := len(gens)
 		for start > 0 && verdicts[start-1] {
@@ -562,6 +571,9 @@ func doctorNoProgress(scan *doctorScan, candidate func(string) (bool, wire.Count
 		}
 		f := doctorFinding{kind: "NO_PROGRESS_HANDOFF", who: t, firstSeen: run[0].at,
 			detail: fmt.Sprintf("%d consecutive hand-offs with no gate result, review or new candidate tree", len(run))}
+		if signal != "" {
+			f.detail = fmt.Sprintf("%d consecutive hand-offs with no gate result, review, new candidate tree or changed %s progress fingerprint (progress signal %s)", len(run), signal, signal)
+		}
 		for _, g := range run {
 			f.seqs = append(f.seqs, g.seq)
 		}
@@ -590,12 +602,18 @@ func doctorGateReader(src journal.Source) func(string) (*snapshot.GateResult, er
 }
 
 // doctorRepeatRefusal counts review returns and distinct failed gate results
-// per ticket and candidate tree (TQD-V0-006).
-func doctorRepeatRefusal(gateOf func(string) (*snapshot.GateResult, error), scan *doctorScan) []doctorFinding {
-	refusals := map[[2]string]*doctorRefusal{}
-	var order [][2]string
+// per ticket and candidate tree (TQD-V0-006). Under a declared progress
+// signal the count restarts at each ended generation of the ticket whose
+// hand-off evidence fingerprint is new or changed, so refusals separated by
+// recorded progress are not repeats, and the finding names the signal
+// (TQD-V0-041).
+func doctorRepeatRefusal(gateOf func(string) (*snapshot.GateResult, error), scan *doctorScan, signal string) []doctorFinding {
+	refusals := map[[3]string]*doctorRefusal{}
+	var order [][3]string
+	epoch := map[string]int{}
+	fingerprint := map[string]string{}
 	count := func(ticketID, tree string, seq uint64, at time.Time) {
-		k := [2]string{ticketID, tree}
+		k := [3]string{ticketID, tree, strconv.Itoa(epoch[ticketID])}
 		r := refusals[k]
 		if r == nil {
 			r = &doctorRefusal{at: at}
@@ -642,6 +660,10 @@ func doctorRepeatRefusal(gateOf func(string) (*snapshot.GateResult, error), scan
 			key := a.AttemptID + "/" + string(a.Generation)
 			if !a.Live() && a.RetryAccounting != nil && !ended[key] {
 				ended[key] = true
+				if signal == intent.ProgressSignalHandoffEvidence && a.HandoffEvidence != "" && a.HandoffEvidence != fingerprint[t] {
+					fingerprint[t] = a.HandoffEvidence
+					epoch[t]++
+				}
 				if a.RetryAccounting.Disposition == wire.CodeReviewReturned {
 					tree := lastTree[t]
 					if a.CandidateTreeOid != nil {
@@ -663,8 +685,11 @@ func doctorRepeatRefusal(gateOf func(string) (*snapshot.GateResult, error), scan
 		if len(r.seqs) < doctorThreshold {
 			continue
 		}
-		out = append(out, doctorFinding{kind: "REPEAT_REFUSAL", who: k[0], firstSeen: r.at, seqs: r.seqs,
-			detail: fmt.Sprintf("candidate tree %s refused %d times", k[1], len(r.seqs))})
+		detail := fmt.Sprintf("candidate tree %s refused %d times", k[1], len(r.seqs))
+		if signal != "" {
+			detail = fmt.Sprintf("candidate tree %s refused %d times with no changed %s progress fingerprint between (progress signal %s)", k[1], len(r.seqs), signal, signal)
+		}
+		out = append(out, doctorFinding{kind: "REPEAT_REFUSAL", who: k[0], firstSeen: r.at, seqs: r.seqs, detail: detail})
 	}
 	return out
 }

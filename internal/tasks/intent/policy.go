@@ -124,6 +124,10 @@ type Policy struct {
 	// LoopDetection is the optional CAL-V0-102 no-progress loop policy;
 	// nil (the key absent) disables loop detection.
 	LoopDetection *LoopDetection
+	// ProgressSignal is the optional ATR-V0-080 adopter-declared progress
+	// signal; empty (the key absent) keeps progress judged by queue
+	// artefacts alone.
+	ProgressSignal string
 	// HolderLiveness is the optional CAL-V0-120 heartbeat observation
 	// policy; nil (the key absent) keeps DefaultHeartbeatTTLSeconds.
 	HolderLiveness *HolderLiveness
@@ -237,6 +241,11 @@ type LoopDetection struct {
 // MaxLoopDetectionBound caps both loopDetection bounds.
 const MaxLoopDetectionBound = 256
 
+// ProgressSignalHandoffEvidence is the ATR-V0-080 progress signal whose
+// fingerprint is a clean hand-off's recorded --evidence reference: a
+// hand-off whose reference differs from the latest earlier one is progress.
+const ProgressSignalHandoffEvidence = "HANDOFF_EVIDENCE"
+
 // GateIDs returns the set of defined gate ids.
 func (p *Policy) GateIDs() map[string]bool {
 	m := map[string]bool{}
@@ -314,7 +323,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -486,6 +495,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		l := r.Field("loopDetection")
 		l.Closed("maxNoProgressGenerations", "maxAlternatingReturns")
 		p.LoopDetection = &LoopDetection{MaxNoProgressGenerations: boundCount(l.Field("maxNoProgressGenerations"), 1, MaxLoopDetectionBound), MaxAlternatingReturns: boundCount(l.Field("maxAlternatingReturns"), 1, MaxLoopDetectionBound)}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "progressSignal") {
+		p.ProgressSignal = r.Field("progressSignal").Enum(ProgressSignalHandoffEvidence)
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

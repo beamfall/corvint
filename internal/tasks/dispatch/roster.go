@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+// ProgressSignalHandoffEvidence is the native policy's ATR-V0-080
+// HANDOFF_EVIDENCE progress signal as the dispatcher observes it.
+const ProgressSignalHandoffEvidence = "HANDOFF_EVIDENCE"
+
 // Work states that are not program-defined.
 const (
 	StateNone    = "NONE"
@@ -108,6 +112,10 @@ type Attempt struct {
 
 	// Pool and Member name the attempt's pool allocation; empty without one.
 	Pool, Member string
+	// HandoffEvidence is the attempt's latest recorded hand-off --evidence
+	// reference, carried across generations that record none, the
+	// HANDOFF_EVIDENCE progress fingerprint (ATR-V0-084); empty without one.
+	HandoffEvidence string
 }
 
 // Member is one native pool member.
@@ -128,6 +136,9 @@ type Observation struct {
 	Tickets  []Ticket
 	Attempts []Attempt
 	Members  []Member
+	// ProgressSignal is the policy's declared ATR-V0-080 progress signal,
+	// empty when none is declared.
+	ProgressSignal string
 	// Replan, when set, replans the same snapshot with the tickets the
 	// work state holds (CAL-V0-105) and those a budget holds (CAL-V0-155)
 	// outside the selection window, and returns each planned ticket's plan
@@ -532,6 +543,14 @@ func baseFingerprint(obs *Observation, key string) string {
 	for _, a := range obs.Attempts {
 		if a.Ticket == key && (a.Candidate != "" || a.Gates > 0 || a.Reviews > 0 || durablePhases[a.Phase]) {
 			rows = append(rows, fmt.Sprintf("%s|%s|%s|%d|%d", a.ID, a.Phase, a.Candidate, a.Gates, a.Reviews))
+		}
+		// ATR-V0-084: under a declared HANDOFF_EVIDENCE signal the attempt's
+		// latest recorded hand-off reference is progress identity, so only a
+		// hand-off with a changed reference is progress; the same one, or a
+		// generation that records none, is not. A policy without the signal
+		// hashes exactly as before.
+		if a.Ticket == key && a.HandoffEvidence != "" && obs.ProgressSignal == ProgressSignalHandoffEvidence {
+			rows = append(rows, "handoffEvidence|"+a.ID+"|"+a.HandoffEvidence)
 		}
 	}
 	sort.Strings(rows)
