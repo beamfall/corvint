@@ -24,6 +24,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/service"
@@ -90,7 +91,7 @@ var ReadVerbs = []string{
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
-	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
+	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations qualify-version",
 	"preflight",
 	"worktree ensure",
 	"defects add", "defects update", "defects list",
@@ -485,7 +486,7 @@ func LiveFormats() []string {
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile, doctorConfigProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
-		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
+		ticket.ObligationEventProfile, ticket.ObligationPlanProfile, obligation.ProfileQualifications,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
 		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile,

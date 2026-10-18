@@ -1,6 +1,9 @@
 package intent
 
 import (
+	"path/filepath"
+	"strings"
+
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -160,6 +163,63 @@ type Policy struct {
 type ObligationsPolicy struct {
 	WorkerWitness       bool
 	RequireSourceReview bool
+	// TestRepositories (TOL-V0-064) maps a declared name to a local test
+	// checkout path, absolute or relative to the primary worktree; nil when
+	// the member is absent.
+	TestRepositories map[string]string
+}
+
+// Bounds of the TOL-V0-064 testRepositories member.
+const (
+	MaxObligationTestRepositories   = 16
+	MaxObligationTestRepositoryPath = 4096
+)
+
+// ObligationTestRepository returns the path the policy declares for name
+// (TOL-V0-064, 065).
+func (p *Policy) ObligationTestRepository(name string) (string, bool) {
+	if p == nil || p.Obligations == nil {
+		return "", false
+	}
+	dir, ok := p.Obligations.TestRepositories[name]
+	return dir, ok
+}
+
+// ResolveTestRepository joins a declared test repository path to the
+// primary worktree when it is relative.
+func ResolveTestRepository(primaryWorktree, dir string) string {
+	if filepath.IsAbs(dir) {
+		return filepath.Clean(dir)
+	}
+	return filepath.Join(primaryWorktree, filepath.FromSlash(dir))
+}
+
+func readTestRepositories(r *wire.Reader) map[string]string {
+	v := r.Value()
+	if v.Kind != wire.KindObject || v.Obj == nil {
+		r.Fail(wire.CodeMalformed, "testRepositories must be an object")
+		return nil
+	}
+	keys := v.Obj.SortedKeys()
+	if len(keys) == 0 || len(keys) > MaxObligationTestRepositories {
+		r.Fail(wire.CodeLimitExceeded, "testRepositories must name 1..%d repositories (%d)", MaxObligationTestRepositories, len(keys))
+		return nil
+	}
+	r.Closed(keys...)
+	out := map[string]string{}
+	for _, k := range keys {
+		if _, err := wire.ParseLabel("testRepositories", k); err != nil {
+			r.Fail(wire.CodeMalformed, "testRepositories name %q is not a label", k)
+			return nil
+		}
+		f := r.Field(k)
+		dir := f.Prose(1, MaxObligationTestRepositoryPath)
+		if f.Value().Kind == wire.KindString && strings.ContainsAny(dir, "\t\n\r") {
+			f.Fail(wire.CodeMalformed, "a test repository path must not hold TAB, LF or CR")
+		}
+		out[k] = dir
+	}
+	return out
 }
 
 // WorkerObligationWitness reports whether policy opts WORKER into the
@@ -526,10 +586,13 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "obligations") {
 		o := r.Field("obligations")
-		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview")...)
+		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview", "testRepositories")...)
 		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
 		if o.Err() == nil && wire.Has(o.Value(), "requireSourceReview") {
 			p.Obligations.RequireSourceReview = o.Field("requireSourceReview").Bool()
+		}
+		if o.Err() == nil && wire.Has(o.Value(), "testRepositories") {
+			p.Obligations.TestRepositories = readTestRepositories(o.Field("testRepositories"))
 		}
 		if err := r.Err(); err != nil {
 			return nil, err

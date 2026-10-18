@@ -34,7 +34,10 @@ import (
 type ObligationReceiptAudit struct {
 	// Source reads paths at commit: commit is "" when the repository holds
 	// no such commit, present names every blob and content its bytes.
-	Source func(commit string, paths []string) (resolved string, present map[string]bool, content map[string][]byte, err error)
+	// dir is "" for the store's repository, else the test repository path
+	// the posted policy declares for the witness's testRepository
+	// (TOL-V0-066).
+	Source func(dir, commit string, paths []string) (resolved string, present map[string]bool, content map[string][]byte, err error)
 
 	tickets   map[string]obligationTicket
 	attempts  map[string]*snapshot.Attempt
@@ -236,8 +239,16 @@ func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.
 	if w == nil {
 		return nil
 	}
+	dir := ""
+	if w.TestRepository != nil {
+		declared, ok := a.policy.ObligationTestRepository(*w.TestRepository)
+		if !ok {
+			return a.fail(rc, "test repository %s is not declared by the policy posted at this receipt", *w.TestRepository)
+		}
+		dir = declared
+	}
 	if w.Source != ticket.ObligationSourceReport {
-		commit, _, _, err := a.Source(w.Commit, nil)
+		commit, _, _, err := a.Source(dir, w.Commit, nil)
 		if err != nil {
 			return a.fail(rc, "declared commit %s is unobservable: %v", w.Commit, err)
 		}
@@ -259,7 +270,7 @@ func (a *ObligationReceiptAudit) sourcePresence(rc *snapshot.Receipt, q *ticket.
 			}
 		}
 	}
-	commit, present, content, err := a.Source(w.Commit, paths)
+	commit, present, content, err := a.Source(dir, w.Commit, paths)
 	if err != nil {
 		return a.fail(rc, "source presence at %s is unobservable: %v", w.Commit, err)
 	}

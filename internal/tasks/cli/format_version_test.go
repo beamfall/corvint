@@ -18,6 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -207,13 +208,14 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, e := store.DecodeOperatorNoteCursor(base64.RawURLEncoding.EncodeToString(b))
 			return e
 		}),
-		ticket.Profile:                  plain(func(b []byte) error { _, e := ticket.Decode(b); return e }),
-		ticket.OperatorNoteProfile:      plain(func(b []byte) error { _, e := ticket.DecodeOperatorNoteEvent(b); return e }),
-		ticket.EscalationRequestProfile: plain(func(b []byte) error { _, e := ticket.DecodeEscalationRequest(b); return e }),
-		ticket.EscalationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeEscalationEvent(b); return e }),
-		ticket.ObligationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeObligationEvent(b); return e }),
-		ticket.ObligationPlanProfile:    plain(func(b []byte) error { _, e := ticket.DecodeObligationPlan(b); return e }),
-		release.Profile:                 plain(func(b []byte) error { _, e := release.Decode(b); return e }),
+		ticket.Profile:                   plain(func(b []byte) error { _, e := ticket.Decode(b); return e }),
+		ticket.OperatorNoteProfile:       plain(func(b []byte) error { _, e := ticket.DecodeOperatorNoteEvent(b); return e }),
+		ticket.EscalationRequestProfile:  plain(func(b []byte) error { _, e := ticket.DecodeEscalationRequest(b); return e }),
+		ticket.EscalationEventProfile:    plain(func(b []byte) error { _, e := ticket.DecodeEscalationEvent(b); return e }),
+		ticket.ObligationEventProfile:    plain(func(b []byte) error { _, e := ticket.DecodeObligationEvent(b); return e }),
+		ticket.ObligationPlanProfile:     plain(func(b []byte) error { _, e := ticket.DecodeObligationPlan(b); return e }),
+		obligation.ProfileQualifications: plain(func(b []byte) error { _, e := obligation.DecodeAllowList(b); return e }),
+		release.Profile:                  plain(func(b []byte) error { _, e := release.Decode(b); return e }),
 		release.AttestationProfile: func(t *testing.T, p string) error {
 			_, err := release.Decode(withMember(t, formatRelease(t), "attestations", wire.Array(newerRecord(t, p))))
 			return err

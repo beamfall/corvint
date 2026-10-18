@@ -203,8 +203,15 @@ func newBindingFold(repo *intent.Repository) *bindingFold {
 		b:           newSealBlob(repo),
 		reviews:     &transaction.ExternalReviewReceiptAudit{},
 		escalations: &transaction.EscalationReceiptAudit{},
-		obligations: &transaction.ObligationReceiptAudit{Source: func(commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
-			return FilesAtCommit(repo.PrimaryWorktree, commit, paths)
+		obligations: &transaction.ObligationReceiptAudit{Source: func(dir, commit string, paths []string) (string, map[string]bool, map[string][]byte, error) {
+			root := repo.PrimaryWorktree
+			if dir != "" {
+				var err error
+				if root, err = WorktreeRoot(intent.ResolveTestRepository(repo.PrimaryWorktree, dir)); err != nil {
+					return "", nil, nil, err
+				}
+			}
+			return FilesAtCommit(root, commit, paths)
 		}},
 		memo:   &transaction.TicketPosts{},
 		reuses: &transaction.GateReuseReceiptAudit{},
