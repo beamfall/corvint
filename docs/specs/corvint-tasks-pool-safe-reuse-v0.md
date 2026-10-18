@@ -622,8 +622,12 @@ as before. This change delivers that subset; the residuals below stay open under
   declares operations, `operations` with each declared operation's last receipt or `NOT_OBSERVED`;
   receipts of members no pool declares are dropped when a receipt is replaced.
 - `PSR-V0-163`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A passed
-  operation (exit zero, group clean, within bounds) that started from FREE returns the member to
-  FREE. A passed operation that started from QUARANTINED leaves it QUARANTINED with
+  operation (exit zero, group clean, within bounds) that started from FREE returns an unguarded
+  member to FREE. A passed operation on an identity-guarded member (PSR-V0-082) MUST NOT free it,
+  since the operation may have changed its physical source: it stays QUARANTINED with a reason
+  starting `SOURCE_IDENTITY_UNPROVED`, and only `pool confirm-safe`, whose identity probe must report
+  the current `defaultSource` (PSR-V0-084), frees it; a mismatched or unavailable probe keeps it
+  QUARANTINED. A passed operation that started from QUARANTINED leaves it QUARANTINED with
   `cleanupPassed` false, so the existing cleanup and `pool confirm-safe` remain the only way back to
   FREE. `retarget` requires `--source REV:TREE` (only retarget takes one; `MALFORMED` otherwise),
   which a pool with `allowedSources` must allow (`OUT_OF_SCOPE`, `SOURCE_NOT_ALLOWED`), and its
@@ -631,10 +635,17 @@ as before. This change delivers that subset; the residuals below stay open under
 - `PSR-V0-164`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A same
   request id MUST replay the recorded outcome and MUST NOT run the command again. Once the pending
   entry is committed no result is retryable (CAL-V0-078); a replay of a run whose outcome is not yet
-  recorded reports it pending and runs nothing.
+  recorded reports it pending and runs nothing. A replay returns that request's own receipt even
+  after a later run of the same operation replaced the member's current receipt: it is read from
+  the pools.json the request's own committed observation transaction posted, a bounded read that
+  adds nothing to pools.json.
 - `PSR-V0-165`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A failed
   operation (any class but a passed `EXIT_ZERO`) MUST leave the member QUARANTINED with a reason that
-  starts with the operation and its class. An operation whose runner is gone is recovered by the
+  starts with the operation and its class. A runner refusal before execution (the configRef blob
+  is absent or differs, or the prepared source revision moved or became dirty after admission) MUST
+  be settled in the same request as a recorded failed receipt, `SPAWN_FAILED` or `SOURCE_CHANGED`
+  respectively, quarantining the member; only when the prepared revision itself is unreadable does
+  the entry stay pending for `pool recover`. An operation whose runner is gone is recovered by the
   existing `pool recover`, which records an `ORPHANED` receipt and quarantines the member with a
   reason naming the operation; a live or unknown runner is never recovered.
 - `PSR-V0-166`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operation
@@ -786,8 +797,8 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-160 | `TestPSRV0160_UndeclaredOperationRefused` (`internal/tasks/store`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
 | PSR-V0-161 | `TestPSRV0161_IllegalStateRefusedNothingRuns`, `TestPSRV0163_PassedResetStaysQuarantined` (`internal/tasks/store`) |
 | PSR-V0-162 | `TestPSRV0162_ReceiptRecordedMemberFree` (`internal/tasks/store`); `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
-| PSR-V0-163 | `TestPSRV0162_ReceiptRecordedMemberFree`, `TestPSRV0163_PassedResetStaysQuarantined`, `TestPSRV0165_FailedResetRetargetQuarantine` (`internal/tasks/store`) |
-| PSR-V0-164 | `TestPSRV0164_SameRequestReplaysNeverRunsTwice` (`internal/tasks/store`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
-| PSR-V0-165 | `TestPSRV0165_FailedResetRetargetQuarantine` (`internal/tasks/store`); `TestPSRV0165_RecoverOrphanedOperation` (`internal/tasks/transaction`) |
+| PSR-V0-163 | `TestPSRV0162_ReceiptRecordedMemberFree`, `TestPSRV0163_PassedResetStaysQuarantined`, `TestPSRV0163_GuardedPassedOperationNeverFree`, `TestPSRV0165_FailedResetRetargetQuarantine` (`internal/tasks/store`) |
+| PSR-V0-164 | `TestPSRV0164_SameRequestReplaysNeverRunsTwice`, `TestPSRV0164_ReplayAfterSupersedingRun` (`internal/tasks/store`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
+| PSR-V0-165 | `TestPSRV0165_FailedResetRetargetQuarantine`, `TestPSRV0165_PreExecutionFailureSettled` (`internal/tasks/store`); `TestPSRV0165_RecoverOrphanedOperation` (`internal/tasks/transaction`) |
 | PSR-V0-166 | `TestPSRV0166_TimeoutKillsGroupOutputBounded` (`internal/tasks/store`) |
 | PSR-V0-167 | `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |

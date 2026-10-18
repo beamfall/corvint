@@ -3096,10 +3096,10 @@ PSR-V0-160	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	596	(accepted under th
 PSR-V0-161	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	605	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) An	standing	2026-10-11; V1-1585
 PSR-V0-162	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	614	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) An admit	standing	2026-10-11; V1-1585
 PSR-V0-163	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	624	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A passed	standing	2026-10-11; V1-1585
-PSR-V0-164	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	631	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A same	standing	2026-10-11; V1-1585
-PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	635	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A failed	standing	2026-10-11; V1-1585
-PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	640	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
-PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	644	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
+PSR-V0-164	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	635	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A same	standing	2026-10-11; V1-1585
+PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	642	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A failed	standing	2026-10-11; V1-1585
+PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	651	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
+PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	655	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-

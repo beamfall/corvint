@@ -19,11 +19,34 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-const operationTarget = "2222222222222222222222222222222222222222:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+const (
+	operationTarget  = "2222222222222222222222222222222222222222:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	operationDefault = "1111111111111111111111111111111111111111:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+
+func operationSource(pair string) wire.Value {
+	rev, tree, _ := strings.Cut(pair, ":")
+	return obj("revision", str(rev), "tree", str(tree))
+}
+
+func operationIdentityJSON(pair string) string {
+	rev, tree, _ := strings.Cut(pair, ":")
+	return `{"revision":"` + rev + `","tree":"` + tree + `"}` + "\n"
+}
 
 // operationPolicy installs pool db whose member a declares ops, each a /bin/sh
 // script with the given timeout; member b declares no operation.
 func operationPolicy(t *testing.T, s *leaseStore, timeout string, ops map[string]string) {
+	t.Helper()
+	installOperationPolicy(t, s, timeout, ops, "", nil)
+}
+
+// installOperationPolicy is operationPolicy with two optional additions: a
+// non-empty identityDir guards both members with an identity command that
+// prints identityDir/<member>, allowing operationDefault and operationTarget
+// with operationDefault as the defaultSource (PSR-V0-082); a non-nil
+// configRef is member a's configRef.
+func installOperationPolicy(t *testing.T, s *leaseStore, timeout string, ops map[string]string, identityDir string, configRef *wire.Value) {
 	t.Helper()
 	v := fixture.PolicyValue()
 	v.Obj.Set("policyVersion", str("3"))
@@ -34,8 +57,25 @@ func operationPolicy(t *testing.T, s *leaseStore, timeout string, ops map[string
 	for name, script := range ops {
 		declared.Set(name, obj("argv", wire.Strings([]string{"/bin/sh", "-c", script}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str(timeout)))
 	}
-	cfg := obj("a", obj("operations", wire.ObjectValue(declared)))
-	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a", "b"}), "memberConfig", cfg)))
+	a := obj("operations", wire.ObjectValue(declared))
+	if configRef != nil {
+		a.Obj.Set("configRef", *configRef)
+	}
+	cfg := obj("a", a)
+	pool := obj("id", str("db"), "members", wire.Strings([]string{"a", "b"}), "memberConfig", cfg)
+	if identityDir != "" {
+		for _, m := range []string{"a", "b"} {
+			identity := obj("argv", wire.Strings([]string{"/bin/cat", filepath.Join(identityDir, m)}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("5"))
+			if m == "a" {
+				a.Obj.Set("identity", identity)
+			} else {
+				cfg.Obj.Set("b", obj("identity", identity))
+			}
+		}
+		pool.Obj.Set("allowedSources", wire.Array(operationSource(operationDefault), operationSource(operationTarget)))
+		pool.Obj.Set("defaultSource", operationSource(operationDefault))
+	}
+	v.Obj.Set("pools", wire.Array(pool))
 	if rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("operation-policy", "2", wire.EncodeFile(v)), now(t)); e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("policy %+v %v", rep, e)
 	}
@@ -262,5 +302,115 @@ func TestPSRV0166_TimeoutKillsGroupOutputBounded(t *testing.T) {
 	rep, e = operate(t, s, "loud", "a", "refresh", "")
 	if e != nil || rep.PoolOperation == nil || rep.PoolOperation.Class != "OUTPUT_LIMIT" {
 		t.Fatalf("output bound: %+v %v", rep, e)
+	}
+}
+
+// PSR-V0-163, PSR-V0-084: a passed operation on an identity-guarded member
+// never frees it. The member stays QUARANTINED with SOURCE_IDENTITY_UNPROVED,
+// and confirm-safe's identity probe decides; an operation that moved the
+// member's physical source is then quarantined as SOURCE_DRIFT.
+func TestPSRV0163_GuardedPassedOperationNeverFree(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t)
+	dir := t.TempDir()
+	for _, m := range []string{"a", "b"} {
+		if e := os.WriteFile(filepath.Join(dir, m), []byte(operationIdentityJSON(operationDefault)), 0o600); e != nil {
+			t.Fatal(e)
+		}
+	}
+	moved := filepath.Join(dir, "moved")
+	if e := os.WriteFile(moved, []byte(operationIdentityJSON(operationTarget)), 0o600); e != nil {
+		t.Fatal(e)
+	}
+	installOperationPolicy(t, s, "5", map[string]string{"refresh": "/bin/cp " + moved + " " + filepath.Join(dir, "a")}, dir, nil)
+	rep, e := operate(t, s, "guarded-refresh", "a", "refresh", "")
+	if e != nil || rep.PoolOperation == nil || !rep.PoolOperation.Passed || rep.PoolOperation.Class != "EXIT_ZERO" {
+		t.Fatalf("refresh: %+v %v", rep, e)
+	}
+	en := operationEntry(t, s, "a")
+	if en == nil || en.State != "QUARANTINED" || !strings.HasPrefix(en.Reason, transaction.ReasonIdentityUnproved+": refresh EXIT_ZERO") {
+		t.Fatalf("a passed guarded refresh left %+v", en)
+	}
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "guarded-safe", Root: s.root, Lease: transaction.LeaseRequest{Verb: transaction.LeasePoolSafe, Member: "a", Allocation: string(en.AllocationID), Evidence: "operator-reset-record", Reason: "fixture"}}
+	safe, e := store.Lease(psrLoaded(context.Background()), s.repo, operator(), choice, now(t))
+	if e != nil || safe.Outcome.Outcome == mutation.OutcomeCompleted {
+		t.Fatalf("drifted member confirmed safe: %+v %v", safe, e)
+	}
+	if en = operationEntry(t, s, "a"); en == nil || en.State != "QUARANTINED" || !strings.HasPrefix(en.Reason, transaction.ReasonSourceDrift+": observed "+operationTarget) {
+		t.Fatalf("drifted member left %+v; confirm-safe %+v", en, safe)
+	}
+}
+
+// PSR-V0-165: a runner refusal before execution is settled in the same
+// request as a recorded failed receipt; the member is QUARANTINED, never left
+// pending. Causes: the configRef blob differs (SPAWN_FAILED) and the
+// repository revision changed after admission (SOURCE_CHANGED).
+func TestPSRV0165_PreExecutionFailureSettled(t *testing.T) {
+	// Not parallel: the prepared-fault hook is package-global.
+	for _, cause := range []string{"config-blob", "revision-changed"} {
+		t.Run(cause, func(t *testing.T) {
+			s := newLeaseStore(t)
+			marker := filepath.Join(t.TempDir(), "ran")
+			var ref *wire.Value
+			class := "SOURCE_CHANGED"
+			if cause == "config-blob" {
+				class = "SPAWN_FAILED"
+				if e := os.WriteFile(filepath.Join(s.root, "config.json"), []byte("{}\n"), 0o600); e != nil {
+					t.Fatal(e)
+				}
+				gitRun(t, s.root, "add", "config.json")
+				gitRun(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "config")
+				rev := strings.TrimSpace(gitOut(t, s.root, "rev-parse", "HEAD"))
+				r := obj("revision", str(rev), "path", str("config.json"), "blob", str(strings.Repeat("1", 40)))
+				ref = &r
+			} else {
+				restore := store.SetPoolPreparedFaultForTest(func() error {
+					gitRun(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "moved")
+					return nil
+				})
+				defer restore()
+			}
+			installOperationPolicy(t, s, "5", map[string]string{"provision": "printf x >> " + marker}, "", ref)
+			rep, e := operate(t, s, "not-run", "a", "provision", "")
+			if e != nil || rep.PoolOperation == nil || rep.PoolOperation.Passed || rep.PoolOperation.Class != class || rep.PoolOperation.RequestID != "not-run" {
+				t.Fatalf("pre-execution failure: %+v %v", rep, e)
+			}
+			if _, err := os.Stat(marker); !os.IsNotExist(err) {
+				t.Fatalf("the operation ran: %v", err)
+			}
+			en := operationEntry(t, s, "a")
+			if en == nil || en.State != "QUARANTINED" || en.Operation != nil || !strings.HasPrefix(en.Reason, "provision "+class) {
+				t.Fatalf("pre-execution failure left %+v", en)
+			}
+			again, e := operate(t, s, "not-run", "a", "provision", "")
+			if e != nil || again.Kind != "Replay" || again.PoolOperation == nil || again.PoolOperation.Class != class {
+				t.Fatalf("replay: %+v %v", again, e)
+			}
+		})
+	}
+}
+
+// PSR-V0-164: a request id replays its own recorded outcome after a later
+// run of the same operation replaced the member's current receipt.
+func TestPSRV0164_ReplayAfterSupersedingRun(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t)
+	runs := filepath.Join(t.TempDir(), "runs")
+	operationPolicy(t, s, "5", map[string]string{"provision": "printf x >> " + runs + "; /bin/cat " + runs})
+	a, e := operate(t, s, "provision-A", "a", "provision", "")
+	if e != nil || a.PoolOperation == nil || !a.PoolOperation.Passed {
+		t.Fatalf("A: %+v %v", a, e)
+	}
+	b, e := operate(t, s, "provision-B", "a", "provision", "")
+	if e != nil || b.PoolOperation == nil || b.PoolOperation.RequestID != "provision-B" {
+		t.Fatalf("B: %+v %v", b, e)
+	}
+	again, e := operate(t, s, "provision-A", "a", "provision", "")
+	if e != nil || again.Kind != "Replay" || again.PoolOperation == nil {
+		t.Fatalf("replay A: %+v %v", again, e)
+	}
+	got, want := again.PoolOperation, a.PoolOperation
+	if got.RequestID != "provision-A" || got.Class != want.Class || got.Passed != want.Passed || got.OutputSha256 == nil || *got.OutputSha256 != *want.OutputSha256 || got.ObservedSeq != want.ObservedSeq {
+		t.Fatalf("replay A returned %+v, recorded %+v", got, want)
 	}
 }

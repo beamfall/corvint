@@ -39,6 +39,21 @@ legacy bytes and eleven rejections) and CLI (operate, replay, status view, undec
 the CI traps `TestCALV0131_*`, the format-version table, `TestImportDirection` and
 `TestIndexCoversSpecsAndHeaders`. Linux runtime NOT_RUN.
 
+## Independent review (Codex, PR #1104 at 2215d54aa)
+
+Three findings, each fixed with a store regression test that failed before its fix:
+
+- P1: a passed operation freed an identity-guarded member without an identity observation, so a
+  `refresh` that moved its physical source could leave it FREE against PSR-V0-084. A guarded member
+  now stays QUARANTINED (`SOURCE_IDENTITY_UNPROVED`) and `pool confirm-safe`'s probe decides
+  (`TestPSRV0163_GuardedPassedOperationNeverFree`, which also shows the drift quarantine).
+- P2: a runner refusal before execution (configRef blob, revision moved after admission) left the
+  entry pending until recovery recorded `ORPHANED`. It is now settled in the same request as a
+  `SPAWN_FAILED` or `SOURCE_CHANGED` receipt and quarantine (`TestPSRV0165_PreExecutionFailureSettled`).
+- P2: a replay after a later run of the same operation lost its outcome. Replay now reads the
+  request's receipt from the pools.json its own observe transaction posted, so pools.json does not
+  grow (`TestPSRV0164_ReplayAfterSupersedingRun`). PSR-V0-163..165 text is tightened, same IDs.
+
 ## Residuals (issue 1028 stays open)
 
 - Operations by the holder of an ALLOCATED allocation are not supported.

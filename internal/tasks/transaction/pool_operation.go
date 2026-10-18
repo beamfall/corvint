@@ -126,13 +126,17 @@ func joinStates(states []string) string {
 }
 
 // observeOperation settles a typed operation's observation (PSR-V0-162,
-// PSR-V0-164). A passed operation that started FREE frees the member again;
-// any other run leaves it QUARANTINED with the operation named in the reason.
-// Either way the member's receipt for the operation is replaced.
+// PSR-V0-164). A passed operation that started FREE frees an unguarded member
+// again; any other run leaves it QUARANTINED with the operation named in the
+// reason. An identity-guarded member is never freed here: an operation may
+// change its physical source, so it stays QUARANTINED until confirm-safe's
+// identity probe reports the defaultSource (PSR-V0-084). Either way the
+// member's receipt for the operation is replaced.
 func observeOperation(c leaseContext, en *snapshot.PoolEntry, o *snapshot.PoolObservation) leaseOutcome {
 	out := o.OutputSha256
 	rec := snapshot.PoolOperationReceipt{PoolID: en.PoolID, MemberID: en.MemberID, Operation: en.Operation.Name, RequestID: en.Operation.RequestID, AllocationID: en.AllocationID, Class: o.Class, Passed: o.Passed, OutputSha256: &out, Source: en.Operation.Source, ObservedSeq: c.seq}
-	remove := o.Passed && en.State == "PREPARING"
+	guarded := identityGuarded(c.st.policy, en)
+	remove := o.Passed && en.State == "PREPARING" && !guarded
 	d := wire.Sum(c.in.LeaseFacts.Pool.Observation)
 	en.ObservationSha256 = &d
 	en.CleanupPassed = false
@@ -141,6 +145,9 @@ func observeOperation(c leaseContext, en *snapshot.PoolEntry, o *snapshot.PoolOb
 		en.State = "FREE"
 	}
 	en.Reason = en.Operation.Name + " " + o.Class + "; operator safe-reuse confirmation required"
+	if guarded {
+		en.Reason = ReasonIdentityUnproved + ": " + en.Operation.Name + " " + o.Class + "; confirm-safe identity observation required"
+	}
 	en.RunnerPID = "0"
 	en.RunnerStarted = ""
 	en.Operation = nil
