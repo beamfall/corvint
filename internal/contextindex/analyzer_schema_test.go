@@ -17,14 +17,14 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/123"
-		const auditedSHA256 = "5f0ceb999238b45e8728fa4b0ba5a4bd2e71f5cab88ef5c488fecf010effec18"
+		const auditedSchema = "corvint-analyzer/125"
+		const auditedSHA256 = "034598f9cdc53201228f51bf355ac0955790b272f9ab4be3cff9d1597d144952"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
 			paths = append(paths, "go.sum")
 		}
-		for _, directory := range []string{"contextindex", "gitstatus", "projectprofile", "pythongrammar", "pythonsyntax", "runtimeenv", "secretscreen"} {
+		for _, directory := range []string{"contextindex", "gitstatus", "projectprofile", "pythongrammar", "pythonsyntax", "rubyautoload", "runtimeenv", "secretscreen"} {
 			matches, err := filepath.Glob(filepath.Join(root, "internal", directory, "*.go"))
 			if err != nil || len(matches) == 0 {
 				t.Fatalf("analyzer inputs %s: %v", directory, err)

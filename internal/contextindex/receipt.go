@@ -471,7 +471,7 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 	advisory := 0
 	for _, item := range results {
 		selectors[selector(item["kind"], item["id"])] = struct{}{}
-		if item["kind"] == "learned-path" {
+		if item["kind"] == "learned-path" || item["advisory"] == true {
 			advisory++
 		}
 	}
@@ -492,7 +492,7 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 		uncertainty = append(uncertainty, unknownLanguageVerification)
 	}
 	if advisory != 0 {
-		uncertainty = append(uncertainty, "learned path relationships are advisory")
+		uncertainty = append(uncertainty, advisoryUncertainty(results)...)
 	}
 	if gaps := reverseImportProfileGap(index, receipt); gaps != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf(

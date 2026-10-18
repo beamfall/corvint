@@ -2999,6 +2999,13 @@ NGI-V0-018	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-019	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674)	standing	2026-10-11; V1-1674
 NGI-V0-020	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) The	standing	2026-10-11; V1-1674
 NGI-V0-021	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
+NGI-V0-033	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A	standing	2026-10-11; V1-1794
+NGI-V0-034	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) For	standing	2026-10-11; V1-1794
+NGI-V0-035	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) Every	standing	2026-10-11; V1-1794
+NGI-V0-036	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A Ruby	standing	2026-10-11; V1-1794
+NGI-V0-037	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A	standing	2026-10-11; V1-1794
+NGI-V0-038	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1700) The	standing	2026-10-11; V1-1700
+NGI-V0-039	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-

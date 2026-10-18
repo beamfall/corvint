@@ -203,7 +203,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	}
 
 	rawResults, authorityUncertainty := compileRangeResults(index, admittedPaths, spans, changeByPath, callerAuthoredPaths(changes))
-	rawResults = deduplicateAndSortRangeResults(rawResults)
+	rubyConstants, rubyUnknowns, rawResults := rangeRubyAutoload(index, admittedPaths, rawResults)
 
 	request := map[string]any{"base": base, "limit": limit}
 	if expanded {
@@ -294,7 +294,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	coverage["critical"] = critical
 	coverage["critical_missing"] = criticalMissing
 	uncertainty := []any{"feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff"}
-	uncertainty = append(uncertainty, authorityUncertainty...)
+	uncertainty = append(append(uncertainty, authorityUncertainty...), rubyAdvisoryUncertainty(mapsFromAny(result["results"]))...)
 	if len(omissions) != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf("%d non-Go changed paths are outside the native Go range profile", len(omissions)))
 	}
@@ -308,7 +308,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if err := verifyRangeBase(ctx, index, base, baseTree); err != nil {
 		return nil, err
 	}
-	if err := attachNonGoImpactUnknowns(result, index, admittedPaths, 0, nil, nil); err != nil {
+	if err := attachNonGoImpactUnknowns(result, index, admittedPaths, 0, rubyUnknowns, rubyConstants); err != nil {
 		return nil, err
 	}
 	if err := stabilizePacketBytes(result); err != nil {
@@ -762,6 +762,33 @@ func rangeVerification(goPaths []string, index *Index, moduleChanged bool) []any
 		commands = append(commands, final)
 	}
 	return commands
+}
+
+// rangeRubyAutoload attaches the path impact's Ruby autoload-convention
+// reverse references, both hops, to each admitted Ruby path (NGI-V0-037), and
+// returns rawResults with them deduplicated and sorted. The rows are ordered
+// by score so a path two changed paths reach keeps its highest-ranked row; a
+// range with no Ruby path reads nothing and keeps its bytes.
+func rangeRubyAutoload(index *Index, admittedPaths []string, rawResults []map[string]any) (*rubyAutoload, map[string][]any, []map[string]any) {
+	if !rubyImpactRequested(admittedPaths) {
+		return nil, nil, deduplicateAndSortRangeResults(rawResults)
+	}
+	autoload := loadRubyAutoload(index)
+	unknowns := map[string][]any{}
+	ranked := []rankedResult{}
+	for _, changedPath := range admittedPaths {
+		if NonGoImpactLanguage(changedPath) != "ruby" {
+			continue
+		}
+		rows, pathUnknowns := autoload.impact(index, changedPath)
+		ranked = append(ranked, rows...)
+		unknowns[changedPath] = pathUnknowns
+	}
+	sort.SliceStable(ranked, func(left, right int) bool { return ranked[left].score > ranked[right].score })
+	for _, row := range ranked {
+		rawResults = append(rawResults, row.result)
+	}
+	return autoload, unknowns, deduplicateAndSortRangeResults(rawResults)
 }
 
 func deduplicateAndSortRangeResults(results []map[string]any) []map[string]any {

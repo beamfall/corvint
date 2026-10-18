@@ -211,3 +211,13 @@ package imported from the admitted files, and positive controls for the three ad
 needs no change because `internal/groupreap` is already in the source-archive subset. Rollback is
 reverting the PGO-V0-009 doctor and store callers and removing this three-file edge; the other edges
 stay.
+
+## V1-1794 addendum — contextindex Ruby autoload mapper closure
+
+Agent decision, 2026-10-18, made while delivering V1-1794 (GitHub #1129); it is not a direct owner
+statement. That change moves the Ruby path-to-constant mapper out of `internal/contextindex` into
+Core's `internal/rubyautoload` (`NGI-V0-039`), which imports only the Go standard library. This is a
+transitive dependency of the admitted contextindex edge, not a new Tasks import edge; rule 2 is
+unchanged. Rule 5's source-archive subset adds `internal/rubyautoload` so the exported tarball still
+rebuilds offline (`TestCurrentTasksSourceArchiveBuildsOffline`). Rollback is removing this prefix
+together with the contextindex change that needs it.

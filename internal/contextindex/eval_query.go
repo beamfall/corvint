@@ -147,7 +147,7 @@ func EvalImpactSyntax(index *Index, paths []string, limit int, budget *int) (map
 }
 
 func evalImpact(index *Index, paths []string, limit int, budget *int, syntaxFrontier bool) (map[string]any, error) {
-	result, disclosures, err := impact(index, paths, limit, syntaxFrontier)
+	result, disclosures, err := impact(index, paths, limit, syntaxFrontier || rubyImpactRequested(paths)) // NGI-V0-033
 	if err != nil {
 		return nil, err
 	}

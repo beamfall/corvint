@@ -50,11 +50,16 @@ func TestNonGoImpactCLIProfile(t *testing.T) {
 		return append([]byte(nil), stdout.Bytes()...), packet["context"].(map[string]any)
 	}
 	for _, name := range []string{"a.rb", "b.js", "c.ts"} {
-		_, legacy := invoke(name, false)
-		if legacy["unknowns"] != nil || legacy["language_profile"] != nil {
+		legacyBytes, legacy := invoke(name, false)
+		first, syntax := invoke(name, true)
+		if name == "a.rb" {
+			// A Ruby path selects the syntax profile by default (NGI-V0-033).
+			if !bytes.Equal(legacyBytes, first) {
+				t.Fatal("default Ruby receipt differs from the syntax profile")
+			}
+		} else if legacy["unknowns"] != nil || legacy["language_profile"] != nil {
 			t.Fatalf("historical path extended: %v", legacy)
 		}
-		first, syntax := invoke(name, true)
 		second, _ := invoke(name, true)
 		if !bytes.Equal(first, second) {
 			t.Fatal("profile repeat bytes changed")

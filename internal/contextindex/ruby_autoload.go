@@ -1,72 +1,78 @@
 package contextindex
 
 import (
-	"bytes"
-	"encoding/json"
-	"io"
-	"path"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/rubyautoload"
 )
 
-// Ruby autoload-convention reverse references (NGI-V0-016 to NGI-V0-021).
+// Ruby autoload-convention reverse references (NGI-V0-016 to NGI-V0-021,
+// NGI-V0-033 to NGI-V0-039).
 //
 // A Rails/Zeitwerk application never requires the file that defines a model or
 // service: the constant's name is derived from the file's path below an
-// autoload root, and any code naming the constant loads it. This maps each
-// Ruby source below a root to the constant its path names, indexes constant
-// references (fully qualified and namespace-relative, resolved through the
-// file's lexical `module`/`class` nesting) and reports a file naming the
-// changed path's constant as a named-constant reverse reference. It is syntax
-// only: it evaluates nothing, so reflective lookups and constant names spelled
-// as strings or association symbols stay counted unknowns, and Ruby's
+// autoload root, and any code naming the constant loads it. The rubyautoload
+// package maps each Ruby source below a root to the constant its path names;
+// this indexes constant references (fully qualified and namespace-relative,
+// resolved through the file's lexical `module`/`class` nesting) and reports a
+// file naming the changed path's constant as a named-constant reverse
+// reference, and a file naming such a referrer's own constant as a second-hop
+// reference. Every such row is an advisory syntax hint. It is syntax only: it
+// evaluates nothing, so reflective lookups and constant names spelled as
+// strings or association symbols stay counted unknowns, and Ruby's
 // ancestor-chain constant lookup is not modelled.
 
 const (
 	// RubyAutoloadDeclarationPath is the optional committed declaration of a
 	// repository's autoload roots and inflections (NGI-V0-017).
-	RubyAutoloadDeclarationPath = ".corvint/ruby-autoload.json"
-	rubyAutoloadSchema          = "ruby-autoload/0"
-	maxRubyAutoloadBytes        = 64 << 10
-	maxRubyAutoloadRoots        = 64
-	maxRubyInflections          = 256
+	RubyAutoloadDeclarationPath = rubyautoload.DeclarationPath
 	maxRubyNestingDepth         = 256
 
 	// Named-constant reverse references rank below every direct import
 	// (700 code, 650 test) and every type-only import (600, 550): they are
-	// a convention, not a load statement the file carries (NGI-V0-018).
-	rubyConstantReferenceScore = 525
-	rubyConstantTestScore      = 500
+	// a convention, not a load statement the file carries (NGI-V0-018). A
+	// second-hop reference ranks below every first hop (NGI-V0-034).
+	rubyConstantReferenceScore   = 525
+	rubyConstantTestScore        = 500
+	rubyTransitiveReferenceScore = 475
+	rubyTransitiveTestScore      = 450
 )
+
+// rubyAutoloadAdvisoryUncertainty is the coverage line a receipt carrying
+// any autoload-convention reference adds (NGI-V0-035).
+const rubyAutoloadAdvisoryUncertainty = "Ruby autoload-convention references are advisory syntax hints: a named constant does not establish load order, runtime dispatch or test closure"
+
+// advisoryUncertainty names each advisory row family in results, in a fixed
+// order: learned paths, then Ruby autoload-convention references
+// (NGI-V0-035). The learned-path line is present only with a learned-path row.
+func advisoryUncertainty(results []map[string]any) []any {
+	lines := rubyAdvisoryUncertainty(results)
+	for _, item := range results {
+		if item["kind"] == "learned-path" {
+			return append([]any{"learned path relationships are advisory"}, lines...)
+		}
+	}
+	return lines
+}
+
+// rubyAdvisoryUncertainty is the Ruby advisory line when results carry an
+// autoload-convention row, which path and range receipts both add.
+func rubyAdvisoryUncertainty(results []map[string]any) []any {
+	for _, item := range results {
+		if item["kind"] != "learned-path" && item["advisory"] == true {
+			return []any{rubyAutoloadAdvisoryUncertainty}
+		}
+	}
+	return nil
+}
 
 var (
-	rubyInflectionWord     = regexp.MustCompile(`^[a-z0-9_]{1,64}$`)
-	rubyInflectionConstant = regexp.MustCompile(`^[A-Z][A-Za-z0-9_]{0,63}$`)
-	rubyAcronymCall        = regexp.MustCompile(`\.acronym\b`)
-	rubyAcronymLiteral     = regexp.MustCompile(`^\.acronym\s*(?:\(\s*(['"])([A-Za-z0-9]{1,64})['"]\s*\)|\s(['"])([A-Za-z0-9]{1,64})['"])\s*(?:#.*)?$`)
-	rubyInflectCall        = regexp.MustCompile(`\.inflect\s*\(`)
-	rubyInflectPair        = regexp.MustCompile(`^\s*(['"])([a-z0-9_]{1,64})['"]\s*=>\s*(['"])([A-Z][A-Za-z0-9_]{0,63})['"]\s*(?:,|$)`)
-	rubyAutoloadRootConfig = regexp.MustCompile(`\b(?:autoload_paths|eager_load_paths|autoload_once_paths|autoload_lib|autoload_lib_once|push_dir)\b`)
-	rubyCollapseConfig     = regexp.MustCompile(`\.collapse\b`)
-	rubyDynamicLookup      = regexp.MustCompile(`\b(?:constantize|safe_constantize|const_get|send|public_send|__send__)\b`)
-	rubyStringConstant     = regexp.MustCompile(`(['"])(?:::)?([A-Z][A-Za-z0-9_]*(?:::[A-Z][A-Za-z0-9_]*)*)['"]`)
-	rubyAssociation        = regexp.MustCompile(`^\s*(?:belongs_to|has_one|has_many|has_and_belongs_to_many)\s*\(?\s*:([a-z_][a-z0-9_]*)`)
+	rubyDynamicLookup  = regexp.MustCompile(`\b(?:constantize|safe_constantize|const_get|send|public_send|__send__)\b`)
+	rubyStringConstant = regexp.MustCompile(`(['"])(?:::)?([A-Z][A-Za-z0-9_]*(?:::[A-Z][A-Za-z0-9_]*)*)['"]`)
+	rubyAssociation    = regexp.MustCompile(`^\s*(?:belongs_to|has_one|has_many|has_and_belongs_to_many)\s*\(?\s*:([a-z_][a-z0-9_]*)`)
 )
-
-// rubyAutoloadDeclaration is the closed ruby-autoload/0 document.
-type rubyAutoloadDeclaration struct {
-	Schema      string            `json:"schema"`
-	Roots       []string          `json:"roots"`
-	Inflections map[string]string `json:"inflections"`
-}
-
-// rubyInflection is one applied inflection: a Rails acronym (a word inside a
-// basename) or a Zeitwerk/declared override (a whole basename).
-type rubyInflection struct {
-	word, constant, kind, path string
-	line                       int
-}
 
 type rubyReference struct {
 	line     int
@@ -92,148 +98,81 @@ type rubyLiteralName struct {
 	name string
 }
 
-type rubyAutoload struct {
-	roots              []string
-	ignored            []string
-	rootsSource        string
-	inflections        []rubyInflection
-	acronyms           map[string]string
-	overrides          map[string]string
-	declarationInvalid bool
-	declared           bool
-	configUnresolved   int
-	constants          map[string]string
-	known              map[string]bool
-	sources            map[string]*rubyConstantSource
-	paths              []string
+// rubyReferenceSite is one reference naming a constant.
+type rubyReferenceSite struct {
+	path string
+	line int
 }
 
-// loadRubyAutoload reads the declaration or the default roots, the literal
-// inflections the repository configures, maps every Ruby source to its
-// constant and indexes every Ruby source's constant references once.
+type rubyAutoload struct {
+	mapper  *rubyautoload.Mapper
+	sources map[string]*rubyConstantSource
+	paths   []string
+	// sites indexes every constant a reference may name, and each namespace
+	// prefix of it, to its references in path order then line order, one
+	// site per reference, so each hop is one lookup rather than a rescan.
+	sites map[string][]rubyReferenceSite
+}
+
+// loadRubyAutoload maps every Ruby source to its constant and indexes every
+// Ruby source's constant references once.
 func loadRubyAutoload(index *Index) *rubyAutoload {
-	autoload := &rubyAutoload{acronyms: map[string]string{}, overrides: map[string]string{},
-		constants: map[string]string{}, known: map[string]bool{}, sources: map[string]*rubyConstantSource{}}
+	autoload := &rubyAutoload{sources: map[string]*rubyConstantSource{}, sites: map[string][]rubyReferenceSite{}}
 	for name := range index.Sources {
 		if NonGoImpactLanguage(name) == "ruby" {
 			autoload.paths = append(autoload.paths, name)
 		}
 	}
 	sort.Strings(autoload.paths)
-	declaration, present, valid := readRubyAutoloadDeclaration(index)
-	autoload.declared = present && valid
-	autoload.declarationInvalid = present && !valid
-	if autoload.declarationInvalid {
-		// A declaration that cannot be read maps nothing: falling back to
-		// the defaults would replace the adopter's stated roots silently.
-		autoload.rootsSource = "declaration-invalid"
-		autoload.roots = []string{}
+	repository := rubyautoload.Repository{Paths: autoload.paths, IsTest: isTestPath,
+		Source: func(name string) ([]string, []string, bool) {
+			text, valid, loaded := index.Sources[name].Text()
+			if !valid || !loaded {
+				return nil, nil, false
+			}
+			return strings.Split(text, "\n"), FlowCodeLines("ruby", text), true
+		}}
+	repository.DeclarationPresent, repository.DeclarationReadable, repository.DeclarationText = rubyAutoloadDeclaration(index)
+	autoload.mapper = rubyautoload.New(repository)
+	if autoload.mapper.DeclarationInvalid() {
 		return autoload
 	}
-	if autoload.declared {
-		autoload.rootsSource = "declared"
-		autoload.roots = append([]string(nil), declaration.Roots...)
-		words := make([]string, 0, len(declaration.Inflections))
-		for word := range declaration.Inflections {
-			words = append(words, word)
-		}
-		sort.Strings(words)
-		for _, word := range words {
-			autoload.addInflection(rubyInflection{word, declaration.Inflections[word], "declared", RubyAutoloadDeclarationPath, 0})
-		}
-	} else {
-		autoload.rootsSource = "default"
-		autoload.roots = defaultRubyAutoloadRoots(autoload.paths)
-		autoload.ignored = append([]string(nil), defaultRubyAutoloadIgnored...)
-	}
-	sort.Strings(autoload.roots)
-	autoload.readConfiguredInflections(index)
 	for _, name := range autoload.paths {
-		if constant, ok := autoload.constantFor(name); ok {
-			autoload.constants[name] = constant
-			for prefix := constant; prefix != ""; {
-				autoload.known[prefix] = true
-				cut := strings.LastIndex(prefix, "::")
-				if cut < 0 {
-					break
+		source := scanRubyConstantSource(index.Sources[name], autoload.mapper.Known)
+		autoload.sources[name] = source
+		for _, reference := range source.references {
+			named := map[string]bool{}
+			for _, resolved := range autoload.resolutions(source, reference) {
+				for prefix := resolved; prefix != "" && !named[prefix]; {
+					named[prefix] = true
+					autoload.sites[prefix] = append(autoload.sites[prefix], rubyReferenceSite{name, reference.line})
+					cut := strings.LastIndex(prefix, "::")
+					if cut < 0 {
+						break
+					}
+					prefix = prefix[:cut]
 				}
-				prefix = prefix[:cut]
 			}
 		}
-	}
-	for _, name := range autoload.paths {
-		autoload.sources[name] = scanRubyConstantSource(index.Sources[name], autoload.known)
 	}
 	return autoload
 }
 
-func readRubyAutoloadDeclaration(index *Index) (rubyAutoloadDeclaration, bool, bool) {
-	var declaration rubyAutoloadDeclaration
+// rubyAutoloadDeclaration reads the committed declaration. A present one
+// that is excluded, undecodable or not strict JSON is passed as unreadable,
+// which the mapper reports as invalid.
+func rubyAutoloadDeclaration(index *Index) (present, readable bool, text string) {
 	source, exists := index.Sources[RubyAutoloadDeclarationPath]
 	if !exists {
 		for _, exclusion := range index.Exclusions {
 			if exclusion.Path == RubyAutoloadDeclarationPath {
-				return declaration, true, false
+				return true, false, ""
 			}
 		}
-		return declaration, false, false
+		return false, false, ""
 	}
 	text, valid, loaded := source.Text()
-	if !valid || !loaded || len(text) > maxRubyAutoloadBytes || !strictJSON(text) {
-		return declaration, true, false
-	}
-	decoder := json.NewDecoder(bytes.NewReader([]byte(text)))
-	decoder.DisallowUnknownFields()
-	if decoder.Decode(&declaration) != nil || decoder.Decode(new(any)) != io.EOF {
-		return declaration, true, false
-	}
-	return declaration, true, validRubyAutoloadDeclaration(declaration)
-}
-
-func validRubyAutoloadDeclaration(declaration rubyAutoloadDeclaration) bool {
-	if declaration.Schema != rubyAutoloadSchema || len(declaration.Roots) == 0 || len(declaration.Roots) > maxRubyAutoloadRoots ||
-		len(declaration.Inflections) > maxRubyInflections {
-		return false
-	}
-	seen := map[string]bool{}
-	for _, root := range declaration.Roots {
-		first, _, _ := strings.Cut(root, "/")
-		if root == "" || root == "." || root == ".." || path.Clean(root) != root || path.IsAbs(root) || strings.HasPrefix(root, "../") ||
-			strings.Contains(root, "\\") || strings.EqualFold(first, ".git") || seen[root] {
-			return false
-		}
-		seen[root] = true
-	}
-	for word, constant := range declaration.Inflections {
-		if !rubyInflectionWord.MatchString(word) || !rubyInflectionConstant.MatchString(constant) {
-			return false
-		}
-	}
-	return true
-}
-
-// defaultRubyAutoloadIgnored are the default `lib` subdirectories Rails'
-// `autoload_lib` ignores: they hold no autoloaded constants.
-var defaultRubyAutoloadIgnored = []string{"lib/assets", "lib/tasks"}
-
-// defaultRubyAutoloadRoots is the documented default set: each `app/<dir>`
-// holding Ruby source except Rails' non-autoloaded assets, javascript and
-// views, each `app/<dir>/concerns`, and `lib` (NGI-V0-017).
-func defaultRubyAutoloadRoots(paths []string) []string {
-	roots := map[string]bool{}
-	for _, name := range paths {
-		parts := strings.Split(name, "/")
-		switch {
-		case len(parts) >= 3 && parts[0] == "app" && parts[1] != "assets" && parts[1] != "javascript" && parts[1] != "views":
-			roots["app/"+parts[1]] = true
-			if len(parts) >= 4 && parts[2] == "concerns" {
-				roots["app/"+parts[1]+"/concerns"] = true
-			}
-		case len(parts) >= 2 && parts[0] == "lib" && parts[1] != "assets" && parts[1] != "tasks":
-			roots["lib"] = true
-		}
-	}
-	return sortedRubySet(roots)
+	return true, valid && loaded && len(text) <= rubyautoload.MaxDeclarationBytes && strictJSON(text), text
 }
 
 func sortedRubySet(set map[string]bool) []string {
@@ -245,152 +184,6 @@ func sortedRubySet(set map[string]bool) []string {
 	return values
 }
 
-func (autoload *rubyAutoload) addInflection(inflection rubyInflection) {
-	if inflection.kind == "acronym" {
-		if _, ok := autoload.acronyms[inflection.word]; ok {
-			return
-		}
-		autoload.acronyms[inflection.word] = inflection.constant
-	} else {
-		if _, ok := autoload.overrides[inflection.word]; ok {
-			return
-		}
-		autoload.overrides[inflection.word] = inflection.constant
-	}
-	autoload.inflections = append(autoload.inflections, inflection)
-}
-
-// readConfiguredInflections reads literal `inflect.acronym "API"` and Zeitwerk
-// `inflector.inflect("api" => "API")` calls in non-test Ruby sources. Any other
-// form, and any autoload-root or collapse configuration the declaration does
-// not stand in for, is counted as unresolved configuration.
-func (autoload *rubyAutoload) readConfiguredInflections(index *Index) {
-	for _, name := range autoload.paths {
-		if rubyTestPath(name) {
-			continue
-		}
-		text, valid, loaded := index.Sources[name].Text()
-		if !valid || !loaded {
-			continue
-		}
-		masked := FlowCodeLines("ruby", text)
-		raw := strings.Split(text, "\n")
-		for i, code := range masked {
-			if !autoload.declared && rubyAutoloadRootConfig.MatchString(code) {
-				autoload.configUnresolved++
-			}
-			if rubyCollapseConfig.MatchString(code) {
-				autoload.configUnresolved++
-			}
-			for _, loc := range rubyAcronymCall.FindAllStringIndex(code, -1) {
-				match := rubyAcronymLiteral.FindStringSubmatch(raw[i][loc[0]:])
-				if match == nil {
-					autoload.configUnresolved++
-					continue
-				}
-				acronym := match[2] + match[4]
-				autoload.addInflection(rubyInflection{strings.ToLower(acronym), acronym, "acronym", name, i + 1})
-			}
-			for _, loc := range rubyInflectCall.FindAllStringIndex(code, -1) {
-				pairs, ok := rubyInflectPairs(raw, i, loc[1])
-				if !ok {
-					autoload.configUnresolved++
-					continue
-				}
-				for _, pair := range pairs {
-					autoload.addInflection(rubyInflection{pair[0], pair[1], "inflect", name, i + 1})
-				}
-			}
-		}
-	}
-	sort.SliceStable(autoload.inflections, func(left, right int) bool {
-		a, b := autoload.inflections[left], autoload.inflections[right]
-		if a.word != b.word {
-			return a.word < b.word
-		}
-		return a.kind < b.kind
-	})
-}
-
-// rubyInflectPairs reads the literal `"word" => "Constant"` pairs of one
-// `.inflect(` call, which may span up to 64 lines, up to its closing `)`.
-func rubyInflectPairs(raw []string, line, column int) ([][2]string, bool) {
-	body := raw[line][column:]
-	for next := line + 1; !strings.Contains(body, ")") && next < len(raw) && next <= line+64; next++ {
-		body += "\n" + raw[next]
-	}
-	end := strings.Index(body, ")")
-	if end < 0 {
-		return nil, false
-	}
-	body = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(body[:end]), ","))
-	pairs := [][2]string{}
-	for body != "" {
-		match := rubyInflectPair.FindStringSubmatch(body)
-		if match == nil {
-			return nil, false
-		}
-		pairs = append(pairs, [2]string{match[2], match[4]})
-		body = strings.TrimSpace(body[len(match[0]):])
-	}
-	return pairs, len(pairs) != 0
-}
-
-// constantFor maps a Ruby path below its longest autoload root to a constant.
-func (autoload *rubyAutoload) constantFor(name string) (string, bool) {
-	root := ""
-	for _, candidate := range autoload.roots {
-		if strings.HasPrefix(name, candidate+"/") && len(candidate) > len(root) {
-			root = candidate
-		}
-	}
-	if root == "" || !strings.HasSuffix(name, ".rb") {
-		return "", false
-	}
-	for _, ignored := range autoload.ignored {
-		if strings.HasPrefix(name, ignored+"/") {
-			return "", false
-		}
-	}
-	segments := strings.Split(strings.TrimSuffix(strings.TrimPrefix(name, root+"/"), ".rb"), "/")
-	for i, segment := range segments {
-		constant, ok := autoload.camelize(segment)
-		if !ok {
-			return "", false
-		}
-		segments[i] = constant
-	}
-	return strings.Join(segments, "::"), true
-}
-
-// camelize is ActiveSupport's camelize over a file or directory basename,
-// after a whole-basename override and with acronyms applied per word.
-func (autoload *rubyAutoload) camelize(segment string) (string, bool) {
-	if override, ok := autoload.overrides[segment]; ok {
-		return override, true
-	}
-	if !rubyInflectionWord.MatchString(segment) || segment[0] < 'a' || segment[0] > 'z' {
-		return "", false
-	}
-	var out strings.Builder
-	for _, word := range strings.Split(segment, "_") {
-		if word == "" {
-			return "", false
-		}
-		if acronym, ok := autoload.acronyms[word]; ok {
-			out.WriteString(acronym)
-			continue
-		}
-		out.WriteString(strings.ToUpper(word[:1]) + word[1:])
-	}
-	return out.String(), rubyInflectionConstant.MatchString(out.String())
-}
-
-func rubyTestPath(name string) bool {
-	wrapped := "/" + name
-	return isTestPath(name) || strings.Contains(wrapped, "/spec/") || strings.HasSuffix(name, "_spec.rb")
-}
-
 // scanRubyConstantSource indexes one source's constant references with the
 // lexical namespaces enclosing each. Blocks opened by keywords that need an
 // `end` are tracked so a namespace closes with its `end`; a file whose
@@ -399,7 +192,7 @@ func rubyTestPath(name string) bool {
 // against every namespace it opens, never fewer. known holds the mapped
 // constants and their namespace prefixes; together with the constants this
 // file defines it resolves the owner of a qualified `class A::B` name.
-func scanRubyConstantSource(source Source, known map[string]bool) *rubyConstantSource {
+func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstantSource {
 	result := &rubyConstantSource{balanced: true, local: map[string]bool{}}
 	text, valid, loaded := source.Text()
 	if !valid || !loaded {
@@ -575,7 +368,7 @@ func (source *rubyConstantSource) define(constant string) {
 // defines: a simple name is defined in the innermost namespace; a qualified
 // `A::B` reopens B inside the constant A names by lexical lookup, the
 // innermost enclosing namespace N for which N::A exists, else the top-level A.
-func rubyDefinedConstant(name string, lexical []string, known, local map[string]bool) string {
+func rubyDefinedConstant(name string, lexical []string, known func(string) bool, local map[string]bool) string {
 	first, _, qualified := strings.Cut(name, "::")
 	if !qualified {
 		if outer := rubyInnermost(lexical); outer != "" {
@@ -584,7 +377,7 @@ func rubyDefinedConstant(name string, lexical []string, known, local map[string]
 		return name
 	}
 	for i := len(lexical) - 1; i >= 0; i-- {
-		if candidate := lexical[i] + "::" + first; known[candidate] || local[candidate] {
+		if candidate := lexical[i] + "::" + first; known(candidate) || local[candidate] {
 			return lexical[i] + "::" + name
 		}
 	}
@@ -724,7 +517,7 @@ func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference 
 			out = append(out, reference.constant)
 		}
 		for _, namespace := range source.namespaces {
-			if autoload.known[namespace+"::"+first] {
+			if autoload.mapper.Known(namespace + "::" + first) {
 				out = append(out, namespace+"::"+reference.name)
 			}
 		}
@@ -732,7 +525,7 @@ func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference 
 	}
 	stack := reference.stack
 	for i := len(stack) - 1; i >= 0; i-- {
-		if candidate := stack[i] + "::" + first; autoload.known[candidate] || source.local[candidate] {
+		if candidate := stack[i] + "::" + first; autoload.mapper.Known(candidate) || source.local[candidate] {
 			return []string{stack[i] + "::" + reference.name}
 		}
 	}
@@ -743,25 +536,25 @@ func rubyNamesConstant(resolved, constant string) bool {
 	return resolved == constant || strings.HasPrefix(resolved, constant+"::")
 }
 
-// impact returns the named-constant reverse references to changedPath and its
-// structured unknown rows (NGI-V0-018 to NGI-V0-020).
+// impact returns the named-constant reverse references to changedPath, their
+// second hop, and its structured unknown rows (NGI-V0-018 to NGI-V0-020,
+// NGI-V0-033 to NGI-V0-035).
 func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]rankedResult, []any) {
 	row := func(code string, count int) any {
 		return map[string]any{"path": changedPath, "language": "ruby", "code": code, "line": 0, "count": count}
 	}
 	unknowns := []any{}
-	if autoload.declarationInvalid {
+	if autoload.mapper.DeclarationInvalid() {
 		unknowns = append(unknowns, row("ruby-autoload-declaration-invalid", 1))
 	}
-	if autoload.configUnresolved != 0 {
-		unknowns = append(unknowns, row("ruby-autoload-config-unresolved", autoload.configUnresolved))
+	if unresolved := autoload.mapper.ConfigUnresolved(); unresolved != 0 {
+		unknowns = append(unknowns, row("ruby-autoload-config-unresolved", unresolved))
 	}
-	constant, mapped := autoload.constants[changedPath]
+	constant, mapped := autoload.mapper.Constant(changedPath)
 	if !mapped {
 		return nil, append(unknowns, row("ruby-constant-unmapped", 1))
 	}
 	last := constant[strings.LastIndex(constant, ":")+1:]
-	ranked := []rankedResult{}
 	lookups, literals, unreadable := 0, 0, 0
 	for _, name := range autoload.paths {
 		if name == changedPath {
@@ -776,8 +569,8 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 		for _, literal := range source.literals {
 			if strings.HasPrefix(literal.name, ":") {
 				symbol := strings.TrimPrefix(literal.name, ":")
-				singular, _ := autoload.camelize(strings.TrimSuffix(symbol, "s"))
-				plain, _ := autoload.camelize(symbol)
+				singular, _ := autoload.mapper.Camelize(strings.TrimSuffix(symbol, "s"))
+				plain, _ := autoload.mapper.Camelize(symbol)
 				if plain == last || singular == last {
 					literals++
 				}
@@ -787,31 +580,27 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 				literals++
 			}
 		}
-		rows := []any{}
-		blob := index.Sources[name].BlobHash
-		for _, reference := range source.references {
-			for _, resolved := range autoload.resolutions(source, reference) {
-				if rubyNamesConstant(resolved, constant) {
-					if len(rows) < maxEvidence {
-						rows = append(rows, evidence(name, reference.line, blob,
-							"references constant "+constant+" autoloaded by path convention from "+changedPath, "medium", "syntax"))
-					}
-					break
-				}
-			}
-		}
-		if len(rows) == 0 {
+	}
+	ranked := []rankedResult{}
+	reached := map[string]bool{changedPath: true}
+	first, firstLines := autoload.referrers(constant, reached)
+	for _, name := range first {
+		reached[name] = true
+		ranked = append(ranked, autoload.result(index, name, firstLines[name], constant, changedPath, ""))
+	}
+	// The second hop follows each first-hop referrer the mapper maps to its
+	// own constant, once: a path a first hop or an earlier referrer already
+	// reached is not reported again, and nothing goes past two hops.
+	for _, via := range first {
+		viaConstant, ok := autoload.mapper.Constant(via)
+		if !ok {
 			continue
 		}
-		kind, score := "reference", rubyConstantReferenceScore
-		if rubyTestPath(name) {
-			kind, score = "test", rubyConstantTestScore
+		second, secondLines := autoload.referrers(viaConstant, reached)
+		for _, name := range second {
+			reached[name] = true
+			ranked = append(ranked, autoload.result(index, name, secondLines[name], viaConstant, via, constant))
 		}
-		ranked = append(ranked, rankedResult{score: score, order: 1, key: name, result: map[string]any{
-			"kind": kind, "id": name, "score": score,
-			"summary":  "named-constant reverse reference to " + constant + " (autoload convention; ranks below a direct import)",
-			"evidence": rows,
-		}})
 	}
 	if lookups != 0 {
 		unknowns = append(unknowns, row("ruby-constant-lookup-dynamic", lookups))
@@ -825,24 +614,97 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 	return ranked, unknowns
 }
 
+// referrers returns the paths, outside skip, with a reference naming
+// constant, in path order, and each one's first maxEvidence reference lines.
+func (autoload *rubyAutoload) referrers(constant string, skip map[string]bool) ([]string, map[string][]int) {
+	paths := []string{}
+	lines := map[string][]int{}
+	for _, site := range autoload.sites[constant] {
+		if skip[site.path] {
+			continue
+		}
+		if _, seen := lines[site.path]; !seen {
+			paths = append(paths, site.path)
+		}
+		if len(lines[site.path]) < maxEvidence {
+			lines[site.path] = append(lines[site.path], site.line)
+		}
+	}
+	return paths, lines
+}
+
+// result is one advisory named-constant reverse reference (NGI-V0-035). An
+// empty origin marks a first hop to the changed path's constant; otherwise
+// name references constant, the constant of via, which itself references
+// origin, and the row ranks below every first hop (NGI-V0-034).
+func (autoload *rubyAutoload) result(index *Index, name string, lines []int, constant, via, origin string) rankedResult {
+	blob := index.Sources[name].BlobHash
+	reason := "references constant " + constant + " autoloaded by path convention from " + via
+	confidence := "medium"
+	kind, score := "reference", rubyConstantReferenceScore
+	summary := "named-constant reverse reference to " + constant + " (autoload convention; ranks below a direct import)"
+	if origin != "" {
+		reason += ", which references " + origin
+		confidence = "low"
+		score = rubyTransitiveReferenceScore
+		summary = "second-hop named-constant reference to " + constant + ", which references " + origin +
+			" (autoload convention; ranks below a first hop)"
+	}
+	if isTestPath(name) {
+		kind, score = "test", rubyConstantTestScore
+		if origin != "" {
+			score = rubyTransitiveTestScore
+		}
+	}
+	rows := make([]any, 0, len(lines))
+	for _, line := range lines {
+		rows = append(rows, evidence(name, line, blob, reason, confidence, "syntax"))
+	}
+	result := map[string]any{"kind": kind, "id": name, "score": score, "summary": summary, "evidence": rows, "advisory": true}
+	if origin != "" {
+		result["via"] = via
+	}
+	return rankedResult{score: score, order: 1, key: name, result: result}
+}
+
+// mapped reports whether the mapper resolves path to a constant (NGI-V0-036).
+func (autoload *rubyAutoload) mapped(path string) bool {
+	if autoload == nil {
+		return false
+	}
+	_, ok := autoload.mapper.Constant(path)
+	return ok
+}
+
 // report names the roots and inflections applied (NGI-V0-021).
 func (autoload *rubyAutoload) report() map[string]any {
-	roots := make([]any, 0, len(autoload.roots))
-	for _, root := range autoload.roots {
+	applied := autoload.mapper.Report()
+	roots := make([]any, 0, len(applied.Roots))
+	for _, root := range applied.Roots {
 		roots = append(roots, root)
 	}
-	inflections := make([]any, 0, len(autoload.inflections))
-	for _, inflection := range autoload.inflections {
-		inflections = append(inflections, map[string]any{"word": inflection.word, "constant": inflection.constant,
-			"kind": inflection.kind, "path": inflection.path, "line": inflection.line})
+	inflections := make([]any, 0, len(applied.Inflections))
+	for _, inflection := range applied.Inflections {
+		inflections = append(inflections, map[string]any{"word": inflection.Word, "constant": inflection.Constant,
+			"kind": inflection.Kind, "path": inflection.Path, "line": inflection.Line})
 	}
-	ignored := make([]any, 0, len(autoload.ignored))
-	for _, directory := range autoload.ignored {
+	ignored := make([]any, 0, len(applied.Ignored))
+	for _, directory := range applied.Ignored {
 		ignored = append(ignored, directory)
 	}
-	report := map[string]any{"roots": roots, "ignored": ignored, "roots_source": autoload.rootsSource, "inflections": inflections}
-	if autoload.declared || autoload.declarationInvalid {
-		report["declaration"] = RubyAutoloadDeclarationPath
+	report := map[string]any{"roots": roots, "ignored": ignored, "roots_source": applied.RootsSource, "inflections": inflections}
+	if applied.Declaration != "" {
+		report["declaration"] = applied.Declaration
 	}
 	return report
+}
+
+// rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).
+func rubyImpactRequested(paths []string) bool {
+	for _, name := range paths {
+		if NonGoImpactLanguage(name) == "ruby" {
+			return true
+		}
+	}
+	return false
 }
