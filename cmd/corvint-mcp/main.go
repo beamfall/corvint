@@ -57,8 +57,12 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	arguments, profile, profileOK := extractToolProfile(arguments)
 	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
+	arguments, followRefName, followOK := extractFollowRef(arguments)
 	roots, versionOnly, ok := parseArguments(arguments)
-	if !ok || !protocolOK || !profileOK || !errorProfileOK {
+	if followRefName != "" && (len(roots) != 1 || roots[0].alias != "") {
+		ok = false
+	}
+	if !ok || !protocolOK || !profileOK || !errorProfileOK || !followOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
 	}
@@ -83,6 +87,14 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		}
 		handler.registry = registry
 		bindings[registry] = roots[0].root
+		if followRefName != "" {
+			var refusal string
+			handler.follow, refusal = newFollowRef(ctx, git, registry, followRefName)
+			if refusal != "" {
+				_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
+				return 2
+			}
+		}
 	} else {
 		var refusal string
 		handler.repositories, handler.aliases, refusal = openRepositories(roots, profileRegistries[profile])
@@ -201,6 +213,8 @@ type toolHandler struct {
 	aliases      []string
 	// notices holds the launch-worktree notice per binding (MMR-V0-009).
 	notices map[*bridge.Registry]string
+	// follow binds the single root to --follow-ref (MCPV0-039); nil otherwise.
+	follow *followRef
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -247,6 +261,20 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if !nameOK || name == "" {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
+	if handler.follow != nil {
+		return handler.follow.bound(ctx, func(state followState, code string) (map[string]any, *protocol.RPCError) {
+			echo := withFollowRef(&state, handler.follow.ref)
+			if code != "" {
+				return echo(handler.withWorktreeNotice(handler.registry)(handler.toolFailure(name, code, "")))
+			}
+			return echo(handler.answer(ctx, name, arguments))
+		})
+	}
+	return handler.answer(ctx, name, arguments)
+}
+
+// answer routes and runs one validated tool call.
+func (handler *toolHandler) answer(ctx context.Context, name string, arguments map[string]any) (map[string]any, *protocol.RPCError) {
 	registry := handler.registry
 	if handler.repositories != nil {
 		var routed bool
