@@ -63,11 +63,19 @@ type LoopHold struct {
 	AcceptanceRevision wire.Count
 	Generations        []string
 	Limit              wire.Count
+	// ProgressSignal is the ATR-V0-083 declared progress signal that judged
+	// a NO_PROGRESS hold; empty when progress was judged by queue artefacts
+	// alone.
+	ProgressSignal string
 }
 
 // Detail renders the hold for a blocker or refusal.
 func (h *LoopHold) Detail() string {
-	return "no-progress loop " + h.Signal + " at acceptanceRevision " + string(h.AcceptanceRevision) + ": generations " + strings.Join(h.Generations, ",") + " exceed the policy bound " + string(h.Limit)
+	d := "no-progress loop " + h.Signal + " at acceptanceRevision " + string(h.AcceptanceRevision) + ": generations " + strings.Join(h.Generations, ",") + " exceed the policy bound " + string(h.Limit)
+	if h.ProgressSignal != "" {
+		d += " (progress signal " + h.ProgressSignal + ")"
+	}
+	return d
 }
 
 // Blocker is one reason a ticket is not eligible.

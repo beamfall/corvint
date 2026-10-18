@@ -36,15 +36,15 @@ func LoopHoldOf(attempts map[string]*snapshot.Attempt, rec *ticket.Record, polic
 	if last == nil || last.Live() || last.Phase == "COMPLETED" || last.TicketRevision != rec.AcceptanceRevision {
 		return nil
 	}
-	gens := loopGenerations(last)
+	gens := loopGenerations(last, policy.ProgressSignal)
 	// TOL-V0-018: the generation whose WORKER witness raised the obligation
 	// high water at this acceptance revision is progress.
 	raised := ""
 	if o := rec.ObligationsRef; o != nil && o.LastRaise != nil && o.LastRaise.Attempt == last.AttemptID && o.LastRaise.AcceptanceRevision == rec.AcceptanceRevision {
 		raised = string(o.LastRaise.Generation)
 	}
-	if counted := noProgressRun(gens, raised); int64(len(counted)) > policy.LoopDetection.MaxNoProgressGenerations.Int() {
-		return &ticket.LoopHold{Signal: LoopNoProgress, AcceptanceRevision: rec.AcceptanceRevision, Generations: counted, Limit: policy.LoopDetection.MaxNoProgressGenerations}
+	if counted := noProgressRun(gens, raised, policy.ProgressSignal); int64(len(counted)) > policy.LoopDetection.MaxNoProgressGenerations.Int() {
+		return &ticket.LoopHold{Signal: LoopNoProgress, AcceptanceRevision: rec.AcceptanceRevision, Generations: counted, Limit: policy.LoopDetection.MaxNoProgressGenerations, ProgressSignal: policy.ProgressSignal}
 	}
 	if counted, returns := alternatingRun(gens); int64(returns) > policy.LoopDetection.MaxAlternatingReturns.Int() {
 		return &ticket.LoopHold{Signal: LoopAlternatingReturns, AcceptanceRevision: rec.AcceptanceRevision, Generations: counted, Limit: policy.LoopDetection.MaxAlternatingReturns}
@@ -54,8 +54,9 @@ func LoopHoldOf(attempts map[string]*snapshot.Attempt, rec *ticket.Record, polic
 
 // loopGenerations lists the attempt's ended generations oldest first: its
 // prior entries, whose evidence an opted-in claim recorded, then the ended
-// current generation, whose evidence is the attempt itself.
-func loopGenerations(a *snapshot.Attempt) []loopGeneration {
+// current generation, whose evidence is the attempt itself, recorded under
+// the declared progress signal.
+func loopGenerations(a *snapshot.Attempt, signal string) []loopGeneration {
 	out := make([]loopGeneration, 0, len(a.PriorGenerations)+1)
 	for _, p := range a.PriorGenerations {
 		g := loopGeneration{generation: string(p.Generation)}
@@ -67,7 +68,7 @@ func loopGenerations(a *snapshot.Attempt) []loopGeneration {
 		}
 		out = append(out, g)
 	}
-	return append(out, loopGeneration{generation: string(a.Generation), stage: a.Stage, handoffTo: a.HandoffTo, evidence: snapshot.LoopEvidenceOf(a)})
+	return append(out, loopGeneration{generation: string(a.Generation), stage: a.Stage, handoffTo: a.HandoffTo, evidence: snapshot.LoopEvidenceWith(a, signal)})
 }
 
 // noProgressRun returns the newest consecutive generations, oldest first,
@@ -76,27 +77,60 @@ func loopGenerations(a *snapshot.Attempt) []loopGeneration {
 // latest earlier one. A generation whose tree cannot be compared because
 // earlier history is UNKNOWN is itself UNKNOWN. The raised generation, when
 // not empty, raised the obligation high water and is progress (TOL-V0-018).
-func noProgressRun(gens []loopGeneration, raised string) []string {
+// Under a declared progress signal (ATR-V0-082) a generation also counts
+// only when its fingerprint is unchanged: none recorded, or the same as the
+// latest earlier one. A first or changed fingerprint is progress, and a
+// generation recorded without the signal is UNKNOWN under it.
+func noProgressRun(gens []loopGeneration, raised, signal string) []string {
 	verdicts := make([]bool, len(gens))
 	known := true // the attempt starts at this acceptance revision with no candidate
 	var tree *string
+	progress := progressChain{known: true}
 	for i, g := range gens {
 		e := g.evidence
 		if e == nil {
-			known = false
+			known, progress.known = false, false
 			continue
 		}
 		comparable := e.CandidateTreeOid == nil || (known && tree != nil && *tree == *e.CandidateTreeOid)
 		if e.CandidateTreeOid != nil {
 			tree, known = e.CandidateTreeOid, true
 		}
-		verdicts[i] = e.Disposition == wire.CodeHandoff && e.GateResults.Int() == 0 && e.Reviews.Int() == 0 && comparable && (raised == "" || g.generation != raised)
+		unchanged := true
+		if signal != "" {
+			unchanged = progress.unchanged(e.Progress, signal)
+		}
+		verdicts[i] = e.Disposition == wire.CodeHandoff && e.GateResults.Int() == 0 && e.Reviews.Int() == 0 && comparable && unchanged && (raised == "" || g.generation != raised)
 	}
 	start := len(gens)
 	for start > 0 && verdicts[start-1] {
 		start--
 	}
 	return generationIDs(gens[start:])
+}
+
+// progressChain follows the latest recorded fingerprint under a declared
+// progress signal (ATR-V0-082). known is false after a generation whose
+// fingerprint under the signal is UNKNOWN.
+type progressChain struct {
+	known bool
+	last  *string
+}
+
+// unchanged reports whether p is positively no progress under signal, and
+// advances the chain: no fingerprint recorded, or the same one as the latest
+// earlier one. A missing or other-signal record is UNKNOWN and never counts.
+func (c *progressChain) unchanged(p *snapshot.LoopProgress, signal string) bool {
+	if p == nil || p.Signal != signal {
+		c.known = false
+		return false
+	}
+	if p.Fingerprint == nil {
+		return true
+	}
+	same := c.known && c.last != nil && *c.last == *p.Fingerprint
+	c.last, c.known = p.Fingerprint, true
+	return same
 }
 
 // alternatingRun returns the newest consecutive implement HANDOFF and

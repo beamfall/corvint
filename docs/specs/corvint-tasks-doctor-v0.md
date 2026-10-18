@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047)
+Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 715](https://github.com/beamfall/corvint/issues/715);
 the pure-read rule TM-V0-008 and the shared journal audit CAL-V0-061; the attempt and pool
@@ -17,7 +17,7 @@ recorded in `docs/build-log/2026-10-17-V1-1598-doctor-findings.md`.
 
 ## Agent digest
 - Claim: `corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.
-- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
+- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
 - Exists: built-in NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE (detached-run supervisors only) detectors; QUEUE_LOCK_HELD, SLOW_QUEUE_COMMAND, NO_COMPLETIONS and FD_PRESSURE; HOST_RETRY_STORM, HOST_ERRORS and EARLY_REFUSAL from configured dispatchers' worker logs; dispatcher work-state health with WORK_STATE_FAILING; a `--config` file of thresholds; a notify hook on `--refresh` with NOTIFY_FAILED; bounded plugins with PLUGIN_FAILED; `--refresh` atomic cache; `--line` lock-free cache read.
 - Blocked on: PREFLIGHT_FAILURE waits for #713's recorded preflight evidence; the Linux process walk and `/proc` lock probes are unqualified (parser tests only); darwin names a lock holder only approximately (TQD-V0-021).
 - Read next: Requirements; Detectors; Failure modes; Traceability.
@@ -65,6 +65,10 @@ evidence. Its only write is the summary cache, made by the explicit `doctor --re
 - `TQD-V0-032`: NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acceptance revision, so a completion followed by a reopen, which raises the revision, starts a new streak; a ticket absent from the inventory keeps every generation. This replaces the earlier reading under which pre-completion hand-offs still counted after a reopen. Status: (accepted 2026-10-17, V1-1192, standing lane auto-accept).
 - `TQD-V0-033`: One doctor scan reads the journal through one read session that pins the store's parent directories once and opens each receipt or evidence blob beneath them, instead of re-resolving the roots for every read; with the observation clock fixed, the complete encoded `findings` and `scan` values are byte-identical to per-read access. On a synthetic store of 607 receipts the best of five interleaved runs measured 792 ms CPU (3.04 s wall) with per-read access and 529 ms CPU (2.27 s wall) with one session on a host at load 40-60. The scan stays bounded by TQD-V0-004; results are not cached between runs. Status: (accepted 2026-10-17, V1-1193, standing lane auto-accept; amended 2026-10-17, Codex review of #1060, standing lane auto-accept).
 
+- `TQD-V0-040`: Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVIDENCE`, NO_PROGRESS_HANDOFF MUST NOT count an ended generation whose recorded hand-off `--evidence` reference is new (no earlier generation of the ticket recorded one) or differs from the latest earlier recorded reference; a generation with no reference, or the same one, counts as TQD-V0-005 states. The doctor reads the reference recorded on each attempt, so generations recorded before the declaration are judged by their own references. The finding's detail then names the signal: `N consecutive hand-offs with no gate result, review, new candidate tree or changed S progress fingerprint (progress signal S)`. Without the declaration the detector and its detail are unchanged. Status: (accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050).
+- `TQD-V0-041`: Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at each ended generation whose recorded hand-off reference is new or changed, so refusals of one candidate tree separated by recorded progress are not counted together, and its detail reads `candidate tree T refused N times with no changed S progress fingerprint between (progress signal S)`. Without the declaration the detector and its detail are unchanged. Status: (accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050).
+- `TQD-V0-042`: SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core obligations, which a progress fingerprint does not witness, so its findings are the same with and without the declaration. Status: (accepted 2026-10-18, V1-1608, standing lane auto-accept; GitHub #1050).
+
 ## Detectors
 
 Every built-in journal threshold is 3 within the 7-day window; the operational and host-session thresholds are TQD-V0-020's, settable by `--config`. Remedies:
@@ -106,6 +110,7 @@ Every built-in journal threshold is 3 within the 7-day window; the operational a
 - The location checks bracket each step but cannot be atomic with it: a cache directory moved between the last pre-rename check and the rename receives the new `summary.json`; the post-rename check then refuses UNSUPPORTED_FILESYSTEM rather than reporting success, and the write is not undone.
 - A refresh that is suspended or killed while holding the lock does not keep it beyond its process (`flock` is released when the descriptor closes), but while a holder is alive every other refresh refuses LOCK_TIMEOUT after 3 s.
 - The lock is advisory: a writer that does not take `taskman-doctor/.lock` (an older build of this verb, or any other program) can still replace `summary.json` after the re-read. The `.lock` file stays in the cache directory; rollback removes it with the directory.
+- Under a declared progress signal an agent that records a new hand-off reference without real progress silences NO_PROGRESS_HANDOFF and restarts REPEAT_REFUSAL; that is the adopter's declared trade (TQD-V0-040, TQD-V0-041).
 
 ## Non-goals
 
@@ -123,6 +128,11 @@ CLI against a disposable fixture store, run a passing and a failing plugin, asse
 
 `internal/tasks/cli/doctor_ops_test.go` (darwin and linux) covers TQD-V0-020..033 through the real CLI: config refusals and defaults; QUEUE_LOCK_HELD and SLOW_QUEUE_COMMAND under injected process tables and, in `TestTQDV0021_RealProbes`, a real helper process holding the real lock through the real `ps`, `lsof` or `/proc` and file-table probes; NO_COMPLETIONS on an empty queue, inside and past the window, with a running session and after a completion; FD_PRESSURE at and below the threshold; the notify hook once per change, never on an identical set, under `minIntervalSeconds`, and NOTIFY_FAILED for a failing, timed-out and oversized hook; host-session findings with exact cited line ranges and none for unknown formats or below threshold; work-state health for NOT_OBSERVED, FAILING, OK and UNREADABLE ledgers; the reopen streak reset; and, opt-in with `CORVINT_DOCTOR_SCAN_COST=N`, the interleaved per-read versus one-session scan measurement asserting identical findings. `internal/tasks/dispatch/outcome_test.go` tables the host-line classifier, and the `/proc` and `lsof` parsers have fixture tests.
 
+`internal/tasks/cli/progress_signal_test.go` (`TestATRV0082_CLIProgressSignal`) and
+`internal/tasks/cli/doctor_progress_test.go` cover TQD-V0-040..042 through the doctor's detectors: a
+changed reference is not counted and names the signal, refusals separated by a changed reference
+restart, and SETUP_ONLY_PROOF is identical with and without the declaration.
+
 ## Compatibility and rollback
 
 The verb, item profile and cache profile are new; no stored format changes. Rollback removes the
@@ -131,6 +141,8 @@ only optional members (`--config`, the item's `dispatchers`, the cache's `notify
 kinds; rolling them back removes the config flag and those detectors, and an older doctor drops the
 cache's `notify` member at its next refresh. The journal read session (TQD-V0-033) is additive; rollback
 returns the scan to per-read access with identical results.
+The progress-signal amendments (TQD-V0-040..042) change no format; rolling them back returns the two detectors to their undeclared
+behaviour under every policy.
 
 ## Traceability
 
@@ -162,3 +174,6 @@ returns the scan to per-read access with identical results.
 | TQD-V0-031 | `TestTQDV0031_WorkStateHealth` |
 | TQD-V0-032 | `TestTQDV0032_ReopenResetsNoProgressStreak` |
 | TQD-V0-033 | `TestTQDV0033_ReadModesEquivalent`, `TestTQDV0033_ScanCostMeasurement`, `TestTQDV0005_NoProgressHandoff` |
+| TQD-V0-040 | `TestATRV0082_CLIProgressSignal` |
+| TQD-V0-041 | `TestTQDV0041_RepeatRefusalHonoursProgressSignal` |
+| TQD-V0-042 | `TestTQDV0042_SetupOnlyProofIgnoresProgressSignal` |
