@@ -29,6 +29,7 @@ var (
 	openSpecObligationID      = regexp.MustCompile(`^OSR-[0-9A-F]{12}$`)
 	openSpecDeltaHeading      = regexp.MustCompile(`^## ((?i:added|modified|removed|renamed)) (?i:requirements)[ \t]*$`)
 	openSpecRenameFrom        = regexp.MustCompile("^\\s*[-*+]?\\s*FROM:\\s*`?###\\s*Requirement:\\s*(.+?)`?\\s*$")
+	openSpecRenameMarker      = regexp.MustCompile(`^\s*[-*+]?\s*(FROM|TO):`)
 	openSpecRenameTo          = regexp.MustCompile("^\\s*[-*+]?\\s*TO:\\s*`?###\\s*Requirement:\\s*(.+?)`?\\s*$")
 	specKitRequirementID      = regexp.MustCompile(`^(?:FR|SC)-[0-9]{3,}$`)
 	specKitRequirementLine    = regexp.MustCompile(`^- \*\*((?:FR|SC)-[0-9]{3,})\*\*: `)
@@ -248,7 +249,8 @@ func openSpecRemoved(data []byte, lines []int, fenced []bool, section openSpecDe
 
 // openSpecRenamed pairs each FROM: line with the next TO: line. A FROM: displaced
 // by another FROM:, a TO: with no pending FROM:, or a FROM: pending at the
-// section end fails, as upstream reports each as an unpaired rename.
+// section end fails, as upstream reports each as an unpaired rename. So does a
+// FROM:/TO: line that names no requirement.
 func openSpecRenamed(data []byte, lines []int, fenced []bool, section openSpecDeltaSection) ([]map[string]string, error) {
 	renamed := make([]map[string]string, 0)
 	pending := ""
@@ -260,16 +262,18 @@ func openSpecRenamed(data []byte, lines []int, fenced []bool, section openSpecDe
 		}
 		line := lineWithoutEnding(data, offset)
 		if match := openSpecRenameFrom.FindSubmatch(line); match != nil {
-			if pendingSet {
+			if pendingSet || openSpecRenameName(match[1]) == "" {
 				return nil, unpaired
 			}
 			pending, pendingSet = openSpecRenameName(match[1]), true
 		} else if match := openSpecRenameTo.FindSubmatch(line); match != nil {
-			if !pendingSet {
+			if !pendingSet || openSpecRenameName(match[1]) == "" {
 				return nil, unpaired
 			}
 			renamed = append(renamed, map[string]string{"operation": "RENAMED", "from": pending, "to": openSpecRenameName(match[1])})
 			pendingSet = false
+		} else if openSpecRenameMarker.Match(line) {
+			return nil, unpaired
 		}
 	}
 	if pendingSet {
@@ -279,7 +283,7 @@ func openSpecRenamed(data []byte, lines []int, fenced []bool, section openSpecDe
 }
 
 func openSpecRenameName(raw []byte) string {
-	return strings.TrimSpace(openSpecClosingRun.ReplaceAllString(string(raw), ""))
+	return strings.TrimSpace(strings.Trim(strings.TrimSpace(openSpecClosingRun.ReplaceAllString(string(raw), "")), "`"))
 }
 
 func specKitSpecDerivation(path, oid string, data []byte) (intentDerivation, error) {

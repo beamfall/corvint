@@ -69,7 +69,7 @@ Corvint at `d35b0ee3`:
   - Requirements come from the `### Requirement:` blocks under every unfenced `## ADDED Requirements` and `## MODIFIED Requirements` heading (case-insensitive, repeatable). They use the `STA-V0-002` statement and ID rules.
   - Blocks under `## REMOVED Requirements` and the `FROM:`/`TO:` pairs under `## RENAMED Requirements` are not obligations. They are listed in document order in the prepare envelope member `excludedRequirements`, as `{operation, name}` or `{operation, from, to}`.
   - The span is the whole blob.
-  - An unpaired RENAMED line or a requirement block outside the four sections fails `invalid-delta-section`. A blob with no delta section fails `missing-requirements`.
+  - An unpaired RENAMED line, a `FROM:`/`TO:` line that names no requirement, or a requirement block outside the four sections fails `invalid-delta-section`. A blob with no delta section fails `missing-requirements`.
 - `STA-V0-004`: Both OpenSpec forms emit the prepare envelope member `nativeNames`, which maps each obligation ID to its native name. The name is also recoverable from the pinned statement. Matching is byte-exact and case-sensitive, as upstream.
 - `STA-V0-005`: `ocm prepare --intent-form speckit-spec` reads a Spec Kit `spec.md`.
   - Requirements are the unfenced lines that start `- **FR-NNN**: ` inside exactly one unfenced `## Requirements` section (including its `###` subsections), and the lines that start `- **SC-NNN**: ` inside at most one unfenced `## Success Criteria` section. NNN is three or more digits.
@@ -86,10 +86,10 @@ Corvint at `d35b0ee3`:
   | `openspec/specs/**/spec.md` | `current` (OpenSpec's declared current truth) | — | — |
   | `openspec/changes/<id>/**`, not under `archive/` | `proposed` | — | — |
   | `openspec/changes/archive/YYYY-MM-DD-<id>/**` | `archived` | — | archive date |
-  | `specs/<feature>/spec.md` with `.specify/` present at the root | `**Status**:` text lowercased, `draft` when absent | — | header text |
+  | `specs/<feature>/spec.md` with `.specify/` present at the root | `**Status**:` text above the first level-2 heading, lowercased; `draft` when absent | — | header text |
   | `.specify/memory/constitution.md` | — | `instructions` | — |
 
-  Each result keeps the native state field so the reader sees the upstream lifecycle, not only Corvint's label.
+  Each result keeps the native state field so the reader sees the upstream lifecycle, not only Corvint's label. An instructions file under `openspec/changes/` takes the row's status and is never binding.
 - `STA-V0-008`: `protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0, `LICENSING.md` boundary).
   - Manifest: `schema_version: "1.0"`, id `corvint`, `extension.effect: read-only` (where Spec Kit validates it), `requires.speckit_version: ">=1.2.1,<2"`, and a `requires.tools` entry for `corvint`.
   - Commands: `speckit.corvint.context`, which runs `corvint context` for the feature's spec and plan paths, and `speckit.corvint.review`, which runs `corvint affected` and `corvint review` over the working diff.

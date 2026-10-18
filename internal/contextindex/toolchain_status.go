@@ -32,7 +32,8 @@ var (
 // state when the layout carries one, and whether the path is a toolchain path
 // at all. The path decides the label: an archived or proposed OpenSpec
 // document never takes a binding status from its own text. The only content
-// read is a Spec Kit feature spec's `**Status**:` header.
+// read is a Spec Kit feature spec's `**Status**:` header above its first
+// level-2 heading, matching the OCM reader.
 func toolchainDocumentStatus(value string, lines []string, sources map[string]Source) (status, native string, ok bool) {
 	parts := strings.Split(value, "/")
 	switch {
@@ -55,6 +56,9 @@ func toolchainDocumentStatus(value string, lines []string, sources map[string]So
 			if open != "" || fence != "" {
 				continue
 			}
+			if strings.HasPrefix(raw, "## ") || strings.TrimRight(raw, "\r") == "##" {
+				break
+			}
 			if match := specKitStatusHeader.FindStringSubmatch(strings.TrimRight(raw, "\r")); match != nil && match[1] != "" {
 				return strings.ToLower(match[1]), match[1], true
 			}
@@ -62,6 +66,12 @@ func toolchainDocumentStatus(value string, lines []string, sources map[string]So
 		return "draft", "", true
 	}
 	return "", "", false
+}
+
+// openSpecChangePath reports whether a path lies under openspec/changes/, where
+// STA-V0-007 forbids a binding label whatever the document's kind.
+func openSpecChangePath(value string) bool {
+	return strings.HasPrefix(value, "openspec/changes/")
 }
 
 // specKitPresent reports whether a .specify/ directory exists at the

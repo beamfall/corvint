@@ -121,6 +121,8 @@ func TestSTAV0003_OpenSpecDeltaRefusals(t *testing.T) {
 		{"FROM without TO", added + "## RENAMED Requirements\n- FROM: `### Requirement: A1`\n", "invalid-delta-section"},
 		{"TO without FROM", added + "## RENAMED Requirements\n- TO: `### Requirement: A1`\n", "invalid-delta-section"},
 		{"FROM displaced", added + "## RENAMED Requirements\n- FROM: `### Requirement: A1`\n- FROM: `### Requirement: A2`\n- TO: `### Requirement: A3`\n", "invalid-delta-section"},
+		{"FROM names no requirement", added + "## RENAMED Requirements\n- FROM: ### Requirement:\n", "invalid-delta-section"},
+		{"TO names no requirement", added + "## RENAMED Requirements\n- FROM: `### Requirement: A`\n- TO: `### Requirement:`\n", "invalid-delta-section"},
 		{"repeat across sections", added + "## MODIFIED Requirements\n### Requirement: A\nThe system SHALL a.\n", "duplicate-requirement"},
 		{"other level-3 in ADDED", added + "### Notes\n", "invalid-requirement-item"},
 		{"only removed and renamed", "## REMOVED Requirements\n### Requirement: A\n", "missing-requirements"},

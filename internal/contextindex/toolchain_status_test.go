@@ -52,6 +52,12 @@ func TestSTAV0007_ToolchainPathClassification(t *testing.T) {
 			"spec", "draft", "", "repository-spec", false},
 		{"specs without .specify keeps content status", "specs/001-login/spec.md", "# Feature\n\nStatus: accepted\n", nil,
 			"spec", "accepted", "", "accepted-spec", true},
+		{"spec kit body status below level-2 ignored", "specs/001-login/spec.md", "# Feature\n\n## Requirements\n\n**Status**: Approved\n", []string{specify},
+			"spec", "draft", "", "repository-spec", false},
+		{"openspec archived instructions not binding", "openspec/changes/archive/2026-10-01-old/AGENTS.md", "# Old agents\n", nil,
+			"instructions", "archived", "2026-10-01", "project-instructions", false},
+		{"openspec proposed instructions not binding", "openspec/changes/add-2fa/AGENTS.md", "# Agents\n", nil,
+			"instructions", "proposed", "", "project-instructions", false},
 		{"spec kit constitution", ".specify/memory/constitution.md", "# Constitution\n", nil,
 			"instructions", "", "", "project-instructions", true},
 	}

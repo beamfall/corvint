@@ -32,6 +32,16 @@ applied under the owner's 2026-10-11 standing auto-accept of lane requirement am
   carries the steps in `rules.tasks`, `context` and `operations.apply.guidance`. `corvint review`
   refuses a dirty tree; the commands report the refusal.
 
+## Independent review
+
+One Codex round (`gpt-6-astra`, read-only) over `d35b0ee33..c7e204ca3` reported five findings. All five were checked against the code.
+
+- Fixed: an instructions file (`AGENTS.md`) under `openspec/changes/` kept binding `project-instructions` authority despite its `archived`/`proposed` status. It keeps the `project-instructions` label but is no longer binding.
+- Fixed: the context reader took a Spec Kit `**Status**:` line from anywhere in the body. Like the OCM reader, it now stops at the first level-2 heading.
+- Fixed: a `FROM:`/`TO:` line with no requirement name was silently skipped. It now fails `invalid-delta-section`.
+- Recorded as a limitation, V1-1705: Spec Kit presence comes from admitted sources, so a `.specify/` with only excluded files is not detected.
+- Recorded as a limitation, V1-1708: OpenSpec `proposal.md`, `design.md` and `tasks.md` are not admitted as documents, so they are not classified.
+
 ## Not run
 
 - The upstream CLIs (`openspec validate --all --strict`, `specify extension add --dev`) were not

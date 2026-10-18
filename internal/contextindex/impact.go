@@ -573,7 +573,7 @@ func documentAuthority(record Record) (authority, confidence string) {
 	authority = "repository-spec"
 	switch {
 	case record.Kind == "instructions":
-		authority, binding = "project-instructions", true
+		authority, binding = "project-instructions", !openSpecChangePath(record.Path)
 	case record.Kind == "decision" && binding:
 		authority = "accepted-decision"
 	case record.Kind == "decision":
