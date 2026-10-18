@@ -30,9 +30,11 @@ func ResumableAudits() bool { return haveChangeTime }
 // Reader.PrefixFallback. The complete attempt is AuditWriterRefresh's, with
 // the early stop on a moved head.json; the prefix walk is AuditWriterRefresh's
 // unchanged.
-func (r Reader) auditPrefixFallback() (*Result, PhysicalObservation, error) {
-	observation := PhysicalObservation{}
+func (r Reader) auditPrefixFallback() (result *Result, observation PhysicalObservation, err error) {
 	r.PrefixFallback = false
+	var walks WalkStats
+	r.walks = &walks
+	defer func() { observation.Walks = walks }()
 	switch r.Source.(type) {
 	case Native, *Native:
 	default:
@@ -42,7 +44,7 @@ func (r Reader) auditPrefixFallback() (*Result, PhysicalObservation, error) {
 	}
 	full := r
 	full.writerCache, full.physical, full.fullAttempts, full.abortMoved = true, &observation, 1, true
-	result, err := full.Audit()
+	result, err = full.Audit()
 	if observation.Cleanup != nil || wire.CodeOf(err) != wire.CodeSnapshotMoved {
 		return result, observation, err
 	}

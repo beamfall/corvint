@@ -236,6 +236,10 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	read := time.Now()
 	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, resume)
 	timing.SnapshotRead += time.Since(read)
+	if resume != nil {
+		timing.ResumedWalks++
+		timing.ResumedWalk += time.Since(read)
+	}
 	if terminal != nil {
 		return true, false, nil, terminal
 	}

@@ -159,18 +159,46 @@ type leaseDetachProgress struct {
 	PreparationRounds int    `json:"preparationRounds"`
 	ResumedRounds     int    `json:"resumedRounds"`
 	AuditMillis       int64  `json:"auditMillis"`
-	UpdatedAt         string `json:"updatedAt"`
+	// The walk split (PSR-V0-152, V1-1626): absent members read as zero, so
+	// a record an older child wrote still reports.
+	CompleteWalks      int    `json:"completeWalks"`
+	CompleteWalksMoved int    `json:"completeWalksMoved"`
+	PrefixWalks        int    `json:"prefixWalks"`
+	PrefixWalksMoved   int    `json:"prefixWalksMoved"`
+	ResumedWalks       int    `json:"resumedWalks"`
+	ResumeDeclines     int    `json:"resumeDeclines"`
+	CompleteMillis     int64  `json:"completeMillis"`
+	PrefixMillis       int64  `json:"prefixMillis"`
+	ResumedMillis      int64  `json:"resumedMillis"`
+	UpdatedAt          string `json:"updatedAt"`
+}
+
+// leaseDetachProgressOf is the child's record of t (PSR-V0-112, PSR-V0-152).
+func leaseDetachProgressOf(t store.LeaseTiming, at time.Time) leaseDetachProgress {
+	ms := func(d time.Duration) int64 { return max(d.Milliseconds(), 0) }
+	return leaseDetachProgress{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: ms(t.SnapshotRead),
+		CompleteWalks: t.CompleteWalks, CompleteWalksMoved: t.CompleteMoved, PrefixWalks: t.PrefixWalks, PrefixWalksMoved: t.PrefixMoved, ResumedWalks: t.ResumedWalks, ResumeDeclines: t.ResumeDeclines,
+		CompleteMillis: ms(t.CompleteWalk), PrefixMillis: ms(t.PrefixWalk), ResumedMillis: ms(t.ResumedWalk), UpdatedAt: at.UTC().Format(time.RFC3339)}
 }
 
 // leaseDetachProgressValue is the PENDING item's progress member: null when
 // the child has not yet finished a round or its record does not read.
 func leaseDetachProgressValue(dir string) wire.Value {
 	var p leaseDetachProgress
-	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &p); err != nil || p.PreparationRounds < 0 || p.ResumedRounds < 0 || p.AuditMillis < 0 {
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &p); err != nil {
 		return wire.Null()
 	}
+	counts := []int64{int64(p.PreparationRounds), int64(p.ResumedRounds), p.AuditMillis, int64(p.CompleteWalks), int64(p.CompleteWalksMoved), int64(p.PrefixWalks), int64(p.PrefixWalksMoved), int64(p.ResumedWalks), int64(p.ResumeDeclines), p.CompleteMillis, p.PrefixMillis, p.ResumedMillis}
+	for _, c := range counts {
+		if c < 0 {
+			return wire.Null()
+		}
+	}
 	n := func(v int64) wire.Value { return wire.String(string(wire.SizeOf(uint64(v)))) }
-	return wire.ObjectValue(wire.NewObject().Set("preparationRounds", n(int64(p.PreparationRounds))).Set("resumedRounds", n(int64(p.ResumedRounds))).Set("auditMillis", n(p.AuditMillis)).Set("updatedAt", wire.String(p.UpdatedAt)))
+	o := wire.NewObject().Set("preparationRounds", n(counts[0])).Set("resumedRounds", n(counts[1])).Set("auditMillis", n(counts[2]))
+	o.Set("completeWalks", n(counts[3])).Set("completeWalksMoved", n(counts[4])).Set("prefixWalks", n(counts[5])).Set("prefixWalksMoved", n(counts[6]))
+	o.Set("resumedWalks", n(counts[7])).Set("resumeDeclines", n(counts[8])).Set("completeMillis", n(counts[9])).Set("prefixMillis", n(counts[10])).Set("resumedMillis", n(counts[11]))
+	return wire.ObjectValue(o.Set("updatedAt", wire.String(p.UpdatedAt)))
 }
 
 // leaseDetachChild is child.json: the detached process and its bound.
@@ -462,8 +490,7 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	defer stop.Stop()
 	env.leaseDeadline = time.Now().Add(leaseDetachCeiling)
 	env.leaseProgress = func(t store.LeaseTiming) {
-		p := leaseDetachProgress{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: max(t.SnapshotRead.Milliseconds(), 0), UpdatedAt: time.Now().UTC().Format(time.RFC3339)}
-		if err := writeLeaseDetachJSON(dir, leaseDetachProgressName, p); err != nil {
+		if err := writeLeaseDetachJSON(dir, leaseDetachProgressName, leaseDetachProgressOf(t, time.Now())); err != nil {
 			_, _ = env.Stderr.Write([]byte("corvint-tasks detached " + name + ": progress: " + err.Error() + "\n"))
 		}
 	}

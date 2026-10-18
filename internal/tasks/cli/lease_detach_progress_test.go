@@ -19,6 +19,10 @@ import (
 // preparation rounds, resumed rounds and audit time after its first round,
 // and progress null before it (PSR-V0-112, V1-1617). The member is advisory:
 // the kept result is unchanged.
+// leaseProgressFields is the closed member list of the PENDING progress
+// object (PSR-V0-112, PSR-V0-152) in canonical member order.
+var leaseProgressFields = []string{"auditMillis", "completeMillis", "completeWalks", "completeWalksMoved", "prefixMillis", "prefixWalks", "prefixWalksMoved", "preparationRounds", "resumeDeclines", "resumedMillis", "resumedRounds", "resumedWalks", "updatedAt"}
+
 func TestPSRV0112_PendingReportsProgress(t *testing.T) {
 	root, repo, id := detachClaimStore(t)
 	held := holdPreparation(t, repo)
@@ -36,6 +40,19 @@ func TestPSRV0112_PendingReportsProgress(t *testing.T) {
 	p := field(x.res.Items[0], "progress")
 	if x.code != 75 || p.Obj == nil || field(p, "preparationRounds").Str != "1" || field(p, "resumedRounds").Str != "0" || field(p, "auditMillis").Str == "" {
 		t.Fatalf("attach: code %d %s", x.code, x.stdout)
+	}
+	// PSR-V0-152 (V1-1626): the walk split, every member a decimal string;
+	// the first round of a fresh store is one settled complete walk.
+	if got := p.Obj.Keys; !slices.Equal(got, leaseProgressFields) {
+		t.Fatalf("progress members %v, want %v", got, leaseProgressFields)
+	}
+	for _, key := range leaseProgressFields[:len(leaseProgressFields)-1] {
+		if _, err := wire.ParseSize(key, field(p, key).Str); err != nil {
+			t.Fatalf("progress %s: %v (%s)", key, err, wire.Encode(p))
+		}
+	}
+	if field(p, "completeWalks").Str != "1" || field(p, "completeWalksMoved").Str != "0" || field(p, "prefixWalks").Str != "0" || field(p, "resumedWalks").Str != "0" || field(p, "resumeDeclines").Str != "0" {
+		t.Fatalf("walk split: %s", wire.Encode(p))
 	}
 	if _, err := time.Parse(time.RFC3339, field(p, "updatedAt").Str); err != nil {
 		t.Fatalf("updatedAt: %v %s", err, x.stdout)
