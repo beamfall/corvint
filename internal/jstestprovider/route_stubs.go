@@ -150,8 +150,13 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 var routeStubMembers = map[string]bool{"stubs": true, "target": true, "api": true, "kind": true, "pattern": true, "hits": true, "file": true, "line": true}
 
 // irregularJSONMember reports whether any object in data names a member twice or by a name that is
-// not exactly a record member, or data is not one well-formed JSON value.
+// not exactly a route-stub record member, or data is not one well-formed JSON value.
 func irregularJSONMember(data []byte) bool {
+	return irregularJSONMemberOf(data, routeStubMembers)
+}
+
+// irregularJSONMemberOf is irregularJSONMember over the exact member names of one closed record.
+func irregularJSONMemberOf(data []byte, members map[string]bool) bool {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	var walk func() bool
 	walk = func() bool {
@@ -165,7 +170,7 @@ func irregularJSONMember(data []byte) bool {
 			for decoder.More() {
 				key, err := decoder.Token()
 				name, ok := key.(string)
-				if err != nil || !ok || seen[name] || !routeStubMembers[name] {
+				if err != nil || !ok || seen[name] || !members[name] {
 					return true
 				}
 				seen[name] = true

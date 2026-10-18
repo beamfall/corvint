@@ -53,7 +53,7 @@ At `978b37b`:
   (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
 - The Playwright reader derives `flaky` from every attempt's status
-  (`internal/jstestprovider/playwright.go:232-239@f01509c4`). Since S2 it keeps every attempt's
+  (`internal/jstestprovider/playwright.go:233-240@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
   (`internal/jstestprovider/playwright.go:169-171@9ab61026`). The unprofiled receipt carries them
   as `attemptDetails` (`internal/jstestprovider/receipt.go`). The shared hygiene scrubs each

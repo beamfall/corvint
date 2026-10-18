@@ -208,6 +208,7 @@ func playwrightAttemptDetail(r *playwrightResult) AttemptDetail {
 		detail.Artifacts = append(detail.Artifacts, FailureArtifact{Name: a.Name, Path: a.Path})
 	}
 	detail.RouteStubs = routeStubRecord(r.Annotations)
+	detail.RequestOutcomes = requestOutcomeRecord(r.Annotations)
 	return detail
 }
 

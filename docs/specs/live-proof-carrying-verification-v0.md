@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -608,6 +608,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-071` provider CLI help | accepted (decision 0519; V1-1196; GitHub #794); implemented | `cmd/corvint-js-test-provider`'s `TestProviderHelpPrintsEverySubcommandUsage` (`--help`, `-h` and `help` exit 0 with each subcommand's usage and flags; an unknown subcommand exits 2) and `TestDocsHelpProducerExampleUsesE2EFlags`. |
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
+| `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport` and `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3) and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -1065,3 +1066,97 @@ only `LPCV-V0-076` to `LPCV-V0-079` removes the `browser` override, the `api` me
 the member and their documents keep their bytes. Decoding is closed, so a retained receipt that
 carries the member is then refused as unknown-field input until it is regenerated without the
 producer. A reader older than this slice refuses such receipts in the same way.
+
+## Rejection-only witness anchors (V1-1737; GitHub #1099)
+
+A test whose every decisive assertion checks a rejection (a 4xx status, an error code, or a denied
+UI state) passes for the right reason only if the same request can succeed for an allowed actor. A
+broken route, a missing seed or a misconfigured fixture gives the same 403 to everyone, so such a
+test then passes while proving nothing. `LPCV-V0-080` to `LPCV-V0-083` add an optional declared
+request-outcome record per attempt and a per-test `rejectionAnchor` member on the test-validity
+document that states whether the rejection is anchored by a success on the same route in the same
+run. They were accepted under the owner's standing auto-accept (2026-10-11) for V1-1737. The slice
+is additive and experimental. Corvint does not observe the assertions or the responses: the record
+is provider authority, and the anchor states only what the record and the run's test states support.
+
+- `LPCV-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A Playwright
+  attempt MAY carry exactly one `corvint-request-outcomes` annotation whose description is the closed
+  JSON record `{"assertion", "actor"?, "positiveSibling"?, "requests"}`. `assertion` is one of
+  `rejection-only`, `positive` or `mixed`; `actor` names the actor or fixture the requests ran as;
+  `positiveSibling` names, by full title or name, the test that shows the same requests can succeed;
+  `requests` is a non-null array of at most 64 `{"method", "route", "status"}` entries, where
+  `method` is 1 to 16 uppercase ASCII letters, `route` is the route template, `status` is an
+  integer from 100 to 599 and must be present and non-null. Text members are non-empty, valid UTF-8
+  without NUL and at most 1,024 bytes; the description is at most 128 KiB. A `rejection-only` record
+  whose request status is not 4xx contradicts itself and is invalid. Unknown, case-variant and
+  duplicate members are refused at every level, in the annotation and in a retained receipt.
+  None, a duplicate, a malformed or an out-of-bounds annotation yields no record, and an unrelated
+  malformed annotation never fails the report. `actor`, `positiveSibling` and every `route` pass the
+  product secret screen. The record is carried as the attempt detail `requestOutcomes` of
+  unprofiled receipts only; a profiled receipt that carries it is refused with
+  `external-profile-has-request-outcomes`, and an attempt without it keeps its bytes.
+- `LPCV-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any
+  attempt of an unprofiled receipt carries a request-outcome record, every test of the
+  `corvint-test-validity/0` document MUST carry `rejectionAnchor: {"state", "reason", "blocksCredit"?,
+  "siblings"?}` decided from its last attempt's record; otherwise the member is omitted and the
+  document keeps every byte. A test MUST state:
+  - `NOT_PRODUCED`, reason `request-outcome-record-absent`, without a record;
+  - `NOT_PRODUCED`, reason `request-outcome-record-invalid`, when the record breaks `LPCV-V0-080`;
+  - `NOT_APPLICABLE`, reason `not-rejection-only`, when the record is `positive` or `mixed`;
+  - `NOT_APPLICABLE`, reason `test-not-passed`, when the rejection-only test's state is neither
+    `passed` nor `flaky`;
+  - `UNKNOWN`, reason `anchor-route-evidence-missing`, when the record names no request (a UI-state
+    or error-code rejection without a request), and `UNKNOWN`, reason
+    `anchor-actor-evidence-missing`, when it names no actor.
+  Missing route or actor evidence MUST never yield `ANCHORED`.
+- `LPCV-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed
+  rejection-only test with requests and an actor is matched against the run's other tests that
+  carry a valid record with the same `actor`, on exact `(method, route)` keys. A `positive` test on
+  a matching key whose state is `failed` or `timedOut` is a failed sibling; a matching request with
+  a 2xx status is a success. The declared `positiveSibling` is resolved by full title or name, within
+  the test's project when it has one. Precedence:
+  1. `ANCHOR-FAILED`, reason `declared-positive-sibling-failed` when a declared sibling failed or
+     timed out, else `positive-sibling-failed` when an observed sibling failed;
+  2. `ANCHORED`, reason `declared-positive-sibling-passed`, when a declared sibling passed;
+  3. `ANCHORED`, reason `success-on-route`, when every key of the record has a success;
+  4. otherwise `UNANCHORED`, reason `declared-positive-sibling-not-completed` when a sibling was
+     declared but did not complete, else `no-success-on-route`.
+  `siblings` lists, sorted, the full titles of the tests that decided an `ANCHOR-FAILED` or
+  `ANCHORED` state. A success for another actor, method or route is never an anchor.
+- `LPCV-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An
+  `ANCHOR-FAILED` test MUST carry `blocksCredit: true`, and no other state carries it: a consumer
+  that credits witnesses MUST NOT credit that test. `UNANCHORED` is a warning only. The member never
+  changes the five axes of any test or the run projection, and its absence is not evidence that a
+  test is anchored.
+
+Non-goals:
+- an automatic producer that observes responses and classifies decisive assertions;
+- anchoring UI-state or error-code rejections that name no request (they stay `UNKNOWN`);
+- profiled receipts and an external profile revision;
+- a Corvint consumer of `blocksCredit` beyond the document member;
+- the TypeScript mirror, Vitest and Go test sessions;
+- deciding whether a failed sibling failed for the shared cause (it blocks either way).
+
+Failure modes, each prevented by the cited requirement:
+
+| Failure mode | Prevented by |
+|---|---|
+| A 403 for everyone credits two rejection tests while the allowed test fails. | `LPCV-V0-082` `ANCHOR-FAILED`, `LPCV-V0-083` `blocksCredit` |
+| A missing actor or route reads as anchored. | `LPCV-V0-081` `UNKNOWN` |
+| Another tenant's success anchors this actor's rejection. | `LPCV-V0-082` same actor and exact key |
+| A missing, null or repeated status reads as a success or a rejection. | `LPCV-V0-080` closed decoding |
+| A rejection-only record names a 2xx and is classified anyway. | `LPCV-V0-080` invalid, `LPCV-V0-081` `NOT_PRODUCED` |
+| A route template or actor leaks a secret. | `LPCV-V0-080` secret screen |
+| A legacy document changes bytes or an axis moves. | `LPCV-V0-081` omission, `LPCV-V0-083` axes unchanged |
+
+Acceptance evidence: GitHub #1099 acceptance 1 (a failing positive test and two passing
+rejection-only tests on one route give two `ANCHOR-FAILED` tests that block credit), 2 (the same run
+with the positive test passing gives `ANCHORED`) and 3 (a lone rejection-only test is `UNANCHORED`,
+cleared by a declared positive sibling) are the focused tests in the traceability row. No live
+Playwright run is retained (`NOT_RUN`).
+
+Rollback: remove the annotation parse, the `requestOutcomes` attempt member and the
+`rejectionAnchor` document member. Receipts without the member and their documents keep their bytes.
+Decoding is closed, so a retained receipt that carries the member is then refused as unknown-field
+input until it is regenerated without the annotation; a reader older than this slice refuses it the
+same way.
