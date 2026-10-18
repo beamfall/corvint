@@ -219,7 +219,7 @@
     "title": "Change-Compiled E2E V0",
     "reqPrefix": "CCE-V0",
     "intent": "proposed",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.",
     "dependsOn": [
       "docs/specs/application-map-v0.md",
@@ -233,7 +233,10 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/changee2e",
+      "cmd/corvint-test"
+    ]
   },
   {
     "path": "docs/specs/test-consolidation-planner-v0.md",

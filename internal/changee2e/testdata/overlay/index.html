@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fixture admin</title>
+<style>[hidden]{display:none !important}.slot.selected{font-weight:bold}</style>
+<script>
+// Minimal stand-in for angular and ui-router: records $stateProvider states and renders the
+// state whose full URL matches the hash after '#!'. No external scripts.
+(function () {
+  var states = {};
+  var stateProvider = {
+    state: function (name, config) {
+      if (typeof name === 'object') { config = name; name = config.name; }
+      states[name] = config || {};
+      return stateProvider;
+    }
+  };
+  var urlRouterProvider = { otherwise: function () { return urlRouterProvider; }, when: function () { return urlRouterProvider; } };
+  window.buildUrl = function (s) { return '/' + s; };
+  window.angular = {
+    module: function () {
+      var mod = {
+        config: function (fn) { fn(stateProvider, urlRouterProvider); return mod; },
+        run: function () { return mod; }
+      };
+      return mod;
+    }
+  };
+  function parentOf(name) {
+    var c = states[name];
+    if (c && c.parent) { return c.parent; }
+    var i = name.lastIndexOf('.');
+    return i < 0 ? '' : name.slice(0, i);
+  }
+  function fullUrl(name) {
+    var parts = [], cur = name, guard = 0;
+    while (cur && guard++ < 32) {
+      var c = states[cur];
+      if (!c) { return null; }
+      var u = String(c.url || '');
+      if (u.charAt(0) === '^') { parts.unshift(u.slice(1)); break; }
+      parts.unshift(u);
+      cur = parentOf(cur);
+    }
+    return parts.join('');
+  }
+  function escapeRe(s) { return s.replace(/[.*+?^$()|[\]\\]/g, '\\$&'); }
+  function matcher(url) {
+    var path = url.split('?')[0], re = '', i = 0;
+    var tok = /:([A-Za-z_]\w*)|\{([A-Za-z_]\w*)(?::[^}]*)?\}/g, m;
+    while ((m = tok.exec(path))) {
+      re += escapeRe(path.slice(i, m.index)) + '([^/]+)';
+      i = tok.lastIndex;
+    }
+    re += escapeRe(path.slice(i));
+    return new RegExp('^' + re + '$');
+  }
+  function resolve(hash) {
+    var path = hash.replace(/^#!/, '').split('?')[0] || '/';
+    for (var name in states) {
+      var c = states[name];
+      if (c.abstract) { continue; }
+      var u = fullUrl(name);
+      if (u !== null && matcher(u).test(path)) { return c; }
+    }
+    return null;
+  }
+  function applyPreconditions(root) {
+    var open = false;
+    try { open = !!localStorage.getItem('open-slots'); } catch (e) { open = false; }
+    var els = root.querySelectorAll('[data-requires-open-slots]');
+    for (var i = 0; i < els.length; i++) { els[i].hidden = !open; }
+  }
+  function render() {
+    var view = document.getElementById('view');
+    var c = resolve(location.hash);
+    if (!c) { view.innerHTML = '<p data-testid="not-found">Not found</p>'; return; }
+    if (c.template !== undefined) {
+      view.innerHTML = c.template;
+      applyPreconditions(view);
+      return;
+    }
+    if (c.templateUrl) {
+      var want = location.hash;
+      fetch(c.templateUrl).then(function (r) { return r.text(); }).then(function (html) {
+        if (location.hash !== want) { return; }
+        view.innerHTML = html;
+        applyPreconditions(view);
+      });
+      return;
+    }
+    view.innerHTML = '';
+  }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target.closest ? ev.target : null;
+    if (!t) { return; }
+    var slot = t.closest('[data-testid="slot"]');
+    if (slot) {
+      var all = document.querySelectorAll('[data-testid="slot"]');
+      for (var i = 0; i < all.length; i++) { all[i].classList.remove('selected'); }
+      slot.classList.add('selected');
+      return;
+    }
+    var book = t.closest('[data-action="book"]');
+    if (book) {
+      var status = document.querySelector('[data-testid="slot-status"]');
+      if (status && document.querySelector('[data-testid="slot"].selected')) {
+        status.textContent = book.getAttribute('data-booked') || '';
+      }
+    }
+  });
+  window.addEventListener('hashchange', render);
+  window.addEventListener('DOMContentLoaded', render);
+})();
+</script>
+<script src="app/routes.js"></script>
+</head>
+<body>
+<main id="view"></main>
+</body>
+</html>
