@@ -74,8 +74,40 @@ func TestContainedRunnerSweepsDescendantAfterSuccessfulLeader(t *testing.T) {
 	}
 }
 
+func TestContainedRunnerOutputBoundAdmitsLargeTreeListing(t *testing.T) {
+	for _, tc := range []struct {
+		bytes   int
+		refused bool
+	}{
+		{bytes: 1<<20 + 4096},
+		{bytes: maximumCommandOutput},
+		{bytes: maximumCommandOutput + 1, refused: true},
+	} {
+		stdout, _, err := runContained(context.Background(), os.Args[0], []string{"-test.run=^TestArchiveProcessHelper$"}, []string{"ARCHIVE_PROCESS_HELPER=output", "ARCHIVE_PROCESS_BYTES=" + strconv.Itoa(tc.bytes), "PATH=" + os.Getenv("PATH")}, ".")
+		if tc.refused {
+			if err == nil || err.Error() != "subprocess-output-limit" {
+				t.Fatalf("%d bytes: err=%v, want subprocess-output-limit", tc.bytes, err)
+			}
+			continue
+		}
+		if err != nil || len(stdout) != tc.bytes {
+			t.Fatalf("%d bytes: got %d bytes, err=%v", tc.bytes, len(stdout), err)
+		}
+	}
+}
+
 func TestArchiveProcessHelper(t *testing.T) {
 	mode := os.Getenv("ARCHIVE_PROCESS_HELPER")
+	if mode == "output" {
+		size, err := strconv.Atoi(os.Getenv("ARCHIVE_PROCESS_BYTES"))
+		if err != nil {
+			os.Exit(5)
+		}
+		if _, err := os.Stdout.Write(make([]byte, size)); err != nil {
+			os.Exit(6)
+		}
+		os.Exit(0)
+	}
 	if mode != "1" && mode != "success" {
 		return
 	}
