@@ -44,3 +44,36 @@ func TestMentionBoundariesAndEvidenceSeparation(t *testing.T) {
 		t.Fatalf("incorrect classification: %+v", r)
 	}
 }
+
+// TestSRGV0017LoadRequirementsReadsBothLayouts pins SRG-V0-017 for the audit: it reads the
+// committed index (no line column, SRG-V0-015) and a line-bearing one, and still refuses a
+// malformed row, a bad line, a duplicate id and a foreign header.
+func TestSRGV0017LoadRequirementsReadsBothLayouts(t *testing.T) {
+	dir := t.TempDir()
+	load := func(text string) ([]requirement, error) {
+		path := filepath.Join(dir, "REQUIREMENTS.tsv")
+		if err := os.WriteFile(path, []byte(text), 0600); err != nil {
+			t.Fatal(err)
+		}
+		return loadRequirements(path)
+	}
+	for _, text := range []string{
+		"id\tfile\ttitle\tacceptance\tacceptedBy\nA-V0-001\ta.md\tOne\tunrecorded\t-\n",
+		"id\tfile\tline\ttitle\nA-V0-001\ta.md\t3\tOne\n",
+	} {
+		reqs, err := load(text)
+		if err != nil || len(reqs) != 1 || reqs[0] != (requirement{"A-V0-001", "a.md"}) {
+			t.Fatalf("load(%q) = %v, %v", text, reqs, err)
+		}
+	}
+	for _, text := range []string{
+		"id\tfile\ttitle\tacceptance\tacceptedBy\nA-V0-001\t\tOne\tunrecorded\t-\n",
+		"id\tfile\tline\ttitle\nA-V0-001\ta.md\tx\tOne\n",
+		"id\tfile\ttitle\nA-V0-001\ta.md\tOne\nA-V0-001\ta.md\tAgain\n",
+		"file\tid\ttitle\nA-V0-001\ta.md\tOne\n",
+	} {
+		if _, err := load(text); err == nil {
+			t.Fatalf("load(%q) accepted an invalid index", text)
+		}
+	}
+}

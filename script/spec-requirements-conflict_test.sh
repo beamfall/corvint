@@ -4,8 +4,12 @@ set -eu
 # Covers SRG-V0-013: two lanes that each add one requirement to the same spec and run
 # `make spec-requirements` conflict only inside that spec's requirement list and the
 # REQUIREMENTS.tsv rows, never in the spec header, the Agent digest, INDEX.json or README.md.
-# The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly. The test
-# drives the real Makefile target against a temporary repository holding a copy of the generator.
+# The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly.
+# Covers SRG-V0-016: lanes that add requirements to different specs, or to different sections of
+# one spec so that each shifts the other's definition lines, or that only edit a spec's prose,
+# merge in both orders with no conflict in any file, and every merged generated file is the
+# regenerated one. The test drives the real Makefile target against a temporary repository
+# holding a copy of the generator.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-conflict-test.XXXXXX")
@@ -75,9 +79,10 @@ regen
 git commit -q -m base
 base=$(git rev-parse HEAD)
 
-# add_requirement BRANCH SPEC AFTER-ID LINE: one lane appends one requirement after AFTER-ID.
+# add_requirement BRANCH SPEC AFTER-ID LINE [FROM]: one lane, branched from FROM (default the
+# base commit), adds one requirement after AFTER-ID.
 add_requirement() {
-  git checkout -q -b "$1" "$base"
+  git checkout -q -b "$1" "${5:-$base}"
   awk -v after="$3" -v line="$4" '{ print } index($0, "- " after ":") == 1 { print line }' \
     "$repo/docs/specs/$2" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/$2"
   regen
@@ -134,5 +139,80 @@ for file in REQUIREMENTS.tsv INDEX.json README.md; do
     fail "the merged $file is not the regenerated one"
 done
 grep -q '^OTH-V0-002	' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "OTH-V0-002 lost in the merge"
+
+# SRG-V0-016: a spec with two requirement sections, separated by prose. Every lane below branches
+# from this commit.
+git checkout -q -b sections "$base"
+cat > "$repo/docs/specs/sections.md" <<'SPEC'
+# Sections spec
+
+Intent status: accepted
+Delivery status: experimental
+
+## Agent digest
+- Claim: The sections spec has two requirement sections.
+
+## Introduction
+
+The introduction is prose.
+
+## Requirements
+
+- SEC-V0-001: (accepted, decision 0003) The first clause.
+- SEC-V0-002: (accepted, decision 0003) The second clause.
+
+## Later requirements
+
+Prose separates the two sections.
+
+- SEC-V0-010: (accepted, decision 0003) The tenth clause.
+- SEC-V0-011: (accepted, decision 0003) The eleventh clause.
+
+## Failure modes
+
+None yet.
+SPEC
+regen
+git commit -q -m sections
+sections=$(git rev-parse HEAD)
+standing="(accepted under the owner's standing auto-accept (2026-10-11); V1-9004)"
+# Lane X adds to the first section, which shifts every definition line of the second.
+add_requirement lane-x sections.md SEC-V0-002 "- SEC-V0-003: $standing Lane X's clause." "$sections"
+# Lane Y adds to the second section.
+add_requirement lane-y sections.md SEC-V0-011 "- SEC-V0-012: $standing Lane Y's clause." "$sections"
+# Lane O adds to another spec.
+add_requirement lane-o other.md OTH-V0-001 "- OTH-V0-003: $standing Lane O's clause." "$sections"
+# Lane Z edits only the spec's prose, above every definition: it shifts every line and adds no row.
+git checkout -q -b lane-z "$sections"
+awk '{ print } $0 == "The introduction is prose." { print ""; print "Lane Z adds a paragraph."; print "It is two lines long." }' \
+  "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+regen
+git commit -q -m lane-z
+
+# merges_cleanly A B IDS: B merges into A, and A into B, with no conflict; each merged tree's
+# generated files are the regenerated ones and keep every listed requirement.
+merges_cleanly() {
+  for order in "$1 $2" "$2 $1"; do
+    set -- $order "$3"
+    git checkout -q -b "merge-$1-$2" "$1"
+    git merge -q --no-edit "$2" > /dev/null 2>&1 || fail "$2 conflicted when merged into $1: $(git diff --name-only --diff-filter=U | tr '\n' ' ')"
+    for file in REQUIREMENTS.tsv INDEX.json README.md; do
+      case $file in
+        REQUIREMENTS.tsv) flag= ;;
+        INDEX.json) flag=--index ;;
+        README.md) flag=--readme ;;
+      esac
+      (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" ||
+        fail "merging $2 into $1 left a $file that is not the regenerated one"
+    done
+    for id in $3; do
+      grep -q "^$id	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost merging $2 into $1"
+    done
+  done
+}
+merges_cleanly lane-x lane-y 'SEC-V0-003 SEC-V0-012'
+merges_cleanly lane-x lane-z 'SEC-V0-003'
+merges_cleanly lane-y lane-z 'SEC-V0-012'
+merges_cleanly lane-x lane-o 'SEC-V0-003 OTH-V0-003'
 
 printf 'ok\n'

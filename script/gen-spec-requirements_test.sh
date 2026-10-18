@@ -36,7 +36,7 @@ stage docs/specs/alpha.md
 baseline=$(run)
 
 case "$baseline" in
-  *'ALPHA-V0-001	docs/specs/alpha.md	3	the tracked clause'*) ;;
+  *'ALPHA-V0-001	docs/specs/alpha.md	the tracked clause'*) ;;
   *) fail "baseline did not index the tracked spec: $baseline" ;;
 esac
 
@@ -73,7 +73,7 @@ long=$(printf '\303\251%.0s' $(seq 1 90))
 write_spec gamma GAMMA-V0-001 "$long"
 stage docs/specs/gamma.md
 want=$(printf '\303\251%.0s' $(seq 1 80))
-actual=$(run | grep '^GAMMA-V0-001	' | cut -f4)
+actual=$(run | grep '^GAMMA-V0-001	' | cut -f3)
 test "$actual" = "$want" || fail "a multibyte title was not truncated to 80 characters: $actual"
 
 # 5. SRG-V0-002/003: token syntax is not a definition boundary. Plain definitions
@@ -131,10 +131,10 @@ cat > "$test_root/docs/specs/accept.md" <<SPEC
 SPEC
 stage docs/specs/accept.md
 actual=$(run)
-printf '%s\n' "$actual" | head -1 | grep -qx 'id	file	line	title	acceptance	acceptedBy' || fail "the header lacks the acceptance columns"
+printf '%s\n' "$actual" | head -1 | grep -qx 'id	file	title	acceptance	acceptedBy' || fail "the header is not the committed layout"
 expect_mode() {
   row=$(printf '%s\n' "$actual" | grep "^$1	") || fail "$1 not indexed"
-  got=$(printf '%s\n' "$row" | cut -f5-6)
+  got=$(printf '%s\n' "$row" | cut -f4-5)
   test "$got" = "$2	$3" || fail "$1 acceptance is '$got', want '$2	$3'"
 }
 expect_mode ACC-001 standing '2026-10-11; V1-1347'
@@ -149,9 +149,9 @@ expect_mode ACC-009 standing 'decision 0478; #12'
 expect_mode ACC-010 owner 'decision 0478'
 expect_mode ACC-011 unrecorded -
 expect_mode ACC-012 unrecorded -
-test "$(printf '%s\n' "$actual" | grep '^ACC-010	' | cut -f4 | wc -m | tr -d ' ')" = 81 ||
+test "$(printf '%s\n' "$actual" | grep '^ACC-010	' | cut -f3 | wc -m | tr -d ' ')" = 81 ||
   fail "ACC-010 title was not cut to 80 characters"
-printf '%s\n' "$actual" | awk -F '\t' 'NF != 6 { exit 1 }' || fail "a row does not have six columns"
+printf '%s\n' "$actual" | awk -F '\t' 'NF != 5 { exit 1 }' || fail "a row does not have five columns"
 
 # 7. SRG-V0-012: --index and --readme project the header intent, delivery and digest claim onto
 # the staged INDEX.json and README.md, keep every other field and cell byte for byte, append a
@@ -272,7 +272,7 @@ cp "$test_root/got-readme" "$project/docs/specs/README.md"
 git -C "$project" add -- docs/specs
 gen --index | cmp - "$project/docs/specs/INDEX.json" || fail "--index is not a fixed point"
 gen --readme | cmp - "$project/docs/specs/README.md" || fail "--readme is not a fixed point"
-gen | grep -q '^ONE-V0-001	docs/specs/one.md	10	.*	standing	2026-10-11; V1-1347$' ||
+gen --lines | grep -q '^ONE-V0-001	docs/specs/one.md	10	.*	standing	2026-10-11; V1-1347$' ||
   fail "the projected spec lost its standing row"
 
 # 8. SRG-V0-010: the audit lists standing requirements by spec, names a standing marker that is
@@ -301,11 +301,37 @@ printf 'id\ttitle\n' > "$project/docs/specs/REQUIREMENTS.tsv"
 status=0
 (cd "$project" && script/spec-acceptance-audit.sh) > /dev/null 2>&1 || status=$?
 test "$status" = 1 || fail "a TSV without the acceptance columns exited $status, want 1"
-printf 'id\tfile\tline\ttitle\tacceptance\tacceptedBy\n\tdocs/specs/one.md\t10\tt\tstanding\t-\n' \
+printf 'id\tfile\ttitle\tacceptance\tacceptedBy\n\tdocs/specs/one.md\tt\tstanding\t-\n' \
   > "$project/docs/specs/REQUIREMENTS.tsv"
 status=0
 (cd "$project" && script/spec-acceptance-audit.sh) > /dev/null 2>&1 || status=$?
-test "$status" = 1 || fail "a six-column row with an empty id exited $status, want 1"
+test "$status" = 1 || fail "a five-column row with an empty id exited $status, want 1"
+
+# 9. SRG-V0-015: the committed index has no line column and orders its rows by file, then by
+# definition position, so an edit that only shifts a spec's lines leaves it byte for byte; `--lines`
+# is the derived locator view, ordered by id, with the line column (SRG-V0-017).
+order() {
+  printf '# Order\n\n%s- `ORD-V0-002`: Defined first.\n- `ORD-V0-001`: Defined second.\n' "$1" \
+    > "$test_root/docs/specs/order.md"
+  stage docs/specs/order.md
+}
+lines() { (cd "$test_root" && script/gen-spec-requirements.sh --lines); }
+order ''
+before=$(run)
+test "$(printf '%s\n' "$before" | grep '^ORD-' | cut -f1 | tr '\n' ' ')" = 'ORD-V0-002 ORD-V0-001 ' ||
+  fail "rows of one spec are not in definition order: $before"
+printf '%s\n' "$before" | tail -n +2 | cut -f2 | LC_ALL=C sort -c || fail "rows are not ordered by file"
+lines | head -1 | grep -qx 'id	file	line	title	acceptance	acceptedBy' || fail "--lines lacks the line column"
+test "$(lines | grep '^ORD-' | cut -f1,3 | tr '\n' ' ')" = 'ORD-V0-001	4 ORD-V0-002	3 ' ||
+  fail "--lines is not the id-ordered locator view: $(lines | grep '^ORD-')"
+order 'Prose added above both definitions.
+
+More prose.
+
+'
+test "$(run)" = "$before" || fail "a line shift rewrote the committed index"
+test "$(lines | grep '^ORD-V0-002' | cut -f3)" = 7 || fail "--lines did not follow the shift"
+lines | tail -n +2 | cut -f1 | LC_ALL=C sort -c || fail "--lines is not ordered by id"
 
 # A claim that is not one sentence cannot be cut out of a README description, so it is refused.
 sed -i.bak 's/^- Claim: Two does the second thing\.$/- Claim: Two does. The second thing./' "$project/docs/specs/two.md"

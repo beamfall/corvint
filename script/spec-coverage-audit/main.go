@@ -44,14 +44,21 @@ func loadRequirements(path string) ([]requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(rows) < 2 || len(rows[0]) < 4 || strings.Join(rows[0][:4], "\t") != "id\tfile\tline\ttitle" {
+	// The committed index carries no line column (SRG-V0-015); an index with
+	// one (the `--lines` view, or one from before SRG-V0-015) is read too.
+	lined := len(rows) > 0 && len(rows[0]) >= 4 && strings.Join(rows[0][:4], "\t") == "id\tfile\tline\ttitle"
+	if len(rows) < 2 || !lined && (len(rows[0]) < 3 || strings.Join(rows[0][:3], "\t") != "id\tfile\ttitle") {
 		return nil, fmt.Errorf("invalid requirement registry: %s", path)
 	}
 	out := []requirement{}
 	seen := map[string]bool{}
 	for _, row := range rows[1:] {
-		line, e := strconv.Atoi(row[2])
-		if row[0] == "" || row[1] == "" || e != nil || line < 1 {
+		valid := len(row) >= 3 && row[0] != "" && row[1] != ""
+		if lined {
+			line, e := strconv.Atoi(row[2])
+			valid = valid && e == nil && line >= 1
+		}
+		if !valid {
 			return nil, fmt.Errorf("invalid requirement row in %s", path)
 		}
 		if seen[row[0]] {
