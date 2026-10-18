@@ -430,6 +430,11 @@ type Role struct {
 	// KeepLease (CAL-V0-311, optional) has the dispatcher keep the lease
 	// of the attempt each live worker of this role holds (keeper.go).
 	KeepLease *KeepLease `json:"keepLease,omitempty"`
+	// HoldPool (ATR-V0-120, optional) has the dispatcher claim each ticket
+	// of this role with a member of the pool it requires before launch, hand
+	// the hold to the session and return the member when the attempt's
+	// worker ends (pool_hold.go). It needs match.pool.
+	HoldPool bool `json:"holdPool,omitempty"`
 	// Model, Escalate and DeescalateOnProgress are the CAL-V0-057
 	// escalation ladder. The role's host must render {model}.
 	Model                string `json:"model,omitempty"`
@@ -820,6 +825,9 @@ func (c *Config) validate() error {
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)
+		}
+		if r.HoldPool && (r.Match == nil || r.Match.Pool == "") {
+			return fail("role %s holdPool needs match.pool (ATR-V0-120)", r.Name)
 		}
 		if r.Prompt == "" || len(r.Prompt) > 64<<10 {
 			return fail("role %s prompt must be 1..65536 bytes", r.Name)

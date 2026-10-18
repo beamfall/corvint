@@ -412,6 +412,11 @@ func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, 
 			}
 			o.Set("keeper", wire.ObjectValue(ko))
 		}
+		if h := dispatch.ReadPoolHold(dir, w.ID); h != nil {
+			// ATR-V0-123: the allocation the dispatcher holds for this
+			// worker's attempt; present only once it acquired one.
+			o.Set("poolHold", wire.ObjectValue(wire.NewObject().Set("state", str(h.State)).Set("attempt", str(h.Attempt)).Set("generation", str(h.Generation)).Set("pool", str(h.Pool)).Set("member", str(h.Member)).Set("allocation", str(h.Allocation)).Set("acquired", ts(h.Acquired))))
+		}
 		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	keys := make([]string, 0, len(l.Backoff))

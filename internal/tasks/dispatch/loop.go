@@ -111,6 +111,9 @@ type Dispatcher struct {
 	// run state, not ledger state: after a restart heal.reap still reaps
 	// the expired lease of a holder that is not a running worker.
 	recoveries map[string]*exitRecovery
+	// poolHoldRefused is the last refusal reported for each ticket's
+	// ATR-V0-120 pre-launch pool claim, so a waiting ticket is reported once.
+	poolHoldRefused map[string]string
 	// unsignalled names the workers whose CAL-V0-191 LEASE_EXPIRED stop this
 	// process decided and has not signalled yet; only those may be kept. It
 	// is never persisted, so a stop found in the ledger always completes.
@@ -856,6 +859,11 @@ func (d *Dispatcher) active(w *Worker, procs map[int]proc, h Host, now time.Time
 func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker) bool {
 	wrote := false
 	done := map[string]bool{}
+	// ATR-V0-122: return the members held for ended workers before any
+	// hand-off, whether or not heal.handoff is configured.
+	if d.releasePoolHolds(ctx, obs, ended) {
+		wrote = true
+	}
 	if d.recoverExits(ctx, obs, done) {
 		wrote = true
 	}
@@ -1582,6 +1590,16 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
+		// ATR-V0-120: a holdPool role's ticket is claimed with its pool
+		// member before anything can spawn; a refusal launches nothing.
+		hold, ok := d.claimPoolHold(ctx, obs, role, a, id)
+		if !ok {
+			if ep != nil {
+				ep.State = InfraWaiting // nothing spawned; the identity is kept
+			}
+			release(true)
+			continue
+		}
 		// CAL-V0-149: the successor is named before anything can spawn, so a
 		// crash can lose the relaunch but never repeat it.
 		var run *detachedMarker
@@ -1592,6 +1610,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				m.Phase, m.Successor = DetachedRelaunch, ""
 				if ep != nil {
 					ep.State = InfraWaiting // nothing spawned; the identity is kept
+				}
+				if hold != nil {
+					d.returnPoolHold(ctx, hold, a.Role, true) // ATR-V0-122
 				}
 				release(true)
 				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("relaunch for detached run %s not started: its marker could not be saved: %v", m.RunID, err)})
@@ -1639,6 +1660,11 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}
 		env = append(env, "CORVINT_DISPATCH_EVIDENCE_DIR="+EvidenceDir(d.dir, id)) // ATR-V0-104
+		// ATR-V0-121: only the dispatcher names the pool hold record.
+		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, poolHoldEnv+"=") })
+		if hold != nil {
+			env = append(env, poolHoldEnv+"="+PoolHoldPath(d.dir, id)) // ATR-V0-121
+		}
 		if note := d.handoffNoteFor(obs, a.Ticket); note != "" {
 			env = append(env, handoffNoteEnv+"="+note) // ATR-V0-105
 		}
@@ -1694,6 +1720,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				if err := d.saveDetached(run); err != nil {
 					d.emit(Event{Kind: "alert", Ticket: a.Ticket, Message: fmt.Sprintf("relaunch for detached run %s failed before spawn and its marker could not be restored; it is not retried: %v", run.RunID, err)})
 				}
+			}
+			if hold != nil && started == nil {
+				// ATR-V0-122: proved before spawn, so the claim is returned
+				// now; a spawn that may have started keeps it until the
+				// ATR-V0-124 sweep.
+				d.returnPoolHold(ctx, hold, a.Role, true)
 			}
 			release(started == nil)
 			d.emit(Event{Kind: "launch-failed", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("could not launch %s on %s: %v", a.Role, d.keyText(a.Key), err)})
