@@ -13,14 +13,16 @@ is retired"; `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `docs/specs/applica
 `docs/specs/application-navigation-ledger-v0.md` (ANL-V0 proven edges);
 `docs/specs/run-verified-navigation-v0.md` (RVN-V0); `docs/specs/playwright-run-evidence-v0.md`
 (PWR-V0); `docs/specs/new-e2e-test-acceptance-v0.md` (NEA-V0);
-`docs/specs/browser-behavior-falsification-v0.md` (BBF-V0).
+`docs/specs/browser-behavior-falsification-v0.md` (BBF-V0); the 2026-10-17 expert panel amendment
+(`docs/build-log/2026-10-17-cce-expert-panel.md`), whose owner request was "I want a world class
+solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012; none of that is implemented (V1-1677..V1-1682, V1-1687). Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
-- Blocked on: owner acceptance of this intent; first slice V1-1665 (umbrella V1-1666).
-- Read next: Definitions; Binary boundary; Requirements; Shadow evaluation and retirement; Owner questions.
+- Blocked on: owner acceptance of this intent; first slice V1-1665; falsification spike V1-1677 before more V0 build (umbrella V1-1666).
+- Read next: User and measurable job; Definitions; Requirements (016..025); Shadow evaluation and retirement; Beyond V0; Owner questions.
 
 ## User and measurable job
 
@@ -39,6 +41,12 @@ committed. Hosted tests keep running beside the generated scenarios until a shad
 that the generated scenarios catch what each hosted test catches; only then may Corvint propose a
 hosted test for retirement, and only the owner retires it.
 
+The primary job is a per-change proof for the agent or reviewer who made the change: "this change
+reaches these declared outcomes, here is the generated scenario that checks each one, and here is
+the evidence that the scenario would have caught the change going wrong". That proof is useful on
+the first change a team runs it on. Retiring hosted tests is the later payoff (V2), and it is earned
+only through the shadow gate; it is not the V0 value claim.
+
 Measured jobs:
 
 1. **Compile**: on a committed fixture, a diff that changes one screen's component yields exactly
@@ -54,6 +62,13 @@ Measured jobs:
 4. **Shadow**: over a frozen window of changes, the report compares compiled scenarios with the
    hosted affected selection on seeded regressions caught, real failures caught, escapes and
    runtime, and lists a hosted test as a retirement candidate only when the frozen gate holds.
+5. **Useful per change**: a change is *useful* when its obligations do not read `UNKNOWN` and at
+   least one obligation reads `DISCRIMINATES`, `REGRESSION_DETECTED`, `NEW_REACH` or `PRESERVES`
+   with `oracle_origin` `ADMITTED_AT_BASE`. The usefulness rate is useful changes over all changes
+   run, with the denominator printed. The kill threshold is below 40% (Promotion and kill criteria).
+6. **Time and cost**: every `prove` and `shadow` report gives time-to-verdict (wall clock from
+   `compile` to the last verdict) and CPU seconds per change, on the same host as the hosted
+   comparison, including repeats and controls.
 
 ## Verified current state
 
@@ -112,11 +127,26 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   `REACHED`, `UNKNOWN` (reach could not be bounded) or `NONE`.
 - **Compiled scenario**: one generated Playwright spec file for one obligation, deterministic in
   (catalog digest, base, head, obligation ID, compiler version).
-- **Discrimination verdict**: the result of running a compiled scenario at head and base under
-  negative controls: `DISCRIMINATES`, `PRESERVES`, `FAILS_AT_HEAD`, `UNSTABLE`, `CONTROL_SURVIVED` or
-  `INCONCLUSIVE`.
-- **Shadow window**: a frozen, ordered list of at least 30 merged changes, fixed before the
-  evaluation runs, over which compiled scenarios and the hosted affected selection both run.
+- **Discrimination verdict**: the result of running a compiled scenario against the head and base
+  applications under negative controls: `DISCRIMINATES`, `NEW_REACH`, `PRESERVES`,
+  `REGRESSION_DETECTED`, `SCENARIO_BROKEN`, `UNSTABLE`, `CONTROL_SURVIVED` or `INCONCLUSIVE`
+  (CCE-V0-009). The panel amendment replaces the first slice's `FAILS_AT_HEAD` with
+  `REGRESSION_DETECTED` and `SCENARIO_BROKEN`, and adds `NEW_REACH`.
+- **Application revision** and **test revision**: a proof run executes the test tree of one
+  revision (page objects, fixtures, the compiled scenario and its runner configuration) against the
+  application tree of another. Both sides of a proof use the head test tree; only the application
+  revision varies (CCE-V0-017).
+- **Oracle origin**: whether a compiled scenario's outcome block was admitted unchanged at base
+  (`ADMITTED_AT_BASE`), exists at base but the diff changed it (`CHANGED_IN_DIFF`), or is new in the
+  diff (`NEW_IN_DIFF`) (CCE-V0-016). Only `ADMITTED_AT_BASE` outcomes are independent of the change
+  under test.
+- **Seeded regression**: an application-side mutant produced by a preregistered mechanical operator
+  with a fixed seed and applied identically to the application tree under both the hosted and the
+  compiled side. BBF-V0 controls stay the oracle-strength check on one scenario; they are not seeded
+  regressions, because they edit the test, not the application.
+- **Shadow window**: a frozen, ordered list of changes registered before the evaluation runs, over
+  which compiled scenarios and the hosted affected selection both run. Its composition is set in
+  Shadow evaluation and retirement.
 
 ## Binary boundary
 
@@ -154,7 +184,8 @@ is a later, separate decision that needs its own owner acceptance and the promot
 - `CCE-V0-003`: `input` and `fixture` blocks MUST come only from a repository-declared, tracked
   `.corvint/e2e-blocks.json` (`e2e-block-declarations/0`), read at `--rev` through Git, whose
   schema is closed:
-  - the top level holds only `schema`, `inputs` and `fixtures`;
+  - the top level holds only `schema`, `inputs` and `fixtures`, and optionally `environment`
+    (CCE-V0-021) and `reach_exempt` (CCE-V0-020);
   - an input is `input_id`, `screen_id`, `locator` (an AFU-V1-026 role and name, or a test ID) and
     `values`; each value is `value_id`, `value` (a string) and `class` (`valid` or `invalid`);
   - a fixture is `fixture_id`, `satisfies` (AFU-V1 precondition IDs), `setup` and `cleanup`; each of
@@ -166,8 +197,10 @@ is a later, separate decision that needs its own owner acceptance and the promot
   unknown member, a wrong type, a duplicate ID or an unresolved reference MUST refuse with
   `e2e-blocks-invalid` and admit nothing from the file.
 - `CCE-V0-004`: `corvint-test e2e obligations [--root PATH] --base SHA --head SHA` MUST map the diff to
-  obligations through the existing impact, affected-plan and map relations, listing each reached
-  outcome with the changed span and the chain that reaches it. When any changed span's reach cannot
+  obligations through the AMAP-V0 impact relation over the application maps at both base and head,
+  and MUST name in its document each relation it consulted and each it did not (the affected plan
+  and the ANL-V0 ledger are not consulted until V1-1685 adds them). It lists each reached outcome
+  with the changed span and the chain that reaches it. When any changed span's reach cannot
   be bounded, the report MUST read `UNKNOWN` overall and name the spans; it MUST NOT read `NONE`.
   A compilation over an `UNKNOWN` report MUST read `INCOMPLETE` overall with those spans, even when
   every `REACHED` obligation compiled or none was reached.
@@ -191,33 +224,49 @@ is a later, separate decision that needs its own owner acceptance and the promot
   through the existing Playwright provider path at head with repeats (default 5, retries 0, one
   worker) and at base with the same settings, against a disposable workspace per BBF-V0's mutation
   boundary, and MUST bind every run to a PWP receipt.
-- `CCE-V0-009`: The discrimination verdict MUST be the first of these that holds:
-  1. `INCONCLUSIVE` when any required run produced no qualified receipt.
+- `CCE-V0-009`: The discrimination verdict MUST be the first of these that holds. "Head" and
+  "base" name the application revision; the test revision is head on both sides (CCE-V0-017).
+  1. `INCONCLUSIVE` when any required run produced no qualified receipt, or a fixture cleanup
+     failed (reason `cleanup-failed`; a cleanup failure never counts as an assertion result).
   2. `UNSTABLE` when PWR-V0 classifies the head pool `INTERMITTENT`.
-  3. `FAILS_AT_HEAD` when any head repeat fails.
-  4. `CONTROL_SURVIVED` when the BBF-V0 `wrong-locator` or `wrong-expected-value` control, applied
-     to the outcome assertion at head, reads `survived`.
-  5. `INCONCLUSIVE` when either control reads anything other than `killed` under BBF-V0-005/006 with
-     its criterion, test, product and environment identities matched (for example `invalid_control`,
-     `infrastructure_failed` or `not_run`).
-  6. `DISCRIMINATES` when every base repeat fails and PWR-V0 places every failure on the outcome
-     assertion's own location.
-  7. `PRESERVES` when every base repeat passes.
-  8. `INCONCLUSIVE` otherwise: mixed base results, or a base failure anywhere but the outcome
-     assertion.
+  3. `REGRESSION_DETECTED` when every head repeat fails at the outcome assertion's own location and
+     every base repeat passes: the change broke a declared outcome.
+  4. `SCENARIO_BROKEN` when any head repeat fails and 3 does not hold.
+  5. `CONTROL_SURVIVED` when any required control (CCE-V0-018) applied at head reads `survived`.
+  6. `INCONCLUSIVE` when any required control reads anything other than `killed` under
+     BBF-V0-005/006 with its criterion, test, product and environment identities matched (for
+     example `invalid_control`, `infrastructure_failed` or `not_run`).
+  7. `DISCRIMINATES` when every base repeat fails at the outcome assertion's own location with a
+     value mismatch: the locator resolved and the matcher compared a different value.
+  8. `NEW_REACH` when every base repeat fails at the outcome assertion's own location because the
+     locator did not resolve: the outcome is new behaviour, not a changed value.
+  9. `PRESERVES` when every base repeat passes.
+  10. `INCONCLUSIVE` otherwise: mixed base results, mixed failure kinds, or a base failure anywhere
+     but the outcome assertion.
+
+  The assertion's location MUST be read from the receipt's error location (file and line of the
+  emitted assertion), not from marker text in the message.
 
   `PRESERVES` MUST be reported as a regression-preservation check only and MUST NOT be described as
-  detecting the change.
+  detecting the change. `NEW_REACH` MUST be described as checking new behaviour against its
+  absence, not as detecting a changed value.
 - `CCE-V0-010`: A compiled scenario MUST NOT read above `candidate` unless its verdict is
-  `DISCRIMINATES` or `PRESERVES`; a passing compiled scenario MUST NOT narrow, skip or replace any
+  `DISCRIMINATES`, `NEW_REACH` or `PRESERVES` and its `oracle_origin` is `ADMITTED_AT_BASE`; a passing compiled scenario MUST NOT narrow, skip or replace any
   hosted test's selection in V0.
 - `CCE-V0-011`: `corvint-test e2e shadow --window FILE` MUST read a frozen shadow window (an ordered list
   of merged-change base/head pairs, digest-pinned before the first run) and report, per change and
-  in total: obligations by state, scenarios by verdict, hosted affected tests run, seeded
-  regressions (BBF-V0 controls) caught by each side, real hosted failures the compiled side missed
-  (escapes), and wall-clock runtime of each side. For a change whose obligations read `UNKNOWN`,
-  the compiled side MUST be counted as missing every seeded regression and every real failure the
-  hosted side caught in that change. Each counts as a miss in parity and as an escape.
+  in total: obligations by state, scenarios by verdict and by `oracle_origin`, hosted affected
+  tests run, seeded regressions (application-side mutants, Definitions) caught by each side, real
+  hosted failures the compiled side missed (escapes), usefulness, and median and p95 wall-clock and
+  CPU time of each side on the same host. The window MUST be refused unless its registration pins
+  the mutation operator set, the seed, the catalog digest and the compiler version. For a change
+  whose obligations read `UNKNOWN`, and for every scenario whose verdict is not one of
+  `DISCRIMINATES`, `NEW_REACH`, `REGRESSION_DETECTED` or `PRESERVES` (that is `INCOMPLETE`,
+  `INCONCLUSIVE`, `UNSTABLE`, `CONTROL_SURVIVED` or `SCENARIO_BROKEN`), the compiled side MUST be
+  counted as missing every seeded regression and every real failure the hosted side caught there.
+  Each counts as a miss in parity and as an escape. A scenario whose `oracle_origin` is not
+  `ADMITTED_AT_BASE` MUST NOT count as a catch. Every rate MUST print its numerator and denominator
+  and a one-sided 95% Clopper-Pearson bound.
 - `CCE-V0-012`: A hosted test MAY be listed as a retirement candidate only when all of these hold
   over the shadow window:
   - every outcome it asserts is an admitted `outcome` block;
@@ -226,8 +275,10 @@ is a later, separate decision that needs its own owner acceptance and the promot
   - for every change in the window where it ran, the compiled scenarios caught every seeded
     regression it caught;
   - the compiled side had zero escapes against it;
-  - the window size and parity thresholds equal the frozen gate values in Shadow evaluation and
-    retirement.
+  - the Holm-corrected one-sided 95% upper bound on the compiled miss rate against it, over the
+    seeded regressions it caught, is at most the frozen bound;
+  - the window size, composition and parity thresholds equal the frozen gate values in Shadow
+    evaluation and retirement.
 
   A criterion whose denominator is zero MUST read failed, never vacuously held. The report MUST list
   each held criterion with its evidence, and each failed criterion for a test that is not a
@@ -245,17 +296,88 @@ is a later, separate decision that needs its own owner acceptance and the promot
   boundary defines. V0 MUST NOT add a command, flag, import-time side effect or dependency to core
   `corvint`, and the companion MUST NOT invoke the `corvint` binary.
 
+The 2026-10-17 expert panel amendment adds CCE-V0-016..025. Each closes a verified gap in the first
+slice or the draft; the build-log entry gives the evidence.
+
+- `CCE-V0-016`: Every compiled scenario MUST record `oracle_origin` by joining its outcome block at
+  base and head: `ADMITTED_AT_BASE` when an admitted outcome with the same ID, matcher, locator and
+  value exists at base; `CHANGED_IN_DIFF` when the ID exists at base with any of those different;
+  `NEW_IN_DIFF` otherwise. Failure mode: a change edits both the product text and its declared
+  outcome, and the scenario certifies itself. Only `ADMITTED_AT_BASE` scenarios count toward
+  CCE-V0-010 and CCE-V0-011/012 until a human acceptance record exists (V1-1683).
+- `CCE-V0-017`: `prove` MUST run the head test tree (the files of every admitted `page-object` and
+  `fixture` block the scenario uses, their transitive relative imports and the compiled scenario)
+  against both the head and the base application trees, and MUST record `application_revision`,
+  `test_revision` and the test-tree digest for every run; the digest MUST be identical on both
+  sides. A test-tree file that application code also imports MUST make the proof `INCONCLUSIVE`
+  with `test-tree-overlaps-application`. Failure mode: the base run executes base page objects, so
+  a verdict measures test drift instead of the change.
+- `CCE-V0-018`: Besides the BBF-V0 `wrong-locator` and `wrong-expected-value` controls on the
+  outcome assertion, `prove` MUST apply `omitted-event` to the step that is expected to produce the
+  outcome and to each fixture setup the scenario uses. Each MUST read `killed` for a positive
+  verdict. Failure mode: the outcome holds without the action, or the precondition is vacuous,
+  and the template-only controls still read `killed`.
+- `CCE-V0-019`: `obligations` MUST read `UNKNOWN`, never `NONE`, with the span named, when: a
+  reached screen has no flow step that expects an outcome; the application map reports any unknown
+  or unresolved step for a reached screen; the impact relation reports omitted or truncated
+  entries; a screen, flow or outcome present at base is absent at head; or the number of reached
+  obligations exceeds the limit (instead of refusing the document). `NONE` is legitimate only when
+  every changed path matches a `reach_exempt` glob or the impact relation places it on no screen,
+  with no map unknowns and no omissions.
+- `CCE-V0-020`: Every `UNKNOWN` span MUST carry exactly one reason from the closed set
+  `unplaced-path`, `screen-without-outcome`, `map-unknown`, `impact-truncated`,
+  `removed-at-head`, `fan-out-over-limit` and `blocks-not-declared`; an unlisted reason is a
+  defect. The optional `reach_exempt` member of `e2e-blocks.json` is a list of `{glob, reason}`
+  entries read at base, so a diff cannot exempt itself; each exemption the report applies MUST cite
+  its glob.
+- `CCE-V0-021`: The optional `environment` member of `e2e-blocks.json` MUST hold only `serve` (an
+  argv array, run without a shell), `base_url` (a loopback URL), `ready` (a path polled until it
+  answers, with a bounded timeout) and `env` (variable names to pass through, never values). `prove`
+  reads it at the test revision, runs `serve` inside each side's application tree and records its
+  digest. Without it, `prove` serves the tree statically as the first slice does and records
+  `environment: static`. A missing tool or a failed `ready` reads `INCONCLUSIVE`, never a verdict.
+- `CCE-V0-022`: `prove` MUST pass the runner only an allowlisted environment (`PATH`, a workspace
+  `HOME` and the declared `env` names), MUST abort and record every browser request to a
+  non-loopback host, MUST retain receipt bytes under `--out` or report `NOT_RETAINED` with a reason,
+  and MUST bind in its report the catalog, obligations and compile digests, the unknown spans, the
+  overall obligation state and every scenario digest. When `prove` compiles for itself it MUST bind
+  the same digests a separate `compile` would emit.
+- `CCE-V0-023`: Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the
+  document was emitted and no other code applies; `1` refusal or usage error (no document, or a
+  refusal document); `2` `prove` found at least one `REGRESSION_DETECTED`; `3` the document was
+  emitted but carries no usable signal: obligations `UNKNOWN`, compile `INCOMPLETE`, or any `prove`
+  verdict `INCONCLUSIVE`, `UNSTABLE`, `CONTROL_SURVIVED` or `SCENARIO_BROKEN`. Code `2` wins over
+  `3`. Failure mode: CI treats a broken or unproven scenario as green.
+- `CCE-V0-024`: Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so a
+  golden test fails when output bytes change without a version change; an outcome whose value is
+  empty MUST be unadmitted with `outcome-vacuous`; the secret screen MUST run per block over input
+  and outcome values and unadmit only the matching block with `secret-suspected`, rather than
+  refusing the catalog.
+- `CCE-V0-025`: Text read from the page or the runner (error messages, DOM snippets, console
+  lines) MUST appear in a report only inside a bounded `untrusted_text` field, and never in a
+  reason, code, summary or block. Failure mode: page-controlled text reaches an agent as
+  instructions or forges a verdict explanation.
+
 ## Shadow evaluation and retirement
 
 The frozen V0 gate values, which only an owner decision may change:
 
-- the window holds at least 30 merged changes, chosen and digest-pinned before any compiled run;
+- the window holds at least 30 changes, chosen and digest-pinned before any compiled run, of which at
+  least 10 are bug-fix pairs (a fix commit whose parent fails a hosted test that the fix makes
+  pass, run with the parent as head so a real failure exists to catch) and any red-CI heads in the
+  period; merged changes alone make the escape criterion vacuous;
+- seeded regressions are preregistered application-side mutants: the operator set, seed, catalog
+  digest and compiler version are frozen at registration, and the same mutants apply to both sides;
 - seeded-regression parity: per retirement candidate, the compiled side catches 100% of the seeded
   regressions the hosted test caught in the window, and in total at least 95% of all seeded
   regressions the hosted affected selection caught;
 - escapes: zero real hosted failures the compiled side missed for that candidate;
 - candidate evidence: the candidate ran in at least 5 window changes and caught at least 1 seeded
   regression;
+- statistical bound (proposed, owner question 4): the Holm-corrected one-sided 95% Clopper-Pearson
+  upper bound on the compiled miss rate per candidate is at most 5%. With zero misses that needs at
+  least 59 caught seeded regressions for that candidate; one caught regression bounds the miss rate
+  only below 95%;
 - a development window used to tune the compiler is never reused as the held-out shadow window.
 
 A failed shadow evaluation stays recorded as failed; it is not renamed development progress.
@@ -285,8 +407,11 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   one worker; each limit refuses with a named code when exceeded rather than sampling.
 - Fail-closed choices: unknown reach reads `UNKNOWN` (never `NONE`); a missing block reads
   `INCOMPLETE`; a missing receipt reads `INCONCLUSIVE`; none of these narrows hosted selection.
-- Secrets: `input` values pass the existing secret screen; a value that matches is refused with
-  `e2e-input-secret`, and PWP `/2` redaction applies to run evidence.
+- Secrets: `input` and `outcome` values pass the existing secret screen per block; a matching block
+  is unadmitted with `secret-suspected` (CCE-V0-024; the first slice refuses the whole catalog with
+  `e2e-input-secret`), and PWP `/2` redaction applies to run evidence.
+- Isolation: `prove` passes only an allowlisted environment and blocks non-loopback egress
+  (CCE-V0-022); page-derived text stays in `untrusted_text` (CCE-V0-025).
 - First-slice codes (V1-1665), each fail-closed:
   - Refusals: `e2e-root-required`, `e2e-revision-invalid`, `e2e-map-unavailable`,
     `e2e-impact-unavailable`, `e2e-obligations-over-limit`, `e2e-repeats-over-limit`,
@@ -308,12 +433,31 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 | Requirement | Planned evidence | Status |
 |---|---|---|
 | CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses`, `TestCCEV0001OutNestedSymlinkRefused`, `TestCCEV0001OutFileSymlinkRefused` |
-| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome` |
+| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS against the pre-amendment text; the amended base-and-head map join and consulted-relations list are NOT_STARTED (V1-1678): `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome` |
 | CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete`, `TestCCEV0007PlacementsInjective` |
-| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008..009 PASS: `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
+| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008 and the pre-amendment 009 ladder PASS (the amended ladder, `REGRESSION_DETECTED`/`SCENARIO_BROKEN`/`NEW_REACH` and error-location matching are NOT_STARTED, V1-1679): `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
 | CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
 | CCE-V0-014 | byte-cap truncation tests per document | NOT_STARTED |
 | CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | PASS: `TestCCEV0015SubcommandsReachable`, `TestCCEV0015CoreBoundary`, `TestCCEV0015NeverExecutesCorvint`; core tree byte-identical to the claim base outside docs, `go list -deps ./cmd/corvint` has no CCE package |
+
+Panel amendment (2026-10-17). Every row is NOT_STARTED; the planned evidence is the acceptance
+of the named ticket.
+
+| Requirement | Planned evidence | Ticket | Status |
+|---|---|---|---|
+| CCE-V0-003 (`environment`, `reach_exempt`), 021 | declarations golden with both members; unknown members refuse; `serve` without a shell; failed `ready` reads `INCONCLUSIVE` | V1-1681, V1-1678 | NOT_STARTED |
+| CCE-V0-009 (amended), 017, 018 | offline fake-runner tests per ladder verdict; identical test-tree digest across sides; overlap reads `INCONCLUSIVE`; each structure control killed on the fixture | V1-1679, V1-1687 | NOT_STARTED |
+| CCE-V0-011, 012 (amended) | synthetic window: registration refusal, non-scoring verdicts counted as misses, bounds and Holm correction against a reference computation | V1-1682 | NOT_STARTED |
+| CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | NOT_STARTED |
+| CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | NOT_STARTED |
+| CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code | V1-1681 | NOT_STARTED |
+| CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | NOT_STARTED |
+
+Before more V0 build, spike V1-1677 replays 10 historical bug-fix commits of a real Playwright
+repository through the slice and runs two oracle-review falsifiers (a static overlay that satisfies
+a text matcher without the behaviour, and a base-only no-op seed), recording usefulness, time and
+the continue, pivot or kill decision. V1-1687 adds an offline fake runner and a CI lane for the
+live tests, which no CI lane runs today.
 
 The first slice (V1-1665) covers CCE-V0-001, 002, 004, 005, 006, 007, 008, 009 and 015 for one
 obligation on the committed fixture. CCE-V0-003 there may use a single hand-written declarations
@@ -328,11 +472,35 @@ file. Everything else belongs to the umbrella (V1-1666).
 - Drift: the catalog digest changes with any admitted block; a proven scenario whose catalog digest
   or anchors changed reads `UNVERIFIED_AT_HEAD` as RVN-V0 defines.
 
+## Beyond V0
+
+Recorded so V0 choices do not block them; each needs its own requirements before implementation.
+
+- V1 authoring (V1-1683): a deterministic harvester proposes blocks from existing specs and page
+  objects with `harvested:<blob>:<span>` provenance; an `e2e-block-proposals/0` document written
+  outside the repository; a human acceptance ledger `.corvint/e2e-acceptances.json`, which also
+  accepts `CHANGED_IN_DIFF` and `NEW_IN_DIFF` oracles and flags an acceptance added in the diff
+  under test; a bounded locator-repair loop (at most two attempts per obligation, never on a
+  held-out window) that only proposes. A value observed at head is never an oracle.
+- V1 vocabulary (V1-1684): fixture outputs and data flow, session blocks (environment-variable
+  names only), teardown through test fixtures, parameterised routes, path synthesis over admitted
+  edges, typed locators and assertions each with a control that kills it, and `test.step` with
+  per-step provenance and a trace on failure.
+- V1 reach (V1-1685): the TJAA module graph, runtime coverage that may only widen reach and never
+  produce `NONE`, API contract joins, and the ANL-V0 ledger in place of the first slice's nil.
+- V1/V2 (V1-1686): per-hunk `CHECKED`, `PRESERVED_ONLY`, `UNCHECKED` or `UNKNOWN` roll-up, ARIA
+  locator proposals, flake quarantine with retained evidence, read-only MCP tools over the
+  documents, and snapshotting a proven scenario into the hosted suite. Retirement (V2) also needs a
+  post-retirement canary and an un-retire trigger.
+
 ## Promotion and kill criteria
 
 - Promote past experimental only on an adopter shadow window that meets the frozen gate.
 - Kill or redesign when, on the first adopter shadow window, fewer than half of `REACHED`
   obligations compile without `INCOMPLETE`, or total seeded-regression parity is below 80%.
+- Kill or pivot to a discrimination prover (CCE-V0-009 and 016..018 applied to existing hosted
+  tests, without compilation) when the usefulness rate is below 40% on spike V1-1677 or the first
+  adopter window, or when block authoring takes more minutes than the hosted runs it saves.
 
 ## Owner questions
 
@@ -345,3 +513,9 @@ file. Everything else belongs to the umbrella (V1-1666).
 4. Are 30 changes, 100% per-candidate parity, 95% total parity, zero escapes and the candidate
    minimums (5 changes run, 1 seeded regression caught) the right frozen gate values?
 5. Should the first runner after Playwright be Nightwatch, given the existing Nightwatch work?
+6. Is the reframing right: V0 sells a per-change proof to the agent and reviewer, and retirement
+   is the V2 payoff?
+7. Should a `CHANGED_IN_DIFF` or `NEW_IN_DIFF` oracle ever count before the V1 acceptance ledger
+   exists, for example through a reviewer approving the PR?
+8. Is a 5% Holm-corrected upper bound per candidate (at least 59 caught seeded regressions with zero
+   misses) the right statistical gate, or is a looser bound acceptable for a first retirement?
