@@ -156,9 +156,11 @@ release asset remains an explicit operator action. Other Tasks archive targets a
 
 ## Optional workflow bundle
 
-The planned, separately assembled **macOS arm64** workflow bundle will contain nine native binaries:
+The planned, separately assembled **macOS arm64** workflow bundle will contain ten native binaries:
 `corvint`, `corvint-console`, `corvint-dashboard-snapshot`, `corvint-tasks`, `corvint-mcp`, `corvint-docs-mcp`,
-`corvint-test-validity-mcp`, `corvint-js-test-provider` and `corvint-go-test-provider`; a VS Code VSIX;
+`corvint-test-validity-mcp`, `corvint-js-test-provider`, `corvint-go-test-provider` and the experimental
+`corvint-ruby-test-provider` (profile `corvint-companion-bundle/3`, `CRB-V0-020`; its smoke checks only
+the usage line, RSpec execution is not qualified); a VS Code VSIX;
 and raw Codex, Claude Code, Gemini CLI and OpenCode integration trees marked `FALLBACK`.
 `corvint-corpus-mcp` is deliberately excluded: it is source-only and experimental, not part of this
 distributable set (see [agent-facing servers](../README.md#agent-facing-servers)).

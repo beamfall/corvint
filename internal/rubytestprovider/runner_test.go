@@ -17,6 +17,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/secretscreen"
+	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -143,7 +144,9 @@ func TestLPCVV0090RunBindsRepositoryBeforeAndAfter(t *testing.T) {
 	if status := git(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
 		t.Fatalf("run left the worktree dirty: %q", status)
 	}
-	if entries, err := os.ReadDir(filepath.Join(root, ".corvint", "rspec")); err != nil || len(entries) != 1 || entries[0].Name() != ".gitignore" {
+	// The run created .corvint, so .corvint/.gitignore alone ignores it and
+	// rspec/ holds nothing once the reports are removed (LPCV-V0-084).
+	if entries, err := os.ReadDir(filepath.Join(root, ".corvint", "rspec")); err != nil || len(entries) != 0 {
 		t.Fatalf("reports not removed: %v %v", entries, err)
 	}
 }
@@ -468,7 +471,8 @@ func TestLPCVV0090SignalledRunnerIsInfrastructure(t *testing.T) {
 }
 
 // LPCV-V0-095: the provider ignores .corvint/ when it creates it and never
-// overwrites an existing .corvint/.gitignore.
+// overwrites an existing .corvint/.gitignore; both go through the shared
+// testevidence.IgnoreRetained helper (LPCV-V0-084, V1-1811).
 func TestLPCVV0095GitignoreCreatedOnceNeverOverwritten(t *testing.T) {
 	requireHost(t)
 	root := repository(t)
@@ -477,10 +481,8 @@ func TestLPCVV0095GitignoreCreatedOnceNeverOverwritten(t *testing.T) {
 	if data, err := os.ReadFile(filepath.Join(root, ".corvint", ".gitignore")); err != nil || string(data) != "rspec/\n" {
 		t.Fatalf("existing .gitignore changed: %q %v", data, err)
 	}
-	fresh := t.TempDir()
-	if err := IgnoreEvidence(fresh); err != nil {
-		t.Fatal(err)
-	}
+	fresh := repository(t)
+	run(t, Config{Dir: fresh, RSpec: []string{fakeRSpec(t, cannedReport, 1)}})
 	if data, err := os.ReadFile(filepath.Join(fresh, ".corvint", ".gitignore")); err != nil || string(data) != "*\n" {
 		t.Fatalf("created .gitignore: %q %v", data, err)
 	}
@@ -495,10 +497,9 @@ func TestLPCVV0095ExistingGitignoreStillClean(t *testing.T) {
 	git(t, root, "add", ".corvint/.gitignore")
 	git(t, root, "commit", "-q", "-m", "tracked corvint ignore")
 	run(t, Config{Dir: root, RSpec: []string{fakeRSpec(t, cannedReport, 1)}})
-	if err := IgnoreEvidence(root); err != nil {
+	if _, err := testevidence.Retain(root, Producer, []byte("{}\n")); err != nil {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(root, ".corvint", "test-evidence", "corvint-ruby-test-provider-1.json"), "{}\n", 0o600)
 	if status := git(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
 		t.Fatalf("worktree dirty: %q", status)
 	}

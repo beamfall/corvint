@@ -5,12 +5,20 @@ import (
 	"fmt"
 )
 
-const currentBundleProfile = "corvint-companion-bundle/2"
+// currentBundleProfile is the writer's profile: profile /2 plus the
+// corvint-ruby-test-provider component (CRB-V0-020). Profile /2 stays readable
+// with exactly its nine binaries.
+const (
+	currentBundleProfile = "corvint-companion-bundle/3"
+	coreBundleProfile    = "corvint-companion-bundle/2"
+)
 
 type bundleInventory struct {
 	current bool
 	pi      bool
 	core    bool
+	// ruby is true for profile /3, whose components add corvint-ruby-test-provider.
+	ruby bool
 }
 
 func inventoryForManifest(m BundleManifest) (bundleInventory, error) {
@@ -18,10 +26,11 @@ func inventoryForManifest(m BundleManifest) (bundleInventory, error) {
 		return bundleInventory{}, nil
 	}
 	var profile string
-	if err := json.Unmarshal(m.Profile, &profile); err != nil || (profile != currentBundleProfile && profile != "corvint-companion-bundle/1" && profile != "corvint-companion-bundle/0") {
+	if err := json.Unmarshal(m.Profile, &profile); err != nil || (profile != currentBundleProfile && profile != coreBundleProfile && profile != "corvint-companion-bundle/1" && profile != "corvint-companion-bundle/0") {
 		return bundleInventory{}, fmt.Errorf("unsupported companion bundle profile %s", m.Profile)
 	}
-	return bundleInventory{current: true, pi: profile != "corvint-companion-bundle/0", core: profile == currentBundleProfile}, nil
+	core := profile == currentBundleProfile || profile == coreBundleProfile
+	return bundleInventory{current: true, pi: profile != "corvint-companion-bundle/0", core: core, ruby: profile == currentBundleProfile}, nil
 }
 
 func (i bundleInventory) name(legacy string) string {
@@ -45,6 +54,8 @@ func (i bundleInventory) name(legacy string) string {
 		return "corvint-js-test-provider"
 	case "corvint-go-test-provider":
 		return "corvint-go-test-provider"
+	case "corvint-ruby-test-provider":
+		return "corvint-ruby-test-provider"
 	case "atm":
 		return "corvint-tasks"
 	case "corvint-taskman":

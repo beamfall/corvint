@@ -176,18 +176,21 @@ func VerifyRetainedBundle(directory string) (*VerifiedRetainedBundle, error) {
 			return nil, err
 		}
 	}
-	if err := validateSmokeInventory(smoke.Steps, inventory.core); err != nil {
+	if err := validateSmokeInventory(smoke.Steps, inventory); err != nil {
 		return nil, err
 	}
 	return &VerifiedRetainedBundle{Directory: resolved, ArchivePath: archivePath, ChecksumPath: filepath.Join(resolved, checksumName), SmokePath: smokePath, ArchiveSHA256: digest, ChecksumSHA256: sha256Hex(checksum), SmokeSHA256: sha256Hex(smokeData), Manifest: manifest, SmokeSteps: append([]SmokeStep(nil), smoke.Steps...), entries: entries}, nil
 }
 
-func validateSmokeInventory(steps []SmokeStep, core bool) error {
+func validateSmokeInventory(steps []SmokeStep, inventory bundleInventory) error {
 	want := map[string]bool{}
 	for _, name := range []string{"atm-version", "atm-help", "corvint-mcp-version", "corvint-docs-mcp-version", "corvint-test-validity-mcp-version", "corvint-mcp-discover-list-status", "corvint-docs-mcp-draft-consume", "corvint-test-validity-mcp-list", "corvint-js-test-provider-help", "corvint-go-test-provider-help", "atm-init", "atm-ticket-create", "atm-ticket-refine", "corvint-dashboard-snapshot", "console-listen", "console-board", "console-detail", "console-create-form", "console-refuse-cross-origin", "console-refuse-missing-token", "console-refusal-no-store-effect", "console-detail-controls", "console-edit", "console-evidence", "console-requirement-links", "console-code-links", "console-link-gaps", "console-stop-no-descendants"} {
 		want[name] = true
 	}
-	if core {
+	if inventory.ruby {
+		want["corvint-ruby-test-provider-help"] = true
+	}
+	if inventory.core {
 		for _, name := range []string{"corvint-version-identity", "corvint-affected-selection", "corvint-playwright-external-discovery", "corvint-documentation-corpus-discovery", "corvint-work-queue-observation"} {
 			want[name] = true
 		}
@@ -302,6 +305,8 @@ func validateSmokeComponent(step SmokeStep, manifest BundleManifest) error {
 		wantName = "corvint-js-test-provider"
 	case step.Name == "corvint-go-test-provider-help":
 		wantName = "corvint-go-test-provider"
+	case step.Name == "corvint-ruby-test-provider-help":
+		wantName = "corvint-ruby-test-provider"
 	case step.Name == "corvint-version-identity" || step.Name == "corvint-affected-selection" ||
 		step.Name == "corvint-playwright-external-discovery" || step.Name == "corvint-documentation-corpus-discovery" ||
 		step.Name == "corvint-work-queue-observation":
@@ -374,6 +379,9 @@ func validateClosedManifest(entries []ArchiveEntry, manifest BundleManifest) err
 		return fmt.Errorf("manifest target %q is not %s", manifest.Target, supportedTarget)
 	}
 	wantComponents := map[string]string{"corvint": "corvint", "corvint-console": "corvint", "corvint-dashboard-snapshot": "corvint", "corvint-mcp": "corvint", "corvint-docs-mcp": "corvint", "corvint-test-validity-mcp": "corvint", "corvint-js-test-provider": "corvint", "corvint-go-test-provider": "corvint", "atm": "corvint-taskman"}
+	if inventory.ruby {
+		wantComponents["corvint-ruby-test-provider"] = "corvint"
+	}
 	currentComponents := make(map[string]string, len(wantComponents))
 	for name, module := range wantComponents {
 		currentComponents[inventory.name(name)] = inventory.name(module)
