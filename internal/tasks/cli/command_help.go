@@ -300,6 +300,7 @@ var commandUsage = map[string]string{
 	"pool confirm-safe":       "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"pool acquire":            "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]; pool acquire --attach --request-id ID [--wait SECONDS]",
 	"pool release":            "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+	"pool wait":               "corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL) [--lock-wait SECONDS] [--role ROLE]",
 	"slots acquire":           "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]",
 	"slots release":           "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"lane-leader":             "corvint-tasks lane-leader --directory DIR --capsule FILE",

@@ -361,7 +361,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, ExcludeAuthors: c.l.ExcludeAuthors, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	plan := PriorityFirst(claimNextInput(c.l, c.in, c.st))
 	chosen := plan.ClaimNext(c.l.Pool)
 	if chosen == nil {
 		code, detail := plan.refusal()

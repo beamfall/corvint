@@ -83,6 +83,10 @@ func readPoolSource(r *wire.Reader) PoolSource {
 // Allows reports whether the pool's allow-list holds the pair.
 func (p *Pool) Allows(s PoolSource) bool { return slices.Contains(p.AllowedSources, s) }
 
+// MaxPoolWaitSeconds bounds a pool's maxWaitSeconds and
+// handoffGraceSeconds (PSR-V0-130, PSR-V0-136).
+const MaxPoolWaitSeconds = 600
+
 type Pool struct {
 	ID           string
 	Members      []string
@@ -91,6 +95,12 @@ type Pool struct {
 	// PriorityAdmission opts the pool into CAL-V0-101 priority-yield
 	// admission. Omission, like an explicit false, keeps the old admission.
 	PriorityAdmission bool
+	// MaxWaitSeconds is the longest `pool wait` registration the pool
+	// accepts (PSR-V0-130); zero means the pool keeps no waitlist.
+	MaxWaitSeconds int64
+	// HandoffGraceSeconds keeps capacity for a clean HANDOFF's ticket for
+	// at most this long (PSR-V0-136); zero, the default, keeps none.
+	HandoffGraceSeconds int64
 	// AllowedSources and DefaultSource are the PSR-V0-081 approved-source
 	// allow-list and the pair a member must report before it is FREE; both
 	// are absent or both present.
@@ -140,10 +150,18 @@ func readPools(r *wire.Reader, env []string) []Pool {
 	out := []Pool{}
 	ids, members, refs := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, x := range r.Array(64, false) {
-		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig", "priorityAdmission", "allowedSources", "defaultSource")...)
+		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig", "priorityAdmission", "allowedSources", "defaultSource", "maxWaitSeconds", "handoffGraceSeconds")...)
 		p := Pool{ID: x.Field("id").Label(), Members: x.Field("members").Strings(MaxPoolMembers, false, (*wire.Reader).Label), ReservedFor: map[string]string{}, MemberConfig: map[string]MemberConfig{}}
 		if wire.Has(x.Value(), "priorityAdmission") {
 			p.PriorityAdmission = x.Field("priorityAdmission").Bool()
+		}
+		// PSR-V0-130, PSR-V0-136: both waitlist bounds are optional and
+		// at most MaxPoolWaitSeconds.
+		if wire.Has(x.Value(), "maxWaitSeconds") {
+			p.MaxWaitSeconds = boundCount(x.Field("maxWaitSeconds"), 1, MaxPoolWaitSeconds).Int()
+		}
+		if wire.Has(x.Value(), "handoffGraceSeconds") {
+			p.HandoffGraceSeconds = boundCount(x.Field("handoffGraceSeconds"), 0, MaxPoolWaitSeconds).Int()
 		}
 		readPoolSources(x, &p)
 		if ids[p.ID] || len(p.Members) == 0 {
