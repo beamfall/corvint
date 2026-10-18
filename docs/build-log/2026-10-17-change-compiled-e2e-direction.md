@@ -1,0 +1,72 @@
+# Change-compiled E2E: owner direction and proposed CCE-V0 spec
+
+Owner input, 2026-10-17 (Claude Code session). The owner proposed that Corvint understand the
+anatomy of an end-to-end test as lego blocks (page objects, paths, inputs and outputs, results,
+outcomes and scripts), keep a catalog of them, and, when code changes, build the E2E test that
+checks the change on demand, locally or in CI, instead of hosting a large suite.
+
+After an assessment of the existing pieces and two risks (the oracle problem and impact-analysis
+false negatives), the owner chose the direction, verbatim: "Draft the spec as augment-first: hosted
+blocks, generated scenarios, a shadow evaluation against the existing suite before any test is
+retired. File the umbrella ticket and the first slice."
+
+## Recorded
+
+- `docs/specs/change-compiled-e2e-v0.md` (CCE-V0-001..014), intent `proposed`, delivery
+  `not-started`. Its requirements carry no acceptance marker: they are agent-drafted from the owner's
+  direction and inherit `proposed` until the owner reads them back.
+- Native tickets: umbrella V1-1666 depends on first slice V1-1665.
+
+## Design choices in the draft
+
+- The oracle is always a declared AFU-V1 outcome (matcher, locator, value); the compiler never
+  infers an expected value, selector or path. This keeps project authority above generated code.
+- A compiled scenario counts only with a discrimination verdict from a live run: pass at head, fail
+  at base on the outcome's own assertion, and fail under the BBF-V0 `wrong-locator` and
+  `wrong-expected-value` controls. A scenario that passes on both sides is `PRESERVES`, a
+  preservation check only.
+- Unknown reach reads `UNKNOWN`, never `NONE`, and nothing in V0 narrows hosted selection.
+- Retirement is a proposal behind a frozen shadow gate (at least 30 changes, 100% per-candidate and
+  95% total seeded-regression parity, zero escapes). Corvint never deletes or disables a hosted
+  test. The gate values are owner question 4.
+- One companion binary. The owner asked whether the E2E capability should be its own binary, then,
+  verbatim: "do it. and while you are there we should make sure we are breaking up the tooling
+  correclty into appropriate binaries". Every CCE-V0 command is now one companion's subcommand
+  (`catalog`, `obligations`, `compile`, `prove`, `shadow`), and V0 adds nothing to core `corvint`
+  (CCE-V0-015). This replaces the first draft's split between a core `corvint e2e` group and a
+  `corvint-e2e-prove` companion. The reasons are invariant 7 (the default binary stays unchanged by
+  an experimental capability), one rollback unit, and the existing companion pattern
+  (`corvint-tests-accept`, `corvint-behavior-falsify`). The cost is that the read subcommands live
+  outside core while they are experimental; graduating them is a later owner decision.
+- Name: `corvint-test`, with E2E as its `e2e` group. The owner, verbatim: "maybe it could be
+  called corvint-test as it could cover all types of tests". The companion is therefore named for
+  testing in general and V0 defines only `corvint-test e2e`. Folding the existing test companions
+  into it is a separate restructure, recorded with the binary-boundary audit. The near names
+  `corvint test` (a core verb) and `corvint-test-runner` stay distinct binaries until that
+  restructure decides otherwise.
+
+The one read-only Codex round on the amendment returned one MEDIUM finding: the CCE-V0-015 evidence
+row checked only imports and the absence of an `e2e` verb. The row now names a before/after core
+baseline (commands, flags, transitive imports), shared-package `init` side effects, companion
+subcommand reachability and a no-`corvint`-subprocess check.
+
+## Independent review
+
+One read-only Codex round (gpt-6-astra) on the draft returned eight findings. All eight were
+confirmed against the cited specs and fixed in this change:
+
+1. `PRESERVES` now requires every base repeat to pass. Mixed results, or a base failure off the
+   outcome assertion, read `INCONCLUSIVE`.
+2. Both BBF-V0 controls must read identity-matched `killed` before either positive verdict.
+3. Retirement needs candidate evidence: a minimum number of changes run and of seeded regressions
+   caught. A zero denominator reads failed. A change with `UNKNOWN` obligations counts as misses and
+   escapes.
+4. A compilation over `UNKNOWN` reach reads `INCOMPLETE`.
+5. `--out` paths must resolve outside the repository root.
+6. The minimum `e2e-block-declarations/0` member set is now defined, along with the input binding.
+7. The content digest is SHA-256 with the digest field left empty while hashing.
+8. Aggregates are computed before truncation, and a consumer refuses a truncated input.
+
+## Not done
+
+No implementation, tests or qualification. Delivery stays `not-started`.

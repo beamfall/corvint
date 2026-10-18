@@ -796,6 +796,21 @@ CATN-V0-012	docs/specs/cross-audience-truth-nondivergence-v0.md	127	V0 is bounde
 CATN-V0-013	docs/specs/cross-audience-truth-nondivergence-v0.md	134	This profile MUST NOT be presented as HDC delivery, audience usefulness,	unrecorded	-
 CATN-V0-014	docs/specs/cross-audience-truth-nondivergence-v0.md	137	A `CONFLICTED` claim MUST carry at least two evidence anchors with distinct	unrecorded	-
 CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-digest input and the canonical bundle bytes MUST be exactly the	unrecorded	-
+CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	144	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
+CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	151	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
+CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	154	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-
+CCE-V0-004	docs/specs/change-compiled-e2e-v0.md	168	`corvint-test e2e obligations [--root PATH] --base SHA --head SHA` MUST map the	unrecorded	-
+CCE-V0-005	docs/specs/change-compiled-e2e-v0.md	174	`corvint-test e2e compile` MUST emit, for each `REACHED` obligation, at most one	unrecorded	-
+CCE-V0-006	docs/specs/change-compiled-e2e-v0.md	179	When any block a scenario needs is missing or unadmitted, the compiler MUST emit	unrecorded	-
+CCE-V0-007	docs/specs/change-compiled-e2e-v0.md	183	Compilation MUST be deterministic: identical catalog digest, base, head, obligat	unrecorded	-
+CCE-V0-008	docs/specs/change-compiled-e2e-v0.md	189	Running and proving are separate and opt-in: only `corvint-test e2e prove` execu	unrecorded	-
+CCE-V0-009	docs/specs/change-compiled-e2e-v0.md	194	The discrimination verdict MUST be the first of these that holds:	unrecorded	-
+CCE-V0-010	docs/specs/change-compiled-e2e-v0.md	211	A compiled scenario MUST NOT read above `candidate` unless its verdict is	unrecorded	-
+CCE-V0-011	docs/specs/change-compiled-e2e-v0.md	214	`corvint-test e2e shadow --window FILE` MUST read a frozen shadow window (an ord	unrecorded	-
+CCE-V0-012	docs/specs/change-compiled-e2e-v0.md	221	A hosted test MAY be listed as a retirement candidate only when all of these hol	unrecorded	-
+CCE-V0-013	docs/specs/change-compiled-e2e-v0.md	235	Corvint MUST NOT delete, disable, skip or move a hosted test, and MUST NOT write	unrecorded	-
+CCE-V0-014	docs/specs/change-compiled-e2e-v0.md	237	Every emitted document (`catalog`, `obligations`, `compile`, `prove`, `shadow`)	unrecorded	-
+CCE-V0-015	docs/specs/change-compiled-e2e-v0.md	244	Every CCE-V0 command MUST be a subcommand of the `corvint-test e2e` group, as Bi	unrecorded	-
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	39	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	46	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	88	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
