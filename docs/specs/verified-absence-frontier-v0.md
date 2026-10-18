@@ -183,6 +183,8 @@ advance to historical rationale, adapters, or distribution unless the frontier s
 - The first Spec Kit or OpenSpec adapter preserves native requirement IDs and lifecycle state; it
   starts only after three pilot repositories show demand. Corvint does not replace either authoring
   flow. The second ecosystem is a separate demand decision.
+- Decision 0540 (2026-10-17) records owner demand for both ecosystems; the adapter contract is
+  `docs/specs/spec-toolchain-adapters-v0.md`.
 
 ## Rollback
 

@@ -588,7 +588,7 @@ func documentAuthority(record Record) (authority, confidence string) {
 	authority = "repository-spec"
 	switch {
 	case record.Kind == "instructions":
-		authority, binding = "project-instructions", true
+		authority, binding = "project-instructions", !openSpecChangePath(record.Path)
 	case record.Kind == "decision" && binding:
 		authority = "accepted-decision"
 	case record.Kind == "decision":
@@ -603,7 +603,7 @@ func documentAuthority(record Record) (authority, confidence string) {
 	return authority, confidence
 }
 
-func documentResult(index *Index, record Record, score int, reason string) map[string]any {
+func documentResultFields(index *Index, record Record, score int, reason string) map[string]any {
 	status, _ := record.Fields["status"].(string)
 	authority, confidence := documentAuthority(record)
 	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash, reason, confidence, authority)}
@@ -619,6 +619,16 @@ func documentResult(index *Index, record Record, score int, reason string) map[s
 	return map[string]any{"kind": record.Kind, "id": record.ID, "score": score,
 		"title": stringValue(record.Fields["title"]), "summary": stringValue(record.Fields["summary"]),
 		"status": status, "references": references, "evidence": resultEvidence}
+}
+
+// documentResult is the document result with the upstream lifecycle carried
+// beside Corvint's label when the index recorded one (STA-V0-007).
+func documentResult(index *Index, record Record, score int, reason string) map[string]any {
+	result := documentResultFields(index, record, score, reason)
+	if native, ok := record.Fields["native_state"].(string); ok && native != "" {
+		result["native_state"] = native
+	}
+	return result
 }
 
 // UnverifiedContractAuthority is the authority label `impact` emits for a

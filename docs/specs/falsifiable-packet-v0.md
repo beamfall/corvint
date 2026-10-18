@@ -588,7 +588,7 @@ above stands with that substitution.
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
   `documentResult` uses: `Record.Kind == "instructions"` → `project-instructions`; `"decision"`
   → `accepted-decision`/`non-binding-decision`; else `repository-spec`/`accepted-spec`
-  (`internal/contextindex/impact.go:585-598@6d7677dd`) — is instruction- or spec-authority; never keyed on
+  (`internal/contextindex/impact.go:585-598@3c81c0ac`) — is instruction- or spec-authority; never keyed on
   the checkpoint's own `authority?` field, per AGENTS.md invariant 3. When present, that field is
   echoed as `claimed_authority`; its absence does not change the flag, which is computed only from
   the live class).

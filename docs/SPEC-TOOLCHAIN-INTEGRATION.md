@@ -5,6 +5,11 @@ Status: **assessment, not an accepted direction.** Produced 2026-08-29 by a thre
 should Corvint integrate with SpecKit and OpenSpec, and should Corvint itself act as the AI harness that
 takes a spec all the way to built-and-tested code?
 
+Superseded in part (2026-10-17): decision 0540 accepts the integration, and
+`docs/specs/spec-toolchain-adapters-v0.md` is its contract. The claim below that SpecKit's only
+extension point is a prompt template is stale: Spec Kit 1.2.1 has an `extension.yml` manifest with
+command hooks. The harness answer stands.
+
 ## Answer
 
 **Integrate: yes, and the fit is unusually clean. Be the harness: no.**

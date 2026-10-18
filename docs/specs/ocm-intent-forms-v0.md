@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-25
-Intent status: proposed
+Intent status: accepted (owner, 2026-10-18, decision 0541)
 Delivery status: experimental
 Authoritative inputs: `AGENTS.md` invariants 3 and 6, `docs/specs/ocm-v0-dogfood.md` (`OCM-V0-001`),
-`docs/SPEC-DRIVEN-DEVELOPMENT.md`, decision 0386, ticket V1-0259
+`docs/SPEC-DRIVEN-DEVELOPMENT.md`, decision 0386, decision 0541, ticket V1-0259
 
 ## Agent digest
 - Claim: `ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.
-- Status: proposed/experimental; the owner has not accepted the intent, and the capability must not be advertised as delivered
+- Status: accepted (owner, 2026-10-18, decision 0541); delivery experimental, and the capability must not be advertised as delivered until the promotion evidence passes.
 - Exists: `internal/lrfrepo/ocm_forms.go`, the `--intent-form` flag, an optional `intentScope.form` wire member, focused tests, and one live Beamfall sweep.
-- Blocked on: owner acceptance and the open decisions below; LRF and the change universe refuse declared forms.
+- Blocked on: one real change dogfooded with a declared form and an independent review; open decisions 1, 2, 4 and 5 stay recorded limits, and LRF and the change universe refuse declared forms.
 - Read next: Declaration mechanism; Requirements; Acceptance evidence.
 
 ## User and job
@@ -51,7 +51,7 @@ The form is a `corvint ocm prepare --intent-form FORM` argument, recorded in the
 
 ## Requirements
 
-- `OIF-V0-001`: `corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requirements`, `adr-decisions`, or `roadmap-acceptance`; an absent flag or `requirements` selects the `OCM-V0-001` reader, and any other value is an argument error. The form is never inferred from the intent path or content, and no other OCM action takes the flag.
+- `OIF-V0-001`: `corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requirements`, `adr-decisions`, `roadmap-acceptance`, or one of the `STA-V0` toolchain forms `openspec-spec`, `openspec-delta` and `speckit-spec`; an absent flag or `requirements` selects the `OCM-V0-001` reader, and any other value is an argument error. The form is never inferred from the intent path or content, and no other OCM action takes the flag.
 - `OIF-V0-002`: A non-default form is recorded as the string member `intentScope.form`; the default form omits it, so default-form maps, prepare envelopes, and re-derivations stay byte-identical to `OCM-V0`. A reader accepts `form` only with a non-default form name; an explicit `requirements`, empty, unknown, or non-string value fails `invalid-intent-form`. The spec string stays `ocm/0.1-experimental`.
 - `OIF-V0-003`: Every OCM read and write action re-derives requirements, span, and span digest from the pinned intent blob with the recorded form, and a mismatch fails `intent-scope-mismatch` as in `OCM-V0`. Obligation IDs are checked against the recorded form's ID grammar (`invalid-obligation-id`), and a declared form's obligation statement is the item text defined below.
 - `OIF-V0-004`: `adr-decisions` requires the blob's first line to be `---`, a later closing `---` line, and exactly one `adr: NNNN` line (four digits) between them; otherwise it fails `invalid-adr-number`. The number comes from the front matter, not the file name.
@@ -107,8 +107,9 @@ A changed form for an existing map is a binding change and returns `map-outdated
   `### 2.1` or `### A.` items), and 25 fail `missing-requirements` (18 `## Decision` ADRs have no
   level-3 item). The pre-change reader gives the live run's 89, 113, 6 and 7 on the same files.
 
-Promotion needs owner acceptance, answers to the open decisions, and one real change dogfooded with
-a declared form. `NOT_RUN`: that dogfooded change, and independent review.
+The owner accepted the intent on 2026-10-18 (decision 0541); open decisions 1, 2, 4 and 5 stay
+recorded limits. Promotion needs one real change dogfooded with a declared form. `NOT_RUN`: that
+dogfooded change, and independent review.
 
 ## Traceability
 
