@@ -41,6 +41,9 @@ type ExampleSource struct {
 	Expectations       int             `json:"expectations"`
 	Findings           []SourceFinding `json:"findings"`
 	ExpectationAnchors []string        `json:"-"`
+	// EndLine is a JS/TS example's last declaring line, so a failure frame inside it can be
+	// placed (TSA-V0-082). The RSpec reader leaves it zero.
+	EndLine int `json:"-"`
 }
 
 // ApplyExampleSource returns p with hygiene and strength recomputed from one example's source

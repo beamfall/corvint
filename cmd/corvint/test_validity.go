@@ -139,7 +139,7 @@ func discoverTestValidity(root string) (testValidityDocument, error) {
 	if err != nil {
 		return testValidityDocument{}, &gokernel.Error{Code: "invalid-test-evidence-location", Message: "worktree root cannot be resolved"}
 	}
-	document, err := testvaliditydoc.DiscoverWithSources(absolute, testsource.RSpecExampleSources)
+	document, err := testvaliditydoc.DiscoverWithSources(absolute, testsource.ExampleSources)
 	var refusal *testvaliditydoc.DiscoveryError
 	if errors.As(err, &refusal) {
 		return testValidityDocument{}, &gokernel.Error{Code: refusal.Code, Message: refusal.Message}

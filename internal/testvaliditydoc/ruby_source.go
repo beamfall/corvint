@@ -8,10 +8,10 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// RubySourceReader reads one spec file's text and returns each example's source facts keyed by
+// ExampleSourceReader reads one test file's text and returns each example's source facts keyed by
 // its declaring line, with the reader's uncertainty reason ("" when it read the whole file).
-// testsource.RSpecExampleSources implements it (TSA-V0-062).
-type RubySourceReader func(name, text string) (map[int]testvalidity.ExampleSource, string)
+// testsource.ExampleSources implements it for RSpec (TSA-V0-062) and JS/TS (TSA-V0-073) files.
+type ExampleSourceReader func(name, text string) (map[int]testvalidity.ExampleSource, string)
 
 type rubySourceFile struct {
 	examples map[int]testvalidity.ExampleSource
@@ -22,7 +22,7 @@ type rubySourceFile struct {
 // retained spec blob is bound (TSA-V0-068, TSA-V0-069). The spec file is read through the
 // confined, no-follow, bounded receipt reader and used only when its Git blob ID equals the
 // retained one; each file is read once. An example with no bound blob keeps its projection.
-func applyRubySources(tests []Test, document rubytestprovider.Document, worktree *os.Root, read RubySourceReader) {
+func applyRubySources(tests []Test, document rubytestprovider.Document, worktree *os.Root, read ExampleSourceReader) {
 	files := map[string]rubySourceFile{}
 	for index, example := range document.Examples {
 		if index >= len(tests) || tests[index].ID != example.ID || example.SpecBlob == "" {
@@ -46,7 +46,7 @@ func applyRubySources(tests []Test, document rubytestprovider.Document, worktree
 	}
 }
 
-func readRubySource(worktree *os.Root, format string, example rubytestprovider.Example, read RubySourceReader) rubySourceFile {
+func readRubySource(worktree *os.Root, format string, example rubytestprovider.Example, read ExampleSourceReader) rubySourceFile {
 	if namesGit(example.File) {
 		return rubySourceFile{reason: testvalidity.HygieneReasonRSpecSourceUnbound}
 	}

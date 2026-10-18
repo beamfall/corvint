@@ -1,6 +1,7 @@
 package testsource
 
 import (
+	"fmt"
 	"io/fs"
 	"slices"
 	"strings"
@@ -44,10 +45,12 @@ type SourceValidityFile struct {
 }
 
 // SourceValidityTest is the hygiene axis a test's findings give it: ELIGIBLE with only advisory
-// findings, INELIGIBLE with any invalid one (TSA-V0-051).
+// findings, INELIGIBLE with any invalid one (TSA-V0-051). A located JS/TS example also carries its
+// NOT_MEASURED strength axis (TSA-V0-081).
 type SourceValidityTest struct {
-	Test    string            `json:"test"`
-	Hygiene testvalidity.Axis `json:"hygiene"`
+	Test     string             `json:"test"`
+	Hygiene  testvalidity.Axis  `json:"hygiene"`
+	Strength *testvalidity.Axis `json:"strength,omitempty"`
 }
 
 // Refused reports whether any test is refused as proof.
@@ -61,7 +64,8 @@ func (r SourceValidityReport) Refused() bool {
 }
 
 // SourceValidity reads each named committed file at the revision and applies ValidityFindings and,
-// for a `_spec.rb` file, the RSpec example rules (TSA-V0-062..066). It reads committed Git content
+// for a `_spec.rb` file, the RSpec example rules (TSA-V0-062..066) or, for a JS/TS test file, the
+// JS/TS example rules with one test per example in line order (TSA-V0-073..081). It reads committed Git content
 // only. A path that is not a valid relative path refuses tests-invalid-arguments; a path that is
 // not a committed regular file refuses tests-source-unavailable; more than MaxValidityFiles files
 // or a file over MaxFileBytes refuses tests-bound-exceeded.
@@ -92,8 +96,6 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		return SourceValidityReport{}, err
 	}
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
-	byTest := map[string][]testvalidity.SourceFinding{}
-	order := []string{}
 	for _, name := range files {
 		data, found, err := r.readOne(commit, name, MaxFileBytes)
 		if err != nil {
@@ -102,42 +104,103 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		if !found {
 			return SourceValidityReport{}, refuse("tests-source-unavailable", "%s is not a committed file at the revision", name)
 		}
-		file := readSourceValidity(name, string(data))
-		for _, f := range file.Findings {
-			if _, ok := byTest[f.Test]; !ok {
-				order = append(order, f.Test)
-			}
-			byTest[f.Test] = append(byTest[f.Test], f)
-		}
+		file, tests := readSourceValidity(name, string(data))
 		report.Files = append(report.Files, file)
-	}
-	for _, test := range order {
-		baseline := testvalidity.Projection{Hygiene: testvalidity.Axis{State: testvalidity.HygieneEligible, Reason: hygieneReasonSourceRead, Anchors: []string{test}}}
-		report.Tests = append(report.Tests, SourceValidityTest{Test: test, Hygiene: testvalidity.ApplySourceFindings(baseline, byTest[test]).Hygiene})
+		report.Tests = append(report.Tests, tests...)
 	}
 	return report, nil
 }
 
-// readSourceValidity applies the rules to one file's text. A `_spec.rb` file's findings are every
-// example's findings in source order.
-func readSourceValidity(name, text string) SourceValidityFile {
-	if !strings.HasSuffix(name, "_spec.rb") {
-		base := ValidityFindings(name, text)
-		return SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings}
+// sourceTest is the hygiene the findings give one test over the source-rules-read baseline.
+func sourceTest(test string, findings []testvalidity.SourceFinding) SourceValidityTest {
+	baseline := testvalidity.Projection{Hygiene: testvalidity.Axis{State: testvalidity.HygieneEligible, Reason: hygieneReasonSourceRead, Anchors: []string{test}}}
+	return SourceValidityTest{Test: test, Hygiene: testvalidity.ApplySourceFindings(baseline, findings).Hygiene}
+}
+
+// findingTests is one test per test the findings name, in first-finding order.
+func findingTests(findings []testvalidity.SourceFinding, skip map[string]bool) []SourceValidityTest {
+	byTest := map[string][]testvalidity.SourceFinding{}
+	order := []string{}
+	for _, f := range findings {
+		if skip[f.Test] {
+			continue
+		}
+		if _, ok := byTest[f.Test]; !ok {
+			order = append(order, f.Test)
+		}
+		byTest[f.Test] = append(byTest[f.Test], f)
 	}
-	file := SourceValidityFile{Path: name, Findings: []testvalidity.SourceFinding{}}
-	examples, reason := RSpecExampleSources(name, text)
+	out := make([]SourceValidityTest, 0, len(order))
+	for _, test := range order {
+		out = append(out, sourceTest(test, byTest[test]))
+	}
+	return out
+}
+
+// readSourceValidity applies the rules to one file's text and returns its tests. A `_spec.rb` file's
+// findings are every example's findings in source order. A JS/TS test file's findings are the
+// ValidityFindings followed by the example rules' findings in line order, and its tests are one per
+// example in line order: a located example takes its findings and strength, an unlocated one
+// abstains with the reader's reason unless a finding already refuses it (TSA-V0-081).
+func readSourceValidity(name, text string) (SourceValidityFile, []SourceValidityTest) {
+	if strings.HasSuffix(name, "_spec.rb") {
+		file := SourceValidityFile{Path: name, Findings: []testvalidity.SourceFinding{}}
+		examples, reason := RSpecExampleSources(name, text)
+		if reason != "" {
+			file.Uncertain, file.Reason = true, reason
+			return file, findingTests(file.Findings, nil)
+		}
+		for _, line := range exampleLines(examples) {
+			file.Findings = append(file.Findings, examples[line].Findings...)
+		}
+		return file, findingTests(file.Findings, nil)
+	}
+	base := ValidityFindings(name, text)
+	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings}
+	if !IsTestFile(name) || base.Uncertain {
+		return file, findingTests(file.Findings, nil)
+	}
+	examples, reason := JSExampleSources(name, text)
 	if reason != "" {
 		file.Uncertain, file.Reason = true, reason
-		return file
+		return file, findingTests(file.Findings, nil)
 	}
+	file.Findings = append([]testvalidity.SourceFinding{}, base.Findings...)
+	baseByTest := map[string][]testvalidity.SourceFinding{}
+	for _, f := range base.Findings {
+		baseByTest[f.Test] = append(baseByTest[f.Test], f)
+	}
+	tests, covered := []SourceValidityTest{}, map[string]bool{}
+	for _, line := range exampleLines(examples) {
+		example := examples[line]
+		test := fmt.Sprintf("%s:%d", name, line)
+		covered[test] = true
+		if example.Read != testvalidity.ExampleSourceLocated {
+			t := sourceTest(test, baseByTest[test])
+			if t.Hygiene.State != testvalidity.HygieneIneligible {
+				t.Hygiene = testvalidity.Axis{State: testvalidity.HygieneAbstained, Reason: example.Read, Anchors: []string{test}}
+			}
+			tests = append(tests, t)
+			continue
+		}
+		for _, f := range example.Findings {
+			if !slices.Contains(base.Findings, f) {
+				file.Findings = append(file.Findings, f)
+			}
+		}
+		t := sourceTest(test, example.Findings)
+		strength := testvalidity.JSExampleStrength(example, test)
+		t.Strength = &strength
+		tests = append(tests, t)
+	}
+	return file, append(tests, findingTests(base.Findings, covered)...)
+}
+
+func exampleLines(examples map[int]testvalidity.ExampleSource) []int {
 	lines := make([]int, 0, len(examples))
 	for line := range examples {
 		lines = append(lines, line)
 	}
 	slices.Sort(lines)
-	for _, line := range lines {
-		file.Findings = append(file.Findings, examples[line].Findings...)
-	}
-	return file
+	return lines
 }

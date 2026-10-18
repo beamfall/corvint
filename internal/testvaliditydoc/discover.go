@@ -124,10 +124,11 @@ func Discover(root string) (Document, error) {
 	return DiscoverWithSources(root, nil)
 }
 
-// DiscoverWithSources is Discover with the RSpec source reader that recomputes a Ruby example's
-// hygiene and strength from its bound spec source (TSA-V0-068). The reader is passed in because
-// internal/testsource imports this package transitively; nil reads no spec source.
-func DiscoverWithSources(root string, rubySources RubySourceReader) (Document, error) {
+// DiscoverWithSources is Discover with the example source reader that recomputes a Ruby example's
+// (TSA-V0-068) or a JS/TS outcome's (TSA-V0-082) hygiene and strength from its bound test source.
+// The reader is passed in because internal/testsource imports this package transitively; nil reads
+// no test source.
+func DiscoverWithSources(root string, sources ExampleSourceReader) (Document, error) {
 	worktree, err := os.OpenRoot(root)
 	if err != nil {
 		return Document{}, locationError("worktree root cannot be opened")
@@ -177,8 +178,11 @@ func DiscoverWithSources(root string, rubySources RubySourceReader) (Document, e
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
 		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
-		if input.ruby != nil && rubySources != nil {
-			applyRubySources(document.Tests, *input.ruby, worktree, rubySources)
+		if input.ruby != nil && sources != nil {
+			applyRubySources(document.Tests, *input.ruby, worktree, sources)
+		}
+		if input.js != nil && sources != nil {
+			applyJSSources(document.Tests, *input.js, worktree, root, sources)
 		}
 		revision := receiptRevision(input)
 		if document.Run.Freshness.State == testvalidity.FreshnessStale || revisionDiffersFromHead(worktree, revision) {
