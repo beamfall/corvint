@@ -26,7 +26,8 @@ var planRemedies = map[string]string{
 	ticket.PlanUnassigned:        "assign the obligation to exactly one planned test",
 	ticket.PlanSplit:             "assign the obligation to exactly one planned test",
 	ticket.PlanUnknownObligation: "remove the id from the plan, or seed it on the ledger",
-	ticket.PlanAlreadyClosed:     "remove the closed obligation from the plan",
+	ticket.PlanAlreadyClosed:     "remove the closed obligation from the plan, or list a WITNESSED one under rerun",
+	ticket.PlanRerunNotWitnessed: "move the id from rerun to obligations, or witness it first",
 }
 
 const (

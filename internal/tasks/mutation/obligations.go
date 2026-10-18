@@ -297,6 +297,7 @@ func obligationFields(p *ObligationsPayload) []string {
 		if d := p.Witness.Declaration; d != nil {
 			fields = append(fields, d.TestID, d.Reason)
 		}
+		fields = append(fields, p.Witness.Provenance.Strings()...)
 		for _, cr := range p.Witness.Credits {
 			for _, m := range cr.Matches {
 				fields = append(fields, m.Path, m.TestID)
@@ -315,7 +316,7 @@ func screenObligations(p *ObligationsPayload) *refusal {
 	fields := obligationFields(p)
 	for _, s := range fields {
 		if matchesSecretScreen(s) {
-			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "/payload: a title, alias, reason, path, test id or review source matches the secret screen; remove the secret and retry with a new request ID")
+			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "/payload: a title, alias, reason, path, test id, review source or witness provenance matches the secret screen; remove the secret and retry with a new request ID")
 		}
 	}
 	return nil

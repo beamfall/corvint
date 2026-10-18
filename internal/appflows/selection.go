@@ -1,7 +1,11 @@
 package appflows
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"path"
 	"path/filepath"
@@ -9,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 )
@@ -16,13 +21,23 @@ import (
 // The e2e-safe profile of `corvint affected --selection-profile` (AFU-V1-019..024).
 const (
 	E2ESafeProfile          = "e2e-safe"
-	E2ESafeSchema           = "e2e-safe-selection/0"
+	E2ESafeSchema           = "e2e-safe-selection/1"
 	SelectionProviderSchema = "application-flow-selection-provider/1"
 	CoverageSchema          = "application-flow-coverage/0"
 	BasisCoverage           = "coverage"
 	BasisReviewedLinks      = "reviewed-links"
-	maxSelectionTests       = 1024
-	maxSelectionPaths       = 4096
+	proofDigestPrefix       = "sha256:"
+)
+
+// The documented selection ceilings (AFU-V1-065). Above one, the result is the closed
+// e2e-bound-exceeded full-suite fallback; the 5 MiB document bound still applies first.
+// MaxSelectionPaths bounds every single path list, each coverage tier's included;
+// MaxSelectionEvidencePaths bounds the changed paths held across all evidence commits read.
+const (
+	MaxSelectionTests         = 16384
+	MaxSelectionPaths         = 65536
+	MaxSelectionCoveragePaths = 131072
+	MaxSelectionEvidencePaths = 131072
 )
 
 // The closed fallback codes (AFU-V1-022). Any one of them yields the full relevant suite.
@@ -145,6 +160,8 @@ type E2ESelection struct {
 	Discovery           E2EDiscovery   `json:"discovery"`
 	Selected            []E2ETest      `json:"selected"`
 	OmittedTests        []E2EOmission  `json:"omitted_tests"`
+	Proofs              []E2EProof     `json:"proofs"`
+	DisjointFrom        []string       `json:"disjoint_from"`
 	OmissionsPerBasis   map[string]int `json:"omissions_per_basis"`
 	Fallback            []E2EFallback  `json:"fallback"`
 	Note                string         `json:"note"`
@@ -164,20 +181,23 @@ type E2ETest struct {
 	Reasons []string `json:"reasons"`
 }
 
+// E2EOmission names its exclusion proof by digest; the proof itself is stated once in proofs
+// (e2e-safe-selection/1, AFU-V1-066).
 type E2EOmission struct {
-	TestKey string   `json:"test_key"`
-	Project string   `json:"project"`
-	Path    string   `json:"path"`
-	Basis   string   `json:"basis"`
-	Proof   E2EProof `json:"proof"`
+	TestKey string `json:"test_key"`
+	Project string `json:"project"`
+	Path    string `json:"path"`
+	Basis   string `json:"basis"`
+	Proof   string `json:"proof"`
 }
 
-// E2EProof names what an exclusion rests on and the changed paths it is disjoint from.
+// E2EProof names what an exclusion rests on. Every proof is disjoint from the result's
+// disjoint_from, the changed paths. Digest is over the canonical JSON of the proof without it.
 type E2EProof struct {
-	Links        []ProofLink     `json:"links,omitempty"`
-	Coverage     *CoverageRecord `json:"coverage,omitempty"`
-	DisjointFrom []string        `json:"disjoint_from"`
-	Attestation  string          `json:"attestation,omitempty"`
+	Digest      string          `json:"digest"`
+	Links       []ProofLink     `json:"links,omitempty"`
+	Coverage    *CoverageRecord `json:"coverage,omitempty"`
+	Attestation string          `json:"attestation,omitempty"`
 }
 
 type ProofLink struct {
@@ -200,15 +220,37 @@ type e2eSelector struct {
 	provider  SelectionProvider
 	records   []CoverageRecord
 	changedBy map[string]string
+	dirty     map[string]bool
 	selected  map[string]bool
 	coverage  map[string]CoverageRecord
+	closure   map[string]bool
+	globals   map[string]bool
+	evidence  map[string]*evidenceDiff
+	proofs    map[string]E2EProof
+	flowProof map[string]string
+	// evidencePaths counts the changed paths cached across evidence commits; above
+	// MaxSelectionEvidencePaths the cache is dropped and evidenceExceeded refuses the selection.
+	// reachMemo counts memoized reach answers, which stop being cached at the same bound.
+	evidencePaths    int
+	evidenceExceeded bool
+	reachMemo        int
+}
+
+// evidenceDiff is what changed between one coverage evidence commit and base, computed once per
+// commit; ok is false when the commit is not an ancestor of base or the diff is unreadable.
+type evidenceDiff struct {
+	ok        bool
+	global    bool
+	set       map[string]bool
+	changedBy map[string]string
+	reached   map[string]bool
 }
 
 // SelectE2E decides the e2e-safe selection. It narrows only when every inventoried test is
 // selected or carries an exclusion proof; otherwise it returns the full relevant suite with codes.
 func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	out := E2ESelection{Schema: E2ESafeSchema, Profile: E2ESafeProfile, Base: in.Base, Mandatory: in.Mandatory,
-		Selected: []E2ETest{}, OmittedTests: []E2EOmission{}, OmissionsPerBasis: map[string]int{BasisCoverage: 0, BasisReviewedLinks: 0},
+		Selected: []E2ETest{}, OmittedTests: []E2EOmission{}, Proofs: []E2EProof{}, DisjointFrom: []string{}, OmissionsPerBasis: map[string]int{BasisCoverage: 0, BasisReviewedLinks: 0},
 		Fallback: []E2EFallback{}, Note: extevidence.SelectionNote + "; " + e2eSafeNote,
 		UntrustedTextFields: []string{"test_selection.selected[].test_key", "test_selection.selected[].project", "test_selection.omitted_tests[].test_key", "test_selection.omitted_tests[].project"}}
 	provider, records, err := readSelectionProvider(root, in.Provider)
@@ -226,6 +268,9 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	}
 	if len(codes) == 0 {
 		out.Selected, out.OmittedTests, codes = s.prove()
+		if s.evidenceExceeded {
+			codes = []E2EFallback{{Code: CodeBoundExceeded, Subject: "evidence-paths"}}
+		}
 	}
 	if len(codes) != 0 {
 		out.State, out.StateReason = extevidence.SelectionFull, "e2e-fallback"
@@ -235,21 +280,29 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	for _, o := range out.OmittedTests {
 		out.OmissionsPerBasis[o.Basis]++
 	}
+	out.Proofs, out.DisjointFrom = s.proofList(), append([]string{}, in.Plan.Dirty...)
 	out.State, out.StateReason = extevidence.SelectionNarrow, "exclusions-proven"
 	return out
 }
 
 func newE2ESelector(ctx context.Context, root string, in E2EInput, provider SelectionProvider, records []CoverageRecord) *e2eSelector {
-	s := &e2eSelector{ctx: ctx, root: root, in: in, base: in.Base, provider: provider, records: records, selected: map[string]bool{}, coverage: map[string]CoverageRecord{}}
+	s := &e2eSelector{ctx: ctx, root: root, in: in, base: in.Base, provider: provider, records: records, selected: map[string]bool{}, coverage: map[string]CoverageRecord{},
+		dirty: map[string]bool{}, closure: map[string]bool{}, globals: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{}}
 	if s.base == "" {
 		s.base = in.Revision
 	}
 	s.changedBy = changedUnits(in.Graph, in.Plan.Dirty)
+	for _, p := range in.Plan.Dirty {
+		s.dirty[p] = true
+	}
 	for _, sel := range in.Plan.Selected {
 		s.selected[sel.UnitID] = true
 	}
 	for _, record := range records {
 		s.coverage[record.TestKey] = record
+	}
+	for _, g := range provider.GlobalPaths {
+		s.globals[g] = true
 	}
 	return s
 }
@@ -341,9 +394,11 @@ func (s *e2eSelector) boundCodes() []E2EFallback {
 	for _, record := range s.records {
 		for _, tier := range record.Tiers {
 			counts["coverage-paths"] += len(tier.Paths)
+			counts["coverage-tier-paths"] = max(counts["coverage-tier-paths"], len(tier.Paths))
 		}
 	}
-	limits := map[string]int{"changed-paths": maxSelectionPaths, "inventory": maxSelectionTests, "coverage": maxSelectionTests, "global-paths": maxSelectionPaths, "coverage-paths": maxSelectionPaths}
+	limits := map[string]int{"changed-paths": MaxSelectionPaths, "inventory": MaxSelectionTests, "coverage": MaxSelectionTests, "global-paths": MaxSelectionPaths,
+		"coverage-paths": MaxSelectionCoveragePaths, "coverage-tier-paths": MaxSelectionPaths}
 	codes := []E2EFallback{}
 	for name, count := range counts {
 		if count > limits[name] {
@@ -372,7 +427,17 @@ func (s *e2eSelector) global(p string) bool {
 	if p == s.in.Provider || p == s.provider.RunnerConfig || under(p, s.provider.Flows) {
 		return true
 	}
-	return slices.ContainsFunc(s.provider.GlobalPaths, func(g string) bool { return under(p, g) })
+	// under(p, g) holds exactly when g is p or p's prefix before one of its slashes, so looking up
+	// those prefixes in the global_paths set matches without scanning every global path.
+	if s.globals[p] {
+		return true
+	}
+	for i := range len(p) {
+		if p[i] == '/' && s.globals[p[:i]] {
+			return true
+		}
+	}
+	return false
 }
 
 func under(p, dir string) bool { return p == dir || strings.HasPrefix(p, dir+"/") }
@@ -410,10 +475,11 @@ func (s *e2eSelector) prove() ([]E2ETest, []E2EOmission, []E2EFallback) {
 		return nil, nil, []E2EFallback{{Code: CodeMapStale, Subject: s.provider.Flows}}
 	}
 	unmapped, unexplained := s.unmapped(links), s.unexplained(links)
+	index := indexLinks(links)
 	selected, omitted, codes := []E2ETest{}, []E2EOmission{}, []E2EFallback{}
 	for _, t := range s.provider.Inventory {
-		testLinks := linksOfTest(links, t.TestKey)
-		if reasons := s.reasons(t, testLinks); len(reasons) != 0 {
+		testLinks := index.ofTest(t.TestKey)
+		if reasons := s.reasons(t, testLinks.links); len(reasons) != 0 {
 			selected = append(selected, E2ETest{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Reasons: reasons})
 			continue
 		}
@@ -430,9 +496,13 @@ func (s *e2eSelector) unmapped(links []EvaluatedLink) []string {
 	if slices.ContainsFunc(s.in.Plan.Unknown, unbounded) {
 		return append([]string{}, s.in.Plan.Dirty...)
 	}
+	reviewed := map[string]bool{}
+	for _, l := range links {
+		reviewed[l.Target.Path] = reviewed[l.Target.Path] || l.ReviewState == ReviewReviewed
+	}
 	out := []string{}
 	for _, p := range s.in.Plan.Dirty {
-		if !slices.ContainsFunc(links, func(l EvaluatedLink) bool { return l.ReviewState == ReviewReviewed && l.Target.Path == p }) {
+		if !reviewed[p] {
 			out = append(out, p)
 		}
 	}
@@ -465,19 +535,40 @@ func (s *e2eSelector) unexplained(links []EvaluatedLink) []string {
 	return out
 }
 
-// linksOfTest returns every link of every flow that links the test key.
-func linksOfTest(links []EvaluatedLink, key string) []EvaluatedLink {
-	flows := map[string]bool{}
+// linkIndex finds, per test key, every link of every flow that links it, without rescanning all
+// links per test.
+type linkIndex struct {
+	byFlow  map[string][]EvaluatedLink
+	order   map[string]int
+	flowsOf map[string][]string
+}
+
+// testLinks is every link of the flows that link one test, in link order; key names that flow set.
+type testLinks struct {
+	key   string
+	links []EvaluatedLink
+}
+
+func indexLinks(links []EvaluatedLink) linkIndex {
+	index := linkIndex{byFlow: map[string][]EvaluatedLink{}, order: map[string]int{}, flowsOf: map[string][]string{}}
 	for _, l := range links {
-		if l.Target.TestKey == key {
-			flows[l.Flow] = true
+		if _, seen := index.order[l.Flow]; !seen {
+			index.order[l.Flow] = len(index.order)
+		}
+		index.byFlow[l.Flow] = append(index.byFlow[l.Flow], l)
+		if l.Target.TestKey != "" && !slices.Contains(index.flowsOf[l.Target.TestKey], l.Flow) {
+			index.flowsOf[l.Target.TestKey] = append(index.flowsOf[l.Target.TestKey], l.Flow)
 		}
 	}
-	out := []EvaluatedLink{}
-	for _, l := range links {
-		if flows[l.Flow] {
-			out = append(out, l)
-		}
+	return index
+}
+
+func (index linkIndex) ofTest(key string) testLinks {
+	flows := slices.Clone(index.flowsOf[key])
+	slices.SortFunc(flows, func(a, b string) int { return index.order[a] - index.order[b] })
+	out := testLinks{key: strings.Join(flows, "\x00"), links: []EvaluatedLink{}}
+	for _, flow := range flows {
+		out.links = append(out.links, index.byFlow[flow]...)
 	}
 	return out
 }
@@ -485,7 +576,7 @@ func linksOfTest(links []EvaluatedLink, key string) []EvaluatedLink {
 // reasons names why the change requires the test; any basis of link, and observed coverage, may add a test.
 func (s *e2eSelector) reasons(t InventoryTest, links []EvaluatedLink) []string {
 	reasons := []string{}
-	if slices.Contains(s.in.Plan.Dirty, t.Path) {
+	if s.dirty[t.Path] {
 		reasons = append(reasons, "test-file-changed")
 	}
 	if s.inClosure(t.Path) {
@@ -502,36 +593,47 @@ func (s *e2eSelector) reasons(t InventoryTest, links []EvaluatedLink) []string {
 
 // inClosure reports whether a path is changed or depends on a changed path in the impact graph.
 func (s *e2eSelector) inClosure(p string) bool {
-	if reach(s.in.Graph, s.changedBy, s.in.Plan.Dirty, p) != nil {
-		return true
+	if in, ok := s.closure[p]; ok {
+		return in
 	}
-	owner, ok := s.in.Graph.OwnerOf(p)
-	return ok && s.selected[owner]
+	// The dirty set answers reach's own changed-path membership check without its linear scan.
+	in := s.dirty[p] || reach(s.in.Graph, s.changedBy, nil, p) != nil
+	if !in {
+		owner, ok := s.in.Graph.OwnerOf(p)
+		in = ok && s.selected[owner]
+	}
+	s.closure[p] = in
+	return in
 }
 
 func (s *e2eSelector) touchesChange(record CoverageRecord) bool {
 	return slices.ContainsFunc(record.Tiers, func(t CoverageTier) bool {
-		return slices.ContainsFunc(t.Paths, func(p string) bool { return slices.Contains(s.in.Plan.Dirty, p) })
+		return slices.ContainsFunc(t.Paths, func(p string) bool { return s.dirty[p] })
 	})
 }
 
 // exclusion proves an unselected test unneeded on the coverage basis, else on the reviewed-links basis.
-func (s *e2eSelector) exclusion(t InventoryTest, links []EvaluatedLink, unmapped, unexplained []string) ([]E2EOmission, []E2EFallback) {
+func (s *e2eSelector) exclusion(t InventoryTest, tl testLinks, unmapped, unexplained []string) ([]E2EOmission, []E2EFallback) {
 	record, hasRecord := s.coverage[t.TestKey]
+	links := tl.links
 	failures := []E2EFallback{}
 	if hasRecord {
 		code := s.coverageFailure(t.Path, record, links, unexplained)
 		if code == "" {
-			proof := E2EProof{Coverage: &record, DisjointFrom: s.in.Plan.Dirty}
-			return []E2EOmission{{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Basis: BasisCoverage, Proof: proof}}, nil
+			digest := s.addProof(E2EProof{Coverage: &record})
+			return []E2EOmission{{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Basis: BasisCoverage, Proof: digest}}, nil
 		}
 		failures = append(failures, E2EFallback{Code: code, Subject: t.TestKey})
 	}
 	if len(links) != 0 {
 		code := reviewedFailure(links, unmapped)
 		if code == "" {
-			proof := E2EProof{Links: proofLinks(links), DisjointFrom: s.in.Plan.Dirty, Attestation: linkAttestation}
-			return []E2EOmission{{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Basis: BasisReviewedLinks, Proof: proof}}, nil
+			digest, ok := s.flowProof[tl.key]
+			if !ok {
+				digest = s.addProof(E2EProof{Links: proofLinks(links), Attestation: linkAttestation})
+				s.flowProof[tl.key] = digest
+			}
+			return []E2EOmission{{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Basis: BasisReviewedLinks, Proof: digest}}, nil
 		}
 		failures = append(failures, E2EFallback{Code: code, Subject: t.TestKey})
 	}
@@ -559,6 +661,46 @@ func reviewedFailure(links []EvaluatedLink, unmapped []string) string {
 		return CodeUnmappedChange
 	}
 	return ""
+}
+
+// addProof states a proof once, keyed by its digest, and returns the digest.
+func (s *e2eSelector) addProof(proof E2EProof) string {
+	proof.Digest = proofDigest(proof)
+	s.proofs[proof.Digest] = proof
+	return proof.Digest
+}
+
+// proofDigest is `sha256:` and the hex SHA-256 of the proof's canonical JSON without its digest
+// member: keys sorted at every level, no insignificant whitespace, UTF-8 without HTML escaping and
+// no trailing newline (AFU-V1-066), so a consumer recomputes it from the emitted proof alone.
+func proofDigest(proof E2EProof) string {
+	raw, err := json.Marshal(proof)
+	if err != nil {
+		panic(err) // a proof is plain strings, numbers and booleans and always encodes
+	}
+	var value map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		panic(err)
+	}
+	delete(value, "digest")
+	canonical, err := gokernel.CanonicalJSON(value)
+	if err != nil {
+		panic(err)
+	}
+	sum := sha256.Sum256(canonical)
+	return proofDigestPrefix + hex.EncodeToString(sum[:])
+}
+
+// proofList is every stated proof, sorted by digest.
+func (s *e2eSelector) proofList() []E2EProof {
+	out := make([]E2EProof, 0, len(s.proofs))
+	for _, proof := range s.proofs {
+		out = append(out, proof)
+	}
+	slices.SortFunc(out, func(a, b E2EProof) int { return strings.Compare(a.Digest, b.Digest) })
+	return out
 }
 
 func proofLinks(links []EvaluatedLink) []ProofLink {
@@ -606,24 +748,63 @@ func (s *e2eSelector) tiersComplete(record CoverageRecord, links []EvaluatedLink
 // reach, or a link target of its flows or a path the impact graph reaches from one changed between
 // the evidence commit and base.
 func (s *e2eSelector) coverageStale(test string, record CoverageRecord, links []EvaluatedLink) bool {
-	if _, err := git(s.ctx, s.root, "merge-base", "--is-ancestor", record.Commit, s.base); err != nil {
+	diff := s.evidenceDiff(record.Commit)
+	if !diff.ok {
 		return true
 	}
-	out, err := git(s.ctx, s.root, "diff", "--no-renames", "--name-only", "-z", record.Commit, s.base, "--")
+	covered := slices.ContainsFunc(record.Tiers, func(t CoverageTier) bool {
+		return slices.ContainsFunc(t.Paths, func(p string) bool { return diff.set[p] })
+	})
+	return covered || diff.global || s.reachedSince(diff, test) ||
+		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return s.reachedSince(diff, l.Target.Path) })
+}
+
+// evidenceDiff reads the change between one evidence commit and base once. The changed paths cached
+// across commits are bounded by MaxSelectionEvidencePaths (AFU-V1-065): the read that would exceed it
+// drops the whole cache and marks the selection refused, so later reads return a failed diff.
+func (s *e2eSelector) evidenceDiff(commit string) *evidenceDiff {
+	if diff, ok := s.evidence[commit]; ok {
+		return diff
+	}
+	diff := &evidenceDiff{set: map[string]bool{}, reached: map[string]bool{}}
+	if s.evidenceExceeded {
+		return diff
+	}
+	s.evidence[commit] = diff
+	if _, err := git(s.ctx, s.root, "merge-base", "--is-ancestor", commit, s.base); err != nil {
+		return diff
+	}
+	out, err := git(s.ctx, s.root, "diff", "--no-renames", "--name-only", "-z", commit, s.base, "--")
 	if err != nil {
-		return true
-	}
-	covered := map[string]bool{}
-	for _, t := range record.Tiers {
-		for _, p := range t.Paths {
-			covered[p] = true
-		}
+		return diff
 	}
 	changed := slices.DeleteFunc(strings.Split(string(out), "\x00"), func(p string) bool { return p == "" })
-	changedBy := changedUnits(s.in.Graph, changed)
-	reached := func(p string) bool { return reach(s.in.Graph, changedBy, changed, p) != nil }
-	return slices.ContainsFunc(changed, func(p string) bool { return covered[p] || s.global(p) }) || reached(test) ||
-		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return reached(l.Target.Path) })
+	if s.evidencePaths+len(changed) > MaxSelectionEvidencePaths {
+		s.evidenceExceeded, s.evidence, s.evidencePaths = true, map[string]*evidenceDiff{}, 0
+		return &evidenceDiff{}
+	}
+	s.evidencePaths += len(changed)
+	diff.ok = true
+	for _, p := range changed {
+		diff.set[p] = true
+		diff.global = diff.global || s.global(p)
+	}
+	diff.changedBy = changedUnits(s.in.Graph, changed)
+	return diff
+}
+
+// reachedSince memoizes per evidence commit until MaxSelectionEvidencePaths answers are cached in
+// total, then answers uncached; the changed-path set replaces reach's linear membership scan.
+func (s *e2eSelector) reachedSince(diff *evidenceDiff, p string) bool {
+	if in, ok := diff.reached[p]; ok {
+		return in
+	}
+	in := diff.set[p] || reach(s.in.Graph, diff.changedBy, nil, p) != nil
+	if s.reachMemo < MaxSelectionEvidencePaths {
+		diff.reached[p] = in
+		s.reachMemo++
+	}
+	return in
 }
 
 // fullSuite is every inventoried test plus every discovered test the inventory misses.

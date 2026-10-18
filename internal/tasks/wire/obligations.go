@@ -12,8 +12,9 @@ const (
 	ObligationsMaxPrefixBytes = 16
 	// ObligationsMaxIDDigits bounds the decimal suffix of an id (TOL-V0-003).
 	ObligationsMaxIDDigits = 6
-	// ObligationsMaxAliasBytes bounds an adopter alias (TOL-V0-034).
-	ObligationsMaxAliasBytes = 64
+	// ObligationsMaxAliasBytes bounds an adopter alias (TOL-V0-034, raised
+	// from 64 to 128 bytes by TOL-V0-055).
+	ObligationsMaxAliasBytes = 128
 )
 
 // ObligationAliasByte reports whether c is in the alias alphabet
@@ -22,11 +23,12 @@ func ObligationAliasByte(c byte) bool {
 	return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '.' || c == '_' || c == ':' || c == '-'
 }
 
-// ParseObligationAlias validates an adopter alias: 1..64 bytes of
-// [A-Za-z0-9._:-] that start and end with a letter or digit (TOL-V0-034).
+// ParseObligationAlias validates an adopter alias: 1..128 bytes of
+// [A-Za-z0-9._:-] that start and end with a letter or digit (TOL-V0-034,
+// TOL-V0-055). A length refusal names the limit and the alias length.
 func ParseObligationAlias(where, s string) (string, error) {
 	if s == "" || len(s) > ObligationsMaxAliasBytes {
-		return "", Errorf(CodeMalformed, where, "obligation alias must be 1..%d bytes", ObligationsMaxAliasBytes)
+		return "", Errorf(CodeMalformed, where, "obligation alias is %d bytes; the alias limit is 1..%d bytes", len(s), ObligationsMaxAliasBytes)
 	}
 	alnum := func(c byte) bool { return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' }
 	for i := 0; i < len(s); i++ {

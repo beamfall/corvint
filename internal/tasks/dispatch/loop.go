@@ -91,6 +91,9 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
+	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
+	// for each held ticket key, in memory only.
+	poolWaitEmitted map[string]string
 	// control, set only by OpenControlled, admits each new launch and
 	// pool sweep and sees every tick boundary.
 	control LaunchControl
@@ -1493,8 +1496,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	prefer := preferredRoles(relaunch)
 	spend := d.spendGate(now)
 	spend.holdDeferred(obs.Tickets, prefer)
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend)
+	room := newPoolRoom(obs, d.ledger.Workers)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room)
 	d.recordHeld(obs, held)
+	d.recordPoolWait(room)
 	// Holds are recorded after the launches, so a budget event counts them.
 	defer d.recordBudget(spend)
 	retried := map[string]bool{}
