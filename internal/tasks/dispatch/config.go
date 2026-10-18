@@ -1178,7 +1178,10 @@ func promptSafeHost(h Host, allowed map[string]bool) error {
 				return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
 			}
 		}
-		if err := argvCodeRisk(i, a); err != nil {
+		// The literal text alone is checked here: a placeholder name such as
+		// {ticketLocal} is not option text, and what it renders to is
+		// checked at launch by renderedArgvSafe.
+		if err := argvCodeRisk(i, placeholder.ReplaceAllString(a, "")); err != nil {
 			return err
 		}
 	}

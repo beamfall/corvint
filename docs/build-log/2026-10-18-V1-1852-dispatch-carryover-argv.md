@@ -21,6 +21,10 @@ check cannot see that. V1-1782 refused those placeholders outright, while its sp
   carry-over on. The interpreter and code-string checks run on the literal argv at load and again on
   each placeholder-bearing element as rendered at a carry-over launch. A failing launch proceeds
   without the block and alerts, so a ticket named `sh` loses carry-over, not its session.
+- **Literal text only at load.** The load check runs on each element with its placeholders removed,
+  so a placeholder name (the `c` and `e` in `{ticketLocal}`) is never read as option text:
+  `-t{ticketLocal}` loads, `-c{ticketLocal}` and `--eval={role}` are refused, and `-{ticketLocal}`
+  loads and is caught at launch when it renders `-ce`. Found by the review round on PR 1160.
 - **Still refused, by name:** `{prompt}` spliced into another element, no whole `{prompt}`, any
   placeholder in `argv[0]`, a literal interpreter, a literal code-string option, `{prompt}` in an
   activity path. `{operatorNote}` and `{detachedRun}` stay out of argv; the `{operatorNote}`

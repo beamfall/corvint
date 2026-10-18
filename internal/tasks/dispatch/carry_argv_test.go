@@ -29,6 +29,13 @@ func TestATRV0133_CarryOverHostArgvPlaceholders(t *testing.T) {
 		"argv0 template":   {[]string{"/opt/{role}/agent", "{prompt}"}, "argv element 0 holds the placeholder {role}"},
 		"interpreter":      {[]string{"/bin/sh", exe, "{prompt}"}, "runs the interpreter /bin/sh"},
 		"code option":      {[]string{exe, "-c", "{prompt}"}, "takes the code-string option -c"},
+		// Only the literal text is checked at load: a placeholder name is
+		// not option text, and its rendered value is checked at launch.
+		"option glued to placeholder":  {[]string{exe, "-t{ticketLocal}", "{prompt}"}, ""},
+		"bare dash placeholder":        {[]string{exe, "-{ticketLocal}", "{prompt}"}, ""},
+		"code option and placeholder":  {[]string{exe, "-c{ticketLocal}", "{prompt}"}, "takes the code-string option -c"},
+		"eval option with placeholder": {[]string{exe, "--eval={role}", "{prompt}"}, "takes the code-string option --eval="},
+		"interpreter in literal text":  {[]string{exe, "/usr/bin/{role}/python3", "{prompt}"}, "runs the interpreter /usr/bin//python3"},
 	} {
 		c := testConfig(t, "exit 0")
 		c.Hosts["sh"] = Host{Argv: tc.argv}
@@ -90,6 +97,7 @@ func TestATRV0133_LaunchRechecksRenderedArgv(t *testing.T) {
 	}{
 		{"title", "t1", []string{"--title", "lane {role} {ticketLocal} {worker}", "{prompt}"}, true},
 		{"interpreter", "sh", []string{"{ticketLocal}", "{prompt}"}, false},
+		{"code option", "ce", []string{"-{ticketLocal}", "{prompt}"}, false},
 	} {
 		q := &fakeQueue{}
 		c := testConfig(t, lastArgScript)

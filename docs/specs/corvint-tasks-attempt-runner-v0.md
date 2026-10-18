@@ -1045,9 +1045,10 @@ configuration check cannot see it. V1-1782 therefore refused those placeholders 
   store-derived ones included, alone or inside literal text. The configuration MUST still be refused,
   naming the shape, when `{prompt}` is spliced into another element (`splices {prompt} into argv
   element N`), when no element is a whole `{prompt}` (`never passes {prompt} as a whole argv
-  element`), when `argv[0]` holds any placeholder (`argv element 0 holds the placeholder P`), when a
-  literal element names an interpreter (`runs the interpreter X`) or is a code-string option (`takes
-  the code-string option X`), or when an activity path holds `{prompt}`. `{operatorNote}` and
+  element`), when `argv[0]` holds any placeholder (`argv element 0 holds the placeholder P`), when an
+  element's literal text, with its placeholders removed, names an interpreter (`runs the interpreter
+  X`) or is a code-string option (`takes the code-string option X`), so `-c{ticketLocal}` is refused
+  and `-t{ticketLocal}` is not, or when an activity path holds `{prompt}`. `{operatorNote}` and
   `{detachedRun}` stay refused in argv, and a role using `{operatorNote}` keeps the literal-argv rule
   of ON-V0-011. At each launch that would offer a carry-over block, the dispatcher MUST apply the
   interpreter and code-string checks to every placeholder-bearing element after `argv[0]` as
@@ -1079,9 +1080,10 @@ fails a script that only wanted the view; the item is still returned.
 
 Acceptance evidence: `TestATRV0133_CarryOverHostArgvPlaceholders` (accepted title, bare and
 store-valued shapes; each refused shape by its message; the operatorNote rule kept; the rendered
-check on `sh`, `python3.12`, `-ce`, `--eval` and a path to `node`) and
+check on `sh`, `python3.12`, `-ce`, `--eval` and a path to `node`; `-t{ticketLocal}` and
+`-{ticketLocal}` accepted at load, `-c{ticketLocal}` and `--eval={role}` refused) and
 `TestATRV0133_LaunchRechecksRenderedArgv` (a templated title carries the block; a ticket local of
-`sh` launches without it and alerts), with `TestATRV0110_CarryOverConfigDefaultsAndBounds` updated
+`sh`, or `-{ticketLocal}` rendering `-ce`, launches without it and alerts), with `TestATRV0110_CarryOverConfigDefaultsAndBounds` updated
 (`internal/tasks/dispatch`); `TestATRV0134_StatusFailsOnInvalidConfigFile` (exit 0 for a valid
 file; exit 1, `ERROR`, `MALFORMED`, the item and the named reason for an invalid one; the ATR-V0-135
 restart refusal with the ledger bytes unchanged), with `TestCALV0127_DispatchStatusWithInvalidConfigFile`,
