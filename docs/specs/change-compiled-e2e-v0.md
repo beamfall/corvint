@@ -226,12 +226,15 @@ is a later, separate decision that needs its own owner acceptance and the promot
   boundary, and MUST bind every run to a PWP receipt.
 - `CCE-V0-009`: The discrimination verdict MUST be the first of these that holds. "Head" and
   "base" name the application revision; the test revision is head on both sides (CCE-V0-017).
-  1. `INCONCLUSIVE` when any required run produced no qualified receipt, or a fixture cleanup
-     failed (reason `cleanup-failed`; a cleanup failure never counts as an assertion result).
+  1. `INCONCLUSIVE` when any required run produced no qualified receipt, when either pool is
+     empty or any repeat was skipped or did not finish, or when a fixture cleanup failed (reason
+     `cleanup-failed`; a cleanup failure never counts as an assertion result). Every later rung
+     therefore sees a complete pool on each side.
   2. `UNSTABLE` when PWR-V0 classifies the head pool `INTERMITTENT`.
   3. `REGRESSION_DETECTED` when every head repeat fails at the outcome assertion's own location and
      every base repeat passes: the change broke a declared outcome.
-  4. `SCENARIO_BROKEN` when any head repeat fails and 3 does not hold.
+  4. `SCENARIO_BROKEN` when any head repeat fails and 3 does not hold. From here on every head
+     repeat passed.
   5. `CONTROL_SURVIVED` when any required control (CCE-V0-018) applied at head reads `survived`.
   6. `INCONCLUSIVE` when any required control reads anything other than `killed` under
      BBF-V0-005/006 with its criterion, test, product and environment identities matched (for
@@ -254,19 +257,22 @@ is a later, separate decision that needs its own owner acceptance and the promot
   `DISCRIMINATES`, `NEW_REACH` or `PRESERVES` and its `oracle_origin` is `ADMITTED_AT_BASE`; a passing compiled scenario MUST NOT narrow, skip or replace any
   hosted test's selection in V0.
 - `CCE-V0-011`: `corvint-test e2e shadow --window FILE` MUST read a frozen shadow window (an ordered list
-  of merged-change base/head pairs, digest-pinned before the first run) and report, per change and
-  in total: obligations by state, scenarios by verdict and by `oracle_origin`, hosted affected
+  of typed entries, digest-pinned before the first run, as Shadow evaluation and retirement defines
+  the entry types and their revisions) and report, per entry and in total: obligations by state, scenarios by verdict and by `oracle_origin`, hosted affected
   tests run, seeded regressions (application-side mutants, Definitions) caught by each side, real
   hosted failures the compiled side missed (escapes), usefulness, and median and p95 wall-clock and
   CPU time of each side on the same host. The window MUST be refused unless its registration pins
-  the mutation operator set, the seed, the catalog digest and the compiler version. For a change
-  whose obligations read `UNKNOWN`, and for every scenario whose verdict is not one of
-  `DISCRIMINATES`, `NEW_REACH`, `REGRESSION_DETECTED` or `PRESERVES` (that is `INCOMPLETE`,
-  `INCONCLUSIVE`, `UNSTABLE`, `CONTROL_SURVIVED` or `SCENARIO_BROKEN`), the compiled side MUST be
-  counted as missing every seeded regression and every real failure the hosted side caught there.
-  Each counts as a miss in parity and as an escape. A scenario whose `oracle_origin` is not
-  `ADMITTED_AT_BASE` MUST NOT count as a catch. Every rate MUST print its numerator and denominator
-  and a one-sided 95% Clopper-Pearson bound.
+  the mutation operator set, the seed, the catalog digest and the compiler version. Catches are
+  counted per target identity (a seeded mutant's ID, or a real failure's hosted test and entry). A
+  compiled scenario is *eligible* when its unmutated verdict is `DISCRIMINATES`, `NEW_REACH`,
+  `REGRESSION_DETECTED` or `PRESERVES` and its `oracle_origin` is `ADMITTED_AT_BASE`. A seeded
+  mutant is caught by the compiled side when at least one eligible scenario of that entry passes on
+  the unmutated application and fails at its outcome assertion's location on the mutated one, in
+  every repeat; a real failure is caught when an eligible scenario reads `REGRESSION_DETECTED` for
+  it. Every target the hosted side caught and no eligible scenario caught is one miss and one escape,
+  counted once however many scenarios were non-scoring. For an entry whose obligations read
+  `UNKNOWN`, every target the hosted side caught there is a miss and an escape. Every rate MUST print
+  its numerator and denominator and the one-sided 95% Clopper-Pearson bound.
 - `CCE-V0-012`: A hosted test MAY be listed as a retirement candidate only when all of these hold
   over the shadow window:
   - every outcome it asserts is an admitted `outcome` block;
@@ -306,8 +312,11 @@ slice or the draft; the build-log entry gives the evidence.
   outcome, and the scenario certifies itself. Only `ADMITTED_AT_BASE` scenarios count toward
   CCE-V0-010 and CCE-V0-011/012 until a human acceptance record exists (V1-1683).
 - `CCE-V0-017`: `prove` MUST run the head test tree (the files of every admitted `page-object` and
-  `fixture` block the scenario uses, their transitive relative imports and the compiled scenario)
-  against both the head and the base application trees, and MUST record `application_revision`,
+  `fixture` block the scenario uses, their transitive relative imports, the compiled scenario, the
+  runner configuration, and the package manifest and lockfile that resolve the runner's
+  dependencies) against both the head and the base application trees. An import that does not
+  resolve inside that tree or the resolved dependencies MUST make the proof `INCONCLUSIVE` with
+  `test-tree-unresolved`. `prove` MUST record `application_revision`,
   `test_revision` and the test-tree digest for every run; the digest MUST be identical on both
   sides. A test-tree file that application code also imports MUST make the proof `INCONCLUSIVE`
   with `test-tree-overlaps-application`. Failure mode: the base run executes base page objects, so
@@ -345,9 +354,10 @@ slice or the draft; the build-log entry gives the evidence.
 - `CCE-V0-023`: Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the
   document was emitted and no other code applies; `1` refusal or usage error (no document, or a
   refusal document); `2` `prove` found at least one `REGRESSION_DETECTED`; `3` the document was
-  emitted but carries no usable signal: obligations `UNKNOWN`, compile `INCOMPLETE`, or any `prove`
-  verdict `INCONCLUSIVE`, `UNSTABLE`, `CONTROL_SURVIVED` or `SCENARIO_BROKEN`. Code `2` wins over
-  `3`. Failure mode: CI treats a broken or unproven scenario as green.
+  emitted but its signal is incomplete: obligations `UNKNOWN`, compile `INCOMPLETE`, a `prove`
+  report whose bound obligations read `UNKNOWN` or whose bound compile reads `INCOMPLETE` (whatever
+  its scenario verdicts), or any `prove` verdict `INCONCLUSIVE`, `UNSTABLE`, `CONTROL_SURVIVED` or
+  `SCENARIO_BROKEN`. Code `2` wins over `3`. Failure mode: CI treats a broken or unproven scenario as green.
 - `CCE-V0-024`: Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so a
   golden test fails when output bytes change without a version change; an outcome whose value is
   empty MUST be unadmitted with `outcome-vacuous`; the secret screen MUST run per block over input
@@ -362,10 +372,19 @@ slice or the draft; the build-log entry gives the evidence.
 
 The frozen V0 gate values, which only an owner decision may change:
 
-- the window holds at least 30 changes, chosen and digest-pinned before any compiled run, of which at
-  least 10 are bug-fix pairs (a fix commit whose parent fails a hosted test that the fix makes
-  pass, run with the parent as head so a real failure exists to catch) and any red-CI heads in the
-  period; merged changes alone make the escape criterion vacuous;
+- the window holds at least 30 entries, chosen and digest-pinned before any compiled run. Each entry
+  is one of three types, and merged changes alone would make the escape criterion vacuous:
+  - `merged`: application base is the merge's first parent, application head is the merge, and the
+    test revision is the head;
+  - `bug-fix`: for a fix commit F whose parent P fails a hosted test present at P that passes at F,
+    the application base is F, the application head is P (the reverse diff reintroduces the bug),
+    the test revision is F on both sides and for both suites, and outcomes admitted at F count as
+    `ADMITTED_AT_BASE`; the real failures are the hosted tests that fail at P and pass at F;
+  - `red-ci`: a commit whose hosted CI failed, with the application base at its merge base with the
+    main line and the test revision at the base, so a change cannot rewrite the oracle that judges
+    it; the real failures are the hosted tests that fail at head and pass at base.
+
+  At least 10 entries are `bug-fix`, and every `red-ci` commit in the period is included;
 - seeded regressions are preregistered application-side mutants: the operator set, seed, catalog
   digest and compiler version are frozen at registration, and the same mutants apply to both sides;
 - seeded-regression parity: per retirement candidate, the compiled side catches 100% of the seeded
@@ -374,10 +393,14 @@ The frozen V0 gate values, which only an owner decision may change:
 - escapes: zero real hosted failures the compiled side missed for that candidate;
 - candidate evidence: the candidate ran in at least 5 window changes and caught at least 1 seeded
   regression;
-- statistical bound (proposed, owner question 4): the Holm-corrected one-sided 95% Clopper-Pearson
-  upper bound on the compiled miss rate per candidate is at most 5%. With zero misses that needs at
-  least 59 caught seeded regressions for that candidate; one caught regression bounds the miss rate
-  only below 95%;
+- statistical bound (proposed, owner question 4): the sampling unit is a seeded mutant the hosted
+  candidate caught, and the hypothesis family is every candidate considered in the window. For each
+  candidate, H0 is "the compiled miss rate is above 5%", tested by the exact one-sided binomial
+  test; Holm orders the m candidates by p-value and compares the k-th smallest with 0.05/(m-k+1).
+  A candidate qualifies only when its hypothesis is rejected. With zero misses and no correction
+  that needs at least 59 caught mutants (0.95^59 is about 0.049); the first Holm step for m
+  candidates needs n with 0.95^n at most 0.05/m, so 72 for m = 2. Mutants of one entry are not
+  independent, so the report also gives the bound with entries as the unit;
 - a development window used to tune the compiler is never reused as the held-out shadow window.
 
 A failed shadow evaluation stays recorded as failed; it is not renamed development progress.
@@ -404,7 +427,9 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 - Compiled scenarios are generated code run against the user's application. They contain only
   admitted block text, so they add no code path a hosted block does not already contain.
 - Limits: at most 64 obligations per compile, 16 scenarios proven per run, 100 repeats per side,
-  one worker; each limit refuses with a named code when exceeded rather than sampling.
+  one worker; each limit refuses with a named code when exceeded rather than sampling, except the
+  obligation limit, which under CCE-V0-019 reads `UNKNOWN` with `fan-out-over-limit` instead. The
+  first slice's `e2e-obligations-over-limit` refusal is superseded once V1-1678 lands.
 - Fail-closed choices: unknown reach reads `UNKNOWN` (never `NONE`); a missing block reads
   `INCOMPLETE`; a missing receipt reads `INCONCLUSIVE`; none of these narrows hosted selection.
 - Secrets: `input` and `outcome` values pass the existing secret screen per block; a matching block
@@ -447,10 +472,10 @@ of the named ticket.
 |---|---|---|---|
 | CCE-V0-003 (`environment`, `reach_exempt`), 021 | declarations golden with both members; unknown members refuse; `serve` without a shell; failed `ready` reads `INCONCLUSIVE` | V1-1681, V1-1678 | NOT_STARTED |
 | CCE-V0-009 (amended), 017, 018 | offline fake-runner tests per ladder verdict; identical test-tree digest across sides; overlap reads `INCONCLUSIVE`; each structure control killed on the fixture | V1-1679, V1-1687 | NOT_STARTED |
-| CCE-V0-011, 012 (amended) | synthetic window: registration refusal, non-scoring verdicts counted as misses, bounds and Holm correction against a reference computation | V1-1682 | NOT_STARTED |
+| CCE-V0-011, 012 (amended) | synthetic window with each entry type: registration refusal, a mutant caught by one eligible scenario beside a broken one counts once as caught, an uncaught target counts once as a miss, bounds and Holm correction against a reference computation | V1-1682 | NOT_STARTED |
 | CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | NOT_STARTED |
 | CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | NOT_STARTED |
-| CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code | V1-1681 | NOT_STARTED |
+| CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code, including a `prove` report with passing verdicts over `UNKNOWN` obligations exiting 3 | V1-1681 | NOT_STARTED |
 | CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | NOT_STARTED |
 
 Before more V0 build, spike V1-1677 replays 10 historical bug-fix commits of a real Playwright

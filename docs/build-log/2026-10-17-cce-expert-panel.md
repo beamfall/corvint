@@ -18,9 +18,12 @@ lines below.
 ## Verified findings in the first slice
 
 - Obligations: `obligations.go:74` builds the catalog only at head; `obligations.go:161-168` derive
-  the overall state only from the counts of unknown spans and obligations. Nothing reads the map's
-  unknowns or the impact relation's omissions, so a reached screen without a declared flow, a map
-  unknown, or a truncated impact set reads `NONE`, and removals are invisible.
+  the overall state only from the counts of unknown spans and obligations. Impact unknowns and
+  unplaced changed paths are kept as unknown spans (`obligations.go:92-118`), but a changed path that
+  impact places on a screen with no flow step is accounted for and yields no obligation, so a diff of
+  only such paths reads `NONE`. The catalog's own map unknowns and the impact relation's omissions
+  are never read, and no base map is joined, so a screen, flow or outcome the diff removes leaves no
+  trace. (Codex corrected the first wording of this finding.)
 - Proof: `prove.go:356-368` stages the whole revision, so the base run executes base page objects
   and fixtures; `prove.go:586-593` returns `FAILS_AT_HEAD` before reading base; the two BBF-V0
   controls edit only the assertion template, so they are killed by construction.
@@ -57,6 +60,17 @@ lines below.
 
 Tickets: V1-1677 (spike), V1-1678..V1-1682 and V1-1687 (V0 work, now dependencies of umbrella
 V1-1666), V1-1683..V1-1686 (V1 and later roadmap). Owner questions 6..8 were added to the spec.
+
+## Independent review
+
+One read-only Codex round on the amendment returned eight findings, all confirmed and fixed here:
+shadow catches are now counted once per target identity across eligible scenarios; a `prove`
+report bound to `UNKNOWN` or `INCOMPLETE` inputs exits 3; the positive ladder rungs need a complete,
+all-passing head pool; the Holm family, test and sample sizes are stated (59 unadjusted, 72 for the
+first step with two candidates) with entries as a second unit; the shadow window has three typed
+entries with explicit application and test revisions; obligation overflow is exempt from the
+refuse-on-limit rule; the test tree includes runner configuration and dependency resolution; and the
+obligations finding above was corrected.
 
 ## Not done
 
