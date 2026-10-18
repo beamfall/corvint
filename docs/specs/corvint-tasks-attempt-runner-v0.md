@@ -676,21 +676,28 @@ its recorded identity, started nothing, and the attach loop then reported the ex
 In the window before the release, the same repeat returned the kept `LOCK_TIMEOUT` instead. Intent:
 the relaunch does not depend on how fast the finished child leaves.
 
-- `ATR-V0-095`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1671) This
-  refines ATR-V0-066. A repeat `--detach` that finds a kept `LOCK_TIMEOUT` MUST wait up to the
-  launch-lock bound (10 seconds) for the record's running lock, since a child holding it beside a
-  kept result is only finishing, and MUST move the result to `result.1.json` while it holds that
-  lock. Having moved it, the launcher MUST start a new child without consulting the recorded
-  child's process liveness (ATR-V0-027): that child released the running lock after keeping the
-  result and only exits. When the running lock is still held at the bound, the kept result is
-  returned as before.
+- `ATR-V0-095`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1671; amended
+  in place after review, 2026-10-18, so the wait is bounded by the caller's `--wait`) This
+  refines ATR-V0-066. A repeat `--detach` that finds a kept `LOCK_TIMEOUT` MUST wait for the
+  record's running lock, since a child holding it beside a kept result is only finishing, up to
+  the launch-lock bound (10 seconds) or the end of the caller's `--wait`, whichever comes first,
+  and MUST move the result to `result.1.json` while it holds that lock. One deadline, set when the
+  command starts, covers this wait and the wait for the result, so ATR-V0-024 holds: `--wait 0`
+  or no `--wait` tries the running lock once and returns at once, and `--wait N` returns within
+  N seconds plus its margins. Having moved the result, the launcher MUST start a new child
+  without consulting the recorded child's process liveness (ATR-V0-027): that child released the
+  running lock after keeping the result and only exits. When the running lock is still held at
+  the bound, nothing is moved or started and the kept `LOCK_TIMEOUT` is returned verbatim; the
+  caller repeats `--detach`, with a `--wait` that leaves the child time to finish.
 
 Non-goals: a change to `--attach`, to the LOST classification of a child that ended without a
 result, or to the 600-second ceiling; a new wire code or record; waiting for the old process to
 be reaped.
 
-Failure modes: a child that holds the running lock beside a kept result for longer than 10 seconds
-leaves the kept `LOCK_TIMEOUT` as the answer, and the caller repeats `--detach`. A child started by
+Failure modes: a child that holds the running lock beside a kept result for longer than 10 seconds,
+or past the caller's `--wait`, leaves the kept `LOCK_TIMEOUT` as the answer, and the caller repeats
+`--detach`. A concurrent launcher of the same record still waits up to 10 seconds for the launch
+lock, outside the caller's `--wait`, as before this requirement. A child started by
 a launcher that died before recording it may still take the running lock after the move and run
 the request; the new child then exits without a result, and the store's request-ID replay keeps
 the mutation exactly once, as under ATR-V0-021.
@@ -700,7 +707,10 @@ the running lock for 300 ms and stays visible under its recorded identity; the r
 relaunches and claims, and the first result is kept as `result.1.json`; without ATR-V0-095 it
 returns the kept `LOCK_TIMEOUT`), and `TestPSRV0111_CeilingRelaunchesOnSameRequestID` passing
 `-count=50` beside 16 CPU-bound processes (50 of 50; the base failed 8 of 50 with
-`SUPERVISOR_LOST`) (`internal/tasks/cli`). Before the change, a 500 ms delay injected
+`SUPERVISOR_LOST`), and `TestATRV0095_RunningWaitIsBoundedByWait` (while the running lock is
+held, `--wait 0` and no `--wait` return the kept `LOCK_TIMEOUT` at once and `--wait 1` within its
+bound, with no `result.1.json`; once it frees, the same `--detach` relaunches; before the review
+fix `--wait 0` returned after 10 seconds) (`internal/tasks/cli`). Before the change, a 500 ms delay injected
 after the child's running-lock release reproduced the CI `SUPERVISOR_LOST` in 3 of 3 runs; after
 it, the same injection and a 500 ms delay before the release both pass.
 
@@ -918,4 +928,4 @@ receipt or wire shape changes.
 | ATR-V0-063 | `internal/tasks/dispatch/host_sleep.go` (`noteHostSleep`), `internal/tasks/dispatch/loop.go` (`tick`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged`, `TestATRV0063_RecordVersions` (`internal/tasks/dispatch`) |
 | ATR-V0-064 | `internal/tasks/dispatch/host_sleep.go` (`slept`), `internal/tasks/dispatch/loop.go` (caps, `reapRunningExpired`), `internal/tasks/dispatch/keeper.go` | `TestATRV0063_SuspendIsRecordedAndExcludedFromTimers`, `TestATRV0063_NoGapLeavesTimersUnchanged` (`internal/tasks/dispatch`) |
 | ATR-V0-065 | `internal/tasks/cli/dispatch.go` (`dispatchHostSleepValue`) | `TestATRV0065_DispatchStatusShowsLastHostSleep` (`internal/tasks/cli`) |
-| ATR-V0-095 | `internal/tasks/cli/lease_detach.go` (`leaseDetachKept`, `leaseDetachLaunch`) | `TestATRV0095_RelaunchWaitsOutTheFinishingChild`, `TestPSRV0111_CeilingRelaunchesOnSameRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-18-v1-1671-detach-relaunch-race.md` |
+| ATR-V0-095 | `internal/tasks/cli/lease_detach.go` (`leaseDetachKept`, `leaseDetachLaunch`) | `TestATRV0095_RelaunchWaitsOutTheFinishingChild`, `TestATRV0095_RunningWaitIsBoundedByWait`, `TestPSRV0111_CeilingRelaunchesOnSameRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-18-v1-1671-detach-relaunch-race.md` |

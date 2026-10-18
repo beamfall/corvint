@@ -50,3 +50,28 @@ the recorded state would have hidden a race that any caller can hit.
   passed 50 of 50 each (base: 42 of 50).
 
 Rollback: revert the commit. Records and wire shapes are unchanged.
+
+## Review fix
+
+Codex review of PR #1095 (head `a2f91ff20`) raised two P2 findings, both fixed in an added commit:
+
+1. The relaunch's running-lock wait always used 10 s, and the `--wait` deadline only started after
+   it, so `--detach --wait 0` could block about 10 s, against ATR-V0-024. One deadline, set when
+   the command starts, now bounds both the running-lock wait (at most 10 s, never past the
+   caller's `--wait`) and the wait for the result. When it expires with the lock still held,
+   nothing is moved or started and the kept `LOCK_TIMEOUT` answers verbatim. ATR-V0-095 is amended
+   in place to say so, under the same standing auto-accept (2026-10-11); ATR-V0-024 is unchanged.
+   `TestATRV0095_RunningWaitIsBoundedByWait` holds the running lock and checks that `--wait 0` and
+   no `--wait` return the kept result at once and `--wait 1` within its bound, with no
+   `result.1.json`, then that the same `--detach` relaunches once the lock frees. On the previous
+   head it fails: `--wait 0` returned after 10.0 s.
+2. `TestATRV0095_RelaunchWaitsOutTheFinishingChild` took the running lock with one nonblocking
+   `flock` right after the first `--detach` returned, racing the real child's deferred unlock. It
+   now acquires the lock with a bounded retry (10 s deadline, `acquireRunning`) before holding it.
+
+A concurrent launcher of the same record still waits up to 10 s for the launch lock outside the
+caller's `--wait`; this predates ATR-V0-095 and is left as a residual.
+
+Evidence: under `heavy.sh`, `-count=20` of `TestPSRV0111_CeilingRelaunchesOnSameRequestID` and both
+`TestATRV0095_` tests passed 60 of 60; the focused detach set (ATR-V0-021, 023, 024, 066, 095,
+PSR-V0-111) passed.

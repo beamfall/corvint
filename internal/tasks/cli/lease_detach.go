@@ -264,11 +264,14 @@ func leaseDetach(env Env, name string, args []string) int {
 	}
 	dir := leaseDetachDir(repo, requestID)
 	want := leaseDetachRecord{Profile: leaseDetachProfile, Command: name, RequestID: requestID, Holder: holder, ArgvSha256: leaseDetachArgvDigest(name, m.rest)}
+	// One deadline bounds both the relaunch's wait for a finishing child
+	// and the wait for the result (ATR-V0-024, ATR-V0-095).
+	deadline := time.Now().Add(time.Duration(max(m.wait, 0)) * time.Second)
 	switch {
 	case m.child:
 		return leaseDetachRunChild(env, name, dir, want, m.rest)
 	case m.detach:
-		if res := leaseDetachLaunch(env, name, dir, want, m.rest); res != nil {
+		if res := leaseDetachLaunch(env, name, dir, want, m.rest, deadline); res != nil {
 			return emit(env.Stdout, res)
 		}
 	default:
@@ -281,7 +284,7 @@ func leaseDetach(env Env, name string, args []string) int {
 			return emit(env.Stdout, leaseDetachConflict(cmd, requestID))
 		}
 	}
-	return leaseDetachAwait(env, name, dir, requestID, holder, m.wait)
+	return leaseDetachAwait(env, name, dir, requestID, holder, deadline)
 }
 
 func leaseDetachConflict(cmd []string, requestID string) *wire.Result {
@@ -290,8 +293,8 @@ func leaseDetachConflict(cmd []string, requestID string) *wire.Result {
 
 // leaseDetachLaunch records the request and starts its child unless a live
 // child or a kept result already answers it (ATR-V0-021). It returns nil
-// when the caller should wait for the result.
-func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest []string) *wire.Result {
+// when the caller should wait for the result until deadline.
+func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest []string, deadline time.Time) *wire.Result {
 	cmd := strings.Fields(name)
 	base := filepath.Dir(dir)
 	if err := os.MkdirAll(base, 0o700); err != nil {
@@ -317,7 +320,7 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	case rec != want:
 		return leaseDetachConflict(cmd, want.RequestID)
 	}
-	kept, retried, err := leaseDetachKept(dir)
+	kept, retried, err := leaseDetachKept(dir, min(leaseDetachLockBound, time.Until(deadline)))
 	switch {
 	case err != nil:
 		return errorResult(cmd, err)
@@ -382,8 +385,10 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 // runs again under the same request id; the store's request-ID replay keeps
 // the mutation exactly once (ATR-V0-066). A child that holds the running
 // lock beside a kept result is only finishing, so the launcher waits up to
-// leaseDetachLockBound for it (ATR-V0-095). retried reports the move.
-func leaseDetachKept(dir string) (kept, retried bool, err error) {
+// bound for it: leaseDetachLockBound or less when the caller's --wait ends
+// sooner. While it is still held at the bound the kept result answers
+// (ATR-V0-095, ATR-V0-024). retried reports the move.
+func leaseDetachKept(dir string, bound time.Duration) (kept, retried bool, err error) {
 	p := filepath.Join(dir, leaseDetachResultName)
 	raw, err := readBounded(p, maxLeaseDetachResult)
 	switch {
@@ -396,7 +401,7 @@ func leaseDetachKept(dir string) (kept, retried bool, err error) {
 	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) {
 		return true, false, nil
 	}
-	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), leaseDetachLockBound)
+	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), max(bound, 0))
 	if err != nil {
 		return true, false, nil
 	}
@@ -493,11 +498,10 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 }
 
 // leaseDetachAwait answers from the kept result, or reports PENDING or LOST,
-// waiting up to wait seconds for the result (ATR-V0-022, ATR-V0-024). It
-// only reads.
-func leaseDetachAwait(env Env, name, dir, requestID, holder string, wait int) int {
+// waiting until deadline for the result (ATR-V0-022, ATR-V0-024). It only
+// reads.
+func leaseDetachAwait(env Env, name, dir, requestID, holder string, deadline time.Time) int {
 	cmd := strings.Fields(name)
-	deadline := time.Now().Add(time.Duration(max(wait, 0)) * time.Second)
 	for {
 		raw, err := readBounded(filepath.Join(dir, leaseDetachResultName), maxLeaseDetachResult)
 		if err == nil {

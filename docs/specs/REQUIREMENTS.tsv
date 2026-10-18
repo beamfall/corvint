@@ -470,7 +470,7 @@ ATR-V0-063	docs/specs/corvint-tasks-attempt-runner-v0.md	632	(accepted under the
 ATR-V0-064	docs/specs/corvint-tasks-attempt-runner-v0.md	641	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time	standing	2026-10-11; V1-1597
 ATR-V0-065	docs/specs/corvint-tasks-attempt-runner-v0.md	646	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatc	standing	2026-10-11; V1-1597
 ATR-V0-066	docs/specs/corvint-tasks-attempt-runner-v0.md	430	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A kept	standing	2026-10-11; V1-1558
-ATR-V0-095	docs/specs/corvint-tasks-attempt-runner-v0.md	679	(accepted under the owner's standing auto-accept (2026-10-11), V1-1671) This	standing	2026-10-11; V1-1671
+ATR-V0-095	docs/specs/corvint-tasks-attempt-runner-v0.md	679	(accepted under the owner's standing auto-accept (2026-10-11), V1-1671; amended	standing	2026-10-11; V1-1671
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,	unrecorded	-
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio	unrecorded	-
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,	unrecorded	-
