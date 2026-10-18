@@ -988,7 +988,7 @@ func optionalProse(s string) wire.Value {
 
 // repeatFailures refuses LOOP_DETECTED when at least two earlier batch
 // summaries of this ticket in the results directory, at the same fixture
-// digest, record one in-scope OPEN, DEFECT or BLOCKED obligation as FAILED
+// digest, record one in-scope OPEN, PARTIAL, DEFECT or BLOCKED obligation as FAILED
 // with the same error line (TOL-V0-031).
 func repeatFailures(out, ticketID, fixture string, l *ticket.ObligationLedger, ids []string) error {
 	entries, err := os.ReadDir(out)
@@ -1034,7 +1034,7 @@ func repeatFailures(out, ticketID, fixture string, l *ticket.ObligationLedger, i
 		if len(runs) < 2 || e == nil || (ids != nil && !slices.Contains(ids, k.id)) {
 			continue
 		}
-		if e.State != ticket.ObligationOpen && e.State != ticket.ObligationDefect && e.State != ticket.ObligationBlocked {
+		if !ticket.ObligationPending(e.State) {
 			continue
 		}
 		sort.Strings(runs)

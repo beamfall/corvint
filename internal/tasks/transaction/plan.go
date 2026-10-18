@@ -58,6 +58,11 @@ type PlanInput struct {
 	// holds: an otherwise plannable entry among them is deferred as
 	// BUDGET_HELD before it can use the window (CAL-V0-155).
 	BudgetHeld map[string]bool
+	// Now, when set, makes a --pool plan honour that pool's live waitlist
+	// at Now (PSR-V0-132): an entry the waitlist would refuse is deferred
+	// naming the head waiter, and priority admission disregards the
+	// competitors the waitlist makes yield. Empty plans as before.
+	Now wire.Timestamp
 }
 
 // PlanEntry is one planned ticket. Resources are what a claim of it would
@@ -129,14 +134,20 @@ func PriorityFirst(in PlanInput) TicketPlan {
 	// waits holds each opted-in pool's admission order, so every entry's
 	// waiting list is priorityWaiting (CAL-V0-101, CAL-V0-108).
 	waits := newAdmissionWaits(in)
+	// live is the claimed pool's waitlist at in.Now (PSR-V0-132).
+	live := planWaitlist(in)
 	for _, rec := range planTickets(in.Tickets) {
 		e := planEntry(in, rec)
 		if e.State == "" && in.WorkStateHeld[rec.TicketID.Raw] {
 			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonWorkStateHeld, []string{PlanReasonWorkStateHeld}
 		} else if e.State == "" && in.BudgetHeld[rec.TicketID.Raw] {
 			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonBudgetHeld, []string{PlanReasonBudgetHeld}
-		} else if e.State == "" {
-			e = choose(in, e, selected, waits.of(in, rec))
+		} else if e.State == "" && !waitlistDefers(in, live, &e, selected) {
+			waiting := waits.of(in, rec)
+			if live != nil && waiting != nil {
+				waiting[in.Pool] = waitlistYielders(live, in.Pool, rec, in.Tickets, waiting[in.Pool])
+			}
+			e = choose(in, e, selected, waiting)
 		}
 		if e.State == PlanSelected {
 			selected = append(selected, e)
@@ -145,6 +156,29 @@ func PriorityFirst(in PlanInput) TicketPlan {
 	}
 	plan.Pools = poolSelections(in, plan.Entries)
 	return plan
+}
+
+// waitlistDefers defers e, naming the head waiter, when the claimed pool's
+// live waitlist would refuse its claim (PSR-V0-132): the waiters ahead of it
+// that are not yet selected number at least the members the earlier
+// selections leave free. The first selection is then exactly the ticket an
+// explicit claim would admit.
+func waitlistDefers(in PlanInput, live []snapshot.PoolWaiter, e *PlanEntry, selected []PlanEntry) bool {
+	if len(live) == 0 {
+		return false
+	}
+	free := poolSlots(in) - len(selected)
+	ahead := []snapshot.PoolWaiter{}
+	for _, w := range waitlistAhead(live, in.Pool, e.Ticket) {
+		if !slices.ContainsFunc(selected, func(s PlanEntry) bool { return s.Ticket.TicketID.Raw == w.TicketID }) {
+			ahead = append(ahead, w)
+		}
+	}
+	if free <= 0 || len(ahead) == 0 || len(ahead) < free {
+		return false
+	}
+	e.State, e.Reason, e.Blockers, e.Detail = PlanDeferred, wire.CodeResourceCollision, []string{ahead[0].TicketID}, waitlistDetail(in.Pool, free, ahead)
+	return true
 }
 
 // poolSelections summarizes a default plan by required pool (CAL-V0-097).

@@ -63,7 +63,7 @@ func TestTOLV0034_SeedWithAliases(t *testing.T) {
 			t.Fatalf("aliases %v, want %v", got, want)
 		}
 	}
-	bad := []string{"M003.", "-M003", "M 003", "M003/x", strings.Repeat("M", 65)}
+	bad := []string{"M003.", "-M003", "M 003", "M003/x", strings.Repeat("M", 129)}
 	for i, alias := range bad {
 		rev := obligationRevision(t, r.Root, id)
 		x := atm(t, r.Root, nil, "ticket", "obligations", "seed", "--target", id, "--expected-revision", rev,

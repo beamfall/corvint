@@ -727,12 +727,13 @@ HEAD or source drift. It runs nothing; the listing stays caller-declared evidenc
 --selection-profile e2e-safe reads one repository-relative
 application-flow-selection-provider/1 FILE (flows directory, runner config,
 discovery record, global paths, E2E inventory, per-flow coverage tiers and a
-coverage file) and writes an e2e-safe-selection/0 advice.test_selection. It
+coverage file) and writes an e2e-safe-selection/1 advice.test_selection. It
 selects every test whose file changed or that is linked to, reaches, or covers
 the change, and omits a test only with a reviewed-links or coverage exclusion
-proof. A global path change, missing or mismatched discovery, an inventory gap,
-or any unproven exclusion yields the full relevant suite with closed e2e-*
-codes. The strict and coverage profiles are unchanged.
+proof, named by digest and stated once in proofs. A global path change, missing
+or mismatched discovery, an inventory gap, any unproven exclusion, or more than
+16,384 tests or 65,536 paths in a list yields the full relevant suite with
+closed e2e-* codes. The strict and coverage profiles are unchanged.
 
 --appmap-impact (up to 16, experimental ANL-V0-031, ANL-V0-034) reads complete
 application-map-impact/0 reports built for --base at HEAD and adds the learned
