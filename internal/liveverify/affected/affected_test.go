@@ -484,6 +484,15 @@ func TestReaderWitnessIsTheSmallestNamingDirtyPath(t *testing.T) {
 	}
 }
 
+// AFP-V0-072: a non-Go unit keeps the file-name relation, because its tests'
+// working directory is unknown.
+func TestNonGoFileNameReaderIsNotNarrowed_AFPV0072(t *testing.T) {
+	plan := readerPlan(t, []string{"README.md"}, nil, false, "docs/specs/README.md")
+	if got := witnesses(plan)["x:solo"]; got.Kind != WitnessPathLiteralReader || got.DirtyPath != "docs/specs/README.md" {
+		t.Fatalf("selected=%+v", plan.Selected)
+	}
+}
+
 // AFP-V0-021: a unit the dependency walk reached keeps that witness.
 func TestReaderReachedByDependencyKeepsItsDependencyWitness(t *testing.T) {
 	plan := readerPlan(t, nil, []string{"notes.md"}, false, "core.x", "notes.md")

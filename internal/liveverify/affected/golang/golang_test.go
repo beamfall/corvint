@@ -550,6 +550,45 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 	}
 }
 
+// AFP-V0-072 (V1-1806): a Go unit that names a dirty path only by an
+// unanchored lone file name, such as a fixture's README.md under t.TempDir(),
+// is a reader only when the path is in its own subtree or every directory
+// component of the path is a whole component of one of its tokens. A token
+// that places a directory (a multi-component run, an anchored token) keeps the
+// component-run relation.
+func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                      "module example.test/m\n",
+		"tempfixture/fixture_test.go": "package tempfixture\n\nimport (\n\t\"path/filepath\"\n\t\"testing\"\n)\n\nfunc TestFixture(t *testing.T) { _ = filepath.Join(t.TempDir(), \"README.md\") }\n",
+		"joined/joined.go":            "package joined\n\nimport \"path/filepath\"\n\nfunc Index(root string) string { return filepath.Join(root, \"docs\", \"specs\", \"README.md\") }\n",
+		"joined/joined_test.go":       "package joined\n",
+		"multi/multi_test.go":         "package multi\n\nvar index = \"specs/README.md\"\n",
+		"anchored/anchored.go":        "package anchored\n\nfunc Readme(root string) string { return root + \"/README.md\" }\n",
+		"anchored/anchored_test.go":   "package anchored\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		// The PR #1134 shape: a spec index edit no longer selects the fixture.
+		{"docs/specs/README.md", "[anchored/anchored_test.go joined/joined_test.go multi/multi_test.go]"},
+		// The unit's own subtree, where its tests run, keeps the fixture.
+		{"tempfixture/testdata/README.md", "[anchored/anchored_test.go tempfixture/fixture_test.go]"},
+		// A root-level file has no directory to place.
+		{"README.md", "[anchored/anchored_test.go joined/joined_test.go tempfixture/fixture_test.go]"},
+		// Every directory component is in the vocabulary of joined only.
+		{"docs/README.md", "[anchored/anchored_test.go joined/joined_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}
+
 // V1-0289: every build variant's imports are edges, so a constrained file
 // raises a frontier on its own package only, named by a plan that reaches it.
 func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {

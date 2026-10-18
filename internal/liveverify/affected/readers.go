@@ -13,7 +13,10 @@ import (
 // that trusted build, and this package cannot import a main package. One rule
 // is narrower here than rule (c): an unanchored lone component names a file
 // name only (namesPath, V1-0290). The CEM sidecar narrowing of rule (c)
-// (resolvingReaders, resolvesWithin, rootAnchors) is mirrored by resolves.
+// (resolvingReaders, resolvesWithin, rootAnchors) is mirrored by resolves. A
+// second narrowing exists only here: a Go unit that names a dirty path by
+// such a file name alone must also place the path (namesFileOnlyWithin,
+// AFP-V0-072).
 
 // ChangeEvidencePath is the CEM 0.2 sidecar (frontier.ExcludedPath). Its
 // readers are narrowed to the units whose token resolves to it, as the gate's
@@ -147,18 +150,22 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 }
 
 // resolves reports whether unit id can read dirtyPath by one of its tokens.
-// Any path but the CEM sidecar keeps the component-run relation. For the
-// sidecar, a Go unit's token must resolve against the unit's directory, or
-// against the repository root when a parent-only or anchored token of the unit
-// could put it there, to the sidecar or one of its ancestors. An anchored token
-// always resolves: it is anchored at its module's directory, which this graph
-// does not record, so narrowing it could drop a real reader.
+// A non-Go unit keeps the component-run relation: a shell or other test's
+// working directory is unknown. For the CEM sidecar, a Go unit's token must
+// resolve against the unit's directory, or against the repository root when a
+// parent-only or anchored token of the unit could put it there, to the sidecar
+// or one of its ancestors. An anchored token always resolves: it is anchored at
+// its module's directory, which this graph does not record, so narrowing it
+// could drop a real reader. For any other path see namesFileOnlyWithin.
 func (graph *Graph) resolves(id, dirtyPath string) bool {
-	unit := graph.units[id]
-	if dirtyPath != ChangeEvidencePath || !strings.HasPrefix(id, "go:") {
+	if !strings.HasPrefix(id, "go:") {
 		return true
 	}
+	unit := graph.units[id]
 	directory := relativeDirectory(append(append([]string(nil), unit.Sources...), unit.Tests...)[0])
+	if dirtyPath != ChangeEvidencePath {
+		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath)
+	}
 	anchored := rootAnchored(unit.PathTokens)
 	parts := strings.Split(dirtyPath, "/")
 	for _, value := range unit.PathTokens {
@@ -170,6 +177,53 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 		}
 	}
 	return false
+}
+
+// namesFileOnlyWithin reports whether a Go unit in directory whose tokens name
+// dirtyPath can reach it (AFP-V0-072). A token that names it by a run that
+// places a directory (a multi-component run, or any run of an anchored or
+// climbing token) keeps the component-run relation. When only unanchored lone
+// tokens name it by its file name (V1-0290), the unit reaches it only in its
+// own subtree, where its tests run, or when every directory component of the
+// path is a whole component of one of its tokens, so a literal could join it.
+// Any other way to the repository goes through a root-locating call or a
+// climbing literal, which select the unit as an unbounded reader (rule (d)),
+// or through a root supplied at run time, which no literal index bounds.
+func namesFileOnlyWithin(directory string, tokens []string, dirtyPath string) bool {
+	if directory == "." || strings.HasPrefix(dirtyPath, directory+"/") {
+		return true
+	}
+	parts := strings.Split(dirtyPath, "/")
+	for _, value := range tokens {
+		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
+			if namesPath(value, parts) {
+				return true
+			}
+			continue
+		}
+		for _, candidate := range componentRuns(value) {
+			if len(candidate.components) < 2 {
+				continue
+			}
+			for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
+				if candidate.matchesAt(parts[offset:]) {
+					return true
+				}
+			}
+		}
+	}
+	vocabulary := make(map[string]bool)
+	for _, value := range tokens {
+		for _, component := range strings.Split(value, "/") {
+			vocabulary[component] = true
+		}
+	}
+	for _, component := range parts[:len(parts)-1] {
+		if !vocabulary[component] {
+			return false
+		}
+	}
+	return true
 }
 
 // rootAnchored reports a token that could put an adjacent fragment at the
