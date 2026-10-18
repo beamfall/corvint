@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123 and V1-1784 / GitHub #1124 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
-- Claim: Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines, with advisory rules, and lists candidate duplicate tests.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769)/experimental
-- Exists: `internal/testsource`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
-- Blocked on: an MCP tool for setup-select, a preflight lint hookup and showing advisory findings in a run receipt are not built; real-suite qualification is NOT_RUN.
+- Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
+- Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a CLI or preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
 ## User and verified baseline
@@ -316,6 +316,143 @@ The manager pair is `AUTHORIZED`, the 403-asserting test is `EXEMPT`, and each c
 has its own case. No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testsource/actor_auth*.go` and this section; nothing is persisted.
 
+### Static test-validity rules (V1-1783, V1-1784)
+
+Tickets V1-1783 (GitHub #1123) and V1-1784 (GitHub #1124). Two rules read committed test source
+and report a test whose passing or skipped result proves nothing. The finding vocabulary
+(`testvalidity.SourceFinding`, the rule IDs and severities) and the one place a finding reaches a
+projection (`testvalidity.ApplySourceFindings`) live in `internal/testvalidity`. The readers live in
+`internal/testsource`, because that package already holds the JS lexer, the declaration model and
+the Ruby line helpers, and `internal/testvalidity` cannot import them without a cycle. The entry
+point is the library function `testsource.ValidityFindings(name, text)`. No CLI, MCP or preflight
+command calls it yet.
+
+- `TSA-V0-045`: (standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) In a JS/TS test file
+  (`IsTestFile`), rule `ISOLATED-IN-SERIAL` MUST report every test that is isolated and sits under
+  a serial ancestor.
+  - A test is isolated when its literal title holds the word `@isolated`, or when its details
+    argument or an enclosing describe's details argument holds a literal `'@isolated'` tag or an
+    annotation whose `type` is the literal `'isolated'`.
+  - A serial ancestor is any of these:
+    - a `test.describe.serial(...)` declaration enclosing the test;
+    - an enclosing describe whose own body (not a nested describe's body) calls
+      `test.describe.configure({ mode: 'serial' })`;
+    - such a configure call outside every describe, which makes the whole file serial.
+  - The finding names the test's `path:line` and title. Its cause is the outermost serial
+    ancestor's `path:line`: the describe's line, or the line of the file-level configure call.
+  - Its message says to move the test out of the serial suite, or to drop serial mode when the
+    suite's tests are independent.
+- `TSA-V0-046`: (standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) `ISOLATED-IN-SERIAL`
+  MUST NOT report:
+  - a test that has no isolation annotation, even under a serial suite;
+  - an isolated test whose ancestors are all non-serial (no configure call, or a `mode` of
+    `'parallel'` or `'default'`);
+  - an isolated test in a sibling of a serial describe.
+  When a configure call's `mode` is not a string literal, the report is uncertain with reason
+  `serial-mode-not-literal`, and the call does not make its scope serial. A file the lexer cannot
+  place fully is uncertain with reason `source-unparsed`, and its findings may be incomplete.
+- `TSA-V0-047`: (standing auto-accept, 2026-10-11; V1-1783 / GitHub #1123) An `ISOLATED-IN-SERIAL`
+  finding MUST have severity `advisory`, and MUST NOT change any projection axis. A skipped run is
+  already `SKIPPED` on the execution axis, and a passing run of the test still witnesses it.
+- `TSA-V0-048`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) The RSpec reader MUST
+  read a `_spec.rb` file as logical lines (`rubyLines`) and nothing more than:
+  - example-group nesting: `describe`, `context`, `feature`, `shared_examples`, `shared_context`
+    and `it_behaves_like` do-blocks, with an optional `RSpec.` prefix and an `x`/`f` prefix;
+  - each group's declarations: `subject`, `subject(:name)`, `let(:name)`, `let!(:name)` and
+    `subject!`;
+  - each group's memoizing hooks:
+    - `before`, `prepend_before` and `append_before` with no scope or with `:each` / `:example`;
+    - a `let!`, which invokes its own name;
+    - a `subject!`, which invokes `subject`;
+  - each example's lines (`it`, `specify`, `example`, `scenario`, `its`, `focus`, with an `x`/`f`
+    prefix).
+  These blocks are opaque: `before(:all|:context|:suite)`, `around`, the `after` hooks and `def`.
+  Every other `do`/`if`/`unless`/`class`/`module` block is transparent. A hook invokes the bare
+  identifiers in its block. It does not invoke these:
+  - a word inside a string literal;
+  - a method on a receiver (`.x`);
+  - a symbol (`:x`);
+  - an instance or global variable;
+  - a hash key (`x:`);
+  - a Ruby keyword;
+  - a block parameter;
+  - a local assigned in the block.
+- `TSA-V0-049`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) Rule
+  `MEMOIZED-BLOCK-EXPECTATION` MUST report, with severity `invalid`, every block expectation
+  `expect { NAME }`, or a multi-line `expect do` / `NAME` / `end`, whose whole block is one bare
+  NAME, when both of these hold:
+  - NAME resolves from the example's group chain (innermost declaration first) to a let, or to
+    the subject (`subject`, a named subject or an undeclared `subject`);
+  - a memoizing hook of the example's own group or an enclosing group invokes a name that
+    resolves to the same helper.
+  The finding names the example's `path:line` and title and the expectation's `path:line`. Its
+  cause is the hook's `path:line`: the innermost group's hook first, then the lowest line.
+  These are not reported:
+  - a hook in a sibling group;
+  - a block that is not one bare name (`expect { described_class.new.perform }`);
+  - a NAME that no group in the chain declares, other than `subject`;
+  - a NAME no hook on the chain invokes.
+- `TSA-V0-050`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) The RSpec reader MUST
+  abstain, reporting uncertain with no findings, in these cases:
+  - a block does not close, or an `end` has no opener: reason `rspec-block-unbalanced`;
+  - nesting exceeds 64 blocks: reason `rspec-depth-exceeded`.
+  Either rule's input MUST be at most `MaxFileBytes`; a larger file is uncertain with reason
+  `source-too-large` and is not read.
+- `TSA-V0-051`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124)
+  `testvalidity.ApplySourceFindings` MUST be the verdict wiring for the caller-selected findings of
+  one test.
+  - Any `invalid` finding makes the hygiene axis `INELIGIBLE`, with reason
+    `memoized-block-expectation` for this rule, or the rule ID for any other invalid rule.
+  - Each invalid finding's location and cause are appended to the hygiene anchors.
+  - When hygiene was already `INELIGIBLE`, its reason is kept.
+  - The other four axes and advisory findings are left unchanged.
+  A proof binding that requires `ELIGIBLE` hygiene, such as the test-consolidation witness check
+  (`WitnessIneligible`), therefore refuses the example.
+- `TSA-V0-052`: (standing auto-accept, 2026-10-11; V1-1783, V1-1784) `ValidityFindings` MUST read
+  only the given text. It reads a JS/TS test file for TSA-V0-045 and a `_spec.rb` file for
+  TSA-V0-049, and returns no finding for any other file. It MUST be deterministic over the same
+  input. It never reports a finding it could not place.
+
+Non-goals (V1-1783, V1-1784):
+- the "creates its own fixture data and session" heuristic for isolation, and runtime
+  annotations pushed from a test body;
+- the optional runner summary that tells "skipped because an earlier serial test failed" apart
+  from a plain skip (#1123, a residual);
+- expectations whose target lines had zero coverage in the example's run (#1124, a residual that
+  needs per-example coverage input);
+- transitive let chains (a hook invoking a let whose body invokes the subject);
+- an invocation earlier in the example body itself;
+- `before(:all)` state;
+- shared examples included from another file;
+- a general Ruby parser;
+- a CLI, MCP or preflight surface for these findings.
+
+Failure modes:
+- The Ruby reading is line-based. A trailing `if ... end` on one line, an endless `def`, or a
+  string literal holding a brace or an interpolated quote can misplace a block. An imbalance makes
+  the file abstain. A balanced misplacement can attribute a declaration to the wrong group.
+- A ternary's middle branch reads like a hash key, so it is not counted as an invocation.
+- A Playwright isolation marker held in a variable, or a configure call on a renamed `test`
+  import, is not seen.
+
+Acceptance evidence: synthetic fixtures only.
+- The issue's alpha/beta serial repro.
+- A `test.describe.serial` suite with tag, title and annotation forms.
+- A file-level configure with a describe-level annotation.
+- Negatives: not isolated under serial, isolated under a parallel or unconfigured describe, and a
+  serial sibling.
+- A computed mode, which is uncertain.
+- An RSpec file covering subject, named subject, let, let! and multi-line `expect do`.
+- RSpec negatives: a sibling-group before, `described_class.new.perform`, no memoizing ancestor,
+  `before(:all)` and a shadowing local.
+- RSpec abstention for an unbalanced block, a stray end, depth and size.
+- A test-consolidation witness refused as `WitnessIneligible` once its RSpec finding is applied,
+  while an advisory finding leaves a passing witness reusable.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testvalidity/source_rules.go`, `internal/testsource/validity*.go`, their tests and this
+section. Nothing is persisted, and no existing projection, report or wire contract changes.
+
 ## Refusals
 
 Every command exits 2 with one JSON object `{"code", "error", "ok": false}` on stderr and nothing on
@@ -445,3 +582,11 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-037 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationDeterministic` | experimental |
 | TSA-V0-038 | `internal/testsource/actor_auth.go`, `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
 | TSA-V0-039 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-045 | `internal/testsource/validity.go` | `TestIsolatedInSerialForms` | experimental |
+| TSA-V0-046 | `internal/testsource/validity.go` | `TestIsolatedInSerialNegatives` | experimental |
+| TSA-V0-047 | `internal/testvalidity/source_rules.go`, `internal/testsource/validity.go` | `TestIsolatedInSerialForms`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
+| TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives` | experimental |
+| TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives` | experimental |
+| TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains` | experimental |
+| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
+| TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |
