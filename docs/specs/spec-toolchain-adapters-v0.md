@@ -4,15 +4,15 @@ Owner: Russell Lewis
 Date: 2026-10-17
 Intent status: accepted
 Delivery status: experimental
-Authoritative inputs: `AGENTS.md` invariants 2, 3, 6 and 7, decision 0540,
+Authoritative inputs: `AGENTS.md` invariants 2, 3, 6 and 7, decision 0540, decision 0541,
 `docs/specs/ocm-intent-forms-v0.md` (`OIF-V0`), `docs/specs/verified-absence-frontier-v0.md`,
 `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `LICENSING.md`
 
 ## Agent digest
 - Claim: Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.
-- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery experimental (partial, `STA-V0-002` to `STA-V0-010`): forms, context classification and host packaging are built, but they ride the experimental `OIF-V0` registry and are not advertised as delivered until `OIF-V0` is accepted and `STA-V0-011` passes.
-- Exists: forms in `internal/lrfrepo/ocm_toolchain_forms.go`, path classification in `internal/contextindex/toolchain_status.go`, packages under `protocol/integrations/{speckit,openspec}/`, fixtures under `interop/spec-toolchains/fixtures/`.
-- Blocked on: `STA-V0-001` and `STA-V0-011` to `STA-V0-013` (V1-1697); owner acceptance of `OIF-V0`.
+- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery experimental (partial, `STA-V0-001` to `STA-V0-013` built): the version pins, forms, context classification, host packaging, conformance job, latest-release check and self-development route exist, and `OIF-V0` is accepted (decision 0541), but nothing is advertised as delivered until a `spec-toolchain-conformance` CI run passes (`STA-V0-011`).
+- Exists: pins in `interop/spec-toolchains/versions.json`, forms in `internal/lrfrepo/ocm_toolchain_forms.go`, path classification in `internal/contextindex/toolchain_status.go`, packages under `protocol/integrations/{speckit,openspec}/`, fixtures under `interop/spec-toolchains/fixtures/`, `script/spec-toolchain-{conformance,latest}.sh`.
+- Blocked on: a passing `spec-toolchain-conformance` CI run (`STA-V0-011`, V1-1697); it passed locally on 2026-10-18.
 - Read next: Requirements; Lanes.
 
 ## User and job
@@ -148,9 +148,21 @@ Corvint at `d35b0ee3`:
   `TestSTAV0007_NonToolchainPathsUnchanged`.
 - `protocol/integrations` static tests cover the package shape and read-only commands:
   `TestSTAV0008_SpecKitExtensionManifest` and `TestSTAV0009_OpenSpecIntegration`.
+- `internal/lrfrepo` covers `STA-V0-001`: the manifest shape, and the npm lock and hashed Spec Kit
+  requirements naming the same releases and checksums.
+  Delivered: `TestSTAV0001_VersionsManifest`.
 - A passing `spec-toolchain-conformance` CI run covers `STA-V0-008` and `STA-V0-009` against the
   upstream CLIs, `STA-V0-010` and `STA-V0-011`.
+  Delivered: `.github/workflows/spec-toolchain-conformance.yml` running `make spec-toolchain-conformance`
+  (`script/spec-toolchain-conformance.sh`). It passed locally on 2026-10-18 with OpenSpec 1.14.3 and
+  Spec Kit 1.2.1 over six intent forms (`docs/build-log/2026-10-18-sta-v0-conformance.md`); the first
+  CI run is `NOT_RUN` until the workflow reaches GitHub.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
+  Delivered: the 2026-10-18 transcript (`openspec 1.14.3 CURRENT`, `spec-kit 1.2.1 CURRENT`) in the
+  build-log entry, and the offline cases in `script/spec-toolchain-latest_test.sh`
+  (`make spec-toolchain-latest-test`).
+- The route row in `docs/SELF-DEVELOPMENT.md` covers `STA-V0-013`.
+  Delivered: "Change an OpenSpec or Spec Kit intent form or integration".
 
 ## Lanes
 

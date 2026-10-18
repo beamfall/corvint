@@ -2292,7 +2292,7 @@
     "path": "docs/specs/ocm-intent-forms-v0.md",
     "title": "OCM intent forms V0",
     "reqPrefix": "OIF-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner, 2026-10-18, decision 0541)",
     "delivery": "experimental",
     "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
     "dependsOn": [

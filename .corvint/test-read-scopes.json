@@ -283,7 +283,7 @@
     ],
     "internal/lrfrepo": [
       "docs/specs/",
-      "interop/spec-toolchains/fixtures/"
+      "interop/spec-toolchains/"
     ],
     "internal/lspevidence": [],
     "internal/mcp/bridge": [

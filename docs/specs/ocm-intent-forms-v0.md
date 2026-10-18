@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-25
-Intent status: proposed
+Intent status: accepted (owner, 2026-10-18, decision 0541)
 Delivery status: experimental
 Authoritative inputs: `AGENTS.md` invariants 3 and 6, `docs/specs/ocm-v0-dogfood.md` (`OCM-V0-001`),
-`docs/SPEC-DRIVEN-DEVELOPMENT.md`, decision 0386, ticket V1-0259
+`docs/SPEC-DRIVEN-DEVELOPMENT.md`, decision 0386, decision 0541, ticket V1-0259
 
 ## Agent digest
 - Claim: `ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.
-- Status: proposed/experimental; the owner has not accepted the intent, and the capability must not be advertised as delivered
+- Status: accepted (owner, 2026-10-18, decision 0541); delivery experimental, and the capability must not be advertised as delivered until the promotion evidence passes.
 - Exists: `internal/lrfrepo/ocm_forms.go`, the `--intent-form` flag, an optional `intentScope.form` wire member, focused tests, and one live Beamfall sweep.
-- Blocked on: owner acceptance and the open decisions below; LRF and the change universe refuse declared forms.
+- Blocked on: one real change dogfooded with a declared form and an independent review; open decisions 1, 2, 4 and 5 stay recorded limits, and LRF and the change universe refuse declared forms.
 - Read next: Declaration mechanism; Requirements; Acceptance evidence.
 
 ## User and job
@@ -107,8 +107,9 @@ A changed form for an existing map is a binding change and returns `map-outdated
   `### 2.1` or `### A.` items), and 25 fail `missing-requirements` (18 `## Decision` ADRs have no
   level-3 item). The pre-change reader gives the live run's 89, 113, 6 and 7 on the same files.
 
-Promotion needs owner acceptance, answers to the open decisions, and one real change dogfooded with
-a declared form. `NOT_RUN`: that dogfooded change, and independent review.
+The owner accepted the intent on 2026-10-18 (decision 0541); open decisions 1, 2, 4 and 5 stay
+recorded limits. Promotion needs one real change dogfooded with a declared form. `NOT_RUN`: that
+dogfooded change, and independent review.
 
 ## Traceability
 
