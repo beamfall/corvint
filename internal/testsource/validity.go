@@ -28,7 +28,8 @@ type ValidityReport struct {
 
 // ValidityFindings reads one test file's text for the static test-validity rules: a JS/TS test
 // file (IsTestFile) for ISOLATED-IN-SERIAL (TSA-V0-045..047) and an RSpec `_spec.rb` file for
-// MEMOIZED-BLOCK-EXPECTATION (TSA-V0-048..050). Any other file has no applicable rule.
+// MEMOIZED-BLOCK-EXPECTATION (TSA-V0-048..050) and BLOCK-NOT-CALLED (TSA-V0-053..055). Any other
+// file has no applicable rule.
 func ValidityFindings(name, text string) ValidityReport {
 	report := ValidityReport{Findings: []testvalidity.SourceFinding{}}
 	if len(text) > MaxFileBytes {
@@ -37,7 +38,7 @@ func ValidityFindings(name, text string) ValidityReport {
 	}
 	switch {
 	case strings.HasSuffix(name, "_spec.rb"):
-		return rspecMemoizedBlockExpectations(name, text)
+		return rspecValidity(name, text)
 	case IsTestFile(name):
 		return parseSource(name, text).isolatedInSerial()
 	}

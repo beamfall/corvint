@@ -1,6 +1,7 @@
 package testvalidity
 
-// Static test-source validity rules (docs/specs/test-source-analysis-v0.md, TSA-V0-045..052).
+// Static test-source validity rules (docs/specs/test-source-analysis-v0.md, TSA-V0-045..052 and
+// TSA-V0-053..056).
 // A rule reads committed test source, not a run, and reports a SourceFinding. The readers live in
 // internal/testsource, which already imports this package; this file holds only the shared
 // vocabulary and the one place a finding reaches a projection.
@@ -13,6 +14,10 @@ const (
 	// RuleMemoizedBlockExpectation: an RSpec block expectation names a subject or let that an
 	// enclosing before or let! has already memoized, so the block runs nothing (TSA-V0-048).
 	RuleMemoizedBlockExpectation = "MEMOIZED-BLOCK-EXPECTATION"
+	// RuleBlockNotCalled: an RSpec helper takes a block but hands an assertion a block that only
+	// references it, or never calls it, so every example passing it a block is vacuous
+	// (TSA-V0-054).
+	RuleBlockNotCalled = "BLOCK-NOT-CALLED"
 )
 
 // Source finding severities. An invalid finding makes the test unusable as proof; an advisory
@@ -25,6 +30,10 @@ const (
 // HygieneReasonMemoizedBlockExpectation is the hygiene reason an invalid
 // MEMOIZED-BLOCK-EXPECTATION finding sets (TSA-V0-051).
 const HygieneReasonMemoizedBlockExpectation = "memoized-block-expectation"
+
+// HygieneReasonBlockNotCalled is the hygiene reason an invalid BLOCK-NOT-CALLED finding sets
+// (TSA-V0-056).
+const HygieneReasonBlockNotCalled = "block-not-called"
 
 // SourceFinding is one static test-source validity finding. Test and Location are `path:line`
 // of the test declaration and of the flagged statement; Cause is `path:line` of the serial
@@ -69,8 +78,11 @@ func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 // sourceRuleReason maps an invalid rule to its hygiene reason. Any other invalid rule uses its
 // rule ID as the reason, so a finding is never dropped.
 func sourceRuleReason(rule string) string {
-	if rule == RuleMemoizedBlockExpectation {
+	switch rule {
+	case RuleMemoizedBlockExpectation:
 		return HygieneReasonMemoizedBlockExpectation
+	case RuleBlockNotCalled:
+		return HygieneReasonBlockNotCalled
 	}
 	return rule
 }

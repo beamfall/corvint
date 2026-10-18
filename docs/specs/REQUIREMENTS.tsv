@@ -4082,6 +4082,10 @@ TSA-V0-049	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-050	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) The RSpec reader MUST	standing	2026-10-11; V1-1784; #1124
 TSA-V0-051	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124)	standing	2026-10-11; V1-1784; #1124
 TSA-V0-052	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1783, V1-1784) `ValidityFindings` MUST rea	standing	2026-10-11; V1-1783; V1-1784
+TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) The RSpec reader MUST	standing	2026-10-11; V1-1824; #1140
+TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
+TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
+TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
