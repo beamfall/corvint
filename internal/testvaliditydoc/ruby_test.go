@@ -91,3 +91,11 @@ func TestLPCVV0093RubyDocumentDecodesClosedAndProjects(t *testing.T) {
 		}
 	}
 }
+
+// LPCV-V0-092: the provider's per-file snapshot bound equals the bound
+// discovery reads a retained spec or helper file under.
+func TestLPCVV0092SnapshotBoundMatchesDiscoveryRead(t *testing.T) {
+	if rubytestprovider.MaxSpecFileBytes != MaxInputBytes {
+		t.Fatalf("provider bound %d, discovery bound %d", rubytestprovider.MaxSpecFileBytes, MaxInputBytes)
+	}
+}

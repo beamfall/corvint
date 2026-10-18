@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/tcq"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -117,11 +118,11 @@ func Validate(document Document) error {
 	if document.ExamplesOmitted < 0 || len(document.Examples) > MaxExamples || document.Examples == nil || document.Helpers == nil {
 		return errors.New("Ruby provider document is out of bounds")
 	}
-	if !localSlashPath(document.ProjectDirectory) {
+	if !localSlashPath(document.ProjectDirectory) || secretscreen.MatchString(document.ProjectDirectory) {
 		return errors.New("Ruby provider project directory is not worktree-relative")
 	}
 	for _, helper := range document.Helpers {
-		if !localSlashPath(helper.Path) || !blobPattern(document.ObjectFormat, helper.Blob) {
+		if !localSlashPath(helper.Path) || secretscreen.MatchString(helper.Path) || !blobPattern(document.ObjectFormat, helper.Blob) {
 			return errors.New("Ruby provider helper is malformed")
 		}
 	}
@@ -129,7 +130,7 @@ func Validate(document Document) error {
 		return errors.New("Ruby provider helper set digest does not match its helpers")
 	}
 	for _, example := range document.Examples {
-		if example.Helpers != document.HelperSet || example.ID != example.File+":"+strconv.Itoa(example.Line) || example.Line < 1 {
+		if example.Helpers != document.HelperSet || example.ID != example.File+":"+strconv.Itoa(example.Line) || example.Line < 1 || secretscreen.MatchString(example.File) {
 			return errors.New("Ruby provider example identity is malformed")
 		}
 		if example.Status != statusPassed && example.Status != statusFailed && example.Status != statusPending && example.Status != "unknown" {
@@ -211,9 +212,11 @@ func ProjectRun(document Document) testvalidity.Projection {
 	switch {
 	case document.Infrastructure != nil:
 		execution.Outcome, execution.Cause = "INCOMPLETE", "INFRASTRUCTURE"
-	case len(document.Examples) == 0 && document.ExamplesOmitted == 0:
-	case anyFailed(document.Examples):
+	case anyFailed(document.Examples) || document.Summary != nil && document.Summary.Failures > 0:
+		// The summary counts the omitted examples too, so a failure past the
+		// retained bound still fails the run.
 		execution.Outcome, execution.Cause = "FAILED", "ASSERTION_OR_TEST"
+	case len(document.Examples) == 0 && document.ExamplesOmitted == 0:
 	default:
 		execution.Outcome = "PASSED"
 	}
@@ -243,8 +246,10 @@ func reportState(status string) string {
 
 // Freshness binds a retained document to the worktree as it is now
 // (LPCV-V0-094). read returns a worktree-relative file's bytes, fs.ErrNotExist
-// for a removed file, or another error when the file cannot be read.
-func Freshness(document Document, read func(name string) ([]byte, error)) testvalidity.Axis {
+// for a removed file, or another error when the file cannot be read. helpers
+// lists the project's current helper files, as CurrentHelpers does, so a
+// helper added since the run makes the evidence STALE.
+func Freshness(document Document, read func(name string) ([]byte, error), helpers func(projectDirectory string) ([]string, error)) testvalidity.Axis {
 	bound := map[string]string{}
 	for _, helper := range document.Helpers {
 		bound[helper.Path] = helper.Blob
@@ -273,19 +278,65 @@ func Freshness(document Document, read func(name string) ([]byte, error)) testva
 			unknown = "retained-bound-source-unreadable"
 		}
 	}
+	if document.HelpersUnbound == "" {
+		current, err := helpers(document.ProjectDirectory)
+		switch {
+		case err != nil:
+			if unknown == "" {
+				unknown = "retained-helper-set-unreadable"
+			}
+		case !sameHelperSet(document.Helpers, current):
+			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: "retained-helper-set-changed"}
+		}
+	}
 	switch {
-	case document.RepositoryBefore == nil || document.RepositoryAfter == nil:
+	case !identityBound(document.ObjectFormat, document.RepositoryBefore) || !identityBound(document.ObjectFormat, document.RepositoryAfter):
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-repository-identity-unavailable"}
 	case *document.RepositoryBefore != *document.RepositoryAfter:
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "repository-changed-during-run"}
 	case document.HelpersUnbound != "":
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-helper-set-unbound"}
+	case document.ExamplesOmitted > 0:
+		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-examples-omitted"}
 	case unknown != "":
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: unknown}
 	case len(paths) == 0:
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-identity-unbound"}
 	}
 	return testvalidity.Axis{State: testvalidity.FreshnessCurrent}
+}
+
+func sameHelperSet(retained []BoundFile, current []string) bool {
+	names := make([]string, 0, len(retained))
+	for _, helper := range retained {
+		names = append(names, helper.Path)
+	}
+	sortStrings(names)
+	if len(names) != len(current) {
+		return false
+	}
+	for index := range names {
+		if names[index] != current[index] {
+			return false
+		}
+	}
+	return true
+}
+
+// identityBound reports whether a repository identity is fully observed: well-
+// formed object IDs, and a clean state or a dirty state with its digest.
+func identityBound(format string, identity *jstestprovider.ApplicationRepositoryIdentity) bool {
+	if identity == nil || !blobPattern(format, identity.RootCommit) || !blobPattern(format, identity.Revision) || !blobPattern(format, identity.Tree) {
+		return false
+	}
+	switch identity.DirtyState {
+	case "clean":
+		return identity.DirtyDigest == ""
+	case "dirty":
+		digest, ok := strings.CutPrefix(identity.DirtyDigest, "sha256:")
+		return ok && blobPattern("sha256", digest)
+	}
+	return false
 }
 
 // Revision is the start revision when it is a well-formed object ID, else "".

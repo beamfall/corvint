@@ -161,6 +161,8 @@ func Discover(root string) (Document, error) {
 					return nil, errors.New("retained bound path names .git")
 				}
 				return ReadFile(worktree, filepath.FromSlash(name))
+			}, func(projectDirectory string) ([]string, error) {
+				return rubytestprovider.CurrentHelpers(worktree, projectDirectory)
 			})
 		}
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}

@@ -40,6 +40,11 @@ func TestLPCVV0094DiscoverRubyFreshness(t *testing.T) {
 	if stale.Run.Freshness.State != testvalidity.FreshnessStale || stale.Run.Freshness.Reason != "retained-digest-mismatch" || stale.Discovery.Abstention == nil || stale.Discovery.Abstention.Reason != AbstentionStaleEvidence || stale.Discovery.Abstention.ReceiptRevision != strings.Repeat("b", 40) {
 		t.Fatalf("stale=%+v abstention=%+v", stale.Run.Freshness, stale.Discovery.Abstention)
 	}
+	writeAt(t, filepath.Join(root, "spec", "spec_helper.rb"), rubyHelperBody, time.Unix(40, 0))
+	writeAt(t, filepath.Join(root, "spec", "support", "added.rb"), "# added\n", time.Unix(40, 0))
+	if added := discover(t, root); added.Run.Freshness.State != testvalidity.FreshnessStale || added.Run.Freshness.Reason != "retained-helper-set-changed" {
+		t.Fatalf("added helper=%+v", added.Run.Freshness)
+	}
 	if err := os.Remove(filepath.Join(root, "spec", "user_spec.rb")); err != nil {
 		t.Fatal(err)
 	}
