@@ -2679,18 +2679,24 @@ NEX-V0-007	docs/specs/application-flow-navigation-execution-v0.md	44	The compile
 NGI-V0-001	docs/specs/non-go-impact-v0.md	28	Positional impact and MCP impact MUST admit tracked `.rb`, `.js`,	unrecorded	-
 NGI-V0-002	docs/specs/non-go-impact-v0.md	32	Default and expanded committed ranges MUST bind Ruby/JS/TS path	unrecorded	-
 NGI-V0-003	docs/specs/non-go-impact-v0.md	37	Every Ruby/JS/TS changed path MUST name a syntax-only dynamic	unrecorded	-
-NGI-V0-004	docs/specs/non-go-impact-v0.md	51	Added paths MUST carry the same receipt/evidence envelope and	unrecorded	-
-NGI-V0-005	docs/specs/non-go-impact-v0.md	63	`impact --help` and MCP description MUST publish a per-language	unrecorded	-
-NGI-V0-006	docs/specs/non-go-impact-v0.md	67	Conformance MUST include each new suffix/language, negative	unrecorded	-
-NGI-V0-007	docs/specs/non-go-impact-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A	standing	2026-10-11; V1-1365
-NGI-V0-008	docs/specs/non-go-impact-v0.md	96	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) The	standing	2026-10-11; V1-1365
-NGI-V0-009	docs/specs/non-go-impact-v0.md	107	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
-NGI-V0-010	docs/specs/non-go-impact-v0.md	117	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
-NGI-V0-011	docs/specs/non-go-impact-v0.md	126	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
-NGI-V0-012	docs/specs/non-go-impact-v0.md	138	(accepted under the owner's standing auto-accept (2026-10-11); V1-1455) A	standing	2026-10-11; V1-1455
-NGI-V0-013	docs/specs/non-go-impact-v0.md	144	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
-NGI-V0-014	docs/specs/non-go-impact-v0.md	158	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
-NGI-V0-015	docs/specs/non-go-impact-v0.md	165	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
+NGI-V0-004	docs/specs/non-go-impact-v0.md	53	Added paths MUST carry the same receipt/evidence envelope and	unrecorded	-
+NGI-V0-005	docs/specs/non-go-impact-v0.md	65	`impact --help` and MCP description MUST publish a per-language	unrecorded	-
+NGI-V0-006	docs/specs/non-go-impact-v0.md	69	Conformance MUST include each new suffix/language, negative	unrecorded	-
+NGI-V0-007	docs/specs/non-go-impact-v0.md	86	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A	standing	2026-10-11; V1-1365
+NGI-V0-008	docs/specs/non-go-impact-v0.md	98	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) The	standing	2026-10-11; V1-1365
+NGI-V0-009	docs/specs/non-go-impact-v0.md	109	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) A call	standing	2026-10-11; V1-1365
+NGI-V0-010	docs/specs/non-go-impact-v0.md	119	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365) Selectio	standing	2026-10-11; V1-1365
+NGI-V0-011	docs/specs/non-go-impact-v0.md	128	(accepted under the owner's standing auto-accept (2026-10-11); V1-1365)	standing	2026-10-11; V1-1365
+NGI-V0-012	docs/specs/non-go-impact-v0.md	140	(accepted under the owner's standing auto-accept (2026-10-11); V1-1455) A	standing	2026-10-11; V1-1455
+NGI-V0-013	docs/specs/non-go-impact-v0.md	146	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) An entry	standing	2026-10-11; V1-1456
+NGI-V0-014	docs/specs/non-go-impact-v0.md	160	(accepted under the owner's standing auto-accept (2026-10-11); V1-1456) The	standing	2026-10-11; V1-1456
+NGI-V0-015	docs/specs/non-go-impact-v0.md	167	(accepted under the owner's standing auto-accept (2026-10-11); V1-1457) A call	standing	2026-10-11; V1-1457
+NGI-V0-016	docs/specs/non-go-impact-v0.md	184	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
+NGI-V0-017	docs/specs/non-go-impact-v0.md	192	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) Roots	standing	2026-10-11; V1-1674
+NGI-V0-018	docs/specs/non-go-impact-v0.md	208	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a	standing	2026-10-11; V1-1674
+NGI-V0-019	docs/specs/non-go-impact-v0.md	222	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674)	standing	2026-10-11; V1-1674
+NGI-V0-020	docs/specs/non-go-impact-v0.md	232	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) The	standing	2026-10-11; V1-1674
+NGI-V0-021	docs/specs/non-go-impact-v0.md	237	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
 NJB-001	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	44	each family is one exact profile/target tuple and a standalone CLI package; no	unrecorded	-
 NJB-002	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	46	canonical one-LF JSON input/output is bounded before decode, base64 decode, fact	unrecorded	-
 NJB-003	docs/specs/native-jvm-bridge-analyzer-candidates-v0.md	54	facts are typed, ordered, and digest-bound by the bridge-owned 14-field evidence	unrecorded	-
