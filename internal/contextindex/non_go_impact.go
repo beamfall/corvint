@@ -145,13 +145,18 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, ex
 	return rows
 }
 
-func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int, extra map[string][]any) error {
+// rubyReport, when non-nil, names the Ruby autoload roots and inflections
+// the named-constant reverse references applied (NGI-V0-021).
+func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int, extra map[string][]any, rubyReport map[string]any) error {
 	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports, extra)
 	if len(unknowns) == 0 {
 		return nil
 	}
 	result["unknowns"] = unknowns
 	result["language_profile"] = "non-go-syntax-v0"
+	if rubyReport != nil {
+		result["ruby_autoload"] = rubyReport
+	}
 	coverage := result["coverage"].(map[string]any)
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), "non-Go syntax impact does not establish dynamic dispatch or test closure")
 	return stabilizePacketBytes(result)
