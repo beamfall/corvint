@@ -402,6 +402,12 @@ ASD-V0-009	docs/specs/corvint-self-development-v0.md	42	Repair feature/eval disc
 ASD-V0-010	docs/specs/corvint-self-development-v0.md	43	Reuse existing relevant CLI profile tests and documentation/package/spec validat	unrecorded	-
 ASD-V0-011	docs/specs/corvint-self-development-v0.md	44	Demonstrate applicable routes on the actual enrolled implementation task with or	unrecorded	-
 ASD-V0-012	docs/specs/corvint-self-development-v0.md	45	A future feature change updates the shared guide/status and its relevant route w	unrecorded	-
+ASD-V0-013	docs/specs/corvint-self-development-v0.md	46	(accepted under the owner's standing auto-accept (2026-10-11); V1-1627) Lane adm	standing	2026-10-11; V1-1627
+ASD-V0-014	docs/specs/corvint-self-development-v0.md	47	(accepted under the owner's standing auto-accept (2026-10-11); V1-1628) `script/	standing	2026-10-11; V1-1628
+ASD-V0-015	docs/specs/corvint-self-development-v0.md	48	(accepted under the owner's standing auto-accept (2026-10-11); V1-1629) A lane f	standing	2026-10-11; V1-1629
+ASD-V0-016	docs/specs/corvint-self-development-v0.md	49	(accepted under the owner's standing auto-accept (2026-10-11); V1-1630) Lanes ru	standing	2026-10-11; V1-1630
+ASD-V0-017	docs/specs/corvint-self-development-v0.md	50	(accepted under the owner's standing auto-accept (2026-10-11); V1-1631) The orch	standing	2026-10-11; V1-1631
+ASD-V0-018	docs/specs/corvint-self-development-v0.md	51	(accepted under the owner's standing auto-accept (2026-10-11); V1-1632) Lanes us	standing	2026-10-11; V1-1632
 ASS-V0-001	docs/specs/authoring-step-scope-v0.md	26	A strict versioned declaration must list allowed write paths/prefixes, guarded	unrecorded	-
 ASS-V0-002	docs/specs/authoring-step-scope-v0.md	30	Pre- and post-state observation must be read-only and bind full commit/tree,	unrecorded	-
 ASS-V0-003	docs/specs/authoring-step-scope-v0.md	34	Verification must name every observed out-of-scope write, guarded modification a	unrecorded	-
