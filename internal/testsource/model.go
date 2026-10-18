@@ -18,6 +18,8 @@ type source struct {
 	// so findings in this file may be incomplete.
 	uncertain bool
 	decls     []decl
+	// defs indexes named function definitions, built on first use (TSA-V0-030).
+	defs map[string][]helperDef
 }
 
 // decl is one test, describe or runtime skip/only call.

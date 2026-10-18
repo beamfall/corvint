@@ -83,7 +83,7 @@ func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice)
 			}
 			f.Pool.Identity = raw
 		}
-		if l.Verb == transaction.LeasePoolPrepare || l.Verb == transaction.LeasePoolCleanup {
+		if l.Verb == transaction.LeasePoolPrepare || l.Verb == transaction.LeasePoolCleanup || l.Verb == transaction.LeasePoolOperate {
 			rev, _, e := poolSource(leaseRoot(repo, choice))
 			if e != nil {
 				return f, e
@@ -97,6 +97,11 @@ func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice)
 			kind := "health"
 			if l.Verb == transaction.LeasePoolCleanup {
 				kind = "cleanup"
+			}
+			if l.Verb == transaction.LeasePoolOperate {
+				// PSR-V0-160: an undeclared operation has no command; the
+				// planner refuses it typed before anything runs.
+				kind = l.Operation
 			}
 			if _, _, e = poolCommandDir(context.Background(), poolMemberCommand(p, l.Member, kind), leaseRoot(repo, choice)); e != nil {
 				return f, e
@@ -161,6 +166,10 @@ func runPool(ctx context.Context, repo *intent.Repository, choice LeaseChoice, e
 		return nil, e
 	}
 	env, _ := gateEnvironment(def.Env)
+	if en.Operation != nil && en.Operation.Source != nil {
+		// PSR-V0-163: retarget learns its target pair from the receipt.
+		env = append(env, PoolTargetSourceEnv+"="+en.Operation.Source.String())
+	}
 	// PSR-V0-012: a pin that moved after preparation runs nothing and is
 	// recorded as a failed observation, so the member is quarantined.
 	class, clean, output := "", true, wire.Sum(nil)

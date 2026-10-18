@@ -190,6 +190,9 @@ func ExportProvider(ctx context.Context, root string, set IntentSet) ([]byte, er
 	}
 	owners := variationOwners(set)
 	for _, l := range links {
+		if _, _, qualified := splitQualified(l.Target.Path); qualified {
+			continue // an application repository file has no revision in this record (AFU-V1-071)
+		}
 		to, entity := relationTarget(l)
 		if entity != nil && !slices.ContainsFunc(record.Entities, func(e extevidence.Entity) bool { return e.ID == entity.ID }) {
 			record.Entities = append(record.Entities, *entity)

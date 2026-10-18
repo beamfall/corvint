@@ -72,6 +72,12 @@ const (
 	// a native id of the ledger prefix as a whole token.
 	ObligationAliasDuplicateDetail = "OBLIGATION_ALIAS_DUPLICATE:"
 	ObligationAliasCollisionDetail = "OBLIGATION_ALIAS_COLLISION:"
+	// TOL-V0-061: a qualification report that does not classify the
+	// embedded fixture as expected.
+	ObligationQualificationDetail = "OBLIGATION_QUALIFICATION_FAILED:"
+	// TOL-V0-065: a witness naming a test repository the policy does not
+	// declare.
+	ObligationTestRepositoryDetail = "OBLIGATION_TEST_REPOSITORY_UNDECLARED:"
 )
 
 // ObligationStates is the closed entry state set (TOL-V0-003).
@@ -457,6 +463,9 @@ type ObligationEvidence struct {
 	Matches           []ObligationMatch
 	Declaration       *ObligationDeclaration
 	Provenance        *ObligationProvenance
+	// TestRepository is the policy-declared test repository the witness
+	// resolved its commit and sources in (TOL-V0-065); nil when none.
+	TestRepository *string
 }
 
 func (e ObligationEvidence) Value() wire.Value {
@@ -475,12 +484,15 @@ func (e ObligationEvidence) Value() wire.Value {
 	if e.Provenance != nil {
 		v.Obj.Set("provenance", e.Provenance.Value())
 	}
+	if e.TestRepository != nil {
+		v.Obj.Set("testRepository", wire.String(*e.TestRepository))
+	}
 	return v
 }
 
 // ReadObligationEvidence reads and checks the source-specific shape.
 func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "eventSha256", "commit", "reportSha256", "playwrightVersion", "matches", "declaration"}, "provenance")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "eventSha256", "commit", "reportSha256", "playwrightVersion", "matches", "declaration"}, "provenance", "testRepository")...)
 	e := &ObligationEvidence{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared), EventSha256: r.Field("eventSha256").Digest(), Commit: r.Field("commit").OID()}
 	e.ReportSha256 = r.Field("reportSha256").DigestOrNull()
 	e.PlaywrightVersion = r.Field("playwrightVersion").LabelOrNull()
@@ -490,6 +502,10 @@ func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
 	e.Declaration = readObligationDeclaration(r.Field("declaration"))
 	if wire.Has(r.Value(), "provenance") {
 		e.Provenance = readObligationProvenance(r.Field("provenance"))
+	}
+	if wire.Has(r.Value(), "testRepository") {
+		name := r.Field("testRepository").Label()
+		e.TestRepository = &name
 	}
 	if r.Err() != nil {
 		return nil
@@ -764,6 +780,9 @@ type ObligationWitnessPayload struct {
 	// Provenance is the optional witness provenance (TOL-V0-059); nil keeps
 	// the exact pre-TOL-V0-059 payload bytes.
 	Provenance *ObligationProvenance
+	// TestRepository is the optional policy-declared test repository name
+	// (TOL-V0-065); nil keeps the exact earlier payload bytes.
+	TestRepository *string
 }
 
 func (p ObligationWitnessPayload) Value() wire.Value {
@@ -791,13 +810,16 @@ func (p ObligationWitnessPayload) Value() wire.Value {
 	if p.Provenance != nil {
 		v.Obj.Set("provenance", p.Provenance.Value())
 	}
+	if p.TestRepository != nil {
+		v.Obj.Set("testRepository", wire.String(*p.TestRepository))
+	}
 	return v
 }
 
 // ReadObligationWitnessPayload reads the closed witness payload and checks
 // its source-specific members.
 func ReadObligationWitnessPayload(r *wire.Reader) *ObligationWitnessPayload {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "commit", "reportSha256", "playwrightVersion", "credits", "declaration", "attempt", "generation"}, "provenance")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "commit", "reportSha256", "playwrightVersion", "credits", "declaration", "attempt", "generation"}, "provenance", "testRepository")...)
 	p := &ObligationWitnessPayload{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared), Commit: r.Field("commit").OID()}
 	p.ReportSha256 = r.Field("reportSha256").DigestOrNull()
 	p.PlaywrightVersion = r.Field("playwrightVersion").LabelOrNull()
@@ -806,6 +828,10 @@ func ReadObligationWitnessPayload(r *wire.Reader) *ObligationWitnessPayload {
 	p.Generation = r.Field("generation").SizeOrNull()
 	if wire.Has(r.Value(), "provenance") {
 		p.Provenance = readObligationProvenance(r.Field("provenance"))
+	}
+	if wire.Has(r.Value(), "testRepository") {
+		name := r.Field("testRepository").Label()
+		p.TestRepository = &name
 	}
 	if r.Err() != nil {
 		return p
@@ -1194,7 +1220,7 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			e.State = ObligationWitnessed
 			e.Reason = nil
 			e.Evidence = &ObligationEvidence{Source: w.Source, EventSha256: eventSha256, Commit: w.Commit, ReportSha256: w.ReportSha256,
-				PlaywrightVersion: w.PlaywrightVersion, Matches: c.Matches, Declaration: w.Declaration, Provenance: w.Provenance}
+				PlaywrightVersion: w.PlaywrightVersion, Matches: c.Matches, Declaration: w.Declaration, Provenance: w.Provenance, TestRepository: w.TestRepository}
 			stamp(e)
 		}
 	}

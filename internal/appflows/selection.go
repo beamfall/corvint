@@ -91,6 +91,8 @@ type SelectionProvider struct {
 	Inventory    []InventoryTest     `json:"inventory"`
 	FlowTiers    map[string][]string `json:"flow_tiers,omitempty"`
 	Coverage     string              `json:"coverage,omitempty"`
+	// Repositories are the application repositories whose changes the profile reads (AFU-V1-067).
+	Repositories []SelectionRepository `json:"repositories,omitempty"`
 }
 
 // CoverageFile is the ingested coverage the provider names; it lives outside the provider so that a
@@ -129,6 +131,8 @@ type CoverageRecord struct {
 	TestKey string         `json:"test_key"`
 	Commit  string         `json:"commit"`
 	Tiers   []CoverageTier `json:"tiers"`
+	// Repositories maps each declared application repository to the commit the run observed (AFU-V1-070).
+	Repositories map[string]string `json:"repositories,omitempty"`
 }
 
 type CoverageTier struct {
@@ -147,6 +151,8 @@ type E2EInput struct {
 	Graph     *affected.Graph
 	Plan      affected.Plan
 	Mandatory []any
+	// Repositories are the operator's application repository bindings (AFU-V1-067).
+	Repositories []E2ERepositoryInput
 }
 
 // E2ESelection is the e2e-safe test_selection member (AFU-V1-023).
@@ -166,6 +172,8 @@ type E2ESelection struct {
 	Fallback            []E2EFallback  `json:"fallback"`
 	Note                string         `json:"note"`
 	UntrustedTextFields []string       `json:"untrusted_text_fields"`
+	// Repositories is absent unless the provider declares or the operator binds one (AFU-V1-072).
+	Repositories []E2ERepository `json:"repositories,omitempty"`
 }
 
 type E2EDiscovery struct {
@@ -201,10 +209,11 @@ type E2EProof struct {
 }
 
 type ProofLink struct {
-	Flow       string     `json:"flow"`
-	From       string     `json:"from"`
-	Target     LinkTarget `json:"target"`
-	ReviewedAt string     `json:"reviewed_at"`
+	Flow                 string     `json:"flow"`
+	From                 string     `json:"from"`
+	Target               LinkTarget `json:"target"`
+	ReviewedAt           string     `json:"reviewed_at"`
+	ReviewedAtRepository string     `json:"reviewed_at_repository,omitempty"`
 }
 
 type E2EFallback struct {
@@ -220,6 +229,10 @@ type e2eSelector struct {
 	provider  SelectionProvider
 	records   []CoverageRecord
 	changedBy map[string]string
+	// changed is every changed path: the plan's root paths, then each bound repository's qualified paths.
+	changed   []string
+	repos     map[string]boundRepository
+	declared  map[string]bool
 	dirty     map[string]bool
 	selected  map[string]bool
 	coverage  map[string]CoverageRecord
@@ -258,13 +271,17 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 		out.State, out.StateReason = extevidence.SelectionBlocked, "provider-unavailable"
 		return out
 	}
-	s := newE2ESelector(ctx, root, in, provider, records)
+	rows, repos, repoCodes := bindRepositories(ctx, root, provider.Repositories, in.Repositories)
+	if len(rows) != 0 {
+		out.Repositories = rows
+	}
+	s := newE2ESelector(ctx, root, in, provider, records, repos)
 	out.Base = s.base
 	discovery, discovered := s.discover()
 	out.Discovery = discovery
 	codes := s.boundCodes()
 	if len(codes) == 0 {
-		codes = append(s.globalCodes(), inventoryCodes(provider.Inventory, discovered, out.Discovery.State)...)
+		codes = append(append(repoCodes, s.globalCodes()...), inventoryCodes(provider.Inventory, discovered, out.Discovery.State)...)
 	}
 	if len(codes) == 0 {
 		out.Selected, out.OmittedTests, codes = s.prove()
@@ -280,19 +297,25 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	for _, o := range out.OmittedTests {
 		out.OmissionsPerBasis[o.Basis]++
 	}
-	out.Proofs, out.DisjointFrom = s.proofList(), append([]string{}, in.Plan.Dirty...)
+	out.Proofs, out.DisjointFrom = s.proofList(), append([]string{}, s.changed...)
 	out.State, out.StateReason = extevidence.SelectionNarrow, "exclusions-proven"
 	return out
 }
 
-func newE2ESelector(ctx context.Context, root string, in E2EInput, provider SelectionProvider, records []CoverageRecord) *e2eSelector {
+func newE2ESelector(ctx context.Context, root string, in E2EInput, provider SelectionProvider, records []CoverageRecord, repos map[string]boundRepository) *e2eSelector {
 	s := &e2eSelector{ctx: ctx, root: root, in: in, base: in.Base, provider: provider, records: records, selected: map[string]bool{}, coverage: map[string]CoverageRecord{},
-		dirty: map[string]bool{}, closure: map[string]bool{}, globals: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{}}
+		dirty: map[string]bool{}, closure: map[string]bool{}, globals: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{},
+		repos: repos, declared: map[string]bool{}}
 	if s.base == "" {
 		s.base = in.Revision
 	}
 	s.changedBy = changedUnits(in.Graph, in.Plan.Dirty)
-	for _, p := range in.Plan.Dirty {
+	s.changed = append([]string{}, in.Plan.Dirty...)
+	for _, repo := range provider.Repositories {
+		s.declared[repo.ID] = true
+		s.changed = append(s.changed, repos[repo.ID].changed...)
+	}
+	for _, p := range s.changed {
 		s.dirty[p] = true
 	}
 	for _, sel := range in.Plan.Selected {
@@ -336,13 +359,21 @@ func readSelectionDocument(root, name string, out any) error {
 }
 
 func validSelectionProvider(p SelectionProvider) error {
-	paths := append([]string{p.Flows, p.RunnerConfig}, p.GlobalPaths...)
+	paths := []string{p.Flows, p.RunnerConfig}
 	for _, optional := range []string{p.Discovery, p.Coverage} {
 		if optional != "" {
 			paths = append(paths, optional)
 		}
 	}
-	if p.Schema != SelectionProviderSchema || slices.ContainsFunc(paths, func(s string) bool { return !safePath(s) }) {
+	declared := map[string]bool{}
+	for _, repo := range p.Repositories {
+		if declared[repo.ID] || !extevidence.ValidRepositoryID(repo.ID) || !oidPattern.MatchString(repo.Origin) {
+			return errors.New("invalid selection repository")
+		}
+		declared[repo.ID] = true
+	}
+	if p.Schema != SelectionProviderSchema || slices.ContainsFunc(paths, func(s string) bool { return !safePath(s) }) ||
+		slices.ContainsFunc(p.GlobalPaths, func(s string) bool { return !safePath(s) && !validQualified(s, declared) }) {
 		return errors.New("invalid selection provider")
 	}
 	keys := map[string]bool{}
@@ -359,9 +390,12 @@ func validCoverage(p SelectionProvider, coverage CoverageFile) error {
 	if coverage.Schema != CoverageSchema {
 		return errors.New("invalid coverage schema")
 	}
-	keys, seen := map[string]bool{}, map[string]bool{}
+	keys, seen, declared := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, t := range p.Inventory {
 		keys[t.TestKey] = true
+	}
+	for _, r := range p.Repositories {
+		declared[r.ID] = true
 	}
 	for _, record := range coverage.Records {
 		if seen[record.TestKey] {
@@ -370,6 +404,18 @@ func validCoverage(p SelectionProvider, coverage CoverageFile) error {
 		seen[record.TestKey] = true
 		if !keys[record.TestKey] || !oidPattern.MatchString(record.Commit) || slices.ContainsFunc(record.Tiers, func(t CoverageTier) bool { return !flowText(t.Tier) }) {
 			return errors.New("invalid coverage record")
+		}
+		// A tier path is a canonical root path or a canonical path of a declared repository; any other
+		// path could miss the change it names and become an exclusion proof (AFU-V1-070).
+		for _, tier := range record.Tiers {
+			if slices.ContainsFunc(tier.Paths, func(path string) bool { return !safePath(path) && !validQualified(path, declared) }) {
+				return errors.New("invalid coverage tier path")
+			}
+		}
+		for id, commit := range record.Repositories {
+			if !declared[id] || !oidPattern.MatchString(commit) {
+				return errors.New("invalid coverage record repository")
+			}
 		}
 	}
 	return nil
@@ -390,7 +436,7 @@ func (s *e2eSelector) discover() (E2EDiscovery, []typescript.PlaywrightDiscovery
 }
 
 func (s *e2eSelector) boundCodes() []E2EFallback {
-	counts := map[string]int{"changed-paths": len(s.in.Plan.Dirty), "inventory": len(s.provider.Inventory), "coverage": len(s.records), "global-paths": len(s.provider.GlobalPaths)}
+	counts := map[string]int{"changed-paths": len(s.changed), "inventory": len(s.provider.Inventory), "coverage": len(s.records), "global-paths": len(s.provider.GlobalPaths)}
 	for _, record := range s.records {
 		for _, tier := range record.Tiers {
 			counts["coverage-paths"] += len(tier.Paths)
@@ -408,10 +454,16 @@ func (s *e2eSelector) boundCodes() []E2EFallback {
 	return codes
 }
 
-// globalCodes forbids every omission when a changed path is global (AFU-V1-022).
+// globalCodes forbids every omission when a changed path is global (AFU-V1-022), and when a root
+// changed path could be mistaken for a declared repository's qualified path (AFU-V1-069).
 func (s *e2eSelector) globalCodes() []E2EFallback {
 	codes := []E2EFallback{}
 	for _, p := range s.in.Plan.Dirty {
+		if id, _, ok := strings.Cut(p, ":"); ok && s.declared[id] {
+			codes = append(codes, E2EFallback{Code: CodeUnmappedChange, Subject: p})
+		}
+	}
+	for _, p := range s.changed {
 		if s.global(p) {
 			codes = append(codes, E2EFallback{Code: CodeGlobalPathChanged, Subject: p})
 		}
@@ -419,8 +471,18 @@ func (s *e2eSelector) globalCodes() []E2EFallback {
 	return codes
 }
 
+// qualified reports a path in a declared repository's namespace, whether or not it parses as a
+// canonical qualified path: such a path never takes root impact-graph ownership or reach (AFU-V1-069).
+func (s *e2eSelector) qualified(p string) bool {
+	id, _, ok := strings.Cut(p, ":")
+	return ok && s.declared[id]
+}
+
 func (s *e2eSelector) global(p string) bool {
 	name := path.Base(p)
+	if id, rel, ok := splitQualified(p); ok && s.declared[id] {
+		name = path.Base(rel)
+	}
 	if builtinGlobalNames[name] || strings.HasPrefix(name, "Dockerfile") || strings.HasPrefix(name, ".env.") {
 		return true
 	}
@@ -469,7 +531,11 @@ func (s *e2eSelector) prove() ([]E2ETest, []E2EOmission, []E2EFallback) {
 	set, err := LoadIntentsAt(s.ctx, s.root, s.provider.Flows, s.base)
 	links := []EvaluatedLink{}
 	if err == nil {
-		links, err = EvaluateLinks(s.ctx, s.root, set, s.base)
+		pins := map[string]RepositoryPin{}
+		for id, repo := range s.repos {
+			pins[id] = repo.pin
+		}
+		links, err = EvaluateLinksAcross(s.ctx, s.root, set, s.base, pins)
 	}
 	if err != nil {
 		return nil, nil, []E2EFallback{{Code: CodeMapStale, Subject: s.provider.Flows}}
@@ -494,14 +560,14 @@ func (s *e2eSelector) prove() ([]E2ETest, []E2EOmission, []E2EFallback) {
 // the impact graph cannot bound the obligation closure.
 func (s *e2eSelector) unmapped(links []EvaluatedLink) []string {
 	if slices.ContainsFunc(s.in.Plan.Unknown, unbounded) {
-		return append([]string{}, s.in.Plan.Dirty...)
+		return append([]string{}, s.changed...)
 	}
 	reviewed := map[string]bool{}
 	for _, l := range links {
 		reviewed[l.Target.Path] = reviewed[l.Target.Path] || l.ReviewState == ReviewReviewed
 	}
 	out := []string{}
-	for _, p := range s.in.Plan.Dirty {
+	for _, p := range s.changed {
 		if !reviewed[p] {
 			out = append(out, p)
 		}
@@ -513,7 +579,7 @@ func (s *e2eSelector) unmapped(links []EvaluatedLink) []string {
 // record describes, such as a fixture or seed file a flow names: coverage cannot show them unused.
 func (s *e2eSelector) unexplained(links []EvaluatedLink) []string {
 	if slices.ContainsFunc(s.in.Plan.Unknown, unbounded) {
-		return append([]string{}, s.in.Plan.Dirty...)
+		return append([]string{}, s.changed...)
 	}
 	covered := map[string]bool{}
 	for _, record := range s.records {
@@ -527,8 +593,11 @@ func (s *e2eSelector) unexplained(links []EvaluatedLink) []string {
 		covered[l.Target.Path] = covered[l.Target.Path] || l.ReviewState == ReviewReviewed
 	}
 	out := []string{}
-	for _, p := range s.in.Plan.Dirty {
-		if _, owned := s.in.Graph.OwnerOf(p); !owned && !covered[p] {
+	for _, p := range s.changed {
+		if covered[p] {
+			continue
+		}
+		if _, owned := s.in.Graph.OwnerOf(p); s.qualified(p) || !owned {
 			out = append(out, p)
 		}
 	}
@@ -596,9 +665,10 @@ func (s *e2eSelector) inClosure(p string) bool {
 	if in, ok := s.closure[p]; ok {
 		return in
 	}
-	// The dirty set answers reach's own changed-path membership check without its linear scan.
-	in := s.dirty[p] || reach(s.in.Graph, s.changedBy, nil, p) != nil
-	if !in {
+	// The dirty set answers reach's own changed-path membership check without its linear scan. A
+	// qualified path has no impact-graph node, so only its own change puts it in the closure.
+	in := s.dirty[p] || (!s.qualified(p) && reach(s.in.Graph, s.changedBy, nil, p) != nil)
+	if !in && !s.qualified(p) {
 		owner, ok := s.in.Graph.OwnerOf(p)
 		in = ok && s.selected[owner]
 	}
@@ -706,7 +776,7 @@ func (s *e2eSelector) proofList() []E2EProof {
 func proofLinks(links []EvaluatedLink) []ProofLink {
 	out := []ProofLink{}
 	for _, l := range links {
-		out = append(out, ProofLink{Flow: l.Flow, From: l.From, Target: l.Target, ReviewedAt: l.ReviewedAt})
+		out = append(out, ProofLink{Flow: l.Flow, From: l.From, Target: l.Target, ReviewedAt: l.ReviewedAt, ReviewedAtRepository: l.ReviewedAtRepository})
 	}
 	return out
 }
@@ -756,25 +826,54 @@ func (s *e2eSelector) coverageStale(test string, record CoverageRecord, links []
 		return slices.ContainsFunc(t.Paths, func(p string) bool { return diff.set[p] })
 	})
 	return covered || diff.global || s.reachedSince(diff, test) ||
-		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return s.reachedSince(diff, l.Target.Path) })
+		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return s.reachedSince(diff, l.Target.Path) }) ||
+		s.repositoryStale(record, links)
+}
+
+// repositoryStale applies AFU-V1-070: the record names every declared repository's commit, each an
+// ancestor of that repository's base with no covered path, global path or link target changed since.
+func (s *e2eSelector) repositoryStale(record CoverageRecord, links []EvaluatedLink) bool {
+	for _, repo := range s.provider.Repositories {
+		commit, ok := record.Repositories[repo.ID]
+		bound := s.repos[repo.ID]
+		if !ok || bound.pin.Dir == "" {
+			return true
+		}
+		diff := s.evidenceDiffAt(repo.ID+"\x00"+commit, bound.pin.Dir, bound.pin.Revision, repo.ID+":", commit)
+		if !diff.ok || diff.global {
+			return true
+		}
+		if slices.ContainsFunc(record.Tiers, func(t CoverageTier) bool {
+			return slices.ContainsFunc(t.Paths, func(p string) bool { return diff.set[p] })
+		}) || slices.ContainsFunc(links, func(l EvaluatedLink) bool { return diff.set[l.Target.Path] }) {
+			return true
+		}
+	}
+	return false
 }
 
 // evidenceDiff reads the change between one evidence commit and base once. The changed paths cached
 // across commits are bounded by MaxSelectionEvidencePaths (AFU-V1-065): the read that would exceed it
 // drops the whole cache and marks the selection refused, so later reads return a failed diff.
 func (s *e2eSelector) evidenceDiff(commit string) *evidenceDiff {
-	if diff, ok := s.evidence[commit]; ok {
+	return s.evidenceDiffAt(commit, s.root, s.base, "", commit)
+}
+
+// evidenceDiffAt reads, once per key, the change between commit and base in dir, each path prefixed
+// with prefix: empty for the root, `ID:` for a bound application repository (AFU-V1-070).
+func (s *e2eSelector) evidenceDiffAt(key, dir, base, prefix, commit string) *evidenceDiff {
+	if diff, ok := s.evidence[key]; ok {
 		return diff
 	}
 	diff := &evidenceDiff{set: map[string]bool{}, reached: map[string]bool{}}
 	if s.evidenceExceeded {
 		return diff
 	}
-	s.evidence[commit] = diff
-	if _, err := git(s.ctx, s.root, "merge-base", "--is-ancestor", commit, s.base); err != nil {
+	s.evidence[key] = diff
+	if _, err := git(s.ctx, dir, "merge-base", "--is-ancestor", commit, base); err != nil {
 		return diff
 	}
-	out, err := git(s.ctx, s.root, "diff", "--no-renames", "--name-only", "-z", commit, s.base, "--")
+	out, err := git(s.ctx, dir, "diff", "--no-renames", "--name-only", "-z", commit, base, "--")
 	if err != nil {
 		return diff
 	}
@@ -786,10 +885,12 @@ func (s *e2eSelector) evidenceDiff(commit string) *evidenceDiff {
 	s.evidencePaths += len(changed)
 	diff.ok = true
 	for _, p := range changed {
-		diff.set[p] = true
-		diff.global = diff.global || s.global(p)
+		diff.set[prefix+p] = true
+		diff.global = diff.global || s.global(prefix+p)
 	}
-	diff.changedBy = changedUnits(s.in.Graph, changed)
+	if prefix == "" {
+		diff.changedBy = changedUnits(s.in.Graph, changed)
+	}
 	return diff
 }
 
@@ -799,7 +900,7 @@ func (s *e2eSelector) reachedSince(diff *evidenceDiff, p string) bool {
 	if in, ok := diff.reached[p]; ok {
 		return in
 	}
-	in := diff.set[p] || reach(s.in.Graph, diff.changedBy, nil, p) != nil
+	in := diff.set[p] || (!s.qualified(p) && reach(s.in.Graph, diff.changedBy, nil, p) != nil)
 	if s.reachMemo < MaxSelectionEvidencePaths {
 		diff.reached[p] = in
 		s.reachMemo++

@@ -61,6 +61,18 @@ type acquireLoadSample struct {
 	Unfinished bool
 	Detail     string
 	Declines   []string
+	// Rows is the call's per-round trace (V1-1626): one row per preparation
+	// audit (its mode or error code and wall time) and one per progress
+	// report, each stamped with the milliseconds since the call began.
+	Rows []acquireLoadRow
+}
+
+// acquireLoadRow is one per-round observation of an acquireLoadSample.
+type acquireLoadRow struct {
+	AtMS   float64
+	Kind   string // audit or progress
+	Detail string // audit: mode or error code; progress: rounds/resumed
+	MS     float64
 }
 
 // TestPSRV0055_PoolAcquireLoad is the opt-in V1-1560 / GH1010 starvation
@@ -321,6 +333,7 @@ func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 		}
 		ctx, cancel := context.WithDeadline(WithClock(context.Background(), WallClock), stop)
 		defer cancel()
+		callStart := time.Now()
 		var timing LeaseTiming
 		ctx = WithLeaseTiming(ctx, &timing)
 		ctx = context.WithValue(ctx, inventoryHooksKey{}, inventoryHooks{
@@ -331,9 +344,22 @@ func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 			},
 			audit: func(r journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
 				t0 := time.Now()
-				defer func() { s.AuditMS += ms(time.Since(t0)); s.Audits++ }()
-				return r.AuditForWriteObserved()
+				result, obs, err := r.AuditForWriteObserved()
+				s.AuditMS += ms(time.Since(t0))
+				s.Audits++
+				detail := "nil"
+				switch {
+				case err != nil:
+					detail = string(wire.CodeOf(err)) + ": " + fmt.Sprintf("%.80s", err.Error())
+				case result != nil:
+					detail = result.Mode
+				}
+				s.Rows = append(s.Rows, acquireLoadRow{AtMS: ms(t0.Sub(callStart)), Kind: "audit", Detail: detail, MS: ms(time.Since(t0))})
+				return result, obs, err
 			},
+		})
+		ctx = WithLeaseProgress(ctx, func(t LeaseTiming) {
+			s.Rows = append(s.Rows, acquireLoadRow{AtMS: ms(time.Since(callStart)), Kind: "progress", Detail: fmt.Sprintf("rounds=%d resumed=%d complete=%d(moved %d, %s) prefix=%d(moved %d, %s) resumedWalks=%d(%s) declines=%d", t.Rounds, t.Resumed, t.CompleteWalks, t.CompleteMoved, t.CompleteWalk.Round(time.Millisecond), t.PrefixWalks, t.PrefixMoved, t.PrefixWalk.Round(time.Millisecond), t.ResumedWalks, t.ResumedWalk.Round(time.Millisecond), t.ResumeDeclines)})
 		})
 		ctx = context.WithValue(ctx, mutationStageKey{}, func(stage string) {
 			if strings.HasPrefix(stage, "fast.declined") {

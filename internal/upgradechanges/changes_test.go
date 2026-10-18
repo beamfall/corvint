@@ -652,3 +652,81 @@ func TestCompileIssueStateFile(t *testing.T) {
 		}
 	})
 }
+
+func TestCompileRangeBoundAndTimeout(t *testing.T) {
+	t.Run("UCL1142-V0-008 range over the bound refuses up front with limit and commits", func(t *testing.T) {
+		root, base := repoTest(t)
+		mergeTest(t, root, "one", "Closes #1", "Merge pull request #1 from fixture/one")
+		to := mergeTest(t, root, "two", "Closes #2", "Merge pull request #2 from fixture/two")
+		real, e := exec.LookPath("git")
+		if e != nil {
+			t.Skip("git unavailable")
+		}
+		shim := t.TempDir()
+		log := filepath.Join(shim, "calls")
+		script := "#!/bin/sh\necho \"$*\" >> '" + log + "'\nexec '" + real + "' \"$@\"\n"
+		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+			t.Fatal(e)
+		}
+		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		saved := maxRangeCommits
+		maxRangeCommits = 3
+		defer func() { maxRangeCommits = saved }()
+		_, err := Compile(context.Background(), Request{Root: root, From: base, To: to})
+		var tooLarge *RangeTooLargeError
+		if !errors.As(err, &tooLarge) || err.Error() != "changes-range-too-large" || tooLarge.Limit != 3 || tooLarge.Commits != 4 {
+			t.Fatalf("error=%v %+v", err, tooLarge)
+		}
+		calls, e := os.ReadFile(log)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if strings.Contains(string(calls), "show ") || strings.Contains(string(calls), "--first-parent") {
+			t.Fatalf("expensive reads ran before the bound refused:\n%s", calls)
+		}
+		maxRangeCommits = 4
+		if _, err := Compile(context.Background(), Request{Root: root, From: base, To: to}); err != nil {
+			t.Fatalf("range at the bound refused: %v", err)
+		}
+	})
+	t.Run("UCL1142-V0-008 own deadline refuses as changes-timeout with elapsed time", func(t *testing.T) {
+		root, base := repoTest(t)
+		to := mergeTest(t, root, "one", "Closes #1", "Merge pull request #1 from fixture/one")
+		real, e := exec.LookPath("git")
+		if e != nil {
+			t.Skip("git unavailable")
+		}
+		shim := t.TempDir()
+		script := "#!/bin/sh\nfor a in \"$@\"; do if [ \"$a\" = --first-parent ]; then sleep 30; exit 1; fi; done\nexec '" + real + "' \"$@\"\n"
+		if e := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o700); e != nil {
+			t.Fatal(e)
+		}
+		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+		saved := compileDeadline
+		compileDeadline = 500 * time.Millisecond
+		defer func() { compileDeadline = saved }()
+		_, err := Compile(context.Background(), Request{Root: root, From: base, To: to})
+		var timeout *TimeoutError
+		if !errors.As(err, &timeout) || err.Error() != "changes-timeout" || timeout.LimitMS != 500 || timeout.ElapsedMS < 500 || timeout.ElapsedMS > 20000 {
+			t.Fatalf("error=%v %+v", err, timeout)
+		}
+		// The caller's deadline expires after the command's own deadline fired but before Compile
+		// returns (the shim's sleep holds Git's pipes for the one-second WaitDelay): the deadline
+		// that fired first still classifies the refusal.
+		parent, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+		defer cancel()
+		_, err = Compile(parent, Request{Root: root, From: base, To: to})
+		if parent.Err() == nil {
+			t.Fatal("the caller's deadline had not expired when Compile returned; the race was not exercised")
+		}
+		if !errors.As(err, &timeout) || err.Error() != "changes-timeout" {
+			t.Fatalf("later caller expiry: error=%v", err)
+		}
+		// A caller whose own deadline comes first is never classified as changes-timeout.
+		early, cancelEarly := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancelEarly()
+		if _, err := Compile(early, Request{Root: root, From: base, To: to}); err == nil || errors.As(err, &timeout) {
+			t.Fatalf("earlier caller expiry: error=%v", err)
+		}
+	})
+}

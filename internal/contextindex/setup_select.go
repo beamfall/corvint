@@ -70,6 +70,8 @@ type setupSelector struct {
 	// keyTargets are the modules registry keys resolved to: the data contexts the specs read.
 	keyTargets map[string]bool
 	seeds      map[string]bool
+	// shared is the shared-constant key bookkeeping (TSA-V0-006, TSA-V0-007).
+	shared *sharedState
 }
 
 // SelectSetup returns the setup files specs transitively depend on in index: through resolved
@@ -79,7 +81,8 @@ type setupSelector struct {
 func SelectSetup(index *Index, specs []string) SetupSelection {
 	s := &setupSelector{index: index, resolver: NewWebImportResolver(index), dialect: loadRegistryDialect(index),
 		universe: map[string]bool{}, registries: map[string]bool{}, read: map[string]string{},
-		notFollowed: map[string]string{}, visited: map[string]bool{}, keyTargets: map[string]bool{}, seeds: map[string]bool{}}
+		notFollowed: map[string]string{}, visited: map[string]bool{}, keyTargets: map[string]bool{}, seeds: map[string]bool{},
+		shared: newSharedState()}
 	// The universe is every tracked setup path, including generated or oversized files the index
 	// does not read, so ALL is always the whole safe superset (TSA-V0-003).
 	for name := range index.Tracked {
@@ -100,6 +103,7 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 			}
 		}
 	}
+	s.readSetupShared()
 	if s.dialect.invalid != 0 {
 		s.reason("registry-unresolved", "", 0, "an application-map manifest declares invalid registries")
 	}
@@ -122,9 +126,15 @@ func SelectSetup(index *Index, specs []string) SetupSelection {
 		}
 		s.enqueue(name, true)
 	}
-	// A seeder a registry key selects is itself traversed, and the seeders of any key it reaches
-	// are selected in turn, until the closure stops growing (TSA-V0-001).
-	for s.drain() && s.seedersOfKeyTargets() {
+	// A seeder a registry key or a shared constant key selects is itself traversed, and the seeders
+	// of any key it reaches are selected in turn, until the closure stops growing (TSA-V0-001,
+	// TSA-V0-006). Non-literal shared reads are judged only against the final closure (TSA-V0-007).
+	for s.drain() {
+		registry := s.seedersOfKeyTargets()
+		if shared := s.seedersOfSharedKeys(); !registry && !shared {
+			s.sharedReasons()
+			break
+		}
 	}
 	return s.result(index, cleaned)
 }
@@ -255,6 +265,7 @@ func (s *setupSelector) visit(name string) {
 			s.lookup(site)
 		}
 	}
+	s.collectShared(name)
 }
 
 // lookup follows a registry accessor call by its literal key (TSA-V0-003).

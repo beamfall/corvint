@@ -80,6 +80,9 @@ func qualifiedProfileShapeError(r Receipt) error {
 	if r.Profile != "" && hasRouteStubs(r) {
 		return errors.New("external-profile-has-route-stubs")
 	}
+	if r.Profile != "" && hasRequestOutcomes(r) {
+		return errors.New("external-profile-has-request-outcomes")
+	}
 	switch r.Profile {
 	case AttemptExternalProfile:
 		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil || hasSensitiveInputEvidence(r) {
