@@ -102,6 +102,10 @@ type Context struct {
 	// ObligationReplay marks an audit replay, which cannot recompute the
 	// discarded report (TOL-V0-009) and audits source presence separately.
 	ObligationReplay bool
+	// Screen is the KHN-V0-028 adopter value screen the store built for a
+	// fresh NOTE_SET, KNOWHOW_* or OBLIGATIONS_* write while the policy
+	// declares knowHow.screen; nil (every replay) screens nothing more.
+	Screen *ValueScreen
 }
 
 // Plan is the pure result of validating and computing one mutation. It is

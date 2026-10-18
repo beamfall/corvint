@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/defects"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -91,6 +92,8 @@ var ReadVerbs = []string{
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
 	"preflight",
+	"worktree ensure",
+	"defects add", "defects update", "defects list",
 	"run-batch",
 	"qualify",
 	"gate record", "gate resubmit", "gate history",
@@ -155,6 +158,12 @@ func Run(env Env) int {
 		return emit(env.Stdout, versionResult())
 	case "preflight":
 		return emit(env.Stdout, preflight(env, []string{"preflight"}, args[1:]))
+	case "worktree":
+		// TWT-V0-002..007: the per-ticket worktree.
+		return emit(env.Stdout, worktreeCommand(env, args[1:]))
+	case "defects":
+		// TDR-V0-010: the defect register.
+		return emit(env.Stdout, defectsCommand(env, args[1:]))
 	case "run-batch":
 		return emit(env.Stdout, runBatch(env, []string{"run-batch"}, args[1:]))
 	case "qualify":
@@ -475,7 +484,7 @@ func LiveFormats() []string {
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
-		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile,
+		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
 		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,

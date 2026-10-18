@@ -815,7 +815,7 @@
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
     "title": "Corvint Tasks know-how notes V0",
     "reqPrefix": "KHN-V0",
-    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687)",
+    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)",
     "delivery": "experimental",
     "claim": "Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.",
     "dependsOn": [
@@ -3670,6 +3670,30 @@
       "tools/test-commands-check",
       "tools/test-commands-run"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-tasks-defect-register-v0.md",
+    "title": "Corvint Tasks defect register V0",
+    "reqPrefix": "TDR-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11) (V1-1593; GitHub #1036)",
+    "delivery": "experimental",
+    "claim": "A local append-only register records product and environment defects; preflight checks that obligations and expected failures cite known, live product defects.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-ticket-worktrees-v0.md",
+    "title": "Corvint Tasks ticket worktrees V0",
+    "reqPrefix": "TWT-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11) (V1-1588; GitHub #1031)",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks worktree ensure <ticket>` creates or reuses one worktree per ticket on a pattern-derived branch inside a declared root and never resets it.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   },
   {
     "path": "docs/specs/corvint-tasks-closeout-debt-v0.md",
