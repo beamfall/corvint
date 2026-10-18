@@ -306,6 +306,18 @@ printf 'id\tfile\ttitle\tacceptance\tacceptedBy\n\tdocs/specs/one.md\tt\tstandin
 status=0
 (cd "$project" && script/spec-acceptance-audit.sh) > /dev/null 2>&1 || status=$?
 test "$status" = 1 || fail "a five-column row with an empty id exited $status, want 1"
+# A stale row that names another file than the staged specs define the id in is refused, not
+# joined to that other file's definition line (SRG-V0-017).
+gen | sed 's|^ONE-V0-001	docs/specs/one.md	|ONE-V0-001	docs/specs/two.md	|' \
+  > "$project/docs/specs/REQUIREMENTS.tsv"
+grep -q '^ONE-V0-001	docs/specs/two.md	' "$project/docs/specs/REQUIREMENTS.tsv" || fail "the stale-file fixture was not written"
+status=0
+stale=$(cd "$project" && script/spec-acceptance-audit.sh 2>&1) || status=$?
+test "$status" = 1 || fail "a row naming another file than its staged definition exited $status, want 1: $stale"
+case $stale in
+  *'ONE-V0-001 is defined in docs/specs/one.md, not docs/specs/two.md'*) ;;
+  *) fail "the stale-file refusal printed: $stale" ;;
+esac
 
 # 9. SRG-V0-015: the committed index has no line column and orders its rows by file, then by
 # definition position, so an edit that only shifts a spec's lines leaves it byte for byte; `--lines`

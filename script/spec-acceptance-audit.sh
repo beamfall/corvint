@@ -11,7 +11,8 @@ set -eu
 # `unrecorded` until its marker moves to the front. The audit reports and exits 0; it gates nothing.
 # `make spec-requirements-check` is what binds both files to the staged specs. The committed index
 # carries no line number (SRG-V0-015), so each listed location takes its line from the derived
-# `script/gen-spec-requirements.sh --lines` view of the same staged specs (SRG-V0-017).
+# `script/gen-spec-requirements.sh --lines` view of the same staged specs (SRG-V0-017), and a row
+# whose file is not the file that view defines the id in fails rather than citing the wrong file.
 
 usage() { printf 'usage: %s [--acceptance standing|owner|unrecorded]\n' "$0" >&2; exit 2; }
 mode=standing
@@ -45,8 +46,8 @@ open my $view, '-|', 'script/gen-spec-requirements.sh', '--lines'
     or die "script/gen-spec-requirements.sh --lines: $!\n";
 <$view> // die "script/gen-spec-requirements.sh --lines: no header\n";
 while (my $row = <$view>) {
-    my ($id, undef, $number) = split /\t/, $row;
-    $line{$id} = $number;
+    my ($id, $file, $number) = split /\t/, $row;
+    $line{$id} = [$file, $number];
 }
 close $view or die "script/gen-spec-requirements.sh --lines failed: exit " . ($? >> 8) . "\n";
 
@@ -72,7 +73,9 @@ while (my $line = <$in>) {
     $id =~ /\A[A-Z][A-Z0-9-]*-[0-9]{3}\z/
         && $file =~ m{\Adocs/specs/[^/]+\.md\z}
         or die "$tsv:$.: want a requirement id and a docs/specs/*.md file\n";
-    my $number = $line{$id} // die "$tsv:$.: $id is not defined by the staged specs; run make spec-requirements\n";
+    my ($defined, $number) = @{$line{$id} // die "$tsv:$.: $id is not defined by the staged specs; run make spec-requirements\n"};
+    $defined eq $file
+        or die "$tsv:$.: $id is defined in $defined, not $file; run make spec-requirements\n";
     $acceptance =~ /\A(?:owner|standing|unrecorded)\z/
         or die "$tsv:$.: acceptance '$acceptance' is not owner, standing or unrecorded\n";
     ++$count{$acceptance};

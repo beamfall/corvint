@@ -202,18 +202,26 @@ No requirement below diverges from the implementation.
   conflict in `REQUIREMENTS.tsv`, `INDEX.json` or `README.md`, and each merged generated file MUST
   equal its regeneration, when the changes add requirements to different specs, or add requirements
   to one spec whose new rows are separated in the committed order by at least one row neither
-  change adds, or when one only edits a spec's prose. This holds even where each change shifts the
-  other's definition lines. `script/spec-requirements-conflict_test.sh` MUST show each case
-  through the real `make` target. New rows that land next to each other in the committed order
-  still conflict there, and so do two new specs. Examples are two changes that both append to one
-  section, or one that appends at a section's end while the other inserts at the next section's
-  start with no row between. Each such conflict is resolved by resolving the spec and
-  regenerating, as SRG-V0-013 states.
+  change adds, or when one only edits prose that leaves every indexed field (`id`, `file`,
+  `title`, `acceptance`, `acceptedBy`) of every row unchanged. This holds even where each change
+  shifts the other's definition lines. `script/spec-requirements-conflict_test.sh` MUST show each
+  case through the real `make` target. The guarantee does not cover these cases:
+  - New rows that land next to each other in the committed order, for example two changes that
+    both append to one section, or one that appends at a section's end while the other inserts at
+    the next section's start with no row between.
+  - Two new specs.
+  - An edit that changes an indexed field next to another change's new row. For example, a
+    reflow that keeps a requirement's meaning but changes its first line, and so its title.
+    `script/spec-requirements-conflict_test.sh` shows that case as an expected conflict.
+
+  Each such conflict is resolved by resolving the spec and regenerating, as SRG-V0-013 states.
 - `SRG-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1525) A reader
   that needs a requirement's line MUST take it from the spec, never from the committed index. Go
   readers MUST use `specindex.DefinitionLine`, which applies the SRG-V0-003 and SRG-V0-004 ranks
   to the winner's file: its first rank 0 line, else its first rank 1 line. Shell readers MUST use
-  the `--lines` view. Go readers MUST parse the index through `specindex.ParseIndex`, which reads
+  the `--lines` view, and MUST join on both the id and the file: a committed row whose file is not
+  the one the view defines its id in is stale input, never a citation of the row's file at the
+  other file's line. Go readers MUST parse the index through `specindex.ParseIndex`, which reads
   both the committed layout and a line-bearing one, so that an index pinned before SRG-V0-015 still
   resolves. An id that its spec no longer defines MUST surface as stale input: a console gap, a
   compaction-kernel refusal, a roadmap link with no line, or an audit exit 1. It MUST NOT be given
@@ -286,6 +294,8 @@ definition line (SRG-V0-017).
 | A committed row names an id its spec no longer defines (a stale index) | the console reports a gap, the compaction kernel refuses with `unsupported-kernel-requirement`, a roadmap link keeps its file and title with no line, and the audit exits 1; `spec-requirements-check` fails on the stale index |
 | A reader is handed an index pinned before SRG-V0-015, with a line column | `specindex.ParseIndex` reads the line from that column, so a kernel or console over an old revision still resolves |
 | Two lanes add requirements whose rows land next to each other in the committed order | a conflict between those rows of `REQUIREMENTS.tsv` only; resolve the spec and regenerate (SRG-V0-013) |
+| One lane reflows a requirement so its first line, and so its title, changes, and another inserts a requirement right after it | a conflict between those rows of `REQUIREMENTS.tsv`, even when the spec merges cleanly; a reflow is not a prose-only edit under SRG-V0-016; resolve the spec and regenerate (SRG-V0-013) |
+| A committed row names a different file than the one the staged specs define its id in | the acceptance audit exits 1 naming both files, instead of citing the row's file at the other file's line |
 | An agent needs a requirement's line | `rg -n -F` on the id in the row's file, or `script/gen-spec-requirements.sh --lines` |
 
 ## Acceptance criteria and testing matrix
@@ -309,8 +319,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-013 | `script/spec-requirements-conflict_test.sh`: the conflicted paths are exactly the spec and `REQUIREMENTS.tsv`, every marker sits in the requirement list or between new TSV rows, regeneration resolves the TSV, and a lane on another spec merges cleanly |
 | SRG-V0-014 | `TestDeliveryClauseConvention` (rule table with the stale-prefix case) and `TestIndexCoversSpecsAndHeaders` over every spec |
 | SRG-V0-015 | `TestSRGV0015IndexOrderedByDefinitionPosition` over the committed index; `script/gen-spec-requirements_test.sh` case 9: the committed header, definition order within a spec, file order, the id-ordered `--lines` view, and a line shift that leaves the committed index byte for byte. At the V1-1525 base the regenerated `--lines` view was byte-identical to the previous committed index |
-| SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv` |
-| SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes |
+| SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv`. A title-changing reflow against a row inserted after it conflicts in `REQUIREMENTS.tsv` only, in both orders, and regenerates to both rows (the recorded limit) |
+| SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
 
 ## Traceability
 

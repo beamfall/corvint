@@ -65,8 +65,10 @@ Options considered:
   OCM spec test.
 - **Limit:** changes whose new rows are adjacent in the committed order still conflict on those
   rows. Examples are two changes that both append to one section, or two new specs appending to
-  `INDEX.json` and `README.md`. As before, they are resolved by resolving the spec and
-  regenerating.
+  `INDEX.json` and `README.md`. So does an edit that changes an indexed field next to another
+  change's new row, such as a reflow that changes a requirement's first line and so its title.
+  Only prose edits that leave every indexed field unchanged are covered. As before, these
+  conflicts are resolved by resolving the spec and regenerating.
 - **CI:** no `.github/` change is needed.
 
 ## Rollback

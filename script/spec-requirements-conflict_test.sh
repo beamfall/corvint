@@ -6,9 +6,10 @@ set -eu
 # REQUIREMENTS.tsv rows, never in the spec header, the Agent digest, INDEX.json or README.md.
 # The TSV conflict resolves by regeneration, and a lane on another spec merges cleanly.
 # Covers SRG-V0-016: lanes that add requirements to different specs, or to different sections of
-# one spec so that each shifts the other's definition lines, or that only edit a spec's prose,
-# merge in both orders with no conflict in any file, and every merged generated file is the
-# regenerated one. The test drives the real Makefile target against a temporary repository
+# one spec so that each shifts the other's definition lines, or that only edit prose no indexed
+# field reads, merge in both orders with no conflict in any file, and every merged generated file
+# is the regenerated one. A reflow that changes a requirement's first line, and so its title, is
+# the recorded limit: next to an inserted row it conflicts in REQUIREMENTS.tsv. The test drives the real Makefile target against a temporary repository
 # holding a copy of the generator.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
@@ -214,5 +215,43 @@ merges_cleanly lane-x lane-y 'SEC-V0-003 SEC-V0-012'
 merges_cleanly lane-x lane-z 'SEC-V0-003'
 merges_cleanly lane-y lane-z 'SEC-V0-012'
 merges_cleanly lane-x lane-o 'SEC-V0-003 OTH-V0-003'
+
+# SRG-V0-016 limit: a reflow that leaves a requirement's meaning but changes its first line changes
+# that row's title, so it is not a prose-only edit under SRG-V0-016. Lane W inserts a requirement
+# right after the reflowed one: the spec merges cleanly (an unchanged continuation line separates
+# the two edits), but the two REQUIREMENTS.tsv rows are adjacent and conflict.
+git checkout -q -b wrapped "$sections"
+awk '$0 == "- SEC-V0-010: (accepted, decision 0003) The tenth clause." {
+       print "- SEC-V0-010: (accepted, decision 0003) The tenth clause"; print "  continues here"; print "  and ends here."; next }
+     { print }' "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+regen
+git commit -q -m wrapped
+wrapped=$(git rev-parse HEAD)
+git checkout -q -b lane-r "$wrapped"
+awk '$0 == "- SEC-V0-010: (accepted, decision 0003) The tenth clause" { print "- SEC-V0-010: (accepted, decision 0003) The tenth clause continues"; next }
+     $0 == "  continues here" { print "  here"; next }
+     { print }' "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+regen
+git commit -q -m lane-r
+git diff --quiet "$wrapped" lane-r -- docs/specs/REQUIREMENTS.tsv && fail "lane R's reflow left the SEC-V0-010 title unchanged"
+git checkout -q -b lane-w "$wrapped"
+awk '{ print } $0 == "  and ends here." { print "- SEC-V0-013: '"$standing"' Lane W'"'"'s clause." }' \
+  "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+regen
+git commit -q -m lane-w
+for order in 'lane-r lane-w' 'lane-w lane-r'; do
+  set -- $order
+  git checkout -q -b "merge-$1-$2" "$1"
+  if git merge -q --no-edit "$2" > /dev/null 2>&1; then fail "a reflowed row and a row inserted after it merged without a conflict"; fi
+  conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+  test "$conflicted" = "docs/specs/REQUIREMENTS.tsv " ||
+    fail "merging $2 into $1 conflicted in $conflicted, want only REQUIREMENTS.tsv"
+  # Resolution: the spec merged; regenerate the index rather than hand-merge it (SRG-V0-013).
+  git checkout -q --theirs -- docs/specs/REQUIREMENTS.tsv
+  regen
+  git commit -q --no-edit
+  grep -q '^SEC-V0-010	docs/specs/sections.md	.*The tenth clause continues	' "$repo/docs/specs/REQUIREMENTS.tsv" &&
+    grep -q '^SEC-V0-013	' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "the regenerated merge of $2 into $1 lost a row"
+done
 
 printf 'ok\n'

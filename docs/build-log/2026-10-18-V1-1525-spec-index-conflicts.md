@@ -54,3 +54,19 @@ Collision checks:
   before. This limit is part of SRG-V0-016 and its failure table.
 - **CI.** No `.github/` change is needed. `spec-requirements-check` still byte-compares the
   three committed files.
+
+## Review fixes
+
+An independent review of PR #1108 found two P2s; both are fixed here.
+
+1. **The acceptance audit joined `--lines` by id only.**
+   - Effect: a stale row naming the wrong file was printed with the other file's line, and the
+     audit exited 0.
+   - Fix: the audit now joins on id and file and exits 1 on a mismatch.
+   - Test: `script/gen-spec-requirements_test.sh` case 8. It failed before the fix (exit 0).
+2. **SRG-V0-016 promised too much for prose edits.**
+   - Change: the guarantee now covers only edits that leave every indexed field unchanged.
+   - Limit added: a reflow that changes a requirement's first line, and so its title, conflicts
+     with a row inserted right after it.
+   - Test: `script/spec-requirements-conflict_test.sh` shows this as an expected
+     `REQUIREMENTS.tsv`-only conflict in both orders, resolved by regeneration.
