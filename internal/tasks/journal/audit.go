@@ -94,6 +94,9 @@ type Result struct {
 	writerBase *WriterCheckpoint
 	// listing is what a ModeWriter audit listed but did not read.
 	listing map[string]ListedFile
+	// resumeRead is what an AuditForResume walk consumed, by path; the
+	// resume recheck rereads the tail against it (PSR-V0-116, proposed).
+	resumeRead map[string]PhysicalFile
 }
 
 // Reader always streams receipt bytes, retaining only bounded path/digest
@@ -447,6 +450,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 		check := newNativeRead(native.native)
 		bodyErr = r.resume.held(check, result, lim)
 		native.closeErr = errors.Join(native.closeErr, check.close())
+		if native.physical != nil {
+			result.resumeRead = native.physical.files
+		}
 	}
 	if r.writer != nil {
 		r.writerBefore = before

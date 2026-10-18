@@ -23,17 +23,20 @@ var knowHowReaders = []string{
 	"internal/tasks/cli/command_help.go",
 	"internal/tasks/cli/know_how.go",
 	"internal/tasks/cli/lease.go",
+	"internal/tasks/intent/adopter_policy.go", // knowHow.screen policy only (KHN-V0-028)
 	"internal/tasks/intent/policy.go",
 	"internal/tasks/mutation/adopt.go",
 	"internal/tasks/mutation/apply.go",
 	"internal/tasks/mutation/know_how.go",
 	"internal/tasks/mutation/know_how_provenance.go",
 	"internal/tasks/mutation/mutation.go",
+	"internal/tasks/mutation/value_screen.go", // screens the written text, reads no note (KHN-V0-029)
 	"internal/tasks/store/claim_delivery.go",
 	"internal/tasks/store/external_review.go",
 	"internal/tasks/store/know_how.go",
 	"internal/tasks/store/know_how_symbols.go",
 	"internal/tasks/store/lease.go",
+	"internal/tasks/store/value_screen.go", // loads the screen for a write (KHN-V0-029)
 	"internal/tasks/store/writer_route.go",
 	"internal/tasks/ticket/know_how.go",
 	"internal/tasks/ticket/record.go",

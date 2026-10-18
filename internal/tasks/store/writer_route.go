@@ -90,6 +90,10 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return declined(err.Error())
 	}
+	screen, err := valueScreenInput(repo, env, w.proof.Records["intent/policy.json"].Raw)
+	if err != nil {
+		return declined(err.Error())
+	}
 	result := transaction.Model(request, transaction.Input{
 		Inventory:         w.inv,
 		Head:              w.head,
@@ -106,6 +110,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		Replay:            transaction.ReplayObservation{State: "ABSENT"},
 		RecordedAt:        now,
 		PriorNoteEvent:    priorNote,
+		ValueScreen:       screen,
 	})
 	at = writerStage(ctx, "model", at)
 	if w.inv.Incomplete() {

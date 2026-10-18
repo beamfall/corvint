@@ -47,6 +47,25 @@ func leaseTimingOf(ctx context.Context) *LeaseTiming {
 	return &LeaseTiming{}
 }
 
+type leaseProgressKey struct{}
+
+// WithLeaseProgress returns a context whose lease writes call report with a
+// copy of the command's timing after every preparation round, on the writing
+// goroutine (PSR-V0-112, V1-1617). The copy is a diagnostic like the timing
+// itself: report must not block for long and decides nothing.
+func WithLeaseProgress(ctx context.Context, report func(LeaseTiming)) context.Context {
+	return context.WithValue(ctx, leaseProgressKey{}, report)
+}
+
+// leaseProgressOf returns the command's progress callback, or one that
+// discards.
+func leaseProgressOf(ctx context.Context) func(LeaseTiming) {
+	if f, ok := ctx.Value(leaseProgressKey{}).(func(LeaseTiming)); ok && f != nil {
+		return f
+	}
+	return func(LeaseTiming) {}
+}
+
 // prepared splits one preparation at the end of its snapshot read; a
 // preparation that ended before the read finished is all snapshot read.
 func (t *LeaseTiming) prepared(start, readEnd time.Time) {

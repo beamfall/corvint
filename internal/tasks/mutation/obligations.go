@@ -150,6 +150,9 @@ func (c Context) obligations(plan *Plan, env *Envelope) *Plan {
 	if r := screenObligations(p); r != nil {
 		return plan.refused(r)
 	}
+	if r := c.Screen.screenValues(obligationScreenFields(p)); r != nil {
+		return plan.refused(r)
+	}
 	revision := int64(0)
 	var previous *wire.Digest
 	if pre.ObligationsRef != nil {
@@ -274,10 +277,8 @@ func (c *ObligationReportCheck) matches(l *ticket.ObligationLedger, w *ticket.Ob
 	return nil
 }
 
-// screenObligations refuses a payload whose stored prose, paths or test
-// titles match the shared secret screen (TOL-V0-009). The detail names the
-// field, never the value.
-func screenObligations(p *ObligationsPayload) *refusal {
+// obligationFields is a payload's stored prose, paths and test titles.
+func obligationFields(p *ObligationsPayload) []string {
 	var fields []string
 	switch {
 	case p.Seed != nil:
@@ -304,12 +305,30 @@ func screenObligations(p *ObligationsPayload) *refusal {
 			}
 		}
 	}
+	return fields
+}
+
+// screenObligations refuses a payload whose stored prose, paths or test
+// titles match the shared secret screen (TOL-V0-009). The detail names the
+// field, never the value.
+func screenObligations(p *ObligationsPayload) *refusal {
+	fields := obligationFields(p)
 	for _, s := range fields {
 		if matchesSecretScreen(s) {
 			return refuse(OutcomeValidationFailed, wire.CodeSecretDetected, "/payload: a title, alias, reason, path, test id or review source matches the secret screen; remove the secret and retry with a new request ID")
 		}
 	}
 	return nil
+}
+
+// obligationScreenFields names an obligation write's stored text for the
+// KHN-V0-030 value screen; the detail stays at /payload, as TOL-V0-009's.
+func obligationScreenFields(p *ObligationsPayload) []screenField {
+	var out []screenField
+	for _, s := range obligationFields(p) {
+		out = append(out, screenField{"/payload", s})
+	}
+	return out
 }
 
 // ReplayObligation re-derives one committed OBLIGATIONS_* write from audited

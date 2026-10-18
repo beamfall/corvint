@@ -139,7 +139,13 @@ type Policy struct {
 	// Slots are the optional PSR-V0-030 capacity-slot resources; empty
 	// (the key absent) declares none.
 	Slots []SlotResource
-	Raw   []byte
+	// Worktrees is the optional TWT-V0-001 per-ticket worktree declaration;
+	// nil (the key absent) leaves `worktree ensure` refused.
+	Worktrees *WorktreePolicy
+	// Defects is the optional TDR-V0-001 defect-register declaration; nil
+	// (the key absent) keeps the default prefix and the private register.
+	Defects *DefectPolicy
+	Raw     []byte
 }
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
@@ -183,6 +189,9 @@ func (p *Policy) MilestoneRequired() bool {
 // KHN-V0-022 checks; it grants nothing else.
 type KnowHowPolicy struct {
 	WorkerAdd bool
+	// Screen is the optional KHN-V0-028 adopter value screen; nil keeps
+	// only the shared credential screen.
+	Screen *ValueScreenPolicy
 }
 
 // WorkerKnowHowAdd reports whether policy opts WORKER into scoped
@@ -305,7 +314,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones", "slots")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -491,8 +500,11 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "knowHow") {
 		k := r.Field("knowHow")
-		k.Closed("workerAdd")
+		k.Closed(wire.OptionalKeys(k.Value(), []string{"workerAdd"}, "screen")...)
 		p.KnowHow = &KnowHowPolicy{WorkerAdd: k.Field("workerAdd").Bool()}
+		if k.Err() == nil && wire.Has(k.Value(), "screen") {
+			p.KnowHow.Screen = readValueScreen(k.Field("screen"))
+		}
 		if err := r.Err(); err != nil {
 			return nil, err
 		}
@@ -504,6 +516,18 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		if o.Err() == nil && wire.Has(o.Value(), "requireSourceReview") {
 			p.Obligations.RequireSourceReview = o.Field("requireSourceReview").Bool()
 		}
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "worktrees") {
+		p.Worktrees = readWorktrees(r.Field("worktrees"))
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "defects") {
+		p.Defects = readDefects(r.Field("defects"))
 		if err := r.Err(); err != nil {
 			return nil, err
 		}
