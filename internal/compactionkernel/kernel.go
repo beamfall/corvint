@@ -23,6 +23,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/specindex"
 )
 
 const (
@@ -262,6 +263,17 @@ func resolveRequirements(index *contextindex.Index, requirementIDs []string) ([]
 		if !tracked || source.BlobHash == "" {
 			return nil, &gokernel.Error{Code: "unsupported-kernel-requirement", Message: "requirement spec is not pinned in this index"}
 		}
+		if row.Line == 0 {
+			// The committed index carries no line (SRG-V0-015): the line is
+			// the pinned spec's own definition of the id (SRG-V0-017).
+			text, valid, loaded := source.Text()
+			if !valid || !loaded {
+				return nil, &gokernel.Error{Code: "unsupported-kernel-requirement", Message: "requirement spec is unreadable in this index"}
+			}
+			if row.Line = specindex.DefinitionLine(text, id); row.Line == 0 {
+				return nil, &gokernel.Error{Code: "unsupported-kernel-requirement", Message: "requirement id is not defined by its pinned spec"}
+			}
+		}
 		row.BlobHash = source.BlobHash
 		requirements = append(requirements, row)
 	}
@@ -278,17 +290,13 @@ func requirementRows(index *contextindex.Index) (map[string]Requirement, error) 
 	if !valid || !loaded {
 		return nil, &gokernel.Error{Code: "unsupported-kernel-requirement", Message: "the pinned requirement index is unreadable"}
 	}
-	rows := make(map[string]Requirement)
-	for _, line := range strings.Split(body, "\n") {
-		fields := strings.Split(line, "\t")
-		if len(fields) < 3 || fields[0] == "id" {
-			continue
-		}
-		number, err := strconv.Atoi(fields[2])
-		if err != nil || number < 1 {
-			continue
-		}
-		rows[fields[0]] = Requirement{ID: fields[0], Line: number, Path: fields[1]}
+	parsed, err := specindex.ParseIndex(body)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-kernel-requirement", Message: "the pinned requirement index has no index header"}
+	}
+	rows := make(map[string]Requirement, len(parsed))
+	for id, row := range parsed {
+		rows[id] = Requirement{ID: id, Line: row.Line, Path: row.File}
 	}
 	return rows, nil
 }

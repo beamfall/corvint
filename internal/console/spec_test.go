@@ -86,6 +86,35 @@ func TestSpecLookupReportsLineOutsideFile(t *testing.T) {
 	}
 }
 
+// TestSRGV0017SpecLookupLocatesCommittedLayout pins SRG-V0-017 for the console:
+// the committed index carries no line (SRG-V0-015), so the clause is the line
+// the spec defines the id on, and an id the spec no longer defines is a stale
+// index gap (LAC-V0-008), never an empty clause.
+func TestSRGV0017SpecLookupLocatesCommittedLayout(t *testing.T) {
+	root := t.TempDir()
+	specsDir := filepath.Join(root, "docs", "specs")
+	if err := os.MkdirAll(specsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	tsv := "id\tfile\ttitle\tacceptance\tacceptedBy\n" +
+		"REQ-1\tdocs/specs/clause.md\tThe clause.\tunrecorded\t-\n" +
+		"REQ-2\tdocs/specs/clause.md\tRemoved.\tunrecorded\t-\n"
+	spec := "# Clause\n\n| `REQ-1` | table |\n\n- `REQ-1`: The clause.\n"
+	for name, content := range map[string]string{"REQUIREMENTS.tsv": tsv, "INDEX.json": "[]", "clause.md": spec} {
+		if err := os.WriteFile(filepath.Join(specsDir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clause := SpecLookup{Root: root}.Resolve("REQ-1")
+	if clause.Err != "" || clause.Text != "- `REQ-1`: The clause." || clause.Requirement.Line != 5 {
+		t.Fatalf("committed-layout clause = text %q line %d err %q, want line 5", clause.Text, clause.Requirement.Line, clause.Err)
+	}
+	stale := SpecLookup{Root: root}.Resolve("REQ-2")
+	if stale.Err == "" || stale.Text != "" {
+		t.Fatalf("want a stale-index gap for an id the spec does not define, got text %q err %q", stale.Text, stale.Err)
+	}
+}
+
 // TestReadBoundedRefusesSymlink is the F6 regression: a committed symlink to
 // /dev/zero must be refused before it is ever opened, not read until the
 // size limit trips. os.ReadFile following the link reached ~3.8 GiB of heap

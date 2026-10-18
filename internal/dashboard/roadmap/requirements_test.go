@@ -61,3 +61,50 @@ func TestLoadRequirementsRefusesOversizeFile(t *testing.T) {
 		t.Fatal("want error for a requirements table past maxInputFileBytes")
 	}
 }
+
+// TestSRGV0017RoadmapLocatesCommittedLayoutLines pins SRG-V0-017 for the roadmap reader: the
+// committed index carries no line, so a resolved link takes its line from the spec's definition,
+// and a spec that no longer defines the id, or a path outside the root, leaves the line empty.
+func TestSRGV0017RoadmapLocatesCommittedLayoutLines(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := "# Spec\n\n| `ONE-V0-001` | table |\n\n- `ONE-V0-001`: Defined here.\n"
+	if err := os.WriteFile(filepath.Join(root, "docs", "specs", "one.md"), []byte(spec), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "docs", "specs", "REQUIREMENTS.tsv")
+	content := "id\tfile\ttitle\tacceptance\tacceptedBy\n" +
+		"ONE-V0-001\tdocs/specs/one.md\tDefined here.\tunrecorded\t-\n" +
+		"ONE-V0-002\tdocs/specs/one.md\tGone.\tunrecorded\t-\n" +
+		"ESC-V0-001\t../outside.md\tOutside.\tunrecorded\t-\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	requirements, err := LoadRequirements(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := newSpecLines(root)
+	if link := lines.fill(ResolveRequirement(requirements, "ONE-V0-001")); !link.Resolved || link.Line != "5" || link.Title != "Defined here." {
+		t.Fatalf("committed-layout link = %+v, want line 5", link)
+	}
+	for _, id := range []string{"ONE-V0-002", "ESC-V0-001"} {
+		if link := lines.fill(ResolveRequirement(requirements, id)); !link.Resolved || link.Line != "" {
+			t.Fatalf("%s link = %+v, want resolved with no line", id, link)
+		}
+	}
+	if _, err := LoadRequirements(writeFile(t, "not\tan\tindex\n")); err == nil {
+		t.Fatal("want error for a table whose header is not an index header")
+	}
+}
+
+func writeFile(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "REQUIREMENTS.tsv")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
