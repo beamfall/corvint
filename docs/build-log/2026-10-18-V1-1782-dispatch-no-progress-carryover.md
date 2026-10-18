@@ -35,7 +35,20 @@ decision; it applies that standing acceptance to this lane's requirements.
 
 ## Evidence
 
-Focused tests `TestATRV0110`..`TestATRV0114` in `internal/tasks/dispatch` (8 tests), the
+Focused tests `TestATRV0110`..`TestATRV0114` in `internal/tasks/dispatch` (10 tests), the
 CAL-V0-131 reader row in `internal/tasks/cli/format_version_test.go`, and a mutation check:
 dropping the prompt append fails `TestATRV0113_NextSessionPromptCarriesBoundedLabelledBlock`.
 Live host qualification and a measured progress-rate comparison are NOT_RUN.
+
+## Codex review round 1
+
+Three findings were fixed, each with a regression test that fails without its fix:
+
+- **Screen before the cut.** The fallback no longer uses the finished summary, which is cut to
+  2000 bytes mid-line. It now uses the line-aligned stdout tail, uncut, so the screen sees the
+  credential's key and value together (`TestATRV0111_PlainOutputScreenedBeforeCut`).
+- **A stale record is replaced.** After a failed removal, the next append starts a new record
+  instead of extending the pre-progress one
+  (`TestATRV0111_AppendAfterFailedRemovalDropsOlderEntries`).
+- **Explicit zero refused.** `maxBytes` and `sessions` are pointer members, so an explicit `0` is
+  refused while an absent member defaults (`TestATRV0110_CarryOverConfigDefaultsAndBounds`).

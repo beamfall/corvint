@@ -57,15 +57,16 @@ const (
 var carryField = regexp.MustCompile(`^[^\x00-\x1f\x7f]{1,128}$`)
 
 // CarryOver is a role's opt-in ATR-V0-110 no-progress carry-over. Enabled
-// defaults to true; zero MaxBytes and Sessions take their defaults.
+// defaults to true; an absent MaxBytes or Sessions takes its default, and
+// an explicit value out of range, zero included, is refused.
 type CarryOver struct {
 	Enabled  *bool `json:"enabled,omitempty"`
-	MaxBytes int   `json:"maxBytes,omitempty"`
-	Sessions int   `json:"sessions,omitempty"`
+	MaxBytes *int  `json:"maxBytes,omitempty"`
+	Sessions *int  `json:"sessions,omitempty"`
 }
 
 func (c *CarryOver) validate() error {
-	if c.MaxBytes != 0 && (c.MaxBytes < minCarryBytes || c.MaxBytes > maxCarryBytes) || c.Sessions < 0 || c.Sessions > maxCarryEntries {
+	if m := c.MaxBytes; m != nil && (*m < minCarryBytes || *m > maxCarryBytes) || c.Sessions != nil && (*c.Sessions < 1 || *c.Sessions > maxCarryEntries) {
 		return fmt.Errorf("carryOver needs maxBytes %d..%d and sessions 1..%d", minCarryBytes, maxCarryBytes, maxCarryEntries)
 	}
 	return nil
@@ -75,17 +76,17 @@ func (c *CarryOver) validate() error {
 func (c *CarryOver) on() bool { return c != nil && (c.Enabled == nil || *c.Enabled) }
 
 func (c *CarryOver) maxBytes() int {
-	if c.MaxBytes == 0 {
+	if c.MaxBytes == nil {
 		return defaultCarryBytes
 	}
-	return c.MaxBytes
+	return *c.MaxBytes
 }
 
 func (c *CarryOver) sessions() int {
-	if c.Sessions == 0 {
+	if c.Sessions == nil {
 		return defaultCarrySessions
 	}
-	return c.Sessions
+	return *c.Sessions
 }
 
 // CarryEntry is one no-progress session's carried final message.
@@ -158,8 +159,10 @@ func ReadCarryOver(path string) (*CarryRecord, error) {
 }
 
 // carryMessage is the last main-session assistant text in the bounded tail
-// of worker's stdout, unscreened, and whether the last result event there
-// reports the tool-call cap (ATR-V0-111).
+// of worker's stdout, or else that tail's text as the finished summary
+// extracts it but uncut, unscreened, and whether the last result event
+// there reports the tool-call cap (ATR-V0-111). The tail starts on a line
+// boundary, so the later screen sees every line whole.
 func carryMessage(dir, worker string) (text string, maxTurns bool) {
 	f, fi, err := workerFile(dir, "workers/"+worker+"/stdout.log", false)
 	if err != nil {
@@ -185,6 +188,17 @@ func carryMessage(dir, worker string) (text string, maxTurns bool) {
 		if t := textOf(v); t != "" {
 			text = t
 		}
+	}
+	if text == "" {
+		text = strings.Map(func(r rune) rune {
+			if r == '\n' || r == '\t' {
+				return r
+			}
+			if unicode.IsControl(r) || r == unicode.ReplacementChar {
+				return -1
+			}
+			return r
+		}, strings.TrimSpace(extractText(raw)))
 	}
 	return text, maxTurns
 }
@@ -215,8 +229,8 @@ func (d *Dispatcher) carryEndReason(w *Worker, maxTurns bool) string {
 // noteCarryOver keeps the ticket's ATR-V0-111 record after worker w
 // finished: a session with progress removes it, and a no-progress session
 // of an enabled role that left no detached run appends its final message.
-// summary is the finished event's summary, the message's fallback.
-func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progress, detached bool, summary string) {
+// A record left after a failed removal is replaced, never extended.
+func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progress, detached bool) {
 	if w.Ticket == "" || strings.HasPrefix(w.Key, "lane:") {
 		return
 	}
@@ -238,6 +252,8 @@ func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progr
 	}
 	rec, err := ReadCarryOver(path)
 	switch {
+	case d.carryStale[w.Ticket]:
+		rec = nil // its entries predate the progress whose removal failed
 	case err == nil && rec.Ticket == w.Ticket:
 	case errors.Is(err, fs.ErrNotExist):
 		rec = nil
@@ -267,9 +283,6 @@ func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progr
 		return // a finish replayed after a restart
 	}
 	text, maxTurns := carryMessage(d.dir, w.ID)
-	if text == "" {
-		text = summary
-	}
 	text, cut, redacted := boundScreened(text, false, maxCarryMessage)
 	rec.Entries = append(rec.Entries, CarryEntry{Worker: w.ID, Role: w.Role, At: now.UTC().Format(time.RFC3339), EndReason: d.carryEndReason(w, maxTurns), Text: text, Cut: cut, RedactedLines: redacted})
 	if n := len(rec.Entries); n > maxCarryEntries {

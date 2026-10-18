@@ -21,6 +21,18 @@ func carryScript(msg, carried string) string {
 printf '%s\n' '` + claudeText(msg) + `' '{"type":"result","subtype":"error_max_turns","is_error":true}'`
 }
 
+// noteWith writes text as w's plain stdout, then notes w's session.
+func noteWith(t *testing.T, d *Dispatcher, w *Worker, now time.Time, class string, text string) {
+	t.Helper()
+	if err := os.MkdirAll(d.workerDir(w.ID), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(d.workerDir(w.ID), "stdout.log"), []byte(text+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d.noteCarryOver(w, now, class, class == SessionProgress, false)
+}
+
 func launchedOf(t *testing.T, d *Dispatcher, kind, worker string) Event {
 	t.Helper()
 	for _, e := range eventsOf(t, d, kind) {
@@ -45,6 +57,9 @@ func TestATRV0110_CarryOverConfigDefaultsAndBounds(t *testing.T) {
 		`{"maxBytes":16385}`:                   false,
 		`{"sessions":6}`:                       false,
 		`{"sessions":-1}`:                      false,
+		`{"maxBytes":0}`:                       false,
+		`{"sessions":0}`:                       false,
+		`{"maxBytes":0,"sessions":0}`:          false,
 		`{"maxBytes":4096,"tailCharacters":1}`: false,
 	} {
 		c := testConfig(t, "exit 0")
@@ -142,7 +157,7 @@ func TestATRV0113_NextSessionPromptCarriesBoundedLabelledBlock(t *testing.T) {
 	msg := strings.Join(lines, "\n")
 	q := &fakeQueue{}
 	c := testConfig(t, carryScript(msg, "exit 0"))
-	c.Roles[0].CarryOver = &CarryOver{MaxBytes: 1024}
+	c.Roles[0].CarryOver = &CarryOver{MaxBytes: intPtr(1024)}
 	d, now := openCtx(t, q, c)
 	tick(t, d)
 	first := d.ledger.Workers[0]
@@ -216,7 +231,7 @@ func TestATRV0113_NextSessionPromptCarriesBoundedLabelledBlock(t *testing.T) {
 // once each, and the message falls back to the summary.
 func TestATRV0111_NoProgressSessionRecordsEndReasonAndTail(t *testing.T) {
 	c := testConfig(t, "exit 0")
-	c.Roles[0].CarryOver = &CarryOver{Sessions: 5}
+	c.Roles[0].CarryOver = &CarryOver{Sessions: intPtr(5)}
 	d, now := openCtx(t, &fakeQueue{}, c)
 	key := "ticket:a:q:t1"
 	cases := []struct {
@@ -241,8 +256,8 @@ func TestATRV0111_NoProgressSessionRecordsEndReasonAndTail(t *testing.T) {
 		if tc.handoff {
 			d.contexts = map[string]*contextState{w.ID: {rec: ContextRecord{Crossings: []ContextCrossing{{Level: ContextHandoff}}}}}
 		}
-		d.noteCarryOver(w, *now, SessionNoProgress, false, false, Summary(d.workerDir(w.ID)))
-		d.noteCarryOver(w, *now, SessionNoProgress, false, false, "replayed") // a replayed finish
+		d.noteCarryOver(w, *now, SessionNoProgress, false, false)
+		d.noteCarryOver(w, *now, SessionNoProgress, false, false) // a replayed finish
 		d.contexts = nil
 		rec, err := ReadCarryOver(CarryOverPath(d.dir, key))
 		if err != nil {
@@ -253,7 +268,7 @@ func TestATRV0111_NoProgressSessionRecordsEndReasonAndTail(t *testing.T) {
 			t.Fatalf("case %d: entry %+v, want %s", i, last, tc.want)
 		}
 		if i == len(cases)-1 && last.Text != "plain words" {
-			t.Fatalf("summary fallback %q", last.Text)
+			t.Fatalf("plain-output fallback %q", last.Text)
 		}
 		if want := min(i+1, maxCarryEntries); len(rec.Entries) != want {
 			t.Fatalf("case %d: %d entries, want %d", i, len(rec.Entries), want)
@@ -262,9 +277,9 @@ func TestATRV0111_NoProgressSessionRecordsEndReasonAndTail(t *testing.T) {
 	// Held, infrastructure and detached-run sessions leave it unchanged.
 	before, _ := os.ReadFile(CarryOverPath(d.dir, key))
 	w := &Worker{ID: "w9", Role: "impl", Key: key, Ticket: key}
-	d.noteCarryOver(w, *now, SessionHeld, false, false, "x")
-	d.noteCarryOver(w, *now, SessionInfrastructure, false, false, "x")
-	d.noteCarryOver(w, *now, SessionNoProgress, false, true, "x")
+	d.noteCarryOver(w, *now, SessionHeld, false, false)
+	d.noteCarryOver(w, *now, SessionInfrastructure, false, false)
+	d.noteCarryOver(w, *now, SessionNoProgress, false, true)
 	if after, _ := os.ReadFile(CarryOverPath(d.dir, key)); string(after) != string(before) {
 		t.Fatal("a held, infrastructure or detached-run session changed the record")
 	}
@@ -319,7 +334,7 @@ func TestATRV0113_NoCarryOverForOtherTicket(t *testing.T) {
 	c.Roles[0].CarryOver = &CarryOver{}
 	d, now := openCtx(t, &fakeQueue{}, c)
 	t1, t2 := "ticket:a:q:t1", "ticket:a:q:t2"
-	d.noteCarryOver(&Worker{ID: "w1", Role: "impl", Key: t1, Ticket: t1}, *now, SessionNoProgress, false, false, "t1 words")
+	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: t1, Ticket: t1}, *now, SessionNoProgress, "t1 words")
 	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1); !strings.Contains(block, "t1 words") {
 		t.Fatalf("t1 block %q", block)
 	}
@@ -339,12 +354,12 @@ func TestATRV0113_NoCarryOverForOtherTicket(t *testing.T) {
 	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, t1); block != "" {
 		t.Fatal("a record whose removal failed was offered")
 	}
-	d.noteCarryOver(&Worker{ID: "w2", Role: "impl", Key: t1, Ticket: t1}, *now, SessionProgress, true, false, "")
+	d.noteCarryOver(&Worker{ID: "w2", Role: "impl", Key: t1, Ticket: t1}, *now, SessionProgress, true, false)
 	if _, err := os.Stat(CarryOverPath(d.dir, t1)); !os.IsNotExist(err) || d.carryStale[t1] {
 		t.Fatalf("progress left the record: %v, stale %v", err, d.carryStale[t1])
 	}
 	// A lane key never records.
-	d.noteCarryOver(&Worker{ID: "w3", Role: "impl", Key: "lane:p:m", Ticket: t1}, *now, SessionNoProgress, false, false, "lane")
+	noteWith(t, d, &Worker{ID: "w3", Role: "impl", Key: "lane:p:m", Ticket: t1}, *now, SessionNoProgress, "lane")
 	if _, err := os.Stat(CarryOverPath(d.dir, t1)); !os.IsNotExist(err) {
 		t.Fatal("a lane session recorded carry-over")
 	}
@@ -358,7 +373,7 @@ func TestATRV0112_RecordVersions(t *testing.T) {
 	c.Roles[0].CarryOver = &CarryOver{}
 	d, now := openCtx(t, &fakeQueue{}, c)
 	key := "ticket:a:q:t1"
-	d.noteCarryOver(&Worker{ID: "w1", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, false, false, "words")
+	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "words")
 	path := CarryOverPath(d.dir, key)
 	raw, _ := os.ReadFile(path)
 	newer := strings.Replace(string(raw), CarryOverProfile, "taskman-dispatch-carry-over/1", 1)
@@ -366,7 +381,7 @@ func TestATRV0112_RecordVersions(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := 2; i <= 3; i++ {
-		d.noteCarryOver(&Worker{ID: fmt.Sprintf("w%d", i), Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, false, false, "words")
+		noteWith(t, d, &Worker{ID: fmt.Sprintf("w%d", i), Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "words")
 	}
 	if got, _ := os.ReadFile(path); string(got) != newer {
 		t.Fatal("a newer-version record was overwritten")
@@ -389,7 +404,7 @@ func TestATRV0112_RecordVersions(t *testing.T) {
 	if block, _ := d.carryOverFor(c.Roles[0].CarryOver, key); block != "" {
 		t.Fatal("a damaged record was offered")
 	}
-	d.noteCarryOver(&Worker{ID: "w4", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, false, false, "fresh")
+	noteWith(t, d, &Worker{ID: "w4", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "fresh")
 	rec, err := ReadCarryOver(path)
 	if err != nil || len(rec.Entries) != 1 || rec.Entries[0].Text != "fresh" {
 		t.Fatalf("damaged record not replaced: %+v %v", rec, err)
@@ -437,11 +452,11 @@ func TestATRV0113_BlockBoundAcrossSessions(t *testing.T) {
 // is read back from the worker's marker, 0 when it does not read.
 func TestATRV0114_EventsMarkCarryOverSessions(t *testing.T) {
 	c := testConfig(t, "exit 0")
-	c.Roles[0].CarryOver = &CarryOver{Sessions: 2}
+	c.Roles[0].CarryOver = &CarryOver{Sessions: intPtr(2)}
 	d, now := openCtx(t, &fakeQueue{}, c)
 	key := "ticket:a:q:t1"
 	for _, id := range []string{"w1", "w2", "w3"} {
-		d.noteCarryOver(&Worker{ID: id, Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, false, false, id+" words")
+		noteWith(t, d, &Worker{ID: id, Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, id+" words")
 	}
 	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key)
 	if len(entries) != 2 || entries[0].Worker != "w2" || entries[1].Worker != "w3" || strings.Contains(block, "w1 words") {
@@ -473,5 +488,56 @@ func TestATRV0114_EventsMarkCarryOverSessions(t *testing.T) {
 	}
 	if n := carriedCount(d.dir, "w4"); n != 0 {
 		t.Fatalf("a damaged marker carried %d", n)
+	}
+}
+
+// ATR-V0-111 (Codex round 1): plain output whose credential ends more than
+// 2000 bytes before the end is screened whole, never cut first, so the
+// finished summary's 2000-byte tail cannot strip the key from its value.
+func TestATRV0111_PlainOutputScreenedBeforeCut(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].CarryOver = &CarryOver{}
+	d, now := openCtx(t, &fakeQueue{}, c)
+	key := "ticket:a:q:t1"
+	secret := strings.Repeat("A", 2000)
+	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "password="+secret)
+	rec, err := ReadCarryOver(CarryOverPath(d.dir, key))
+	if err != nil || len(rec.Entries) != 1 {
+		t.Fatalf("record %+v %v", rec, err)
+	}
+	if e := rec.Entries[0]; strings.Contains(e.Text, "AAAA") || e.RedactedLines < 1 {
+		t.Fatalf("credential stored: redacted %d, text %q", e.RedactedLines, e.Text)
+	}
+	block, _ := d.carryOverFor(c.Roles[0].CarryOver, key)
+	if strings.Contains(block, "AAAA") {
+		t.Fatalf("credential injected:\n%s", block)
+	}
+}
+
+// ATR-V0-111 (Codex round 1): after a progress session's removal fails, the
+// next no-progress append replaces the record, so entries from before the
+// progress are never offered again.
+func TestATRV0111_AppendAfterFailedRemovalDropsOlderEntries(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].CarryOver = &CarryOver{Sessions: intPtr(2)}
+	d, now := openCtx(t, &fakeQueue{}, c)
+	key := "ticket:a:q:t1"
+	noteWith(t, d, &Worker{ID: "w1", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "before progress")
+	dir := filepath.Dir(CarryOverPath(d.dir, key))
+	if err := os.Chmod(dir, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	d.noteCarryOver(&Worker{ID: "w2", Role: "impl", Key: key, Ticket: key}, *now, SessionProgress, true, false)
+	if !d.carryStale[key] {
+		t.Fatal("a failed removal did not mark the record stale")
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	noteWith(t, d, &Worker{ID: "w3", Role: "impl", Key: key, Ticket: key}, *now, SessionNoProgress, "after progress")
+	block, entries := d.carryOverFor(c.Roles[0].CarryOver, key)
+	if len(entries) != 1 || entries[0].Worker != "w3" || strings.Contains(block, "before progress") {
+		t.Fatalf("offered %+v:\n%s", entries, block)
 	}
 }

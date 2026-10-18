@@ -1260,9 +1260,9 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
-		d.salvage(w, now)                                            // ATR-V0-104
-		d.noteHardStop(w, now)                                       // ATR-V0-106
-		d.noteCarryOver(w, now, class, progress, run != "", summary) // ATR-V0-111
+		d.salvage(w, now)                                   // ATR-V0-104
+		d.noteHardStop(w, now)                              // ATR-V0-106
+		d.noteCarryOver(w, now, class, progress, run != "") // ATR-V0-111
 		if stalled != nil {
 			d.emit(*stalled)
 		}
