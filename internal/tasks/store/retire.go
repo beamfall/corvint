@@ -128,7 +128,7 @@ func RetirePrefix(ctx context.Context, repo *intent.Repository, archivePath stri
 		return nil, err
 	}
 	if !dryRun {
-		if err := checkArchiveTarget(repo, archivePath); err != nil {
+		if archivePath, err = checkArchiveTarget(repo, archivePath); err != nil {
 			return nil, err
 		}
 	}
@@ -343,7 +343,14 @@ func unretireLocked(ctx context.Context, repo *intent.Repository, archivePath st
 		}
 		restored++
 		if seq == seal.Seq()-1 {
-			last = wire.Sum(raw)
+			// Receipt S's prev names the original bytes of S-1; a compacted
+			// S-1 is a tombstone that records that digest (CAL-V0-300), and
+			// the closing audit replays the restored prefix to prove it.
+			_, digest, _, err := snapshot.DecodeRetainedReceipt(raw)
+			if err != nil {
+				return report, wire.Errorf(wire.CodeJournalForked, hdr.Name, "archived receipt does not decode: %v", err)
+			}
+			last = digest
 		}
 	}
 	if restored != seal.Retired() || last != seal.ElidedSha256 {
@@ -484,29 +491,52 @@ func retireEligible(seal *journal.RetiredPrefix) error {
 	return nil
 }
 
-// checkArchiveTarget requires a new archive path outside the state directory
-// and the repository's common directory.
-func checkArchiveTarget(repo *intent.Repository, archivePath string) error {
+// checkArchiveTarget requires a new archive path outside the state
+// directory, the repository's common directory and the primary worktree, and
+// returns it with its parent's symbolic links resolved. The roots are
+// compared both as named and resolved, so a link that aliases any of them
+// is refused too.
+func checkArchiveTarget(repo *intent.Repository, archivePath string) (string, error) {
 	if archivePath == "" {
-		return wire.Errorf(wire.CodeMalformed, "--archive", "retire needs --archive FILE")
+		return "", wire.Errorf(wire.CodeMalformed, "--archive", "retire needs --archive FILE")
 	}
 	abs, err := filepath.Abs(archivePath)
 	if err != nil {
-		return wire.Errorf(wire.CodeMalformed, archivePath, "%v", err)
+		return "", wire.Errorf(wire.CodeMalformed, archivePath, "%v", err)
 	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(abs))
+	if err != nil {
+		return "", wire.Errorf(wire.CodeMalformed, archivePath, "cannot resolve the archive directory: %v", err)
+	}
+	resolved := filepath.Join(parent, filepath.Base(abs))
 	for _, root := range []string{repo.StateDir, repo.CommonDir, repo.PrimaryWorktree} {
-		if rel, err := filepath.Rel(root, abs); err == nil && filepath.IsLocal(rel) {
-			return wire.Errorf(wire.CodeMalformed, archivePath, "the archive must live outside the state directory, the common directory and the worktree")
+		if root == "" {
+			continue
+		}
+		roots := []string{root}
+		if real, err := filepath.EvalSymlinks(root); err == nil {
+			roots = append(roots, real)
+		}
+		for _, r := range roots {
+			for _, p := range []string{abs, resolved} {
+				if rel, err := filepath.Rel(r, p); err == nil && filepath.IsLocal(rel) {
+					return "", wire.Errorf(wire.CodeMalformed, archivePath, "the archive must live outside the state directory, the common directory and the worktree")
+				}
+			}
 		}
 	}
-	if on, err := present(abs); err != nil || on {
+	if on, err := present(resolved); err != nil || on {
 		if err == nil {
 			err = wire.Errorf(wire.CodeMalformed, archivePath, "the archive path exists; retire never replaces a file")
 		}
-		return err
+		return "", err
 	}
-	return nil
+	return resolved, nil
 }
+
+// syncArchiveDir makes the archive's name durable before the seal relies on
+// it (JRT-V0-006); a test replaces it to observe or fail the sync.
+var syncArchiveDir = authority.SyncDirectory
 
 // exportVerified exports the store to a new file, syncs it, re-reads and
 // verifies it, and binds it to the seal: the export is at the anchor and
@@ -528,6 +558,11 @@ func exportVerified(repo *intent.Repository, archivePath string, seal *journal.R
 	}
 	if closeErr := f.Close(); err == nil {
 		err = closeErr
+	}
+	if err == nil {
+		// The prefix is dropped only once the archive's directory entry is
+		// durable too, so a crash never leaves a seal naming a lost file.
+		err = syncArchiveDir(filepath.Dir(archivePath))
 	}
 	if err != nil {
 		return "", 0, err

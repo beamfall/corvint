@@ -538,3 +538,99 @@ func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
 	}
 	retiredAuditOK(t, s, head, "after retire and a later cycle")
 }
+
+// TestJRTV0011_UnretireAfterCompaction (JRT-V0-011): a store compacted before
+// it was retired has a tombstone at S-1, whose physical bytes differ from the
+// digest receipt S's prev names. Unretire binds the digest the tombstone
+// records, so claim, heartbeat, release, compact, retire and unretire round-trip
+// and the store audits from receipt 1 again.
+func TestJRTV0011_UnretireAfterCompaction(t *testing.T) {
+	s, _ := retirable(t, 6)
+	if rep, err := store.CompactLiveness(context.Background(), s.repo, false); err != nil || rep.Elided == 0 {
+		t.Fatalf("compaction %+v %v", rep, err)
+	}
+	compacted := receiptFiles(t, s)
+	head := retiredAuditOK(t, s, 0, "compacted").LastSeq.Uint64()
+	prior, _ := snapshot.ReceiptName(head - 1)
+	if _, _, elided, err := snapshot.DecodeRetainedReceipt(compacted[prior]); err != nil || !elided {
+		t.Fatalf("receipt S-1 is not a tombstone: %v", err)
+	}
+	path := retireArchive(t)
+	if _, err := store.RetirePrefix(context.Background(), s.repo, path, false); err != nil {
+		t.Fatalf("retire: %v", err)
+	}
+	retiredAuditOK(t, s, head, "sealed")
+	if _, err := store.UnretirePrefix(context.Background(), s.repo, path); err != nil {
+		t.Fatalf("unretire after compaction: %v", err)
+	}
+	if !sameFiles(receiptFiles(t, s), compacted) {
+		t.Fatal("unretire did not restore the compacted receipts byte for byte")
+	}
+	retiredAuditOK(t, s, 0, "unretired")
+}
+
+// TestJRTV0006_ArchiveTargetResolvesLinks (JRT-V0-006): an archive path whose
+// parent is a symbolic link into the state directory, the common directory or
+// the primary worktree is refused as MALFORMED before anything is written.
+func TestJRTV0006_ArchiveTargetResolvesLinks(t *testing.T) {
+	r, _ := retirable(t, 1)
+	before := receiptFiles(t, r)
+	links := t.TempDir()
+	for i, target := range []string{r.repo.StateDir, r.repo.CommonDir, r.repo.PrimaryWorktree} {
+		link := filepath.Join(links, "alias-"+strconv.Itoa(i))
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(link, "retired.tar")
+		_, err := store.RetirePrefix(context.Background(), r.repo, path, false)
+		refusesCode(t, err, wire.CodeMalformed, "archive aliased into "+target)
+		if _, err := os.Lstat(filepath.Join(target, "retired.tar")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("refused retire wrote through the alias into %s: %v", target, err)
+		}
+	}
+	if !sameFiles(receiptFiles(t, r), before) {
+		t.Fatal("refused retire changed a receipt")
+	}
+	retiredAuditOK(t, r, 0, "after alias refusals")
+}
+
+// TestJRTV0006_ArchiveDirectorySyncPrecedesSeal (JRT-V0-006): the archive's
+// directory is synced after the archive is written and before the marker,
+// seal or drop; a failed sync refuses with nothing dropped and no archive.
+func TestJRTV0006_ArchiveDirectorySyncPrecedesSeal(t *testing.T) {
+	r, _ := retirable(t, 1)
+	before := receiptFiles(t, r)
+	path := retireArchive(t)
+	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var steps []string
+	defer store.SetRetireStageForTest(func(s string) error { steps = append(steps, s); return nil })()
+	restore := store.SetSyncArchiveDirForTest(func(dir string) error {
+		steps = append(steps, "dirsync:"+dir)
+		return errors.New("injected directory sync failure")
+	})
+	if _, err := store.RetirePrefix(context.Background(), r.repo, path, false); err == nil || len(steps) != 1 || steps[0] != "dirsync:"+parent {
+		t.Fatalf("failed sync: %v after %v", err, steps)
+	}
+	restore()
+	if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("failed sync kept the archive: %v", err)
+	}
+	for _, name := range []string{journal.RetiredPrefixFile, journal.RetireIncompleteFile} {
+		if _, err := os.Lstat(filepath.Join(r.repo.StateDir, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("failed sync left %s: %v", name, err)
+		}
+	}
+	if !sameFiles(receiptFiles(t, r), before) {
+		t.Fatal("failed sync changed a receipt")
+	}
+	steps = nil
+	defer store.SetSyncArchiveDirForTest(func(dir string) error { steps = append(steps, "dirsync:"+dir); return nil })()
+	rep, err := store.RetirePrefix(context.Background(), r.repo, path, false)
+	if err != nil || len(steps) < 2 || steps[0] != "dirsync:"+parent || steps[1] != "exported" {
+		t.Fatalf("retire: %v after %v", err, steps)
+	}
+	retiredAuditOK(t, r, rep.AnchorSeq, "sealed")
+}

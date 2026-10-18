@@ -165,6 +165,12 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...))
 			return err
 		},
+		journal.ProfileRetiredPrefix: func(t *testing.T, p string) error {
+			body := []byte(nextVersion(t, p) + "\nzzNewerLayout")
+			sum := sha256.Sum256(body)
+			_, err := journal.DecodeRetiredPrefix(append(body, sum[:]...))
+			return err
+		},
 		mutation.Profile:                    plain(func(b []byte) error { _, e := mutation.Decode(b); return e }),
 		mutation.OutcomeProfile:             plain(func(b []byte) error { _, e := mutation.DecodeOutcome(b); return e }),
 		intent.ProfileImportMap:             plain(func(b []byte) error { _, e := intent.DecodeImportMap(b); return e }),

@@ -151,6 +151,11 @@ func DecodeRetiredPrefix(raw []byte) (*RetiredPrefix, error) {
 	if len(raw) > MaxRetiredPrefixBytes {
 		return nil, sealForked("larger than its bound")
 	}
+	// A seal another build wrote at another version of this profile is
+	// refused before any layout check (CAL-V0-131).
+	if name, _, _ := strings.Cut(ProfileRetiredPrefix, "/"); bytes.HasPrefix(raw, []byte(name+"/")) && !bytes.HasPrefix(raw, []byte(sealMagic)) {
+		return nil, wire.Errorf(wire.CodeUnsupportedVersion, RetiredPrefixFile, "another %s version", name)
+	}
 	if len(raw) < len(sealMagic)+8+2*sha256.Size+3*8+sha256.Size {
 		return nil, sealForked("truncated")
 	}

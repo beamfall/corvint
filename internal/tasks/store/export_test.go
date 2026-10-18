@@ -109,3 +109,11 @@ func SetRetireStageForTest(f func(string) error) func() {
 	retireStage = f
 	return func() { retireStage = prev }
 }
+
+// SetSyncArchiveDirForTest replaces the retire archive's directory sync
+// (JRT-V0-006). The returned function restores the previous one.
+func SetSyncArchiveDirForTest(f func(string) error) func() {
+	prev := syncArchiveDir
+	syncArchiveDir = f
+	return func() { syncArchiveDir = prev }
+}
