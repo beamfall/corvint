@@ -3,6 +3,8 @@ package appflows
 import (
 	"context"
 	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -127,6 +129,9 @@ func bindRepository(ctx context.Context, root string, repo SelectionRepository, 
 	if topCanonical, err := filepath.EvalSymlinks(strings.TrimSpace(string(top))); err != nil || topCanonical != canonical {
 		return boundRepository{}, "not the top level of a Git checkout"
 	}
+	if reason := ancestryRewritten(ctx, canonical); reason != "" {
+		return boundRepository{}, reason
+	}
 	head, err := ResolveRevision(ctx, canonical, "HEAD")
 	if err != nil {
 		return boundRepository{}, "checkout has no HEAD commit"
@@ -152,12 +157,38 @@ func bindRepository(ctx context.Context, root string, repo SelectionRepository, 
 	if err != nil {
 		return boundRepository{}, err.Error()
 	}
+	if reason := ancestryRewritten(ctx, canonical); reason != "" {
+		return boundRepository{}, reason
+	}
 	row.WorktreePaths = len(dirty)
 	qualified := make([]string, 0, len(changed))
 	for _, p := range changed {
+		// A path a qualified path cannot name (a colon, say) would be parsed back as a root path and
+		// gain root impact-graph ownership; the repository is unbound instead (AFU-V1-069).
+		if !safePath(p) {
+			return boundRepository{}, "checkout changed a path a qualified path cannot name"
+		}
 		qualified = append(qualified, repo.ID+":"+p)
 	}
 	return boundRepository{pin: RepositoryPin{Dir: canonical, Revision: in.Base}, changed: qualified}, ""
+}
+
+// ancestryRewritten names why the checkout's commit ancestry cannot be trusted, or returns "". Git
+// honors an info/grafts file even with replace objects disabled, so a foreign checkout could graft
+// its HEAD onto the declared origin; a shallow checkout rewrites parents the same way (AFU-V1-068).
+func ancestryRewritten(ctx context.Context, dir string) string {
+	common, err := git(ctx, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return "checkout Git directory unreadable"
+	}
+	if _, err := os.Lstat(filepath.Join(strings.TrimSpace(string(common)), "info", "grafts")); !errors.Is(err, fs.ErrNotExist) {
+		return "checkout rewrites ancestry with info/grafts"
+	}
+	shallow, err := git(ctx, dir, "rev-parse", "--is-shallow-repository")
+	if err != nil || strings.TrimSpace(string(shallow)) != "false" {
+		return "checkout is shallow"
+	}
+	return ""
 }
 
 // repositoryChanges reads the tree diff base..HEAD and the worktree status between two status and

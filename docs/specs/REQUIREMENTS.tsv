@@ -162,10 +162,10 @@ AFU-V1-065	docs/specs/application-flow-understanding-v1.md	1060	The e2e-safe pro
 AFU-V1-066	docs/specs/application-flow-understanding-v1.md	1075	Profile version decision: the result schema moves from `e2e-safe-selection/0` to	unrecorded	-
 AFU-V1-067	docs/specs/application-flow-understanding-v1.md	1135	Authority: the provider MAY declare `repositories`, a list of objects with `id`	unrecorded	-
 AFU-V1-068	docs/specs/application-flow-understanding-v1.md	1143	Binding: each bound repository MUST be the top level of a Git checkout whose HEA	unrecorded	-
-AFU-V1-069	docs/specs/application-flow-understanding-v1.md	1152	Fail closed: a declared repository that is not bound or does not bind, and a	unrecorded	-
-AFU-V1-070	docs/specs/application-flow-understanding-v1.md	1159	Coverage: a coverage record's tier paths MAY be qualified, and a record names	unrecorded	-
-AFU-V1-071	docs/specs/application-flow-understanding-v1.md	1166	Reviewed links: a `source` link target MAY name a qualified path. A declared lin	unrecorded	-
-AFU-V1-072	docs/specs/application-flow-understanding-v1.md	1173	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
+AFU-V1-069	docs/specs/application-flow-understanding-v1.md	1155	Fail closed: a declared repository that is not bound or does not bind, and a	unrecorded	-
+AFU-V1-070	docs/specs/application-flow-understanding-v1.md	1163	Coverage: a coverage record's tier paths MAY be qualified, and a record names	unrecorded	-
+AFU-V1-071	docs/specs/application-flow-understanding-v1.md	1171	Reviewed links: a `source` link target MAY name a qualified path. A declared lin	unrecorded	-
+AFU-V1-072	docs/specs/application-flow-understanding-v1.md	1178	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —	unrecorded	-
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git	unrecorded	-
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry	unrecorded	-

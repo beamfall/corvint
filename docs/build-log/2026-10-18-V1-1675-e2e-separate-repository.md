@@ -32,6 +32,21 @@ decision; it applies that standing acceptance to this lane's requirements.
   `ProofLink.reviewed_at_repository` is omitted when empty, so existing proof digests and the frozen
   corpus report are byte-identical.
 
+## Review findings (Codex, PR 1102)
+
+- **Grafted ancestry.** `rev-list` and `merge-base` honor `info/grafts` even with
+  `GIT_NO_REPLACE_OBJECTS`, so a foreign checkout could graft its HEAD onto the declared origin and
+  bind. A checkout with `info/grafts` in its common Git directory, or a shallow one, now does not
+  bind (AFU-V1-068), checked before the ancestry reads and again after the changed-path reads.
+- **Unrepresentable application paths.** An A change `x:y.ts` became `app:x:y.ts`, which does not
+  parse as qualified and so took root impact-graph ownership; a T file of that name could explain
+  it. Such a path now unbinds the repository, and any path in a declared `ID:` namespace never
+  takes root ownership or reach (AFU-V1-068, AFU-V1-069).
+- **Coverage tier paths.** Tier paths were not validated, so `other:src/search.rb` or
+  `app:../src/search.rb` could stand as coverage and miss the change they name. A tier path must be
+  a canonical root path or a canonical qualified path of a declared ID (AFU-V1-070); a root path
+  check is included because the same miss applies to a non-canonical root path.
+
 ## Dogfood
 
 `make dogfood-change BASE=2ab0e74421147cb16d2da183419e1ad2d991fa52` at lane start returned rc=2

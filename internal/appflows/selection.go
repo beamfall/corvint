@@ -390,9 +390,12 @@ func validCoverage(p SelectionProvider, coverage CoverageFile) error {
 	if coverage.Schema != CoverageSchema {
 		return errors.New("invalid coverage schema")
 	}
-	keys, seen := map[string]bool{}, map[string]bool{}
+	keys, seen, declared := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, t := range p.Inventory {
 		keys[t.TestKey] = true
+	}
+	for _, r := range p.Repositories {
+		declared[r.ID] = true
 	}
 	for _, record := range coverage.Records {
 		if seen[record.TestKey] {
@@ -402,8 +405,15 @@ func validCoverage(p SelectionProvider, coverage CoverageFile) error {
 		if !keys[record.TestKey] || !oidPattern.MatchString(record.Commit) || slices.ContainsFunc(record.Tiers, func(t CoverageTier) bool { return !flowText(t.Tier) }) {
 			return errors.New("invalid coverage record")
 		}
+		// A tier path is a canonical root path or a canonical path of a declared repository; any other
+		// path could miss the change it names and become an exclusion proof (AFU-V1-070).
+		for _, tier := range record.Tiers {
+			if slices.ContainsFunc(tier.Paths, func(path string) bool { return !safePath(path) && !validQualified(path, declared) }) {
+				return errors.New("invalid coverage tier path")
+			}
+		}
 		for id, commit := range record.Repositories {
-			if !slices.ContainsFunc(p.Repositories, func(r SelectionRepository) bool { return r.ID == id }) || !oidPattern.MatchString(commit) {
+			if !declared[id] || !oidPattern.MatchString(commit) {
 				return errors.New("invalid coverage record repository")
 			}
 		}
@@ -461,10 +471,11 @@ func (s *e2eSelector) globalCodes() []E2EFallback {
 	return codes
 }
 
-// qualified reports a bound repository's qualified path; such a path has no impact-graph node.
+// qualified reports a path in a declared repository's namespace, whether or not it parses as a
+// canonical qualified path: such a path never takes root impact-graph ownership or reach (AFU-V1-069).
 func (s *e2eSelector) qualified(p string) bool {
-	id, _, ok := splitQualified(p)
-	return ok && s.repos[id].pin.Dir != ""
+	id, _, ok := strings.Cut(p, ":")
+	return ok && s.declared[id]
 }
 
 func (s *e2eSelector) global(p string) bool {

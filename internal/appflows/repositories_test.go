@@ -2,6 +2,8 @@ package appflows
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -122,5 +124,60 @@ func TestAFUV1071QualifiedLinkTargets(t *testing.T) {
 	}
 	if got := state(a0, map[string]RepositoryPin{"other": {Dir: app, Revision: a0}}); got.ReviewState != ReviewTargetUnpinned {
 		t.Fatalf("a link naming an unbound ID was %q", got.ReviewState)
+	}
+}
+
+// AFU-V1-070: every coverage tier path is a canonical root path or a canonical path of a declared
+// repository; an undeclared ID or a non-canonical path could miss the change it names and become an
+// exclusion proof, so the coverage file is malformed.
+func TestAFUV1070CoverageTierPathsValidated(t *testing.T) {
+	t.Parallel()
+	origin := strings.Repeat("a", 40)
+	p := SelectionProvider{Repositories: []SelectionRepository{{ID: "app", Origin: origin}}, Inventory: []InventoryTest{{TestKey: "t", Project: "chromium", Path: "e2e/t.spec.ts"}}}
+	coverage := func(path string) CoverageFile {
+		return CoverageFile{Schema: CoverageSchema, Records: []CoverageRecord{{TestKey: "t", Commit: origin, Repositories: map[string]string{"app": origin},
+			Tiers: []CoverageTier{{Tier: "server", Complete: true, Paths: []string{"e2e/t.spec.ts", path}}}}}}
+	}
+	for _, ok := range []string{"app:src/search.rb", "src/search.rb"} {
+		if err := validCoverage(p, coverage(ok)); err != nil {
+			t.Errorf("canonical tier path %q refused: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"other:src/search.rb", "app:../src/search.rb", "app:./src/search.rb", "app:", "./src/search.rb", "../src/search.rb", "x:y:z.rb"} {
+		if validCoverage(p, coverage(bad)) == nil {
+			t.Errorf("tier path %q accepted", bad)
+		}
+	}
+}
+
+// AFU-V1-068: a checkout whose ancestry Git rewrites, through info/grafts or a shallow boundary,
+// cannot bind: rev-list and merge-base honor both even with replace objects disabled.
+func TestAFUV1068AncestryRewrittenRefused(t *testing.T) {
+	t.Parallel()
+	app := t.TempDir()
+	writeRaw(t, app, "src/pay.rb", []byte("def pay; end\n"))
+	gitTest(t, app, "init", "-q")
+	origin := commitAll(t, app, "app")
+	writeRaw(t, app, "src/pay.rb", []byte("def pay(n); end\n"))
+	commitAll(t, app, "second")
+	if reason := ancestryRewritten(context.Background(), app); reason != "" {
+		t.Fatalf("plain checkout refused: %s", reason)
+	}
+	grafted := t.TempDir()
+	gitTest(t, grafted, "clone", "-q", app, ".")
+	gitTest(t, grafted, "checkout", "-q", "--orphan", "forged")
+	forged := commitAll(t, grafted, "foreign root")
+	if err := os.WriteFile(filepath.Join(grafted, ".git", "info", "grafts"), []byte(forged+" "+origin+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	repo := SelectionRepository{ID: "app", Origin: origin}
+	rows, bound, codes := bindRepositories(context.Background(), t.TempDir(), []SelectionRepository{repo}, []E2ERepositoryInput{{ID: "app", Source: grafted, Base: origin}})
+	if len(bound) != 0 || len(codes) != 1 || codes[0].Code != CodeRepositoryUnbound || !strings.Contains(rows[0].Reason, "grafts") {
+		t.Fatalf("grafted checkout bound: rows %+v codes %+v", rows, codes)
+	}
+	shallow := t.TempDir()
+	gitTest(t, shallow, "clone", "-q", "--depth", "1", "file://"+app, ".")
+	if reason := ancestryRewritten(context.Background(), shallow); reason != "checkout is shallow" {
+		t.Fatalf("shallow checkout reason %q", reason)
 	}
 }

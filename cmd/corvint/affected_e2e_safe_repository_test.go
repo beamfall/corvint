@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -252,8 +253,9 @@ func TestAFUV1068SeparateTestRepositorySelects(t *testing.T) {
 	})
 }
 
-// AFU-V1-069: an A path no coverage record or reviewed link names, an unbound, undeclared or
-// foreign repository, an A global file and a root path that looks qualified each fail closed.
+// AFU-V1-068 AFU-V1-069: an A path no coverage record or reviewed link names, an unbound,
+// undeclared, foreign or grafted repository, an A path a qualified path cannot name and an A global
+// file each fail closed.
 func TestAFUV1069UnreachedApplicationPathFailsClosed(t *testing.T) {
 	t.Parallel()
 	t.Run("unreached A path", func(t *testing.T) {
@@ -296,6 +298,41 @@ func TestAFUV1069UnreachedApplicationPathFailsClosed(t *testing.T) {
 		f := buildE2ERepositoryFixture(t, true, e2eAppCoverage)
 		selection := f.selectWith(t, "--repository", "app=../app/src", "--repository-base", "app="+f.appBase)
 		e2eHasFallback(t, selection, appflows.E2EFallback{Code: appflows.CodeRepositoryUnbound, Subject: "app"})
+	})
+	t.Run("grafted foreign checkout", func(t *testing.T) {
+		t.Parallel()
+		// A foreign history grafted onto the declared origin passes rev-list and merge-base, which
+		// honor info/grafts even with replace objects disabled; the checkout must not bind.
+		f := buildE2ERepositoryFixture(t, true, e2eAppCoverage)
+		graft := filepath.Join(filepath.Dir(f.app), "graft")
+		shopGit(t, filepath.Dir(f.app), "clone", "-q", f.app, graft)
+		shopGit(t, graft, "checkout", "-q", "--orphan", "forged")
+		shopWrite(t, graft, map[string]string{"src/billing/invoice.rb": "def invoice(forged); end\n"})
+		forged := shopCommit(t, graft, "foreign root")
+		shopWrite(t, graft, map[string]string{".git/info/grafts": forged + " " + f.appOrigin + "\n"})
+		selection := f.selectWith(t, "--repository", "app=../graft", "--repository-base", "app="+f.appOrigin)
+		e2eHasFallback(t, selection, appflows.E2EFallback{Code: appflows.CodeRepositoryUnbound, Subject: "app"})
+		if reason := selection.Repositories[0].Reason; !strings.Contains(reason, "grafts") {
+			t.Fatalf("grafted checkout reason %q does not name the grafts", reason)
+		}
+	})
+	t.Run("A path a qualified path cannot name", func(t *testing.T) {
+		t.Parallel()
+		if runtime.GOOS == "windows" {
+			t.Skip("a colon cannot name a Windows file")
+		}
+		// The A change x:y.ts would read as app:x:y.ts, which T can hold as a root file of its own;
+		// the root graph must never own it, so the repository does not bind.
+		f := buildE2ERepositoryFixture(t, true, e2eAppCoverage)
+		shopWrite(t, f.root, map[string]string{"app:x:y.ts": "export const y = 1;\n"})
+		f.base = shopCommit(t, f.root, "T: a root file named like a qualified path")
+		writeE2EDiscovery(t, f.root, f.base)
+		f.appChange(t, "x:y.ts", "export const y = 2;\n")
+		selection := f.selectBound(t)
+		e2eHasFallback(t, selection, appflows.E2EFallback{Code: appflows.CodeRepositoryUnbound, Subject: "app"})
+		if reason := selection.Repositories[0].Reason; !strings.Contains(reason, "qualified path cannot name") {
+			t.Fatalf("unrepresentable A path reason %q", reason)
+		}
 	})
 	t.Run("A global file", func(t *testing.T) {
 		t.Parallel()
