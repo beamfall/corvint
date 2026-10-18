@@ -479,3 +479,28 @@ func TestSERVICE500_LegacyStopFileLatchesDrain(t *testing.T) {
 	}
 	release(true)
 }
+
+// ATR-V0-058: the launch control reports DRAINING to the dispatcher's
+// drain-pending signal, and a resume lifts it.
+func TestATRV0058_LaunchControlReportsDrain(t *testing.T) {
+	s := newServiceHome(t)
+	if _, err := s.install(t, "install-1", false); err != nil {
+		t.Fatal(err)
+	}
+	lc := s.launchControl(t, nil)
+	if d, err := lc.Draining(); err != nil || d {
+		t.Fatalf("running control: %v %v", d, err)
+	}
+	if _, err := s.h.Stop("site", "drain-1", true); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := lc.Draining(); err != nil || !d {
+		t.Fatalf("draining control: %v %v", d, err)
+	}
+	if _, err := s.h.Resume("site", "resume-1"); err != nil {
+		t.Fatal(err)
+	}
+	if d, err := lc.Draining(); err != nil || d {
+		t.Fatalf("resumed control: %v %v", d, err)
+	}
+}

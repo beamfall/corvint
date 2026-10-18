@@ -3,7 +3,9 @@ package intent
 import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"path"
+	"slices"
 	"sort"
+	"strings"
 )
 
 const MaxPoolMembers = 256
@@ -41,7 +43,46 @@ type MemberConfig struct {
 	// quarantined (PSR-V0-024..026). It requires SafeReuse.
 	Prepare   *PoolCommand
 	SafeReuse *SafeReuse
+	// Identity is the read-only command that reports the member's current
+	// source pair as {"revision","tree"} JSON (PSR-V0-082). It is declared
+	// exactly when the pool declares allowedSources.
+	Identity *PoolCommand
 }
+
+// MaxPoolSources bounds a pool's approved-source allow-list (PSR-V0-081).
+const MaxPoolSources = 16
+
+// PoolSource is one approved revision/tree pair of a pool member's source
+// (PSR-V0-081).
+type PoolSource struct{ Revision, Tree string }
+
+func (s PoolSource) String() string { return s.Revision + ":" + s.Tree }
+
+// ParsePoolSource reads a REVISION:TREE pair of full Git object ids.
+func ParsePoolSource(where, s string) (PoolSource, error) {
+	i := strings.IndexByte(s, ':')
+	if i < 0 {
+		return PoolSource{}, wire.Errorf(wire.CodeMalformed, where, "source must be REVISION:TREE")
+	}
+	rev, e := wire.ParseOID(where, s[:i])
+	if e != nil {
+		return PoolSource{}, e
+	}
+	tree, e := wire.ParseOID(where, s[i+1:])
+	if e != nil {
+		return PoolSource{}, e
+	}
+	return PoolSource{rev, tree}, nil
+}
+
+func readPoolSource(r *wire.Reader) PoolSource {
+	r.Closed("revision", "tree")
+	return PoolSource{r.Field("revision").OID(), r.Field("tree").OID()}
+}
+
+// Allows reports whether the pool's allow-list holds the pair.
+func (p *Pool) Allows(s PoolSource) bool { return slices.Contains(p.AllowedSources, s) }
+
 type Pool struct {
 	ID           string
 	Members      []string
@@ -50,6 +91,11 @@ type Pool struct {
 	// PriorityAdmission opts the pool into CAL-V0-101 priority-yield
 	// admission. Omission, like an explicit false, keeps the old admission.
 	PriorityAdmission bool
+	// AllowedSources and DefaultSource are the PSR-V0-081 approved-source
+	// allow-list and the pair a member must report before it is FREE; both
+	// are absent or both present.
+	AllowedSources []PoolSource
+	DefaultSource  *PoolSource
 }
 
 func ReadConfigRef(r *wire.Reader) *ConfigRef {
@@ -94,11 +140,12 @@ func readPools(r *wire.Reader, env []string) []Pool {
 	out := []Pool{}
 	ids, members, refs := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, x := range r.Array(64, false) {
-		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig", "priorityAdmission")...)
+		x.Closed(wire.OptionalKeys(x.Value(), []string{"id", "members"}, "reservedFor", "memberConfig", "priorityAdmission", "allowedSources", "defaultSource")...)
 		p := Pool{ID: x.Field("id").Label(), Members: x.Field("members").Strings(MaxPoolMembers, false, (*wire.Reader).Label), ReservedFor: map[string]string{}, MemberConfig: map[string]MemberConfig{}}
 		if wire.Has(x.Value(), "priorityAdmission") {
 			p.PriorityAdmission = x.Field("priorityAdmission").Bool()
 		}
+		readPoolSources(x, &p)
 		if ids[p.ID] || len(p.Members) == 0 {
 			x.Fail(wire.CodeMalformed, "duplicate or empty pool")
 		}
@@ -130,7 +177,7 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					p.ReservedFor[name] = cr.Enum(StageRoles...)
 					continue
 				}
-				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "prepare", "safeReuse")...)
+				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "prepare", "safeReuse", "identity")...)
 				c := MemberConfig{}
 				if wire.Has(cr.Value(), "configRef") {
 					c.ConfigRef = ReadConfigRef(cr.Field("configRef"))
@@ -159,7 +206,24 @@ func readPools(r *wire.Reader, env []string) []Pool {
 				if c.Prepare != nil && c.SafeReuse == nil {
 					cr.Fail(wire.CodeMalformed, "pool prepare requires safeReuse")
 				}
+				if wire.Has(cr.Value(), "identity") {
+					c.Identity = readPoolCommand(cr.Field("identity"))
+					subsetOf(cr, c.Identity.Env, env, "pool identity environment")
+					// PSR-V0-082: pool sweep's delegated confirmation runs no
+					// identity probe in this slice, so the two never combine.
+					if c.SafeReuse != nil {
+						cr.Fail(wire.CodeMalformed, "pool identity does not combine with safeReuse")
+					}
+				}
 				p.MemberConfig[name] = c
+			}
+		}
+		// PSR-V0-082: every member of a pool with allowedSources declares an
+		// identity command, and only such a pool's members declare one.
+		for _, m := range p.Members {
+			if (p.MemberConfig[m].Identity != nil) != (p.DefaultSource != nil) {
+				x.Fail(wire.CodeMalformed, "pool identity is declared for every member exactly when allowedSources is")
+				break
 			}
 		}
 		out = append(out, p)
@@ -170,6 +234,35 @@ func readPools(r *wire.Reader, env []string) []Pool {
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
+
+// readPoolSources reads the PSR-V0-081 allowedSources and defaultSource:
+// both or neither, a bounded duplicate-free list, and a default in it.
+func readPoolSources(x *wire.Reader, p *Pool) {
+	has, hasDefault := wire.Has(x.Value(), "allowedSources"), wire.Has(x.Value(), "defaultSource")
+	if has != hasDefault {
+		x.Fail(wire.CodeMalformed, "allowedSources and defaultSource are declared together")
+		return
+	}
+	if !has {
+		return
+	}
+	for _, sr := range x.Field("allowedSources").Array(MaxPoolSources, true) {
+		s := readPoolSource(sr)
+		if slices.Contains(p.AllowedSources, s) {
+			sr.Fail(wire.CodeDuplicateID, "duplicate allowed source")
+		}
+		p.AllowedSources = append(p.AllowedSources, s)
+	}
+	if len(p.AllowedSources) == 0 {
+		x.Fail(wire.CodeMalformed, "allowedSources must be non-empty")
+	}
+	def := readPoolSource(x.Field("defaultSource"))
+	if x.Err() == nil && !slices.Contains(p.AllowedSources, def) {
+		x.Fail(wire.CodeMalformed, "defaultSource must be one of allowedSources")
+	}
+	p.DefaultSource = &def
+}
+
 func (p *Policy) Pool(id string) *Pool {
 	for i := range p.Pools {
 		if p.Pools[i].ID == id {

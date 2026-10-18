@@ -33,6 +33,10 @@ type Dispatcher struct {
 	Queue   Queue
 	Out     io.Writer
 	Now     func() time.Time
+	// Mono, when set, replaces the monotonic reading time.Now carries in
+	// host-suspend detection (ATR-V0-063); it does not advance while the
+	// host sleeps.
+	Mono func() time.Duration
 
 	dir       string
 	nonce     string
@@ -134,6 +138,19 @@ type Dispatcher struct {
 	// context-stopped worker whose hand-off waits for its detached run.
 	deferredContext map[string]map[string]string
 	heldBy          map[string][]Attempt
+	// drainAlerted keeps one alert per drain-signal write or removal
+	// failure until a write succeeds (ATR-V0-058).
+	drainAlerted bool
+	// churn is the ATR-V0-061 short-session record, read once; churnForeign
+	// marks a newer-version record that is kept and not tracked.
+	churn        *SessionChurn
+	churnForeign bool
+	// sleep is the ATR-V0-063 host-sleep record; lastNow and lastMono are
+	// the previous tick's clock readings.
+	sleep        *HostSleep
+	sleepForeign bool
+	lastNow      time.Time
+	lastMono     time.Duration
 	// tickSeq numbers this run's full ticks and workStateTick is the tick
 	// whose failed work-state read was last counted, so a tick that reads
 	// more than once counts one failed tick (CAL-V0-270).
@@ -393,6 +410,9 @@ func (d *Dispatcher) tick(ctx context.Context) (err error) {
 	}()
 	// CAL-V0-127: a changed configuration applies before this tick acts.
 	d.reloadConfig()
+	d.noteHostSleep()
+	d.syncDrainSignal()
+	d.syncChurn()
 	obs, err := d.observe(ctx)
 	if d.readerErr != nil {
 		return d.readerErr
@@ -715,9 +735,9 @@ func (d *Dispatcher) supervise() []*Worker {
 			reason = "ORPHANED"
 		case o.hard:
 			reason = "CONTEXT"
-		case role != nil && now.Sub(w.Started) > time.Duration(role.WallSeconds)*time.Second:
+		case role != nil && now.Sub(w.Started)-d.slept(w.Started, now) > time.Duration(role.WallSeconds)*time.Second:
 			reason = "WALL"
-		case role != nil && now.Sub(w.LastActive) > time.Duration(role.IdleSeconds)*time.Second:
+		case role != nil && now.Sub(w.LastActive)-d.slept(w.LastActive, now) > time.Duration(role.IdleSeconds)*time.Second:
 			reason = "IDLE"
 		}
 		if reason == "" {
@@ -888,7 +908,8 @@ func (d *Dispatcher) heal(ctx context.Context, obs *Observation, ended []*Worker
 // a store write.
 func (d *Dispatcher) reapRunningExpired(ctx context.Context, obs *Observation, w *Worker, a Attempt, now time.Time) bool {
 	grace := d.launchConfig(w).roleNamed(w.Role).ExpiredLeaseGrace()
-	if now.Sub(a.LeaseExpires) <= grace {
+	// ATR-V0-064: time the host slept after the expiry does not count.
+	if now.Sub(a.LeaseExpires)-d.slept(a.LeaseExpires, now) <= grace {
 		return false
 	}
 	local := d.local(obs, a.Ticket)
@@ -1221,6 +1242,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		d.finishUsage(w, detail)
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
+		d.noteSession(w, now)
 		if stalled != nil {
 			d.emit(*stalled)
 		}
@@ -1443,6 +1465,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	for k, b := range d.ledger.Backoff {
 		skip[k] = b.Parked || b.CooldownUntil.After(now)
 	}
+	d.churnHeld(skip, now)
 	for k := range d.ledger.InfraRetry {
 		if d.infraHolds(obs, k) {
 			skip[k] = true
@@ -1567,6 +1590,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
+		env = append(env, "CORVINT_DISPATCH_DRAIN_FILE="+DrainSignalPath(d.dir)) // ATR-V0-058
 		if contextFormat(role.UsageFormat) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}

@@ -155,6 +155,12 @@ func decodeStrictBounded(name, profile string, limit int, v any, profileOf func(
 	if err != nil {
 		return err
 	}
+	return decodeStrictBytes(name, profile, limit, raw, v, profileOf)
+}
+
+// decodeStrictBytes is decodeStrictBounded over bytes a caller already read
+// through a bounded, non-blocking open (STR-V0-055).
+func decodeStrictBytes(name, profile string, limit int, raw []byte, v any, profileOf func() string) error {
 	if len(raw) > limit {
 		return fmt.Errorf("%s exceeds %d bytes", filepath.Base(name), limit)
 	}

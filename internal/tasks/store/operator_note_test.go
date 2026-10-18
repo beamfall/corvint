@@ -324,36 +324,119 @@ func TestONV0006_RedoBindsAPendingNoteReceipt(t *testing.T) {
 	}
 }
 
-// TestONV0006_CheckpointTailNeverReadsThePrefix: a checkpoint-resumed read
-// keeps its tail for an ordinary REFINE of a noted ticket, and falls back to
-// the complete audit rather than read a pre-checkpoint receipt when a note
-// transition's pre-state precedes the checkpoint (CAL-V0-061).
-func TestONV0006_CheckpointTailNeverReadsThePrefix(t *testing.T) {
+// prefixReads records the receipts before a checkpoint one audit read.
+type prefixReads struct {
+	journal.Native
+	before uint64
+	seqs   map[uint64]int
+}
+
+func (s *prefixReads) Read(p string, n int) ([]byte, error) {
+	if name, ok := strings.CutPrefix(p, "receipts/"); ok {
+		var seq uint64
+		for _, c := range strings.TrimSuffix(name, ".json") {
+			seq = seq*10 + uint64(c-'0')
+		}
+		if seq < s.before {
+			s.seqs[seq]++
+		}
+	}
+	return s.Native.Read(p, n)
+}
+
+// TestONV0013_CheckpointTailBindsNotePreStateByDigest: a checkpoint-resumed
+// read keeps its tail for an ordinary REFINE of a noted ticket and for a note
+// transition whose pre-ticket or pre-policy was last posted at or before the
+// checkpoint. The only receipts before the checkpoint it reads are the ones
+// the checkpoint entries name for those pre-states (the REFINE's prior
+// ticket, and a note event's pre-ticket and pre-policy), each bound by the
+// entry digest (amending CAL-V0-061). A prefix post that no longer matches
+// that digest falls back to the complete audit, which decides as it does
+// with no checkpoint.
+func TestONV0013_CheckpointTailBindsNotePreStateByDigest(t *testing.T) {
 	t.Parallel()
 	repo, _ := initialized(t)
 	created := mutate(t, repo, envelope("req-create", mutation.OpCreate, "", "", createPayload("Noted ticket")))
 	mutate(t, repo, noteEnvelope("req-note-1", mutation.OpNoteSet, created.Ticket, "", "First.", "0"))
+	q, _ := wire.ParseQueueID("", fixture.QueueID)
+	native := journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}
+	checkpoint := func() *journal.Checkpoint {
+		t.Helper()
+		full, err := noteAudit(t, repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return full.Checkpoint()
+	}
+	resumed := func(cp *journal.Checkpoint) (*journal.Result, *prefixReads, error) {
+		t.Helper()
+		src := &prefixReads{Native: native, before: cp.Seq.Uint64(), seqs: map[uint64]int{}}
+		res, err := (journal.Reader{Source: src, QueueID: q, PrimaryWorktree: repo.PrimaryWorktree, Checkpoint: cp}).Audit()
+		return res, src, err
+	}
+	entrySeq := func(cp *journal.Checkpoint, path string) uint64 {
+		t.Helper()
+		for _, e := range cp.Entries {
+			if e.Path == path {
+				return e.Seq.Uint64()
+			}
+		}
+		t.Fatalf("checkpoint has no %s", path)
+		return 0
+	}
+	ticketPath := "intent/tickets/" + created.Ticket[strings.LastIndex(created.Ticket, ":")+1:] + ".json"
+
+	// A tail REFINE of a ticket last posted before the checkpoint binds its
+	// unchanged note reference from that one prefix afterimage.
+	cp := checkpoint()
+	mutate(t, repo, envelope("req-refine", mutation.OpRefine, created.Ticket, "2", obj("title", str("Refined"))))
+	if res, src, err := resumed(cp); err != nil || res.Mode != journal.ModeCheckpoint || len(src.seqs) > 1 || len(src.seqs) != src.seqs[entrySeq(cp, ticketPath)] {
+		t.Fatalf("REFINE tail = %+v %v, prefix reads %v", res, err, src.seqs)
+	}
+	// The note's pre-ticket and pre-policy were both last posted at or
+	// before this checkpoint.
+	cp = checkpoint()
+	mutate(t, repo, noteEnvelope("req-note-2", mutation.OpNoteClear, created.Ticket, "3", "", "1"))
 	full, err := noteAudit(t, repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cp := full.Checkpoint()
-	q, _ := wire.ParseQueueID("", fixture.QueueID)
-	resumed := func() *journal.Result {
-		t.Helper()
-		res, err := (journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: q, PrimaryWorktree: repo.PrimaryWorktree, Checkpoint: cp}).Audit()
-		if err != nil {
-			t.Fatalf("resumed audit: %v", err)
+	res, src, err := resumed(cp)
+	if err != nil || res.Mode != journal.ModeCheckpoint || res.SemanticCoverage != full.SemanticCoverage || res.SemanticCoverage == "UNKNOWN" {
+		t.Fatalf("note tail = %+v %v, want %s with the complete audit's coverage %s", res, err, journal.ModeCheckpoint, full.SemanticCoverage)
+	}
+	policySeq := entrySeq(cp, "intent/policy.json")
+	for seq, n := range src.seqs {
+		if (seq != policySeq && seq != entrySeq(cp, ticketPath)) || n != 1 {
+			t.Fatalf("resumed read prefix receipt %d %d times; allowed only %d (policy) and %d (ticket), once each", seq, n, policySeq, entrySeq(cp, ticketPath))
 		}
-		return res
 	}
-	mutate(t, repo, envelope("req-refine", mutation.OpRefine, created.Ticket, "2", obj("title", str("Refined"))))
-	if res := resumed(); res.Mode != journal.ModeCheckpoint {
-		t.Fatalf("REFINE tail mode = %s, want %s", res.Mode, journal.ModeCheckpoint)
+	if src.seqs[policySeq] != 1 {
+		t.Fatalf("resumed read did not bind the pre-policy at receipt %d: %v", policySeq, src.seqs)
 	}
-	mutate(t, repo, noteEnvelope("req-note-2", mutation.OpNoteClear, created.Ticket, "3", "", "1"))
-	if res := resumed(); res.Mode != journal.ModeFull || res.SemanticCoverage == "UNKNOWN" {
-		t.Fatalf("note tail = %s %s, want the complete audit's verdict", res.Mode, res.SemanticCoverage)
+	// A prefix pre-policy post rewritten under its old digest no longer
+	// binds: the resumed read falls back, and the complete audit decides.
+	name, _ := snapshot.ReceiptName(policySeq)
+	forged := filepath.Join(repo.StateDir, "receipts", name)
+	raw := mustRead(t, forged)
+	v, err := wire.Parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post, _ := v.Obj.Get("post")
+	for _, p := range post.Arr {
+		if dest, _ := p.Obj.Get("path"); dest.Str == "intent/policy.json" {
+			rec, _ := p.Obj.Get("record")
+			p.Obj.Set("record", withField(rec, "policyVersion", str("9")))
+		}
+	}
+	fixture.Write(t, forged, wire.EncodeFile(v))
+	_, want := noteAudit(t, repo)
+	if wire.CodeOf(want) != wire.CodeJournalForked {
+		t.Fatalf("complete audit over a forged prefix = %v", want)
+	}
+	if res, _, err := resumed(cp); wire.CodeOf(err) != wire.CodeOf(want) || (res != nil && res.Mode == journal.ModeCheckpoint) {
+		t.Fatalf("resumed read over a forged prefix = %+v %v, want the complete audit's %v", res, err, want)
 	}
 }
 

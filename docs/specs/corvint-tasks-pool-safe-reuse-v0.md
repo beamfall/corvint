@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -209,6 +209,102 @@ the journal `PrefixFallback`/`ResumeBase`/`AuditForResume`/`RecheckResume`, thei
 resume base is in-memory only. No store format, receipt, checkpoint format or wire result changes,
 so stores written by either build are read by the other.
 
+### V1-1572 older binaries and slots
+
+Human-owned input: native ticket V1-1572 (2026-10-17), a follow-up of V1-1550 asking that the
+inferred older-binary refusal of a store with slots be observed, not only inferred from the closed
+decoders.
+
+- `PSR-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1572) Compatibility
+  statement: a corvint-tasks binary that predates slots (V1-1550) refuses, on its first audited read
+  and without writing, a store whose `policy.json` declares `slots` (`MALFORMED`, `policy.json:
+  closed object violated (unknown keys: slots)`) and a store whose `pools.json` carries a `slots` key
+  after the policy dropped them (`MALFORMED`, `/: closed object violated (unknown keys: slots)`); the
+  same store without slots is read normally. Such a binary therefore cannot operate a queue while
+  slots are declared or held, and nothing in the store is misread or rewritten. The remedy is the
+  slots rollback of PSR-V0-030..043 (release every entry, run one slot write, publish policy without
+  `slots`) or a binary that includes V1-1550. No code, format or decoder changes.
+
+  Acceptance evidence: the opt-in `TestPSRV0080_OlderBinaryRefusesSlots`
+  (`internal/tasks/cli`, `CORVINT_TASKS_OLDER_BINARY=<binary>`) ran on 2026-10-17 against
+  corvint-tasks built from source at tag `v1.0.0-rc.2` (154d663f051b7a1c8767a0934fc8e92100ae323d,
+  go1.27.2, Darwin, unverified source build in a temporary directory, not installed): the control
+  `queue status` was OK; `queue status` and `attempt show` were `MALFORMED` (exit 1) on both slot
+  stores, with the state tree unchanged. Rollback: delete the test and this statement.
+
+### V1-1586 member source identity and drift guard (issue 1029)
+
+Human-owned input: GitHub issue #1029 and native ticket V1-1586 (2026-10-17): each pool member
+reports the source it holds, a pool names the approved sources, and a member whose source drifted
+never returns to FREE. Acceptance: a source outside the allow-list is refused at acquire with a
+typed reason; a drifted member stays QUARANTINED with `SOURCE_DRIFT` and both pairs; a failing or
+malformed identity command never frees the member; `pool status` shows the observed identity and
+when it was observed; removing an allow-list pair does not strand a live allocation and the guard
+applies at release; pools without `allowedSources` behave as before.
+
+- `PSR-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool may
+  declare `allowedSources`, 1..16 distinct `{"revision","tree"}` pairs of full Git object ids, and
+  `defaultSource`, one of them; both are declared or neither (`MALFORMED`, a duplicate pair
+  `DUPLICATE_ID`). `pool acquire --source REV:TREE` asks for a member on that pair. Before any
+  allocation or health preparation, a pair outside the pool's current `allowedSources`, or any
+  `--source` on a pool without them, is refused `BLOCKED` `OUT_OF_SCOPE` with a detail starting
+  `SOURCE_NOT_ALLOWED`; a malformed pair is `MALFORMED`. An admitted acquire records the pair on the
+  pools.json entry as an optional `source`. The wire code set is unchanged; the typed reason is the
+  detail token.
+
+- `PSR-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) In a pool
+  with `allowedSources`, every member declares `memberConfig[M].identity`, a pool command with the
+  existing argv, cwd, env and timeoutSeconds rules, and no member of another pool declares one
+  (`MALFORMED`). It is read-only by contract and prints one JSON object `{"revision","tree"}`. It
+  does not combine with `safeReuse` in this slice (`MALFORMED`), so `pool sweep` never frees a
+  guarded member. The identity command is part of the member definition and is immutable while the
+  member is occupied; `allowedSources` and `defaultSource` are pool-level and may change while it
+  is.
+
+- `PSR-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586)
+  `pool confirm-safe` of a guarded QUARANTINED member runs its identity command in the lease
+  observer, against the policy and pool state the transaction decides on (memoized over that state,
+  so an observer retry over unchanged state does not run it again, and the writer-checkpoint route
+  is kept), through the owned process-group runner (timeout, group kill, bounded output). The
+  observation binds pool, member, allocation and definition digest and carries the class
+  (`REPORTED`, a runner class, or `MALFORMED_OUTPUT`), the reported pair when `REPORTED`, the stdout
+  digest and the runner's wall-clock `observedAt`; the transaction records it in pools.json as the
+  member's last `identities` entry with the receipt `observedSeq`. `pool status` for such a pool
+  shows `defaultSource`, `allowedSources` and, per member, the allocation's `source` and the last
+  `identity` (class, source, allocationId, outputSha256, observedAt, observedSeq) or `NOT_OBSERVED`.
+
+- `PSR-V0-084`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarded
+  member becomes FREE only when its identity is `REPORTED` with the pool's current `defaultSource`.
+  A reported other pair keeps it QUARANTINED with reason `SOURCE_DRIFT: observed R:T; default R:T`;
+  any other class (failure, timeout, over-limit, malformed or trailing output) keeps it QUARANTINED
+  with reason `SOURCE_IDENTITY_UNPROVED: identity command CLASS; default R:T`. Both are committed
+  receipts with outcome `BLOCKED` and code `QUIESCENCE_UNPROVED`, so a request-id replay returns
+  the refusal and frees nothing; a confirm-safe with no observation is refused and writes nothing.
+
+- `PSR-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guard
+  applies at release, not at policy update: a policy update that removes a pair from
+  `allowedSources` leaves every live allocation on it ALLOCATED, and only later acquires of that
+  pair are refused. A lane-untouched release of a guarded member does not remove its entry; it is
+  quarantined like any other release and freed only through PSR-V0-084.
+
+- `PSR-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool
+  without `allowedSources` is unchanged: its policy, pools.json and `pool status` bytes carry no
+  `source`, `identities`, `identity` or source keys, and its members free exactly as before.
+
+  Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
+  timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
+  observation (refused, nothing written); an observation bound to another allocation or definition
+  (`MALFORMED`, nothing written); an allow-list narrowed while occupied (allocation kept, guard at
+  release). Non-goals: no identity probe in `pool sweep` or the dispatcher's sweep, no identity at
+  claim or acquire time, no retargeting of a member to another source (V1-1585), no trust in the
+  command's report beyond its exit and output shape, and no new wire code. Acceptance evidence:
+  `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0082_IdentityPolicyRules`,
+  `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` and `TestPSRV0086_PoolsWithoutSourcesUnchanged`
+  (`internal/tasks/cli`). Rollback: free every guarded member (confirm-safe with a matching
+  identity), publish policy without `allowedSources`, `defaultSource` and `identity`, then revert the
+  source; an older binary refuses a policy or pools.json carrying these keys as `MALFORMED` (unknown
+  key), the recorded compatibility limit. No receipt or record is rewritten.
+
 ## Acceptance evidence
 
 Initial fixture must initialize and canonically roundtrip policy/pool state, claim/release exact allocation and show QUARANTINED before fault injection. Positive reset+verify and optional cleanup-first produce bounded observation/log evidence, delegated confirmation and FREE readback; subsequent claim has fresh allocation. Exact replay after env deletion/current config change/successor allocation returns original evidence without execution. Barrier tests afterreset/beforeconfirm refuse competing sweep, ordinary cleanup and manual confirmation. Retry max2, combined deadline, total budget, exit/stdout/stderr predicates, overflow/source drift/private env syntax/permissions/symlinks/races, receipt publication failure and request conflict controls retain quarantine. Blocked identity/group probes are bounded. Actual foreground subprocess INT/TERM retirement observes PID/start identities and descendant absence; killed-host explicit recovery refuses live/unknown runner and retains quarantine. Large pool projection, descriptor/count maxima, duplicated evidence digest and archive evidence retention must be checked. PSR-V0-011/012 (issue628) add policy-validation tests for the 1..3600 bound and the pinned cwd shape, an injected-clock health timeout at 3600, and pinned health/sweep fixtures that run in the external worktree and refuse mismatched revision, dirty tracked or untracked input, alias, subdirectory and non-worktree paths without executing; hook-driven tests show a revision swapped between HEAD and status and a directory swapped after the proof run nothing, and post-exit bounded probes keep the command's terminal class. Current integrated tests/runtimes are NOT_RUN at this source phase; Linux and physical external cleanup remain NOT_OBSERVED. The earlier broad source run failed on historical replay timing and the clock fixture; the repaired five-cell run and focused vet passed at their original source binding. Required next evidence is a fresh integrated binary plus all 58 mandatory PASS observations (21 PSR/repair, 27 CAL dispatcher/CLI, nine issue503 and the clock witness), scoped race/vet and docs/specindex checks. Historical repair PASS is not a current broad PASS. The original enrollment (BASE211916, key a2284577) is retained as NON_SUCCESS. The successor enrollment at that seal, with the original single intent and both original selected checks unchanged, its CEM/OCM, report review, seal, hosted landing and native completion remain pending; actual receipts must replace pending claims only after execution.
@@ -216,7 +312,7 @@ Initial fixture must initialize and canonically roundtrip policy/pool state, cla
 Shared allocations (PSR-V0-016..021; V1-0946, GitHub #653): focused CLI, transaction, snapshot and store tests cover binding and exact replay, release in both orders with one quarantine, every refusal, lease expiry of the entry attempt and of a shared attempt, a crash at each publication of a share claim with redo or fresh retry, supervisor attach and lane-untouched refusal, the additive codec and its closed-decoder refusal, and the `pool status` and `attempt show` views as pure reads. An older binary reading a store with bindings is inferred from the closed decoders and the unknown-key refusal test; no older binary was executed. Dispatcher batching over shared allocations is not implemented.
 
 Sweep prepare (PSR-V0-024..026; V1-1551, GitHub #1009): focused intent and store tests cover the policy shape, bound and safeReuse requirement; a prepare observed mid-run while the member is CLEANING under the owned sweep, chained after the passed verify, digest-only evidence with no output bytes, then FREE and an exact replay that does not rerun it; EXIT_NONZERO and shared-deadline TIMEOUT failures that stay QUARANTINED with the recorded reason and no retry; a lost prepare response whose replay stays pending without re-execution; and an ALL barrier that never launches prepare. Failure modes: a failed, timed-out, over-limit or source-changed prepare, a lost response and an ALL barrier each leave the member quarantined or owned, never free. Existing sweep tests run unchanged for members without prepare.
-Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots is inferred from the closed decoders; no older binary was executed.
+Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapshot, store and CLI tests cover the policy and pools.json codecs with every refusal; grant, wait and free after an attempt ends and after a crashed holder's lease expires (reaped by the next poll, acceptance 1); an exclusive request granted under continuing shared demand (acceptance 2); priority wait order; a reserved class granted past a higher-priority unreserved waiter (acceptance 3); request-id replay and no-change polls (acceptance 4); and the `slot` result and `queue status` `slots` view as a pure read (acceptance 5). Concurrency between two slot writers relies on the existing store lock and was not separately stress-tested. An independent review found five defects before landing; each has a regression test that fails on the reviewed head 19f66b4e4: supervisor attach with held or waiting slots is refused (PSR-V0-039); an exclusive granted after a capacity cut takes the new capacity and a stale shared waiter neither is granted nor blocks a later one (PSR-V0-040); two alternating higher-priority exclusive requesters cannot starve a reserved-class waiter (PSR-V0-041); no-change release and poll requests replay (PSR-V0-042); and a replay carries no slot (PSR-V0-043). An older binary reading a store with slots was inferred from the closed decoders at landing; PSR-V0-080 (V1-1572) later executed a `v1.0.0-rc.2` binary against such stores and observed the `MALFORMED` refusal.
 
 Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
 
@@ -228,7 +324,7 @@ Prepare (PSR-V0-024..026) is not a health probe, does not run outside `pool swee
 
 ## Compatibility and rollback
 
-Omitted safeReuse preserves old policy bytes/manual confirmation authority. Explicit new delegated operator profile amends CAL-V0-030 only for exact owned successful observation. Disable opt-in while preserving quarantine, pending runner ownership, receipts and private log evidence. No historical preimage rewrite, projection stripping or freeing by TTL. Older decoder rejection is recorded compatibility limit, including a pinned cwd object or a timeoutSeconds above 300. To roll back PSR-V0-011/012, free or clean every member whose occupied definition uses them (occupied definitions are immutable), then publish policy with `cwd:"REPOSITORY"` and timeoutSeconds within 1..300; source reversion of the decoder must follow that policy change. Reversion requires observed process retirement or explicit proved-orphan recovery; terminal shared spec/index/catalog updates record delivered evidence and remaining dispatcher/live/Linux limitations. To roll back PSR-V0-016..021, stop issuing `--share-allocation` and let every shared attempt end (or release them), which removes every `shared` list and leaves `sharedAllocation` only on terminal attempt records; then revert the source. A reverted or older binary still refuses a store whose retained attempt records carry `sharedAllocation`; that is a recorded compatibility limit of rollback once any share was admitted, and no historical receipt, record or preimage is rewritten to lift it. To roll back PSR-V0-030..043, release every slot entry (or let the attempts end and run one slot write so pools.json drops the `slots` key), then publish policy without `slots`; source reversion follows. An older binary refuses a policy with `slots` or a pools.json with a `slots` key as `MALFORMED` (unknown key); that is a recorded compatibility limit while slots are declared or held. No receipt, record or preimage is rewritten.
+Omitted safeReuse preserves old policy bytes/manual confirmation authority. Explicit new delegated operator profile amends CAL-V0-030 only for exact owned successful observation. Disable opt-in while preserving quarantine, pending runner ownership, receipts and private log evidence. No historical preimage rewrite, projection stripping or freeing by TTL. Older decoder rejection is recorded compatibility limit, including a pinned cwd object or a timeoutSeconds above 300. To roll back PSR-V0-011/012, free or clean every member whose occupied definition uses them (occupied definitions are immutable), then publish policy with `cwd:"REPOSITORY"` and timeoutSeconds within 1..300; source reversion of the decoder must follow that policy change. Reversion requires observed process retirement or explicit proved-orphan recovery; terminal shared spec/index/catalog updates record delivered evidence and remaining dispatcher/live/Linux limitations. To roll back PSR-V0-016..021, stop issuing `--share-allocation` and let every shared attempt end (or release them), which removes every `shared` list and leaves `sharedAllocation` only on terminal attempt records; then revert the source. A reverted or older binary still refuses a store whose retained attempt records carry `sharedAllocation`; that is a recorded compatibility limit of rollback once any share was admitted, and no historical receipt, record or preimage is rewritten to lift it. To roll back PSR-V0-030..043, release every slot entry (or let the attempts end and run one slot write so pools.json drops the `slots` key), then publish policy without `slots`; source reversion follows. An older binary refuses a policy with `slots` or a pools.json with a `slots` key as `MALFORMED` (unknown key); that is a recorded compatibility limit while slots are declared or held, observed with a `v1.0.0-rc.2` binary (PSR-V0-080). No receipt, record or preimage is rewritten.
 
 Prepare is additive: omitting it keeps every existing byte. Older decoders refuse a policy, owner or observation carrying `prepare`, which is the recorded compatibility boundary. Rollback removes `prepare` from the member configuration only after the member holds no allocation: a policy update that changes the definition of any occupied member (including a QUARANTINED one retained after a failed prepare) is refused with `occupied pool definition cannot change`. A member quarantined by a failed prepare must therefore first be freed under the unchanged policy, either by a further `pool sweep` (which runs `prepare` again) or by the ordinary `pool cleanup` followed by `pool confirm-safe`, neither of which runs `prepare`; only then publish the policy without `prepare`. No receipt or evidence is rewritten. No other supported way to free a quarantined allocation exists.
 
@@ -279,3 +375,15 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-055 | opt-in `TestPSRV0055_PoolAcquireLoad` (`internal/tasks/store`); `docs/build-log/2026-10-17-v1-1560-pool-acquire-starvation.md` |
 | PSR-V0-056 | `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`); `TestPSRV0056_ResumeRechecksBaseBeforeCommit` (`internal/tasks/store`) |
 | PSR-V0-057 | `TestPSRV0057_ResumeCheckCloseFailureIsCleanup`, `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
+
+## Traceability (PSR-V0-080..)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-080 | opt-in `TestPSRV0080_OlderBinaryRefusesSlots` (`internal/tasks/cli`), executed against a `v1.0.0-rc.2` source build |
+| PSR-V0-081 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
+| PSR-V0-082 | `TestPSRV0082_IdentityPolicyRules` (`internal/tasks/cli`) |
+| PSR-V0-083 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
+| PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |

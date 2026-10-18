@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 const revision = "0123456789abcdef0123456789abcdef01234567"
@@ -541,5 +543,116 @@ func TestAFPV0043RefreshValidStreamByteParity(t *testing.T) {
 	got, err := os.ReadFile(table)
 	if err != nil || !bytes.Equal(got, want) {
 		t.Fatalf("table parity: err=%v\ngot %s\nwant %s", err, got, want)
+	}
+}
+
+// STR-V0-056: refresh --history retains each refreshed table byte for byte
+// under its UTC time and revision, keeps only the newest --keep retained
+// names, never touches another file, writes nothing when refused, and the
+// retained files plan through `corvint test shards` with no fallback.
+func TestSTRV0056RefreshRetainsDatedTables(t *testing.T) {
+	logs := write(t, "raw.log", passed("example.org/a", "0.5")+passed("example.org/b", "1.25"))
+	dir := t.TempDir()
+	history := filepath.Join(dir, "history")
+	table := filepath.Join(dir, "costs.json")
+	if err := os.MkdirAll(history, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	foreign := map[string]string{"notes.txt": "keep", "20200101T000000Z-" + strings.Repeat("0", 40) + ".json.bak": "keep"}
+	for name, body := range foreign {
+		if err := os.WriteFile(filepath.Join(history, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	refresh := func(extra ...string) (int, error) {
+		args := append([]string{"--table", table, "--shards", "1", "--run-url", runURL, "--history", history}, extra...)
+		return run("refresh", append(args, logs), nil)
+	}
+	revisions := []string{strings.Repeat("1", 40), strings.Repeat("2", 40), strings.Repeat("3", 40)}
+	times := []string{"2026-10-15T09:00:00Z", "2026-10-16T09:00:00Z", "2026-10-16T21:30:05Z"}
+	names := []string{"20261015T090000Z-", "20261016T090000Z-", "20261016T213005Z-"}
+	for i, rev := range revisions {
+		if code, err := refresh("--revision", rev, "--at", times[i], "--keep", "2"); code != 0 || err != nil {
+			t.Fatalf("refresh %d: code=%d err=%v", i, code, err)
+		}
+		tableBytes, err := os.ReadFile(table)
+		if err != nil {
+			t.Fatal(err)
+		}
+		retained, err := os.ReadFile(filepath.Join(history, names[i]+rev+".json"))
+		if err != nil || !bytes.Equal(retained, tableBytes) {
+			t.Fatalf("refresh %d: retained table differs from the table: %v", i, err)
+		}
+	}
+	entries, err := os.ReadDir(history)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, entry := range entries {
+		got = append(got, entry.Name())
+	}
+	want := []string{names[1] + revisions[1] + ".json", names[2] + revisions[2] + ".json"}
+	for name := range foreign {
+		want = append(want, name)
+	}
+	sort.Strings(want)
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("retained %v, want %v", got, want)
+	}
+	for name, body := range foreign {
+		if raw, err := os.ReadFile(filepath.Join(history, name)); err != nil || string(raw) != body {
+			t.Fatalf("foreign file %s changed: %v", name, err)
+		}
+	}
+	// The retained files are what `corvint test shards --durations` reads,
+	// oldest first in name order.
+	tables := []sessiontest.History{}
+	for _, name := range []string{names[1] + revisions[1] + ".json", names[2] + revisions[2] + ".json"} {
+		raw, err := os.ReadFile(filepath.Join(history, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		tables = append(tables, sessiontest.History{Name: name, Raw: raw})
+	}
+	listed, err := sessiontest.ListedFiles([]byte("example.org/a\nexample.org/b\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := sessiontest.PlanShards(listed, 2, sessiontest.DefaultHistoryRuns, tables)
+	if err != nil || plan.Fallback != "" || strings.Join(plan.History, ",") != revisions[1]+","+revisions[2] || plan.WeightMilliseconds["example.org/b"] != 1250 {
+		t.Fatalf("retained tables do not plan: %v %+v", err, plan)
+	}
+	before, _ := os.ReadFile(table)
+	for name, extra := range map[string][]string{
+		"keep zero":       {"--revision", revisions[0], "--keep", "0"},
+		"keep over bound": {"--revision", revisions[0], "--keep", "65"},
+		"offset time":     {"--revision", revisions[0], "--at", "2026-10-17T10:00:00+01:00"},
+		"malformed time":  {"--revision", revisions[0], "--at", "yesterday"},
+		"uppercase rev":   {"--revision", strings.ToUpper("abcdef") + strings.Repeat("0", 34)},
+		"short revision":  {"--revision", "0123"},
+		"foreign run":     {"--revision", revisions[0], "--run-url", "https://example.org/runs/1"},
+	} {
+		if code, err := refresh(extra...); code != 2 || err == nil {
+			t.Errorf("%s: code=%d err=%v", name, code, err)
+		}
+		if after, _ := os.ReadFile(table); !bytes.Equal(after, before) {
+			t.Fatalf("%s: a refused refresh changed the table", name)
+		}
+		if entries, _ := os.ReadDir(history); len(entries) != len(want) {
+			t.Fatalf("%s: a refused refresh changed the retained tables", name)
+		}
+	}
+	for name, args := range map[string][]string{
+		"at without history": {"--table", table, "--shards", "1", "--revision", revisions[0], "--run-url", runURL, "--at", times[0], logs},
+		"history with check": {"--table", table, "--shards", "1", "--history", history, logs},
+	} {
+		mode := "refresh"
+		if strings.Contains(name, "check") {
+			mode = "check"
+		}
+		if code, err := run(mode, args, nil); code != 2 || err == nil {
+			t.Errorf("%s: code=%d err=%v", name, code, err)
+		}
 	}
 }
