@@ -56,6 +56,10 @@ AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-060	docs/specs/affected-plan-v0.md	(accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016	owner	2026-10-18
 AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
 AFP-V0-072	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no	standing	2026-10-11; V1-1806
+AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -3045,6 +3049,7 @@ NGI-V0-027	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-051	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1804) A	standing	2026-10-11; V1-1804
 NGI-V0-052	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) The	standing	2026-10-11; V1-1805
 NGI-V0-053	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) When	standing	2026-10-11; V1-1805
+NGI-V0-059	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1827) A	standing	2026-10-11; V1-1827
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-
@@ -3542,6 +3547,8 @@ RUBY-AFFECTED-V0-009	docs/specs/ruby-affected-test-adapter-v0.md	In a Rails appl
 RUBY-AFFECTED-V0-010	docs/specs/ruby-affected-test-adapter-v0.md	`ruby:rails-autoload` MUST be raised only when constant edges cannot bound	unrecorded	-
 RUBY-AFFECTED-V0-011	docs/specs/ruby-affected-test-adapter-v0.md	In a bounded Rails application, every test MUST carry advisory edges to each	unrecorded	-
 RUBY-AFFECTED-V0-012	docs/specs/ruby-affected-test-adapter-v0.md	`spec_helper.rb`, `rails_helper.rb`, and `test_helper.rb` MUST remain	unrecorded	-
+RUBY-AFFECTED-V0-013	docs/specs/ruby-affected-test-adapter-v0.md	The unindented statement `Bundler.require(*Rails.groups)`, alone on its line	unrecorded	-
+RUBY-AFFECTED-V0-014	docs/specs/ruby-affected-test-adapter-v0.md	`conformance/ruby-profile-v0/` MUST hold a Rails/RSpec fixture application	unrecorded	-
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-

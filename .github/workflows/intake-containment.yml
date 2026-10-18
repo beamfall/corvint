@@ -19,6 +19,9 @@ permissions:
 
 jobs:
   containment:
+    # AFP-V0-081: a ci:batched constituent never starts it; its batch pull request runs it on the
+    # combined tree. Not a required check.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:

@@ -294,7 +294,14 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	coverage["critical"] = critical
 	coverage["critical_missing"] = criticalMissing
 	uncertainty := []any{"feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff"}
-	uncertainty = append(append(uncertainty, authorityUncertainty...), rubyAdvisoryUncertainty(mapsFromAny(result["results"]))...)
+	uncertainty = append(uncertainty, authorityUncertainty...)
+	// A Ruby range whose plan names no language command says so with the line
+	// path impact reports for the same files; a range with no admitted Ruby
+	// path never evaluates it and keeps its bytes (NGI-V0-059).
+	if rangeHasRubyPath(admittedPaths) && lacksLanguageVerification(index, result) {
+		uncertainty = append(uncertainty, unknownLanguageVerification)
+	}
+	uncertainty = append(uncertainty, rubyAdvisoryUncertainty(mapsFromAny(result["results"]))...)
 	if len(omissions) != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf("%d non-Go changed paths are outside the native Go range profile", len(omissions)))
 	}

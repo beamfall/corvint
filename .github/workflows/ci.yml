@@ -11,7 +11,9 @@ on:
     branches: [main]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  # AFP-V0-082 (V1-0728): a pull request cancels its superseded run; a merge-queue entry is its
+  # own queue ref; a main push groups by its own commit, so a later merge never cancels it.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -659,13 +661,63 @@ jobs:
           path: ~/.cache/go-build
           key: ${{ steps.gocache.outputs.cache-primary-key }}
 
+  static-reuse:
+    # AFP-V0-080 (V1-1642): a main push whose own commit already passed go-static,
+    # artifact-integrity and go-interop in a successful merge-queue run of this workflow skips
+    # those three jobs. The queue run tested this exact commit, so the same tree, ci.yml and
+    # Makefile. Only listings are read (public, as in the docs-plan reuse step); nothing is
+    # checked out or downloaded. Any failure, refusal or unreadable listing leaves `mode` empty,
+    # and the three jobs then run in full. It never runs for a pull request or queue entry.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      mode: ${{ steps.find.outputs.mode }}
+    steps:
+      - name: Find a passed merge-queue run of this exact commit
+        id: find
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
+          get() {
+            curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
+              curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
+          }
+          d="$RUNNER_TEMP/static-reuse"
+          mkdir -p "$d"
+          get "$api/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=merge_group&status=success&per_page=20" "$d/runs.json"
+          ids=$(jq -r --arg sha "$GITHUB_SHA" --arg repo "$GITHUB_REPOSITORY" '.workflow_runs[]?
+            | select(.head_sha == $sha and .event == "merge_group" and .conclusion == "success"
+              and .path == ".github/workflows/ci.yml" and .head_repository.full_name == $repo
+              and (.head_branch | startswith("gh-readonly-queue/main/")) and (.id | type == "number"))
+            | .id' "$d/runs.json" | head -n 5)
+          for id in $ids; do
+            get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs-$id.json" || continue
+            # Exactly one latest job of each name, every one success on this commit.
+            if jq -e --arg sha "$GITHUB_SHA" '[.jobs[]? | select(.name == "go-static" or .name == "artifact-integrity" or .name == "go-interop")]
+              | length == 3 and (map(.name) | unique | length == 3)
+                and all(.conclusion == "success" and .head_sha == $sha)' "$d/jobs-$id.json" > /dev/null; then
+              echo "Static reuse (AFP-V0-080): go-static, artifact-integrity and go-interop passed on $GITHUB_SHA in merge-queue run $id; not rerun." >> "$GITHUB_STEP_SUMMARY"
+              echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Static reuse (AFP-V0-080): no successful merge-queue run passed all three jobs on $GITHUB_SHA; they run in full." >> "$GITHUB_STEP_SUMMARY"
+
   go-static:
     # V1-1093: the static, formatting, build, protected-helper and interop checks that shard 0
     # ran serially after its race tests. They need no docs-plan output, so they start at once,
     # beside the shards, on every path that starts the shards (FULL, DOCS and REUSE alike).
     # AFP-V0-013 keeps them full; go-product needs this job, so its required coverage is
-    # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it.
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    # unchanged. Like the shards, a ci:batched constituent (AFP-V0-027) never starts it, and a
+    # main push whose queue run passed it on the same commit reuses that result (AFP-V0-080).
+    needs: static-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -742,7 +794,7 @@ jobs:
   go-product:
     # The required check. A needed job that fails, is cancelled or is skipped is not success.
     if: always()
-    needs: [go-product-shard, go-static, docs-plan]
+    needs: [go-product-shard, go-static, docs-plan, static-reuse]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -750,13 +802,19 @@ jobs:
         env:
           SHARDS_RESULT: ${{ needs.go-product-shard.result }}
           STATIC_RESULT: ${{ needs.go-static.result }}
+          STATIC_REUSE: ${{ needs.static-reuse.outputs.mode }}
           DOCS_RESULT: ${{ needs.docs-plan.result }}
         run: |
           if [ "$SHARDS_RESULT" = skipped ]; then
             echo '::error::go-product shards did not run: this pull request is labelled ci:batched. Merge it through its batch pull request, or remove the label and push (or close and reopen) to test it alone.'
           fi
           test "$SHARDS_RESULT" = success
-          test "$STATIC_RESULT" = success
+          # AFP-V0-080: only a main push whose queue run passed go-static on this commit skips it.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then
+            echo 'go-static reused from the merge-queue run of this commit (AFP-V0-080).'
+          else
+            test "$STATIC_RESULT" = success
+          fi
           test "$DOCS_RESULT" = success
 
   ci-shard-cost-drift:
@@ -764,8 +822,8 @@ jobs:
     # shard outcomes. It is not a required check: it never fails on a finding, never changes
     # shard membership or placement, posts no commit status and never writes the table.
     # Refreshing the table stays an operator step (AFP-V0-022). Anything but every shard's
-    # outcomes abstains with its reason.
-    if: ${{ always() && !cancelled() }}
+    # outcomes abstains with its reason. A ci:batched constituent has no shard outcomes (AFP-V0-081).
+    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
     needs: go-product-shard
     runs-on: ubuntu-24.04
     # Every step is continue-on-error and their timeouts sum below this one, so no failure,
@@ -866,6 +924,11 @@ jobs:
           printf '### CI shard cost table drift (advisory, AFP-V0-040)\n\nAbstained: %s. No finding is reported for this run.\n' "$reason" >> "$GITHUB_STEP_SUMMARY"
 
   go-interop:
+    # Not a required check. AFP-V0-081: a ci:batched constituent never starts it (its batch pull
+    # request and queue entry run it on the combined tree); AFP-V0-080: a main push reuses the
+    # passed merge-queue run of the same commit.
+    needs: static-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -890,6 +953,9 @@ jobs:
           GOOS=windows GOARCH=amd64 go build ./...
 
   artifact-integrity:
+    # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    needs: static-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
