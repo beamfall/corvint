@@ -11,7 +11,8 @@ Date: 2026-10-17. Tickets: V1-1693 (spec), V1-1694, V1-1695, V1-1696. Decision 0
   `interop/spec-toolchains/fixtures/` for `TestSTAV0010_FixturesDerive`. `OIF-V0-001` lists the
   three forms. The use-case receipts were repinned mechanically for the `cmd/corvint/ocm.go` edit.
 - `STA-V0-007` (V1-1695): path classification in `internal/contextindex/toolchain_status.go`, a
-  `native_state` result member, and the analyzer schema bump to `corvint-analyzer/122`.
+  `native_state` result member, and the analyzer schema bump to `corvint-analyzer/123` (`V1-1674`
+  took 122 first).
 - `STA-V0-008` and `STA-V0-009` (V1-1696): `protocol/integrations/speckit/corvint/` and
   `protocol/integrations/openspec/`, with static tests in `protocol/integrations`.
 
