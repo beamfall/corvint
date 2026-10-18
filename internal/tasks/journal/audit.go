@@ -228,6 +228,8 @@ type observation struct {
 	// at is when the capture began; ResumeBase trusts a file's stamps only
 	// when they were already settled then (PSR-V0-052).
 	at time.Time
+	// seal is the retired prefix the store carries (JRT-V0-004).
+	seal *RetiredPrefix
 }
 
 // receiptsQuiescence is how long receipts/ must have been unmodified and
@@ -542,6 +544,20 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	if _, ok := o.files["RESTORE_INCOMPLETE"]; ok {
 		return nil, wire.Errorf(wire.CodeRestoreIncomplete, "RESTORE_INCOMPLETE", "interrupted restore")
 	}
+	if _, ok := o.files[RetireIncompleteFile]; ok {
+		// Neither the old nor the new store is settled until the retire
+		// that left the marker is rerun (JRT-V0-009).
+		return nil, wire.Errorf(wire.CodeRestoreIncomplete, RetireIncompleteFile, "interrupted retire; rerun receipt retire or unretire")
+	}
+	if _, ok := o.files[RetiredPrefixFile]; ok {
+		raw, err := requiredRead(r.Source, RetiredPrefixFile, MaxRetiredPrefixBytes)
+		if err != nil {
+			return nil, err
+		}
+		if o.seal, err = DecodeRetiredPrefix(raw); err != nil {
+			return nil, err
+		}
+	}
 	raw, present, err := optionalRead(r.Source, "head.json", wire.MaxJournalHeadBytes)
 	if err != nil {
 		return nil, err
@@ -748,7 +764,7 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 			}
 			continue
 		}
-		if p == "head.json" || p == "RESTORE_INCOMPLETE" {
+		if p == "head.json" || p == "RESTORE_INCOMPLETE" || p == RetiredPrefixFile || p == RetireIncompleteFile {
 			continue
 		}
 		if strings.HasPrefix(p, "effects/") && (strings.HasSuffix(p, ".boot") || strings.HasSuffix(p, ".ack")) {

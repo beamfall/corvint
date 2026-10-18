@@ -101,6 +101,23 @@ func PSRTestLiftObservationBounds(ctx context.Context, bound time.Duration) cont
 	return context.WithValue(ctx, sweepObservationBoundKey{}, bound)
 }
 
+// SetRetireStageForTest runs f after each durable retire or unretire step
+// (JRT-V0-009); a non-nil return stops the run there as a crash would. The
+// returned function restores the previous hook.
+func SetRetireStageForTest(f func(string) error) func() {
+	prev := retireStage
+	retireStage = f
+	return func() { retireStage = prev }
+}
+
+// SetSyncArchiveDirForTest replaces the retire archive's directory sync
+// (JRT-V0-006). The returned function restores the previous one.
+func SetSyncArchiveDirForTest(f func(string) error) func() {
+	prev := syncArchiveDir
+	syncArchiveDir = f
+	return func() { syncArchiveDir = prev }
+}
+
 // SetAfterWorktreeLookupForTest runs f between a ticket-worktree ensure's
 // branch lookup and its path check until the returned function restores the
 // previous hook.

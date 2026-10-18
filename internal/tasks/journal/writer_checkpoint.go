@@ -276,6 +276,10 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 	if res == nil || res.chain == nil || res.Pending || res.StagingPresent || res.Head == nil || res.LastSeq != res.Head.LastSeq || physical == nil {
 		return nil, errCheckpoint("writer checkpoint", "observation is not a settled audited head")
 	}
+	if res.chain.seal != nil {
+		// A sealed store has no checkpoint route (JRT-V0-005).
+		return nil, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
+	}
 	var w *WriterCheckpoint
 	from := uint64(1)
 	switch {
@@ -548,6 +552,9 @@ func (r Reader) AuditWriterRefresh() (*Result, PhysicalObservation, error) {
 // walkPrefix is AuditWriterRefresh's body; see there.
 func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModePrefix, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if o.seal != nil {
+		return result, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
+	}
 	if o.head == nil {
 		return result, errCheckpoint("head.json", "no settled head")
 	}
@@ -650,6 +657,9 @@ func sameStat(a, b os.FileInfo) bool {
 // walkWriter is AuditForWriter's body; see there.
 func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[string]bool, request string, lim limits) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeWriter, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if o.seal != nil {
+		return result, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
+	}
 	if r.writerCache {
 		result.RequestDigests = map[string]wire.Digest{}
 	}

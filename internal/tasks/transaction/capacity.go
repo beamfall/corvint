@@ -37,6 +37,9 @@ type Inventory struct {
 	undoFiles         map[string]*archive.FileEntry
 	undoDirs          map[string]bool
 	reserveSimulation bool
+	// retired is the receipt count a retired prefix removed from the live
+	// store (JRT-V0-004): receipts 1..retired are absent by design.
+	retired uint64
 }
 
 // Elided summarizes the retained receipts 1..Receipts and the Requests request
@@ -102,6 +105,27 @@ func NewSummarizedInventory(files []archive.FileEntry, stateDirectories []string
 // Incomplete reports whether a question needed an elided file's metadata.
 // Every result computed from the inventory, or from a clone, is then void.
 func (i *Inventory) Incomplete() bool { return i.miss != nil && *i.miss }
+
+// RetirePrefix records that the receipts below the lowest listed one were
+// retired with a sealed prefix (JRT-V0-004). The caller calls it only when
+// the store carries a seal; the inventory checks the shape and the journal
+// audit owns the seal's truth.
+func (i *Inventory) RetirePrefix() error {
+	if i.elided != nil || i.incremental != nil {
+		return malformed("retired prefix on a summarized inventory")
+	}
+	low := uint64(0)
+	for p := range i.files {
+		if n, ok := receiptNumber(p); ok && (low == 0 || n < low) {
+			low = n
+		}
+	}
+	if low < 2 {
+		return malformed("retired prefix without a retained anchor receipt")
+	}
+	i.retired = low - 1
+	return nil
+}
 
 // Summarized reports whether the inventory carries an elided prefix.
 func (i *Inventory) Summarized() bool { return i.elided != nil }
@@ -315,9 +339,9 @@ func (i *Inventory) matches(p string, raw []byte) bool {
 func (i *Inventory) clone() *Inventory {
 	if i.incremental != nil {
 		c := *i.incremental
-		return &Inventory{files: i.files, dirs: i.dirs, elided: i.elided, miss: i.miss, incremental: &c, undoFiles: map[string]*archive.FileEntry{}, undoDirs: map[string]bool{}}
+		return &Inventory{files: i.files, dirs: i.dirs, elided: i.elided, miss: i.miss, incremental: &c, undoFiles: map[string]*archive.FileEntry{}, undoDirs: map[string]bool{}, retired: i.retired}
 	}
-	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}, elided: i.elided, miss: i.miss}
+	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}, elided: i.elided, miss: i.miss, retired: i.retired}
 	for p, f := range i.files {
 		out.files[p] = f
 	}
@@ -333,7 +357,7 @@ func (i *Inventory) chain(h *snapshot.Head) error {
 			count++
 		}
 	}
-	elided := uint64(0)
+	elided := i.retired
 	if i.elided != nil {
 		elided = i.elided.Receipts
 	}
@@ -352,7 +376,7 @@ func (i *Inventory) chain(h *snapshot.Head) error {
 	}
 	name, _ := snapshot.ReceiptName(count)
 	last := i.files["receipts/"+name].Sha256
-	if count == elided {
+	if count == elided && i.elided != nil {
 		last = i.elided.LastReceiptSha256
 	}
 	if last != *h.LastReceiptSha256 {
@@ -360,6 +384,11 @@ func (i *Inventory) chain(h *snapshot.Head) error {
 	}
 	if h.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || !i.matches("VERSION", []byte(snapshot.VersionBytes)) {
 		return malformed("VERSION binding")
+	}
+	if i.retired > 0 {
+		// Receipt 1 was retired with the prefix; the journal audit binds the
+		// retained anchor to the seal (JRT-V0-004).
+		return nil
 	}
 	first, _ := snapshot.ReceiptName(1)
 	genesis := i.files["receipts/"+first].Sha256

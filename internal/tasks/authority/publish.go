@@ -123,6 +123,24 @@ func (d *Dir) Sync() error {
 	return nil
 }
 
+// SyncDirectory fsyncs the directory at path as Dir.Sync does, for a file
+// the store creates outside its state directory, such as a retire archive
+// (JRT-V0-006), whose name must be durable before the store relies on it.
+func SyncDirectory(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return fsErr(path, "cannot open the directory for sync: %v", err)
+	}
+	defer f.Close()
+	if err := syncDirectory(f); err != nil {
+		if isFullSyncUnsupported(err) {
+			return fsErr(path, "directory sync is unsupported here: %v", err)
+		}
+		return fsErr(path, "directory sync failed: %v", err)
+	}
+	return nil
+}
+
 // Fsync makes an open file's bytes durable: F_FULLFSYNC on Darwin, fsync on
 // Linux. It reports an unsupported sync as UNSUPPORTED_FILESYSTEM and never
 // substitutes a weaker call.

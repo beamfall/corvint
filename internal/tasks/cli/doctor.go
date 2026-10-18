@@ -122,6 +122,8 @@ type doctorScan struct {
 	// elidedBases caches, per attempt path, the retained record an elided
 	// liveness receipt in the walk restores from (CAL-V0-300).
 	elidedBases map[string]doctorBase
+	// journal is the live journal's size and growth (JRT-V0-012).
+	journal *doctorJournal
 }
 
 func doctorUsage() error {
@@ -286,6 +288,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 	if v, ok := counts.Obj.Get("last24Hours"); ok {
 		scan.completions24h = v.Str
 	}
+	doctorJournalSize(rc.repo, scan)
 	// One read session serves the whole scan, so each receipt and blob read
 	// is one openat beneath pinned parents (TQD-V0-033).
 	src, closeSrc := doctorJournalSource(journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()})
@@ -296,6 +299,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 	}()
 	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
+	out = append(out, doctorJournalGrowth(scan)...)
 	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc))...)
 	out = append(out, doctorRepeatRefusal(doctorGateReader(src), scan)...)
 	out = append(out, doctorSlowLane(scan)...)
@@ -324,6 +328,9 @@ func doctorScanReceipts(src journal.Source, head uint64, scan *doctorScan) {
 	for ; seq >= 1; seq-- {
 		if scan.receipts >= doctorMaxReceipts {
 			scan.truncated = true
+			break
+		}
+		if doctorRetiredScanStop(scan, seq) {
 			break
 		}
 		ev, recorded, err := doctorReadReceipt(src, seq, scan)
@@ -1111,6 +1118,9 @@ func doctorItemOf(rc *readCtx, scan *doctorScan, arr []wire.Value, cut bool, tot
 	o.Set("observedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
 	o.Set("summary", wire.ObjectValue(summary)).Set("findings", wire.Array(arr...)).Set("scan", wire.ObjectValue(sc))
 	o.Set("mutationAuthority", wire.Bool(false))
+	if scan.journal != nil {
+		o.Set("journal", scan.journal.value())
+	}
 	if len(scan.dispatchers) > 0 {
 		o.Set("dispatchers", wire.Array(scan.dispatchers...))
 	}

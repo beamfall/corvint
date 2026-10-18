@@ -171,7 +171,7 @@ func guardedLeaseInventory(repo *intent.Repository, guard *authority.ChangeGuard
 	if err != nil || len(fatal) > 0 {
 		return nil, err, fatal
 	}
-	inv, err := transaction.NewInventory(files, dirs)
+	inv, err := retainedInventory(repo, files, dirs)
 	return inv, err, nil
 }
 
@@ -213,7 +213,7 @@ func pinnedInventory(ctx context.Context, repo *intent.Repository) (*transaction
 	if err != nil {
 		return nil, err
 	}
-	return transaction.NewInventory(files, dirs)
+	return retainedInventory(repo, files, dirs)
 }
 
 // pinnedDirReader keeps one safeopen.PinDir descriptor for the parent root

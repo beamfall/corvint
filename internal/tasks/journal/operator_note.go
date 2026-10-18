@@ -96,6 +96,11 @@ func (n *noteAudit) bind(req *snapshot.Request, target *ticket.Record) error {
 	if len(n.events) > 1 {
 		return noteForked("receipt", "more than one note event in one receipt")
 	}
+	for _, t := range n.tickets {
+		if err := n.st.sealedNote(t.path, t.prior); err != nil {
+			return err
+		}
+	}
 	posts := make([]*ticket.OperatorNoteReference, len(n.tickets))
 	for i, t := range n.tickets {
 		if t.raw == nil {
@@ -258,7 +263,7 @@ func (n *noteAudit) prefixReference(t notePost, post *ticket.OperatorNoteReferen
 // chain it does not walk (ON-V0-013); any failure there declines the
 // checkpoint, so the complete audit classifies the prefix.
 func (n *noteAudit) prePost(prior latest, path string) ([]byte, error) {
-	raw, err := n.r.priorPost(prior, path, n.st.generation)
+	raw, err := n.st.priorPost(n.r, prior, path)
 	if err != nil && n.st.resumed != 0 && prior.seq != "" && prior.seq.Uint64() <= n.st.resumed {
 		return nil, errCheckpoint(path, "checkpoint pre-state does not bind: "+err.Error())
 	}

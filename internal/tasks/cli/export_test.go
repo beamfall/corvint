@@ -438,6 +438,14 @@ func ReadLeaseDetachRequest(p string) error {
 	return readLeaseDetachJSON(p, &rec)
 }
 
+// SetDoctorJournalThresholds lowers the JOURNAL_GROWTH thresholds for a test
+// and returns the restore function.
+func SetDoctorJournalThresholds(receipts, bytes uint64) func() {
+	r, b := doctorJournalReceipts, doctorJournalBytes
+	doctorJournalReceipts, doctorJournalBytes = receipts, bytes
+	return func() { doctorJournalReceipts, doctorJournalBytes = r, b }
+}
+
 // SetRunWriteBudget shortens the runner's per-write budget and outcome retry
 // window (ATR-V0-051); it returns the restore function.
 func SetRunWriteBudget(d time.Duration) func() {

@@ -64,6 +64,13 @@ func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, er
 	if _, err := os.Lstat(marker); !errors.Is(err, fs.ErrNotExist) {
 		return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "restore marker present or unobservable")
 	}
+	// An interrupted retire (JRT-V0-009) blocks writes until `receipt
+	// retire` or `receipt unretire` finishes it under the lock.
+	if marker := filepath.Join(repo.StateDir, journal.RetireIncompleteFile); operation != "RETIRE" && operation != "UNRETIRE" {
+		if _, err := os.Lstat(marker); !errors.Is(err, fs.ErrNotExist) {
+			return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "interrupted retire marker present or unobservable; run `receipt retire` or `receipt unretire` to finish it")
+		}
+	}
 	version, err := intent.ReadFile(filepath.Join(repo.StateDir, "VERSION"), 4096)
 	if err != nil {
 		return nil, err

@@ -2241,6 +2241,20 @@ JAT-V0-007	docs/specs/java-affected-test-v0.md	82	A file that loads classes or m
 JAT-V0-008	docs/specs/java-affected-test-v0.md	88	Kotlin and Java cross-reach is reported as unit frontiers, not edges, because ea	unrecorded	-
 JAT-V0-009	docs/specs/java-affected-test-v0.md	105	The plugin MUST NOT execute repository code, a compiler, a build tool or an	unrecorded	-
 JAT-V0-010	docs/specs/java-affected-test-v0.md	109	The plugin MUST pass the shared seam conformance suite (`core <- mid <- leaf` pl	unrecorded	-
+JRT-V0-001	docs/specs/corvint-tasks-journal-retention-v0.md	38	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-002	docs/specs/corvint-tasks-journal-retention-v0.md	39	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-003	docs/specs/corvint-tasks-journal-retention-v0.md	40	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-004	docs/specs/corvint-tasks-journal-retention-v0.md	41	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-005	docs/specs/corvint-tasks-journal-retention-v0.md	42	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-006	docs/specs/corvint-tasks-journal-retention-v0.md	43	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-007	docs/specs/corvint-tasks-journal-retention-v0.md	44	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-008	docs/specs/corvint-tasks-journal-retention-v0.md	45	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-009	docs/specs/corvint-tasks-journal-retention-v0.md	46	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-010	docs/specs/corvint-tasks-journal-retention-v0.md	47	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-011	docs/specs/corvint-tasks-journal-retention-v0.md	48	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-012	docs/specs/corvint-tasks-journal-retention-v0.md	49	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-013	docs/specs/corvint-tasks-journal-retention-v0.md	50	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
+JRT-V0-014	docs/specs/corvint-tasks-journal-retention-v0.md	51	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from	unrecorded	-
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo	unrecorded	-
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once	unrecorded	-

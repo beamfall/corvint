@@ -33,11 +33,11 @@ func (f *ReviewFold) Fold(repo *intent.Repository, last uint64) (*transaction.Ex
 	}
 	f.audit, f.seq, f.sum = nil, 0, ""
 	audit := &transaction.ExternalReviewReceiptAudit{}
-	blob := ExternalReviewBlob(repo)
+	b := newSealBlob(repo)
 	var sum wire.Digest
-	err := foldReceipts(repo, last, nil, func(rc *snapshot.Receipt, s wire.Digest) error {
+	err := foldReceipts(repo, b, last, nil, audit.Seed, func(rc *snapshot.Receipt, s wire.Digest) error {
 		sum = s
-		return audit.Step(rc, s, blob)
+		return audit.Step(rc, s, b.blob)
 	})
 	if err != nil {
 		return nil, err

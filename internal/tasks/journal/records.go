@@ -39,6 +39,9 @@ type chain struct {
 	// checkpoint has none: it refuses a tombstone as an unusable checkpoint so
 	// the caller falls back to the complete walk.
 	restore *snapshot.ReceiptRestorer
+	// seal is the retired prefix a sealed complete walk started from
+	// (JRT-V0-004); checkpoint routes decline a chain that carries one.
+	seal *RetiredPrefix
 }
 
 // decode decodes one receipt of the walk and returns it with its original
@@ -111,6 +114,13 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 			return result, wire.Errorf(wire.CodeJournalForked, "head.json", "selected queue/primary differs from head; relocation unsupported")
 		}
 	}
+	if o.seal != nil {
+		st, err := r.walkSealed(o, result, selected, request, lim, headSeq)
+		if err != nil {
+			return result, err
+		}
+		return r.settle(o, st, result, checkIntent)
+	}
 	count := uint64(len(o.receipts))
 	if count < headSeq || count > headSeq+1 || count == 0 {
 		return result, wire.Errorf(wire.CodeJournalForked, "receipts", "receipt count must equal head or head+1")
@@ -140,6 +150,12 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if err := st.restore.Superseded(); err != nil {
 		return result, err
 	}
+	return r.settle(o, st, result, checkIntent)
+}
+
+// settle completes a complete walk once every receipt is folded: projection
+// agreement, the intent observations and the pending-redo refusal.
+func (r Reader) settle(o *observation, st *chain, result *Result, checkIntent bool) (*Result, error) {
 	result.chain = st
 	canonical, genesisQueue := st.canonical, st.genesisQueue
 	result.StructuralConsistency = "CONSISTENT"
@@ -230,7 +246,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	notes := r.noteAudit(st, rc)
 	for j, p := range rc.Post {
 		prior := canonical[p.Path]
-		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
+		if strings.HasPrefix(p.Path, "requests/") && (prior.seq != "" || (st.seal != nil && st.seal.Anchor.HasRequest(p.Path))) {
 			return wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
 		}
 		if strings.HasPrefix(p.Path, "requests/") && st.elided != nil && st.elided.HasRequest(p.Path) {
@@ -706,7 +722,12 @@ func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent 
 		if _, ok := canonical[p]; ok {
 			continue
 		}
-		if p == "head.json" || strings.HasPrefix(p, "receipts/") || strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/") || strings.HasSuffix(p, ".boot") || strings.HasSuffix(p, ".ack") {
+		// A request a retired receipt posted is the seal's, not a stray
+		// (JRT-V0-013); walkSealed matched these names to the anchor.
+		if o.seal != nil && strings.HasPrefix(p, "requests/") && o.seal.Anchor.HasRequest(p) {
+			continue
+		}
+		if p == "head.json" || p == RetiredPrefixFile || strings.HasPrefix(p, "receipts/") || strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/") || strings.HasSuffix(p, ".boot") || strings.HasSuffix(p, ".ack") {
 			continue
 		}
 		code := wire.CodeJournalForked
@@ -761,6 +782,9 @@ func (e inFlight) Unwrap() error { return e.error }
 // request afterimages and evidence blobs are not re-read; Mode says so.
 func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]bool, lim limits) (*Result, error) {
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeCheckpoint, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
+	if o.seal != nil {
+		return result, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
+	}
 	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
 		if o.head != nil {
 			// A stage beside a head is a writer in flight (or one that

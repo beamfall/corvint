@@ -60,6 +60,12 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 		return nil, err
 	}
 	defer lock.Close()
+	if on, err := sealed(repo); err != nil || on {
+		if err == nil {
+			err = wire.Errorf(wire.CodeUnsupported, journal.RetiredPrefixFile, "compaction is refused on a store with a retired prefix (JRT-V0-010)")
+		}
+		return nil, err
+	}
 	head, err := readHead(repo)
 	if err != nil {
 		return nil, err
