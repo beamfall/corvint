@@ -55,6 +55,16 @@ type reviewer struct {
 	revision string
 	blobs    map[string]string
 	links    map[string][]FlowLink
+	anchors  map[string]anchorFacts
+}
+
+// anchorFacts caches, per review anchor, its resolved commit and ancestry, and per intent file
+// whether the anchor changed it, so many links sharing one anchor cost one Git read each.
+type anchorFacts struct {
+	commit   string
+	err      error
+	ancestor bool
+	changed  map[string]bool
 }
 
 // ResolveRevision names the evaluated commit.
@@ -102,20 +112,41 @@ func (r *reviewer) state(intentPath string, link FlowLink) string {
 	if link.ReviewedAt == "" {
 		return ReviewUnreviewed
 	}
-	anchor, err := ResolveRevision(r.ctx, r.root, link.ReviewedAt)
-	if err != nil {
+	facts := r.anchor(link.ReviewedAt)
+	anchor := facts.commit
+	if facts.err != nil {
 		return ReviewAnchorUnknown
 	}
-	if !r.ancestor(anchor) {
+	if !facts.ancestor {
 		return ReviewNotAncestor
 	}
-	if !r.changed(anchor, intentPath) {
+	changed, ok := facts.changed[intentPath]
+	if !ok {
+		changed = r.changed(anchor, intentPath)
+		facts.changed[intentPath] = changed
+	}
+	if !changed {
 		return ReviewNotIntentChange
 	}
 	if !slices.ContainsFunc(r.anchorLinks(anchor, intentPath), func(l FlowLink) bool { return l.From == link.From && l.Target == link.Target && l.Basis == "declared" }) {
 		return ReviewLinkNotAtAnchor
 	}
 	return r.targetState(anchor, link.Target)
+}
+
+// anchor resolves a review anchor and its ancestry once per evaluation.
+func (r *reviewer) anchor(reviewedAt string) anchorFacts {
+	if facts, ok := r.anchors[reviewedAt]; ok {
+		return facts
+	}
+	if r.anchors == nil {
+		r.anchors = map[string]anchorFacts{}
+	}
+	facts := anchorFacts{changed: map[string]bool{}}
+	facts.commit, facts.err = ResolveRevision(r.ctx, r.root, reviewedAt)
+	facts.ancestor = facts.err == nil && r.ancestor(facts.commit)
+	r.anchors[reviewedAt] = facts
+	return facts
 }
 
 func (r *reviewer) ancestor(anchor string) bool {

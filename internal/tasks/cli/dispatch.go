@@ -937,6 +937,24 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID, Queue: in.Queue.QueueID.Raw, Allocation: string(m.AllocationID), Definition: string(m.DefinitionSha256), SafeReuse: configured, Owned: m.Sweep != nil, Changed: string(m.ChangedSeq)})
 			}
 		}
+		// PSR-V0-140: each declared pool's FREE members, for the launch
+		// room; a member any state entry names is not free.
+		if in.Policy != nil && in.Pools != nil {
+			obs.PoolFree = map[string]int{}
+			occupied := map[string]bool{}
+			for _, m := range in.Pools.Entries {
+				occupied[m.PoolID+"\x00"+m.MemberID] = true
+			}
+			for _, pool := range in.Policy.Pools {
+				free := 0
+				for _, m := range pool.Members {
+					if !occupied[pool.ID+"\x00"+m] {
+						free++
+					}
+				}
+				obs.PoolFree[pool.ID] = free
+			}
+		}
 		return nil
 	})
 	return obs, err

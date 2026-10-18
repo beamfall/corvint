@@ -55,6 +55,9 @@ type PoolState struct {
 	// Identities are the last recorded identity observation per member
 	// (PSR-V0-083); the key is written only when non-empty.
 	Identities []PoolIdentity
+	// Waiters are the pool waitlist entries (PSR-V0-130..137); the key is
+	// written only when non-empty.
+	Waiters []PoolWaiter
 }
 
 func ReadPoolAllocation(r *wire.Reader) *PoolAllocation {
@@ -84,7 +87,7 @@ func DecodePools(data []byte) (*PoolState, error) {
 	if e := r.Profile(ProfilePools); e != nil {
 		return nil, e
 	}
-	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "entries"}, "slots", "identities")...)
+	r.Closed(wire.OptionalKeys(v, []string{"profile", "queueId", "entries"}, "slots", "identities", "waiters")...)
 	r.Field("profile").Exact(ProfilePools)
 	p := &PoolState{QueueID: r.Field("queueId").QueueID(), Entries: []PoolEntry{}}
 	seen := map[string]bool{}
@@ -135,6 +138,9 @@ func DecodePools(data []byte) (*PoolState, error) {
 	if r.Err() == nil && wire.Has(v, "slots") {
 		p.Slots = readSlotEntries(r.Field("slots"), p.QueueID)
 	}
+	if r.Err() == nil && wire.Has(v, "waiters") {
+		p.Waiters = readPoolWaiters(r.Field("waiters"), p.QueueID)
+	}
 	if r.Err() == nil && wire.Has(v, "identities") {
 		members := map[string]bool{}
 		for _, x := range r.Field("identities").Array(intent.MaxPoolMembers, true) {
@@ -178,6 +184,9 @@ func (p *PoolState) Encode() ([]byte, error) {
 	doc := wire.NewObject().Set("profile", wire.String(ProfilePools)).Set("queueId", wire.String(p.QueueID.Raw)).Set("entries", wire.Array(values...))
 	if len(p.Slots) > 0 {
 		doc.Set("slots", slotEntriesValue(p.Slots))
+	}
+	if len(p.Waiters) > 0 {
+		doc.Set("waiters", poolWaitersValue(p.Waiters))
 	}
 	if len(p.Identities) > 0 {
 		ids := append([]PoolIdentity{}, p.Identities...)

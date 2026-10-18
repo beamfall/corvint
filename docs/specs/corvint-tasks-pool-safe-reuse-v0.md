@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -437,6 +437,151 @@ Rollback: revert the `progress` member, `progress.json`, `WithLeaseProgress`, th
 sentence, the harness variables, the tests and this subsection. No store, receipt, checkpoint or kept result changes. A
 record directory with a `progress.json` is read by an older build, which ignores the file.
 
+### V1-0785 bounded pool waitlist and hand-off grace (issues 583 and 1067)
+
+Human-owned input: native ticket V1-0785, from GitHub
+[issue 583](https://github.com/beamfall/corvint/issues/583) and
+[issue 1067](https://github.com/beamfall/corvint/issues/1067). A higher-priority ticket whose live
+attempt waits for a member of a small pool loses each freed member to a lower-priority claim that
+arrives first, and a clean HANDOFF's successor loses the member it just gave back. The owner's
+design decisions (D3) are: a separate `pool wait` command; waiters block only lower-priority
+claims, or claims of the same priority that arrive later; a wait of at most 600 s; and hand-off
+grace opt-in with a default of 0. See `docs/build-log/2026-10-18-V1-0785-pool-waitlist.md`.
+
+- `PSR-V0-130`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785)
+  `pool wait --pool P --ttl-seconds N --request-id ID` MUST record one `WAIT` entry on pool P's
+  waitlist in `pools.json`, in one of two forms:
+  - `--attempt A --generation G` registers the live attempt A at generation G, which holds a work
+    lease and no allocation, for its ticket and holder;
+  - `--ticket T --holder H` registers ticket T for holder H with no attempt.
+  The entry records the pool, ticket, kind, holder, the ticket's priority at registration, an
+  arrival sequence (the receipt sequence), `since` and `expiresAt`. The request MUST be idempotent
+  per request id, and a pool holds at most one entry per ticket. A refresh of an existing live entry
+  keeps its sequence, `since` and priority, and only moves its expiry; a refresh of a `GRACE` entry
+  keeps the `GRACE` kind and the later expiry. The verb never allocates a member and never refuses
+  for lack of a free one. It refuses, with nothing written:
+  - a pool that declares no `maxWaitSeconds` (`UNSUPPORTED`);
+  - a ticket that is not OPEN, or an attempt that is fenced, holds no work lease or already holds an
+    allocation (`TICKET_STATE` or `RESOURCE_COLLISION`);
+  - a ticket that requires a different pool (`RESOURCE_COLLISION`);
+  - an admission barrier (`PAUSED`).
+- `PSR-V0-131`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A pool
+  opts in by declaring `maxWaitSeconds` (1..600, `MaxPoolWaitSeconds`). A `--ttl-seconds` outside
+  1..600 MUST be refused as `LIMIT_EXCEEDED` by the request shape, and one above the pool's
+  `maxWaitSeconds` as `LIMIT_EXCEEDED` by the planner. `pools.json` (`taskman-pool-state/0`) MUST
+  carry the optional `waiters` array only when it is non-empty, closed-decoded, at most 512 entries
+  (`MaxPoolWaiters`), one per (pool, ticket), with a positive sequence no later than the journal
+  head, `expiresAt` after `since`, and `attemptId` and `generation` together or not at all. A store
+  without waiters keeps every byte.
+- `PSR-V0-132`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A
+  pool-taking admission (claim, claim-next, or `pool acquire` with `--pool`) MUST be refused with
+  `RESOURCE_COLLISION` naming the head waiter, its kind, priority, sequence and expiry when the
+  pool's live entries ahead of the claimant number at least the pool's free members. Admission order
+  within a pool is `GRACE` first, then ticket priority, then arrival sequence, then ticket id. A
+  claimant with its own live entry yields only to entries ordered before it; one without yields to
+  every `GRACE` entry and to `WAIT` entries of the same or higher priority. A lower-priority entry
+  never blocks a higher-priority claimant that has no entry. With free members beyond the entries
+  ahead, the claimant is admitted. On a pool that opts into priority admission (CAL-V0-101), a
+  claimant MUST NOT yield to a competitor that the waitlist makes yield to the claimant, so a
+  waiter that the waitlist admits is never refused by priority admission. `claim --next --pool` and
+  `plan preview --pool` MUST apply this rule at the transaction's recorded time (the preview at
+  its observation time): an entry the waitlist would refuse is deferred as `RESOURCE_COLLISION`
+  naming the head waiter, so claim-next takes the first ticket an explicit claim would admit
+  instead of refusing on a blocked one.
+- `PSR-V0-133`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A dead
+  entry MUST NOT block. An entry is dead when its pool is no longer declared, it has expired, its
+  ticket is no longer OPEN or already holds a member of the pool, or, for an attempt entry, the
+  attempt is no longer live at the registered generation, its lease expired or it holds an
+  allocation. Every write of `pools.json`, whichever verb posts it (including `pool release`,
+  `pool confirm-safe`, pool membership and slot writes), MUST drop the entries that are dead at
+  that write, judged against the attempts the same write posts. An entry never binds a member, so a crash between the wait and the claim strands
+  nothing, and dropping an entry never quarantines anything.
+- `PSR-V0-134`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A waiting
+  attempt's own `pool acquire`, or the claim of a waiting ticket, MUST be admitted ahead of the
+  entries ordered after it, and the write that gives the ticket a member drops its entry.
+- `PSR-V0-135`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785)
+  `plan preview` and `queue status` MUST show the live waitlist as a read-only `poolWaitlist`
+  member (pool, ticket, kind, holder, priority, sequence, `since`, `expiresAt`, age in seconds and,
+  for an attempt entry, the attempt and generation), in admission order, and only when it is
+  non-empty. Neither view writes.
+- `PSR-V0-136`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A pool may
+  declare `handoffGraceSeconds` (0..600; default 0, no grace). When it is positive, a clean
+  `release --reason HANDOFF` of an attempt that held a member of the pool, or had a live `WAIT`
+  entry on it, MUST write a `GRACE` entry for the same ticket that expires after that many seconds.
+  The entry reserves one unit of free capacity for the ticket's next generation under PSR-V0-132;
+  it does not reserve the specific member. It expires and is dropped like any entry (PSR-V0-133).
+  When the waitlist already holds 512 entries besides the ticket's own, that HANDOFF release MUST
+  be refused with `LIMIT_EXCEEDED` naming the `GRACE` entry, with nothing written, rather than drop
+  the reservation silently; a release with any other reason is unaffected.
+
+Failure modes:
+- A waiter that crashes, ends or lets its ticket leave OPEN stops blocking at once (PSR-V0-133)
+  and is dropped by the next pools.json write; at worst a claim is refused until the entry expires,
+  which is bounded by 600 s.
+- A full waitlist (512 entries) refuses the new `pool wait`, and a HANDOFF release whose `GRACE`
+  entry it cannot hold, with `LIMIT_EXCEEDED`; existing entries, attempts and members are
+  unchanged, and the agent may release with another reason or retry once entries expire.
+- An older binary refuses a policy declaring `maxWaitSeconds` or `handoffGraceSeconds`, and a
+  pools.json with a `waiters` key, as `MALFORMED` (closed decoders).
+
+Non-goals: no push notification or wake-up (a waiter retries its acquire or claim), no binding of
+a specific member, no reordering of an entry after registration (its priority is the snapshot at
+registration), no waitlist for pools that do not declare `maxWaitSeconds`, and no dispatcher use of
+the waitlist beyond PSR-V0-140 (a waiting attempt's session already counts as pending there).
+
+Acceptance evidence: the focused transaction, snapshot, intent and CLI tests named in Traceability
+(PSR-V0-130..143). Concurrency between waiters relies on the existing store lock and was not
+separately stress-tested. Linux and live dispatcher qualification NOT_RUN.
+
+Rollback: stop issuing `pool wait`, let the entries expire, and run one lease write so pools.json
+drops the `waiters` key; then publish policy without `maxWaitSeconds` and `handoffGraceSeconds`,
+and revert the source. No receipt, record or preimage is rewritten.
+
+### V1-1596 dispatch launch room for pool-requiring tickets (issue 1039)
+
+Human-owned input: native ticket V1-1596, from GitHub
+[issue 1039](https://github.com/beamfall/corvint/issues/1039). The dispatcher can launch more
+sessions for tickets that require a pool than the pool has free members; the extra sessions start,
+poll and fail to acquire, each paying full start-up cost. The reporter's work-state script counts
+FREE members, subtracts sessions launched but not yet holding one, and holds the excess.
+
+- `PSR-V0-140`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1596) The
+  dispatcher's native observation MUST report each declared pool's free members (members that no
+  pools.json entry names). In each tick, a ticket assignment that requires an observed pool MUST be
+  launched only while that pool's room is positive, and each launch spends one unit of room. Room
+  is the free members less the pending workers (PSR-V0-141). The room check runs after the role,
+  tier and spend fences and before the pressure budget, in the existing candidate order (pins, role
+  priority, ticket priority, order), so higher-priority tickets launch first. Roles and tickets
+  without a pool requirement, and a pool the observation does not report, are not gated.
+- `PSR-V0-141`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1596) A pending
+  worker is a RUNNING worker record for an OPEN ticket of the pool whose ticket has no live attempt
+  holding a member of that pool. It MUST count against the pool's room until its attempt holds a
+  member (the member then leaves the free count instead) or the worker ends.
+- `PSR-V0-142`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1596) A stale
+  worker record MUST be ignored: a KILLING worker, one without a pool or ticket, or one whose ticket
+  is not observed OPEN.
+- `PSR-V0-143`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1596) Each ticket
+  held for room MUST be reported by one `pool-wait` dispatch event, added to the closed CAL-V0-058
+  event vocabulary, naming the ticket, role, the reason `POOL_ROOM`, and the pool's free, pending
+  and remaining room after the tick's launches. A hold is reported again only when those numbers
+  change, so `dispatch status` events show each waiting ticket's reason and the computed room.
+
+Failure modes:
+- A worker that never claims keeps one unit of room until it ends; the existing idle and wall
+  limits end it.
+- A store whose observation carries no policy or pool state reports no pool, and the gate is off for
+  that tick (the previous behaviour); an observation that fails ends the tick as before.
+- A member taken outside the dispatcher reduces the free count on the next observation.
+
+Non-goals: no subtraction of `pool wait` entries from room (a waiting attempt's session is already
+pending, so subtracting would count it twice), no new dispatch ledger field (the ledger profile
+`taskman-dispatch-state/6` is unchanged), and no change to roles without a pool requirement.
+V1-1585 (typed member lifecycle, issue 1028) is NOT STARTED and is not part of this change.
+
+Rollback: revert the room gate, the `PoolFree` observation and the `pool-wait` event kind. The
+events log reader does not validate kinds, so an older build reads `pool-wait` lines unchanged, and
+the ledger is unchanged.
+
 ### V1-1626 bounded complete audit on a moving journal (issue 1063)
 
 Owner input: issue 1063 (P1): `pool acquire` stayed CPU-bound for 38 minutes or more on a 47,400
@@ -623,6 +768,22 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-114 | `TestPSRV0114_CompactHelpNotesWalkCost` (`internal/tasks/cli`) |
 | PSR-V0-115 | `TestPSRV0115_ResumeAfterCompaction` (`internal/tasks/store`) |
 | PSR-V0-116 | `TestPSRV0116_TailRewrittenAfterAuditNeverCommits` (`internal/tasks/store`); `TestPSRV0056_RecheckResumeSeesChangeAfterAudit` (`internal/tasks/journal`) |
+
+## Traceability (PSR-V0-130..143)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-130 | `TestPSRV0130_PoolWaitRequestShape`, `TestPSRV0131_WaitRegistersRefreshesAndBounds` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
+| PSR-V0-131 | `TestPSRV0131_PoolWaitPolicyBounds` (`internal/tasks/intent`); `TestPSRV0131_WaitersCodec` (`internal/tasks/snapshot`); `TestPSRV0131_WaitRegistersRefreshesAndBounds` (`internal/tasks/transaction`) |
+| PSR-V0-132 | `TestPSRV0132_FreedMemberGoesToHeadWaiter`, `TestPSRV0132_WaitlistOutranksPriorityAdmission`, `TestPSRV0132_ClaimNextSelectsTheWaiter` (`internal/tasks/transaction`); `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`) |
+| PSR-V0-133 | `TestPSRV0133_DeadWaitersNeverBlock`, `TestPSRV0133_EveryPoolsWriteDropsDeadWaiters` (`internal/tasks/transaction`) |
+| PSR-V0-134 | `TestPSRV0134_WaitingAttemptAcquiresFreedMember` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
+| PSR-V0-135 | `TestPSRV0135_WaitlistView`, `TestPSRV0135_WaiterValueCarriesEveryField` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
+| PSR-V0-136 | `TestPSRV0136_HandoffGraceReservesForSuccessor`, `TestPSRV0136_FullWaitlistRefusesHandoffGrace` (`internal/tasks/transaction`) |
+| PSR-V0-140 | `TestPSRV0140_OneFreeMemberLaunchesOne` (`internal/tasks/dispatch`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
+| PSR-V0-141 | `TestPSRV0141_PendingWorkerCountsAgainstRoom`, `TestPSRV0143_PoolWaitEventsReportRoom` (`internal/tasks/dispatch`) |
+| PSR-V0-142 | `TestPSRV0142_StaleWorkerIgnored` (`internal/tasks/dispatch`) |
+| PSR-V0-143 | `TestPSRV0143_PoolWaitEventsReportRoom` (`internal/tasks/dispatch`) |
 
 ## Traceability (PSR-V0-150..153)
 
