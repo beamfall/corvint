@@ -47,3 +47,10 @@ example a dev server's fallback port) and a detached child that outlives the ser
 
 Revert the two commits. Without the member, `prove` behaves as before apart from the recorded
 `environment: static` field.
+
+## Closeout (2026-10-18)
+
+The sealed binding of this change (base `c7501f2a58`, seal `4358358eef`) left its touched hunks
+`cited`, so the `touched-anchored` cem-verdict gate refused completion with `tier-below-anchored`.
+This addendum is bound to `CCE-V0-021`, the environment requirement this change delivered, and
+V1-1681 completes at its seal. V1-1760 tracks the missing warning before seal.
