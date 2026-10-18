@@ -9,7 +9,11 @@ import (
 	"time"
 )
 
-const maximumCommandOutput = 1 << 20
+// maximumCommandOutput bounds each contained subprocess's stdout and stderr. The largest
+// expected stdout is the raw export's `git ls-tree -r -z --full-tree` listing, which grows
+// with the tracked path list (1,044,510 bytes at 575939667 on 2026-10-18), so the bound
+// leaves headroom above it while keeping every capture finite.
+const maximumCommandOutput = 8 << 20
 
 type boundedBuffer struct {
 	buffer   bytes.Buffer
