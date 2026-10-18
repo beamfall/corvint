@@ -86,7 +86,7 @@ var ReadVerbs = []string{
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
-	"dispatch", "dispatch context-hook", "dispatch recover-reader", "dispatch status", "dispatch unpark",
+	"dispatch", "dispatch context-hook", "dispatch recover-reader", "dispatch salvage", "dispatch status", "dispatch unpark",
 	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release", "pool wait", "pool operate",
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",

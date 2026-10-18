@@ -1265,6 +1265,7 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 			detail["carryOver"] = strconv.Itoa(n) // ATR-V0-114
 		}
 		d.finishUsage(w, detail)
+		d.finishContextDetail(w, detail) // ATR-V0-127
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
@@ -1656,8 +1657,13 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, handoffNoteEnv+"=") })
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
 		env = append(env, "CORVINT_DISPATCH_DRAIN_FILE="+DrainSignalPath(d.dir)) // ATR-V0-058
+		// ATR-V0-125: only the dispatcher names the notice file.
+		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, contextNoticeEnv+"=") })
 		if contextFormat(role.UsageFormat) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
+			if hostUsesNoticeFile(host) {
+				env = append(env, contextNoticeEnv+"="+ContextNoticePath(d.dir, id)) // ATR-V0-125
+			}
 		}
 		env = append(env, "CORVINT_DISPATCH_EVIDENCE_DIR="+EvidenceDir(d.dir, id)) // ATR-V0-104
 		// ATR-V0-121: only the dispatcher names the pool hold record.
@@ -1665,7 +1671,8 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if hold != nil {
 			env = append(env, poolHoldEnv+"="+PoolHoldPath(d.dir, id)) // ATR-V0-121
 		}
-		if note := d.handoffNoteFor(obs, a.Ticket); note != "" {
+		note := d.handoffNoteFor(obs, a.Ticket)
+		if note != "" {
 			env = append(env, handoffNoteEnv+"="+note) // ATR-V0-105
 		}
 		if run != nil {
@@ -1777,6 +1784,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		if run != nil {
 			detail["detachedRun"], detail["runExit"] = run.RunID, strconv.Itoa(*run.ExitStatus)
+		}
+		// ATR-V0-127: how the session's context warnings are delivered and
+		// whether a salvaged note was offered.
+		if mode, _, ok := ContextDelivery(d.dir, id, role.UsageFormat, &host); ok {
+			detail["contextDelivery"] = mode
+		}
+		detail["handoffNote"] = "NONE"
+		if note != "" {
+			detail["handoffNote"] = note
 		}
 		d.emit(Event{Kind: "launched", Ticket: a.Ticket, Role: a.Role, Worker: id, Message: fmt.Sprintf("launched %s slot %d on %s as %s (%s, pid %d)", a.Role, a.Slot, d.keyText(a.Key), id, role.Host, pid), Detail: detail})
 	}

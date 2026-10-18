@@ -38,6 +38,9 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && args[0] == "recover-reader" {
 		return dispatchRecoverReader(env, args[1:])
 	}
+	if len(args) > 0 && args[0] == "salvage" {
+		return dispatchSalvage(env, args[1:]) // ATR-V0-126
+	}
 	cmd := []string{"dispatch"}
 	values, err := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--ticks": true}, map[string]bool{"--once": true})
 	if err != "" {

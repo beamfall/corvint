@@ -363,6 +363,11 @@ type Host struct {
 	Env           map[string]string `json:"env,omitempty"`
 	IdleIgnore    []string          `json:"idleIgnore,omitempty"`
 	ActivityPaths []string          `json:"activityPaths,omitempty"`
+	// ContextNotices (ATR-V0-125, optional) declares the host-neutral
+	// context-notice path: "file" appends each delivered notice to the
+	// file named by CORVINT_DISPATCH_CONTEXT_NOTICE_FILE for the session
+	// to poll.
+	ContextNotices string `json:"contextNotices,omitempty"`
 }
 
 // WorkState reads a program-defined per-ticket state. Kind status-line reads
@@ -754,6 +759,9 @@ func (c *Config) validate() error {
 	for name, h := range c.Hosts {
 		if !ValidName(name) || len(h.Argv) == 0 || len(h.Argv) > 64 || !clean(h.Argv[0]) || len(h.Env) > 64 || len(h.IdleIgnore) > 16 || len(h.ActivityPaths) > 16 {
 			return fail("host %q needs a short name, 1..64 argv with an absolute executable, and bounded env/idleIgnore/activityPaths", name)
+		}
+		if h.ContextNotices != "" && h.ContextNotices != ContextNoticesFile {
+			return fail("host %q contextNotices must be %q", name, ContextNoticesFile)
 		}
 		prompt := 0
 		for _, a := range h.Argv {
