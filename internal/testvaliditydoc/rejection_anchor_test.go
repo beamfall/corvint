@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 // anchorTestJSON is one receipt test whose single attempt carries the given request-outcome record
@@ -75,7 +77,8 @@ func TestLPCVV0082PositiveSiblingPassedAnchors(t *testing.T) {
 }
 
 // LPCV-V0-082: issue #1099 acceptance 3. A rejection-only test with no success on its route is
-// UNANCHORED; declaring a positive sibling that passed clears it, and one that failed blocks it.
+// UNANCHORED; declaring a positive sibling whose own record shows a success on the route for the
+// same actor clears it, and a declared sibling that failed blocks it.
 func TestLPCVV0082UnanchoredClearedByDeclaredSibling(t *testing.T) {
 	alone := anchorDocument(t,
 		anchorTestJSON("forbidden", "passed", forbiddenWrongRecord),
@@ -84,25 +87,151 @@ func TestLPCVV0082UnanchoredClearedByDeclaredSibling(t *testing.T) {
 	if got := anchorOf(t, alone, 0); got.State != AnchorUnanchored || got.Reason != AnchorNoSuccessOnRoute || got.BlocksCredit {
 		t.Fatalf("lone rejection = %+v", got)
 	}
-	declared := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"owner sees settings page","actor"`, 1)
+	declared := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"owner reads record","actor"`, 1)
 	cleared := anchorDocument(t,
 		anchorTestJSON("forbidden", "passed", declared),
-		anchorTestJSON("owner sees settings page", "passed", ""),
+		anchorTestJSON("owner reads record", "passed", allowedSucceeded),
 	)
-	if got := anchorOf(t, cleared, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: []string{"owner sees settings page"}}) {
+	if got := anchorOf(t, cleared, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: []string{"owner reads record"}}) {
 		t.Fatalf("declared passing sibling = %+v", got)
 	}
 	blocked := anchorDocument(t,
 		anchorTestJSON("forbidden", "passed", declared),
-		anchorTestJSON("owner sees settings page", "failed", ""),
+		anchorTestJSON("owner reads record", "failed", ""),
 	)
-	if got := anchorOf(t, blocked, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorFailed, Reason: AnchorDeclaredSiblingFailed, BlocksCredit: true, Siblings: []string{"owner sees settings page"}}) {
+	if got := anchorOf(t, blocked, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorFailed, Reason: AnchorDeclaredSiblingFailed, BlocksCredit: true, Siblings: []string{"owner reads record"}}) {
 		t.Fatalf("declared failing sibling = %+v", got)
 	}
-	notRun := anchorDocument(t, anchorTestJSON("forbidden", "passed", declared), anchorTestJSON("owner sees settings page", "skipped", ""))
+	notRun := anchorDocument(t, anchorTestJSON("forbidden", "passed", declared), anchorTestJSON("owner reads record", "skipped", ""))
 	if got := anchorOf(t, notRun, 0); got.State != AnchorUnanchored || got.Reason != AnchorDeclaredSiblingMissing {
 		t.Fatalf("declared skipped sibling = %+v", got)
 	}
+}
+
+// LPCV-V0-082: a declared sibling anchors only through its own positive evidence. A passed sibling
+// without a record, or whose record shows no success for the same actor on the same keys, is
+// UNKNOWN; two rejection-only tests that declare each other stay UNANCHORED.
+func TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence(t *testing.T) {
+	declared := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"owner reads record","actor"`, 1)
+	for name, sibling := range map[string]struct {
+		record string
+		want   RejectionAnchor
+	}{
+		"no record":         {"", RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingNoEvidence}},
+		"other route":       {`{"assertion":"positive","actor":"tenant-a","requests":[{"method":"GET","route":"/api/other","status":200}]}`, RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingNoEvidence}},
+		"other actor":       {`{"assertion":"positive","actor":"tenant-b","requests":[{"method":"GET","route":"/api/records/:id","status":200}]}`, RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingNoEvidence}},
+		"positive with 403": {allowedRejected, RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingNoEvidence}},
+		"mixed with 200":    {`{"assertion":"mixed","actor":"tenant-a","requests":[{"method":"GET","route":"/api/records/:id","status":200}]}`, RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: []string{"owner reads record"}}},
+	} {
+		document := anchorDocument(t, anchorTestJSON("forbidden", "passed", declared), anchorTestJSON("owner reads record", "passed", sibling.record))
+		if got := anchorOf(t, document, 0); !reflect.DeepEqual(got, sibling.want) {
+			t.Errorf("%s: anchor = %+v, want %+v", name, got, sibling.want)
+		}
+	}
+	mutualA := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"b","actor"`, 1)
+	mutualB := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"a","actor"`, 1)
+	mutual := anchorDocument(t, anchorTestJSON("a", "passed", mutualA), anchorTestJSON("b", "passed", mutualB))
+	for i := range mutual.Tests {
+		if got := anchorOf(t, mutual, i); got.State != AnchorUnanchored || got.Reason != AnchorDeclaredSiblingRejectionOnly {
+			t.Errorf("mutual rejection-only %d = %+v", i, got)
+		}
+	}
+}
+
+// LPCV-V0-082: the Playwright adapter names a test by its own title only, so two suites with the
+// same test title make a declared sibling ambiguous; it is refused, never picked.
+func TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown(t *testing.T) {
+	declared := strings.Replace(forbiddenWrongRecord, `"actor"`, `"positiveSibling":"owner reads record","actor"`, 1)
+	for name, states := range map[string][2]string{
+		"both passed": {"passed", "passed"},
+		"one failed":  {"passed", "failed"},
+		"one not run": {"passed", "skipped"},
+	} {
+		document := anchorDocument(t,
+			anchorTestJSON("forbidden", "passed", declared),
+			anchorTestJSON("owner reads record", states[0], ""),
+			anchorTestJSON("owner reads record", states[1], ""),
+		)
+		if got := anchorOf(t, document, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingAmbiguous}) {
+			t.Errorf("%s: anchor = %+v", name, got)
+		}
+	}
+	report := `{"suites":[{"title":"a.spec.ts","file":"a.spec.ts","suites":[` +
+		playwrightSuiteJSON("admin", "owner reads record", "") + `,` +
+		playwrightSuiteJSON("member", "owner reads record", "") + `,` +
+		playwrightSuiteJSON("guest", "forbidden", strings.ReplaceAll(declared, `"`, `\"`)) + `]}],"errors":[]}`
+	outcomes, _, err := jstestprovider.ParsePlaywrightJSON([]byte(report))
+	if err != nil || len(outcomes) != 3 {
+		t.Fatalf("outcomes=%d err=%v", len(outcomes), err)
+	}
+	document := receiptDocument(t, jstestprovider.Receipt{Kind: "e2e", Tests: outcomes})
+	if got := anchorOf(t, document, 2); got.State != AnchorUnknown || got.Reason != AnchorDeclaredSiblingAmbiguous {
+		t.Fatalf("two suites with one title: %+v", got)
+	}
+}
+
+// LPCV-V0-081 LPCV-V0-082: screening collapses distinct secret-bearing actors and routes to one
+// placeholder, so screened text never joins: the rejection is UNKNOWN, never ANCHORED. A retained
+// receipt that still carries an unscreened secret is treated the same way.
+func TestLPCVV0081ScreenedEvidenceNeverJoins(t *testing.T) {
+	report := `{"suites":[{"title":"a.spec.ts","file":"a.spec.ts","suites":[` +
+		playwrightSuiteJSON("s1", "forbidden", `{\"assertion\":\"rejection-only\",\"actor\":\"ghp_aaaaaaaaaaaaaaaaaaaaaaaa\",\"requests\":[{\"method\":\"GET\",\"route\":\"/r\",\"status\":403}]}`) + `,` +
+		playwrightSuiteJSON("s2", "allowed", `{\"assertion\":\"positive\",\"actor\":\"ghp_bbbbbbbbbbbbbbbbbbbbbbbb\",\"requests\":[{\"method\":\"GET\",\"route\":\"/r\",\"status\":200}]}`) + `]}],"errors":[]}`
+	outcomes, _, err := jstestprovider.ParsePlaywrightJSON([]byte(report))
+	if err != nil || len(outcomes) != 2 {
+		t.Fatalf("outcomes=%d err=%v", len(outcomes), err)
+	}
+	document := receiptDocument(t, jstestprovider.Receipt{Kind: "e2e", Tests: outcomes})
+	if got := anchorOf(t, document, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorScreened}) {
+		t.Fatalf("distinct screened actors = %+v", got)
+	}
+	routes := anchorDocument(t,
+		anchorTestJSON("forbidden", "passed", `{"assertion":"rejection-only","actor":"tenant-a","requests":[{"method":"GET","route":"/r?key=[REDACTED]","status":403}]}`),
+		anchorTestJSON("allowed", "passed", `{"assertion":"positive","actor":"tenant-a","requests":[{"method":"GET","route":"/r?key=[REDACTED]","status":200}]}`),
+	)
+	if got := anchorOf(t, routes, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorUnknown, Reason: AnchorRouteScreened}) {
+		t.Fatalf("screened route = %+v", got)
+	}
+	unscreened := anchorDocument(t,
+		anchorTestJSON("forbidden", "passed", `{"assertion":"rejection-only","actor":"ghp_aaaaaaaaaaaaaaaaaaaaaaaa","requests":[{"method":"GET","route":"/r","status":403}]}`),
+		anchorTestJSON("allowed", "passed", `{"assertion":"positive","actor":"ghp_aaaaaaaaaaaaaaaaaaaaaaaa","requests":[{"method":"GET","route":"/r","status":200}]}`),
+	)
+	if got := anchorOf(t, unscreened, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorScreened}) {
+		t.Fatalf("unscreened secret actor = %+v", got)
+	}
+	siblingScreened := anchorDocument(t,
+		anchorTestJSON("forbidden", "passed", `{"assertion":"rejection-only","actor":"tenant-a","requests":[{"method":"GET","route":"/r","status":403}]}`),
+		anchorTestJSON("allowed", "passed", `{"assertion":"positive","actor":"[REDACTED]","requests":[{"method":"GET","route":"/r","status":200}]}`),
+	)
+	if got := anchorOf(t, siblingScreened, 0); got.State == AnchorAnchored {
+		t.Fatalf("screened sibling anchored a clean actor: %+v", got)
+	}
+	screenedTitle := anchorDocument(t,
+		anchorTestJSON("forbidden", "passed", `{"assertion":"rejection-only","positiveSibling":"[REDACTED]","actor":"tenant-a","requests":[{"method":"GET","route":"/r","status":403}]}`),
+		anchorTestJSON("[REDACTED]", "passed", `{"assertion":"positive","actor":"tenant-a","requests":[{"method":"GET","route":"/other","status":200}]}`),
+	)
+	if got := anchorOf(t, screenedTitle, 0); !reflect.DeepEqual(got, RejectionAnchor{State: AnchorUnknown, Reason: AnchorDeclaredSiblingAmbiguous}) {
+		t.Fatalf("screened sibling title = %+v", got)
+	}
+}
+
+// playwrightSuiteJSON is one Playwright suite holding one passed spec, with an optional
+// request-outcome annotation description (already escaped for the report string).
+func playwrightSuiteJSON(suite, title, description string) string {
+	annotations := `[]`
+	if description != "" {
+		annotations = `[{"type":"corvint-request-outcomes","description":"` + description + `"}]`
+	}
+	return `{"title":"` + suite + `","file":"a.spec.ts","specs":[{"title":"` + title + `","ok":true,"tests":[{"status":"expected","results":[{"status":"passed","retry":0,"duration":1,"annotations":` + annotations + `}]}]}]}`
+}
+
+func receiptDocument(t *testing.T, receipt jstestprovider.Receipt) Document {
+	t.Helper()
+	raw, err := json.Marshal(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return projectDocument(t, `{"receipt":`+string(raw)+`,"testProjections":[],"runProjection":{}}`)
 }
 
 // LPCV-V0-081 LPCV-V0-082: missing route or actor evidence yields uncertainty, never ANCHORED; a

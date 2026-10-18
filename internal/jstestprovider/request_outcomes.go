@@ -95,8 +95,18 @@ func ValidRequestOutcomeRecord(record RequestOutcomeRecord) bool {
 	return true
 }
 
+// requestOutcomeText bounds one text member. U+FFFD is refused as well as invalid UTF-8, because
+// JSON decoding replaces invalid bytes and lone surrogate escapes with it (LPCV-V0-080).
 func requestOutcomeText(value string) bool {
-	return value != "" && len(value) <= maxRequestOutcomeTextBytes && utf8.ValidString(value) && !strings.ContainsRune(value, 0)
+	return value != "" && len(value) <= maxRequestOutcomeTextBytes && utf8.ValidString(value) &&
+		!strings.ContainsRune(value, 0) && !strings.ContainsRune(value, utf8.RuneError)
+}
+
+// ScreenedRequestOutcomeText reports an actor or route that the secret screen changed, or would
+// change: distinct secrets share one placeholder, so such text never takes part in an equality
+// join (LPCV-V0-082).
+func ScreenedRequestOutcomeText(value string) bool {
+	return strings.Contains(value, secretscreen.Placeholder) || secretscreen.MatchString(value)
 }
 
 func requestOutcomeMethod(value string) bool {
@@ -132,6 +142,9 @@ var requestOutcomeMembers = map[string]bool{"assertion": true, "actor": true, "p
 // every level, and every request must state its status, so a missing or null status is never read
 // as a success or a rejection. It serves both the annotation and a retained receipt's member.
 func (r *RequestOutcomeRecord) UnmarshalJSON(data []byte) error {
+	if !utf8.Valid(data) {
+		return errors.New("request-outcome record is not valid UTF-8")
+	}
 	if irregularJSONMemberOf(data, requestOutcomeMembers) {
 		return errors.New("request-outcome record has a duplicate or inexact member")
 	}

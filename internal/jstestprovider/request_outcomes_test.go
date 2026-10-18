@@ -102,3 +102,45 @@ func TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes(t *testing.T) {
 		t.Fatalf("absent record serialized: %s", raw)
 	}
 }
+
+// LPCV-V0-080: text that is not valid UTF-8 is refused before decoding can substitute U+FFFD,
+// whether it arrives as raw bytes in the report or as a lone-surrogate escape in the description.
+func TestLPCVV0080InvalidUTF8IsRefused(t *testing.T) {
+	for name, description := range map[string]string{
+		"lone surrogate escape": `{"assertion":"positive","actor":"a\ud800","requests":[]}`,
+		"raw invalid byte":      "{\"assertion\":\"positive\",\"actor\":\"a\xff\",\"requests\":[]}",
+		"replacement character": "{\"assertion\":\"positive\",\"actor\":\"a�\",\"requests\":[]}",
+		"route surrogate":       `{"assertion":"positive","requests":[{"method":"GET","route":"/\udc00","status":200}]}`,
+	} {
+		if got := requestOutcomeRecord([]playwrightAnnotation{requestOutcomeAnnotation(description)}); got != nil {
+			t.Errorf("%s: record = %+v", name, got)
+		}
+	}
+	report := "{\"suites\":[{\"title\":\"a.spec.ts\",\"file\":\"a.spec.ts\",\"specs\":[{\"title\":\"t\",\"ok\":true,\"tests\":[{\"status\":\"expected\",\"results\":[{\"status\":\"passed\",\"retry\":0,\"duration\":1,\"annotations\":[{\"type\":\"corvint-request-outcomes\",\"description\":\"{\\\"assertion\\\":\\\"positive\\\",\\\"actor\\\":\\\"a\xff\\\",\\\"requests\\\":[]}\"}]}]}]}]}],\"errors\":[]}"
+	outcomes, _, err := ParsePlaywrightJSON([]byte(report))
+	if err != nil || len(outcomes) != 1 {
+		t.Fatalf("outcomes=%+v err=%v", outcomes, err)
+	}
+	if got := outcomes[0].AttemptDetails[0].RequestOutcomes; got != nil {
+		t.Fatalf("raw invalid byte in report produced %+v", got)
+	}
+	var record RequestOutcomeRecord
+	if err := json.Unmarshal([]byte("{\"assertion\":\"positive\",\"actor\":\"a\xff\",\"requests\":[]}"), &record); err == nil {
+		t.Fatalf("retained record with invalid UTF-8 decoded: %+v", record)
+	}
+}
+
+// LPCV-V0-080 LPCV-V0-082: screening collapses distinct secret-bearing actors to one placeholder,
+// so screened text, and text the screen would change, is marked as never joinable.
+func TestLPCVV0080ScreeningCollapsesDistinctActors(t *testing.T) {
+	first := requestOutcomeRecord([]playwrightAnnotation{requestOutcomeAnnotation(`{"assertion":"positive","actor":"ghp_aaaaaaaaaaaaaaaaaaaaaaaa","requests":[]}`)})
+	second := requestOutcomeRecord([]playwrightAnnotation{requestOutcomeAnnotation(`{"assertion":"positive","actor":"ghp_bbbbbbbbbbbbbbbbbbbbbbbb","requests":[]}`)})
+	if first == nil || second == nil || first.Actor != second.Actor {
+		t.Fatalf("screened actors differ or absent: %+v %+v", first, second)
+	}
+	for value, want := range map[string]bool{first.Actor: true, "ghp_aaaaaaaaaaaaaaaaaaaaaaaa": true, "/r?key=[REDACTED]": true, "tenant-a": false, "/api/records/:id": false} {
+		if got := ScreenedRequestOutcomeText(value); got != want {
+			t.Errorf("ScreenedRequestOutcomeText(%q) = %v, want %v", value, got, want)
+		}
+	}
+}

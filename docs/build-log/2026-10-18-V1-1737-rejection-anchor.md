@@ -52,3 +52,31 @@ the route or actor is unknown.
 - No Corvint consumer reads `blocksCredit` yet. The doccorpus behaviour witnesses use profiled
   receipts, which cannot carry the record without an external profile revision.
 - The TypeScript mirror, Vitest and Go test sessions are not covered.
+
+## Review fix round (PR #1101)
+
+An independent Codex review raised four findings. Each was first reproduced by a failing test,
+then fixed; the requirement IDs are unchanged and the `LPCV-V0-080` to `LPCV-V0-082` text now
+states the stricter rules.
+
+- Screened text joined (P1). The secret screen maps distinct secret actors to one `[REDACTED]`
+  placeholder, so two different `ghp_` actors anchored each other. An actor or route that the
+  screen changed, or would change, now never takes part in an equality join. The rejection is
+  `UNKNOWN` with `anchor-actor-screened` or `anchor-route-screened`, and a screened sibling title is
+  ambiguous. Test: `TestLPCVV0081ScreenedEvidenceNeverJoins`.
+- A declared sibling anchored without evidence (P1). Two rejection-only tests could declare each
+  other and both become `ANCHORED`. A passed declared sibling now anchors only through its own
+  valid `positive` or `mixed` record with a 2xx for the same actor on every rejected key. A
+  `rejection-only` sibling gives `UNANCHORED` (`declared-positive-sibling-rejection-only`), and any
+  other record or none gives `UNKNOWN` (`declared-positive-sibling-evidence-missing`). The
+  acceptance-3 test now declares a sibling that carries that evidence. Test:
+  `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`.
+- An ambiguous sibling title was resolved (P2). The Playwright adapter names a test by its own
+  title only, so two suites can share it. More than one match is now `UNKNOWN`
+  (`declared-positive-sibling-ambiguous`) and none is picked. Test:
+  `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, which includes a two-suite Playwright report.
+- Invalid UTF-8 was replaced (P2). The raw `corvint-request-outcomes` description and a retained
+  record must now be valid UTF-8 before decoding, and text members refuse U+FFFD, which decoding
+  substitutes for lone surrogate escapes. Test: `TestLPCVV0080InvalidUTF8IsRefused`.
+
+Observed successes now count only from tests that passed or were flaky.

@@ -30,6 +30,12 @@ const (
 	AnchorSuccessOnRoute         = "success-on-route"
 	AnchorNoSuccessOnRoute       = "no-success-on-route"
 	AnchorDeclaredSiblingMissing = "declared-positive-sibling-not-completed"
+
+	AnchorActorScreened                = "anchor-actor-screened"
+	AnchorRouteScreened                = "anchor-route-screened"
+	AnchorDeclaredSiblingAmbiguous     = "declared-positive-sibling-ambiguous"
+	AnchorDeclaredSiblingNoEvidence    = "declared-positive-sibling-evidence-missing"
+	AnchorDeclaredSiblingRejectionOnly = "declared-positive-sibling-rejection-only"
 )
 
 // RejectionAnchor states whether a rejection-only test's rejection is anchored by evidence, in the
@@ -110,7 +116,8 @@ func testTitle(outcome jstestprovider.TestOutcome) string {
 
 // rejectionAnchor classifies one test from its last attempt (LPCV-V0-081, LPCV-V0-082). Evidence
 // that is missing never anchors: a rejection-only record without a route or actor is UNKNOWN, and a
-// sibling record without the same actor is not a candidate.
+// sibling record without the same actor is not a candidate. An actor or route the secret screen
+// changed never joins, because distinct secrets share one placeholder.
 func rejectionAnchor(tests []anchorTest, self int) *RejectionAnchor {
 	test := tests[self]
 	switch {
@@ -126,9 +133,14 @@ func rejectionAnchor(tests []anchorTest, self int) *RejectionAnchor {
 		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorRouteEvidenceMissing}
 	case test.record.Actor == "":
 		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorEvidenceMissing}
+	case jstestprovider.ScreenedRequestOutcomeText(test.record.Actor):
+		return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorActorScreened}
 	}
 	routes := map[anchorRoute]bool{}
 	for _, request := range test.record.Requests {
+		if jstestprovider.ScreenedRequestOutcomeText(request.Route) {
+			return &RejectionAnchor{State: AnchorUnknown, Reason: AnchorRouteScreened}
+		}
 		routes[anchorRoute{request.Method, request.Route}] = true
 	}
 	failed := map[string]bool{}
@@ -145,33 +157,32 @@ func rejectionAnchor(tests []anchorTest, self int) *RejectionAnchor {
 			if other.record.Assertion == jstestprovider.AssertionPositive && testFailed(other.outcome.State) {
 				failed[testTitle(other.outcome)] = true
 			}
-			if jstestprovider.IsSuccessStatus(request.Status) {
+			if jstestprovider.IsSuccessStatus(request.Status) && testPassed(other.outcome.State) {
 				succeeded[key] = append(succeeded[key], testTitle(other.outcome))
 			}
 		}
 	}
-	declared, declaredState := declaredSibling(tests, self)
-	if declaredState == AnchorFailed || len(failed) != 0 {
+	sibling := declaredSibling(tests, self, routes)
+	if sibling.state == AnchorFailed || len(failed) != 0 {
 		reason := AnchorObservedSiblingFailed
-		if declaredState == AnchorFailed {
+		if sibling.state == AnchorFailed {
 			reason = AnchorDeclaredSiblingFailed
-			for _, title := range declared {
+			for _, title := range sibling.titles {
 				failed[title] = true
 			}
 		}
 		return &RejectionAnchor{State: AnchorFailed, Reason: reason, BlocksCredit: true, Siblings: sortedTitles(failed)}
 	}
-	if declaredState == AnchorAnchored {
-		return &RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: sortedTitles(titleSet(declared))}
+	if sibling.state == AnchorAnchored {
+		return &RejectionAnchor{State: AnchorAnchored, Reason: AnchorDeclaredSiblingPassed, Siblings: sibling.titles}
 	}
 	anchors := map[string]bool{}
 	for key := range routes {
 		if len(succeeded[key]) == 0 {
-			reason := AnchorNoSuccessOnRoute
-			if test.record.PositiveSibling != "" {
-				reason = AnchorDeclaredSiblingMissing
+			if sibling.state != "" {
+				return &RejectionAnchor{State: sibling.state, Reason: sibling.reason}
 			}
-			return &RejectionAnchor{State: AnchorUnanchored, Reason: reason}
+			return &RejectionAnchor{State: AnchorUnanchored, Reason: AnchorNoSuccessOnRoute}
 		}
 		for _, title := range succeeded[key] {
 			anchors[title] = true
@@ -180,16 +191,30 @@ func rejectionAnchor(tests []anchorTest, self int) *RejectionAnchor {
 	return &RejectionAnchor{State: AnchorAnchored, Reason: AnchorSuccessOnRoute, Siblings: sortedTitles(anchors)}
 }
 
+// siblingVerdict is the declared positive sibling's contribution; an empty state means none was
+// declared.
+type siblingVerdict struct {
+	state  string
+	reason string
+	titles []string
+}
+
 // declaredSibling resolves the record's positiveSibling against the other tests of the run, by full
-// title or name and, when the test has a project, within that project. Any failed match is
-// ANCHOR-FAILED, else any passed match is ANCHORED; no completed match leaves it undecided ("").
-func declaredSibling(tests []anchorTest, self int) ([]string, string) {
+// title or name and, when the test has a project, within that project (LPCV-V0-082). More than one
+// match, or a screened title, is ambiguous and never picked. A single failed match is
+// ANCHOR-FAILED. A single passed match anchors only through its own valid positive or mixed record
+// with a 2xx for the same actor on every rejected (method, route); a rejection-only record leaves
+// the test UNANCHORED and any other record, or none, leaves it UNKNOWN.
+func declaredSibling(tests []anchorTest, self int, routes map[anchorRoute]bool) siblingVerdict {
 	test := tests[self]
 	name := test.record.PositiveSibling
 	if name == "" {
-		return nil, ""
+		return siblingVerdict{}
 	}
-	var failed, passed []string
+	if jstestprovider.ScreenedRequestOutcomeText(name) {
+		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingAmbiguous}
+	}
+	match := -1
 	for i, other := range tests {
 		if i == self || (other.outcome.FullName != name && other.outcome.Name != name) {
 			continue
@@ -197,28 +222,40 @@ func declaredSibling(tests []anchorTest, self int) ([]string, string) {
 		if test.outcome.Project != nil && (other.outcome.Project == nil || other.outcome.Project.Name != test.outcome.Project.Name) {
 			continue
 		}
-		switch {
-		case testFailed(other.outcome.State):
-			failed = append(failed, testTitle(other.outcome))
-		case testPassed(other.outcome.State):
-			passed = append(passed, testTitle(other.outcome))
+		if match >= 0 {
+			return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingAmbiguous}
+		}
+		match = i
+	}
+	if match < 0 {
+		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingMissing}
+	}
+	sibling := tests[match]
+	titles := []string{testTitle(sibling.outcome)}
+	switch {
+	case testFailed(sibling.outcome.State):
+		return siblingVerdict{state: AnchorFailed, reason: AnchorDeclaredSiblingFailed, titles: titles}
+	case !testPassed(sibling.outcome.State):
+		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingMissing}
+	case sibling.record == nil || !sibling.valid:
+		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
+	case sibling.record.Assertion == jstestprovider.AssertionRejectionOnly:
+		return siblingVerdict{state: AnchorUnanchored, reason: AnchorDeclaredSiblingRejectionOnly}
+	case sibling.record.Actor != test.record.Actor:
+		return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
+	}
+	succeeded := map[anchorRoute]bool{}
+	for _, request := range sibling.record.Requests {
+		if jstestprovider.IsSuccessStatus(request.Status) {
+			succeeded[anchorRoute{request.Method, request.Route}] = true
 		}
 	}
-	if len(failed) != 0 {
-		return failed, AnchorFailed
+	for key := range routes {
+		if !succeeded[key] {
+			return siblingVerdict{state: AnchorUnknown, reason: AnchorDeclaredSiblingNoEvidence}
+		}
 	}
-	if len(passed) != 0 {
-		return passed, AnchorAnchored
-	}
-	return nil, ""
-}
-
-func titleSet(titles []string) map[string]bool {
-	set := make(map[string]bool, len(titles))
-	for _, title := range titles {
-		set[title] = true
-	}
-	return set
+	return siblingVerdict{state: AnchorAnchored, reason: AnchorDeclaredSiblingPassed, titles: titles}
 }
 
 func sortedTitles(set map[string]bool) []string {

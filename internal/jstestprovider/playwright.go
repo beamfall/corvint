@@ -3,6 +3,7 @@ package jstestprovider
 import (
 	"encoding/json"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/runhygiene"
 	"github.com/Beamfall/corvint/internal/secretscreen"
@@ -52,8 +53,8 @@ type playwrightResult struct {
 }
 
 // playwrightAnnotation is one result annotation. Decoding never fails the report: a member of an
-// unexpected shape marks a corvint-route-stubs annotation malformed and is otherwise ignored, as
-// annotations were before LPCV-V0-072.
+// unexpected shape marks a corvint-route-stubs or corvint-request-outcomes annotation malformed
+// and is otherwise ignored, as annotations were before LPCV-V0-072.
 type playwrightAnnotation struct {
 	Type        string
 	Description string
@@ -72,6 +73,9 @@ func (a *playwrightAnnotation) UnmarshalJSON(data []byte) error {
 	}
 	if len(wire.Description) > 0 && json.Unmarshal(wire.Description, &a.Description) != nil {
 		a.malformed = true
+	}
+	if a.Type == RequestOutcomesAnnotation && !utf8.Valid(wire.Description) {
+		a.malformed = true // decoding would hide invalid bytes behind U+FFFD (LPCV-V0-080)
 	}
 	return nil
 }
