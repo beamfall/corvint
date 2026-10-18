@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -502,14 +503,19 @@ func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
 	if r := s.lease(t, "release-cycle", releaseOf(c), 3+2*cycles, store.NoScopeDeriver); r.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("release: %+v", r)
 	}
+	var reads map[string]int
 	timed := func(label string) (time.Duration, uint64) {
 		t.Helper()
+		reader := retireReader(t, s)
+		counted := &countingSource{inner: reader.Source, reads: map[string]int{}}
+		reader.Source = counted
 		start := time.Now()
-		proof, err := retireReader(t, s).Audit()
+		proof, err := reader.Audit()
 		elapsed := time.Since(start)
 		if err != nil || proof.Mode != journal.ModeFull {
 			t.Fatalf("%s audit: %+v %v", label, proof, err)
 		}
+		reads = counted.reads
 		return elapsed, proof.LastSeq.Uint64()
 	}
 	sizeOf := func() (n, total uint64) {
@@ -525,7 +531,15 @@ func TestJRTV0013_RetireBoundsAuditCost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("retire: %v", err)
 	}
+	if reads["requests"] < cycles || reads["receipts"] < cycles {
+		t.Fatalf("unsealed audit read %v, want every receipt and request", reads)
+	}
 	afterTime, _ := timed("after")
+	// The sealed audit reads the anchor receipt and no retired request,
+	// however many cycles were retired.
+	if reads["receipts"] != 1 || reads["requests"] != 0 {
+		t.Fatalf("sealed audit read %v, want one receipt and no request", reads)
+	}
 	afterN, afterBytes := sizeOf()
 	if afterN != 1 || afterBytes >= beforeBytes || rep.ReceiptBytesAfter != afterBytes || rep.ReceiptBytesBefore != beforeBytes {
 		t.Fatalf("retire kept %d receipts in %d bytes (report %+v), before %d in %d", afterN, afterBytes, rep, beforeN, beforeBytes)
@@ -633,4 +647,20 @@ func TestJRTV0006_ArchiveDirectorySyncPrecedesSeal(t *testing.T) {
 		t.Fatalf("retire: %v after %v", err, steps)
 	}
 	retiredAuditOK(t, r, rep.AnchorSeq, "sealed")
+}
+
+// countingSource counts the audit's reads by top-level directory.
+type countingSource struct {
+	inner journal.Source
+	reads map[string]int
+}
+
+func (c *countingSource) Read(p string, max int) ([]byte, error) {
+	top, _, _ := strings.Cut(p, "/")
+	c.reads[top]++
+	return c.inner.Read(p, max)
+}
+
+func (c *countingSource) List(p string, max int) (journal.Listing, error) {
+	return c.inner.List(p, max)
 }

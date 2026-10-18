@@ -47,6 +47,14 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	item.Set("liveness", wire.String(observed.Liveness))
 	item.Set("runtimeQualification", wire.String(observed.RuntimeQualification))
 	item.Set("stagingPresent", wire.Bool(observed.StagingPresent))
+	// The audit root (JRT-V0-005): the seal's anchor S on a sealed store,
+	// whose receipts 1..S-1 the audit did not walk; 0 and 0 otherwise.
+	anchor, retired := observed.RetiredThrough(), uint64(0)
+	if anchor != 0 {
+		retired = anchor - 1
+	}
+	item.Set("anchorSeq", wire.String(string(wire.SizeOf(anchor))))
+	item.Set("retiredThrough", wire.String(string(wire.SizeOf(retired))))
 	result := success(cmd, rc)
 	result.Items = []wire.Value{wire.ObjectValue(item)}
 	return result

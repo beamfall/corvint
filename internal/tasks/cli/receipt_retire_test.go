@@ -75,8 +75,8 @@ func TestJRTV0012_RetireCLIAndDoctorJournal(t *testing.T) {
 	if j := field(item, "journal"); field(j, "receipts").Str != "1" || field(j, "retiredThrough").Str != strconv.FormatUint(receipts-1, 10) {
 		t.Fatalf("doctor on a sealed store: %s", wire.Encode(item))
 	}
-	if a := atm(t, root, nil, "receipt", "audit"); a.code != 0 || a.res.Outcome != wire.OutcomeOK {
-		t.Fatalf("audit of a sealed store: %s", a.stdout)
+	if a := atm(t, root, nil, "receipt", "audit"); a.code != 0 || a.res.Outcome != wire.OutcomeOK || field(a.res.Items[0], "anchorSeq").Str != strconv.FormatUint(receipts, 10) || field(a.res.Items[0], "retiredThrough").Str != strconv.FormatUint(receipts-1, 10) {
+		t.Fatalf("audit of a sealed store does not report its anchor: %s", a.stdout)
 	}
 	un := atm(t, root, nil, "receipt", "unretire", "--archive", path)
 	if un.code != 0 || un.res.Outcome != wire.OutcomeOK {
@@ -85,5 +85,8 @@ func TestJRTV0012_RetireCLIAndDoctorJournal(t *testing.T) {
 	_, item = doctorOK(t, root)
 	if j := field(item, "journal"); field(j, "receipts").Str != strconv.FormatUint(receipts, 10) || field(j, "retiredThrough").Str != "0" {
 		t.Fatalf("doctor after unretire: %s", wire.Encode(item))
+	}
+	if a := atm(t, root, nil, "receipt", "audit"); a.code != 0 || field(a.res.Items[0], "anchorSeq").Str != "0" || field(a.res.Items[0], "retiredThrough").Str != "0" {
+		t.Fatalf("audit after unretire: %s", a.stdout)
 	}
 }

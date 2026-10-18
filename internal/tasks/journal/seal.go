@@ -296,24 +296,22 @@ func (r Reader) walkSealed(o *observation, result *Result, selected map[string]b
 			return nil, wire.Errorf(wire.CodeUnsupported, rp, "request was retired with the prefix; its receipt is in the retained archive")
 		}
 	}
-	st := &chain{canonical: make(map[string]latest, len(a.Entries)+int(a.Requests())), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s,
+	st := &chain{canonical: make(map[string]latest, len(a.Entries)), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s,
 		notes: &noteState{refs: map[string]*ticket.OperatorNoteReference{}, policyWalked: true}}
 	for _, e := range a.Entries {
 		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
 	}
+	// Requests receipts 1..S posted stay on disk but are not reinstated as
+	// canonical paths: their names must be exactly the ones the anchor
+	// records, and their bytes, which the anchor digests and the archive
+	// holds, are neither read nor hashed, so the audit's cost does not grow
+	// with retired history (JRT-V0-013). No later operation reads them:
+	// their replay is refused (JRT-V0-010) and unretire's closing complete
+	// audit verifies each against its receipt again.
 	var requests uint64
 	for p, info := range o.files {
-		if !strings.HasPrefix(p, "requests/") || info.IsDir() || isTemp(p) {
-			continue
-		}
-		d, ok := a.RequestAfterimage(p)
-		if !ok {
-			continue
-		}
-		requests++
-		st.canonical[p] = latest{seq: a.Seq, digest: &d}
-		if r.writerCache {
-			result.RequestDigests[p] = d
+		if strings.HasPrefix(p, "requests/") && !info.IsDir() && !isTemp(p) && a.HasRequest(p) {
+			requests++
 		}
 	}
 	if requests != a.Requests() {

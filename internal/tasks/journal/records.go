@@ -246,7 +246,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	notes := r.noteAudit(st, rc)
 	for j, p := range rc.Post {
 		prior := canonical[p.Path]
-		if strings.HasPrefix(p.Path, "requests/") && prior.seq != "" {
+		if strings.HasPrefix(p.Path, "requests/") && (prior.seq != "" || (st.seal != nil && st.seal.Anchor.HasRequest(p.Path))) {
 			return wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
 		}
 		if strings.HasPrefix(p.Path, "requests/") && st.elided != nil && st.elided.HasRequest(p.Path) {
@@ -720,6 +720,11 @@ func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent 
 			continue
 		}
 		if _, ok := canonical[p]; ok {
+			continue
+		}
+		// A request a retired receipt posted is the seal's, not a stray
+		// (JRT-V0-013); walkSealed matched these names to the anchor.
+		if o.seal != nil && strings.HasPrefix(p, "requests/") && o.seal.Anchor.HasRequest(p) {
 			continue
 		}
 		if p == "head.json" || p == RetiredPrefixFile || strings.HasPrefix(p, "receipts/") || strings.HasPrefix(p, "evidence/") || strings.HasPrefix(p, "pinned/") || strings.HasSuffix(p, ".boot") || strings.HasSuffix(p, ".ack") {
