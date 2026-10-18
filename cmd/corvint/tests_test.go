@@ -163,3 +163,64 @@ func TestTestsLintAdvisoryCLI(t *testing.T) {
 		t.Fatalf("lint with an unreadable report: code=%d out=%q err=%q", code, out, errb)
 	}
 }
+
+const testsSerialSpec = `test.describe('alpha', () => {
+  test.describe.configure({ mode: 'serial' });
+  test('alpha-01 existing', async () => { expect(1).toBe(1); });
+  test('alpha-02 new row', { tag: '@isolated' }, async () => { expect(2).toBe(2); });
+});
+`
+
+const testsMemoizedSpec = `RSpec.describe Widget do
+  subject(:widget) { create(:widget) }
+  before { widget }
+  it 'creates a widget' do
+    expect { widget }.to change(Widget, :count)
+  end
+end
+`
+
+// TestTestsValidityCLI: `corvint tests validity` reports the ISOLATED-IN-SERIAL and
+// MEMOIZED-BLOCK-EXPECTATION findings of the named committed files and refuses an example with an
+// invalid finding as proof (exit 1, hygiene INELIGIBLE); advisory-only files exit 0; bad
+// arguments refuse with exit 2 (TSA-V0-071, V1-1787).
+func TestTestsValidityCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	head := testsCommit(t, root, map[string]string{"e2e/alpha.spec.ts": testsSerialSpec, "spec/widget_spec.rb": testsMemoizedSpec})
+	code, out, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "e2e/alpha.spec.ts,spec/widget_spec.rb")
+	var report struct {
+		Schema, Revision string
+		Files            []struct {
+			Path     string
+			Findings []struct{ Rule, Severity, Test string }
+		}
+		Tests []struct {
+			Test    string
+			Hygiene struct{ State, Reason string }
+		}
+	}
+	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-test-source-validity/0" || report.Revision != head || len(report.Files) != 2 {
+		t.Fatalf("validity: code=%d out=%s err=%s", code, out, errb)
+	}
+	if f := report.Files[0].Findings; len(f) != 1 || f[0].Rule != "ISOLATED-IN-SERIAL" || f[0].Severity != "advisory" {
+		t.Errorf("serial findings %+v", f)
+	}
+	if f := report.Files[1].Findings; len(f) != 1 || f[0].Rule != "MEMOIZED-BLOCK-EXPECTATION" || f[0].Test != "spec/widget_spec.rb:4" {
+		t.Errorf("memoized findings %+v", f)
+	}
+	if len(report.Tests) != 2 || report.Tests[0].Hygiene.State != "ELIGIBLE" || report.Tests[1].Hygiene.State != "INELIGIBLE" || report.Tests[1].Hygiene.Reason != "memoized-block-expectation" {
+		t.Errorf("tests %+v", report.Tests)
+	}
+	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "e2e/alpha.spec.ts", "--rev", head); code != 0 {
+		t.Errorf("advisory only: code=%d err=%s", code, errb)
+	}
+	for _, args := range [][]string{{}, {"--files", "../x_spec.rb"}, {"--files", "spec/absent_spec.rb"}, {"--files", "a_spec.rb", "extra"}} {
+		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "validity"}, args...)...); code != 2 || out != "" {
+			t.Errorf("%v: code=%d out=%q", args, code, out)
+		}
+	}
+	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "tests validity --files") {
+		t.Errorf("help: code=%d", code)
+	}
+}

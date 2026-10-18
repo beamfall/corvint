@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/testsource"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -138,7 +139,7 @@ func discoverTestValidity(root string) (testValidityDocument, error) {
 	if err != nil {
 		return testValidityDocument{}, &gokernel.Error{Code: "invalid-test-evidence-location", Message: "worktree root cannot be resolved"}
 	}
-	document, err := testvaliditydoc.Discover(absolute)
+	document, err := testvaliditydoc.DiscoverWithSources(absolute, testsource.RSpecExampleSources)
 	var refusal *testvaliditydoc.DiscoveryError
 	if errors.As(err, &refusal) {
 		return testValidityDocument{}, &gokernel.Error{Code: refusal.Code, Message: refusal.Message}

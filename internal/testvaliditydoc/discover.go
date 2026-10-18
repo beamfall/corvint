@@ -121,6 +121,13 @@ type candidate struct {
 // directory, reads beyond it only the confined files the document binds,
 // never follows a symlink, and writes nothing.
 func Discover(root string) (Document, error) {
+	return DiscoverWithSources(root, nil)
+}
+
+// DiscoverWithSources is Discover with the RSpec source reader that recomputes a Ruby example's
+// hygiene and strength from its bound spec source (TSA-V0-068). The reader is passed in because
+// internal/testsource imports this package transitively; nil reads no spec source.
+func DiscoverWithSources(root string, rubySources RubySourceReader) (Document, error) {
 	worktree, err := os.OpenRoot(root)
 	if err != nil {
 		return Document{}, locationError("worktree root cannot be opened")
@@ -170,6 +177,9 @@ func Discover(root string) (Document, error) {
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
 		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
+		if input.ruby != nil && rubySources != nil {
+			applyRubySources(document.Tests, *input.ruby, worktree, rubySources)
+		}
 		revision := receiptRevision(input)
 		if document.Run.Freshness.State == testvalidity.FreshnessStale || revisionDiffersFromHead(worktree, revision) {
 			abstention := producerAbstention(AbstentionStaleEvidence)
