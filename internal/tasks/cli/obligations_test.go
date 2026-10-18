@@ -1026,8 +1026,9 @@ func TestTOLV0019_ObligationSummary(t *testing.T) {
 }
 
 // TestTOLV0020_PlanCheck: the plan check reports UNASSIGNED, SPLIT,
-// UNKNOWN_OBLIGATION and ALREADY_CLOSED, refuses until every open
-// obligation has exactly one planned test, and writes nothing.
+// UNKNOWN_OBLIGATION and ALREADY_CLOSED, refuses until every core open
+// obligation has exactly one planned test (a non-core one may be omitted,
+// TOL-V0-057), and writes nothing.
 func TestTOLV0020_PlanCheck(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
@@ -1042,7 +1043,7 @@ func TestTOLV0020_PlanCheck(t *testing.T) {
 	}
 	before := fixture.TreeSnapshot(t, r.StateDir)
 	x := atm(t, r.Root, nil, "ticket", "obligations", "plan", "--target", id, "--plan",
-		plan(`[{"test":"a","project":"chromium","obligations":["AC-1","AC-2","AC-3","AC-4","AC-5","AC-6","AC-7","AC-77"]},`+
+		plan(`[{"test":"a","project":"chromium","obligations":["AC-1","AC-3","AC-4","AC-5","AC-6","AC-7","AC-77"]},`+
 			`{"test":"b","project":"chromium","obligations":["AC-1","AC-9"]}]`))
 	if x.res.Outcome == wire.OutcomeOK || x.code == 0 {
 		t.Fatalf("incomplete plan passed: %s", x.stdout)
@@ -1051,11 +1052,11 @@ func TestTOLV0020_PlanCheck(t *testing.T) {
 	for _, f := range field(x.res.Items[0], "findings").Arr {
 		got = append(got, field(f, "kind").Str+":"+field(f, "id").Str+":"+field(f, "testCount").Str)
 	}
-	if strings.Join(got, ",") != "SPLIT:AC-1:2,UNKNOWN_OBLIGATION:AC-77:1,UNASSIGNED:AC-8:0,ALREADY_CLOSED:AC-9:1" {
+	if strings.Join(got, ",") != "SPLIT:AC-1:2,UNASSIGNED:AC-2:0,UNKNOWN_OBLIGATION:AC-77:1,ALREADY_CLOSED:AC-9:1" {
 		t.Fatalf("findings: %v", got)
 	}
 	ok := atm(t, r.Root, nil, "ticket", "obligations", "plan", "--target", id, "--plan",
-		plan(`[{"test":"a","project":"chromium","obligations":["AC-1","AC-2","AC-3","AC-4"]},{"test":"b","project":"firefox","obligations":["AC-5","AC-6","AC-7","AC-8"]}]`))
+		plan(`[{"test":"a","project":"chromium","obligations":["AC-1","AC-2","AC-3","AC-4"]},{"test":"b","project":"firefox","obligations":["AC-5","AC-6","AC-7"]}]`))
 	if ok.res.Outcome != wire.OutcomeOK || !field(ok.res.Items[0], "ok").Bool {
 		t.Fatalf("complete plan: %s", ok.stdout)
 	}

@@ -200,7 +200,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	var findings []ticket.ObligationPlanFinding
+	var findings, reruns []ticket.ObligationPlanFinding
 	var ledger *ticket.ObligationLedger
 	ok := false
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
@@ -212,6 +212,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "/ticketId", "the plan names %s, not %s", plan.TicketID.Raw, rec.TicketID.Raw)
 		}
 		findings, ok = ticket.CheckObligationPlan(l, plan)
+		reruns = ticket.ObligationPlanReruns(l, plan)
 		ledger = l
 		return nil
 	})
@@ -229,6 +230,15 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	}
 	res := success(cmd, rc)
 	po := wire.NewObject().Set("ok", wire.Bool(ok)).Set("findings", wire.Array(items...))
+	// A plan with a rerun member also reports the WITNESSED regression rows
+	// it re-runs (TOL-V0-056); an older plan keeps its exact output.
+	if ticket.PlanHasRerun(plan) {
+		rerunItems := make([]wire.Value, 0, len(reruns))
+		for _, f := range reruns {
+			rerunItems = append(rerunItems, wire.ObjectValue(wire.NewObject().Set("id", wire.String(f.ID)).Set("tests", wire.Strings(f.Tests))))
+		}
+		po.Set("reruns", wire.Array(rerunItems...))
+	}
 	if hasReview {
 		po.Set("sourceReview", review)
 	}
@@ -236,9 +246,41 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	res.Untrusted = true
 	if !ok {
 		res.Outcome = wire.OutcomeRefused
-		res.Warnings = append(res.Warnings, "the plan leaves open obligations unassigned, split or names unknown or closed ids")
+		res.Warnings = append(res.Warnings, "the plan leaves core open obligations unassigned, splits an obligation, names unknown or closed ids, or reruns an unwitnessed id")
 	}
 	return res
+}
+
+// witnessProvenance builds the optional witness provenance (TOL-V0-059)
+// from the flags given, or nil when none is given so the payload keeps its
+// exact pre-TOL-V0-059 bytes. A given flag is a member even when its value
+// is empty, so an empty value is refused MALFORMED (an OID by the verb, prose
+// by the writer's payload reader, which bounds each member) and never drops
+// silently out of the evidence.
+func witnessProvenance(given map[string]bool, testCommit, envTree, evidenceRef, testTitle string) *ticket.ObligationProvenance {
+	opt := func(flag, s string) *string {
+		if !given[flag] {
+			return nil
+		}
+		return &s
+	}
+	p := &ticket.ObligationProvenance{TestCommit: opt("--test-commit", testCommit), EnvironmentTree: opt("--environment-tree", envTree),
+		EvidenceRef: opt("--evidence-ref", evidenceRef), TestTitle: opt("--test-title", testTitle)}
+	if p.TestCommit == nil && p.EnvironmentTree == nil && p.EvidenceRef == nil && p.TestTitle == nil {
+		return nil
+	}
+	return p
+}
+
+// givenFlags names the flags of an argument list that pairFlags accepted
+// with only single-valued flags, so a verb can tell an explicitly empty value
+// from an absent flag.
+func givenFlags(args []string) map[string]bool {
+	given := map[string]bool{}
+	for i := 0; i < len(args); i += 2 {
+		given[args[i]] = true
+	}
+	return given
 }
 
 // readPlanFile reads at most max bytes of file, refusing a larger one.
@@ -291,7 +333,9 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
+	var testCommit, envTree, evidenceRef, testTitle string
 	if res := pairFlags(cmd, args, map[string]*string{
+		"--test-commit": &testCommit, "--environment-tree": &envTree, "--evidence-ref": &evidenceRef, "--test-title": &testTitle,
 		"--target": &f.target, "--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--from-playwright-report": &report, "--commit": &commit, "--ids": &idsArg,
 		"--declared": &declared, "--manifest-sha256": &manifest, "--test-id": &testID, "--reason": &reason,
@@ -299,6 +343,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}, nil, nil); res != nil {
 		return res
 	}
+	given := givenFlags(args)
 	if f.requestID == "" {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
 	}
@@ -330,6 +375,14 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}
 	if _, err := wire.ParseOID("--commit", commit); err != nil {
 		return errorResult(cmd, err)
+	}
+	for flag, oid := range map[string]string{"--test-commit": testCommit, "--environment-tree": envTree} {
+		if !given[flag] {
+			continue
+		}
+		if _, err := wire.ParseOID(flag, oid); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	actor, err := initActor(f.role)
 	if err != nil {
@@ -373,7 +426,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	w := ticket.ObligationWitnessPayload{Commit: commit}
+	w := ticket.ObligationWitnessPayload{Commit: commit, Provenance: witnessProvenance(given, testCommit, envTree, evidenceRef, testTitle)}
 	if attempt != "" {
 		g := wire.Size(generation)
 		w.Attempt, w.Generation = &attempt, &g

@@ -521,7 +521,7 @@ func Classify(r *Report, l *ticket.ObligationLedger, repoRoot string, src Source
 		if _, ok := found[e.ID]; ok || !inSubset(e.ID) {
 			continue
 		}
-		if e.State == ticket.ObligationOpen || e.State == ticket.ObligationDefect || e.State == ticket.ObligationBlocked {
+		if ticket.ObligationPending(e.State) {
 			res.Unmatched = append(res.Unmatched, e.ID)
 		}
 	}

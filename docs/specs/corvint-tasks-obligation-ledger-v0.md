@@ -23,6 +23,9 @@ under the owner's standing auto-accept, and are experimental. The agent-drafted 
 (a private preflight result cache, GitHub beamfall/corvint#1037, V1-1594) were accepted on
 2026-10-17 under the owner's standing auto-accept, and are experimental. The agent-drafted TOL-V0-051..054
 (an opt-in failure-signature ledger that refuses identical re-runs, GitHub beamfall/corvint#1048, V1-1605) were accepted on 2026-10-17 under the same standing auto-accept,
+and are experimental. The agent-drafted TOL-V0-055..059 (ledger migration blockers: a 128-byte
+alias, plan reruns and non-core rows, a `PARTIAL` state and witness provenance, GitHub
+beamfall/corvint#1071, V1-1649) were accepted on 2026-10-18 under the same standing auto-accept,
 and are experimental.
 The profile reuses unchanged the ticket, mutation,
 receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
@@ -35,7 +38,7 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
 - Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: a live Playwright 1.63 fixture before any crediting code can qualify.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
@@ -131,8 +134,9 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 - `TOL-V0-007`: `corvint-tasks ticket obligations set` MUST apply operation `OBLIGATIONS_SET` with
   the closed payload `{changes}`.
   - `changes` is 1..64 entries `{id, state, core, reason}`, sorted by unique `id`.
-  - `state` is null or one of `OPEN`, `DEFECT`, `BLOCKED`, `DEFERRED`. `core` is null or a
-    boolean. At least one of them is non-null, and `reason` is required.
+  - `state` is null or one of `OPEN`, `DEFECT`, `BLOCKED`, `DEFERRED` (and `PARTIAL`,
+    TOL-V0-058). `core` is null or a boolean. At least one of them is non-null, and `reason` is
+    required.
   - `WITNESSED` is reachable only through `OBLIGATIONS_WITNESS` (`TOL-V0-008`).
   - Demoting a `WITNESSED` entry clears its evidence and requires the reason.
   - Changing `core` is OWNER-only.
@@ -276,7 +280,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - `ALREADY_CLOSED` for a planned id the ledger holds as `WITNESSED` or `DEFERRED`.
 
   It exits 0 only when every listed open obligation is assigned to exactly one planned test, and
-  it writes nothing.
+  it writes nothing. TOL-V0-056 and TOL-V0-057 amend which obligations need a planned test and add
+  the optional `rerun` member.
 - `TOL-V0-021`: A CAL-V0-185 `stall` count MUST restart at zero when a ticket's observed
   `highWater.witnessed` rises within the same acceptance revision.
   - The comparison baseline is the optional `StallState` member `witnessed {acceptanceRevision,
@@ -483,7 +488,8 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
   - The seed item becomes `{id, alias?, title, core}` and the folded entry `{id, alias?, title,
     core, state, reason, evidence, updatedAt, updatedBy}`. A seed item or entry without `alias`
     keeps its exact TOL-V0-003/005 bytes, and the member is absent rather than null.
-  - An alias is 1..64 bytes of `[A-Za-z0-9._:-]` whose first and last bytes are letters or digits.
+  - An alias is 1..64 bytes of `[A-Za-z0-9._:-]` whose first and last bytes are letters or digits
+    (raised to 1..128 bytes by TOL-V0-055).
     Leading zeros are allowed (`M001`). Anything else refuses `MALFORMED`. Requiring a letter or
     digit at the ends keeps the trailing-punctuation rule of TOL-V0-036 unambiguous.
   - The alias is fixed by the seed that creates the entry. `set`, `--ids`, the plan document
@@ -677,6 +683,62 @@ input changes or the agent declares what it fixed.
   that cannot be read runs the job unguarded with status `SKIPPED` and the reason, and a failed
   ledger write is reported in `reason`.
 
+### Ledger migration blockers (GitHub #1071)
+
+Migrating an adopter's 4,562-row per-ticket ledger (GitHub beamfall/corvint#1071, V1-1649) hit
+five blockers. These requirements remove them without changing the event profile, and each new
+member is optional with the TOL-V0-034 precedent: absent, it keeps the exact earlier bytes.
+
+- `TOL-V0-055`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1071)) An
+  obligation alias (TOL-V0-034) MUST be 1..128 bytes, keeping the TOL-V0-034 grammar. An alias
+  outside that length MUST refuse `MALFORMED` with a detail that states its length and the
+  `1..128 bytes` limit, and writes nothing.
+- `TOL-V0-056`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1071)) A
+  plan test MAY carry an optional `rerun` member: 1..256 sorted unique obligation ids that the test
+  re-runs as regression checks.
+  - With `rerun` present, `obligations` MAY be empty (0..256 ids). Without it, `obligations` keeps
+    the TOL-V0-020 bound of 1..256.
+  - One test naming an id under both `obligations` and `rerun` refuses `MALFORMED`.
+  - A rerun id the ledger holds as `WITNESSED` is reported in the output member `reruns`
+    (`{id, tests}`, sorted by id). That member is present only when some test carries `rerun`, so a
+    plan without `rerun` keeps its exact output.
+  - A rerun id the ledger holds in any other state is the failing finding `RERUN_NOT_WITNESSED`;
+    a rerun id the ledger lacks is `UNKNOWN_OBLIGATION`.
+  - A `WITNESSED` or `DEFERRED` id under `obligations` stays `ALREADY_CLOSED`. `preflight --plan`
+    reports the same findings with remedies (TOL-V0-026).
+- `TOL-V0-057`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1071)) This
+  requirement amends which obligations TOL-V0-020 requires in a plan.
+  - `UNASSIGNED` MUST apply only to core obligations in state `OPEN` or `PARTIAL` with no planned
+    test.
+  - A non-core obligation, or a `DEFECT` or `BLOCKED` one, needs no plan entry.
+  - Any pending obligation (`OPEN`, `PARTIAL`, `DEFECT` or `BLOCKED`) that two or more tests list
+    under `obligations` is `SPLIT`.
+  - The check exits 0 exactly when it reports no finding.
+- `TOL-V0-058`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1071)) The
+  ledger MUST offer an optional `PARTIAL` state for an obligation with only some steps witnessed.
+  - `set` (TOL-V0-007) moves an obligation to or from `PARTIAL`, and the reason is required.
+  - `PARTIAL` is pending wherever `OPEN`, `DEFECT` and `BLOCKED` are: in preflight naming
+    (TOL-V0-025), witness classification, run-batch causes and source review. A witness credits a
+    `PARTIAL` obligation to `WITNESSED`.
+  - `PARTIAL` counts in `total` and never in `witnessed` or `coreWitnessed`, so it never raises
+    `highWater.witnessed` (TOL-V0-016, 021).
+- `TOL-V0-059`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1071)) A
+  witness (TOL-V0-008) MAY carry an optional closed `provenance` object. It is set with
+  `--test-commit OID`, `--environment-tree OID`, `--evidence-ref TEXT` and `--test-title TEXT`.
+  - Members: `testCommit` and `environmentTree`, each a 40- or 64-hex object name; `evidenceRef`,
+    1..256 bytes of non-blank prose; and `testTitle`, 1..256 bytes of non-blank prose. Every
+    member is optional, and at least one is named.
+  - The object is copied to the evidence of each entry that witness credits, and `show` reports it
+    per witness.
+  - Every given flag is validated, an explicitly empty value included: a flag given with an empty
+    value is a malformed OID or prose under its 1-byte minimum, never an absent member.
+  - Its prose members are secret-screened with the TOL-V0-009 screen. A match refuses
+    `SECRET_DETECTED`, and a malformed OID or out-of-bounds prose refuses `MALFORMED`; neither
+    writes.
+  - Provenance is caller-supplied and reported only. It is never resolved against Git, never
+    compared with the report, and never part of the TOL-V0-013 credit recomputation.
+  - A witness without it keeps its exact payload and evidence bytes.
+
 ## Failure modes and trust
 
 | Failure | Effect without this profile | Required behaviour |
@@ -711,6 +773,11 @@ input changes or the agent declares what it fixed.
 | An agent loops on an identical failing preflight or batch | Lanes and tokens are spent on a result already known | Opt-in `--refuse-repeat N` refuses the next run at an unchanged input digest, naming the signature and count; a changed input or an audited, single-use `--remediation` admits it (TOL-V0-051..053). |
 | The failure ledger is unreadable or wrong | A loop guard that refuses on bad state would block honest work | An unreadable ledger or input digest runs the job unguarded (`SKIPPED`); the ledger is private, opt-in and never evidence (TOL-V0-054). |
 | Older binary meets a record with the member | — | The closed reader refuses the record (fail-closed); see Rollout and rollback. |
+| An adopter's ids are longer than 64 bytes, or a plan must re-run witnessed rows and skip optional ones | A real ledger cannot migrate without renaming ids or faking plan entries | Aliases reach 128 bytes and the refusal names the limit (TOL-V0-055); `rerun` lists witnessed regression rows, and only core `OPEN` or `PARTIAL` rows must be planned (TOL-V0-056, 057). |
+| A partly witnessed row is recorded as `OPEN` or `WITNESSED` | Progress is hidden, or overstated | `PARTIAL` is pending and never counts as witnessed (TOL-V0-058). |
+| Witness provenance is wrong or holds a secret | A misleading or leaked reference is kept with the evidence | Provenance is reported only, never evidence the writer checks; its prose is secret-screened (TOL-V0-059). |
+| A provenance flag is given an empty value (an unset shell variable) | The witness writes without the provenance the caller meant to record | Every given flag is validated; an empty value refuses `MALFORMED` before any write (TOL-V0-059). |
+| A long dotted adopter id has three dot-separated runs of 10 or more bytes | The shared secret screen reads it as token-shaped and refuses the seed `SECRET_DETECTED` | Retained limit: the screen is shared and unchanged here; such an id needs a different separator. |
 
 ## Non-goals and simpler baseline
 
@@ -741,6 +808,8 @@ input changes or the agent declares what it fixed.
 - A default-on failure guard, a guard for `qualify` or `ticket obligations witness`, judging
   whether a declared remediation is real, or sharing the failure ledger across machines
   (TOL-V0-051..054).
+- Per-step progress counts, a step list for `PARTIAL`, checking provenance against Git or the
+  report, or treating a rerun of a witnessed row as a new witness (TOL-V0-055..059).
 
 The simpler baseline stays available: a body checklist plus the external script. This profile is
 justified only if the owner wants the queue and dispatcher to see proven progress natively.
@@ -767,6 +836,7 @@ fixture passes.
 | TOL-V0-037..046 (accepted, owner's standing auto-accept 2026-10-11) | GitHub #813 | `internal/tasks/ticket/obligations.go` (review-source codec, set and entry), `internal/tasks/intent/policy.go` (`requireSourceReview`), `internal/tasks/obligation/review.go` (preflight findings, legacy-cases reader, digest comparison), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/obligation_sources.go` (show and plan `sourceReview`), `internal/tasks/mutation/obligations.go` (screen) | `TestTOLV0037_ReviewSourceCodec`, `TestTOLV0039_LegacyLedgerBytesUnchanged` (`internal/tasks/ticket`); `TestTOLV0039_PolicyLeavesLedgerBytes`, `TestTOLV0040_PreflightRequiresSourceReview` (missing, blank query, empty searched, DEFERRED skipped, secret screen, policy off), `TestTOLV0042_StaleSourcesListed` (legacy-case, manual-case and legacy-spec staleness, WITNESSED kept, unresolved reasons, plan `ok` unchanged, no state written, schema, trailing-data and repeated-member refusal), `TestTOLV0043_LegacyCasesFIFORefused` (`internal/tasks/cli`) | a live test-management export imported and reviewed against a migrated suite (`NOT_RUN`) |
 | TOL-V0-047..050 (accepted, owner's standing auto-accept 2026-10-11) | V1-1594 (GitHub #1037) | `internal/tasks/store/worktree_state.go` (working-tree digest), `internal/tasks/cli/preflight_cache.go` (key, entry codec, replay, prune), `internal/tasks/cli/preflight.go` | `TestTOLV0047_PreflightCacheReplaysIdenticalInputs` (HIT replay, untracked, tracked, commit and implementation misses), `TestTOLV0048_PreflightFreshBypassesTheCache` (FRESH replace, refused replay, usage, SKIPPED), `TestTOLV0049_PreflightCacheIsBounded` (age miss, count and age pruning, foreign file kept), `TestTOLV0050_PreflightCacheStaysOutsideTheRepository` (`internal/tasks/cli`) | measured hit rate and saved time over a day of agent sessions (`NOT_RUN`) |
 | TOL-V0-051..054 (accepted, owner's standing auto-accept 2026-10-11) | V1-1605 (GitHub #1048) | `internal/tasks/cli/failure_signatures.go` (flags, signature, ledger, audit), `internal/tasks/cli/failure_lock_unix.go` (ledger lock), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/run_batch.go` | `TestTOLV0051_FailureLedgerIsOffByDefault` (off by default, flag validation, RECORDED count, CLEARED pass), `TestTOLV0052_RepeatedSignatureRefusesNamingSignatureAndCount` (typed refusal naming signature, count and digest; changed input admits), `TestTOLV0052_RunBatchRefusesRepeatedSignature` (refused before the test command and results directory, across `--out` dirs), `TestTOLV0053_RemediationClearsOnceWithAudit` (audit line, reuse refused, cache bypass), `TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning` (no repository or store change, mode 0700, SKIPPED), `TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold` (N=3), `TestTOLV0051_SignatureKeepsStructuralIDs` (AC-1 and AC-2 apart, run-specific numbers folded), `TestTOLV0054_ConcurrentRunsSerializeTheLedger` (eight concurrent failures, one reference given twice), `TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool` (`internal/tasks/cli`) | measured loop reduction across agent sessions (`NOT_RUN`) |
+| TOL-V0-055..059 (accepted, owner's standing auto-accept 2026-10-11) | V1-1649 (GitHub #1071) | `internal/tasks/wire/obligations.go` (alias limit), `internal/tasks/ticket/obligations.go` (`PARTIAL`, `ObligationPending`, provenance codec, witness fold), `internal/tasks/ticket/obligation_plan.go` (`rerun`, `RERUN_NOT_WITNESSED`, core-only `UNASSIGNED`), `internal/tasks/cli/obligations.go` (provenance flags, `reruns`), `internal/tasks/cli/preflight.go` (remedy), `internal/tasks/mutation/obligations.go` (screen), the pending checks in `internal/tasks/obligation` and `internal/tasks/cli/run_batch.go` | `TestTOLV0055_AliasLimit128` (110-row seed with 78-byte aliases, 128 admitted, 129 refused naming the limit, audit), `TestTOLV0056_0057_PlanRerunAndNonCore` (110-row plan with witnessed reruns and omitted non-core, `BLOCKED` and `DEFECT` rows passes; `RERUN_NOT_WITNESSED`, listed `SPLIT`, core `UNASSIGNED`, both-lists `MALFORMED`, old output unchanged), `TestTOLV0058_PartialNeverWitnessed` (counts, reason required, plan, witness credits), `TestTOLV0059_WitnessProvenance` (per-entry provenance, absent member kept, bad OID, secret) (`internal/tasks/cli`); `TestTOLV0020_PlanCheck` and `TestTOLV0026_PreflightPlanCheck` updated for TOL-V0-057; `TestTOLV0034_SeedWithAliases` refuses 129 bytes | the adopter's 4,562-row ledger migrated end to end (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -866,3 +936,12 @@ gives `--refuse-repeat`. The ledger directory and its `remediations.jsonl` under
 directory are the only new file state. Rollback is reverting the change and, optionally, deleting
 `corvint-tasks/failure-signatures`; an older binary never reads it, and deleting it only forgets
 counts (keep `remediations.jsonl` if the audit trail is wanted).
+
+The accepted TOL-V0-055..059 keep the `taskman-obligation-event/0` and `taskman-obligation-plan/0`
+profiles. Only a seed with an alias of 65..128 bytes, a set to `PARTIAL`, or a witness with
+`provenance` writes new bytes, in the retained request and the folded entry; a plan with `rerun`
+is a read-only input. This follows the TOL-V0-034 optional-member precedent: an older binary
+refuses such a request `MALFORMED` at its closed reader, so that ticket's ledger is `UNKNOWN` and
+its audit `INCONSISTENT`, never silently stripped. Rollback is reverting the change before any
+such write; after one, run the newer binary or restore the store from a backup taken before it.
+The same CAL-V0-131 profile question as TOL-V0-034 applies.

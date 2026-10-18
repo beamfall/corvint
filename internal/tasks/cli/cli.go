@@ -86,7 +86,7 @@ var ReadVerbs = []string{
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
 	"dispatch", "dispatch recover-reader", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release",
+	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release", "pool wait",
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
@@ -242,7 +242,7 @@ func Run(env Env) int {
 		if len(args) > 1 && args[1] == "acquire" && leaseDetachRequested(args[2:]) {
 			return leaseDetach(env, "pool acquire", args[2:])
 		}
-		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release") {
+		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release" || args[1] == "wait") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
@@ -443,6 +443,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
 		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]]",
 		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
+		"corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL)",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]]",
@@ -1593,6 +1594,10 @@ func queueStatus(env Env, args []string) *wire.Result {
 			}
 			attempts = in.Attempts
 			fallback = serialFallbackDeferredValue(in)
+			// PSR-V0-135: the live pool waitlist, only when non-empty.
+			if v, ok := poolWaitlistValue(in, observedAt); ok {
+				o.Set("poolWaitlist", v)
+			}
 		}
 		o.Set("serialFallbackDeferred", fallback)
 		if v, ok := obligationsSummary(st.Inventory); ok {

@@ -30,6 +30,7 @@ const (
 	LeasePoolSweepFinish = "POOL_SWEEP_FINISH"
 	LeasePoolAcquire     = "POOL_ACQUIRE"
 	LeasePoolRelease     = "POOL_RELEASE"
+	LeasePoolWait        = "POOL_WAIT" // PSR-V0-130: a bounded waitlist place.
 	LeaseClaim           = "CLAIM"
 	LeaseClaimNext       = "CLAIM_NEXT"
 	LeaseRenew           = "RENEW"
@@ -86,6 +87,9 @@ type LeaseRequest struct {
 	// Source is the REVISION:TREE pair a POOL_ACQUIRE targets, which the
 	// pool's allowedSources must hold (PSR-V0-081); empty otherwise.
 	Source string
+	// WaitSeconds is a POOL_WAIT's registration lifetime, at most the pool's
+	// maxWaitSeconds (PSR-V0-130); empty otherwise.
+	WaitSeconds wire.Count
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -142,6 +146,7 @@ const (
 	fieldSlotExclusive
 	fieldSlotClass
 	fieldSource
+	fieldWait
 )
 
 type leaseShape struct{ required, allowed int }
@@ -150,6 +155,7 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
 	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
 	LeasePoolAcquire:     {fieldAttempt | fieldGeneration | fieldPool, fieldAttempt | fieldGeneration | fieldPool | fieldExclusions | fieldAuthors | fieldSource},
+	LeasePoolWait:        {fieldPool | fieldWait, fieldPool | fieldWait | fieldTicket | fieldHolder | fieldAttempt | fieldGeneration},
 	LeasePoolRelease:     {fieldAttempt | fieldGeneration | fieldAllocation, fieldAttempt | fieldGeneration | fieldAllocation},
 	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
 	LeaseProgram:         {fieldEvidence, fieldEvidence},
@@ -176,7 +182,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -200,6 +206,9 @@ func checkShape(l *LeaseRequest) error {
 	}
 	if l.Verb == LeaseWiden && (bits&fieldScope != 0) == (bits&fieldWhole != 0) {
 		return malformed("WIDEN takes paths or the whole repository, exactly one")
+	}
+	if l.Verb == LeasePoolWait && bits != fieldPool|fieldWait|fieldTicket|fieldHolder && bits != fieldPool|fieldWait|fieldAttempt|fieldGeneration {
+		return malformed("POOL_WAIT names a ticket and holder, or an attempt and its generation, exactly one")
 	}
 	if l.SlotExclusive && bits&(fieldSlotCount|fieldSlotClass) != 0 {
 		return malformed("an exclusive slot request takes no count or class")
@@ -333,6 +342,15 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 	if l.Source != "" {
 		if _, e := intent.ParsePoolSource("source", l.Source); e != nil {
 			return e
+		}
+	}
+	if l.WaitSeconds != "" {
+		n, e := wire.ParseCount("waitSeconds", string(l.WaitSeconds))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > intent.MaxPoolWaitSeconds {
+			return wire.Errorf(wire.CodeLimitExceeded, "waitSeconds", "wait seconds outside 1..%d", intent.MaxPoolWaitSeconds)
 		}
 	}
 	if e := checkMinutes(l.LeaseMinutes); e != nil {
@@ -479,6 +497,10 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.Source != "" {
 		v.Obj.Set("source", s(l.Source))
 	}
+	// PSR-V0-130: joins only the POOL_WAIT preimage.
+	if l.WaitSeconds != "" {
+		v.Obj.Set("waitSeconds", s(string(l.WaitSeconds)))
+	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -555,6 +577,7 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeaseProgram:         planProgram,
 	LeasePoolSafe:        planPoolSafe,
 	LeasePoolAcquire:     planPoolAcquire,
+	LeasePoolWait:        planPoolWait,
 	LeasePoolRelease:     planPoolRelease,
 	LeasePoolPrepare:     planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
@@ -586,7 +609,39 @@ func planLease(r Request, in Input, st inputState) leaseOutcome {
 	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
 	}
-	return leasePlanners[r.Lease.Verb](c)
+	return c.pruneWaitlist(leasePlanners[r.Lease.Verb](c))
+}
+
+// pruneWaitlist drops the dead waitlist entries from any pools.json the
+// planned outcome posts, whichever verb wrote it, judged against the
+// attempts it posts (PSR-V0-133). A posted waitlist that is all live, or
+// empty, is left byte-identical.
+func (c leaseContext) pruneWaitlist(out leaseOutcome) leaseOutcome {
+	raw, ok := out.posts["pools.json"]
+	if !ok {
+		return out
+	}
+	state, e := snapshot.DecodePools(raw)
+	if e != nil || len(state.Waiters) == 0 {
+		return out
+	}
+	attempt := func(id string) *snapshot.Attempt {
+		if b, ok := out.posts[attemptPath(id)]; ok {
+			if a, e := snapshot.DecodeAttempt(b); e == nil {
+				return a
+			}
+		}
+		return c.st.attempts[id]
+	}
+	live := liveWaiters(state.Waiters, state, c.st.policy, c.st.tickets, attempt, c.in.RecordedAt)
+	if len(live) == len(state.Waiters) {
+		return out
+	}
+	state.Waiters = live
+	if out.posts["pools.json"], e = state.Encode(); e != nil {
+		return c.fail(e)
+	}
+	return out
 }
 
 // checkClock refuses a transaction recorded earlier than the head receipt,
@@ -684,6 +739,9 @@ func (c leaseContext) write(a *snapshot.Attempt, entries []snapshot.ReservationE
 	}
 	posts := map[string][]byte{attemptPath(a.AttemptID): raw}
 	if e = c.poolPosts(a, posts); e != nil {
+		return c.fail(e)
+	}
+	if e = c.waitlistPosts(a, posts); e != nil {
 		return c.fail(e)
 	}
 	if entries != nil {
