@@ -1484,8 +1484,12 @@ and container qualification; full fallback remains available.
   GitHub issue) Local Windows vet before push. (1) The Makefile target `windows-vet` SHALL run
   exactly the `go vet` commands of the AFP-V0-042 step, in the same order and module directories
   (the root module, then `interop/cem01-go`), with the same file-selecting environment as the
-  `go-static` job: `CGO_ENABLED=0 GOOS=windows GOARCH=amd64`, `GOTOOLCHAIN=local`, `GOWORK=off` and
-  an empty `GOFLAGS`, so no build tag is added and `_test.go` files are type-checked. (2) The
+  step's effective environment (the `go-static` job env with the step's own `env` merged over it):
+  `CGO_ENABLED=0 GOOS=windows GOARCH=amd64`, `GOTOOLCHAIN=local`, `GOWORK=off` and an empty
+  `GOFLAGS`, so no build tag is added and `_test.go` files are type-checked. It SHALL also set
+  `GOENV=off`, so a value saved by `go env -w` (which an empty `GOFLAGS` falls back to) cannot
+  change the selected files, and SHALL depend on the `go-version` target, so it runs only on the
+  `go1.27.2` toolchain CI's `setup-go` pins. (2) The
   `AGENTS.md` Verify section SHALL declare `make windows-vet` in a shell fence and scope it, in a
   sentence naming the command, to a change that touches a `.go`, `go.mod` or `go.sum` file, so
   `corvint affected` lists it as a `conditional` check (AFP-V0-009, decision 0531) and an agent
@@ -1502,9 +1506,12 @@ and container qualification; full fallback remains available.
   scoping sentence carries it), no pre-push hook, no `GOOS=linux GOARCH=arm64` run (it stays in
   `cross-vet`), and no new `GATE_STEPS` entry (`cross-vet` already covers Windows in `make gate`).
   Failure modes: a target that drifts from the step (another GOOS, a tag in `GOFLAGS`, a dropped
-  module) fails `TestAFPV0054WindowsVetTargetMatchesTheCIStep`; an agent that skips the check is
+  module, a dropped `GOENV=off` or `go-version` prerequisite) fails
+  `TestAFPV0054WindowsVetTargetMatchesTheCIStep`; a tag added in the step's own `env` fails it too
+  (`TestAFPV0054StepEnvOverridesJobEnv`); a saved `go env -w GOFLAGS` is ignored
+  (`TestAFPV0054WindowsVetIgnoresSavedGoEnv`); an agent that skips the check is
   still stopped by the unchanged AFP-V0-042 step, one CI round later. Falsifier: the fixture of (3)
-  passes `make windows-vet`'s root-module command. Acceptance evidence: the three `TestAFPV0054*`
+  passes `make windows-vet`'s root-module command. Acceptance evidence: the five `TestAFPV0054*`
   tests, mutation checks and a `corvint affected` run on this tree listing the conditional check
   (build log 2026-10-18-v1-1719-local-windows-vet). Rollback: delete the target, the `AGENTS.md`
   paragraph and fence, and the tests.
@@ -1630,7 +1637,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-052 | The job-list read in `.github/forward-rows/collect.sh`, `infra` and `$explained` in `row.jq`, `ROW_INFRA` in `classify.sh`, the `INFRA` window in `bar.jq` | `TestAFPV0029ForwardRowsAndShadowBar` (INFRA on the run 38686348902 shape for a queue and a pull-request row; INCOMPLETE with no hosted failure named, a second missing shard, the named shard's outcomes present, a queue selection gap, a collector reason, a shard beyond the count and a non-FLAKY miss; INFRA keeps a FLAKY count), `TestAFPV0047CollectorNamesRows` (real job list of run 38686348902 names shard 5; unreadable job list and a shard whose tests failed stay INCOMPLETE), `TestAFPV0047BarCountsArtifactNames` (three INFRA rows ahead of 20 complete rows: MET, clear); BASE-versus-fixed counts and mutations in build log 2026-10-16-v1-1514-shadow-infra-failure-reason; hosted INFRA row `NOT_OBSERVED` |
 | AFP-V0-051 | `FilePathTokens` in `internal/liveverify/affected/golang/golang.go`; `check`, `named`, `covered`, `locatesRoot`, `tracked` and `readLiterals` in `tools/test-read-scopes-check`; `.corvint/test-read-scope-literals.json`; the `test-read-scopes-check` Makefile target in `GATE_STEPS` and the `doc-gates` step list of `.github/workflows/ci.yml` | `TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351` (the V1-1340 shape: a root-locating package naming the tamper matrix with the entry, its parent or a file below it declared, removed, or only a sibling declared; a recorded and a stale literal; blank-reason, empty-package, unknown-member and invalid-declaration refusals; a non-root-locating package, the package's ancestor, a case-folded literal and the change-evidence map never reported; a literal naming both an in-package and a root path reports the undeclared root path); the real tree with the `internal/cem/verify` tamper-matrix entry removed exits 1 naming the package and path, and the current tree exits 0; mutations in build log 2026-10-15-gate-tooling |
 | AFP-V0-053 | `toolIdentity` Git field, `testEnv`, the `execute` Git guards in `tools/corvint-pr-tests/main.go`; the resume identity check in `shadow` and `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestSelectedFailureAndFallback` (Git drift refuses execution; `frozenWithoutGit`: a corpus frozen without a Git identity or under another Git is refused before any checkout, and its row is not reused), `TestExecuteRequiresGitIdentity`, `TestTestEnvironmentSilencesGraftAdvice`, `TestExecuteGivesTestsSilencedGraftEnvironment`, `TestContainerRunResult`; controlled base/target replay in build log 2026-10-16-ci-shadow-historical-compat; hosted re-qualification NOT_RUN |
-| AFP-V0-054 | `windows-vet` and `WINDOWS_VET_ENV` in `Makefile`; the `make windows-vet` fence and scoping sentence of the `AGENTS.md` Verify section | `TestAFPV0054WindowsVetTargetMatchesTheCIStep` (parity with the go-static step and job env), `TestAFPV0054AffectedListsWindowsVet` (conditional advice check from the real `AGENTS.md`), `TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper` (unix-only helper fixture: native vet passes, the recipe fails); mutations and the `corvint affected` run in build log 2026-10-18-v1-1719-local-windows-vet |
+| AFP-V0-054 | `windows-vet` and `WINDOWS_VET_ENV` in `Makefile`; the `make windows-vet` fence and scoping sentence of the `AGENTS.md` Verify section | `TestAFPV0054WindowsVetTargetMatchesTheCIStep` (parity with the go-static step and its effective env, `GOENV=off`, the `go-version` prerequisite), `TestAFPV0054StepEnvOverridesJobEnv` (step-level env mutation), `TestAFPV0054WindowsVetIgnoresSavedGoEnv` (saved `go env -w` GOFLAGS), `TestAFPV0054AffectedListsWindowsVet` (conditional advice check from the real `AGENTS.md`), `TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper` (unix-only helper fixture: native vet passes, the recipe fails); mutations and the `corvint affected` run in build log 2026-10-18-v1-1719-local-windows-vet |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

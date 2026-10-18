@@ -460,10 +460,12 @@ shell-test: go-format-test go-archive-gate-test spec-requirements-test traceabil
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no
-# build tags) and GOWORK=off as that job, over the same two modules, test files included. Run it
+# build tags) and GOWORK=off as that job, over the same two modules, test files included, on the
+# go1.27.2 CI pins (go-version). GOENV=off ignores settings saved by `go env -w`, which an empty
+# GOFLAGS alone would fall back to; the CI runner has none. Run it
 # before pushing a change that touches a .go, go.mod or go.sum file (AFP-V0-054,
 # docs/specs/affected-plan-v0.md); TestAFPV0054 keeps the two in step.
-WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
-windows-vet:
+WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+windows-vet: go-version
 	$(WINDOWS_VET_ENV) go vet ./...
 	cd interop/cem01-go && $(WINDOWS_VET_ENV) go vet ./...

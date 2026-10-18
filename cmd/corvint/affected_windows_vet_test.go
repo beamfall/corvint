@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,45 +68,95 @@ func readRepositoryFile(t *testing.T, name string) []string {
 	return strings.Split(string(raw), "\n")
 }
 
+// ciWindowsVetStep is the name of the go-static step AFP-V0-054 mirrors.
+const ciWindowsVetStep = "- name: Windows vet including test files (AFP-V0-042)"
+
 // ciWindowsVetCommands returns the go vet lines of the go-static step
-// "Windows vet including test files (AFP-V0-042)" over the go-static job env.
+// "Windows vet including test files (AFP-V0-042)" of ci.yml.
 func ciWindowsVetCommands(t *testing.T) []windowsVetCommand {
 	t.Helper()
-	lines := readRepositoryFile(t, ".github/workflows/ci.yml")
+	return parseCIWindowsVetCommands(t, readRepositoryFile(t, ".github/workflows/ci.yml"))
+}
+
+// parseCIWindowsVetCommands reads the go vet lines of the Windows vet step over
+// its effective environment: the go-static job env with the step's own env
+// merged over it, as GitHub Actions applies them.
+func parseCIWindowsVetCommands(t *testing.T, lines []string) []windowsVetCommand {
+	t.Helper()
 	start := slices.Index(lines, "  go-static:")
 	if start < 0 {
 		t.Fatal("ci.yml has no go-static job")
 	}
-	env, inEnv := map[string]string{}, false
-	var commands []windowsVetCommand
+	jobEnv, stepEnv := map[string]string{}, map[string]string{}
+	var target map[string]string // the env block being read, if any
+	entryIndent := ""            // the indent of that block's entries
+	var vetLines []string
 	inStep := false
+	envEntry := func(line, indent string) bool {
+		return strings.HasPrefix(line, indent) && !strings.HasPrefix(line, indent+" ")
+	}
 	for _, line := range lines[start+1:] {
-		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "   ") && strings.HasSuffix(line, ":") {
+		if envEntry(line, "  ") && strings.HasSuffix(line, ":") {
 			break // the next job
 		}
 		trimmed := strings.TrimSpace(line)
 		switch {
 		case line == "    env:":
-			inEnv = true
+			target, entryIndent = jobEnv, "      "
 			continue
-		case inEnv && strings.HasPrefix(line, "      ") && !strings.HasPrefix(line, "       "):
+		case inStep && line == "        env:":
+			target, entryIndent = stepEnv, "          "
+			continue
+		case target != nil && envEntry(line, entryIndent):
 			key, value, _ := strings.Cut(trimmed, ":")
-			env[key] = strings.Trim(strings.TrimSpace(value), `"`)
+			target[key] = strings.Trim(strings.TrimSpace(value), `"`)
 			continue
 		}
-		inEnv = false
+		target = nil
 		if strings.HasPrefix(trimmed, "- name: ") {
-			inStep = trimmed == "- name: Windows vet including test files (AFP-V0-042)"
+			inStep = trimmed == ciWindowsVetStep
 			continue
 		}
 		if inStep && strings.Contains(trimmed, "go vet") {
-			commands = append(commands, parseWindowsVetLine(t, trimmed, env))
+			vetLines = append(vetLines, trimmed)
 		}
 	}
-	if len(commands) == 0 {
+	if len(vetLines) == 0 {
 		t.Fatal("ci.yml go-static has no Windows vet step with a go vet line")
 	}
+	effective := map[string]string{}
+	for key, value := range jobEnv {
+		effective[key] = value
+	}
+	for key, value := range stepEnv {
+		effective[key] = value
+	}
+	commands := make([]windowsVetCommand, 0, len(vetLines))
+	for _, line := range vetLines {
+		commands = append(commands, parseWindowsVetLine(t, line, effective))
+	}
 	return commands
+}
+
+// windowsVetMismatches lists every way the local commands differ from CI's.
+func windowsVetMismatches(ci, local []windowsVetCommand) []string {
+	if len(ci) != len(local) {
+		return []string{fmt.Sprintf("CI runs %d go vet commands, make windows-vet runs %d", len(ci), len(local))}
+	}
+	var mismatches []string
+	for index := range ci {
+		if ci[index].Dir != local[index].Dir || ci[index].Argv != local[index].Argv {
+			mismatches = append(mismatches, fmt.Sprintf("command %d: CI %q in %q, make %q in %q", index, ci[index].Argv, ci[index].Dir, local[index].Argv, local[index].Dir))
+		}
+		for _, key := range windowsVetKeys {
+			got, inLocal := local[index].Env[key]
+			want, inCI := ci[index].Env[key]
+			if !inLocal || !inCI || got != want {
+				mismatches = append(mismatches, fmt.Sprintf("command %d %s: CI %q (set %v), make %q (set %v)", index, key, want, inCI, got, inLocal))
+			}
+		}
+	}
+	return mismatches
 }
 
 // makeWindowsVetCommands returns the windows-vet recipe of the Makefile with
@@ -122,7 +173,9 @@ func makeWindowsVetCommands(t *testing.T) []windowsVetCommand {
 	if environment == "" {
 		t.Fatal("Makefile defines no WINDOWS_VET_ENV")
 	}
-	start := slices.Index(lines, "windows-vet:")
+	start := slices.IndexFunc(lines, func(line string) bool {
+		return line == "windows-vet:" || strings.HasPrefix(line, "windows-vet: ")
+	})
 	if start < 0 {
 		t.Fatal("Makefile has no windows-vet target")
 	}
@@ -138,26 +191,96 @@ func makeWindowsVetCommands(t *testing.T) []windowsVetCommand {
 }
 
 // AFP-V0-054 (1): the Makefile windows-vet target runs exactly the CI step's
-// go vet commands, module by module, under the same file-selecting variables.
+// go vet commands, module by module, under the same file-selecting variables,
+// with persisted `go env -w` settings off and the go-version check first.
 func TestAFPV0054WindowsVetTargetMatchesTheCIStep(t *testing.T) {
 	ci, local := ciWindowsVetCommands(t), makeWindowsVetCommands(t)
-	if len(ci) != len(local) {
-		t.Fatalf("CI runs %d go vet commands, make windows-vet runs %d", len(ci), len(local))
-	}
-	for index := range ci {
-		if ci[index].Dir != local[index].Dir || ci[index].Argv != local[index].Argv {
-			t.Errorf("command %d: CI %q in %q, make %q in %q", index, ci[index].Argv, ci[index].Dir, local[index].Argv, local[index].Dir)
-		}
-		for _, key := range windowsVetKeys {
-			got, inLocal := local[index].Env[key]
-			want, inCI := ci[index].Env[key]
-			if !inLocal || !inCI || got != want {
-				t.Errorf("command %d %s: CI %q (set %v), make %q (set %v)", index, key, want, inCI, got, inLocal)
-			}
-		}
+	for _, mismatch := range windowsVetMismatches(ci, local) {
+		t.Error(mismatch)
 	}
 	if ci[0].Env["GOOS"] != "windows" || ci[0].Env["GOFLAGS"] != "" {
 		t.Fatalf("CI step is not an untagged GOOS=windows vet: %+v", ci[0].Env)
+	}
+	for index, command := range local {
+		if command.Env["GOENV"] != "off" {
+			t.Errorf("make windows-vet command %d runs with GOENV=%q, want off", index, command.Env["GOENV"])
+		}
+	}
+	lines := readRepositoryFile(t, "Makefile")
+	if !slices.Contains(lines, "windows-vet: go-version") {
+		t.Error("Makefile windows-vet does not depend on go-version")
+	}
+	start := slices.Index(lines, "go-version:")
+	if start < 0 || start+1 >= len(lines) || !strings.Contains(lines[start+1], `= "go1.27.2"`) {
+		t.Fatal("Makefile go-version does not check go1.27.2")
+	}
+	ciYAML := readRepositoryFile(t, ".github/workflows/ci.yml")
+	if !slices.Contains(ciYAML, `          go-version: "1.27.2"`) {
+		t.Error("ci.yml setup-go no longer pins 1.27.2; update go-version and AFP-V0-054")
+	}
+}
+
+// AFP-V0-054 (1): a step-level env entry overrides the job env, so a tag added
+// to the Windows vet step's own env is seen and breaks parity.
+func TestAFPV0054StepEnvOverridesJobEnv(t *testing.T) {
+	lines := readRepositoryFile(t, ".github/workflows/ci.yml")
+	index := slices.Index(lines, "      "+ciWindowsVetStep)
+	if index < 0 {
+		t.Fatal("ci.yml has no Windows vet step")
+	}
+	envAt := -1
+	for offset, line := range lines[index+1:] {
+		if line == "        env:" {
+			envAt = index + 1 + offset
+			break
+		}
+		if strings.HasPrefix(strings.TrimSpace(line), "- name: ") {
+			break
+		}
+	}
+	if envAt < 0 {
+		t.Fatal("Windows vet step has no env block to mutate")
+	}
+	mutated := slices.Insert(slices.Clone(lines), envAt+1, `          GOFLAGS: "-tags=special"`)
+	ci := parseCIWindowsVetCommands(t, mutated)
+	if ci[0].Env["GOFLAGS"] != "-tags=special" {
+		t.Fatalf("step-level GOFLAGS not merged over the job env: %q", ci[0].Env["GOFLAGS"])
+	}
+	if len(windowsVetMismatches(ci, makeWindowsVetCommands(t))) == 0 {
+		t.Fatal("a step-level GOFLAGS override did not break parity")
+	}
+}
+
+// AFP-V0-054 (1): GOENV=off keeps a GOFLAGS saved by `go env -w` out of the
+// recipe; an empty GOFLAGS alone falls back to the saved value.
+func TestAFPV0054WindowsVetIgnoresSavedGoEnv(t *testing.T) {
+	goTool, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatalf("go tool: %v", err)
+	}
+	saved := filepath.Join(t.TempDir(), "go.env")
+	if err := os.WriteFile(saved, []byte("GOFLAGS=-tags=local\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	goflags := func(env map[string]string) string {
+		run := exec.Command(goTool, "env", "GOFLAGS")
+		run.Env = append(os.Environ(), "GOENV="+saved)
+		for key, value := range env {
+			run.Env = append(run.Env, key+"="+value)
+		}
+		output, err := run.CombinedOutput()
+		if err != nil {
+			t.Fatalf("go env: %v\n%s", err, output)
+		}
+		return strings.TrimSpace(string(output))
+	}
+	if got := goflags(map[string]string{"GOFLAGS": "", "GOTOOLCHAIN": "local"}); got != "-tags=local" {
+		t.Fatalf("control: empty GOFLAGS with a saved value gave %q, want -tags=local", got)
+	}
+	for index, command := range makeWindowsVetCommands(t) {
+		if got := goflags(command.Env); got != "" {
+			t.Errorf("make windows-vet command %d sees saved GOFLAGS %q", index, got)
+		}
 	}
 }
 
