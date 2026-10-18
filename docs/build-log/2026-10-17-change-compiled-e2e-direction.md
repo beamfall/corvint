@@ -30,6 +30,23 @@ retired. File the umbrella ticket and the first slice."
   95% total seeded-regression parity, zero escapes). Corvint never deletes or disables a hosted
   test. The gate values are owner question 4.
 
+## Independent review
+
+One read-only Codex round (gpt-6-astra) on the draft returned eight findings. All eight were
+confirmed against the cited specs and fixed in this change:
+
+1. `PRESERVES` now requires every base repeat to pass. Mixed results, or a base failure off the
+   outcome assertion, read `INCONCLUSIVE`.
+2. Both BBF-V0 controls must read identity-matched `killed` before either positive verdict.
+3. Retirement needs candidate evidence: a minimum number of changes run and of seeded regressions
+   caught. A zero denominator reads failed. A change with `UNKNOWN` obligations counts as misses and
+   escapes.
+4. A compilation over `UNKNOWN` reach reads `INCOMPLETE`.
+5. `--out` paths must resolve outside the repository root.
+6. The minimum `e2e-block-declarations/0` member set is now defined, along with the input binding.
+7. The content digest is SHA-256 with the digest field left empty while hashing.
+8. Aggregates are computed before truncation, and a consumer refuses a truncated input.
+
 ## Not done
 
 No implementation, tests or qualification. Delivery stays `not-started`.

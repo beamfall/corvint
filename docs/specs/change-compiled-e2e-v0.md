@@ -124,18 +124,32 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   `e2e-block-catalog/0` JSON document listing every admitted block of the seven kinds in the
   Definitions, each with its kind, stable ID, Git blob, line span and the source relation that
   admitted it, sorted by kind then ID, with the catalog content digest. It MUST be read-only and
-  MUST NOT write outside an explicit `--out` file.
+  write only to stdout or an explicit `--out` file. Every `--out` path in this spec MUST resolve
+  outside the repository root, and `.git/` and `.corvint/` are inside that root. Any other path MUST
+  refuse with `e2e-out-not-allowed` before anything is written (invariant 4).
 - `CCE-V0-002`: `page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP-V0,
   ANL-V0 and AFU-V1 relations; a block those relations read `STALE`, `UNKNOWN`, `UNPROVEN` or
   `inferred` MUST be listed under `unadmitted` with its reason and MUST NOT be admitted.
 - `CCE-V0-003`: `input` and `fixture` blocks MUST come only from a repository-declared, tracked
-  `.corvint/e2e-blocks.json` (`e2e-block-declarations/0`) whose schema is closed. A missing file
-  means no input or fixture blocks, reported as the unknown `blocks-not-declared`; an invalid file
-  MUST refuse with `e2e-blocks-invalid` and admit nothing from it.
+  `.corvint/e2e-blocks.json` (`e2e-block-declarations/0`), read at `--rev` through Git, whose
+  schema is closed:
+  - the top level holds only `schema`, `inputs` and `fixtures`;
+  - an input is `input_id`, `screen_id`, `locator` (an AFU-V1-026 role and name, or a test ID) and
+    `values`; each value is `value_id`, `value` (a string) and `class` (`valid` or `invalid`);
+  - a fixture is `fixture_id`, `satisfies` (AFU-V1 precondition IDs), `setup` and `cleanup`; each of
+    `setup` and `cleanup` names a `page_object` and a `method` that must be a callable `page-object`
+    block.
+
+  The compiler applies an input value only as a Playwright `fill` on the input's own locator. A
+  missing file means no input or fixture blocks, reported as the unknown `blocks-not-declared`. An
+  unknown member, a wrong type, a duplicate ID or an unresolved reference MUST refuse with
+  `e2e-blocks-invalid` and admit nothing from the file.
 - `CCE-V0-004`: `corvint e2e obligations [--root PATH] --base SHA --head SHA` MUST map the diff to
   obligations through the existing impact, affected-plan and map relations, listing each reached
   outcome with the changed span and the chain that reaches it. When any changed span's reach cannot
   be bounded, the report MUST read `UNKNOWN` overall and name the spans; it MUST NOT read `NONE`.
+  A compilation over an `UNKNOWN` report MUST read `INCOMPLETE` overall with those spans, even when
+  every `REACHED` obligation compiled or none was reached.
 - `CCE-V0-005`: `corvint e2e compile` MUST emit, for each `REACHED` obligation, at most one compiled
   scenario that: enters the obligation's screen over one admitted `path` block (shortest proven
   chain, then lexical order); satisfies each precondition with one admitted `fixture` block; drives
@@ -146,22 +160,33 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   the reason. It MUST NOT emit a selector, URL, input value or expected value that is not the exact
   text of an admitted block.
 - `CCE-V0-007`: Compilation MUST be deterministic: identical catalog digest, base, head, obligation
-  and compiler version MUST produce byte-identical scenario files, and each file MUST carry a header
-  comment with those five values and its own content digest. Compiled files MUST be written only
-  under an explicit `--out` directory that is not a tracked test directory; the compiler MUST NOT
-  write into the repository's tracked tree.
+  and compiler version MUST produce byte-identical scenario files. Each file MUST carry a header
+  comment with those five values and its own content digest. The digest is SHA-256 over the file's
+  bytes with the digest value left empty while hashing (the ANL-V0-005 convention), and the catalog
+  digest uses the same rule. Compiled files MUST be written only under an explicit `--out`
+  directory, under the CCE-V0-001 `--out` rule.
 - `CCE-V0-008`: Running and proving are separate, opt-in and executed by a companion
   (`corvint-e2e-prove`), never by a read command. The companion MUST run each compiled scenario
   through the existing Playwright provider path at head with repeats (default 5, retries 0, one
   worker) and at base with the same settings, against a disposable workspace per BBF-V0's mutation
   boundary, and MUST bind every run to a PWP receipt.
-- `CCE-V0-009`: The discrimination verdict MUST be, in this order of precedence: `INCONCLUSIVE` when
-  any required run produced no qualified receipt; `UNSTABLE` when PWR-V0 classifies the head pool
-  `INTERMITTENT`; `FAILS_AT_HEAD` when any head repeat fails; `CONTROL_SURVIVED` when the scenario
-  still passes under the BBF-V0 `wrong-locator` or `wrong-expected-value` control applied to its
-  outcome assertion; `DISCRIMINATES` when every base repeat fails and PWR-V0 places the failure on
-  the outcome assertion's own location; otherwise `PRESERVES`. `PRESERVES` MUST be reported as a
-  regression-preservation check only and MUST NOT be described as detecting the change.
+- `CCE-V0-009`: The discrimination verdict MUST be the first of these that holds:
+  1. `INCONCLUSIVE` when any required run produced no qualified receipt.
+  2. `UNSTABLE` when PWR-V0 classifies the head pool `INTERMITTENT`.
+  3. `FAILS_AT_HEAD` when any head repeat fails.
+  4. `CONTROL_SURVIVED` when the BBF-V0 `wrong-locator` or `wrong-expected-value` control, applied
+     to the outcome assertion at head, reads `survived`.
+  5. `INCONCLUSIVE` when either control reads anything other than `killed` under BBF-V0-005/006 with
+     its criterion, test, product and environment identities matched (for example `invalid_control`,
+     `infrastructure_failed` or `not_run`).
+  6. `DISCRIMINATES` when every base repeat fails and PWR-V0 places every failure on the outcome
+     assertion's own location.
+  7. `PRESERVES` when every base repeat passes.
+  8. `INCONCLUSIVE` otherwise: mixed base results, or a base failure anywhere but the outcome
+     assertion.
+
+  `PRESERVES` MUST be reported as a regression-preservation check only and MUST NOT be described as
+  detecting the change.
 - `CCE-V0-010`: A compiled scenario MUST NOT read above `candidate` unless its verdict is
   `DISCRIMINATES` or `PRESERVES`; a passing compiled scenario MUST NOT narrow, skip or replace any
   hosted test's selection in V0.
@@ -169,20 +194,32 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   of merged-change base/head pairs, digest-pinned before the first run) and report, per change and
   in total: obligations by state, scenarios by verdict, hosted affected tests run, seeded
   regressions (BBF-V0 controls) caught by each side, real hosted failures the compiled side missed
-  (escapes), and wall-clock runtime of each side. Changes whose obligations read `UNKNOWN` MUST
-  count against the compiled side.
+  (escapes), and wall-clock runtime of each side. For a change whose obligations read `UNKNOWN`,
+  the compiled side MUST be counted as missing every seeded regression and every real failure the
+  hosted side caught in that change. Each counts as a miss in parity and as an escape.
 - `CCE-V0-012`: A hosted test MAY be listed as a retirement candidate only when all of these hold
-  over the shadow window: every outcome it asserts is an admitted `outcome` block; for every change
-  in the window where it ran, the compiled scenarios caught every seeded regression it caught; the
-  compiled side had zero escapes against it; and the window size and parity threshold equal the
-  frozen gate values in Shadow evaluation and retirement. The report MUST list each held criterion
-  with its evidence, and each failed criterion for a test that is not a candidate.
+  over the shadow window:
+  - every outcome it asserts is an admitted `outcome` block;
+  - it ran in at least the frozen minimum number of window changes and caught at least the frozen
+    minimum number of seeded regressions;
+  - for every change in the window where it ran, the compiled scenarios caught every seeded
+    regression it caught;
+  - the compiled side had zero escapes against it;
+  - the window size and parity thresholds equal the frozen gate values in Shadow evaluation and
+    retirement.
+
+  A criterion whose denominator is zero MUST read failed, never vacuously held. The report MUST list
+  each held criterion with its evidence, and each failed criterion for a test that is not a
+  candidate.
 - `CCE-V0-013`: Corvint MUST NOT delete, disable, skip or move a hosted test, and MUST NOT write a
   retirement into any configuration. A retirement candidate is a proposal for the owner to act on.
 - `CCE-V0-014`: Every emitted document (`catalog`, `obligations`, `compile`, `prove`, `shadow`) MUST
   carry the input revisions and digests it was computed from and MUST stay within a byte cap
   (default 1 MiB), truncating to a deterministic prefix with an explicit `truncated` count rather
-  than silently dropping entries.
+  than silently dropping entries. Verdicts, states, counts and denominators MUST be computed over
+  the complete data before truncation, and truncation MUST NOT change them. A command that consumes
+  another's document (`compile` reading a catalog or obligations, `shadow` reading proofs) MUST
+  refuse a truncated input with `e2e-input-truncated`.
 
 ## Shadow evaluation and retirement
 
@@ -193,6 +230,8 @@ The frozen V0 gate values, which only an owner decision may change:
   regressions the hosted test caught in the window, and in total at least 95% of all seeded
   regressions the hosted affected selection caught;
 - escapes: zero real hosted failures the compiled side missed for that candidate;
+- candidate evidence: the candidate ran in at least 5 window changes and caught at least 1 seeded
+  regression;
 - a development window used to tune the compiler is never reused as the held-out shadow window.
 
 A failed shadow evaluation stays recorded as failed; it is not renamed development progress.
@@ -213,7 +252,8 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 ## Trust boundary, limits and failure modes
 
 - Read commands (`catalog`, `obligations`, `compile`, `shadow` over existing receipts) are read-only
-  and write only explicit output paths (invariant 4). Only the opt-in companion executes browsers,
+  and write only to stdout or an explicit `--out` path outside the repository root (CCE-V0-001;
+  invariant 4). Only the opt-in companion executes browsers,
   and only in a marked disposable workspace (BBF-V0 boundary).
 - Compiled scenarios are generated code run against the user's application. They contain only
   admitted block text, so they add no code path a hosted block does not already contain.
@@ -262,6 +302,6 @@ file. Everything else belongs to the umbrella (V1-1666).
    `DISCRIMINATES`?
 3. Should a team be able to snapshot a `DISCRIMINATES` scenario into its hosted suite, and if so is
    it then a hosted test with normal review?
-4. Are 30 changes, 100% per-candidate parity, 95% total parity and zero escapes the right frozen
-   gate values?
+4. Are 30 changes, 100% per-candidate parity, 95% total parity, zero escapes and the candidate
+   minimums (5 changes run, 1 seeded regression caught) the right frozen gate values?
 5. Should the first runner after Playwright be Nightwatch, given the existing Nightwatch work?
