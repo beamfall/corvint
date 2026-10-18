@@ -1,0 +1,37 @@
+{
+  "profile": "corvint-network-evidence/0",
+  "run": "ci-1",
+  "revision": "0123456789abcdef0123456789abcdef01234567",
+  "tests": [
+    {
+      "file": "tests/home.spec.ts",
+      "title": "home > shows banner",
+      "outcome": "passed",
+      "requests": [
+        {"url": "http://127.0.0.1:3002/", "resourceType": "document", "status": 200, "durationMs": 40, "followUps": 2},
+        {"url": "https://analytics.example.test/collect?sid=abc", "resourceType": "beacon", "status": 204, "durationMs": 30, "followUps": 0}
+      ]
+    },
+    {
+      "file": "tests/catalog.spec.ts",
+      "title": "catalog > renders the micro-frontend",
+      "outcome": "passed",
+      "requests": [
+        {"url": "http://127.0.0.1:3002/catalog", "resourceType": "document", "status": 200, "durationMs": 50, "followUps": 3},
+        {"url": "https://cdn.jsdelivr.example/npm/catalog-mfe@1/+esm", "resourceType": "module", "status": 200, "durationMs": 300, "followUps": 4},
+        {"url": "https://assets.example-cdn.test/app.3f9a1c.js", "resourceType": "script", "status": 200, "durationMs": 20, "followUps": 0},
+        {"url": "http://127.0.0.1:4010/api/items", "resourceType": "fetch", "awaited": true, "status": 200, "durationMs": 10, "followUps": 0},
+        {"url": "https://analytics.example.test/collect?sid=abc", "resourceType": "beacon", "status": 204, "durationMs": 25, "followUps": 0},
+        {"url": "data:image/png;base64,iVBORw0KGgo=", "resourceType": "image", "status": 200, "durationMs": 0, "followUps": 0}
+      ]
+    },
+    {
+      "file": "tests/catalog.spec.ts",
+      "title": "catalog > filters items",
+      "outcome": "passed",
+      "requests": [
+        {"url": "https://cdn.jsdelivr.example/npm/catalog-mfe@1/+esm", "resourceType": "module", "status": 200, "durationMs": 280, "followUps": 4}
+      ]
+    }
+  ]
+}

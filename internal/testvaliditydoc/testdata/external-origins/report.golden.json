@@ -1,0 +1,134 @@
+{
+  "profile": "corvint-external-origins/0",
+  "verdict": "ENVIRONMENT_DEPENDENT",
+  "runs": [
+    {
+      "run": "ci-1",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "network": "RECORDED",
+      "tests": 3,
+      "testsWithoutEvidence": 0
+    },
+    {
+      "run": "ci-2",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "network": "RECORDED",
+      "tests": 2,
+      "testsWithoutEvidence": 0
+    },
+    {
+      "run": "local-1",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "network": "NOT_PRODUCED",
+      "tests": 2,
+      "testsWithoutEvidence": 2
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://analytics.example.test",
+      "class": "undeclared",
+      "blocking": 0,
+      "incidental": 2,
+      "resourceTypes": [
+        "beacon"
+      ]
+    },
+    {
+      "origin": "https://assets.example-cdn.test",
+      "class": "allowed",
+      "reason": "pinned content-hashed assets",
+      "blocking": 2,
+      "incidental": 0,
+      "resourceTypes": [
+        "script"
+      ]
+    },
+    {
+      "origin": "https://cdn.jsdelivr.example",
+      "class": "undeclared",
+      "blocking": 3,
+      "incidental": 0,
+      "resourceTypes": [
+        "module"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "code": "external-origin-dependence",
+      "origin": "https://cdn.jsdelivr.example",
+      "resourceType": "module",
+      "firstRun": "ci-1",
+      "firstTest": {
+        "file": "tests/catalog.spec.ts",
+        "title": "catalog \u003e renders the micro-frontend"
+      },
+      "tests": 2
+    }
+  ],
+  "unknown": [
+    {
+      "run": "local-1",
+      "test": {
+        "file": "tests/home.spec.ts",
+        "title": "home \u003e shows banner"
+      },
+      "reason": "network-evidence-absent"
+    },
+    {
+      "run": "local-1",
+      "test": {
+        "file": "tests/catalog.spec.ts",
+        "title": "catalog \u003e renders the micro-frontend"
+      },
+      "reason": "network-evidence-absent"
+    }
+  ],
+  "correlations": [
+    {
+      "test": {
+        "file": "tests/catalog.spec.ts",
+        "title": "catalog \u003e renders the micro-frontend"
+      },
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "passedRun": "ci-1",
+      "failedRun": "ci-2",
+      "state": "EXTERNAL_DIFFERENCE",
+      "differences": [
+        {
+          "origin": "https://analytics.example.test",
+          "locator": "https://analytics.example.test/collect",
+          "resourceType": "beacon",
+          "kinds": [
+            "missing-in-failed"
+          ],
+          "passed": {
+            "status": 204,
+            "durationMs": 25,
+            "followUps": 0
+          }
+        },
+        {
+          "origin": "https://cdn.jsdelivr.example",
+          "locator": "https://cdn.jsdelivr.example/npm/catalog-mfe@1/+esm",
+          "resourceType": "module",
+          "kinds": [
+            "follow-ups-differ",
+            "slower-in-failed"
+          ],
+          "passed": {
+            "status": 200,
+            "durationMs": 300,
+            "followUps": 4
+          },
+          "failed": {
+            "status": 200,
+            "durationMs": 15300,
+            "followUps": 0
+          }
+        }
+      ]
+    }
+  ]
+}
