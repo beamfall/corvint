@@ -232,7 +232,9 @@ type E2EConfig struct {
 	// the keep-reporters receipt (PWP-V0-016); keep-reporters mode only.
 	KeepReportersQualification *KeepReportersQualification
 	// RunnerOutput, when set, receives every console byte of the external
-	// runner, untruncated (PWP-V0-028); external mode only.
+	// runner, untruncated, from a bounded queue; a sink implementing
+	// procgroup.IncompleteTee learns when its copy ended early (PWP-V0-028);
+	// external mode only.
 	RunnerOutput io.Writer
 	// InterruptGrace, when positive, sends SIGINT on timeout and waits this
 	// long before SIGTERM (PWP-V0-030); external mode only.

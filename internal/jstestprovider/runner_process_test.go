@@ -57,7 +57,8 @@ func TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees(t *testing.T) {
 	if receipt.Infrastructure == nil || receipt.Infrastructure.Reason != "report-not-written" {
 		t.Fatalf("over-bound console must not fail the run, infrastructure = %+v", receipt.Infrastructure)
 	}
-	if tee.Len() != size+len("to-stderr\n") || !bytes.HasSuffix(tee.Bytes(), []byte("to-stderr\n")) {
+	// The two streams reach the shared sink in forwarder order, not child order.
+	if tee.Len() != size+len("to-stderr\n") || !bytes.Contains(tee.Bytes(), []byte("to-stderr\n")) {
 		t.Fatalf("tee received %d bytes", tee.Len())
 	}
 }

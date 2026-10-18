@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"sync/atomic"
 	"time"
 )
@@ -33,14 +32,22 @@ func admitRunnerControl(fs *flag.FlagSet, externalServer bool, grace time.Durati
 	return nil
 }
 
-// runnerOutput is the --runner-output sink. After its first write error it
-// accepts nothing more; the run is unaffected (PWP-V0-028).
+// runnerOutput is the --runner-output sink. After its first write error, or
+// procgroup's notice that the copy ended early, it accepts nothing more; the
+// run is unaffected (PWP-V0-028).
 type runnerOutput struct {
 	w      io.Writer
 	failed atomic.Bool
 }
 
-var errRunnerOutputStopped = errors.New("runner output stopped")
+var (
+	errRunnerOutputStopped    = errors.New("runner output stopped")
+	errRunnerOutputNotRegular = errors.New("runner output path is not a regular file")
+)
+
+// TeeIncomplete records that procgroup dropped console bytes or returned
+// before this sink accepted them (procgroup.IncompleteTee).
+func (o *runnerOutput) TeeIncomplete() { o.failed.Store(true) }
 
 func (o *runnerOutput) Write(value []byte) (int, error) {
 	if o.failed.Load() {
@@ -53,7 +60,8 @@ func (o *runnerOutput) Write(value []byte) (int, error) {
 	return n, err
 }
 
-// openRunnerOutput opens path ("-" is stderr). The returned close reports
+// openRunnerOutput opens path ("-" is stderr): a regular file only, never
+// through a final symlink, never blocking on a FIFO, mode 0600. The returned close reports
 // runner-output-incomplete on stderr when a write failed.
 func openRunnerOutput(path string, stderr io.Writer) (*runnerOutput, func(), error) {
 	switch path {
@@ -63,7 +71,7 @@ func openRunnerOutput(path string, stderr io.Writer) (*runnerOutput, func(), err
 		output := &runnerOutput{w: stderr}
 		return output, func() { reportRunnerOutput(output, nil, stderr) }, nil
 	}
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	file, err := openOutputFile(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("runner-output-unavailable: %w", err)
 	}

@@ -183,7 +183,8 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	spec := procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit,
 		OverflowPolicy: procgroup.OverflowTruncate, InterruptGrace: cfg.InterruptGrace, ObserveDescendants: cfg.ObserveDescendants}
 	if cfg.RunnerOutput != nil {
-		// One lock keeps a stdout and a stderr write whole (PWP-V0-028).
+		// One lock keeps a stdout and a stderr write whole; only the tee
+		// forwarders wait on it, never the drains (PWP-V0-028).
 		tee := &lockedWriter{w: cfg.RunnerOutput}
 		spec.StdoutTee, spec.StderrTee = tee, tee
 	}
@@ -840,4 +841,11 @@ func (l *lockedWriter) Write(value []byte) (int, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.w.Write(value)
+}
+
+// TeeIncomplete passes procgroup's early-end notice to a sink that wants it.
+func (l *lockedWriter) TeeIncomplete() {
+	if sink, ok := l.w.(procgroup.IncompleteTee); ok {
+		sink.TeeIncomplete()
+	}
 }

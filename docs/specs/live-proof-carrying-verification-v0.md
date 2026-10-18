@@ -609,7 +609,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
 | `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport`, `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`, `TestLPCVV0080InvalidUTF8IsRefused` and `TestLPCVV0080ScreeningCollapsesDistinctActors`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3), `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`, `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, `TestLPCVV0081ScreenedEvidenceNeverJoins` and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
-| `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten) and `TestLPCVV0084IgnoreFailureFailsRetention`; `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
+| `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -1194,9 +1194,12 @@ slice is additive and experimental.
   `.corvint/.gitignore`; when `.corvint` already existed (it may hold tracked project files), the
   file is `.corvint/test-evidence/.gitignore`, so no project file is hidden. The file's bytes are
   exactly `*` and a newline, which also ignores the file itself. It is created exclusively with mode
-  0600 inside the same symlink-refusing root as the evidence, and an existing file at that path is
-  never read, rewritten or replaced. A create or write failure fails the retention before any
-  document is written. The helper is `testevidence.IgnoreRetained`, called by
+  0600 inside the same symlink-refusing root as the evidence. An existing non-empty regular file at
+  that path is never rewritten or replaced; an existing empty regular file is repaired by writing
+  the rule into it; a directory, symlink or other non-regular entry there fails the retention,
+  because Git cannot use it as the ignore file. A create or write failure fails the retention
+  before any document is written, and a file the retention created but could not write is
+  removed, so a later retention never accepts it as protection. The helper is `testevidence.IgnoreRetained`, called by
   `testevidence.Retain`; every provider that retains through `Retain` (the Go and JavaScript
   providers) gets it, and a provider with its own retention path calls `IgnoreRetained` after it
   opens the evidence directory. `test-validity --discover` lists only `*.json` documents, so the
@@ -1204,7 +1207,7 @@ slice is additive and experimental.
 
 Non-goals:
 - editing `.git/info/exclude`, a global excludes file or the repository's root `.gitignore`;
-- repairing or merging an existing `.corvint/.gitignore` whose rules do not ignore the evidence;
+- repairing or merging an existing non-empty `.gitignore` whose rules do not ignore the evidence;
 - removing the ignore file when evidence is pruned;
 - providers that retain without `testevidence.Retain` until they call the helper.
 
@@ -1213,7 +1216,9 @@ Failure modes, each prevented by `LPCV-V0-084`:
 | Failure mode | Prevented by |
 |---|---|
 | A provider run leaves untracked evidence and a clean-tree gate fails. | ignore file written before the first document |
-| An owner's `.corvint/.gitignore` is replaced. | exclusive create; an existing file is kept |
+| An owner's `.corvint/.gitignore` is replaced. | exclusive create; an existing non-empty file is kept |
+| A directory or symlink named `.gitignore` passes as protection. | a non-regular entry fails the retention |
+| An empty file left by a failed write passes as protection on a later run. | the failed file is removed; an empty file is repaired |
 | Tracked `.corvint` configuration is hidden by a new `*` rule. | an existing `.corvint` gets the rule in `test-evidence` only |
 | The ignore file is selected as evidence. | `--discover` lists `*.json` only |
 | A symlinked `.corvint` redirects the write. | the same `os.Root` confinement as the evidence |

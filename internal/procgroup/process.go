@@ -86,9 +86,11 @@ type Spec struct {
 	// SIGTERM-first stop every existing caller relies on (PWP-V0-030).
 	InterruptGrace time.Duration
 	// StdoutTee and StderrTee, when set, receive every byte of the child's
-	// stream before the bounded capture, untruncated. Each is written from
-	// its stream's drain goroutine; the first write error stops that tee
-	// only (PWP-V0-028).
+	// stream, untruncated by the bounded capture. Each is written by its own
+	// forwarder goroutine from a bounded queue, so a blocked sink holds a
+	// drain for at most teeStallBound; the first write error or such a stall
+	// ends that tee only, and a sink implementing IncompleteTee is told. Run
+	// waits at most teeFlushBound for the forwarders (PWP-V0-028).
 	StdoutTee io.Writer
 	StderrTee io.Writer
 }
@@ -346,8 +348,10 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	stdout := newProcessCapture(spec.OutputLimit, overflow, spec.OverflowPolicy)
 	stderr := newProcessCapture(spec.StderrLimit, overflow, spec.OverflowPolicy)
 	drains := make(chan error, 2)
-	go drainProcessPipe(stdoutReader, dialogue.destination(withTee(stdout, spec.StdoutTee)), drains)
-	go drainProcessPipe(stderrReader, withTee(stderr, spec.StderrTee), drains)
+	stdoutDestination, stdoutTee := withTee(stdout, spec.StdoutTee)
+	stderrDestination, stderrTee := withTee(stderr, spec.StderrTee)
+	go drainProcessPipe(stdoutReader, dialogue.destination(stdoutDestination), drains)
+	go drainProcessPipe(stderrReader, stderrDestination, drains)
 
 	var afterStartErr error
 	var descendants *descendantObserver
@@ -498,6 +502,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 
 	pipeErr, pipesDrained := waitForProcessDrains(stdoutReader, stderrReader, drains, shutdownDeadline)
 	observation.PipesDrained = pipesDrained
+	finishTees(time.Now().Add(teeFlushBound), stdoutTee, stderrTee)
 	stdoutBytes, stdoutOverflow := stdout.result()
 	stderrBytes, stderrOverflow := stderr.result()
 	observation.Stdout = stdoutBytes

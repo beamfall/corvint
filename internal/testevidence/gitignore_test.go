@@ -145,3 +145,66 @@ func TestLPCVV0084IgnoreFailureFailsRetention(t *testing.T) {
 		t.Fatalf("unwritable evidence directory: %v", err)
 	}
 }
+
+// LPCV-V0-084: a directory or symlink named .gitignore is not protection; the
+// retention fails and writes no evidence document.
+func TestLPCVV0084NonRegularIgnoreIsRefused(t *testing.T) {
+	for name, plant := range map[string]func(string) error{
+		"directory": func(path string) error { return os.Mkdir(path, 0o700) },
+		"symlink":   func(path string) error { return os.Symlink("elsewhere", path) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			evidence := filepath.Join(root, ".corvint", "test-evidence")
+			if err := os.MkdirAll(evidence, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := plant(filepath.Join(evidence, ".gitignore")); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Retain(root, "p", []byte("{}")); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+				t.Fatalf("non-regular .gitignore: %v", err)
+			}
+			entries, err := os.ReadDir(evidence)
+			if err != nil || len(entries) != 1 {
+				t.Fatalf("evidence directory after a refused retention: %v %v", entries, err)
+			}
+		})
+	}
+}
+
+// LPCV-V0-084: a .gitignore whose write failed after creation is removed, and
+// an empty one left by an earlier failure is repaired by the next retention.
+func TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired(t *testing.T) {
+	root, git := gitRepository(t)
+	document := retainedDocument(t, root)
+	if err := os.Mkdir(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	ignore := filepath.Join(root, ".corvint", "test-evidence", ".gitignore")
+	original := writeIgnoreFile
+	writeIgnoreFile = func(file *os.File) error {
+		_ = file.Close()
+		return fmt.Errorf("no space left on device")
+	}
+	_, err := Retain(root, "p", document)
+	writeIgnoreFile = original
+	if err == nil || !strings.Contains(err.Error(), ".gitignore cannot be written") {
+		t.Fatalf("failed ignore write: %v", err)
+	}
+	if _, err := os.Lstat(ignore); !os.IsNotExist(err) {
+		t.Fatalf("a failed write left %s: %v", ignore, err)
+	}
+	if err := os.WriteFile(ignore, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Retain(root, "p", document); err != nil {
+		t.Fatal(err)
+	}
+	if got := readText(t, ignore); got != "*\n" {
+		t.Fatalf("empty .gitignore was not repaired: %q", got)
+	}
+	if status := git("status", "--porcelain", "--untracked-files=all"); status != "?? adds.test.ts\n" {
+		t.Fatalf("status after repair:\n%s", status)
+	}
+}

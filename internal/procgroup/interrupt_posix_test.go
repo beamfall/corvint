@@ -8,6 +8,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -111,5 +113,63 @@ func TestPWPV0028TeesReceiveUntruncatedStreams(t *testing.T) {
 	result = Run(context.Background(), spec)
 	if result.Err != nil || result.ExitStatus != 0 || len(result.Stdout) != 10 || len(result.Stderr) != 20 {
 		t.Fatalf("failing tee changed the run: %+v", result)
+	}
+}
+
+// blockingSink models a stopped reader: every write blocks until release.
+type blockingSink struct {
+	release    chan struct{}
+	incomplete atomic.Bool
+}
+
+func (b *blockingSink) Write(value []byte) (int, error) {
+	<-b.release
+	return len(value), nil
+}
+
+func (b *blockingSink) TeeIncomplete() { b.incomplete.Store(true) }
+
+// PWP-V0-028: a tee sink that never accepts a write holds neither its drain,
+// the capture, nor the other stream's tee; Run returns with both pipes drained
+// and the stuck sink is told its copy ended early.
+func TestPWPV0028BlockedTeeSinkDoesNotHoldDrains(t *testing.T) {
+	sink := &blockingSink{release: make(chan struct{})}
+	defer close(sink.release)
+	var stderrTee bytes.Buffer
+	script := "/usr/bin/head -c 4200000 /dev/zero; /usr/bin/head -c 7000 /dev/zero >&2"
+	spec := Spec{Argv: []string{"/bin/sh", "-c", script}, Dir: t.TempDir(), Timeout: 20 * time.Second,
+		OutputLimit: 10, StderrLimit: 20, OverflowPolicy: OverflowTruncate, StdoutTee: sink, StderrTee: &stderrTee}
+	started := time.Now()
+	result := Run(context.Background(), spec)
+	if elapsed := time.Since(started); elapsed > 10*time.Second {
+		t.Fatalf("Run waited %v on a blocked tee sink", elapsed)
+	}
+	if result.Err != nil || result.ExitStatus != 0 || !result.PipesDrained || len(result.Stdout) != 10 || len(result.Stderr) != 20 {
+		t.Fatalf("blocked tee changed the run: %+v", result)
+	}
+	if !sink.incomplete.Load() {
+		t.Fatal("the blocked sink was not told its copy ended early")
+	}
+	if stderrTee.Len() != 7000 {
+		t.Fatalf("the other stream's tee got %d bytes", stderrTee.Len())
+	}
+}
+
+// PWP-V0-029: a signal whose send makes the leader exit at once is still the
+// recorded stop signal; a signal sent after the observed exit is not.
+func TestPWPV0029StopSignalSurvivesExitDuringSend(t *testing.T) {
+	recorder := &stopSignalRecorder{}
+	send := recorder.wrap(func(int, syscall.Signal) error {
+		recorder.leaderGone.Store(true)
+		return nil
+	})
+	if err := send(1, syscall.SIGINT); err != nil {
+		t.Fatal(err)
+	}
+	if err := send(1, syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
+	if got := recorder.name(); got != "SIGINT" {
+		t.Fatalf("stop signal = %q, want SIGINT", got)
 	}
 }
