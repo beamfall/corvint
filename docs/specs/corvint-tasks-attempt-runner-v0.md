@@ -155,7 +155,8 @@ on the S19 request-id replay (CAL-V0-069) and the detached attempt runs (ATR-V0-
   poll (200 ms) and process start: the kept result when it appears, otherwise `REFUSED` with one
   item whose `state` is `PENDING` (request id, command, holder, child pid, start and ceiling
   times), exit 75. `--wait 0` or no `--wait` returns at once. The caller's wait never bounds or
-  cancels the child.
+  cancels the child. The item's advisory `progress` member (rounds, audit time and the walk
+  split) is PSR-V0-112 and PSR-V0-152 in `docs/specs/corvint-tasks-pool-safe-reuse-v0.md`.
 - `ATR-V0-025`: (accepted, V1-1547) A finished record (one with `result.json`) older than 7 days
   MUST be pruned, best effort and bounded, when a later `--detach` starts; a live or unfinished
   record is never pruned. An attach of an unknown or pruned handle is `REFUSED`

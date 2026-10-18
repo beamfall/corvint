@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -386,9 +386,11 @@ ask to start the acquire from a writer checkpoint, or to end the prefix walk at 
 sequence and audit only the tail, is declined here: it is the CAL-V0-264 writer route for pool
 verbs, which the owner declined because it drops the CAL-V0-116 rewritten-prefix detection, and it
 remains an owner decision. Its ask for walk time and restart counts is met for detached acquires by
-PSR-V0-112 (`auditMillis`, `preparationRounds`); no split of complete and prefix walks and no
-`doctor` report is added. Its ask for a help note is PSR-V0-114. PSR-V0-115 shows that compaction
-alone does not keep an acquire on complete audits; the cause of the reported run is NOT_OBSERVED.
+PSR-V0-112 (`auditMillis`, `preparationRounds`) and, since V1-1626, by the PSR-V0-152 walk split
+of that member; no `doctor` report is added. Its ask for a help note is PSR-V0-114. PSR-V0-115
+shows that compaction alone does not keep an acquire on complete audits; the cause of the
+reported run is NOT_OBSERVED. The work a command does once its resume is declined is bounded by
+PSR-V0-150 (V1-1626).
 
 Non-goals: accepting any tail on its kind (PSR-V0-110); a persisted, shared or cross-process
 resume base; a faster prefix walk or audit; a retry count or audit time on a non-detached
@@ -580,6 +582,94 @@ Rollback: revert the room gate, the `PoolFree` observation and the `pool-wait` e
 events log reader does not validate kinds, so an older build reads `pool-wait` lines unchanged, and
 the ledger is unchanged.
 
+### V1-1626 bounded complete audit on a moving journal (issue 1063)
+
+Owner input: issue 1063 (P1): `pool acquire` stayed CPU-bound for 38 minutes or more on a 47,400
+receipt journal whose head moved every minute or two, its profile dominated by the complete walk.
+The orchestrator's decision (2026-10-17) keeps the CAL-V0-116 rewritten-prefix detection and
+asks for the root cause and bounded work. The requirements below are accepted under the owner's
+standing auto-accept of lane requirements (2026-10-11); see
+`docs/build-log/2026-10-18-v1-1626-bounded-complete-audit.md`.
+
+Root cause (confirmed on the source, and reproduced by `TestPSRV0150_DeclinedResumeWalksOncePerRound`
+on the unmodified base): once a command's resume was declined (PSR-V0-052: the prefix walk declined,
+or no base could be derived), every later preparation round ran the plain complete audit, which
+walks the journal up to four times when the head moves under it, and a round whose audit moved
+then ran the guarded complete audit as well, up to four more walks against a head the round had
+already lost. Sixteen rounds of up to eight walks at 35 to 60 s a walk is the reported shape. The
+harness in the build log refutes the earlier hypothesis for the plain store: there the acquire
+resumed in round 2 after one prefix walk, so the decline itself is a precondition, not the rule.
+
+- `PSR-V0-150`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
+  On a journal at or above the writer-checkpoint floor, on a platform whose audits resume, a lease
+  preparation round's complete audit MUST be one attempt that stops as soon as it observes
+  `head.json` moved (at the next 512-receipt boundary) and returns `SNAPSHOT_MOVED`, and a round
+  whose complete audit returned `SNAPSHOT_MOVED` MUST end there: it does not run the guarded
+  complete audit against the head it read at its start. The next round samples the journal again.
+  A settled attempt is the ordinary complete audit, with every refusal of its own (CAL-V0-116 is
+  intact: PSR-V0-153); no verdict changes. A command whose resume was declined therefore walks the
+  journal at most once a round, sixteen times at most, and each walk under a moving journal ends
+  within 512 receipts of the move. The prefix-fallback audit (PSR-V0-050) already stopped its
+  complete attempt this way and is unchanged; so are `receipt audit` and every read.
+- `PSR-V0-151`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
+  `LeaseTiming` MUST split its audit time by walk: complete walks from receipt 1 and prefix walks
+  to a captured head, each with the number that ended `SNAPSHOT_MOVED` and the summed wall time;
+  resumed walks from the command's base with their wall time; and the resumes declined (a resumed
+  route that declined, a prefix walk that declined, or a base that could not be derived). Each
+  count is of audit attempts actually run, never of route calls: a resumed route that declines
+  before its audit (an invalidated writer token, for one) charges a decline and no resumed walk,
+  and a resumed audit's `SNAPSHOT_MOVED` retry is a second resumed walk with its own wall time.
+  Every write audit charges its walks (`PhysicalObservation.Walks`); the split is a diagnostic that
+  decides nothing and reaches no receipt, record, evidence or authority. `--timing`
+  (`taskman-lease-timing/0`) is unchanged.
+- `PSR-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
+  The PSR-V0-112 `progress` member MUST also carry the PSR-V0-151 split as decimal strings:
+  `completeWalks`, `completeWalksMoved`, `prefixWalks`, `prefixWalksMoved`, `resumedWalks`,
+  `resumeDeclines`, `completeMillis`, `prefixMillis` and `resumedMillis`, in the object's
+  canonical (byte-sorted) member order with the PSR-V0-112 members. `progress.json` keeps exactly
+  its PSR-V0-112 members (`profile`, `preparationRounds`, `resumedRounds`, `auditMillis`,
+  `updatedAt`), because an older reader decodes it with unknown members refused; the child writes
+  the same report with the split to a sibling `progress-walks.json` first, which no older build
+  opens. A reader takes the split from the sibling only when its PSR-V0-112 members equal
+  `progress.json`'s; otherwise (an older child wrote `progress.json`, or the read fell between the
+  two writes) the split reads `0`. The member stays advisory (PSR-V0-112).
+- `PSR-V0-153`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1626; GitHub #1063)
+  Negative evidence for PSR-V0-150: a receipt rewritten with its stamps restored while the bounded
+  complete attempt walks, as the journal also moves, never commits. That attempt is
+  `SNAPSHOT_MOVED`; the next round's attempt refuses, the head stays where the tamper left it, and
+  the command ends with the complete route's own decision for that journal.
+
+Failure modes:
+- A writer that commits faster than one complete walk, on a command whose resume is declined,
+  still cannot settle a complete audit: the command ends `SNAPSHOT_MOVED` after sixteen rounds, now
+  each one early-stopped walk, instead of after up to 128 walks. Converging under such a writer
+  needs the resume route (PSR-V0-052) or the detached acquire (PSR-V0-111).
+- A moved head is observed at 512-receipt boundaries; an attempt may walk up to 511 receipts past
+  the move before it stops. On a journal below the floor, or without change times, the four-attempt
+  complete audit is unchanged.
+- A refusal is still derived twice in its round (the preparation audit and the guarded audit);
+  that cost is unchanged and bounded by the refusal.
+- A read that falls between the child's two progress writes, or an older child's record, shows the
+  walk split as `0` for that report; the PSR-V0-112 counters are always the latest written.
+
+Acceptance evidence:
+- `TestPSRV0150_DeclinedResumeWalksOncePerRound` (2 cases), `TestPSRV0151_TimingSplitsResumedAcquire`,
+  `TestPSRV0151_DeclinedResumeChargesNoResumedWalk` and
+  `TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection` in `internal/tasks/store`;
+  `TestPSRV0151_ResumedWalksCountEachAttempt` (a `SNAPSHOT_MOVED` retry is two resumed walks) in
+  `internal/tasks/journal`; `TestPSRV0112_PendingReportsProgress` in `internal/tasks/cli` checks the
+  closed member list, decodes the new child's `progress.json` strictly with the base revision's
+  record shape, and reads an older child's `progress.json` without a sibling.
+- The opt-in harness `TestPSRV0055_PoolAcquireLoad` reports per-round rows (`rows`: each
+  preparation audit's mode or code and wall time, each progress report's round counts). Its
+  47,000-receipt before/after runs with hardware and host load are in the build log.
+
+Rollback: revert `Reader.StopOnMove`, `PhysicalObservation.Walks`, the `LeaseTiming` split, the
+nine `progress` members, `progress-walks.json`, the harness rows, the tests and this subsection.
+No store, receipt, checkpoint, kept result or wire profile changes. `progress.json` keeps its
+PSR-V0-112 shape, so an older build reads a new child's record with its counters, and a leftover
+`progress-walks.json` is never opened by it and is pruned with its record directory (ATR-V0-025).
+
 ## Acceptance evidence
 
 Initial fixture must initialize and canonically roundtrip policy/pool state, claim/release exact allocation and show QUARANTINED before fault injection. Positive reset+verify and optional cleanup-first produce bounded observation/log evidence, delegated confirmation and FREE readback; subsequent claim has fresh allocation. Exact replay after env deletion/current config change/successor allocation returns original evidence without execution. Barrier tests afterreset/beforeconfirm refuse competing sweep, ordinary cleanup and manual confirmation. Retry max2, combined deadline, total budget, exit/stdout/stderr predicates, overflow/source drift/private env syntax/permissions/symlinks/races, receipt publication failure and request conflict controls retain quarantine. Blocked identity/group probes are bounded. Actual foreground subprocess INT/TERM retirement observes PID/start identities and descendant absence; killed-host explicit recovery refuses live/unknown runner and retains quarantine. Large pool projection, descriptor/count maxima, duplicated evidence digest and archive evidence retention must be checked. PSR-V0-011/012 (issue628) add policy-validation tests for the 1..3600 bound and the pinned cwd shape, an injected-clock health timeout at 3600, and pinned health/sweep fixtures that run in the external worktree and refuse mismatched revision, dirty tracked or untracked input, alias, subdirectory and non-worktree paths without executing; hook-driven tests show a revision swapped between HEAD and status and a directory swapped after the proof run nothing, and post-exit bounded probes keep the command's terminal class. Current integrated tests/runtimes are NOT_RUN at this source phase; Linux and physical external cleanup remain NOT_OBSERVED. The earlier broad source run failed on historical replay timing and the clock fixture; the repaired five-cell run and focused vet passed at their original source binding. Required next evidence is a fresh integrated binary plus all 58 mandatory PASS observations (21 PSR/repair, 27 CAL dispatcher/CLI, nine issue503 and the clock witness), scoped race/vet and docs/specindex checks. Historical repair PASS is not a current broad PASS. The original enrollment (BASE211916, key a2284577) is retained as NON_SUCCESS. The successor enrollment at that seal, with the original single intent and both original selected checks unchanged, its CEM/OCM, report review, seal, hosted landing and native completion remain pending; actual receipts must replace pending claims only after execution.
@@ -592,6 +682,8 @@ Capacity slots (PSR-V0-030..043; V1-1550, GitHub #1008): focused intent, snapsho
 Lease write resume (PSR-V0-050..057; V1-1560, GitHub #1010): the focused journal and store tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-050..057); Linux, quiet-host and 45,000-receipt qualification NOT_RUN.
 
 Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 1063): the focused store and CLI tests and the opt-in load harness named in that subsection and in Traceability (PSR-V0-110..116); 47,000-receipt, quiet-host and Linux qualification NOT_RUN.
+
+Bounded complete audit (PSR-V0-150..153; V1-1626, issue 1063): the focused store and CLI tests named in that subsection and in Traceability (PSR-V0-150..153); the 47,000-receipt harness runs before and after the change on a loaded 12-CPU host are in the build log; quiet-host and Linux qualification NOT_RUN.
 
 ## Non-goals and simpler baseline
 
@@ -692,3 +784,12 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-141 | `TestPSRV0141_PendingWorkerCountsAgainstRoom`, `TestPSRV0143_PoolWaitEventsReportRoom` (`internal/tasks/dispatch`) |
 | PSR-V0-142 | `TestPSRV0142_StaleWorkerIgnored` (`internal/tasks/dispatch`) |
 | PSR-V0-143 | `TestPSRV0143_PoolWaitEventsReportRoom` (`internal/tasks/dispatch`) |
+
+## Traceability (PSR-V0-150..153)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-150 | `TestPSRV0150_DeclinedResumeWalksOncePerRound` (`internal/tasks/store`); `docs/build-log/2026-10-18-v1-1626-bounded-complete-audit.md` |
+| PSR-V0-151 | `TestPSRV0151_TimingSplitsResumedAcquire`, `TestPSRV0150_DeclinedResumeWalksOncePerRound` (`internal/tasks/store`) |
+| PSR-V0-152 | `TestPSRV0112_PendingReportsProgress` (`internal/tasks/cli`) |
+| PSR-V0-153 | `TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection` (`internal/tasks/store`) |
