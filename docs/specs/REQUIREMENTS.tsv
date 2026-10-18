@@ -3709,6 +3709,19 @@ SRG-V0-014	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-015	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) The	standing	2026-10-11; V1-1525
 SRG-V0-016	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) Two chan	standing	2026-10-11; V1-1525
 SRG-V0-017	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) A reader	standing	2026-10-11; V1-1525
+STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
+STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
+STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
+STA-V0-004	docs/specs/spec-toolchain-adapters-v0.md	Both OpenSpec forms emit the prepare envelope member `nativeNames`, which maps e	unrecorded	-
+STA-V0-005	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form speckit-spec` reads a Spec Kit `spec.md`.	unrecorded	-
+STA-V0-006	docs/specs/spec-toolchain-adapters-v0.md	The three forms follow `OIF-V0-001` to `OIF-V0-003` and `OIF-V0-009`. They are e	unrecorded	-
+STA-V0-007	docs/specs/spec-toolchain-adapters-v0.md	The context index classifies documents by pinned path, with no content guessing.	unrecorded	-
+STA-V0-008	docs/specs/spec-toolchain-adapters-v0.md	`protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0,	unrecorded	-
+STA-V0-009	docs/specs/spec-toolchain-adapters-v0.md	`protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).	unrecorded	-
+STA-V0-010	docs/specs/spec-toolchain-adapters-v0.md	`interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects tha	unrecorded	-
+STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	`make spec-toolchain-conformance` and a CI job of the same name do four things.	unrecorded	-
+STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	`script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001`	unrecorded	-
+STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 SNR-V0-001	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST refuse a concurrent invocation. It MUST take an exclusive lock via	unrecorded	-
 SNR-V0-002	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST support a test-only lock-hold mode selected by the	unrecorded	-
 SNR-V0-003	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST discover the toolchain root as `GOTOOLCHAIN=local go env GOROOT` a	unrecorded	-

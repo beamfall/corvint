@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 func newOCMReadFixture(t *testing.T) lrfFixture {
@@ -961,6 +962,52 @@ func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
 	}
 	if _, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(base, "--intent-form=adr")); err == nil {
 		t.Fatal("unknown intent form accepted")
+	}
+}
+
+func TestSTAV0006_PrepareIntentFormFlag(t *testing.T) {
+	base := []string{"--target", "HEAD", "--intent", "openspec/specs/auth/spec.md"}
+	for _, form := range []string{"openspec-spec", "openspec-delta", "speckit-spec"} {
+		parsed, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(append([]string{}, base...), "--intent-form", form))
+		if err != nil || parsed.intentForm != form {
+			t.Fatalf("flag=%q form=%q err=%v", form, parsed.intentForm, err)
+		}
+		if !strings.Contains(strings.Join(strings.Fields(ocmHelp), " "), form) {
+			t.Fatalf("ocm prepare help does not list %q", form)
+		}
+	}
+	for _, form := range []string{"openspec", "speckit", "OpenSpec-Spec"} {
+		if _, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(append([]string{}, base...), "--intent-form", form)); err == nil {
+			t.Fatalf("unknown intent form %q accepted", form)
+		}
+	}
+}
+
+func TestSTAV0004_PrepareEnvelopeNativeMembers(t *testing.T) {
+	status := "Draft"
+	prepared := &lrfrepo.PrepareResult{ToolchainPrepareMembers: lrfrepo.ToolchainPrepareMembers{
+		NativeNames:          map[string]string{"OSR-0123456789AB": "Session Expiry"},
+		ExcludedRequirements: []map[string]string{{"operation": "REMOVED", "name": "Remember Me"}},
+		NativeStatus:         &status,
+	}}
+	cases := []struct{ form, want string }{
+		{"", `{}`},
+		{lrfrepo.IntentFormOpenSpecSpec, `{"nativeNames":{"OSR-0123456789AB":"Session Expiry"}}`},
+		{lrfrepo.IntentFormOpenSpecDelta, `{"excludedRequirements":[{"name":"Remember Me","operation":"REMOVED"}],"nativeNames":{"OSR-0123456789AB":"Session Expiry"}}`},
+		{lrfrepo.IntentFormSpecKit, `{"excludedRequirements":[{"name":"Remember Me","operation":"REMOVED"}],"nativeStatus":"Draft"}`},
+	}
+	for _, test := range cases {
+		envelope := map[string]any{}
+		addIntentFormMembers(envelope, test.form, prepared)
+		encoded, err := json.Marshal(envelope)
+		if err != nil || string(encoded) != test.want {
+			t.Fatalf("form=%q envelope=%s want=%s err=%v", test.form, encoded, test.want, err)
+		}
+	}
+	envelope := map[string]any{}
+	addIntentFormMembers(envelope, lrfrepo.IntentFormSpecKit, &lrfrepo.PrepareResult{})
+	if encoded, _ := json.Marshal(envelope); string(encoded) != `{"excludedRequirements":[]}` {
+		t.Fatalf("absent status or empty exclusions drifted: %s", encoded)
 	}
 }
 

@@ -2295,7 +2295,7 @@
     "path": "docs/specs/ocm-intent-forms-v0.md",
     "title": "OCM intent forms V0",
     "reqPrefix": "OIF-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner, 2026-10-18, decision 0541)",
     "delivery": "experimental",
     "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
     "dependsOn": [
@@ -3765,6 +3765,18 @@
     "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591)",
     "delivery": "experimental",
     "claim": "Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/spec-toolchain-adapters-v0.md",
+    "title": "Spec toolchain adapters V0",
+    "reqPrefix": "STA-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

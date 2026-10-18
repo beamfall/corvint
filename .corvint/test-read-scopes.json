@@ -293,7 +293,8 @@
       "conformance/lrf-v0/"
     ],
     "internal/lrfrepo": [
-      "docs/specs/"
+      "docs/specs/",
+      "interop/spec-toolchains/"
     ],
     "internal/lspevidence": [],
     "internal/mcp/bridge": [
