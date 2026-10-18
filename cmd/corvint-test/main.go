@@ -216,7 +216,10 @@ func writeUnder(dir, rel string, data []byte, echo io.Writer) error {
 
 // writeFile writes path without following a final-component symlink.
 func writeFile(path string, data []byte, echo io.Writer) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o644)
+	if fi, err := os.Lstat(path); err == nil && fi.Mode()&fs.ModeSymlink != 0 {
+		return unsafeOut("%s is a symlink", path)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|openNoFollow, 0o644)
 	if err != nil {
 		if fi, lerr := os.Lstat(path); lerr == nil && fi.Mode()&fs.ModeSymlink != 0 {
 			return unsafeOut("%s is a symlink", path)
