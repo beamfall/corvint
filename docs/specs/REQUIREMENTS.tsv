@@ -2688,6 +2688,12 @@ LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737
 LPCV-V0-083	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An	standing	2026-10-11; V1-1737
+LPCV-V0-090	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
+LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) With	standing	2026-10-11; V1-1797
+LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
+LPCV-V0-093	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
+LPCV-V0-094	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discover	standing	2026-10-11; V1-1797
+LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before t	standing	2026-10-11; V1-1797
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-
