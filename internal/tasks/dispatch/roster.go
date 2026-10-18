@@ -112,8 +112,9 @@ type Attempt struct {
 
 	// Pool and Member name the attempt's pool allocation; empty without one.
 	Pool, Member string
-	// HandoffEvidence is the clean hand-off's recorded --evidence reference,
-	// the HANDOFF_EVIDENCE progress fingerprint (ATR-V0-084); empty without one.
+	// HandoffEvidence is the attempt's latest recorded hand-off --evidence
+	// reference, carried across generations that record none, the
+	// HANDOFF_EVIDENCE progress fingerprint (ATR-V0-084); empty without one.
 	HandoffEvidence string
 }
 
@@ -532,9 +533,10 @@ func baseFingerprint(obs *Observation, key string) string {
 			rows = append(rows, fmt.Sprintf("%s|%s|%s|%d|%d", a.ID, a.Phase, a.Candidate, a.Gates, a.Reviews))
 		}
 		// ATR-V0-084: under a declared HANDOFF_EVIDENCE signal the attempt's
-		// recorded hand-off reference is progress identity, so a hand-off
-		// with a changed reference is progress and the same one is not. A
-		// policy without the signal hashes exactly as before.
+		// latest recorded hand-off reference is progress identity, so only a
+		// hand-off with a changed reference is progress; the same one, or a
+		// generation that records none, is not. A policy without the signal
+		// hashes exactly as before.
 		if a.Ticket == key && a.HandoffEvidence != "" && obs.ProgressSignal == ProgressSignalHandoffEvidence {
 			rows = append(rows, "handoffEvidence|"+a.ID+"|"+a.HandoffEvidence)
 		}

@@ -227,3 +227,25 @@ func TestATRV0089_RollingWindowPerEffectiveLimit(t *testing.T) {
 		t.Fatalf("override token hold %+v %v", h, held)
 	}
 }
+
+// ATR-V0-086: a JSON null `overrides`, or a null entry in it, is not an
+// array of override objects and refuses; it never falls back to the
+// default limits as if no overrides were configured.
+func TestATRV0086_NullOverridesRefuse(t *testing.T) {
+	for _, tb := range []string{
+		`{"sessionsPerDay":5,"overrides":null}`,
+		`{"sessionsPerDay":5,"overrides": null }`,
+		`{"sessionsPerDay":5,"overrides":[null]}`,
+		`{"sessionsPerDay":5,"overrides":[{"ticket":"a","sessionsPerDay":1},null]}`,
+	} {
+		if _, err := DecodeConfig(overrideConfig(t, tb)); err == nil || !strings.Contains(err.Error(), BudgetOverrideMalformed) {
+			t.Errorf("%s: %v", tb, err)
+		}
+	}
+	// An absent `overrides` and an empty array remain the default alone.
+	for _, tb := range []string{`{"sessionsPerDay":5}`, `{"sessionsPerDay":5,"overrides":[]}`} {
+		if _, err := DecodeConfig(overrideConfig(t, tb)); err != nil {
+			t.Errorf("%s: %v", tb, err)
+		}
+	}
+}

@@ -48,3 +48,24 @@ TestIndexCoversSpecsAndHeaders.
 - The dispatcher ledger's loop hold does not record the signal; only events name it.
 - A hold for a ticket the observation no longer supplies resolves its budget by key alone.
 - An override cannot remove a default limit (non-goal).
+
+## Review round
+
+One independent Codex round on PR 1085 found two P2 issues; both are fixed with tests that fail on
+the reviewed head d125984ef.
+
+- Dispatcher false progress (ATR-V0-084). A claim clears the attempt's current hand-off reference,
+  so a reference `a` followed by a claim and release that recorded nothing dropped the fingerprint
+  row and reset the backoff; re-sending `a` then changed it again. The dispatcher observation now
+  carries the latest recorded reference: the current generation's, else the newest prior
+  generation's ATR-V0-081 fingerprint (`snapshot.LatestHandoffEvidence`). So the reference outlives
+  the claim under a policy without `loopDetection` too, a declared `progressSignal` now also makes
+  the claim record `loopEvidence` (ATR-V0-081 amended). The claim-side loop verdict
+  (`progressChain`) already carried the latest fingerprint across generations with none, and an
+  empty or repeated reference was already no progress there (`TestATRV0082_LoopHoldHonoursProgressSignal`
+  case "absent fingerprint is unchanged"), as does the doctor (TQD-V0-040). Tests:
+  `TestATRV0084_DispatchFingerprintCarriesLatestReference` (a, none: no progress; a, a: none;
+  a, b: progress; each with and without `loopDetection`) and `TestATRV0084_LatestHandoffEvidence`.
+- `"overrides": null` (ATR-V0-086). JSON null decoded as no overrides and fell back to the default
+  limits. It now refuses with `BUDGET_OVERRIDE_MALFORMED`; a null entry already refused as not an
+  object. Test: `TestATRV0086_NullOverridesRefuse`.

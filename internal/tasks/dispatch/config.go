@@ -183,8 +183,11 @@ func (b *Budget) UnmarshalJSON(raw []byte) error {
 	if v.TokensPerDay != nil && (json.Unmarshal(v.TokensPerDay, &out.TokensPerDay) != nil || out.TokensPerDay == 0) {
 		return fmt.Errorf("budget tokensPerDay is a positive integer when present")
 	}
+	// ATR-V0-086: a present `overrides` that is not an array refuses; JSON
+	// null would otherwise decode as no overrides and silently fall back to
+	// the default limits.
 	var entries []json.RawMessage
-	if v.Overrides != nil && json.Unmarshal(v.Overrides, &entries) != nil {
+	if v.Overrides != nil && (bytes.Equal(bytes.TrimSpace(v.Overrides), []byte("null")) || json.Unmarshal(v.Overrides, &entries) != nil) {
 		return fmt.Errorf("budget overrides: %s overrides is an array of objects", BudgetOverrideMalformed)
 	}
 	if len(entries) > maxBudgetOverrides {

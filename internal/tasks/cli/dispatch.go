@@ -22,6 +22,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -935,7 +936,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if a.CandidateTreeOid != nil {
 				x.Candidate = *a.CandidateTreeOid
 			}
-			x.HandoffEvidence = a.HandoffEvidence
+			x.HandoffEvidence = snapshot.LatestHandoffEvidence(a) // ATR-V0-084
 			if a.Cause != nil {
 				x.Cause = *a.Cause
 			}

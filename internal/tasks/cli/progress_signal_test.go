@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -127,6 +128,70 @@ func TestATRV0082_CLIProgressSignal(t *testing.T) {
 		}
 		if obs, err := cli.ObserveDispatch(root); err != nil || len(obs.Tickets) != 1 || obs.Tickets[0].Loop == nil || obs.ProgressSignal != intent.ProgressSignalHandoffEvidence {
 			t.Fatalf("dispatch observation: %v %+v", err, obs)
+		}
+	})
+}
+
+// progressCLIFingerprints claims id at stage implement once per ref and
+// releases each generation as a HANDOFF with --evidence ref, or, when ref is
+// empty, as a plain release that records no work and no reference, and
+// returns the dispatcher's CAL-V0-057 fingerprint of the ticket
+// observed after each release.
+func progressCLIFingerprints(t *testing.T, root, id string, refs ...string) []string {
+	t.Helper()
+	var fps []string
+	for i, ref := range refs {
+		c := handoffCLI(t, root, "claim", id, "--holder", fmt.Sprintf("f%d", i), "--stage", "implement", "--request-id", fmt.Sprintf("fclaim-%d", i))
+		if c.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("claim %d: %s", i, c.stdout)
+		}
+		args := []string{"release", "--attempt", field(c.res.Items[0], "attemptId").Str, "--generation", field(c.res.Items[0], "generation").Str, "--request-id", fmt.Sprintf("frelease-%d", i)}
+		if ref != "" {
+			args = append(args, "--reason", wire.CodeHandoff, "--evidence", ref)
+		}
+		if r := handoffCLI(t, root, args...); r.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("release %d: %s", i, r.stdout)
+		}
+		obs, err := cli.ObserveDispatch(root)
+		if err != nil || len(obs.Tickets) != 1 || obs.ProgressSignal != intent.ProgressSignalHandoffEvidence {
+			t.Fatalf("observe %d: %v %+v", i, err, obs)
+		}
+		fps = append(fps, dispatch.Fingerprint(obs, obs.Tickets[0].ID))
+	}
+	return fps
+}
+
+// ATR-V0-084 through the store: the dispatcher's fingerprint carries the
+// latest recorded hand-off reference across a generation that records none,
+// because the next claim clears the current one. So a reference followed by
+// a hand-off without evidence is no progress, a repeated reference is no
+// progress, and only a new reference is, with or without loopDetection.
+func TestATRV0084_DispatchFingerprintCarriesLatestReference(t *testing.T) {
+	t.Run("ATR-V0-084 DispatchFingerprintCarriesLatestReference", func(t *testing.T) {
+		for _, loop := range []bool{false, true} {
+			for _, c := range []struct {
+				name     string
+				refs     []string
+				progress bool
+			}{
+				{"reference then none", []string{"local:a", ""}, false},
+				{"reference then none then the same", []string{"local:a", "", "local:a"}, false},
+				{"same reference", []string{"local:a", "local:a"}, false},
+				{"new reference", []string{"local:a", "local:b"}, true},
+				{"new reference after none", []string{"local:a", "", "local:b"}, true},
+			} {
+				root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+				progressCLIPolicy(t, root, loop)
+				id := planTicket(t, root, "carry", "P1", `["src/"]`)
+				fps := progressCLIFingerprints(t, root, id, c.refs...)
+				changed := false
+				for _, fp := range fps[1:] {
+					changed = changed || fp != fps[0]
+				}
+				if last := fps[len(fps)-1] != fps[len(fps)-2]; changed != c.progress || last != c.progress {
+					t.Fatalf("loopDetection %v, %s: fingerprints %v, want progress %v", loop, c.name, fps, c.progress)
+				}
+			}
 		}
 	})
 }

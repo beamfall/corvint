@@ -79,3 +79,38 @@ func TestATRV0081_LoopEvidenceWith(t *testing.T) {
 		}
 	})
 }
+
+// ATR-V0-084: the latest recorded hand-off reference is the current
+// generation's, else the newest prior generation's recorded fingerprint,
+// skipping generations that recorded none or were recorded without it.
+func TestATRV0084_LatestHandoffEvidence(t *testing.T) {
+	t.Run("ATR-V0-084 LatestHandoffEvidence", func(t *testing.T) {
+		gen := func(ref string, signal bool) PriorGeneration {
+			e := &LoopEvidence{Disposition: wire.CodeHandoff, GateResults: "0", Reviews: "0"}
+			if signal {
+				e.Progress = &LoopProgress{Signal: intent.ProgressSignalHandoffEvidence}
+				if ref != "" {
+					r := ref
+					e.Progress.Fingerprint = &r
+				}
+			}
+			return PriorGeneration{History: &GenerationHistory{Loop: e}}
+		}
+		cases := []struct {
+			current string
+			prior   []PriorGeneration
+			want    string
+		}{
+			{"", nil, ""},
+			{"local:c", []PriorGeneration{gen("local:a", true)}, "local:c"},
+			{"", []PriorGeneration{gen("local:a", true), gen("", true)}, "local:a"},
+			{"", []PriorGeneration{gen("local:a", true), gen("local:b", true), gen("", false), {}}, "local:b"},
+			{"", []PriorGeneration{gen("", true), gen("", false)}, ""},
+		}
+		for i, c := range cases {
+			if got := LatestHandoffEvidence(&Attempt{HandoffEvidence: c.current, PriorGenerations: c.prior}); got != c.want {
+				t.Fatalf("case %d: %q want %q", i, got, c.want)
+			}
+		}
+	})
+}

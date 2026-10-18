@@ -103,6 +103,27 @@ type LoopProgress struct {
 	Fingerprint *string
 }
 
+// LatestHandoffEvidence is the attempt's latest recorded HANDOFF_EVIDENCE
+// reference (ATR-V0-084): the current generation's hand-off reference, else
+// the newest prior generation's recorded progress fingerprint; empty when no
+// generation recorded one. A claim clears the current reference, so a
+// generation that records none carries the latest earlier one.
+func LatestHandoffEvidence(a *Attempt) string {
+	if a.HandoffEvidence != "" {
+		return a.HandoffEvidence
+	}
+	for i := len(a.PriorGenerations) - 1; i >= 0; i-- {
+		h := a.PriorGenerations[i].History
+		if h == nil || h.Loop == nil || h.Loop.Progress == nil {
+			continue
+		}
+		if p := h.Loop.Progress; p.Signal == intent.ProgressSignalHandoffEvidence && p.Fingerprint != nil {
+			return *p.Fingerprint
+		}
+	}
+	return ""
+}
+
 // LoopEvidenceOf copies the CAL-V0-102 work evidence of an ended
 // external-agent generation; nil when it recorded no retry accounting.
 func LoopEvidenceOf(a *Attempt) *LoopEvidence { return LoopEvidenceWith(a, "") }
