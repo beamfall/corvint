@@ -437,7 +437,8 @@ func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptio
 // library form; requirements and an absent flag are the default form.
 var ocmIntentForms = map[string]string{
 	"": "", "requirements": "", lrfrepo.IntentFormADR: lrfrepo.IntentFormADR,
-	lrfrepo.IntentFormRoadmap: lrfrepo.IntentFormRoadmap,
+	lrfrepo.IntentFormRoadmap: lrfrepo.IntentFormRoadmap, lrfrepo.IntentFormOpenSpecSpec: lrfrepo.IntentFormOpenSpecSpec,
+	lrfrepo.IntentFormOpenSpecDelta: lrfrepo.IntentFormOpenSpecDelta, lrfrepo.IntentFormSpecKit: lrfrepo.IntentFormSpecKit,
 }
 
 func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdout, stderr io.Writer) int {
@@ -468,10 +469,25 @@ func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdo
 		// state. The oracle differs the same way.
 		"testExecution": map[string]any{"observed": false, "state": "NOT_RUN"},
 	}
-	if options.intentForm == lrfrepo.IntentFormRoadmap {
-		envelope["excludedTickets"] = append([]string{}, prepared.ExcludedTickets...)
-	}
+	addIntentFormMembers(envelope, options.intentForm, prepared)
 	return emitOCMEnvelope(stdout, stderr, envelope)
+}
+
+// addIntentFormMembers adds the prepare envelope members only a declared form
+// emits (OIF-V0-008, STA-V0-003 to STA-V0-005); the default form adds none.
+func addIntentFormMembers(envelope map[string]any, form string, prepared *lrfrepo.PrepareResult) {
+	switch form {
+	case lrfrepo.IntentFormRoadmap:
+		envelope["excludedTickets"] = append([]string{}, prepared.ExcludedTickets...)
+	case lrfrepo.IntentFormOpenSpecSpec, lrfrepo.IntentFormOpenSpecDelta:
+		envelope["nativeNames"] = prepared.NativeNames
+	}
+	if form == lrfrepo.IntentFormOpenSpecDelta || form == lrfrepo.IntentFormSpecKit {
+		envelope["excludedRequirements"] = append([]map[string]string{}, prepared.ExcludedRequirements...)
+	}
+	if form == lrfrepo.IntentFormSpecKit && prepared.NativeStatus != nil {
+		envelope["nativeStatus"] = *prepared.NativeStatus
+	}
 }
 
 // parseOCMLinkFlags mirrors the oracle's link subparser. --hunk and --claim are
