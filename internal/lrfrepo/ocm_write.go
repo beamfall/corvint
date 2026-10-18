@@ -279,16 +279,16 @@ func OCMCountsAndWorklist(document wire.Value) (map[string]any, []any) {
 
 // PrepareResult reports what one prepare created or resumed.
 type PrepareResult struct {
-	Document     wire.Value
-	MapAbsolute  string
-	CEMAbsolute  string
-	Target       string
-	IntentScope  map[string]any
-	Resumed      bool
-	Requirements []string
-	// ExcludedTickets lists roadmap tickets without an Acceptance line.
-	ExcludedTickets []string
-	StatusAction    []any
+	Document                wire.Value
+	MapAbsolute             string
+	CEMAbsolute             string
+	Target                  string
+	IntentScope             map[string]any
+	Resumed                 bool
+	Requirements            []string
+	ExcludedTickets         []string // roadmap tickets without an Acceptance line
+	ToolchainPrepareMembers          // set only by the STA-V0 OpenSpec and Spec Kit forms
+	StatusAction            []any
 }
 
 // PrepareOCM creates or safely resumes the local OCM reviewer artifact. It is
@@ -342,7 +342,7 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 		Document:     document, MapAbsolute: written,
 		CEMAbsolute: absoluteInput(inputRoot.Path(), options.CEMPath),
 		Target:      target, IntentScope: scope, Resumed: resumed, Requirements: derived.requirements,
-		ExcludedTickets: derived.excluded,
+		ExcludedTickets: derived.excluded, ToolchainPrepareMembers: derived.toolchainMembers(),
 	}, nil
 }
 

@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check
+.PHONY: build gate instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-check spec-toolchain-conformance spec-toolchain-latest-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -272,6 +272,21 @@ ci-least-privilege-check:
 
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
+
+# spec-toolchain-conformance installs the OpenSpec and Spec Kit releases pinned in
+# interop/spec-toolchains/versions.json with checksum verification, runs their validators, and
+# asserts that Corvint's derived obligations equal upstream's own view (STA-V0-011,
+# docs/specs/spec-toolchain-adapters-v0.md). It needs the npm registry, GitHub and PyPI, so it is
+# not a gate step: the path-filtered spec-toolchain-conformance workflow runs it.
+spec-toolchain-conformance:
+	@script/spec-toolchain-conformance.sh
+
+# spec-toolchain-latest-test checks script/spec-toolchain-latest.sh (STA-V0-012) offline against
+# recorded registry answers; the script itself is operator-run and needs the network. Like
+# spec-toolchain-conformance it is not a gate step (so not a shell-test prerequisite either): the
+# spec-toolchain-conformance workflow runs it.
+spec-toolchain-latest-test:
+	@script/spec-toolchain-latest_test.sh
 
 # unbounded-readers-check fails unless the test packages selected on every change are exactly
 # the units recorded in .corvint/unbounded-readers.json (AFP-V0-025,
