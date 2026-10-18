@@ -775,13 +775,23 @@ CCE-V0-005	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e compile` MUST 
 CCE-V0-006	docs/specs/change-compiled-e2e-v0.md	When any block a scenario needs is missing or unadmitted, the compiler MUST emit	unrecorded	-
 CCE-V0-007	docs/specs/change-compiled-e2e-v0.md	Compilation MUST be deterministic: identical catalog digest, base, head, obligat	unrecorded	-
 CCE-V0-008	docs/specs/change-compiled-e2e-v0.md	Running and proving are separate and opt-in: only `corvint-test e2e prove` execu	unrecorded	-
-CCE-V0-009	docs/specs/change-compiled-e2e-v0.md	The discrimination verdict MUST be the first of these that holds:	unrecorded	-
+CCE-V0-009	docs/specs/change-compiled-e2e-v0.md	The discrimination verdict MUST be the first of these that holds. "Head" and	unrecorded	-
 CCE-V0-010	docs/specs/change-compiled-e2e-v0.md	A compiled scenario MUST NOT read above `candidate` unless its verdict is	unrecorded	-
 CCE-V0-011	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e shadow --window FILE` MUST read a frozen shadow window (an ord	unrecorded	-
 CCE-V0-012	docs/specs/change-compiled-e2e-v0.md	A hosted test MAY be listed as a retirement candidate only when all of these hol	unrecorded	-
 CCE-V0-013	docs/specs/change-compiled-e2e-v0.md	Corvint MUST NOT delete, disable, skip or move a hosted test, and MUST NOT write	unrecorded	-
 CCE-V0-014	docs/specs/change-compiled-e2e-v0.md	Every emitted document (`catalog`, `obligations`, `compile`, `prove`, `shadow`)	unrecorded	-
 CCE-V0-015	docs/specs/change-compiled-e2e-v0.md	Every CCE-V0 command MUST be a subcommand of the `corvint-test e2e` group, as Bi	unrecorded	-
+CCE-V0-016	docs/specs/change-compiled-e2e-v0.md	Every compiled scenario MUST record `oracle_origin` by joining its outcome block	unrecorded	-
+CCE-V0-017	docs/specs/change-compiled-e2e-v0.md	`prove` MUST run the head test tree (the files of every admitted `page-object` a	unrecorded	-
+CCE-V0-018	docs/specs/change-compiled-e2e-v0.md	Besides the BBF-V0 `wrong-locator` and `wrong-expected-value` controls on the	unrecorded	-
+CCE-V0-019	docs/specs/change-compiled-e2e-v0.md	`obligations` MUST read `UNKNOWN`, never `NONE`, with the span named, when: a	unrecorded	-
+CCE-V0-020	docs/specs/change-compiled-e2e-v0.md	Every `UNKNOWN` span MUST carry exactly one reason from the closed set	unrecorded	-
+CCE-V0-021	docs/specs/change-compiled-e2e-v0.md	The optional `environment` member of `e2e-blocks.json` MUST hold only `serve` (a	unrecorded	-
+CCE-V0-022	docs/specs/change-compiled-e2e-v0.md	`prove` MUST pass the runner only an allowlisted environment (`PATH`, a workspac	unrecorded	-
+CCE-V0-023	docs/specs/change-compiled-e2e-v0.md	Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the	unrecorded	-
+CCE-V0-024	docs/specs/change-compiled-e2e-v0.md	Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so	unrecorded	-
+CCE-V0-025	docs/specs/change-compiled-e2e-v0.md	Text read from the page or the runner (error messages, DOM snippets, console	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-

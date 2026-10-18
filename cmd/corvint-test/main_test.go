@@ -1,0 +1,235 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/changee2e"
+)
+
+func gitTest(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+	c.Dir = root
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+	out, err := c.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v: %s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func fixture(t *testing.T) (string, string, string) {
+	t.Helper()
+	root := t.TempDir()
+	for _, src := range []string{"../../internal/appmap/testdata/fixture", "../../internal/changee2e/testdata/overlay"} {
+		err := filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+			rel, _ := filepath.Rel(src, p)
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+				return err
+			}
+			return os.WriteFile(filepath.Join(root, rel), data, 0o644)
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(msg string) string {
+		gitTest(t, root, "add", "-A")
+		gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", msg)
+		return gitTest(t, root, "rev-parse", "HEAD")
+	}
+	gitTest(t, root, "init", "-q")
+	base := commit("base")
+	head, err := os.ReadFile(filepath.Join(root, "app/components/teesheet.head.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "app/components/teesheet.html"), head, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root, base, commit("book")
+}
+
+// CCE-V0-015: each subcommand is reachable as `corvint-test e2e <sub>`; anything else is a usage
+// error, and --out inside the repository refuses.
+func TestCCEV0015SubcommandsReachable(t *testing.T) {
+	root, base, head := fixture(t)
+	ctx := context.Background()
+	for _, args := range [][]string{
+		{"e2e", "catalog", "--root", root, "--rev", head},
+		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
+		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
+	} {
+		var out bytes.Buffer
+		if err := run(ctx, args, &out); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		var doc struct {
+			Schema string `json:"schema"`
+		}
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil || !strings.HasPrefix(doc.Schema, "e2e-") {
+			t.Fatalf("%v: %v %s", args, err, out.Bytes())
+		}
+	}
+	out := t.TempDir()
+	if err := run(ctx, []string{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", out}, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(out, "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts")); err != nil {
+		t.Fatal(err)
+	}
+	// prove is registered: a bad flag fails at parse, not as an unknown subcommand.
+	for _, args := range [][]string{{}, {"e2e"}, {"e2e", "unknown"}, {"test"}, {"e2e", "prove", "--bogus"}} {
+		if err := run(ctx, args, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), usage) {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	var r *changee2e.Refusal
+	err := run(ctx, []string{"e2e", "catalog", "--root", root, "--rev", head, "--out", filepath.Join(root, ".corvint", "c.json")}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-out-not-allowed" {
+		t.Fatalf("%v", err)
+	}
+}
+
+// CCE-V0-015: core `corvint` never imports the companion or its package; the companion never
+// names `corvint` as an executable, and its diagnostics stay disjoint from core `corvint test`'s
+// `corvint-test:` prefix.
+func TestCCEV0015CoreBoundary(t *testing.T) {
+	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
+	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			t.Fatalf("%v: %s", err, ee.Stderr)
+		}
+		t.Fatal(err)
+	}
+	for _, dep := range strings.Fields(string(out)) {
+		if strings.HasSuffix(dep, "/internal/changee2e") || strings.HasSuffix(dep, "/cmd/corvint-test") {
+			t.Fatalf("core corvint imports %s", dep)
+		}
+	}
+	srcs, _ := filepath.Glob("../../internal/changee2e/*.go")
+	srcs = append(srcs, "main.go")
+	corvintArgv := regexp.MustCompile(`"corvint"|"corvint\s|/corvint"`)
+	bareDiag := regexp.MustCompile(`"corvint-test:`)
+	for _, p := range srcs {
+		if strings.HasSuffix(p, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if corvintArgv.Match(data) || bareDiag.Match(data) {
+			t.Fatalf("%s names the core executable or its diagnostic prefix", p)
+		}
+	}
+}
+
+// CCE-V0-015 subprocess check: run the built companion with a `corvint` that records any call
+// first on PATH; no subcommand may reach it.
+func TestCCEV0015NeverExecutesCorvint(t *testing.T) {
+	root, base, head := fixture(t)
+	bin := filepath.Join(t.TempDir(), "corvint-test")
+	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	fake := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "called")
+	if err := os.WriteFile(filepath.Join(fake, "corvint"), []byte("#!/bin/sh\necho \"$@\" >> '"+marker+"'\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fake+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, args := range [][]string{
+		{"e2e", "catalog", "--root", root, "--rev", head},
+		{"e2e", "obligations", "--root", root, "--base", base, "--head", head},
+		{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", t.TempDir()},
+	} {
+		if out, err := exec.Command(bin, args...).CombinedOutput(); err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, out)
+		}
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
+		data, _ := os.ReadFile(marker)
+		t.Fatalf("companion executed corvint: %s", data)
+	}
+}
+
+// CCE-V0-001/007: a symlink below --out (here <out>/e2e pointing at another directory) refuses
+// compile before anything is written through it.
+func TestCCEV0001OutNestedSymlinkRefused(t *testing.T) {
+	root, base, head := fixture(t)
+	out, target := t.TempDir(), t.TempDir()
+	if err := os.Symlink(target, filepath.Join(out, "e2e")); err != nil {
+		t.Fatal(err)
+	}
+	var r *changee2e.Refusal
+	err := run(context.Background(), []string{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", out}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+		t.Fatalf("link target written: %v %v", entries, err)
+	}
+	// Duplicate placements refuse before any write.
+	sc := changee2e.Scenario{Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte("x")}
+	dup := t.TempDir()
+	if err := writeScenarios(dup, []changee2e.Scenario{sc, sc}); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if entries, _ := os.ReadDir(dup); len(entries) != 0 {
+		t.Fatalf("duplicate placement wrote %v", entries)
+	}
+}
+
+// CCE-V0-001: a symlinked final file under --out (for example e2e-prove.json) refuses and leaves
+// its target untouched; a reserved name is validated before scenario writes.
+func TestCCEV0001OutFileSymlinkRefused(t *testing.T) {
+	out := t.TempDir()
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(out, proveReport)); err != nil {
+		t.Fatal(err)
+	}
+	var r *changee2e.Refusal
+	if err := writeUnder(out, proveReport, []byte("x"), nil); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if err := writeFile(filepath.Join(out, proveReport), []byte("x"), nil); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	sc := changee2e.Scenario{Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte("x")}
+	if err := writeScenarios(out, []changee2e.Scenario{sc}, proveReport); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(out, "e2e")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("scenario written before validation: %v", err)
+	}
+	if data, _ := os.ReadFile(victim); string(data) != "keep" {
+		t.Fatalf("victim overwritten: %q", data)
+	}
+	for _, rel := range []string{"../x", "/abs", ""} {
+		if _, err := checkUnder(out, rel); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+			t.Fatalf("%q: %v", rel, err)
+		}
+	}
+}
