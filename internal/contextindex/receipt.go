@@ -737,7 +737,10 @@ func lacksLanguageVerification(index *Index, receipt map[string]any) bool {
 			continue
 		}
 		hasLanguage = true
-		if command, complete := toolchainCommand(sourcePath, index.Sources); complete && command != "" {
+		// The RSpec signal is not repository-wide: it clears this line only
+		// through a receipt whose own plan names `bundle exec rspec`, which
+		// already returned above (NGI-V0-027).
+		if command, complete := toolchainCommand(sourcePath, index.Sources, false); complete && command != "" {
 			return false
 		}
 	}
@@ -782,6 +785,7 @@ func verificationPaths(results []map[string]any) []string {
 func verificationCommands(index *Index, orderedPaths []string) []any {
 	projectFiles := index.Sources
 	profile := verificationProfile(projectFiles)
+	rspec := rspecProject(index)
 	commands := make([]string, 0)
 	for _, value := range orderedPaths {
 		// A path's shape can match a named profile's Command table (e.g. an
@@ -793,7 +797,7 @@ func verificationCommands(index *Index, orderedPaths []string) []any {
 		command, prescriber, prescribed := projectprofile.Prescribe(value)
 		complete := true
 		if !prescribed || prescriber.ID != profile.ID {
-			command, complete = toolchainCommand(value, projectFiles)
+			command, complete = toolchainCommand(value, projectFiles, rspec)
 		}
 		if complete && command != "" && !stringIn(commands, command) {
 			commands = append(commands, command)
@@ -837,7 +841,8 @@ func verificationProfile(projectFiles map[string]Source) projectprofile.Profile 
 // toolchainCommand names the test command a path implies from the build
 // toolchains present in the repository, independent of any project profile.
 // Its boolean is false when deriving the answer required unavailable content.
-func toolchainCommand(value string, projectFiles map[string]Source) (string, bool) {
+// rspec is rspecProject's answer, computed once per plan rather than per path.
+func toolchainCommand(value string, projectFiles map[string]Source, rspec bool) (string, bool) {
 	switch {
 	case strings.HasSuffix(value, ".go"):
 		if _, ok := projectFiles["go.mod"]; ok {
@@ -852,6 +857,10 @@ func toolchainCommand(value string, projectFiles map[string]Source) (string, boo
 			hasPathPrefix(projectFiles, "tests/") {
 			return "python -m pytest", true
 		}
+	case strings.HasSuffix(value, ".rb"):
+		if rspec {
+			return "bundle exec rspec", true
+		}
 	case hasWebSuffix(value):
 		if source, ok := projectFiles["package.json"]; ok {
 			hasTest, loaded := packageJSONHasTestScript(source)
@@ -864,6 +873,35 @@ func toolchainCommand(value string, projectFiles map[string]Source) (string, boo
 		}
 	}
 	return "", true
+}
+
+// rspecProject reports whether the repository's Git tree proves an RSpec suite
+// run through Bundler: a root Gemfile and either a root .rspec or a spec/
+// directory (NGI-V0-027). Neither manifest is an admitted source, so presence
+// is read from the tracked-path set; Sources covers an index built without it.
+// Without a Gemfile no Ruby command is offered, so `bundle exec` never runs
+// where Bundler has nothing to resolve.
+func rspecProject(index *Index) bool {
+	if !indexTracks(index, "Gemfile") {
+		return false
+	}
+	if indexTracks(index, ".rspec") {
+		return true
+	}
+	for candidate := range index.Tracked {
+		if strings.HasPrefix(candidate, "spec/") {
+			return true
+		}
+	}
+	return hasPathPrefix(index.Sources, "spec/")
+}
+
+func indexTracks(index *Index, name string) bool {
+	if _, ok := index.Tracked[name]; ok {
+		return true
+	}
+	_, ok := index.Sources[name]
+	return ok
 }
 
 // gateCommand names the command that closes a verification plan. A signalled
