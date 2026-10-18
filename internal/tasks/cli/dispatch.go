@@ -662,7 +662,13 @@ func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time, 
 	for _, s := range dispatch.SpendReportFor(c, l, now, tickets) {
 		o := wire.NewObject().Set("scope", str(s.Scope)).Set("name", str(s.Name))
 		if overrides && s.Scope == dispatch.ScopeTicket {
-			o.Set("selector", str(s.Selector))
+			// NONE: a recorded hold whose ticket no override selects under a
+			// ticketBudget with no default limit (ATR-V0-085).
+			sel := s.Selector
+			if sel == "" {
+				sel = "NONE"
+			}
+			o.Set("selector", str(sel))
 			o.Set("selectorObserved", wire.Bool(observed[s.Name]))
 		}
 		o.Set("sessions", str(strconv.Itoa(s.Sessions)))

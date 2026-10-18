@@ -4323,7 +4323,9 @@ ticket from local observations alone. They can see what was spent and why work i
 
 - `CAL-V0-155`: (accepted by decision 0441; V1-0937) A role MAY declare `budget` and the
   configuration MAY declare a top-level `ticketBudget`. Each is `{"sessionsPerDay": N,
-  "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present. A member
+  "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present (amended in
+  place, V1-1835: a `ticketBudget` with ATR-V0-085 `overrides` MAY omit both, and a ticket no
+  override selects then has no ticket scope; ATR-V0-085 governs it). A member
   given as 0 or null, repeated, or spelled with other letter case is refused, not read as absent,
   as its last value or as an alias. Both are
   optional members of `taskman-dispatch/0`, and a build without this amendment refuses them as
@@ -4417,7 +4419,8 @@ ticket from local observations alone. They can see what was spent and why work i
   - `windowSeconds`;
   - `historyTruncatedThrough` and `historyFrom` (`NONE` when not in the window);
   - one `scopes` entry per configured role, and, with `ticketBudget`, per ticket launched in the
-    window. Each entry shows sessions, observedTokens, partialSessions, runningSessions,
+    window (with overrides alone, only per ticket an override selects or with a recorded hold,
+    ATR-V0-085). Each entry shows sessions, observedTokens, partialSessions, runningSessions,
     unknownSessions, both limits (`NONE` when unset), `held` (the limit, or `NONE`) and
     `resetsAt`.
 

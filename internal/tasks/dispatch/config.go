@@ -76,7 +76,9 @@ type Config struct {
 }
 
 // Budget is a CAL-V0-155 rolling 24-hour launch budget. An absent (zero)
-// member has no limit; at least one member is present.
+// member has no limit; at least one member is present, except that a
+// ticketBudget with overrides may omit both: a ticket no override selects
+// then has no ticket limit (ATR-V0-085, V1-1835).
 type Budget struct {
 	SessionsPerDay int    `json:"sessionsPerDay,omitempty"`
 	TokensPerDay   uint64 `json:"tokensPerDay,omitempty"`
@@ -123,7 +125,9 @@ const BudgetSelectorDefault = "DEFAULT"
 // that set it: a ticket override (ID or local key) over the first label
 // override in configuration order over a kind override over the default.
 // The winner's limits replace the default's; a limit it leaves unset stays
-// the default's. With no ticketBudget it returns nil.
+// the default's. With no ticketBudget, or when no override selects t and the
+// ticketBudget declares no default limit (ATR-V0-085), it returns nil and
+// "": t is then never held by a ticket budget.
 func (c *Config) TicketLimit(t Ticket) (*Budget, string) {
 	tb := c.TicketBudget
 	if tb == nil {
@@ -143,6 +147,9 @@ func (c *Config) TicketLimit(t Ticket) (*Budget, string) {
 	}
 	eff := &Budget{SessionsPerDay: tb.SessionsPerDay, TokensPerDay: tb.TokensPerDay}
 	if win < 0 {
+		if !tb.hasDefault() {
+			return nil, ""
+		}
 		return eff, BudgetSelectorDefault
 	}
 	o := tb.Overrides[win]
@@ -298,8 +305,14 @@ func exactBudgetMembers(raw []byte) error {
 	return nil
 }
 
+// hasDefault reports whether the budget declares a limit of its own, as
+// opposed to overrides alone (ATR-V0-085).
+func (b *Budget) hasDefault() bool { return b.SessionsPerDay > 0 || b.TokensPerDay > 0 }
+
+// validate checks the limits. A budget with overrides (a ticketBudget; a
+// role budget refuses them separately) needs no default limit (ATR-V0-085).
 func (b *Budget) validate() error {
-	if b.SessionsPerDay < 0 || b.SessionsPerDay > maxBudgetSessions || b.TokensPerDay > maxBudgetTokens || (b.SessionsPerDay == 0 && b.TokensPerDay == 0) {
+	if b.SessionsPerDay < 0 || b.SessionsPerDay > maxBudgetSessions || b.TokensPerDay > maxBudgetTokens || (!b.hasDefault() && len(b.Overrides) == 0) {
 		return fmt.Errorf("budget needs sessionsPerDay 1..%d or tokensPerDay 1..%d", maxBudgetSessions, uint64(maxBudgetTokens))
 	}
 	return nil
