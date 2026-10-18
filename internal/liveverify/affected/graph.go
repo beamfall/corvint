@@ -20,6 +20,7 @@ type Graph struct {
 	order      []string
 	owner      map[string]string
 	dependents map[string][]string
+	advisory   map[string][]string
 	testUsers  map[string][]string
 	execUsers  map[string][]string
 	testReach  map[string]bool
@@ -61,8 +62,9 @@ type digestBody struct {
 
 // digestUnit projects one Unit; every member is always present except the
 // declared read scope, which appears only for a declared unit, and the
-// command edges, which appear only for a unit that runs a command, so that
-// graphs without either keep their digest.
+// command edges, which appear only for a unit that runs a command, and the
+// advisory edges, which appear only for a unit that has one
+// (RUBY-AFFECTED-V0-009), so that graphs without them keep their digest.
 type digestUnit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
@@ -70,6 +72,7 @@ type digestUnit struct {
 	Imports           []string `json:"imports"`
 	TestImports       []string `json:"testImports"`
 	Execs             []string `json:"execs,omitempty"`
+	AdvisoryImports   []string `json:"advisoryImports,omitempty"`
 	PathTokens        []string `json:"pathTokens"`
 	PathTokensBounded bool     `json:"pathTokensBounded"`
 	Embeds            bool     `json:"embeds"`
@@ -222,6 +225,7 @@ func (graph *Graph) admit(ctx context.Context, namespace string, result Result, 
 func (graph *Graph) finish() {
 	sort.Strings(graph.order)
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
+	graph.advisory = graph.reverse(func(unit Unit) []string { return unit.AdvisoryImports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
 	graph.testReach = graph.unitsReachingTests()
@@ -289,7 +293,8 @@ func (graph *Graph) unitsReachingTests() map[string]bool {
 	for len(frontier) != 0 {
 		id := frontier[len(frontier)-1]
 		frontier = frontier[:len(frontier)-1]
-		for _, target := range graph.units[id].Imports {
+		unit := graph.units[id]
+		for _, target := range append(append([]string(nil), unit.Imports...), unit.AdvisoryImports...) {
 			if _, known := graph.units[target]; !known || reach[target] {
 				continue
 			}
@@ -361,6 +366,7 @@ func projectUnit(unit Unit) digestUnit {
 		Imports:           unit.Imports,
 		TestImports:       unit.TestImports,
 		Execs:             unit.Execs,
+		AdvisoryImports:   unit.AdvisoryImports,
 		PathTokens:        unit.PathTokens,
 		PathTokensBounded: unit.PathTokensBounded,
 		Embeds:            unit.Embeds,

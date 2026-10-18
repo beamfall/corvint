@@ -68,6 +68,10 @@ const MaxPathsPerUnit = 20_000
 // Execs name the command units whose built binary the unit's code or tests
 // run (AFP-V0-037): no import edge reaches the unit from the command, so a
 // change to the command's build selects the unit through this edge instead.
+// AdvisoryImports name units the unit reaches through a convention the
+// plugin resolved without an explicit load, such as a Ruby constant that
+// autoloading maps to a file (RUBY-AFFECTED-V0-009). A change there selects
+// the unit like an import does, but the witness says the edge is advisory.
 type Unit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
@@ -75,6 +79,7 @@ type Unit struct {
 	Imports           []string `json:"imports"`
 	TestImports       []string `json:"testImports,omitempty"`
 	Execs             []string `json:"execs,omitempty"`
+	AdvisoryImports   []string `json:"advisoryImports,omitempty"`
 	PathTokens        []string `json:"pathTokens,omitempty"`
 	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
 	Embeds            bool     `json:"embeds,omitempty"`
@@ -143,6 +148,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.Execs); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.AdvisoryImports); err != nil {
 		return err
 	}
 	if err := validIdentifierList(unit.Frontier); err != nil {

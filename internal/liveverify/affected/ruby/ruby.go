@@ -94,6 +94,7 @@ type observation struct {
 	kind     framework
 	id       string
 	loads    []loadRef
+	text     string
 }
 
 type loadRef struct {
@@ -154,14 +155,18 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		if hintConflict {
 			frontier[FrontierAmbiguousFramework] = true
 		}
-		if hint != frameworkSource && !hasDirectFramework(code) && !(kind == frameworkRSpec && hint == frameworkRailsTest) {
+		// A helper that defines no test of its own stays source whatever it
+		// loads: rails_helper requiring spec_helper is not a spec
+		// (RUBY-AFFECTED-V0-012).
+		helper := kind == frameworkSource && strings.HasSuffix(path.Base(relative), "_helper.rb")
+		if hint != frameworkSource && !helper && !hasDirectFramework(code) && !(kind == frameworkRSpec && hint == frameworkRailsTest) {
 			kind = hint
 		}
 		railsObserved = railsObserved || kind == frameworkRailsTest
 		if frameworkAmbiguous(relative, code, kind, rails) && hint == frameworkSource {
 			frontier[FrontierAmbiguousFramework] = true
 		}
-		if hasDynamicTestDefinition(relative, code, kind) {
+		if hasDynamicTestDefinition(relative, code, kind) && !sharedSupportDefinition(relative, code, kind) {
 			frontier[FrontierDynamicTestDefinition] = true
 		}
 		observed = append(observed, observation{
@@ -169,21 +174,55 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			kind:     kind,
 			id:       unitID(kind, relative),
 			loads:    loads,
+			text:     text,
 		})
 	}
-	if railsObserved && hasTests(observed) {
-		frontier[FrontierRailsAutoload] = true
+	// A Rails application loads constants by name, not by require. Its
+	// constant references become advisory edges; the coarse frontier remains
+	// only where the mapping cannot bound them (RUBY-AFFECTED-V0-009,
+	// RUBY-AFFECTED-V0-010).
+	var autoload *railsAutoload
+	if rails {
+		autoload = newRailsAutoload(root, observed, files)
 	}
+	tests := hasTests(observed)
+	railsUnbounded := railsObserved && tests && (autoload == nil || autoload.unresolved)
 	aliases := indexAliases(observed, loadRoots)
 	paths := indexPaths(observed)
+	advisory := make(map[string]map[string]bool, len(observed))
+	constants := make(map[string]int, len(observed))
+	if autoload != nil {
+		for _, item := range observed {
+			edges, bounded := autoload.edges(item)
+			railsUnbounded = railsUnbounded || !bounded && tests
+			constants[item.id] = len(edges)
+			if item.kind != frameworkSource {
+				for id := range autoload.bootEdges(item) {
+					edges[id] = true
+				}
+			}
+			advisory[item.id] = edges
+		}
+	}
+	if railsUnbounded {
+		frontier[FrontierRailsAutoload] = true
+	}
 	units := make([]affected.Unit, 0, len(observed))
 	for _, item := range observed {
 		imports := resolveLoads(item, aliases, frontier)
 		mapped := addConventionalCounterpart(item, paths, imports, frontier)
-		if item.kind != frameworkSource && !rails && len(imports) == 0 && !mapped {
+		reached := len(imports) != 0 || mapped || constants[item.id] != 0
+		if item.kind != frameworkSource && !reached && (!rails || !railsUnbounded) {
 			frontier[FrontierImplicitTestDependency] = true
 		}
-		unit := affected.Unit{ID: item.id, Imports: sortedKeys(imports)}
+		for id := range supportEdges(item, paths) {
+			imports[id] = true
+		}
+		unit := affected.Unit{ID: item.id, Imports: sortedKeys(imports), AdvisoryImports: sortedEdges(advisory[item.id], imports)}
+		if len(unit.Imports) > affected.MaxPathsPerUnit || len(unit.AdvisoryImports) > affected.MaxPathsPerUnit {
+			frontier[FrontierImplicitTestDependency] = true
+			unit.Imports, unit.AdvisoryImports = nil, nil
+		}
 		if item.kind == frameworkSource {
 			unit.Sources = []string{item.relative}
 		} else {
@@ -373,6 +412,9 @@ func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
 	refs := make([]loadRef, 0, 8)
 	flags := make(map[string]bool, 2)
 	for _, line := range strings.Split(body, "\n") {
+		if coveredSupportGlob(owner, line) {
+			continue
+		}
 		if strings.Contains(line, "$LOAD_PATH") || strings.Contains(line, "$:") || strings.Contains(line, "autoload_paths") {
 			flags[FrontierDynamicLoad] = true
 		}
@@ -578,6 +620,18 @@ func testRelative(relative string) (string, string, bool) {
 		return prefix, strings.Join(components[index+1:], "/"), true
 	}
 	return "", "", false
+}
+
+// sharedSupportDefinition reports a source file below a suite's support
+// directory whose only dynamic definition is shared examples or a shared
+// context: every test of the suite imports it (RUBY-AFFECTED-V0-012), and the
+// examples run under the including test file's identity.
+func sharedSupportDefinition(relative, body string, kind framework) bool {
+	if kind != frameworkSource || !supportDirectory(relative) || dynamicDefinition.MatchString(body) {
+		return false
+	}
+	without := strings.NewReplacer("shared_examples", "", "shared_context", "").Replace(body)
+	return !hasDynamicTestDefinition(relative, without, kind)
 }
 
 func hasDynamicTestDefinition(relative, body string, kind framework) bool {
