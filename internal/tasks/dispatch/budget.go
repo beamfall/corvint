@@ -191,6 +191,37 @@ type spendGate struct {
 	r       *SpendRecord
 	charged map[[2]string]int
 	holds   map[[2]string]BudgetHold
+	// meta is the observed tickets by ID, which resolve the ATR-V0-087
+	// effective ticket limit; nil until observe.
+	meta map[string]Ticket
+}
+
+// observe keeps the observed tickets, whose labels and kind select their
+// ATR-V0-087 ticketBudget override; only overrides need it.
+func (g *spendGate) observe(ts []Ticket) {
+	if g.c.TicketBudget == nil || len(g.c.TicketBudget.Overrides) == 0 {
+		return
+	}
+	g.meta = ticketMeta(ts)
+}
+
+func ticketMeta(ts []Ticket) map[string]Ticket {
+	m := make(map[string]Ticket, len(ts))
+	for _, t := range ts {
+		m[t.ID] = t
+	}
+	return m
+}
+
+// ticketLimit is a ticket key's ATR-V0-087 effective limit and selector. A
+// ticket not observed resolves by its key alone: only a ticket override can
+// select it, as its labels and kind are unknown.
+func ticketLimit(c *Config, meta map[string]Ticket, id string) (*Budget, string) {
+	t, ok := meta[id]
+	if !ok {
+		t = Ticket{ID: id}
+	}
+	return c.TicketLimit(t)
 }
 
 func (d *Dispatcher) spendGate(now time.Time) *spendGate {
@@ -215,7 +246,8 @@ func (g *spendGate) scopes(a Assignment) [][2]string {
 
 func (g *spendGate) budget(scope [2]string) *Budget {
 	if scope[0] == ScopeTicket {
-		return g.c.TicketBudget
+		b, _ := ticketLimit(g.c, g.meta, scope[1])
+		return b
 	}
 	if r := g.c.roleNamed(scope[1]); r != nil {
 		return r.Budget
@@ -247,6 +279,7 @@ func (d *Dispatcher) budgetHeld(ts []Ticket, now time.Time) map[string]bool {
 		return nil
 	}
 	g, prefer := d.spendGate(now), preferredRoles(d.relaunches())
+	g.observe(ts)
 	var held map[string]bool
 	for _, t := range ts {
 		if len(g.ticketHolds(t, prefer[t.ID])) > 0 {
@@ -431,6 +464,15 @@ func (d *Dispatcher) recordBudget(g *spendGate) {
 		sessions, tokens, unknown := d.scopeSpend([2]string{h.Scope, h.Name}, g.now)
 		reset := h.ResetsAt.UTC().Format(time.RFC3339)
 		e := Event{Kind: "budget", Message: fmt.Sprintf("%s %s is held by its %s budget until %s", h.Scope, h.Name, h.Limit, reset), Detail: map[string]string{"scope": h.Scope, "name": h.Name, "limit": h.Limit, "resetsAt": reset, "sessions": strconv.Itoa(sessions), "observedTokens": strconv.FormatUint(tokens, 10), "unknownSessions": strconv.Itoa(unknown)}}
+		// ATR-V0-088: with overrides, a ticket hold names the selector
+		// that set its effective limit and the limit itself.
+		if h.Scope == ScopeTicket && len(g.c.TicketBudget.Overrides) > 0 {
+			b, sel := ticketLimit(g.c, g.meta, h.Name)
+			e.Detail["selector"] = sel
+			e.Detail["sessionsPerDay"] = strconv.Itoa(b.SessionsPerDay)
+			e.Detail["tokensPerDay"] = strconv.FormatUint(b.TokensPerDay, 10)
+			e.Message += " (limit set by " + sel + ")"
+		}
 		if h.Scope == ScopeRole {
 			e.Role = h.Name
 		} else {
@@ -463,9 +505,10 @@ func (d *Dispatcher) scopeSpend(scope [2]string, now time.Time) (sessions int, t
 // ScopeSpend is one scope's spend in the window, for dispatch status
 // (CAL-V0-158): sessions launched, the tokens observed (a lower bound while
 // any session is PARTIAL or RUNNING), the sessions whose total is UNKNOWN,
-// its budget if any, and the recorded hold.
+// its budget if any, and the recorded hold. A ticket scope's Budget is its
+// ATR-V0-087 effective limit and Selector the selector that set it.
 type ScopeSpend struct {
-	Scope, Name                         string
+	Scope, Name, Selector               string
 	Budget                              *Budget
 	Sessions, Unknown, Partial, Running int
 	Tokens                              uint64
@@ -475,9 +518,20 @@ type ScopeSpend struct {
 // SpendReport is every configured role's spend and, with a ticket budget,
 // each ticket's that launched in the window. It reads the ledger only.
 func SpendReport(c *Config, l *Ledger, now time.Time) []ScopeSpend {
+	return SpendReportFor(c, l, now, nil)
+}
+
+// SpendReportFor is SpendReport with the observed tickets that resolve each
+// ticket's ATR-V0-087 effective limit; a ticket absent from them resolves
+// by its key alone.
+func SpendReportFor(c *Config, l *Ledger, now time.Time, ts []Ticket) []ScopeSpend {
 	var out []ScopeSpend
+	meta := ticketMeta(ts)
 	add := func(scope [2]string, b *Budget) {
 		s := ScopeSpend{Scope: scope[0], Name: scope[1], Budget: b}
+		if scope[0] == ScopeTicket {
+			s.Budget, s.Selector = ticketLimit(c, meta, scope[1])
+		}
 		var sum tokenSum
 		if l.Budget != nil {
 			cutoff := now.Add(-BudgetWindow)

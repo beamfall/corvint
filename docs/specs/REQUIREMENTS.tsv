@@ -418,58 +418,68 @@ ATI-V0-009	docs/specs/authority-trigger-index-v0.md	95	The table MUST be bounded
 ATI-V0-010	docs/specs/authority-trigger-index-v0.md	97	The result MUST separately name its two blind spots: every requested path the in	unrecorded	-
 ATI-V0-011	docs/specs/authority-trigger-index-v0.md	100	The command MUST be read-only over repository and trace state, MUST refuse a pat	unrecorded	-
 ATI-V0-012	docs/specs/authority-trigger-index-v0.md	103	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that	unrecorded	-
-ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	58	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-
-ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	59	Before launch the runner MUST heartbeat the attempt, then renew it only when the	unrecorded	-
-ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	60	The command MUST be started once through `groupreap.Start` as the leader of an o	unrecorded	-
-ATR-V0-004	docs/specs/corvint-tasks-attempt-runner-v0.md	61	The runner MUST preserve the command's exit status and distinguish the outcome c	unrecorded	-
-ATR-V0-005	docs/specs/corvint-tasks-attempt-runner-v0.md	62	Every started run, and every spawn failure, MUST be recorded by one `RUN_OUTCOME	unrecorded	-
-ATR-V0-006	docs/specs/corvint-tasks-attempt-runner-v0.md	63	While the command runs the runner MUST heartbeat about every 240 seconds with at	unrecorded	-
-ATR-V0-007	docs/specs/corvint-tasks-attempt-runner-v0.md	64	A platform without the owned process-group API MUST refuse with `UNSUPPORTED` be	unrecorded	-
-ATR-V0-008	docs/specs/corvint-tasks-attempt-runner-v0.md	65	`--detach` before the first `--` (no value, at most once) MUST select the detach	unrecorded	-
-ATR-V0-009	docs/specs/corvint-tasks-attempt-runner-v0.md	66	The supervisor MUST run the attached runner of ATR-V0-001..007 unchanged: pre-la	unrecorded	-
-ATR-V0-010	docs/specs/corvint-tasks-attempt-runner-v0.md	67	Run state MUST live under `<git-common-dir>/taskman-runs/<first 16 bytes of SHA-	unrecorded	-
-ATR-V0-011	docs/specs/corvint-tasks-attempt-runner-v0.md	68	`run --attach --attempt ID [--run RUN] [--wait SECONDS]` MUST only read: it writ	unrecorded	-
-ATR-V0-012	docs/specs/corvint-tasks-attempt-runner-v0.md	69	A detached run's process MUST be judged live only when its recorded PID currentl	unrecorded	-
-ATR-V0-013	docs/specs/corvint-tasks-attempt-runner-v0.md	70	A detached run MUST stay fenced by its lease as an attached run is: the supervis	unrecorded	-
-ATR-V0-014	docs/specs/corvint-tasks-attempt-runner-v0.md	71	A platform without new-session support (any other than Darwin and Linux) MUST re	unrecorded	-
-ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	72	(accepted by decision 0440; V1-0931) After a detached supervisor has written	owner	decision 0440; V1-0931
-ATR-V0-020	docs/specs/corvint-tasks-attempt-runner-v0.md	112	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547)	standing	2026-10-11; V1-1547
-ATR-V0-021	docs/specs/corvint-tasks-attempt-runner-v0.md	128	(accepted, V1-1547) A repeated `--detach` with the same command, request id and	unrecorded	-
-ATR-V0-022	docs/specs/corvint-tasks-attempt-runner-v0.md	141	(accepted, V1-1547) The child MUST keep the lease command's complete result	unrecorded	-
-ATR-V0-023	docs/specs/corvint-tasks-attempt-runner-v0.md	146	(accepted, V1-1547) The child MUST be bounded by a 600-second ceiling: the lease	unrecorded	-
-ATR-V0-024	docs/specs/corvint-tasks-attempt-runner-v0.md	152	(accepted, V1-1547) `--wait SECONDS` MUST return within its bound plus the recor	unrecorded	-
-ATR-V0-025	docs/specs/corvint-tasks-attempt-runner-v0.md	157	(accepted, V1-1547) A finished record (one with `result.json`) older than 7 days	unrecorded	-
-ATR-V0-026	docs/specs/corvint-tasks-attempt-runner-v0.md	161	(accepted, V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and	unrecorded	-
-ATR-V0-027	docs/specs/corvint-tasks-attempt-runner-v0.md	166	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547 review	standing	2026-10-11; V1-1547
-ATR-V0-028	docs/specs/corvint-tasks-attempt-runner-v0.md	173	(accepted, V1-1547 review repair) `child.log` MUST be bounded: each launch moves	unrecorded	-
-ATR-V0-029	docs/specs/corvint-tasks-attempt-runner-v0.md	177	(accepted, V1-1547 review repair) Retention (ATR-V0-025) MUST page through the	unrecorded	-
-ATR-V0-030	docs/specs/corvint-tasks-attempt-runner-v0.md	246	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A role M	standing	2026-10-11; V1-1549
-ATR-V0-031	docs/specs/corvint-tasks-attempt-runner-v0.md	254	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker	standing	2026-10-11; V1-1549
-ATR-V0-032	docs/specs/corvint-tasks-attempt-runner-v0.md	276	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) `dispatc	standing	2026-10-11; V1-1549
-ATR-V0-033	docs/specs/corvint-tasks-attempt-runner-v0.md	288	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) For a wo	standing	2026-10-11; V1-1549
-ATR-V0-034	docs/specs/corvint-tasks-attempt-runner-v0.md	306	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker	standing	2026-10-11; V1-1549
-ATR-V0-035	docs/specs/corvint-tasks-attempt-runner-v0.md	313	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) When a	standing	2026-10-11; V1-1549
-ATR-V0-036	docs/specs/corvint-tasks-attempt-runner-v0.md	326	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) Context	standing	2026-10-11; V1-1549
-ATR-V0-037	docs/specs/corvint-tasks-attempt-runner-v0.md	334	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) The esti	standing	2026-10-11; V1-1549
-ATR-V0-038	docs/specs/corvint-tasks-attempt-runner-v0.md	343	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) An estim	standing	2026-10-11; V1-1549
-ATR-V0-039	docs/specs/corvint-tasks-attempt-runner-v0.md	348	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) This	standing	2026-10-11; V1-1549
-ATR-V0-050	docs/specs/corvint-tasks-attempt-runner-v0.md	405	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A store	standing	2026-10-11; V1-1558
-ATR-V0-051	docs/specs/corvint-tasks-attempt-runner-v0.md	414	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) The runn	standing	2026-10-11; V1-1558
-ATR-V0-052	docs/specs/corvint-tasks-attempt-runner-v0.md	421	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) Whenever	standing	2026-10-11; V1-1558
-ATR-V0-053	docs/specs/corvint-tasks-attempt-runner-v0.md	424	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A detach	standing	2026-10-11; V1-1558
-ATR-V0-054	docs/specs/corvint-tasks-attempt-runner-v0.md	468	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) When a	standing	2026-10-11; V1-1575
-ATR-V0-055	docs/specs/corvint-tasks-attempt-runner-v0.md	474	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) A record	standing	2026-10-11; V1-1575
-ATR-V0-056	docs/specs/corvint-tasks-attempt-runner-v0.md	500	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562)	standing	2026-10-11; V1-1562
-ATR-V0-057	docs/specs/corvint-tasks-attempt-runner-v0.md	507	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562) The	standing	2026-10-11; V1-1562
-ATR-V0-058	docs/specs/corvint-tasks-attempt-runner-v0.md	539	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) Every	standing	2026-10-11; V1-1600
-ATR-V0-059	docs/specs/corvint-tasks-attempt-runner-v0.md	549	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) While	standing	2026-10-11; V1-1600
-ATR-V0-060	docs/specs/corvint-tasks-attempt-runner-v0.md	580	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) A dispat	standing	2026-10-11; V1-1595
-ATR-V0-061	docs/specs/corvint-tasks-attempt-runner-v0.md	590	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The stre	standing	2026-10-11; V1-1595
-ATR-V0-062	docs/specs/corvint-tasks-attempt-runner-v0.md	599	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The doct	standing	2026-10-11; V1-1595
-ATR-V0-063	docs/specs/corvint-tasks-attempt-runner-v0.md	632	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) Each dis	standing	2026-10-11; V1-1597
-ATR-V0-064	docs/specs/corvint-tasks-attempt-runner-v0.md	641	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time	standing	2026-10-11; V1-1597
-ATR-V0-065	docs/specs/corvint-tasks-attempt-runner-v0.md	646	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatc	standing	2026-10-11; V1-1597
-ATR-V0-066	docs/specs/corvint-tasks-attempt-runner-v0.md	430	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A kept	standing	2026-10-11; V1-1558
+ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	60	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-
+ATR-V0-002	docs/specs/corvint-tasks-attempt-runner-v0.md	61	Before launch the runner MUST heartbeat the attempt, then renew it only when the	unrecorded	-
+ATR-V0-003	docs/specs/corvint-tasks-attempt-runner-v0.md	62	The command MUST be started once through `groupreap.Start` as the leader of an o	unrecorded	-
+ATR-V0-004	docs/specs/corvint-tasks-attempt-runner-v0.md	63	The runner MUST preserve the command's exit status and distinguish the outcome c	unrecorded	-
+ATR-V0-005	docs/specs/corvint-tasks-attempt-runner-v0.md	64	Every started run, and every spawn failure, MUST be recorded by one `RUN_OUTCOME	unrecorded	-
+ATR-V0-006	docs/specs/corvint-tasks-attempt-runner-v0.md	65	While the command runs the runner MUST heartbeat about every 240 seconds with at	unrecorded	-
+ATR-V0-007	docs/specs/corvint-tasks-attempt-runner-v0.md	66	A platform without the owned process-group API MUST refuse with `UNSUPPORTED` be	unrecorded	-
+ATR-V0-008	docs/specs/corvint-tasks-attempt-runner-v0.md	67	`--detach` before the first `--` (no value, at most once) MUST select the detach	unrecorded	-
+ATR-V0-009	docs/specs/corvint-tasks-attempt-runner-v0.md	68	The supervisor MUST run the attached runner of ATR-V0-001..007 unchanged: pre-la	unrecorded	-
+ATR-V0-010	docs/specs/corvint-tasks-attempt-runner-v0.md	69	Run state MUST live under `<git-common-dir>/taskman-runs/<first 16 bytes of SHA-	unrecorded	-
+ATR-V0-011	docs/specs/corvint-tasks-attempt-runner-v0.md	70	`run --attach --attempt ID [--run RUN] [--wait SECONDS]` MUST only read: it writ	unrecorded	-
+ATR-V0-012	docs/specs/corvint-tasks-attempt-runner-v0.md	71	A detached run's process MUST be judged live only when its recorded PID currentl	unrecorded	-
+ATR-V0-013	docs/specs/corvint-tasks-attempt-runner-v0.md	72	A detached run MUST stay fenced by its lease as an attached run is: the supervis	unrecorded	-
+ATR-V0-014	docs/specs/corvint-tasks-attempt-runner-v0.md	73	A platform without new-session support (any other than Darwin and Linux) MUST re	unrecorded	-
+ATR-V0-015	docs/specs/corvint-tasks-attempt-runner-v0.md	74	(accepted by decision 0440; V1-0931) After a detached supervisor has written	owner	decision 0440; V1-0931
+ATR-V0-020	docs/specs/corvint-tasks-attempt-runner-v0.md	114	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547)	standing	2026-10-11; V1-1547
+ATR-V0-021	docs/specs/corvint-tasks-attempt-runner-v0.md	130	(accepted, V1-1547) A repeated `--detach` with the same command, request id and	unrecorded	-
+ATR-V0-022	docs/specs/corvint-tasks-attempt-runner-v0.md	143	(accepted, V1-1547) The child MUST keep the lease command's complete result	unrecorded	-
+ATR-V0-023	docs/specs/corvint-tasks-attempt-runner-v0.md	148	(accepted, V1-1547) The child MUST be bounded by a 600-second ceiling: the lease	unrecorded	-
+ATR-V0-024	docs/specs/corvint-tasks-attempt-runner-v0.md	154	(accepted, V1-1547) `--wait SECONDS` MUST return within its bound plus the recor	unrecorded	-
+ATR-V0-025	docs/specs/corvint-tasks-attempt-runner-v0.md	159	(accepted, V1-1547) A finished record (one with `result.json`) older than 7 days	unrecorded	-
+ATR-V0-026	docs/specs/corvint-tasks-attempt-runner-v0.md	163	(accepted, V1-1547) Without `--detach`, `--attach` or `--wait` the `claim` and	unrecorded	-
+ATR-V0-027	docs/specs/corvint-tasks-attempt-runner-v0.md	168	(accepted under the owner's standing auto-accept (2026-10-11), V1-1547 review	standing	2026-10-11; V1-1547
+ATR-V0-028	docs/specs/corvint-tasks-attempt-runner-v0.md	175	(accepted, V1-1547 review repair) `child.log` MUST be bounded: each launch moves	unrecorded	-
+ATR-V0-029	docs/specs/corvint-tasks-attempt-runner-v0.md	179	(accepted, V1-1547 review repair) Retention (ATR-V0-025) MUST page through the	unrecorded	-
+ATR-V0-030	docs/specs/corvint-tasks-attempt-runner-v0.md	248	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A role M	standing	2026-10-11; V1-1549
+ATR-V0-031	docs/specs/corvint-tasks-attempt-runner-v0.md	256	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker	standing	2026-10-11; V1-1549
+ATR-V0-032	docs/specs/corvint-tasks-attempt-runner-v0.md	278	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) `dispatc	standing	2026-10-11; V1-1549
+ATR-V0-033	docs/specs/corvint-tasks-attempt-runner-v0.md	290	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) For a wo	standing	2026-10-11; V1-1549
+ATR-V0-034	docs/specs/corvint-tasks-attempt-runner-v0.md	308	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) A worker	standing	2026-10-11; V1-1549
+ATR-V0-035	docs/specs/corvint-tasks-attempt-runner-v0.md	315	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) When a	standing	2026-10-11; V1-1549
+ATR-V0-036	docs/specs/corvint-tasks-attempt-runner-v0.md	328	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) Context	standing	2026-10-11; V1-1549
+ATR-V0-037	docs/specs/corvint-tasks-attempt-runner-v0.md	336	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) The esti	standing	2026-10-11; V1-1549
+ATR-V0-038	docs/specs/corvint-tasks-attempt-runner-v0.md	345	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) An estim	standing	2026-10-11; V1-1549
+ATR-V0-039	docs/specs/corvint-tasks-attempt-runner-v0.md	350	(accepted under the owner's standing auto-accept (2026-10-11), V1-1549) This	standing	2026-10-11; V1-1549
+ATR-V0-050	docs/specs/corvint-tasks-attempt-runner-v0.md	407	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A store	standing	2026-10-11; V1-1558
+ATR-V0-051	docs/specs/corvint-tasks-attempt-runner-v0.md	416	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) The runn	standing	2026-10-11; V1-1558
+ATR-V0-052	docs/specs/corvint-tasks-attempt-runner-v0.md	423	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) Whenever	standing	2026-10-11; V1-1558
+ATR-V0-053	docs/specs/corvint-tasks-attempt-runner-v0.md	426	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A detach	standing	2026-10-11; V1-1558
+ATR-V0-054	docs/specs/corvint-tasks-attempt-runner-v0.md	470	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) When a	standing	2026-10-11; V1-1575
+ATR-V0-055	docs/specs/corvint-tasks-attempt-runner-v0.md	476	(accepted under the owner's standing auto-accept (2026-10-11), V1-1575) A record	standing	2026-10-11; V1-1575
+ATR-V0-056	docs/specs/corvint-tasks-attempt-runner-v0.md	502	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562)	standing	2026-10-11; V1-1562
+ATR-V0-057	docs/specs/corvint-tasks-attempt-runner-v0.md	509	(accepted under the owner's standing auto-accept (2026-10-11), V1-1562) The	standing	2026-10-11; V1-1562
+ATR-V0-058	docs/specs/corvint-tasks-attempt-runner-v0.md	541	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) Every	standing	2026-10-11; V1-1600
+ATR-V0-059	docs/specs/corvint-tasks-attempt-runner-v0.md	551	(accepted under the owner's standing auto-accept (2026-10-11), V1-1600) While	standing	2026-10-11; V1-1600
+ATR-V0-060	docs/specs/corvint-tasks-attempt-runner-v0.md	582	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) A dispat	standing	2026-10-11; V1-1595
+ATR-V0-061	docs/specs/corvint-tasks-attempt-runner-v0.md	592	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The stre	standing	2026-10-11; V1-1595
+ATR-V0-062	docs/specs/corvint-tasks-attempt-runner-v0.md	601	(accepted under the owner's standing auto-accept (2026-10-11), V1-1595) The doct	standing	2026-10-11; V1-1595
+ATR-V0-063	docs/specs/corvint-tasks-attempt-runner-v0.md	634	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) Each dis	standing	2026-10-11; V1-1597
+ATR-V0-064	docs/specs/corvint-tasks-attempt-runner-v0.md	643	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) The time	standing	2026-10-11; V1-1597
+ATR-V0-065	docs/specs/corvint-tasks-attempt-runner-v0.md	648	(accepted under the owner's standing auto-accept (2026-10-11), V1-1597) `dispatc	standing	2026-10-11; V1-1597
+ATR-V0-066	docs/specs/corvint-tasks-attempt-runner-v0.md	432	(accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A kept	standing	2026-10-11; V1-1558
+ATR-V0-080	docs/specs/corvint-tasks-attempt-runner-v0.md	689	(accepted under the owner's standing auto-accept (2026-10-11), V1-1608, V1-1673)	standing	2026-10-11; V1-1608; V1-1673
+ATR-V0-081	docs/specs/corvint-tasks-attempt-runner-v0.md	690	(accepted under the owner's standing auto-accept (2026-10-11), V1-1608) While `p	standing	2026-10-11; V1-1608
+ATR-V0-082	docs/specs/corvint-tasks-attempt-runner-v0.md	691	(accepted under the owner's standing auto-accept (2026-10-11), V1-1608, V1-1673)	standing	2026-10-11; V1-1608; V1-1673
+ATR-V0-083	docs/specs/corvint-tasks-attempt-runner-v0.md	692	(accepted under the owner's standing auto-accept (2026-10-11), V1-1608, V1-1673)	standing	2026-10-11; V1-1608; V1-1673
+ATR-V0-084	docs/specs/corvint-tasks-attempt-runner-v0.md	693	(accepted under the owner's standing auto-accept (2026-10-11), V1-1608) Under a	standing	2026-10-11; V1-1608
+ATR-V0-085	docs/specs/corvint-tasks-attempt-runner-v0.md	729	(accepted under the owner's standing auto-accept (2026-10-11), V1-1647) A dispat	standing	2026-10-11; V1-1647
+ATR-V0-086	docs/specs/corvint-tasks-attempt-runner-v0.md	730	(accepted under the owner's standing auto-accept (2026-10-11), V1-1647) An overr	standing	2026-10-11; V1-1647
+ATR-V0-087	docs/specs/corvint-tasks-attempt-runner-v0.md	731	(accepted under the owner's standing auto-accept (2026-10-11), V1-1647) A ticket	standing	2026-10-11; V1-1647
+ATR-V0-088	docs/specs/corvint-tasks-attempt-runner-v0.md	732	(accepted under the owner's standing auto-accept (2026-10-11), V1-1647) With ove	standing	2026-10-11; V1-1647
+ATR-V0-089	docs/specs/corvint-tasks-attempt-runner-v0.md	733	(accepted under the owner's standing auto-accept (2026-10-11), V1-1647) The CAL-	standing	2026-10-11; V1-1647
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,	unrecorded	-
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio	unrecorded	-
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,	unrecorded	-
@@ -3852,6 +3862,9 @@ TQD-V0-030	docs/specs/corvint-tasks-doctor-v0.md	63	Host-session findings derive
 TQD-V0-031	docs/specs/corvint-tasks-doctor-v0.md	64	For each configured dispatcher the item's `dispatchers` array (in configuration	unrecorded	-
 TQD-V0-032	docs/specs/corvint-tasks-doctor-v0.md	65	NO_PROGRESS_HANDOFF counts only generations claimed at the ticket's current acce	unrecorded	-
 TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	66	One doctor scan reads the journal through one read session that pins the store's	unrecorded	-
+TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	68	Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVID	unrecorded	-
+TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	69	Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at	unrecorded	-
+TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	70	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	26	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	29	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	32	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-

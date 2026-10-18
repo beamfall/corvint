@@ -297,7 +297,7 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 		return errorResult(cmd, e)
 	}
 	now := time.Now()
-	status := dispatchStatusValue(c, dir, l, events, now)
+	status := dispatchStatusValueFor(c, dir, l, events, now, dispatchBudgetTickets(env, c))
 	// ATR-V0-056: one worker's context notice, read from its record.
 	if id := values["--worker"]; id != "" {
 		var w *dispatch.Worker
@@ -353,6 +353,12 @@ func dispatchRoleShadowsValue(shadows []dispatch.RoleShadow) wire.Value {
 }
 
 func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
+	return dispatchStatusValueFor(c, dir, l, events, now, nil)
+}
+
+// dispatchStatusValueFor is the status view with the observed tickets that
+// resolve each ticket's ATR-V0-087 effective budget limit.
+func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time, tickets []dispatch.Ticket) wire.Value {
 	str := wire.String
 	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
 	sweeps := []wire.Value{}
@@ -478,7 +484,7 @@ func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, eve
 	if l.Config != nil {
 		o.Set("config", dispatchConfigRecordValue(l.Config))
 	}
-	o.Set("budget", dispatchBudgetValue(c, l, now))
+	o.Set("budget", dispatchBudgetValue(c, l, now, tickets))
 	if shadows := c.RoleShadows(); len(shadows) > 0 {
 		o.Set("roleShadows", dispatchRoleShadowsValue(shadows))
 	}
@@ -622,7 +628,13 @@ func dispatchContextNoticeValue(dir string, w *dispatch.Worker, now time.Time) w
 // when unset), the hold in force and when the window releases it. Observed
 // tokens are a lower bound while any session is PARTIAL or RUNNING, and
 // sessions with an UNKNOWN total are counted apart, never as 0 tokens.
-func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time) wire.Value {
+//
+// With ticketBudget overrides, a ticket scope's limits are its ATR-V0-087
+// effective limit and `selector` names what set it (ATR-V0-088): DEFAULT,
+// ticket:ID, label:NAME or kind:KIND. A ticket whose labels and kind the
+// store did not supply resolves by its key alone and is marked with
+// `selectorObserved` false. Without overrides the view is unchanged.
+func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time, tickets []dispatch.Ticket) wire.Value {
 	str := wire.String
 	limit := func(n uint64) wire.Value {
 		if n == 0 {
@@ -631,8 +643,17 @@ func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time) 
 		return str(strconv.FormatUint(n, 10))
 	}
 	scopes := []wire.Value{}
-	for _, s := range dispatch.SpendReport(c, l, now) {
+	overrides := c.TicketBudget != nil && len(c.TicketBudget.Overrides) > 0
+	observed := map[string]bool{}
+	for _, t := range tickets {
+		observed[t.ID] = true
+	}
+	for _, s := range dispatch.SpendReportFor(c, l, now, tickets) {
 		o := wire.NewObject().Set("scope", str(s.Scope)).Set("name", str(s.Name))
+		if overrides && s.Scope == dispatch.ScopeTicket {
+			o.Set("selector", str(s.Selector))
+			o.Set("selectorObserved", wire.Bool(observed[s.Name]))
+		}
 		o.Set("sessions", str(strconv.Itoa(s.Sessions)))
 		o.Set("observedTokens", str(strconv.FormatUint(s.Tokens, 10)))
 		o.Set("partialSessions", str(strconv.Itoa(s.Partial)))
@@ -869,6 +890,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			in.ClaimablePools = q.pools() // pool tickets no role can claim never use the window (CAL-V0-097)
 		}
 		obs.Tickets = dispatchTickets(in)
+		obs.ProgressSignal = in.Policy.ProgressSignal // ATR-V0-084
 		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
 		// the tickets its work state holds; no store read or write happens.
 		obs.Replan = func(held, budgetHeld map[string]bool) map[string]dispatch.PlanView {
@@ -913,6 +935,7 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 			if a.CandidateTreeOid != nil {
 				x.Candidate = *a.CandidateTreeOid
 			}
+			x.HandoffEvidence = a.HandoffEvidence
 			if a.Cause != nil {
 				x.Cause = *a.Cause
 			}
@@ -1273,4 +1296,27 @@ func dispatchSessionChurnValue(dir string, now time.Time) *wire.Value {
 	}
 	v := wire.Array(rows...)
 	return &v
+}
+
+// dispatchBudgetTickets reads each ticket's ID, local key, kind and labels
+// from the native store, only when ticketBudget overrides need them to
+// resolve an effective limit (ATR-V0-088). A store that cannot be read
+// leaves every ticket unobserved: status then resolves by key alone and
+// says so, never guessing a label or kind.
+func dispatchBudgetTickets(env Env, c *dispatch.Config) []dispatch.Ticket {
+	if c.TicketBudget == nil || len(c.TicketBudget.Overrides) == 0 {
+		return nil
+	}
+	var out []dispatch.Ticket
+	if _, err := withInventoryStore(env, func(rc *readCtx) error {
+		out = out[:0]
+		for _, id := range rc.store.Inventory.Sorted() {
+			r, _ := rc.store.Inventory.Get(id)
+			out = append(out, dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Kind: r.Kind, Labels: r.Labels})
+		}
+		return nil
+	}); err != nil {
+		return nil
+	}
+	return out
 }

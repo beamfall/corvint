@@ -333,6 +333,9 @@ func loopHoldValue(h *ticket.LoopHold) wire.Value {
 	o.Set("acceptanceRevision", wire.String(string(h.AcceptanceRevision)))
 	o.Set("generations", wire.Strings(h.Generations))
 	o.Set("limit", wire.String(string(h.Limit)))
+	if h.ProgressSignal != "" {
+		o.Set("progressSignal", wire.String(h.ProgressSignal))
+	}
 	return wire.ObjectValue(o)
 }
 

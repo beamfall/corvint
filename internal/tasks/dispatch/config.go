@@ -80,6 +80,79 @@ type Config struct {
 type Budget struct {
 	SessionsPerDay int    `json:"sessionsPerDay,omitempty"`
 	TokensPerDay   uint64 `json:"tokensPerDay,omitempty"`
+	// Overrides are the ATR-V0-085 per-ticket, per-label and per-kind
+	// limits of a ticketBudget; a role budget refuses them.
+	Overrides []BudgetOverride `json:"overrides,omitempty"`
+}
+
+// BudgetOverride is one ATR-V0-085 ticketBudget override: exactly one
+// selector and at least one limit. A limit it leaves unset is the default's.
+type BudgetOverride struct {
+	Ticket         string `json:"ticket,omitempty"`
+	Label          string `json:"label,omitempty"`
+	Kind           string `json:"kind,omitempty"`
+	SessionsPerDay int    `json:"sessionsPerDay,omitempty"`
+	TokensPerDay   uint64 `json:"tokensPerDay,omitempty"`
+}
+
+// Stable ATR-V0-086 refusal reasons of a ticketBudget override.
+const (
+	BudgetOverrideMalformed = "BUDGET_OVERRIDE_MALFORMED"
+	BudgetOverrideAmbiguous = "BUDGET_OVERRIDE_AMBIGUOUS"
+)
+
+// maxBudgetOverrides bounds ticketBudget.overrides (ATR-V0-086).
+const maxBudgetOverrides = 256
+
+// Selector is the override's selector as status and events name it:
+// ticket:ID, label:NAME or kind:KIND (ATR-V0-088).
+func (o BudgetOverride) Selector() string {
+	switch {
+	case o.Ticket != "":
+		return "ticket:" + o.Ticket
+	case o.Label != "":
+		return "label:" + o.Label
+	}
+	return "kind:" + o.Kind
+}
+
+// BudgetSelectorDefault names the ticketBudget's own limits (ATR-V0-087).
+const BudgetSelectorDefault = "DEFAULT"
+
+// TicketLimit is t's effective ATR-V0-087 ticket budget and the selector
+// that set it: a ticket override (ID or local key) over the first label
+// override in configuration order over a kind override over the default.
+// The winner's limits replace the default's; a limit it leaves unset stays
+// the default's. With no ticketBudget it returns nil.
+func (c *Config) TicketLimit(t Ticket) (*Budget, string) {
+	tb := c.TicketBudget
+	if tb == nil {
+		return nil, ""
+	}
+	win := -1
+	for _, rank := range []func(BudgetOverride) bool{
+		func(o BudgetOverride) bool {
+			return o.Ticket != "" && (o.Ticket == t.ID || (t.Local != "" && o.Ticket == t.Local))
+		},
+		func(o BudgetOverride) bool { return o.Label != "" && slices.Contains(t.Labels, o.Label) },
+		func(o BudgetOverride) bool { return o.Kind != "" && o.Kind == t.Kind },
+	} {
+		if win = slices.IndexFunc(tb.Overrides, rank); win >= 0 {
+			break
+		}
+	}
+	eff := &Budget{SessionsPerDay: tb.SessionsPerDay, TokensPerDay: tb.TokensPerDay}
+	if win < 0 {
+		return eff, BudgetSelectorDefault
+	}
+	o := tb.Overrides[win]
+	if o.SessionsPerDay > 0 {
+		eff.SessionsPerDay = o.SessionsPerDay
+	}
+	if o.TokensPerDay > 0 {
+		eff.TokensPerDay = o.TokensPerDay
+	}
+	return eff, o.Selector()
 }
 
 // maxBudgetSessions and maxBudgetTokens bound a budget; sessionsPerDay stays
@@ -96,6 +169,7 @@ func (b *Budget) UnmarshalJSON(raw []byte) error {
 	var v struct {
 		SessionsPerDay json.RawMessage `json:"sessionsPerDay"`
 		TokensPerDay   json.RawMessage `json:"tokensPerDay"`
+		Overrides      json.RawMessage `json:"overrides"`
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
@@ -109,8 +183,86 @@ func (b *Budget) UnmarshalJSON(raw []byte) error {
 	if v.TokensPerDay != nil && (json.Unmarshal(v.TokensPerDay, &out.TokensPerDay) != nil || out.TokensPerDay == 0) {
 		return fmt.Errorf("budget tokensPerDay is a positive integer when present")
 	}
+	var entries []json.RawMessage
+	if v.Overrides != nil && json.Unmarshal(v.Overrides, &entries) != nil {
+		return fmt.Errorf("budget overrides: %s overrides is an array of objects", BudgetOverrideMalformed)
+	}
+	if len(entries) > maxBudgetOverrides {
+		return fmt.Errorf("budget overrides: %s more than %d overrides", BudgetOverrideMalformed, maxBudgetOverrides)
+	}
+	for i, x := range entries {
+		o, err := decodeBudgetOverride(x)
+		if err != nil {
+			return fmt.Errorf("budget overrides[%d]: %s %v", i, BudgetOverrideMalformed, err)
+		}
+		out.Overrides = append(out.Overrides, o)
+	}
 	*b = out
 	return nil
+}
+
+// decodeBudgetOverride is the closed ATR-V0-086 reader of one override:
+// the exact member set with no repeats, exactly one non-empty selector and
+// at least one positive limit.
+func decodeBudgetOverride(raw []byte) (BudgetOverride, error) {
+	var o BudgetOverride
+	d := json.NewDecoder(bytes.NewReader(raw))
+	if t, err := d.Token(); err != nil || t != json.Delim('{') {
+		return o, fmt.Errorf("is not a JSON object")
+	}
+	seen := map[string]bool{}
+	for d.More() {
+		t, err := d.Token()
+		if err != nil {
+			return o, err
+		}
+		k, _ := t.(string)
+		if seen[k] {
+			return o, fmt.Errorf("repeats member %q", k)
+		}
+		seen[k] = true
+		switch k {
+		case "ticket", "label", "kind":
+			var s string
+			if d.Decode(&s) != nil || s == "" || len(s) > 512 {
+				return o, fmt.Errorf("%s is a non-empty string of at most 512 bytes", k)
+			}
+			switch k {
+			case "ticket":
+				o.Ticket = s
+			case "label":
+				o.Label = s
+			default:
+				o.Kind = s
+			}
+		case "sessionsPerDay":
+			if d.Decode(&o.SessionsPerDay) != nil || o.SessionsPerDay <= 0 || o.SessionsPerDay > maxBudgetSessions {
+				return o, fmt.Errorf("sessionsPerDay is an integer 1..%d", maxBudgetSessions)
+			}
+		case "tokensPerDay":
+			if d.Decode(&o.TokensPerDay) != nil || o.TokensPerDay == 0 || o.TokensPerDay > maxBudgetTokens {
+				return o, fmt.Errorf("tokensPerDay is an integer 1..%d", uint64(maxBudgetTokens))
+			}
+		default:
+			return o, fmt.Errorf("has unknown member %q", k)
+		}
+	}
+	if _, err := d.Token(); err != nil {
+		return o, err
+	}
+	n := 0
+	for _, s := range []string{o.Ticket, o.Label, o.Kind} {
+		if s != "" {
+			n++
+		}
+	}
+	if n != 1 {
+		return o, fmt.Errorf("needs exactly one of ticket, label or kind")
+	}
+	if o.SessionsPerDay == 0 && o.TokensPerDay == 0 {
+		return o, fmt.Errorf("needs sessionsPerDay or tokensPerDay")
+	}
+	return o, nil
 }
 
 // exactBudgetMembers refuses a budget object that repeats a member or
@@ -128,7 +280,7 @@ func exactBudgetMembers(raw []byte) error {
 			return err
 		}
 		k, _ := t.(string)
-		if k != "sessionsPerDay" && k != "tokensPerDay" {
+		if k != "sessionsPerDay" && k != "tokensPerDay" && k != "overrides" {
 			return fmt.Errorf("budget has unknown member %q", k)
 		}
 		if seen[k] {
@@ -708,14 +860,26 @@ func (c *Config) validate() error {
 			if b.TokensPerDay > 0 && r.UsageFormat == "" {
 				return fail("role %s budget tokensPerDay needs a usageFormat: undeclared usage is unknown, never zero", r.Name)
 			}
+			if len(b.Overrides) > 0 {
+				return fail("role %s budget: %s overrides belong to ticketBudget only", r.Name, BudgetOverrideMalformed)
+			}
 		}
 	}
 	if b := c.TicketBudget; b != nil {
 		if err := b.validate(); err != nil {
 			return fail("ticketBudget: %v", err)
 		}
+		tokens := b.TokensPerDay > 0
+		seen := map[string]int{}
+		for i, o := range b.Overrides {
+			if j, dup := seen[o.Selector()]; dup {
+				return fail("ticketBudget overrides[%d]: %s selector %s repeats overrides[%d]", i, BudgetOverrideAmbiguous, o.Selector(), j)
+			}
+			seen[o.Selector()] = i
+			tokens = tokens || o.TokensPerDay > 0
+		}
 		for _, r := range c.Roles {
-			if b.TokensPerDay > 0 && r.Lane == nil && r.UsageFormat == "" {
+			if tokens && r.Lane == nil && r.UsageFormat == "" {
 				return fail("ticketBudget tokensPerDay needs a usageFormat on role %s: undeclared usage is unknown, never zero", r.Name)
 			}
 		}

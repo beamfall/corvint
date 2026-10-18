@@ -272,7 +272,9 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 	if history != nil && c.st.policy.LoopDetection != nil {
 		// CAL-V0-102: only an opted-in policy records the ended generation's
 		// work evidence, so a claim under any other policy keeps its bytes.
-		history.Loop = snapshot.LoopEvidenceOf(prior)
+		// A declared progress signal also records the generation's
+		// fingerprint, so the loop verdict can be audited (ATR-V0-081).
+		history.Loop = snapshot.LoopEvidenceWith(prior, c.st.policy.ProgressSignal)
 	}
 	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: history})
 	return a, nil
