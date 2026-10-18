@@ -730,8 +730,11 @@ member is optional with the TOL-V0-034 precedent: absent, it keeps the exact ear
     member is optional, and at least one is named.
   - The object is copied to the evidence of each entry that witness credits, and `show` reports it
     per witness.
+  - Every given flag is validated, an explicitly empty value included: a flag given with an empty
+    value is a malformed OID or prose under its 1-byte minimum, never an absent member.
   - Its prose members are secret-screened with the TOL-V0-009 screen. A match refuses
-    `SECRET_DETECTED`, and a malformed OID refuses `MALFORMED`; neither writes.
+    `SECRET_DETECTED`, and a malformed OID or out-of-bounds prose refuses `MALFORMED`; neither
+    writes.
   - Provenance is caller-supplied and reported only. It is never resolved against Git, never
     compared with the report, and never part of the TOL-V0-013 credit recomputation.
   - A witness without it keeps its exact payload and evidence bytes.
@@ -773,6 +776,7 @@ member is optional with the TOL-V0-034 precedent: absent, it keeps the exact ear
 | An adopter's ids are longer than 64 bytes, or a plan must re-run witnessed rows and skip optional ones | A real ledger cannot migrate without renaming ids or faking plan entries | Aliases reach 128 bytes and the refusal names the limit (TOL-V0-055); `rerun` lists witnessed regression rows, and only core `OPEN` or `PARTIAL` rows must be planned (TOL-V0-056, 057). |
 | A partly witnessed row is recorded as `OPEN` or `WITNESSED` | Progress is hidden, or overstated | `PARTIAL` is pending and never counts as witnessed (TOL-V0-058). |
 | Witness provenance is wrong or holds a secret | A misleading or leaked reference is kept with the evidence | Provenance is reported only, never evidence the writer checks; its prose is secret-screened (TOL-V0-059). |
+| A provenance flag is given an empty value (an unset shell variable) | The witness writes without the provenance the caller meant to record | Every given flag is validated; an empty value refuses `MALFORMED` before any write (TOL-V0-059). |
 | A long dotted adopter id has three dot-separated runs of 10 or more bytes | The shared secret screen reads it as token-shaped and refuses the seed `SECRET_DETECTED` | Retained limit: the screen is shared and unchanged here; such an id needs a different separator. |
 
 ## Non-goals and simpler baseline

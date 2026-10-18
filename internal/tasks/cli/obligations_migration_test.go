@@ -184,8 +184,9 @@ func TestTOLV0058_PartialNeverWitnessed(t *testing.T) {
 // TestTOLV0059_WitnessProvenance: a witness may name testCommit,
 // environmentTree, evidenceRef and the test title, and show reports them on
 // each credited entry's evidence; a witness without them keeps evidence
-// without a provenance member; a malformed OID refuses MALFORMED and a
-// secret in the provenance refuses SECRET_DETECTED, neither writing.
+// without a provenance member; a malformed OID or an explicitly empty value of
+// any provenance flag refuses MALFORMED and a secret in the provenance refuses
+// SECRET_DETECTED, none writing.
 func TestTOLV0059_WitnessProvenance(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
@@ -216,8 +217,12 @@ func TestTOLV0059_WitnessProvenance(t *testing.T) {
 		}
 	}
 	for name, extra := range map[string][]string{
-		"bad oid": {"--test-commit", "not-an-oid"},
-		"secret":  {"--evidence-ref", "token AKIAABCDEFGHIJKLMNOP"},
+		"bad oid":                {"--test-commit", "not-an-oid"},
+		"secret":                 {"--evidence-ref", "token AKIAABCDEFGHIJKLMNOP"},
+		"empty test-commit":      {"--test-commit", ""},
+		"empty environment-tree": {"--environment-tree", ""},
+		"empty evidence-ref":     {"--evidence-ref", ""},
+		"empty test-title":       {"--test-title", ""},
 	} {
 		rev := obligationRevision(t, r.Root, id)
 		x := atm(t, r.Root, nil, declareArgs(id, "w-"+strings.ReplaceAll(name, " ", "-"), rev, head, "AC-4", extra...)...)

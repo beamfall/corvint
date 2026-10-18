@@ -252,20 +252,35 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 }
 
 // witnessProvenance builds the optional witness provenance (TOL-V0-059)
-// from its flags, or nil when none is given so the payload keeps its exact
-// pre-TOL-V0-059 bytes. The writer's payload reader bounds each member.
-func witnessProvenance(testCommit, envTree, evidenceRef, testTitle string) *ticket.ObligationProvenance {
-	opt := func(s string) *string {
-		if s == "" {
+// from the flags given, or nil when none is given so the payload keeps its
+// exact pre-TOL-V0-059 bytes. A given flag is a member even when its value
+// is empty, so an empty value is refused MALFORMED (an OID by the verb, prose
+// by the writer's payload reader, which bounds each member) and never drops
+// silently out of the evidence.
+func witnessProvenance(given map[string]bool, testCommit, envTree, evidenceRef, testTitle string) *ticket.ObligationProvenance {
+	opt := func(flag, s string) *string {
+		if !given[flag] {
 			return nil
 		}
 		return &s
 	}
-	p := &ticket.ObligationProvenance{TestCommit: opt(testCommit), EnvironmentTree: opt(envTree), EvidenceRef: opt(evidenceRef), TestTitle: opt(testTitle)}
+	p := &ticket.ObligationProvenance{TestCommit: opt("--test-commit", testCommit), EnvironmentTree: opt("--environment-tree", envTree),
+		EvidenceRef: opt("--evidence-ref", evidenceRef), TestTitle: opt("--test-title", testTitle)}
 	if p.TestCommit == nil && p.EnvironmentTree == nil && p.EvidenceRef == nil && p.TestTitle == nil {
 		return nil
 	}
 	return p
+}
+
+// givenFlags names the flags of an argument list that pairFlags accepted
+// with only single-valued flags, so a verb can tell an explicitly empty value
+// from an absent flag.
+func givenFlags(args []string) map[string]bool {
+	given := map[string]bool{}
+	for i := 0; i < len(args); i += 2 {
+		given[args[i]] = true
+	}
+	return given
 }
 
 // readPlanFile reads at most max bytes of file, refusing a larger one.
@@ -328,6 +343,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}, nil, nil); res != nil {
 		return res
 	}
+	given := givenFlags(args)
 	if f.requestID == "" {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
 	}
@@ -361,7 +377,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		return errorResult(cmd, err)
 	}
 	for flag, oid := range map[string]string{"--test-commit": testCommit, "--environment-tree": envTree} {
-		if oid == "" {
+		if !given[flag] {
 			continue
 		}
 		if _, err := wire.ParseOID(flag, oid); err != nil {
@@ -410,7 +426,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	w := ticket.ObligationWitnessPayload{Commit: commit, Provenance: witnessProvenance(testCommit, envTree, evidenceRef, testTitle)}
+	w := ticket.ObligationWitnessPayload{Commit: commit, Provenance: witnessProvenance(given, testCommit, envTree, evidenceRef, testTitle)}
 	if attempt != "" {
 		g := wire.Size(generation)
 		w.Attempt, w.Generation = &attempt, &g

@@ -69,3 +69,16 @@ The focused tests in `internal/tasks/cli` are `TestTOLV0055_AliasLimit128`,
 `TestTOLV0056_0057_PlanRerunAndNonCore`, `TestTOLV0058_PartialNeverWitnessed` and
 `TestTOLV0059_WitnessProvenance`. The existing TOL suite and `TestCALV0131` pass. The adopter's
 end-to-end migration is `NOT_RUN`.
+
+## Review fix: empty provenance flags (Codex P2)
+
+The independent review found that an explicitly empty provenance flag, such as
+`--test-commit "$UNSET_VAR"`, was dropped as an absent member, so the witness wrote without it.
+
+- The witness verb now tracks which flags were given. Every given provenance flag is validated, an
+  empty value included, and refuses `MALFORMED` before any write.
+- An empty OID fails the verb's OID check. Empty prose fails the writer's 1-byte minimum.
+- TOL-V0-059 keeps its ID; its text and failure-mode table are amended under the owner's standing
+  auto-accept (2026-10-11).
+- `TestTOLV0059_WitnessProvenance` covers an empty value on each of the four flags. It failed
+  before the fix and passes after it.
