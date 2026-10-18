@@ -2682,6 +2682,7 @@ LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737
 LPCV-V0-083	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An	standing	2026-10-11; V1-1737
+LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-
@@ -3108,6 +3109,10 @@ PWP-V0-024	docs/specs/playwright-external-provider-v0.md	(accepted under the own
 PWP-V0-025	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
 PWP-V0-026	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
 PWP-V0-027	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
+PWP-V0-028	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1800; GitHub #	standing	2026-10-11; V1-1800; #1131
+PWP-V0-029	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802;	standing	2026-10-11; V1-1800; V1-1802; #1131; #1133
+PWP-V0-030	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
+PWP-V0-031	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	`/1` is available only in external-server mode and requires a typed `corvint-app	unrecorded	-
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	The closed provider configuration binds the expected application root commit, re	unrecorded	-
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	Each closed canonical `corvint-application-attestation/0` observation binds the	unrecorded	-

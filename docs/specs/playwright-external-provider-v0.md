@@ -15,7 +15,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
@@ -310,6 +310,61 @@ path's `internal/testvaliditydoc` stays free of network packages (`MTV-V0-007`).
 the subcommand, the three profiles and that package; no receipt, projection or retained document
 changes, and policy files left in a project are inert.
 
+### Runner output, exit record and interrupt-first timeout (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133)
+
+Intent: an operator whose external-server run is noisy, slow or stuck can read what the runner
+printed, learns how the runner ended, and gets Playwright's own interrupted report and cleanup
+before the provider escalates to termination. The observation of tests still comes only from the
+report file.
+
+- `PWP-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1800; GitHub #1131) In external-server mode the runner's console output
+  (stdout and stderr) is captured to `externalOutputLimit`, 4 MiB, per stream and truncated beyond
+  it: the run continues and is never the infrastructure failure `output-overflow` for console
+  volume. The report file keeps its own 4 MiB bound and `report-output-overflow`. `e2e
+  --runner-output PATH` (also `qualify-keep-reporters`) writes every console byte of every runner
+  process the invocation starts, untruncated and in arrival order per stream, to PATH (created or
+  truncated, `0600`); `--runner-output -` passes it through to the provider's stderr, so the
+  printed document on stdout is unchanged. A tee write failure stops the tee only: the run and its
+  receipt are unaffected and the provider writes `runner-output-incomplete` to stderr. Without the
+  flag nothing is written beyond the bounded capture. The owned-server and unit modes keep their
+  fail-on-overflow capture.
+- `PWP-V0-029`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133) Every external-server receipt carries
+  `external.runner`, the closed process record of the `playwright test` runner: `exitObserved`
+  (the provider reaped the runner), `exitStatus` (its exit code, -1 when not observed or ended by a
+  signal), `signal` (the wait-status signal that terminated it, for example `interrupt` or
+  `killed`, else empty), `stopSignal` (the last of `SIGINT`, `SIGTERM` or `SIGKILL` that the
+  provider sent to the runner's owned process group before the runner's exit was observed, else
+  empty: the runner ended on its own) and `outputTruncated` (console capture passed its bound,
+  `PWP-V0-028`). The record is diagnostic: it never changes a test state, the infrastructure
+  reason or the projection. A receipt without the member (written before it) stays readable and
+  canonical. The member is an additive exception to the profile-revision rule, like
+  `projectReporters`: a reader that predates it fails closed through the canonical re-encoding check.
+- `PWP-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #1133) When an external-server runner exceeds `--timeout`, the
+  provider first sends `SIGINT` to the runner's owned process group, as an interactive Ctrl-C
+  would, and waits up to `--interrupt-grace` (default `10s`) for the runner to exit; only then does
+  the existing stop follow: `SIGTERM`, a 100 ms grace and `SIGKILL`. A run that ends during the
+  interrupt grace keeps the infrastructure failure `timeout` (`PWP-V0-020`) and its report is read
+  as before. `--interrupt-grace 0` restores the earlier `SIGTERM`-first stop; a negative value
+  refuses `interrupt-grace-invalid`. Cancellation of the provider itself ends the grace at once.
+  The process-group primitive (`internal/procgroup` `Spec.InterruptGrace`) is opt-in: every other
+  caller, and an external run configured without a grace, keeps its earlier stop sequence.
+  `--runner-output` and an explicit `--interrupt-grace` without `--external-server` refuse
+  `runner-control-requires-external-server`.
+- `PWP-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #1133) The `--server-ready-url` help states both readiness rules
+  the code applies: an owned server (`e2e` without `--external-server`) is ready on any status
+  below 500, following redirects; an external server is ready only on a 2xx answer and a redirect
+  is not followed. Readiness behaviour is unchanged.
+
+Non-goals: no live Playwright run, no change to the report-file bound, the passing predicate or any
+profile's projection, no interrupt-first stop in owned-server or unit mode, and no readiness change.
+Failure modes addressed: a runner that printed more than 4 MiB was killed and reported
+`output-overflow` although its report was small; an operator could not see what the runner printed
+or how it exited; a timeout `SIGTERM` interrupted Playwright before it could write its interrupted
+report and stop its own workers; the readiness help promised a rule external mode does not apply.
+Acceptance evidence: the fake-runner Go tests in Traceability. Rollback removes the two flags, the
+`runner` member and `Spec.InterruptGrace`/tee hooks, and restores fail-on-overflow capture; receipts
+carrying `runner` then fail closed through the canonical check and are neither deleted nor rewritten.
+
 ### Application-attested revision
 
 - `PWP-V1-001`: `/1` is available only in external-server mode and requires a typed `corvint-application-attestation-command/0` provider and canonical `corvint-application-attestation-config/0`; the `/0` caller label cannot select `/1`, `/0` remains readable, and neither profile can carry the other profile's identity fields.
@@ -370,7 +425,7 @@ The envelope remains `receipt`, `testProjections`, `runProjection`; `receipt.pro
 closed shape. Canonical bytes are compact Go encoding/json UTF-8 plus LF, sorted map keys and
 declared struct field order. Readers reject noncanonical profile bytes. Retention is explicit/local;
 only declared environment keys are collected. Default execution bound is five minutes, output/report
-bound 4 MiB, readiness fifteen seconds. Application provider configuration/output is 64 KiB per
+bound 4 MiB (external console output is truncated at it, not refused, `PWP-V0-028`), readiness fifteen seconds. Application provider configuration/output is 64 KiB per
 document and each observation defaults to five seconds. No selector, coverage or repository-pass
 claim is added.
 
@@ -390,6 +445,7 @@ The provider's closed refusal codes are:
 - `external-readiness-url-required`
 - `external-server-command-forbidden`
 - `input-identity-changed`
+- `interrupt-grace-invalid` (a negative `--interrupt-grace`, `PWP-V0-030`)
 - `no-tests-observed`
 - `keep-reporters-unsupported-mode`
 - `keep-reporters-qualification-invalid`
@@ -410,6 +466,9 @@ The provider's closed refusal codes are:
 - `reporter-global-error`
 - `run-status-unknown`
 - `runner-cleanup-unknown`
+- `runner-control-requires-external-server` (`--runner-output` or an explicit `--interrupt-grace` without `--external-server`, `PWP-V0-030`)
+- `runner-output-unavailable` (the `--runner-output` file cannot be created, `PWP-V0-028`)
+- `runner-process-invalid` (a retained `external.runner` record breaks its closed shape, `PWP-V0-029`)
 - `runner-version-mismatch`
 - `server-unavailable-at-publish`
 - `test-attempt-identity-unknown`
@@ -547,6 +606,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-020 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) | `internal/jstestprovider/external.go`, `internal/jstestprovider/runner.go` | `TestBoundaryTimeoutNamesRunnerAndFlag`, `TestE2EBoundaryFailure_WaitNotCompleted`; live Playwright timeout run `NOT_RUN` (`docs/build-log/2026-10-12-issue-832-e2e-timeout-wording.md`) |
 | PWP-V0-021 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) | `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/keep_reporters_qualification.go` | `TestQualifiedReportConfigInputBounds`, `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`; live Playwright run above 256 config inputs `NOT_RUN` (`docs/build-log/2026-10-12-gh-844-845-config-inputs-state-matchers.md`) |
 | PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/externalorigins/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`, `TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun`, `TestPWPV0022RequestObservationsAreRequired`, `TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
+| PWP-V0-028..031 (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133) | `internal/procgroup/interrupt.go`, `internal/procgroup/process.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/receipt.go`, `internal/jstestprovider/projection.go`, `cmd/corvint-js-test-provider/runner_control.go`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/negate.go` | `TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees` (#1131: a 5 MiB fake runner completes and the tee receives every byte), `TestPWPV0028ExternalConsoleWithoutTee`, `TestPWPV0028TeesReceiveUntruncatedStreams`, `TestPWPV0028RunnerOutputFlagWritesFile`, `TestPWPV0029RunnerRecordShape`, `TestPWPV0029SelfExitRecordsNoStopSignal`, `TestPWPV0030ExternalTimeoutInterruptsRunnerFirst` (#1133: the fake runner writes a file on SIGINT and the receipt records `SIGINT`), `TestPWPV0030ExternalZeroGraceTerminatesFirst`, `TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop`, `TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT`, `TestPWPV0030InterruptGraceEscalatesToSIGTERM`, `TestPWPV0030NegativeInterruptGraceIsInvalid`, `TestPWPV0030InterruptGraceFlag`, `TestPWPV0031ReadinessRulesByMode`, `TestPWPV0031ServerReadyURLHelpMatchesReadiness`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1800-js-provider-output-retention-interrupt-1131.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -559,21 +619,21 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:198@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:207@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:260@ae7d4bc6` |
-| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:103@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:386@2fb84e28` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:267@ae7d4bc6` |
+| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:106@d5db6c8b` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:397@2fb84e28` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
-| `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:78@d7cd2a65` |
+| `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:81@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
 | `file-replaced` | The opened attestation input is not the file that was inspected before opening. | `internal/jstestprovider/application_attestation.go:160@1bec3465` |
 | `invalid-canonical-input` | Canonical input is empty, oversized, or secret-shaped. | `internal/jstestprovider/application_attestation.go:171@12f8b66b` |
-| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:96@751bcb11` |
+| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:99@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:217@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:226@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

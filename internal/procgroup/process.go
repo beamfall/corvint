@@ -80,6 +80,17 @@ type Spec struct {
 	// BeforeStop; any observer it starts must be joined by BeforeStop,
 	// including after an initialization failure.
 	AfterStart func(context.Context, int) error
+	// InterruptGrace, when positive, opts a timed-out run into an
+	// interrupt-first stop: SIGINT to the owned group, then up to this long
+	// for the leader's exit, before the SIGTERM/SIGKILL stop. Zero keeps the
+	// SIGTERM-first stop every existing caller relies on (PWP-V0-030).
+	InterruptGrace time.Duration
+	// StdoutTee and StderrTee, when set, receive every byte of the child's
+	// stream before the bounded capture, untruncated. Each is written from
+	// its stream's drain goroutine; the first write error stops that tee
+	// only (PWP-V0-028).
+	StdoutTee io.Writer
+	StderrTee io.Writer
 }
 
 type Observation struct {
@@ -103,6 +114,10 @@ type Observation struct {
 	OwnedProcessGroupCleanup       bool
 	DescendantCleanupStatus        string
 	DescendantCleanupQualification string
+	// StopSignal is the last of SIGINT, SIGTERM or SIGKILL that Run sent to
+	// the owned group before the leader's exit was observed; empty when the
+	// leader ended without one (PWP-V0-029).
+	StopSignal string
 }
 
 // ResourceUsage is the reaped process's operating-system accounting. Nil means
@@ -331,8 +346,8 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	stdout := newProcessCapture(spec.OutputLimit, overflow, spec.OverflowPolicy)
 	stderr := newProcessCapture(spec.StderrLimit, overflow, spec.OverflowPolicy)
 	drains := make(chan error, 2)
-	go drainProcessPipe(stdoutReader, dialogue.destination(stdout), drains)
-	go drainProcessPipe(stderrReader, stderr, drains)
+	go drainProcessPipe(stdoutReader, dialogue.destination(withTee(stdout, spec.StdoutTee)), drains)
+	go drainProcessPipe(stderrReader, withTee(stderr, spec.StderrTee), drains)
 
 	var afterStartErr error
 	var descendants *descendantObserver
@@ -349,7 +364,8 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	reapAllowed := make(chan struct{})
 	waitDone := make(chan error, 1)
 	ownership := &groupOwnership{pid: command.Process.Pid, release: releaseProcessCommand}
-	groupProbe := ownership.signal(groupSignal(waitChannels.groupProbe, spec.JoinAncestorProcessGroup))
+	stopSignals := &stopSignalRecorder{}
+	groupProbe := stopSignals.wrap(ownership.signal(groupSignal(waitChannels.groupProbe, spec.JoinAncestorProcessGroup)))
 	quietProof := ownership.proof(heldGroupProof(waitChannels.quietProof))
 	exitWait := waitProcessExitUnreaped
 	if waitChannels.exitWait != nil {
@@ -357,6 +373,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	}
 	go func() {
 		observed := exitWait(command.Process.Pid)
+		stopSignals.leaderGone.Store(true)
 		if observed != nil {
 			// Another reaper may have collected the leader, so its group ID
 			// no longer names this group: forget it for the exit kill now,
@@ -397,6 +414,10 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		case <-dialogue.failed():
 			stopProcessTimer(runTimer)
 		}
+	}
+
+	if observation.TimedOut && spec.InterruptGrace > 0 {
+		exitObservationCompleted, exitObservationErr = interruptBeforeStop(ctx, command.Process.Pid, spec.InterruptGrace, groupProbe, selectedExitObserved)
 	}
 
 	if exitObservationCompleted && exitObservationErr != nil {
@@ -493,6 +514,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		}
 	}
 
+	observation.StopSignal = stopSignals.name()
 	observation.Err = processRunError(observation, spec.OverflowPolicy, waitErr, exitObservationErr, terminationErr, cleanupErr, quiescenceErr, pipeErr)
 	observation.Err = errors.Join(observation.Err, descendantErr)
 	if beforeStopErr != nil {
@@ -537,6 +559,9 @@ func normalizeProcessSpec(spec Spec) (Spec, error) {
 	}
 	if spec.ShutdownTimeout < 0 {
 		return spec, errors.New("shutdown timeout must be positive")
+	}
+	if spec.InterruptGrace < 0 {
+		return spec, errors.New("interrupt grace must not be negative")
 	}
 	if spec.InputLimit == 0 {
 		spec.InputLimit = defaultProcessInputLimit

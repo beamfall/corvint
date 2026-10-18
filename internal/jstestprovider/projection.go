@@ -74,6 +74,9 @@ func qualifiedProfileShapeError(r Receipt) error {
 	if err := projectReportersShapeError(r); err != nil {
 		return err
 	}
+	if err := runnerProcessShapeError(r); err != nil {
+		return err
+	}
 	if r.Profile != "" && r.Profile != AttemptExternalProfile && hasAttemptDetails(r) {
 		return errors.New("external-profile-has-attempt-details")
 	}

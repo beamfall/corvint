@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -230,6 +231,12 @@ type E2EConfig struct {
 	// KeepReportersQualification is a decoded qualified record carried into
 	// the keep-reporters receipt (PWP-V0-016); keep-reporters mode only.
 	KeepReportersQualification *KeepReportersQualification
+	// RunnerOutput, when set, receives every console byte of the external
+	// runner, untruncated (PWP-V0-028); external mode only.
+	RunnerOutput io.Writer
+	// InterruptGrace, when positive, sends SIGINT on timeout and waits this
+	// long before SIGTERM (PWP-V0-030); external mode only.
+	InterruptGrace time.Duration
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
