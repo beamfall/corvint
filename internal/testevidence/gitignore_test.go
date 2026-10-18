@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
 // gitRepository makes a real Git repository whose status ignores user config.
@@ -58,14 +56,13 @@ func readText(t *testing.T, path string) string {
 }
 
 // LPCV-V0-084: the first retention in a repository without .corvint writes
-// .corvint/.gitignore, so status stays clean and discovery still selects the
-// retained document.
+// .corvint/.gitignore, so status stays clean.
 func TestLPCVV0084FirstRetentionKeepsGitStatusClean(t *testing.T) {
 	root, git := gitRepository(t)
 	document := retainedDocument(t, root)
 	git("add", "adds.test.ts")
 	git("commit", "-q", "-m", "test file")
-	name, err := Retain(root, "corvint-js-test-provider", document)
+	_, err := Retain(root, "corvint-js-test-provider", document)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,10 +75,7 @@ func TestLPCVV0084FirstRetentionKeepsGitStatusClean(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".corvint", "test-evidence", ".gitignore")); !os.IsNotExist(err) {
 		t.Fatalf("a created .corvint also got an evidence .gitignore: %v", err)
 	}
-	discovered, err := testvaliditydoc.Discover(root)
-	if err != nil || discovered.Discovery == nil || discovered.Discovery.Evidence != testvaliditydoc.EvidenceDirectory+"/"+name {
-		t.Fatalf("discovery after retention: %+v %v", discovered.Discovery, err)
-	}
+	// Discovery of the retained document is TestLPCVV0084RetentionIsDiscovered.
 }
 
 // LPCV-V0-084: an existing .corvint may hold tracked project files, so only the

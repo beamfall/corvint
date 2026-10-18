@@ -108,7 +108,24 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 		goErr = fmt.Errorf("missing EXPERIMENT_DISABLED diagnostic")
 	}
 	steps = append(steps, step("corvint-go-test-provider-help", goErr, "exit 2 typed admission; foreground session deferred to installed VSIX qualification"))
-	return steps, goErr
+	if goErr != nil || !inventory.ruby {
+		return steps, goErr
+	}
+
+	ruby := filepath.Join(extracted, "bin", inventory.name("corvint-ruby-test-provider"))
+	rubyErr := checkRubyProviderUsage(ctx, ruby, inventory.name("corvint-ruby-test-provider"), scratch)
+	steps = append(steps, step("corvint-ruby-test-provider-help", rubyErr, "exit 2 usage admission; RSpec execution not qualified (CRB-V0-020)"))
+	return steps, rubyErr
+}
+
+// checkRubyProviderUsage runs the provider with no arguments, which must exit 2
+// and print its usage line on stderr without starting RSpec (CRB-V0-020).
+func checkRubyProviderUsage(ctx context.Context, binary, name, scratch string) error {
+	_, stderr, err := runExpectedExit(ctx, scratch, minimalRunEnv(scratch), subprocessTimeout, 2, binary)
+	if err == nil && !strings.HasPrefix(string(stderr), "usage: "+name+" rspec --dir <project-directory> [flags]\n") {
+		err = fmt.Errorf("unexpected help admission: %q", stderr)
+	}
+	return err
 }
 
 func requireMCPDiscovery(responses []map[string]any, index int, name, version string) error {
@@ -284,6 +301,8 @@ func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []Comp
 			name = "corvint-js-test-provider"
 		case strings.HasPrefix(steps[i].Name, "corvint-go-test-provider"):
 			name = "corvint-go-test-provider"
+		case strings.HasPrefix(steps[i].Name, "corvint-ruby-test-provider"):
+			name = "corvint-ruby-test-provider"
 		case strings.HasPrefix(steps[i].Name, "corvint-mcp"):
 			name = "corvint-mcp"
 		case strings.HasPrefix(steps[i].Name, "corvint-version"),

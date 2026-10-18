@@ -420,8 +420,14 @@ regular *.json file directly under .corvint/test-evidence of the worktree (at
 most 256 entries, 16 read attempts, no symlinks). Its bound digests are
 compared with the worktree now: a mismatch makes freshness STALE, an identity
 that cannot be recomputed makes it UNKNOWN, and only fully matched digests are
-CURRENT. With no usable document every run axis stays UNSUPPORTED. The command
-runs no test and never writes. Experimental.
+CURRENT. With no usable document every run axis stays UNSUPPORTED. For an
+RSpec document it also reads each example's spec file whose Git blob still
+equals the retained one: hygiene is ELIGIBLE, INELIGIBLE on a skipped, pending,
+focused, shared-example-only or memoized-block-expectation finding, or
+ABSTAINED when the file or line cannot be read; strength stays NOT_MEASURED
+with the example-body expectation count or a described_class stub as its
+reason, and sourceRules lists the findings. The command runs no test and never
+writes. Experimental.
 
 negate is the only mode that runs tests or writes. It execs the named
 corvint-js-test-provider file (never a PATH lookup), which runs the one test

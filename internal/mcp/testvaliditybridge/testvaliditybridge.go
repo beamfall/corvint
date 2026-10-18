@@ -20,6 +20,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
+	"github.com/Beamfall/corvint/internal/testsource"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -144,7 +145,7 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 // discover runs the shared retained-evidence discovery (MTV-V0-009,
 // LPCV-V0-053) on the pinned worktree root.
 func (registry *Registry) discover() (map[string]any, string, *ToolFailure, *Error) {
-	document, err := testvaliditydoc.Discover(registry.root)
+	document, err := testvaliditydoc.DiscoverWithSources(registry.root, testsource.RSpecExampleSources)
 	var refusal *testvaliditydoc.DiscoveryError
 	if errors.As(err, &refusal) {
 		return nil, "", &ToolFailure{Code: refusal.Code, Message: refusal.Message}, nil

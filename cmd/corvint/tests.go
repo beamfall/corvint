@@ -15,7 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/testsource"
 )
 
-const testsHelp = `Read committed JS/TS test sources (experimental, TSA-V0).
+const testsHelp = `Read committed JS/TS and RSpec test sources (experimental, TSA-V0).
 
 Usage:
   corvint [--root PATH] tests setup-select --specs PATH[,PATH...] [--specs ...]
@@ -24,6 +24,8 @@ Usage:
     [--runs REPORT.json ...] [--json]
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
+  corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
+    [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -61,12 +63,21 @@ committed .corvint/test-duplicates.json (schema
 corvint-test-duplicate-decisions/0) resolves a pair with distinct-from and a
 reason, or covered-by and an obligation.
 
+validity applies the static test-validity rules to at most 256 named
+committed files (each at most 1 MiB): ISOLATED-IN-SERIAL to a JS/TS test file,
+and to a _spec.rb file MEMOIZED-BLOCK-EXPECTATION, RSPEC-SKIPPED,
+RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY and the advisory DESCRIBED-CLASS-STUBBED.
+It prints one corvint-test-source-validity/0 document: each file's findings
+(uncertain with a reason where the reader abstained) and, for each test a
+finding names, the hygiene axis those findings give it. Exit 1 when an
+invalid finding makes a test INELIGIBLE (refused as proof), 0 otherwise.
+
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592).
+V1-1592, V1-1798).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -125,7 +136,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
 	}
 	if root == "" {
 		root = "."
@@ -143,8 +154,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsLint(repo, args[1:], out, diagnostic)
 	case "duplicates":
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
+	case "validity":
+		return runTestsValidity(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
@@ -315,6 +328,36 @@ func runTestsDuplicates(repo testsource.Repo, args []string, out, diagnostic io.
 		return code
 	}
 	if options.Gate != "" && report.UnresolvedCount > 0 {
+		return 1
+	}
+	return 0
+}
+
+// runTestsValidity prints the static test-validity findings of the named committed files
+// (TSA-V0-071). It exits 1 when a finding refuses a test as proof.
+func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
+	f, once := testsFlags("tests validity")
+	options := testsource.SourceValidityOptions{Revision: "HEAD"}
+	f.Func("files", "test file paths", func(value string) error {
+		for _, name := range strings.Split(value, ",") {
+			if strings.TrimSpace(name) != "" {
+				options.Files = append(options.Files, name)
+			}
+		}
+		return nil
+	})
+	once("rev", &options.Revision)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV]")
+	}
+	report, err := testsource.SourceValidity(repo, options)
+	if err != nil {
+		return testsFailure(diagnostic, err)
+	}
+	if code := testsWrite(out, diagnostic, report); code != 0 {
+		return code
+	}
+	if report.Refused() {
 		return 1
 	}
 	return 0

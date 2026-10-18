@@ -126,6 +126,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		{name: "corvint-test-validity-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-test-validity-mcp", module: "corvint", export: corvintExport},
 		{name: "corvint-js-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-js-test-provider", module: "corvint", export: corvintExport},
 		{name: "corvint-go-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-go-test-provider", module: "corvint", export: corvintExport},
+		{name: "corvint-ruby-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-ruby-test-provider", module: "corvint", export: corvintExport},
 		{name: "corvint-tasks", moduleRoot: taskmanBuildRoot, pkgPath: "./cmd/corvint-tasks", module: "corvint-tasks", export: taskmanExport, buildFlags: []string{"-ldflags=-X main.build=" + corvintBuildNumber}},
 	}
 
@@ -168,7 +169,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	}
 
 	manifest := BundleManifest{
-		Profile:    json.RawMessage(`"corvint-companion-bundle/2"`),
+		Profile:    json.RawMessage(`"` + currentBundleProfile + `"`),
 		Target:     opts.Target,
 		GoVersion:  toolchain.GoVersion,
 		GitVersion: toolchain.GitVersion,

@@ -609,7 +609,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
 | `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport`, `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`, `TestLPCVV0080InvalidUTF8IsRefused` and `TestLPCVV0080ScreeningCollapsesDistinctActors`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3), `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`, `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, `TestLPCVV0081ScreenedEvidenceNeverJoins` and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
-| `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
+| `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `TestLPCVV0084RetentionIsDiscovered` and `TestEvidenceDirectoryMatchesDiscovery` (external package: `--discover` selects the document, and the leaf constant equals the discovery constant, V1-1811); `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
 | `LPCV-V0-090..095` RSpec provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); implemented at experimental tier; preview, non-promotable; no real Ruby or container run (`NOT_RUN`) | `internal/rubytestprovider`'s `TestLPCVV0090RunBindsRepositoryBeforeAndAfter`, `TestLPCVV0090InfrastructureReasons`, `TestLPCVV0090SignalledRunnerIsInfrastructure`, `TestLPCVV0091ExecPrefixObservesGitOnHost`, `TestLPCVV0092ExampleIdentityAndBlobs`, `TestLPCVV0092SymlinkedHelperIsUnbound`, `TestLPCVV0092SecretShapedPathsWithheld`, `TestLPCVV0092SnapshotWalkIsBounded`, `TestLPCVV0092BoundedReaderRefusesSymlinkAndFIFO`, `TestLPCVV0093TruncatedFailureFailsRun`, `TestLPCVV0094FreshnessFromBlobs`, `TestLPCVV0094AddedHelperIsStale`, `TestLPCVV0094EmptyRepositoryIdentityIsUnknown`, `TestLPCVV0095GitignoreCreatedOnceNeverOverwritten` and `TestLPCVV0095ExistingGitignoreStillClean`; `internal/testvaliditydoc`'s `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestLPCVV0092SnapshotBoundMatchesDiscoveryRead`, `TestLPCVV0094DiscoverRubyFreshness` and `TestDiscoverProducerGuidance`; `cmd/corvint-ruby-test-provider`'s `TestLPCVV0095RetainedRunLeavesWorktreeCleanAndDiscovers` and `TestLPCVV0090RefusalsExitTwo`; all use a fake `rspec` emitting canned JSON. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
@@ -1241,7 +1241,9 @@ projection is recomputed from observations. The document is a preview and is nev
   path is secret-shaped, and recompute, per example:
   association `ASSOCIATED` anchored at its `id`; execution `PASSED`, `FAILED` or `SKIPPED` from
   `passed`, `failed` or `pending`, `UNSUPPORTED` for `unknown`, and `INFRASTRUCTURE` for every
-  example of a run with `infrastructure`; hygiene `UNSUPPORTED`, reason `ruby-hygiene-not-produced`;
+  example of a run with `infrastructure`; hygiene `UNSUPPORTED`, reason `ruby-hygiene-not-produced`
+  (amended by `TSA-V0-070`: a `pending` example is `INELIGIBLE`, reason `rspec-example-pending`;
+  `TSA-V0-068` recomputes discovered hygiene from a bound spec);
   strength `NOT_MEASURED`. The run is `FAILED` with any non-passed, non-pending example or a
   positive summary failure count (which covers omitted examples), `PASSED`
   otherwise, `INFRASTRUCTURE` with `infrastructure`, and carries no run outcome when there are no examples. The source
@@ -1262,12 +1264,16 @@ projection is recomputed from observations. The document is a preview and is nev
   and `CURRENT` only when every bound blob matches. A bound path naming `.git` is unreadable. The
   digest comparison used outside discovery (`ProjectBound`) states `UNKNOWN`,
   `retained-blob-identity-not-compared`, for this document.
-- `LPCV-V0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before the
-  run and before retention, the provider MUST create `.corvint/.gitignore` containing `*` in the
-  project directory and in the worktree when the file is absent, and MUST never overwrite an
-  existing one; because an existing one may not ignore them, it also creates `.gitignore`
-  containing `*` in `.corvint/rspec` and `.corvint/test-evidence` when absent, so the reports and retained evidence never make the repository dirty: after a
-  retained run `git status --porcelain` is empty and the next run starts `clean`.
+- `LPCV-V0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797; amended
+  2026-10-18 for V1-1811 under the same auto-accept) Before the run, the provider MUST hide its
+  report directory `.corvint/rspec` from Git by calling the shared `testevidence.IgnoreRetained`
+  helper with the `LPCV-V0-084` rules, and it MUST retain evidence through `testevidence.Retain`,
+  which applies the same rules to `.corvint/test-evidence`: when the run created `.corvint`, the
+  file is `.corvint/.gitignore`; otherwise it is `.gitignore` in the report or evidence directory,
+  so an operator's `.corvint/.gitignore` is never overwritten and no tracked project file is
+  hidden. The reports and retained evidence never make the repository dirty: after a retained run
+  `git status --porcelain` is empty and the next run starts `clean`. The provider has no private
+  ignore-file writer.
 
 Non-goals:
 - Ruby hygiene (empty or skipped examples) and mutation strength, which later slices own;
@@ -1328,9 +1334,12 @@ slice is additive and experimental.
   because Git cannot use it as the ignore file. A create or write failure fails the retention
   before any document is written, and a file the retention created but could not write is
   removed, so a later retention never accepts it as protection. The helper is `testevidence.IgnoreRetained`, called by
-  `testevidence.Retain`; every provider that retains through `Retain` (the Go and JavaScript
-  providers) gets it, and a provider with its own retention path calls `IgnoreRetained` after it
-  opens the evidence directory. `test-validity --discover` lists only `*.json` documents, so the
+  `testevidence.Retain`; every provider that retains through `Retain` (the Go, JavaScript and
+  Ruby providers) gets it, and a provider with its own retention path calls `IgnoreRetained` after it
+  opens the evidence directory; the Ruby provider also calls it for its `.corvint/rspec` report
+  directory (`LPCV-V0-095`, amended 2026-10-18 for V1-1811). `testevidence` imports no other
+  Corvint package, so a provider that `testvaliditydoc` imports can call it; its
+  `EvidenceDirectory` constant equals `testvaliditydoc.EvidenceDirectory`. `test-validity --discover` lists only `*.json` documents, so the
   ignore file never changes selection.
 
 Non-goals:

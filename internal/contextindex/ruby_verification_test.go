@@ -3,6 +3,7 @@ package contextindex
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -153,7 +154,7 @@ func TestNGIV0027GoAndWebPlansUnchangedByRubySignals(t *testing.T) {
 // Ruby paths share one repository-wide command.
 func TestNGIV0027RubyCommandAppearsOnceAcrossPaths(t *testing.T) {
 	index := &Index{
-		Sources: map[string]Source{"app/a.rb": {}, "app/b.rb": {}},
+		Sources: map[string]Source{"app/a.rb": {}, "app/b.rb": {}, "Gemfile": {Data: []byte("gem 'rspec'\n")}},
 		Tracked: map[string]struct{}{"Gemfile": {}, "spec/a_spec.rb": {}, "app/a.rb": {}, "app/b.rb": {}},
 	}
 	got := verification(index, verificationEvidence("app/a.rb", "app/b.rb", "spec/a_spec.rb"))
@@ -196,5 +197,157 @@ func TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine(t *testing.T) {
 	if !reflect.DeepEqual(withRuby["verification"], withoutRuby["verification"]) ||
 		!reflect.DeepEqual(withRuby["coverage"].(map[string]any)["uncertainty"], withoutRuby["coverage"].(map[string]any)["uncertainty"]) {
 		t.Fatalf("Ruby signals changed a JS receipt: with=%v without=%v", withRuby["coverage"], withoutRuby["coverage"])
+	}
+}
+
+// TestNGIV0052RSpecNeedsDeclaredGem: NGI-V0-052. RSpec is named only when the
+// root Gemfile or Gemfile.lock declares an rspec gem; a Minitest repository
+// that also tracks spec/ keeps the unknown-language line.
+func TestNGIV0052RSpecNeedsDeclaredGem(t *testing.T) {
+	rspecCommands := []any{"bundle exec rspec", "git diff --check"}
+	unknownCommands := []any{"git diff --check"}
+	for _, test := range []struct {
+		name         string
+		extra        map[string]string
+		wantCommands []any
+	}{
+		{"Minitest Gemfile with a spec directory", map[string]string{
+			"Gemfile": "source \"https://rubygems.org\"\ngem \"minitest\"\n"}, unknownCommands},
+		{"Minitest Gemfile with .rspec", map[string]string{
+			"Gemfile": "gem 'minitest'\n", ".rspec": "--require spec_helper\n"}, unknownCommands},
+		{"commented rspec gem", map[string]string{
+			"Gemfile": "# gem \"rspec\"\ngem \"minitest\"\n"}, unknownCommands},
+		{"gem name only prefixed by rspec", map[string]string{
+			"Gemfile": "gem \"rspec_junit_formatter\"\n"}, unknownCommands},
+		{"rspec-rails in the Gemfile", map[string]string{
+			"Gemfile": "group :test do\n  gem 'rspec-rails', '~> 6.0'\nend\n"}, rspecCommands},
+		{"rspec-core only in Gemfile.lock", map[string]string{
+			"Gemfile":      "source \"https://rubygems.org\"\ngemspec\n",
+			"Gemfile.lock": "GEM\n  remote: https://rubygems.org/\n  specs:\n    rspec-core (3.13.0)\n      rspec-support (~> 3.13.0)\n\nPLATFORMS\n  ruby\n\nDEPENDENCIES\n  foo!\n"}, rspecCommands},
+		{"rspec only as a transitive lockfile requirement", map[string]string{
+			"Gemfile":      "gemspec\n",
+			"Gemfile.lock": "GEM\n  specs:\n    foo (1.0)\n      rspec (>= 3)\n"}, unknownCommands},
+		{"oversized Gemfile is not read", map[string]string{
+			"Gemfile": "gem \"rspec\"\n" + strings.Repeat("# padding\n", maxRubyManifestBytes/10+1)}, unknownCommands},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			commands, uncertainty := impactVerificationOf(t, rubyVerificationFiles(test.extra), "app/api_clients/foo_client.rb")
+			if !reflect.DeepEqual(commands, test.wantCommands) {
+				t.Fatalf("verification = %v, want %v", commands, test.wantCommands)
+			}
+			wantUnknown := len(test.wantCommands) == 1
+			if got := anyContains(uncertainty, unknownLanguageVerification); got != wantUnknown {
+				t.Fatalf("uncertainty = %v, want unknown-language line %v", uncertainty, wantUnknown)
+			}
+		})
+	}
+}
+
+// TestNGIV0053MinitestCommands: NGI-V0-053. A Minitest repository gets
+// `bin/rails test` or `bundle exec rake test` only when that runner is proved,
+// and otherwise keeps the unknown-language line.
+func TestNGIV0053MinitestCommands(t *testing.T) {
+	model := "class Widget\nend\n"
+	minitest := "require \"minitest/autorun\"\nclass WidgetTest < Minitest::Test\nend\n"
+	for _, test := range []struct {
+		name         string
+		files        map[string]string
+		wantCommands []any
+	}{
+		{"Rails application", map[string]string{
+			"Gemfile": "gem \"rails\", \"~> 7.1\"\n", "bin/rails": "#!/usr/bin/env ruby\n",
+			"app/models/widget.rb": model, "test/models/widget_test.rb": minitest,
+		}, []any{"bin/rails test", "git diff --check"}},
+		{"Rails gem without bin/rails", map[string]string{
+			"Gemfile":              "gem \"rails\"\n",
+			"app/models/widget.rb": model, "test/models/widget_test.rb": minitest,
+		}, []any{"git diff --check"}},
+		{"Rake test task", map[string]string{
+			"Gemfile":              "gem \"minitest\"\ngem \"rake\"\n",
+			"Rakefile":             "require \"rake/testtask\"\nRake::TestTask.new(:test) do |t|\n  t.libs << \"test\"\nend\n",
+			"app/models/widget.rb": model, "test/widget_test.rb": minitest,
+		}, []any{"bundle exec rake test", "git diff --check"}},
+		{"Minitest without a Rakefile test task", map[string]string{
+			"Gemfile":              "gem \"minitest\"\n",
+			"Rakefile":             "task :default do\nend\n",
+			"app/models/widget.rb": model, "test/widget_test.rb": minitest,
+		}, []any{"git diff --check"}},
+		{"RSpec wins over a Rails test directory", map[string]string{
+			"Gemfile": "gem \"rails\"\ngem \"rspec-rails\"\n", "bin/rails": "#!/usr/bin/env ruby\n",
+			"app/models/widget.rb": model, "test/models/widget_test.rb": minitest, "spec/models/widget_spec.rb": "RSpec.describe Widget do\nend\n",
+		}, []any{"bundle exec rspec", "git diff --check"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			commands, uncertainty := impactVerificationOf(t, test.files, "app/models/widget.rb")
+			if !reflect.DeepEqual(commands, test.wantCommands) {
+				t.Fatalf("verification = %v, want %v", commands, test.wantCommands)
+			}
+			wantUnknown := len(test.wantCommands) == 1
+			if got := anyContains(uncertainty, unknownLanguageVerification); got != wantUnknown {
+				t.Fatalf("uncertainty = %v, want unknown-language line %v", uncertainty, wantUnknown)
+			}
+		})
+	}
+}
+
+// rangeVerificationOf commits change over files and returns the committed
+// range receipt's verification plan.
+func rangeVerificationOf(t *testing.T, files map[string]string, changed, replacement string) []any {
+	t.Helper()
+	root := impactRepositoryWithFiles(t, files)
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTestFile(t, root, changed, replacement)
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "changed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ranged, err := RangeImpact(context.Background(), index, base, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return anySlice(ranged["verification"])
+}
+
+// TestNGIV0051RangeImpactNamesRubyCommand: NGI-V0-051. A committed range with a
+// Ruby path names the repository's Ruby command before the gate; a Minitest
+// repository's range names no RSpec command.
+func TestNGIV0051RangeImpactNamesRubyCommand(t *testing.T) {
+	const changed = "app/api_clients/foo_client.rb"
+	edited := "class FooClient\n  def fetch = :changed\nend\n"
+	got := rangeVerificationOf(t, rubyIssue1130Files(t), "app/api_clients/foo_client.rb",
+		strings.Replace(rubyIssue1130Files(t)[changed], "ok: true", "ok: false", 1))
+	if !reflect.DeepEqual(got, []any{"bundle exec rspec", "git diff --check"}) {
+		t.Fatalf("issue #1130 range verification = %v", got)
+	}
+	got = rangeVerificationOf(t, rubyVerificationFiles(map[string]string{"Gemfile": "gem \"rspec\"\n"}), changed, edited)
+	if !reflect.DeepEqual(got, []any{"bundle exec rspec", "git diff --check"}) {
+		t.Fatalf("RSpec range verification = %v", got)
+	}
+	got = rangeVerificationOf(t, rubyVerificationFiles(map[string]string{"Gemfile": "gem \"minitest\"\n"}), changed, edited)
+	if !reflect.DeepEqual(got, []any{"git diff --check"}) {
+		t.Fatalf("Minitest range verification = %v", got)
+	}
+}
+
+// TestNGIV0051GoRangePlanUnchangedByRubySignals: NGI-V0-051. A range with no
+// Ruby path keeps its Go-only plan exactly in an RSpec repository.
+func TestNGIV0051GoRangePlanUnchangedByRubySignals(t *testing.T) {
+	goFiles := map[string]string{
+		"go.mod":                    "module example.test/widget\n\ngo 1.24\n",
+		"internal/widget/widget.go": "package widget\n\nfunc Widget() int { return 1 }\n",
+	}
+	withRuby := rubyVerificationFiles(map[string]string{"Gemfile": "gem \"rspec\"\n", ".rspec": "--require spec_helper\n"})
+	for name, body := range goFiles {
+		withRuby[name] = body
+	}
+	edited := "package widget\n\nfunc Widget() int { return 2 }\n"
+	plain := rangeVerificationOf(t, goFiles, "internal/widget/widget.go", edited)
+	ruby := rangeVerificationOf(t, withRuby, "internal/widget/widget.go", edited)
+	plainBytes, _ := CanonicalJSON(plain)
+	rubyBytes, _ := CanonicalJSON(ruby)
+	if string(plainBytes) != string(rubyBytes) || !reflect.DeepEqual(plain, []any{"go test ./internal/widget/...", "git diff --check"}) {
+		t.Fatalf("Go range plan changed by Ruby signals: plain=%s ruby=%s", plainBytes, rubyBytes)
 	}
 }

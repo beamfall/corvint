@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124 and V1-1824 / GitHub #1140 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824)/experimental
-- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
-- Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a CLI or preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
+- Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
 ## User and verified baseline
@@ -536,6 +536,155 @@ stdout when it refuses: `tests-invalid-arguments` (usage), `tests-invalid-revisi
 is not a commit), `tests-invalid-option` (a threshold or cutoff out of range, or `--gate` without
 `--base`), `tests-source-unavailable` (a Git or index read failed), `tests-bound-exceeded`,
 `tests-decisions-invalid` and `tests-output-unavailable` (stdout could not be written).
+
+## RSpec hygiene and strength in test-validity (V1-1798, V1-1787)
+
+V1-1798 (GitHub #1128 and #1130, slice S5) puts RSpec example hygiene and strength facts into the
+test-validity projection. V1-1787 asks for a production command path for the TSA-V0-045 and
+TSA-V0-049 findings. Both are agent-drafted and accepted under the owner's standing auto-accept
+(2026-10-11). This section supersedes two earlier non-goals of the static test-validity rules:
+"a CLI, MCP or preflight surface for these findings" now has the surfaces below, and an example
+declared in a shared example group is now flagged. A preflight surface is still not built.
+
+- `TSA-V0-062`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128, #1130)
+  `testsource.RSpecExampleSources(name, text)` MUST read one `_spec.rb` file's examples with the
+  TSA-V0-048 reader. It returns one `testvalidity.ExampleSource` per example, keyed by the
+  example's declaring line, with `read` = `located`, `expectations` and `findings`.
+  - `findings` are the `ValidityFindings` that name the example, then the TSA-V0-063..066
+    findings in that rule order, at most one per rule.
+  - The reader MUST also treat the `skip` and `pending` declarators as examples.
+  - It MUST abstain with no examples for the TSA-V0-050 reasons and `source-too-large`, and with
+    `not-an-rspec-file` for any other file.
+- `TSA-V0-063`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get an
+  `invalid` `RSPEC-SKIPPED` finding when it is skipped or pending. Its location is the example's
+  line; its cause is the first triggering line, the example's own lines before its groups,
+  innermost group first. The triggers are:
+  - an `xit`, `xspecify`, `xexample`, `xscenario`, `skip` or `pending` declarator;
+  - `:skip` or `:pending` symbol metadata, or a `skip:` or `pending:` key whose value is not
+    `false` or `nil`, on the declaring line outside string literals and before the block opens;
+  - an unconditional `skip` or `pending` statement directly in the example body: not in a nested
+    block and with no trailing `if` or `unless`;
+  - an ancestor group declared with `xdescribe` or `xcontext`, or carrying that metadata.
+- `TSA-V0-064`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get an
+  `invalid` `RSPEC-FOCUSED` finding when it is focused, with its location and cause chosen
+  as for `RSPEC-SKIPPED`. The triggers are:
+  - an `fit`, `fspecify`, `fexample`, `fscenario` or `focus` declarator;
+  - `:focus` metadata or a `focus:` key that is not `false` or `nil`;
+  - an ancestor group declared with `fdescribe` or `fcontext`, or carrying that metadata.
+- `TSA-V0-065`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example declared
+  inside a `shared_examples`, `shared_examples_for` or `shared_context` group MUST get an `invalid`
+  `SHARED-EXAMPLE-ONLY` finding. Its cause is the innermost such group. Its assertion runs only
+  through an including group that the cited `file:line` does not name, so it is not proof for the
+  citation.
+- `TSA-V0-066`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) An example MUST get an
+  `advisory` `DESCRIBED-CLASS-STUBBED` finding when `described_class` is stubbed. This means
+  `allow(described_class)`, `expect(described_class)` or their `_any_instance_of` forms followed
+  by `.to`, `.not_to` or `.to_not` and `receive*` or `have_received`, outside string literals.
+  - A stub in the example body has the stub line as its location and the example as its cause.
+  - Otherwise the first stub in a `before(:each)`, `let!` or `subject!` hook on the group chain
+    (innermost group first) is reported, caused by the hook.
+  - The finding does not change hygiene.
+- `TSA-V0-067`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) `expectations` MUST
+  count the expectations in the example's own lines, outside string literals. An expectation is
+  `expect(`, `expect {`, `expect do`, `is_expected`, `should`, `should_not` or
+  `expect_any_instance_of`. Hooks, lets and helper methods are not counted. Their distinct
+  `path:line` locations are the strength anchors.
+- `TSA-V0-068`: (standing auto-accept, 2026-10-11; V1-1798, V1-1787)
+  `testvaliditydoc.DiscoverWithSources(root, reader)` MUST apply example sources to discovered
+  Ruby evidence. `corvint test-validity --discover` and the MCP `corvint.test_validity` tool's `discover`
+  argument MUST both pass `testsource.RSpecExampleSources`, so they keep emitting the same bytes.
+  - For each retained example with a bound `specBlob`, the spec file is read once per file
+    through the confined, no-follow, `MaxInputBytes` receipt reader. It is used only when its Git
+    blob ID equals the retained one.
+  - A file that is not bound makes hygiene `ABSTAINED` `rspec-source-not-bound`.
+  - A reader that abstains makes hygiene `ABSTAINED` with its reason.
+  - An example the reader did not place at its line is `ABSTAINED` `rspec-example-not-located`.
+  - A placed example is `ELIGIBLE` `rspec-example-source-read`, then takes its findings through
+    `ApplySourceFindings` (TSA-V0-051). An `INELIGIBLE` axis is never relaxed.
+  - Each such test carries a `sourceRules` member `{read, expectations, findings}`.
+  - An example with no bound blob keeps its projection and has no member.
+  - JS/TS and Go documents, `--receipt` documents, and `Discover(root)` without a reader are
+    unchanged.
+- `TSA-V0-069`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) Strength MUST stay
+  `NOT_MEASURED`, and a strength a mutation run measured is kept. Only a mutation run decides
+  `KILLED` or `SURVIVED`. Its reason is the first that applies:
+  - `described-class-stubbed`, anchored at the stub lines;
+  - `no-expectation-in-example-body`, anchored at the example;
+  - `example-body-expectations`, anchored at the expectation lines.
+- `TSA-V0-070`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128)
+  `rubytestprovider.ProjectExample` MUST project an RSpec `pending` example as hygiene
+  `INELIGIBLE` `rspec-example-pending` on every path, receipt and discovery alike. This amends the
+  LPCV-V0-093 reading that Ruby hygiene is never claimed, for that one status; every other status
+  keeps `UNSUPPORTED` `ruby-hygiene-not-produced` until TSA-V0-068 applies.
+- `TSA-V0-071`: (standing auto-accept, 2026-10-11; V1-1787, V1-1798)
+  `corvint tests validity --files PATH[,PATH...] [--files ...] [--rev REV]` MUST read the named
+  committed files at REV (default `HEAD`).
+  - Duplicate paths are read once. At most 256 files may be named, each at most `MaxFileBytes`.
+  - It applies `ValidityFindings` to each file, and the TSA-V0-062 example rules to each
+    `_spec.rb` file.
+  - It writes `corvint-test-source-validity/0` JSON: `{schema, revision, files: [{path,
+    uncertain, reason?, findings}], tests: [{test, hygiene}]}`.
+  - Each test's hygiene is `ApplySourceFindings` over an `ELIGIBLE` `source-rules-read`
+    baseline.
+  - It exits 1 when any test is `INELIGIBLE`, which refuses that test as proof, and 0 otherwise.
+  - It refuses per Refusals:
+    - a missing or invalid path: `tests-invalid-arguments`;
+    - a path that is not a committed regular file: `tests-source-unavailable`;
+    - too many or oversized files: `tests-bound-exceeded`.
+- `TSA-V0-072`: (standing auto-accept, 2026-10-11; V1-1798, V1-1787) These readings MUST be
+  deterministic over the same input. They MUST read only the given text, committed Git content or
+  the bound worktree spec file, and MUST write nothing and use no network.
+
+Non-goals:
+- resolving which group includes a shared example group, or following `it_behaves_like` into
+  another file;
+- conditional skips, `skip` inside a nested block, and metadata set through
+  `config.filter_run`, `define_derived_metadata` or a variable;
+- counting expectations in helper methods, hooks or custom matchers;
+- stubs on a constant that aliases `described_class`;
+- applying source findings to JS/TS discovery or to a named `--receipt`;
+- an MCP tool for `tests validity`, and a preflight surface.
+
+Failure modes:
+- The reading is line-based and inherits the TSA-V0-048 failure modes. A misplaced block can
+  attach an example to the wrong group and so to the wrong skip, focus or shared ancestor.
+- A described_class stub written across lines, or through `allow(subject.class)`, is not seen.
+- A spec edited after the run is `rspec-source-not-bound`; the reading never guesses from the
+  edited text.
+
+Acceptance evidence: synthetic fixtures only.
+- An RSpec file covering every skip and focus form, `skip: false`, a conditional skip and the
+  words inside a title.
+- Shared examples and a nested shared context.
+- described_class stubs in a body, a before hook and a let!, plus a stub on another class and one
+  inside a string.
+- Discovery with an injected reader over a bound and an edited spec.
+- An end-to-end `test-validity --discover` run whose memoized example is refused, with identical
+  MCP bytes.
+- A `tests validity` run that reports ISOLATED-IN-SERIAL and MEMOIZED-BLOCK-EXPECTATION findings
+  and exits 1.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testvalidity/source_rules_rspec.go`, `internal/testsource/validity_rspec_examples.go`,
+`internal/testsource/validity_command.go`, `internal/testvaliditydoc/ruby_source.go`, their tests,
+the `tests validity` subcommand, the `DiscoverWithSources` callers, the pending line in
+`rubytestprovider.ProjectExample` and this section. Nothing is persisted.
+
+### Traceability (V1-1798, V1-1787)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-062 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleSourcesCarryValidityFindings`, `TestRSpecExampleSourcesAbstain`, `TestRSpecExampleSkippedAndFocused` | experimental |
+| TSA-V0-063 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleSkippedAndFocused`, `TestApplyExampleSourceHygiene` | experimental |
+| TSA-V0-064 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleSkippedAndFocused`, `TestApplyExampleSourceHygiene` | experimental |
+| TSA-V0-065 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleSharedOnly`, `TestApplyExampleSourceHygiene` | experimental |
+| TSA-V0-066 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleDescribedClassStub`, `TestApplyExampleSourceStrength` | experimental |
+| TSA-V0-067 | `internal/testsource/validity_rspec_examples.go` | `TestRSpecExampleDescribedClassStub`, `TestRSpecExampleSkippedAndFocused` | experimental |
+| TSA-V0-068 | `internal/testvaliditydoc/ruby_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverRubySourceRules`, `TestTestValidityDiscoverRSpecSourceRules`, `TestApplyExampleSourceHygiene` | experimental |
+| TSA-V0-069 | `internal/testvalidity/source_rules_rspec.go` | `TestApplyExampleSourceStrength`, `TestTestValidityDiscoverRSpecSourceRules` | experimental |
+| TSA-V0-070 | `internal/rubytestprovider/document.go` | `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestTestValidityDiscoverRSpecSourceRules` | experimental |
+| TSA-V0-071 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI`, `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
+| TSA-V0-072 | `internal/testsource/validity_command.go`, `internal/testsource/validity_rspec_examples.go` | `TestSourceValidityReport`, `TestDiscoverRubySourceRules` | experimental |
 
 ## Decision file format
 

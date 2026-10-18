@@ -234,7 +234,8 @@ func validateCoreIdentity(i coreIdentity, r CoreInstalledReport) error {
 		}
 		got = append(got, b.Name)
 	}
-	if !sameCoreNames(got, want) {
+	// Profile /3 adds the Ruby provider (CRB-V0-020); each profile's set is closed.
+	if !sameCoreNames(got, want) && !sameCoreNames(got, append(want, "bin/corvint-ruby-test-provider")) {
 		return fmt.Errorf("core binary inventory differs")
 	}
 	got = nil

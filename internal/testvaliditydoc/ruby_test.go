@@ -44,7 +44,8 @@ func encodeRuby(t *testing.T, document rubytestprovider.Document) []byte {
 }
 
 // LPCV-V0-093: the Ruby document decodes closed and every axis is recomputed
-// from its observations; hygiene and strength are never claimed.
+// from its observations; strength is never claimed, and hygiene is UNSUPPORTED
+// except that a pending example is INELIGIBLE (TSA-V0-070).
 func TestLPCVV0093RubyDocumentDecodesClosedAndProjects(t *testing.T) {
 	input, err := Decode(encodeRuby(t, rubyDocument(t, "passed", "failed", "pending")))
 	if err != nil {
@@ -60,7 +61,11 @@ func TestLPCVV0093RubyDocumentDecodesClosedAndProjects(t *testing.T) {
 		if test.ID != "spec/user_spec.rb:"+string(rune('2'+index)) || projection.Association.State != testvalidity.AssociationAssociated || projection.Association.Anchors[0] != test.ID {
 			t.Fatalf("association=%+v", test)
 		}
-		if projection.Execution.State != want[index] || projection.Hygiene.State != testvalidity.HygieneUnsupported || projection.Hygiene.Reason != "ruby-hygiene-not-produced" || projection.Strength.State != testvalidity.StrengthNotMeasured {
+		hygiene, reason := testvalidity.HygieneUnsupported, "ruby-hygiene-not-produced"
+		if index == 2 {
+			hygiene, reason = testvalidity.HygieneIneligible, testvalidity.HygieneReasonRSpecPending
+		}
+		if projection.Execution.State != want[index] || projection.Hygiene.State != hygiene || projection.Hygiene.Reason != reason || projection.Strength.State != testvalidity.StrengthNotMeasured {
 			t.Fatalf("projection=%+v", projection)
 		}
 	}

@@ -266,7 +266,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		"count": len(omissions), "sha256": fmt.Sprintf("sha256:%x", omissionHash.Sum(nil)),
 		"samples": omissions[:min(len(omissions), maxExclusionSamples)],
 	}
-	result["verification"] = rangeVerification(goPaths, index, moduleChanged)
+	result["verification"] = rangeVerification(goPaths, admittedPaths, index, moduleChanged)
 	coverage := result["coverage"].(map[string]any)
 	// The result counts are left to `receipt`, which now denominates them in
 	// the same pre-truncation `rawResults` this function would restate.  They
@@ -743,13 +743,22 @@ func citedRangeDecisions(index *Index, spans map[string][]rangeHunk, authored ma
 	return result, uncertainty
 }
 
-func rangeVerification(goPaths []string, index *Index, moduleChanged bool) []any {
+func rangeVerification(goPaths, admittedPaths []string, index *Index, moduleChanged bool) []any {
 	commands := make([]any, 0)
 	seen := make(map[string]struct{})
 	for _, changedPath := range goPaths {
 		parent := path.Dir(changedPath)
 		command := "go test ./" + parent + "/..."
 		if _, exists := seen[command]; !exists {
+			seen[command] = struct{}{}
+			commands = append(commands, command)
+		}
+	}
+	// A range with a Ruby path names the repository's Ruby command once, after
+	// the Go package commands; a range without one reads nothing and keeps its
+	// bytes (NGI-V0-051).
+	if rangeHasRubyPath(admittedPaths) {
+		if command := rubyVerificationCommand(index); command != "" {
 			seen[command] = struct{}{}
 			commands = append(commands, command)
 		}

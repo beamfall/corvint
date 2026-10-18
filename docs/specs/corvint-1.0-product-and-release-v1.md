@@ -87,14 +87,15 @@ Companion packaging alone does not qualify a capability. Companion list:
 - Local admin console (`corvint-console`) and dashboard snapshot (`corvint-dashboard-snapshot`).
 - Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
 - MCP servers: `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`.
-- Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, and `corvint test-validity`.
+- Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, the experimental
+  `corvint-ruby-test-provider`, and `corvint test-validity`.
 - Automatic documentation: `corvint docs` drafting, watch and apply.
 - Remote evidence provider (`corvint-remote-provider`): needs network consent, so it is outside the
   default local product by invariant 7.
 - Host integrations other than the Core CLI rows in "Supported platforms and hosts": the Gemini
   CLI extension, the OpenCode plugin, the Pi extension, `corvint harness event` and `corvint pi-tool`.
 - Formal host FULL or protected authority for any host (see "Externally dependent gates").
-- The combined companion bundle `/2` (`corvint-companion-release`, `corvint-public-release-check`)
+- The combined companion bundle `/2` or `/3` (`corvint-companion-release`, `corvint-public-release-check`)
   and its installed qualification (`PUB-V0-020`, ticket V1-0004).
 
 ## Supported platforms and hosts
@@ -158,10 +159,11 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-tasks` | required 1.0 companion | Full Beamfall roadmap replacement, including independent review, multi-repository completion, migration and production activation (decision 0426). |
 | `corvint-mcp`, `corvint-docs-mcp` | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
 | `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
-| `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2`, not Core. |
+| `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2` or `/3`, not Core. |
+| `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
 | `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
 | `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
-| `corvint-companion-release`, `corvint-public-release-check` | companion | Build and qualify the companion bundle `/2`. |
+| `corvint-companion-release`, `corvint-public-release-check` | companion | Build and qualify the companion bundle (`/3` written, `/2` still read). |
 | `corvint-release-gate` | experimental | Self-described experimental offline evidence gate. |
 | `corvint-corpus-mcp`, `corvint-behavior-falsify`, `corvint-playwright-minimize`, `corvint-web-flows`, `corvint-pulse`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-analyzer-*` external analyzer binaries and `corvint-go-toolchain-receipt` | deferred | Analyzer candidate profiles are deferred; Core analysis is the in-binary kernel. |

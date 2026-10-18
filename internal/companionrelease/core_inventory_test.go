@@ -15,6 +15,18 @@ func coreRetainedFixture(t *testing.T, mutate func(map[string]json.RawMessage, *
 
 func versionedRetainedFixture(t *testing.T, core bool, mutate func(map[string]json.RawMessage, *[]ArchiveEntry)) string {
 	t.Helper()
+	return profileRetainedFixture(t, core, false, mutate)
+}
+
+// rubyRetainedFixture is the corvint-companion-bundle/3 fixture: the /2 core inventory plus the
+// corvint-ruby-test-provider binary and its usage smoke step (CRB-V0-020).
+func rubyRetainedFixture(t *testing.T, mutate func(map[string]json.RawMessage, *[]ArchiveEntry)) string {
+	t.Helper()
+	return profileRetainedFixture(t, true, true, mutate)
+}
+
+func profileRetainedFixture(t *testing.T, core, ruby bool, mutate func(map[string]json.RawMessage, *[]ArchiveEntry)) string {
+	t.Helper()
 	dir := currentRetainedFixture(t, nil)
 	old, err := VerifyRetainedBundle(dir)
 	if err != nil {
@@ -39,6 +51,20 @@ func versionedRetainedFixture(t *testing.T, core bool, mutate func(map[string]js
 		entries = append(entries, e)
 	}
 	entries = append(entries, pi)
+	rubyBinary := ArchiveEntry{Path: "bin/corvint-ruby-test-provider", Mode: 0755, Data: []byte("ruby provider fixture\n")}
+	if ruby {
+		m.Profile = json.RawMessage(`"corvint-companion-bundle/3"`)
+		var c ComponentManifest
+		for _, component := range m.Components {
+			if component.Name == "corvint-go-test-provider" {
+				c = component
+			}
+		}
+		c.Name, c.BinaryPath = "corvint-ruby-test-provider", rubyBinary.Path
+		c.BinarySHA256, c.BinarySizeBytes = sha256Hex(rubyBinary.Data), int64(len(rubyBinary.Data))
+		m.Components = append(m.Components, c)
+		entries = append(entries, rubyBinary)
+	}
 	entries, err = assembleBundleEntries(entries, m)
 	if err != nil {
 		t.Fatal(err)
@@ -83,6 +109,9 @@ func versionedRetainedFixture(t *testing.T, core bool, mutate func(map[string]js
 		}
 		for _, name := range []string{"corvint-version-identity", "corvint-affected-selection", "corvint-playwright-external-discovery", "corvint-documentation-corpus-discovery", "corvint-work-queue-observation"} {
 			old.SmokeSteps = append(old.SmokeSteps, SmokeStep{Name: name, OK: true, ComponentSHA256: corvint.BinarySHA256, SourceCommit: corvint.Commit, SourceTree: corvint.Tree, InvokedPath: "/private/removed/" + corvint.BinaryPath})
+		}
+		if ruby {
+			old.SmokeSteps = append(old.SmokeSteps, SmokeStep{Name: "corvint-ruby-test-provider-help", OK: true, ComponentSHA256: sha256Hex(rubyBinary.Data), SourceCommit: corvint.Commit, SourceTree: corvint.Tree, InvokedPath: "/private/removed/" + rubyBinary.Path})
 		}
 	}
 	for j := range old.SmokeSteps {
@@ -158,7 +187,7 @@ func TestCoreBundleRejectsEditorToolchain(t *testing.T) {
 
 func TestCoreBundleRejectsProfileDowngrade(t *testing.T) {
 	t.Run("CRB-V0-019 closed profile downgrade refusal", func(t *testing.T) {
-		for _, profile := range []string{"absent", "null", `""`, `"corvint-companion-bundle/0"`, `"corvint-companion-bundle/1"`, `"corvint-companion-bundle/3"`} {
+		for _, profile := range []string{"absent", "null", `""`, `"corvint-companion-bundle/0"`, `"corvint-companion-bundle/1"`, `"corvint-companion-bundle/4"`} {
 			t.Run(profile, func(t *testing.T) {
 				dir := coreRetainedFixture(t, func(m map[string]json.RawMessage, _ *[]ArchiveEntry) {
 					if profile == "absent" {

@@ -18,7 +18,7 @@ const maxRSpecDepth = 64
 
 var (
 	rspecGroupLine   = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?context|feature|shared_examples|shared_examples_for|shared_context|it_behaves_like|it_should_behave_like)\b`)
-	rspecExampleLine = regexp.MustCompile(`^(?:[xf]?it|[xf]?specify|[xf]?example|[xf]?scenario|its|focus)\b`)
+	rspecExampleLine = regexp.MustCompile(`^(?:[xf]?it|[xf]?specify|[xf]?example|[xf]?scenario|its|focus|skip|pending)\b`)
 	rspecTitle       = regexp.MustCompile(`^\w+\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)")`)
 	// rspecHookLine matches a before hook; group 1 is its scope symbol, when it names one.
 	rspecHookLine = regexp.MustCompile(`^(?:before|prepend_before|append_before)\b\s*\(?\s*(?::(\w+))?`)
@@ -46,6 +46,9 @@ type rspecGroup struct {
 	// `subject` alias of a named subject, which RSpec defines as a let).
 	decls map[string]string
 	hooks []rspecHook
+	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
+	line int
+	head string
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
@@ -56,6 +59,7 @@ type rspecHook struct {
 	kind  string
 	own   string
 	names map[string]bool
+	body  []rubyLine // the hook's lines, for TSA-V0-066
 }
 
 type rspecExample struct {
@@ -135,7 +139,7 @@ func (r *rspecReader) read() string {
 		group := current()
 		switch {
 		case rspecGroupLine.MatchString(text) && rubyDo.MatchString(text):
-			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}})
+			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}, line: r.lines[i].line, head: text})
 			stack = append(stack, frame{group: len(r.groups) - 1})
 		case rspecExampleLine.MatchString(text):
 			body, end, ok := r.block(i)
@@ -170,7 +174,7 @@ func (r *rspecReader) read() string {
 				if kind == "subject" {
 					own = "subject"
 				}
-				g.hooks = append(g.hooks, rspecHook{line: r.lines[i].line, kind: m[1], own: own, names: invokedNames(body)})
+				g.hooks = append(g.hooks, rspecHook{line: r.lines[i].line, kind: m[1], own: own, names: invokedNames(body), body: body})
 			}
 			i = end
 		case rspecHookLine.MatchString(text) && (rubyDo.MatchString(text) || strings.Contains(text, "{")):
@@ -180,7 +184,7 @@ func (r *rspecReader) read() string {
 			}
 			switch rspecHookLine.FindStringSubmatch(text)[1] {
 			case "", "each", "example":
-				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{line: r.lines[i].line, kind: "before", names: invokedNames(body)})
+				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
 			}
 			i = end
 		case rspecSkippedLine.MatchString(text):
