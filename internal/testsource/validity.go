@@ -121,7 +121,7 @@ func (s *source) configureMode(i int) (mode string, ok bool) {
 		return "", false
 	}
 	for j := i + 6; j < s.match[i+5]; j++ {
-		if !s.ident(j, "mode") || !s.punct(j+1, ":") {
+		if !s.key(j, "mode") {
 			continue
 		}
 		if s.loneString([2]int{j + 2, j + 3}) && s.tokens[j+2].Literal && (s.punct(j+3, ",") || s.punct(j+3, "}")) {
@@ -144,8 +144,9 @@ func (s *source) innermostDescribe(i int) int {
 	return owner
 }
 
-// isolated reports a declaration annotated as isolated: an `@isolated` tag in its title or its
-// details, or a details annotation whose `type` is the literal `isolated` (TSA-V0-045).
+// isolated reports a declaration annotated as isolated: an `@isolated` tag in its title or in its
+// details' `tag` value, or a details annotation whose `type` is the literal `isolated`
+// (TSA-V0-045). Other details text, such as an annotation's description, is not a tag.
 func (s *source) isolated(d decl) bool {
 	if d.titled && hasIsolatedTag(d.title) {
 		return true
@@ -155,17 +156,32 @@ func (s *source) isolated(d decl) bool {
 	}
 	for _, arg := range d.args[1 : len(d.args)-1] {
 		for j := arg[0]; j < arg[1]; j++ {
-			t := s.tokens[j]
-			if t.Kind == appmap.JSString && t.Literal && strings.EqualFold(t.Text, "@isolated") {
-				return true
-			}
-			if s.ident(j, "type") && s.punct(j+1, ":") && j+2 < arg[1] && s.tokens[j+2].Literal &&
-				s.tokens[j+2].Kind == appmap.JSString && strings.EqualFold(s.tokens[j+2].Text, "isolated") {
+			switch {
+			case s.key(j, "tag") && s.punct(j+2, "[") && s.match[j+2] > j+2:
+				for k := j + 3; k < s.match[j+2]; k++ {
+					if s.literalString(k, "@isolated") {
+						return true
+					}
+				}
+			case s.key(j, "tag") && s.literalString(j+2, "@isolated"),
+				s.key(j, "type") && s.literalString(j+2, "isolated"):
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// key reports an object key named name at token i, bare or as a string literal, followed by `:`.
+func (s *source) key(i int, name string) bool {
+	quoted := i >= 0 && i < len(s.tokens) && s.tokens[i].Kind == appmap.JSString && s.tokens[i].Literal && s.tokens[i].Text == name
+	return (s.ident(i, name) || quoted) && s.punct(i+1, ":")
+}
+
+// literalString reports a string literal token at i whose text is text, ignoring case.
+func (s *source) literalString(i int, text string) bool {
+	return i >= 0 && i < len(s.tokens) && s.tokens[i].Kind == appmap.JSString && s.tokens[i].Literal &&
+		strings.EqualFold(s.tokens[i].Text, text)
 }
 
 // hasIsolatedTag reports an `@isolated` word in a test title.

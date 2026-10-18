@@ -32,6 +32,9 @@ var (
 	rspecLoneName   = regexp.MustCompile(`^([a-z_]\w*[?!]?)$`)
 	rspecBlockClose = regexp.MustCompile(`^(?:\}|end\b)`)
 	rspecString     = regexp.MustCompile(`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`)
+	// rspecPercent matches a percent literal (`%q(...)`, `%Q[...]`, `%w{...}`, `%i<...>`, `%(...)`)
+	// with a bracket delimiter and no nested delimiter of the same kind.
+	rspecPercent    = regexp.MustCompile(`%[qQwWiIsr]?(?:\([^()]*\)|\[[^\[\]]*\]|\{[^{}]*\}|<[^<>]*>)|%[qQwWiIsr](?:\|[^|]*\||![^!]*!|/[^/]*/)`)
 	rspecBlockParam = regexp.MustCompile(`(?:\bdo|\{)\s*\|([^|]*)\|`)
 	rspecIdentifier = regexp.MustCompile(`[A-Za-z_]\w*[?!]?`)
 	rubyKeywords    = map[string]bool{"and": true, "begin": true, "break": true, "case": true, "class": true, "def": true, "do": true, "else": true, "elsif": true, "end": true, "ensure": true, "false": true, "for": true, "if": true, "in": true, "module": true, "next": true, "nil": true, "not": true, "or": true, "redo": true, "rescue": true, "retry": true, "return": true, "self": true, "super": true, "then": true, "true": true, "undef": true, "unless": true, "until": true, "when": true, "while": true, "yield": true}
@@ -39,15 +42,19 @@ var (
 
 type rspecGroup struct {
 	parent int
-	decls  map[string]string // name -> "let" or "subject"
-	hooks  []rspecHook
+	// decls maps a declared name to "let", "subject" (an anonymous subject) or "let:NAME" (the
+	// `subject` alias of a named subject, which RSpec defines as a let).
+	decls map[string]string
+	hooks []rspecHook
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
-// its block invokes.
+// its block invokes. A let! or subject! hook calls its helper (own) by name, so its body's names
+// count only while that helper is not overridden in a nested group.
 type rspecHook struct {
 	line  int
 	kind  string
+	own   string
 	names map[string]bool
 }
 
@@ -59,6 +66,8 @@ type rspecExample struct {
 }
 
 type rspecReader struct {
+	depth    int  // open blocks around the line being read
+	tooDeep  bool // the last block call failed on nesting depth
 	lines    []rubyLine
 	groups   []rspecGroup
 	examples []rspecExample
@@ -111,6 +120,7 @@ func (r *rspecReader) read() string {
 		return 0
 	}
 	for i := 0; i < len(r.lines); i++ {
+		r.depth = len(stack)
 		text := r.lines[i].text
 		if rubyEnd.MatchString(text) {
 			if len(stack) == 0 {
@@ -127,7 +137,7 @@ func (r *rspecReader) read() string {
 		case rspecExampleLine.MatchString(text):
 			body, end, ok := r.block(i)
 			if !ok {
-				return validityRSpecUnbalanced
+				return r.blockFailure()
 			}
 			title := ""
 			if m := rspecTitle.FindStringSubmatch(text); m != nil {
@@ -139,31 +149,31 @@ func (r *rspecReader) read() string {
 			m := rspecDeclLine.FindStringSubmatch(text)
 			body, end, ok := r.block(i)
 			if !ok {
-				return validityRSpecUnbalanced
+				return r.blockFailure()
 			}
 			kind, declared := strings.TrimSuffix(m[1], "!"), m[2]+m[3]
 			g := &r.groups[group]
-			if declared != "" {
-				g.decls[declared] = kind
-			}
-			if kind == "subject" {
-				g.decls["subject"] = kind
+			switch {
+			case kind == "let" && declared != "":
+				g.decls[declared] = "let"
+			case kind == "subject" && declared != "":
+				g.decls[declared], g.decls["subject"] = "let", "let:"+declared
+			case kind == "subject":
+				g.decls["subject"] = "subject"
 			}
 			if strings.HasSuffix(m[1], "!") {
-				names := invokedNames(body)
+				// let!(:x) adds `before { x }`; subject! adds `before { subject }`.
+				own := declared
 				if kind == "subject" {
-					names["subject"] = true
+					own = "subject"
 				}
-				if declared != "" {
-					names[declared] = true
-				}
-				g.hooks = append(g.hooks, rspecHook{line: r.lines[i].line, kind: m[1], names: names})
+				g.hooks = append(g.hooks, rspecHook{line: r.lines[i].line, kind: m[1], own: own, names: invokedNames(body)})
 			}
 			i = end
 		case rspecHookLine.MatchString(text) && (rubyDo.MatchString(text) || strings.Contains(text, "{")):
 			body, end, ok := r.block(i)
 			if !ok {
-				return validityRSpecUnbalanced
+				return r.blockFailure()
 			}
 			switch rspecHookLine.FindStringSubmatch(text)[1] {
 			case "", "each", "example":
@@ -173,7 +183,7 @@ func (r *rspecReader) read() string {
 		case rspecSkippedLine.MatchString(text):
 			_, end, ok := r.block(i)
 			if !ok {
-				return validityRSpecUnbalanced
+				return r.blockFailure()
 			}
 			i = end
 		case rubyOpens(text):
@@ -191,29 +201,77 @@ func (r *rspecReader) read() string {
 
 // block returns the logical lines of the block opened on line i, the head line included, and the
 // index of its last line. A line with no block (`it 'is pending'`, `def x = 1`) is its own block.
-// ok is false when the block does not close.
+// ok is false when the block does not close or when its nesting, added to the r.depth blocks
+// around it, exceeds maxRSpecDepth; blockFailure tells the two apart.
 func (r *rspecReader) block(i int) ([]rubyLine, int, bool) {
+	r.tooDeep = false
 	text := r.lines[i].text
+	end := -1
 	if rubyDo.MatchString(text) || rubyOpener.MatchString(text) {
-		end := rubyBlockEnd(r.lines, i)
-		if end >= len(r.lines) {
-			return nil, 0, false
+		if end = rubyBlockEnd(r.lines, i); end >= len(r.lines) {
+			end = -1
 		}
-		return r.lines[i : end+1], end, true
-	}
-	depth := 0
-	for j := i; j < len(r.lines); j++ {
-		depth = braceDepth(r.lines[j].text, depth)
-		if depth <= 0 {
-			return r.lines[i : j+1], j, true
+	} else {
+		depth := 0
+		for j := i; j < len(r.lines) && end < 0; j++ {
+			if depth = braceDepth(r.lines[j].text, depth); depth <= 0 {
+				end = j
+			}
 		}
 	}
-	return nil, 0, false
+	lines := r.lines[i:]
+	if end >= 0 {
+		lines = r.lines[i : end+1]
+	}
+	if r.depth+nestingDepth(lines) > maxRSpecDepth {
+		r.tooDeep = true
+		return nil, 0, false
+	}
+	if end < 0 {
+		return nil, 0, false
+	}
+	return lines, end, true
+}
+
+// blockFailure is the uncertainty reason of the last failed block call.
+func (r *rspecReader) blockFailure() string {
+	if r.tooDeep {
+		return validityRSpecTooDeep
+	}
+	return validityRSpecUnbalanced
+}
+
+// nestingDepth returns the deepest nesting of do/keyword blocks and braces within lines.
+func nestingDepth(lines []rubyLine) int {
+	depth, deepest := 0, 0
+	for _, l := range lines {
+		if rubyOpens(l.text) {
+			depth++
+		} else if rubyEnd.MatchString(l.text) {
+			depth--
+		}
+		deepest = max(deepest, depth)
+		for _, c := range stripRubyStrings(l.text) {
+			switch c {
+			case '{':
+				depth++
+				deepest = max(deepest, depth)
+			case '}':
+				depth--
+			}
+		}
+	}
+	return deepest
+}
+
+// stripRubyStrings replaces the line's percent literals and quoted string literals with `""`.
+func stripRubyStrings(text string) string {
+	return rspecString.ReplaceAllString(rspecPercent.ReplaceAllString(text, `""`), `""`)
 }
 
 // braceDepth adds the line's `{` and `}` outside string literals to depth.
 func braceDepth(text string, depth int) int {
-	for _, c := range rspecString.ReplaceAllString(text, `""`) {
+	for _, c := range stripRubyStrings(text) {
 		switch c {
 		case '{':
 			depth++
@@ -232,7 +290,7 @@ func invokedNames(body []rubyLine) map[string]bool {
 	for k, l := range body {
 		texts[k] = l.text
 	}
-	text := rspecString.ReplaceAllString(strings.Join(texts, "\n"), `""`)
+	text := stripRubyStrings(strings.Join(texts, "\n"))
 	locals := map[string]bool{}
 	for _, m := range rspecBlockParam.FindAllStringSubmatch(text, -1) {
 		for _, p := range strings.Split(m[1], ",") {
@@ -280,7 +338,7 @@ type blockTarget struct {
 func blockExpectations(body []rubyLine) []blockTarget {
 	out := []blockTarget{}
 	for k, l := range body {
-		for _, m := range rspecBlockExpr.FindAllStringSubmatch(rspecString.ReplaceAllString(l.text, `""`), -1) {
+		for _, m := range rspecBlockExpr.FindAllStringSubmatch(stripRubyStrings(l.text), -1) {
 			out = append(out, blockTarget{line: l.line, name: m[1]})
 		}
 		if rspecBlockOpen.MatchString(l.text) && k+2 < len(body) && rspecBlockClose.MatchString(body[k+2].text) {
@@ -292,19 +350,20 @@ func blockExpectations(body []rubyLine) []blockTarget {
 	return out
 }
 
-// canonical resolves name from group g: "subject" for the subject, a named subject or an
-// undeclared `subject`; "let:NAME" for a let; "" for a name no group in the chain declares, which
-// is not a memoized helper.
+// canonical resolves name from group g, innermost declaration first: "let:NAME" for a let or a
+// named subject, and for `subject` when the innermost subject is named NAME; "subject" for an
+// anonymous or undeclared `subject`; "" for a name no group in the chain declares, which is not a
+// memoized helper. Distinct named subjects stay distinct helpers.
 func (r *rspecReader) canonical(g int, name string) string {
 	if rubyKeywords[name] {
 		return ""
 	}
-	for ; g >= 0; g = r.groups[g].parent {
-		switch r.groups[g].decls[name] {
-		case "subject":
-			return "subject"
+	if d := r.declaring(g, name); d >= 0 {
+		switch v := r.groups[d].decls[name]; v {
 		case "let":
 			return "let:" + name
+		default:
+			return v
 		}
 	}
 	if name == "subject" {
@@ -313,12 +372,30 @@ func (r *rspecReader) canonical(g int, name string) string {
 	return ""
 }
 
+// declaring returns the innermost group on g's chain that declares name, or -1.
+func (r *rspecReader) declaring(g int, name string) int {
+	for ; g >= 0; g = r.groups[g].parent {
+		if r.groups[g].decls[name] != "" {
+			return g
+		}
+	}
+	return -1
+}
+
 // memoizingHook returns the line and kind of the first hook, innermost group first, then in
 // source order, of group g or an enclosing group that invokes the canonical helper. A hook in a
 // sibling group is never on the chain.
 func (r *rspecReader) memoizingHook(g int, canonical string) (int, string, bool) {
 	for start := g; g >= 0; g = r.groups[g].parent {
 		for _, h := range r.groups[g].hooks {
+			if h.own != "" {
+				if r.canonical(start, h.own) == canonical {
+					return h.line, h.kind, true
+				}
+				if d := r.declaring(start, h.own); d >= 0 && d != g {
+					continue // the helper is overridden below this hook's group; its body never runs
+				}
+			}
 			for name := range h.names {
 				if r.canonical(start, name) == canonical {
 					return h.line, h.kind, true

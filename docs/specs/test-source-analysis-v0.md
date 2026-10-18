@@ -331,8 +331,10 @@ command calls it yet.
   (`IsTestFile`), rule `ISOLATED-IN-SERIAL` MUST report every test that is isolated and sits under
   a serial ancestor.
   - A test is isolated when its literal title holds the word `@isolated`, or when its details
-    argument or an enclosing describe's details argument holds a literal `'@isolated'` tag or an
-    annotation whose `type` is the literal `'isolated'`.
+    argument or an enclosing describe's details argument has a `tag` value (a string or an array
+    of strings) holding the literal `'@isolated'`, or an annotation whose `type` is the literal
+    `'isolated'`. Other details text, such as an annotation's `description`, is not a tag. An
+    object key may be bare or a quoted string literal (`mode:` or `'mode':`).
   - A serial ancestor is any of these:
     - a `test.describe.serial(...)` declaration enclosing the test;
     - an enclosing describe whose own body (not a nested describe's body) calls
@@ -364,12 +366,16 @@ command calls it yet.
     - `before`, `prepend_before` and `append_before` with no scope or with `:each` / `:example`;
     - a `let!`, which invokes its own name;
     - a `subject!`, which invokes `subject`;
+    A `let!` or `subject!` hook also invokes its block's names, but only while the helper it
+    calls is not redeclared in a group nested between the hook and the example, because the
+    redeclared body runs instead.
   - each example's lines (`it`, `specify`, `example`, `scenario`, `its`, `focus`, with an `x`/`f`
     prefix).
   These blocks are opaque: `before(:all|:context|:suite)`, `around`, the `after` hooks and `def`.
   Every other `do`/`if`/`unless`/`class`/`module` block is transparent. A hook invokes the bare
   identifiers in its block. It does not invoke these:
-  - a word inside a string literal;
+  - a word inside a string literal, quoted or a bracket-delimited percent literal (`%q(...)`,
+    `%Q[...]`, `%w{...}`, `%i<...>`, `%(...)`);
   - a method on a receiver (`.x`);
   - a symbol (`:x`);
   - an instance or global variable;
@@ -382,7 +388,9 @@ command calls it yet.
   `expect { NAME }`, or a multi-line `expect do` / `NAME` / `end`, whose whole block is one bare
   NAME, when both of these hold:
   - NAME resolves from the example's group chain (innermost declaration first) to a let, or to
-    the subject (`subject`, a named subject or an undeclared `subject`);
+    the subject. A named subject `subject(:x)` is the let `x`, and `subject` resolves to it while
+    it is the innermost subject. An anonymous or undeclared `subject` is its own helper. Distinct
+    named subjects are distinct helpers;
   - a memoizing hook of the example's own group or an enclosing group invokes a name that
     resolves to the same helper.
   The finding names the example's `path:line` and title and the expectation's `path:line`. Its
@@ -395,7 +403,8 @@ command calls it yet.
 - `TSA-V0-050`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124) The RSpec reader MUST
   abstain, reporting uncertain with no findings, in these cases:
   - a block does not close, or an `end` has no opener: reason `rspec-block-unbalanced`;
-  - nesting exceeds 64 blocks: reason `rspec-depth-exceeded`.
+  - nesting exceeds 64 blocks anywhere, including inside an example or hook body: reason
+    `rspec-depth-exceeded`.
   Either rule's input MUST be at most `MaxFileBytes`; a larger file is uncertain with reason
   `source-too-large` and is not read.
 - `TSA-V0-051`: (standing auto-accept, 2026-10-11; V1-1784 / GitHub #1124)
@@ -582,11 +591,11 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-037 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationDeterministic` | experimental |
 | TSA-V0-038 | `internal/testsource/actor_auth.go`, `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
 | TSA-V0-039 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
-| TSA-V0-045 | `internal/testsource/validity.go` | `TestIsolatedInSerialForms` | experimental |
-| TSA-V0-046 | `internal/testsource/validity.go` | `TestIsolatedInSerialNegatives` | experimental |
+| TSA-V0-045 | `internal/testsource/validity.go` | `TestIsolatedInSerialForms`, `TestIsolatedInSerialTagAndQuotedKey` | experimental |
+| TSA-V0-046 | `internal/testsource/validity.go` | `TestIsolatedInSerialNegatives`, `TestIsolatedInSerialTagAndQuotedKey` | experimental |
 | TSA-V0-047 | `internal/testvalidity/source_rules.go`, `internal/testsource/validity.go` | `TestIsolatedInSerialForms`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
-| TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives` | experimental |
-| TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives` | experimental |
-| TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains` | experimental |
+| TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides`, `TestMemoizedBlockExpectationPercentStrings` | experimental |
+| TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides` | experimental |
+| TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains`, `TestMemoizedBlockExpectationDepthInsideExample` | experimental |
 | TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
 | TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |

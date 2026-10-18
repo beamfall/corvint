@@ -298,3 +298,90 @@ func TestValidityFindingsDispatchAndVerdict(t *testing.T) {
 		t.Errorf("advisory changed the verdict: %+v", serial)
 	}
 }
+
+// TestIsolatedInSerialTagAndQuotedKey: an `@isolated` string that is an annotation's description,
+// not a tag, does not make a test isolated, and a quoted `'mode'` key still makes its describe
+// serial (TSA-V0-045, TSA-V0-046).
+func TestIsolatedInSerialTagAndQuotedKey(t *testing.T) {
+	described := `test.describe.serial('alpha', () => {
+  test('alpha-01', { annotation: { type: 'issue', description: '@isolated' } }, async () => { expect(1).toBe(1); });
+});
+`
+	wantFindings(t, "description text", ValidityFindings("e2e/d.spec.ts", described))
+	quoted := `test.describe('beta', () => {
+  test.describe.configure({ 'mode': 'serial' });
+  test('beta-01', { tag: '@isolated' }, async () => { expect(1).toBe(1); });
+});
+`
+	r := ValidityFindings("e2e/q.spec.ts", quoted)
+	wantFindings(t, "quoted key", r, "ISOLATED-IN-SERIAL advisory e2e/q.spec.ts:3 e2e/q.spec.ts:1 beta-01")
+	if r.Uncertain {
+		t.Errorf("quoted key: uncertain %q", r.Reason)
+	}
+}
+
+// TestMemoizedBlockExpectationOverrides: distinct named subjects are distinct helpers, and a let!
+// overridden by a nested let no longer runs its body, so neither is reported; without the
+// override the let! body's subject call is reported (TSA-V0-049).
+func TestMemoizedBlockExpectationOverrides(t *testing.T) {
+	named := `RSpec.describe Widget do
+  subject(:original) { described_class.new }
+  before { original }
+  context 'replaced' do
+    subject(:replacement) { described_class.create }
+    it 'creates' do
+      expect { replacement }.to change(Widget, :count).by(1)
+      expect { subject }.to change(Widget, :count).by(1)
+    end
+  end
+end
+`
+	wantFindings(t, "named subjects", ValidityFindings("spec/n_spec.rb", named))
+	eager := `RSpec.describe Widget do
+  subject { described_class.create }
+  let!(:setup) { subject }
+  context 'lazy' do
+    let(:setup) { nil }
+    it 'creates' do
+      expect { subject }.to change(Widget, :count).by(1)
+    end
+  end
+end
+`
+	wantFindings(t, "overridden let!", ValidityFindings("spec/e_spec.rb", eager))
+	kept := strings.Replace(eager, "    let(:setup) { nil }\n", "    let(:other) { nil }\n", 1)
+	wantFindings(t, "kept let!", ValidityFindings("spec/e_spec.rb", kept),
+		"MEMOIZED-BLOCK-EXPECTATION invalid spec/e_spec.rb:7 spec/e_spec.rb:3 creates")
+}
+
+// TestMemoizedBlockExpectationPercentStrings: a name inside a percent literal is not an
+// invocation (TSA-V0-048).
+func TestMemoizedBlockExpectationPercentStrings(t *testing.T) {
+	spec := `RSpec.describe Widget do
+  subject { described_class.create }
+  before do
+    log(%q(subject), %Q[subject], %w{subject other}, %i<subject>, %(subject))
+  end
+  it 'creates' do
+    expect { subject }.to change(Widget, :count).by(1)
+  end
+end
+`
+	r := ValidityFindings("spec/p_spec.rb", spec)
+	wantFindings(t, "percent strings", r)
+	if r.Uncertain {
+		t.Errorf("percent strings: uncertain %q", r.Reason)
+	}
+}
+
+// TestMemoizedBlockExpectationDepthInsideExample: nesting beyond the bound inside an example body
+// makes the report uncertain with no finding (TSA-V0-050).
+func TestMemoizedBlockExpectationDepthInsideExample(t *testing.T) {
+	spec := "RSpec.describe Widget do\n  subject { described_class.create }\n  before { subject }\n  it 'creates' do\n" +
+		"    expect { subject }.to change(Widget, :count).by(1)\n" +
+		strings.Repeat("    1.times do\n", maxRSpecDepth+1) + strings.Repeat("    end\n", maxRSpecDepth+1) +
+		"  end\nend\n"
+	if r := ValidityFindings("spec/d_spec.rb", spec); !r.Uncertain || r.Reason != validityRSpecTooDeep || len(r.Findings) != 0 {
+		t.Errorf("deep example: %+v", r)
+	}
+}

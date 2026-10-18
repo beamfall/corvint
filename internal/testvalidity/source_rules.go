@@ -42,7 +42,7 @@ type SourceFinding struct {
 // ApplySourceFindings returns p with the hygiene axis made INELIGIBLE when any of the given
 // findings, which the caller has selected for the test p projects, is invalid (TSA-V0-051). The
 // reason is the first invalid finding's rule reason unless hygiene was already INELIGIBLE, and
-// each invalid finding's location and cause are appended to the anchors. Advisory findings and
+// each invalid finding's location and cause are appended to the existing anchors. Advisory findings and
 // the other four axes are left unchanged, so no axis rewrites another.
 func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 	anchors := []string{}
@@ -60,7 +60,7 @@ func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 		return p
 	}
 	if p.Hygiene.State != HygieneIneligible {
-		p.Hygiene = Axis{State: HygieneIneligible, Reason: reason, Anchors: nil}
+		p.Hygiene.State, p.Hygiene.Reason = HygieneIneligible, reason
 	}
 	p.Hygiene.Anchors = append(append([]string{}, p.Hygiene.Anchors...), anchors...)
 	return p

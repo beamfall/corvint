@@ -16,14 +16,15 @@ func eligibleProjection() Projection {
 }
 
 // TestApplySourceFindingsInvalidMakesIneligible: an invalid finding makes hygiene INELIGIBLE and
-// names the memoizing hook; the other axes are unchanged (TSA-V0-051).
+// appends the expectation and the memoizing hook to the existing anchors; the other axes are
+// unchanged (TSA-V0-051).
 func TestApplySourceFindingsInvalidMakesIneligible(t *testing.T) {
 	p := eligibleProjection()
 	got := ApplySourceFindings(p, []SourceFinding{
 		{Rule: RuleIsolatedInSerial, Severity: SeverityAdvisory, Location: "e2e/a.spec.ts:5", Cause: "e2e/a.spec.ts:1"},
 		{Rule: RuleMemoizedBlockExpectation, Severity: SeverityInvalid, Location: "spec/w_spec.rb:9", Cause: "spec/w_spec.rb:4"},
 	})
-	want := Axis{State: HygieneIneligible, Reason: HygieneReasonMemoizedBlockExpectation, Anchors: []string{"spec/w_spec.rb:9", "spec/w_spec.rb:4"}}
+	want := Axis{State: HygieneIneligible, Reason: HygieneReasonMemoizedBlockExpectation, Anchors: []string{"h", "spec/w_spec.rb:9", "spec/w_spec.rb:4"}}
 	if !reflect.DeepEqual(got.Hygiene, want) {
 		t.Fatalf("hygiene %+v, want %+v", got.Hygiene, want)
 	}
@@ -33,6 +34,10 @@ func TestApplySourceFindingsInvalidMakesIneligible(t *testing.T) {
 	}
 	if !reflect.DeepEqual(p.Hygiene.Anchors, []string{"h"}) {
 		t.Fatalf("input mutated: %+v", p.Hygiene)
+	}
+	short := ApplySourceFindings(p, []SourceFinding{{Rule: RuleMemoizedBlockExpectation, Severity: SeverityInvalid, Location: "l", Cause: "c"}})
+	if !reflect.DeepEqual(short.Hygiene.Anchors, []string{"h", "l", "c"}) {
+		t.Fatalf("anchors %+v, want [h l c]", short.Hygiene.Anchors)
 	}
 }
 

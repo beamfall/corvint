@@ -37,6 +37,20 @@ auto-accept of lane requirements (2026-10-11). Delivery stays experimental, like
 - **Not wired to a surface.** No CLI, MCP or preflight path calls `ValidityFindings` yet, so no
   existing report or wire contract changes.
 
+## Codex review, round 1
+
+Seven findings on PR #1125 were all fixed in the code, and each has a regression test that fails
+on the round-0 head:
+- distinct named subjects collapsed into one helper;
+- an overridden `let!` kept its old body's calls;
+- percent literals counted as invocations;
+- the depth bound was bypassed inside example and hook bodies;
+- an annotation's description was read as a tag;
+- a quoted `'mode'` key was missed;
+- `ApplySourceFindings` replaced the existing hygiene anchors instead of appending to them.
+The code, not TSA-V0-051, was wrong for the last one. TSA-V0-045, 048, 049 and 050 now state the
+corrected readings.
+
 ## Residuals
 
 - #1123 optional: a runner-facing summary that tells "skipped because an earlier serial test
