@@ -486,7 +486,7 @@ func TestAFUV1021CoverageStaleWhenStaticReachChanged(t *testing.T) {
 }
 
 // AFU-V1-019 AFU-V1-024: malformed selection input fails closed, and the profile takes exactly one
-// repository-relative provider file.
+// repository-relative provider file; --repository arguments are TestAFUV1067RepositoryArguments.
 func TestAFUV1024E2ESafeRefusesMalformedInput(t *testing.T) {
 	t.Parallel()
 	corpus := loadE2ECorpus(t)
@@ -499,7 +499,6 @@ func TestAFUV1024E2ESafeRefusesMalformedInput(t *testing.T) {
 	for _, arguments := range [][]string{
 		{"--provider", "e2e-provider.json", "--provider", "e2e-provider.json", "--selection-profile", "e2e-safe"},
 		{"--provider", "/abs/e2e-provider.json", "--selection-profile", "e2e-safe"},
-		{"--provider", "e2e-provider.json", "--repository", "e2e=../e2e", "--selection-profile", "e2e-safe"},
 	} {
 		if _, _, stderr, code := runAffectedArguments(t, root, arguments...); code != 2 || !strings.Contains(stderr, "e2e-safe requires exactly one repository-relative --provider") {
 			t.Fatalf("%v: exit %d %s", arguments, code, stderr)

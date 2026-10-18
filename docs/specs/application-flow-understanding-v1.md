@@ -432,9 +432,9 @@ under-report and never over-report.
 - `AFU-V1-022`: No test may be omitted when any changed path is a global path. When narrowing is not
   proven, the result MUST be the full relevant suite, meaning every test in the discovered inventory,
   with one or more closed codes: `e2e-unmapped-change`, `e2e-inventory-incomplete`,
-  `e2e-exclusion-unproven`, `e2e-global-path-changed`, `e2e-map-stale`, `e2e-inferred-link-only` or
-  `e2e-bound-exceeded`. Any such code keeps the ETS state at or above `full`: the profile never
-  reports `narrow-selection-allowed` while a code is present.
+  `e2e-exclusion-unproven`, `e2e-global-path-changed`, `e2e-map-stale`, `e2e-inferred-link-only`,
+  `e2e-bound-exceeded` or `e2e-repository-unbound` (AFU-V1-069). Any such code keeps the ETS state
+  at or above `full`: the profile never reports `narrow-selection-allowed` while a code is present.
 - `AFU-V1-023`: Every omitted test MUST appear with its exclusion proof and basis in the result, and
   the result counts omissions per basis. A learned or predictive ranking MAY reorder selected tests,
   but MUST NOT remove any. The ETS note is kept, and the `e2e-safe` output adds that each omission is
@@ -458,8 +458,9 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   identity. Missing/null inventory or discovery project fields are refused; project names are
   never filled in or normalized. Revision, config-byte and source-digest binding and exact
   project/test reconciliation remain mandatory; missing or inconsistent discovery retains the
-  existing full-suite fallback. The `strict` and `coverage` outputs are unchanged. `--repository` is
-  refused. Inventory and each path list are bounded under the AFU-V1-065 ceilings (16,384 tests,
+  existing full-suite fallback. The `strict` and `coverage` outputs are unchanged. `--repository` binds
+  only an application repository the provider declares, with `--repository-base` (AFU-V1-067..072).
+  Inventory and each path list are bounded under the AFU-V1-065 ceilings (16,384 tests,
   65,536 paths per list including each coverage tier, 131,072 coverage paths in total, 131,072
   changed paths across the coverage evidence commits read); exceeding a ceiling is
   `e2e-bound-exceeded`.
@@ -749,9 +750,15 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-019 | `TestPlaywrightDiscoveryUnnamedProject`, `TestAFUV1SelectionInventoryDefaultProject`, `TestAFUV1019UnnamedProjectSelection`, `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
 | AFU-V1-020 | `TestAFUV1020ExclusionProofsPerBasis` (a reviewed-links proof, a declared link without a review anchor, an inferred-only link), `TestAFUV1040SelectionCorpusReport` |
 | AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1021CoverageStaleWhenStaticReachChanged` (the `spec-after-coverage` corpus case: a test file changed after its coverage run, outside its covered paths), `TestAFUV1040SelectionCorpusReport` |
-| AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
+| AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases), `TestAFUV1069UnreachedApplicationPathFailsClosed` (`e2e-repository-unbound`) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
+| AFU-V1-067 | `TestAFUV1067RepositoryArguments`, `TestAFUV1069QualifiedGlobalPaths` (provider `repositories` validation) |
+| AFU-V1-068 | `TestAFUV1068SeparateTestRepositorySelects` (committed and uncommitted A changes, the `repositories` row), `TestAFUV1068AncestryRewrittenRefused` (grafted and shallow checkouts), `TestAFUV1069UnreachedApplicationPathFailsClosed` (grafted checkout, A path a qualified path cannot name) |
+| AFU-V1-069 | `TestAFUV1069UnreachedApplicationPathFailsClosed`, `TestAFUV1069QualifiedGlobalPaths` |
+| AFU-V1-070 | `TestAFUV1070CoverageRepositoryCommitRequired`, `TestAFUV1068SeparateTestRepositorySelects` (coverage basis), `TestAFUV1069QualifiedGlobalPaths` (coverage `repositories` validation), `TestAFUV1070CoverageTierPathsValidated` (tier path validation) |
+| AFU-V1-071 | `TestAFUV1071QualifiedLinkTargets`, `TestAFUV1068SeparateTestRepositorySelects` (reviewed-links basis) |
+| AFU-V1-072 | `TestAFUV1024StrictAndCoverageBytesUnchanged`, `TestAFUV1040SelectionCorpusReport` (the corpus report bytes are unchanged) |
 | AFU-V1-057 | `TestAFUV1057TrafficFileBound`, `TestAFUV1057TrafficRecordBound`, `TestAFUV1057TrafficFileBoundCLI` |
 | AFU-V1-058 | `TestAFUV1058TrafficIndexParity`, existing navigation map and packet goldens; `internal/appflows/navigate.go` builds one exact-pair index |
 | AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve`; V1-0281 amendment (accepted, decision 0514): `TestAFUV1025StepReviewState`, `TestAFUV1025PacketReviewState`, `TestAFUV1039AcceptanceFixture` |
@@ -828,6 +835,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-037 | partial (tests in the matrix): run evidence is incomplete under `run-evidence-byte-bound`, `run-evidence-record-bound`, `run-evidence-attempt-bound`, `run-evidence-link-bound` or `run-evidence-traversal-bound` (`internal/appflows/runevidence.go`), enforced in `runingest.go`. The byte bound applies before any decode. The traversal bound applies before decode for Playwright JSON and `go test -json` and during the JUnit token walk. The record, attempt and link bounds apply during the JUnit and `go test -json` walks, but for Playwright JSON and the `/3` receipt only after the byte-bounded document is decoded. The `/3` receipt has no traversal bound of its own. Those two orderings do not yet meet "before decode and walk"; `flows ingest` writes no record when one is exceeded (`cmd/corvint/flows.go`); intent, import, docs and read-side bounds in `internal/appflows/intent.go`, `import.go`, `docs.go`, `query.go` |
 | AFU-V1-065..066 | implemented (V1-1676): `internal/appflows/selection.go` (`MaxSelectionTests`, `MaxSelectionPaths`, `MaxSelectionCoveragePaths`, `MaxSelectionEvidencePaths`, `boundCodes`, `global`, `proofDigest`, `evidenceDiff`), `internal/appflows/review.go` (`anchorFacts`) |
+| AFU-V1-067..072 | implemented (V1-1675): `internal/appflows/repositories.go` (`bindRepositories`, `bindRepository`, `ancestryRewritten`, `repositoryChanges`, `splitQualified`), `internal/appflows/selection.go` (`repositoryStale`, `evidenceDiffAt`, `globalCodes`, `qualified`, `validCoverage`), `internal/appflows/review.go` (`EvaluateLinksAcross`, `repositoryTargetState`), `internal/appflows/intent.go` (`reviewed_at_repository`), `cmd/corvint/affected.go` (`--repository-base`), `internal/extevidence/repository.go` (`ValidRepositoryID`) |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
@@ -1112,3 +1120,103 @@ The schema string changes, so a closed decoder refuses `/1` instead of misreadin
 Rollback: revert the constants to 1,024 and 4,096, restore the inline `/0` proof and per-omission
 `disjoint_from`, and remove this section and its tests. No repository data, provider or coverage
 format changes, so no producer needs to roll back.
+
+## Separate application repositories (issue 1078, V1-1675)
+
+A browser suite often lives in its own repository T, apart from the application repository A it
+drives. The question "this change to A: which tests in T must run?" had no e2e-safe answer:
+`--repository` was refused, the changed paths came only from T's diff, and coverage records and
+link targets could name only T-relative paths. This section lets the project declare application
+repositories, binds each one to immutable Git content, and keeps every unknown fail-closed.
+Definitions: a *qualified path* is `ID:PATH`, a declared repository ID, a colon and a
+repository-relative canonical path. Root paths never contain a colon in a provider, coverage or
+intent document, so the two forms cannot be confused there.
+
+- **AFU-V1-067**: Authority: the provider MAY declare `repositories`, a list of objects with `id`
+  (an EEP repository identifier, unique) and `origin` (the full ID of a parentless commit of that
+  repository). Only a declared ID can contribute changed paths or evidence. Under
+  `--selection-profile e2e-safe`, `affected` MUST accept `--repository ID=DIR` (DIR relative to
+  `--root` unless absolute) only together with `--base` and exactly one `--repository-base
+  ID=FULL_COMMIT` for each bound ID. A `--repository-base` without its `--repository`, a
+  duplicate, a non-full commit ID, or `--repository-base` under any other profile is an argument
+  error (exit 2). The `strict` and `coverage` profiles keep their `--repository` behavior.
+- **AFU-V1-068**: Binding: each bound repository MUST be the top level of a Git checkout whose HEAD
+  reaches the declared `origin` as a parentless commit and whose `--repository-base` resolves to a
+  commit. Its changed paths are the tree diff base..HEAD plus its worktree status paths, each
+  qualified with its ID, and they join the root's changed paths for every rule of AFU-V1-019..023
+  and AFU-V1-065 (including the `changed-paths` ceiling and `disjoint_from`). HEAD and the status
+  are read before and after the diff; a change between the reads unbinds the repository. The result
+  MUST carry `repositories`, sorted by ID, each with `id`, `origin`, `state` (`bound` or
+  `unbound`), `reason` (for `unbound`), `base`, `revision` (HEAD), `tree` (HEAD's tree) and
+  `worktree_paths` (the number of uncommitted changed paths, which no commit pins). A checkout
+  whose ancestry Git rewrites, through an `info/grafts` file in its common Git directory (which Git
+  honors even with replace objects disabled) or a shallow boundary, and a checkout with a changed
+  path that is not a canonical qualified path (one holding a colon, say), MUST NOT bind.
+- **AFU-V1-069**: Fail closed: a declared repository that is not bound or does not bind, and a
+  bound ID the provider does not declare, MUST yield the full relevant suite with the new closed
+  code `e2e-repository-unbound` (subject: the ID), which joins the AFU-V1-022 set. A root changed
+  path that begins with a declared `ID:` is `e2e-unmapped-change`. A qualified changed path has no
+  impact-graph edge, so it is explained only by a coverage record or a reviewed link that names
+  it; otherwise it is `e2e-unmapped-change` exactly as an unexplained root path is. A path that
+  begins with a declared `ID:` never takes root impact-graph ownership or reach. The built-in
+  global file names apply inside each repository, and `global_paths` MAY name qualified prefixes.
+- **AFU-V1-070**: Coverage: a coverage record's tier paths MAY be qualified, and a record names
+  `repositories`, a map from declared ID to the full commit of that repository the run observed.
+  A `coverage` exclusion MUST additionally hold, for every declared repository, that the record
+  names its commit, that the commit is an ancestor of that repository's base, and that between
+  them no covered qualified path, no global path of that repository and no qualified link target of
+  a flow linking the test changed; otherwise the record is `e2e-map-stale` for that test. A record
+  naming an undeclared ID, or a tier path that is neither a canonical root path nor a canonical
+  qualified path of a declared ID, is malformed (`blocked`, `provider-unavailable`).
+- **AFU-V1-071**: Reviewed links: a `source` link target MAY name a qualified path. A declared link
+  with such a target and `reviewed_at` MUST also carry `reviewed_at_repository`, the full commit of
+  that repository the review saw; the member is refused on any other link. The link is `reviewed`
+  only when the root anchor rules of AFU-V1-008 hold, that commit is an ancestor of the
+  repository's base, and the target's content (the whole file, or the line span) is the same at
+  that commit and at the base. When the repository is not bound, which is always the case outside
+  this profile, the state is `target-unpinned`, never `reviewed`.
+- **AFU-V1-072**: Compatibility: without declared or bound repositories the `e2e-safe-selection/1`
+  bytes are unchanged and `repositories` is absent; the schema string stays `/1` because the
+  member is additive and optional. Reading and binding are read-only: Corvint runs only Git reads
+  in each repository and writes nothing there.
+
+Acceptance: in `cmd/corvint`, `TestAFUV1067RepositoryArguments` (AFU-V1-067: each argument
+refusal, and a declared repository bound with its base is accepted),
+`TestAFUV1068SeparateTestRepositorySelects` (AFU-V1-068, AFU-V1-070, AFU-V1-071: T holds the suite
+and A the application; an A change selects the T test whose coverage names it, omits the other
+on the coverage basis or the reviewed-links basis, and binds A's base, revision and tree),
+`TestAFUV1069UnreachedApplicationPathFailsClosed` (AFU-V1-069: an A path no record or link names
+is `e2e-unmapped-change`; an unbound or undeclared repository, a wrong origin, a checkout grafted
+onto the origin and an A change `x:y.ts` beside a T file `app:x:y.ts` are
+`e2e-repository-unbound`; A's `Gemfile` is `e2e-global-path-changed`),
+`TestAFUV1070CoverageRepositoryCommitRequired` (AFU-V1-070: a record without the A commit, and an
+A covered path changed since that commit, are `e2e-map-stale`) and
+`TestAFUV1024StrictAndCoverageBytesUnchanged` with the existing corpus (AFU-V1-072); in
+`internal/appflows`, `TestAFUV1071QualifiedLinkTargets` (AFU-V1-071: intent validation of the
+qualified target and `reviewed_at_repository`, and `target-unpinned` without a bound repository),
+`TestAFUV1069QualifiedGlobalPaths`, `TestAFUV1068AncestryRewrittenRefused` (AFU-V1-068: grafted
+and shallow checkouts) and `TestAFUV1070CoverageTierPathsValidated` (AFU-V1-070: undeclared and
+non-canonical tier paths).
+
+Non-goals: no planning snapshot per repository, no impact graph over an application repository
+(qualified paths gain no static reach), no qualified `test`, `assertion` or `evidence` targets,
+no discovery or inventory outside the root, and no change to the `strict` and `coverage`
+`--repository` contract (EEP-V1). `flows export` omits a link with a qualified target, since the
+exported traceability format has no repository member, and docs maintenance records a qualified
+target as an absent root input rather than pinning the application file.
+
+Failure modes: binding the wrong checkout under a declared ID would let foreign evidence narrow;
+the declared `origin` must be a parentless commit of its HEAD, and a grafted or shallow checkout,
+whose ancestry Git rewrites, does not bind. An application path that cannot be written as a
+canonical qualified path would parse back as a root path and gain root ownership; it unbinds the
+repository. A coverage tier path naming an undeclared ID or a non-canonical path would miss the
+change it names; it makes the coverage malformed. An application change outside the
+bound range (an uncommitted edit, a base after the change) would go unseen; status paths join the
+changed set, and the base is the operator's explicit input bound into the result. A link reviewed
+against one application commit and evaluated at another would be trusted stale; its content is
+compared at `reviewed_at_repository` and at the base. An unbound declared repository would drop
+its changes silently; it is `e2e-repository-unbound`.
+
+Rollback: revert this section, the `repositories` members of the provider, coverage record and
+result, `reviewed_at_repository`, `--repository-base` and their tests, and restore the e2e-safe
+`--repository` refusal. Providers and intents that do not use the new members need no change.
