@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/playwrightruns"
 	"github.com/Beamfall/corvint/internal/testsource"
 )
 
@@ -19,7 +20,8 @@ const testsHelp = `Read committed JS/TS test sources (experimental, TSA-V0).
 Usage:
   corvint [--root PATH] tests setup-select --specs PATH[,PATH...] [--specs ...]
     [--rev REV] [--format json|lines]
-  corvint [--root PATH] tests lint --base REV [--rev REV] [--all-lines] [--json]
+  corvint [--root PATH] tests lint --base REV [--rev REV] [--all-lines]
+    [--runs REPORT.json ...] [--json]
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
 
@@ -37,10 +39,18 @@ lint applies a closed rule set (no-assertion, weak-assertion-only,
 conditional-assertion, swallowed-wait-error, fixed-wait,
 tautological-assertion, brittle-selector, skip-only-without-reason) to test
 and page-object files, reporting only lines changed since --base unless
---all-lines. A comment "corvint-lint-allow RULE: REASON" on the line, or
+--all-lines. Two advisory rules never change the exit status:
+one-shot-ui-state-assertion flags expect(await X) where X is a one-shot
+UI-state read (isVisible, count, textContent, ...) directly or through a
+helper in the file or a relatively imported module, followed at most 3 hops;
+a helper it cannot follow is reported UNKNOWN. exact-text-cross-variant names
+an exact-text locator in a test whose Playwright outcome (--runs reports
+declaring corvintRunIdentity.testRevision) passes in one project and fails in
+another at the linted revision; without such evidence it is NOT_PRODUCED.
+A comment "corvint-lint-allow RULE: REASON" on the line, or
 alone on the line above, suppresses exactly RULE there; every suppression is
 echoed, and one without a reason or with an unknown rule suppresses nothing.
-Exit 0 clean, 1 findings, 2 error.
+Exit 0 clean or advisory only, 1 findings, 2 error.
 
 duplicates pairs tests in different files that share at least two
 normalised expect() lines, scored by Jaccard (default --threshold 0.5); a line
@@ -202,16 +212,35 @@ func runTestsLint(repo testsource.Repo, args []string, out, diagnostic io.Writer
 	once("base", &options.Base)
 	once("rev", &options.Revision)
 	f.BoolVar(&options.AllLines, "all-lines", false, "")
+	runs := []string{}
+	f.Func("runs", "Playwright JSON reports", func(value string) error {
+		if len(runs) >= 64 {
+			return errors.New("too many reports")
+		}
+		runs = append(runs, value)
+		return nil
+	})
 	asJSON := f.Bool("json", false, "")
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || options.Base == "" {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests lint --base REV [--rev REV] [--all-lines] [--json]")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests lint --base REV [--rev REV] [--all-lines] [--runs REPORT.json ...] [--json]")
+	}
+	for _, name := range runs {
+		run, err := playwrightruns.ReadFile(name)
+		if err != nil {
+			return testsRefuse(diagnostic, "tests-source-unavailable", "the Playwright report "+strconv.Quote(name)+" is unreadable: "+err.Error())
+		}
+		evidence := testsource.RunEvidence{Revision: run.TestRevision, Root: run.TestRootPath, Tests: make([]testsource.RunTest, 0, len(run.Tests))}
+		for _, t := range run.Tests {
+			evidence.Tests = append(evidence.Tests, testsource.RunTest{Project: t.Project, File: t.File, TitlePath: t.TitlePath, Status: t.Status, Executed: t.Executed})
+		}
+		options.Runs = append(options.Runs, evidence)
 	}
 	report, err := testsource.Lint(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
 	}
 	status := 0
-	if len(report.Findings) > 0 {
+	if report.Blocking() > 0 {
 		status = 1
 	}
 	if *asJSON {
@@ -222,7 +251,14 @@ func runTestsLint(repo testsource.Repo, args []string, out, diagnostic io.Writer
 	}
 	var b strings.Builder
 	for _, finding := range report.Findings {
-		fmt.Fprintf(&b, "%s:%d: %s: %s\n", finding.Path, finding.Line, finding.Rule, finding.Message)
+		label := finding.Rule
+		switch {
+		case finding.Resolution != "":
+			label += " (advisory, " + finding.Resolution + ")"
+		case finding.Advisory:
+			label += " (advisory)"
+		}
+		fmt.Fprintf(&b, "%s:%d: %s: %s\n", finding.Path, finding.Line, label, finding.Message)
 	}
 	for _, s := range report.Suppressions {
 		state := "unused"
@@ -236,6 +272,12 @@ func runTestsLint(repo testsource.Repo, args []string, out, diagnostic io.Writer
 	}
 	for _, name := range report.Uncertain {
 		fmt.Fprintf(&b, "%s: uncertain: the file did not lex or balance; findings may be incomplete\n", name)
+	}
+	cross := report.CrossVariant
+	if cross.Status == "PRODUCED" {
+		fmt.Fprintf(&b, "cross-variant: PRODUCED from %d run(s), projects %s, %d split test(s)\n", cross.Runs, strings.Join(cross.Projects, ","), len(cross.Splits))
+	} else {
+		fmt.Fprintf(&b, "cross-variant: NOT_PRODUCED (%s)\n", cross.Reason)
 	}
 	fmt.Fprintf(&b, "%d finding(s), %d suppressed, %d file(s), base %s, revision %s, %s\n",
 		len(report.Findings), len(report.Suppressed), len(report.Files), report.Base, report.Revision, report.Scope)

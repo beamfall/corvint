@@ -145,7 +145,15 @@ type Reader struct {
 	// the prefix walk to the head that attempt captured (ModePrefix). A prefix
 	// walk that refuses returns ErrPrefixDeclined, never its own refusal, so
 	// the caller's complete audit derives every refusal itself.
-	PrefixFallback  bool
+	PrefixFallback bool
+	// StopOnMove makes AuditForWriteObserved's complete audit one attempt
+	// that gives up as soon as head.json moves under it (PSR-V0-150): the
+	// caller's next preparation round samples the journal again, instead of
+	// this audit walking it up to four times while another writer appends.
+	// It changes no verdict: a settled attempt is the ordinary complete
+	// audit, and a moved one is SNAPSHOT_MOVED either way. Native sources
+	// only; ignored with PrefixFallback, whose complete attempt already stops.
+	StopOnMove      bool
 	afterCapture    func() // deterministic capture/body boundary witness
 	afterPrefixWalk func() // deterministic prefix walk/recheck boundary witness
 	divergentIntent string // set only on a value copy by Reconciliation
@@ -162,6 +170,7 @@ type Reader struct {
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
 	resume          *ResumeBase       // AuditForResume only
+	walks           *WalkStats        // AuditForWriteObserved, AuditForResume: per-walk accounting, outlives the physical reset
 }
 
 // AuditForWrite carries one verified snapshot through request lookup and
@@ -380,6 +389,12 @@ var stageSleep = time.Sleep
 func (r Reader) auditAttempt(selected map[string]bool, request string, lim limits, checkIntent bool, cp *Checkpoint) (result *Result, err error) {
 	if r.physical != nil {
 		*r.physical = PhysicalObservation{}
+	}
+	if r.walks != nil {
+		started := time.Now()
+		defer func() {
+			r.walks.record(r.prefix, r.resume != nil, time.Since(started), wire.CodeOf(err) == wire.CodeSnapshotMoved)
+		}()
 	}
 	var native *nativeRead
 	var captured *observation

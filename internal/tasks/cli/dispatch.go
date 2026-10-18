@@ -80,6 +80,10 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	if e != nil {
 		return dispatchReaderError(cmd, e)
 	}
+	// ATR-V0-102: a worker's context hook runs this executable.
+	if exe, err := os.Executable(); err == nil {
+		d.HookCommand = []string{exe, "dispatch", "context-hook"}
+	}
 	d.WatchConfig(func() ([]byte, fs.FileInfo, error) {
 		return intent.ReadFileWithInfo(values["--config"], dispatch.MaxConfig)
 	}, func() (fs.FileInfo, error) { return os.Lstat(values["--config"]) }, raw)
@@ -386,6 +390,9 @@ func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, 
 		o.Set("started", ts(w.Started))
 		o.Set("lastActive", ts(w.LastActive))
 		o.Set("context", dispatchWorkerContextValue(dir, w, now))
+		if v := dispatchContextDeliveryValue(c, dir, w); v != nil {
+			o.Set("contextDelivery", *v)
+		}
 		if w.Model != "" {
 			o.Set("tier", str(strconv.Itoa(w.Tier)))
 			o.Set("model", str(w.Model))
@@ -451,6 +458,9 @@ func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, 
 	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
 	if churn := dispatchSessionChurnValue(dir, now); churn != nil {
 		o.Set("shortSessions", *churn)
+	}
+	if exhausted := dispatchContextExhaustedValue(dir); exhausted != nil {
+		o.Set("contextExhausted", *exhausted)
 	}
 	if slept := dispatchHostSleepValue(dir); slept != nil {
 		o.Set("hostSleep", *slept)
@@ -1287,6 +1297,52 @@ func dispatchHostSleepValue(dir string) *wire.Value {
 	g := rec.Gaps[len(rec.Gaps)-1]
 	last := wire.NewObject().Set("from", wire.String(g.From)).Set("to", wire.String(g.To)).Set("seconds", wire.String(strconv.Itoa(g.Seconds)))
 	v := wire.ObjectValue(wire.NewObject().Set("lastGap", wire.ObjectValue(last)).Set("gaps", wire.String(strconv.Itoa(len(rec.Gaps)))))
+	return &v
+}
+
+// dispatchContextDeliveryValue is a worker's ATR-V0-103 contextDelivery
+// member, nil for a role whose usage format reports no context figure or a
+// role the applied configuration no longer names.
+func dispatchContextDeliveryValue(c *dispatch.Config, dir string, w *dispatch.Worker) *wire.Value {
+	if c == nil {
+		return nil
+	}
+	for i := range c.Roles {
+		r := &c.Roles[i]
+		if r.Name != w.Role {
+			continue
+		}
+		var host *dispatch.Host
+		if h, ok := c.Hosts[w.Host]; ok {
+			host = &h
+		}
+		mode, delivered, ok := dispatch.ContextDelivery(dir, w.ID, r.UsageFormat, host)
+		if !ok {
+			return nil
+		}
+		v := wire.ObjectValue(wire.NewObject().Set("mode", wire.String(mode)).Set("delivered", wire.Strings(delivered)))
+		return &v
+	}
+	return nil
+}
+
+// dispatchContextExhaustedValue is the ATR-V0-107 contextExhausted member:
+// each ticket and role's run of hard stops, nil without a record, and
+// UNKNOWN with the reason when the record does not read.
+func dispatchContextExhaustedValue(dir string) *wire.Value {
+	rec, err := dispatch.ReadContextExhausted(dispatch.ContextExhaustedPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	rows := []wire.Value{}
+	for _, e := range rec.Entries {
+		rows = append(rows, wire.ObjectValue(wire.NewObject().Set("key", wire.String(e.Key)).Set("role", wire.String(e.Role)).Set("hardStops", wire.String(strconv.Itoa(e.HardStops))).Set("state", wire.String(e.State)).Set("lastWorker", wire.String(e.LastWorker)).Set("lastAt", wire.String(e.LastAt))))
+	}
+	v := wire.Array(rows...)
 	return &v
 }
 

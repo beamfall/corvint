@@ -647,6 +647,7 @@ Usage:
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE
           --selection-profile e2e-safe [--playwright-discovery FILE]
+          [--repository ID=DIR --repository-base ID=FULL_COMMIT_ID ...]
   corvint [--root PATH] affected [--full] --base FULL_COMMIT_ID
           --appmap-impact REPORT [--appmap-impact REPORT ...]
 
@@ -734,6 +735,14 @@ proof, named by digest and stated once in proofs. A global path change, missing
 or mismatched discovery, an inventory gap, any unproven exclusion, or more than
 16,384 tests or 65,536 paths in a list yields the full relevant suite with
 closed e2e-* codes. The strict and coverage profiles are unchanged.
+Under e2e-safe, --repository binds an application repository the provider
+declares (id and parentless origin commit) to a checkout top level, and
+--repository-base pins the commit its changes are read from; both need --base.
+Its changed paths join the selection as ID:PATH, coverage records and reviewed
+source links may name ID:PATH, and the advice binds each repository's base,
+revision and tree. A declared repository left unbound, or a binding the
+provider does not declare, yields the full relevant suite with
+e2e-repository-unbound.
 
 --appmap-impact (up to 16, experimental ANL-V0-031, ANL-V0-034) reads complete
 application-map-impact/0 reports built for --base at HEAD and adds the learned

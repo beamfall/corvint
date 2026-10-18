@@ -24,6 +24,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/scopes"
 	"github.com/Beamfall/corvint/internal/tasks/service"
@@ -85,12 +86,12 @@ var ReadVerbs = []string{
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show",
-	"dispatch", "dispatch recover-reader", "dispatch status", "dispatch unpark",
-	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release", "pool wait",
+	"dispatch", "dispatch context-hook", "dispatch recover-reader", "dispatch status", "dispatch unpark",
+	"submit", "gate run", "complete", "health", "doctor", "pool status", "pool sweep", "pool cleanup", "pool recover", "pool confirm-safe", "pool acquire", "pool release", "pool wait", "pool operate",
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
-	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan",
+	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations qualify-version",
 	"preflight",
 	"worktree ensure",
 	"defects add", "defects update", "defects list",
@@ -151,6 +152,9 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, programRun(env, args[1:]))
 	case "dispatch":
+		if len(args) > 1 && args[1] == "context-hook" {
+			return dispatchContextHook(env, args[2:])
+		}
 		return emit(env.Stdout, dispatchCommand(env, args[1:]))
 	case "service":
 		return emit(env.Stdout, serviceCommand(env, args[1:]))
@@ -242,7 +246,7 @@ func Run(env Env) int {
 		if len(args) > 1 && args[1] == "acquire" && leaseDetachRequested(args[2:]) {
 			return leaseDetach(env, "pool acquire", args[2:])
 		}
-		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release" || args[1] == "wait") {
+		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release" || args[1] == "wait" || args[1] == "operate") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
@@ -444,6 +448,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]]",
 		"corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
 		"corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL)",
+		"corvint-tasks pool operate --pool ID --member ID --operation provision|refresh|reset|retarget|teardown --request-id ID [--allocation SHA256] [--source REV:TREE]",
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]]",
@@ -481,14 +486,14 @@ func LiveFormats() []string {
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
-		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
+		snapshot.ProfilePools, snapshot.ProfilePoolIdentity, snapshot.ProfilePoolOperation, snapshot.ProfileDirectPoolAdmission, snapshot.ProfileLaneUntouched,
 		"taskman-pool-observation/0", "taskman-pool-sweep-observation/0", "taskman-pool-sweep-result/0",
 		"taskman-programs/0", "taskman-stage/0", "taskman-operator-note-cursor/0", doctorCacheProfile, doctorConfigProfile,
 		ticket.Profile, ticket.OperatorNoteProfile, ticket.EscalationRequestProfile, ticket.EscalationEventProfile,
-		ticket.ObligationEventProfile, ticket.ObligationPlanProfile,
+		ticket.ObligationEventProfile, ticket.ObligationPlanProfile, obligation.ProfileQualifications,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}

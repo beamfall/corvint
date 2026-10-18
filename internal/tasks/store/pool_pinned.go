@@ -151,7 +151,7 @@ func executePoolCaptured(ctx context.Context, def *intent.PoolCommand, root stri
 	return executePoolCapturedGuarded(ctx, def, root, env, nil)
 }
 
-// poolMemberCommand returns the configured health or cleanup command for a
+// poolMemberCommand returns the configured health, cleanup or typed operation command for a
 // queue-unique member, or nil.
 func poolMemberCommand(p *intent.Policy, member, kind string) *intent.PoolCommand {
 	for _, pool := range p.Pools {
@@ -159,10 +159,13 @@ func poolMemberCommand(p *intent.Policy, member, kind string) *intent.PoolComman
 		if !ok {
 			continue
 		}
-		if kind == "health" {
+		switch kind {
+		case "health":
 			return config.Health
+		case "cleanup":
+			return config.Cleanup
 		}
-		return config.Cleanup
+		return config.Operations[kind]
 	}
 	return nil
 }

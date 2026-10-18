@@ -436,10 +436,10 @@ dogfood-seal:
 # Each input reaches the wrapper as one single-quoted word, whatever bytes its path holds.
 dogfood_finish_quote = '$(subst ','\'',$(1))'
 
+# script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
+# VERIFY and OUTCOME (ASD-V0-015).
 dogfood-finish:
-	@test -n $(call dogfood_finish_quote,$(BASE)) || { echo "BASE is required" >&2; exit 2; }
-	@test -n $(call dogfood_finish_quote,$(CITATIONS)) || { echo "CITATIONS is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-finish.sh $(call dogfood_finish_quote,$(BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
@@ -454,6 +454,10 @@ dogfood-bind-range:
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
+
+# The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
+lane-scripts-test:
+	@script/lane-scripts_test.sh
 
 .PHONY: tasks-build tasks-test
 # The in-tree corvint-tasks companion binary (decision 0397). It is never a corvint subcommand;
@@ -472,3 +476,15 @@ tasks-test: go-version
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
 shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test
+
+# windows-vet is the local twin of the go-static step "Windows vet including test files
+# (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no
+# build tags) and GOWORK=off as that job, over the same two modules, test files included, on the
+# go1.27.2 CI pins (go-version). GOENV=off ignores settings saved by `go env -w`, which an empty
+# GOFLAGS alone would fall back to; the CI runner has none. Run it
+# before pushing a change that touches a .go, go.mod or go.sum file (AFP-V0-054,
+# docs/specs/affected-plan-v0.md); TestAFPV0054 keeps the two in step.
+WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+windows-vet: go-version
+	$(WINDOWS_VET_ENV) go vet ./...
+	cd interop/cem01-go && $(WINDOWS_VET_ENV) go vet ./...

@@ -47,7 +47,14 @@ type MemberConfig struct {
 	// source pair as {"revision","tree"} JSON (PSR-V0-082). It is declared
 	// exactly when the pool declares allowedSources.
 	Identity *PoolCommand
+	// Operations holds the member's declared typed lifecycle commands, keyed
+	// by a PoolOperations name (PSR-V0-160). An undeclared one is refused.
+	Operations map[string]*PoolCommand
 }
+
+// PoolOperations is the closed set of typed member lifecycle operations
+// (PSR-V0-160).
+var PoolOperations = []string{"provision", "refresh", "reset", "retarget", "teardown"}
 
 // MaxPoolSources bounds a pool's approved-source allow-list (PSR-V0-081).
 const MaxPoolSources = 16
@@ -146,6 +153,25 @@ func readPoolCommand(r *wire.Reader) *PoolCommand {
 	}
 	return c
 }
+
+// readPoolOperations reads a member's non-empty, closed operations object
+// (PSR-V0-160); every command's environment is a subset of the policy's.
+func readPoolOperations(cr *wire.Reader, env []string) map[string]*PoolCommand {
+	or := cr.Field("operations")
+	or.Closed(wire.OptionalKeys(or.Value(), nil, PoolOperations...)...)
+	out := map[string]*PoolCommand{}
+	for _, op := range PoolOperations {
+		if wire.Has(or.Value(), op) {
+			out[op] = readPoolCommand(or.Field(op))
+			subsetOf(cr, out[op].Env, env, "pool operation environment")
+		}
+	}
+	if len(out) == 0 {
+		or.Fail(wire.CodeMalformed, "pool operations declare no operation")
+	}
+	return out
+}
+
 func readPools(r *wire.Reader, env []string) []Pool {
 	out := []Pool{}
 	ids, members, refs := map[string]bool{}, map[string]bool{}, map[string]bool{}
@@ -195,7 +221,7 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					p.ReservedFor[name] = cr.Enum(StageRoles...)
 					continue
 				}
-				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "prepare", "safeReuse", "identity")...)
+				cr.Closed(wire.OptionalKeys(cr.Value(), nil, "configRef", "health", "cleanup", "prepare", "safeReuse", "identity", "operations")...)
 				c := MemberConfig{}
 				if wire.Has(cr.Value(), "configRef") {
 					c.ConfigRef = ReadConfigRef(cr.Field("configRef"))
@@ -232,6 +258,9 @@ func readPools(r *wire.Reader, env []string) []Pool {
 					if c.SafeReuse != nil {
 						cr.Fail(wire.CodeMalformed, "pool identity does not combine with safeReuse")
 					}
+				}
+				if wire.Has(cr.Value(), "operations") {
+					c.Operations = readPoolOperations(cr, env)
 				}
 				p.MemberConfig[name] = c
 			}

@@ -11,6 +11,8 @@ or a promise that a future host will automatically follow the guide. The owning 
 Follow [DOGFOOD](DOGFOOD.md) for measurement, immutable base, explicit intent/check enrollment and
 pre-change evidence. Preserve the original query, omissions, failures and unsupported results.
 Use [AGENT-ROUTES](AGENT-ROUTES.md) to expand original evidence; a locator is not governing intent.
+When several agent lanes share one host, follow [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md)
+(`ASD-V0-013..018`).
 The table selects existing public routes, not a new plan or receipt format. Capture complete output
 outside tracked source with root, commit/tree, profile, exit and runtime identity. Missing observations
 remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.

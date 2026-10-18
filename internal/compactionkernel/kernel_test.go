@@ -337,3 +337,27 @@ func TestKernelCarriesNoSourceContent(t *testing.T) {
 		t.Fatalf("kernel leaked source content: %s", encoded)
 	}
 }
+
+// SRG-V0-017: the committed index carries no line (SRG-V0-015), so the kernel
+// takes each requirement's line from the pinned spec blob's own definition, and
+// refuses a requirement the pinned spec does not define rather than inventing a
+// line.
+func TestSRGV0017KernelLocatesCommittedLayoutLines(t *testing.T) {
+	index := fixture()
+	index.Sources[requirementsIndexPath] = contextindex.Source{Path: requirementsIndexPath, BlobHash: tsvBlob,
+		Data: []byte("id\tfile\ttitle\tacceptance\tacceptedBy\n" +
+			"CKN-V0-001\tdocs/specs/compaction-kernel-v0.md\tKernel MUST pin authority\tunrecorded\t-\n" +
+			"CKN-V0-002\tdocs/specs/compaction-kernel-v0.md\tKernel MUST stay bounded\tunrecorded\t-\n")}
+	index.Sources[pinnedSpec] = contextindex.Source{Path: pinnedSpec, BlobHash: specBlob,
+		Data: []byte("# Compaction kernel\n\n| CKN-V0-001 | table |\n\n- `CKN-V0-001`: Kernel MUST pin authority\n")}
+	kernel, err := Build(index, governing(), []string{"CKN-V0-001"})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if len(kernel.Requirements) != 1 || kernel.Requirements[0].Line != 5 || kernel.Requirements[0].BlobHash != specBlob {
+		t.Fatalf("requirements = %+v, want CKN-V0-001 at line 5 of the pinned spec", kernel.Requirements)
+	}
+	if _, err := Build(index, governing(), []string{"CKN-V0-002"}); err == nil {
+		t.Fatal("Build invented a line for a requirement the pinned spec does not define")
+	}
+}

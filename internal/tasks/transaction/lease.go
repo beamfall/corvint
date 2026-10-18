@@ -90,6 +90,9 @@ type LeaseRequest struct {
 	// WaitSeconds is a POOL_WAIT's registration lifetime, at most the pool's
 	// maxWaitSeconds (PSR-V0-130); empty otherwise.
 	WaitSeconds wire.Count
+	// Operation is the typed lifecycle operation a POOL_OPERATE runs
+	// (PSR-V0-160); empty otherwise.
+	Operation string
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -147,6 +150,7 @@ const (
 	fieldSlotClass
 	fieldSource
 	fieldWait
+	fieldOperation
 )
 
 type leaseShape struct{ required, allowed int }
@@ -179,10 +183,11 @@ var leaseShapes = map[string]leaseShape{
 	LeaseAnswer:          {fieldEvidence, fieldEvidence},
 	LeaseSlotAcquire:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots | fieldSlotCount | fieldSlotExclusive | fieldSlotClass},
 	LeaseSlotRelease:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots},
+	LeasePoolOperate:     {fieldPool | fieldMember | fieldOperation, fieldPool | fieldMember | fieldOperation | fieldAllocation | fieldSource},
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != ""}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -344,6 +349,9 @@ func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
 			return e
 		}
 	}
+	if e := checkPoolOperation(l); e != nil {
+		return e
+	}
 	if l.WaitSeconds != "" {
 		n, e := wire.ParseCount("waitSeconds", string(l.WaitSeconds))
 		if e != nil {
@@ -501,6 +509,14 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	if l.WaitSeconds != "" {
 		v.Obj.Set("waitSeconds", s(string(l.WaitSeconds)))
 	}
+	// PSR-V0-160: joins only the POOL_OPERATE preimage.
+	if l.Verb == LeasePoolOperate {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("operation", s(l.Operation))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
 	// Keep historical RELEASE preimages byte-identical when evidence is absent.
 	if l.Verb == LeaseRelease && l.Evidence != "" {
 		v.Obj.Set("evidence", s(l.Evidence))
@@ -579,6 +595,7 @@ var leasePlanners = map[string]func(leaseContext) leaseOutcome{
 	LeasePoolAcquire:     planPoolAcquire,
 	LeasePoolWait:        planPoolWait,
 	LeasePoolRelease:     planPoolRelease,
+	LeasePoolOperate:     planPoolOperate,
 	LeasePoolPrepare:     planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
 	LeaseClaim:     planClaim,
 	LeaseClaimNext: planClaimNext,

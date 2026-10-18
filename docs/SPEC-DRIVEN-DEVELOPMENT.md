@@ -132,9 +132,11 @@ must request human review before changing accepted intent.
 generated. A change edits its spec, stages it, and runs `make spec-requirements`, which regenerates
 the index and projects each header's intent and delivery status and its digest claim onto the two
 row files; `spec-requirements-check` fails when any of the three is stale (`SRG-V0-012`). The
-other INDEX.json fields and README.md cells stay hand-owned. Two changes adding requirements to one
-spec then conflict only in its requirement list and the index rows; resolve the spec and
-regenerate the index, never hand-merge it (`SRG-V0-013`). The generated rows are projections of
+other INDEX.json fields and README.md cells stay hand-owned. The index carries no line numbers and
+orders rows by definition position, so changes to different specs or different sections of one
+spec merge without conflict (`SRG-V0-015`, `SRG-V0-016`). Changes whose new rows are adjacent
+still conflict there; resolve the spec and regenerate the index, never hand-merge it
+(`SRG-V0-013`). The generated rows are projections of
 the spec headers and never a source of intent.
 
 ## Backfill and generated documentation

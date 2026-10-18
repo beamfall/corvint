@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -29,8 +30,13 @@ cmd/corvint Go source, from the local diff against its first parent.
 Corvint never queries GitHub; without the file github_state is NOT_OBSERVED.
 JSON includes truncation and NOT_OBSERVED reopen/revert semantics and per-PR
 new commands. Review every hint.
+A range of more than 512 commits in FROM..TO refuses at once with
+changes-range-too-large, naming limit and commits; check it hop by hop over
+narrower build pairs. Reaching the 30-second total deadline refuses with
+changes-timeout, naming limitMs and elapsedMs.
 Refusals: changes-invalid-arguments, changes-build-unavailable,
-changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable,
+changes-range-unavailable, changes-range-too-large, changes-timeout,
+changes-git-unavailable, changes-refs-unavailable,
 changes-issue-state-unavailable.
 Contract: docs/specs/upgrade-checklist-v0.md (accepted, decisions 0518 and 0519; V1-1142, V1-1158).
 
@@ -55,6 +61,19 @@ changes-shared-detached-head, changes-shared-branch-mismatch,
 changes-shared-merge-in-range, changes-shared-live-session,
 changes-shared-head-mismatch, changes-shared-tree-mismatch.
 Contract: docs/specs/shared-path-change-policy-v0.md.
+
+Shared-path commits a branch is missing (SPC-V0-009..012, V1-1710):
+  corvint [--root SOURCE] changes behind --base REF [--head REV]
+    [--config FILE] [--ticket ID --stale-hours N] [--format json|doctor-plugin]
+Read-only; never fetches. Lists the commits of head..base that change a
+configured shared path (commit, subject, committedAt, sharedPaths,
+headTouches, conflictRisk) and a dry merge of head into base: clean,
+generated-only or conflict with the conflicting paths. JSON records base,
+head, mergeBase, configDigest and observedAt. Over 512 commits refuses at once
+with changes-shared-range-too-large, naming limit and commits. With --ticket
+and --stale-hours, an oldest missing shared commit at least N hours old is a
+SHARED_BASE_BEHIND finding; --format doctor-plugin prints only the findings as
+a corvint-tasks doctor --plugins array.
 `
 
 func changesInvocation(args []string) (string, []string, bool) {
@@ -91,6 +110,9 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 	if len(args) > 0 && (args[0] == "check-shared" || args[0] == "split-shared") {
 		return runSharedPath(ctx, root, args[0], args[1:], out, refuse)
 	}
+	if len(args) > 0 && args[0] == "behind" {
+		return runChangesBehind(ctx, root, args[1:], out, diagnostic, refuse)
+	}
 	f := flag.NewFlagSet("changes", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
 	from, to, issueState := "", "", ""
@@ -125,13 +147,26 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 		}
 	}
 	report, err := upgradechanges.Compile(ctx, upgradechanges.Request{Root: root, From: from, To: to, Files: files, IssueStateFile: issueState})
-	if err != nil {
+	var tooLarge *upgradechanges.RangeTooLargeError
+	var timeout *upgradechanges.TimeoutError
+	switch {
+	case errors.As(err, &tooLarge):
+		return refuseWith(diagnostic, map[string]any{"code": err.Error(), "ok": false, "limit": tooLarge.Limit, "commits": tooLarge.Commits})
+	case errors.As(err, &timeout):
+		return refuseWith(diagnostic, map[string]any{"code": err.Error(), "ok": false, "limitMs": timeout.LimitMS, "elapsedMs": timeout.ElapsedMS})
+	case err != nil:
 		return refuse(err.Error())
 	}
 	if json.NewEncoder(out).Encode(report) != nil {
 		return refuse("changes-output-unavailable")
 	}
 	return 0
+}
+
+// refuseWith writes a coded refusal that also names its bound (UCL1142-V0-008) and exits 2.
+func refuseWith(diagnostic io.Writer, refusal map[string]any) int {
+	_ = json.NewEncoder(diagnostic).Encode(refusal)
+	return 2
 }
 
 // runSharedPath runs check-shared (exit 0 clean, 1 findings) or split-shared
