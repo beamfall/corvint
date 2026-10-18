@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -426,6 +427,87 @@ func TestAFPSourceGoVersionsAdmitted(t *testing.T) {
 		s := bytes.Replace(slices, []byte(`"go1.27.1"`), []byte(`"`+version+`"`), 1)
 		if ok := SliceFileUsable(s); ok != want {
 			t.Errorf("slice file from %s usable=%t, want %t", version, ok, want)
+		}
+	}
+}
+
+// AFP-V0-060 (V1-1096): the committed slice file splits both oversized allowed
+// packages into slices of at most 400 s each, and over the committed cost
+// table's universe the plan places every package or slice exactly once, each
+// split package's slices in different shards. Every name the file records is
+// selected by exactly one slice of its package, and a name added or renamed
+// since generation is selected by the catch-all alone.
+func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
+	const bound = 400000
+	var f sliceFile
+	if !strict(defaultSlices, &f) {
+		t.Fatal("committed slice file does not decode")
+	}
+	costs, ok := Costs(defaultCosts)
+	if !ok {
+		t.Fatal("committed cost table is unusable")
+	}
+	universe := make([]string, 0, len(costs))
+	for p := range costs {
+		universe = append(universe, p)
+	}
+	for _, p := range []string{"github.com/Beamfall/corvint/cmd/corvint", "github.com/Beamfall/corvint/internal/tasks/store"} {
+		if _, ok := f.Packages[p]; !ok {
+			t.Fatalf("%s is not split", p)
+		}
+		if _, ok := costs[p]; !ok {
+			t.Fatalf("%s is missing from the cost table", p)
+		}
+	}
+	split := SplitPackages(universe, 8, defaultAllow, defaultSlices)
+	if len(split) != len(f.Packages) {
+		t.Fatalf("admitted %d of %d committed splits", len(split), len(f.Packages))
+	}
+	plan, err := Plan(universe, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireComplete(t, universe, plan)
+	for p, slices := range split {
+		shards := map[int]bool{}
+		for i, s := range plan {
+			for _, sl := range s.Slices {
+				if sl.Package == p {
+					if shards[i] {
+						t.Fatalf("%s: two slices in shard %d", p, i)
+					}
+					shards[i] = true
+				}
+			}
+		}
+		patterns := make([]*regexp.Regexp, len(slices))
+		for i, sl := range slices {
+			if sl.Milliseconds > bound {
+				t.Fatalf("%s#%d plans %d ms, over %d", p, sl.Index, sl.Milliseconds, bound)
+			}
+			patterns[i] = regexp.MustCompile(sl.Pattern)
+		}
+		selects := func(name string) int {
+			n := 0
+			for i, sl := range slices {
+				if patterns[i].MatchString(name) == (sl.Flag == "-run") {
+					n++
+				}
+			}
+			return n
+		}
+		for _, named := range f.Packages[p].Named {
+			for _, name := range named.Tests {
+				if got := selects(name); got != 1 {
+					t.Fatalf("%s: %s is selected by %d slices", p, name, got)
+				}
+				if got := selects(name + "Renamed"); got != 1 {
+					t.Fatalf("%s: renamed %s is selected by %d slices", p, name, got)
+				}
+			}
+		}
+		if got := selects("TestAFPV0060AddedAfterGeneration"); got != 1 {
+			t.Fatalf("%s: an added test is selected by %d slices", p, got)
 		}
 	}
 }
