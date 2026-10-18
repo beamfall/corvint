@@ -1241,7 +1241,9 @@ projection is recomputed from observations. The document is a preview and is nev
   path is secret-shaped, and recompute, per example:
   association `ASSOCIATED` anchored at its `id`; execution `PASSED`, `FAILED` or `SKIPPED` from
   `passed`, `failed` or `pending`, `UNSUPPORTED` for `unknown`, and `INFRASTRUCTURE` for every
-  example of a run with `infrastructure`; hygiene `UNSUPPORTED`, reason `ruby-hygiene-not-produced`;
+  example of a run with `infrastructure`; hygiene `UNSUPPORTED`, reason `ruby-hygiene-not-produced`
+  (amended by `TSA-V0-070`: a `pending` example is `INELIGIBLE`, reason `rspec-example-pending`;
+  `TSA-V0-068` recomputes discovered hygiene from a bound spec);
   strength `NOT_MEASURED`. The run is `FAILED` with any non-passed, non-pending example or a
   positive summary failure count (which covers omitted examples), `PASSED`
   otherwise, `INFRASTRUCTURE` with `infrastructure`, and carries no run outcome when there are no examples. The source
