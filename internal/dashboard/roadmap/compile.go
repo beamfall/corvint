@@ -79,9 +79,10 @@ func Compile(ctx context.Context, options Options) (*Snapshot, []byte, error) {
 	worktreeDirty, _ := WorktreeDirty(ctx, options.RepoRoot, options.Timeout)
 	snapshot.WorktreeDirty = worktreeDirty
 
+	lines := newSpecLines(options.RepoRoot)
 	milestoneIndex := map[string]int{}
 	for _, summary := range summaries {
-		ticket := buildTicket(ctx, options, summary, requirements, worktreeDirty)
+		ticket := buildTicket(ctx, options, summary, requirements, lines, worktreeDirty)
 		index, ok := milestoneIndex[ticket.Milestone]
 		if !ok {
 			index = len(snapshot.Milestones)
@@ -98,7 +99,7 @@ func Compile(ctx context.Context, options Options) (*Snapshot, []byte, error) {
 	return finish(snapshot)
 }
 
-func buildTicket(ctx context.Context, options Options, summary atmTicketSummary, requirements map[string]Requirement, worktreeDirty bool) Ticket {
+func buildTicket(ctx context.Context, options Options, summary atmTicketSummary, requirements map[string]Requirement, lines *specLines, worktreeDirty bool) Ticket {
 	local := localID(summary.TicketID)
 	base := Ticket{
 		TicketID: summary.TicketID, LocalID: local, Title: summary.Title,
@@ -129,7 +130,7 @@ func buildTicket(ctx context.Context, options Options, summary atmTicketSummary,
 		base.Blockers = []Blocker{}
 	}
 	for _, ref := range detail.Record.RequirementRefs {
-		link := ResolveRequirement(requirements, ref)
+		link := lines.fill(ResolveRequirement(requirements, ref))
 		if requirements == nil {
 			link.Reason = requirementsNotObserved
 		}

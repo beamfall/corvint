@@ -41,9 +41,12 @@ type ContextLimits struct {
 	WarnTokens    uint64 `json:"warnTokens,omitempty"`
 	HandoffTokens uint64 `json:"handoffTokens,omitempty"`
 	HardTokens    uint64 `json:"hardTokens,omitempty"`
+	// ExhaustedAfter is the ATR-V0-106 count of consecutive hard stops of
+	// one role on one ticket that marks it CONTEXT_EXHAUSTED; 0 is 3.
+	ExhaustedAfter uint64 `json:"exhaustedAfter,omitempty"`
 }
 
-var contextLimitMembers = []string{"warnTokens", "handoffTokens", "hardTokens"}
+var contextLimitMembers = []string{"warnTokens", "handoffTokens", "hardTokens", "exhaustedAfter"}
 
 // UnmarshalJSON decodes the thresholds exactly: an unknown, repeated or
 // case-folded member, null, 0 or a non-integer is refused.
@@ -56,7 +59,7 @@ func (c *ContextLimits) UnmarshalJSON(raw []byte) error {
 		return fmt.Errorf("context: %v", err)
 	}
 	var out ContextLimits
-	dst := map[string]*uint64{"warnTokens": &out.WarnTokens, "handoffTokens": &out.HandoffTokens, "hardTokens": &out.HardTokens}
+	dst := map[string]*uint64{"warnTokens": &out.WarnTokens, "handoffTokens": &out.HandoffTokens, "hardTokens": &out.HardTokens, "exhaustedAfter": &out.ExhaustedAfter}
 	for k, v := range m {
 		p, ok := dst[k]
 		if !ok {
@@ -114,6 +117,12 @@ func (r *Role) validateContext(h Heal) error {
 	}
 	if c.HardTokens > 0 && !h.Handoff {
 		return errors.New("context hardTokens needs heal.handoff, so the stopped worker's attempt is handed off")
+	}
+	if c.ExhaustedAfter > 0 && c.HardTokens == 0 {
+		return errors.New("context exhaustedAfter needs hardTokens: it counts consecutive hard stops")
+	}
+	if c.ExhaustedAfter > maxExhaustedAfter {
+		return fmt.Errorf("context exhaustedAfter must be 1..%d", maxExhaustedAfter)
 	}
 	return nil
 }

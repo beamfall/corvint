@@ -12,11 +12,32 @@ export LC_ALL=C
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
 
-base_arg=${1:?usage: dogfood-finish.sh BASE CITATIONS [INTENTS [VERIFY [OUTCOME]]]}
-citations=${2:?usage: dogfood-finish.sh BASE CITATIONS [INTENTS [VERIFY [OUTCOME]]]}
+base_arg=${1-}
+citations=${2-}
 intents=${3-}
 verify=${4-}
 outcome=${5-}
+# Every missing or unusable input is named in one refusal before any build runs (ASD-V0-015).
+# DOGFOOD_FINISH_LANE=1 (`make dogfood-finish LANE=1`) also requires INTENTS, VERIFY and OUTCOME,
+# the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md).
+missing=()
+[[ -n $base_arg ]] || missing+=(BASE)
+[[ -n $citations ]] || missing+=(CITATIONS)
+if [[ ${DOGFOOD_FINISH_LANE-} == 1 ]]; then
+  [[ -z $base_arg || $base_arg =~ ^[0-9a-f]{40}$ ]] || missing+=(BASE:not-full-sha)
+  [[ -n $intents ]] || missing+=(INTENTS)
+  [[ -n $verify ]] || missing+=(VERIFY)
+  [[ -n $outcome ]] || missing+=(OUTCOME)
+fi
+for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
+  [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")
+done
+case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid) ;; esac
+if ((${#missing[@]} > 0)); then
+  printf 'dogfood-finish-lane: REFUSE missing-inputs %s\n' "${missing[*]}" >&2
+  printf 'fix: make dogfood-finish BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' >&2
+  exit 2
+fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2

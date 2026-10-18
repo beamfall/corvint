@@ -38,7 +38,7 @@
     "path": "docs/specs/affected-plan-v0.md",
     "title": "Affected Plan V0",
     "reqPrefix": "AFP-V0",
-    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096)",
+    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096)",
     "delivery": "experimental",
     "claim": "`corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.",
     "dependsOn": [
@@ -219,7 +219,7 @@
     "title": "Change-Compiled E2E V0",
     "reqPrefix": "CCE-V0",
     "intent": "proposed",
-    "delivery": "not-started",
+    "delivery": "experimental",
     "claim": "Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.",
     "dependsOn": [
       "docs/specs/application-map-v0.md",
@@ -233,7 +233,10 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "internal/changee2e",
+      "cmd/corvint-test"
+    ]
   },
   {
     "path": "docs/specs/test-consolidation-planner-v0.md",
@@ -692,7 +695,7 @@
     "path": "docs/specs/corvint-self-development-v0.md",
     "title": "Corvint Self-Development V0",
     "reqPrefix": "ASD-V0",
-    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)",
+    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632)",
     "delivery": "experimental",
     "claim": "Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.",
     "dependsOn": [
@@ -736,7 +739,7 @@
     "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
     "title": "Corvint Tasks attempt runner V0",
     "reqPrefix": "ATR-V0",
-    "intent": "proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647)",
+    "intent": "proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122)",
     "delivery": "experimental",
     "claim": "An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.",
     "dependsOn": [
@@ -756,7 +759,7 @@
     "path": "docs/specs/corvint-tasks-pool-safe-reuse-v0.md",
     "title": "Corvint Tasks pool safe reuse V0",
     "reqPrefix": "PSR-V0",
-    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039)",
+    "intent": "accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028)",
     "delivery": "experimental",
     "claim": "Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.",
     "dependsOn": [
@@ -1921,8 +1924,8 @@
     "path": "docs/specs/live-proof-carrying-verification-v0.md",
     "title": "Live Proof-Carrying Verification V0",
     "reqPrefix": "LPCV-V0",
-    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534)",
-    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475)",
+    "intent": "accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099)",
+    "delivery": "not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737)",
     "claim": "Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.",
     "dependsOn": [
       "docs/specs/applied-intelligence-breakthroughs-v0.md",
@@ -2292,7 +2295,7 @@
     "path": "docs/specs/ocm-intent-forms-v0.md",
     "title": "OCM intent forms V0",
     "reqPrefix": "OIF-V0",
-    "intent": "proposed",
+    "intent": "accepted (owner, 2026-10-18, decision 0541)",
     "delivery": "experimental",
     "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
     "dependsOn": [
@@ -3735,9 +3738,9 @@
     "path": "docs/specs/test-source-analysis-v0.md",
     "title": "Test Source Analysis V0",
     "reqPrefix": "TSA-V0",
-    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592)",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784)",
     "delivery": "experimental",
-    "claim": "Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines and lists candidate duplicate tests.",
+    "claim": "Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
@@ -3761,7 +3764,19 @@
     "reqPrefix": "SPC-V0",
     "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1591)",
     "delivery": "experimental",
-    "claim": "A shared-path check names commits that change shared test infrastructure without a labelled commit, listing or run citation; a local splitter separates them.",
+    "claim": "Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/spec-toolchain-adapters-v0.md",
+    "title": "Spec toolchain adapters V0",
+    "reqPrefix": "STA-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

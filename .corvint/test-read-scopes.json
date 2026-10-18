@@ -81,6 +81,13 @@
     ],
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-release-gate": [],
+    "cmd/corvint-test": [
+      ".github/cishards/",
+      "cmd/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "cmd/corvint-test-runner": [],
     "cmd/corvint-tests-accept": [],
     "cmd/corvint-web-flows": [],
@@ -212,6 +219,9 @@
     "internal/cemcandidate": [
       "protocol/cem-1.0/"
     ],
+    "internal/changee2e": [
+      "internal/appmap/testdata/fixture/"
+    ],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
     "internal/corpusserve": [],
@@ -282,7 +292,8 @@
       "conformance/lrf-v0/"
     ],
     "internal/lrfrepo": [
-      "docs/specs/"
+      "docs/specs/",
+      "interop/spec-toolchains/"
     ],
     "internal/lspevidence": [],
     "internal/mcp/bridge": [

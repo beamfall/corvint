@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -238,5 +240,140 @@ func TestDuplicatesGateAndDecisions(t *testing.T) {
 	options.Base = ""
 	if _, err := Duplicates(repo, options); !hasCode(err, "tests-invalid-option") {
 		t.Fatalf("gate without base error = %v", err)
+	}
+}
+
+// TestLintFollowsImportedHelpers proves helpers resolve into unchanged, relatively imported
+// modules read at the revision (a `.js` specifier naming a `.ts` file, and an index module), that
+// a helper whose module is not relatively imported is UNKNOWN, and that the advisory findings are
+// not blocking (TSA-V0-030, TSA-V0-032).
+func TestLintFollowsImportedHelpers(t *testing.T) {
+	root := t.TempDir()
+	base := commitFiles(t, root, map[string]string{
+		"e2e/pages/panel.ts": `import { badge } from './parts/index.js';
+export class Panel {
+  constructor(page) { this.page = page; }
+  async hasBadge() { return badge(this.page); }
+}
+`,
+		"e2e/pages/parts/index.ts": "export const badge = async (page) => page.getByTestId('badge').isVisible();\n",
+		"src/app.ts":               "export const x = 1;\n",
+	})
+	commitFiles(t, root, map[string]string{"e2e/panel.spec.ts": `import { test, expect } from '@playwright/test';
+import { Panel } from './pages/panel.js';
+import { other } from 'some-package';
+test('panel', async ({ page }) => {
+  const panel = new Panel(page);
+  expect(await panel.hasBadge()).toBe(true);
+  expect(await other(page)).toBe(true);
+});
+`})
+	report, err := Lint(OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(report.Files, ",") != "e2e/panel.spec.ts" || len(report.Findings) != 2 {
+		t.Fatalf("files = %v findings = %+v", report.Files, report.Findings)
+	}
+	if f := report.Findings[0]; f.Line != 6 || f.Resolution != "" ||
+		!strings.Contains(f.Message, "isVisible() read (e2e/pages/parts/index.ts:1) returned through hasBadge (e2e/pages/panel.ts:4) -> badge (e2e/pages/parts/index.ts:1)") {
+		t.Fatalf("imported helper finding = %+v", f)
+	}
+	if f := report.Findings[1]; f.Line != 7 || f.Resolution != "UNKNOWN" || !strings.Contains(f.Message, "no definition of other") {
+		t.Fatalf("unresolved helper finding = %+v", f)
+	}
+	if report.Blocking() != 0 || report.CrossVariant.Reason != ReasonNoRunEvidence {
+		t.Fatalf("blocking = %d cross-variant = %+v", report.Blocking(), report.CrossVariant)
+	}
+}
+
+// TestLintMultiLineChangeScope proves a change on a later line of a multi-line assertion or locator
+// brings its advisory finding into the changed-line scope, anchored on the first line and spanning
+// the call (TSA-V0-012, TSA-V0-029, TSA-V0-031).
+func TestLintMultiLineChangeScope(t *testing.T) {
+	root := t.TempDir()
+	spec := func(read, exact string) string {
+		return `import { test, expect } from '@playwright/test';
+test('shows the name', async ({ page }) => {
+  expect(
+    await page.getByTestId('rows').` + read + `
+  ).toBe(3);
+  await expect(page.getByText('Ada',
+    { exact: ` + exact + ` })).toBeVisible();
+});
+`
+	}
+	base := commitFiles(t, root, map[string]string{"e2e/a.spec.ts": spec("evaluate((e) => e.childElementCount)", "false")})
+	head := commitFiles(t, root, map[string]string{"e2e/a.spec.ts": spec("count()", "true")})
+	runs := []RunEvidence{{Revision: head, Tests: []RunTest{
+		{Project: "a", File: "a.spec.ts", TitlePath: []string{"shows the name"}, Status: "expected", Executed: true},
+		{Project: "b", File: "a.spec.ts", TitlePath: []string{"shows the name"}, Status: "unexpected", Executed: true}}}}
+	report, err := Lint(OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD", Runs: runs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, f := range report.Findings {
+		got = append(got, f.Rule+"@"+strconv.Itoa(f.Line)+"-"+strconv.Itoa(f.EndLine))
+	}
+	if want := []string{RuleOneShotUIState + "@3-5", RuleExactTextVariant + "@6-7"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("findings = %v, want %v: %+v", got, want, report.Findings)
+	}
+}
+
+// TestLintImportedHelperUncertainty proves a relatively imported helper module the lexer cannot
+// fully place is listed as uncertain, in path order, though it is not itself linted (TSA-V0-010).
+func TestLintImportedHelperUncertainty(t *testing.T) {
+	root := t.TempDir()
+	base := commitFiles(t, root, map[string]string{
+		"e2e/helpers/z.ts":  "export const late = async (page) => { return page.getByTestId('z').isVisible();\n",
+		"e2e/helpers/a.ts":  "export const early = async (page) => { return page.getByTestId('a').count();\n",
+		"e2e/helpers/ok.ts": "export const fine = 1;\n",
+	})
+	commitFiles(t, root, map[string]string{"e2e/a.spec.ts": `import { late } from './helpers/z';
+import { early } from './helpers/a';
+import { fine } from './helpers/ok';
+test('t', async ({ page }) => {
+  expect(await late(page)).toBe(true);
+});
+`})
+	report, err := Lint(OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(report.Files, ",") != "e2e/a.spec.ts" || strings.Join(report.Uncertain, ",") != "e2e/helpers/a.ts,e2e/helpers/z.ts" {
+		t.Fatalf("files = %v uncertain = %v", report.Files, report.Uncertain)
+	}
+}
+
+// TestLintImportBudgetIsCumulative proves the linted files and every level of imported helper
+// modules draw on one file and byte budget, so the aggregate cannot exceed it (TSA-V0-012,
+// TSA-V0-030).
+func TestLintImportBudgetIsCumulative(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"e2e/helpers/one.ts": "import { two } from './two';\nexport const one = async (page) => two(page);\n",
+		"e2e/helpers/two.ts": "export const two = async (page) => page.getByTestId('x').isVisible();\n",
+	}
+	spec := "import { one } from './helpers/one';\ntest('t', async ({ page }) => {\n  expect(await one(page)).toBe(true);\n});\n"
+	base := commitFiles(t, root, files)
+	commitFiles(t, root, map[string]string{"e2e/a.spec.ts": spec})
+	r, options := OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD"}
+	total := len(spec) + len(files["e2e/helpers/one.ts"]) + len(files["e2e/helpers/two.ts"]) + 3*128
+	for _, tc := range []struct {
+		budget readBudget
+		ok     bool
+	}{{readBudget{files: 3, bytes: total}, true}, {readBudget{files: 2, bytes: total}, false}, {readBudget{files: 3, bytes: total - 1}, false}} {
+		budget := tc.budget
+		report, err := lint(r, options, &budget)
+		if tc.ok {
+			if err != nil || len(report.Findings) != 1 || report.Findings[0].Resolution != "" {
+				t.Fatalf("budget %+v: err = %v findings = %+v", tc.budget, err, report.Findings)
+			}
+			continue
+		}
+		if !hasCode(err, "tests-bound-exceeded") {
+			t.Fatalf("budget %+v: err = %v, want tests-bound-exceeded", tc.budget, err)
+		}
 	}
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/service"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -198,22 +199,28 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		snapshot.ProfileExternalReviewEvent:   plain(func(b []byte) error { _, e := snapshot.DecodeExternalReviewEvent(b); return e }),
 		snapshot.ProfilePools:                 plain(func(b []byte) error { _, e := snapshot.DecodePools(b); return e }),
 		snapshot.ProfilePoolIdentity:          plain(func(b []byte) error { _, e := snapshot.DecodePoolIdentity(b); return e }),
-		"taskman-pool-observation/0":          plain(func(b []byte) error { _, e := snapshot.DecodePoolObservation(b); return e }),
-		"taskman-pool-sweep-observation/0":    plain(func(b []byte) error { _, e := snapshot.DecodePoolSweepObservation(b); return e }),
-		"taskman-pool-sweep-result/0":         plain(func(b []byte) error { _, _, e := transaction.DecodePoolSweepResult(b); return e }),
-		"taskman-programs/0":                  plain(func(b []byte) error { _, e := snapshot.DecodePrograms(b); return e }),
-		"taskman-stage/0":                     plain(func(b []byte) error { _, e := snapshot.DecodeStageDescriptor(b); return e }),
+		snapshot.ProfilePoolOperation: func(t *testing.T, p string) error {
+			pools := wire.ObjectValue(wire.NewObject().Set("profile", wire.String(snapshot.ProfilePools)).Set("queueId", wire.String("queue:acme:main")).Set("entries", wire.Array()).Set("operations", wire.Array(newerRecord(t, p))))
+			_, err := snapshot.DecodePools(wire.EncodeFile(pools))
+			return err
+		},
+		"taskman-pool-observation/0":       plain(func(b []byte) error { _, e := snapshot.DecodePoolObservation(b); return e }),
+		"taskman-pool-sweep-observation/0": plain(func(b []byte) error { _, e := snapshot.DecodePoolSweepObservation(b); return e }),
+		"taskman-pool-sweep-result/0":      plain(func(b []byte) error { _, _, e := transaction.DecodePoolSweepResult(b); return e }),
+		"taskman-programs/0":               plain(func(b []byte) error { _, e := snapshot.DecodePrograms(b); return e }),
+		"taskman-stage/0":                  plain(func(b []byte) error { _, e := snapshot.DecodeStageDescriptor(b); return e }),
 		"taskman-operator-note-cursor/0": plain(func(b []byte) error {
 			_, e := store.DecodeOperatorNoteCursor(base64.RawURLEncoding.EncodeToString(b))
 			return e
 		}),
-		ticket.Profile:                  plain(func(b []byte) error { _, e := ticket.Decode(b); return e }),
-		ticket.OperatorNoteProfile:      plain(func(b []byte) error { _, e := ticket.DecodeOperatorNoteEvent(b); return e }),
-		ticket.EscalationRequestProfile: plain(func(b []byte) error { _, e := ticket.DecodeEscalationRequest(b); return e }),
-		ticket.EscalationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeEscalationEvent(b); return e }),
-		ticket.ObligationEventProfile:   plain(func(b []byte) error { _, e := ticket.DecodeObligationEvent(b); return e }),
-		ticket.ObligationPlanProfile:    plain(func(b []byte) error { _, e := ticket.DecodeObligationPlan(b); return e }),
-		release.Profile:                 plain(func(b []byte) error { _, e := release.Decode(b); return e }),
+		ticket.Profile:                   plain(func(b []byte) error { _, e := ticket.Decode(b); return e }),
+		ticket.OperatorNoteProfile:       plain(func(b []byte) error { _, e := ticket.DecodeOperatorNoteEvent(b); return e }),
+		ticket.EscalationRequestProfile:  plain(func(b []byte) error { _, e := ticket.DecodeEscalationRequest(b); return e }),
+		ticket.EscalationEventProfile:    plain(func(b []byte) error { _, e := ticket.DecodeEscalationEvent(b); return e }),
+		ticket.ObligationEventProfile:    plain(func(b []byte) error { _, e := ticket.DecodeObligationEvent(b); return e }),
+		ticket.ObligationPlanProfile:     plain(func(b []byte) error { _, e := ticket.DecodeObligationPlan(b); return e }),
+		obligation.ProfileQualifications: plain(func(b []byte) error { _, e := obligation.DecodeAllowList(b); return e }),
+		release.Profile:                  plain(func(b []byte) error { _, e := release.Decode(b); return e }),
 		release.AttestationProfile: func(t *testing.T, p string) error {
 			_, err := release.Decode(withMember(t, formatRelease(t), "attestations", wire.Array(newerRecord(t, p))))
 			return err
@@ -283,6 +290,30 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 				t.Fatal(err)
 			}
 			_, err := dispatch.ReadSessionChurn(path)
+			return err
+		},
+		dispatch.HandoffNoteProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "handoff-note.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadHandoffNote(path)
+			return err
+		},
+		dispatch.CarryOverProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "carry-over.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadCarryOver(path)
+			return err
+		},
+		dispatch.ContextExhaustedProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "context-exhausted.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadContextExhausted(path)
 			return err
 		},
 		dispatch.HostSleepProfile: func(t *testing.T, p string) error {

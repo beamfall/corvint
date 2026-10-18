@@ -47,7 +47,11 @@ const (
 	// leaseDetachProgressName is the child's advisory round count and
 	// audit time, rewritten after each preparation round (PSR-V0-112).
 	leaseDetachProgressName = "progress.json"
-	leaseDetachChildFlag    = "--detached-child"
+	// leaseDetachWalksName is the same record with the PSR-V0-152 walk
+	// split, a sibling no older build opens, so progress.json keeps the
+	// closed shape older readers decode (PSR-V0-152).
+	leaseDetachWalksName = "progress-walks.json"
+	leaseDetachChildFlag = "--detached-child"
 
 	// maxLeaseDetachWait is the largest --wait, in seconds.
 	maxLeaseDetachWait = 600
@@ -153,7 +157,8 @@ type leaseDetachRecord struct {
 
 // leaseDetachProgress is progress.json: how far the child's lease command
 // got. It is advisory, decides nothing, and is absent before the first
-// preparation round ends (PSR-V0-112).
+// preparation round ends (PSR-V0-112). Its members are closed: an older
+// reader decodes it strictly, so new members go in leaseDetachWalks.
 type leaseDetachProgress struct {
 	Profile           string `json:"profile"`
 	PreparationRounds int    `json:"preparationRounds"`
@@ -162,15 +167,69 @@ type leaseDetachProgress struct {
 	UpdatedAt         string `json:"updatedAt"`
 }
 
+// leaseDetachWalks is progress-walks.json: the progress.json members and
+// the walk split of the same report (PSR-V0-152, V1-1626).
+type leaseDetachWalks struct {
+	Profile            string `json:"profile"`
+	PreparationRounds  int    `json:"preparationRounds"`
+	ResumedRounds      int    `json:"resumedRounds"`
+	AuditMillis        int64  `json:"auditMillis"`
+	CompleteWalks      int    `json:"completeWalks"`
+	CompleteWalksMoved int    `json:"completeWalksMoved"`
+	PrefixWalks        int    `json:"prefixWalks"`
+	PrefixWalksMoved   int    `json:"prefixWalksMoved"`
+	ResumedWalks       int    `json:"resumedWalks"`
+	ResumeDeclines     int    `json:"resumeDeclines"`
+	CompleteMillis     int64  `json:"completeMillis"`
+	PrefixMillis       int64  `json:"prefixMillis"`
+	ResumedMillis      int64  `json:"resumedMillis"`
+	UpdatedAt          string `json:"updatedAt"`
+}
+
+// leaseDetachWalksOf is the child's record of t (PSR-V0-112, PSR-V0-152).
+func leaseDetachWalksOf(t store.LeaseTiming, at time.Time) leaseDetachWalks {
+	ms := func(d time.Duration) int64 { return max(d.Milliseconds(), 0) }
+	return leaseDetachWalks{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: ms(t.SnapshotRead),
+		CompleteWalks: t.CompleteWalks, CompleteWalksMoved: t.CompleteMoved, PrefixWalks: t.PrefixWalks, PrefixWalksMoved: t.PrefixMoved, ResumedWalks: t.ResumedWalks, ResumeDeclines: t.ResumeDeclines,
+		CompleteMillis: ms(t.CompleteWalk), PrefixMillis: ms(t.PrefixWalk), ResumedMillis: ms(t.ResumedWalk), UpdatedAt: at.UTC().Format(time.RFC3339)}
+}
+
+// writeLeaseDetachProgress writes one report: the sibling first, then
+// progress.json in the shape every build reads (PSR-V0-152).
+func writeLeaseDetachProgress(dir string, w leaseDetachWalks) error {
+	if err := writeLeaseDetachJSON(dir, leaseDetachWalksName, w); err != nil {
+		return err
+	}
+	return writeLeaseDetachJSON(dir, leaseDetachProgressName, leaseDetachProgress{Profile: w.Profile, PreparationRounds: w.PreparationRounds, ResumedRounds: w.ResumedRounds, AuditMillis: w.AuditMillis, UpdatedAt: w.UpdatedAt})
+}
+
 // leaseDetachProgressValue is the PENDING item's progress member: null when
-// the child has not yet finished a round or its record does not read.
+// the child has not yet finished a round or progress.json does not read.
+// The walk split comes from the sibling when it reads and carries the same
+// report as progress.json; otherwise (an older child wrote progress.json, or
+// a read fell between the two writes) the split reads 0.
 func leaseDetachProgressValue(dir string) wire.Value {
-	var p leaseDetachProgress
-	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &p); err != nil || p.PreparationRounds < 0 || p.ResumedRounds < 0 || p.AuditMillis < 0 {
+	var base leaseDetachProgress
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachProgressName), &base); err != nil {
 		return wire.Null()
 	}
+	p := leaseDetachWalks{PreparationRounds: base.PreparationRounds, ResumedRounds: base.ResumedRounds, AuditMillis: base.AuditMillis, UpdatedAt: base.UpdatedAt}
+	var w leaseDetachWalks
+	if err := readLeaseDetachJSON(filepath.Join(dir, leaseDetachWalksName), &w); err == nil &&
+		w.PreparationRounds == p.PreparationRounds && w.ResumedRounds == p.ResumedRounds && w.AuditMillis == p.AuditMillis && w.UpdatedAt == p.UpdatedAt {
+		p = w
+	}
+	counts := []int64{int64(p.PreparationRounds), int64(p.ResumedRounds), p.AuditMillis, int64(p.CompleteWalks), int64(p.CompleteWalksMoved), int64(p.PrefixWalks), int64(p.PrefixWalksMoved), int64(p.ResumedWalks), int64(p.ResumeDeclines), p.CompleteMillis, p.PrefixMillis, p.ResumedMillis}
+	for _, c := range counts {
+		if c < 0 {
+			return wire.Null()
+		}
+	}
 	n := func(v int64) wire.Value { return wire.String(string(wire.SizeOf(uint64(v)))) }
-	return wire.ObjectValue(wire.NewObject().Set("preparationRounds", n(int64(p.PreparationRounds))).Set("resumedRounds", n(int64(p.ResumedRounds))).Set("auditMillis", n(p.AuditMillis)).Set("updatedAt", wire.String(p.UpdatedAt)))
+	o := wire.NewObject().Set("preparationRounds", n(counts[0])).Set("resumedRounds", n(counts[1])).Set("auditMillis", n(counts[2]))
+	o.Set("completeWalks", n(counts[3])).Set("completeWalksMoved", n(counts[4])).Set("prefixWalks", n(counts[5])).Set("prefixWalksMoved", n(counts[6]))
+	o.Set("resumedWalks", n(counts[7])).Set("resumeDeclines", n(counts[8])).Set("completeMillis", n(counts[9])).Set("prefixMillis", n(counts[10])).Set("resumedMillis", n(counts[11]))
+	return wire.ObjectValue(o.Set("updatedAt", wire.String(p.UpdatedAt)))
 }
 
 // leaseDetachChild is child.json: the detached process and its bound.
@@ -264,11 +323,14 @@ func leaseDetach(env Env, name string, args []string) int {
 	}
 	dir := leaseDetachDir(repo, requestID)
 	want := leaseDetachRecord{Profile: leaseDetachProfile, Command: name, RequestID: requestID, Holder: holder, ArgvSha256: leaseDetachArgvDigest(name, m.rest)}
+	// One deadline bounds both the relaunch's wait for a finishing child
+	// and the wait for the result (ATR-V0-024, ATR-V0-095).
+	deadline := time.Now().Add(time.Duration(max(m.wait, 0)) * time.Second)
 	switch {
 	case m.child:
 		return leaseDetachRunChild(env, name, dir, want, m.rest)
 	case m.detach:
-		if res := leaseDetachLaunch(env, name, dir, want, m.rest); res != nil {
+		if res := leaseDetachLaunch(env, name, dir, want, m.rest, deadline); res != nil {
 			return emit(env.Stdout, res)
 		}
 	default:
@@ -281,7 +343,7 @@ func leaseDetach(env Env, name string, args []string) int {
 			return emit(env.Stdout, leaseDetachConflict(cmd, requestID))
 		}
 	}
-	return leaseDetachAwait(env, name, dir, requestID, holder, m.wait)
+	return leaseDetachAwait(env, name, dir, requestID, holder, deadline)
 }
 
 func leaseDetachConflict(cmd []string, requestID string) *wire.Result {
@@ -290,8 +352,8 @@ func leaseDetachConflict(cmd []string, requestID string) *wire.Result {
 
 // leaseDetachLaunch records the request and starts its child unless a live
 // child or a kept result already answers it (ATR-V0-021). It returns nil
-// when the caller should wait for the result.
-func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest []string) *wire.Result {
+// when the caller should wait for the result until deadline.
+func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest []string, deadline time.Time) *wire.Result {
 	cmd := strings.Fields(name)
 	base := filepath.Dir(dir)
 	if err := os.MkdirAll(base, 0o700); err != nil {
@@ -317,18 +379,24 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	case rec != want:
 		return leaseDetachConflict(cmd, want.RequestID)
 	}
-	switch kept, err := leaseDetachKept(dir); {
+	kept, retried, err := leaseDetachKept(dir, min(leaseDetachLockBound, time.Until(deadline)))
+	switch {
 	case err != nil:
 		return errorResult(cmd, err)
 	case kept:
 		return nil
 	}
-	var child leaseDetachChild
-	switch live, err := leaseDetachChildLive(dir, &child, time.Now()); {
-	case err != nil:
-		return errorResult(cmd, err)
-	case live:
-		return nil
+	// The child that kept a retried LOCK_TIMEOUT has released the running
+	// lock and only exits; its process may still be visible, so it never
+	// holds up the relaunch (ATR-V0-095).
+	if !retried {
+		var child leaseDetachChild
+		switch live, err := leaseDetachChildLive(dir, &child, time.Now()); {
+		case err != nil:
+			return errorResult(cmd, err)
+		case live:
+			return nil
+		}
 	}
 	// No result and no live child: start one. A child that died before
 	// keeping a result is replaced; the store's request-ID replay returns
@@ -374,21 +442,33 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 // A kept LOCK_TIMEOUT means the store write never completed, so once no
 // child still runs the record it is moved to result.1.json and the request
 // runs again under the same request id; the store's request-ID replay keeps
-// the mutation exactly once (ATR-V0-066).
-func leaseDetachKept(dir string) (bool, error) {
+// the mutation exactly once (ATR-V0-066). A child that holds the running
+// lock beside a kept result is only finishing, so the launcher waits up to
+// bound for it: leaseDetachLockBound or less when the caller's --wait ends
+// sooner. While it is still held at the bound the kept result answers
+// (ATR-V0-095, ATR-V0-024). retried reports the move.
+func leaseDetachKept(dir string, bound time.Duration) (kept, retried bool, err error) {
 	p := filepath.Join(dir, leaseDetachResultName)
 	raw, err := readBounded(p, maxLeaseDetachResult)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return false, nil
+		return false, false, nil
 	case err != nil:
-		return false, err
+		return false, false, err
 	}
 	res, err := wire.DecodeResult(raw)
-	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) || leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName)) {
-		return true, nil
+	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) {
+		return true, false, nil
 	}
-	return false, os.Rename(p, filepath.Join(dir, leaseDetachPrevResult))
+	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), max(bound, 0))
+	if err != nil {
+		return true, false, nil
+	}
+	defer release()
+	if err := os.Rename(p, filepath.Join(dir, leaseDetachPrevResult)); err != nil {
+		return false, false, err
+	}
+	return false, true, nil
 }
 
 // leaseDetachUnknownIdentity is child.json's identity when the launcher
@@ -462,8 +542,7 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 	defer stop.Stop()
 	env.leaseDeadline = time.Now().Add(leaseDetachCeiling)
 	env.leaseProgress = func(t store.LeaseTiming) {
-		p := leaseDetachProgress{Profile: leaseDetachProfile, PreparationRounds: t.Rounds, ResumedRounds: t.Resumed, AuditMillis: max(t.SnapshotRead.Milliseconds(), 0), UpdatedAt: time.Now().UTC().Format(time.RFC3339)}
-		if err := writeLeaseDetachJSON(dir, leaseDetachProgressName, p); err != nil {
+		if err := writeLeaseDetachProgress(dir, leaseDetachWalksOf(t, time.Now())); err != nil {
 			_, _ = env.Stderr.Write([]byte("corvint-tasks detached " + name + ": progress: " + err.Error() + "\n"))
 		}
 	}
@@ -477,11 +556,10 @@ func leaseDetachRunChild(env Env, name, dir string, want leaseDetachRecord, rest
 }
 
 // leaseDetachAwait answers from the kept result, or reports PENDING or LOST,
-// waiting up to wait seconds for the result (ATR-V0-022, ATR-V0-024). It
-// only reads.
-func leaseDetachAwait(env Env, name, dir, requestID, holder string, wait int) int {
+// waiting until deadline for the result (ATR-V0-022, ATR-V0-024). It only
+// reads.
+func leaseDetachAwait(env Env, name, dir, requestID, holder string, deadline time.Time) int {
 	cmd := strings.Fields(name)
-	deadline := time.Now().Add(time.Duration(max(wait, 0)) * time.Second)
 	for {
 		raw, err := readBounded(filepath.Join(dir, leaseDetachResultName), maxLeaseDetachResult)
 		if err == nil {

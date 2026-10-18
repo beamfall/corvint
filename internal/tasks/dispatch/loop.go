@@ -37,6 +37,9 @@ type Dispatcher struct {
 	// host-suspend detection (ATR-V0-063); it does not advance while the
 	// host sleeps.
 	Mono func() time.Duration
+	// HookCommand is the argv a worker's context hook runs (ATR-V0-102);
+	// empty runs corvint-tasks from PATH.
+	HookCommand []string
 
 	dir       string
 	nonce     string
@@ -120,6 +123,10 @@ type Dispatcher struct {
 	// treeSeen names the workers whose process tree the last supervise
 	// pass observed; the lease keeper acts only for them (CAL-V0-317).
 	treeSeen map[string]bool
+	// carryStale names the tickets whose ATR-V0-111 carry-over record could
+	// not be removed after progress; carryForeign the newer-version records
+	// already alerted. Neither is persisted.
+	carryStale, carryForeign map[string]bool
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -148,6 +155,10 @@ type Dispatcher struct {
 	// marks a newer-version record that is kept and not tracked.
 	churn        *SessionChurn
 	churnForeign bool
+	// exhaustion is the ATR-V0-106 hard-stop record, read once;
+	// exhaustionForeign marks a newer-version record that is kept.
+	exhaustion        *ContextExhaustion
+	exhaustionForeign bool
 	// sleep is the ATR-V0-063 host-sleep record; lastNow and lastMono are
 	// the previous tick's clock readings.
 	sleep        *HostSleep
@@ -1242,10 +1253,16 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		if workUnknown {
 			detail["workState"] = StateUnknown
 		}
+		if n := carriedCount(d.dir, w.ID); n > 0 {
+			detail["carryOver"] = strconv.Itoa(n) // ATR-V0-114
+		}
 		d.finishUsage(w, detail)
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
+		d.salvage(w, now)                                   // ATR-V0-104
+		d.noteHardStop(w, now)                              // ATR-V0-106
+		d.noteCarryOver(w, now, class, progress, run != "") // ATR-V0-111
 		if stalled != nil {
 			d.emit(*stalled)
 		}
@@ -1582,7 +1599,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			run = m
 		}
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage, "{contextHookSettings}": ContextHookSettingsPath(d.dir, id)}
 		// {operatorNote} renders only into the role prompt (ON-V0-011); argv,
 		// env and activity paths never see the operator prose directly. So
 		// does {detachedRun} (CAL-V0-149), empty for an ordinary launch.
@@ -1593,6 +1610,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			promptValues["{detachedRun}"] = detachedLine(run)
 		}
 		values["{prompt}"] = Render(role.Prompt, promptValues)
+		// ATR-V0-113: the carry-over block follows the rendered prompt, so
+		// its untrusted text is never expanded.
+		var carryText string
+		var carried []CarryEntry
+		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.CarryOver.on() {
+			if carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket); carryText != "" {
+				values["{prompt}"] += "\n\n" + carryText
+			}
+		}
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
 			argv[i] = Render(s, values)
@@ -1604,15 +1630,38 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
+		// ATR-V0-105: only the dispatcher names a hand-off note; an inherited
+		// or host-set one could hand this ticket another ticket's note.
+		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, handoffNoteEnv+"=") })
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
 		env = append(env, "CORVINT_DISPATCH_DRAIN_FILE="+DrainSignalPath(d.dir)) // ATR-V0-058
 		if contextFormat(role.UsageFormat) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}
+		env = append(env, "CORVINT_DISPATCH_EVIDENCE_DIR="+EvidenceDir(d.dir, id)) // ATR-V0-104
+		if note := d.handoffNoteFor(obs, a.Ticket); note != "" {
+			env = append(env, handoffNoteEnv+"="+note) // ATR-V0-105
+		}
 		if run != nil {
 			env = append(env, detachedEnv(run)...)
 		}
-		pid, identity, exit, err := launch(argv, env, d.Config.WorkRoot, d.workerDir(id))
+		// ATR-V0-102/104: the evidence directory and any hook settings exist
+		// before spawn; a failure here is proved before spawn.
+		var pid int
+		var identity string
+		var exit <-chan int
+		err := os.MkdirAll(EvidenceDir(d.dir, id), 0o700)
+		if err == nil && hostUsesContextHook(host) {
+			_, err = d.writeHookSettings(id)
+		}
+		if err == nil && len(carried) > 0 {
+			err = writeCarryMarker(d.dir, id, a.Ticket, carried) // ATR-V0-113
+		}
+		if err != nil {
+			err = fmt.Errorf("before spawn: %w", err)
+		} else {
+			pid, identity, exit, err = launch(argv, env, d.Config.WorkRoot, d.workerDir(id))
+		}
 		if err != nil {
 			b := d.ledger.Backoff[a.Key]
 			if b == nil {
@@ -1687,6 +1736,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
+		carryDetail(detail, carried, carryText) // ATR-V0-114
 		if role.Effort != "" {
 			detail["effort"] = role.Effort
 		}

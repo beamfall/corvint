@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -71,4 +72,23 @@ func WorktreeRoot(dir string) (string, error) {
 		top = resolved
 	}
 	return top, nil
+}
+
+// ExactWorktreeRoot resolves a policy-declared test repository directory and
+// requires it to be the top level of its own Git worktree (TOL-V0-064): Git
+// discovers upward, so a declared checkout that lost its .git would otherwise
+// resolve to an enclosing repository. Witness and receipt audit both use it.
+func ExactWorktreeRoot(dir string) (string, error) {
+	want, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", err
+	}
+	root, err := WorktreeRoot(want)
+	if err != nil {
+		return "", err
+	}
+	if filepath.Clean(root) != filepath.Clean(want) {
+		return "", fmt.Errorf("%s is not a worktree root; Git resolved it to the enclosing worktree %s", dir, root)
+	}
+	return root, nil
 }

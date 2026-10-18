@@ -422,7 +422,7 @@ func entryType(m fs.FileMode) string {
 // readJobReport reads the test command's report only from a regular file
 // (TOL-V0-033): a FIFO, symlink or device at the report path is refused
 // unread, so a planted FIFO cannot block the job.
-func readJobReport(p string) (*obligation.Report, error) {
+func readJobReport(p string, qualified []string) (*obligation.Report, error) {
 	f, _, err := openRegular(p)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
@@ -437,7 +437,7 @@ func readJobReport(p string) (*obligation.Report, error) {
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeMissingEvidence, "--from-playwright-report", "%s the report file is unreadable", ticket.ObligationReportDetail)
 	}
-	return obligation.ParseReport(raw, obligationQualifiedVersions())
+	return obligation.ParseReport(raw, qualified)
 }
 
 // acquire takes a pool member for the claimed attempt with the existing
@@ -526,7 +526,11 @@ func (j *runJob) runTests(ctx context.Context, name, dir string, specs []string)
 	run := store.RunBatchCommand(ctx, append(append([]string{}, j.cfg.TestCommand...), specs...), dir, j.environment(report), j.cfg.TimeoutSeconds)
 	j.writeLog(name+"/output.log", run.Output)
 	s := j.record(name, run, name+"/output.log")
-	rep, err := readJobReport(report)
+	qualified, err := admittedVersionsAt(j.env.Cwd)
+	if err != nil {
+		return nil, s, prose(err.Error())
+	}
+	rep, err := readJobReport(report, qualified)
 	if err != nil {
 		return nil, s, prose(err.Error())
 	}

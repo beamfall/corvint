@@ -194,7 +194,7 @@ func documentKind(value string) string {
 	parts := strings.Split(strings.ToLower(path.Dir(value)), "/")
 	stem := strings.TrimSuffix(strings.ToLower(path.Base(value)), ".md")
 	name := strings.ToLower(path.Base(value))
-	if name == "agents.md" || name == "claude.md" || name == "gemini.md" || name == "copilot-instructions.md" ||
+	if value == specKitConstitution || name == "agents.md" || name == "claude.md" || name == "gemini.md" || name == "copilot-instructions.md" ||
 		(len(parts) >= 2 && parts[0] == ".github" && parts[1] == "instructions" && strings.HasSuffix(name, ".instructions.md")) {
 		return "instructions"
 	}
@@ -274,10 +274,10 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 	}
 	headingText := strings.Join(headings, " ")
 	headingText = truncateRunes(headingText, 4000)
-	return Record{kind, source.Path, source.Path, source.BlobHash, titleLine, map[string]any{
+	return toolchainRecord(Record{kind, source.Path, source.Path, source.BlobHash, titleLine, map[string]any{
 		"title": title, "summary": summary, "status": status,
 		"headings": headingText, "references": references,
-	}}, true
+	}}, lines, sources), true
 }
 
 // goSymbols extracts a Go source's top-level declaration symbols, and reports

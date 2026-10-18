@@ -8,10 +8,10 @@ Delivery status: experimental
 Authoritative inputs: V1-1591 / GitHub #1034 owner request; `../../AGENTS.md` invariants 2, 4, 7 and 8; `../DOGFOOD.md`.
 
 ## Agent digest
-- Claim: A shared-path check names commits that change shared test infrastructure without a labelled commit, listing or run citation; a local splitter separates them.
+- Claim: Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1591)/experimental
-- Exists: `internal/sharedpath` and the experimental `corvint changes check-shared` and `corvint changes split-shared` subcommands.
-- Blocked on: no repository ships a `.corvint/shared-paths.json` yet; the notes listing and the run citation stay manual follow-ups; live-session detection sees only configured markers and Git's own in-progress state.
+- Exists: `internal/sharedpath` and the experimental `corvint changes check-shared`, `corvint changes split-shared` and `corvint changes behind` subcommands; `behind --format doctor-plugin` feeds the `corvint-tasks doctor --plugins` surface.
+- Blocked on: no repository ships a `.corvint/shared-paths.json` yet; the notes listing and the run citation stay manual follow-ups; live-session detection sees only configured markers and Git's own in-progress state; a built-in doctor or dispatch detector that discovers live ticket worktrees itself, and a claim-result notice, are not delivered (V1-1710 residual).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -48,11 +48,17 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   Refusals: `changes-invalid-arguments`, `changes-shared-range-unavailable`,
   `changes-shared-notes-unavailable` (absent, non-regular or over 1 MiB), `changes-git-unavailable`.
 - `SPC-V0-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The check
-  MUST probe merging head into base with `git merge-tree --write-tree` against a private temporary
-  object directory (`GIT_OBJECT_DIRECTORY`, with the repository's object store as an alternate),
-  removed afterwards, so the probe writes no object into the repository. A conflicted path matching a `generated` glob is listed in
-  `exemptConflicts` and is not a finding; any other conflicted path emits
-  `shared-path-merge-conflict` (`clean-merge`).
+  MUST probe merging head into base with `git merge-tree --write-tree` inside a private temporary
+  bare repository (`GIT_DIR`, with the repository's object format, its object store as an alternate
+  and its shallow file), removed afterwards, so the probe writes no object into the repository and
+  reads no repository configuration, attributes or worktree: no custom merge or filter driver runs
+  and nothing is written into the checkout (amended for Codex finding 1 on #1097, V1-1710). The
+  probe therefore merges with Git's built-in drivers and default rename settings, which can differ
+  from a merge under the repository's own attributes. Git's conflict exit status is kept: the
+  conflicted paths are the unmerged file entries plus the paths named by `CONFLICT` messages, and a
+  conflict that names no path still emits one pathless finding. A conflicted path matching a
+  `generated` glob is listed in `exemptConflicts` and is not a finding; any other conflicted path
+  emits `shared-path-merge-conflict` (`clean-merge`).
 - `SPC-V0-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591)
   `corvint changes split-shared --base REV --branch NAME [--apply --expect-head SHA]` MUST plan,
   and with `--apply` perform, the split of every commit in `base..NAME` that changes both shared
@@ -86,27 +92,76 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   `{"code":...,"ok":false}` on standard error and exit 2, and print one JSON report on standard
   output. Relative `--config` and `--notes` paths resolve under the root.
 
+- `SPC-V0-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710)
+  `corvint changes behind --base REV [--head REV] [--config FILE] [--ticket ID --stale-hours N]
+  [--format json|doctor-plugin]` MUST name the base commits not reachable from head (`head..base`,
+  head defaulting to `HEAD`) that change a configured `shared` path. It first counts that range
+  with `git rev-list --count` and, when it holds more than 512 commits, refuses with
+  `changes-shared-range-too-large`, whose refusal object also names `limit` (512) and `commits`
+  (the count), before listing or reading any commit. A non-merge commit counts only when it changes
+  a `shared` path: commits that change only other or `generated` paths are ignored, and merge
+  commits are skipped and named in `skippedMerges`. Each counted commit is listed oldest first with
+  `commit`, `subject`, `committedAt` (its committer time, UTC), `sharedPaths`, `headTouches` (the
+  shared paths of that commit that head also changes since the merge base) and `conflictRisk`
+  (`headTouches` is not empty). Base and head without a merge base refuse with
+  `changes-shared-range-unavailable`. The command is a read command: it never fetches or contacts
+  a remote, writes no ref, index, worktree, repository object or trace file, and runs no
+  repository-configured merge or filter driver (SPC-V0-003). Exit 0 on success
+  and 2 on refusal, under the SPC-V0-008 dispatch and refusal shape.
+- `SPC-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The
+  report's `dryMerge` MUST probe merging head into base under the SPC-V0-003 private-object-directory
+  rule and give `result` as exactly one of `clean` (Git reports no conflict), `generated-only`
+  (every conflicted path matches a `generated` glob) or `conflict`, with `conflicts` listing the
+  other conflicted paths and `generatedConflicts` the generated ones, each sorted. Conflicted paths
+  are those of SPC-V0-003, so a conflict without an unmerged file entry (a directory rename split
+  names its directory) is `conflict`, and so is a conflict Git reports without naming any path
+  (amended for Codex finding 2 on #1097, V1-1710).
+- `SPC-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The JSON
+  report (profile `corvint-shared-path-behind/0`, `mutates` false) MUST record the resolved `base`,
+  `head` and `mergeBase`, `configDigest` (`sha256:` and the hexadecimal SHA-256 of the configuration
+  file bytes), `observedAt`, `counted` (the commits in `head..base`), `behind`, `skippedMerges`,
+  `dryMerge` and `findings`.
+- `SPC-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With
+  `--ticket ID` and `--stale-hours N` (both or neither; ID matches `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`,
+  N is 1 to 8760) the report MUST emit one `SHARED_BASE_BEHIND` finding when the oldest counted
+  commit (earliest committer time) is at least N hours old at `observedAt`, naming `who` (the
+  ticket), `commit` (that oldest commit), `ageSeconds`, and a `detail` that names the ticket, the
+  commit and its age in hours. `--format doctor-plugin` requires `--ticket` and prints only the
+  findings as the TQD-V0-010 plugin array of `{kind, who, detail, remedy}` objects (`[]` when there
+  is none) and exits 0, so an operator's `corvint-tasks doctor --plugins DIR` executable can carry
+  the finding for a live ticket worktree. Invalid flags refuse with `changes-invalid-arguments`.
+
 ## Boundaries and failure modes
 
 Non-goals: pushing, force-pushing or opening pull requests; rewriting any ref but the named
 branch; splitting merges or renames by content; writing notes or run citations; detecting an agent
-session that leaves no configured marker; enforcing the policy in CI. `split-shared --apply` is an
+session that leaves no configured marker; enforcing the policy in CI; for `behind`, fetching the
+base, updating or merging the branch, discovering live ticket worktrees inside `corvint-tasks`
+(the doctor sees the finding only through an operator plugin that names the ticket and its head)
+and a claim-result notice. `split-shared --apply` is an
 explicit, operator-invoked writer of one local branch ref and unreachable objects; it is outside
-the read-command invariant by design, like `index`. `check-shared` is a read command.
+the read-command invariant by design, like `index`. `check-shared` and `behind` are read commands.
 
 Failure modes: a live agent that leaves no marker and holds no Git lock is not detected, so the
 user names the branch deliberately; a path renamed into a shared directory is one deletion and one
 addition (renames are not detected); a ref whose head moves between the expected-head check and the
 compare-and-swap aborts with the head-mismatch code and leaves only unreachable objects, which
 `git gc` collects. Hooks are disabled (`core.hooksPath=/dev/null`) and signing is off for split
-commits. Git stderr is never reflected.
+commits. Git stderr is never reflected. `behind` reads only local refs, so a stale
+remote-tracking base understates what is missing until the operator fetches. Its age is the
+commit's committer time, not when the commit reached base: a merged commit keeps its older
+committer time, so the age can overstate how long base has carried it. A shared change made inside
+a merge commit's own resolution is not counted (merges are skipped and named). The merge probe ignores the
+repository's attributes and configuration, so a path that a custom or `union` merge driver would
+resolve can be reported as conflicted (a conservative report, never a hidden conflict).
 
 ## Rollback
 
 An applied split prints `restore`, `git update-ref refs/heads/NAME OLD NEW`, which puts the old
 head back while the old commits are still reachable from the reflog. Removing the feature deletes
-`internal/sharedpath` and the two subcommand branches in `cmd/corvint/changes.go`; no stored state
-depends on them.
+`internal/sharedpath`, the two subcommand branches in `cmd/corvint/changes.go` and
+`cmd/corvint/changes_behind.go`; no stored state depends on them. Removing only `behind` deletes
+`internal/sharedpath/behind.go`, `cmd/corvint/changes_behind.go` and its dispatch line.
 
 ## Traceability
 
@@ -114,9 +169,13 @@ depends on them.
 |---|---|---|
 | SPC-V0-001 | `LoadConfig`, `Match`, `Config.Class`, `readRegular` | `TestSPCV0001ConfigIsClosedAndClassifiesPaths`, `TestSPCV0001FIFOInputsRefusedWithoutBlocking` |
 | SPC-V0-002 | `Check` | `TestSPCV0002CheckFindingsNameCommitPathAndMissingElement` |
-| SPC-V0-003 | `mergeProbe` | `TestSPCV0003GeneratedConflictsAreExempt`, `TestSPCV0003MergeProbeWritesNoRepositoryObject` |
+| SPC-V0-003 | `mergeProbe`, `mergeConflicts`, `privateMergeRepository`, `conflictPaths` | `TestSPCV0003GeneratedConflictsAreExempt`, `TestSPCV0003MergeProbeWritesNoRepositoryObject`, `TestSPCV0009DryMergeRunsNoRepositoryMergeDriver`, `TestSPCV0010DirectoryRenameSplitIsConflict` |
 | SPC-V0-004 | `SplitShared`, `overlay`, `commitTree` | `TestSPCV0004SplitKeepsTreeIdentityAndMessage`, `TestSPCV0004PlanningLeavesIndexBytesUnchanged` |
 | SPC-V0-005 | `refuseLiveSession`, `SplitShared` | `TestSPCV0005SplitRefusesUnsafeStates` |
 | SPC-V0-006 | `manualFollowUps` | `TestSPCV0006ManualFollowUpsAreOnlyListingAndCitation` |
 | SPC-V0-007 | expected-head check and `update-ref` compare-and-swap | `TestSPCV0007HeadMismatchAbortsWithoutChanges` |
 | SPC-V0-008 | `runSharedPath` | `TestSPCV0008ChangesSharedCLI` |
+| SPC-V0-009 | `Behind`, `countBehind`, `runChangesBehind` | `TestSPCV0009BehindCountsOnlySharedCommits`, `TestSPCV0009BehindRefusesTooLargeRangeBeforeListing`, `TestSPCV0009BehindIsReadOnly`, `TestSPCV0009DryMergeRunsNoRepositoryMergeDriver` |
+| SPC-V0-010 | `mergeConflicts`, `conflictPaths`, `dryMergeOf` | `TestSPCV0010DryMergeClassifiesCleanGeneratedOnlyAndConflict`, `TestSPCV0010DirectoryRenameSplitIsConflict` |
+| SPC-V0-011 | `BehindReport`, `Config.Digest` | `TestSPCV0011BehindReportRecordsBaseHeadCommitsAndDigest` |
+| SPC-V0-012 | `staleFinding`, `runChangesBehind` | `TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge`, `TestSPCV0012ChangesBehindCLI` |

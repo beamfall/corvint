@@ -57,6 +57,14 @@ type ObligationReportCheck struct {
 	Commit            string
 	IDs               []string
 	Eligible          map[string][]ticket.ObligationMatch
+	// TestRepository is the declared test repository the recomputation ran
+	// in (TOL-V0-065), "" for the store's own repository.
+	TestRepository string
+	// TestRepositoryPath is the path the policy the CLI read declared for
+	// TestRepository. The writer refuses a witness whose name is now
+	// declared with another path (TOL-V0-065). A DECLARED witness carries a
+	// check holding only these two members.
+	TestRepositoryPath string
 }
 
 // ExpectedCredits returns the credits the ledger l admits from the check, in
@@ -231,6 +239,15 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 	if w.Source == ticket.ObligationSourceDeclared && role != "OWNER" {
 		return refuse(OutcomeUnauthorized, "", "a DECLARED witness is OWNER-only (TOL-V0-015)")
 	}
+	if w.TestRepository != nil {
+		declared, ok := c.Policy.ObligationTestRepository(*w.TestRepository)
+		if !ok {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s /payload/testRepository names %s, which the policy's obligations.testRepositories does not declare", ticket.ObligationTestRepositoryDetail, *w.TestRepository)
+		}
+		if check := c.ObligationReport; !c.ObligationReplay && (check == nil || check.TestRepository != *w.TestRepository || check.TestRepositoryPath != declared) {
+			return refuse(OutcomeRevisionConflict, wire.CodeStalePolicy, "/payload/testRepository %s is declared at write time with a path other than the one the witness resolved; rerun the witness", *w.TestRepository)
+		}
+	}
 	if role != "WORKER" {
 		if w.Attempt != nil || w.Generation != nil {
 			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "/payload/attempt: only a WORKER witness names an attempt")
@@ -264,6 +281,9 @@ func (c *ObligationReportCheck) matches(l *ticket.ObligationLedger, w *ticket.Ob
 	}
 	if w.ReportSha256 == nil || *w.ReportSha256 != c.ReportSha256 || w.PlaywrightVersion == nil || *w.PlaywrightVersion != c.PlaywrightVersion || w.Commit != c.Commit {
 		return mismatch("the payload report digest, version or commit differs from the supplied report")
+	}
+	if named := w.TestRepository; (named == nil) != (c.TestRepository == "") || (named != nil && *named != c.TestRepository) {
+		return mismatch("the payload test repository differs from the repository the credits were recomputed in")
 	}
 	want := c.ExpectedCredits(l)
 	if len(want) != len(w.Credits) {

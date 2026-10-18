@@ -473,6 +473,8 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 1. Bind, check and seal each change with this loop on its own branch, in its own worktree or clone
    (the local trace store of one change refuses another's unreachable commits), against its own
    base; the lanes may run at the same time (`DCW-V0-044`).
+   [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md) is the multi-lane procedure: one finish per lane
+   with every input supplied up front, heavy commands through `script/heavy.sh`, and checkout cleanup.
 2. Merge the sealed branches into the batch branch one at a time, two parents per merge. Resolve a
    conflict with `git merge -X ours` or `-X theirs`; commit any other edit to the batch, such as an
    orchestrator's index or decision update or a hand-merged file, as its own sealed change on a
