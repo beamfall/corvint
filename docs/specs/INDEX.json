@@ -215,6 +215,27 @@
     ]
   },
   {
+    "path": "docs/specs/change-compiled-e2e-v0.md",
+    "title": "Change-Compiled E2E V0",
+    "reqPrefix": "CCE-V0",
+    "intent": "proposed",
+    "delivery": "not-started",
+    "claim": "Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.",
+    "dependsOn": [
+      "docs/specs/application-map-v0.md",
+      "docs/specs/application-map-scenario-planner-v0.md",
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/application-navigation-ledger-v0.md",
+      "docs/specs/run-verified-navigation-v0.md",
+      "docs/specs/playwright-run-evidence-v0.md",
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/browser-behavior-falsification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/test-consolidation-planner-v0.md",
     "title": "Test Consolidation Planner V0",
     "reqPrefix": "TCN-V0",
