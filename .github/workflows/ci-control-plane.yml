@@ -17,6 +17,13 @@ name: CI control plane
 # no status, reads small artifacts with gh and jq, and runs only `.github/forward-rows` from this
 # default-branch commit, never code of the tested commit. Nothing reads the rows to narrow tests
 # before V1-0812.
+#
+# AFP-V0-079 (V1-1778): a cancelled CI run starts no job here. Its required checks are not
+# success, so its head cannot merge until a rerun or a new push completes and reaches this
+# workflow again; a cancelled run is never a forward row either. The two status jobs share one
+# concurrency group per event and head SHA, so a newer completion for the same head replaces a
+# queued or running one: both would post the same status. The forward-rows job keeps one run
+# per completed run.
 
 on:
   workflow_run:
@@ -30,7 +37,10 @@ permissions:
 
 jobs:
   control-plane:
-    if: github.event.workflow_run.event == 'pull_request'
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled'
+    concurrency:
+      group: ci-control-plane-pull_request-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -72,7 +82,10 @@ jobs:
           done <<<"$prs"
 
   merge-group:
-    if: github.event.workflow_run.event == 'merge_group'
+    if: github.event.workflow_run.event == 'merge_group' && github.event.workflow_run.conclusion != 'cancelled'
+    concurrency:
+      group: ci-control-plane-merge_group-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
