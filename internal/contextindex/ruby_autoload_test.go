@@ -69,8 +69,13 @@ func TestRubyAutoloadNamedConstantReverseReference(t *testing.T) {
 	if rubyUnknownCount(receipt, "ruby-constant-name-literal") != 1 {
 		t.Fatalf("string class name not counted: %#v", receipt["unknowns"])
 	}
-	if rubyUnknownCount(receipt, "reverse-import-rule-unavailable") != 1 || rubyUnknownCount(receipt, "dynamic-dispatch-unresolved") != 1 {
-		t.Fatalf("baseline frontier lost: %#v", receipt["unknowns"])
+	// NGI-V0-036: a mapped path has a named reverse-reference rule, so only
+	// the dynamic-dispatch baseline stays.
+	if rubyUnknownCount(receipt, "reverse-import-rule-unavailable") != 0 || rubyUnknownCount(receipt, "dynamic-dispatch-unresolved") != 1 {
+		t.Fatalf("baseline frontier = %#v", receipt["unknowns"])
+	}
+	if controller["advisory"] != true || spec["advisory"] != true {
+		t.Fatalf("convention rows must be advisory: %#v %#v", controller, spec)
 	}
 	// A direct import outranks every named-constant reference.
 	imported := registryImpact(t, files, "web/util.js")
@@ -277,8 +282,10 @@ func TestRubyAutoloadMetaprogrammingStaysUnknown(t *testing.T) {
 	}
 }
 
-// TestRubyAutoloadDefaultReceiptUnchanged: NGI-V0-020.
-func TestRubyAutoloadDefaultReceiptUnchanged(t *testing.T) {
+// TestRubyAutoloadDefaultOn: NGI-V0-020, NGI-V0-033. A default request
+// naming a Ruby path selects the syntax profile, so its receipt is the syntax
+// receipt; a request with no Ruby path keeps the historical default bytes.
+func TestRubyAutoloadDefaultOn(t *testing.T) {
 	index, err := Build(context.Background(), impactRepositoryWithFiles(t, rubyAutoloadIssueFiles()))
 	if err != nil {
 		t.Fatal(err)
@@ -287,49 +294,41 @@ func TestRubyAutoloadDefaultReceiptUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, present := receipt["ruby_autoload"]; present {
-		t.Fatal("the default receipt must not carry the syntax-profile member")
+	if receipt["language_profile"] != "non-go-syntax-v0" || receipt["ruby_autoload"] == nil {
+		t.Fatalf("a default Ruby request must carry the syntax profile: %#v", receipt)
 	}
-	for _, item := range mapsFromAny(receipt["results"]) {
-		if item["id"] == "app/controllers/things_controller.rb" {
-			t.Fatal("the default receipt must keep its historical results")
-		}
+	if row := rubyResultRows(receipt)["app/controllers/things_controller.rb"]; row == nil || row["advisory"] != true {
+		t.Fatalf("default receipt must carry the advisory controller row: %#v", receipt["results"])
 	}
-	syntax, err := ImpactSyntax(index, []string{"web/util.js"}, maxLimit)
+	syntax, err := ImpactSyntax(index, []string{"app/models/thing.rb"}, maxLimit)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, present := syntax["ruby_autoload"]; present {
+	defaultBytes, _ := CanonicalJSON(receipt)
+	syntaxBytes, _ := CanonicalJSON(syntax)
+	if string(defaultBytes) != string(syntaxBytes) {
+		t.Fatal("a default Ruby request must equal the syntax-profile receipt")
+	}
+	web, err := Impact(index, []string{"web/util.js"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, member := range []string{"ruby_autoload", "language_profile", "unknowns"} {
+		if _, present := web[member]; present {
+			t.Fatalf("a default request with no Ruby path must not carry %s", member)
+		}
+	}
+	webSyntax, err := ImpactSyntax(index, []string{"web/util.js"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, present := webSyntax["ruby_autoload"]; present {
 		t.Fatal("a request with no Ruby path must not carry the Ruby member")
 	}
 }
 
-// TestRubyAutoloadConstantMapping: NGI-V0-016, NGI-V0-017.
-func TestRubyAutoloadConstantMapping(t *testing.T) {
-	autoload := &rubyAutoload{acronyms: map[string]string{"api": "API"}, overrides: map[string]string{"html_parser": "HTMLParser"},
-		ignored: defaultRubyAutoloadIgnored,
-		roots: defaultRubyAutoloadRoots([]string{"app/models/thing.rb", "app/models/concerns/taggable.rb", "app/views/x.rb",
-			"app/assets/y.rb", "lib/tasks/z.rb", "lib/gem/version.rb", "app/services/billing/invoice.rb"})}
-	if !reflect.DeepEqual(autoload.roots, []string{"app/models", "app/models/concerns", "app/services", "lib"}) {
-		t.Fatalf("default roots = %v", autoload.roots)
-	}
-	for name, want := range map[string]string{
-		"app/models/thing.rb":             "Thing",
-		"app/models/concerns/taggable.rb": "Taggable",
-		"app/services/billing/invoice.rb": "Billing::Invoice",
-		"lib/gem/version.rb":              "Gem::Version",
-		"app/models/api/user_api.rb":      "API::UserAPI",
-		"app/models/html_parser.rb":       "HTMLParser",
-	} {
-		if got, ok := autoload.constantFor(name); !ok || got != want {
-			t.Fatalf("%s -> %q %v, want %q", name, got, ok, want)
-		}
-	}
-	for _, name := range []string{"app/views/x.rb", "lib/tasks/z.rb", "app/models/2fa.rb", "app/models/Thing.rb", "app/models/a-b.rb", "script/x.rb"} {
-		if got, ok := autoload.constantFor(name); ok {
-			t.Fatalf("%s must be unmapped, got %q", name, got)
-		}
-	}
+// TestRubyAutoloadEndlessDef: NGI-V0-018. Ruby 3's endless `def` opens no block.
+func TestRubyAutoloadEndlessDef(t *testing.T) {
 	if !rubyEndlessDef("def label = name", 3) || !rubyEndlessDef("def self.x(a) = a", 3) || rubyEndlessDef("def x=(v)", 3) ||
 		rubyEndlessDef("def ==(other)", 3) || rubyEndlessDef("def run", 3) {
 		t.Fatal("endless def detection")
@@ -343,11 +342,11 @@ func TestRubyAutoloadNestingBound(t *testing.T) {
 	nested := func(depth int, body string) string {
 		return "module Jobs\n" + strings.Repeat("begin\n", depth) + body + strings.Repeat("end\n", depth) + "end\nTail.new\n"
 	}
-	within := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth-1, "Thing.new\n"))}, map[string]bool{})
+	within := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth-1, "Thing.new\n"))}, func(string) bool { return false })
 	if !within.balanced {
 		t.Fatal("nesting at the bound must stay balanced")
 	}
-	past := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth, "Thing.new\n"))}, map[string]bool{})
+	past := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth, "Thing.new\n"))}, func(string) bool { return false })
 	if past.balanced {
 		t.Fatal("begin blocks past the nesting bound must mark the file unbalanced")
 	}
@@ -414,7 +413,7 @@ func TestRubyAutoloadLocalConstantShadows(t *testing.T) {
 	if _, ok := rows["app/jobs/plain.rb"]; !ok {
 		t.Fatal("an unshadowed Thing in module Jobs still resolves to ::Thing")
 	}
-	source := scanRubyConstantSource(Source{Data: []byte(files["app/jobs/shadow.rb"])}, map[string]bool{"Thing": true})
+	source := scanRubyConstantSource(Source{Data: []byte(files["app/jobs/shadow.rb"])}, func(name string) bool { return name == "Thing" })
 	for _, reference := range source.references {
 		if reference.name == "Thing" && reference.line == 2 {
 			t.Fatal("a constant assignment must not be collected as a reference")

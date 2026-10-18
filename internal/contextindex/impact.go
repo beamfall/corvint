@@ -21,7 +21,7 @@ type rankedResult struct {
 }
 
 func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
-	result, _, err := impact(index, paths, limit, false)
+	result, _, err := impact(index, paths, limit, rubyImpactRequested(paths)) // a Ruby path selects the syntax profile (NGI-V0-033)
 	return result, err
 }
 
@@ -100,8 +100,8 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	var registries *registryDialect
 	var registryGraph *webImportGraph
 	registryUnknowns := map[string][]any{}
-	// Ruby autoload-convention constants (NGI-V0-016 to NGI-V0-021) are
-	// indexed once, and only under the syntax profile.
+	// Ruby autoload-convention constants (NGI-V0-016 to NGI-V0-021, NGI-V0-033
+	// to NGI-V0-039) are indexed once, under the syntax profile a Ruby path selects.
 	var rubyConstants *rubyAutoload
 	typeOnlyKinds := make(map[string]map[string]bool)
 	for _, changedPath := range cleaned {
@@ -361,11 +361,11 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	}
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
-		var rubyReport map[string]any
-		if rubyConstants != nil {
-			rubyReport = rubyConstants.report()
-		}
-		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns, rubyReport)
+		// The Ruby reading (nil when no Ruby path was requested) supplies the
+		// ruby_autoload block and withholds reverse-import-rule-unavailable
+		// from each path it maps (NGI-V0-019, NGI-V0-036): the convention
+		// resolves those paths' reverse references.
+		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns, rubyConstants)
 	}
 	return result, disclosures, err
 }

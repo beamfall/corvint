@@ -1168,7 +1168,7 @@ Arguments:
 Language capabilities (syntax evidence, never complete runtime impact):
   Go          .go                         path/range; package imports (path).
   Ruby        .rb                         path/range; markers; imports unknown;
-                                          autoload constant references (path, profile).
+                                          advisory autoload constant references, two hops.
   JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
   TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
@@ -1176,7 +1176,8 @@ Language capabilities (syntax evidence, never complete runtime impact):
 
 Path receipts over MIXED roots warn with the bound commit and dirty count when
 requested paths are not all dirty. Mutable content remains excluded. Select
---language-profile non-go-syntax-v0 for versioned structured non-Go unknowns.
+--language-profile non-go-syntax-v0 for versioned structured non-Go unknowns;
+a request naming a Ruby path selects it by default.
 Non-Go range receipts and MCP paths name that experimental profile automatically.
 The path selector cannot be combined with --base or --working-tree-untracked.
 Other indexed suffixes keep positional evidence and missing-rule uncertainty.
