@@ -6,6 +6,8 @@ package sharedpath
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -67,7 +69,13 @@ type Config struct {
 	// SessionMarkers are checkout-relative paths whose presence means an agent
 	// session is live in this checkout.
 	SessionMarkers []string `json:"sessionMarkers"`
+	// digest is the SHA-256 of the loaded file bytes (SPC-V0-011).
+	digest string
 }
+
+// Digest is "sha256:" and the hexadecimal SHA-256 of the configuration file
+// bytes LoadConfig read, or empty for a configuration built in code.
+func (c Config) Digest() string { return c.digest }
 
 // LoadConfig reads and validates a bounded, closed configuration file.
 func LoadConfig(file string) (Config, error) {
@@ -93,6 +101,8 @@ func LoadConfig(file string) (Config, error) {
 			return Config{}, errors.New(CodeConfigUnavailable)
 		}
 	}
+	sum := sha256.Sum256(raw)
+	c.digest = "sha256:" + hex.EncodeToString(sum[:])
 	return c, nil
 }
 

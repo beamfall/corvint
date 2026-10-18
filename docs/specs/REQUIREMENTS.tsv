@@ -3489,6 +3489,10 @@ SPC-V0-005	docs/specs/shared-path-change-policy-v0.md	68	(accepted under the own
 SPC-V0-006	docs/specs/shared-path-change-policy-v0.md	75	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) An appli	standing	2026-10-11; V1-1591
 SPC-V0-007	docs/specs/shared-path-change-policy-v0.md	79	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) `--apply	standing	2026-10-11; V1-1591
 SPC-V0-008	docs/specs/shared-path-change-policy-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Both	standing	2026-10-11; V1-1591
+SPC-V0-009	docs/specs/shared-path-change-policy-v0.md	89	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710)	standing	2026-10-11; V1-1710
+SPC-V0-010	docs/specs/shared-path-change-policy-v0.md	104	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The	standing	2026-10-11; V1-1710
+SPC-V0-011	docs/specs/shared-path-change-policy-v0.md	109	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The JSON	standing	2026-10-11; V1-1710
+SPC-V0-012	docs/specs/shared-path-change-policy-v0.md	114	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With	standing	2026-10-11; V1-1710
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	89	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	93	accepted, decision 0506. The generator MUST recognise a requirement id as a toke	unrecorded	-
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	98	accepted, decision 0506. The generator MUST classify each occurrence of an id in	unrecorded	-

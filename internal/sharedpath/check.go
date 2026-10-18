@@ -158,42 +158,12 @@ func Check(ctx context.Context, request CheckRequest) (Report, error) {
 
 // mergeProbe reports conflicts of merging head into base; conflicts
 // confined to configured generated files are recorded as exempt, not findings.
-// The objects merge-tree writes go to a private object directory that reads
-// the repository's objects as an alternate and is removed afterwards, so the
-// repository's object store is never written (AGENTS.md invariant 4).
 func mergeProbe(g git, c Config, base, head string, r *Report) error {
-	objects, err := g.ok("rev-parse", "--path-format=absolute", "--git-path", "objects")
+	conflicts, err := mergeConflicts(g, base, head)
 	if err != nil {
 		return err
 	}
-	store := strings.TrimSuffix(string(objects), "\n")
-	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") {
-		return errors.New(CodeGitUnavailable)
-	}
-	scratch, err := os.MkdirTemp("", "corvint-shared-merge-")
-	if err != nil {
-		return errors.New(CodeGitUnavailable)
-	}
-	defer os.RemoveAll(scratch)
-	env := []string{"GIT_OBJECT_DIRECTORY=" + scratch, "GIT_ALTERNATE_OBJECT_DIRECTORIES=" + store}
-	out, code, err := g.run(nil, env, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", base, head)
-	if err != nil {
-		return err
-	}
-	if code == 0 {
-		return nil
-	}
-	if code != 1 {
-		return errors.New(CodeGitUnavailable)
-	}
-	fields := bytes.Split(out, []byte{0})
-	seen := map[string]bool{}
-	for _, f := range fields[1:] {
-		p := string(f)
-		if p == "" || seen[p] {
-			continue
-		}
-		seen[p] = true
+	for _, p := range conflicts {
 		if c.Class(p) == "generated" {
 			r.ExemptConflicts = append(r.ExemptConflicts, p)
 			continue
@@ -202,6 +172,49 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 	}
 	sort.Strings(r.ExemptConflicts)
 	return nil
+}
+
+// mergeConflicts returns the distinct conflicted paths of merging head into
+// base, in merge-tree order, or none for a clean merge. The objects merge-tree
+// writes go to a private object directory that reads the repository's objects
+// as an alternate and is removed afterwards, so the repository's object store
+// is never written (AGENTS.md invariant 4; SPC-V0-003, SPC-V0-010).
+func mergeConflicts(g git, base, head string) ([]string, error) {
+	objects, err := g.ok("rev-parse", "--path-format=absolute", "--git-path", "objects")
+	if err != nil {
+		return nil, err
+	}
+	store := strings.TrimSuffix(string(objects), "\n")
+	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") {
+		return nil, errors.New(CodeGitUnavailable)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-shared-merge-")
+	if err != nil {
+		return nil, errors.New(CodeGitUnavailable)
+	}
+	defer os.RemoveAll(scratch)
+	env := []string{"GIT_OBJECT_DIRECTORY=" + scratch, "GIT_ALTERNATE_OBJECT_DIRECTORIES=" + store}
+	out, code, err := g.run(nil, env, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", base, head)
+	if err != nil {
+		return nil, err
+	}
+	if code == 0 {
+		return nil, nil
+	}
+	if code != 1 {
+		return nil, errors.New(CodeGitUnavailable)
+	}
+	var conflicts []string
+	seen := map[string]bool{}
+	for _, f := range bytes.Split(out, []byte{0})[1:] {
+		p := string(f)
+		if p == "" || seen[p] {
+			continue
+		}
+		seen[p] = true
+		conflicts = append(conflicts, p)
+	}
+	return conflicts, nil
 }
 
 func readNotes(file string) ([]byte, error) {
