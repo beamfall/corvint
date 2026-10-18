@@ -187,8 +187,9 @@ func TestTOLV0025_PreflightCleanTicketPasses(t *testing.T) {
 }
 
 // TestTOLV0026_PreflightPlanCheck: --plan reads the plan document at the
-// commit and adds its TOL-V0-020 findings; a plan path absent at the commit
-// is a PLAN_MISSING finding.
+// commit and adds its TOL-V0-020 findings (the unplanned non-core AC-5 is
+// not one, TOL-V0-057); a plan path absent at the commit is a PLAN_MISSING
+// finding.
 func TestTOLV0026_PreflightPlanCheck(t *testing.T) {
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	fixture.Write(t, filepath.Join(r.Root, "e2e", "plan.json"), []byte(`{"profile":"taskman-obligation-plan/0","ticketId":"`+id+
@@ -199,7 +200,7 @@ func TestTOLV0026_PreflightPlanCheck(t *testing.T) {
 	if x.res.Outcome == wire.OutcomeOK || len(x.res.Items) != 1 {
 		t.Fatalf("plan findings: %s", x.stdout)
 	}
-	if got := findingList(t, x.res.Items[0]); got != "SPLIT:AC-1:e2e/plan.json:,UNASSIGNED:AC-5:e2e/plan.json:" {
+	if got := findingList(t, x.res.Items[0]); got != "SPLIT:AC-1:e2e/plan.json:" {
 		t.Fatalf("plan findings %q", got)
 	}
 	y := atm(t, r.Root, nil, "preflight", id, "--plan", "e2e/absent.json")
