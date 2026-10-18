@@ -8,10 +8,10 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// The RSpec reader behind MEMOIZED-BLOCK-EXPECTATION (TSA-V0-048..050). It is not a Ruby parser:
-// it reads logical lines (rubyLines) for example-group nesting, the subject/let/let!/before
-// declarations of each group and the block expectations of each example, and abstains on
-// anything it cannot balance.
+// The RSpec reader behind MEMOIZED-BLOCK-EXPECTATION (TSA-V0-048..050) and BLOCK-NOT-CALLED
+// (TSA-V0-053..056). It is not a Ruby parser: it reads logical lines (rubyLines) for example-group
+// nesting, the subject/let/let!/before declarations and the `def` helpers of each group and the
+// block expectations of each example, and abstains on anything it cannot balance.
 
 // maxRSpecDepth bounds group and block nesting.
 const maxRSpecDepth = 64
@@ -71,13 +71,15 @@ type rspecReader struct {
 	lines    []rubyLine
 	groups   []rspecGroup
 	examples []rspecExample
+	helpers  []rspecHelper
 }
 
-// rspecMemoizedBlockExpectations reports every `expect { NAME }` block expectation whose NAME is
-// the subject or a let that a memoizing hook of the example's own or an enclosing group already
-// invoked (TSA-V0-048, TSA-V0-049). It abstains, with no findings, when the file's blocks do not
-// balance or nest too deeply (TSA-V0-050).
-func rspecMemoizedBlockExpectations(name, text string) ValidityReport {
+// rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a
+// let that a memoizing hook of the example's own or an enclosing group already invoked
+// (TSA-V0-048, TSA-V0-049), then every BLOCK-NOT-CALLED helper and the examples that call it
+// (TSA-V0-053..055). It abstains, with no findings, when the file's blocks do not balance or nest
+// too deeply (TSA-V0-050).
+func rspecValidity(name, text string) ValidityReport {
 	report := ValidityReport{Findings: []testvalidity.SourceFinding{}}
 	r := &rspecReader{lines: rubyLines(text), groups: []rspecGroup{{parent: -1, decls: map[string]string{}}}}
 	if reason := r.read(); reason != "" {
@@ -103,6 +105,7 @@ func rspecMemoizedBlockExpectations(name, text string) ValidityReport {
 			})
 		}
 	}
+	report.Findings = append(report.Findings, r.blockNotCalled(name)...)
 	return report
 }
 
@@ -181,9 +184,14 @@ func (r *rspecReader) read() string {
 			}
 			i = end
 		case rspecSkippedLine.MatchString(text):
-			_, end, ok := r.block(i)
+			body, end, ok := r.block(i)
 			if !ok {
 				return r.blockFailure()
+			}
+			// A def directly in an example group or at file level is a helper an example can call;
+			// one inside a class, module or other block is not read (TSA-V0-053).
+			if strings.HasPrefix(text, "def") && (len(stack) == 0 || stack[len(stack)-1].group >= 0) {
+				r.helpers = append(r.helpers, rspecHelper{group: group, body: body})
 			}
 			i = end
 		case rubyOpens(text):
