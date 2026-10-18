@@ -82,6 +82,7 @@
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-release-gate": [],
     "cmd/corvint-test": [
+      ".github/cishards/",
       "cmd/",
       "go.mod",
       "go.sum",
