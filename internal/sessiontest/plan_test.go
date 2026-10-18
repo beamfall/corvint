@@ -268,7 +268,9 @@ func TestSTRV0007UniversePlacementEqualsCIPlan(t *testing.T) {
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("total %d: placement differs\ngot  %v\nwant %v", total, got, want)
 		}
-		if total >= 2 && !strings.Contains(strings.Join(got, "\n"), "/internal/tasks/store 1/") {
+		// The committed store split has five slices (AFP-V0-060); a split
+		// package with more slices than shards runs whole (AFP-V0-041).
+		if total >= 5 && !strings.Contains(strings.Join(got, "\n"), "/internal/tasks/store 1/") {
 			t.Fatalf("total %d: the split package has no slices: %v", total, got)
 		}
 		if m.PartitionDigest != PartitionDigest(files) {

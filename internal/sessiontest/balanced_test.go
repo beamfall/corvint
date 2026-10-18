@@ -2,6 +2,7 @@ package sessiontest
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -68,6 +69,20 @@ func unitKeys(t *testing.T, m Manifest, total int) []string {
 func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
 	files, universe := repositoryPartition(t)
 	const split = "github.com/Beamfall/corvint/internal/tasks/store"
+	// count is the committed slice count of the split package; with fewer
+	// shards than slices it runs whole (AFP-V0-041).
+	var sliceFile struct {
+		Packages map[string]struct {
+			Named []json.RawMessage `json:"named"`
+		} `json:"packages"`
+	}
+	if err := json.Unmarshal(files.Slices, &sliceFile); err != nil {
+		t.Fatal(err)
+	}
+	count := len(sliceFile.Packages[split].Named) + 1
+	if count < 2 {
+		t.Fatalf("the committed slice file does not split %s", split)
+	}
 	runSets := map[string][]string{"one package": {universe[0]}, "split package only": {split}}
 	thirds, all := []string{}, append([]string{}, universe...)
 	for index, pkg := range universe {
@@ -102,7 +117,8 @@ func TestSTRV0008BalancedPlacesEveryUnitOnce(t *testing.T) {
 					slices++
 				}
 			}
-			if containsString(run, split) && total >= 2 && (slices != 2 || !containsString(got, "go:"+split+" 1/2")) {
+			catchAll := fmt.Sprintf("go:%s %d/%d", split, count-1, count)
+			if containsString(run, split) && total >= count && (slices != count || !containsString(got, catchAll)) {
 				t.Fatalf("%s, %d shards: the split package's slices, catch-all included, are missing: %v", name, total, got)
 			}
 			used := map[int]bool{}

@@ -87,6 +87,7 @@ AFP-V0-050	docs/specs/affected-plan-v0.md	1351	(accepted under the owner's stand
 AFP-V0-051	docs/specs/affected-plan-v0.md	1400	(accepted under the owner's standing auto-accept (2026-10-11); V1-1351) A local	standing	2026-10-11; V1-1351
 AFP-V0-052	docs/specs/affected-plan-v0.md	1431	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
 AFP-V0-053	docs/specs/affected-plan-v0.md	1459	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
+AFP-V0-060	docs/specs/affected-plan-v0.md	1483	(accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016	owner	2026-10-18
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data	unrecorded	-
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/	unrecorded	-
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and	unrecorded	-
