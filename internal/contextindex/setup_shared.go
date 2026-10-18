@@ -15,6 +15,9 @@ import (
 const (
 	// maxSharedReexport bounds the `export ... from` chain followed to an exported constant.
 	maxSharedReexport = 8
+	// maxSharedSteps bounds the export-table lookups of one resolution, so an `export *` graph
+	// with cycles, whose partial results are not cached, stays linear in the bound.
+	maxSharedSteps = 4096
 	// maxSharedTemplateDepth bounds template substitutions nested inside substitutions.
 	maxSharedTemplateDepth = 8
 	// sharedDefaultObject is the local name recorded for `export default { ... }`.
@@ -22,7 +25,8 @@ const (
 )
 
 // sharedConst identifies one exported constant object by the module that declares it and its
-// local name there, so every import or re-export path to the same object compares equal.
+// local name there, so every import or re-export path to the same object compares equal. A
+// module namespace is {module, "*"}.
 type sharedConst struct{ module, local string }
 
 // sharedUse is what one file reads of one shared constant: its literal property keys, and the
@@ -33,15 +37,17 @@ type sharedUse struct {
 	open int
 }
 
-// sharedSite is one non-literal read of a shared constant in a reached file.
+// sharedSite is one read of a shared constant the selector cannot reduce to literal keys.
 type sharedSite struct {
 	path  string
 	line  int
 	name  string
 	value sharedConst
-	// namespace marks a namespace import used other than as `ns.NAME`: any constant it exports may
-	// be read, so it is matched against every constant a setup file reads.
-	namespace bool
+	// any marks a read the selector cannot attribute to one constant: a namespace or module used
+	// as a value, a resolution a bound stopped, or a template nested past the bound. It is matched
+	// against every setup file that reads any shared constant (TSA-V0-007).
+	any    bool
+	detail string
 }
 
 // moduleExports is the export table of one module.
@@ -53,18 +59,40 @@ type moduleExports struct {
 	// from maps an exported name to the module and name an `export ... from` forwards.
 	from  map[string]registryBinding
 	stars []string
+	// truncated is the line of the first template substitution nested past maxSharedTemplateDepth.
+	truncated int
 }
+
+type sharedKind int
+
+const (
+	// sharedNone: the name is not an exported object constant.
+	sharedNone sharedKind = iota
+	// sharedFound: value names the constant object.
+	sharedFound
+	// sharedNamespace: value.module is a module namespace (`export * as NS from`).
+	sharedNamespace
+	// sharedUnknown: a bound, an unreadable module or an unresolved specifier stopped the resolution.
+	sharedUnknown
+)
 
 type sharedResolution struct {
 	value sharedConst
-	ok    bool
+	kind  sharedKind
+	why   string
 }
 
 // sharedState is the selector's shared-constant bookkeeping.
 type sharedState struct {
-	exports    map[string]*moduleExports
-	resolved   map[[2]string]sharedResolution
-	setupUses  map[string]map[sharedConst]*sharedUse
+	exports map[string]*moduleExports
+	// resolved caches only path-independent resolutions: never one a cycle marker or the hop or
+	// step bound shaped.
+	resolved  map[[2]string]sharedResolution
+	active    map[[2]string]bool
+	steps     int
+	setupUses map[string]map[sharedConst]*sharedUse
+	// setupOpen keeps, per setup file, the reads it cannot attribute to one constant.
+	setupOpen  map[string][]sharedSite
 	unreadable []string
 	reached    map[sharedConst]*sharedUse
 	sites      []sharedSite
@@ -72,15 +100,18 @@ type sharedState struct {
 
 func newSharedState() *sharedState {
 	return &sharedState{exports: map[string]*moduleExports{}, resolved: map[[2]string]sharedResolution{},
-		setupUses: map[string]map[sharedConst]*sharedUse{}, reached: map[sharedConst]*sharedUse{}}
+		active: map[[2]string]bool{}, setupUses: map[string]map[sharedConst]*sharedUse{},
+		setupOpen: map[string][]sharedSite{}, reached: map[sharedConst]*sharedUse{}}
 }
 
 // sharedTokens lexes text like registryTokens and also lexes the `${...}` substitutions of every
 // template literal, which the web lexer folds into one opaque string token, so a property read
-// inside a template is still seen. Each substitution is wrapped in parentheses.
-func sharedTokens(text string, depth int) ([]registryToken, bool) {
+// inside a template is still seen. Each substitution is wrapped in parentheses. truncated is the
+// line of the first substitution nested past maxSharedTemplateDepth, which is not lexed, and zero
+// when there is none.
+func sharedTokens(text string, depth int) (tokens []registryToken, complete bool, truncated int) {
 	lexer := &webLexer{text: text}
-	tokens := make([]registryToken, 0)
+	tokens = make([]registryToken, 0)
 	line, counted := 1, 0
 	for {
 		before := lexer.position
@@ -94,13 +125,23 @@ func sharedTokens(text string, depth int) ([]registryToken, bool) {
 			counted = end - 1
 		}
 		tokens = append(tokens, registryToken{token, line})
-		if token.kind != webString || token.quoted || token.template || end == 0 || text[end-1] != '`' || depth >= maxSharedTemplateDepth {
+		if token.kind != webString || token.quoted || token.template || end == 0 || text[end-1] != '`' {
 			continue
 		}
 		start := sharedTokenStart(text, before)
 		first := line - strings.Count(text[start:end], "\n")
-		for _, body := range templateSubstitutions(text[start:end]) {
-			inner, _ := sharedTokens(body, depth+1)
+		bodies := templateSubstitutions(text[start:end])
+		if depth >= maxSharedTemplateDepth {
+			if len(bodies) != 0 && truncated == 0 {
+				truncated = first
+			}
+			continue
+		}
+		for _, body := range bodies {
+			inner, _, innerTruncated := sharedTokens(body, depth+1)
+			if innerTruncated != 0 && truncated == 0 {
+				truncated = innerTruncated + first - 1
+			}
 			tokens = append(tokens, registryToken{webToken{kind: webPunct, text: "("}, first})
 			for _, token := range inner {
 				token.line += first - 1
@@ -109,7 +150,7 @@ func sharedTokens(text string, depth int) ([]registryToken, bool) {
 			tokens = append(tokens, registryToken{webToken{kind: webPunct, text: ")"}, first})
 		}
 	}
-	return tokens, lexer.unterminated == ""
+	return tokens, lexer.unterminated == "", truncated
 }
 
 // sharedTokenStart skips the white space and comments the lexer skipped before a token.
@@ -183,8 +224,9 @@ func (s *setupSelector) exportsOf(module string) (*moduleExports, bool) {
 		s.shared.exports[module] = nil
 		return nil, false
 	}
-	tokens, _ := sharedTokens(text, 0)
-	table := &moduleExports{tokens: tokens, bindings: registryImports(tokens), local: map[string]string{}, from: map[string]registryBinding{}}
+	tokens, _, truncated := sharedTokens(text, 0)
+	table := &moduleExports{tokens: tokens, bindings: registryImports(tokens), local: map[string]string{},
+		from: map[string]registryBinding{}, truncated: truncated}
 	for at := 0; at+1 < len(tokens); at++ {
 		if !isRegistryWord(tokens[at], "export") || registryMember(tokens, at) {
 			continue
@@ -271,57 +313,120 @@ func constObject(tokens []registryToken, local string) bool {
 	return false
 }
 
-// resolveConst follows name exported by module, through `export ... from`, `export *` and local
-// re-exports of imports, to the constant object that declares it. It reports false for anything
-// that is not an exported object literal, and for a chain beyond maxSharedReexport.
-func (s *setupSelector) resolveConst(module, name string, depth int) (sharedConst, bool) {
-	key := [2]string{module, name}
-	if result, ok := s.shared.resolved[key]; ok {
-		return result.value, result.ok
-	}
-	s.shared.resolved[key] = sharedResolution{}
-	result := sharedResolution{}
-	if table, ok := s.exportsOf(module); ok && depth <= maxSharedReexport {
-		forward := func(specifier, imported string) {
-			if imported == "*" || result.ok {
-				return
-			}
-			if resolution := s.resolver.Resolve(module, specifier); resolution.State == WebImportRepository {
-				result.value, result.ok = s.resolveConst(resolution.Target, imported, depth+1)
-			}
-		}
-		if local, exported := table.local[name]; exported {
-			switch binding, imported := table.bindings[local]; {
-			case local == sharedDefaultObject:
-				result = sharedResolution{sharedConst{module, local}, true}
-			case imported:
-				forward(binding.specifier, binding.imported)
-			case constObject(table.tokens, local):
-				result = sharedResolution{sharedConst{module, local}, true}
-			}
-		} else if binding, ok := table.from[name]; ok {
-			forward(binding.specifier, binding.imported)
-		} else if name != "default" {
-			for _, specifier := range table.stars {
-				forward(specifier, name)
-			}
-		}
-	}
-	s.shared.resolved[key] = result
-	return result.value, result.ok
+// resolveConst follows name exported by module, through `export ... from`, `export *`,
+// `export * as` and local re-exports of imports, to the constant object that declares it or to a
+// module namespace. A chain beyond maxSharedReexport hops, more than maxSharedSteps lookups, an
+// unreadable module or an unresolved specifier is sharedUnknown, never sharedNone (TSA-V0-007).
+func (s *setupSelector) resolveConst(module, name string) sharedResolution {
+	s.shared.steps = 0
+	result, _ := s.resolveExport(module, name, 0)
+	return result
 }
 
-// sharedUses reads every property access of an imported shared constant in one file.
-func (s *setupSelector) sharedUses(name string, tokens []registryToken) (map[sharedConst]*sharedUse, []sharedSite) {
-	uses, sites := map[sharedConst]*sharedUse{}, []sharedSite{}
-	type target struct {
-		module, imported string
+// resolveExport is one step of resolveConst. exact is false when the result depends on the path
+// that reached it (a module already being resolved, or the hop or step bound), so it is not cached.
+func (s *setupSelector) resolveExport(module, name string, depth int) (sharedResolution, bool) {
+	key := [2]string{module, name}
+	if result, ok := s.shared.resolved[key]; ok {
+		return result, true
 	}
-	locals := map[string]target{}
-	for local, binding := range registryImports(tokens) {
-		if resolution := s.resolver.Resolve(name, binding.specifier); resolution.State == WebImportRepository {
-			locals[local] = target{resolution.Target, binding.imported}
+	if s.shared.active[key] {
+		// An `export *` cycle: no binding along this path, which says nothing about other paths.
+		return sharedResolution{}, false
+	}
+	if depth > maxSharedReexport {
+		return sharedResolution{kind: sharedUnknown, why: "a re-export chain longer than the bound of 8 hops"}, false
+	}
+	if s.shared.steps++; s.shared.steps > maxSharedSteps {
+		return sharedResolution{kind: sharedUnknown, why: "a re-export graph larger than the bound of 4096 lookups"}, false
+	}
+	table, ok := s.exportsOf(module)
+	if !ok {
+		result := sharedResolution{kind: sharedUnknown, why: "a re-export through " + module + ", which cannot be read"}
+		s.shared.resolved[key] = result
+		return result, true
+	}
+	s.shared.active[key] = true
+	defer delete(s.shared.active, key)
+	result, exact := sharedResolution{}, true
+	forward := func(specifier, imported string) {
+		if result.kind == sharedFound || result.kind == sharedNamespace {
+			return
 		}
+		resolution := s.resolver.Resolve(module, specifier)
+		var next sharedResolution
+		switch {
+		case resolution.State == WebImportUnresolved:
+			next = sharedResolution{kind: sharedUnknown, why: "a re-export of " + specifier + ", which does not resolve"}
+		case resolution.State != WebImportRepository:
+			return
+		case imported == "*":
+			next = sharedResolution{value: sharedConst{resolution.Target, "*"}, kind: sharedNamespace}
+		default:
+			var nextExact bool
+			next, nextExact = s.resolveExport(resolution.Target, imported, depth+1)
+			exact = exact && nextExact
+		}
+		if next.kind != sharedNone {
+			result = next
+		}
+	}
+	if local, exported := table.local[name]; exported {
+		switch binding, imported := table.bindings[local]; {
+		case local == sharedDefaultObject:
+			result = sharedResolution{value: sharedConst{module, local}, kind: sharedFound}
+		case imported:
+			forward(binding.specifier, binding.imported)
+		case constObject(table.tokens, local):
+			result = sharedResolution{value: sharedConst{module, local}, kind: sharedFound}
+		}
+	} else if binding, ok := table.from[name]; ok {
+		forward(binding.specifier, binding.imported)
+	} else if name != "default" {
+		for _, specifier := range table.stars {
+			forward(specifier, name)
+		}
+	}
+	if exact {
+		s.shared.resolved[key] = result
+	}
+	return result, exact
+}
+
+// sharedUses reads every property access of a shared constant in one file: of an imported
+// constant, of a namespace member, of `require("m").NAME` or `import("m").NAME`, and of an object
+// constant the file itself exports (TSA-V0-006). Reads it cannot reduce to literal keys are
+// returned as sites; a site marked any cannot even be attributed to one constant.
+func (s *setupSelector) sharedUses(name string, table *moduleExports) (map[sharedConst]*sharedUse, []sharedSite) {
+	tokens := table.tokens
+	uses, sites := map[sharedConst]*sharedUse{}, []sharedSite{}
+	locals := map[string]sharedResolution{}
+	for _, local := range table.local {
+		if _, imported := table.bindings[local]; !imported && local != sharedDefaultObject && constObject(tokens, local) {
+			locals[local] = sharedResolution{value: sharedConst{name, local}, kind: sharedFound}
+		}
+	}
+	// binding resolves one imported local name once per file.
+	binding := func(local string) (sharedResolution, bool) {
+		if result, ok := locals[local]; ok {
+			return result, true
+		}
+		imported, ok := table.bindings[local]
+		if !ok {
+			return sharedResolution{}, false
+		}
+		result := sharedResolution{}
+		switch resolution := s.resolver.Resolve(name, imported.specifier); {
+		case resolution.State == WebImportUnresolved:
+			result = sharedResolution{kind: sharedUnknown, why: "an import of " + imported.specifier + ", which does not resolve"}
+		case resolution.State != WebImportRepository:
+		case imported.imported == "*":
+			result = sharedResolution{value: sharedConst{resolution.Target, "*"}, kind: sharedNamespace}
+		default:
+			result = s.resolveConst(resolution.Target, imported.imported)
+		}
+		locals[local] = result
+		return result, true
 	}
 	record := func(value sharedConst, at int, label string) {
 		use := uses[value]
@@ -337,30 +442,107 @@ func (s *setupSelector) sharedUses(name string, tokens []registryToken) (map[sha
 			if use.open == 0 {
 				use.open = tokens[at].line
 			}
-			sites = append(sites, sharedSite{path: name, line: tokens[at].line, name: label, value: value})
+			sites = append(sites, sharedSite{path: name, line: tokens[at].line, name: label, value: value,
+				detail: "a non-literal read of " + label})
 		}
+	}
+	// reference follows `.NAME` members while the value is a namespace, then records the read.
+	reference := func(result sharedResolution, at, end int, label string) {
+		for result.kind == sharedNamespace && end+2 < len(tokens) && isRegistryPunct(tokens[end+1], ".") && tokens[end+2].kind == webWord {
+			end += 2
+			label += "." + tokens[end].text
+			result = s.resolveConst(result.value.module, tokens[end].text)
+		}
+		switch result.kind {
+		case sharedFound:
+			record(result.value, end, label)
+		case sharedNamespace:
+			sites = append(sites, sharedSite{path: name, line: tokens[at].line, name: label, any: true,
+				detail: "namespace " + label + " used other than as NAMESPACE.EXPORT"})
+		case sharedUnknown:
+			sites = append(sites, sharedSite{path: name, line: tokens[at].line, name: label, any: true,
+				detail: label + " is " + result.why})
+		}
+	}
+	if table.truncated != 0 {
+		sites = append(sites, sharedSite{path: name, line: table.truncated, any: true,
+			detail: "template substitutions nested deeper than the bound of 8 are not read"})
 	}
 	for at, token := range tokens {
-		bound, imported := locals[token.text]
-		if token.kind != webWord || !imported || registryMember(tokens, at) || sharedNonRead(tokens, at) {
+		if token.kind != webWord || registryMember(tokens, at) {
 			continue
 		}
-		if bound.imported != "*" {
-			if value, ok := s.resolveConst(bound.module, bound.imported, 0); ok {
-				record(value, at, token.text)
+		if (token.text == "require" || token.text == "import") && at+3 < len(tokens) && isRegistryPunct(tokens[at+1], "(") &&
+			tokens[at+2].kind == webString && tokens[at+2].quoted && isRegistryPunct(tokens[at+3], ")") {
+			if at > 0 && isRegistryWord(tokens[at-1], "typeof") {
+				continue
+			}
+			label := token.text + "(" + tokens[at+2].text + ")"
+			switch resolution := s.resolver.Resolve(name, tokens[at+2].text); resolution.State {
+			case WebImportRepository:
+				reference(sharedResolution{value: sharedConst{resolution.Target, "*"}, kind: sharedNamespace}, at, at+3, label)
+			case WebImportUnresolved:
+				reference(sharedResolution{kind: sharedUnknown, why: "a module that does not resolve"}, at, at+3, label)
 			}
 			continue
 		}
-		// A namespace import: `ns.NAME` names one export; any other use may read every export.
-		if at+2 < len(tokens) && isRegistryPunct(tokens[at+1], ".") && tokens[at+2].kind == webWord {
-			if value, ok := s.resolveConst(bound.module, tokens[at+2].text, 0); ok {
-				record(value, at+2, token.text+"."+tokens[at+2].text)
-			}
+		if sharedNonRead(tokens, at) || sharedDeclaration(tokens, at) {
 			continue
 		}
-		sites = append(sites, sharedSite{path: name, line: token.line, name: token.text, namespace: true})
+		if result, bound := binding(token.text); bound {
+			reference(result, at, at, token.text)
+		}
 	}
 	return uses, sites
+}
+
+// sharedDeclaration reports a mention that declares a new binding rather than reading one:
+// `const|let|var|function|class NAME`, an arrow parameter `NAME =>`, or a simple parameter of a
+// `function`, arrow or `catch` parameter list. A body that reads the shadowing binding is still
+// attributed to the imported constant, which can only over-select; a shadowing form not listed
+// here (a destructured or method parameter) reads as a whole-object use and fails closed.
+func sharedDeclaration(tokens []registryToken, at int) bool {
+	if at > 0 {
+		for _, keyword := range []string{"const", "let", "var", "function", "class"} {
+			if isRegistryWord(tokens[at-1], keyword) {
+				return true
+			}
+		}
+	}
+	if at+2 < len(tokens) && isRegistryPunct(tokens[at+1], "=") && isRegistryPunct(tokens[at+2], ">") {
+		return true
+	}
+	if at == 0 || at+1 >= len(tokens) || !(isRegistryPunct(tokens[at-1], "(") || isRegistryPunct(tokens[at-1], ",")) {
+		return false
+	}
+	if after := tokens[at+1]; after.kind != webPunct || !(after.text == "," || after.text == ")" || after.text == ":" || after.text == "=" || after.text == "?") {
+		return false
+	}
+	open, depth := -1, 0
+	for before := at - 1; before >= 0 && open < 0; before-- {
+		switch token := tokens[before]; {
+		case token.kind != webPunct:
+		case strings.Contains(")]}", token.text):
+			depth++
+		case strings.Contains("([{", token.text):
+			if depth == 0 {
+				if token.text != "(" {
+					return false
+				}
+				open = before
+			}
+			depth--
+		}
+	}
+	if open < 0 {
+		return false
+	}
+	if open > 0 && (isRegistryWord(tokens[open-1], "function") || isRegistryWord(tokens[open-1], "catch") ||
+		(open > 1 && tokens[open-1].kind == webWord && isRegistryWord(tokens[open-2], "function"))) {
+		return true
+	}
+	close := registryClose(tokens, open)
+	return close+2 < len(tokens) && isRegistryPunct(tokens[close+1], "=") && isRegistryPunct(tokens[close+2], ">")
 }
 
 // sharedNonRead reports a mention that reads no property: inside an import or `export { ... }`
@@ -449,23 +631,30 @@ func (s *setupSelector) readSetupShared() {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		text, ok := s.text(name)
+		table, ok := s.exportsOf(name)
 		if !ok {
 			s.shared.unreadable = append(s.shared.unreadable, name)
 			continue
 		}
-		tokens, _ := sharedTokens(text, 0)
-		uses, _ := s.sharedUses(name, tokens)
+		uses, sites := s.sharedUses(name, table)
 		if len(uses) != 0 {
 			s.shared.setupUses[name] = uses
+		}
+		for _, site := range sites {
+			if site.any {
+				s.shared.setupOpen[name] = append(s.shared.setupOpen[name], site)
+			}
 		}
 	}
 }
 
 // collectShared adds a reached file's shared-constant reads to the closure's.
-func (s *setupSelector) collectShared(name, text string) {
-	tokens, _ := sharedTokens(text, 0)
-	uses, sites := s.sharedUses(name, tokens)
+func (s *setupSelector) collectShared(name string) {
+	table, ok := s.exportsOf(name)
+	if !ok {
+		return
+	}
+	uses, sites := s.sharedUses(name, table)
 	for value, use := range uses {
 		reached := s.shared.reached[value]
 		if reached == nil {
@@ -511,12 +700,24 @@ func (s *setupSelector) seedersOfSharedKeys() bool {
 	return enqueued
 }
 
-// sharedReasons fails closed once the closure is complete (TSA-V0-007): a reached non-literal read
-// of a constant that an unselected setup file also reads, or any shared-constant read while a setup
-// file cannot be read, returns ALL.
+// sharedReasons fails closed once the closure is complete (TSA-V0-007). While any shared-constant
+// read is reached, ALL is returned for: a reached non-literal read of a constant that an
+// unselected setup file also reads; a reached read the selector cannot attribute to one constant
+// while an unselected setup file reads any; an unselected setup file holding such a read itself;
+// and an unreadable setup file.
 func (s *setupSelector) sharedReasons() {
-	setups := make([]string, 0, len(s.shared.setupUses))
+	if len(s.shared.reached) == 0 && len(s.shared.sites) == 0 {
+		return
+	}
+	candidates := map[string]bool{}
 	for name := range s.shared.setupUses {
+		candidates[name] = true
+	}
+	for name := range s.shared.setupOpen {
+		candidates[name] = true
+	}
+	setups := make([]string, 0, len(candidates))
+	for name := range candidates {
 		if !s.visited[name] && !s.seeds[name] {
 			setups = append(setups, name)
 		}
@@ -525,19 +726,25 @@ func (s *setupSelector) sharedReasons() {
 	for _, site := range s.shared.sites {
 		for _, setup := range setups {
 			_, reads := s.shared.setupUses[setup][site.value]
-			if setup != site.path && (reads || site.namespace) {
-				detail := "a non-literal read of " + site.name + " that " + setup + " also reads"
-				if site.namespace {
-					detail = "namespace " + site.name + " used other than as NAMESPACE.EXPORT while " + setup + " reads a shared constant"
+			if site.any {
+				reads = len(s.shared.setupUses[setup]) != 0 || len(s.shared.setupOpen[setup]) != 0
+			}
+			if setup != site.path && reads {
+				detail := site.detail + " that " + setup + " also reads"
+				if site.any {
+					detail = site.detail + " while " + setup + " reads a shared constant"
 				}
 				s.reason("shared-constant-key-unresolved", site.path, site.line, detail)
 				break
 			}
 		}
 	}
-	if len(s.shared.reached) != 0 || len(s.shared.sites) != 0 {
-		for _, name := range s.shared.unreadable {
-			s.reason("source-unreadable", name, 0, "a setup file that may read a shared constant cannot be read")
+	for _, setup := range setups {
+		if open := s.shared.setupOpen[setup]; len(open) != 0 {
+			s.reason("shared-constant-key-unresolved", setup, open[0].line, "a setup file that is not selected reads a shared constant the selector cannot attribute: "+open[0].detail)
 		}
+	}
+	for _, name := range s.shared.unreadable {
+		s.reason("source-unreadable", name, 0, "a setup file that may read a shared constant cannot be read")
 	}
 }

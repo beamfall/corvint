@@ -3,6 +3,7 @@ package contextindex
 import (
 	"context"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -280,5 +281,124 @@ func TestSelectSetupSharedConstantExportForms(t *testing.T) {
 	}
 	if selection := SelectSetup(index, []string{"tests/computed.spec.ts"}); selection.Mode != "all" || !reflect.DeepEqual(reasonCodes(selection), []string{"shared-constant-key-unresolved"}) {
 		t.Errorf("computed default: mode=%s reasons=%+v", selection.Mode, selection.Reasons)
+	}
+}
+
+// sharedHops returns a chain lib/hopN.ts -> ... -> lib/hop8.ts -> lib/shared.ts of `export *` edges.
+func sharedHops(files map[string]string, first int) {
+	for hop := first; hop <= 8; hop++ {
+		next := "./hop" + strconv.Itoa(hop+1)
+		if hop == 8 {
+			next = "./shared"
+		}
+		files["lib/hop"+strconv.Itoa(hop)+".ts"] = "export * from '" + next + "';\n"
+	}
+}
+
+// sharedTemplate nests read in depth interpolated template literals.
+func sharedTemplate(read string, depth int) string {
+	for ; depth > 0; depth-- {
+		read = "`${" + read + "}`"
+	}
+	return read
+}
+
+// TestSelectSetupSharedConstantReviewForms proves the forms the PR #1096 review found failing
+// open now select the right setup file or return ALL (TSA-V0-006, TSA-V0-007): an
+// `export * as` namespace re-export, an `export *` cycle resolved after a cached traversal, a
+// chain of exactly 8 hops, reads inside the declaring module, `require("m").NAME`, literal
+// require() and import() bindings, templates nested past the bound, and shadowing parameters.
+func TestSelectSetupSharedConstantReviewForms(t *testing.T) {
+	setup := func(from, read string) string {
+		return "import { SHARED } from '" + from + "';\nexport default async () => db.insert(" + read + ");\n"
+	}
+	files := map[string]string{
+		"lib/shared.ts":        "export const SHARED = { scenario_a: 1, scenario_b: 2, scenario_c: 3, scenario_d: 4 };\n",
+		"lib/ns_barrel.ts":     "export * as data from './shared';\n",
+		"lib/cyc_a.ts":         "export * from './cyc_b';\nexport * from './shared';\n",
+		"lib/cyc_b.ts":         "export * from './cyc_a';\n",
+		"lib/self.ts":          "export const SELF = { one: 1, two: 2 };\nexport function context() { return SELF.one; }\n",
+		"setup/a.setup.ts":     setup("../lib/shared", "SHARED.scenario_a"),
+		"setup/b.setup.ts":     setup("../lib/shared", "SHARED['scenario_b']"),
+		"setup/c.setup.ts":     setup("../lib/cyc_a", "SHARED.scenario_c"),
+		"setup/h8.setup.ts":    setup("../lib/hop1", "SHARED.scenario_d"),
+		"setup/one.setup.ts":   "import { SELF } from '../lib/self';\nexport default () => SELF.one;\n",
+		"setup/two.setup.ts":   "import { SELF } from '../lib/self';\nexport default () => SELF.two;\n",
+		"tests/ns.spec.ts":     "import { data } from '../lib/ns_barrel';\ntest('n', () => data.SHARED.scenario_a);\n",
+		"tests/nested.spec.ts": "import * as all from '../lib/ns_barrel';\ntest('n', () => all.data.SHARED.scenario_b);\n",
+		"tests/cycle.spec.ts":  "import { SHARED } from '../lib/cyc_b';\ntest('c', () => SHARED.scenario_c);\n",
+		"tests/hops.spec.ts":   "import { SHARED } from '../lib/shared';\ntest('h', () => SHARED.scenario_d);\n",
+		"tests/self.spec.ts":   "import { context } from '../lib/self';\ntest('s', () => context());\n",
+		"tests/member.spec.ts": "test('m', () => require('../lib/shared').SHARED.scenario_a);\n",
+		"tests/require.spec.ts": "const { SHARED } = require('../lib/shared');\n" +
+			"test('r', () => SHARED.scenario_a);\n",
+		"tests/dynamic.spec.ts":   "test('d', async () => {\n  const { SHARED } = await import('../lib/shared');\n  return SHARED.scenario_a;\n});\n",
+		"tests/template8.spec.ts": "import { SHARED } from '../lib/shared';\ntest('t', () => " + sharedTemplate("SHARED.scenario_a", 8) + ");\n",
+		"tests/template9.spec.ts": "import { SHARED } from '../lib/shared';\ntest('t', () => " + sharedTemplate("SHARED.scenario_a", 9) + ");\n",
+		"tests/shadow.spec.ts": "import { SHARED } from '../lib/shared';\nfunction value(SHARED) { return SHARED.scenario_a; }\n" +
+			"const pick = (SHARED: Data) => SHARED.scenario_a;\nconst bare = SHARED => SHARED.scenario_a;\ntest('s', () => [value({}), pick({}), bare({})]);\n",
+	}
+	sharedHops(files, 1)
+	root := impactRepositoryWithFiles(t, files)
+	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := []string{"setup/a.setup.ts"}
+	for spec, want := range map[string][]string{
+		"tests/ns.spec.ts":        a,
+		"tests/nested.spec.ts":    {"setup/b.setup.ts"},
+		"tests/cycle.spec.ts":     {"setup/c.setup.ts"},
+		"tests/hops.spec.ts":      {"setup/h8.setup.ts"},
+		"tests/self.spec.ts":      {"setup/one.setup.ts"},
+		"tests/member.spec.ts":    a,
+		"tests/template8.spec.ts": a,
+		"tests/shadow.spec.ts":    a,
+	} {
+		if selection := SelectSetup(index, []string{spec}); selection.Mode != "selected" || !reflect.DeepEqual(selection.SetupFiles, want) || len(selection.Reasons) != 0 {
+			t.Errorf("%s: mode=%s files=%v reasons=%+v, want %v", spec, selection.Mode, selection.SetupFiles, selection.Reasons, want)
+		}
+	}
+	for spec, line := range map[string]int{"tests/require.spec.ts": 1, "tests/dynamic.spec.ts": 2, "tests/template9.spec.ts": 2} {
+		selection := SelectSetup(index, []string{spec})
+		if selection.Mode != "all" || len(selection.Reasons) != 1 || selection.Reasons[0].Code != "shared-constant-key-unresolved" ||
+			selection.Reasons[0].Path != spec || selection.Reasons[0].Line != line {
+			t.Errorf("%s: mode=%s reasons=%+v, want shared-constant-key-unresolved at line %d", spec, selection.Mode, selection.Reasons, line)
+		}
+	}
+}
+
+// TestSelectSetupSharedConstantOpenSetups proves a setup file whose shared-constant read the
+// selector cannot attribute to one constant (a namespace used as a value, a chain past the 8-hop
+// bound) returns ALL naming that setup whenever the closure reads a shared constant, and changes
+// nothing for a spec that reads none (TSA-V0-007). No other setup resolves SHARED first, so the
+// 9-hop chain meets the bound rather than a cached resolution.
+func TestSelectSetupSharedConstantOpenSetups(t *testing.T) {
+	files := map[string]string{
+		"lib/shared.ts":       "export const SHARED = { scenario_a: 1, scenario_b: 2 };\n",
+		"setup/far.setup.ts":  "import { SHARED } from '../lib/hop0';\nexport default async () => db.insert(SHARED.scenario_a);\n",
+		"setup/ns.setup.ts":   "import * as data from '../lib/shared';\nexport default async () => seedNamespace(data);\n",
+		"tests/x.spec.ts":     "import { SHARED } from '../lib/shared';\ntest('x', () => SHARED.scenario_a);\n",
+		"tests/plain.spec.ts": "test('plain', () => expect(1).toBe(1));\n",
+	}
+	sharedHops(files, 0)
+	root := impactRepositoryWithFiles(t, files)
+	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := SelectSetup(index, []string{"tests/x.spec.ts"})
+	paths := []string{}
+	for _, reason := range selection.Reasons {
+		if reason.Code != "shared-constant-key-unresolved" || reason.Line != 2 {
+			t.Errorf("reason %+v", reason)
+		}
+		paths = append(paths, reason.Path)
+	}
+	if selection.Mode != "all" || !reflect.DeepEqual(paths, []string{"setup/far.setup.ts", "setup/ns.setup.ts"}) {
+		t.Errorf("mode=%s reasons=%+v", selection.Mode, selection.Reasons)
+	}
+	if selection := SelectSetup(index, []string{"tests/plain.spec.ts"}); selection.Mode != "selected" || len(selection.SetupFiles) != 0 {
+		t.Errorf("plain: mode=%s files=%v reasons=%+v", selection.Mode, selection.SetupFiles, selection.Reasons)
 	}
 }

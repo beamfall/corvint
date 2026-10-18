@@ -231,16 +231,20 @@ func safeText(s string, limit int) string {
 	return s
 }
 
+// errCompileDeadline is the cancellation cause of Compile's own deadline.
+var errCompileDeadline = errors.New("changes-timeout")
+
 // Compile builds the checklist within compileDeadline. Reaching that deadline refuses with
 // TimeoutError rather than changes-git-unavailable, which stays reserved for Git that cannot run
 // or a repository that cannot be read; a caller's own cancellation keeps changes-git-unavailable
-// (UCL1142-V0-008).
+// (UCL1142-V0-008). The classification reads the cancellation cause, which the first cancellation
+// fixes, so a caller cancelling after the deadline fired cannot turn it into git-unavailable.
 func Compile(parent context.Context, req Request) (Report, error) {
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(parent, compileDeadline)
+	ctx, cancel := context.WithTimeoutCause(parent, compileDeadline, errCompileDeadline)
 	defer cancel()
 	r, err := compile(ctx, req)
-	if err != nil && err.Error() == "changes-git-unavailable" && parent.Err() == nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+	if err != nil && err.Error() == "changes-git-unavailable" && errors.Is(context.Cause(ctx), errCompileDeadline) {
 		return r, &TimeoutError{LimitMS: compileDeadline.Milliseconds(), ElapsedMS: time.Since(start).Milliseconds()}
 	}
 	return r, err

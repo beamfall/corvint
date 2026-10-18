@@ -85,6 +85,9 @@ the checkout or contacting a service. This is evidence to review, not permission
   A count that cannot be read or parsed refuses with `changes-git-unavailable`. Reaching the
   command's own 30-second total deadline refuses with `changes-timeout`, naming `limitMs` and
   `elapsedMs`; a caller's cancellation and every other Git failure keep `changes-git-unavailable`.
+  Whichever of the two fires first decides: a caller cancelling after the command's own deadline
+  fired, while Git is still being reaped, MUST still refuse with `changes-timeout` (amended
+  2026-10-18 after the PR #1096 review).
   Help lists both codes and says a wide range is checked hop by hop over narrower build pairs.
   Paging and a `--max-commits` override are non-goals.
 

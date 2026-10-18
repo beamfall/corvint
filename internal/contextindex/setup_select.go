@@ -265,7 +265,7 @@ func (s *setupSelector) visit(name string) {
 			s.lookup(site)
 		}
 	}
-	s.collectShared(name, text)
+	s.collectShared(name)
 }
 
 // lookup follows a registry accessor call by its literal key (TSA-V0-003).

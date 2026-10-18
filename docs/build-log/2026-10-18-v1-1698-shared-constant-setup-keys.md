@@ -30,3 +30,38 @@ surfacing through the Git reader as `changes-git-unavailable`. `Compile` now cou
 and refuses over 512 commits with `changes-range-too-large` (`limit`, `commits`), and its own
 deadline refuses with `changes-timeout` (`limitMs`, `elapsedMs`). A caller's cancellation and Git
 failures keep `changes-git-unavailable`. Paging and `--max-commits` were not built.
+
+## Review fix (PR #1096 Codex review, 2026-10-18)
+
+One Codex round reported seven P1 fail-open cases in `setup_shared.go`, one P2 false ALL and one
+P2 timeout misclassification. Each is fixed, each has a regression case that failed on the
+reviewed head `eca56102`, and `TSA-V0-006`, `TSA-V0-007` and `UCL1142-V0-008` were amended in place
+under the same standing auto-accept. The rule applied throughout: reaching an analysis bound or an
+unsupported form is never the same as "not a constant", so it returns ALL, never a silent
+`selected`.
+
+- `export * as NS from` re-exports, and nested `NS.INNER.NAME` members, now resolve to a module
+  namespace instead of being discarded.
+- Resolution is three-valued (constant, not a constant, unknown). A chain past 8 hops, past 4096
+  export-table lookups, or through an unreadable or unresolved module is unknown; an unknown read
+  in a reached file, or held by an unselected setup file, returns ALL with
+  `shared-constant-key-unresolved`.
+- The `export *` cycle marker and bound-shaped results are no longer cached; only path-independent
+  results are.
+- Literal `require("m")`/`import("m")` resolve when used as `.NAME`; any other use (destructuring,
+  assignment) fails closed. A setup file using a namespace as a value fails closed too.
+- A file's own exported object constants are read in that file.
+- A template whose `${}` substitutions nest deeper than 8 fails closed.
+- Shadowing: declarations (`const|let|var|function|class C`, `C =>`, simple `function`, arrow and
+  `catch` parameters) are no longer reads, so the reported false ALL is gone. There is no scope
+  analysis: reads through the shadowing binding still count as reads of the constant (safe
+  over-selection), and a destructured or method parameter still reads as a whole-object use
+  (conservative ALL). Both are documented in the spec's boundaries.
+- `Compile` now classifies `changes-timeout` by the context's cancellation cause
+  (`context.WithTimeoutCause`), which the first cancellation fixes, so a caller deadline expiring
+  while Git is still reaped after the command's own deadline no longer yields
+  `changes-git-unavailable`.
+
+Order dependence that remains: a resolution cached by an earlier, shorter path is reused by a
+longer chain that would itself exceed the hop bound. The cached result is a path-independent fact
+and traversal order is deterministic, so it only ever adds precision.

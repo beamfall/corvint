@@ -710,5 +710,23 @@ func TestCompileRangeBoundAndTimeout(t *testing.T) {
 		if !errors.As(err, &timeout) || err.Error() != "changes-timeout" || timeout.LimitMS != 500 || timeout.ElapsedMS < 500 || timeout.ElapsedMS > 20000 {
 			t.Fatalf("error=%v %+v", err, timeout)
 		}
+		// The caller's deadline expires after the command's own deadline fired but before Compile
+		// returns (the shim's sleep holds Git's pipes for the one-second WaitDelay): the deadline
+		// that fired first still classifies the refusal.
+		parent, cancel := context.WithTimeout(context.Background(), 750*time.Millisecond)
+		defer cancel()
+		_, err = Compile(parent, Request{Root: root, From: base, To: to})
+		if parent.Err() == nil {
+			t.Fatal("the caller's deadline had not expired when Compile returned; the race was not exercised")
+		}
+		if !errors.As(err, &timeout) || err.Error() != "changes-timeout" {
+			t.Fatalf("later caller expiry: error=%v", err)
+		}
+		// A caller whose own deadline comes first is never classified as changes-timeout.
+		early, cancelEarly := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancelEarly()
+		if _, err := Compile(early, Request{Root: root, From: base, To: to}); err == nil || errors.As(err, &timeout) {
+			t.Fatalf("earlier caller expiry: error=%v", err)
+		}
 	})
 }
