@@ -116,17 +116,51 @@ func wantLine(t *testing.T, name, block, line string) {
 	}
 }
 
-// V1-1778: a cancelled CI run starts no control-plane status job, and a newer completion for the
-// same event and head replaces a queued or running one. Losing the condition only wastes queue
-// slots; losing the event in the group would let a pull-request job cancel a merge-queue post.
-func TestAFPV0079ControlPlaneSkipsCancelledRuns(t *testing.T) {
+// statusJobRuns evaluates the if of status job JOB in ci-control-plane.yml for a completed CI
+// run of EVENT and CONCLUSION. It knows only &&-joined equality tests of those two payload
+// fields, so any other condition shape fails the test rather than being guessed at.
+func statusJobRuns(t *testing.T, w, job, event, conclusion string) bool {
+	t.Helper()
+	b := jobBlock(t, w, job)
+	m := regexp.MustCompile(`(?m)^    if: (.+)$`).FindStringSubmatch(b)
+	if m == nil {
+		t.Fatalf("%s has no single-line if", job)
+	}
+	clause := regexp.MustCompile(`^github\.event\.workflow_run\.(event|conclusion) (==|!=) '([a-z_]+)'$`)
+	payload := map[string]string{"event": event, "conclusion": conclusion}
+	runs := true
+	for _, c := range strings.Split(m[1], "&&") {
+		p := clause.FindStringSubmatch(strings.TrimSpace(c))
+		if p == nil {
+			t.Fatalf("%s: unrecognised if clause %q; extend statusJobRuns", job, c)
+		}
+		runs = runs && (payload[p[1]] == p[3]) == (p[2] == "==")
+	}
+	return runs
+}
+
+// V1-1778 (AFP-V0-079): each status job runs for every completed CI run of its event, cancelled
+// ones included, because GitHub can cancel a run after go-product passed; with no earlier
+// ci-control-plane status on that head, a skipped job would leave its merge blocked for good.
+// A newer completion for the same event and head replaces a queued or running job; losing the
+// event in the group would let a pull-request job cancel a merge-queue post.
+func TestAFPV0079ControlPlaneReportsEveryCompletedRun(t *testing.T) {
 	w := readWorkflow(t, "ci-control-plane.yml")
-	for _, event := range []string{"pull_request", "merge_group"} {
-		job := map[string]string{"pull_request": "control-plane", "merge_group": "merge-group"}[event]
+	jobs := map[string]string{"pull_request": "control-plane", "merge_group": "merge-group"}
+	for event, job := range jobs {
 		b := jobBlock(t, w, job)
-		wantLine(t, job, b, "    if: github.event.workflow_run.event == '"+event+"' && github.event.workflow_run.conclusion != 'cancelled'")
 		wantLine(t, job, b, "      group: ci-control-plane-"+event+"-${{ github.event.workflow_run.head_sha }}")
 		wantLine(t, job, b, "      cancel-in-progress: true")
+		for _, conclusion := range []string{"success", "failure", "cancelled", "timed_out"} {
+			for other, otherJob := range jobs {
+				if got, want := statusJobRuns(t, w, otherJob, event, conclusion), other == event; got != want {
+					t.Errorf("%s for a %s run that concluded %s: runs=%v, want %v", otherJob, event, conclusion, got, want)
+				}
+			}
+		}
+		if statusJobRuns(t, w, job, "push", "success") {
+			t.Errorf("%s must not run for a push run", job)
+		}
 	}
 	// forward-rows keeps one run per completed run: no group, success or failure only.
 	fr := jobBlock(t, w, "forward-rows")
@@ -134,6 +168,66 @@ func TestAFPV0079ControlPlaneSkipsCancelledRuns(t *testing.T) {
 		t.Error("forward-rows must keep one run per completed CI run")
 	}
 	wantLine(t, "forward-rows", fr, "      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')")
+}
+
+// The cancelled-after-go-product case end to end: the run concluded cancelled, its head has no
+// ci-control-plane status yet, and each status step, run with a stub gh, posts one. Neither step
+// reads the conclusion, so the job condition above is the only thing that could suppress it.
+func TestAFPV0079CancelledRunStillPostsTheStatus(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Fatalf("the status steps need bash on PATH: %v", err)
+	}
+	const head = "59cc560b9d98f746bba0282d18c0442e65b85a98"
+	w := readWorkflow(t, "ci-control-plane.yml")
+	for _, tc := range []struct{ job, event, branch, want string }{
+		{"control-plane", "pull_request", "claude/x", "state=success"},
+		{"merge-group", "merge_group", "gh-readonly-queue/main/pr-1144-" + head, "state=success"},
+	} {
+		if !statusJobRuns(t, w, tc.job, tc.event, "cancelled") {
+			t.Errorf("%s does not run for a cancelled %s run", tc.job, tc.event)
+			continue
+		}
+		dir := t.TempDir()
+		script := filepath.Join(dir, "step.sh")
+		if err := os.WriteFile(script, []byte(runScript(t, jobBlock(t, w, tc.job))), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		bin := filepath.Join(dir, "bin")
+		if err := os.Mkdir(bin, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// A stub gh: one open PR (#1144) at HEAD that changes two files outside .github, printed
+		// as the step's --jq filters would; a status POST is appended to posts.log.
+		stub := `#!/bin/sh
+[ "$1" = api ] || exit 2
+shift
+case " $* " in
+  *" -X POST "*) echo "$*" >>"$STUB_DIR/posts.log"; exit 0 ;;
+  *"repos/$REPO/pulls?state=open&per_page=100"*) echo 1144 ;;
+  *"repos/$REPO/pulls/1144/files?per_page=100"*) printf 'README.md\ndocs/x.md\n' ;;
+  *"repos/$REPO/pulls/1144 "*) echo 2 ;;
+  *) exit 22 ;;
+esac
+`
+		if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
+		cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+			"STUB_DIR="+dir, "REPO=beamfall/corvint", "HEAD="+head, "BRANCH="+tc.branch,
+			"RUN_URL=https://github.com/beamfall/corvint/actions/runs/1", "GH_TOKEN=stub")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("%s step: %v\n%s", tc.job, err, out)
+		}
+		posts, err := os.ReadFile(filepath.Join(dir, "posts.log"))
+		if err != nil {
+			t.Fatalf("%s posted no status for a cancelled run: %v", tc.job, err)
+		}
+		if p := string(posts); strings.Count(p, "\n") != 1 || !strings.Contains(p, "repos/beamfall/corvint/statuses/"+head) ||
+			!strings.Contains(p, tc.want) || !strings.Contains(p, "context=ci-control-plane") {
+			t.Errorf("%s posted %q, want one ci-control-plane %s on %s", tc.job, p, tc.want, head)
+		}
+	}
 }
 
 // V1-1642: the static trio of a main push is skipped only through the static-reuse decision,
@@ -162,11 +256,16 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 // staticReuseScript extracts the run script of the static-reuse step.
 func staticReuseScript(t *testing.T) string {
 	t.Helper()
-	sr := jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse")
-	_, body, ok := strings.Cut(sr, "        run: |\n")
-	if !ok {
-		t.Fatal("static-reuse has no run script")
+	return runScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "static-reuse"))
+}
+
+// runScript extracts the run script of the single run step of job block B.
+func runScript(t *testing.T, b string) string {
+	t.Helper()
+	if strings.Count(b, "        run: |\n") != 1 {
+		t.Fatal("want exactly one run script in the job")
 	}
+	_, body, _ := strings.Cut(b, "        run: |\n")
 	var out []string
 	for _, line := range strings.Split(body, "\n") {
 		if line != "" && !strings.HasPrefix(line, "          ") {

@@ -18,12 +18,14 @@ name: CI control plane
 # default-branch commit, never code of the tested commit. Nothing reads the rows to narrow tests
 # before V1-0812.
 #
-# AFP-V0-079 (V1-1778): a cancelled CI run starts no job here. Its required checks are not
-# success, so its head cannot merge until a rerun or a new push completes and reaches this
-# workflow again; a cancelled run is never a forward row either. The two status jobs share one
-# concurrency group per event and head SHA, so a newer completion for the same head replaces a
-# queued or running one: both would post the same status. The forward-rows job keeps one run
-# per completed run.
+# AFP-V0-079 (V1-1778): the two status jobs run for every completed CI run of their event,
+# cancelled ones included: GitHub can cancel a run after go-product passed (while optional jobs
+# still ran), and skipping it would leave a head with no ci-control-plane status and nothing left
+# to post one. Neither status depends on the CI conclusion, and a superseded pull-request head
+# posts nothing because no open PR has it at its head. The two jobs share one concurrency group
+# per event and head SHA, so a newer completion for the same head replaces a queued or running
+# one: both would post the same status. The forward-rows job keeps one run per completed run
+# that succeeded or failed; a cancelled run is never a forward row.
 
 on:
   workflow_run:
@@ -37,7 +39,7 @@ permissions:
 
 jobs:
   control-plane:
-    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled'
+    if: github.event.workflow_run.event == 'pull_request'
     concurrency:
       group: ci-control-plane-pull_request-${{ github.event.workflow_run.head_sha }}
       cancel-in-progress: true
@@ -82,7 +84,7 @@ jobs:
           done <<<"$prs"
 
   merge-group:
-    if: github.event.workflow_run.event == 'merge_group' && github.event.workflow_run.conclusion != 'cancelled'
+    if: github.event.workflow_run.event == 'merge_group'
     concurrency:
       group: ci-control-plane-merge_group-${{ github.event.workflow_run.head_sha }}
       cancel-in-progress: true

@@ -386,7 +386,7 @@ and container qualification; full fallback remains available.
 
 - **AFP-V0-016:** (accepted (decision 0431); amended by decision 0431; originally decision 0320; ruleset and consent amended by decision 0390)
   `.github/workflows/ci-control-plane.yml` SHALL run
-  on `workflow_run` after `CI` (after a run that was not cancelled, AFP-V0-079), never check out
+  on `workflow_run` after every completed `CI` run, cancelled ones included (AFP-V0-079), never check out
   or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
   `.github/` or the PR exceeds the files API's 3000-file listing, `success` otherwise. An API
@@ -1592,25 +1592,34 @@ and container qualification; full fallback remains available.
   PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
   `resolves` return true for every path but the CEM sidecar and delete the two tests.
 - **AFP-V0-079:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) The
-  `control-plane` and `merge-group` jobs of `.github/workflows/ci-control-plane.yml` SHALL NOT
-  start when the triggering `CI` run's conclusion is `cancelled`, and each SHALL hold the job
-  concurrency group `ci-control-plane-<event>-<head sha>` (event `pull_request` or `merge_group`)
-  with `cancel-in-progress`, so a newer completion for the same event and head replaces a queued
-  or running job. Both jobs compute their status from the current pull requests at the head or
-  the queue branch name, never from the run, so the replacing job posts what the replaced one
-  would, for every open pull request at that head. The `forward-rows` job keeps one run per
-  completed `success` or `failure` run and no group (AFP-V0-047). A `ci:batched` constituent's
-  pull-request jobs are kept: `ci-control-plane` is a required context, and the `workflow_run`
-  payload carries no labels, so no job-level condition can read the label.
+  `control-plane` and `merge-group` jobs of `.github/workflows/ci-control-plane.yml` SHALL start
+  for every completed `CI` run of their event whatever its conclusion, `cancelled` included, and
+  each SHALL hold the job concurrency group `ci-control-plane-<event>-<head sha>` (event
+  `pull_request` or `merge_group`) with `cancel-in-progress`, so a newer completion for the same
+  event and head replaces a queued or running job. Both jobs compute their status from the
+  current pull requests at the head or the queue branch name, never from the run, so the
+  replacing job posts what the replaced one would, for every open pull request at that head, and
+  a superseded pull-request head posts nothing because no open pull request has it at its head.
+  The `forward-rows` job keeps one run per completed `success` or `failure` run and no group
+  (AFP-V0-047). A `ci:batched` constituent's pull-request jobs are kept: `ci-control-plane` is a
+  required context, and the `workflow_run` payload carries no labels, so no job-level condition
+  can read the label.
   Design: in the window of build log 2026-10-18-ci-waste-1778-1642, 49 of 293 control-plane
   workflow runs started a status job for a cancelled `CI` run (median queue wait 296 s each, 5.0
-  runner-minutes); the waste is runner-slot contention, not minutes.
-  Failure modes: a head whose only `CI` run was cancelled has no `ci-control-plane` status until
-  a rerun or new push completes, which changes nothing, since its `go-product` is not success
-  either. A job cancelled between two pull-request posts leaves the rest to the replacing job.
-  Acceptance evidence: `TestAFPV0079ControlPlaneSkipsCancelledRuns`; hosted behavior
-  `NOT_OBSERVED` until this change runs on `main` (the workflow runs from the default branch).
-  Rollback: remove both `conclusion` conditions and both `concurrency` blocks.
+  runner-minutes). Skipping them was rejected after review: GitHub can cancel a run after its
+  `go-product` passed while optional jobs still ran, and a skipped status job then leaves a head
+  with no `ci-control-plane` status and no later run to post one. The payload carries no job
+  results, so no job-level condition can tell that case apart, and a check inside the job would
+  still start the runner; the rule therefore fails toward reporting.
+  Failure modes: a job cancelled between two pull-request posts leaves the rest to the replacing
+  job. A status posted for a cancelled run grants nothing by itself: `go-product` is a separate
+  required context.
+  Acceptance evidence: `TestAFPV0079ControlPlaneReportsEveryCompletedRun` (the job conditions,
+  evaluated for every event and conclusion) and `TestAFPV0079CancelledRunStillPostsTheStatus`
+  (each status step, with a stub `gh`, posts one status on a cancelled run's head that had none);
+  hosted behavior `NOT_OBSERVED` until this change runs on `main` (the workflow runs from the
+  default branch).
+  Rollback: remove both `concurrency` blocks.
 - **AFP-V0-080:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) A `push`
   run of `.github/workflows/ci.yml` on `refs/heads/main` SHALL skip `go-static`, `go-interop` and
   `artifact-integrity` only when its `static-reuse` job decides `REUSE`, which it SHALL do only
@@ -1799,7 +1808,7 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-054 | `windows-vet` and `WINDOWS_VET_ENV` in `Makefile`; the `make windows-vet` fence and scoping sentence of the `AGENTS.md` Verify section | `TestAFPV0054WindowsVetTargetMatchesTheCIStep` (parity with the go-static step and its effective env, `GOENV=off`, the `go-version` prerequisite), `TestAFPV0054StepEnvOverridesJobEnv` (step-level env mutation), `TestAFPV0054WindowsVetIgnoresSavedGoEnv` (saved `go env -w` GOFLAGS), `TestAFPV0054AffectedListsWindowsVet` (conditional advice check from the real `AGENTS.md`), `TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper` (unix-only helper fixture: native vet passes, the recipe fails); mutations and the `corvint affected` run in build log 2026-10-18-v1-1719-local-windows-vet |
 | AFP-V0-066 | `advisoryRSpecCheck`, `adviceAdvisoryRSpec`, `adviceMaxRSpecFiles`, `adviceNoRSpecGemfile` in `cmd/corvint/affected.go` | `TestAFPV0066AdviceListsSelectedRSpecFiles`, `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`, `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`; the reproduction run in build log 2026-10-18-v1-1796-ruby-verification-command |
 | AFP-V0-072 | `resolves` and `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` (temp-dir fixture dropped for `docs/specs/README.md`, kept in its subtree, at the root and when its tokens name every directory; anchored and multi-component readers kept), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`; PR #1134 range 163 to 156 units in build log 2026-10-18-V1-1806-affected-overselection-1806 |
-| AFP-V0-079 | the `conclusion` conditions and `concurrency` groups of the `control-plane` and `merge-group` jobs in `.github/workflows/ci-control-plane.yml` | `TestAFPV0079ControlPlaneSkipsCancelledRuns`; `actionlint`; build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
+| AFP-V0-079 | the event-only conditions and `concurrency` groups of the `control-plane` and `merge-group` jobs in `.github/workflows/ci-control-plane.yml` | `TestAFPV0079ControlPlaneReportsEveryCompletedRun`; `TestAFPV0079CancelledRunStillPostsTheStatus`; `actionlint`; build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
 | AFP-V0-080 | the `static-reuse` job, the `needs`/`if` of `go-static`, `go-interop` and `artifact-integrity`, and the `STATIC_REUSE` check of `go-product` in `.github/workflows/ci.yml` | `TestAFPV0080WorkflowWiresPushStaticReuse`, `TestAFPV0080StaticReuseDecidesOnlyForAPassedQueueRunOfThisCommit`; live replays in build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
 | AFP-V0-081 | the `ci:batched` clause of `go-interop`, `artifact-integrity` and `ci-shard-cost-drift` in `.github/workflows/ci.yml` and of `containment` in `.github/workflows/intake-containment.yml` | `TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs`; hosted `NOT_OBSERVED` |
 | AFP-V0-082 | the workflow `concurrency` group of `.github/workflows/ci.yml` | `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted `NOT_OBSERVED` |
