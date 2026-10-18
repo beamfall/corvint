@@ -8,8 +8,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/secretscreen"
@@ -36,6 +39,14 @@ const (
 
 var envName = regexp.MustCompile(`^[A-Z_][A-Z0-9_]{0,63}$`)
 
+// reservedEnvNames are set by prove or the BBF hook boundary; a declaration cannot pass them through.
+var reservedEnvNames = map[string]bool{"PATH": true, "HOME": true, envNodeBin: true, envModules: true, envBrowsers: true, envBaseURL: true}
+
+// environmentLimitations are added to a proof document that served through a declared environment.
+var environmentLimitations = []string{
+	"a serve process that binds a different port than base_url, or a detached child that outlives the serve process group, is not detected",
+}
+
 // validate refuses `e2e-blocks-invalid` unless serve is a non-empty argv, base_url is an http URL
 // on a loopback host with an explicit port and no path beyond `/`, ready is an absolute path, and
 // env holds distinct variable names.
@@ -53,6 +64,9 @@ func (e *Environment) validate() error {
 		if secretscreen.MatchString(a) {
 			return bad("serve[%d] is secret-shaped", i)
 		}
+	}
+	if c := path.Clean(e.Serve[0]); strings.Contains(e.Serve[0], "/") && !path.IsAbs(c) && (c == ".." || strings.HasPrefix(c, "../")) {
+		return bad("serve[0] escapes the tree")
 	}
 	u, err := url.Parse(e.BaseURL)
 	if err != nil || u.Scheme != "http" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
@@ -72,7 +86,7 @@ func (e *Environment) validate() error {
 		return bad("env holds more than %d names", maxEnvNames)
 	}
 	for _, n := range e.Env {
-		if !envName.MatchString(n) || seen[n] || n == envBaseURL {
+		if !envName.MatchString(n) || seen[n] || reservedEnvNames[n] || strings.HasPrefix(n, "CORVINT_BEHAVIOR_") {
 			return bad("env name %q", n)
 		}
 		seen[n] = true
@@ -123,23 +137,100 @@ type envError struct{ code string }
 
 func (e *envError) Error() string { return "environment-unavailable:" + e.code }
 
-// serveTree runs serve inside tree without a shell, with only PATH, HOME and the declared names
-// passed through, and polls ready until it answers or readyTimeout passes. A port already answering
-// before serve starts is refused, so a stray server never stands in for the side under test. The
-// returned stop kills the serve process group.
-func serveTree(ctx context.Context, env *Environment, tree string) (stop func(), err error) {
+// serving is one running serve process group. Its leader is waited on without reaping until stop,
+// so the process group ID cannot be reused while stop signals it.
+type serving struct {
+	cmd    *exec.Cmd
+	host   string
+	exited chan struct{}
+}
+
+// alive reports serve-exited once the serve process has ended; a server answering after that is
+// not the one prove started.
+func (s *serving) alive() error {
+	select {
+	case <-s.exited:
+		return &envError{"serve-exited"}
+	default:
+		return nil
+	}
+}
+
+// stop kills the serve process group, reaps the leader and waits, bounded, for the port to refuse.
+func (s *serving) stop() {
+	killServe(s.cmd)
+	select {
+	case <-s.exited:
+		_ = s.cmd.Wait()
+	case <-time.After(10 * time.Second):
+		go func() { _ = s.cmd.Wait() }()
+	}
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		c, err := net.DialTimeout("tcp", s.host, time.Second)
+		if err != nil {
+			return
+		}
+		_ = c.Close()
+	}
+}
+
+// serveCommand resolves serve[0]: a bare name is bin, which Prove resolved once on its own PATH;
+// a relative path names an executable inside tree; an absolute path is used as declared.
+func serveCommand(env *Environment, tree, bin string) (string, error) {
+	name := env.Serve[0]
+	missing := &envError{"serve-tool-missing"}
+	p := name
+	switch {
+	case !strings.Contains(name, "/"):
+		if bin == "" {
+			return "", missing
+		}
+		p = bin
+	case !filepath.IsAbs(name):
+		real, err := filepath.EvalSymlinks(filepath.Join(tree, filepath.FromSlash(name)))
+		if err != nil {
+			return "", missing
+		}
+		if rel, err := filepath.Rel(tree, real); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", &envError{"serve-outside-tree"}
+		}
+		p = real
+	}
+	if info, err := os.Stat(p); err != nil || info.IsDir() || info.Mode()&0o111 == 0 {
+		return "", missing
+	}
+	return p, nil
+}
+
+// lookServe resolves a bare serve[0] on the current PATH, or returns "" when it is a path or absent.
+func lookServe(env *Environment) string {
+	if env == nil || strings.Contains(env.Serve[0], "/") {
+		return ""
+	}
+	bin, err := exec.LookPath(env.Serve[0])
+	if err != nil || !filepath.IsAbs(bin) {
+		return ""
+	}
+	return bin
+}
+
+// serveTree runs serve inside tree without a shell, with only PATH (servePath), HOME and the
+// declared names passed through, and polls ready until it answers 2xx or readyTimeout passes. A
+// port already answering before serve starts is refused, so a stray server never stands in for the
+// side under test.
+func serveTree(ctx context.Context, env *Environment, tree, bin, servePath string) (*serving, error) {
 	u, _ := url.Parse(env.BaseURL)
 	if c, err := net.DialTimeout("tcp", u.Host, time.Second); err == nil {
 		_ = c.Close()
 		return nil, &envError{"port-in-use"}
 	}
-	bin, err := exec.LookPath(env.Serve[0])
+	bin, err := serveCommand(env, tree, bin)
 	if err != nil {
-		return nil, &envError{"serve-tool-missing"}
+		return nil, err
 	}
 	cmd := exec.Command(bin, env.Serve[1:]...)
 	cmd.Dir = tree
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
+	cmd.Env = []string{"PATH=" + servePath, "HOME=" + os.Getenv("HOME")}
 	for _, n := range env.Env {
 		if v, ok := os.LookupEnv(n); ok {
 			cmd.Env = append(cmd.Env, n+"="+v)
@@ -149,20 +240,17 @@ func serveTree(ctx context.Context, env *Environment, tree string) (stop func(),
 	if err := cmd.Start(); err != nil {
 		return nil, &envError{"serve-start-failed"}
 	}
-	exited := make(chan struct{})
-	go func() { _ = cmd.Wait(); close(exited) }()
-	stop = func() {
-		killServe(cmd)
-		select {
-		case <-exited:
-		case <-time.After(10 * time.Second):
-		}
-	}
-	if err := pollReady(ctx, env.readyURL(), exited); err != nil {
-		stop()
+	s := &serving{cmd: cmd, host: u.Host, exited: make(chan struct{})}
+	go func() { waitServeExit(cmd); close(s.exited) }()
+	if err := pollReady(ctx, env.readyURL(), s.exited); err != nil {
+		s.stop()
 		return nil, err
 	}
-	return stop, nil
+	if err := s.alive(); err != nil {
+		s.stop()
+		return nil, err
+	}
+	return s, nil
 }
 
 func pollReady(ctx context.Context, target string, exited <-chan struct{}) error {
@@ -175,7 +263,7 @@ func pollReady(ctx context.Context, target string, exited <-chan struct{}) error
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 		if resp, err := client.Do(req); err == nil {
 			_ = resp.Body.Close()
-			if resp.StatusCode < 500 {
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 				return nil
 			}
 		}

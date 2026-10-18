@@ -1,12 +1,15 @@
 package changee2e
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -47,7 +50,7 @@ func testEnvironment(t *testing.T, addr string) *Environment {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &Environment{Serve: []string{bin, testServeArg}, BaseURL: "http://" + addr, Ready: "/index.html", Env: []string{testServeAddr}}
+	return &Environment{Serve: []string{bin, testServeArg}, BaseURL: "http://" + addr, Ready: "/", Env: []string{testServeAddr}}
 }
 
 func declarationsWith(t *testing.T, env any) string {
@@ -100,6 +103,11 @@ func TestCCEV0021EnvironmentShape(t *testing.T) {
 		"env value":      with("env", []string{"NODE_ENV=production"}),
 		"duplicate env":  with("env", []string{"A", "A"}),
 		"base url name":  with("env", []string{envBaseURL}),
+		"path name":      with("env", []string{"PATH"}),
+		"home name":      with("env", []string{"HOME"}),
+		"node bin name":  with("env", []string{envNodeBin}),
+		"bbf name":       with("env", []string{"CORVINT_BEHAVIOR_COMMAND_ROLE"}),
+		"escaping serve": with("serve", []string{"../bin/serve"}),
 		"missing ready":  with("ready", nil),
 		"unknown member": with("cwd", "app"),
 	} {
@@ -114,7 +122,7 @@ func TestCCEV0021EnvironmentShape(t *testing.T) {
 }
 
 // CCE-V0-021: serve runs inside the tree without a shell and with only PATH, HOME and the declared
-// names; ready gates the run; stop kills the process group.
+// names; ready gates the run on a 2xx answer; stop kills the process group and releases the port.
 func TestCCEV0021ServeTree(t *testing.T) {
 	tree := t.TempDir()
 	if err := os.WriteFile(filepath.Join(tree, "index.html"), []byte("side tree"), 0o644); err != nil {
@@ -124,7 +132,8 @@ func TestCCEV0021ServeTree(t *testing.T) {
 	t.Setenv(testServeAddr, addr)
 	t.Setenv(testServeLeak, "leaked")
 	env := testEnvironment(t, addr)
-	stop, err := serveTree(bg, env, tree)
+	path := os.Getenv("PATH")
+	s, err := serveTree(bg, env, tree, "", path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,21 +153,33 @@ func TestCCEV0021ServeTree(t *testing.T) {
 		t.Fatalf("undeclared variable reached serve: %q", got)
 	}
 	// A second serve on an answering port refuses instead of testing a stray server.
-	if _, err := serveTree(bg, env, tree); !isEnvCode(err, "port-in-use") {
+	if _, err := serveTree(bg, env, tree, "", path); !isEnvCode(err, "port-in-use") {
 		t.Fatalf("second serve: %v", err)
 	}
-	stop()
+	s.stop()
 	if c, err := net.DialTimeout("tcp", addr, time.Second); err == nil {
 		_ = c.Close()
 		t.Fatal("serve still answers after stop")
 	}
 
+	// A serve that ends after ready is no longer the server under test.
+	s, err = serveTree(bg, env, tree, "", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = s.cmd.Process.Kill()
+	<-s.exited
+	if err := s.alive(); !isEnvCode(err, "serve-exited") {
+		t.Fatalf("alive after exit: %v", err)
+	}
+	s.stop()
+
 	missing := &Environment{Serve: []string{"corvint-no-such-serve-tool"}, BaseURL: env.BaseURL, Ready: "/"}
-	if _, err := serveTree(bg, missing, tree); !isEnvCode(err, "serve-tool-missing") {
+	if _, err := serveTree(bg, missing, tree, lookServe(missing), path); !isEnvCode(err, "serve-tool-missing") {
 		t.Fatalf("missing tool: %v", err)
 	}
 	exits := &Environment{Serve: []string{"false"}, BaseURL: env.BaseURL, Ready: "/"}
-	if _, err := serveTree(bg, exits, tree); !isEnvCode(err, "serve-exited") {
+	if _, err := serveTree(bg, exits, tree, lookServe(exits), path); !isEnvCode(err, "serve-exited") {
 		t.Fatalf("exiting serve: %v", err)
 	}
 	// A failed environment is a side without a qualified receipt, so the verdict is INCONCLUSIVE.
@@ -192,4 +213,76 @@ func TestCCEV0021LiveEnvironmentDiscriminates(t *testing.T) {
 	requireOutcomes(t, p.Head, "passed", false)
 	requireOutcomes(t, p.Base, "failed", true)
 	requireVerdict(t, p, VerdictDiscriminates)
+}
+
+// CCE-V0-021: a relative serve[0] names an executable inside the side's tree and may not leave it
+// through a symlink; a bare name is the executable Prove resolved, and nothing else.
+func TestCCEV0021ServeCommandResolution(t *testing.T) {
+	tree, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tree, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tree, "bin", "serve"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(self, filepath.Join(tree, "bin", "out")); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ name, bin, want, code string }{
+		{"./bin/serve", "", filepath.Join(tree, "bin", "serve"), ""},
+		{"bin/out", "", "", "serve-outside-tree"},
+		{"bin/absent", "", "", "serve-tool-missing"},
+		{"npm", "", "", "serve-tool-missing"},
+		{"npm", self, self, ""},
+	} {
+		got, err := serveCommand(&Environment{Serve: []string{c.name}}, tree, c.bin)
+		if c.code != "" && !isEnvCode(err, c.code) || c.code == "" && (err != nil || got != c.want) {
+			t.Fatalf("%s: got %q, %v", c.name, got, err)
+		}
+	}
+	if lookServe(&Environment{Serve: []string{"./bin/serve"}}) != "" || !filepath.IsAbs(lookServe(&Environment{Serve: []string{"sh"}})) {
+		t.Fatal("lookServe resolves only bare names, to absolute paths")
+	}
+}
+
+// CCE-V0-021: ready accepts only a 2xx answer, matching the provider's external-server check.
+func TestCCEV0021ReadyRequires2xx(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(bg, time.Second)
+	defer cancel()
+	if err := pollReady(ctx, srv.URL+"/", make(chan struct{})); !isEnvCode(err, "ready-cancelled") {
+		t.Fatalf("404 accepted as ready: %v", err)
+	}
+}
+
+// CCE-V0-021: the control request passes only the declared names that are set, and carries the
+// serve executable and PATH Prove resolved, so the BBF hook serves as the sides did.
+func TestCCEV0021ControlRequestEnvironment(t *testing.T) {
+	t.Setenv("CORVINT_E2E_SET_NAME", "1")
+	env := &Environment{Serve: []string{"npm", "run", "dev"}, BaseURL: "http://127.0.0.1:5173", Ready: "/", Env: []string{"CORVINT_E2E_SET_NAME", "CORVINT_E2E_UNSET_NAME"}}
+	e := &proveEnv{environment: env, serveBin: "/usr/bin/true", servePath: "/usr/bin"}
+	req := e.controlRequest(Scenario{}, "rev", "/repo", "/disposable", jstestprovider.Receipt{})
+	if !slices.Contains(req.DeclaredEnvKeys, "CORVINT_E2E_SET_NAME") || slices.Contains(req.DeclaredEnvKeys, "CORVINT_E2E_UNSET_NAME") {
+		t.Fatalf("declared keys %v", req.DeclaredEnvKeys)
+	}
+	for _, c := range req.Controls {
+		if c.Definition["serve_bin"] != "/usr/bin/true" || c.Definition["serve_path"] != "/usr/bin" || c.Definition["environment"] == "" {
+			t.Fatalf("definition %v", c.Definition)
+		}
+	}
+	// A path serve[0] has no resolved executable, and BBF refuses an empty definition value.
+	e.serveBin = ""
+	for _, c := range e.controlRequest(Scenario{}, "rev", "/repo", "/disposable", jstestprovider.Receipt{}).Controls {
+		if _, ok := c.Definition["serve_bin"]; ok {
+			t.Fatalf("empty serve_bin carried: %v", c.Definition)
+		}
+	}
 }

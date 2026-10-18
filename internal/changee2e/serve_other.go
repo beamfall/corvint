@@ -1,4 +1,4 @@
-//go:build !unix
+//go:build !darwin && !linux
 
 package changee2e
 
@@ -11,3 +11,6 @@ func killServe(cmd *exec.Cmd) {
 		_ = cmd.Process.Kill()
 	}
 }
+
+// waitServeExit reaps the serve process; without a process group there is no group ID to reserve.
+func waitServeExit(cmd *exec.Cmd) { _, _ = cmd.Process.Wait() }

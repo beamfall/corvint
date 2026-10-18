@@ -69,7 +69,8 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	var environment *Environment
 	if raw, ok := def["environment"]; ok {
 		environment = &Environment{}
-		if json.Unmarshal([]byte(raw), environment) != nil || environment.validate() != nil {
+		if json.Unmarshal([]byte(raw), environment) != nil || environment.validate() != nil ||
+			(def["serve_bin"] != "" && !filepath.IsAbs(def["serve_bin"])) {
 			return r, errors.New("e2e-hook-definition-invalid")
 		}
 	}
@@ -112,7 +113,8 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	}
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: inv.Target.ApplicationRevision, Placement: def["file"],
 		Repeats: 1, NodeModules: resolvedModules, RunnerVersion: inv.Runner.RunnerVersion,
-		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment})
+		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment,
+		ServeBin: def["serve_bin"], ServePath: def["serve_path"]})
 	digest, reason := qualify(receipt, runErr, 1)
 	if reason != "" {
 		r.TestOutcome = "infrastructure_failed"

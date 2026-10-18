@@ -149,6 +149,7 @@ type proveEnv struct {
 	root, nodeModules, runnerVersion string
 	packageJSON, lockfile            string
 	environment                      *Environment // nil serves the tree statically
+	serveBin, servePath              string       // a bare serve[0] resolved once, and the PATH serve runs with
 	hook                             behaviorfalsify.Command
 }
 
@@ -199,9 +200,15 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	env.environment = environment
 	restore := setEnv(proveEnvironment(o))
 	defer restore()
+	// A bare serve name is resolved once on Prove's PATH, so the sides and the BBF hook, which runs
+	// with a fixed PATH, start the same executable with the same PATH.
+	env.serveBin, env.servePath = lookServe(environment), os.Getenv("PATH")
 
 	report := proveReport{Schema: ProveSchema, Base: base, Head: head, Repeats: repeats, Retries: proveRetries,
 		Workers: proveWorkers, RunnerVersion: env.runnerVersion, Environment: environment.digest(), Limitations: proveLimitations}
+	if environment != nil {
+		report.Limitations = append(slices.Clone(proveLimitations), environmentLimitations...)
+	}
 	for _, sc := range o.Scenarios {
 		p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID}
 		var headReceipt jstestprovider.Receipt
@@ -346,7 +353,7 @@ func (e *proveEnv) proveSide(ctx context.Context, rev string, sc Scenario, repea
 	}
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: rev, Placement: sc.Placement, Repeats: repeats,
 		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
-		Environment: e.environment})
+		Environment: e.environment, ServeBin: e.serveBin, ServePath: e.servePath})
 	digest, reason := qualify(receipt, runErr, repeats)
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
@@ -443,6 +450,7 @@ type runInput struct {
 	PackageJSON, Lockfile        string
 	Timeout                      time.Duration
 	Environment                  *Environment
+	ServeBin, ServePath          string
 }
 
 // runPlaywright serves tree, through the declared environment's serve argv when there is one and
@@ -456,14 +464,15 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 	if err := os.Symlink(in.NodeModules, filepath.Join(tree, "node_modules")); err != nil {
 		return jstestprovider.Receipt{}, err
 	}
-	var url string
+	var url, ready string
+	var served *serving
 	if in.Environment != nil {
-		stop, err := serveTree(ctx, in.Environment, tree)
+		served, err = serveTree(ctx, in.Environment, tree, in.ServeBin, in.ServePath)
 		if err != nil {
 			return jstestprovider.Receipt{}, err
 		}
-		defer stop()
-		url = in.Environment.origin()
+		defer served.stop()
+		url, ready = in.Environment.origin(), in.Environment.readyURL()
 	} else {
 		ln, err := net.Listen("tcp", "127.0.0.1:0")
 		if err != nil {
@@ -473,10 +482,11 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		go func() { _ = srv.Serve(ln) }()
 		defer srv.Close()
 		url = "http://" + ln.Addr().String() + "/"
+		ready = url
 	}
 	restore := setEnv(map[string]string{envBaseURL: url})
 	defer restore()
-	return jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{
+	receipt, err := jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{
 		ScopedTempOutput: true,
 		Config: jstestprovider.Config{
 			Dir:             tree,
@@ -491,11 +501,18 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 		},
 		ExternalServer:       true,
 		AppIdentity:          in.AppIdentity,
-		ServerReadyURL:       url,
+		ServerReadyURL:       ready,
 		RetainAttemptDetails: true,
 		TestArgv: []string{in.Placement, "--repeat-each=" + strconv.Itoa(in.Repeats),
 			"--retries=" + strconv.Itoa(proveRetries), "--workers=" + strconv.Itoa(proveWorkers), "--project=" + proveProject},
 	})
+	if served != nil {
+		// A serve that ended during the run leaves no proof of what answered the run's requests.
+		if aliveErr := served.alive(); aliveErr != nil {
+			return jstestprovider.Receipt{}, aliveErr
+		}
+	}
+	return receipt, err
 }
 
 // qualify returns the native receipt digest of a qualified run, or a reason it has none.
@@ -730,8 +747,13 @@ func gitWrite(ctx context.Context, dir string, args ...string) ([]byte, error) {
 func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, headReceipt jstestprovider.Receipt) behaviorfalsify.Request {
 	keys := []string{envNodeBin, envModules, envBrowsers}
 	if e.environment != nil {
-		// The hook's serve runs with the same declared names as the prove sides.
-		keys = append(keys, e.environment.Env...)
+		// The hook's serve runs with the same declared names as the prove sides; an unset name is
+		// left out, since BBF would pass it to the hook as an empty value the sides never see.
+		for _, n := range e.environment.Env {
+			if _, ok := os.LookupEnv(n); ok {
+				keys = append(keys, n)
+			}
+		}
 	}
 	slices.Sort(keys)
 	envValues := map[string]string{}
@@ -762,6 +784,10 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 		if e.environment != nil {
 			raw, _ := json.Marshal(e.environment)
 			d["environment"] = string(raw)
+			d["serve_path"] = e.servePath
+			if e.serveBin != "" { // BBF refuses an empty definition value
+				d["serve_bin"] = e.serveBin
+			}
 		}
 		return d
 	}
