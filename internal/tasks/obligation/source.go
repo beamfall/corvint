@@ -439,13 +439,13 @@ type sourceTest struct {
 	steps       []node
 }
 
-// CheckSources runs the TOL-V0-025 source checks of l's OPEN, DEFECT and
+// CheckSources runs the TOL-V0-025 source checks of l's OPEN, PARTIAL, DEFECT and
 // BLOCKED obligations over the spec files in files (path to content):
 // UNNAMED, MIXED_EXPECTED_FAIL and SPLIT_TESTS findings, sorted.
 func CheckSources(l *ticket.ObligationLedger, files map[string][]byte) []Finding {
 	open := map[string]string{}
 	for _, e := range l.Entries {
-		if e.State == ticket.ObligationOpen || e.State == ticket.ObligationDefect || e.State == ticket.ObligationBlocked {
+		if ticket.ObligationPending(e.State) {
 			open[e.ID] = e.State
 		}
 	}

@@ -31,7 +31,7 @@ const (
 func CheckReviewSources(l *ticket.ObligationLedger) []Finding {
 	var out []Finding
 	for _, e := range l.Entries {
-		if e.State != ticket.ObligationOpen && e.State != ticket.ObligationDefect && e.State != ticket.ObligationBlocked {
+		if !ticket.ObligationPending(e.State) {
 			continue
 		}
 		if len(e.Sources) == 0 {
