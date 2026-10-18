@@ -51,6 +51,8 @@ type Test struct {
 	Projection testvalidity.Projection         `json:"projection"`
 	// RouteStubs is present only when the receipt carries a route-stub record (LPCV-V0-073).
 	RouteStubs *RouteStubs `json:"routeStubs,omitempty"`
+	// RejectionAnchor is present only when the receipt carries a request-outcome record (LPCV-V0-081).
+	RejectionAnchor *RejectionAnchor `json:"rejectionAnchor,omitempty"`
 }
 
 var jsKinds = map[string]bool{"unit": true, "e2e": true}
@@ -213,10 +215,14 @@ func ProjectRouteStubs(input Input) Document {
 func projectJavaScript(receipt jstestprovider.Receipt, routeStubsRequested bool) Document {
 	tests := make([]Test, 0, len(receipt.Tests))
 	stubs := routeStubEvidence(receipt, routeStubsRequested)
+	anchors := rejectionAnchorEvidence(receipt)
 	for i, outcome := range receipt.Tests {
 		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)}
 		if stubs != nil {
 			test.RouteStubs = stubs[i]
+		}
+		if anchors != nil {
+			test.RejectionAnchor = anchors[i]
 		}
 		tests = append(tests, test)
 	}

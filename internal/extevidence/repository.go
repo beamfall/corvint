@@ -485,6 +485,9 @@ func (b *bindings) checkoutRows(used map[string]int) []any {
 	return rows
 }
 
+// ValidRepositoryID reports whether id is a repository identifier `--repository ID=DIR` accepts.
+func ValidRepositoryID(id string) bool { return checkIdentifier("repository id", id) == nil }
+
 // ParseCheckout splits one `ID=DIR` argument (EEP-V1-003).
 func ParseCheckout(value string) (Checkout, error) {
 	id, dir, found := strings.Cut(value, "=")

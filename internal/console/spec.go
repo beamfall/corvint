@@ -9,13 +9,17 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/Beamfall/corvint/internal/specindex"
 )
 
 // maxSpecIndexBytes bounds the generated requirement index and spec index.
 const maxSpecIndexBytes = 8 << 20
 
 // Requirement is one row of `docs/specs/REQUIREMENTS.tsv`: a requirement id,
-// the spec file that defines it, and the line it is defined on.
+// the spec file that defines it, and the line it is defined on. The committed
+// index carries no line (SRG-V0-015), so Line is 0 until Resolve finds the
+// definition in the spec (SRG-V0-017).
 type Requirement struct {
 	ID    string
 	File  string
@@ -86,9 +90,11 @@ func (l SpecLookup) Resolve(id string) *Clause {
 			}
 		}
 	}
-	clause.Text, err = l.line(requirement.File, requirement.Line)
+	text, number, err := l.line(requirement)
 	if err != nil {
 		clause.Err = err.Error()
+	} else {
+		clause.Text, clause.Requirement.Line = text, number
 	}
 	return clause
 }
@@ -98,20 +104,13 @@ func (l SpecLookup) requirements() (map[string]Requirement, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]Requirement{}
-	for i, line := range strings.Split(string(raw), "\n") {
-		if i == 0 || strings.TrimSpace(line) == "" {
-			continue
-		}
-		fields := strings.Split(line, "\t")
-		if len(fields) < 4 {
-			continue
-		}
-		number, err := strconv.Atoi(fields[2])
-		if err != nil {
-			continue
-		}
-		out[fields[0]] = Requirement{ID: fields[0], File: fields[1], Line: number, Title: fields[3]}
+	rows, err := specindex.ParseIndex(string(raw))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]Requirement, len(rows))
+	for id, row := range rows {
+		out[id] = Requirement{ID: id, File: row.File, Line: row.Line, Title: row.Title}
 	}
 	return out, nil
 }
@@ -151,25 +150,35 @@ func cleanRelative(path string) (string, error) {
 	return filepath.ToSlash(clean), nil
 }
 
-// line reads exactly the clause line a requirement is defined on. The file is
-// read from the worktree because a requirement index is generated from the
-// worktree; the code pane, which must be immutable, reads Git objects instead.
-func (l SpecLookup) line(file string, number int) (string, error) {
-	clean, err := cleanRelative(file)
+// line reads exactly the clause line a requirement is defined on, and that
+// line's number. The file is read from the worktree because a requirement index
+// is generated from the worktree; the code pane, which must be immutable, reads
+// Git objects instead. A row without a line number (the committed layout,
+// SRG-V0-015) is located by the generator's definition ranks (SRG-V0-017).
+func (l SpecLookup) line(requirement Requirement) (string, int, error) {
+	clean, err := cleanRelative(requirement.File)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 	raw, err := readBounded(l.Root, filepath.FromSlash(clean), maxSpecIndexBytes)
 	if err != nil {
-		return "", err
+		return "", 0, err
+	}
+	number := requirement.Line
+	if number == 0 {
+		if number = specindex.DefinitionLine(string(raw), requirement.ID); number == 0 {
+			// An id its spec no longer defines is a stale index: a gap, never
+			// an empty clause presented as read (LAC-V0-008).
+			return "", 0, errors.New(clean + " does not define " + requirement.ID + "; docs/specs/REQUIREMENTS.tsv is stale")
+		}
 	}
 	lines := strings.Split(string(raw), "\n")
 	// A row naming a line the file does not have is a stale index: a gap,
 	// never an empty clause presented as read (LAC-V0-008).
 	if number < 1 || number > len(lines) {
-		return "", errors.New(clean + " has no line " + strconv.Itoa(number) + "; docs/specs/REQUIREMENTS.tsv is stale")
+		return "", 0, errors.New(clean + " has no line " + strconv.Itoa(number) + "; docs/specs/REQUIREMENTS.tsv is stale")
 	}
-	return lines[number-1], nil
+	return lines[number-1], number, nil
 }
 
 // errNotRegular reports that a path the console was asked to read is a

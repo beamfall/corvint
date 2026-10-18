@@ -275,16 +275,16 @@ func TestHeaderForms(t *testing.T) {
 func TestRequirementsAcceptanceColumns(t *testing.T) {
 	text := strings.TrimSuffix(string(mustRead(t, "../../docs/specs/REQUIREMENTS.tsv")), "\n")
 	lines := strings.Split(text, "\n")
-	if want := "id\tfile\tline\ttitle\tacceptance\tacceptedBy"; lines[0] != want {
+	if want := "id\tfile\ttitle\tacceptance\tacceptedBy"; lines[0] != want {
 		t.Fatalf("REQUIREMENTS.tsv header %q, want %q", lines[0], want)
 	}
 	for _, line := range lines[1:] {
 		fields := strings.Split(line, "\t")
-		if len(fields) != 6 {
-			t.Errorf("REQUIREMENTS.tsv row %q has %d fields, want 6", line, len(fields))
+		if len(fields) != 5 {
+			t.Errorf("REQUIREMENTS.tsv row %q has %d fields, want 5", line, len(fields))
 			continue
 		}
-		mode, by := fields[4], fields[5]
+		mode, by := fields[3], fields[4]
 		valid := mode == "unrecorded" && by == "-" ||
 			mode == "owner" && by != "-" && by != "" ||
 			mode == "standing" && by != ""

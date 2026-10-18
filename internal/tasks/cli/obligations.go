@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -23,12 +24,56 @@ import (
 // obligation.QualifiedVersions, empty until the live fixture passes.
 var obligationQualifiedVersions = obligation.QualifiedVersions
 
+// admittedVersions is the shipped TOL-V0-009 list with the store-local
+// allow-list an operator recorded with qualify-version (TOL-V0-063). An
+// unreadable or malformed allow-list refuses; it never admits nothing
+// silently or everything.
+func admittedVersions(commonDir string) ([]string, error) {
+	a, err := obligation.ReadAllowList(obligation.AllowListPath(commonDir))
+	if err != nil {
+		return nil, err
+	}
+	return append(append([]string{}, obligationQualifiedVersions()...), a.Admitted()...), nil
+}
+
+// admittedVersionsAt is admittedVersions for the store holding cwd.
+func admittedVersionsAt(cwd string) ([]string, error) {
+	repo, err := intent.Resolve(cwd)
+	if err != nil {
+		return nil, err
+	}
+	return admittedVersions(repo.CommonDir)
+}
+
+// declaredTestRepository resolves a policy-declared test repository name to
+// its worktree root and the path the policy declares for it (TOL-V0-064,
+// TOL-V0-065). An undeclared name refuses MALFORMED; a declared path that is
+// not itself the root of a Git worktree refuses MISSING_EVIDENCE.
+func declaredTestRepository(rc *readCtx, name string) (root, declared string, err error) {
+	if _, err := wire.ParseLabel("--test-repository", name); err != nil {
+		return "", "", err
+	}
+	var policy *intent.Policy
+	if rc != nil && rc.store != nil {
+		policy = rc.store.Policy
+	}
+	dir, ok := policy.ObligationTestRepository(name)
+	if !ok {
+		return "", "", wire.Errorf(wire.CodeMalformed, "--test-repository", "%s %s is not declared by the policy's obligations.testRepositories", ticket.ObligationTestRepositoryDetail, name)
+	}
+	root, err = store.ExactWorktreeRoot(intent.ResolveTestRepository(rc.repo.PrimaryWorktree, dir))
+	if err != nil {
+		return "", "", wire.Errorf(wire.CodeMissingEvidence, "--test-repository", "test repository %s (%s) is not the root of a Git worktree", name, prose(dir))
+	}
+	return root, dir, nil
+}
+
 // obligationsCommand runs `ticket obligations seed|set|witness|show|plan`
 // (TOL-V0-005..009, TOL-V0-020). The writes are ordinary OBLIGATIONS_*
 // mutations; show and plan are reads that write nothing.
 func obligationsCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 {
-		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show or plan")
+		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan or qualify-version")
 	}
 	cmd := []string{"ticket", "obligations", args[0]}
 	switch args[0] {
@@ -42,6 +87,8 @@ func obligationsCommand(env Env, args []string) *wire.Result {
 		return obligationsShow(env, cmd, args[1:])
 	case "plan":
 		return obligationsPlan(env, cmd, args[1:])
+	case "qualify-version":
+		return obligationsQualifyVersion(env, cmd, args[1:])
 	}
 	return usage([]string{"ticket", "obligations"}, "unknown ticket obligations verb "+args[0])
 }
@@ -321,8 +368,8 @@ var witnessEvidenceReadHook = func() {}
 // regular files and refuses a report that is no longer that one, since a
 // capture command runs between the test run and the witness.
 func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env, cmd []string, args []string) *wire.Result {
-	open, readReport := os.Open, func(p string) (*obligation.Report, error) {
-		return obligation.ReadReport(p, obligationQualifiedVersions())
+	open, readReport := os.Open, func(p string, qualified []string) (*obligation.Report, error) {
+		return obligation.ReadReport(p, qualified)
 	}
 	if wantReport != "" {
 		open = func(p string) (*os.File, error) {
@@ -333,9 +380,10 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
-	var testCommit, envTree, evidenceRef, testTitle string
+	var testCommit, envTree, evidenceRef, testTitle, testRepo string
 	if res := pairFlags(cmd, args, map[string]*string{
-		"--test-commit": &testCommit, "--environment-tree": &envTree, "--evidence-ref": &evidenceRef, "--test-title": &testTitle,
+		"--test-repository": &testRepo,
+		"--test-commit":     &testCommit, "--environment-tree": &envTree, "--evidence-ref": &evidenceRef, "--test-title": &testTitle,
 		"--target": &f.target, "--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
 		"--issued-at": &f.issuedAt, "--from-playwright-report": &report, "--commit": &commit, "--ids": &idsArg,
 		"--declared": &declared, "--manifest-sha256": &manifest, "--test-id": &testID, "--reason": &reason,
@@ -426,7 +474,16 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	testRepoPath := ""
 	w := ticket.ObligationWitnessPayload{Commit: commit, Provenance: witnessProvenance(given, testCommit, envTree, evidenceRef, testTitle)}
+	if given["--test-repository"] {
+		// TOL-V0-065: commit resolution and source presence run in the
+		// policy-declared test repository.
+		if root, testRepoPath, err = declaredTestRepository(rc, testRepo); err != nil {
+			return errorResult(cmd, err)
+		}
+		w.TestRepository = &testRepo
+	}
 	if attempt != "" {
 		g := wire.Size(generation)
 		w.Attempt, w.Generation = &attempt, &g
@@ -456,7 +513,11 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 			lists.credited = append(lists.credited, id)
 		}
 	} else {
-		rep, err := readReport(report)
+		qualified, err := admittedVersions(rc.repo.CommonDir)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		rep, err := readReport(report, qualified)
 		if err != nil {
 			return errorResult(cmd, err)
 		}
@@ -479,7 +540,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		if err != nil {
 			return errorResult(cmd, err)
 		}
-		check = &mutation.ObligationReportCheck{ReportSha256: rep.Sha256, PlaywrightVersion: rep.Version, Commit: resolved, IDs: ids, Eligible: res.Eligible}
+		check = &mutation.ObligationReportCheck{ReportSha256: rep.Sha256, PlaywrightVersion: rep.Version, Commit: resolved, IDs: ids, Eligible: res.Eligible, TestRepository: testRepo, TestRepositoryPath: testRepoPath}
 		version, sum := rep.Version, rep.Sha256
 		w.Source, w.Commit, w.ReportSha256, w.PlaywrightVersion = ticket.ObligationSourceReport, resolved, &sum, &version
 		w.Credits = check.ExpectedCredits(ledger)
@@ -504,6 +565,10 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		out.Items = []wire.Value{wire.ObjectValue(o)}
 		out.Untrusted = true
 		return out
+	}
+	if check == nil && w.TestRepository != nil {
+		// A DECLARED witness binds only the test repository mapping it used.
+		check = &mutation.ObligationReportCheck{TestRepository: testRepo, TestRepositoryPath: testRepoPath}
 	}
 	ctx := writerContext()
 	if check != nil {

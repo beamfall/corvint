@@ -96,7 +96,7 @@ func TestATRV0030_ContextConfigIsExactAndBounded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("valid context refused: %v", err)
 	}
-	if got := *c.Roles[0].Context; got != (ContextLimits{100, 200, 300}) {
+	if got := *c.Roles[0].Context; got != (ContextLimits{WarnTokens: 100, HandoffTokens: 200, HardTokens: 300}) {
 		t.Fatalf("decoded %+v", got)
 	}
 	const member = `"context":{"warnTokens":100,"handoffTokens":200,"hardTokens":300}`
@@ -395,7 +395,9 @@ func TestATRV0035_HardStopHandsOffWithReason(t *testing.T) {
 	}
 	var levels []string
 	for _, e := range eventsOf(t, d, "context") {
-		levels = append(levels, e.Detail["level"])
+		if e.Detail["note"] == "" { // ATR-V0-104's salvage event has no level
+			levels = append(levels, e.Detail["level"])
+		}
 	}
 	if strings.Join(levels, ",") != "WARN,HARD" {
 		t.Fatalf("context events %v", levels)
@@ -468,7 +470,9 @@ func TestATRV0036_ThresholdsHotReload(t *testing.T) {
 	tickUntil(t, f.d, func() bool { return f.d.Running() == 0 })
 	var levels []string
 	for _, e := range f.events("context") {
-		levels = append(levels, e.Detail["level"])
+		if e.Detail["note"] == "" { // ATR-V0-104's salvage event has no level
+			levels = append(levels, e.Detail["level"])
+		}
 	}
 	if strings.Join(levels, ",") != "WARN,HANDOFF,HARD" {
 		t.Fatalf("context events %v", levels)
@@ -591,7 +595,9 @@ func TestATRV0038_ReloadedEstimateActsOnlyAfterAFreshLine(t *testing.T) {
 	}
 	var levels []string
 	for _, e := range eventsOf(t, d, "context") {
-		levels = append(levels, e.Detail["level"]+"@"+e.Detail["tokens"])
+		if e.Detail["note"] == "" { // ATR-V0-104's salvage event has no level
+			levels = append(levels, e.Detail["level"]+"@"+e.Detail["tokens"])
+		}
 	}
 	if got := strings.Join(levels, ","); got != "WARN@250,HARD@260" {
 		t.Fatalf("crossings %s", got)

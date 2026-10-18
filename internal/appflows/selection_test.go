@@ -22,7 +22,7 @@ func testSelector(t *testing.T, root string, dirty []string, provider SelectionP
 	if provider.Flows == "" {
 		provider.Flows, provider.RunnerConfig = "flows", "playwright.config.ts"
 	}
-	return newE2ESelector(context.Background(), root, in, provider, records)
+	return newE2ESelector(context.Background(), root, in, provider, records, nil)
 }
 
 func generatedPaths(prefix string, n int) []string {

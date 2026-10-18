@@ -202,23 +202,40 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	if guardMoved && possibleLeaseAudit(repo, head) {
 		return p, wire.Errorf(wire.CodeSnapshotMoved, "change guard", "store changed while the guard registered")
 	}
+	decoded, err := snapshot.DecodeHead(head)
+	if err != nil {
+		return nil, err
+	}
+	// A journal at or above the checkpoint floor gets the bounded complete
+	// audit (PSR-V0-150): one attempt per round that stops once head.json
+	// moves. Every audit's walks are charged to the timing split (PSR-V0-151).
+	bounded := journal.ResumableAudits() && decoded.LastSeq.Uint64() >= writerCheckpointMin(repo)
+	observe := func(r journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
+		r.StopOnMove = bounded && !r.PrefixFallback
+		proof, observation, auditErr := hooks.audit(r)
+		timing.walked(observation.Walks)
+		return proof, observation, auditErr
+	}
 	if !possibleLeaseAudit(repo, head) {
-		decoded, decodeErr := snapshot.DecodeHead(head)
-		if decodeErr != nil {
-			return nil, decodeErr
-		}
 		// The writer checkpoint this audit derives is bound to the
 		// invalidation token read before it (CAL-V0-117, proposed).
 		p.writerToken = writerInvalidation(repo)
 		reader := journalReader(repo, decoded)
-		fallback := resumable && journal.ResumableAudits() && decoded.LastSeq.Uint64() >= writerCheckpointMin(repo)
+		fallback := resumable && bounded
 		if guardMoved && !fallback {
 			return p, wire.Errorf(wire.CodeSnapshotMoved, "change guard", "store changed while the guard registered")
 		}
 		reader.PrefixFallback = fallback
-		proof, observation, auditErr := hooks.audit(reader)
+		proof, observation, auditErr := observe(reader)
 		if observation.Cleanup != nil {
 			p.recordCleanup("journal audit close", observation.Cleanup)
+			return p, auditErr
+		}
+		if !fallback && wire.CodeOf(auditErr) == wire.CodeSnapshotMoved {
+			// The journal moved under the complete audit: the next round
+			// samples it again (PSR-V0-150). The guarded audit below would
+			// only walk it once more against a head this round already lost.
+			readEnd = time.Now()
 			return p, auditErr
 		}
 		if fallback {
@@ -267,7 +284,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		}
 	}
 	var cleanup error
-	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, hooks.audit)
+	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, observe)
 	readEnd = time.Now()
 	if cleanup != nil {
 		p.recordCleanup("journal audit close", cleanup)
@@ -451,6 +468,9 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		if gateErr != nil {
 			return true, report, nil, gateErr
 		}
+		if from != nil {
+			timing.ResumeDeclines++
+		}
 		return false, report, nil, nil
 	}
 	for round := 0; round < 16; round++ {
@@ -539,7 +559,11 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			return report, nil, errors.Join(err, closeErr, gateErr)
 		}
 		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			declined := noResume
 			resume = p.resumeFrom(&noResume)
+			if noResume && !declined {
+				timing.ResumeDeclines++
+			}
 			continue
 		}
 		if err != nil {

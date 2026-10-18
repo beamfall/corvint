@@ -287,3 +287,35 @@ func TestPSRV0056_RecheckResumeSeesChangeAfterAudit(t *testing.T) {
 		}
 	})
 }
+
+// TestPSRV0151_ResumedWalksCountEachAttempt covers PSR-V0-151 (V1-1626): a
+// resumed audit charges one resumed walk per attempt it ran, so a
+// SNAPSHOT_MOVED retry is a second walk with its own wall time, and an
+// absent base, which runs no attempt, charges none. Resumed walks never
+// reach the complete or prefix columns.
+func TestPSRV0151_ResumedWalksCountEachAttempt(t *testing.T) {
+	repo, r := refreshStore(t)
+	base := resumeBase(t, r)
+	_, settled, err := r.AuditForResume(base, "")
+	if err != nil || settled.Walks.Resumed != 1 || settled.Walks.ResumedTime <= 0 {
+		t.Fatalf("settled resume: walks %+v err %v", settled.Walks, err)
+	}
+	captures := 0
+	r.afterCapture = func() {
+		if captures++; captures == 1 {
+			appendRequest(t, repo, "resume-retry")
+		}
+	}
+	res, moved, err := r.AuditForResume(base, "")
+	if err != nil || res.Mode != ModeWriter || captures != 2 {
+		t.Fatalf("resume over one append: %+v captures %d err %v", res, captures, err)
+	}
+	w := moved.Walks
+	if w.Resumed != 2 || w.ResumedTime <= 0 || w.Complete != 0 || w.Prefix != 0 || w.CompleteTime != 0 || w.PrefixTime != 0 {
+		t.Fatalf("resume with a SNAPSHOT_MOVED retry: walks %+v, want 2 resumed", w)
+	}
+	r.afterCapture = nil
+	if _, absent, err := r.AuditForResume(nil, ""); err == nil || absent.Walks != (WalkStats{}) {
+		t.Fatalf("absent base: walks %+v err %v", absent.Walks, err)
+	}
+}

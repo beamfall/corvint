@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-08
-Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)
+Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632)
 Delivery status: experimental
-Authoritative inputs: `AGENTS.md`, `docs/DOGFOOD.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
+Authoritative inputs: `AGENTS.md`, `docs/DOGFOOD.md`, `docs/LANE-ORCHESTRATION.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/local-completion-policy-v0.md`, `docs/specs/go-production-kernel-migration-v0.md`
 
 ## Agent digest
 - Claim: Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.
-- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)/experimental
+- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632)/experimental
 - Exists: `docs/SELF-DEVELOPMENT.md`, thin Codex/Claude skill routes and native feature/eval help.
 - Blocked on: final exact-target checks, independent review and enrolled strict finish; formal FULL and protected-runner authority remain separate.
 - Read next: Requirements; Acceptance and evidence; Failure and rollback.
@@ -43,6 +43,12 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 - `ASD-V0-010`: Reuse existing relevant CLI profile tests and documentation/package/spec validators for guidance and help changes. Add a focused semantic regression only for an evidenced uncovered misroute or public CLI behavior change; do not add string-presence or implementation-mirroring tests.
 - `ASD-V0-011`: Demonstrate applicable routes on the actual enrolled implementation task with original CLI outputs, native host/session identity, selected check observations, independent review and strict finish. Record unobserved Claude/Codex use as NOT_OBSERVED; future host guidance does not claim guaranteed automatic adoption or require an unrelated model trial before guidance can land.
 - `ASD-V0-012`: A future feature change updates the shared guide/status and its relevant route witness in the same change. Reviewer intent audit checks missed applicable families; no nominal percentage based on executed CLI count. Rollback removes routing additions without weakening existing dogfood completion.
+- `ASD-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1627) Lane admission caps concurrently running heavy lanes (lanes that run Go builds or tests) by the host-pressure signal of `CAL-V0-068` (one-minute load per CPU plus the Darwin memory-pressure level or Linux swap), sampled by the orchestrator at each heartbeat with two-sample hysteresis: at most 4 calm, 3 high and 1 critical on the reference 12-core host. An unreadable sample keeps the current level. Pressure holds only new heavy launches; running lanes are not stopped for it and light lanes are not counted. The procedure states why the dispatcher's own admission does not apply (agent lanes are not dispatcher workers).
+- `ASD-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1628) `script/heavy.sh` admits each heavy Go command through a host-wide counting lock with a configurable slot count (`HEAVY_SLOTS`, default CPUs/4), lock directory (`HEAVY_LOCK_DIR`) and Go parallelism bound (`HEAVY_P` exported as `GOFLAGS=-p=N` unless `-p` is already set). The command inherits the slot lock and runs in its own process group: the slot stays held until every process that kept the lock has exited, even when the wrapper is killed, is released when they exit for any reason, and INT/TERM/HUP are forwarded to the whole group; the wrapper returns the command's exit status, and an invalid limit is refused with exit 2. Lane charters run every heavy Go command through it.
+- `ASD-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1629) A lane fixes BASE, citation plan, intents, verify file and outcome before work starts and runs the post-commit finish (`make dogfood-finish`, `DCW-V0-060`) once after its last edit, at most twice. `script/dogfood-finish.sh` refuses before any build, in one line, naming every missing input, every named input file that is not a readable regular file, and an invalid outcome; with `LANE=1` it also requires INTENTS, VERIFY, OUTCOME and a full 40-hex BASE.
+- `ASD-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1630) Lanes run no sleep or wait loops and no background jobs; CI and merge-queue waits belong to the orchestrator. `docs/LANE-ORCHESTRATION.md` lists the commands known to approach the 600 s tool limit with their phases and the bound a lane applies to each.
+- `ASD-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1631) The orchestrator's heartbeat runs the read-only `script/lane-idle-check.sh` over each running lane's transcript or output and flags a lane idle for more than 30 minutes; last activity comes from RFC 3339 transcript timestamps (Z or numeric offset), or the modification time of a file with no timestamp key, and a transcript that cannot be read or holds an unparseable timestamp makes the lane UNKNOWN, flagged like idle (also in `--gaps`), never a silent modification-time fallback; a flagged lane is messaged once, then stopped or redispatched with its claim released and the reason retained. `--gaps` replays transcripts and reports when each idle gap would have been flagged.
+- `ASD-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1632) Lanes use one checkout each, created once from a shared plain clone with `git worktree add` (a fresh plain clone is the fallback) and reused for every check of the lane. `script/lane-clean.sh` is dry-run by default and with `--apply` removes only checkouts under the given root whose HEAD and local branches are ancestors of the reference ref, whose status is clean, with no stash, no registered linked worktree (for a clone), and not listed as active; any Git inspection that fails keeps the checkout, and a root that does not resolve to a directory other than `/` is refused; it reports counts and free disk before and after.
 
 ## Non-goals and trust boundary
 
@@ -51,6 +57,9 @@ protected principal, signing key or automatic command fanout. No sealed evaluati
 collection, silent trace migration, fabricated provider attachment, authority promotion or guaranteed
 future model adoption. Existing root/key, full-frame/privacy, optional execution and cleanup contracts
 remain controlling. Feature routes preserve failed, unknown, withheld and unavailable observations.
+The lane procedure (`ASD-V0-013..018`) is operator guidance and helper scripts: it adds no Tasks
+store state, no daemon, no automatic lane stop and no product command, and its scripts are never
+inputs to ranking, evidence or authority.
 
 ## Acceptance and evidence
 
@@ -59,6 +68,8 @@ remain controlling. Feature routes preserve failed, unknown, withheld and unavai
 | ASD-V0-001, ASD-V0-002, ASD-V0-007, ASD-V0-008, ASD-V0-012 | Shared guide, both installed-package source skills and scoped independent review. Ordinary repository behavior and existing local policy remain unchanged. |
 | ASD-V0-003, ASD-V0-004, ASD-V0-005, ASD-V0-006, ASD-V0-011 | Original task context/impact/affected/prove outputs, bound frontier and CEM/OCM reports, existing frozen LCP check observations and final strict finish. Before final binding, missing reports remain NOT_PRODUCED. These are task observations, not native-host conformance. |
 | ASD-V0-009, ASD-V0-010 | Existing `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` gains production-dispatch cases for feature/eval help with an invalid root and forbidden stdin. Existing feature/eval/profile tests retain admission boundaries; canonical documentation/package/spec validators cover integration. |
+| ASD-V0-013, ASD-V0-016 | `docs/LANE-ORCHESTRATION.md` sections 1 and 4. The before/after batch measurements (median load per CPU and focused-test time with the cap; polling time and tool-timeout counts) are NOT_PRODUCED until the next batch; the procedure is in section 7. |
+| ASD-V0-014, ASD-V0-015, ASD-V0-017, ASD-V0-018 | `script/heavy.sh`, `script/dogfood-finish.sh`, `script/lane-idle-check.sh`, `script/lane-clean.sh`; `make lane-scripts-test` (`script/lane-scripts_test.sh`): two concurrent `HEAVY_SLOTS=1` commands never overlap, status and `-p` pass through, a killed owner frees its slot; the finish refusal names every missing input before any build; idle and gap detection on fixed timestamps; only merged, clean, inactive clones and worktrees are removed and only with `--apply`. The 5-lane timing, dogfood-run counts and one-off cleanup counts are NOT_PRODUCED here (section 7). |
 
 Validation proceeds with focused existing discovery/profile tests and document validators, then one
 coordinated canonical gate on the final source+CEM target, independent semantic review and exact
@@ -79,7 +90,16 @@ its typed gap and uses original source/repository tools; it never calls a legacy
 success. A valid open frontier is advisory, while malformed input remains a failure. Missing local
 completion evidence blocks that enrolled gate under its existing policy, not under a new rule here.
 
-Rollback the guide, links, skill routing and help fixes together; retain existing local completion,
+Lane procedure failures are refusals, never silent success: `heavy.sh` refuses an invalid slot or
+parallelism value and an unusable lock directory (exit 2); `dogfood-finish.sh` refuses missing or
+unusable inputs before building; `lane-idle-check.sh` refuses a missing path and reports a lane with
+no readable activity as `UNKNOWN` (flagged); `lane-clean.sh` refuses an unavailable reference ref
+and keeps any checkout it cannot read, with the reason. A stale shared repository makes merged
+checkouts look unmerged (kept), never the reverse.
+
+Roll back `ASD-V0-013..018` by reverting `docs/LANE-ORCHESTRATION.md`, the three lane scripts, the
+`dogfood-finish` input refusal and `lane-scripts-test` together; lanes then return to charter-only
+procedure. Rollback the guide, links, skill routing and help fixes together; retain existing local completion,
 old outcomes and failed evidence. Future feature changes update their guide route and relevant
 witness in the same change. Delivery may become implemented only after the in-scope checks, real
 task evidence and independent review pass. Usefulness, token savings, formal FULL and protected

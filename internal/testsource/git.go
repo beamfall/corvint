@@ -108,22 +108,23 @@ func (r Repo) tree(rev string, keep func(string) bool, limit int) ([]entry, erro
 		}
 		entries = append(entries, entry{path: name, oid: fields[2], size: size})
 		if len(entries) > limit {
-			return nil, refuse("tests-bound-exceeded", "more than %d test files", limit)
+			return nil, refuse("tests-bound-exceeded", "more than %d test files in all", MaxFiles)
 		}
 	}
 	return entries, nil
 }
 
-// blobs reads every entry through one `git cat-file --batch`, checking each size bound.
-func (r Repo) blobs(entries []entry) (map[string][]byte, error) {
+// blobs reads every entry through one `git cat-file --batch`, checking each size bound and that the
+// entries' unique blobs fit in limit bytes; it returns the bytes they count against that limit.
+func (r Repo) blobs(entries []entry, limit int) (map[string][]byte, int, error) {
 	out := map[string][]byte{}
 	if len(entries) == 0 {
-		return out, nil
+		return out, 0, nil
 	}
 	sum, request, unique := 0, &bytes.Buffer{}, map[string]bool{}
 	for _, e := range entries {
 		if e.size > MaxFileBytes {
-			return nil, refuse("tests-bound-exceeded", "%s exceeds %d bytes", e.path, MaxFileBytes)
+			return nil, 0, refuse("tests-bound-exceeded", "%s exceeds %d bytes", e.path, MaxFileBytes)
 		}
 		if !unique[e.oid] {
 			unique[e.oid] = true
@@ -131,44 +132,58 @@ func (r Repo) blobs(entries []entry) (map[string][]byte, error) {
 			request.WriteString(e.oid + "\n")
 		}
 	}
-	if sum > maxTotalBytes {
-		return nil, refuse("tests-bound-exceeded", "test sources exceed %d bytes", maxTotalBytes)
+	if sum > limit {
+		return nil, 0, refuse("tests-bound-exceeded", "test sources exceed %d bytes", maxTotalBytes)
 	}
 	raw, err := r.git(sum+1024, request.Bytes(), "cat-file", "--batch")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	for len(raw) > 0 {
 		header, rest, ok := bytes.Cut(raw, []byte{'\n'})
 		fields := strings.Fields(string(header))
 		if !ok || len(fields) != 3 || fields[1] != "blob" {
-			return nil, refuse("tests-source-unavailable", "a committed source is unavailable")
+			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
 		}
 		size, err := strconv.Atoi(fields[2])
 		if err != nil || size+1 > len(rest) {
-			return nil, refuse("tests-source-unavailable", "a committed source is unavailable")
+			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
 		}
 		out[fields[0]] = rest[:size]
 		raw = rest[size+1:]
 	}
 	for oid := range unique {
 		if _, ok := out[oid]; !ok {
-			return nil, refuse("tests-source-unavailable", "a committed source is unavailable")
+			return nil, 0, refuse("tests-source-unavailable", "a committed source is unavailable")
 		}
 	}
-	return out, nil
+	return out, sum, nil
 }
 
-// readFiles reads the kept committed files at rev, keyed by path.
+// readBudget is what remains of one command's file and byte bounds; every read of the command
+// draws on the same budget, so the aggregate never exceeds MaxFiles files or maxTotalBytes bytes
+// (TSA-V0-012, TSA-V0-030).
+type readBudget struct{ files, bytes int }
+
+func newReadBudget() *readBudget { return &readBudget{files: MaxFiles, bytes: maxTotalBytes} }
+
+// readFiles reads the kept committed files at rev, keyed by path, within a fresh budget.
 func (r Repo) readFiles(rev string, keep func(string) bool) (map[string]string, map[string]string, error) {
-	entries, err := r.tree(rev, keep, MaxFiles)
+	return r.readFilesWithin(rev, keep, newReadBudget())
+}
+
+// readFilesWithin reads the kept committed files at rev and charges them to budget.
+func (r Repo) readFilesWithin(rev string, keep func(string) bool, budget *readBudget) (map[string]string, map[string]string, error) {
+	entries, err := r.tree(rev, keep, budget.files)
 	if err != nil {
 		return nil, nil, err
 	}
-	data, err := r.blobs(entries)
+	data, used, err := r.blobs(entries, budget.bytes)
 	if err != nil {
 		return nil, nil, err
 	}
+	budget.files -= len(entries)
+	budget.bytes -= used
 	texts, oids := map[string]string{}, map[string]string{}
 	for _, e := range entries {
 		texts[e.path], oids[e.path] = string(data[e.oid]), e.oid
@@ -340,7 +355,7 @@ func (r Repo) readOne(rev, name string, limit int) ([]byte, bool, error) {
 	if err != nil || size > limit {
 		return nil, false, refuse("tests-bound-exceeded", "%s exceeds %d bytes", name, limit)
 	}
-	data, err := r.blobs([]entry{{path: name, oid: fields[2], size: size}})
+	data, _, err := r.blobs([]entry{{path: name, oid: fields[2], size: size}}, maxTotalBytes)
 	if err != nil {
 		return nil, false, err
 	}

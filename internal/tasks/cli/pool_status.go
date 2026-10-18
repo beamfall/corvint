@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -39,6 +40,7 @@ func poolStatus(env Env, args []string) *wire.Result {
 		}
 		occupied := map[string]snapshot.PoolEntry{}
 		identities := map[string]snapshot.PoolIdentity{}
+		operations := map[string]snapshot.PoolOperationReceipt{}
 		if len(rc.store.Policy.Pools) > 0 {
 			proof, e := auditState(rc, "pools.json")
 			if e != nil {
@@ -52,6 +54,9 @@ func poolStatus(env Env, args []string) *wire.Result {
 				}
 				for _, en := range state.Entries {
 					occupied[en.MemberID] = en
+				}
+				for _, x := range state.Operations {
+					operations[x.PoolID+"\x00"+x.MemberID+"\x00"+x.Operation] = x
 				}
 				for _, id := range state.Identities {
 					identities[id.PoolID+"\x00"+id.MemberID] = id
@@ -79,6 +84,22 @@ func poolStatus(env Env, args []string) *wire.Result {
 				}
 				if p.DefaultSource != nil {
 					poolMemberIdentity(o, en, ok, identities[p.ID+"\x00"+m])
+				}
+				// PSR-V0-162: only a member that declares operations shows
+				// them, so every other member's status bytes are unchanged.
+				if declared := p.MemberConfig[m].Operations; len(declared) > 0 {
+					ops := wire.NewObject()
+					for _, op := range intent.PoolOperations {
+						if declared[op] == nil {
+							continue
+						}
+						if x, ok := operations[p.ID+"\x00"+m+"\x00"+op]; ok {
+							ops.Set(op, x.Value())
+						} else {
+							ops.Set(op, wire.String(poolNotObserved))
+						}
+					}
+					o.Set("operations", wire.ObjectValue(ops))
 				}
 				members = append(members, wire.ObjectValue(o))
 			}

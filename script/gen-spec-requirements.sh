@@ -10,13 +10,16 @@ set -eu
 #
 # With no argument the script prints docs/specs/REQUIREMENTS.tsv. `--index` prints
 # docs/specs/INDEX.json and `--readme` prints docs/specs/README.md, each projected from the
-# staged spec headers onto the staged file (SRG-V0-012). Every mode writes stdout only.
+# staged spec headers onto the staged file (SRG-V0-012). `--lines` prints the uncommitted locator
+# view: the same rows with each definition's line number, ordered by id (SRG-V0-015). Every mode
+# writes stdout only.
 
 case ${1:-} in
   '') mode=tsv ;;
   --index) mode=index ;;
   --readme) mode=readme ;;
-  *) printf 'usage: %s [--index | --readme]\n' "$0" >&2; exit 2 ;;
+  --lines) mode=lines ;;
+  *) printf 'usage: %s [--index | --readme | --lines]\n' "$0" >&2; exit 2 ;;
 esac
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
@@ -228,7 +231,22 @@ for my $file (sort @specs) {
     }
 }
 
+# SRG-V0-015: the committed index carries no line number and orders its rows by file, then by
+# definition position, so an edit that shifts a spec's lines rewrites no row and two changes that
+# add requirements to different sections of one spec insert their rows at different places.
+# `--lines` is the derived locator view with the line column, ordered by id; it is never committed.
 if ($mode eq 'tsv') {
+    close_index();
+    print "id\tfile\ttitle\tacceptance\tacceptedBy\n";
+    my @ids = sort {
+        $best{$a}{file} cmp $best{$b}{file} || $best{$a}{line} <=> $best{$b}{line} || $a cmp $b
+    } keys %best;
+    for my $id (@ids) {
+        print join("\t", $id, @{$best{$id}}{qw(file title acceptance accepted_by)}), "\n";
+    }
+    exit 0;
+}
+if ($mode eq 'lines') {
     close_index();
     print "id\tfile\tline\ttitle\tacceptance\tacceptedBy\n";
     for my $id (sort keys %best) {

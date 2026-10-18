@@ -71,13 +71,13 @@ func TestMCPV0038IndexDeadlineHasDistinctCode(t *testing.T) {
 	for _, test := range []struct {
 		name string
 		err  error
-		end  func(context.CancelFunc)
+		end  func(context.Context, context.CancelFunc)
 		want string
 	}{
 		{"index deadline", deadline, nil, "repository-probe-timeout"},
 		{"plain git failure", &contextindex.Error{Message: "Git repository is unavailable", Cause: errors.New("exit 128")}, nil, "repository-unavailable"},
-		{"caller cancelled", deadline, func(cancel context.CancelFunc) { cancel() }, "cancelled"},
-		{"caller deadline", deadline, func(context.CancelFunc) { time.Sleep(60 * time.Millisecond) }, "cancelled"},
+		{"caller cancelled", deadline, func(_ context.Context, cancel context.CancelFunc) { cancel() }, "cancelled"},
+		{"caller deadline", deadline, func(ctx context.Context, _ context.CancelFunc) { <-ctx.Done() }, "cancelled"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
@@ -89,7 +89,7 @@ func TestMCPV0038IndexDeadlineHasDistinctCode(t *testing.T) {
 			operations.platform = "linux"
 			build := func(context.Context, string) (*contextindex.Index, error) {
 				if test.end != nil {
-					test.end(cancel)
+					test.end(ctx, cancel)
 				}
 				return nil, test.err
 			}

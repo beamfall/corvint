@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 )
 
 // LeaseTiming accumulates the wall time one lease command spends in each
@@ -28,6 +30,32 @@ type LeaseTiming struct {
 	// Resumed counts writes served by resuming from the command's own audit
 	// from receipt 1 (PSR-V0-052, proposed). The CLI does not report it.
 	Resumed int
+	// The walk split (PSR-V0-151, V1-1626): how SnapshotRead divides into
+	// complete walks from receipt 1, prefix walks to a captured head and
+	// resumed walks from the command's base, with how many of the first two
+	// ended SNAPSHOT_MOVED and how many resumes were declined. The detached
+	// PENDING progress member reports it; `--timing` does not.
+	CompleteWalks  int
+	CompleteMoved  int
+	PrefixWalks    int
+	PrefixMoved    int
+	ResumedWalks   int
+	ResumeDeclines int
+	CompleteWalk   time.Duration
+	PrefixWalk     time.Duration
+	ResumedWalk    time.Duration
+}
+
+// walked adds one write audit's walks.
+func (t *LeaseTiming) walked(w journal.WalkStats) {
+	t.CompleteWalks += w.Complete
+	t.CompleteMoved += w.CompleteMoved
+	t.PrefixWalks += w.Prefix
+	t.PrefixMoved += w.PrefixMoved
+	t.ResumedWalks += w.Resumed
+	t.CompleteWalk += w.CompleteTime
+	t.PrefixWalk += w.PrefixTime
+	t.ResumedWalk += w.ResumedTime
 }
 
 type leaseTimingKey struct{}

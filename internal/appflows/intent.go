@@ -78,6 +78,8 @@ type FlowLink struct {
 	Basis      string     `json:"basis"`
 	Target     LinkTarget `json:"target"`
 	ReviewedAt string     `json:"reviewed_at,omitempty"`
+	// ReviewedAtRepository is required with reviewed_at on a qualified target, and refused elsewhere (AFU-V1-071).
+	ReviewedAtRepository string `json:"reviewed_at_repository,omitempty"`
 }
 
 // LinkTarget is a link's target identity (AFU-V1-007).
@@ -352,12 +354,17 @@ func validateLink(l FlowLink, members map[string]string, proposed bool) error {
 	if l.ReviewedAt != "" && (l.Basis != "declared" || !oidPattern.MatchString(l.ReviewedAt)) {
 		return errors.New("reviewed_at must be a full commit ID on a declared link")
 	}
+	_, _, qualified := splitQualified(l.Target.Path)
+	if (qualified && l.ReviewedAt != "") != (l.ReviewedAtRepository != "") || (l.ReviewedAtRepository != "" && !oidPattern.MatchString(l.ReviewedAtRepository)) {
+		return errors.New("reviewed_at_repository must be a full commit ID exactly on a reviewed link to a qualified target")
+	}
 	return validateTarget(l.Target)
 }
 
 func validateTarget(t LinkTarget) error {
 	bad := fmt.Errorf("invalid %s target", t.Type)
-	if t.Path != "" && !safePath(t.Path) {
+	// A qualified `ID:PATH` names an application repository file and only a source target may hold one (AFU-V1-071).
+	if _, _, qualified := splitQualified(t.Path); t.Path != "" && !safePath(t.Path) && !(qualified && t.Type == "source") {
 		return bad
 	}
 	if (t.StartLine == 0) != (t.EndLine == 0) || t.StartLine < 0 || t.EndLine < t.StartLine {

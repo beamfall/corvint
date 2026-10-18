@@ -117,6 +117,15 @@ func reportErr(code, f string, args ...any) error {
 // ReadReport reads at most MaxReportBytes from file and admits it with
 // ParseReport against the given qualified versions.
 func ReadReport(file string, qualified []string) (*Report, error) {
+	raw, err := readReportBytes(file)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReport(raw, qualified)
+}
+
+// readReportBytes reads at most MaxReportBytes+1 bytes of file.
+func readReportBytes(file string) ([]byte, error) {
 	f, err := os.Open(file)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -129,7 +138,7 @@ func ReadReport(file string, qualified []string) (*Report, error) {
 	if err != nil {
 		return nil, reportErr(wire.CodeMissingEvidence, "the report file is unreadable")
 	}
-	return ParseReport(raw, qualified)
+	return raw, nil
 }
 
 // ParseReport admits one json-reporter document: at most MaxReportBytes, one
@@ -137,6 +146,12 @@ func ReadReport(file string, qualified []string) (*Report, error) {
 // a config.version in qualified. Nothing of the report but the parsed match
 // structure is kept.
 func ParseReport(raw []byte, qualified []string) (*Report, error) {
+	return parseReport(raw, qualified, false)
+}
+
+// parseReport admits the report shape; anyVersion admits every version
+// label, for the TOL-V0-061 qualification check only.
+func parseReport(raw []byte, qualified []string, anyVersion bool) (*Report, error) {
 	if len(raw) > MaxReportBytes {
 		return nil, reportErr(wire.CodeMalformed, "the report exceeds %d bytes", MaxReportBytes)
 	}
@@ -168,7 +183,7 @@ func ParseReport(raw []byte, qualified []string) (*Report, error) {
 	if _, err := wire.ParseLabel("config.version", v); err != nil {
 		return nil, reportErr(wire.CodeMalformed, "config.version is not a version label")
 	}
-	ok := false
+	ok := anyVersion
 	for _, q := range qualified {
 		ok = ok || q == v
 	}

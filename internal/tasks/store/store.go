@@ -37,6 +37,9 @@ type Report struct {
 	LaneUntouchedAttestation *snapshot.LaneUntouchedAttestation
 
 	PoolAllocation *snapshot.PoolAllocation
+	// PoolOperation is the typed operation receipt a `pool operate` run or
+	// replay recorded for its request (PSR-V0-162), nil otherwise.
+	PoolOperation *snapshot.PoolOperationReceipt
 	// SharedAllocation is a claimed attempt's PSR-V0-016 binding, nil otherwise.
 	SharedAllocation *snapshot.SharedAllocation
 	// ReleasedPoolAllocation is the allocation a completed pool release
