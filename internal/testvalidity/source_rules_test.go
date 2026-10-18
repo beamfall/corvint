@@ -57,3 +57,18 @@ func TestApplySourceFindingsAdvisoryAndExisting(t *testing.T) {
 		t.Fatalf("hygiene %+v, want %+v", got.Hygiene, want)
 	}
 }
+
+// TestApplySourceFindingsBlockNotCalled: an invalid BLOCK-NOT-CALLED finding makes hygiene
+// INELIGIBLE with its own reason and appends the call and the helper to the anchors (TSA-V0-056).
+func TestApplySourceFindingsBlockNotCalled(t *testing.T) {
+	p := eligibleProjection()
+	got := ApplySourceFindings(p, []SourceFinding{{Rule: RuleBlockNotCalled, Severity: SeverityInvalid, Location: "spec/n_spec.rb:11", Cause: "spec/n_spec.rb:2"}})
+	want := Axis{State: HygieneIneligible, Reason: HygieneReasonBlockNotCalled, Anchors: []string{"h", "spec/n_spec.rb:11", "spec/n_spec.rb:2"}}
+	if !reflect.DeepEqual(got.Hygiene, want) || HygieneReasonBlockNotCalled != "block-not-called" {
+		t.Fatalf("hygiene %+v, want %+v", got.Hygiene, want)
+	}
+	got.Hygiene = p.Hygiene
+	if !reflect.DeepEqual(got, p) {
+		t.Fatalf("other axes changed: %+v", got)
+	}
+}
