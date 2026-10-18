@@ -5,8 +5,8 @@ Scope: new experimental `TSA-V0-006`/`TSA-V0-007` in `docs/specs/test-source-ana
 `UCL1142-V0-008` (with the matching `UCL1142-V0-004` deadline wording) in
 `docs/specs/upgrade-checklist-v0.md`, agent-drafted and accepted under the owner's standing
 auto-accept of lane requirements (2026-10-11). No decisions, Core profile changes or ticket-store
-writes. The analyzer schema moves to `corvint-analyzer/122` because the contextindex sources changed
-(IDX-SNAP-V0-017).
+writes. The analyzer schema moves to `corvint-analyzer/123` because the contextindex sources changed
+(IDX-SNAP-V0-017); `corvint-analyzer/122` is taken by V1-1674 (#1088), merged first.
 
 ## V1-1698 (GitHub #1082): setup-select failed open on a shared constant
 
