@@ -77,7 +77,7 @@ var tasksExportPrefixes = []string{
 	"internal/cem/cemcode/", "internal/cem/gitrun/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
 	"internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
-	"internal/runtimeenv/", "internal/secretscreen/", "internal/untrackedallowance/",
+	"internal/rubyautoload/", "internal/runtimeenv/", "internal/secretscreen/", "internal/untrackedallowance/",
 }
 
 // tasksExport filters export to the corvint-tasks subset. It keeps the same

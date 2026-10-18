@@ -294,10 +294,10 @@ func TestDiscoverProducerGuidance(t *testing.T) {
 		}
 		document := discover(t, root)
 		a := document.Discovery.Abstention
-		if document.Source != "none" || a == nil || a.ExpectedEvidencePath != EvidenceDirectory || len(a.Producers) != 3 {
+		if document.Source != "none" || a == nil || a.ExpectedEvidencePath != EvidenceDirectory || len(a.Producers) != 4 {
 			t.Fatalf("missing guidance: %+v", a)
 		}
-		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle"} {
+		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle", "corvint-ruby-test-provider rspec --retain --dir"} {
 			if !strings.HasPrefix(a.Producers[i].Command, prefix) || a.Producers[i].Qualification != "NOT_OBSERVED" {
 				t.Fatalf("producer=%+v", a.Producers[i])
 			}

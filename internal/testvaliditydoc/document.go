@@ -13,6 +13,7 @@ import (
 	"io"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/rubytestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -62,6 +63,7 @@ var jsKinds = map[string]bool{"unit": true, "e2e": true}
 type Input struct {
 	js        *jstestprovider.Receipt
 	goSession *goSessionDocument
+	ruby      *rubytestprovider.Document
 }
 
 // jsProviderDocument is the corvint-js-test-provider stdout shape. The carried
@@ -155,8 +157,18 @@ func Decode(data []byte) (Input, error) {
 	}
 	if probe.Profile != nil {
 		var profile string
-		if err := json.Unmarshal(probe.Profile, &profile); err != nil || profile != goSessionProfile {
+		if err := json.Unmarshal(probe.Profile, &profile); err != nil || (profile != goSessionProfile && profile != rubytestprovider.Profile) {
 			return Input{}, errors.New("provider document kind is unrecognized")
+		}
+		if profile == rubytestprovider.Profile {
+			var document rubytestprovider.Document
+			if err := decodeClosed(data, &document); err != nil {
+				return Input{}, errors.New("is not a corvint-ruby-test-provider document: " + err.Error())
+			}
+			if err := rubytestprovider.Validate(document); err != nil {
+				return Input{}, err
+			}
+			return Input{ruby: &document}, nil
 		}
 		var document goSessionDocument
 		if err := decodeClosed(data, &document); err != nil {
@@ -197,6 +209,9 @@ func Project(input Input) Document {
 	}
 	if input.goSession != nil {
 		return projectGoSession(*input.goSession)
+	}
+	if input.ruby != nil {
+		return projectRuby(*input.ruby)
 	}
 	return Unsupported()
 }
@@ -259,6 +274,31 @@ func projectGoSession(session goSessionDocument) Document {
 		Tests:        tests,
 		Run:          testvalidity.ProjectGoSession(session.State, session.Identity),
 		TestsOmitted: session.TestProjectionsOmitted,
+		Tier:         "preview",
+		Promotable:   &promotable,
+	}
+}
+
+// projectRuby recomputes every example and run projection of an RSpec
+// provider document (LPCV-V0-093). The provider is experimental, so the
+// document is a non-promotable preview.
+func projectRuby(document rubytestprovider.Document) Document {
+	tests := make([]Test, 0, len(document.Examples))
+	for _, example := range document.Examples {
+		name := example.Description
+		if name == "" {
+			name = example.ID
+		}
+		tests = append(tests, Test{ID: example.ID, Name: name, State: example.Status, Projection: rubytestprovider.ProjectExample(document, example)})
+	}
+	promotable := false
+	return Document{
+		Schema:       Schema,
+		Source:       rubytestprovider.Producer,
+		Kind:         "rspec",
+		Tests:        tests,
+		Run:          rubytestprovider.ProjectRun(document),
+		TestsOmitted: document.ExamplesOmitted,
 		Tier:         "preview",
 		Promotable:   &promotable,
 	}

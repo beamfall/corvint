@@ -81,6 +81,7 @@
     ],
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-release-gate": [],
+    "cmd/corvint-ruby-test-provider": [],
     "cmd/corvint-test": [
       ".github/cishards/",
       "cmd/",
@@ -320,6 +321,7 @@
     "internal/projectpath": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
+    "internal/rubytestprovider": [],
     "internal/sessiontest": [
       ".github/cishards/",
       ".github/workflows/ci.yml"

@@ -385,7 +385,7 @@ func sortedKeys(set map[string]bool) []string {
 // units with no tests. Keep this walk aligned with Select; witness chains alone
 // enumerate only one path and cannot establish the denominator of a diamond.
 func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
-	reached, _, _ := graph.reach(NormalizePaths(dirty))
+	reached, _, _, _ := graph.reach(NormalizePaths(dirty))
 	ids := make([]string, 0, len(reached))
 	for id := range reached {
 		ids = append(ids, id)

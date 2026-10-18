@@ -53,6 +53,8 @@ AFP-V0-051	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
 AFP-V0-053	docs/specs/affected-plan-v0.md	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
 AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
+AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
+AFP-V0-072	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no	standing	2026-10-11; V1-1806
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2697,6 +2699,13 @@ LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737
 LPCV-V0-083	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An	standing	2026-10-11; V1-1737
+LPCV-V0-090	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
+LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) With	standing	2026-10-11; V1-1797
+LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
+LPCV-V0-093	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
+LPCV-V0-094	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discover	standing	2026-10-11; V1-1797
+LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before t	standing	2026-10-11; V1-1797
+LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-
@@ -3014,6 +3023,15 @@ NGI-V0-018	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-019	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674)	standing	2026-10-11; V1-1674
 NGI-V0-020	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) The	standing	2026-10-11; V1-1674
 NGI-V0-021	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
+NGI-V0-033	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A	standing	2026-10-11; V1-1794
+NGI-V0-034	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) For	standing	2026-10-11; V1-1794
+NGI-V0-035	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) Every	standing	2026-10-11; V1-1794
+NGI-V0-036	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A Ruby	standing	2026-10-11; V1-1794
+NGI-V0-037	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A	standing	2026-10-11; V1-1794
+NGI-V0-038	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1700) The	standing	2026-10-11; V1-1700
+NGI-V0-039	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
+NGI-V0-040	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
+NGI-V0-027	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796) When an	standing	2026-10-11; V1-1796
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-
@@ -3123,6 +3141,10 @@ PWP-V0-024	docs/specs/playwright-external-provider-v0.md	(accepted under the own
 PWP-V0-025	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
 PWP-V0-026	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
 PWP-V0-027	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #	standing	2026-10-11; V1-1762; #1106
+PWP-V0-028	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1800; GitHub #	standing	2026-10-11; V1-1800; #1131
+PWP-V0-029	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802;	standing	2026-10-11; V1-1800; V1-1802; #1131; #1133
+PWP-V0-030	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
+PWP-V0-031	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	`/1` is available only in external-server mode and requires a typed `corvint-app	unrecorded	-
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	The closed provider configuration binds the expected application root commit, re	unrecorded	-
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	Each closed canonical `corvint-application-attestation/0` observation binds the	unrecorded	-

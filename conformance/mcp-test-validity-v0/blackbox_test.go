@@ -262,10 +262,10 @@ func checkVector(t *testing.T, item vector, response map[string]any) {
 			t.Fatalf("abstention=%v", abstention)
 		}
 		producers := abstention["producers"].([]any)
-		if len(producers) != 3 {
+		if len(producers) != 4 {
 			t.Fatalf("producers=%v", producers)
 		}
-		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle"} {
+		for i, prefix := range []string{"corvint-js-test-provider unit --retain", "corvint-js-test-provider e2e --retain", "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle", "corvint-ruby-test-provider rspec --retain --dir"} {
 			hint := producers[i].(map[string]any)
 			if !strings.HasPrefix(hint["command"].(string), prefix) || hint["qualification"] != "NOT_OBSERVED" {
 				t.Fatalf("producer=%v", hint)

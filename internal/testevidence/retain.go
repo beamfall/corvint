@@ -27,18 +27,23 @@ const MaxRetained = 32
 // directories 0700 and the file 0600, refusing a symlinked or non-directory
 // component, then prunes that directory to the producer's newest MaxRetained
 // names. It returns the retained file name; a document its own prune removed is
-// a failure, never a retained name.
+// a failure, never a retained name. It first keeps the retention out of `git
+// status` (IgnoreRetained, LPCV-V0-084).
 func Retain(worktree, producer string, document []byte) (string, error) {
 	root, err := os.OpenRoot(worktree)
 	if err != nil {
 		return "", fmt.Errorf("worktree cannot be opened: %w", err)
 	}
 	defer root.Close()
+	createdCorvint := corvintMissing(root)
 	evidence, err := openEvidence(root)
 	if err != nil {
 		return "", err
 	}
 	defer evidence.Close()
+	if err := IgnoreRetained(root, evidence, createdCorvint); err != nil {
+		return "", err
+	}
 	name, err := write(evidence, producer, document)
 	if err != nil {
 		return "", err
