@@ -29,6 +29,15 @@ retired. File the umbrella ticket and the first slice."
 - Retirement is a proposal behind a frozen shadow gate (at least 30 changes, 100% per-candidate and
   95% total seeded-regression parity, zero escapes). Corvint never deletes or disables a hosted
   test. The gate values are owner question 4.
+- One companion binary. The owner asked whether the E2E capability should be its own binary, then,
+  verbatim: "do it. and while you are there we should make sure we are breaking up the tooling
+  correclty into appropriate binaries". Every CCE-V0 command is now a subcommand of `corvint-e2e`
+  (`catalog`, `obligations`, `compile`, `prove`, `shadow`), and V0 adds nothing to core `corvint`
+  (CCE-V0-015). This replaces the first draft's split between a core `corvint e2e` group and a
+  `corvint-e2e-prove` companion. The reasons are invariant 7 (the default binary stays unchanged by
+  an experimental capability), one rollback unit, and the existing companion pattern
+  (`corvint-tests-accept`, `corvint-behavior-falsify`). The cost is that the read subcommands live
+  outside core while they are experimental; graduating them is a later owner decision.
 
 ## Independent review
 

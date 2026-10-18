@@ -17,10 +17,10 @@ is retired"; `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `docs/specs/applica
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: proposed; not-started. No requirement is implemented; every row of the traceability table reads `NOT_STARTED`.
+- Status: proposed; not-started. No requirement is implemented; every row of the traceability table reads `NOT_STARTED`. Everything ships in one experimental companion, `corvint-e2e`; V0 adds nothing to core `corvint`.
 - Exists: nothing of this capability. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: owner acceptance of this intent; first slice V1-1665 (umbrella V1-1666).
-- Read next: Definitions; Requirements; Shadow evaluation and retirement; Owner questions.
+- Read next: Definitions; Binary boundary; Requirements; Shadow evaluation and retirement; Owner questions.
 
 ## User and measurable job
 
@@ -118,9 +118,22 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
 - **Shadow window**: a frozen, ordered list of at least 30 merged changes, fixed before the
   evaluation runs, over which compiled scenarios and the hosted affected selection both run.
 
+## Binary boundary
+
+Every CCE-V0 command is a subcommand of one experimental companion binary, `cmd/corvint-e2e`:
+`catalog`, `obligations`, `compile`, `prove` and `shadow`. V0 adds no command, flag, dependency or
+default-path behaviour to core `corvint` (invariant 7), so the capability can be built, shipped,
+killed or rolled back as one unit without touching the core binary. The companion reads the same
+in-module relations core uses (AMAP-V0, ANL-V0, AFU-V1, RVN-V0, PWR-V0) as a library; it does not
+shell out to `corvint` and does not duplicate those relations.
+
+The read subcommands (`catalog`, `obligations`, `compile`, `shadow`) are read-only. Only `prove`
+executes a browser, and only in a disposable workspace. Graduating the read subcommands into core
+is a later, separate decision that needs its own owner acceptance and the promotion evidence below.
+
 ## Requirements
 
-- `CCE-V0-001`: `corvint e2e catalog [--root PATH] --rev REV` MUST emit one deterministic
+- `CCE-V0-001`: `corvint-e2e catalog [--root PATH] --rev REV` MUST emit one deterministic
   `e2e-block-catalog/0` JSON document listing every admitted block of the seven kinds in the
   Definitions, each with its kind, stable ID, Git blob, line span and the source relation that
   admitted it, sorted by kind then ID, with the catalog content digest. It MUST be read-only and
@@ -144,13 +157,13 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   missing file means no input or fixture blocks, reported as the unknown `blocks-not-declared`. An
   unknown member, a wrong type, a duplicate ID or an unresolved reference MUST refuse with
   `e2e-blocks-invalid` and admit nothing from the file.
-- `CCE-V0-004`: `corvint e2e obligations [--root PATH] --base SHA --head SHA` MUST map the diff to
+- `CCE-V0-004`: `corvint-e2e obligations [--root PATH] --base SHA --head SHA` MUST map the diff to
   obligations through the existing impact, affected-plan and map relations, listing each reached
   outcome with the changed span and the chain that reaches it. When any changed span's reach cannot
   be bounded, the report MUST read `UNKNOWN` overall and name the spans; it MUST NOT read `NONE`.
   A compilation over an `UNKNOWN` report MUST read `INCOMPLETE` overall with those spans, even when
   every `REACHED` obligation compiled or none was reached.
-- `CCE-V0-005`: `corvint e2e compile` MUST emit, for each `REACHED` obligation, at most one compiled
+- `CCE-V0-005`: `corvint-e2e compile` MUST emit, for each `REACHED` obligation, at most one compiled
   scenario that: enters the obligation's screen over one admitted `path` block (shortest proven
   chain, then lexical order); satisfies each precondition with one admitted `fixture` block; drives
   actions only through admitted `page-object` methods and `input` values; and asserts the
@@ -165,8 +178,8 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   bytes with the digest value left empty while hashing (the ANL-V0-005 convention), and the catalog
   digest uses the same rule. Compiled files MUST be written only under an explicit `--out`
   directory, under the CCE-V0-001 `--out` rule.
-- `CCE-V0-008`: Running and proving are separate, opt-in and executed by a companion
-  (`corvint-e2e-prove`), never by a read command. The companion MUST run each compiled scenario
+- `CCE-V0-008`: Running and proving are separate and opt-in: only `corvint-e2e prove` executes,
+  never a read subcommand. `prove` MUST run each compiled scenario
   through the existing Playwright provider path at head with repeats (default 5, retries 0, one
   worker) and at base with the same settings, against a disposable workspace per BBF-V0's mutation
   boundary, and MUST bind every run to a PWP receipt.
@@ -190,7 +203,7 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
 - `CCE-V0-010`: A compiled scenario MUST NOT read above `candidate` unless its verdict is
   `DISCRIMINATES` or `PRESERVES`; a passing compiled scenario MUST NOT narrow, skip or replace any
   hosted test's selection in V0.
-- `CCE-V0-011`: `corvint e2e shadow --window FILE` MUST read a frozen shadow window (an ordered list
+- `CCE-V0-011`: `corvint-e2e shadow --window FILE` MUST read a frozen shadow window (an ordered list
   of merged-change base/head pairs, digest-pinned before the first run) and report, per change and
   in total: obligations by state, scenarios by verdict, hosted affected tests run, seeded
   regressions (BBF-V0 controls) caught by each side, real hosted failures the compiled side missed
@@ -220,6 +233,9 @@ Checked against `origin/main` at `2c826212c74beb48507b60e7759fae80faaf2a40`.
   the complete data before truncation, and truncation MUST NOT change them. A command that consumes
   another's document (`compile` reading a catalog or obligations, `shadow` reading proofs) MUST
   refuse a truncated input with `e2e-input-truncated`.
+- `CCE-V0-015`: Every CCE-V0 command MUST be a subcommand of the `corvint-e2e` companion, as Binary
+  boundary defines. V0 MUST NOT add a command, flag, import-time side effect or dependency to core
+  `corvint`, and the companion MUST NOT invoke the `corvint` binary.
 
 ## Shadow evaluation and retirement
 
@@ -251,10 +267,10 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 
 ## Trust boundary, limits and failure modes
 
-- Read commands (`catalog`, `obligations`, `compile`, `shadow` over existing receipts) are read-only
-  and write only to stdout or an explicit `--out` path outside the repository root (CCE-V0-001;
-  invariant 4). Only the opt-in companion executes browsers,
-  and only in a marked disposable workspace (BBF-V0 boundary).
+- The read subcommands (`catalog`, `obligations`, `compile`, `shadow` over existing receipts) are
+  read-only and write only to stdout or an explicit `--out` path outside the repository root
+  (CCE-V0-001; invariant 4). Only the opt-in `prove` subcommand executes browsers, and only in a
+  marked disposable workspace (BBF-V0 boundary).
 - Compiled scenarios are generated code run against the user's application. They contain only
   admitted block text, so they add no code path a hosted block does not already contain.
 - Limits: at most 64 obligations per compile, 16 scenarios proven per run, 100 repeats per side,
@@ -274,16 +290,17 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 | CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | NOT_STARTED |
 | CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
 | CCE-V0-014 | byte-cap truncation tests per document | NOT_STARTED |
+| CCE-V0-015 | import-graph test: `cmd/corvint` imports no CCE package and gains no `e2e` verb | NOT_STARTED |
 
-The first slice (V1-1665) covers CCE-V0-001, 002, 004, 005, 006, 007, 008 and 009 for one
+The first slice (V1-1665) covers CCE-V0-001, 002, 004, 005, 006, 007, 008, 009 and 015 for one
 obligation on the committed fixture. CCE-V0-003 there may use a single hand-written declarations
 file. Everything else belongs to the umbrella (V1-1666).
 
 ## Rollout, rollback and compatibility
 
-- Ship behind the experimental `corvint e2e` command group and a separate companion binary; nothing
-  changes for existing `affected`, `flows` or `test` users.
-- Rollback: remove the command group, the companion and `.corvint/e2e-blocks.json` handling. No
+- Ship only as the experimental `corvint-e2e` companion; nothing changes in core `corvint` or for
+  existing `affected`, `flows` or `test` users.
+- Rollback: remove `cmd/corvint-e2e`, its package and `.corvint/e2e-blocks.json` handling. No
   stored state migrates, because the catalog is derived and compiled scenarios are never committed.
 - Drift: the catalog digest changes with any admitted block; a proven scenario whose catalog digest
   or anchors changed reads `UNVERIFIED_AT_HEAD` as RVN-V0 defines.
