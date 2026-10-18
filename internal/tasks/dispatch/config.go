@@ -436,6 +436,8 @@ type Role struct {
 	// ShortSessions is the role's optional ATR-V0-060 short-session
 	// cooldown, replacing the global one.
 	ShortSessions *ShortSessions `json:"shortSessions,omitempty"`
+	// CarryOver is the role's optional ATR-V0-110 no-progress carry-over.
+	CarryOver *CarryOver `json:"carryOver,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
 }
@@ -859,6 +861,17 @@ func (c *Config) validate() error {
 				return fail("role %s %v", r.Name, err)
 			}
 		}
+		if co := r.CarryOver; co != nil {
+			if err := co.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
+			if r.Lane != nil {
+				return fail("role %s carryOver applies to ticket roles only", r.Name)
+			}
+			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); co.on() && err != nil {
+				return fail("role %s sets carryOver but host %q %v", r.Name, r.Host, err)
+			}
+		}
 		if b := r.Budget; b != nil {
 			if err := b.validate(); err != nil {
 				return fail("role %s %v", r.Name, err)
@@ -1105,13 +1118,27 @@ func validGates(gates []GateMatch) error {
 // offered as, a command string; a host that needs a shell uses a wrapper
 // executable. A program that evaluates a plain argument as code remains
 // outside what this check can see.
-func noteSafeHost(h Host) error {
+func noteSafeHost(h Host) error { return promptSafeHost(h, nil) }
+
+// carryArgvPlaceholders are the placeholders a carry-over host's argv may
+// hold besides a whole {prompt} (ATR-V0-110): their values come from the
+// configuration or the dispatcher, never from the store or a session.
+var carryArgvPlaceholders = map[string]bool{"{program}": true, "{role}": true, "{slot}": true, "{worker}": true, "{holder}": true, "{workRoot}": true, "{model}": true, "{effort}": true, "{contextHookSettings}": true}
+
+// promptSafeHost is noteSafeHost's check, which also admits argv elements
+// after the first holding only the placeholders in allowed.
+func promptSafeHost(h Host, allowed map[string]bool) error {
 	if !slices.Contains(h.Argv, "{prompt}") {
 		return fmt.Errorf("never passes {prompt}, so the note would be dropped")
 	}
 	for i, a := range h.Argv {
-		if a != "{prompt}" && placeholder.MatchString(a) {
-			return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
+		if a == "{prompt}" {
+			continue
+		}
+		for _, p := range placeholder.FindAllString(a, -1) {
+			if i == 0 || !allowed[p] {
+				return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
+			}
 		}
 		if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
 			return fmt.Errorf("runs the interpreter %s", a)
