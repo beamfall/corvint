@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // Block kinds (CCE-V0-001).
@@ -336,7 +337,7 @@ func (c *Catalog) addDeclarations(ctx context.Context, root, rev string, pageObj
 				return refuse("e2e-blocks-invalid", "input %q value %q", in.InputID, v.ValueID)
 			}
 			vals[v.ValueID] = true
-			if secretShaped.MatchString(v.Value) {
+			if secretShaped.MatchString(v.Value) || secretscreen.MatchString(v.Value) {
 				return refuse("e2e-input-secret", "input %q value %q", in.InputID, v.ValueID)
 			}
 		}

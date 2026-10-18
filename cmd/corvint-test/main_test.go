@@ -92,7 +92,7 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 	if err := run(ctx, []string{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", out}, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(out, "e2e/corvint-compiled/book-tee-time-booked.spec.ts")); err != nil {
+	if _, err := os.Stat(filepath.Join(out, "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts")); err != nil {
 		t.Fatal(err)
 	}
 	// prove is registered: a bad flag fails at parse, not as an unknown subcommand.
@@ -165,5 +165,67 @@ func TestCCEV0015NeverExecutesCorvint(t *testing.T) {
 	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
 		data, _ := os.ReadFile(marker)
 		t.Fatalf("companion executed corvint: %s", data)
+	}
+}
+
+// CCE-V0-001/007: a symlink below --out (here <out>/e2e pointing at another directory) refuses
+// compile before anything is written through it.
+func TestCCEV0001OutNestedSymlinkRefused(t *testing.T) {
+	root, base, head := fixture(t)
+	out, target := t.TempDir(), t.TempDir()
+	if err := os.Symlink(target, filepath.Join(out, "e2e")); err != nil {
+		t.Fatal(err)
+	}
+	var r *changee2e.Refusal
+	err := run(context.Background(), []string{"e2e", "compile", "--root", root, "--base", base, "--head", head, "--out", out}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+		t.Fatalf("link target written: %v %v", entries, err)
+	}
+	// Duplicate placements refuse before any write.
+	sc := changee2e.Scenario{Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte("x")}
+	dup := t.TempDir()
+	if err := writeScenarios(dup, []changee2e.Scenario{sc, sc}); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if entries, _ := os.ReadDir(dup); len(entries) != 0 {
+		t.Fatalf("duplicate placement wrote %v", entries)
+	}
+}
+
+// CCE-V0-001: a symlinked final file under --out (for example e2e-prove.json) refuses and leaves
+// its target untouched; a reserved name is validated before scenario writes.
+func TestCCEV0001OutFileSymlinkRefused(t *testing.T) {
+	out := t.TempDir()
+	victim := filepath.Join(t.TempDir(), "victim")
+	if err := os.WriteFile(victim, []byte("keep"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(victim, filepath.Join(out, proveReport)); err != nil {
+		t.Fatal(err)
+	}
+	var r *changee2e.Refusal
+	if err := writeUnder(out, proveReport, []byte("x"), nil); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if err := writeFile(filepath.Join(out, proveReport), []byte("x"), nil); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	sc := changee2e.Scenario{Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte("x")}
+	if err := writeScenarios(out, []changee2e.Scenario{sc}, proveReport); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+		t.Fatalf("%v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(out, "e2e")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("scenario written before validation: %v", err)
+	}
+	if data, _ := os.ReadFile(victim); string(data) != "keep" {
+		t.Fatalf("victim overwritten: %q", data)
+	}
+	for _, rel := range []string{"../x", "/abs", ""} {
+		if _, err := checkUnder(out, rel); !errors.As(err, &r) || r.Code != "e2e-out-unsafe" {
+			t.Fatalf("%q: %v", rel, err)
+		}
 	}
 }

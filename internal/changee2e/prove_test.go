@@ -1,6 +1,8 @@
 package changee2e
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -31,7 +33,7 @@ func TestMain(m *testing.M) {
 // named codes instead of sampling; retries and workers are not options at all.
 func TestCCEV0008ProveLimitsRefuse(t *testing.T) {
 	sc := Scenario{Obligation: "obligation:a/b", Placement: "e2e/corvint-compiled/a.spec.ts", Text: []byte("x\n"),
-		TestTitle: "obligation:a/b", AssertionID: "assert:a/b", AssertionLine: 1, Matcher: "toHaveText", Locator: "s", Value: "v"}
+		TestTitle: "obligation:a/b", AssertionID: "assert:a/b", AssertionLine: 1, Matcher: "toHaveText", Locator: "s", Value: "v", Marker: "corvint-e2e outcome assert:a/b"}
 	many := make([]Scenario, MaxScenarios+1)
 	for i := range many {
 		many[i] = sc
@@ -119,23 +121,28 @@ func TestCCEV0009VerdictOrder(t *testing.T) {
 }
 
 // CCE-V0-009 step 6: a base failure counts only when it is at the outcome assertion, matched from
-// the Playwright failure message with its colour codes stripped.
+// the Playwright failure message with its colour codes stripped. The assertion's own expect message
+// must lead the matcher header, so another assertion on the same locator and matcher (a page-object
+// check failing first) is not placed on the outcome assertion.
 func TestCCEV0009AssertionDetector(t *testing.T) {
-	coloured := "Error: \x1b[2mexpect(\x1b[22m\x1b[31mlocator\x1b[39m\x1b[2m).\x1b[22mtoHaveText\x1b[2m(\x1b[22m\x1b[32mexpected\x1b[39m\x1b[2m)\x1b[22m failed\n\nLocator: getByTestId('slot-status')\nExpected: \x1b[32m\"Booked\"\x1b[39m\nReceived: \x1b[31m\"Pending\"\x1b[39m"
+	const marker = "corvint-e2e outcome assert:a/b"
+	coloured := "Error: " + marker + "\n\n\x1b[2mexpect(\x1b[22m\x1b[31mlocator\x1b[39m\x1b[2m).\x1b[22mtoHaveText\x1b[2m(\x1b[22m\x1b[32mexpected\x1b[39m\x1b[2m)\x1b[22m failed\n\nLocator: getByTestId('slot-status')\nExpected: \x1b[32m\"Booked\"\x1b[39m\nReceived: \x1b[31m\"Pending\"\x1b[39m"
 	for _, tc := range []struct {
 		name, state, message, locator string
 		want                          bool
 	}{
 		{"coloured outcome failure", "failed", coloured, "slot-status", true},
-		{"double-quoted locator", "failed", "expect(locator).toHaveText(expected) failed\nLocator: getByTestId(\"slot-status\")", "slot-status", true},
+		{"double-quoted locator", "failed", marker + "\n\nexpect(locator).toHaveText(expected) failed\nLocator: getByTestId(\"slot-status\")", "slot-status", true},
+		{"same locator and matcher without the marker", "failed", "Error: expect(locator).toHaveText(expected) failed\n\nLocator: getByTestId('slot-status')", "slot-status", false},
+		{"other assertion's marker", "failed", strings.Replace(coloured, marker, "corvint-e2e outcome assert:a/c", 1), "slot-status", false},
 		{"other locator", "failed", coloured, "slot", false},
-		{"other matcher", "failed", "expect(locator).toBeVisible() failed\nLocator: getByTestId('slot-status')", "slot-status", false},
+		{"other matcher", "failed", marker + "\n\nexpect(locator).toBeVisible() failed\nLocator: getByTestId('slot-status')", "slot-status", false},
 		{"navigation failure", "failed", "page.goto: net::ERR_CONNECTION_REFUSED", "slot-status", false},
 		{"timed out is not at the assertion", "timedOut", coloured, "slot-status", false},
 		{"passed", "passed", "", "slot-status", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := failsAtAssertion(tc.state, tc.message, "toHaveText", tc.locator); got != tc.want {
+			if got := failsAtAssertion(tc.state, tc.message, marker, "toHaveText", tc.locator); got != tc.want {
 				t.Fatalf("failsAtAssertion = %v, want %v", got, tc.want)
 			}
 		})
@@ -186,8 +193,8 @@ func TestCCEV0009ControlPerturbation(t *testing.T) {
 		kind behaviorfalsify.ControlKind
 		want string
 	}{
-		{behaviorfalsify.WrongLocator, "getByTestId('corvint-wrong-locator')).toHaveText('Booked')"},
-		{behaviorfalsify.WrongExpectedValue, "getByTestId('slot-status')).toHaveText('corvint-wrong-value')"},
+		{behaviorfalsify.WrongLocator, "getByTestId('corvint-wrong-locator'), 'corvint-e2e outcome assert:book-tee-time/booked').toHaveText('Booked')"},
+		{behaviorfalsify.WrongExpectedValue, "getByTestId('slot-status'), 'corvint-e2e outcome assert:book-tee-time/booked').toHaveText('corvint-wrong-value')"},
 	} {
 		repl := wrongLocator
 		if tc.kind == behaviorfalsify.WrongExpectedValue {
@@ -291,16 +298,13 @@ func requireOutcomes(t *testing.T, s sideProof, state string, atAssertion bool) 
 	}
 }
 
-// requireVerdict asserts the verdict when both runs qualify. Without a qualified receipt (the
-// PWP attempt profile binds an exact Node and browser tuple) the verdict must fail closed to
-// INCONCLUSIVE and the test skips, naming the reason.
+// requireVerdict asserts the verdict. The live tests skip only when the Playwright toolchain is
+// not configured; once it is, an unqualified receipt (the PWP attempt profile binds an exact Node
+// and browser tuple) fails the test rather than leaving the verdict unproved.
 func requireVerdict(t *testing.T, p scenarioProof, want string) {
 	t.Helper()
 	if !p.Head.Qualified || !p.Base.Qualified {
-		if p.Verdict != VerdictInconclusive {
-			t.Fatalf("unqualified run gave verdict %s", p.Verdict)
-		}
-		t.Skipf("receipts not qualified on this host (head %q, base %q); %s not asserted", p.Head.Reason, p.Base.Reason, want)
+		t.Fatalf("receipts not qualified (head %q, base %q, verdict %s); %s not proved", p.Head.Reason, p.Base.Reason, p.Verdict, want)
 	}
 	if p.Verdict != want {
 		t.Fatalf("verdict = %s (%s), want %s", p.Verdict, p.Note, want)
@@ -309,5 +313,41 @@ func requireVerdict(t *testing.T, p scenarioProof, want string) {
 		if c.Status != "killed" {
 			t.Fatalf("control %s = %s %v", c.Kind, c.Status, c.Reasons)
 		}
+	}
+}
+
+// CCE-V0-008: the disposable tree reproduces no tracked link, so a chained link cannot carry later
+// scenario writes outside it.
+func TestCCEV0008UntarSkipsLinks(t *testing.T) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	for _, h := range []*tar.Header{
+		{Name: "a", Typeflag: tar.TypeSymlink, Linkname: "."},
+		{Name: "e2e", Typeflag: tar.TypeSymlink, Linkname: "a/.."},
+		{Name: "index.html", Typeflag: tar.TypeReg, Mode: 0o644, Size: 2},
+	} {
+		if err := tw.WriteHeader(h); err != nil {
+			t.Fatal(err)
+		}
+		if h.Typeflag == tar.TypeReg {
+			if _, err := tw.Write([]byte("ok")); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	dest := filepath.Join(t.TempDir(), "tree")
+	if err := untar(buf.Bytes(), dest); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"a", "e2e"} {
+		if _, err := os.Lstat(filepath.Join(dest, name)); !os.IsNotExist(err) {
+			t.Fatalf("%s reproduced: %v", name, err)
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(dest, "index.html")); err != nil || string(data) != "ok" {
+		t.Fatalf("index.html = %q, %v", data, err)
 	}
 }

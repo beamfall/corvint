@@ -77,7 +77,7 @@ module.exports = {
 
 // proveLimitations are carried in every proof document.
 var proveLimitations = []string{
-	"outcome-assertion location is matched from the failure message (matcher and locator); the provider receipt does not retain the error line",
+	"outcome-assertion location is matched from the failure message (the assertion's own expect message, matcher and locator); the provider receipt does not retain the error line",
 	"PRESERVES is a regression-preservation check only; it does not detect the change",
 	"document byte cap (CCE-V0-014) is not applied by this slice",
 }
@@ -224,7 +224,7 @@ func validateScenarios(scs []Scenario) error {
 			return refuse("e2e-scenario-invalid", "scenario %d placement %q is not a clean relative spec path", i, p)
 		case seen[p]:
 			return refuse("e2e-scenario-invalid", "duplicate placement %q", p)
-		case sc.AssertionLine < 1 || sc.AssertionLine > lines || sc.Matcher == "" || sc.Locator == "":
+		case sc.AssertionLine < 1 || sc.AssertionLine > lines || sc.Matcher == "" || sc.Locator == "" || sc.Marker == "":
 			return refuse("e2e-scenario-invalid", "scenario %d outcome assertion is unbound", i)
 		}
 		seen[p] = true
@@ -346,7 +346,7 @@ func (e *proveEnv) proveSide(ctx context.Context, rev string, sc Scenario, repea
 	}
 	for _, t := range receipt.Tests {
 		side.Outcomes = append(side.Outcomes, repeatOutcome{State: string(t.State),
-			AtOutcomeAssertion: failsAtAssertion(string(t.State), t.FailureMessage, sc.Matcher, sc.Locator)})
+			AtOutcomeAssertion: failsAtAssertion(string(t.State), t.FailureMessage, sc.Marker, sc.Matcher, sc.Locator)})
 	}
 	side.Stability = stability(side.Outcomes)
 	return side, receipt
@@ -421,16 +421,9 @@ func untar(data []byte, dest string) error {
 				return err
 			}
 		case tar.TypeSymlink:
-			resolved := path.Join(path.Dir(name), h.Linkname)
-			if path.IsAbs(h.Linkname) || resolved == ".." || strings.HasPrefix(resolved, "../") {
-				continue // an escaping link is not reproduced in the disposable tree
-			}
-			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-				return err
-			}
-			if err := os.Symlink(h.Linkname, target); err != nil {
-				return err
-			}
+			// Links are not reproduced: a chain of individually contained links (a -> ., e2e -> a/..)
+			// can resolve outside the disposable tree, and later writes would follow it.
+			continue
 		}
 	}
 }
@@ -525,14 +518,16 @@ var (
 )
 
 // failsAtAssertion reports whether a failed repeat failed at the outcome assertion. PWP does not
-// retain the failing error's line, so the location is matched from the failure message: the
-// Playwright `expect(locator).<matcher>` header and the `getByTestId('<locator>')` it names.
-func failsAtAssertion(state, message, matcher, locator string) bool {
-	if state != string(jstestprovider.StateFailed) {
+// retain the failing error's line, so the location is matched from the failure message:
+// Playwright writes the assertion's own expect message (the marker) directly before its
+// `expect(locator).<matcher>` header, and the body names `getByTestId('<locator>')`. Another
+// assertion on the same locator and matcher carries no marker and does not match.
+func failsAtAssertion(state, message, marker, matcher, locator string) bool {
+	if state != string(jstestprovider.StateFailed) || marker == "" {
 		return false
 	}
 	m := ansiEscape.ReplaceAllString(message, "")
-	if !strings.Contains(m, "expect(locator)."+matcher) {
+	if !strings.Contains(m, marker+"\n\nexpect(locator)."+matcher) {
 		return false
 	}
 	return strings.Contains(m, "getByTestId('"+locator+"')") || strings.Contains(m, `getByTestId("`+locator+`")`)
@@ -727,7 +722,7 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 		ConfigSHA256: "sha256:" + sha256Hex([]byte(proveConfig)), EnvironmentSHA256: digestCanonical(envValues)}
 	def := func(kind behaviorfalsify.ControlKind, replacement string) map[string]string {
 		d := map[string]string{"tree": repo, "file": sc.Placement, "line": strconv.Itoa(sc.AssertionLine),
-			"locator": sc.Locator, "matcher": sc.Matcher, "replacement": replacement, "kind": string(kind)}
+			"locator": sc.Locator, "matcher": sc.Matcher, "marker": sc.Marker, "replacement": replacement, "kind": string(kind)}
 		if sc.Value != "" {
 			d["value"] = sc.Value
 		}

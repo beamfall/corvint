@@ -64,9 +64,12 @@ type DiffOptions struct {
 
 // BuildObligations joins the base..head diff to outcomes through the AMAP/ANL impact relation and
 // the head map's flows (CCE-V0-004). A changed screen reaches each declared outcome that a flow
-// step on that screen expects; the chain is the changed paths, the screen and its basis, the step
-// and the outcome. Any changed path impact cannot place reads UNKNOWN overall with its head-side
-// spans, and never NONE. A diff that reaches no screen and leaves nothing unknown reads NONE.
+// step on that screen, or any later step of the same flow, expects; the chain is the changed paths,
+// the screen and its basis, the nearest step on that screen, the expecting step when it differs,
+// and the outcome. Any changed path impact neither places on a screen nor lists as unknown (impact
+// counts unplaced non-UI paths as ignored without per-path evidence) is unknown with the reason
+// `unplaced-path`. Any unknown path reads UNKNOWN overall with its head-side spans, and never NONE.
+// A diff that reaches no screen and leaves nothing unknown reads NONE.
 func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) {
 	cat, err := BuildCatalog(ctx, CatalogOptions{Root: o.Root, Rev: o.Head, Manifest: o.Manifest})
 	if err != nil {
@@ -86,7 +89,26 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	}
 	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
 		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, catalog: cat}
+	unknown := append([]appmap.ImpactUnknown(nil), impact.Unknown...)
+	accounted := map[string]bool{}
 	for _, u := range impact.Unknown {
+		accounted[u.Path] = true
+	}
+	for _, hit := range impact.Screens {
+		for _, p := range hit.Paths {
+			accounted[p] = true
+		}
+	}
+	changed, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range strings.Split(string(changed), "\x00") {
+		if p != "" && !accounted[p] {
+			unknown = append(unknown, appmap.ImpactUnknown{Path: p, Reason: "unplaced-path"})
+		}
+	}
+	for _, u := range unknown {
 		spans, err := headSpans(ctx, o.Root, base, cat.Revision, u.Path)
 		if err != nil {
 			return nil, err
@@ -106,9 +128,17 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 			spans = append(spans, ss...)
 		}
 		for _, f := range cat.m.Flows {
+			onScreen := "" // the nearest step so far on the changed screen; later steps' outcomes are at risk too
 			for _, st := range f.Steps {
-				if st.Screen != hit.ID {
+				if st.Screen == hit.ID {
+					onScreen = st.ID
+				}
+				if onScreen == "" {
 					continue
+				}
+				chain := []string{"paths:" + strings.Join(hit.Paths, ","), hit.ID + " (" + hit.Basis + ")", onScreen}
+				if st.ID != onScreen {
+					chain = append(chain, st.ID)
 				}
 				for _, oc := range cat.expects[st.ID] {
 					id := "obligation:" + f.FlowID + "/" + oc
@@ -119,8 +149,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 					byID[id] = len(r.Obligations)
 					r.Obligations = append(r.Obligations, Obligation{ID: id, State: Reached, Outcome: "outcome:" + f.FlowID + "/" + oc,
 						Screen: hit.ID, Spans: append([]Span(nil), spans...),
-						Chain: []string{"paths:" + strings.Join(hit.Paths, ","), hit.ID + " (" + hit.Basis + ")", st.ID,
-							"outcome:" + f.FlowID + "/" + oc}})
+						Chain: append(append([]string(nil), chain...), "outcome:"+f.FlowID+"/"+oc)})
 				}
 			}
 		}

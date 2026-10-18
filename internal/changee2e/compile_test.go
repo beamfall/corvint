@@ -26,7 +26,7 @@ func TestCCEV0005CompileFromAdmittedBlocks(t *testing.T) {
 	sc := r.Compiled()[0]
 	src := string(sc.Text)
 	t.Logf("\n%s", src)
-	if strings.Contains(src, "TODO") || !VerifyHeader(sc.Text) || sc.Placement != "e2e/corvint-compiled/book-tee-time-booked.spec.ts" {
+	if strings.Contains(src, "TODO") || !VerifyHeader(sc.Text) || sc.Placement != "e2e/corvint-compiled/book-tee-time-booked-e77a467370e1.spec.ts" {
 		t.Fatalf("scenario:\n%s", src)
 	}
 	lines := strings.Split(src, "\n")
@@ -36,12 +36,13 @@ func TestCCEV0005CompileFromAdmittedBlocks(t *testing.T) {
 		}
 	}
 	for _, want := range []string{"// head: " + head, "// base: " + base, "page.goto('/#!/home')", "new ClubPage(page)", ".seedOpenSlots()",
-		".goToTeeSheets()", ".selectSlot()", ".book()", ".cleanup()", "expect(page.getByTestId('slot-status')).toHaveText('Booked')"} {
+		".goToTeeSheets()", ".selectSlot()", ".book()", ".cleanup()", "expect(page.getByTestId('slot-status'), 'corvint-e2e outcome assert:book-tee-time/booked').toHaveText('Booked')"} {
 		if !strings.Contains(src, want) {
 			t.Fatalf("missing %q in:\n%s", want, src)
 		}
 	}
-	if !strings.Contains(lines[sc.AssertionLine-1], "toHaveText('Booked')") || sc.AssertionID != "assert:book-tee-time/booked" {
+	if !strings.Contains(lines[sc.AssertionLine-1], "toHaveText('Booked')") || sc.AssertionID != "assert:book-tee-time/booked" ||
+		sc.Marker != "corvint-e2e outcome assert:book-tee-time/booked" {
 		t.Fatalf("assertion line %d: %q", sc.AssertionLine, lines[sc.AssertionLine-1])
 	}
 	tampered := bytes.Replace(sc.Text, []byte("'Booked'"), []byte("'Bookd'"), 1)
@@ -80,5 +81,13 @@ func TestCCEV0006MissingBlocksIncomplete(t *testing.T) {
 	}
 	if r.State != Incomplete || len(r.Unknown) != 1 {
 		t.Fatalf("%s", r.Encoded())
+	}
+}
+
+// CCE-V0-007: obligations whose slugs meet (a-b/c and a/b-c) still get distinct placements.
+func TestCCEV0007PlacementsInjective(t *testing.T) {
+	a, b := placementFor("obligation:a-b/c"), placementFor("obligation:a/b-c")
+	if a == b || !strings.HasPrefix(a, PlacementDir+"/a-b-c-") || !strings.HasSuffix(b, ".spec.ts") {
+		t.Fatalf("placements %q, %q", a, b)
 	}
 }

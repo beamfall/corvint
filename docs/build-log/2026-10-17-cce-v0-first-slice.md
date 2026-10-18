@@ -37,7 +37,18 @@ experimental, so nothing is promoted or advertised as delivered.
   classifier test; `go list -deps ./cmd/corvint` (347 packages) has no CCE package;
   `TestCCEV0015NeverExecutesCorvint` runs the built companion with a recording `corvint` first on
   PATH and observes no call.
-- Review and dogfood: recorded below once complete.
+- Review: one Codex read-only round raised eight findings, all fixed before ship: (1) input values
+  also pass the shared `secretscreen` patterns; (2) proof-tree extraction skips symlinks; (3) the
+  assertion detector requires the per-assertion custom-message marker, so another assertion with
+  the same locator and matcher no longer reads as the outcome failure; (4) the hook requires the
+  marker; (5) placements carry an obligation-digest suffix so they are injective; (6) changed paths
+  outside every screen and outside the unbounded set read UNKNOWN `unplaced-path`; (7) a flow's
+  expects are reached from the first changed-screen step; (8) `--out` refuses nested or file
+  symlinks (`e2e-out-unsafe`) and validates all scenarios before writing any.
+- Live rerun after the marker change, Node v22.23.2: `TestCCEV0009LiveDiscriminates` and
+  `TestCCEV0009LivePreserves` PASS with qualified receipts. The Node profile mismatch is V1-1672.
+- Dogfood: bound, checked and sealed against base `c976d521ef857e790cc0f4149a338dd13eaffa03`
+  (see the sealed CEM in the PR).
 
 ## Limits
 

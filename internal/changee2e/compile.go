@@ -22,12 +22,15 @@ const PlacementDir = "e2e/corvint-compiled"
 
 // Scenario is one compiled scenario (CCE-V0-005/007).
 type Scenario struct {
-	Obligation              string
-	Placement               string // repository-relative placement, under PlacementDir
-	Text                    []byte
-	TestTitle               string
-	AssertionID             string
-	AssertionLine           int // 1-based line of the outcome assertion in Text
+	Obligation    string
+	Placement     string // repository-relative placement, under PlacementDir
+	Text          []byte
+	TestTitle     string
+	AssertionID   string
+	AssertionLine int // 1-based line of the outcome assertion in Text
+	// Marker is the outcome assertion's own expect message; Playwright prefixes the failure
+	// message with it, which places a failure on this assertion (CCE-V0-009 step 6).
+	Marker                  string
 	Matcher, Locator, Value string
 }
 
@@ -285,11 +288,22 @@ var headerFields = []string{"catalog_digest", "base", "head", "obligation", "com
 
 const digestLinePrefix = "// digest: "
 
+// placementFor names an obligation's scenario file. The slug alone is not injective (a-b/c and
+// a/b-c meet), so the obligation digest keeps every placement distinct (CCE-V0-007).
+func placementFor(obligation string) string {
+	slug := strings.NewReplacer("/", "-", ":", "-").Replace(strings.TrimPrefix(obligation, "obligation:"))
+	return PlacementDir + "/" + slug + "-" + sha256Hex([]byte(obligation))[:12] + ".spec.ts"
+}
+
+// markerPrefix starts every outcome assertion's expect message.
+const markerPrefix = "corvint-e2e outcome "
+
 // render writes the scenario text. Every selector, URL, value and matcher is the exact text of an
 // admitted block; string literals are single-quoted JSON-escaped text.
 func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) *Scenario {
-	slug := strings.NewReplacer("/", "-", ":", "-").Replace(strings.TrimPrefix(ob.ID, "obligation:"))
-	placement := PlacementDir + "/" + slug + ".spec.ts"
+	placement := placementFor(ob.ID)
+	assertionID := "assert:" + strings.TrimPrefix(ob.ID, "obligation:")
+	marker := markerPrefix + assertionID
 	type po struct{ class, file string }
 	objects := map[string]po{}
 	add := func(file, class string) {
@@ -343,7 +357,7 @@ func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) *Scen
 		}
 	}
 	assertLine := strings.Count(b.String(), "\n") + 1
-	line("    await expect(page.getByTestId(%s)).%s(%s);", jsString(p.outcome.Locator), p.outcome.Matcher, jsString(p.outcome.Value))
+	line("    await expect(page.getByTestId(%s), %s).%s(%s);", jsString(p.outcome.Locator), jsString(marker), p.outcome.Matcher, jsString(p.outcome.Value))
 	line("  } finally {")
 	for i := len(p.fixtures) - 1; i >= 0; i-- {
 		f := p.fixtures[i]
@@ -354,7 +368,7 @@ func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) *Scen
 	text := []byte(b.String())
 	text = []byte(strings.Replace(string(text), "\n"+digestLinePrefix+"\n", "\n"+digestLinePrefix+headerDigest(text)+"\n", 1))
 	return &Scenario{Obligation: ob.ID, Placement: placement, Text: text, TestTitle: ob.ID,
-		AssertionID: "assert:" + strings.TrimPrefix(ob.ID, "obligation:"), AssertionLine: assertLine,
+		AssertionID: assertionID, AssertionLine: assertLine, Marker: marker,
 		Matcher: p.outcome.Matcher, Locator: p.outcome.Locator, Value: p.outcome.Value}
 }
 

@@ -63,7 +63,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 		Unrelated: []behaviorfalsify.CriterionObservation{}, Setup: []behaviorfalsify.SetupObservation{}, Artifacts: []behaviorfalsify.Artifact{}}
 	obs := behaviorfalsify.CriterionObservation{CriterionID: inv.Target.CriterionID, AssertionID: inv.Target.AssertionID}
 	line, err := strconv.Atoi(def["line"])
-	if err != nil || def["tree"] == "" || def["file"] == "" || def["locator"] == "" || def["matcher"] == "" || def["replacement"] == "" {
+	if err != nil || def["tree"] == "" || def["file"] == "" || def["locator"] == "" || def["matcher"] == "" || def["marker"] == "" || def["replacement"] == "" {
 		return r, errors.New("e2e-hook-definition-invalid")
 	}
 	nodeBin, modules := os.Getenv(envNodeBin), os.Getenv(envModules)
@@ -125,7 +125,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	switch t.State {
 	case jstestprovider.StateFailed:
 		r.TestOutcome, obs.State, obs.FailureKind = "failed", "failed", "unexpected"
-		if failsAtAssertion(string(t.State), t.FailureMessage, def["matcher"], locator) {
+		if failsAtAssertion(string(t.State), t.FailureMessage, def["marker"], def["matcher"], locator) {
 			obs.FailureKind = "assertion"
 		}
 	case jstestprovider.StatePassed:

@@ -291,12 +291,15 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   - Refusals: `e2e-root-required`, `e2e-revision-invalid`, `e2e-map-unavailable`,
     `e2e-impact-unavailable`, `e2e-obligations-over-limit`, `e2e-repeats-over-limit`,
     `e2e-scenarios-required`, `e2e-scenarios-over-limit`, `e2e-scenario-invalid`,
-    `e2e-toolchain-unavailable` and `e2e-tree-unavailable`.
+    `e2e-toolchain-unavailable`, `e2e-tree-unavailable` and `e2e-out-unsafe` (a destination below
+    `--out` is a link, leaves it, or repeats a placement).
   - Control hook refusals: `e2e-hook-definition-invalid`, `e2e-hook-toolchain-unavailable`,
     `e2e-hook-line-out-of-range` and `e2e-hook-assertion-not-found`.
   - Unadmitted-block reasons: `edge-unproven`, `method-not-callable`, `outcome-not-compilable` and
     `screen-unresolved`.
   - `INCOMPLETE` reasons: `no-admitted-fixture` and `no-flow-step-expects-outcome`.
+  - Unknown-span reason: `unplaced-path` (a changed path that impact neither places on a screen nor
+    reports unknown).
   - Control `not_run` reasons: `verdict-decided-before-controls`, `control-workspace-unavailable`,
     `proof-repository-unavailable`, `plan-refused` and `execute-refused`.
 
@@ -304,10 +307,10 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 
 | Requirement | Planned evidence | Status |
 |---|---|---|
-| CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses` |
-| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndNonUINone` |
-| CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete` |
-| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008..009 PASS: `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
+| CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses`, `TestCCEV0001OutNestedSymlinkRefused`, `TestCCEV0001OutFileSymlinkRefused` |
+| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome` |
+| CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete`, `TestCCEV0007PlacementsInjective` |
+| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008..009 PASS: `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
 | CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
 | CCE-V0-014 | byte-cap truncation tests per document | NOT_STARTED |
 | CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | PASS: `TestCCEV0015SubcommandsReachable`, `TestCCEV0015CoreBoundary`, `TestCCEV0015NeverExecutesCorvint`; core tree byte-identical to the claim base outside docs, `go list -deps ./cmd/corvint` has no CCE package |

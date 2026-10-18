@@ -10,13 +10,18 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/Beamfall/corvint/internal/changee2e"
 )
+
+// proveReport is the proof report written under the prove --out directory.
+const proveReport = "e2e-prove.json"
 
 const usage = "usage: corvint-test e2e <catalog|obligations|compile|prove> [flags]"
 
@@ -112,7 +117,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := writeScenarios(outPath, r.Compiled()); err != nil {
+		if err := writeScenarios(outPath, r.Compiled(), proveReport); err != nil {
 			return err
 		}
 		doc, err = changee2e.Prove(ctx, changee2e.ProveOptions{Root: *root, Base: r.Base, Head: r.Head, Repeats: *repeats,
@@ -120,7 +125,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		return writeFile(filepath.Join(outPath, "e2e-prove.json"), doc, stdout)
+		return writeUnder(outPath, proveReport, doc, stdout)
 	}
 	if outPath != "" {
 		return writeFile(outPath, doc, nil)
@@ -129,22 +134,100 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	return err
 }
 
-// writeScenarios writes each compiled scenario under dir at its placement (CCE-V0-007).
-func writeScenarios(dir string, scenarios []changee2e.Scenario) error {
+// writeScenarios writes each compiled scenario under dir at its placement (CCE-V0-007). Every
+// placement, and each name in reserved, is validated before the first write (CCE-V0-001).
+func writeScenarios(dir string, scenarios []changee2e.Scenario, reserved ...string) error {
+	seen := map[string]bool{}
+	rels := append([]string(nil), reserved...)
 	for _, s := range scenarios {
-		target := filepath.Join(dir, filepath.FromSlash(s.Placement))
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		rels = append(rels, s.Placement)
+	}
+	for _, rel := range rels {
+		clean := filepath.Clean(filepath.FromSlash(rel))
+		if seen[clean] {
+			return unsafeOut("duplicate placement %s", rel)
+		}
+		seen[clean] = true
+		if _, err := checkUnder(dir, rel); err != nil {
 			return err
 		}
-		if err := os.WriteFile(target, s.Text, 0o644); err != nil {
+	}
+	for _, s := range scenarios {
+		if err := writeUnder(dir, s.Placement, s.Text, nil); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func unsafeOut(format string, args ...any) error {
+	return &changee2e.Refusal{Code: "e2e-out-unsafe", Detail: fmt.Sprintf(format, args...)}
+}
+
+// checkUnder returns the components of rel below dir after checking that rel stays lexically under
+// dir and that no existing component below dir is a symlink or (except the last) a non-directory.
+func checkUnder(dir, rel string) ([]string, error) {
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if rel == "" || filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return nil, unsafeOut("%s is not under the output directory", rel)
+	}
+	parts := strings.Split(clean, string(filepath.Separator))
+	p := dir
+	for i, part := range parts {
+		p = filepath.Join(p, part)
+		fi, err := os.Lstat(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if fi.Mode()&fs.ModeSymlink != 0 {
+			return nil, unsafeOut("%s is a symlink", p)
+		}
+		if i < len(parts)-1 && !fi.IsDir() {
+			return nil, unsafeOut("%s is not a directory", p)
+		}
+	}
+	return parts, nil
+}
+
+// writeUnder writes data to rel under dir, creating directories one component at a time and never
+// following a symlink below dir.
+func writeUnder(dir, rel string, data []byte, echo io.Writer) error {
+	parts, err := checkUnder(dir, rel)
+	if err != nil {
+		return err
+	}
+	p := dir
+	for _, part := range parts[:len(parts)-1] {
+		p = filepath.Join(p, part)
+		if err := os.Mkdir(p, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+			return err
+		}
+		if fi, err := os.Lstat(p); err != nil {
+			return err
+		} else if !fi.IsDir() {
+			return unsafeOut("%s is not a directory", p)
+		}
+	}
+	return writeFile(filepath.Join(p, parts[len(parts)-1]), data, echo)
+}
+
+// writeFile writes path without following a final-component symlink.
 func writeFile(path string, data []byte, echo io.Writer) error {
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC|syscall.O_NOFOLLOW, 0o644)
+	if err != nil {
+		if fi, lerr := os.Lstat(path); lerr == nil && fi.Mode()&fs.ModeSymlink != 0 {
+			return unsafeOut("%s is a symlink", path)
+		}
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	if echo != nil {

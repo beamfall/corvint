@@ -94,14 +94,21 @@ func TestCCEV0002DeclarationsFailClosed(t *testing.T) {
 	if !found {
 		t.Fatalf("unknowns %+v", c.Unknowns)
 	}
-	for code, body := range map[string]string{
-		"e2e-blocks-invalid": `{"schema":"e2e-block-declarations/0","extra":true}`,
-		"e2e-input-secret": `{"schema":"e2e-block-declarations/0","inputs":[{"input_id":"input:token","screen_id":"screen:admin:app.home",` +
-			`"locator":"token","values":[{"value_id":"v","value":"ghp_abcdefghijklmnopqrstuvwxyz0123456789","class":"valid"}]}]}`,
+	secretInput := func(value string) string {
+		return `{"schema":"e2e-block-declarations/0","inputs":[{"input_id":"input:token","screen_id":"screen:admin:app.home",` +
+			`"locator":"token","values":[{"value_id":"v","value":"` + value + `","class":"valid"}]}]}`
+	}
+	// Values the shared secret screen recognizes refuse alongside the keyword screen.
+	for _, c := range []struct{ code, body string }{
+		{"e2e-blocks-invalid", `{"schema":"e2e-block-declarations/0","extra":true}`},
+		// Prefixes are split so hosted push protection does not read the fixtures as live tokens.
+		{"e2e-input-secret", secretInput("gh" + "p_abcdefghijklmnopqrstuvwxyz0123456789")},
+		{"e2e-input-secret", secretInput("h" + "f_abcdefghijklmnopqrstuvwxyzABCD")},
+		{"e2e-input-secret", secretInput("xo" + "xb-123456789012-1234567890123-abcdefghijklmnopqrstuvwx")},
 	} {
-		rev := commitFiles(t, root, map[string]*string{DeclarationsPath: text(body)}, code)
-		if _, err := BuildCatalog(bg, CatalogOptions{Root: root, Rev: rev, Manifest: "appmap.json"}); refusalCode(err) != code {
-			t.Fatalf("%s: got %v", code, err)
+		rev := commitFiles(t, root, map[string]*string{DeclarationsPath: text(c.body)}, c.body)
+		if _, err := BuildCatalog(bg, CatalogOptions{Root: root, Rev: rev, Manifest: "appmap.json"}); refusalCode(err) != c.code {
+			t.Fatalf("%s: got %v", c.body, err)
 		}
 	}
 }
