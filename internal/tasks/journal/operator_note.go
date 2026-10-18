@@ -184,7 +184,7 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if env.RequestID != *rc.RequestID || env.RequestID != req.Entry.RequestID || env.QueueID != n.r.QueueID {
 		return noteForked("receipt", "retained request identity differs from the receipt and request index")
 	}
-	preRaw, err := n.st.priorPost(n.r, t.prior, t.path)
+	preRaw, err := n.prePost(t.prior, t.path)
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,12 @@ func (n *noteAudit) bindEvent(req *snapshot.Request, target *ticket.Record, post
 	if err != nil {
 		return err
 	}
-	policyRaw, err := n.st.priorPost(n.r, n.st.canonical["intent/policy.json"], "intent/policy.json")
+	// A writer resume binds a pre-ticket last posted before its checkpoint
+	// to the note reference the checkpoint carries too (ON-V0-012).
+	if w := n.st.elided; w != nil && !walked && !w.sameNote(t.path, pre.OperatorNote) {
+		return errCheckpoint(t.path, "note reference differs from the writer checkpoint")
+	}
+	policyRaw, err := n.prePost(n.st.canonical["intent/policy.json"], "intent/policy.json")
 	if err != nil {
 		return err
 	}
@@ -258,7 +263,7 @@ func (n *noteAudit) prefixReference(t notePost, post *ticket.OperatorNoteReferen
 // chain it does not walk (ON-V0-013); any failure there declines the
 // checkpoint, so the complete audit classifies the prefix.
 func (n *noteAudit) prePost(prior latest, path string) ([]byte, error) {
-	raw, err := n.r.priorPost(prior, path, n.st.generation)
+	raw, err := n.st.priorPost(n.r, prior, path)
 	if err != nil && n.st.resumed != 0 && prior.seq != "" && prior.seq.Uint64() <= n.st.resumed {
 		return nil, errCheckpoint(path, "checkpoint pre-state does not bind: "+err.Error())
 	}

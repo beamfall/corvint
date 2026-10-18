@@ -401,7 +401,7 @@ func (st *chain) priorPost(r Reader, prior latest, p string) ([]byte, error) {
 	if raw, ok := st.sealedPost(prior, p); ok {
 		return raw, nil
 	}
-	return r.priorPost(prior, p)
+	return r.priorPost(prior, p, st.generation)
 }
 
 // NewRetiredPrefix derives the seal that retires receipts 1..S-1 of the
