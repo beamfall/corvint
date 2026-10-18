@@ -91,7 +91,7 @@ func TestATRV0110_CarryOverConfigDefaultsAndBounds(t *testing.T) {
 	hosts := map[string]bool{
 		"literal":           true,
 		"model placeholder": true,
-		"ticket in argv":    false,
+		"ticket in argv":    true, // ATR-V0-133
 		"spliced prompt":    false,
 		"interpreter":       false,
 		"code option":       false,

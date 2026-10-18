@@ -181,7 +181,9 @@ func TestATRV0056_DispatchStatusWorkerShowsContextNotice(t *testing.T) {
 	}
 	before, _ := os.ReadFile(path)
 	res := cli("dispatch", "status", "--program", "prog", "--config", config, "--worker", rec.Worker)
-	if res.Outcome != wire.OutcomeOK {
+	// ATR-V0-134: the config file here is INVALID, so status keeps the
+	// view and fails the command.
+	if res.Outcome != wire.OutcomeError || len(res.Items) != 1 {
 		t.Fatalf("status --worker: %+v", res)
 	}
 	notice, ok := statusField(t, res.Items[0], "contextNotice")
@@ -197,7 +199,7 @@ func TestATRV0056_DispatchStatusWorkerShowsContextNotice(t *testing.T) {
 	if after, _ := os.ReadFile(path); !bytes.Equal(before, after) {
 		t.Fatal("status --worker rewrote the record")
 	}
-	if res := cli("dispatch", "status", "--program", "prog", "--config", config); res.Outcome != wire.OutcomeOK {
+	if res := cli("dispatch", "status", "--program", "prog", "--config", config); res.Outcome != wire.OutcomeError || len(res.Items) != 1 {
 		t.Fatalf("status: %+v", res)
 	} else if _, ok := statusField(t, res.Items[0], "contextNotice"); ok {
 		t.Fatal("contextNotice without --worker")

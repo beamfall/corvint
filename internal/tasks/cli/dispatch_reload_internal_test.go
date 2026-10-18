@@ -95,8 +95,9 @@ func TestCALV0127_DispatchStatusWithInvalidConfigFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		res := cli("dispatch", "status", "--program", "prog", "--config", path)
-		if res.Outcome != wire.OutcomeOK {
-			t.Fatalf("%s: status refused: %+v", name, res)
+		// ATR-V0-134: the view is kept and the command fails.
+		if res.Outcome != wire.OutcomeError || len(res.Items) != 1 {
+			t.Fatalf("%s: status: %+v", name, res)
 		}
 		st := res.Items[0]
 		cfg, ok := statusField(t, st, "config")

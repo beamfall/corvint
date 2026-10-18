@@ -1637,7 +1637,14 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		var carryText string
 		var carried []CarryEntry
 		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.CarryOver.on() {
-			if carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket); carryText != "" {
+			carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket)
+			// ATR-V0-133: a store-derived argv value must not turn the
+			// launched argv into one that runs the block as code.
+			if err := renderedArgvSafe(host.Argv, values); carryText != "" && err != nil {
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("carry-over not offered: host %q %v", role.Host, err)})
+				carryText, carried = "", nil
+			}
+			if carryText != "" {
 				values["{prompt}"] += "\n\n" + carryText
 			}
 		}
