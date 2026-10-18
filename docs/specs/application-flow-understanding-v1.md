@@ -459,19 +459,21 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   never filled in or normalized. Revision, config-byte and source-digest binding and exact
   project/test reconciliation remain mandatory; missing or inconsistent discovery retains the
   existing full-suite fallback. The `strict` and `coverage` outputs are unchanged. `--repository` is
-  refused. Inventory and each path list are bounded (1,024 tests, 4,096 paths); exceeding a bound is
+  refused. Inventory and each path list are bounded under the AFU-V1-065 ceilings (16,384 tests,
+  65,536 paths per list, 131,072 coverage paths in total); exceeding a ceiling is
   `e2e-bound-exceeded`.
 - Coverage: the named file is a closed `application-flow-coverage/0` record list (`test_key`,
   `commit`, `tiers` of `tier`, `complete`, `paths`), an ingested runner artifact outside the provider
   so that adding a record does not itself change a global path.
 - Global paths: the ETS built-in names, `Dockerfile*`, `.env.*`, the provider, the runner config,
   everything under `flows`, and every `global_paths` prefix.
-- Result: `advice.test_selection` is the `e2e-safe-selection/0` object with `profile`, `state`,
-  `state_reason`, `base`, `mandatory`, `discovery` (`path`, `state`), `selected` (`reasons` from
-  `test-file-changed`, `static-reach`, `linked-to-closure`, `observed-coverage`), `omitted_tests`
-  (`basis`, `proof` with `links` or `coverage`, `disjoint_from` and, for `reviewed-links`, the
-  attestation), `omissions_per_basis`, `fallback` (`code`, `subject`), `note` (the ETS note plus the
-  per-basis note) and `untrusted_text_fields`. The ETS `omitted` member is not reused, because it
+- Result: `advice.test_selection` is the `e2e-safe-selection/1` object (AFU-V1-066) with `profile`,
+  `state`, `state_reason`, `base`, `mandatory`, `discovery` (`path`, `state`), `selected` (`reasons`
+  from `test-file-changed`, `static-reach`, `linked-to-closure`, `observed-coverage`), `omitted_tests`
+  (`basis` and `proof`, the digest of one entry in `proofs`), `proofs` (each distinct proof once:
+  `digest`, then `links` or `coverage` and, for `reviewed-links`, the attestation), `disjoint_from`
+  (the changed paths every proof is disjoint from), `omissions_per_basis`, `fallback` (`code`,
+  `subject`), `note` (the ETS note plus the per-basis note) and `untrusted_text_fields`. The ETS `omitted` member is not reused, because it
   counts list cuts. An unreadable or malformed provider or coverage file is `blocked`
   (`provider-unavailable`).
 - The coverage basis is tried first. A changed path that neither the impact graph owns, nor a
@@ -824,6 +826,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `internal/appflows/query_stability.go`, `cmd/corvint/flows.go` (`flows stability` and query qualification) |
 | AFU-V1-011..014, 038 | implemented (014 accepted observer gap; see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-037 | partial (tests in the matrix): run evidence is incomplete under `run-evidence-byte-bound`, `run-evidence-record-bound`, `run-evidence-attempt-bound`, `run-evidence-link-bound` or `run-evidence-traversal-bound` (`internal/appflows/runevidence.go`), enforced in `runingest.go`. The byte bound applies before any decode. The traversal bound applies before decode for Playwright JSON and `go test -json` and during the JUnit token walk. The record, attempt and link bounds apply during the JUnit and `go test -json` walks, but for Playwright JSON and the `/3` receipt only after the byte-bounded document is decoded. The `/3` receipt has no traversal bound of its own. Those two orderings do not yet meet "before decode and walk"; `flows ingest` writes no record when one is exceeded (`cmd/corvint/flows.go`); intent, import, docs and read-side bounds in `internal/appflows/intent.go`, `import.go`, `docs.go`, `query.go` |
+| AFU-V1-065..066 | implemented (V1-1676): `internal/appflows/selection.go` (`MaxSelectionTests`, `MaxSelectionPaths`, `MaxSelectionCoveragePaths`, `addProof`, `evidenceDiff`), `internal/appflows/review.go` (`anchorFacts`) |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-059 | accepted, decision 0512: `internal/liveverify/affected/graph.go`, `source.go`, `walk.go`, the eight language adapters, `internal/appflows/impact.go` and its CLI/MCP callers |
 | AFU-V1-034..035 | implemented and locally qualified: `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
@@ -1036,3 +1039,59 @@ spelling. A `/2` record that re-emits the fixed members would carry the legacy /
 new version. Both fail the tests above. Repository history and the closed `docs/BUILD-LOG.md` keep
 earlier spellings. Rollback removes these tests and this section. No wire bytes changed, so no
 producer or reader needs to roll back.
+
+## Large end-to-end suites (issue 1079, V1-1676)
+
+The S4 bounds of 1,024 tests and 4,096 paths per list sent any provider with a few thousand
+Playwright tests to `e2e-bound-exceeded` and the full suite. The result also repeated every
+reviewed flow's link list in each omitted test's proof and the changed paths in every omission, so
+its size grew with tests times links. This section raises the bounds to fixed, documented ceilings
+and states each proof once.
+
+- **AFU-V1-065**: The e2e-safe profile MUST plan, without `e2e-bound-exceeded`, a provider whose
+  inventory holds at most 16,384 tests, whose changed-path and `global_paths` lists each hold at
+  most 65,536 paths, and whose coverage records name at most 131,072 paths in total. Above any of
+  these ceilings the result MUST stay the unchanged closed refusal: the full suite with
+  `e2e-bound-exceeded` naming the exceeded list. The ceilings are fixed constants, not
+  operator configuration. The 5 MiB document bound still applies first, so an oversized provider
+  or coverage file stays `blocked` (`provider-unavailable`).
+- **AFU-V1-066**: Profile version decision: the result schema moves from `e2e-safe-selection/0` to
+  `e2e-safe-selection/1`. Each omitted test's `proof` MUST be the digest (`sha256:` and the hex
+  SHA-256 of the canonical JSON of the proof without its digest) of exactly one entry in the
+  top-level `proofs` list. That list holds each distinct proof once, sorted by digest. The changed
+  paths every proof is disjoint from are stated once, as the top-level `disjoint_from`. Omissions
+  under one flow set share one `reviewed-links` proof. Omission order, bases, per-basis counts,
+  fallback codes and every other member keep their `/0` meaning. Consumers of `/0` see a new
+  schema string and must migrate. `/0` is not emitted alongside `/1`.
+
+Measured at the ceiling (`TestAFUV1065CeilingMeasurement` with `CORVINT_E2E_SCALE_TESTS=16384`,
+Apple M-series host, 2026-10-17): 16,384 inventory tests, 64 generated flows of 256 tests with
+reviewed links. The result was `narrow-selection-allowed` with 16,383 omissions and 68 distinct
+proofs. Elapsed time was 7.49 s for the whole command and the receipt was 5,952,721 bytes. Total
+allocation was 2,077,947,160 bytes and the heap system size was 82,116,608 bytes. The CPU profile
+puts about 2.9 s in `SelectE2E`. Most of the rest is the existing secret screen on decode and
+intent loading. Without the shared proofs, each omission would repeat its flow's links and the
+changed paths, so output would grow with tests times links.
+
+Acceptance: `TestAFUV1065LargeInventoryNarrows` (3,072 generated tests above the old 1,024 bound
+narrow with shared proofs), `TestAFUV1065InventoryAboveCeilingRefused` (16,385 tests: only
+`e2e-bound-exceeded` on `inventory`, full suite of 16,385, no proofs),
+`TestAFUV1022EveryFallbackCodeYieldsFullSuite` (the coverage-path ceiling) and
+`TestAFUV1065CeilingMeasurement` (opt-in measurement, skipped by default) for AFU-V1-065.
+For the `/1` proof wire, `TestAFUV1020ExclusionProofsPerBasis` (each omission's digest names one
+proof whose canonical content it binds; `disjoint_from` stated once) and
+`TestAFUV1040SelectionCorpusReport`. All are in `cmd/corvint`.
+
+Non-goals: no operator-configurable bound, no streaming or paged output, no change to `MaxFlows`
+(512), links per flow (1,024) or variations (256), and no change to which tests are selected or
+omitted.
+
+Failure modes: a ceiling that is too high could exhaust memory or exceed the output budget. The
+measurement above bounds it at about 82 MiB of heap and 6 MB of output at 16,384 tests. A digest
+that does not bind its proof would let an omission point at a different proof. The test recomputes
+each digest from the stated proof. A consumer pinned to `/0` would misread `proof` as an object.
+The schema string changes, so a closed decoder refuses `/1` instead of misreading it.
+
+Rollback: revert the constants to 1,024 and 4,096, restore the inline `/0` proof and per-omission
+`disjoint_from`, and remove this section and its tests. No repository data, provider or coverage
+format changes, so no producer needs to roll back.

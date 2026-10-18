@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/extevidence"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 )
 
@@ -174,8 +175,8 @@ func writeE2ECoverage(t *testing.T, root string, records []appflows.CoverageReco
 			record.Tiers[i].Complete = i == 0 || !slices.Contains(c.IncompleteCoverage, record.TestKey)
 			record.Tiers[i].Paths = slices.Clone(record.Tiers[i].Paths)
 		}
-		for i := 0; i < c.extraCoveragePaths; i++ {
-			record.Tiers[0].Paths = append(record.Tiers[0].Paths, fmt.Sprintf("generated/%05d.ts", i))
+		for i := 0; len(out) == 0 && i < c.extraCoveragePaths; i++ {
+			record.Tiers[0].Paths = append(record.Tiers[0].Paths, fmt.Sprintf("g/%06d.ts", i))
 		}
 		out = append(out, record)
 	}
@@ -235,9 +236,29 @@ func runE2ESelection(t *testing.T, root, base string) appflows.E2ESelection {
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&selection); err != nil {
-		t.Fatalf("test_selection is not e2e-safe-selection/0: %v\n%s", err, raw)
+		t.Fatalf("test_selection is not e2e-safe-selection/1: %v\n%s", err, raw)
 	}
 	return selection
+}
+
+// e2eProof returns the stated proof an omission names, and checks that its digest binds its content.
+func e2eProof(t *testing.T, selection appflows.E2ESelection, o appflows.E2EOmission) appflows.E2EProof {
+	t.Helper()
+	i := slices.IndexFunc(selection.Proofs, func(p appflows.E2EProof) bool { return p.Digest == o.Proof })
+	if i < 0 {
+		t.Fatalf("%s names proof %q, which proofs does not state", o.TestKey, o.Proof)
+	}
+	proof := selection.Proofs[i]
+	content := proof
+	content.Digest = ""
+	raw, err := gokernel.CanonicalJSON(content)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum := sha256.Sum256(raw); proof.Digest != "sha256:"+hex.EncodeToString(sum[:]) {
+		t.Fatalf("proof digest %s does not bind its content", proof.Digest)
+	}
+	return proof
 }
 
 func e2eCodes(selection appflows.E2ESelection) []string {
@@ -352,7 +373,7 @@ func TestAFUV1022EveryFallbackCodeYieldsFullSuite(t *testing.T) {
 	t.Parallel()
 	corpus := loadE2ECorpus(t)
 	bound := corpus.find(t, "search-source")
-	bound.extraCoveragePaths = 4097
+	bound.extraCoveragePaths = appflows.MaxSelectionCoveragePaths + 1
 	cases := map[string]e2eCase{
 		appflows.CodeUnmappedChange:      corpus.find(t, "format-helper"),
 		appflows.CodeInventoryIncomplete: corpus.find(t, "missing-discovery"),
@@ -402,17 +423,18 @@ func TestAFUV1020ExclusionProofsPerBasis(t *testing.T) {
 	if !strings.HasPrefix(selection.Note, extevidence.SelectionNote+"; ") || !strings.Contains(selection.Note, "named basis") {
 		t.Fatalf("note does not keep the ETS note plus the e2e-safe note: %q", selection.Note)
 	}
+	if !slices.Equal(selection.DisjointFrom, []string{"src/search.ts"}) || len(selection.Proofs) != 4 {
+		t.Fatalf("proofs do not name the changed paths once: %+v", selection)
+	}
 	for _, o := range selection.OmittedTests {
-		if !slices.Equal(o.Proof.DisjointFrom, []string{"src/search.ts"}) {
-			t.Fatalf("%s proof does not name the changed paths: %+v", o.TestKey, o.Proof)
-		}
+		proof := e2eProof(t, selection, o)
 		switch o.Basis {
 		case "reviewed-links":
-			if o.TestKey != "checkout.spec.ts > pays" || len(o.Proof.Links) != 2 || o.Proof.Attestation != "link completeness is an author attestation" || o.Proof.Coverage != nil {
+			if o.TestKey != "checkout.spec.ts > pays" || len(proof.Links) != 2 || proof.Attestation != "link completeness is an author attestation" || proof.Coverage != nil {
 				t.Fatalf("reviewed-links proof: %+v", o)
 			}
 		case "coverage":
-			if o.Proof.Coverage == nil || o.Proof.Coverage.Commit != evidence || o.Proof.Links != nil {
+			if proof.Coverage == nil || proof.Coverage.Commit != evidence || proof.Links != nil {
 				t.Fatalf("coverage proof: %+v", o)
 			}
 		default:
