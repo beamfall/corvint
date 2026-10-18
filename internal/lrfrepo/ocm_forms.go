@@ -52,18 +52,32 @@ type intentDerivation struct {
 	scope        []byte
 	statements   map[string][]byte
 	excluded     []string
+	// nativeNames maps each OpenSpec obligation ID to its requirement name
+	// (STA-V0-004); only the OpenSpec forms set it.
+	nativeNames map[string]string
+	// excludedRequirements lists the toolchain requirements that are not
+	// obligations, in document order (STA-V0-003, STA-V0-005).
+	excludedRequirements []map[string]string
+	// nativeStatus is the Spec Kit `**Status**:` header text, nil when absent.
+	nativeStatus *string
 }
 
 var intentFormParsers = map[string]func(path, oid string, data []byte) (intentDerivation, error){
-	"":                requirementsDerivation,
-	IntentFormADR:     adrDecisionsDerivation,
-	IntentFormRoadmap: roadmapAcceptanceDerivation,
+	"":                      requirementsDerivation,
+	IntentFormADR:           adrDecisionsDerivation,
+	IntentFormRoadmap:       roadmapAcceptanceDerivation,
+	IntentFormOpenSpecSpec:  openSpecSpecDerivation,
+	IntentFormOpenSpecDelta: openSpecDeltaDerivation,
+	IntentFormSpecKit:       specKitSpecDerivation,
 }
 
 var intentFormIDs = map[string]*regexp.Regexp{
-	"":                requirementID,
-	IntentFormADR:     adrDecisionID,
-	IntentFormRoadmap: roadmapTicketID,
+	"":                      requirementID,
+	IntentFormADR:           adrDecisionID,
+	IntentFormRoadmap:       roadmapTicketID,
+	IntentFormOpenSpecSpec:  openSpecObligationID,
+	IntentFormOpenSpecDelta: openSpecObligationID,
+	IntentFormSpecKit:       specKitRequirementID,
 }
 
 func deriveIntent(form, path, oid string, data []byte) (intentDerivation, error) {
