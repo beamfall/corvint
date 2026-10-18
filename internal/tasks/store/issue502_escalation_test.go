@@ -32,7 +32,13 @@ func escalationClaim(t *testing.T) (*leaseStore, string, ticket.EscalationSource
 	t.Helper()
 	s := newLeaseStore(t)
 	id := s.ticket(t, "escalate")
-	claim := s.claim(t, "claim-1", id, 0)
+	return s, id, escalationSourceOf(t, s, id, s.claim(t, "claim-1", id, 0))
+}
+
+// escalationSourceOf is the audited source a live claim of id by agent-1
+// names in an escalation OPEN.
+func escalationSourceOf(t *testing.T, s *leaseStore, id string, claim *store.Report) ticket.EscalationSource {
+	t.Helper()
 	receipt, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", claim.Receipt))
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +48,7 @@ func escalationClaim(t *testing.T) (*leaseStore, string, ticket.EscalationSource
 		t.Fatal(err)
 	}
 	a := s.attempt(t, claim.AttemptID)
-	return s, id, ticket.EscalationSource{
+	return ticket.EscalationSource{
 		QueueID: fixture.QueueID, TicketID: id, AttemptID: claim.AttemptID, Generation: claim.Generation, Holder: "agent-1",
 		AcceptanceRevision: a.TicketRevision, ReceiptSequence: *claim.Outcome.ReceiptSeq,
 		ReceiptSha256: wire.Sum(receipt), PostAttemptSha256: wire.Sum(post), TicketRecordSha256: a.TicketRecordSha256,

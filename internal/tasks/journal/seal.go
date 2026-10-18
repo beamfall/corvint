@@ -241,13 +241,20 @@ func (res *Result) RetiredThrough() uint64 {
 	return res.chain.seal.Seq()
 }
 
+// RetiredRequest reports whether path names a request that a receipt
+// retired with the prefix posted. Its receipt is only in the retained
+// archive, so a writer refuses its replay UNSUPPORTED (JRT-V0-010).
+func (res *Result) RetiredRequest(path string) bool {
+	return res != nil && res.chain != nil && res.chain.seal != nil && res.chain.seal.Anchor.HasRequest(path)
+}
+
 // walkSealed is the complete audit of a sealed store (JRT-V0-004). It rebinds
 // the anchor receipt S to the seal and its Prev to the retired prefix,
 // requires the receipt names on disk to be exactly S..head (or head+1
-// pending), seeds the chain with the anchor's latest afterimages and the
-// retained request afterimages the anchor names, then walks every receipt
-// after S with the complete audit's per-receipt validators. The settled tail
-// is the complete audit's own (settle).
+// pending), seeds the chain with the anchor's latest afterimages, requires
+// the retained request names to be exactly the ones the anchor records, then
+// walks every receipt after S with the complete audit's per-receipt
+// validators. The settled tail is the complete audit's own (settle).
 func (r Reader) walkSealed(o *observation, result *Result, selected map[string]bool, request string, lim limits, headSeq uint64) (*chain, error) {
 	s := o.seal
 	a := s.Anchor

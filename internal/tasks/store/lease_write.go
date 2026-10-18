@@ -287,6 +287,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	if err != nil {
 		return nil, err
 	}
+	if p.proof.RetiredRequest(path) {
+		return nil, wire.Errorf(wire.CodeUnsupported, path, "request was retired with the prefix; its receipt is in the retained archive")
+	}
 	if digest, found := p.proof.RequestDigests[path]; found {
 		bound, err := snapshot.PostBound(path)
 		if err != nil {

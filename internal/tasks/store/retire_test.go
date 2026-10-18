@@ -664,3 +664,85 @@ func (c *countingSource) Read(p string, max int) ([]byte, error) {
 func (c *countingSource) List(p string, max int) (journal.Listing, error) {
 	return c.inner.List(p, max)
 }
+
+// TestJRTV0008_EscalationAndGateReuseAcrossRetirement (JRT-V0-007,
+// JRT-V0-008, JRT-V0-010): a non-terminal ticket carrying escalation
+// references refuses ESCALATION_PENDING; once it completes, the store
+// retires, and after the anchor a new attempt at the same candidate tree
+// reuses a gate PASS executed before it, and opens and answers an
+// escalation from its own claim. The complete audit and every binding fold
+// accept that history from the anchor, a retired request ID refuses
+// UNSUPPORTED when replayed, and unretire restores an audit from receipt 1.
+func TestJRTV0008_EscalationAndGateReuseAcrossRetirement(t *testing.T) {
+	open, id, src := escalationClaim(t)
+	committed(t, escalate(t, open, holder, openRequest(t, "q-1", src, "", ""), 1), "OPEN")
+	held := &store.Report{AttemptID: src.AttemptID, Generation: src.Generation}
+	if r := open.lease(t, "release-1", releaseOf(held), 2, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("release: %+v", r)
+	}
+	if _, refs := escalationRefs(t, open, id); refs["q-1"].State != "OPEN" {
+		t.Fatalf("refs after release %+v", refs)
+	}
+	_, err := store.RetirePrefix(context.Background(), open.repo, "", true)
+	refusesCode(t, err, wire.CodeEscalationPending, "open ticket carrying escalation references")
+
+	s := newLeaseStore(t, reuseGate("verify", "0", "30", true, true))
+	idA, idB := s.ticket(t, "src"), s.ticket(t, "lib")
+	a := s.claim(t, "claim-src", idA, 0, "src/")
+	srcA := escalationSourceOf(t, s, idA, a)
+	b := s.claim(t, "claim-lib", idB, 0, "lib/")
+	commit, tree := s.commit(t, "src/a.go", "lib/a.go")
+	for i, c := range []*store.Report{a, b} {
+		if r := s.lease(t, "submit-"+strconv.Itoa(i), submitOf(c, tree), 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("submit %d: %+v", i, r)
+		}
+	}
+	s.passes(t, "gate-src", gateOf(a, "verify"), 2)
+	source := s.resultOf(t, a.AttemptID, "verify")
+	committed(t, escalate(t, s, holder, openRequest(t, "esc-before", srcA, "", ""), 2), "OPEN")
+	committed(t, answer(t, s, operator(), answerRequest(t, "ans-before", idA, operator(), "", ""), 3), "ANSWER")
+	if r := s.lease(t, "release-lib", releaseOf(b), 3, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("release: %+v", r)
+	}
+	if r := s.lease(t, "complete-src", completeOf(a, commit), 4, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("complete: %+v", r)
+	}
+	path := retireArchive(t)
+	rep, err := store.RetirePrefix(context.Background(), s.repo, path, false)
+	if err != nil {
+		t.Fatalf("retire: %v", err)
+	}
+	head := rep.AnchorSeq
+	retiredAuditOK(t, s, head, "sealed")
+
+	c := s.claim(t, "claim-after", idB, 100, "lib/")
+	srcC := escalationSourceOf(t, s, idB, c)
+	if r := s.lease(t, "submit-after", submitOf(c, tree), 101, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("submit after the anchor: %+v", r)
+	}
+	reused, err := s.gate(t, "gate-after", gateOf(c, "verify"), 102)
+	if err != nil || reused.Outcome.Outcome != mutation.OutcomeCompleted || reused.GateReusedFrom == nil || string(reused.GateReusedFrom.Result) != source || s.runs(t, "verify") != 1 {
+		t.Fatalf("reuse of a PASS from before the anchor: %+v %v", reused, err)
+	}
+	committed(t, escalate(t, s, holder, openRequest(t, "esc-after", srcC, "", ""), 103), "OPEN")
+	committed(t, answer(t, s, operator(), answerRequest(t, "ans-after", idB, operator(), "", ""), 104), "ANSWER")
+	if r := s.lease(t, "complete-after", completeOf(c, commit), 105, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("complete after the anchor: %+v", r)
+	}
+	retiredAuditOK(t, s, head, "sealed+transitions")
+
+	before := receiptFiles(t, s)
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "release-lib", Root: s.root, Lease: releaseOf(b)}
+	_, err = store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, 106))
+	refusesCode(t, err, wire.CodeUnsupported, "replay of a retired lease request")
+	_, err = store.Escalate(context.Background(), s.repo, holder, fixture.QueueID, openRequest(t, "esc-before", srcA, "", ""), s.at(t, 106))
+	refusesCode(t, err, wire.CodeUnsupported, "replay of a retired escalation request")
+	if !sameFiles(receiptFiles(t, s), before) {
+		t.Fatal("a refused replay wrote a receipt")
+	}
+
+	if _, err := store.UnretirePrefix(context.Background(), s.repo, path); err != nil {
+		t.Fatalf("unretire: %v", err)
+	}
+	retiredAuditOK(t, s, 0, "unretired")
+}

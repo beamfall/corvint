@@ -50,6 +50,33 @@ the seal after. The 40,000-receipt store itself is NOT_RUN: building it through 
 costs about 0.9 s per receipt on this host (about 10 hours). Audit time at 40,000 receipts is
 NOT_RUN.
 
+## Fix round (PR #1074 review and CI)
+
+After one origin/main merge (regenerated INDEX.json and REQUIREMENTS.tsv), each item below landed
+with a regression test that fails without its fix (each was checked by reverting the fix):
+
+- CAL-V0-131: `taskman-retired-prefix/1` is a live format. The format-version table refuses a newer
+  seal version as UNSUPPORTED_VERSION instead of JOURNAL_FORKED.
+- JRT-V0-011: on a store compacted before retire, receipt S-1 is an elided tombstone. Unretire now
+  compares the digest the tombstone records, not its bytes, to the seal. Covered by
+  claim, heartbeat, release, compact, retire, unretire.
+- JRT-V0-006: the archive's parent directory is synced before the seal is written. The archive path
+  is checked as named and with symbolic links resolved against each root, named and resolved.
+- JRT-V0-013: the sealed audit no longer reinstates and hashes every retired request afterimage.
+  Retired request files are matched by name to the anchor's request set (a mismatch is
+  JOURNAL_FORKED). A counting-source test pins the sealed audit to one receipt read and no request
+  reads. Their bytes stay bound by the anchor digests and the archive and are re-verified by
+  unretire's closing audit from receipt 1.
+- JRT-V0-010: removing that reinstatement exposed a gap. A lease verb replaying a retired request
+  ID refused VALIDATION_FAILED MALFORMED (an absent replay), not UNSUPPORTED. The lease writer now
+  refuses it UNSUPPORTED through `Result.RetiredRequest`. A mutation replay (escalation) already did.
+- JRT-V0-005: the `receipt audit` item reports `anchorSeq` and `retiredThrough`.
+- JRT-V0-007/008: new tests run escalation OPEN/ANSWER and a gate PASS reuse whose source attempt
+  completed before the anchor, external review RETURN/resubmit/PASS, and an obligation ledger
+  change, all after the anchor; the complete audit and every binding fold accept them. An open
+  escalation on a released attempt's ticket refuses ESCALATION_PENDING, and review heads on a
+  released ticket refuse TICKET_STATE. Reverting each fold's seed fails the matching test.
+
 ## Residuals
 
 - A handoff policy, review submission, artifact link or claim admission from before S is not
@@ -58,8 +85,7 @@ NOT_RUN.
   `ReviewFold` refolds from S each tick. Both are bounded by the post-anchor journal.
 - One-shot: a second retire needs unretire first; export, compaction and import refuse on a sealed
   store; CLI `archive restore` stays unimplemented (TCP-02).
-- A consistently forged seal is detectable only against the archive. The archive-path check does
-  not resolve symbolic links.
+- A consistently forged seal is detectable only against the archive.
 - Non-terminal tickets without review or escalation references are carried by value in the seal;
   the owner may prefer a stricter all-terminal rule.
 - The REDO_PENDING refusal has no direct test.
