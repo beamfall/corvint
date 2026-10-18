@@ -10,7 +10,7 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-033..039 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the shared test rule, and the reusable `internal/rubyautoload` mapper) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129).
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-033..040 (Ruby autoload reverse references on by default for any request naming a Ruby path, a bounded second hop, advisory marking, no `reverse-import-rule-unavailable` for a mapped path, range impact, RSpec test paths in the Ruby reading's test rule, the reusable `internal/rubyautoload` mapper, and a bounded reference index) are accepted under the same standing auto-accept (V1-1794, V1-1700; GitHub #1129).
 - Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect and advisory Ruby named-constant reverse references by autoload convention, two hops deep, for default, syntax-profile and range impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
@@ -179,7 +179,7 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
 
 Rails and Zeitwerk load a constant from the file its name implies, so a caller often names
 `Thing` with no `require`. NGI-V0-016 to NGI-V0-021 introduced the reading for the
-`non-go-syntax-v0` path impact of a changed `.rb` path only; NGI-V0-033 to NGI-V0-039
+`non-go-syntax-v0` path impact of a changed `.rb` path only; NGI-V0-033 to NGI-V0-040
 (V1-1794, V1-1700; GitHub #1129) amend that opt-in so any path or range request naming a Ruby
 path receives it by default, add a bounded second hop, and mark every such row advisory.
 
@@ -273,7 +273,8 @@ path receives it by default, add a bounded second hop, and mark every such row a
   its summary and every evidence reason name D and the changed path's constant; its at most
   10 evidence rows have confidence `low` and authority `syntax`. Each path is reported at
   most once, at its first hop when both hops reach it and through the first referrer in path
-  order otherwise. No third hop is followed; the scan stays linear in the indexed references.
+  order otherwise. No third hop is followed. Each constant is traversed at most once, however
+  many first-hop paths map to it, so the scan stays linear in the indexed references.
 - `NGI-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) Every
   autoload-convention result (both hops) MUST carry `"advisory": true` and count in
   `coverage.advisory_results`, not `authoritative_results`; a receipt with any such row MUST
@@ -291,10 +292,12 @@ path receives it by default, add a bounded second hop, and mark every such row a
   with the range's other results by the existing deduplication, and the `ruby_autoload` block.
   A range admitting no Ruby path MUST keep its exact bytes.
 - `NGI-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1700) The
-  shared test-path rule (`isTestPath`) MUST classify a `.rb` path named `*_spec.rb` or below a
-  `spec/` directory as a test, so RSpec specs and support files rank, filter and count as tests
-  wherever the rule applies. Non-Ruby paths keep their classification; the Ruby autoload
-  reading uses the shared rule and has no private test rule.
+  Ruby autoload reading's test-path rule (`isRubyTestPath`) MUST classify a `.rb` path named
+  `*_spec.rb` or below a `spec/` directory as a test, in addition to the shared rule, so RSpec
+  specs and support files rank as tests among the reading's rows and their configuration is
+  not read for inflections. The shared rule (`isTestPath`) MUST keep its classification, so every receipt
+  for a request naming no Ruby path stays byte-identical, including a feature marker shared
+  with an RSpec path.
 - `NGI-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The
   path-to-constant mapping of `NGI-V0-016`, `NGI-V0-017` and `NGI-V0-021` MUST live in the
   importable package `internal/rubyautoload` with a documented API: `New(Repository)`,
@@ -302,6 +305,12 @@ path receives it by default, add a bounded second hop, and mark every such row a
   `Mapper.DeclarationInvalid`, `Mapper.ConfigUnresolved` and `DefaultRoots`. The package
   reads no file itself (the caller supplies paths, declaration text and sources), performs no
   I/O, and is deterministic over its inputs.
+- `NGI-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The
+  Ruby reference index MUST be bounded: an unbalanced source resolves each reference against
+  at most 64 of the namespaces it opens, and the index retains at most 1,048,576 reference
+  sites in total. Every reference whose resolutions or sites a bound cut MUST be counted in a
+  `ruby-reference-index-bounded` unknown row on each mapped changed Ruby path, never dropped
+  silently; below both bounds no row is added.
 
 ## Trust and failure boundaries
 
@@ -337,6 +346,7 @@ for languages not admitted by this new range capability.
 | `ruby-constant-lookup-dynamic` | `count` dynamic constant lookups or dynamic sends in other Ruby sources may name the constant (`NGI-V0-019`). |
 | `ruby-constant-name-literal` | `count` strings or association symbols in other Ruby sources may name the constant without a resolvable reference (`NGI-V0-019`). |
 | `ruby-constant-source-unavailable` | `count` other Ruby sources could not be read for constant references (`NGI-V0-019`). |
+| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution or retained-site bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -369,12 +379,13 @@ and a validated declared identifier, never source text.
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report` over `Mapper.Report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |
 | `NGI-V0-033` | `rubyImpactRequested` and the syntax-frontier selection in `impact` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestNonGoImpactCLIProfile`; Go/JS goldens `conformance/cli-parity-v0`, `TestNonGoRangeImpactLegacyGoBytes` |
-| `NGI-V0-034` | `rubyAutoload.impact` second hop, `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce` |
+| `NGI-V0-034` | `rubyAutoload.impact` second hop (`traversed`), `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce`, `TestRubyAutoloadSecondHopConstantOnce` |
 | `NGI-V0-035` | `result` (`advisory`); `setCoverage` (`internal/contextindex/receipt.go`); range coverage in `compileRangeImpact` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadRangeImpact`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-036` | `rubyAutoload.mapped`; `nonGoImpactUnknowns` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-037` | `rangeRubyAutoload`, wiring in `compileRangeImpact` | `TestRubyAutoloadRangeImpact`; `TestNonGoRangeImpactLegacyGoBytes` |
-| `NGI-V0-038` | `isTestPath` (`internal/contextindex/impact.go`) | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive` |
+| `NGI-V0-038` | `isRubyTestPath` (`internal/contextindex/ruby_autoload.go`); `isTestPath` unchanged | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubySpecPathNonRubyRequestBaseBytes` |
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
+| `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
@@ -394,9 +405,9 @@ autoload reading (`NGI-V0-016` to `NGI-V0-021`) evaluates no Ruby, loads no Rail
 configuration, follows no `require`, ancestor chain or `include`, and supports no collapsed
 directory; its reverse references are syntax-authority hints, never closure. The second hop
 (`NGI-V0-034`) is a fixed two-hop bound, not a transitive closure; advisory rows never satisfy
-an authoritative selection. Roll back `NGI-V0-033` to `NGI-V0-038` by removing the
-`rubyImpactRequested` selection, the second-hop loop, the `advisory` count, the `mapped` guard,
-`rangeRubyAutoload` and the Ruby rule in `isTestPath`; roll back the whole reading by removing
+an authoritative selection. Roll back `NGI-V0-033` to `NGI-V0-038` and `NGI-V0-040` by removing
+the `rubyImpactRequested` selection, the second-hop loop, the `advisory` count, the `mapped`
+guard, `rangeRubyAutoload`, `isRubyTestPath` and the index bounds; roll back the whole reading by removing
 `ruby_autoload.go`, `internal/rubyautoload` and their wiring in `impact`; the declaration
 file is then ignored. The implementation stays experimental pending human acceptance and
 integration. Revert task-owned code/spec changes to roll back; preserve original

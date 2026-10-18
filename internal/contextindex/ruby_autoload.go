@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -9,7 +10,7 @@ import (
 )
 
 // Ruby autoload-convention reverse references (NGI-V0-016 to NGI-V0-021,
-// NGI-V0-033 to NGI-V0-039).
+// NGI-V0-033 to NGI-V0-040).
 //
 // A Rails/Zeitwerk application never requires the file that defines a model or
 // service: the constant's name is derived from the file's path below an
@@ -38,6 +39,17 @@ const (
 	rubyConstantTestScore        = 500
 	rubyTransitiveReferenceScore = 475
 	rubyTransitiveTestScore      = 450
+)
+
+// The reference index is bounded (NGI-V0-040): an unbalanced file resolves
+// a reference against at most maxRubyResolutions of the namespaces it opens,
+// and the index retains at most maxRubyReferenceSites sites in total. A
+// reference either bound cuts counts in the ruby-reference-index-bounded
+// unknown rather than being dropped silently. They are variables only so a
+// test can lower them.
+var (
+	maxRubyResolutions    = 64
+	maxRubyReferenceSites = 1 << 20
 )
 
 // rubyAutoloadAdvisoryUncertainty is the coverage line a receipt carrying
@@ -112,6 +124,12 @@ type rubyAutoload struct {
 	// prefix of it, to its references in path order then line order, one
 	// site per reference, so each hop is one lookup rather than a rescan.
 	sites map[string][]rubyReferenceSite
+	// retained counts the sites in sites; bounded counts the references
+	// whose resolutions or sites a bound cut (NGI-V0-040).
+	retained, bounded int
+	// lookups counts referrers calls, so a test can observe that each
+	// constant is traversed once.
+	lookups int
 }
 
 // loadRubyAutoload maps every Ruby source to its constant and indexes every
@@ -124,7 +142,7 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 		}
 	}
 	sort.Strings(autoload.paths)
-	repository := rubyautoload.Repository{Paths: autoload.paths, IsTest: isTestPath,
+	repository := rubyautoload.Repository{Paths: autoload.paths, IsTest: isRubyTestPath,
 		Source: func(name string) ([]string, []string, bool) {
 			text, valid, loaded := index.Sources[name].Text()
 			if !valid || !loaded {
@@ -141,21 +159,36 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 		source := scanRubyConstantSource(index.Sources[name], autoload.mapper.Known)
 		autoload.sources[name] = source
 		for _, reference := range source.references {
-			named := map[string]bool{}
-			for _, resolved := range autoload.resolutions(source, reference) {
-				for prefix := resolved; prefix != "" && !named[prefix]; {
-					named[prefix] = true
-					autoload.sites[prefix] = append(autoload.sites[prefix], rubyReferenceSite{name, reference.line})
-					cut := strings.LastIndex(prefix, "::")
-					if cut < 0 {
-						break
-					}
-					prefix = prefix[:cut]
-				}
+			resolved, complete := autoload.resolutions(source, reference)
+			if !autoload.indexSites(name, reference.line, resolved) || !complete {
+				autoload.bounded++
 			}
 		}
 	}
 	return autoload
+}
+
+// indexSites records one site for each constant in resolved and each of its
+// namespace prefixes, once per reference. It reports false when the
+// retained-site bound stopped it before every site was recorded.
+func (autoload *rubyAutoload) indexSites(name string, line int, resolved []string) bool {
+	named := map[string]bool{}
+	for _, constant := range resolved {
+		for prefix := constant; prefix != "" && !named[prefix]; {
+			if autoload.retained >= maxRubyReferenceSites {
+				return false
+			}
+			named[prefix] = true
+			autoload.retained++
+			autoload.sites[prefix] = append(autoload.sites[prefix], rubyReferenceSite{name, line})
+			cut := strings.LastIndex(prefix, "::")
+			if cut < 0 {
+				break
+			}
+			prefix = prefix[:cut]
+		}
+	}
+	return true
 }
 
 // rubyAutoloadDeclaration reads the committed declaration. A present one
@@ -502,13 +535,14 @@ func rubyEndlessDef(code string, index int) bool {
 // itself (a local definition shadows an autoloaded constant). An unbalanced
 // file is resolved against every namespace it opens. A `class`/`module` name
 // resolves to the constant it opens, which reopening an autoloaded constant
-// first loads.
-func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference rubyReference) []string {
+// first loads. The unbalanced fallback tries at most maxRubyResolutions
+// namespaces and reports false when the file opens more (NGI-V0-040).
+func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference rubyReference) ([]string, bool) {
 	if reference.rooted {
-		return []string{reference.name}
+		return []string{reference.name}, true
 	}
 	if reference.defined && source.balanced {
-		return []string{reference.constant}
+		return []string{reference.constant}, true
 	}
 	first, _, _ := strings.Cut(reference.name, "::")
 	if !source.balanced {
@@ -516,20 +550,25 @@ func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference 
 		if reference.defined {
 			out = append(out, reference.constant)
 		}
-		for _, namespace := range source.namespaces {
+		namespaces := source.namespaces
+		complete := len(namespaces) <= maxRubyResolutions
+		if !complete {
+			namespaces = namespaces[:maxRubyResolutions]
+		}
+		for _, namespace := range namespaces {
 			if autoload.mapper.Known(namespace + "::" + first) {
 				out = append(out, namespace+"::"+reference.name)
 			}
 		}
-		return out
+		return out, complete
 	}
 	stack := reference.stack
 	for i := len(stack) - 1; i >= 0; i-- {
 		if candidate := stack[i] + "::" + first; autoload.mapper.Known(candidate) || source.local[candidate] {
-			return []string{stack[i] + "::" + reference.name}
+			return []string{stack[i] + "::" + reference.name}, true
 		}
 	}
-	return []string{reference.name}
+	return []string{reference.name}, true
 }
 
 func rubyNamesConstant(resolved, constant string) bool {
@@ -591,11 +630,14 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 	// The second hop follows each first-hop referrer the mapper maps to its
 	// own constant, once: a path a first hop or an earlier referrer already
 	// reached is not reported again, and nothing goes past two hops.
+	// Each constant is traversed once, however many first-hop paths map to it.
+	traversed := map[string]bool{constant: true}
 	for _, via := range first {
 		viaConstant, ok := autoload.mapper.Constant(via)
-		if !ok {
+		if !ok || traversed[viaConstant] {
 			continue
 		}
+		traversed[viaConstant] = true
 		second, secondLines := autoload.referrers(viaConstant, reached)
 		for _, name := range second {
 			reached[name] = true
@@ -611,12 +653,16 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 	if unreadable != 0 {
 		unknowns = append(unknowns, row("ruby-constant-source-unavailable", unreadable))
 	}
+	if autoload.bounded != 0 {
+		unknowns = append(unknowns, row("ruby-reference-index-bounded", autoload.bounded))
+	}
 	return ranked, unknowns
 }
 
 // referrers returns the paths, outside skip, with a reference naming
 // constant, in path order, and each one's first maxEvidence reference lines.
 func (autoload *rubyAutoload) referrers(constant string, skip map[string]bool) ([]string, map[string][]int) {
+	autoload.lookups++
 	paths := []string{}
 	lines := map[string][]int{}
 	for _, site := range autoload.sites[constant] {
@@ -650,7 +696,7 @@ func (autoload *rubyAutoload) result(index *Index, name string, lines []int, con
 		summary = "second-hop named-constant reference to " + constant + ", which references " + origin +
 			" (autoload convention; ranks below a first hop)"
 	}
-	if isTestPath(name) {
+	if isRubyTestPath(name) {
 		kind, score = "test", rubyConstantTestScore
 		if origin != "" {
 			score = rubyTransitiveTestScore
@@ -697,6 +743,18 @@ func (autoload *rubyAutoload) report() map[string]any {
 		report["declaration"] = applied.Declaration
 	}
 	return report
+}
+
+// isRubyTestPath is the Ruby autoload reading's test-path rule: the shared
+// rule, plus RSpec's layout, a `_spec.rb` file or any Ruby file below a
+// `spec/` directory, which holds its helpers, support files and shared
+// examples (NGI-V0-038). Only the Ruby reading applies it, so the shared
+// isTestPath, and every receipt for a request naming no Ruby path, keep
+// their bytes.
+func isRubyTestPath(value string) bool {
+	name := strings.ToLower(path.Base(value))
+	return isTestPath(value) || (strings.HasSuffix(name, ".rb") &&
+		(strings.HasSuffix(name, "_spec.rb") || strings.Contains("/"+strings.ToLower(value)+"/", "/spec/")))
 }
 
 // rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).

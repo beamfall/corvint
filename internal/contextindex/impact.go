@@ -867,12 +867,6 @@ func pythonContains(value any, wanted string) bool {
 func isTestPath(value string) bool {
 	name := strings.ToLower(path.Base(value))
 	wrapped := "/" + strings.ToLower(value) + "/"
-	if strings.HasSuffix(name, ".rb") && (strings.HasSuffix(name, "_spec.rb") || strings.Contains(wrapped, "/spec/")) {
-		// RSpec's layout: a `_spec.rb` file, or any Ruby file below a
-		// `spec/` directory, which holds its helpers, support files and
-		// shared examples (NGI-V0-038). Only Ruby paths are affected.
-		return true
-	}
 	return strings.HasPrefix(name, "test_") || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_test.py") || strings.HasSuffix(name, "_test.sh") ||
 		strings.Contains(name, ".test.") || strings.Contains(name, ".spec.") || strings.Contains(wrapped, "/test/") || strings.Contains(wrapped, "/tests/")
 }

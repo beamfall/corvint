@@ -189,18 +189,27 @@ func TestRubyAutoloadRangeImpact(t *testing.T) {
 	}
 }
 
-// TestIsTestPathRSpec: NGI-V0-038. The shared test-path rule classifies
-// RSpec's layout as tests, for Ruby paths only.
+// TestIsTestPathRSpec: NGI-V0-038. The Ruby reading's test-path rule
+// classifies RSpec's layout as tests, for Ruby paths only; the shared rule
+// keeps its base classification.
 func TestIsTestPathRSpec(t *testing.T) {
 	for _, name := range []string{"spec/models/thing_spec.rb", "spec/support/helper.rb", "spec/rails_helper.rb",
 		"engines/billing/spec/models/invoice_spec.rb", "app/models/thing_spec.rb"} {
-		if !isTestPath(name) {
-			t.Fatalf("%s must be a test path", name)
+		if !isRubyTestPath(name) {
+			t.Fatalf("%s must be a Ruby-reading test path", name)
+		}
+		if isTestPath(name) {
+			t.Fatalf("%s must keep the shared rule's base classification", name)
 		}
 	}
 	for _, name := range []string{"app/models/thing.rb", "app/models/spectrum.rb", "lib/specs.rb", "spec/fixtures/data.json", "docs/spec/readme.md", "spec/thing.go"} {
-		if isTestPath(name) {
+		if isRubyTestPath(name) || isTestPath(name) {
 			t.Fatalf("%s must not be a test path", name)
+		}
+	}
+	for _, name := range []string{"test/models/thing_test.rb", "spec/thing.spec.ts", "internal/x/x_test.go"} {
+		if !isRubyTestPath(name) || !isTestPath(name) {
+			t.Fatalf("%s must be a test path under both rules", name)
 		}
 	}
 }

@@ -7,12 +7,13 @@ plus `reverse-import-rule-unavailable`, and never reached `spec/services/bar/baz
 the spec of the service that calls `FooClient`. V1-1700: `isTestPath` did not classify RSpec paths,
 so the Ruby reading carried its own private `rubyTestPath`.
 
-The new requirements `NGI-V0-033..039` in `docs/specs/non-go-impact-v0.md` are accepted under the
+The new requirements `NGI-V0-033..040` in `docs/specs/non-go-impact-v0.md` are accepted under the
 owner's standing auto-accept of lane requirements (2026-10-11); V1-1794, V1-1700. They amend
 `NGI-V0-003`/`NGI-V0-020` (the opt-in) and `NGI-V0-019` (the baseline unavailable-rule row). No
 CAL-V0 change. IDs were checked against origin/main `70a21da5d` (highest `NGI-V0-021`) and the open
 PRs: #1134 (V1-1796) reserves `NGI-V0-027` and `corvint-analyzer/124`, so this lane leaves a gap of
-five and takes `NGI-V0-033..039` and `corvint-analyzer/125`.
+five and takes `NGI-V0-033..040` and `corvint-analyzer/125` (`NGI-V0-040` was added for the Codex
+round-1 index bound below).
 
 ## Design
 
@@ -23,8 +24,13 @@ five and takes `NGI-V0-033..039` and `corvint-analyzer/125`.
   followed once more to the sources naming D. Second-hop rows score 475 (`reference`) / 450
   (`test`), below every first hop, carry `via` (the first-hop path), confidence `low`, and a reason
   naming both constants. A path is reported once (its first hop wins); no third hop. References
-  are indexed once per load (constant and namespace prefix to sites), so both hops are linear in
-  the indexed references.
+  are indexed once per load (constant and namespace prefix to sites), and each constant is
+  traversed once at the second hop however many paths map to it (`foo12.rb`, `foo_12.rb` and
+  `foo1_2.rb` all name `Foo12`), so both hops are linear in the indexed references.
+- Index bound (`NGI-V0-040`): an unbalanced file resolves a reference against at most 64 of the
+  namespaces it opens, and the index retains at most 1,048,576 sites. A reference either bound
+  cuts counts in the new `ruby-reference-index-bounded` unknown on every mapped changed Ruby path;
+  nothing is dropped silently.
 - Advisory (`NGI-V0-035`): every autoload-convention row carries `"advisory": true` and counts in
   `coverage.advisory_results`; path and range receipts add the uncertainty line "Ruby
   autoload-convention references are advisory syntax hints: a named constant does not establish
@@ -35,8 +41,11 @@ five and takes `NGI-V0-033..039` and `corvint-analyzer/125`.
   declaration) keep it. `dynamic-dispatch-unresolved` stays on every Ruby path.
 - Range (`NGI-V0-037`): `compileRangeImpact` attaches the same rows (both hops), Ruby unknowns and
   `ruby_autoload` for each admitted Ruby path, merged by the existing range deduplication.
-- `isTestPath` (`NGI-V0-038`, V1-1700): a `.rb` path named `*_spec.rb` or below a `spec/` directory
-  is a test. `rubyTestPath` is removed; the Ruby reading uses the shared rule.
+- `isRubyTestPath` (`NGI-V0-038`, V1-1700): for the Ruby reading's rows and the mapper's
+  configuration scan, a `.rb` path named `*_spec.rb` or below a `spec/` directory is a test, on
+  top of the shared rule. The shared `isTestPath` is unchanged (the first push changed it, which
+  Codex round 1 found moved a Go receipt sharing a feature marker with `spec/example_spec.rb` from
+  `medium`/`source-marker` to `high`/`test-marker`).
 - Package (`NGI-V0-039`): the path-to-constant mapper moves to `internal/rubyautoload`
   (`New(Repository)`, `Mapper.Constant/Path/Known/Camelize/Report/DeclarationInvalid/
   ConfigUnresolved`, `DefaultRoots`). It performs no I/O: the caller supplies paths, the
@@ -61,9 +70,11 @@ five and takes `NGI-V0-033..039` and `corvint-analyzer/125`.
   new uncertainty line; new second-hop rows with `via`.
 - Mapped Ruby paths drop the `reverse-import-rule-unavailable` unknown row.
 - Range receipts admitting a Ruby path: Ruby rows, unknowns, `ruby_autoload`, uncertainty line.
-- `isTestPath` on `.rb` spec paths changes test classification wherever contextindex applies it
-  (impact ranking kinds, task context, eval query, checkpoint and feature filters, and the
-  `reverseImportProfileGap` count, which no longer counts a changed Ruby spec path).
+- RSpec classification applies only to the Ruby reading's rows; every other `isTestPath` use
+  keeps its base classification. `TestRubySpecPathNonRubyRequestBaseBytes` compares a Go default
+  and a JS/TS syntax request (feature marker shared with `spec/example_spec.rb` and
+  `spec/support/demo_helper.rb`) against canonical bytes produced by the base commit
+  `a7ad984c9` (`testdata/ruby-spec-marker-base/receipts.json`); with the old shared rule it fails.
 - `analyzerSchemaID` moves to `corvint-analyzer/125` (contextindex sources and the new
   `internal/rubyautoload` input); the `IDX-SNAP-V0-017` digest is repinned. Pack facts are
   otherwise unchanged.
@@ -96,9 +107,9 @@ block, `dynamic-dispatch-unresolved` only, `advisory_results` 3 and the advisory
 ## Rollback
 
 Revert the change: remove the `rubyImpactRequested` selection, the second-hop loop, the
-`advisory` count and line, the `mapped` guard, `rangeRubyAutoload` and the Ruby rule in
-`isTestPath`, restore the mapper into `ruby_autoload.go`, drop the export prefix and the 0397
-addendum, and restore `corvint-analyzer/123` with its digest.
+`advisory` count and line, the `mapped` guard, `rangeRubyAutoload`, `isRubyTestPath`, the index
+bounds and `ruby-reference-index-bounded`, restore the mapper into `ruby_autoload.go`, drop the
+export prefix and the 0397 addendum, and restore `corvint-analyzer/123` with its digest.
 
 ## Residuals
 
@@ -107,5 +118,7 @@ addendum, and restore `corvint-analyzer/123` with its digest.
   Go impact profile" for a mapped Ruby path; changing it moves the CLI budget fallback too.
 - The MCP impact description (`internal/mcp/bridge/bridge.go`) is golden-pinned and still says
   "Ruby (.rb): path, markers, reverse imports unknown"; it is unchanged here.
+- In a Ruby request, rows other than the reading's (feature markers, reverse imports) still use
+  the shared rule, so an RSpec path among them is not classified as a test.
 - `corvint affected` selects the fixture's `testdata/**/spec/*.rb` files as RSpec units of the
   Corvint repository.
