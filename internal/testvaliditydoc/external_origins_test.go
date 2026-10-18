@@ -339,3 +339,97 @@ func TestPWPV0027ReportOutputListsExternalOrigins(t *testing.T) {
 		t.Fatalf("report = %+v", report)
 	}
 }
+
+// PWP-V0-027: a run that read no test stays NOT_PRODUCED and keeps the verdict UNKNOWN even when
+// another run recorded complete evidence; uncertainty is per run, never aggregated away.
+func TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun(t *testing.T) {
+	const revision = "0123456789abcdef0123456789abcdef01234567"
+	recorded := NetworkEvidence{Profile: NetworkEvidenceProfile, Run: "a", Revision: revision,
+		Tests: []NetworkTest{{File: "tests/home.spec.ts", Title: "home", Outcome: "passed", Requests: []NetworkRequest{}}}}
+	empty := NetworkEvidence{Profile: NetworkEvidenceProfile, Run: "b", Revision: revision, Tests: []NetworkTest{}}
+	for _, runs := range [][]NetworkEvidence{{recorded, empty}, {empty, recorded}} {
+		report := buildExternalOrigins(t, externalOriginsPolicy(t), runs...)
+		if report.Verdict != ExternalOriginsUnknown {
+			t.Errorf("verdict = %s, want %s", report.Verdict, ExternalOriginsUnknown)
+		}
+		for _, run := range report.Runs {
+			want := NetworkRecorded
+			if run.Run == "b" {
+				want = NetworkNotProduced
+			}
+			if run.Network != want {
+				t.Errorf("run %s network = %s, want %s", run.Run, run.Network, want)
+			}
+		}
+	}
+	if report := buildExternalOrigins(t, externalOriginsPolicy(t), recorded); report.Verdict != ExternalOriginsClean {
+		t.Errorf("recorded run alone verdict = %s, want %s", report.Verdict, ExternalOriginsClean)
+	}
+}
+
+// PWP-V0-022: status, durationMs and followUps are required and non-null; an omitted or null
+// observation refuses network-evidence-invalid instead of decoding as 0.
+func TestPWPV0022RequestObservationsAreRequired(t *testing.T) {
+	const prefix = `{"profile":"corvint-network-evidence/0","run":"r","revision":"0123456789abcdef0123456789abcdef01234567","tests":[{"file":"f","title":"t","outcome":"passed","requests":[`
+	const suffix = `]}]}`
+	complete := `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"durationMs":5,"followUps":0}`
+	if _, err := DecodeNetworkEvidence([]byte(prefix + complete + suffix)); err != nil {
+		t.Fatalf("complete request refused: %v", err)
+	}
+	for name, request := range map[string]string{
+		"status omitted":     `{"url":"https://cdn.example.test/m.js","resourceType":"module","durationMs":5,"followUps":0}`,
+		"status null":        `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":null,"durationMs":5,"followUps":0}`,
+		"durationMs omitted": `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"followUps":0}`,
+		"durationMs null":    `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"durationMs":null,"followUps":0}`,
+		"followUps omitted":  `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"durationMs":5}`,
+		"followUps null":     `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"durationMs":5,"followUps":null}`,
+		"request null":       `null`,
+		"unknown member":     `{"url":"https://cdn.example.test/m.js","resourceType":"module","status":200,"durationMs":5,"followUps":0,"extra":1}`,
+	} {
+		_, err := DecodeNetworkEvidence([]byte(prefix + request + suffix))
+		if err == nil || !strings.HasPrefix(err.Error(), NetworkEvidenceInvalid+": ") {
+			t.Errorf("%s: err = %v, want %s", name, err, NetworkEvidenceInvalid)
+		}
+	}
+}
+
+// PWP-V0-022, PWP-V0-025: numeric ports and IP hosts are canonicalized before matching, so a
+// zero-padded default port or an expanded IPv6 address matches the policy origin, and the policy
+// refuses those noncanonical spellings.
+func TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins(t *testing.T) {
+	for raw, want := range map[string]string{
+		"https://assets.example-cdn.test:0443/app.js":     "https://assets.example-cdn.test",
+		"https://assets.example-cdn.test:08443/app.js":    "https://assets.example-cdn.test:8443",
+		"http://[0:0:0:0:0:0:0:1]:080/api":                "http://[::1]",
+		"http://[2001:DB8:0:0:0:0:0:1]:3002/":             "http://[2001:db8::1]:3002",
+		"http://127.0.0.1:03002/":                         "http://127.0.0.1:3002",
+		"wss://[0000:0000:0000:0000:0000:0000:0000:0001]": "wss://[::1]",
+	} {
+		if origin, _, ok, err := RequestOrigin(raw); err != nil || !ok || origin != want {
+			t.Errorf("RequestOrigin(%q) = %q %v %v, want %q", raw, origin, ok, err, want)
+		}
+	}
+	if _, _, _, err := RequestOrigin("https://assets.example-cdn.test:70000/"); err == nil {
+		t.Error("port above 65535 accepted")
+	}
+
+	policy := externalOriginsPolicy(t)
+	const revision = "0123456789abcdef0123456789abcdef01234567"
+	run := NetworkEvidence{Profile: NetworkEvidenceProfile, Run: "r", Revision: revision, Tests: []NetworkTest{{
+		File: "tests/catalog.spec.ts", Title: "catalog", Outcome: "passed", Requests: []NetworkRequest{
+			{URL: "https://assets.example-cdn.test:0443/app.js", ResourceType: "script", Status: 200, DurationMs: 3},
+			{URL: "http://127.0.0.1:03002/", ResourceType: "document", Status: 200, DurationMs: 3},
+		}}}}
+	report := buildExternalOrigins(t, policy, run)
+	if report.Verdict != ExternalOriginsClean || len(report.Findings) != 0 || len(report.Origins) != 1 ||
+		report.Origins[0].Origin != "https://assets.example-cdn.test" || report.Origins[0].Class != OriginAllowed {
+		t.Fatalf("report = %+v", report)
+	}
+
+	for _, origin := range []string{"https://assets.example-cdn.test:0443", "https://assets.example-cdn.test:443", "http://[0:0:0:0:0:0:0:1]", "HTTPS://assets.example-cdn.test"} {
+		document := `{"profile":"corvint-external-origins-policy/0","environment":[],"deterministic":[{"origin":"` + origin + `","reason":"pinned"}]}`
+		if _, err := DecodeExternalOriginsPolicy([]byte(document)); err == nil || !strings.HasPrefix(err.Error(), ExternalOriginsPolicyInvalid+": ") {
+			t.Errorf("policy origin %q: err = %v, want %s", origin, err, ExternalOriginsPolicyInvalid)
+		}
+	}
+}

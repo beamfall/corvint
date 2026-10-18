@@ -9,9 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -101,6 +103,28 @@ type NetworkRequest struct {
 	Status       int    `json:"status"`
 	DurationMs   int    `json:"durationMs"`
 	FollowUps    int    `json:"followUps"`
+}
+
+// UnmarshalJSON decodes one closed request and refuses an absent or null status, durationMs or
+// followUps, so a missing observation can never decode as 0 (PWP-V0-022).
+func (r *NetworkRequest) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		URL          string `json:"url"`
+		ResourceType string `json:"resourceType"`
+		Awaited      *bool  `json:"awaited"`
+		Status       *int   `json:"status"`
+		DurationMs   *int   `json:"durationMs"`
+		FollowUps    *int   `json:"followUps"`
+	}
+	if err := decodeClosed(data, &raw); err != nil {
+		return err
+	}
+	if raw.Status == nil || raw.DurationMs == nil || raw.FollowUps == nil {
+		return errors.New("request status, durationMs and followUps are required and non-null")
+	}
+	*r = NetworkRequest{URL: raw.URL, ResourceType: raw.ResourceType, Awaited: raw.Awaited,
+		Status: *raw.Status, DurationMs: *raw.DurationMs, FollowUps: *raw.FollowUps}
+	return nil
 }
 
 // ExternalOriginsPolicy is the project's declared test environment (the application under test and
@@ -224,7 +248,8 @@ func RequestDependence(request NetworkRequest) string {
 	return RequestBlocking
 }
 
-// RequestOrigin returns the canonical origin (lower-case scheme and host, default port elided) and
+// RequestOrigin returns the canonical origin (lower-case scheme and host, an IP host in its
+// canonical address form, the port as a decimal number without leading zeros, default port elided) and
 // the query- and fragment-free locator of a request URL. A data:, blob: or about: URL has no
 // network origin and returns ok false (PWP-V0-022).
 func RequestOrigin(raw string) (origin, locator string, ok bool, err error) {
@@ -246,7 +271,17 @@ func RequestOrigin(raw string) (origin, locator string, ok bool, err error) {
 	if host == "" {
 		return "", "", false, errors.New("request url has no host")
 	}
+	if address, err := netip.ParseAddr(host); err == nil {
+		host = address.String()
+	}
 	port := parsed.Port()
+	if port != "" {
+		number, err := strconv.ParseUint(port, 10, 16)
+		if err != nil {
+			return "", "", false, fmt.Errorf("request url port %q is not 0..65535", port)
+		}
+		port = strconv.FormatUint(number, 10)
+	}
 	if port == defaultPorts[scheme] {
 		port = ""
 	}
@@ -437,7 +472,7 @@ func BuildExternalOriginsReport(policy ExternalOriginsPolicy, runs []NetworkEvid
 	originTypes := map[string]map[string]bool{}
 	findings := map[findingKey]*findingState{}
 	labels := map[string]bool{}
-	totalTests := 0
+	runsWithoutEvidence := 0
 	for _, run := range runs {
 		if err := validateNetworkEvidence(run); err != nil {
 			return report, refusal(NetworkEvidenceInvalid, "%v", err)
@@ -447,7 +482,6 @@ func BuildExternalOriginsReport(policy ExternalOriginsPolicy, runs []NetworkEvid
 		}
 		labels[run.Run] = true
 		summary := ExternalOriginsRun{Run: run.Run, Revision: run.Revision, Network: NetworkRecorded, Tests: len(run.Tests)}
-		totalTests += len(run.Tests)
 		for _, test := range run.Tests {
 			ref := ExternalTestRef{File: test.File, Title: test.Title}
 			if test.Requests == nil {
@@ -491,8 +525,11 @@ func BuildExternalOriginsReport(policy ExternalOriginsPolicy, runs []NetworkEvid
 				state.tests[ref] = true
 			}
 		}
-		if summary.TestsWithoutEvidence > 0 {
+		// A run with no test, or with a test lacking evidence, stays NOT_PRODUCED: another run's
+		// evidence never clears it (PWP-V0-027).
+		if summary.TestsWithoutEvidence > 0 || len(run.Tests) == 0 {
 			summary.Network = NetworkNotProduced
+			runsWithoutEvidence++
 		}
 		report.Runs = append(report.Runs, summary)
 	}
@@ -520,7 +557,7 @@ func BuildExternalOriginsReport(policy ExternalOriginsPolicy, runs []NetworkEvid
 	switch {
 	case len(report.Findings) > 0:
 		report.Verdict = ExternalOriginsDependent
-	case len(report.Unknown) > 0 || totalTests == 0:
+	case runsWithoutEvidence > 0:
 		report.Verdict = ExternalOriginsUnknown
 	default:
 		report.Verdict = ExternalOriginsClean

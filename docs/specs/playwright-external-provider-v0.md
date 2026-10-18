@@ -247,11 +247,13 @@ as deterministic, or removes the dependence by vendoring or mocking the resource
   `resourceType` (`document`, `script`, `module`, `stylesheet`, `websocket`, `fetch`, `xhr`,
   `beacon`, `image`, `font`, `media` or `other`), `status` (0 when no response arrived, else
   100..599), `durationMs`, `followUps` (the requests its response initiated) and, for `fetch` and
-  `xhr` only, `awaited`. Unknown members, trailing data, a repeated test in one run, a URL with
+  `xhr` only, `awaited`. `status`, `durationMs` and `followUps` are required and non-null, so an
+  absent observation never decodes as 0. Unknown members, trailing data, a repeated test in one run, a URL with
   userinfo or a scheme other than http, https, ws, wss, data, blob or about refuse
   `network-evidence-invalid`, as does a document above 4 MiB, 4096 tests, 1024 requests per test or
-  1024-byte text. A URL reduces to its canonical origin (lower-case scheme and host, default port
-  elided) and a locator without query or fragment, so no query value reaches the report; data:,
+  1024-byte text, as does a port above 65535. A URL reduces to its canonical origin (lower-case
+  scheme and host, an IP host in its canonical address form such as compressed IPv6, the port as a
+  decimal number without leading zeros, default port elided) and a locator without query or fragment, so no query value reaches the report; data:,
   blob: and about: URLs have no origin and are not listed. The evidence is producer-stated: Corvint
   makes no network request and observes no browser to produce it.
 - `PWP-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) A request to an origin outside the declared environment is
@@ -270,8 +272,10 @@ as deterministic, or removes the dependence by vendoring or mocking the resource
   document: `environment`, the canonical origins of the application under test and its declared
   mocks, whose requests are never listed; and `deterministic`, the allow-list of external origins
   the project accepts as deterministic (for example pinned content-hashed assets), each with a
-  non-empty `reason`. An allow-listed origin is listed with class `allowed` and its reason and
-  raises no finding. A non-canonical origin (a path, upper case or a default port), an origin
+  non-empty `reason`. Request origins are matched against the policy only after the canonical
+  reduction of `PWP-V0-022`. An allow-listed origin is listed with class `allowed` and its reason and
+  raises no finding. A non-canonical origin (a path, upper case, a default or zero-padded port, or
+  an expanded IP address), an origin
   declared twice or in both lists, a missing reason, unknown members, more than 256 origins or a
   document above 64 KiB refuse `external-origins-policy-invalid`.
 - `PWP-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) For each test (file and title) that passed in one input run and
@@ -285,11 +289,11 @@ as deterministic, or removes the dependence by vendoring or mocking the resource
   revisions are never paired.
 - `PWP-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) `corvint-js-test-provider external-origins --policy FILE
   --network FILE...` (1 to 16 runs, in run order) prints the closed `corvint-external-origins/0`
-  report: `verdict`, per-run `network` state (`RECORDED`, or `NOT_PRODUCED` when any test lacks
-  evidence), `origins`, `findings`, `unknown` tests and `correlations`. A test whose `requests` is
+  report: `verdict`, per-run `network` state (`RECORDED`, or `NOT_PRODUCED` when the run has no
+  test or any test lacks evidence; each run's state is its own and another run never clears it), `origins`, `findings`, `unknown` tests and `correlations`. A test whose `requests` is
   absent or null is listed in `unknown` with reason `network-evidence-absent`; an empty array states
   that no request was made. The verdict is `ENVIRONMENT_DEPENDENT` when any finding exists, else
-  `UNKNOWN` when any test lacks evidence or no test was read, else `CLEAN`: missing network evidence
+  `UNKNOWN` when any run is `NOT_PRODUCED`, else `CLEAN`: missing network evidence
   never yields `CLEAN`. A refusal writes its code to stderr and exits 2. The report is diagnostic:
   it never rewrites a receipt, the five-axis projection or the passing predicate.
 
@@ -539,7 +543,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-019 (accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #807) | `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReportNamesUnboundSetupProjectFiles`, `TestProviderHelpExplainsSetupProjectFileBinding`; live Playwright setup-project run `NOT_RUN` (`docs/build-log/2026-10-11-gh807-setup-project-files.md`) |
 | PWP-V0-020 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) | `internal/jstestprovider/external.go`, `internal/jstestprovider/runner.go` | `TestBoundaryTimeoutNamesRunnerAndFlag`, `TestE2EBoundaryFailure_WaitNotCompleted`; live Playwright timeout run `NOT_RUN` (`docs/build-log/2026-10-12-issue-832-e2e-timeout-wording.md`) |
 | PWP-V0-021 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) | `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/keep_reporters_qualification.go` | `TestQualifiedReportConfigInputBounds`, `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`; live Playwright run above 256 config inputs `NOT_RUN` (`docs/build-log/2026-10-12-gh-844-845-config-inputs-state-matchers.md`) |
-| PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
+| PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`, `TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun`, `TestPWPV0022RequestObservationsAreRequired`, `TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |

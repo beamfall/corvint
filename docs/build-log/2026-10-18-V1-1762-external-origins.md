@@ -42,6 +42,16 @@ No open PR adds a PWP ID: #1101 adds `LPCV-V0-080..083`, and #1108 only rewrites
   `corvint-external-origins/0` report, which lists every external origin. A refusal writes its code
   to stderr and exits 2.
 
+## Review repair (Codex round, three P2 findings)
+
+- **Per-run evidence.** A run with no test is now `NOT_PRODUCED` on its own, so another run's
+  complete evidence can no longer turn the verdict `CLEAN`.
+- **Required observations.** `status`, `durationMs` and `followUps` must be present and non-null.
+  Previously an omitted field decoded as 0, which could fabricate `NO_EXTERNAL_DIFFERENCE`.
+- **Canonical origins.** Numeric ports are normalised (leading zeros dropped, default port elided)
+  and IP hosts are canonicalised (for example, compressed IPv6) before policy matching. The policy
+  validator still refuses any noncanonical spelling.
+
 ## Non-goals
 
 - No producer. A Playwright fixture or reporter that records `page.on('request')` and response
