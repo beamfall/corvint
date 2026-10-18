@@ -3963,13 +3963,17 @@ TSA-V0-010	docs/specs/test-source-analysis-v0.md	33	(standing auto-accept, 2026-
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	50	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-012	docs/specs/test-source-analysis-v0.md	87	(standing auto-accept, 2026-10-11; V1-1589) `corvint tests lint --base REV [--re	standing	2026-10-11; V1-1589
 TSA-V0-013	docs/specs/test-source-analysis-v0.md	93	(standing auto-accept, 2026-10-11; V1-1589) The rule set MUST be closed, with st	standing	2026-10-11; V1-1589
-TSA-V0-014	docs/specs/test-source-analysis-v0.md	101	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589
-TSA-V0-015	docs/specs/test-source-analysis-v0.md	103	(standing auto-accept, 2026-10-11; V1-1589) A comment `corvint-lint-allow RULE:	standing	2026-10-11; V1-1589
-TSA-V0-016	docs/specs/test-source-analysis-v0.md	107	(standing auto-accept, 2026-10-11; V1-1589) `--json` output (schema	standing	2026-10-11; V1-1589
-TSA-V0-020	docs/specs/test-source-analysis-v0.md	113	(standing auto-accept, 2026-10-11; V1-1592) `corvint tests duplicates [--ref REV	standing	2026-10-11; V1-1592
-TSA-V0-021	docs/specs/test-source-analysis-v0.md	123	(standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only	standing	2026-10-11; V1-1592
-TSA-V0-022	docs/specs/test-source-analysis-v0.md	128	(standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file	standing	2026-10-11; V1-1592
-TSA-V0-023	docs/specs/test-source-analysis-v0.md	135	(standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs a	standing	2026-10-11; V1-1592
+TSA-V0-014	docs/specs/test-source-analysis-v0.md	103	(standing auto-accept, 2026-10-11; V1-1589) Every rule MUST have a positive fixt	standing	2026-10-11; V1-1589
+TSA-V0-015	docs/specs/test-source-analysis-v0.md	105	(standing auto-accept, 2026-10-11; V1-1589) A comment `corvint-lint-allow RULE:	standing	2026-10-11; V1-1589
+TSA-V0-016	docs/specs/test-source-analysis-v0.md	109	(standing auto-accept, 2026-10-11; V1-1589) `--json` output (schema	standing	2026-10-11; V1-1589
+TSA-V0-020	docs/specs/test-source-analysis-v0.md	116	(standing auto-accept, 2026-10-11; V1-1592) `corvint tests duplicates [--ref REV	standing	2026-10-11; V1-1592
+TSA-V0-021	docs/specs/test-source-analysis-v0.md	126	(standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only	standing	2026-10-11; V1-1592
+TSA-V0-022	docs/specs/test-source-analysis-v0.md	131	(standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file	standing	2026-10-11; V1-1592
+TSA-V0-023	docs/specs/test-source-analysis-v0.md	138	(standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs a	standing	2026-10-11; V1-1592
+TSA-V0-029	docs/specs/test-source-analysis-v0.md	143	(standing auto-accept, 2026-10-11; V1-1769) The advisory rule	standing	2026-10-11; V1-1769
+TSA-V0-030	docs/specs/test-source-analysis-v0.md	154	(standing auto-accept, 2026-10-11; V1-1769) A helper MUST resolve by name to	standing	2026-10-11; V1-1769
+TSA-V0-031	docs/specs/test-source-analysis-v0.md	163	(standing auto-accept, 2026-10-11; V1-1769) `corvint tests lint --runs	standing	2026-10-11; V1-1769
+TSA-V0-032	docs/specs/test-source-analysis-v0.md	174	(standing auto-accept, 2026-10-11; V1-1769) Without split-capable evidence	standing	2026-10-11; V1-1769
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

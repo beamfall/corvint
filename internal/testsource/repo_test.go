@@ -240,3 +240,47 @@ func TestDuplicatesGateAndDecisions(t *testing.T) {
 		t.Fatalf("gate without base error = %v", err)
 	}
 }
+
+// TestLintFollowsImportedHelpers proves helpers resolve into unchanged, relatively imported
+// modules read at the revision (a `.js` specifier naming a `.ts` file, and an index module), that
+// a helper whose module is not relatively imported is UNKNOWN, and that the advisory findings are
+// not blocking (TSA-V0-030, TSA-V0-032).
+func TestLintFollowsImportedHelpers(t *testing.T) {
+	root := t.TempDir()
+	base := commitFiles(t, root, map[string]string{
+		"e2e/pages/panel.ts": `import { badge } from './parts/index.js';
+export class Panel {
+  constructor(page) { this.page = page; }
+  async hasBadge() { return badge(this.page); }
+}
+`,
+		"e2e/pages/parts/index.ts": "export const badge = async (page) => page.getByTestId('badge').isVisible();\n",
+		"src/app.ts":               "export const x = 1;\n",
+	})
+	commitFiles(t, root, map[string]string{"e2e/panel.spec.ts": `import { test, expect } from '@playwright/test';
+import { Panel } from './pages/panel.js';
+import { other } from 'some-package';
+test('panel', async ({ page }) => {
+  const panel = new Panel(page);
+  expect(await panel.hasBadge()).toBe(true);
+  expect(await other(page)).toBe(true);
+});
+`})
+	report, err := Lint(OpenRepo(context.Background(), root), LintOptions{Base: base, Revision: "HEAD"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(report.Files, ",") != "e2e/panel.spec.ts" || len(report.Findings) != 2 {
+		t.Fatalf("files = %v findings = %+v", report.Files, report.Findings)
+	}
+	if f := report.Findings[0]; f.Line != 6 || f.Resolution != "" ||
+		!strings.Contains(f.Message, "isVisible() read (e2e/pages/parts/index.ts:1) returned through hasBadge (e2e/pages/panel.ts:4) -> badge (e2e/pages/parts/index.ts:1)") {
+		t.Fatalf("imported helper finding = %+v", f)
+	}
+	if f := report.Findings[1]; f.Line != 7 || f.Resolution != "UNKNOWN" || !strings.Contains(f.Message, "no definition of other") {
+		t.Fatalf("unresolved helper finding = %+v", f)
+	}
+	if report.Blocking() != 0 || report.CrossVariant.Reason != ReasonNoRunEvidence {
+		t.Fatalf("blocking = %d cross-variant = %+v", report.Blocking(), report.CrossVariant)
+	}
+}

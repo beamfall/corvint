@@ -8,9 +8,27 @@ import (
 	"testing"
 )
 
-// lintFixtures holds, for every rule, one source that triggers it and one that does not
-// (TSA-V0-013, TSA-V0-014).
-var lintFixtures = map[string]struct{ positive, negative string }{
+// fixtureRevision is the revision the cross-variant fixtures lint and their runs declare.
+const fixtureRevision = "0123456789abcdef0123456789abcdef01234567"
+
+// variantRuns is Playwright evidence for e2e/a.spec.ts :: "shows the name" in projects a and b.
+func variantRuns(revision, statusA, statusB string) []RunEvidence {
+	return []RunEvidence{{Revision: revision, Tests: []RunTest{
+		{Project: "a", File: "a.spec.ts", TitlePath: []string{"shows the name"}, Status: statusA, Executed: true},
+		{Project: "b", File: "a.spec.ts", TitlePath: []string{"shows the name"}, Status: statusB, Executed: true}}}}
+}
+
+const exactTextSpec = `test('shows the name', async ({ page }) => {
+  await expect(page.getByText('Ada Lovelace', { exact: true })).toHaveCount(1);
+});`
+
+// lintFixtures holds, for every rule, one source that triggers it and one that does not, with the
+// run evidence the cross-variant rule joins (TSA-V0-013, TSA-V0-014, TSA-V0-029, TSA-V0-031).
+var lintFixtures = map[string]struct {
+	positive, negative string
+	positiveRuns       []RunEvidence
+	negativeRuns       []RunEvidence
+}{
 	RuleNoAssertion: {
 		positive: `test('opens the page', async ({ page }) => {
   await page.goto('/');
@@ -107,6 +125,33 @@ test('flaky on webkit', async ({ page, browserName }) => {
   await expect(page).toHaveTitle('x');
 });`,
 	},
+	RuleOneShotUIState: {
+		positive: `class Panel {
+  constructor(page) { this.badge = page.getByTestId('badge'); }
+  async isSomethingPresent() {
+    return await this.badge.isVisible();
+  }
+}
+test('panel', async ({ page }) => {
+  const panel = new Panel(page);
+  expect(await page.getByTestId('rows').count()).toBe(3);
+  expect(await panel.isSomethingPresent()).toBe(true);
+});`,
+		negative: `test('panel', async ({ page }) => {
+  await expect(page.getByTestId('badge')).toBeVisible();
+  await expect(page.getByTestId('rows')).toHaveCount(3);
+  await expect.poll(async () => await page.getByTestId('rows').count()).toBe(3);
+  await expect(async () => {
+    expect(await page.getByTestId('badge').isVisible()).toBe(true);
+  }).toPass();
+});`,
+	},
+	RuleExactTextVariant: {
+		positive:     exactTextSpec,
+		positiveRuns: variantRuns(fixtureRevision, "expected", "unexpected"),
+		negative:     exactTextSpec,
+		negativeRuns: variantRuns(fixtureRevision, "expected", "expected"),
+	},
 }
 
 func rulesOf(findings []Finding) map[string]int {
@@ -125,11 +170,11 @@ func TestLintRuleFixtures(t *testing.T) {
 	}
 	for _, rule := range Rules {
 		fixture := lintFixtures[rule]
-		positive := LintText("e2e/a.spec.ts", fixture.positive)
+		positive := lintText("e2e/a.spec.ts", fixture.positive, fixture.positiveRuns, fixtureRevision)
 		if rulesOf(positive.Findings)[rule] == 0 {
 			t.Errorf("%s: positive fixture did not fire: %+v", rule, positive.Findings)
 		}
-		negative := LintText("e2e/a.spec.ts", fixture.negative)
+		negative := lintText("e2e/a.spec.ts", fixture.negative, fixture.negativeRuns, fixtureRevision)
 		if len(negative.Findings) != 0 {
 			t.Errorf("%s: negative fixture fired: %+v", rule, negative.Findings)
 		}

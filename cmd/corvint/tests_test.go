@@ -102,3 +102,64 @@ func TestTestsCLI(t *testing.T) {
 		t.Fatalf("bad threshold: code=%d err=%q", code, errb)
 	}
 }
+
+// testsRunReport is a minimal Playwright JSON report declaring the test revision and root, with
+// e2e/name.spec.ts :: "shows the name" passing in desktop and failing in mobile.
+func testsRunReport(t *testing.T, path, revision string) {
+	t.Helper()
+	test := func(project, status, result string) map[string]any {
+		return map[string]any{"projectName": project, "expectedStatus": "passed", "status": status, "annotations": []any{},
+			"results": []any{map[string]any{"workerIndex": 0, "status": result, "duration": 5, "retry": 0, "errors": []any{}}}}
+	}
+	doc := map[string]any{
+		"config": map[string]any{"version": "1.61.1", "rootDir": "/work/e2e", "workers": 1,
+			"metadata": map[string]any{"corvintRunIdentity": map[string]any{"testRevision": revision, "testRootPath": "e2e"}},
+			"projects": []any{map[string]any{"name": "desktop"}, map[string]any{"name": "mobile"}}},
+		"suites": []any{map[string]any{"title": "name.spec.ts", "file": "name.spec.ts", "suites": []any{}, "specs": []any{
+			map[string]any{"title": "shows the name", "file": "name.spec.ts", "line": 1, "column": 1, "tests": []any{
+				test("desktop", "expected", "passed"), test("mobile", "unexpected", "failed")}}}}},
+		"errors": []any{}, "stats": map[string]any{},
+	}
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestTestsLintAdvisoryCLI proves the advisory rules print labelled findings without changing the
+// exit status, --runs joins a report at the linted revision into a PRODUCED cross-variant line,
+// its absence is NOT_PRODUCED, and an unreadable report is refused (TSA-V0-031, TSA-V0-032).
+func TestTestsLintAdvisoryCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	base := testsCommit(t, root, map[string]string{"src/app.ts": "export const x = 1;\n"})
+	head := testsCommit(t, root, map[string]string{"e2e/name.spec.ts": `test('shows the name', async ({ page }) => {
+  expect(await page.getByTestId('rows').count()).toBe(2);
+  await expect(page.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+  expect(await nameShown(page)).toBe(true);
+});
+`})
+	code, out, errb := runCLI(t, "--root", root, "tests", "lint", "--base", base)
+	if code != 0 || !strings.Contains(out, "one-shot-ui-state-assertion (advisory)") ||
+		!strings.Contains(out, "one-shot-ui-state-assertion (advisory, UNKNOWN)") || !strings.Contains(out, "cross-variant: NOT_PRODUCED (no-run-evidence)") {
+		t.Fatalf("lint without runs: code=%d out=%q err=%q", code, out, errb)
+	}
+	report := filepath.Join(t.TempDir(), "report.json")
+	testsRunReport(t, report, head)
+	code, out, errb = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", report)
+	if code != 0 || !strings.Contains(out, "exact-text-cross-variant (advisory)") ||
+		!strings.Contains(out, "cross-variant: PRODUCED from 1 run(s), projects desktop,mobile, 1 split test(s)") {
+		t.Fatalf("lint with runs: code=%d out=%q err=%q", code, out, errb)
+	}
+	code, out, _ = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", report, "--json")
+	if code != 0 || !strings.Contains(out, `"exactText": true`) || !strings.Contains(out, `"advisory": true`) {
+		t.Fatalf("lint json with runs: code=%d out=%s", code, out)
+	}
+	code, out, errb = runCLI(t, "--root", root, "tests", "lint", "--base", base, "--runs", filepath.Join(root, "absent.json"))
+	if code != 2 || out != "" || !strings.Contains(errb, "tests-source-unavailable") {
+		t.Fatalf("lint with an unreadable report: code=%d out=%q err=%q", code, out, errb)
+	}
+}
