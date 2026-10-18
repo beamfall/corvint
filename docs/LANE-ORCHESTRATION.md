@@ -55,8 +55,10 @@ script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^TestN
 CPUs/4, so 3 on 12 CPUs), the rest wait quietly and print `heavy.sh: slot N/M after Ss` when
 admitted. Each admitted command gets `GOFLAGS=-p=HEAVY_P` (default CPUs/slots) unless `GOFLAGS`
 already sets `-p`; an explicit `-p` argument still wins. Slots are `flock(2)` locks in
-`HEAVY_LOCK_DIR` (default `/tmp/corvint-heavy-<uid>`), released by the kernel when the holder exits
-for any reason, so a killed lane never strands a slot. Every lane on a host must use the same lock
+`HEAVY_LOCK_DIR` (default `/tmp/corvint-heavy-<uid>`). The command inherits the locked descriptor
+and runs in its own process group, so the slot stays held while the workload runs even if the
+wrapper is killed, INT/TERM/HUP reach the whole group, and the kernel releases the slot when the
+last holder exits, so a killed lane never strands a slot. Every lane on a host must use the same lock
 directory and slot count. Rules: one package per command, a narrow `-run` for `./cmd/corvint`, no
 `go test ./...` and no `make gate` in a lane (AGENTS.md "Verify"), and `make dogfood-finish` /
 `make dogfood-batch-check` (which build two verifiers) also run through the wrapper.
@@ -65,7 +67,8 @@ The light-weight prototype this replaces (`mkdir` slots with a PID file and dead
 could remove a live owner's slot when two waiters reclaimed the same dead slot at once; the
 `flock` form has no reclaim step. Cut over all lanes of a host together, because the two forms do
 not see each other's slots. `make lane-scripts-test` runs the serialisation check (two concurrent
-commands with `HEAVY_SLOTS=1` never overlap) and the dead-owner check.
+commands with `HEAVY_SLOTS=1` never overlap), the killed-wrapper, dead-owner and group-signal
+checks.
 
 ## 3. Dogfood inputs up front, one finish after the last edit (ASD-V0-015)
 
@@ -113,7 +116,9 @@ script/lane-idle-check.sh --idle-minutes 30 <each running lane's transcript or o
 ```
 
 which prints `LANE ACTIVE|IDLE idle=<m>m last=<UTC> <path>` from the newest transcript
-`"timestamp"` (or the file's modification time) and exits 1 when any lane is idle. It is read-only.
+RFC 3339 `"timestamp"` (or the modification time of a file with no timestamp key) and exits 1 when
+any lane is idle. A transcript it cannot read or parse prints `LANE UNKNOWN ... reason=...` and is
+flagged like an idle lane. It is read-only.
 A lane idle for more than 30 minutes is messaged once with what it should do next. If it is still
 idle at the next heartbeat after that message, the orchestrator stops it, releases its claim with
 the reason (`idle <m> min since <UTC>, messaged at <UTC>`), retains the reason on the ticket and
@@ -137,7 +142,9 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `script/lane-clean.sh --root <lanes-root> --repo <shared> --active <dir>...` (dry run), reviews
   the `WOULD-REMOVE` lines, then reruns with `--apply`. It removes only checkouts whose `HEAD` and
   local branches are ancestors of `origin/main`, with a clean status, no stash and not listed as
-  active; worktrees are removed with `git worktree remove`. Its `SUMMARY` line carries the counts
+  active, and, for a clone, with no registered linked worktree; any failing Git inspection keeps
+the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees are removed with
+`git worktree remove`. Its `SUMMARY` line carries the counts
   and free disk before and after. Go build-cache trimming is separate (V1-0360).
 
 ## 7. Measuring the procedure

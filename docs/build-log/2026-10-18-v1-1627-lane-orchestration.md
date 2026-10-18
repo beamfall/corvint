@@ -48,6 +48,16 @@ status and `-p` pass-through, dead-owner release; finish refusal; idle and gap d
 dry run and apply over clones and a linked worktree). Start-of-lane `make dogfood-change` rc=2
 (no change yet, `outcome-input-not-provided`; 10 s).
 
+Review (Codex, PR #1107 at b04b5b61d), eight findings fixed with a case each in
+`script/lane-scripts_test.sh`, every case confirmed to fail against the reviewed scripts:
+`lane-clean.sh` refuses an unresolvable root or `/` (the glob had become `/*/`), keeps a clone with
+registered linked worktrees (`has-worktrees`) and keeps any checkout whose `stash list`,
+`worktree list` or `for-each-ref` fails; `heavy.sh` lets the command inherit the slot lock and
+runs it in its own process group, so a killed wrapper no longer frees the slot under a running
+workload and a forwarded TERM reaches its children; `lane-idle-check.sh` reports an unreadable or
+unparseable transcript as UNKNOWN (flagged) and parses RFC 3339 offsets; `dogfood-finish.sh`
+names an unreadable input file; the killed-owner test synchronises on its own workload's marker.
+
 NOT_PRODUCED, with the procedure in `docs/LANE-ORCHESTRATION.md` section 7: batch medians of load
 and focused-test time under the cap (V1-1627 AC3); the 5-lane timing within 1.5x of quiet
 (V1-1628 AC3); per-lane dogfood invocation counts (V1-1629 AC3); polling time and tool-timeout

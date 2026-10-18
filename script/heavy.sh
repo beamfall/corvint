@@ -11,14 +11,16 @@
 #   HEAVY_LOCK_DIR  directory holding the slot lock files; default /tmp/corvint-heavy-<uid>.
 #                   Every lane on the host must use the same directory and the same HEAVY_SLOTS.
 #
-# A slot is an flock(2) on HEAVY_LOCK_DIR/slotN held by this wrapper while the command runs. The
-# kernel releases it when the holder exits for any reason, so a dead owner never strands a slot and
-# no reclaim step can race a live owner. The wrapper waits quietly, prints one line to stderr when
-# admitted (slot and wait seconds), forwards INT/TERM/HUP to the command and exits with its status.
+# A slot is an flock(2) on HEAVY_LOCK_DIR/slotN. The command inherits the locked descriptor, so
+# the slot stays held while any workload process that kept it runs, even if the wrapper is killed.
+# The kernel releases it when the last holder exits, so a dead owner never strands a slot and no
+# reclaim step can race a live owner. The command runs in its own process group. The wrapper waits
+# quietly, prints one line to stderr when admitted (slot and wait seconds), forwards INT/TERM/HUP
+# to the command's whole process group and exits with the command's status.
 set -uo pipefail
 
 if [[ $# -eq 0 || $1 == -h || $1 == --help ]]; then
-  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'
   [[ $# -eq 0 ]] && exit 2
   exit 0
 fi
@@ -48,8 +50,8 @@ esac
 exec perl -e '
 use strict;
 use warnings;
-use Fcntl qw(:flock);
-use POSIX ();
+use Fcntl qw(:flock F_SETFD);
+use POSIX qw(setpgid);
 my ($dir, $n, @cmd) = @ARGV;
 my $t0 = time;
 my ($lock, $slot);
@@ -64,17 +66,22 @@ until ($lock) {
 truncate($lock, 0);
 syswrite($lock, "$$\n");
 printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, time - $t0;
+# The command inherits the locked descriptor, so the slot stays held until every process that
+# kept it has exited, even when the wrapper itself is killed.
+fcntl($lock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
 my $pid = fork;
 die "heavy.sh: fork failed: $!\n" unless defined $pid;
 if ($pid == 0) {
-    close $lock;
+    setpgid(0, 0);
     no warnings "exec";
     exec { $cmd[0] } @cmd or print STDERR "heavy.sh: cannot run $cmd[0]: $!\n";
     POSIX::_exit(127);
 }
-$SIG{$_} = do { my $s = $_; sub { kill $s, $pid } } for qw(INT TERM HUP);
+setpgid($pid, $pid);
+# The command runs in its own process group; a forwarded signal reaches the whole group.
+$SIG{$_} = do { my $s = $_; sub { kill $s, -$pid } } for qw(INT TERM HUP);
 my $got;
-do { $got = waitpid($pid, 0) } until $got == $pid || $got == -1;
+do { $got = waitpid($pid, 0) } until $got == $pid || ($got == -1 && !$!{EINTR});
 my $status = $?;
 exit($status & 127 ? 128 + ($status & 127) : $status >> 8);
 ' "$lock_dir" "$slots" "$@"

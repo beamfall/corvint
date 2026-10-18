@@ -6,13 +6,18 @@
 #
 # Default mode prints one line per PATH and exits 1 when any lane is idle:
 #   LANE <ACTIVE|IDLE> idle=<minutes>m last=<UTC time> <PATH>
-# Last activity is the newest "timestamp":"<RFC 3339>" value in a .jsonl transcript, otherwise the
-# file's modification time. --now fixes the comparison time (default: the current time).
+# Last activity is the newest "timestamp":"<RFC 3339>" value (Z or numeric offset) in a .jsonl
+# transcript; a file without any "timestamp" key counts by its modification time. A transcript that
+# cannot be read, or holds a timestamp that does not parse, makes the lane
+#   LANE UNKNOWN idle=? last=? reason=<unreadable|unparsed-timestamp>:<file> <PATH>
+# (reason=no-activity when nothing is found); UNKNOWN is flagged like IDLE. --now fixes the
+# comparison time (default: the current time).
 #
 # --gaps replays .jsonl transcripts: every interval longer than the threshold between consecutive
 # timestamps prints, with the time the watchdog would have flagged it (gap start + threshold):
 #   GAP idle=<minutes>m from=<UTC> to=<UTC> flagged=<UTC> <PATH>
-# It exits 1 when any gap is found. Nothing is written anywhere.
+# and a transcript it cannot read or parse prints UNKNOWN reason=<reason> <PATH>. It exits 1 when
+# any gap or UNKNOWN is found. Nothing is written anywhere.
 set -uo pipefail
 
 idle=30
@@ -23,7 +28,7 @@ while [[ $# -gt 0 ]]; do
     --idle-minutes) idle=${2-}; shift 2 || exit 2 ;;
     --now) now=${2-}; shift 2 || exit 2 ;;
     --gaps) gaps=1; shift ;;
-    -h | --help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; break ;;
     -*) printf 'lane-idle-check: REFUSE unknown-option %s\n' "$1" >&2; exit 2 ;;
     *) break ;;
@@ -47,29 +52,41 @@ $now = time if $now eq "";
 my $limit = $idle * 60;
 my $flagged = 0;
 sub utc { strftime("%Y-%m-%dT%H:%M:%SZ", gmtime($_[0])) }
+# stamps FILE: (undef, reason) when the transcript cannot be read or holds a "timestamp" value that
+# is not an RFC 3339 date-time; otherwise the epoch seconds of every timestamp, offsets applied.
 sub stamps {
     my ($file) = @_;
     my @t;
-    open(my $fh, "<", $file) or return ();
+    open(my $fh, "<", $file) or return (undef, "unreadable");
     while (my $line = <$fh>) {
-        while ($line =~ /"timestamp"\s*:\s*"(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d+)?Z"/g) {
-            push @t, timegm($6, $5, $4, $3, $2 - 1, $1);
+        my $keys = () = $line =~ /"timestamp"\s*:/g;
+        my $parsed = 0;
+        while ($line =~ /"timestamp"\s*:\s*"(\d{4})-(\d\d)-(\d\d)[Tt](\d\d):(\d\d):(\d\d)(?:\.\d+)?([Zz]|([+-])(\d\d):(\d\d))"/g) {
+            my $off = defined $8 ? ($8 eq "-" ? -1 : 1) * ($9 * 3600 + $10 * 60) : 0;
+            my $e = eval { timegm($6, $5, $4, $3, $2 - 1, $1) };
+            return (undef, "unparsed-timestamp") unless defined $e;
+            push @t, $e - $off;
+            $parsed++;
         }
+        return (undef, "unparsed-timestamp") if $parsed != $keys;
     }
-    return @t;
+    close $fh or return (undef, "unreadable");
+    return (1, @t);
 }
 sub files {
     my ($path) = @_;
     return ($path) unless -d $path;
     my @f;
     File::Find::find({ no_chdir => 1, wanted => sub { push @f, $_ if -f $_ } }, $path);
-    return @f;
+    return sort @f;
 }
 for my $path (@paths) {
     unless (-e $path) { print STDERR "lane-idle-check: REFUSE missing-path $path\n"; exit 2 }
     if ($gaps) {
         for my $file (grep { /\.jsonl\z/ } files($path)) {
-            my @t = sort { $a <=> $b } stamps($file);
+            my ($ok, @t) = stamps($file);
+            unless ($ok) { printf "UNKNOWN reason=%s %s\n", $t[0], $file; $flagged = 1; next }
+            @t = sort { $a <=> $b } @t;
             for my $i (1 .. $#t) {
                 my $d = $t[$i] - $t[$i - 1];
                 next unless $d > $limit;
@@ -79,14 +96,20 @@ for my $path (@paths) {
         }
         next;
     }
-    my $last;
+    my ($last, $why);
     for my $file (files($path)) {
-        my @t = $file =~ /\.jsonl\z/ ? stamps($file) : ();
-        my ($max) = sort { $b <=> $a } @t;
+        my $max;
+        if ($file =~ /\.jsonl\z/) {
+            my ($ok, @t) = stamps($file);
+            unless ($ok) { $why = "$t[0]:$file"; last }
+            ($max) = sort { $b <=> $a } @t;
+        }
+        # A file with no "timestamp" key (an output log) counts by its modification time.
         $max = (stat $file)[9] unless defined $max;
         $last = $max if defined $max && (!defined $last || $max > $last);
     }
-    unless (defined $last) { printf "LANE UNKNOWN idle=? last=? %s\n", $path; $flagged = 1; next }
+    $why = "no-activity" if !defined $why && !defined $last;
+    if (defined $why) { printf "LANE UNKNOWN idle=? last=? reason=%s %s\n", $why, $path; $flagged = 1; next }
     my $age = $now - $last;
     my $state = $age > $limit ? "IDLE" : "ACTIVE";
     $flagged = 1 if $state eq "IDLE";

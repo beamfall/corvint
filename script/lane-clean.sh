@@ -9,9 +9,10 @@
 #   active           it is (or is inside) an --active PATH
 #   dirty            `git status --porcelain` is not empty (modified, staged or untracked files)
 #   stash            it has stash entries
+#   has-worktrees    a clone with registered linked worktrees (anywhere), or the list failed
 #   unmerged-head    HEAD is not an ancestor of REF in --repo (or the commit is absent there)
 #   unmerged-branch  a local branch head is not an ancestor of REF in --repo
-#   git-unreadable   Git cannot read the checkout
+#   git-unreadable   Git cannot read the checkout (any inspection exits non-zero)
 # --repo defaults to this script's repository and --ref to origin/main; fetch --repo first, because
 # the check reads its refs as they are and never fetches. A linked worktree is removed with
 # `git worktree remove` from its own repository, a clone with rm -rf. Output lines:
@@ -31,7 +32,7 @@ while [[ $# -gt 0 ]]; do
     --ref) ref=${2-}; shift 2 || exit 2 ;;
     --active) active+=("${2-}"); shift 2 || exit 2 ;;
     --apply) apply=1; shift ;;
-    -h | --help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h | --help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf 'lane-clean: REFUSE unknown-argument %s\n' "$1" >&2; exit 2 ;;
   esac
 done
@@ -39,7 +40,10 @@ if [[ -z $root || ! -d $root ]]; then
   printf 'lane-clean: REFUSE root-required (pass --root DIR, an existing directory)\n' >&2
   exit 2
 fi
-root=$(cd "$root" && pwd -P)
+if ! root=$(cd "$root" 2> /dev/null && pwd -P) || [[ -z $root || $root == / ]]; then
+  printf 'lane-clean: REFUSE root-unusable (cannot resolve --root to a directory other than /)\n' >&2
+  exit 2
+fi
 if ! target=$(git -C "$repo" rev-parse --verify --quiet "$ref^{commit}"); then
   printf 'lane-clean: REFUSE ref-unavailable %s in %s\n' "$ref" "$repo" >&2
   exit 2
@@ -63,11 +67,18 @@ reason() { # reason DIR: prints the first KEEP reason, or nothing when the check
   local status
   status=$("${g[@]}" status --porcelain --untracked-files=normal 2> /dev/null) || { echo git-unreadable; return; }
   [[ -z $status ]] || { echo dirty; return; }
-  [[ -z $("${g[@]}" stash list 2> /dev/null) ]] || { echo stash; return; }
+  local out
+  out=$("${g[@]}" stash list 2> /dev/null) || { echo git-unreadable; return; }
+  [[ -z $out ]] || { echo stash; return; }
+  if [[ -d $dir/.git ]]; then # a clone: rm -rf would orphan its linked worktrees, wherever they are
+    out=$("${g[@]}" worktree list --porcelain 2> /dev/null) || { echo has-worktrees; return; }
+    (($(grep -c '^worktree ' <<< "$out") <= 1)) || { echo has-worktrees; return; }
+  fi
   merged "$head" || { echo unmerged-head; return; }
+  out=$("${g[@]}" for-each-ref --format='%(objectname)' refs/heads 2> /dev/null) || { echo git-unreadable; return; }
   while IFS= read -r branch; do
     [[ -z $branch ]] || merged "$branch" || { echo unmerged-branch; return; }
-  done < <("${g[@]}" for-each-ref --format='%(objectname)' refs/heads)
+  done <<< "$out"
 }
 remove_checkout() { # a linked worktree through its repository, a clone with rm -rf
   local common

@@ -30,7 +30,7 @@ if [[ ${DOGFOOD_FINISH_LANE-} == 1 ]]; then
   [[ -n $outcome ]] || missing+=(OUTCOME)
 fi
 for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
-  [[ -z ${pair#*=} || -f ${pair#*=} ]] || missing+=("${pair%%=*}:unreadable")
+  [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")
 done
 case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid) ;; esac
 if ((${#missing[@]} > 0)); then
