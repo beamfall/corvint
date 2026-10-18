@@ -692,7 +692,7 @@
     "path": "docs/specs/corvint-self-development-v0.md",
     "title": "Corvint Self-Development V0",
     "reqPrefix": "ASD-V0",
-    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08)",
+    "intent": "accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632)",
     "delivery": "experimental",
     "claim": "Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.",
     "dependsOn": [
