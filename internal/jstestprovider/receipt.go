@@ -217,6 +217,22 @@ type ExternalLifecycle struct {
 	// ProjectReporters is present only for an explicit keep-reporters run
 	// (PWP-V0-010); the default replace-only receipt bytes are unchanged.
 	ProjectReporters *ProjectReporters `json:"projectReporters,omitempty"`
+	// Runner is the external runner's diagnostic process record
+	// (PWP-V0-029). Receipts written before it carry none.
+	Runner *RunnerProcess `json:"runner,omitempty"`
+}
+
+// RunnerProcess records how the `playwright test` runner ended. ExitStatus is
+// -1 unless the provider reaped an exit code; Signal is the wait-status
+// signal; StopSignal is the last of SIGINT, SIGTERM or SIGKILL the provider
+// sent before the exit was observed, empty when the runner ended on its own.
+// It never decides a test state or the infrastructure reason.
+type RunnerProcess struct {
+	ExitObserved    bool   `json:"exitObserved"`
+	ExitStatus      int    `json:"exitStatus"`
+	Signal          string `json:"signal"`
+	StopSignal      string `json:"stopSignal"`
+	OutputTruncated bool   `json:"outputTruncated"`
 }
 
 // ProjectReporters binds the project-owned reporter entries that ran beside the

@@ -17,6 +17,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -179,7 +180,16 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if cfg.negation != nil {
 		cfg.negation.started = true
 	}
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit, ObserveDescendants: cfg.ObserveDescendants})
+	spec := procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit,
+		OverflowPolicy: procgroup.OverflowTruncate, InterruptGrace: cfg.InterruptGrace, ObserveDescendants: cfg.ObserveDescendants}
+	if cfg.RunnerOutput != nil {
+		// One lock keeps a stdout and a stderr write whole; only the tee
+		// forwarders wait on it, never the drains (PWP-V0-028).
+		tee := &lockedWriter{w: cfg.RunnerOutput}
+		spec.StdoutTee, spec.StderrTee = tee, tee
+	}
+	obs := procgroup.Run(ctx, spec)
+	lifecycle.Runner = runnerProcess(obs)
 	r.DescendantObservation = obs.DescendantObservation
 	r.RunnerResources = obs.Usage
 	lifecycle.RunnerDescendantsGone = obs.OwnedProcessGroupCleanup
@@ -272,7 +282,9 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if len(report.Errors) > 0 {
 		r.Infrastructure = externalReportFailure(profile, "reporter-global-error", strings.Join(report.Errors, "\n"))
 	}
-	if obs.ExitStatus != 0 && report.Status == "passed" {
+	// A timed-out runner's exit status is explained by the timeout, including
+	// an interrupted report written during the interrupt grace (PWP-V0-030).
+	if obs.ExitStatus != 0 && report.Status == "passed" && !obs.TimedOut {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero with a passed report"}
 	}
 	if report.Status == "interrupted" {
@@ -281,7 +293,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if report.Status == "timedout" {
 		r.Infrastructure = &InfrastructureFailure{Reason: "timeout", Detail: "Playwright global timeout"}
 	}
-	if obs.ExitStatus != 0 && !explainedPlaywrightFailure(r.Tests) {
+	if obs.ExitStatus != 0 && !obs.TimedOut && !explainedPlaywrightFailure(r.Tests) {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero without a failing test observation"}
 	}
 	if profile == SensitiveExternalProfile {
@@ -790,6 +802,50 @@ func qualifiedBundledPlaywrightBrowser(headless *bool, configured *string, brows
 // externalBoundaryFailure classifies the external-server Playwright process
 // observation in the vitest classifier's order, cancellation included, and
 // names the Playwright runner and its --timeout value on timeout (PWP-V0-020).
+// externalBoundaryFailure ignores console overflow: external console capture
+// truncates and the report file carries the observation (PWP-V0-028).
 func externalBoundaryFailure(obs procgroup.Observation, timeout time.Duration) *InfrastructureFailure {
+	obs.OutputOverflow, obs.StdoutOverflow, obs.StderrOverflow = false, false, false
 	return unitBoundaryFailure(obs, "playwright test", timeout)
+}
+
+func runnerProcess(obs procgroup.Observation) *RunnerProcess {
+	return &RunnerProcess{ExitObserved: obs.ExitObserved, ExitStatus: obs.ExitStatus, Signal: obs.Signal, StopSignal: obs.StopSignal,
+		OutputTruncated: obs.OutputOverflow || obs.StdoutOverflow || obs.StderrOverflow}
+}
+
+// runnerProcessShapeError keeps the diagnostic runner record closed.
+func runnerProcessShapeError(r Receipt) error {
+	if r.External == nil || r.External.Runner == nil {
+		return nil
+	}
+	p := r.External.Runner
+	switch p.StopSignal {
+	case "", "SIGINT", "SIGTERM", "SIGKILL":
+	default:
+		return errors.New("runner-process-invalid")
+	}
+	if !isExternalProfile(r.Profile) || p.ExitStatus < -1 || (!p.ExitObserved && p.ExitStatus != -1) || (p.Signal != "" && p.ExitStatus != -1) {
+		return errors.New("runner-process-invalid")
+	}
+	return nil
+}
+
+// lockedWriter serialises the runner's two console streams onto one sink.
+type lockedWriter struct {
+	mu sync.Mutex
+	w  io.Writer
+}
+
+func (l *lockedWriter) Write(value []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.w.Write(value)
+}
+
+// TeeIncomplete passes procgroup's early-end notice to a sink that wants it.
+func (l *lockedWriter) TeeIncomplete() {
+	if sink, ok := l.w.(procgroup.IncompleteTee); ok {
+		sink.TeeIncomplete()
+	}
 }
