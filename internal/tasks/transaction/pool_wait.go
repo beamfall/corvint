@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"reflect"
+	"slices"
 	"sort"
 	"time"
 
@@ -96,7 +97,7 @@ func PoolWaiterValue(w snapshot.PoolWaiter, now wire.Timestamp) wire.Value {
 	if age < 0 {
 		age = 0
 	}
-	o := wire.NewObject().Set("poolId", wire.String(w.PoolID)).Set("ticketId", wire.String(w.TicketID)).Set("kind", wire.String(w.Kind)).Set("priority", wire.String(w.Priority)).Set("holder", wire.String(w.Holder)).Set("seq", wire.String(string(w.Seq))).Set("ageSeconds", wire.String(string(wire.CountOf(age)))).Set("expiresAt", wire.String(string(w.ExpiresAt)))
+	o := wire.NewObject().Set("poolId", wire.String(w.PoolID)).Set("ticketId", wire.String(w.TicketID)).Set("kind", wire.String(w.Kind)).Set("priority", wire.String(w.Priority)).Set("holder", wire.String(w.Holder)).Set("seq", wire.String(string(w.Seq))).Set("since", wire.String(string(w.Since))).Set("ageSeconds", wire.String(string(wire.CountOf(age)))).Set("expiresAt", wire.String(string(w.ExpiresAt)))
 	if w.AttemptID != "" {
 		o.Set("attemptId", wire.String(w.AttemptID)).Set("generation", wire.String(string(w.Generation)))
 	}
@@ -195,41 +196,94 @@ func planPoolWait(c leaseContext) leaseOutcome {
 }
 
 // waitlistRefusal refuses a member-taking admission that would take capacity
-// the pool's live waitlist holds for waiters ahead of it (PSR-V0-132). A
-// claimant with its own entry yields to the entries ordered before it; one
-// without yields to every GRACE entry and to WAIT entries of the same or a
-// higher priority. Only free members count, so a waiter never strands one.
+// the pool's live waitlist holds for waiters ahead of it (PSR-V0-132).
 func (c leaseContext) waitlistRefusal(rec *ticket.Record) *leaseOutcome {
 	if c.l.Pool == "" || len(c.st.pools.Waiters) == 0 {
 		return nil
 	}
 	live := liveWaiters(c.st.pools.Waiters, c.st.pools, c.st.policy, c.st.tickets, c.attemptLookup(nil), c.in.RecordedAt)
-	var own *snapshot.PoolWaiter
-	for i := range live {
-		if live[i].PoolID == c.l.Pool && live[i].TicketID == rec.TicketID.Raw {
-			own = &live[i]
-		}
+	in := PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts}
+	detail := waitlistBlock(live, c.l.Pool, rec, poolSlots(in))
+	if detail == "" {
+		return nil
 	}
+	out := c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, detail)
+	return &out
+}
+
+// waitlistAhead is the live entries of pool that a claim of rec yields to,
+// in admission order (PSR-V0-132). A claimant with its own entry yields to
+// the entries ordered before it; one without yields to every GRACE entry
+// and to WAIT entries of the same or a higher priority.
+func waitlistAhead(live []snapshot.PoolWaiter, pool string, rec *ticket.Record) []snapshot.PoolWaiter {
+	own := waiterOf(live, pool, rec.TicketID.Raw)
 	ahead := []snapshot.PoolWaiter{}
 	for _, w := range live {
-		if w.PoolID != c.l.Pool || w.TicketID == rec.TicketID.Raw {
+		if w.PoolID != pool || w.TicketID == rec.TicketID.Raw {
 			continue
 		}
 		if own != nil && snapshot.WaiterBefore(w, *own) || own == nil && (w.Kind == snapshot.WaiterGrace || w.Priority <= rec.Priority) {
 			ahead = append(ahead, w)
 		}
 	}
-	if len(ahead) == 0 {
-		return nil
+	return ahead
+}
+
+func waiterOf(live []snapshot.PoolWaiter, pool, ticketID string) *snapshot.PoolWaiter {
+	for i := range live {
+		if live[i].PoolID == pool && live[i].TicketID == ticketID {
+			return &live[i]
+		}
 	}
-	in := PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts}
-	free := poolSlots(in)
-	if free == 0 || len(ahead) < free {
-		return nil
+	return nil
+}
+
+// waitlistBlock is the refusal detail when the entries ahead of rec number
+// at least the pool's free members, or empty. Only free members count, so a
+// waiter never strands one.
+func waitlistBlock(live []snapshot.PoolWaiter, pool string, rec *ticket.Record, free int) string {
+	ahead := waitlistAhead(live, pool, rec)
+	if len(ahead) == 0 || free == 0 || len(ahead) < free {
+		return ""
 	}
+	return waitlistDetail(pool, free, ahead)
+}
+
+func waitlistDetail(pool string, free int, ahead []snapshot.PoolWaiter) string {
 	head := ahead[0]
-	out := c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, fmt.Sprintf("pool %s waitlist holds its %d free member(s) for %d waiter(s) ahead; head waiter %s (%s %s, seq %s, until %s)", c.l.Pool, free, len(ahead), head.TicketID, head.Kind, head.Priority, head.Seq, head.ExpiresAt))
-	return &out
+	return fmt.Sprintf("pool %s waitlist holds its %d free member(s) for %d waiter(s) ahead; head waiter %s (%s %s, seq %s, until %s)", pool, free, len(ahead), head.TicketID, head.Kind, head.Priority, head.Seq, head.ExpiresAt)
+}
+
+// waitlistYielders drops from a priority-admission waiting list every
+// competitor that the waitlist makes yield to rec (PSR-V0-132): one whose
+// own entry is ordered after rec's, or one without an entry when rec's
+// entry is GRACE or of the same or a higher priority. Priority admission
+// then never makes a claimant yield to a competitor that yields to it.
+func waitlistYielders(live []snapshot.PoolWaiter, pool string, rec *ticket.Record, tickets *ticket.Inventory, waiting []string) []string {
+	own := waiterOf(live, pool, rec.TicketID.Raw)
+	if own == nil {
+		return waiting
+	}
+	out := []string{}
+	for _, id := range waiting {
+		other, _ := tickets.Get(id)
+		if other == nil {
+			out = append(out, id)
+			continue
+		}
+		if !slices.ContainsFunc(waitlistAhead(live, pool, other), func(w snapshot.PoolWaiter) bool { return w.TicketID == own.TicketID }) {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// planWaitlist is the live waitlist a --pool plan honours at in.Now, or nil.
+func planWaitlist(in PlanInput) []snapshot.PoolWaiter {
+	if in.Now == "" || in.Pool == "" || in.Pools == nil || len(in.Pools.Waiters) == 0 {
+		return nil
+	}
+	return liveWaiters(in.Pools.Waiters, in.Pools, in.Policy, in.Tickets, func(id string) *snapshot.Attempt { return in.Attempts[id] }, in.Now)
 }
 
 // graceWaiter is the PSR-V0-136 GRACE entry a clean HANDOFF release of an attempt
@@ -263,7 +317,8 @@ func (c leaseContext) graceWaiter(a *snapshot.Attempt) *snapshot.PoolWaiter {
 
 // waitlistPosts settles the waitlist after an attempt write: dead and
 // consumed entries are dropped and a clean HANDOFF's GRACE entry is added
-// (PSR-V0-134, PSR-V0-136). pools.json is posted only when the waitlist
+// (PSR-V0-134, PSR-V0-136); a full waitlist refuses that HANDOFF release
+// with LIMIT_EXCEEDED rather than drop its GRACE entry. pools.json is posted only when the waitlist
 // changes, so a queue without waiters keeps its receipts byte-identical.
 func (c leaseContext) waitlistPosts(a *snapshot.Attempt, posts map[string][]byte) error {
 	grace := c.graceWaiter(a)
@@ -286,9 +341,10 @@ func (c leaseContext) waitlistPosts(a *snapshot.Attempt, posts map[string][]byte
 				kept = append(kept, w)
 			}
 		}
-		if len(kept) < snapshot.MaxPoolWaiters {
-			next = append(kept, *grace)
+		if len(kept) >= snapshot.MaxPoolWaiters {
+			return limit(fmt.Sprintf("pool %s waitlist holds %d entries; no room for the HANDOFF GRACE entry of %s", grace.PoolID, snapshot.MaxPoolWaiters, grace.TicketID))
 		}
+		next = append(kept, *grace)
 	}
 	if len(next) == 0 && len(state.Waiters) == 0 || reflect.DeepEqual(sortedWaiters(next), sortedWaiters(state.Waiters)) {
 		return nil

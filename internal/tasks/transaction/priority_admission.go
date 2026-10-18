@@ -205,6 +205,11 @@ func (c leaseContext) yieldRefusal(rec *ticket.Record) *leaseOutcome {
 	free := poolSlots(in)
 	queue := admissionQueue(in, c.l.Pool)
 	waiting, _ := admissionAhead(queue, admissionRankOf(in.Attempts, rec))
+	// PSR-V0-132: never yield to a competitor the waitlist makes yield here.
+	if len(c.st.pools.Waiters) > 0 {
+		live := liveWaiters(c.st.pools.Waiters, c.st.pools, c.st.policy, c.st.tickets, c.attemptLookup(nil), c.in.RecordedAt)
+		waiting = waitlistYielders(live, c.l.Pool, rec, c.st.tickets, waiting)
+	}
 	to := priorityYield(c.st.policy, c.l.Pool, free, waiting)
 	if to == "" {
 		return nil

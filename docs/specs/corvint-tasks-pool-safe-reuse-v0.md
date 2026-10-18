@@ -479,13 +479,20 @@ grace opt-in with a default of 0. See `docs/build-log/2026-10-18-V1-0785-pool-wa
   claimant with its own live entry yields only to entries ordered before it; one without yields to
   every `GRACE` entry and to `WAIT` entries of the same or higher priority. A lower-priority entry
   never blocks a higher-priority claimant that has no entry. With free members beyond the entries
-  ahead, the claimant is admitted.
+  ahead, the claimant is admitted. On a pool that opts into priority admission (CAL-V0-101), a
+  claimant MUST NOT yield to a competitor that the waitlist makes yield to the claimant, so a
+  waiter that the waitlist admits is never refused by priority admission. `claim --next --pool` and
+  `plan preview --pool` MUST apply this rule at the transaction's recorded time (the preview at
+  its observation time): an entry the waitlist would refuse is deferred as `RESOURCE_COLLISION`
+  naming the head waiter, so claim-next takes the first ticket an explicit claim would admit
+  instead of refusing on a blocked one.
 - `PSR-V0-133`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A dead
   entry MUST NOT block. An entry is dead when its pool is no longer declared, it has expired, its
   ticket is no longer OPEN or already holds a member of the pool, or, for an attempt entry, the
   attempt is no longer live at the registered generation, its lease expired or it holds an
-  allocation. The next write of `pools.json` (any lease write, `pool wait` or `pool sweep`) drops
-  dead entries. An entry never binds a member, so a crash between the wait and the claim strands
+  allocation. Every write of `pools.json`, whichever verb posts it (including `pool release`,
+  `pool confirm-safe`, pool membership and slot writes), MUST drop the entries that are dead at
+  that write, judged against the attempts the same write posts. An entry never binds a member, so a crash between the wait and the claim strands
   nothing, and dropping an entry never quarantines anything.
 - `PSR-V0-134`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A waiting
   attempt's own `pool acquire`, or the claim of a waiting ticket, MUST be admitted ahead of the
@@ -501,13 +508,17 @@ grace opt-in with a default of 0. See `docs/build-log/2026-10-18-V1-0785-pool-wa
   entry on it, MUST write a `GRACE` entry for the same ticket that expires after that many seconds.
   The entry reserves one unit of free capacity for the ticket's next generation under PSR-V0-132;
   it does not reserve the specific member. It expires and is dropped like any entry (PSR-V0-133).
+  When the waitlist already holds 512 entries besides the ticket's own, that HANDOFF release MUST
+  be refused with `LIMIT_EXCEEDED` naming the `GRACE` entry, with nothing written, rather than drop
+  the reservation silently; a release with any other reason is unaffected.
 
 Failure modes:
 - A waiter that crashes, ends or lets its ticket leave OPEN stops blocking at once (PSR-V0-133)
   and is dropped by the next pools.json write; at worst a claim is refused until the entry expires,
   which is bounded by 600 s.
-- A full waitlist (512 entries) refuses the new `pool wait` with `LIMIT_EXCEEDED`; existing entries
-  and members are unchanged.
+- A full waitlist (512 entries) refuses the new `pool wait`, and a HANDOFF release whose `GRACE`
+  entry it cannot hold, with `LIMIT_EXCEEDED`; existing entries, attempts and members are
+  unchanged, and the agent may release with another reason or retry once entries expire.
 - An older binary refuses a policy declaring `maxWaitSeconds` or `handoffGraceSeconds`, and a
   pools.json with a `waiters` key, as `MALFORMED` (closed decoders).
 
@@ -672,11 +683,11 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | --- | --- |
 | PSR-V0-130 | `TestPSRV0130_PoolWaitRequestShape`, `TestPSRV0131_WaitRegistersRefreshesAndBounds` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
 | PSR-V0-131 | `TestPSRV0131_PoolWaitPolicyBounds` (`internal/tasks/intent`); `TestPSRV0131_WaitersCodec` (`internal/tasks/snapshot`); `TestPSRV0131_WaitRegistersRefreshesAndBounds` (`internal/tasks/transaction`) |
-| PSR-V0-132 | `TestPSRV0132_FreedMemberGoesToHeadWaiter` (`internal/tasks/transaction`) |
-| PSR-V0-133 | `TestPSRV0133_DeadWaitersNeverBlock` (`internal/tasks/transaction`) |
+| PSR-V0-132 | `TestPSRV0132_FreedMemberGoesToHeadWaiter`, `TestPSRV0132_WaitlistOutranksPriorityAdmission`, `TestPSRV0132_ClaimNextSelectsTheWaiter` (`internal/tasks/transaction`); `TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI` (`internal/tasks/cli`) |
+| PSR-V0-133 | `TestPSRV0133_DeadWaitersNeverBlock`, `TestPSRV0133_EveryPoolsWriteDropsDeadWaiters` (`internal/tasks/transaction`) |
 | PSR-V0-134 | `TestPSRV0134_WaitingAttemptAcquiresFreedMember` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
-| PSR-V0-135 | `TestPSRV0135_WaitlistView` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
-| PSR-V0-136 | `TestPSRV0136_HandoffGraceReservesForSuccessor` (`internal/tasks/transaction`) |
+| PSR-V0-135 | `TestPSRV0135_WaitlistView`, `TestPSRV0135_WaiterValueCarriesEveryField` (`internal/tasks/transaction`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
+| PSR-V0-136 | `TestPSRV0136_HandoffGraceReservesForSuccessor`, `TestPSRV0136_FullWaitlistRefusesHandoffGrace` (`internal/tasks/transaction`) |
 | PSR-V0-140 | `TestPSRV0140_OneFreeMemberLaunchesOne` (`internal/tasks/dispatch`); `TestPSRV0135_PoolWaitCLI` (`internal/tasks/cli`) |
 | PSR-V0-141 | `TestPSRV0141_PendingWorkerCountsAgainstRoom`, `TestPSRV0143_PoolWaitEventsReportRoom` (`internal/tasks/dispatch`) |
 | PSR-V0-142 | `TestPSRV0142_StaleWorkerIgnored` (`internal/tasks/dispatch`) |

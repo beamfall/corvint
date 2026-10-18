@@ -71,3 +71,32 @@ func TestPSRV0135_PoolWaitCLI(t *testing.T) {
 		t.Fatalf("free after acquire %d", n)
 	}
 }
+
+// PSR-V0-132 (review round): `claim --next --pool` claims the waiter rather
+// than refuse on the plan's first ticket, and `plan preview --pool` defers
+// that ticket naming the waiter, so the store's candidate, the claim and the
+// preview agree.
+func TestPSRV0132_ClaimNextPoolClaimsTheWaiterCLI(t *testing.T) {
+	r := exclusionCLIRepo(t)
+	v := fixture.PolicyValue()
+	b, _ := v.Obj.Get("budgets")
+	b.Obj.Set("requireEnforcedFields", wire.Array())
+	v.Obj.Set("capacity", wire.ObjectValue(wire.NewObject().Set("maxActiveAttempts", wire.String("4")).Set("maxWorkersTotal", wire.String("4")).Set("classes", wire.Array())))
+	v.Obj.Set("pools", wire.Array(wire.ObjectValue(wire.NewObject().Set("id", wire.String("db")).Set("members", wire.Strings([]string{"a"})).Set("maxWaitSeconds", wire.String("600")))))
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(v))
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init %s", x.stdout)
+	}
+	one := planTicket(t, r.Root, "one", "P2", `[]`)
+	two := planTicket(t, r.Root, "two", "P2", `[]`)
+	if x := atm(t, r.Root, nil, "pool", "wait", "--ticket", two, "--holder", "builder", "--pool", "db", "--ttl-seconds", "300", "--request-id", "w2"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("ticket wait %s", x.stdout)
+	}
+	if x := atm(t, r.Root, nil, "plan", "preview", "--pool", "db", "--stage", "implement"); x.res.Outcome != wire.OutcomeOK || !bytes.Contains(x.stdout, []byte(`"blockers":["`+two+`"],"closureComplete":false,"deferredSinceSeq":null,"nextStage":null,"reason":"RESOURCE_COLLISION"`)) {
+		t.Fatalf("preview %s (one %s)", x.stdout, one)
+	}
+	x := atm(t, r.Root, nil, "claim", "--next", "--holder", "builder", "--pool", "db", "--stage", "implement", "--request-id", "next")
+	if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "ticketId").Str != two {
+		t.Fatalf("claim-next %s", x.stdout)
+	}
+}

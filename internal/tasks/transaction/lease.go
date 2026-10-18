@@ -609,7 +609,39 @@ func planLease(r Request, in Input, st inputState) leaseOutcome {
 	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
 	}
-	return leasePlanners[r.Lease.Verb](c)
+	return c.pruneWaitlist(leasePlanners[r.Lease.Verb](c))
+}
+
+// pruneWaitlist drops the dead waitlist entries from any pools.json the
+// planned outcome posts, whichever verb wrote it, judged against the
+// attempts it posts (PSR-V0-133). A posted waitlist that is all live, or
+// empty, is left byte-identical.
+func (c leaseContext) pruneWaitlist(out leaseOutcome) leaseOutcome {
+	raw, ok := out.posts["pools.json"]
+	if !ok {
+		return out
+	}
+	state, e := snapshot.DecodePools(raw)
+	if e != nil || len(state.Waiters) == 0 {
+		return out
+	}
+	attempt := func(id string) *snapshot.Attempt {
+		if b, ok := out.posts[attemptPath(id)]; ok {
+			if a, e := snapshot.DecodeAttempt(b); e == nil {
+				return a
+			}
+		}
+		return c.st.attempts[id]
+	}
+	live := liveWaiters(state.Waiters, state, c.st.policy, c.st.tickets, attempt, c.in.RecordedAt)
+	if len(live) == len(state.Waiters) {
+		return out
+	}
+	state.Waiters = live
+	if out.posts["pools.json"], e = state.Encode(); e != nil {
+		return c.fail(e)
+	}
+	return out
 }
 
 // checkClock refuses a transaction recorded earlier than the head receipt,
