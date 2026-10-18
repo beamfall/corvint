@@ -82,7 +82,11 @@ func staticImpactLoadArgument(tail, language string) bool {
 //
 // extra holds each path's declared-registry rows (NGI-V0-010), appended after
 // the path's lexical rows so they stay independent of the result limit.
-func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, extra map[string][]any) []any {
+//
+// ruby, when non-nil, is the autoload map the impact used: a Ruby path it
+// resolves to a constant has a named reverse-reference rule, so only an
+// unmapped Ruby path reports reverse-import-rule-unavailable (NGI-V0-036).
+func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, extra map[string][]any, ruby *rubyAutoload) []any {
 	rows := []any{}
 	for _, name := range paths {
 		language := NonGoImpactLanguage(name)
@@ -100,7 +104,7 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, ex
 			rows = append(rows, row)
 		}
 		add("dynamic-dispatch-unresolved", 0)
-		if language == "ruby" {
+		if language == "ruby" && !ruby.mapped(name) {
 			add("reverse-import-rule-unavailable", 0)
 		}
 		if language != "ruby" && unresolvedImports != 0 && !isTestPath(name) {
@@ -145,17 +149,18 @@ func nonGoImpactUnknowns(index *Index, paths []string, unresolvedImports int, ex
 	return rows
 }
 
-// rubyReport, when non-nil, names the Ruby autoload roots and inflections
-// the named-constant reverse references applied (NGI-V0-021).
-func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int, extra map[string][]any, rubyReport map[string]any) error {
-	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports, extra)
+// ruby, when non-nil, is the autoload map the named-constant reverse
+// references applied; the receipt names its roots and inflections
+// (NGI-V0-021).
+func attachNonGoImpactUnknowns(result map[string]any, index *Index, paths []string, unresolvedImports int, extra map[string][]any, ruby *rubyAutoload) error {
+	unknowns := nonGoImpactUnknowns(index, paths, unresolvedImports, extra, ruby)
 	if len(unknowns) == 0 {
 		return nil
 	}
 	result["unknowns"] = unknowns
 	result["language_profile"] = "non-go-syntax-v0"
-	if rubyReport != nil {
-		result["ruby_autoload"] = rubyReport
+	if ruby != nil {
+		result["ruby_autoload"] = ruby.report()
 	}
 	coverage := result["coverage"].(map[string]any)
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), "non-Go syntax impact does not establish dynamic dispatch or test closure")

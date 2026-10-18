@@ -112,8 +112,21 @@ report-identity-unknown with a test-file-unbound detail that names each unbound 
 cause, at most 8 then +N more (PWP-V0-019). Under --sensitive-input-redaction the detail names no
 file. No file is bound unless it is passed with --test-file.
 
+--server-ready-url readiness differs by mode: without --external-server the owned server is ready
+on any status below 500 and redirects are followed; with --external-server only a 2xx answer is
+ready and a redirect is not followed (PWP-V0-031).
+
+With --external-server the runner's console is captured to 4 MiB per stream and truncated past
+it; the run continues and the report file carries the observation. --runner-output PATH (or -
+for this process's stderr) receives every console byte, and the receipt's external.runner
+records the exit status, signal and stop signal (PWP-V0-028, PWP-V0-029). On --timeout the
+runner first gets SIGINT, then --interrupt-grace (default 10s; 0 sends SIGTERM first) before
+SIGTERM and SIGKILL (PWP-V0-030).
+
 --retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
-enclosing Git worktree (LPCV-V0-055). The flags of each subcommand follow.
+enclosing Git worktree (LPCV-V0-055); a retention that creates .corvint also writes
+.corvint/.gitignore (*), otherwise .corvint/test-evidence/.gitignore (*), so Git status stays
+clean, and never overwrites an existing one (LPCV-V0-084). The flags of each subcommand follow.
 `
 
 // usageSink, while printUsage runs, receives each subcommand's flag defaults instead of the
@@ -317,9 +330,11 @@ func runE2EMode(mode string, args []string) error {
 	retainAttemptDetails := fs.Bool("retain-attempt-details", false, "select the /3 profile and retain each attempt's detail")
 	keepReporters := fs.Bool("keep-reporters", false, "external mode: keep the project's reporters after the provider reporter instead of replacing them; the receipt binds the kept entries and records their effects as unknown")
 	keepReportersQualification := fs.String("keep-reporters-qualification", "", "experimental (proposed PWP-V0-016), with --keep-reporters: a qualified record from qualify-keep-reporters; the receipt carries it and projects only when it matches exactly")
-	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
+	serverReadyURL := fs.String("server-ready-url", "", "URL polled until ready: owned server, any status < 500 (redirects followed); --external-server, 2xx only (no redirects)")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
+	runnerOutputPath := fs.String("runner-output", "", "external mode: write every runner console byte, untruncated, to this file (created or truncated); - writes it to stderr")
+	interruptGrace := fs.Duration("interrupt-grace", defaultInterruptGrace, "external mode: on --timeout send SIGINT, then wait this long before SIGTERM and SIGKILL; 0 sends SIGTERM first")
 	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree; a basic receipt then records the test repository start revision")
 	var testFiles stringList
 	var envKeys stringList
@@ -334,6 +349,9 @@ func runE2EMode(mode string, args []string) error {
 	fs.Var(&sensitiveActionPatterns, "sensitive-action-pattern", "additional case-insensitive input-action title pattern (repeatable; additive to defaults)")
 	fs.Var(&sensitiveFields, "sensitive-field", "additional step metadata field to redact (repeatable; additive to defaults)")
 	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := admitRunnerControl(fs, *externalServer, *interruptGrace); err != nil {
 		return err
 	}
 
@@ -383,6 +401,12 @@ func runE2EMode(mode string, args []string) error {
 		qualification = &record
 	}
 
+	runnerOutput, closeRunnerOutput, err := openRunnerOutput(*runnerOutputPath, os.Stderr)
+	if err != nil {
+		return err
+	}
+	defer closeRunnerOutput()
+
 	ctx, cancel := interruptContext()
 	defer cancel()
 
@@ -410,6 +434,12 @@ func runE2EMode(mode string, args []string) error {
 		RetainAttemptDetails:       *retainAttemptDetails,
 		KeepReporters:              *keepReporters,
 		KeepReportersQualification: qualification,
+	}
+	if *externalServer {
+		cfg.InterruptGrace = *interruptGrace
+		if runnerOutput != nil {
+			cfg.RunnerOutput = runnerOutput
+		}
 	}
 	if mode == "qualify-keep-reporters" {
 		if watch != nil || *keepReporters || !*externalServer {

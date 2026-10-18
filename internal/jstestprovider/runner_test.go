@@ -208,10 +208,17 @@ func TestBoundaryTimeoutNamesRunnerAndFlag(t *testing.T) {
 		{Started: true},
 		{Started: true, WaitCompleted: true},
 	} {
-		external, unit := externalBoundaryFailure(obs, time.Second), unitBoundaryFailure(obs, "vitest", time.Second)
+		// External console capture truncates (PWP-V0-028), so overflow alone is
+		// no external boundary failure; every other boundary matches unit.
+		console := obs
+		console.OutputOverflow, console.StdoutOverflow, console.StderrOverflow = false, false, false
+		external, unit := externalBoundaryFailure(obs, time.Second), unitBoundaryFailure(console, "vitest", time.Second)
 		if (external == nil) != (unit == nil) || external != nil && (external.Reason != unit.Reason || external.Reason != "timeout" && external.Detail != unit.Detail) {
 			t.Fatalf("observation %+v: external %+v diverged from unit %+v", obs, external, unit)
 		}
+	}
+	if got := externalBoundaryFailure(procgroup.Observation{Started: true, WaitCompleted: true, OutputOverflow: true, StdoutOverflow: true}, time.Second); got != nil {
+		t.Fatalf("PWP-V0-028: external console overflow failed the run: %+v", got)
 	}
 }
 

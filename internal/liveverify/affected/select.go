@@ -134,8 +134,8 @@ func Select(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	reached, seeds, unknown := graph.reach(normalized)
-	plan.Unknown = append(graph.frontierUnknowns(reached, normalized), unknown...)
+	reached, seeds, unknown, narrowed := graph.reach(normalized)
+	plan.Unknown = append(graph.frontierUnknowns(reached, narrowed, normalized), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
@@ -170,7 +170,7 @@ func Select(graph *Graph, dirty []string) Plan {
 
 // reach computes the reached universe once for Select and ReachedUnitIDs, so
 // the delta unit denominator cannot drift from the selected plan.
-func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witness, unknown []Unknown) {
+func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witness, unknown []Unknown, narrowed map[string]bool) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -189,10 +189,10 @@ func (graph *Graph) reach(normalized []string) (reached, seeds map[string]Witnes
 	}
 	mergeWitnesses(reached, enclosing)
 	graph.execUsersOf(reached, built)
-	graph.readers(reached, normalized)
+	narrowed = graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, normalized)
 	graph.scopedReadersOf(reached, normalized)
-	return reached, seeds, unknown
+	return reached, seeds, unknown, narrowed
 }
 
 func relativeDirectory(relative string) string {
@@ -310,11 +310,11 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 	return contained
 }
 
-// frontierUnknowns names, in reason order, the frontier of every plugin that
-// takes part in the plan and the unit frontier of every reached unit
-// (V1-0289). A clean plan takes part in nothing and names none.
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, dirty []string) []Unknown {
-	reasons := make(map[string]bool)
+// frontierUnknowns names, in reason order, the frontier of every participating
+// plugin, the unit frontier of every reached unit (V1-0289) and the narrowed
+// readers' frontier reasons (AFP-V0-072(4)). A clean plan names none.
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[string]bool, dirty []string) []Unknown {
+	reasons := narrowed
 	for _, name := range graph.participants(reached, dirty) {
 		for _, reason := range graph.frontierBy[name] {
 			reasons[reason] = true

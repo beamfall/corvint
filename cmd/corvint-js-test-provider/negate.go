@@ -95,7 +95,7 @@ func parseNegate(args []string) (jstestprovider.NegateConfig, error) {
 	appAttestationCommand := fs.String("app-attestation-command", "", "JSON argv for the typed application-attestation provider (/1)")
 	appAttestationConfig := fs.String("app-attestation-config", "", "canonical application-attestation expectation config (/1)")
 	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation observation")
-	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
+	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers 2xx; a redirect is not followed (PWP-V0-031)")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on each playwright run")
 	var testFiles, envKeys stringList
