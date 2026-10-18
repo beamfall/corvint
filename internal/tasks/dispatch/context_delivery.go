@@ -26,6 +26,12 @@ const (
 	deliveredPrefix = "context-delivered-"
 )
 
+// writeMarker writes a delivery marker's content; tests replace it.
+var writeMarker = func(f *os.File, s string) error {
+	_, err := f.WriteString(s)
+	return err
+}
+
 // deliveredLevels are the levels a hook delivers, in ascending order.
 var deliveredLevels = []string{ContextWarn, ContextHandoff}
 
@@ -134,18 +140,24 @@ func ContextHookNotice(path string) (string, error) {
 		if c == nil {
 			continue
 		}
-		f, err := os.OpenFile(filepath.Join(wdir, deliveredPrefix+l), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		marker := filepath.Join(wdir, deliveredPrefix+l)
+		f, err := os.OpenFile(marker, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if errors.Is(err, fs.ErrExist) {
 			continue
 		}
 		if err != nil {
 			return strings.Join(notes, "\n"), err
 		}
-		_, werr := f.WriteString(c.At + "\n")
+		werr := writeMarker(f, c.At+"\n")
 		if cerr := f.Close(); werr == nil {
 			werr = cerr
 		}
 		if werr != nil {
+			// The level stays deliverable: the marker is removed so the next
+			// hook run retries, or, when it cannot be, the notice goes now.
+			if rerr := os.Remove(marker); rerr != nil && !errors.Is(rerr, fs.ErrNotExist) {
+				notes = append(notes, contextNoticeText(r, *c))
+			}
 			return strings.Join(notes, "\n"), werr
 		}
 		notes = append(notes, contextNoticeText(r, *c))

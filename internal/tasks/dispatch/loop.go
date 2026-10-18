@@ -1613,6 +1613,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		sort.Strings(hostEnv)
 		env = append(env, hostEnv...)
+		// ATR-V0-105: only the dispatcher names a hand-off note; an inherited
+		// or host-set one could hand this ticket another ticket's note.
+		env = slices.DeleteFunc(env, func(kv string) bool { return strings.HasPrefix(kv, handoffNoteEnv+"=") })
 		env = append(env, "CORVINT_DISPATCH_PROGRAM="+d.Program, "CORVINT_DISPATCH_ROLE="+a.Role, "CORVINT_DISPATCH_SLOT="+strconv.Itoa(a.Slot), "CORVINT_DISPATCH_TICKET="+a.Ticket, "CORVINT_DISPATCH_WORKER="+id)
 		env = append(env, "CORVINT_DISPATCH_DRAIN_FILE="+DrainSignalPath(d.dir)) // ATR-V0-058
 		if contextFormat(role.UsageFormat) {
@@ -1620,7 +1623,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		env = append(env, "CORVINT_DISPATCH_EVIDENCE_DIR="+EvidenceDir(d.dir, id)) // ATR-V0-104
 		if note := d.handoffNoteFor(obs, a.Ticket); note != "" {
-			env = append(env, "CORVINT_DISPATCH_HANDOFF_NOTE="+note) // ATR-V0-105
+			env = append(env, handoffNoteEnv+"="+note) // ATR-V0-105
 		}
 		if run != nil {
 			env = append(env, detachedEnv(run)...)

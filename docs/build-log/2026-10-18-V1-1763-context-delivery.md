@@ -73,3 +73,40 @@ decision; it applies that standing acceptance to this lane's requirements.
   inheritance, `--settings` merging and the additionalContext rendering are unqualified. This
   is cross-referenced to V1-1563, which owns live dispatch host qualification.
 - Linux is NOT_RUN.
+
+## Review fixes (Codex round, PR 1113)
+
+One Codex round found two P1 and six P2 issues. All eight are fixed, each with a focused test:
+
+1. Secrets could survive a cut, because evidence and assistant texts were cut before screening.
+   Each text is now screened whole before it is cut on line boundaries, and the incomplete
+   first line of a bounded file tail is dropped
+   (`TestATRV0104_ScreensBeforeCutting`).
+2. A symlinked evidence directory could escape the state directory. The worker directory, the
+   evidence directory and stdout are now opened through `os.OpenRoot` and `safeopen` without
+   following any symlinked component (`TestATRV0104_SymlinkedEvidenceRefused`).
+3. A FIFO at the note path blocked `ReadHandoffNote`. The note is now opened with
+   `O_NOFOLLOW|O_NONBLOCK` and must fstat as a regular file
+   (`TestATRV0105_FIFONoteDoesNotBlock`).
+4. A `CORVINT_DISPATCH_HANDOFF_NOTE` inherited from the dispatcher, or set by the host env,
+   survived into the worker. Every inherited instance is now stripped
+   (`TestATRV0105_InheritedNoteEnvStripped`).
+5. A marker that was created but not written suppressed its notice for good. A failed write
+   now removes the marker; if the marker cannot be removed, the notice is written at once
+   (`TestATRV0101_MarkerWriteFailureKeepsLevelDeliverable`).
+6. A finish replayed after a crash counted the hard stop twice. A finish whose worker is
+   already the streak's `lastWorker` now changes nothing, and the alert follows the save
+   (`TestATRV0106_ReplayedFinishCountsOnce`).
+7. An early return skipped resets when a role no longer set `hardTokens`. Ordinary endings now
+   reset the count either way (`TestATRV0106_ResetWithoutHardTokens`).
+8. Evidence enumeration read every directory entry. It now reads in chunks of 64, stops at 256
+   entries, and sets `truncated` when that cap is reached
+   (`TestATRV0104_EvidenceEnumerationBounded`).
+
+ATR-V0-101, -104, -105 and -106 are reworded to match.
+
+Residual: on Windows, `safeopen` and the non-blocking open are unsupported, so no note or
+evidence is salvaged there.
+
+Residual: the session-churn record (ATR-V0-060) can count a replayed finish twice after a
+crash, the same pattern as finding 6. It is unchanged here.

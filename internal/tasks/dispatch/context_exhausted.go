@@ -135,24 +135,37 @@ func (d *Dispatcher) saveExhaustion() {
 }
 
 // noteHardStop extends or resets the ticket and role's streak of hard stops
-// after one finished session, and marks it CONTEXT_EXHAUSTED with one alert
-// when it reaches the role's exhaustedAfter (ATR-V0-106). It holds nothing.
+// after one finished session, and marks it CONTEXT_EXHAUSTED when it reaches
+// the role's exhaustedAfter, alerting once after the record is saved
+// (ATR-V0-106). Any other ending resets the streak even when the role no
+// longer counts. A finish replayed after a restart, whose worker is already
+// the streak's LastWorker, changes nothing. It holds nothing.
 func (d *Dispatcher) noteHardStop(w *Worker, now time.Time) {
-	r := d.role(w.Role)
-	if r == nil || r.Context == nil || r.Context.HardTokens == 0 || strings.HasPrefix(w.Key, "lane:") || !d.loadExhaustion() {
+	if strings.HasPrefix(w.Key, "lane:") {
 		return
 	}
-	i := -1
-	for j, e := range d.exhaustion.Entries {
-		if e.Key == w.Key && e.Role == w.Role {
-			i = j
-		}
-	}
+	r := d.role(w.Role)
+	counting := r != nil && r.Context != nil && r.Context.HardTokens != 0
 	if w.KillReason != "CONTEXT" {
-		if i >= 0 {
+		if !counting && d.exhaustion == nil && !d.exhaustionForeign {
+			if _, err := os.Lstat(ContextExhaustedPath(d.dir)); err != nil {
+				return
+			}
+		}
+		if !d.loadExhaustion() {
+			return
+		}
+		if i := d.streakIndex(w.Key, w.Role); i >= 0 {
 			d.exhaustion.Entries = append(d.exhaustion.Entries[:i], d.exhaustion.Entries[i+1:]...)
 			d.saveExhaustion()
 		}
+		return
+	}
+	if !counting || !d.loadExhaustion() {
+		return
+	}
+	i := d.streakIndex(w.Key, w.Role)
+	if i >= 0 && d.exhaustion.Entries[i].LastWorker == w.ID {
 		return
 	}
 	if i < 0 {
@@ -165,10 +178,25 @@ func (d *Dispatcher) noteHardStop(w *Worker, now time.Time) {
 	e := &d.exhaustion.Entries[i]
 	e.HardStops++
 	e.LastWorker, e.LastAt = w.ID, now.UTC().Format(time.RFC3339)
-	if n := r.Context.exhaustedAfter(); e.HardStops >= n && e.State != ContextExhausted {
+	n := r.Context.exhaustedAfter()
+	reached := e.HardStops >= n && e.State != ContextExhausted
+	if reached {
 		e.State = ContextExhausted
-		d.emit(Event{Kind: "alert", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("%s is context-exhausted for role %s: %d consecutive sessions were stopped at hardTokens; split the ticket, raise the role's thresholds or hand it to a larger-context role", d.keyText(w.Key), w.Role, e.HardStops),
-			Detail: map[string]string{"code": ContextExhausted, "role": w.Role, "hardStops": strconv.Itoa(e.HardStops), "exhaustedAfter": strconv.Itoa(n)}})
 	}
+	stops := e.HardStops
 	d.saveExhaustion()
+	if reached {
+		d.emit(Event{Kind: "alert", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("%s is context-exhausted for role %s: %d consecutive sessions were stopped at hardTokens; split the ticket, raise the role's thresholds or hand it to a larger-context role", d.keyText(w.Key), w.Role, stops),
+			Detail: map[string]string{"code": ContextExhausted, "role": w.Role, "hardStops": strconv.Itoa(stops), "exhaustedAfter": strconv.Itoa(n)}})
+	}
+}
+
+// streakIndex is the entry of key and role, or -1.
+func (d *Dispatcher) streakIndex(key, role string) int {
+	for j, e := range d.exhaustion.Entries {
+		if e.Key == key && e.Role == role {
+			return j
+		}
+	}
+	return -1
 }
