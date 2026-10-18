@@ -124,7 +124,12 @@ Every CCE-V0 command is a subcommand of the `e2e` group in one experimental comp
 `cmd/corvint-test`: `corvint-test e2e catalog|obligations|compile|prove|shadow`. `corvint-test` is
 named for every kind of test, not only E2E; V0 defines only the `e2e` group. Folding the existing
 test companions (`corvint-test-runner`, `corvint-tests-accept`, `corvint-behavior-falsify`,
-`corvint-playwright-minimize`) into it is outside this spec and needs its own spec and migration. V0 adds no command, flag, dependency or
+`corvint-playwright-minimize`) into it is outside this spec and needs its own spec and migration
+(V1-1667). Two existing names collide with `corvint-test` and must be resolved before the binary
+lands: the companion-release archive classifier maps any `corvint-test*` name to
+`corvint-test-validity-mcp` (`internal/companionrelease/retained_test.go:142@5f75cf4b`), and core
+`corvint test` already prints `corvint-test:` diagnostics
+(`cmd/corvint/session_test_shards_unix_test.go:82@8b1f3cb8`). V0 adds no command, flag, dependency or
 default-path behaviour to core `corvint` (invariant 7), so the capability can be built, shipped,
 killed or rolled back as one unit without touching the core binary. The companion reads the same
 in-module relations core uses (AMAP-V0, ANL-V0, AFU-V1, RVN-V0, PWR-V0) as a library; it does not
