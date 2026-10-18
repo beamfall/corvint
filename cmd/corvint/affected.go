@@ -63,11 +63,13 @@ type affectedRange struct {
 // affectedInvocation is one parsed `affected` command line. Providers,
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
-	Snapshot            string
-	Root                string
-	Base                string
-	Providers           []string
-	Checkouts           []extevidence.Checkout
+	Snapshot  string
+	Root      string
+	Base      string
+	Providers []string
+	Checkouts []extevidence.Checkout
+	// RepositoryBases maps a bound --repository ID to its --repository-base commit; e2e-safe only (AFU-V1-067).
+	RepositoryBases     map[string]string
 	SelectionProfile    string
 	PlaywrightConfig    string
 	PlaywrightDiscovery string
@@ -198,7 +200,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -256,6 +258,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			err = addAffectedProvider(&invocation, name, value)
 		case "--repository":
 			err = addAffectedCheckout(&invocation, value)
+		case "--repository-base":
+			err = addAffectedRepositoryBase(&invocation, value)
 		case "--playwright-config":
 			err = setAffectedPlaywrightConfig(&invocation, value)
 		case "--playwright-discovery":
@@ -291,6 +295,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		return invocation, checkAffectedE2ESafe(invocation)
+	}
+	if len(invocation.RepositoryBases) != 0 {
+		return affectedInvocation{}, argumentError("--repository-base requires --selection-profile e2e-safe")
 	}
 	if invocation.PlaywrightDiscovery != "" && invocation.PlaywrightConfig == "" {
 		return affectedInvocation{}, argumentError("--playwright-discovery requires --playwright-config")
@@ -335,13 +342,41 @@ func parseAffectedDiscoveryOptions(rest []string) (affectedInvocation, error) {
 
 // checkAffectedE2ESafe admits the e2e-safe profile only over one repository-relative selection
 // provider file, and a discovery record, when named, only as a repository-relative file (AFU-V1-024).
+// Each --repository needs --base and exactly one --repository-base for its ID (AFU-V1-067).
 func checkAffectedE2ESafe(invocation affectedInvocation) error {
-	if len(invocation.Providers) != 1 || len(invocation.Checkouts) != 0 || !affected.ValidRelativePath(invocation.Providers[0]) {
-		return argumentError("--selection-profile e2e-safe requires exactly one repository-relative --provider file and no --repository")
+	if len(invocation.Providers) != 1 || !affected.ValidRelativePath(invocation.Providers[0]) {
+		return argumentError("--selection-profile e2e-safe requires exactly one repository-relative --provider file")
 	}
 	if invocation.PlaywrightDiscovery != "" && !affected.ValidRelativePath(invocation.PlaywrightDiscovery) {
 		return argumentError("--playwright-discovery must be a repository-relative canonical path under --selection-profile e2e-safe")
 	}
+	if len(invocation.Checkouts) != 0 && invocation.Base == "" {
+		return argumentError("--repository under --selection-profile e2e-safe requires --base")
+	}
+	for _, checkout := range invocation.Checkouts {
+		if invocation.RepositoryBases[checkout.ID] == "" {
+			return argumentError("argument --repository: repository id " + pythonRepr(checkout.ID) + " needs one --repository-base")
+		}
+	}
+	if len(invocation.RepositoryBases) != len(invocation.Checkouts) {
+		return argumentError("argument --repository-base: every id must be bound by --repository")
+	}
+	return nil
+}
+
+// addAffectedRepositoryBase admits one `--repository-base ID=FULL_COMMIT` (AFU-V1-067).
+func addAffectedRepositoryBase(invocation *affectedInvocation, value string) error {
+	id, commit, found := strings.Cut(value, "=")
+	if !found || !extevidence.ValidRepositoryID(id) || !validGitObjectID(commit) {
+		return argumentError("argument --repository-base: expected ID=FULL_COMMIT, got " + value)
+	}
+	if _, seen := invocation.RepositoryBases[id]; seen {
+		return argumentError("argument --repository-base: repository id " + pythonRepr(id) + " is given twice")
+	}
+	if invocation.RepositoryBases == nil {
+		invocation.RepositoryBases = map[string]string{}
+	}
+	invocation.RepositoryBases[id] = commit
 	return nil
 }
 
@@ -677,9 +712,13 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 // the receipt as the test_selection member (AFU-V1-019..024).
 func affectedE2ESafeSelection(ctx context.Context, invocation affectedInvocation, revision string, graph *affected.Graph, plan affected.Plan, advice affectedAdvice) (map[string]any, error) {
 	mandatory := affectedSelectionInput(invocation, plan, nil, advice).Mandatory
+	repositories := []appflows.E2ERepositoryInput{}
+	for _, checkout := range invocation.Checkouts {
+		repositories = append(repositories, appflows.E2ERepositoryInput{ID: checkout.ID, Source: checkout.Source, Base: invocation.RepositoryBases[checkout.ID]})
+	}
 	selection := appflows.SelectE2E(ctx, invocation.Root, appflows.E2EInput{
 		Provider: invocation.Providers[0], Discovery: invocation.PlaywrightDiscovery, Revision: revision,
-		Base: invocation.Base, Graph: graph, Plan: plan, Mandatory: mandatory,
+		Base: invocation.Base, Graph: graph, Plan: plan, Mandatory: mandatory, Repositories: repositories,
 	})
 	encoded, err := json.Marshal(selection)
 	if err != nil {
