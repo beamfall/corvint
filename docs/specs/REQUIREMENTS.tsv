@@ -3032,6 +3032,9 @@ NGI-V0-038	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-039	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
 NGI-V0-040	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The	standing	2026-10-11; V1-1794
 NGI-V0-027	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796) When an	standing	2026-10-11; V1-1796
+NGI-V0-051	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1804) A	standing	2026-10-11; V1-1804
+NGI-V0-052	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) The	standing	2026-10-11; V1-1805
+NGI-V0-053	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1805) When	standing	2026-10-11; V1-1805
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-
