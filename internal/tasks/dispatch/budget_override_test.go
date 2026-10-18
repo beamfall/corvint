@@ -74,9 +74,12 @@ func TestATRV0086_MalformedOrAmbiguousOverridesRefuse(t *testing.T) {
 			t.Errorf("%s: %v", tb, err)
 		}
 	}
-	// The default keeps its own rules, and a role budget takes no overrides.
-	if _, err := DecodeConfig(overrideConfig(t, `{"overrides":[{"ticket":"a","sessionsPerDay":1}]}`)); err == nil {
-		t.Error("a ticketBudget with no default limit was accepted")
+	// A ticketBudget with neither a default limit nor an override refuses
+	// (ATR-V0-085), and a role budget takes no overrides.
+	for _, tb := range []string{`{}`, `{"overrides":[]}`} {
+		if _, err := DecodeConfig(overrideConfig(t, tb)); err == nil {
+			t.Errorf("%s: a ticketBudget with no limit was accepted", tb)
+		}
 	}
 	c := testConfig(t, "exit 0")
 	c.Roles[0].Budget = &Budget{SessionsPerDay: 3, Overrides: []BudgetOverride{{Ticket: "a", SessionsPerDay: 1}}}

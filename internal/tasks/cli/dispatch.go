@@ -38,6 +38,9 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && args[0] == "recover-reader" {
 		return dispatchRecoverReader(env, args[1:])
 	}
+	if len(args) > 0 && args[0] == "salvage" {
+		return dispatchSalvage(env, args[1:]) // ATR-V0-126
+	}
 	cmd := []string{"dispatch"}
 	values, err := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--ticks": true}, map[string]bool{"--once": true})
 	if err != "" {
@@ -412,6 +415,11 @@ func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, 
 			}
 			o.Set("keeper", wire.ObjectValue(ko))
 		}
+		if h := dispatch.ReadPoolHold(dir, w.ID); h != nil {
+			// ATR-V0-123: the allocation the dispatcher holds for this
+			// worker's attempt; present only once it acquired one.
+			o.Set("poolHold", wire.ObjectValue(wire.NewObject().Set("state", str(h.State)).Set("attempt", str(h.Attempt)).Set("generation", str(h.Generation)).Set("pool", str(h.Pool)).Set("member", str(h.Member)).Set("allocation", str(h.Allocation)).Set("acquired", ts(h.Acquired))))
+		}
 		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
 	}
 	keys := make([]string, 0, len(l.Backoff))
@@ -662,7 +670,13 @@ func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time, 
 	for _, s := range dispatch.SpendReportFor(c, l, now, tickets) {
 		o := wire.NewObject().Set("scope", str(s.Scope)).Set("name", str(s.Name))
 		if overrides && s.Scope == dispatch.ScopeTicket {
-			o.Set("selector", str(s.Selector))
+			// NONE: a recorded hold whose ticket no override selects under a
+			// ticketBudget with no default limit (ATR-V0-085).
+			sel := s.Selector
+			if sel == "" {
+				sel = "NONE"
+			}
+			o.Set("selector", str(sel))
 			o.Set("selectorObserved", wire.Bool(observed[s.Name]))
 		}
 		o.Set("sessions", str(strconv.Itoa(s.Sessions)))

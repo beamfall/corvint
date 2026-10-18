@@ -466,8 +466,9 @@ func (d *Dispatcher) recordBudget(g *spendGate) {
 		e := Event{Kind: "budget", Message: fmt.Sprintf("%s %s is held by its %s budget until %s", h.Scope, h.Name, h.Limit, reset), Detail: map[string]string{"scope": h.Scope, "name": h.Name, "limit": h.Limit, "resetsAt": reset, "sessions": strconv.Itoa(sessions), "observedTokens": strconv.FormatUint(tokens, 10), "unknownSessions": strconv.Itoa(unknown)}}
 		// ATR-V0-088: with overrides, a ticket hold names the selector
 		// that set its effective limit and the limit itself.
-		if h.Scope == ScopeTicket && len(g.c.TicketBudget.Overrides) > 0 {
-			b, sel := ticketLimit(g.c, g.meta, h.Name)
+		// A hold carried from the history alone may resolve to no limit
+		// under a ticketBudget of overrides alone (ATR-V0-085).
+		if b, sel := ticketLimit(g.c, g.meta, h.Name); h.Scope == ScopeTicket && len(g.c.TicketBudget.Overrides) > 0 && b != nil {
 			e.Detail["selector"] = sel
 			e.Detail["sessionsPerDay"] = strconv.Itoa(b.SessionsPerDay)
 			e.Detail["tokensPerDay"] = strconv.FormatUint(b.TokensPerDay, 10)
@@ -516,7 +517,9 @@ type ScopeSpend struct {
 }
 
 // SpendReport is every configured role's spend and, with a ticket budget,
-// each ticket's that launched in the window. It reads the ledger only.
+// each ticket's that launched in the window. With a ticketBudget of
+// overrides alone, only the tickets an override selects, or that carry a
+// recorded hold, are ticket scopes (ATR-V0-085). It reads the ledger only.
 func SpendReport(c *Config, l *Ledger, now time.Time) []ScopeSpend {
 	return SpendReportFor(c, l, now, nil)
 }
@@ -573,6 +576,9 @@ func SpendReportFor(c *Config, l *Ledger, now time.Time, ts []Ticket) []ScopeSpe
 		sort.Strings(tickets)
 		for _, t := range tickets {
 			add([2]string{ScopeTicket, t}, c.TicketBudget)
+			if s := out[len(out)-1]; s.Budget == nil && s.Hold == nil {
+				out = out[:len(out)-1]
+			}
 		}
 	}
 	return out

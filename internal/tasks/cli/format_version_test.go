@@ -300,6 +300,14 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := dispatch.ReadHandoffNote(path)
 			return err
 		},
+		dispatch.PoolHoldProfile: func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "pool-hold.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, err := dispatch.ReadPoolHoldFile(path)
+			return err
+		},
 		dispatch.CarryOverProfile: func(t *testing.T, p string) error {
 			path := filepath.Join(resolvedTempDir(t), "carry-over.json")
 			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {

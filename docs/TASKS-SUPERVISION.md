@@ -185,7 +185,14 @@ dispatcher replans its observation with it deferred `WORK_STATE_HELD`, so it tak
 corvint-tasks dispatch --program night --config dispatch.json
 corvint-tasks dispatch status --program night --config dispatch.json --events 20
 corvint-tasks dispatch unpark --program night --config dispatch.json --key ticket:acme:main:AT-0002
+corvint-tasks dispatch salvage --program night --config dispatch.json --attempt ATTEMPT
 ```
+
+`dispatch salvage` writes the secret-screened hand-off note of the program worker that holds the
+attempt, whether its session still runs or something else stopped it, without changing the attempt;
+the next launch on the ticket is offered it under the hard-stop note rules (ATR-V0-105). A host whose
+`contextNotices` is `file` receives context warn and hand-off notices appended to the file named by
+`CORVINT_DISPATCH_CONTEXT_NOTICE_FILE` (ATR-V0-125..127).
 
 Each tick observes the queue, supervises workers (whole-tree kill on wall cap, idle timeout or an
 orphaned tree; a child process keeps a worker from the idle timeout only while it is new or uses
