@@ -114,6 +114,10 @@ func TestCCEV0015SubcommandsReachable(t *testing.T) {
 func TestCCEV0015CoreBoundary(t *testing.T) {
 	out, err := exec.Command("go", "list", "-deps", "../corvint").Output()
 	if err != nil {
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			t.Fatalf("%v: %s", err, ee.Stderr)
+		}
 		t.Fatal(err)
 	}
 	for _, dep := range strings.Fields(string(out)) {
