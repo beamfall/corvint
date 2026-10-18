@@ -48,11 +48,17 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   Refusals: `changes-invalid-arguments`, `changes-shared-range-unavailable`,
   `changes-shared-notes-unavailable` (absent, non-regular or over 1 MiB), `changes-git-unavailable`.
 - `SPC-V0-003`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The check
-  MUST probe merging head into base with `git merge-tree --write-tree` against a private temporary
-  object directory (`GIT_OBJECT_DIRECTORY`, with the repository's object store as an alternate),
-  removed afterwards, so the probe writes no object into the repository. A conflicted path matching a `generated` glob is listed in
-  `exemptConflicts` and is not a finding; any other conflicted path emits
-  `shared-path-merge-conflict` (`clean-merge`).
+  MUST probe merging head into base with `git merge-tree --write-tree` inside a private temporary
+  bare repository (`GIT_DIR`, with the repository's object format, its object store as an alternate
+  and its shallow file), removed afterwards, so the probe writes no object into the repository and
+  reads no repository configuration, attributes or worktree: no custom merge or filter driver runs
+  and nothing is written into the checkout (amended for Codex finding 1 on #1097, V1-1710). The
+  probe therefore merges with Git's built-in drivers and default rename settings, which can differ
+  from a merge under the repository's own attributes. Git's conflict exit status is kept: the
+  conflicted paths are the unmerged file entries plus the paths named by `CONFLICT` messages, and a
+  conflict that names no path still emits one pathless finding. A conflicted path matching a
+  `generated` glob is listed in `exemptConflicts` and is not a finding; any other conflicted path
+  emits `shared-path-merge-conflict` (`clean-merge`).
 - `SPC-V0-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1591)
   `corvint changes split-shared --base REV --branch NAME [--apply --expect-head SHA]` MUST plan,
   and with `--apply` perform, the split of every commit in `base..NAME` that changes both shared
@@ -99,13 +105,17 @@ that names what is missing, plus a mechanical split that a user runs on a local 
   shared paths of that commit that head also changes since the merge base) and `conflictRisk`
   (`headTouches` is not empty). Base and head without a merge base refuse with
   `changes-shared-range-unavailable`. The command is a read command: it never fetches or contacts
-  a remote and writes no ref, index, worktree, repository object or trace file. Exit 0 on success
+  a remote, writes no ref, index, worktree, repository object or trace file, and runs no
+  repository-configured merge or filter driver (SPC-V0-003). Exit 0 on success
   and 2 on refusal, under the SPC-V0-008 dispatch and refusal shape.
 - `SPC-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The
   report's `dryMerge` MUST probe merging head into base under the SPC-V0-003 private-object-directory
-  rule and give `result` as exactly one of `clean` (no conflict), `generated-only` (every conflicted
-  path matches a `generated` glob) or `conflict`, with `conflicts` listing the other conflicted
-  paths and `generatedConflicts` the generated ones, each sorted.
+  rule and give `result` as exactly one of `clean` (Git reports no conflict), `generated-only`
+  (every conflicted path matches a `generated` glob) or `conflict`, with `conflicts` listing the
+  other conflicted paths and `generatedConflicts` the generated ones, each sorted. Conflicted paths
+  are those of SPC-V0-003, so a conflict without an unmerged file entry (a directory rename split
+  names its directory) is `conflict`, and so is a conflict Git reports without naming any path
+  (amended for Codex finding 2 on #1097, V1-1710).
 - `SPC-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The JSON
   report (profile `corvint-shared-path-behind/0`, `mutates` false) MUST record the resolved `base`,
   `head` and `mergeBase`, `configDigest` (`sha256:` and the hexadecimal SHA-256 of the configuration
@@ -141,7 +151,9 @@ commits. Git stderr is never reflected. `behind` reads only local refs, so a sta
 remote-tracking base understates what is missing until the operator fetches. Its age is the
 commit's committer time, not when the commit reached base: a merged commit keeps its older
 committer time, so the age can overstate how long base has carried it. A shared change made inside
-a merge commit's own resolution is not counted (merges are skipped and named).
+a merge commit's own resolution is not counted (merges are skipped and named). The merge probe ignores the
+repository's attributes and configuration, so a path that a custom or `union` merge driver would
+resolve can be reported as conflicted (a conservative report, never a hidden conflict).
 
 ## Rollback
 
@@ -157,13 +169,13 @@ head back while the old commits are still reachable from the reflog. Removing th
 |---|---|---|
 | SPC-V0-001 | `LoadConfig`, `Match`, `Config.Class`, `readRegular` | `TestSPCV0001ConfigIsClosedAndClassifiesPaths`, `TestSPCV0001FIFOInputsRefusedWithoutBlocking` |
 | SPC-V0-002 | `Check` | `TestSPCV0002CheckFindingsNameCommitPathAndMissingElement` |
-| SPC-V0-003 | `mergeProbe` | `TestSPCV0003GeneratedConflictsAreExempt`, `TestSPCV0003MergeProbeWritesNoRepositoryObject` |
+| SPC-V0-003 | `mergeProbe`, `mergeConflicts`, `privateMergeRepository`, `conflictPaths` | `TestSPCV0003GeneratedConflictsAreExempt`, `TestSPCV0003MergeProbeWritesNoRepositoryObject`, `TestSPCV0009DryMergeRunsNoRepositoryMergeDriver`, `TestSPCV0010DirectoryRenameSplitIsConflict` |
 | SPC-V0-004 | `SplitShared`, `overlay`, `commitTree` | `TestSPCV0004SplitKeepsTreeIdentityAndMessage`, `TestSPCV0004PlanningLeavesIndexBytesUnchanged` |
 | SPC-V0-005 | `refuseLiveSession`, `SplitShared` | `TestSPCV0005SplitRefusesUnsafeStates` |
 | SPC-V0-006 | `manualFollowUps` | `TestSPCV0006ManualFollowUpsAreOnlyListingAndCitation` |
 | SPC-V0-007 | expected-head check and `update-ref` compare-and-swap | `TestSPCV0007HeadMismatchAbortsWithoutChanges` |
 | SPC-V0-008 | `runSharedPath` | `TestSPCV0008ChangesSharedCLI` |
-| SPC-V0-009 | `Behind`, `countBehind`, `runChangesBehind` | `TestSPCV0009BehindCountsOnlySharedCommits`, `TestSPCV0009BehindRefusesTooLargeRangeBeforeListing`, `TestSPCV0009BehindIsReadOnly` |
-| SPC-V0-010 | `mergeConflicts`, `dryMergeOf` | `TestSPCV0010DryMergeClassifiesCleanGeneratedOnlyAndConflict` |
+| SPC-V0-009 | `Behind`, `countBehind`, `runChangesBehind` | `TestSPCV0009BehindCountsOnlySharedCommits`, `TestSPCV0009BehindRefusesTooLargeRangeBeforeListing`, `TestSPCV0009BehindIsReadOnly`, `TestSPCV0009DryMergeRunsNoRepositoryMergeDriver` |
+| SPC-V0-010 | `mergeConflicts`, `conflictPaths`, `dryMergeOf` | `TestSPCV0010DryMergeClassifiesCleanGeneratedOnlyAndConflict`, `TestSPCV0010DirectoryRenameSplitIsConflict` |
 | SPC-V0-011 | `BehindReport`, `Config.Digest` | `TestSPCV0011BehindReportRecordsBaseHeadCommitsAndDigest` |
 | SPC-V0-012 | `staleFinding`, `runChangesBehind` | `TestSPCV0012StaleFindingNamesTicketOldestCommitAndAge`, `TestSPCV0012ChangesBehindCLI` |

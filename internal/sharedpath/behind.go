@@ -174,11 +174,11 @@ func Behind(ctx context.Context, request BehindRequest) (BehindReport, error) {
 		bc.Subject, bc.CommittedAt, bc.ConflictRisk = m.subject(), bc.committed.UTC().Format(time.RFC3339), len(bc.HeadTouches) > 0
 		r.Behind = append(r.Behind, bc)
 	}
-	conflicts, err := mergeConflicts(g, base, head)
+	merge, err := mergeConflicts(g, base, head)
 	if err != nil {
 		return BehindReport{}, err
 	}
-	r.DryMerge = dryMergeOf(request.Config, conflicts)
+	r.DryMerge = dryMergeOf(request.Config, merge)
 	if f, ok := staleFinding(request, r); ok {
 		r.Findings = append(r.Findings, f)
 	}
@@ -202,10 +202,11 @@ func countBehind(g git, base, head string) (int, error) {
 	return n, nil
 }
 
-// dryMergeOf classifies the conflicted paths as clean, generated-only or conflict (SPC-V0-010).
-func dryMergeOf(c Config, conflicts []string) DryMerge {
+// dryMergeOf classifies the probe as clean, generated-only or conflict; a
+// conflict Git reports without naming a path is a conflict (SPC-V0-010).
+func dryMergeOf(c Config, merge mergeOutcome) DryMerge {
 	d := DryMerge{Result: "clean", Conflicts: []string{}, GeneratedConflicts: []string{}}
-	for _, p := range conflicts {
+	for _, p := range merge.paths {
 		if c.Class(p) == "generated" {
 			d.GeneratedConflicts = append(d.GeneratedConflicts, p)
 		} else {
@@ -215,7 +216,7 @@ func dryMergeOf(c Config, conflicts []string) DryMerge {
 	sort.Strings(d.Conflicts)
 	sort.Strings(d.GeneratedConflicts)
 	switch {
-	case len(d.Conflicts) > 0:
+	case len(d.Conflicts) > 0, merge.conflicted && len(d.GeneratedConflicts) == 0:
 		d.Result = "conflict"
 	case len(d.GeneratedConflicts) > 0:
 		d.Result = "generated-only"

@@ -37,8 +37,14 @@ func (f *fixture) commitWithCommitterDate(msg, committed string, files map[strin
 // repositoryState digests every file under .git by path, mode and content.
 func (f *fixture) repositoryState() map[string]string {
 	f.t.Helper()
+	return treeState(f.t, filepath.Join(f.root, ".git"))
+}
+
+// treeState digests every entry under dir by path, mode, content and mtime.
+func treeState(t *testing.T, dir string) map[string]string {
+	t.Helper()
 	state := map[string]string{}
-	err := filepath.WalkDir(filepath.Join(f.root, ".git"), func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -59,7 +65,7 @@ func (f *fixture) repositoryState() map[string]string {
 		return nil
 	})
 	if err != nil {
-		f.t.Fatal(err)
+		t.Fatal(err)
 	}
 	return state
 }
@@ -152,6 +158,93 @@ func TestSPCV0009BehindIsReadOnly(t *testing.T) {
 			}
 		}
 		t.Fatalf("behind wrote repository state: %d -> %d entries", len(before), len(after))
+	}
+}
+
+// Codex finding 1 on #1097: a repository-configured merge driver for a path
+// both sides change never runs during the dry merge of behind or check-shared,
+// and nothing is written anywhere in the worktree or .git.
+func TestSPCV0009DryMergeRunsNoRepositoryMergeDriver(t *testing.T) {
+	f := newFixture(t)
+	f.commit("base", map[string]string{".gitattributes": "internal/testutil/a.go merge=keep\n", "internal/testutil/a.go": "a\nb\nc\n"})
+	f.git("checkout", "-q", "-b", "feature")
+	f.commit("feat: edit helper", map[string]string{"internal/testutil/a.go": "a\nfeature\nc\n"})
+	f.git("checkout", "-q", "main")
+	f.commit("shared-path: helper", map[string]string{"internal/testutil/a.go": "a\nmain\nc\n"})
+	marker := filepath.Join(t.TempDir(), "driver-ran")
+	f.git("config", "merge.keep.driver", "touch "+marker+" driver-ran-in-cwd; false")
+	// The fixture is effective: Git's own merge-tree runs the driver.
+	plain := exec.Command("git", "-C", f.root, "merge-tree", "--write-tree", "main", "feature")
+	plain.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	_ = plain.Run()
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatalf("fixture driver did not run under plain merge-tree: %v", err)
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(f.root, "driver-ran-in-cwd")); err != nil {
+		t.Fatal(err)
+	}
+	before := treeState(t, f.root)
+	r, err := Behind(context.Background(), BehindRequest{Root: f.root, Base: "main", Head: "feature", Config: testConfig()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.DryMerge.Result != "conflict" || !reflect.DeepEqual(r.DryMerge.Conflicts, []string{"internal/testutil/a.go"}) {
+		t.Fatalf("dry merge: %+v", r.DryMerge)
+	}
+	c, err := Check(context.Background(), CheckRequest{Root: f.root, Base: "main", Head: "feature", Config: testConfig()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.OK {
+		t.Fatalf("check: %+v", c)
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("merge driver ran: %v", err)
+	}
+	if after := treeState(t, f.root); !reflect.DeepEqual(before, after) {
+		for p, d := range after {
+			if before[p] != d {
+				t.Errorf("changed or added: %s", p)
+			}
+		}
+		t.Fatalf("dry merge wrote the checkout: %d -> %d entries", len(before), len(after))
+	}
+}
+
+// Codex finding 2 on #1097: a directory rename split conflicts without an
+// unmerged file entry; Git's conflict status still makes the result conflict.
+func TestSPCV0010DirectoryRenameSplitIsConflict(t *testing.T) {
+	f := newFixture(t)
+	f.commit("base", map[string]string{"z/b": "b\n", "z/c": "c\n"})
+	f.git("checkout", "-q", "-b", "feature")
+	f.commit("feat: add z/d", map[string]string{"z/d": "d\n"})
+	f.git("checkout", "-q", "main")
+	f.commit("main: split z", map[string]string{"z/b": "", "z/c": "", "y/b": "b\n", "w/c": "c\n"})
+	r, err := Behind(context.Background(), BehindRequest{Root: f.root, Base: "main", Head: "feature", Config: testConfig()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.DryMerge.Result != "conflict" || !reflect.DeepEqual(r.DryMerge.Conflicts, []string{"z"}) {
+		t.Fatalf("dry merge: %+v", r.DryMerge)
+	}
+	c, err := Check(context.Background(), CheckRequest{Root: f.root, Base: "main", Head: "feature", Config: testConfig()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.OK || len(c.Findings) == 0 || c.Findings[len(c.Findings)-1].Path != "z" {
+		t.Fatalf("check: %+v", c.Findings)
+	}
+	if d := dryMergeOf(testConfig(), mergeOutcome{conflicted: true}); d.Result != "conflict" {
+		t.Fatalf("pathless conflict: %+v", d)
+	}
+	if paths, ok := conflictPaths([]byte("tree\x00\x001\x00z\x00CONFLICT (x)\x00text\x00")); !ok || !reflect.DeepEqual(paths, []string{"z"}) {
+		t.Fatalf("message paths: %v %v", paths, ok)
+	}
+	if _, ok := conflictPaths([]byte("tree\x00\x002\x00z\x00CONFLICT (x)\x00")); ok {
+		t.Fatal("a truncated message parsed")
 	}
 }
 

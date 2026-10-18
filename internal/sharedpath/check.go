@@ -1,13 +1,13 @@
 package sharedpath
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -64,8 +64,8 @@ const (
 )
 
 // Check reads base..head and reports every shared-path policy finding. It
-// writes nothing: the merge probe uses `git merge-tree --write-tree`, which
-// writes only unreachable objects, never a ref, index or worktree file.
+// writes nothing to the repository: the merge probe runs `git merge-tree
+// --write-tree` in a private temporary repository (mergeConflicts).
 func Check(ctx context.Context, request CheckRequest) (Report, error) {
 	g := git{ctx: ctx, root: request.Root}
 	if request.Head == "" {
@@ -159,11 +159,14 @@ func Check(ctx context.Context, request CheckRequest) (Report, error) {
 // mergeProbe reports conflicts of merging head into base; conflicts
 // confined to configured generated files are recorded as exempt, not findings.
 func mergeProbe(g git, c Config, base, head string, r *Report) error {
-	conflicts, err := mergeConflicts(g, base, head)
+	merge, err := mergeConflicts(g, base, head)
 	if err != nil {
 		return err
 	}
-	for _, p := range conflicts {
+	if merge.conflicted && len(merge.paths) == 0 {
+		r.Findings = append(r.Findings, Finding{Code: "shared-path-merge-conflict", Missing: missingMerge, Detail: "merging head into base conflicts without naming a path"})
+	}
+	for _, p := range merge.paths {
 		if c.Class(p) == "generated" {
 			r.ExemptConflicts = append(r.ExemptConflicts, p)
 			continue
@@ -174,47 +177,117 @@ func mergeProbe(g git, c Config, base, head string, r *Report) error {
 	return nil
 }
 
-// mergeConflicts returns the distinct conflicted paths of merging head into
-// base, in merge-tree order, or none for a clean merge. The objects merge-tree
-// writes go to a private object directory that reads the repository's objects
-// as an alternate and is removed afterwards, so the repository's object store
-// is never written (AGENTS.md invariant 4; SPC-V0-003, SPC-V0-010).
-func mergeConflicts(g git, base, head string) ([]string, error) {
-	objects, err := g.ok("rev-parse", "--path-format=absolute", "--git-path", "objects")
+// mergeOutcome is the merge-tree probe of merging head into base: whether Git
+// reported a conflict (exit status 1) and the distinct paths it named.
+type mergeOutcome struct {
+	conflicted bool
+	paths      []string
+}
+
+// mergeConflicts probes merging head into base, in merge-tree order: the
+// conflicted file entries, then the paths named by CONFLICT messages, so a
+// conflict without an unmerged file entry (a directory rename split) still
+// counts (SPC-V0-010). Merge-tree runs inside a private temporary bare
+// repository that reads the repository's objects as an alternate and is removed
+// afterwards. It has no repository configuration, attributes or worktree, so
+// no custom merge or filter driver runs, nothing is written into the checkout
+// and the repository's object store is never written (AGENTS.md invariant 4;
+// SPC-V0-003, SPC-V0-009).
+func mergeConflicts(g git, base, head string) (mergeOutcome, error) {
+	env, cleanup, err := privateMergeRepository(g)
 	if err != nil {
-		return nil, err
+		return mergeOutcome{}, err
 	}
-	store := strings.TrimSuffix(string(objects), "\n")
-	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") {
-		return nil, errors.New(CodeGitUnavailable)
+	defer cleanup()
+	out, code, err := g.run(nil, env, "merge-tree", "--write-tree", "--name-only", "-z", base, head)
+	if err != nil {
+		return mergeOutcome{}, err
+	}
+	switch code {
+	case 0:
+		return mergeOutcome{}, nil
+	case 1:
+	default:
+		return mergeOutcome{}, errors.New(CodeGitUnavailable)
+	}
+	paths, ok := conflictPaths(out)
+	if !ok {
+		return mergeOutcome{}, errors.New(CodeGitUnavailable)
+	}
+	return mergeOutcome{conflicted: true, paths: paths}, nil
+}
+
+// privateMergeRepository creates a temporary bare repository with the
+// repository's object format, its object store as the only alternate and its
+// shallow file, and returns the environment that points Git at it.
+func privateMergeRepository(g git) ([]string, func(), error) {
+	out, err := g.ok("rev-parse", "--path-format=absolute", "--git-path", "objects", "--git-path", "shallow", "--show-object-format")
+	if err != nil {
+		return nil, nil, err
+	}
+	lines := strings.Split(strings.TrimSuffix(string(out), "\n"), "\n")
+	if len(lines) != 3 {
+		return nil, nil, errors.New(CodeGitUnavailable)
+	}
+	store, shallow, format := lines[0], lines[1], lines[2]
+	if store == "" || !filepath.IsAbs(store) || strings.ContainsAny(store, ":\"\n\r") || !filepath.IsAbs(shallow) {
+		return nil, nil, errors.New(CodeGitUnavailable)
+	}
+	if format != "sha1" && format != "sha256" {
+		return nil, nil, errors.New(CodeGitUnavailable)
 	}
 	scratch, err := os.MkdirTemp("", "corvint-shared-merge-")
 	if err != nil {
-		return nil, errors.New(CodeGitUnavailable)
+		return nil, nil, errors.New(CodeGitUnavailable)
 	}
-	defer os.RemoveAll(scratch)
-	env := []string{"GIT_OBJECT_DIRECTORY=" + scratch, "GIT_ALTERNATE_OBJECT_DIRECTORIES=" + store}
-	out, code, err := g.run(nil, env, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", base, head)
-	if err != nil {
-		return nil, err
+	cleanup := func() { _ = os.RemoveAll(scratch) }
+	repository := filepath.Join(scratch, "repository.git")
+	if _, err := g.ok("init", "--quiet", "--bare", "--template=", "--object-format="+format, repository); err != nil {
+		cleanup()
+		return nil, nil, err
 	}
-	if code == 0 {
-		return nil, nil
+	env := []string{"GIT_DIR=" + repository, "GIT_ALTERNATE_OBJECT_DIRECTORIES=" + store}
+	if info, err := os.Lstat(shallow); err == nil && info.Mode().IsRegular() {
+		env = append(env, "GIT_SHALLOW_FILE="+shallow)
 	}
-	if code != 1 {
-		return nil, errors.New(CodeGitUnavailable)
+	return env, cleanup, nil
+}
+
+// conflictPaths parses `merge-tree --write-tree --name-only -z` output: the
+// tree, the conflicted file entries, an empty field, then messages of a path
+// count, that many paths, a type and a text. It returns the distinct file
+// entries and the paths of messages whose type starts with CONFLICT.
+func conflictPaths(out []byte) ([]string, bool) {
+	fields := strings.Split(string(out), "\x00")
+	if len(fields) < 2 || fields[len(fields)-1] != "" {
+		return nil, false
 	}
-	var conflicts []string
+	fields = fields[1 : len(fields)-1]
+	paths := []string{}
 	seen := map[string]bool{}
-	for _, f := range bytes.Split(out, []byte{0})[1:] {
-		p := string(f)
-		if p == "" || seen[p] {
-			continue
+	add := func(p string) {
+		if p != "" && !seen[p] {
+			seen[p] = true
+			paths = append(paths, p)
 		}
-		seen[p] = true
-		conflicts = append(conflicts, p)
 	}
-	return conflicts, nil
+	i := 0
+	for ; i < len(fields) && fields[i] != ""; i++ {
+		add(fields[i])
+	}
+	for i++; i < len(fields); {
+		n, err := strconv.Atoi(fields[i])
+		if err != nil || n < 0 || n > len(fields)-i-3 {
+			return nil, false
+		}
+		if strings.HasPrefix(fields[i+n+1], "CONFLICT") {
+			for _, p := range fields[i+1 : i+n+1] {
+				add(p)
+			}
+		}
+		i += n + 3
+	}
+	return paths, true
 }
 
 func readNotes(file string) ([]byte, error) {
