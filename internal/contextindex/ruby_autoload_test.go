@@ -3,6 +3,7 @@ package contextindex
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -19,6 +20,8 @@ func rubyAutoloadIssueFiles() map[string]string {
 		"spec/models/thing_spec.rb":                 "RSpec.describe Thing do\n  it { expect(Thing.new).to be_valid }\nend\n",
 		"web/util.js":                               "export const util = 1;\n",
 		"web/util.test.js":                          "import { util } from './util';\n",
+		"web/types.ts":                              "export type Shape = { id: number };\n",
+		"web/types.test.ts":                         "import type { Shape } from './types';\nexport const shape: Shape = { id: 1 };\n",
 	}
 }
 
@@ -78,6 +81,30 @@ func TestRubyAutoloadNamedConstantReverseReference(t *testing.T) {
 	importConfidence := mapsFromAny(importRow["evidence"])[0]["confidence"]
 	if importRow["score"].(int) <= rubyConstantReferenceScore || importConfidence != "high" {
 		t.Fatalf("import %v/%v must outrank the constant reference", importRow["score"], importConfidence)
+	}
+	// A type-only test import (the weakest import, 550) still outranks every
+	// named-constant reference, so a mixed request under a result limit keeps
+	// the import before any convention reference.
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mixed, err := ImpactSyntax(index, []string{"app/models/thing.rb", "web/types.ts"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	order := map[string]int{}
+	for position, item := range mapsFromAny(mixed["results"]) {
+		order[stringValue(item["id"])] = position
+	}
+	typeOnly := rubyResultRows(mixed)["web/types.test.ts"]
+	if typeOnly == nil || typeOnly["kind"] != "reverse-import" || typeOnly["score"] != 550 {
+		t.Fatalf("type-only test import row = %#v", typeOnly)
+	}
+	if typeOnly["score"].(int) <= rubyConstantReferenceScore ||
+		order["web/types.test.ts"] > order["app/controllers/things_controller.rb"] ||
+		order["web/types.test.ts"] > order["spec/models/thing_spec.rb"] {
+		t.Fatalf("a type-only import must rank above every constant reference: %v", order)
 	}
 	report, _ := receipt["ruby_autoload"].(map[string]any)
 	if report == nil || report["roots_source"] != "default" ||
@@ -206,6 +233,7 @@ func TestRubyAutoloadDeclaration(t *testing.T) {
 	for name, body := range map[string]string{
 		"unknown member": `{"schema": "ruby-autoload/0", "roots": ["src"], "collapse": []}`,
 		"escaping root":  `{"schema": "ruby-autoload/0", "roots": ["../src"]}`,
+		"parent root":    `{"schema": "ruby-autoload/0", "roots": ["..", "src"]}`,
 		"bad constant":   `{"schema": "ruby-autoload/0", "roots": ["src"], "inflections": {"oauth": "o-auth"}}`,
 		"duplicate":      `{"schema": "ruby-autoload/0", "schema": "ruby-autoload/0", "roots": ["src"]}`,
 	} {
@@ -305,5 +333,94 @@ func TestRubyAutoloadConstantMapping(t *testing.T) {
 	if !rubyEndlessDef("def label = name", 3) || !rubyEndlessDef("def self.x(a) = a", 3) || rubyEndlessDef("def x=(v)", 3) ||
 		rubyEndlessDef("def ==(other)", 3) || rubyEndlessDef("def run", 3) {
 		t.Fatal("endless def detection")
+	}
+}
+
+// TestRubyAutoloadNestingBound: NGI-V0-018. Every block, not only a
+// `module`/`class`, counts against the nesting bound, so a file nesting past
+// it is resolved as unbalanced (never fewer references) in linear time.
+func TestRubyAutoloadNestingBound(t *testing.T) {
+	nested := func(depth int, body string) string {
+		return "module Jobs\n" + strings.Repeat("begin\n", depth) + body + strings.Repeat("end\n", depth) + "end\nTail.new\n"
+	}
+	within := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth-1, "Thing.new\n"))}, map[string]bool{})
+	if !within.balanced {
+		t.Fatal("nesting at the bound must stay balanced")
+	}
+	past := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth, "Thing.new\n"))}, map[string]bool{})
+	if past.balanced {
+		t.Fatal("begin blocks past the nesting bound must mark the file unbalanced")
+	}
+	for _, source := range []*rubyConstantSource{within, past} {
+		names := map[string][]string{}
+		for _, reference := range source.references {
+			names[reference.name] = reference.stack
+		}
+		if !reflect.DeepEqual(names["Thing"], []string{"Jobs"}) || !reflect.DeepEqual(names["Tail"], []string{}) {
+			t.Fatalf("lexical stacks after deep nesting = %#v", names)
+		}
+	}
+	// A deep file (well inside the source-size bound) scans in linear time
+	// and, resolved as unbalanced, still reports its reference.
+	files := map[string]string{
+		"app/models/thing.rb": "class Thing\nend\n",
+		"app/jobs/deep.rb":    nested(60000, "Thing.new\n"),
+	}
+	if _, ok := rubyResultRows(registryImpact(t, files, "app/models/thing.rb"))["app/jobs/deep.rb"]; !ok {
+		t.Fatal("a file nesting past the bound must still report its reference")
+	}
+}
+
+// TestRubyAutoloadQualifiedClassInNamespace: NGI-V0-018. `class A::B` inside
+// `module N` reopens N::A::B only when N::A exists; otherwise it reopens the
+// top-level A::B, and its body resolves in that class and then in N.
+func TestRubyAutoloadQualifiedClassInNamespace(t *testing.T) {
+	files := map[string]string{
+		"app/services/billing/invoice.rb":      "module Billing\n  class Invoice\n  end\nend\n",
+		"app/services/billing/invoice/line.rb": "module Billing\n  class Invoice\n    class Line\n    end\n  end\nend\n",
+		"app/patches/admin_invoice.rb":         "module Admin\n  class Billing::Invoice\n    def extra\n      Line.new\n    end\n  end\nend\n",
+	}
+	receipt := registryImpact(t, files, "app/services/billing/invoice.rb")
+	row, ok := rubyResultRows(receipt)["app/patches/admin_invoice.rb"]
+	if !ok || row["kind"] != "reference" || mapsFromAny(row["evidence"])[0]["line"] != 2 {
+		t.Fatalf("reopening ::Billing::Invoice from module Admin must be a reference: %#v", receipt["results"])
+	}
+	if _, ok := rubyResultRows(registryImpact(t, files, "app/services/billing/invoice/line.rb"))["app/patches/admin_invoice.rb"]; !ok {
+		t.Fatal("Line inside the reopened Billing::Invoice resolves to Billing::Invoice::Line")
+	}
+	files["app/models/admin/billing.rb"] = "module Admin\n  module Billing\n  end\nend\n"
+	shadowed := rubyResultRows(registryImpact(t, files, "app/services/billing/invoice.rb"))
+	if _, wrong := shadowed["app/patches/admin_invoice.rb"]; wrong {
+		t.Fatal("with Admin::Billing present, class Billing::Invoice opens Admin::Billing::Invoice")
+	}
+}
+
+// TestRubyAutoloadLocalConstantShadows: NGI-V0-018. A constant the file
+// assigns in a namespace shadows an autoloaded constant of the same name
+// there, and the assignment is not itself a reference.
+func TestRubyAutoloadLocalConstantShadows(t *testing.T) {
+	files := map[string]string{
+		"app/models/thing.rb":   "class Thing\nend\n",
+		"app/jobs/shadow.rb":    "module Jobs\n  Thing = Struct.new(:id)\n  def self.run\n    Thing.new\n  end\nend\n",
+		"app/jobs/plain.rb":     "module Jobs\n  def self.run\n    Thing.new\n  end\nend\n",
+		"app/jobs/top_level.rb": "Thing = Struct.new(:id)\n",
+	}
+	rows := rubyResultRows(registryImpact(t, files, "app/models/thing.rb"))
+	for _, absent := range []string{"app/jobs/shadow.rb", "app/jobs/top_level.rb"} {
+		if _, wrong := rows[absent]; wrong {
+			t.Fatalf("%s must not reference the autoloaded ::Thing", absent)
+		}
+	}
+	if _, ok := rows["app/jobs/plain.rb"]; !ok {
+		t.Fatal("an unshadowed Thing in module Jobs still resolves to ::Thing")
+	}
+	source := scanRubyConstantSource(Source{Data: []byte(files["app/jobs/shadow.rb"])}, map[string]bool{"Thing": true})
+	for _, reference := range source.references {
+		if reference.name == "Thing" && reference.line == 2 {
+			t.Fatal("a constant assignment must not be collected as a reference")
+		}
+	}
+	if !source.local["Jobs::Thing"] {
+		t.Fatalf("local definitions = %v", source.local)
 	}
 }

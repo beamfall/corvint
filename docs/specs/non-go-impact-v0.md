@@ -194,7 +194,8 @@ impact of a changed `.rb` path; the historical default receipt and range impact 
   holding Ruby source except `assets`, `javascript` and `views`, each `app/<dir>/concerns`,
   and `lib`, with `lib/assets` and `lib/tasks` ignored. The declaration is one strict JSON
   object `{"schema":"ruby-autoload/0","roots":[...],"inflections":{word:Constant}}` of at most
-  64 KiB, 1 to 64 distinct clean relative roots outside `.git`, and at most 256 inflections
+  64 KiB, 1 to 64 distinct clean relative roots inside the repository (never `.`, `..` or a
+  `../` path) and outside `.git`, and at most 256 inflections
   with `word` matching `[a-z0-9_]{1,64}` and `Constant` matching `[A-Z][A-Za-z0-9_]{0,63}`;
   declared roots replace the defaults and ignore nothing. An unreadable, excluded, unknown-member,
   duplicate-key, trailing-document or otherwise invalid declaration maps no path and carries
@@ -208,17 +209,29 @@ impact of a changed `.rb` path; the historical default receipt and range impact 
 - `NGI-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a
   mapped changed path naming constant C, every other indexed Ruby source with a constant
   reference resolving to C or a constant nested in C MUST be one result: kind `reference`
-  score 575, or kind `test` score 525 for a test path (the shared test rule, a `spec/`
+  score 525, or kind `test` score 500 for a test path (the shared test rule, a `spec/`
   directory or a `_spec.rb` name), each strictly below every direct and type-only import
-  score. Its summary names C and the autoload convention; at most 10 evidence rows each bind
+  score (the weakest, a type-only test import, is 550). Its summary names C and the autoload
+  convention; at most 10 evidence rows each bind
   the referencing line and blob with confidence `medium` and authority `syntax`. References
   are read from the lexically masked source (no comment, string or heredoc text), fully
   qualified (`::A::B`) or relative (`B`, `A::B`), excluding labels and method calls `Name(`.
+  A single-segment unrooted `Name = value` (not `==`, `=~` or `=>`) is a local definition of
+  Name in the innermost enclosing namespace, never a reference; every `class`/`module` the
+  file opens is also a local definition, and each local definition's namespace prefixes exist.
   A relative reference resolves to the innermost enclosing `module`/`class` namespace N for
-  which N::first-segment is a mapped constant or its namespace prefix, else to itself; the name
-  after a `class` or `module` keyword resolves inside its enclosing namespace; a superclass resolves in the
-  scope outside its class. A file whose block openers and `end`s do not balance resolves each
-  relative reference to itself and under every namespace it opens, never fewer.
+  which N::first-segment is a mapped constant, a local definition, or a namespace prefix of
+  either, else to itself, so a local definition shadows an autoloaded constant of the same
+  name. A simple name after a `class` or `module` keyword is defined inside its enclosing
+  namespace; a qualified `A::B` reopens B inside the A that lexical lookup finds from the
+  enclosing namespace (the innermost N with N::A mapped or locally defined so far, else the
+  top-level A), and the body's enclosing namespaces are that constant then the outer ones. A
+  superclass resolves in the scope outside its class. Every block opener (`module`, `class`,
+  `class << self`, `def` with a body, `begin`, `case`, statement `if`/`unless`/`while`/`until`/`for`,
+  and `do`) counts toward a nesting bound of 256 open blocks; scanning stays linear in the
+  source size. A file whose block openers and `end`s do not balance, or that nests past the
+  bound, resolves each relative reference to itself and under every namespace it opens, never
+  fewer.
 - `NGI-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674)
   Metaprogrammed names MUST stay unknown, never become a reference: other Ruby sources'
   `constantize`, `safe_constantize`, `const_get`, `send`, `public_send` and `__send__` words
@@ -301,8 +314,8 @@ and a validated declared identifier, never source text.
 | `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 | `NGI-V0-016` | `rubyAutoload.constantFor`, `camelize` (`internal/contextindex/ruby_autoload.go`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadNamedConstantReverseReference` |
-| `NGI-V0-017` | `loadRubyAutoload`, `readRubyAutoloadDeclaration`, `defaultRubyAutoloadRoots`, `readConfiguredInflections` | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
-| `NGI-V0-018` | `scanRubyConstantSource`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown` |
+| `NGI-V0-017` | `loadRubyAutoload`, `readRubyAutoloadDeclaration`, `validRubyAutoloadDeclaration`, `defaultRubyAutoloadRoots`, `readConfiguredInflections` | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
+| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows` |
 | `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultReceiptUnchanged`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |

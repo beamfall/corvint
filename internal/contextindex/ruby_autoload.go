@@ -36,8 +36,8 @@ const (
 	// Named-constant reverse references rank below every direct import
 	// (700 code, 650 test) and every type-only import (600, 550): they are
 	// a convention, not a load statement the file carries (NGI-V0-018).
-	rubyConstantReferenceScore = 575
-	rubyConstantTestScore      = 525
+	rubyConstantReferenceScore = 525
+	rubyConstantTestScore      = 500
 )
 
 var (
@@ -69,16 +69,18 @@ type rubyInflection struct {
 }
 
 type rubyReference struct {
-	line    int
-	name    string   // as written, without a leading `::`
-	stack   []string // lexical namespaces, outermost first
-	rooted  bool     // written with a leading `::`
-	defined bool     // the name of a `class`/`module` keyword
+	line     int
+	name     string   // as written, without a leading `::`
+	stack    []string // lexical namespaces, outermost first
+	rooted   bool     // written with a leading `::`
+	defined  bool     // the name of a `class`/`module` keyword
+	constant string   // the constant a defined name opens, resolved when scanned
 }
 
 type rubyConstantSource struct {
 	references []rubyReference
-	namespaces []string // every namespace the file opens
+	namespaces []string        // every namespace the file opens
+	local      map[string]bool // every constant the file defines, with its prefixes
 	balanced   bool
 	lookups    int
 	literals   []rubyLiteralName
@@ -160,7 +162,7 @@ func loadRubyAutoload(index *Index) *rubyAutoload {
 		}
 	}
 	for _, name := range autoload.paths {
-		autoload.sources[name] = scanRubyConstantSource(index.Sources[name])
+		autoload.sources[name] = scanRubyConstantSource(index.Sources[name], autoload.known)
 	}
 	return autoload
 }
@@ -196,7 +198,7 @@ func validRubyAutoloadDeclaration(declaration rubyAutoloadDeclaration) bool {
 	seen := map[string]bool{}
 	for _, root := range declaration.Roots {
 		first, _, _ := strings.Cut(root, "/")
-		if root == "" || root == "." || path.Clean(root) != root || path.IsAbs(root) || strings.HasPrefix(root, "../") ||
+		if root == "" || root == "." || root == ".." || path.Clean(root) != root || path.IsAbs(root) || strings.HasPrefix(root, "../") ||
 			strings.Contains(root, "\\") || strings.EqualFold(first, ".git") || seen[root] {
 			return false
 		}
@@ -392,33 +394,43 @@ func rubyTestPath(name string) bool {
 // scanRubyConstantSource indexes one source's constant references with the
 // lexical namespaces enclosing each. Blocks opened by keywords that need an
 // `end` are tracked so a namespace closes with its `end`; a file whose
-// openers and `end`s do not balance is marked, and its references are then
-// resolved against every namespace it opens, never fewer.
-func scanRubyConstantSource(source Source) *rubyConstantSource {
-	result := &rubyConstantSource{balanced: true}
+// openers and `end`s do not balance, or that nests deeper than
+// maxRubyNestingDepth blocks, is marked, and its references are then resolved
+// against every namespace it opens, never fewer. known holds the mapped
+// constants and their namespace prefixes; together with the constants this
+// file defines it resolves the owner of a qualified `class A::B` name.
+func scanRubyConstantSource(source Source, known map[string]bool) *rubyConstantSource {
+	result := &rubyConstantSource{balanced: true, local: map[string]bool{}}
 	text, valid, loaded := source.Text()
 	if !valid || !loaded {
 		return result
 	}
 	result.readable = true
-	type frame struct{ namespace string }
-	stack := []frame{}
+	// frames holds one entry per open block, true when it opened a namespace;
+	// lexical holds the open namespaces, outermost first. Every push and pop
+	// is O(1): the innermost namespace is the top of lexical, and a block past
+	// the nesting bound is only counted in overflow.
+	frames := make([]bool, 0, 16)
+	lexical := []string{}
+	overflow := 0
+	snapshot, fresh := []string{}, true
 	namespaces := func() []string {
-		out := []string{}
-		for _, item := range stack {
-			if item.namespace != "" && (len(out) == 0 || out[len(out)-1] != item.namespace) {
-				out = append(out, item.namespace)
-			}
+		if !fresh {
+			snapshot, fresh = append([]string{}, lexical...), true
 		}
-		return out
+		return snapshot
 	}
-	innermost := func() string {
-		for i := len(stack) - 1; i >= 0; i-- {
-			if stack[i].namespace != "" {
-				return stack[i].namespace
-			}
+	push := func(namespace string) bool {
+		if len(frames) >= maxRubyNestingDepth {
+			overflow++
+			result.balanced = false
+			return false
 		}
-		return ""
+		frames = append(frames, namespace != "")
+		if namespace != "" {
+			lexical, fresh = append(lexical, namespace), false
+		}
+		return true
 	}
 	opened := map[string]bool{}
 	raw := strings.Split(text, "\n")
@@ -452,15 +464,16 @@ func scanRubyConstantSource(source Source) *rubyConstantSource {
 					name, end := rubyReferenceAt(code, cursor)
 					if name == "" {
 						// `class << self` opens a block with no namespace.
-						stack = append(stack, frame{innermost()})
+						push("")
 						i = after - 1
 						continue
 					}
 					full := name
-					if outer := innermost(); outer != "" && !rooted {
-						full = outer + "::" + name
+					if !rooted {
+						full = rubyDefinedConstant(name, lexical, known, result.local)
 					}
-					result.references = append(result.references, rubyReference{line, name, namespaces(), rooted, true})
+					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(),
+						rooted: rooted, defined: true, constant: full})
 					// A superclass is resolved in the enclosing scope.
 					next, _ := rubySkipSpaces(code, end)
 					if word == "class" && next < len(code) && code[next] == '<' && !strings.HasPrefix(code[next:], "<<") {
@@ -470,40 +483,43 @@ func scanRubyConstantSource(source Source) *rubyConstantSource {
 							superStart += 2
 						}
 						if superName, superEnd := rubyReferenceAt(code, superStart); superName != "" {
-							result.references = append(result.references, rubyReference{line, superName, namespaces(), superRooted, false})
+							result.references = append(result.references, rubyReference{line: line, name: superName, stack: namespaces(), rooted: superRooted})
 							end = superEnd
 						}
 					}
-					if len(stack) < maxRubyNestingDepth {
-						stack = append(stack, frame{full})
-					} else {
-						result.balanced = false
-					}
+					push(full)
 					opened[full] = true
+					result.define(full)
 					i = end - 1
 					continue
 				case "def":
 					if !rubyEndlessDef(code, after) {
-						stack = append(stack, frame{innermost()})
+						push("")
 					}
 				case "begin", "case":
-					stack = append(stack, frame{innermost()})
+					push("")
 				case "if", "unless", "while", "until", "for":
 					if rubyStatementStart(code, i) {
-						stack = append(stack, frame{innermost()})
+						push("")
 						loopHeader = loopHeader || word == "while" || word == "until" || word == "for"
 					}
 				case "do":
 					if loopHeader {
 						loopHeader = false
 					} else {
-						stack = append(stack, frame{innermost()})
+						push("")
 					}
 				case "end":
-					if len(stack) == 0 {
+					switch {
+					case overflow != 0:
+						overflow--
+					case len(frames) == 0:
 						result.balanced = false
-					} else {
-						stack = stack[:len(stack)-1]
+					default:
+						if frames[len(frames)-1] {
+							lexical, fresh = lexical[:len(lexical)-1], false
+						}
+						frames = frames[:len(frames)-1]
 					}
 				}
 				i = after - 1
@@ -512,18 +528,74 @@ func scanRubyConstantSource(source Source) *rubyConstantSource {
 			if rubyUpperByte(c) && rubyConstantStart(code, i) {
 				rooted := i >= 2 && code[i-1] == ':' && code[i-2] == ':'
 				name, end := rubyReferenceAt(code, i)
-				if name != "" && !rubyLabelOrCall(code, end) {
-					result.references = append(result.references, rubyReference{line, name, namespaces(), rooted, false})
+				switch {
+				case name == "" || rubyLabelOrCall(code, end):
+				case !rooted && !strings.Contains(name, "::") && rubyAssignsConstant(code, end):
+					// `Thing = ...` defines a constant in the innermost
+					// namespace; it is not a reference to an autoloaded one.
+					if outer := rubyInnermost(lexical); outer != "" {
+						result.define(outer + "::" + name)
+					} else {
+						result.define(name)
+					}
+				default:
+					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(), rooted: rooted})
 				}
 				i = end - 1
 			}
 		}
 	}
-	if len(stack) != 0 {
+	if len(frames) != 0 || overflow != 0 {
 		result.balanced = false
 	}
 	result.namespaces = sortedRubySet(opened)
 	return result
+}
+
+func rubyInnermost(lexical []string) string {
+	if len(lexical) == 0 {
+		return ""
+	}
+	return lexical[len(lexical)-1]
+}
+
+// define records a constant this file defines, with its namespace prefixes.
+func (source *rubyConstantSource) define(constant string) {
+	for prefix := constant; prefix != ""; {
+		source.local[prefix] = true
+		cut := strings.LastIndex(prefix, "::")
+		if cut < 0 {
+			break
+		}
+		prefix = prefix[:cut]
+	}
+}
+
+// rubyDefinedConstant is the constant a relative `class`/`module` name
+// defines: a simple name is defined in the innermost namespace; a qualified
+// `A::B` reopens B inside the constant A names by lexical lookup, the
+// innermost enclosing namespace N for which N::A exists, else the top-level A.
+func rubyDefinedConstant(name string, lexical []string, known, local map[string]bool) string {
+	first, _, qualified := strings.Cut(name, "::")
+	if !qualified {
+		if outer := rubyInnermost(lexical); outer != "" {
+			return outer + "::" + name
+		}
+		return name
+	}
+	for i := len(lexical) - 1; i >= 0; i-- {
+		if candidate := lexical[i] + "::" + first; known[candidate] || local[candidate] {
+			return lexical[i] + "::" + name
+		}
+	}
+	return name
+}
+
+// rubyAssignsConstant reports `Name = value`, never `==`, `=~` or `=>`.
+func rubyAssignsConstant(code string, end int) bool {
+	cursor, _ := rubySkipSpaces(code, end)
+	return cursor < len(code) && code[cursor] == '=' &&
+		(cursor+1 >= len(code) || (code[cursor+1] != '=' && code[cursor+1] != '~' && code[cursor+1] != '>'))
 }
 
 // rubyConstantStart excludes a constant that is the tail of a word, a method
@@ -633,25 +705,24 @@ func rubyEndlessDef(code string, index int) bool {
 
 // resolutions are the constants a reference may name: Ruby's lexical lookup
 // tries each enclosing namespace from the innermost, then the top level, and
-// takes the first that exists. An unbalanced file is resolved against every
-// namespace it opens. A `class`/`module` name defines a constant in the
-// innermost namespace, which reopening an autoloaded constant first loads.
+// takes the first that exists, whether mapped by path or defined in the file
+// itself (a local definition shadows an autoloaded constant). An unbalanced
+// file is resolved against every namespace it opens. A `class`/`module` name
+// resolves to the constant it opens, which reopening an autoloaded constant
+// first loads.
 func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference rubyReference) []string {
 	if reference.rooted {
 		return []string{reference.name}
 	}
-	stack := reference.stack
-	if reference.defined {
-		if len(stack) == 0 {
-			return []string{reference.name}
-		}
-		if source.balanced {
-			return []string{stack[len(stack)-1] + "::" + reference.name}
-		}
+	if reference.defined && source.balanced {
+		return []string{reference.constant}
 	}
 	first, _, _ := strings.Cut(reference.name, "::")
 	if !source.balanced {
 		out := []string{reference.name}
+		if reference.defined {
+			out = append(out, reference.constant)
+		}
 		for _, namespace := range source.namespaces {
 			if autoload.known[namespace+"::"+first] {
 				out = append(out, namespace+"::"+reference.name)
@@ -659,8 +730,9 @@ func (autoload *rubyAutoload) resolutions(source *rubyConstantSource, reference 
 		}
 		return out
 	}
+	stack := reference.stack
 	for i := len(stack) - 1; i >= 0; i-- {
-		if autoload.known[stack[i]+"::"+first] {
+		if candidate := stack[i] + "::" + first; autoload.known[candidate] || source.local[candidate] {
 			return []string{stack[i] + "::" + reference.name}
 		}
 	}

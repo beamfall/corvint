@@ -27,7 +27,7 @@ IDs were checked against origin/main (highest `NGI-V0-015`) and open PRs #1081, 
   stack of `module`/`class` and other `end`-closed blocks, so `Invoice` inside `module Billing`
   resolves to `Billing::Invoice` only when that constant is mapped. An unbalanced file widens
   (resolves under every namespace it opens) rather than dropping a reference.
-- A referencing file is one result of kind `reference` (575) or `test` (525), strictly below
+- A referencing file is one result of kind `reference` (525) or `test` (500), strictly below
   every import score (direct 700/650, type-only 600/550), evidence confidence `medium`,
   authority `syntax`. `constantize`, `const_get`, `send` and friends, constant-shaped strings
   and association symbols are counted unknowns, never references.
@@ -46,24 +46,48 @@ IDs were checked against origin/main (highest `NGI-V0-015`) and open PRs #1081, 
 Fixture: a fresh Git repository with `app/models/thing.rb` (`class Thing`),
 `app/controllers/things_controller.rb` (`Thing.find`), `app/controllers/api/things_controller.rb`
 (`module API`, `::Thing.all`, `"Thing".constantize`), `config/initializers/inflections.rb`
-(`inflect.acronym "API"`) and `spec/models/thing_spec.rb`; no `require`. Binary built from this
+(`inflect.acronym "API"`), `spec/models/thing_spec.rb` and `app/jobs/shadow_job.rb`
+(`module Jobs`, `Thing = Struct.new(:id)`, `Thing.new`); no `require`. Binary built from this
 branch; `corvint index`, then `corvint impact --language-profile non-go-syntax-v0
 app/models/thing.rb` (rc 0). Results (kind, id, score, first evidence line/confidence/authority):
 
 ```text
 path      app/models/thing.rb                       1000  1 authoritative git-tree
-reference app/controllers/api/things_controller.rb   575  4 medium syntax
-reference app/controllers/things_controller.rb       575  3 medium syntax
-test      spec/models/thing_spec.rb                  525  1 medium syntax
+reference app/controllers/api/things_controller.rb   525  4 medium syntax
+reference app/controllers/things_controller.rb       525  3 medium syntax
+test      spec/models/thing_spec.rb                  500  1 medium syntax
 ```
 
 `ruby_autoload`: `{"ignored":["lib/assets","lib/tasks"],"inflections":[{"constant":"API",
 "kind":"acronym","line":2,"path":"config/initializers/inflections.rb","word":"api"}],
-"roots":["app/controllers","app/models"],"roots_source":"default"}`. Unknowns:
+"roots":["app/controllers","app/jobs","app/models"],"roots_source":"default"}`. The
+shadowing `app/jobs/shadow_job.rb` is not a result. Unknowns:
 `dynamic-dispatch-unresolved` 1, `reverse-import-rule-unavailable` 1,
 `ruby-constant-lookup-dynamic` 1, `ruby-constant-name-literal` 1. A repeat run was
 byte-identical (`cmp`). The default `corvint impact app/models/thing.rb` receipt returned only
 the path row and no `ruby_autoload` member.
+
+## Review fixes (Codex round on PR #1088)
+
+One independent Codex review of `584dbc615` raised five findings, all fixed in
+`ruby_autoload.go` with a regression test each and `NGI-V0-017`/`NGI-V0-018` reworded:
+
+- P1: `begin`, `def`, `do` and conditional blocks bypassed the 256-block nesting bound and
+  `innermost()` rescanned the stack, so 80,000 nested `begin`s cost billions of steps. Every
+  push now checks the bound (overflow is counted and marks the file unbalanced, which widens),
+  and the innermost namespace is the top of a separate lexical stack (O(1));
+  `TestRubyAutoloadNestingBound`.
+- P2: `class Billing::Invoice` inside `module Admin` reopens `::Billing::Invoice` unless
+  `Admin::Billing` exists; the owner is now found by lexical lookup when scanned and carried on
+  the definition; `TestRubyAutoloadQualifiedClassInNamespace`.
+- P2: a local `Thing = ...` was collected as a reference and did not shadow `::Thing`. It is
+  now a local definition that lexical lookup consults; `TestRubyAutoloadLocalConstantShadows`.
+- P2: score 575 outranked a type-only test import (550). Scores are now 525/500, and the
+  ranking test orders a mixed Ruby/TypeScript request.
+- P2: a `..` root passed validation; it is now invalid like `../x`.
+
+The analyzer audit digest (`IDX-SNAP-V0-017`) is repinned; `corvint-analyzer/122` is
+unreleased and stays the schema. The CLI output above was re-run on the fixed binary.
 
 ## Limits
 
