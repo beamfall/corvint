@@ -1159,7 +1159,8 @@ Arguments:
 
 Language capabilities (syntax evidence, never complete runtime impact):
   Go          .go                         path/range; package imports (path).
-  Ruby        .rb                         path/range; markers; imports unknown.
+  Ruby        .rb                         path/range; markers; imports unknown;
+                                          autoload constant references (path, profile).
   JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
   TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
