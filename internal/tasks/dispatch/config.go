@@ -600,7 +600,7 @@ func (h Heal) ExitRecoveryOn() bool { return h.Handoff && (h.ExitRecovery == nil
 // Placeholders are the only substitutions in argv, env and prompts.
 // {operatorNote} renders untrusted operator prose, so only a role prompt may
 // use it (ON-V0-011).
-var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{effort}", "{nextStage}", "{operatorNote}", "{detachedRun}"}
+var Placeholders = []string{"{program}", "{role}", "{slot}", "{worker}", "{holder}", "{ticket}", "{ticketLocal}", "{state}", "{pool}", "{member}", "{workRoot}", "{prompt}", "{model}", "{effort}", "{nextStage}", "{operatorNote}", "{detachedRun}", "{contextHookSettings}"}
 
 // operatorNotePlaceholder is refused in host argv, env and activity paths.
 const operatorNotePlaceholder = "{operatorNote}"
@@ -850,6 +850,9 @@ func (c *Config) validate() error {
 		}
 		if err := r.validateContext(c.Heal); err != nil {
 			return fail("role %s %v", r.Name, err)
+		}
+		if hostUsesContextHook(c.Hosts[r.Host]) && r.UsageFormat != "claude-code" {
+			return fail("role %s runs on host %q, which uses {contextHookSettings}, so it needs usageFormat claude-code", r.Name, r.Host)
 		}
 		if s := r.ShortSessions; s != nil {
 			if err := s.validate(); err != nil {
