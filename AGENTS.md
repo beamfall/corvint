@@ -111,6 +111,14 @@ GOTOOLCHAIN=local go vet ./...
 a performance budget (decision 0082). Go's 600s default is too tight to use here, because
 `cmd/corvint` alone takes roughly 591s on an otherwise quiet host and panics under any load.
 
+Before each push, run the local twin of the CI Windows vet step (AFP-V0-054), which type-checks
+test files for `GOOS=windows` as CI does. Run `make windows-vet` only when the change touches a
+`.go`, `go.mod` or `go.sum` file.
+
+```sh
+make windows-vet
+```
+
 ## Agent routing
 
 Use the matching row in `docs/AGENT-ROUTES.md` for a bounded route from question to original evidence.
