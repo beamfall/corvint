@@ -145,21 +145,29 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   contains a one-shot Playwright UI-state read (`isVisible`, `isHidden`, `isEnabled`, `isDisabled`,
   `isChecked`, `isEditable`, `count`, `textContent`, `innerText`, `allTextContents`,
   `allInnerTexts`, `inputValue` or `getAttribute` called as a member) either directly or returned
-  through a helper resolved under `TSA-V0-030`, a returned local `const`/`let`/`var` included. The
-  message MUST name the read, its location, the helper chain and the web-first matcher that retries
-  it. It MUST NOT fire on web-first matchers over a locator (`await expect(locator).toBeVisible()`,
-  `toHaveCount`), on `expect.poll`, inside an `expect(...).toPass()` callback, or on a subject
-  without `await`. Helper following is bounded at `MaxHelperDepth` = 3 hops: the helper the
-  assertion calls is hop 1.
+  through a helper resolved under `TSA-V0-030`. A returned local `const`/`let`/`var` is followed,
+  with or without a type annotation, and a returned expression is read through enclosing
+  parentheses and `await`. A `return` inside a function nested in a helper is not that helper's
+  return. A standalone call whose name matches a read (`isVisible(page)`) is a helper call, not a
+  read. The message MUST name the read, its location, the helper chain and the web-first matcher
+  that retries it. The finding anchors on the `expect` line and spans the whole assertion, so a
+  change on any of its lines is in the changed-line scope. It MUST NOT fire on web-first matchers
+  over a locator (`await expect(locator).toBeVisible()`, `toHaveCount`), on `expect.poll`, inside an
+  `expect(...).toPass()` callback, or on a subject without `await`. Helper following is bounded at
+  `MaxHelperDepth` = 3 hops: the helper the assertion calls is hop 1 (amended 2026-10-18 after the
+  PR #1119 review).
 - `TSA-V0-030`: (standing auto-accept, 2026-10-11; V1-1769) A helper MUST resolve by name to
   function declarations, class or object methods and arrow-function or function-expression
   properties and variables in the asserting file and in the modules it imports through relative
   specifiers (`./`, `../`; a `.js` specifier also names the `.ts`/`.tsx` file, and a directory its
   `index` module), read at the revision with committed objects only, transitively up to 3 import
-  levels. A helper with no visible definition, or one that would need a fourth hop, MUST yield an
-  advisory finding with `resolution: UNKNOWN` and the reason, never silence. Playwright, Promise
-  and built-in call names with no visible definition of the same name are not helpers and are
-  neither followed nor reported.
+  levels. The linted files and every level of imported modules draw on one budget of
+  `TSA-V0-010`'s 5000 files and 64 MiB, and an imported module the lexer cannot fully place is
+  listed in `uncertain`. In both advisory rules, a helper with no visible definition, or one that
+  would need a fourth hop, MUST yield an advisory finding with `resolution: UNKNOWN` and the reason,
+  never silence. Playwright, Promise and built-in call names with no visible definition of the same
+  name are not helpers and are neither followed nor reported (amended 2026-10-18 after the PR #1119
+  review).
 - `TSA-V0-031`: (standing auto-accept, 2026-10-11; V1-1769) `corvint tests lint --runs
   REPORT.json` (repeatable, at most 64) MUST read Playwright JSON reports and keep those whose
   declared `corvintRunIdentity.testRevision` names the linted revision (equal, or a prefix of at
@@ -167,8 +175,12 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   declared `testRootPath` (or a unique path suffix when undeclared), is `expected` in one project and
   `unexpected` in another is a split; the advisory rule `exact-text-cross-variant` MUST then name
   each `exact: true` locator (`getByText`, `getByRole`, `getByLabel`, `getByPlaceholder`,
-  `getByTitle`, `getByAltText`) in the test body, or in a helper it calls resolved under
-  `TSA-V0-030`, as a likely cause together with one passing and one failing project. The report's
+  `getByTitle`, `getByAltText`) in the test body, and every distinct one reachable through the
+  helpers it calls resolved under `TSA-V0-030`, as a likely cause together with one passing and one
+  failing project, in one finding per line that spans the call. The `exact` option is read from an
+  object literal with a bare or quoted key, the last `exact` or spread winning. Only the literal
+  `true` is exact. A non-literal value, a spread, a shorthand or a non-literal options argument
+  yields `resolution: UNKNOWN` with the source (amended 2026-10-18 after the PR #1119 review). The report's
   `crossVariant` member MUST list the projects, the run count and every split with whether an
   exact-text locator was named. An unreadable report refuses with `tests-source-unavailable`.
 - `TSA-V0-032`: (standing auto-accept, 2026-10-11; V1-1769) Without split-capable evidence
@@ -223,7 +235,10 @@ method on another class can be followed, an import alias (`import { a as b }`), 
 a dynamic dispatch is UNKNOWN, and an awaited non-UI call to an unresolved helper (for example an
 API client) is reported UNKNOWN rather than silently skipped. The cross-variant rule names only
 `exact: true` locators; a split caused by anything else is listed in `crossVariant.splits` with
-`exactText: false` and no finding, and a test with a computed title cannot be joined.
+`exactText: false` and no finding, and a test with a computed title cannot be joined. On a split
+test, a call to a page-object helper the rule cannot resolve is an UNKNOWN finding, so a suite with
+many unresolved helpers reports one per such line. A change only inside a helper's definition, not
+on the asserting or calling lines, does not bring the finding into the changed-line scope.
 
 ## Implementation, rollout and rollback
 
@@ -246,9 +261,13 @@ findings; suppressions apply to exactly the named rule and are echoed. Duplicate
 lines across files, honour the cutoff, gate on changed tests and resolve with reasoned decisions.
 The one-shot rule fires on direct reads and on reads returned through same-file methods, arrow
 properties, functions, locals and relatively imported modules, stays silent on web-first matchers,
-`expect.poll` and `toPass`, and reports UNKNOWN for an undefined helper and a fourth hop. The
-exact-text rule names the locator for a split at the revision (directly and through a helper), and
-each NOT_PRODUCED reason is produced with no finding. A CLI run joins a synthetic Playwright report.
+`expect.poll` and `toPass`, and reports UNKNOWN for an undefined helper and a fourth hop. Typed and
+awaited returned locals and a standalone helper named like a read are followed, and a nested
+function's return is not. The exact-text rule names the locator for a split at the revision
+(directly and through a helper), lists every reachable exact locator once, and reports UNKNOWN for
+a missing helper, a fourth hop and non-literal options. Each NOT_PRODUCED reason is produced with
+no finding. A change on a later line of a multi-line assertion or locator is in scope. A malformed
+imported module is uncertain, and an aggregate over the shared read budget refuses. A CLI run joins a synthetic Playwright report.
 No live qualification on a real suite or real Playwright run was performed.
 
 ## Delivery
@@ -271,7 +290,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-021 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesGateAndDecisions`, `TestDuplicatesGateCountsBeyondOutputBound`, `TestDuplicatesGateSeesDeletionOnlyChange`, `TestTestsCLI` | experimental |
 | TSA-V0-022 | `internal/testsource/duplicates.go` | `TestDuplicatesGateAndDecisions` | experimental |
 | TSA-V0-023 | `internal/testsource/duplicates.go` | `TestDuplicatesReport`, `TestTestsCLI` | experimental |
-| TSA-V0-029 | `internal/testsource/uistate.go` | `TestLintRuleFixtures`, `TestOneShotHelperForms` | experimental |
-| TSA-V0-030 | `internal/testsource/uistate.go` | `TestOneShotUnknown`, `TestLintFollowsImportedHelpers` | experimental |
-| TSA-V0-031 | `internal/testsource/variants.go`, `internal/testsource/uistate.go`, `cmd/corvint/tests.go` | `TestLintRuleFixtures`, `TestCrossVariantEvidence`, `TestTestsLintAdvisoryCLI` | experimental |
+| TSA-V0-029 | `internal/testsource/uistate.go` | `TestLintRuleFixtures`, `TestOneShotHelperForms`, `TestOneShotLocalsAndNesting`, `TestLintMultiLineChangeScope` | experimental |
+| TSA-V0-030 | `internal/testsource/uistate.go`, `internal/testsource/git.go`, `internal/testsource/lint.go` | `TestOneShotUnknown`, `TestLintFollowsImportedHelpers`, `TestCrossVariantFollowing`, `TestLintImportedHelperUncertainty`, `TestLintImportBudgetIsCumulative` | experimental |
+| TSA-V0-031 | `internal/testsource/variants.go`, `internal/testsource/uistate.go`, `cmd/corvint/tests.go` | `TestLintRuleFixtures`, `TestCrossVariantEvidence`, `TestCrossVariantFollowing`, `TestLintMultiLineChangeScope`, `TestTestsLintAdvisoryCLI` | experimental |
 | TSA-V0-032 | `internal/testsource/variants.go`, `internal/testsource/lint.go`, `cmd/corvint/tests.go` | `TestCrossVariantEvidence`, `TestNewRuleSuppression`, `TestLintFollowsImportedHelpers`, `TestTestsLintAdvisoryCLI` | experimental |

@@ -96,7 +96,11 @@ func isLintTarget(name string) bool { return IsTestFile(name) || IsPageObjectFil
 
 // Lint runs the closed rule set over the test and page-object files changed from base to revision,
 // reading committed objects only (TSA-V0-012..016).
-func Lint(r Repo, options LintOptions) (LintReport, error) {
+func Lint(r Repo, options LintOptions) (LintReport, error) { return lint(r, options, newReadBudget()) }
+
+// lint is Lint drawing every read, the linted files and the helper modules they import, from one
+// budget (TSA-V0-012, TSA-V0-030).
+func lint(r Repo, options LintOptions, budget *readBudget) (LintReport, error) {
 	base, err := r.Resolve(options.Base)
 	if err != nil {
 		return LintReport{}, err
@@ -114,7 +118,7 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 	if options.AllLines {
 		keep = isLintTarget
 	}
-	texts, _, err := r.readFiles(revision, keep)
+	texts, _, err := r.readFilesWithin(revision, keep, budget)
 	if err != nil {
 		return LintReport{}, err
 	}
@@ -132,7 +136,7 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 		sources[name] = parseSource(name, texts[name])
 	}
 	c := newLintContext(sources)
-	if err := c.readImports(r, revision); err != nil {
+	if err := c.readImports(r, revision, budget); err != nil {
 		return LintReport{}, err
 	}
 	report.CrossVariant = c.joinRuns(options.Runs, revision, report.Files)
@@ -142,6 +146,14 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 		}
 		lintFile(&report, c, sources[name], inScope)
 	}
+	// A helper module the lexer could not fully place may hide or misplace a helper the advisory
+	// rules follow, so it is uncertain too (TSA-V0-010).
+	for name, s := range c.sources {
+		if _, linted := texts[name]; !linted && s.uncertain {
+			report.Uncertain = append(report.Uncertain, name)
+		}
+	}
+	sort.Strings(report.Uncertain)
 	c.collectSplits(&report.CrossVariant)
 	return report, nil
 }

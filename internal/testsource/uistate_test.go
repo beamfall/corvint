@@ -154,3 +154,113 @@ test.describe('people', () => {
 		}
 	}
 }
+
+// TestOneShotLocalsAndNesting proves a typed returned local and an awaited, parenthesised returned
+// local are followed, a standalone helper named like a UI-state read is resolved or UNKNOWN, and a
+// return inside a nested function is not attributed to the enclosing helper (TSA-V0-029,
+// TSA-V0-030).
+func TestOneShotLocalsAndNesting(t *testing.T) {
+	report := LintText("e2e/a.spec.ts", `class Panel {
+  constructor(page) { this.badge = page.getByTestId('badge'); }
+  async typed(): Promise<boolean> {
+    const shown: boolean = await this.badge.isVisible();
+    return shown;
+  }
+  async deferred() {
+    const shown = this.badge.isVisible();
+    return await (shown);
+  }
+  async nested() {
+    const check = async () => { return this.badge.isVisible(); };
+    [1].forEach(function () { return this.badge.count(); });
+    await check();
+    return true;
+  }
+}
+async function isVisible(page) { return page.getByTestId('x').isVisible(); }
+test('panel', async ({ page }) => {
+  const panel = new Panel(page);
+  expect(await panel.typed()).toBe(true);
+  expect(await panel.deferred()).toBe(true);
+  expect(await panel.nested()).toBe(true);
+  expect(await isVisible(page)).toBe(true);
+  expect(await isHidden(page)).toBe(true);
+});`)
+	if got, want := oneShot(report.Findings), []string{"21:", "22:", "24:", "25:UNKNOWN"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("one-shot findings = %v, want %v: %+v", got, want, report.Findings)
+	}
+	for _, f := range report.Findings {
+		switch f.Line {
+		case 21:
+			if !strings.Contains(f.Message, "isVisible() read (e2e/a.spec.ts:4) returned through typed (e2e/a.spec.ts:3)") {
+				t.Errorf("typed local message = %q", f.Message)
+			}
+		case 24:
+			if !strings.Contains(f.Message, "returned through isVisible (e2e/a.spec.ts:18)") {
+				t.Errorf("standalone helper message = %q", f.Message)
+			}
+		case 25:
+			if !strings.Contains(f.Message, "no definition of isHidden") {
+				t.Errorf("unresolved standalone helper message = %q", f.Message)
+			}
+		}
+	}
+}
+
+// TestCrossVariantFollowing proves the exact-text rule collects and deduplicates every reachable
+// exact locator, reports a missing helper, a chain past MaxHelperDepth and a non-literal exact
+// option as UNKNOWN, reads quoted keys and stays silent on a literal false (TSA-V0-030,
+// TSA-V0-031).
+func TestCrossVariantFollowing(t *testing.T) {
+	report := lintText("e2e/a.spec.ts", `async function inner(page) { return page.getByLabel('Name', { exact: true }); }
+async function cells(page) {
+  await page.getByRole('cell', { name: 'Ada', exact: true }).click();
+  await inner(page); await inner(page);
+  return page.getByText('Lovelace', { "exact": true });
+}
+async function one(p) { return two(p); }
+async function two(p) { return three(p); }
+async function three(p) { return four(p); }
+async function four(p) { return p.getByText('x', { exact: true }); }
+test('shows the name', async ({ page }) => {
+  await expect(await cells(page)).toBeVisible();
+  await missing(page);
+  await one(page);
+  await expect(page.getByText('a', { exact: true && false })).toBeVisible();
+  await expect(page.getByText('b', { exact: flag })).toBeVisible();
+  await expect(page.getByText('c', opts)).toBeVisible();
+  await expect(page.getByText('d', { exact: false })).toBeVisible();
+  await expect(page.getByText('e', { ...opts })).toBeVisible();
+  await expect(page.getByText('f', { ...opts, exact: true })).toBeVisible();
+});`, variantRuns(fixtureRevision, "expected", "unexpected"), fixtureRevision)
+	got, messages := []string{}, map[int]string{}
+	for _, f := range report.Findings {
+		if f.Rule == RuleExactTextVariant {
+			got = append(got, strconv.Itoa(f.Line)+":"+f.Resolution)
+			messages[f.Line] = f.Message
+		}
+	}
+	want := []string{"12:", "13:UNKNOWN", "14:UNKNOWN", "15:UNKNOWN", "16:UNKNOWN", "17:UNKNOWN", "19:UNKNOWN", "20:"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("exact-text findings = %v, want %v: %+v", got, want, report.Findings)
+	}
+	for line, part := range map[int]string{
+		12: "cells() uses getByLabel(..., { exact: true }) at e2e/a.spec.ts:1, cells() uses getByRole(..., { exact: true }) at e2e/a.spec.ts:3, cells() uses getByText(..., { exact: true }) at e2e/a.spec.ts:5 is a likely cause",
+		13: "missing(): no definition of missing in e2e/a.spec.ts",
+		14: "one(): helper-following stops after 3 hops at four (e2e/a.spec.ts:9)",
+		15: "is not a literal (exact:true&&false)",
+		16: "is not a literal (exact:flag)",
+		17: "is not a literal (options opts)",
+		19: "is not a literal (...opts)",
+	} {
+		if !strings.Contains(messages[line], part) {
+			t.Errorf("line %d message %q lacks %q", line, messages[line], part)
+		}
+	}
+	if n := strings.Count(messages[12], "getByLabel"); n != 1 {
+		t.Errorf("the twice-reached locator is listed %d times: %q", n, messages[12])
+	}
+	if !report.CrossVariant.Splits[0].ExactText {
+		t.Errorf("split does not record the exact-text cause: %+v", report.CrossVariant)
+	}
+}

@@ -38,7 +38,7 @@ func init() {
 		import expect test step describe Promise setTimeout console log`) {
 		knownCalls[name] = true
 	}
-	for _, name := range strings.Fields(`if for while switch catch return typeof function new await super do else with void delete in of`) {
+	for _, name := range strings.Fields(`if for while switch catch return typeof function new await async super do else with void delete in of`) {
 		keywords[name] = true
 	}
 }
@@ -269,11 +269,12 @@ func (s *source) directRead(start, end int) int {
 	return -1
 }
 
-// helperCalls returns the calls in [start, end) that may be page-object helpers.
+// helperCalls returns the calls in [start, end) that may be page-object helpers. A UI-state read
+// name is a helper only when it is called standalone, not as a member read.
 func (s *source) helperCalls(start, end int) []int {
 	out := []int{}
 	for k := start; k < end; k++ {
-		if s.ident(k, "") && s.punct(k+1, "(") && !keywords[s.tokens[k].Text] && uiStateReads[s.tokens[k].Text] == "" &&
+		if s.ident(k, "") && s.punct(k+1, "(") && !keywords[s.tokens[k].Text] && !(uiStateReads[s.tokens[k].Text] != "" && s.memberAccess(k)) &&
 			!matcherName(s.tokens[k].Text) && !s.ident(k-1, "new") && !s.ident(k-1, "function") {
 			out = append(out, k)
 		}
@@ -292,12 +293,9 @@ func (c *lintContext) analyze(src *source, expr, block [2]int, depth int, visite
 	if k := src.directRead(expr[0], expr[1]); k >= 0 {
 		return verdict{kind: verdictRead, read: src.tokens[k].Text, at: src.at(k)}
 	}
-	if expr[1]-expr[0] == 1 && src.ident(expr[0], "") && block[1] > block[0] {
-		name := src.tokens[expr[0]].Text
-		for k := block[0]; k < block[1]; k++ {
-			if (src.ident(k, "const") || src.ident(k, "let") || src.ident(k, "var")) && src.ident(k+1, name) && src.punct(k+2, "=") {
-				return c.analyze(src, [2]int{k + 3, src.exprEnd(k+3, block[1])}, [2]int{}, depth, visited)
-			}
+	if inner := src.unwrap(expr); inner[1]-inner[0] == 1 && src.ident(inner[0], "") && block[1] > block[0] {
+		if value, ok := src.localValue(block, src.tokens[inner[0]].Text); ok {
+			return c.analyze(src, value, [2]int{}, depth, visited)
 		}
 	}
 	out := verdict{}
@@ -308,6 +306,60 @@ func (c *lintContext) analyze(src *source, expr, block [2]int, depth int, visite
 		}
 	}
 	return out
+}
+
+// unwrap strips leading `await`s and enclosing parentheses from an expression range.
+func (s *source) unwrap(expr [2]int) [2]int {
+	for expr[1] > expr[0] {
+		switch {
+		case s.ident(expr[0], "await"):
+			expr[0]++
+		case s.punct(expr[0], "(") && s.match[expr[0]] == expr[1]-1:
+			expr = [2]int{expr[0] + 1, expr[1] - 1}
+		default:
+			return expr
+		}
+	}
+	return expr
+}
+
+// localValue returns the initializer of `const|let|var name [: T] = value` declared in block outside
+// any nested function.
+func (s *source) localValue(block [2]int, name string) ([2]int, bool) {
+	for k := block[0] + 1; k < block[1]; k++ {
+		if end := s.nestedFunctionEnd(k); end >= k {
+			k = end
+			continue
+		}
+		if !(s.ident(k, "const") || s.ident(k, "let") || s.ident(k, "var")) || !s.ident(k+1, name) {
+			continue
+		}
+		j := k + 2
+		if s.punct(j, ":") {
+			j = s.skipType(j + 1)
+		}
+		if s.punct(j, "=") && !s.punct(j+1, "=") && !s.punct(j+1, ">") {
+			return [2]int{j + 1, s.exprEnd(j+1, block[1])}, true
+		}
+	}
+	return [2]int{}, false
+}
+
+// nestedFunctionEnd returns the last token of a function, arrow function or method shorthand that
+// starts at token k, or -1, so a scan of an enclosing body can skip it.
+func (s *source) nestedFunctionEnd(k int) int {
+	if s.ident(k, "") && !keywords[s.tokens[k].Text] && !s.memberAccess(k) && s.punct(k+1, "(") {
+		if body, ok := s.blockAfterParams(k + 1); ok {
+			return body[1]
+		}
+	}
+	if body, expr, ok := s.functionBody(k); ok {
+		if expr {
+			return body[1] - 1
+		}
+		return body[1]
+	}
+	return -1
 }
 
 // candidates returns the definitions named name visible from src: its own and those of the
@@ -348,6 +400,11 @@ func (c *lintContext) resolve(src *source, k, depth int, visited map[string]bool
 			v = c.analyze(d.src, d.body, [2]int{}, depth, visited)
 		} else {
 			for r := d.body[0] + 1; r < d.body[1] && v.kind != verdictRead; r++ {
+				// A return inside a nested function returns from that function, not from d.
+				if end := d.src.nestedFunctionEnd(r); end >= r {
+					r = end
+					continue
+				}
 				if d.src.ident(r, "return") {
 					v = better(v, c.analyze(d.src, [2]int{r + 1, d.src.exprEnd(r+1, d.body[1])}, d.body, depth, visited))
 				}
@@ -399,92 +456,200 @@ func (s *source) lintOneShot(c *lintContext, i int, retrying [][2]int, emit func
 		return
 	}
 	v := c.analyze(s, chain.subject, [2]int{}, 0, map[string]bool{})
-	line := s.tokens[i].Line
+	// The finding anchors on the expect line and spans the whole assertion, so a change on any of
+	// its lines brings it into the changed-line scope.
+	line, end := s.tokens[i].Line, s.tokens[chain.end].Line
 	switch v.kind {
 	case verdictRead:
 		message := "expect(await ...) asserts a one-shot " + v.read + "() read (" + v.at + ")"
 		if len(v.via) > 0 {
 			message += " returned through " + strings.Join(v.via, " -> ")
 		}
-		emit(Finding{Rule: RuleOneShotUIState, Path: s.path, Line: line, EndLine: line, Advisory: true,
+		emit(Finding{Rule: RuleOneShotUIState, Path: s.path, Line: line, EndLine: end, Advisory: true,
 			Message: message + "; a slower renderer fails it, use the web-first " + uiStateReads[v.read] + " or expect.poll"})
 	case verdictUnknown:
-		emit(Finding{Rule: RuleOneShotUIState, Path: s.path, Line: line, EndLine: line, Advisory: true, Resolution: "UNKNOWN",
+		emit(Finding{Rule: RuleOneShotUIState, Path: s.path, Line: line, EndLine: end, Advisory: true, Resolution: "UNKNOWN",
 			Message: "cannot tell whether expect(await ...) asserts a one-shot UI-state read: " + v.reason})
 	}
 }
 
-// exactLocator reports a locator builder call at k whose options pass `exact: true`.
-func (s *source) exactLocator(k int) bool {
+// The states of a locator builder's `exact` option (TSA-V0-031).
+const (
+	exactNo = iota
+	exactYes
+	exactUnknown
+)
+
+// exactOption reads the `exact` option of a locator builder call at k: absent or false, true, or
+// UNKNOWN with the unresolved source when the options or the value are not literals.
+func (s *source) exactOption(k int) (int, string) {
 	if !s.ident(k, "") || !exactBuilders[s.tokens[k].Text] || !s.punct(k+1, "(") || s.match[k+1] < 0 {
-		return false
+		return exactNo, ""
 	}
-	for j := k + 2; j < s.match[k+1]; j++ {
-		if s.ident(j, "exact") && s.punct(j+1, ":") && s.ident(j+2, "true") {
-			return true
+	args := s.splitArgs(k+1, s.match[k+1])
+	if len(args) < 2 {
+		return exactNo, ""
+	}
+	options := args[1]
+	if !s.punct(options[0], "{") || s.match[options[0]] != options[1]-1 {
+		return exactUnknown, "options " + s.render(options[0], options[1])
+	}
+	state, value := exactNo, ""
+	// Properties apply in order, so the last `exact` or spread decides.
+	for _, prop := range s.splitArgs(options[0], options[1]-1) {
+		key := prop[0]
+		switch {
+		case s.punct(key, ".") || s.punct(key, "..."):
+			state, value = exactUnknown, s.render(prop[0], prop[1])
+		case !s.ident(key, "exact") && !(s.tokens[key].Kind == appmap.JSString && s.tokens[key].Literal && s.tokens[key].Text == "exact"):
+		case prop[1]-key == 1:
+			state, value = exactUnknown, "exact"
+		case !s.punct(key+1, ":"):
+		case prop[1]-key == 3 && s.ident(key+2, "true"):
+			state, value = exactYes, ""
+		case prop[1]-key == 3 && s.ident(key+2, "false"):
+			state, value = exactNo, ""
+		default:
+			state, value = exactUnknown, s.render(prop[0], prop[1])
 		}
 	}
-	return false
+	return state, value
 }
 
-// exactIn returns where an exact-text locator is used in [start, end) of src, directly or through
-// helpers it calls, up to MaxHelperDepth hops (TSA-V0-031).
-func (c *lintContext) exactIn(src *source, body [2]int, depth int, visited map[string]bool) string {
-	for k := body[0]; k < body[1]; k++ {
-		if src.exactLocator(k) {
-			return src.tokens[k].Text + "(..., { exact: true }) at " + src.at(k)
+// exactUses is what following a range for exact-text locators found: every reachable exact
+// locator, and every place helper-following could not tell (TSA-V0-030, TSA-V0-031).
+type exactUses struct{ where, unknown []string }
+
+func (u *exactUses) merge(o exactUses) {
+	u.where = append(u.where, o.where...)
+	u.unknown = append(u.unknown, o.unknown...)
+}
+
+// sorted returns u with each list sorted and deduplicated.
+func (u exactUses) sorted() exactUses {
+	return exactUses{where: uniqueSorted(u.where), unknown: uniqueSorted(u.unknown)}
+}
+
+func uniqueSorted(in []string) []string {
+	out := append([]string{}, in...)
+	sort.Strings(out)
+	unique := out[:0]
+	for i, v := range out {
+		if i == 0 || v != out[i-1] {
+			unique = append(unique, v)
 		}
 	}
-	if depth >= MaxHelperDepth {
-		return ""
+	return unique
+}
+
+// exactLocal reads one locator builder call at k of src as an exact-text use.
+func (s *source) exactLocal(k int) exactUses {
+	switch state, value := s.exactOption(k); state {
+	case exactYes:
+		return exactUses{where: []string{s.tokens[k].Text + "(..., { exact: true }) at " + s.at(k)}}
+	case exactUnknown:
+		return exactUses{unknown: []string{"the exact option of " + s.tokens[k].Text + " at " + s.at(k) + " is not a literal (" + value + ")"}}
+	}
+	return exactUses{}
+}
+
+// exactIn collects the exact-text locators used in body of src, directly or through the helpers it
+// calls; hop is the helper hop body belongs to.
+func (c *lintContext) exactIn(src *source, body [2]int, hop int, visited map[string]bool) exactUses {
+	out := exactUses{}
+	for k := body[0]; k < body[1]; k++ {
+		out.merge(src.exactLocal(k))
 	}
 	for _, k := range src.helperCalls(body[0], body[1]) {
-		for _, d := range c.candidates(src, src.tokens[k].Text) {
-			key := d.src.path + ":" + strconv.Itoa(d.line)
-			if visited[key] {
-				continue
-			}
-			visited[key] = true
-			if where := c.exactIn(d.src, d.body, depth+1, visited); where != "" {
-				return where
-			}
-		}
+		out.merge(c.exactCall(src, k, hop+1, visited))
 	}
-	return ""
+	return out
+}
+
+// exactCall follows the helper called at token k of src, as hop number hop, to every definition it
+// may name; a missing definition or a hop past MaxHelperDepth is UNKNOWN, never silence.
+func (c *lintContext) exactCall(src *source, k, hop int, visited map[string]bool) exactUses {
+	name := src.tokens[k].Text
+	defs := c.candidates(src, name)
+	switch {
+	case len(defs) == 0 && knownCalls[name]:
+		return exactUses{}
+	case hop > MaxHelperDepth:
+		return exactUses{unknown: []string{"helper-following stops after " + strconv.Itoa(MaxHelperDepth) + " hops at " + name + " (" + src.at(k) + ")"}}
+	case len(defs) == 0:
+		return exactUses{unknown: []string{"no definition of " + name + " in " + src.path + " or the modules it imports relatively"}}
+	}
+	out := exactUses{}
+	for _, d := range defs {
+		key := d.src.path + ":" + strconv.Itoa(d.line) + ":" + name
+		if visited[key] {
+			continue
+		}
+		visited[key] = true
+		out.merge(c.exactIn(d.src, d.body, hop, visited))
+		delete(visited, key)
+	}
+	return out
 }
 
 // lintExactVariant names the exact-text locators of a test whose outcome splits by project at the
-// analysed revision (TSA-V0-031).
+// analysed revision, one finding per line; a line whose helpers cannot be followed is UNKNOWN
+// (TSA-V0-030, TSA-V0-031).
 func (s *source) lintExactVariant(c *lintContext, d decl, emit func(Finding)) {
 	split, ok := c.splits[s.testKey(d)]
 	if !ok {
 		return
 	}
 	cause := split.Passed[0] + " passes and " + split.Failed[0] + " fails at the same revision"
-	reported := false
+	type lineUses struct {
+		line, end int
+		uses      exactUses
+	}
+	lines := []*lineUses{}
 	for k := d.body[0]; k < d.body[1]; k++ {
-		where := ""
-		switch {
-		case s.exactLocator(k):
-			where = s.tokens[k].Text + "(..., { exact: true })"
-		case len(s.helperCalls(k, k+1)) == 1:
-			for _, def := range c.candidates(s, s.tokens[k].Text) {
-				if where = c.exactIn(def.src, def.body, 1, map[string]bool{}); where != "" {
-					where = s.tokens[k].Text + "() uses " + where
-					break
-				}
+		uses := exactUses{}
+		if local := s.exactLocal(k); len(local.where)+len(local.unknown) > 0 {
+			uses = local
+		} else if len(s.helperCalls(k, k+1)) == 1 {
+			followed := c.exactCall(s, k, 1, map[string]bool{}).sorted()
+			for _, w := range followed.where {
+				uses.where = append(uses.where, s.tokens[k].Text+"() uses "+w)
+			}
+			for _, u := range followed.unknown {
+				uses.unknown = append(uses.unknown, s.tokens[k].Text+"(): "+u)
 			}
 		}
-		if where == "" {
+		if len(uses.where)+len(uses.unknown) == 0 {
 			continue
 		}
-		reported = true
-		line := s.tokens[k].Line
-		emit(Finding{Rule: RuleExactTextVariant, Path: s.path, Line: line, EndLine: line, Advisory: true,
-			Message: cause + "; the exact-text locator " + where + " is a likely cause: it cannot match when a variant renders extra inline content in the element"})
+		// The finding anchors on the call and spans it, so a change on any of its lines is in scope.
+		line, end := s.tokens[k].Line, s.tokens[k].Line
+		if close := s.match[k+1]; close > k {
+			end = s.tokens[close].Line
+		}
+		if n := len(lines); n > 0 && lines[n-1].line == line {
+			lines[n-1].uses.merge(uses)
+			lines[n-1].end = max(lines[n-1].end, end)
+			continue
+		}
+		lines = append(lines, &lineUses{line: line, end: end, uses: uses})
 	}
-	if reported {
+	for _, l := range lines {
+		uses := l.uses.sorted()
+		if len(uses.where) == 0 {
+			emit(Finding{Rule: RuleExactTextVariant, Path: s.path, Line: l.line, EndLine: l.end, Advisory: true, Resolution: "UNKNOWN",
+				Message: cause + "; cannot tell whether an exact-text locator is a likely cause: " + strings.Join(uses.unknown, "; ")})
+			continue
+		}
 		split.ExactText = true
+		message := cause + "; the exact-text locator " + strings.Join(uses.where, ", ") +
+			" is a likely cause: it cannot match when a variant renders extra inline content in the element"
+		if len(uses.unknown) > 0 {
+			message += " (not followed: " + strings.Join(uses.unknown, "; ") + ")"
+		}
+		emit(Finding{Rule: RuleExactTextVariant, Path: s.path, Line: l.line, EndLine: l.end, Advisory: true, Message: message})
+	}
+	if split.ExactText {
 		c.splits[s.testKey(d)] = split
 	}
 }
@@ -576,8 +741,9 @@ func (c *lintContext) linkImports(names []string) {
 }
 
 // readImports reads, at the revision, the modules the linted files import relatively, and theirs,
-// up to MaxHelperDepth levels, so helpers resolve across files (TSA-V0-030).
-func (c *lintContext) readImports(r Repo, revision string) error {
+// up to MaxHelperDepth levels, so helpers resolve across files (TSA-V0-030). Every level draws on
+// the command's one read budget.
+func (c *lintContext) readImports(r Repo, revision string, budget *readBudget) error {
 	frontier := make([]string, 0, len(c.sources))
 	for name := range c.sources {
 		frontier = append(frontier, name)
@@ -596,7 +762,7 @@ func (c *lintContext) readImports(r Repo, revision string) error {
 		}
 		next := []string{}
 		if len(wanted) > 0 {
-			texts, _, err := r.readFiles(revision, func(name string) bool { return wanted[name] })
+			texts, _, err := r.readFilesWithin(revision, func(name string) bool { return wanted[name] }, budget)
 			if err != nil {
 				return err
 			}

@@ -44,3 +44,30 @@ Focused tests: `./internal/testsource` (`TestLintRuleFixtures`, `TestOneShotHelp
 `TestOneShotUnknown`, `TestNewRuleSuppression`, `TestCrossVariantEvidence`,
 `TestLintFollowsImportedHelpers`, plus the existing package tests) and `./cmd/corvint`
 (`TestTestsCLI`, `TestTestsLintAdvisoryCLI`).
+
+## Review fixes (PR #1119, one Codex round)
+
+All nine findings were fixed. None were deferred. No new requirement IDs were added: TSA-V0-029,
+030 and 031 are amended in place.
+
+- A one-shot finding spans the whole multi-line assertion, and an exact-text finding spans the whole
+  locator call. Changed-line scoping uses that span, and suppression still anchors on the first line.
+- Returned locals are followed with a type annotation, through parentheses and `await`, and
+  `return await local` included.
+- A standalone helper named like a read (`isVisible(page)`) is resolved as a helper. Only member
+  reads are treated as reads.
+- A `return` in a nested function, arrow or method body is not attributed to the enclosing helper.
+- Exact-text resolution emits `resolution: UNKNOWN` for a helper with no definition and for a fourth
+  hop. It collects and dedupes every reachable exact locator, not only the first.
+- The `exact` option is parsed fully: bare and quoted keys, last property or spread wins, and only
+  the literal `true` is exact. A non-literal value, spread, shorthand or non-object options argument
+  is UNKNOWN.
+- Parse uncertainty from imported helper modules is listed in `uncertain`, sorted.
+- The linted files and all import levels share one cumulative 5,000-file / 64 MiB budget.
+
+Tests added: `TestOneShotLocalsAndNesting`, `TestCrossVariantFollowing`,
+`TestLintMultiLineChangeScope`, `TestLintImportedHelperUncertainty` and
+`TestLintImportBudgetIsCumulative`.
+
+The scope limit is unchanged. A change only inside a helper's definition does not bring the
+calling finding into the changed-line scope.
