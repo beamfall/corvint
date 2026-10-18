@@ -40,7 +40,7 @@ func requireHost(t *testing.T) {
 
 func git(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	command := exec.Command("git", append([]string{"-C", dir, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Env = append(cleanGitEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "HOME="+dir)
 	output, err := command.CombinedOutput()
 	if err != nil {

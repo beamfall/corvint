@@ -20,7 +20,7 @@ const cannedReport = `{"version":"3.13.2","examples":[{"id":"./spec/user_spec.rb
 
 func git(t *testing.T, dir string, args ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", dir}, args...)...)
+	command := exec.Command("git", append([]string{"-C", dir, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	var environment []string
 	for _, entry := range os.Environ() {
 		if !strings.HasPrefix(entry, "GIT_") {
