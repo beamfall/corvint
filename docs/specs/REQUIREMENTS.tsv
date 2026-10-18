@@ -3515,6 +3515,19 @@ SRR-V1-009	docs/specs/stable-readiness-record-v1.md	95	For version `1.0.0-rc.1`,
 SRR-V1-010	docs/specs/stable-readiness-record-v1.md	101	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN	unrecorded	-
 SRR-V1-011	docs/specs/stable-readiness-record-v1.md	104	Building and verifying MUST NOT write to the candidate, the source root or the	unrecorded	-
 SRR-V1-012	docs/specs/stable-readiness-record-v1.md	111	(command shape accepted by decision 0422) A new operator binary,	owner	decision 0422
+STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	61	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
+STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	62	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
+STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	68	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
+STA-V0-004	docs/specs/spec-toolchain-adapters-v0.md	73	Both OpenSpec forms emit the prepare envelope member `nativeNames`, which maps e	unrecorded	-
+STA-V0-005	docs/specs/spec-toolchain-adapters-v0.md	74	`ocm prepare --intent-form speckit-spec` reads a Spec Kit `spec.md`.	unrecorded	-
+STA-V0-006	docs/specs/spec-toolchain-adapters-v0.md	81	The three forms follow `OIF-V0-001` to `OIF-V0-003` and `OIF-V0-009`. They are e	unrecorded	-
+STA-V0-007	docs/specs/spec-toolchain-adapters-v0.md	82	The context index classifies documents by pinned path, with no content guessing.	unrecorded	-
+STA-V0-008	docs/specs/spec-toolchain-adapters-v0.md	93	`protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0,	unrecorded	-
+STA-V0-009	docs/specs/spec-toolchain-adapters-v0.md	98	`protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).	unrecorded	-
+STA-V0-010	docs/specs/spec-toolchain-adapters-v0.md	102	`interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects tha	unrecorded	-
+STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	103	`make spec-toolchain-conformance` and a CI job of the same name do four things.	unrecorded	-
+STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	110	`script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001`	unrecorded	-
+STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	111	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 STR-V0-001	docs/specs/session-test-runner-v0.md	52	`corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced	unrecorded	-
 STR-V0-002	docs/specs/session-test-runner-v0.md	59	The run set SHALL be, per language, the union of the plan's selected units and t	unrecorded	-
 STR-V0-003	docs/specs/session-test-runner-v0.md	65	The command SHALL run the complete relevant suite (`FULL`), naming the reason as	unrecorded	-
