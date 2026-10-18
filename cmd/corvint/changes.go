@@ -6,8 +6,10 @@ import (
 	"flag"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/sharedpath"
 	"github.com/Beamfall/corvint/internal/upgradechanges"
 )
 
@@ -31,6 +33,28 @@ Refusals: changes-invalid-arguments, changes-build-unavailable,
 changes-range-unavailable, changes-git-unavailable, changes-refs-unavailable,
 changes-issue-state-unavailable.
 Contract: docs/specs/upgrade-checklist-v0.md (accepted, decisions 0518 and 0519; V1-1142, V1-1158).
+
+Shared-path change policy (SPC-V0, V1-1591):
+  corvint [--root SOURCE] changes check-shared --base REV [--head REV]
+    [--config FILE] [--notes FILE]
+  corvint [--root SOURCE] changes split-shared --base REV --branch NAME
+    [--apply --expect-head SHA] [--config FILE]
+check-shared is read-only. It names the commit, path and missing element
+(marker, separate-commit, listing, run-citation, clean-merge) of every
+finding; exit 1 when there are findings. Merge conflicts confined to the
+configured generated files are exempt. Without --notes, listing is NOT_OBSERVED.
+split-shared plans the mechanical split of mixed commits on the named,
+checked-out local branch; with --apply it rewrites that branch only, keeping
+the final tree, author, dates and message, moves it by compare-and-swap on
+--expect-head and prints oldHead. It never pushes or fetches. It refuses a
+dirty tree, detached HEAD, another branch, merges in range and a live session.
+--config defaults to .corvint/shared-paths.json under the root.
+Refusals: changes-shared-config-unavailable, changes-shared-notes-unavailable,
+changes-shared-range-unavailable, changes-shared-dirty-tree,
+changes-shared-detached-head, changes-shared-branch-mismatch,
+changes-shared-merge-in-range, changes-shared-live-session,
+changes-shared-head-mismatch, changes-shared-tree-mismatch.
+Contract: docs/specs/shared-path-change-policy-v0.md.
 `
 
 func changesInvocation(args []string) (string, []string, bool) {
@@ -63,6 +87,9 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 			OK   bool   `json:"ok"`
 		}{Code: code})
 		return 2
+	}
+	if len(args) > 0 && (args[0] == "check-shared" || args[0] == "split-shared") {
+		return runSharedPath(ctx, root, args[0], args[1:], out, refuse)
 	}
 	f := flag.NewFlagSet("changes", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -105,6 +132,78 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 		return refuse("changes-output-unavailable")
 	}
 	return 0
+}
+
+// runSharedPath runs check-shared (exit 0 clean, 1 findings) or split-shared
+// (exit 0); every refusal exits 2 (SPC-V0-002, SPC-V0-004).
+func runSharedPath(ctx context.Context, root, command string, args []string, out io.Writer, refuse func(string) int) int {
+	f := flag.NewFlagSet(command, flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	base, head, config, notes, branch, expect := "", "", "", "", "", ""
+	setOnce := func(dst *string) func(string) error {
+		return func(v string) error {
+			if *dst != "" || v == "" {
+				return errChangesArgument{}
+			}
+			*dst = v
+			return nil
+		}
+	}
+	f.Func("base", "base revision", setOnce(&base))
+	f.Func("config", "shared-path configuration", setOnce(&config))
+	apply := false
+	if command == "check-shared" {
+		f.Func("head", "head revision", setOnce(&head))
+		f.Func("notes", "notes file that lists shared-path commits", setOnce(&notes))
+	} else {
+		f.Func("branch", "local branch to rewrite", setOnce(&branch))
+		f.Func("expect-head", "expected branch head", setOnce(&expect))
+		f.BoolVar(&apply, "apply", false, "rewrite the branch")
+	}
+	if f.Parse(args) != nil || f.NArg() != 0 || base == "" || (command == "split-shared" && (branch == "" || apply != (expect != ""))) {
+		return refuse(sharedpath.CodeInvalidArguments)
+	}
+	if root == "" {
+		var err error
+		if root, err = os.Getwd(); err != nil {
+			return refuse(sharedpath.CodeGitUnavailable)
+		}
+	}
+	under := func(p string) string {
+		if p == "" || filepath.IsAbs(p) {
+			return p
+		}
+		return filepath.Join(root, p)
+	}
+	if config == "" {
+		config = sharedpath.DefaultConfig
+	}
+	c, err := sharedpath.LoadConfig(under(config))
+	if err != nil {
+		return refuse(err.Error())
+	}
+	var result any
+	code := 0
+	if command == "check-shared" {
+		report, err := sharedpath.Check(ctx, sharedpath.CheckRequest{Root: root, Base: base, Head: head, NotesFile: under(notes), Config: c})
+		if err != nil {
+			return refuse(err.Error())
+		}
+		if !report.OK {
+			code = 1
+		}
+		result = report
+	} else {
+		split, err := sharedpath.SplitShared(ctx, sharedpath.SplitRequest{Root: root, Base: base, Branch: branch, ExpectHead: expect, Apply: apply, Config: c})
+		if err != nil {
+			return refuse(err.Error())
+		}
+		result = split
+	}
+	if json.NewEncoder(out).Encode(result) != nil {
+		return refuse("changes-output-unavailable")
+	}
+	return code
 }
 
 type errChangesArgument struct{}

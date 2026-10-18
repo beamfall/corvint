@@ -1184,3 +1184,10 @@ func indexDeadline(err error) bool {
 	var contextFailure *contextindex.Error
 	return errors.As(err, &contextFailure) && errors.Is(contextFailure.Cause, context.DeadlineExceeded)
 }
+
+// Root is the canonical root the registry is bound to.
+func (registry *Registry) Root() string { return registry.root }
+
+// SameRoot reports whether the bound root, its Git marker and its Git
+// directories still have the identities observed at binding.
+func (registry *Registry) SameRoot() bool { return registry.sameRoot() }

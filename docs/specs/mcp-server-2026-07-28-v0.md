@@ -17,7 +17,7 @@ official JSON Schema pinned at commit
 - Status: proposed/experimental
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
 - Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
-- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Traceability.
+- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Follow-ref worktree binding (`MCPV0-039..041`, opt-in `--follow-ref`); Traceability.
 
 ## User and measurable job
 
@@ -658,6 +658,47 @@ Each row cites the first emitting site and states only the condition checked the
   cancellation observed only after the check is a completed call under that rule. The compile
   side of `corvint.context` stops at its own stage boundaries (`TCP-V0-064`).
 
+### Follow-ref worktree binding (V1-1603)
+
+- `MCPV0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1603)
+  `corvint-mcp --root ROOT --follow-ref REF` MUST bind the server to the commit REF names on a
+  dedicated worktree: ROOT is one plain root (never with an aliased root or `--version`), a linked
+  worktree (`.git` is a file) whose HEAD is detached, and REF (at most 256 bytes, no leading `-`,
+  whitespace or NUL; given once) resolves to a commit at startup. Otherwise startup exits 2 with
+  `corvint-mcp: follow-ref-not-dedicated`, `corvint-mcp: follow-ref-missing` or
+  `corvint-mcp: invalid arguments`. The binding is pinned to the tool registry's canonical root
+  and its root, `.git` marker and Git directory identities; every Git command runs in that root
+  with the Core sanitized Git environment, so an inherited `GIT_DIR`, `GIT_WORK_TREE`,
+  `GIT_INDEX_FILE` or object override cannot redirect it. Each `tools/call` holds one lock across
+  the move and the answer, so a concurrent call cannot move the worktree under an answer. Under that
+  lock the server resolves REF and, on every call, checks the root identity (`ROOT_CHANGED`), a
+  detached HEAD and a clean tree; when the worktree HEAD differs it runs
+  `git checkout --detach --quiet --no-overwrite-ignore COMMIT` (hooks disabled, 2-minute bound), so
+  an ignored local file is never overwritten, and then refreshes the index snapshot in process as
+  `corvint index --if-stale` does, so the answer that follows describes the moved commit (`state`
+  `REFRESHED`). An index refresh that fails yields `INDEX_FAILED`; a
+  checkout that fails yields `CHECKOUT_FAILED`. Without `--follow-ref` nothing changes. This is an
+  explicit operator-selected writer of the dedicated worktree and its index snapshot only, like
+  `index`; the default server stays read-only.
+- `MCPV0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A
+  worktree with any tracked change or untracked file (`DIRTY`), or with a branch checked out
+  (`NOT_DETACHED`), MUST never be modified: the answer describes the current head and the
+  follow-ref block sets `stale` true. The checks run even when HEAD already equals the commit, and
+  such a worktree's index snapshot is not written.
+- `MCPV0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every
+  `tools/call` response under `--follow-ref`, result or tool error, MUST append one server-authored
+  text block `corvint-mcp-follow-ref/0` (canonical JSON, outside the repository-data envelope) with
+  `ref`, the resolved `commit`, the worktree `head`, `state` (`CURRENT`, `REFRESHED`, `DIRTY`,
+  `NOT_DETACHED`, `ROOT_CHANGED`, `CHECKOUT_FAILED`, `INDEX_FAILED` or `MISSING`), `stale` and `mutates`. A REF that
+  no longer resolves MUST answer with the closed tool error `code` `follow-ref-missing` (under
+  `corvint-mcp-tool-error/1`, `reasonClass` `unclassified`), with `state` `MISSING`, an empty
+  `commit` and the worktree unchanged. Failure modes: a ref moved between the block's resolution and a
+  later Git read inside the tool is answered by the tool's own revision binding; a slow index
+  build delays the answer within the request's own bounds. Falsifier: an answer after a ref move
+  that still describes the old commit on a clean worktree; a dirty worktree modified; a response
+  without the block. Rollback: remove `--follow-ref` and `cmd/corvint-mcp/follow_ref.go`; the
+  default server and its bytes never changed.
+
 ## Acceptance matrix
 
 The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:
@@ -686,7 +727,7 @@ V0 does not provide Streamable HTTP, a listener, authorization, remote repositor
 prompts, resources, source content, subscriptions, sampling, elicitation, tasks, frontier/why/live
 features, standalone evidence, dashboard snapshots, lifecycle hooks, automatic context injection,
 test execution, test-level results or their `LPCV-V0-047` projection (decision 0103), edits,
-CEM/OCM writes (the opt-in `MCPV0-025` report is a preview that publishes nothing), CEM bind or check, updates, installs, merges, telemetry, or a native host adapter. The reason-class profile does not change default `corvint-mcp --root ROOT` bytes, profile `corvint-mcp-tool-error/0` or the `/0` vectors, and does not carry reason text. The simpler baseline is direct `corvint query` and `corvint impact`; MCP exists only to
+CEM/OCM writes (the opt-in `MCPV0-025` report is a preview that publishes nothing), CEM bind or check, updates (the opt-in `--follow-ref` binding, `MCPV0-039`, moves only its dedicated detached worktree and index snapshot), installs, merges, telemetry, or a native host adapter. The reason-class profile does not change default `corvint-mcp --root ROOT` bytes, profile `corvint-mcp-tool-error/0` or the `/0` vectors, and does not carry reason text. The simpler baseline is direct `corvint query` and `corvint impact`; MCP exists only to
 remove repeated transport glue without changing evidence semantics.
 
 ## Rollout, rollback, and compatibility
@@ -745,6 +786,9 @@ that focused run.
 | `MCPV0-035` | `affected.Build`, context-bound `affected.Source`, `callFlowsImpact` | `TestAFUV1059FlowsImpactCancelledMidWalk` |
 | `MCPV0-036`, `MCPV0-037` | `callCEMReport`, `validCEMPath`, `cemFailure`; `internal/cem/workflow` (`readStable`, `stableReport`) | `TestCEMReportToolAdvertisesArtifacts`, `TestCEMReportToolResolvesArtifactsUnderTheRoot`, `TestCEMReportToolNamesStableRefusals`, `TestCEMReportToolPreviewsStableMap`, `TestCEMReportToolRefusesMapsOutsideTheRoot` (retired 0.x maps, `CEM-V1-210`), `TestCEMReportToolAdmitsTheCallerNamedRoot`; `cmd/corvint-mcp/testdata/tools-list-task-review.golden.jsonl` |
 | `MCPV0-038` | `normalizeFailure` | `internal/mcp/bridge/probe_timeout_test.go`'s `TestMCPV0038ProbeTimeoutHasDistinctCode` injects a probe overrun with `gokernel.WithProbeBound` at one nanosecond on a live request context and asserts `repository-probe-timeout` with no typed class; restoring the `repository-unavailable` mapping fails it; `internal/mcp/bridge/git_timeout_test.go`'s `TestMCPV0038CEMGitTimeoutHasDistinctCode` and `TestMCPV0038IndexDeadlineHasDistinctCode` pin the CEM Git timeouts and the index Git deadline to `repository-probe-timeout`, a plain Git failure to `repository-unavailable`, and caller cancellation or deadline to `cancelled` (decision 0533) |
+| `MCPV0-039` | `extractFollowRef`, `newFollowRef`, `followRef.run`, `followRef.bound`, `followRef.sync`, `refreshIndex`, `Registry.SameRoot` | `TestMCPV0039InheritedGitEnvironmentCannotRedirectMove`, `TestMCPV0039FollowRefPinnedToCanonicalRootIdentity`, `TestMCPV0039AnswerHoldsTheFollowLock`: inherited Git variables, a retargeted root path, a replaced root (`ROOT_CHANGED`) and a concurrent call never move another checkout or move under an answer; `TestMCPV0039FollowRefRefreshesTreeAndIndexBeforeAnswer`: a moved branch is checked out on the detached linked worktree and its index snapshot is fresh before the next status answer, which reports the moved commit; startup refusals for a main checkout, an attached worktree, a missing ref, an aliased root, a duplicate or option-like ref and `--version` |
+| `MCPV0-040` | `followRef.sync` dirty and attached guards | `TestMCPV0040DirtyTreeNeverModifiedAndFlaggedStale`: untracked and tracked edits survive, head unchanged, `DIRTY` and `stale`; a checked-out branch is `NOT_DETACHED`; an injected index failure is `INDEX_FAILED`; `TestMCPV0040ChecksRunWhenHeadAlreadyCurrent`: dirty and attached at the current head are stale with no index write; `TestMCPV0040MoveNeverOverwritesIgnoredFiles`: an ignored file the new commit tracks survives as `CHECKOUT_FAILED` |
+| `MCPV0-041` | `withFollowRef`, `followState.block`, `toolFailure` | `TestMCPV0041MissingRefIsTypedErrorAndCommitEchoed`: the commit is echoed; a deleted ref is tool error `follow-ref-missing` with `reasonClass` `unclassified`, `state` `MISSING` and the worktree unchanged |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
 ## Unresolved decisions and promotion/kill criteria
