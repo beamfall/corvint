@@ -64,8 +64,13 @@ func TestUnitsDetectsConcurrentFrameworksAndRunnerIdentities(t *testing.T) {
 			t.Fatalf("helper %s misclassified: %+v", helper, unit)
 		}
 	}
-	if !contains(result.Frontier, FrontierRailsAutoload) {
-		t.Fatalf("Rails autoload frontier missing: %v", result.Frontier)
+	// Autoloading is mapped to edges, so only the tests with no edge of
+	// their own widen scope (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-010).
+	if contains(result.Frontier, FrontierRailsAutoload) || !contains(result.Frontier, FrontierImplicitTestDependency) {
+		t.Fatalf("frontier=%v", result.Frontier)
+	}
+	if !contains(unitByID(t, result, "ruby:rspec:spec/models/account_spec").Imports, "ruby:source:app/models/account") {
+		t.Fatalf("account spec does not reach its model: %+v", result.Units)
 	}
 }
 

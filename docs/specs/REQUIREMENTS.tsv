@@ -3525,6 +3525,10 @@ RUBY-AFFECTED-V0-005	docs/specs/ruby-affected-test-adapter-v0.md	Unreadable or u
 RUBY-AFFECTED-V0-006	docs/specs/ruby-affected-test-adapter-v0.md	Units, paths, imports, and frontier reasons MUST be sorted and reproducible.	unrecorded	-
 RUBY-AFFECTED-V0-007	docs/specs/ruby-affected-test-adapter-v0.md	Framework-qualified unit IDs MUST preserve the runner class and runnable	unrecorded	-
 RUBY-AFFECTED-V0-008	docs/specs/ruby-affected-test-adapter-v0.md	Focused fixtures MUST cover mixed frameworks, dependency closure,	unrecorded	-
+RUBY-AFFECTED-V0-009	docs/specs/ruby-affected-test-adapter-v0.md	In a Rails application whose autoload mapping is resolved (see	unrecorded	-
+RUBY-AFFECTED-V0-010	docs/specs/ruby-affected-test-adapter-v0.md	`ruby:rails-autoload` MUST be raised only when constant edges cannot bound	unrecorded	-
+RUBY-AFFECTED-V0-011	docs/specs/ruby-affected-test-adapter-v0.md	In a bounded Rails application, every test MUST carry advisory edges to each	unrecorded	-
+RUBY-AFFECTED-V0-012	docs/specs/ruby-affected-test-adapter-v0.md	`spec_helper.rb`, `rails_helper.rb`, and `test_helper.rb` MUST remain	unrecorded	-
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
