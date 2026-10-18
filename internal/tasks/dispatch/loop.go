@@ -123,6 +123,10 @@ type Dispatcher struct {
 	// treeSeen names the workers whose process tree the last supervise
 	// pass observed; the lease keeper acts only for them (CAL-V0-317).
 	treeSeen map[string]bool
+	// carryStale names the tickets whose ATR-V0-111 carry-over record could
+	// not be removed after progress; carryForeign the newer-version records
+	// already alerted. Neither is persisted.
+	carryStale, carryForeign map[string]bool
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -1249,12 +1253,16 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		if workUnknown {
 			detail["workState"] = StateUnknown
 		}
+		if n := carriedCount(d.dir, w.ID); n > 0 {
+			detail["carryOver"] = strconv.Itoa(n) // ATR-V0-114
+		}
 		d.finishUsage(w, detail)
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
-		d.salvage(w, now)      // ATR-V0-104
-		d.noteHardStop(w, now) // ATR-V0-106
+		d.salvage(w, now)                                   // ATR-V0-104
+		d.noteHardStop(w, now)                              // ATR-V0-106
+		d.noteCarryOver(w, now, class, progress, run != "") // ATR-V0-111
 		if stalled != nil {
 			d.emit(*stalled)
 		}
@@ -1602,6 +1610,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			promptValues["{detachedRun}"] = detachedLine(run)
 		}
 		values["{prompt}"] = Render(role.Prompt, promptValues)
+		// ATR-V0-113: the carry-over block follows the rendered prompt, so
+		// its untrusted text is never expanded.
+		var carryText string
+		var carried []CarryEntry
+		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.CarryOver.on() {
+			if carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket); carryText != "" {
+				values["{prompt}"] += "\n\n" + carryText
+			}
+		}
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
 			argv[i] = Render(s, values)
@@ -1636,6 +1653,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		err := os.MkdirAll(EvidenceDir(d.dir, id), 0o700)
 		if err == nil && hostUsesContextHook(host) {
 			_, err = d.writeHookSettings(id)
+		}
+		if err == nil && len(carried) > 0 {
+			err = writeCarryMarker(d.dir, id, a.Ticket, carried) // ATR-V0-113
 		}
 		if err != nil {
 			err = fmt.Errorf("before spawn: %w", err)
@@ -1716,6 +1736,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if model != "" {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
+		carryDetail(detail, carried, carryText) // ATR-V0-114
 		if role.Effort != "" {
 			detail["effort"] = role.Effort
 		}
