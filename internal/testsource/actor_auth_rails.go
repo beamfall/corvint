@@ -2,12 +2,13 @@ package testsource
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // This file reads the literal Rails and CanCanCan-style forms the actor-authorization check
-// supports (TSA-V0-031, TSA-V0-032). Anything outside those forms is recorded as unparsed, so a
-// conclusion that depends on it is UNKNOWN rather than authorized (TSA-V0-035).
+// supports (TSA-V0-034, TSA-V0-035). Anything outside those forms is recorded as unparsed, so a
+// conclusion that depends on it is UNKNOWN rather than authorized (TSA-V0-038).
 
 // rubyLine is one logical Ruby statement: comments removed, continuation lines joined, and the
 // 1-based line it starts on.
@@ -123,7 +124,7 @@ type routeFrame struct {
 	opaque         bool
 }
 
-// parseRailsRoutes reads the literal routes.rb forms (TSA-V0-031): `namespace :x do`,
+// parseRailsRoutes reads the literal routes.rb forms (TSA-V0-034): `namespace :x do`,
 // `resources :x` with `only:`/`except:` and nesting, `<verb> 'path', to: 'c#a'` (or `=>`) and
 // `root`. Any other statement is unparsed; a block it opens is skipped.
 func parseRailsRoutes(path, text string) railsRoutes {
@@ -254,10 +255,14 @@ var (
 	authorizeLiteral  = regexp.MustCompile(`^authorize!\s*\(?\s*:(\w+)\s*,\s*([A-Z]\w*(?:::[A-Z]\w*)*)\s*\)?$`)
 	implicitAuthorize = regexp.MustCompile(`^(load_and_authorize_resource|authorize_resource)\b`)
 	rubyDef           = regexp.MustCompile(`^def\s+(self\.)?(\w+[!?]?)\s*(\(.*\))?$`)
+	// rubyBranch starts a clause of the enclosing method or block; rubyExit can leave the method.
+	rubyBranch = regexp.MustCompile(`^(rescue|ensure|else|elsif|when|in)\b`)
+	rubyExit   = regexp.MustCompile(`\b(return|raise|fail|throw|exit|abort)\b`)
 )
 
 // controllerCheck finds the one literal `authorize! :action, Subject` in a controller action
-// (TSA-V0-031). It returns the check, or an UNKNOWN reason code with its detail.
+// (TSA-V0-034). A check inside a nested block or clause, or after a statement that can leave the
+// action early, is conditional. It returns the check, or an UNKNOWN reason code with its detail.
 func controllerCheck(path, text, action string) (AbilityCheck, string, string) {
 	lines := rubyLines(text)
 	implicit := 0
@@ -273,21 +278,41 @@ func controllerCheck(path, text, action string) (AbilityCheck, string, string) {
 		}
 		end := rubyBlockEnd(lines, i)
 		checks := []AbilityCheck{}
+		depth, guard, conditional := 0, 0, ""
 		for _, s := range lines[i+1 : min(end, len(lines))] {
-			if !authorizeCall.MatchString(s.text) {
+			if authorizeCall.MatchString(s.text) {
+				c := authorizeLiteral.FindStringSubmatch(s.text)
+				if c == nil {
+					return AbilityCheck{}, "check-not-literal", locate(path, s.line)
+				}
+				checks = append(checks, AbilityCheck{Action: c[1], Subject: c[2], Path: path, Line: s.line})
+				switch {
+				case depth > 0 && conditional == "":
+					conditional = locate(path, s.line) + " authorize! is inside a nested block or clause"
+				case guard > 0 && conditional == "":
+					conditional = locate(path, s.line) + " authorize! follows an early exit at line " + strconv.Itoa(guard)
+				}
 				continue
 			}
-			c := authorizeLiteral.FindStringSubmatch(s.text)
-			if c == nil {
-				return AbilityCheck{}, "check-not-literal", locate(path, s.line)
+			switch {
+			case rubyOpens(s.text):
+				depth++
+			case rubyEnd.MatchString(s.text):
+				depth--
+			case depth == 0 && rubyBranch.MatchString(s.text):
+				depth++
 			}
-			checks = append(checks, AbilityCheck{Action: c[1], Subject: c[2], Path: path, Line: s.line})
+			if guard == 0 && rubyExit.MatchString(s.text) {
+				guard = s.line
+			}
 		}
 		switch {
-		case len(checks) == 1:
-			return checks[0], "", ""
 		case len(checks) > 1:
 			return AbilityCheck{}, "check-multiple", locate(path, checks[1].Line)
+		case len(checks) == 1 && conditional != "":
+			return AbilityCheck{}, "check-conditional", conditional
+		case len(checks) == 1:
+			return checks[0], "", ""
 		case implicit > 0:
 			return AbilityCheck{}, "check-implicit", locate(path, implicit)
 		}
@@ -314,7 +339,7 @@ type abilityRole struct {
 }
 
 // abilityModel is a CanCanCan-style Ability class whose initializer dispatches to the method named
-// by the user's role (TSA-V0-032).
+// by the user's role (TSA-V0-035).
 type abilityModel struct {
 	path     string
 	dispatch bool
@@ -330,7 +355,11 @@ var (
 	abilityBlock     = regexp.MustCompile(`(\bdo(\s*\|[^|]*\|)?|\{\s*\|[^|]*\|.*\})$`)
 	rubyBareCall     = regexp.MustCompile(`^[a-z_]\w*$`)
 	rubyConstant     = regexp.MustCompile(`^[A-Z]\w*(::[A-Z]\w*)*$`)
-	rubyIgnored      = regexp.MustCompile(`^(include\s|extend\s|private$|protected$|public$|return\b|\w+\s*\|\|=)`)
+	rubyIgnored      = regexp.MustCompile(`^(include\s|extend\s|private$|protected$|public$|\w+\s*\|\|=)`)
+	// rubyMentionsRule is a statement that names can or cannot without starting with it, such as
+	// `return can ...` or `x = can ...`; it could grant or revoke, so it is unparsed.
+	rubyMentionsRule = regexp.MustCompile(`\b(can|cannot)\b`)
+	rubyKeyword      = regexp.MustCompile(`^(return|next|break|redo|retry|super|yield|raise|fail)$`)
 )
 
 // parseAbility reads the Ability class. Statements it cannot read are recorded per rule set; a
@@ -377,6 +406,8 @@ func parseAbility(path, text string) abilityModel {
 			case rubyOpens(l.text):
 				target.unparsed = append(target.unparsed, l.line)
 				j = rubyBlockEnd(lines, j)
+			case rubyMentionsRule.MatchString(l.text) || rubyKeyword.MatchString(l.text):
+				target.unparsed = append(target.unparsed, l.line)
 			case rubyBareCall.MatchString(l.text) && target != &model.global:
 				target.inherits = append(target.inherits, l.text)
 			case rubyIgnored.MatchString(l.text):
@@ -483,7 +514,7 @@ func (rule abilityRule) matches(action, subject string) bool {
 }
 
 // grant is one role's evaluation: granted with the rule that grants, denied, or unknown with a
-// reason (TSA-V0-032, TSA-V0-035).
+// reason (TSA-V0-035, TSA-V0-038).
 type grant struct {
 	state  string // "granted", "denied" or "unknown"
 	rule   GrantRef
@@ -567,6 +598,10 @@ func (m abilityModel) evaluate(role, action, subject string) grant {
 		}
 	}
 	switch {
+	case granted != nil && unparsed > 0:
+		// An unread statement in the evaluated rule sets could revoke the grant (a conditional
+		// `cannot`, a guard), so the grant is not concluded.
+		return grant{state: "unknown", reason: "statement-unparsed", detail: locate(m.path, unparsed)}
 	case granted != nil:
 		return grant{state: "granted", rule: *granted}
 	case conditional > 0:

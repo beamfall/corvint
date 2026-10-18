@@ -10,10 +10,10 @@ import (
 	"github.com/Beamfall/corvint/internal/appmap"
 )
 
-// ActorAuthSchema names the actor-authorization report (TSA-V0-034).
+// ActorAuthSchema names the actor-authorization report (TSA-V0-037).
 const ActorAuthSchema = "corvint-tests-actor-authorization/0"
 
-// Request statuses and the finding code (TSA-V0-033..035).
+// Request statuses and the finding code (TSA-V0-036..038).
 const (
 	ActorUnauthorized     = "UNAUTHORIZED"
 	ActorAuthorized       = "AUTHORIZED"
@@ -22,14 +22,14 @@ const (
 	ActorUnauthorizedCode = "ACTOR-UNAUTHORIZED"
 )
 
-// Default committed inputs for the Rails and CanCanCan-style slice (TSA-V0-031, TSA-V0-032).
+// Default committed inputs for the Rails and CanCanCan-style slice (TSA-V0-034, TSA-V0-035).
 const (
 	DefaultRoutesPath  = "config/routes.rb"
 	DefaultAbilityPath = "app/models/ability.rb"
 	controllersRoot    = "app/controllers/"
 )
 
-// ActorAuthFrameworks is the closed set of input forms the check reads (TSA-V0-030..032).
+// ActorAuthFrameworks is the closed set of input forms the check reads (TSA-V0-033..035).
 var ActorAuthFrameworks = []string{
 	"js-ts-fixture-factory-role-literal",
 	"js-ts-test-login-and-request-literal",
@@ -38,7 +38,7 @@ var ActorAuthFrameworks = []string{
 	"cancancan-style-role-rule-sets",
 }
 
-// FixtureActor is one user a fixture seeds and returns under Key (TSA-V0-030).
+// FixtureActor is one user a fixture seeds and returns under Key (TSA-V0-033).
 type FixtureActor struct {
 	Fixture string `json:"fixture"`
 	Key     string `json:"key"`
@@ -75,7 +75,7 @@ type GrantRef struct {
 	Line int    `json:"line"`
 }
 
-// ActorRequest is one request a test sends, with every resolved link and its status (TSA-V0-033).
+// ActorRequest is one request a test sends, with every resolved link and its status (TSA-V0-036).
 type ActorRequest struct {
 	Path         string         `json:"path"`
 	Line         int            `json:"line"`
@@ -94,9 +94,11 @@ type ActorRequest struct {
 	Alternatives []FixtureActor `json:"alternatives"`
 	// segments is the request path split at `/`; "*" marks a segment that is one substitution.
 	segments []string
+	// pathUnknown marks a path that is not a literal, so no route is matched for it.
+	pathUnknown bool
 }
 
-// ActorAuthReport is the deterministic actor-authorization result (TSA-V0-034).
+// ActorAuthReport is the deterministic actor-authorization result (TSA-V0-037).
 type ActorAuthReport struct {
 	Schema     string         `json:"schema"`
 	Revision   string         `json:"revision"`
@@ -116,7 +118,7 @@ type ActorAuthOptions struct {
 
 // ActorAuthorization reads the committed tests, fixtures, routes, controllers and Ability class at
 // a revision and reports each test request whose actor's role does not hold the ability the
-// request needs (TSA-V0-030..036). It reads committed objects only.
+// request needs (TSA-V0-033..039). It reads committed objects only.
 func ActorAuthorization(r Repo, options ActorAuthOptions) (ActorAuthReport, error) {
 	revision, err := r.Resolve(options.Revision)
 	if err != nil {
@@ -294,7 +296,7 @@ func (s *source) refs(start, end int) map[string]bool {
 }
 
 // collectFixtures records every exported fixture builder in s whose body seeds users
-// (TSA-V0-030).
+// (TSA-V0-033).
 func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, sources map[string]*source, names []string) {
 	for _, f := range s.exportedFunctions() {
 		body := [2]int{f.open + 1, s.match[f.open]}
@@ -369,7 +371,7 @@ func (s *source) collectFixtures(fixtures map[string]*fixtureInfo, sources map[s
 }
 
 // seededUsers finds the user-factory calls in a fixture body: a call whose callee chain names a
-// user, or whose arguments carry a `role:` key (TSA-V0-030).
+// user, or whose arguments carry a `role:` key (TSA-V0-033).
 func (s *source) seededUsers(body [2]int, fixture string, sources map[string]*source, names []string) []seededUser {
 	users := []seededUser{}
 	for i := body[0]; i < body[1]; i++ {
@@ -408,11 +410,16 @@ func (s *source) seededUsers(body [2]int, fixture string, sources map[string]*so
 			u.actor.Reason, u.actor.Detail = "role-ambiguous", locate(s.path, s.tokens[i].Line)+" sets role more than once"
 		case len(roleKeys) == 1:
 			v := roleKeys[0] + 2
-			if t := s.tokens[v]; (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal && (s.punct(v+1, ",") || s.punct(v+1, "}")) {
+			if at := s.roleOverride(roleKeys[0], close); at >= 0 {
+				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[at].Line)+" a later spread or computed property can override role"
+			} else if t := s.tokens[v]; (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal && (s.punct(v+1, ",") || s.punct(v+1, "}")) {
 				u.actor.Role, u.actor.RoleFrom = t.Text, "literal"
 			} else {
 				u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[v].Line)+" role is not a string literal"
 			}
+		case s.roleOverride(open, close) >= 0:
+			at := s.roleOverride(open, close)
+			u.actor.Reason, u.actor.Detail = "role-not-literal", locate(s.path, s.tokens[at].Line)+" a spread or computed property can set role"
 		default:
 			role, at, ok := factoryDefaultRole(s.tokens[i].Text, sources, names)
 			if ok {
@@ -427,10 +434,25 @@ func (s *source) seededUsers(body [2]int, fixture string, sources map[string]*so
 	return users
 }
 
-// factoryDefaultRole finds the one definition of factory whose parameters give `role` a literal
-// default (`role = 'x'`, also inside a destructured parameter).
+// roleOverride returns the first spread (`...x`) or computed property (`[k]: v`) after token from
+// and before close, which could set role at run time, or -1 (TSA-V0-033).
+func (s *source) roleOverride(from, close int) int {
+	for j := from + 1; j < close; j++ {
+		if s.punct(j, ".") && s.punct(j+1, ".") && s.punct(j+2, ".") {
+			return j
+		}
+		if s.punct(j, "[") && s.match[j] > j && s.punct(s.match[j]+1, ":") && (s.punct(j-1, "{") || s.punct(j-1, ",")) {
+			return j
+		}
+	}
+	return -1
+}
+
+// factoryDefaultRole finds the one definition of factory whose parameters give `role` a default
+// that is a single string literal ending at a `,`, `}` or `)` (`role = 'x'`, also inside a
+// destructured parameter). Any other default makes the role unresolved (TSA-V0-033).
 func factoryDefaultRole(factory string, sources map[string]*source, names []string) (string, string, bool) {
-	found, role, at := 0, "", ""
+	found, role, at, other := 0, "", "", false
 	for _, name := range names {
 		s := sources[name]
 		if s == nil {
@@ -460,14 +482,21 @@ func factoryDefaultRole(factory string, sources map[string]*source, names []stri
 				continue
 			}
 			for j := open + 1; j < s.match[open]; j++ {
-				if s.ident(j, "role") && s.punct(j+1, "=") && j+2 < len(s.tokens) && s.tokens[j+2].Literal {
+				if !s.ident(j, "role") || !s.punct(j+1, "=") || s.punct(j+2, "=") || s.punct(j+2, ">") {
+					continue
+				}
+				t := s.tokens[min(j+2, len(s.tokens)-1)]
+				if (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal &&
+					(s.punct(j+3, ",") || s.punct(j+3, "}") || s.punct(j+3, ")")) {
 					found++
-					role, at = s.tokens[j+2].Text, locate(s.path, s.tokens[j+2].Line)
+					role, at = t.Text, locate(s.path, t.Line)
+				} else {
+					other = true
 				}
 			}
 		}
 	}
-	return role, at, found == 1
+	return role, at, found == 1 && !other
 }
 
 // substitution is the lexer's marker for one template substitution in a template's Text.
@@ -485,7 +514,7 @@ type login struct {
 }
 
 // actorRequests finds each literal request a test sends and binds the actor it is sent as: the
-// latest login call before it in the same test or outside every test (TSA-V0-030, TSA-V0-033).
+// latest login call before it in the same test or outside every test (TSA-V0-033, TSA-V0-036).
 func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest {
 	tests := []decl{}
 	for _, d := range s.decls {
@@ -551,32 +580,44 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 				continue
 			}
 			args := s.splitArgs(i+1, s.match[i+1])
-			if len(args) == 0 || !s.loneString(args[0]) {
+			literal := len(args) > 0 && s.loneString(args[0])
+			if literal {
+				t := s.tokens[args[0][0]]
+				literal = strings.HasPrefix(t.Text, "/") && !(t.Kind == appmap.JSString && !t.Literal)
+			}
+			if !literal && !s.requestReceiver(i) {
 				continue
 			}
-			t := s.tokens[args[0][0]]
-			if !strings.HasPrefix(t.Text, "/") || t.Kind == appmap.JSString && !t.Literal {
-				continue
-			}
-			request := ActorRequest{Path: s.path, Line: t.Line, Test: d.title, Method: method, URL: t.Text,
+			request := ActorRequest{Path: s.path, Line: s.tokens[i].Line, Test: d.title, Method: method,
 				GrantedBy: []GrantRef{}, LowestRoles: []string{}, Alternatives: []FixtureActor{}}
-			if t.Kind == appmap.JSTemplate && !t.Literal {
-				request.URL = strings.Trim(t.Source, "`")
-			}
 			if exempt != "" {
 				request.Status, request.Reason, request.Detail = ActorExempt, "asserts-rejection", exempt
 			}
-			pathOnly, _, _ := strings.Cut(t.Text, "?")
-			for _, segment := range strings.Split(strings.Trim(pathOnly, "/"), "/") {
-				switch {
-				case segment == "":
-				case segment == substitution:
-					request.segments = append(request.segments, "*")
-				case strings.Contains(segment, substitution):
-					request.setUnknown("path-not-literal", locate(s.path, t.Line)+" a path segment mixes text and a substitution")
-				default:
-					request.segments = append(request.segments, segment)
+			if literal {
+				t := s.tokens[args[0][0]]
+				request.Line, request.URL = t.Line, t.Text
+				if t.Kind == appmap.JSTemplate && !t.Literal {
+					request.URL = strings.Trim(t.Source, "`")
 				}
+				pathOnly, _, _ := strings.Cut(t.Text, "?")
+				for _, segment := range strings.Split(strings.Trim(pathOnly, "/"), "/") {
+					switch {
+					case segment == "":
+					case segment == substitution:
+						request.segments = append(request.segments, "*")
+					case strings.Contains(segment, substitution):
+						request.pathUnknown = true
+						request.setUnknown("path-not-literal", locate(s.path, t.Line)+" a path segment mixes text and a substitution")
+					default:
+						request.segments = append(request.segments, segment)
+					}
+				}
+			} else {
+				if len(args) > 0 {
+					request.Line, request.URL = s.tokens[args[0][0]].Line, s.render(args[0][0], args[0][1])
+				}
+				request.pathUnknown = true
+				request.setUnknown("path-not-literal", locate(s.path, request.Line)+" the request path is not a literal beginning with /")
 			}
 			chosen := -1
 			for k, l := range logins {
@@ -586,7 +627,7 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 			}
 			switch {
 			case chosen < 0:
-				request.setUnknown("actor-unbound", locate(s.path, t.Line)+" no login call precedes the request")
+				request.setUnknown("actor-unbound", locate(s.path, request.Line)+" no login call precedes the request")
 			case logins[chosen].fixture == "":
 				request.setUnknown(logins[chosen].reason, logins[chosen].detail)
 			default:
@@ -612,6 +653,12 @@ func (s *source) actorRequests(fixtures map[string]*fixtureInfo) []ActorRequest 
 	return out
 }
 
+// requestReceiver reports a method call at token i on a receiver named like a request context
+// (`request.put(`, `page.request.get(`), whose path argument must then resolve (TSA-V0-034).
+func (s *source) requestReceiver(i int) bool {
+	return s.memberAccess(i) && s.ident(i-2, "") && strings.Contains(strings.ToLower(s.tokens[i-2].Text), "request")
+}
+
 // setUnknown records the first unresolved link; an exempt request keeps its status.
 func (r *ActorRequest) setUnknown(reason, detail string) {
 	if r.Status == "" {
@@ -619,14 +666,23 @@ func (r *ActorRequest) setUnknown(reason, detail string) {
 	}
 }
 
-// rejectionStatuses are the statuses whose assertion exempts a test (TSA-V0-036).
+// rejectionStatuses are the statuses whose assertion exempts a test (TSA-V0-039).
 var rejectionStatuses = map[string]bool{"401": true, "403": true, "422": true}
 
-// assertsRejection reports where a test asserts a 401, 403 or 422 status with an equality matcher.
+// assertsRejection reports where a test asserts a 401, 403 or 422 status with an equality matcher
+// that is not negated, on a subject that is a response status (`x.status()`, `x.status`,
+// `x.statusCode`) or, for toHaveStatus, the response itself.
 func (s *source) assertsRejection(d decl) string {
 	for i := d.body[0]; i < d.body[1]; i++ {
 		c, ok := s.readExpect(i)
 		if !ok {
+			continue
+		}
+		negated := false
+		for j := c.subject[1]; j < c.margs[0]; j++ {
+			negated = negated || s.ident(j, "not") && s.memberAccess(j)
+		}
+		if negated || c.matcher != "toHaveStatus" && !s.statusSubject(c.subject) {
 			continue
 		}
 		switch c.matcher {
@@ -639,9 +695,21 @@ func (s *source) assertsRejection(d decl) string {
 	return ""
 }
 
+// statusSubject reports an expect subject ending in `.status()`, `.status` or `.statusCode`.
+func (s *source) statusSubject(subject [2]int) bool {
+	end := subject[1]
+	if end-subject[0] > 2 && s.punct(end-1, ")") && s.punct(end-2, "(") {
+		end -= 2
+	}
+	return end > subject[0] && s.memberAccess(end-1) && (s.ident(end-1, "status") || s.ident(end-1, "statusCode"))
+}
+
 // resolve follows the request to its route, controller check and the actor role's grant, and sets
-// the status (TSA-V0-031..035).
+// the status (TSA-V0-034..038).
 func (r *ActorRequest) resolve(files map[string]string, routes railsRoutes, haveRoutes bool, ability abilityModel, haveAbility bool, actors []FixtureActor) {
+	if r.pathUnknown {
+		return
+	}
 	if !haveRoutes {
 		r.setUnknown("routes-unavailable", routes.path+" is not committed")
 		return
@@ -672,7 +740,11 @@ func (r *ActorRequest) resolve(files map[string]string, routes railsRoutes, have
 		r.setUnknown("ability-unavailable", ability.path+" is not committed")
 		return
 	}
-	if r.Actor == nil || r.Actor.Role == "" {
+	if r.Actor == nil {
+		return
+	}
+	if r.Actor.Role == "" {
+		r.setUnknown("role-undefined", locate(r.Actor.Path, r.Actor.Line)+" seeds an empty role")
 		return
 	}
 	g := ability.evaluate(r.Actor.Role, check.Action, check.Subject)
@@ -693,7 +765,7 @@ func (r *ActorRequest) resolve(files map[string]string, routes railsRoutes, have
 }
 
 // lowest fills the granting rules, the lowest sufficient roles and the alternative fixture actors
-// (TSA-V0-033). A lowest role is a granted role that inherits no other granted role.
+// (TSA-V0-036). A lowest role is a granted role that inherits no other granted role.
 func (r *ActorRequest) lowest(ability abilityModel, check AbilityCheck, actors []FixtureActor) {
 	granted := map[string]GrantRef{}
 	for _, role := range sortedKeys(ability.roles) {

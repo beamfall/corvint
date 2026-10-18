@@ -109,7 +109,7 @@ test('assistant cannot rename a widget', async ({ request }) => {
 // TestActorAuthorizationIssueRepro reproduces the issue's assistant/manager case as an
 // ACTOR-UNAUTHORIZED finding naming the granting rule, the lowest sufficient role and the
 // alternative fixture, reports the manager pair clean and the 403-asserting test exempt, reading
-// committed objects only (TSA-V0-030..034, TSA-V0-036).
+// committed objects only (TSA-V0-033..037, TSA-V0-039).
 func TestActorAuthorizationIssueRepro(t *testing.T) {
 	root := t.TempDir()
 	head := commitFiles(t, root, actorAuthFixture())
@@ -117,6 +117,7 @@ func TestActorAuthorizationIssueRepro(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	assertValidStatuses(t, report)
 	if report.Schema != ActorAuthSchema || report.Revision != head || report.Verdict != "ACTOR_UNAUTHORIZED" {
 		t.Fatalf("header = %s %s %s", report.Schema, report.Revision, report.Verdict)
 	}
@@ -156,7 +157,7 @@ func TestActorAuthorizationIssueRepro(t *testing.T) {
 }
 
 // TestActorAuthorizationDeterministic proves the pure analysis is stable and that only CLEAN,
-// UNKNOWN and ACTOR_UNAUTHORIZED verdicts arise (TSA-V0-034).
+// UNKNOWN and ACTOR_UNAUTHORIZED verdicts arise (TSA-V0-037).
 func TestActorAuthorizationDeterministic(t *testing.T) {
 	files := actorAuthFixture()
 	first, _ := json.Marshal(AnalyzeActorAuthorization(files, DefaultRoutesPath, DefaultAbilityPath))
@@ -179,7 +180,7 @@ func TestActorAuthorizationDeterministic(t *testing.T) {
 
 // TestActorAuthorizationInheritance evaluates inherited rule sets: an inherited grant authorizes,
 // `:manage, :all` covers any action, CanCanCan's default aliases apply, and the lowest roles exclude
-// a role that inherits another granting role (TSA-V0-032, TSA-V0-033).
+// a role that inherits another granting role (TSA-V0-035, TSA-V0-036).
 func TestActorAuthorizationInheritance(t *testing.T) {
 	model := parseAbility(DefaultAbilityPath, actorAuthFixture()[DefaultAbilityPath])
 	cases := []struct {
@@ -202,7 +203,7 @@ func TestActorAuthorizationInheritance(t *testing.T) {
 }
 
 // TestActorAuthorizationUnknownLinks proves every unresolved link yields UNKNOWN with a typed
-// reason and never AUTHORIZED or UNAUTHORIZED (TSA-V0-035).
+// reason and never AUTHORIZED or UNAUTHORIZED (TSA-V0-038).
 func TestActorAuthorizationUnknownLinks(t *testing.T) {
 	const spec, ability, routes = "e2e/widgets.spec.ts", DefaultAbilityPath, DefaultRoutesPath
 	const controller = "app/controllers/api/widgets_controller.rb"
@@ -256,11 +257,86 @@ func TestActorAuthorizationUnknownLinks(t *testing.T) {
 			files := actorAuthFixture()
 			c.edit(files)
 			report := AnalyzeActorAuthorization(files, routes, ability)
+			assertValidStatuses(t, report)
 			first := report.Requests[0]
 			if first.Status != ActorUnknown || first.Reason != c.reason || first.Detail == "" || first.Code != "" {
 				t.Fatalf("request = %+v", first)
 			}
 			if report.Verdict != ActorUnknown {
+				t.Fatalf("verdict = %s", report.Verdict)
+			}
+		})
+	}
+}
+
+// assertValidStatuses fails when any request lacks one of the four request statuses.
+func assertValidStatuses(t *testing.T, report ActorAuthReport) {
+	t.Helper()
+	for _, r := range report.Requests {
+		switch r.Status {
+		case ActorUnauthorized, ActorAuthorized, ActorExempt, ActorUnknown:
+		default:
+			t.Fatalf("request without a valid status: %+v", r)
+		}
+	}
+}
+
+// TestActorAuthorizationReviewRegressions covers inputs that must not read as resolved: a role a
+// later spread can override, a non-literal factory default, a guarded controller check, a rule
+// hidden in another statement, an unread statement that could revoke a grant, a negated or
+// non-status rejection assertion, a non-literal request path and an empty role
+// (TSA-V0-033..036, TSA-V0-038, TSA-V0-039).
+func TestActorAuthorizationReviewRegressions(t *testing.T) {
+	const spec, ability = "e2e/widgets.spec.ts", DefaultAbilityPath
+	const controller, alpha = "app/controllers/api/widgets_controller.rb", "e2e/fixtures/alpha.ts"
+	replace := func(name, old, new string) func(map[string]string) {
+		return func(files map[string]string) {
+			if !strings.Contains(files[name], old) {
+				t.Fatalf("%s lacks %q", name, old)
+			}
+			files[name] = strings.Replace(files[name], old, new, 1)
+		}
+	}
+	cases := []struct {
+		name           string
+		edit           func(map[string]string)
+		index          int
+		status, reason string
+	}{
+		{"spread-overrides-role", replace(alpha, "role: 'assistant' })", "role: 'assistant', ...overrides })"), 0, ActorUnknown, "role-not-literal"},
+		{"spread-sets-default-role", replace(alpha, "createUser({ email, role: 'assistant' })", "createUser({ email, ...overrides })"), 0, ActorUnknown, "role-not-literal"},
+		{"computed-key-overrides-role", replace(alpha, "role: 'assistant' })", "role: 'assistant', [key]: 'manager' })"), 0, ActorUnknown, "role-not-literal"},
+		{"default-not-single-literal", func(files map[string]string) {
+			replace("e2e/fixtures/users.ts", "role = 'assistant' }", "role = 'assistant'.replace('a', 'b') }")(files)
+			replace(alpha, "createUser({ email, role: 'assistant' })", "createUser({ email })")(files)
+		}, 0, ActorUnknown, "role-default-unresolved"},
+		{"check-after-early-return", replace(controller, "      authorize! :update, Widget\n", "      return head(:forbidden) unless current_user\n      authorize! :update, Widget\n"), 0, ActorUnknown, "check-conditional"},
+		{"check-inside-if", replace(controller, "      authorize! :update, Widget\n", "      if current_user.active?\n        authorize! :update, Widget\n      end\n"), 0, ActorUnknown, "check-conditional"},
+		{"check-in-rescue", replace(controller, "      authorize! :update, Widget\n      widget = Widget.find(params[:id])\n", "      widget = Widget.find(params[:id])\n    rescue ActiveRecord::RecordNotFound\n      authorize! :update, Widget\n"), 0, ActorUnknown, "check-conditional"},
+		{"return-can-unparsed", replace(ability, "    can :update, Widget # managers edit widgets\n", "    return can :update, Widget\n"), 1, ActorUnknown, "statement-unparsed"},
+		{"assigned-can-unparsed", replace(ability, "    can :update, Widget # managers edit widgets\n", "    granted ||= can :update, Widget\n"), 1, ActorUnknown, "statement-unparsed"},
+		{"unparsed-cannot-outranks-grant", replace(ability, "    can :update, Widget # managers edit widgets\n", "    can :update, Widget\n    if user.suspended?\n      cannot :update, Widget\n    end\n"), 1, ActorUnknown, "statement-unparsed"},
+		{"negated-rejection-not-exempt", replace(spec, "expect(response.status()).toBe(403)", "expect(response.status()).not.toBe(403)"), 2, ActorUnauthorized, ""},
+		{"non-status-rejection-not-exempt", replace(spec, "expect(response.status()).toBe(403)", "expect(widget.id).toBe(403)"), 2, ActorUnauthorized, ""},
+		{"status-property-exempt", replace(spec, "expect(response.status()).toBe(403)", "expect(response.statusCode).toBe(403)"), 2, ActorExempt, "asserts-rejection"},
+		{"variable-path", replace(spec, "request.put(`/api/widgets/${widgetId}`", "request.put(url"), 0, ActorUnknown, "path-not-literal"},
+		{"concatenated-path", replace(spec, "request.put(`/api/widgets/${widgetId}`", "request.put('/api/widgets/' + widgetId"), 0, ActorUnknown, "path-not-literal"},
+		{"empty-role", replace(alpha, "role: 'assistant'", "role: ''"), 0, ActorUnknown, "role-undefined"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			files := actorAuthFixture()
+			c.edit(files)
+			report := AnalyzeActorAuthorization(files, DefaultRoutesPath, ability)
+			assertValidStatuses(t, report)
+			if len(report.Requests) != 3 {
+				t.Fatalf("requests = %+v", report.Requests)
+			}
+			r := report.Requests[c.index]
+			if r.Status != c.status || r.Reason != c.reason || (c.status == ActorUnknown && (r.Detail == "" || r.Code != "")) {
+				t.Fatalf("request = %+v", r)
+			}
+			if c.status == ActorUnknown && report.Verdict == "CLEAN" {
 				t.Fatalf("verdict = %s", report.Verdict)
 			}
 		})

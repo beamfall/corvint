@@ -3974,13 +3974,13 @@ TSA-V0-020	docs/specs/test-source-analysis-v0.md	113	(standing auto-accept, 2026
 TSA-V0-021	docs/specs/test-source-analysis-v0.md	123	(standing auto-accept, 2026-10-11; V1-1592) With `--gate TICKET --base REV` only	standing	2026-10-11; V1-1592
 TSA-V0-022	docs/specs/test-source-analysis-v0.md	128	(standing auto-accept, 2026-10-11; V1-1592) The project-owned, committed file	standing	2026-10-11; V1-1592
 TSA-V0-023	docs/specs/test-source-analysis-v0.md	135	(standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs a	standing	2026-10-11; V1-1592
-TSA-V0-030	docs/specs/test-source-analysis-v0.md	149	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution	standing	2026-10-11; V1-1770; #1115
-TSA-V0-031	docs/specs/test-source-analysis-v0.md	159	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability	standing	2026-10-11; V1-1770; #1115
-TSA-V0-032	docs/specs/test-source-analysis-v0.md	166	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation M	standing	2026-10-11; V1-1770; #1115
-TSA-V0-033	docs/specs/test-source-analysis-v0.md	174	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST	standing	2026-10-11; V1-1770; #1115
-TSA-V0-034	docs/specs/test-source-analysis-v0.md	181	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema	standing	2026-10-11; V1-1770; #1115
-TSA-V0-035	docs/specs/test-source-analysis-v0.md	187	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does	standing	2026-10-11; V1-1770; #1115
-TSA-V0-036	docs/specs/test-source-analysis-v0.md	199	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a	standing	2026-10-11; V1-1770; #1115
+TSA-V0-033	docs/specs/test-source-analysis-v0.md	149	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution	standing	2026-10-11; V1-1770; #1115
+TSA-V0-034	docs/specs/test-source-analysis-v0.md	161	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability	standing	2026-10-11; V1-1770; #1115
+TSA-V0-035	docs/specs/test-source-analysis-v0.md	171	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation M	standing	2026-10-11; V1-1770; #1115
+TSA-V0-036	docs/specs/test-source-analysis-v0.md	182	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST	standing	2026-10-11; V1-1770; #1115
+TSA-V0-037	docs/specs/test-source-analysis-v0.md	189	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema	standing	2026-10-11; V1-1770; #1115
+TSA-V0-038	docs/specs/test-source-analysis-v0.md	195	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does	standing	2026-10-11; V1-1770; #1115
+TSA-V0-039	docs/specs/test-source-analysis-v0.md	209	(standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a	standing	2026-10-11; V1-1770; #1115
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
