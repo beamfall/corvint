@@ -282,33 +282,41 @@ func registryObject(tokens []registryToken, export string) (int, int, bool) {
 		if !isRegistryWord(tokens[keyword+1], export) {
 			continue
 		}
-		next := keyword + 2
-		if isRegistryPunct(tokens[next], ":") {
-			depth := 0
-			for next++; next < len(tokens); next++ {
-				token := tokens[next]
-				if isRegistryPunct(token, "=") && next+1 < len(tokens) && isRegistryPunct(tokens[next+1], ">") {
-					next++
-					continue
-				}
-				if depth == 0 && isRegistryPunct(token, "=") {
-					break
-				}
-				switch {
-				case token.kind != webPunct:
-				case strings.Contains("([{<", token.text):
-					depth++
-				case strings.Contains(")]}>", token.text) && depth > 0:
-					depth--
-				}
-			}
-		}
+		next := registryAnnotationEnd(tokens, keyword+2)
 		if next+1 < len(tokens) && isRegistryPunct(tokens[next], "=") && isRegistryPunct(tokens[next+1], "{") {
 			return next + 1, registryClose(tokens, next+1), true
 		}
 		return 0, 0, false
 	}
 	return 0, 0, false
+}
+
+// registryAnnotationEnd skips an optional `: Type` annotation starting at next
+// and returns the index of the top-level `=` that ends it, or next unchanged
+// when no annotation starts there.
+func registryAnnotationEnd(tokens []registryToken, next int) int {
+	if next >= len(tokens) || !isRegistryPunct(tokens[next], ":") {
+		return next
+	}
+	depth := 0
+	for next++; next < len(tokens); next++ {
+		token := tokens[next]
+		if isRegistryPunct(token, "=") && next+1 < len(tokens) && isRegistryPunct(tokens[next+1], ">") {
+			next++
+			continue
+		}
+		if depth == 0 && isRegistryPunct(token, "=") {
+			break
+		}
+		switch {
+		case token.kind != webPunct:
+		case strings.Contains("([{<", token.text):
+			depth++
+		case strings.Contains(")]}>", token.text) && depth > 0:
+			depth--
+		}
+	}
+	return next
 }
 
 // registryExportedOtherwise reports whether the file may export some other

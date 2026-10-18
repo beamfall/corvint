@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +64,44 @@ func TestChangesCLI(t *testing.T) {
 			if code := run(args, strings.NewReader(""), &out, &err); code != 2 || out.Len() != 0 || !strings.Contains(err.String(), "changes-") || strings.Contains(err.String(), "do-not-echo") {
 				t.Fatalf("refusal: %v %d %s %s", args, code, &out, &err)
 			}
+		}
+	})
+	t.Run("UCL1142-V0-008 range over the bound names limit and commits", func(t *testing.T) {
+		root, e := filepath.EvalSymlinks(t.TempDir())
+		if e != nil {
+			t.Fatal(e)
+		}
+		var stream strings.Builder
+		for i := 1; i <= 514; i++ {
+			fmt.Fprintf(&stream, "commit refs/heads/main\nmark :%d\ncommitter Fixture <fixture@example.invalid> 1767225600 +0000\ndata 6\nplain\n", i)
+			if i > 1 {
+				fmt.Fprintf(&stream, "from :%d\n", i-1)
+			}
+			stream.WriteString("\n")
+		}
+		for _, step := range []struct {
+			args  []string
+			stdin string
+		}{{[]string{"init", "-q", "-b", "main"}, ""}, {[]string{"fast-import", "--quiet"}, stream.String()}} {
+			c := exec.Command("git", append([]string{"-C", root}, step.args...)...)
+			c.Stdin = strings.NewReader(step.stdin)
+			if b, e := c.CombinedOutput(); e != nil {
+				t.Fatalf("git %v: %v %s", step.args, e, b)
+			}
+		}
+		revs, e := exec.Command("git", "-C", root, "rev-parse", "main~513", "main").Output()
+		if e != nil {
+			t.Fatal(e)
+		}
+		ends := strings.Fields(string(revs))
+		var out, err bytes.Buffer
+		code := run([]string{"--root", root, "changes", "--from", ends[0], "--to", ends[1]}, strings.NewReader(""), &out, &err)
+		var refusal map[string]any
+		if code != 2 || out.Len() != 0 || json.Unmarshal(err.Bytes(), &refusal) != nil {
+			t.Fatalf("refusal: %d %s %s", code, &out, &err)
+		}
+		if refusal["code"] != "changes-range-too-large" || refusal["ok"] != false || refusal["limit"] != float64(512) || refusal["commits"] != float64(513) {
+			t.Fatalf("refusal fields: %v", refusal)
 		}
 	})
 }

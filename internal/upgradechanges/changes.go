@@ -33,6 +33,32 @@ const (
 	maxFlags     = 64
 )
 
+// Range and time bounds (UCL1142-V0-008). They are variables only so tests can lower them.
+var (
+	// maxRangeCommits bounds every commit in FROM..TO, counted before any message is read.
+	maxRangeCommits int64 = 512
+	// compileDeadline is the total wall-time deadline of one Compile call.
+	compileDeadline = 30 * time.Second
+)
+
+// RangeTooLargeError refuses a FROM..TO range holding more commits than the bound
+// (UCL1142-V0-008); its code is changes-range-too-large.
+type RangeTooLargeError struct {
+	Limit   int64
+	Commits int64
+}
+
+func (*RangeTooLargeError) Error() string { return "changes-range-too-large" }
+
+// TimeoutError refuses a call that reached its own total deadline (UCL1142-V0-008);
+// its code is changes-timeout.
+type TimeoutError struct {
+	LimitMS   int64
+	ElapsedMS int64
+}
+
+func (*TimeoutError) Error() string { return "changes-timeout" }
+
 var (
 	shaPattern   = regexp.MustCompile(`^[a-fA-F0-9]{7,64}$`)
 	mergePattern = regexp.MustCompile(`^Merge pull request #([1-9][0-9]{0,14}) from .+$`)
@@ -205,7 +231,22 @@ func safeText(s string, limit int) string {
 	return s
 }
 
-func Compile(ctx context.Context, req Request) (Report, error) {
+// Compile builds the checklist within compileDeadline. Reaching that deadline refuses with
+// TimeoutError rather than changes-git-unavailable, which stays reserved for Git that cannot run
+// or a repository that cannot be read; a caller's own cancellation keeps changes-git-unavailable
+// (UCL1142-V0-008).
+func Compile(parent context.Context, req Request) (Report, error) {
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(parent, compileDeadline)
+	defer cancel()
+	r, err := compile(ctx, req)
+	if err != nil && err.Error() == "changes-git-unavailable" && parent.Err() == nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return r, &TimeoutError{LimitMS: compileDeadline.Milliseconds(), ElapsedMS: time.Since(start).Milliseconds()}
+	}
+	return r, err
+}
+
+func compile(ctx context.Context, req Request) (Report, error) {
 	issueStateUnknown := "GitHub issue state: NOT_OBSERVED"
 	if req.IssueStateFile != "" {
 		issueStateUnknown = "GitHub issue state: operator-supplied file, not verified by Corvint"
@@ -220,8 +261,6 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 	if len(req.Files) > maxFiles {
 		return r, errors.New("changes-invalid-arguments")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
 	githubStates := map[int64]string{}
 	if req.IssueStateFile != "" {
 		var err error
@@ -252,6 +291,19 @@ func Compile(ctx context.Context, req Request) (Report, error) {
 	}
 	if err != nil || strings.TrimSpace(string(shallow)) != "false" {
 		return r, errors.New("changes-range-unavailable")
+	}
+	// Count the whole range before reading any message, so a range over the bound refuses at once
+	// with the bound and the count instead of spending the deadline (UCL1142-V0-008).
+	counted, cut, err := g.read(32, "rev-list", "--count", r.From+".."+r.To)
+	if err != nil {
+		return r, err
+	}
+	commits, perr := strconv.ParseInt(strings.TrimSpace(string(counted)), 10, 64)
+	if cut || perr != nil || commits < 0 {
+		return r, errors.New("changes-git-unavailable")
+	}
+	if commits > maxRangeCommits {
+		return r, &RangeTooLargeError{Limit: maxRangeCommits, Commits: commits}
 	}
 	ids, cut, err := g.ids("rev-list", "--first-parent", "--max-count=257", r.From+".."+r.To)
 	if err != nil {
