@@ -37,6 +37,9 @@ type Dispatcher struct {
 	// host-suspend detection (ATR-V0-063); it does not advance while the
 	// host sleeps.
 	Mono func() time.Duration
+	// HookCommand is the argv a worker's context hook runs (ATR-V0-102);
+	// empty runs corvint-tasks from PATH.
+	HookCommand []string
 
 	dir       string
 	nonce     string
@@ -148,6 +151,10 @@ type Dispatcher struct {
 	// marks a newer-version record that is kept and not tracked.
 	churn        *SessionChurn
 	churnForeign bool
+	// exhaustion is the ATR-V0-106 hard-stop record, read once;
+	// exhaustionForeign marks a newer-version record that is kept.
+	exhaustion        *ContextExhaustion
+	exhaustionForeign bool
 	// sleep is the ATR-V0-063 host-sleep record; lastNow and lastMono are
 	// the previous tick's clock readings.
 	sleep        *HostSleep
@@ -1246,6 +1253,8 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		stalled := d.countStall(t, w, detail)
 		d.emit(Event{Kind: "finished", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: msg, Detail: detail})
 		d.noteSession(w, now)
+		d.salvage(w, now)      // ATR-V0-104
+		d.noteHardStop(w, now) // ATR-V0-106
 		if stalled != nil {
 			d.emit(*stalled)
 		}
@@ -1582,7 +1591,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			run = m
 		}
-		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage}
+		values := map[string]string{"{program}": d.Program, "{role}": a.Role, "{slot}": strconv.Itoa(a.Slot), "{worker}": id, "{holder}": id, "{ticket}": a.Ticket, "{ticketLocal}": a.Local, "{state}": a.State, "{pool}": a.Pool, "{member}": a.Member, "{workRoot}": d.Config.WorkRoot, "{model}": model, "{effort}": role.Effort, "{nextStage}": a.NextStage, "{contextHookSettings}": ContextHookSettingsPath(d.dir, id)}
 		// {operatorNote} renders only into the role prompt (ON-V0-011); argv,
 		// env and activity paths never see the operator prose directly. So
 		// does {detachedRun} (CAL-V0-149), empty for an ordinary launch.
@@ -1609,10 +1618,27 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		if contextFormat(role.UsageFormat) {
 			env = append(env, "CORVINT_DISPATCH_CONTEXT_FILE="+ContextRecordPath(d.dir, id)) // ATR-V0-034
 		}
+		env = append(env, "CORVINT_DISPATCH_EVIDENCE_DIR="+EvidenceDir(d.dir, id)) // ATR-V0-104
+		if note := d.handoffNoteFor(obs, a.Ticket); note != "" {
+			env = append(env, "CORVINT_DISPATCH_HANDOFF_NOTE="+note) // ATR-V0-105
+		}
 		if run != nil {
 			env = append(env, detachedEnv(run)...)
 		}
-		pid, identity, exit, err := launch(argv, env, d.Config.WorkRoot, d.workerDir(id))
+		// ATR-V0-102/104: the evidence directory and any hook settings exist
+		// before spawn; a failure here is proved before spawn.
+		var pid int
+		var identity string
+		var exit <-chan int
+		err := os.MkdirAll(EvidenceDir(d.dir, id), 0o700)
+		if err == nil && hostUsesContextHook(host) {
+			_, err = d.writeHookSettings(id)
+		}
+		if err != nil {
+			err = fmt.Errorf("before spawn: %w", err)
+		} else {
+			pid, identity, exit, err = launch(argv, env, d.Config.WorkRoot, d.workerDir(id))
+		}
 		if err != nil {
 			b := d.ledger.Backoff[a.Key]
 			if b == nil {
