@@ -61,6 +61,19 @@ changes-shared-detached-head, changes-shared-branch-mismatch,
 changes-shared-merge-in-range, changes-shared-live-session,
 changes-shared-head-mismatch, changes-shared-tree-mismatch.
 Contract: docs/specs/shared-path-change-policy-v0.md.
+
+Shared-path commits a branch is missing (SPC-V0-009..012, V1-1710):
+  corvint [--root SOURCE] changes behind --base REF [--head REV]
+    [--config FILE] [--ticket ID --stale-hours N] [--format json|doctor-plugin]
+Read-only; never fetches. Lists the commits of head..base that change a
+configured shared path (commit, subject, committedAt, sharedPaths,
+headTouches, conflictRisk) and a dry merge of head into base: clean,
+generated-only or conflict with the conflicting paths. JSON records base,
+head, mergeBase, configDigest and observedAt. Over 512 commits refuses at once
+with changes-shared-range-too-large, naming limit and commits. With --ticket
+and --stale-hours, an oldest missing shared commit at least N hours old is a
+SHARED_BASE_BEHIND finding; --format doctor-plugin prints only the findings as
+a corvint-tasks doctor --plugins array.
 `
 
 func changesInvocation(args []string) (string, []string, bool) {
@@ -96,6 +109,9 @@ func runChanges(ctx context.Context, root string, args []string, out, diagnostic
 	}
 	if len(args) > 0 && (args[0] == "check-shared" || args[0] == "split-shared") {
 		return runSharedPath(ctx, root, args[0], args[1:], out, refuse)
+	}
+	if len(args) > 0 && args[0] == "behind" {
+		return runChangesBehind(ctx, root, args[1:], out, diagnostic, refuse)
 	}
 	f := flag.NewFlagSet("changes", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
