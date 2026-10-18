@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, and V1-1698 / GitHub #1082 for shared-constant keys, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
-- Claim: Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines and lists candidate duplicate tests.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698)/experimental
+- Claim: Read-only analysis of committed JS/TS tests selects needed setup projects, lints changed test lines, with advisory rules, and lists candidate duplicate tests.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769)/experimental
 - Exists: `internal/testsource`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint` and `corvint tests duplicates` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup and showing advisory findings in a run receipt are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -224,6 +224,98 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   `RULE (advisory)` or `RULE (advisory, UNKNOWN)`, are suppressible under `TSA-V0-015`, and never
   change the exit status.
 
+### Actor authorization (V1-1770)
+
+Ticket V1-1770, GitHub #1115. A test that logs in as a fixture actor whose role does not hold the
+ability its request needs fails with a 403 that reads like an application bug. This slice finds
+that mismatch statically, before a run, for a literal subset of one stack: JS/TS fixtures and tests
+on the client side, and Rails routes, controllers and a CanCanCan-style `Ability` class on the
+server side. It is library-only (`testsource.ActorAuthorization`); it reads no declared role table,
+because the literal Ruby forms below are parsed directly. It lives in this spec rather than the
+test-validity or application-map specs because it is a static read of committed test source, like
+lint and duplicates, and it projects no runtime receipt.
+
+- `TSA-V0-033`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution
+  MUST bind a request to a fixture actor only through literal forms. A fixture is an exported
+  `function NAME(` or `const NAME = (...) =>` builder in a non-test JS/TS file whose body calls a
+  user factory: a call whose callee chain names `user`, or whose arguments carry a `role:` key. The
+  role is that key's string literal, or else the one `role = '...'` default among the factory's
+  definitions whose whole value is a single string literal. A spread or computed property after
+  the `role:` key, or anywhere in a call without one, can set the role at run time and makes it
+  `role-not-literal`. The fixture's single top-level `return { ... }` maps each key to the seeded
+  user its value names (the user's variable, else an identifier passed to exactly one factory call).
+  In a test, `const V = [await] FIXTURE(...)` binds V, and the latest call whose name contains
+  `login` or `signin` before the request, in the same test or before it outside every test, sets
+  the actor from its `V.KEY` argument.
+- `TSA-V0-034`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability
+  resolution MUST read a request as `X.get|post|put|patch|delete('/path')` inside a test, where a
+  template substitution may fill a whole path segment and then matches only a dynamic route
+  segment. A call on a receiver named like `request` whose path is anything else (a variable, a
+  concatenation, a path not starting with `/`) is still a request, reported `path-not-literal`. The first matching route in `config/routes.rb` is used, from these literal forms:
+  `Rails.application.routes.draw do`, `namespace :x do`, `resources :x` with `only:`/`except:`
+  symbol lists and nesting, `<verb> 'path', to: 'c#a'` (or `=>`) and `root`. The ability is the one
+  literal `authorize! :action, Constant` in that action of `app/controllers/<controller>_controller.rb`.
+  A check inside a nested block or a `rescue`/`else`/`when` clause, or after a statement that can
+  leave the action early (`return`, `raise`, `fail`, `throw`), is conditional (`check-conditional`).
+- `TSA-V0-035`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation MUST
+  read `app/models/ability.rb` as a `class Ability` whose `initialize` calls `send(user.role)` (or
+  `public_send`, optionally `.to_sym`), where each argument-free method is the rule set of the role
+  it names, and a bare call to another rule set inside it is inheritance. A role holds an ability
+  when an unconditional `can` in its inheritance closure or in `initialize` matches it: the action
+  is equal, `:manage`, or a CanCanCan default alias (`read` for index/show, `create` for new,
+  `update` for edit), and the subject is equal or `:all`, and the whole closure parsed. A role is
+  denied only when its whole closure parsed and nothing matches. A statement that names `can` or
+  `cannot` without starting with it (`return can ...`, `x ||= can ...`) and a control keyword such as
+  `return` are unparsed, and any unparsed statement in the closure makes a grant or a denial UNKNOWN
+  (`statement-unparsed`), because it could grant or revoke.
+- `TSA-V0-036`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST be
+  reported with status `UNAUTHORIZED` and code `ACTOR-UNAUTHORIZED`. The report names the test file,
+  line and title, the method and path, the actor (fixture, key, role, where the role was seeded),
+  the route and the check with their file:line, and `grantedBy`, the granting rule file:line of each
+  lowest sufficient role. A lowest sufficient role holds the ability and inherits no other role
+  that holds it. The report also lists `alternatives`, every other fixture actor whose resolved
+  role holds the ability.
+- `TSA-V0-037`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema
+  `corvint-tests-actor-authorization/0`) MUST read committed objects only at one revision, within
+  the package's `MaxFiles` and `MaxFileBytes` bounds. It MUST list the closed set of supported input
+  forms and every resolved fixture actor. It MUST be deterministic over the same inputs. Its verdict
+  is `ACTOR_UNAUTHORIZED` when any request is unauthorized, else `UNKNOWN` when any is unknown, else
+  `CLEAN`. An `AUTHORIZED` or `EXEMPT` request does not change the verdict.
+- `TSA-V0-038`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does not
+  resolve MUST make the request `UNKNOWN`, never authorized or unauthorized. The reason names the
+  first failing link, with a file:line detail, from this closed set:
+  - actor links: `actor-unbound`, `actor-not-literal`, `actor-key-not-user`, `actor-key-ambiguous`,
+    `fixture-return-not-literal`, `fixture-ambiguous`, `role-not-literal`, `role-ambiguous`,
+    `role-default-unresolved`;
+  - the request path: `path-not-literal`;
+  - route links: `routes-unavailable`, `route-not-found`, `route-unparsed`;
+  - controller links: `controller-unavailable`, `action-not-found`, `check-not-found`,
+    `check-not-literal`, `check-implicit`, `check-multiple`, `check-conditional`;
+  - ability links: `ability-unavailable`, `role-dispatch-not-literal`, `role-undefined` (also an
+    empty role), `inheritance-cycle`, `rule-conditional`, `rule-cannot`, `statement-unparsed`.
+
+  Every request MUST carry one of the four statuses.
+- `TSA-V0-039`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a
+  401, 403 or 422 status with `toBe`, `toEqual`, `toStrictEqual` or `toHaveStatus` on a numeric
+  literal, not negated with `.not`, on a subject that is a response status (`x.status()`, `x.status`,
+  `x.statusCode`, or the response itself for `toHaveStatus`), MUST have every request reported `EXEMPT` with reason `asserts-rejection` and the
+  assertion's file:line, never `ACTOR-UNAUTHORIZED`.
+
+Non-goals (V1-1770): authorization libraries other than the CanCanCan-style `Ability` (Pundit,
+Action Policy, hand-written guards), runtime policy (database-held roles, conditions evaluated
+against records), requests sent through `fetch()` or a page navigation, `load_and_authorize_resource`,
+a role dispatch through `if`/`case`, and a CLI command. Each of these is UNKNOWN or out of scope,
+never authorized. Failure modes: the reading is heuristic. A login helper not named `*login*` or
+`*signin*` leaves the actor unbound, and a fixture binding is matched by name across tests in one
+file. A route matched before an unparsed `routes.rb` statement that would shadow it is still used.
+A `cannot` matching the ability makes the result UNKNOWN rather than modelling rule order. Acceptance
+evidence: the issue's assistant/manager repository as a synthetic Git fixture. The assistant's
+`PUT /api/widgets/:id` is `ACTOR-UNAUTHORIZED` with `grantedBy` manager at line 14 of the fixture Ability class,
+lowest role `manager` (admin excluded because it inherits manager), and alternative `beta.manager`.
+The manager pair is `AUTHORIZED`, the 403-asserting test is `EXEMPT`, and each closed UNKNOWN reason
+has its own case. No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/actor_auth*.go` and this section; nothing is persisted.
+
 ## Refusals
 
 Every command exits 2 with one JSON object `{"code", "error", "ok": false}` on stderr and nothing on
@@ -346,3 +438,10 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-030 | `internal/testsource/uistate.go`, `internal/testsource/git.go`, `internal/testsource/lint.go` | `TestOneShotUnknown`, `TestLintFollowsImportedHelpers`, `TestCrossVariantFollowing`, `TestLintImportedHelperUncertainty`, `TestLintImportBudgetIsCumulative` | experimental |
 | TSA-V0-031 | `internal/testsource/variants.go`, `internal/testsource/uistate.go`, `cmd/corvint/tests.go` | `TestLintRuleFixtures`, `TestCrossVariantEvidence`, `TestCrossVariantFollowing`, `TestLintMultiLineChangeScope`, `TestTestsLintAdvisoryCLI` | experimental |
 | TSA-V0-032 | `internal/testsource/variants.go`, `internal/testsource/lint.go`, `cmd/corvint/tests.go` | `TestCrossVariantEvidence`, `TestNewRuleSuppression`, `TestLintFollowsImportedHelpers`, `TestTestsLintAdvisoryCLI` | experimental |
+| TSA-V0-033 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-034 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-035 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationInheritance`, `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-036 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationInheritance` | experimental |
+| TSA-V0-037 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationDeterministic` | experimental |
+| TSA-V0-038 | `internal/testsource/actor_auth.go`, `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationUnknownLinks`, `TestActorAuthorizationReviewRegressions` | experimental |
+| TSA-V0-039 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationReviewRegressions` | experimental |
