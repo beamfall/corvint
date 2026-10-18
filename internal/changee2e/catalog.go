@@ -77,6 +77,7 @@ type Catalog struct {
 	Revision     string           `json:"revision"`
 	MapDigest    string           `json:"map_digest"`
 	Declarations string           `json:"declarations"` // DECLARED | NOT_DECLARED
+	Environment  *Environment     `json:"environment,omitempty"`
 	Blocks       []Block          `json:"blocks"`
 	Unadmitted   []Unadmitted     `json:"unadmitted"`
 	Unknowns     []CatalogUnknown `json:"unknowns"`
@@ -127,6 +128,7 @@ type declarations struct {
 		Setup     MethodCall `json:"setup"`
 		Cleanup   MethodCall `json:"cleanup"`
 	} `json:"fixtures"`
+	Environment *Environment `json:"environment"`
 }
 
 // CatalogOptions are the catalog inputs.
@@ -314,15 +316,11 @@ func (c *Catalog) addDeclarations(ctx context.Context, root, rev string, pageObj
 		return nil
 	}
 	c.Declarations = "DECLARED"
-	dec := json.NewDecoder(bytes.NewReader(data))
-	dec.DisallowUnknownFields()
-	var d declarations
-	if err := dec.Decode(&d); err != nil || dec.More() {
-		return refuse("e2e-blocks-invalid", "%s: %v", DeclarationsPath, err)
+	d, err := decodeDeclarations(data)
+	if err != nil {
+		return err
 	}
-	if d.Schema != DeclarationsSchema {
-		return refuse("e2e-blocks-invalid", "%s: schema %q", DeclarationsPath, d.Schema)
-	}
+	c.Environment = d.Environment
 	whole := Span{Path: DeclarationsPath, Start: 1, End: bytes.Count(data, []byte("\n")) + boolInt(!bytes.HasSuffix(data, []byte("\n"))),
 		SHA256: sha256Hex(data)}
 	seen := map[string]bool{}
@@ -367,6 +365,25 @@ func (c *Catalog) addDeclarations(ctx context.Context, root, rev string, pageObj
 			Satisfies: append([]string(nil), fx.Satisfies...), Setup: &setup, Cleanup: &cleanup})
 	}
 	return nil
+}
+
+// decodeDeclarations decodes the closed blocks schema and validates its environment member.
+func decodeDeclarations(data []byte) (declarations, error) {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var d declarations
+	if err := dec.Decode(&d); err != nil || dec.More() {
+		return d, refuse("e2e-blocks-invalid", "%s: %v", DeclarationsPath, err)
+	}
+	if d.Schema != DeclarationsSchema {
+		return d, refuse("e2e-blocks-invalid", "%s: schema %q", DeclarationsPath, d.Schema)
+	}
+	if d.Environment != nil {
+		if err := d.Environment.validate(); err != nil {
+			return d, err
+		}
+	}
+	return d, nil
 }
 
 // methodReason is empty when call names a callable method of an admitted page object.

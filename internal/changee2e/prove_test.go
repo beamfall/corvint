@@ -19,6 +19,10 @@ import (
 // TestMain lets the test binary act as the BBF control hook in the live proof tests: BBF runs
 // the hook with no arguments and CORVINT_BEHAVIOR_COMMAND_ROLE set, as the companion does.
 func TestMain(m *testing.M) {
+	if len(os.Args) == 2 && os.Args[1] == testServeArg {
+		testServe()
+		return
+	}
 	if role := os.Getenv("CORVINT_BEHAVIOR_COMMAND_ROLE"); role != "" && len(os.Args) == 1 {
 		if err := RunHook(context.Background(), role, os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -223,6 +227,15 @@ func TestCCEV0009ControlPerturbation(t *testing.T) {
 // liveProve runs Prove for base..head on the fixture, or skips without a local Playwright.
 func liveProve(t *testing.T, root, base, head string) scenarioProof {
 	t.Helper()
+	p, doc := liveProveDoc(t, root, base, head)
+	if doc.Environment != environmentStatic {
+		t.Fatalf("environment %q, want static", doc.Environment)
+	}
+	return p
+}
+
+func liveProveDoc(t *testing.T, root, base, head string) (scenarioProof, proveReport) {
+	t.Helper()
 	modules := os.Getenv(envModules)
 	if modules == "" {
 		t.Skip("CORVINT_PLAYWRIGHT_MODULES is not set")
@@ -255,7 +268,7 @@ func liveProve(t *testing.T, root, base, head string) scenarioProof {
 		t.Fatalf("proof document: %v\n%s", err, out)
 	}
 	t.Logf("%s", out)
-	return doc.Scenarios[0]
+	return doc.Scenarios[0], doc
 }
 
 // CCE-V0-008/009 live: the one-screen behaviour change passes at head, fails at base on the

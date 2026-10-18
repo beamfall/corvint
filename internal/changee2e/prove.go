@@ -105,6 +105,7 @@ type proveReport struct {
 	Retries       int             `json:"retries"`
 	Workers       int             `json:"workers"`
 	RunnerVersion string          `json:"runner_version"`
+	Environment   string          `json:"environment"` // "static" or the CCE-V0-021 environment digest
 	Scenarios     []scenarioProof `json:"scenarios"`
 	Limitations   []string        `json:"limitations"`
 	Digest        string          `json:"digest"`
@@ -147,6 +148,7 @@ type controlProof struct {
 type proveEnv struct {
 	root, nodeModules, runnerVersion string
 	packageJSON, lockfile            string
+	environment                      *Environment // nil serves the tree statically
 	hook                             behaviorfalsify.Command
 }
 
@@ -186,15 +188,20 @@ func Prove(ctx context.Context, o ProveOptions) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	environment, err := readEnvironment(ctx, root, head)
+	if err != nil {
+		return nil, err
+	}
 	env, err := proveToolchain(root, o)
 	if err != nil {
 		return nil, err
 	}
+	env.environment = environment
 	restore := setEnv(proveEnvironment(o))
 	defer restore()
 
 	report := proveReport{Schema: ProveSchema, Base: base, Head: head, Repeats: repeats, Retries: proveRetries,
-		Workers: proveWorkers, RunnerVersion: env.runnerVersion, Limitations: proveLimitations}
+		Workers: proveWorkers, RunnerVersion: env.runnerVersion, Environment: environment.digest(), Limitations: proveLimitations}
 	for _, sc := range o.Scenarios {
 		p := scenarioProof{Obligation: sc.Obligation, Placement: sc.Placement, AssertionID: sc.AssertionID}
 		var headReceipt jstestprovider.Receipt
@@ -338,7 +345,8 @@ func (e *proveEnv) proveSide(ctx context.Context, rev string, sc Scenario, repea
 		return side, jstestprovider.Receipt{}
 	}
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: rev, Placement: sc.Placement, Repeats: repeats,
-		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout})
+		NodeModules: e.nodeModules, RunnerVersion: e.runnerVersion, PackageJSON: e.packageJSON, Lockfile: e.lockfile, Timeout: sideTimeout,
+		Environment: e.environment})
 	digest, reason := qualify(receipt, runErr, repeats)
 	side.Qualified, side.Reason = reason == "", reason
 	if digest != "" {
@@ -434,9 +442,11 @@ type runInput struct {
 	NodeModules, RunnerVersion   string
 	PackageJSON, Lockfile        string
 	Timeout                      time.Duration
+	Environment                  *Environment
 }
 
-// runPlaywright serves tree in-process on 127.0.0.1 and runs the placement through the external
+// runPlaywright serves tree, through the declared environment's serve argv when there is one and
+// otherwise in-process and statically on 127.0.0.1, and runs the placement through the external
 // Playwright provider with retained attempt details (PWP).
 func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, error) {
 	tree, err := filepath.EvalSymlinks(in.Tree)
@@ -446,14 +456,24 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 	if err := os.Symlink(in.NodeModules, filepath.Join(tree, "node_modules")); err != nil {
 		return jstestprovider.Receipt{}, err
 	}
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return jstestprovider.Receipt{}, err
+	var url string
+	if in.Environment != nil {
+		stop, err := serveTree(ctx, in.Environment, tree)
+		if err != nil {
+			return jstestprovider.Receipt{}, err
+		}
+		defer stop()
+		url = in.Environment.origin()
+	} else {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return jstestprovider.Receipt{}, err
+		}
+		srv := &http.Server{Handler: http.FileServer(http.Dir(tree)), ReadHeaderTimeout: 10 * time.Second}
+		go func() { _ = srv.Serve(ln) }()
+		defer srv.Close()
+		url = "http://" + ln.Addr().String() + "/"
 	}
-	srv := &http.Server{Handler: http.FileServer(http.Dir(tree)), ReadHeaderTimeout: 10 * time.Second}
-	go func() { _ = srv.Serve(ln) }()
-	defer srv.Close()
-	url := "http://" + ln.Addr().String() + "/"
 	restore := setEnv(map[string]string{envBaseURL: url})
 	defer restore()
 	return jstestprovider.RunE2E(ctx, jstestprovider.E2EConfig{
@@ -480,6 +500,9 @@ func runPlaywright(ctx context.Context, in runInput) (jstestprovider.Receipt, er
 
 // qualify returns the native receipt digest of a qualified run, or a reason it has none.
 func qualify(r jstestprovider.Receipt, runErr error, repeats int) (digest, reason string) {
+	if code, ok := asEnvError(runErr); ok {
+		return "", code
+	}
 	switch {
 	case runErr != nil:
 		return "", "provider-error"
@@ -706,6 +729,10 @@ func gitWrite(ctx context.Context, dir string, args ...string) ([]byte, error) {
 
 func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, headReceipt jstestprovider.Receipt) behaviorfalsify.Request {
 	keys := []string{envNodeBin, envModules, envBrowsers}
+	if e.environment != nil {
+		// The hook's serve runs with the same declared names as the prove sides.
+		keys = append(keys, e.environment.Env...)
+	}
 	slices.Sort(keys)
 	envValues := map[string]string{}
 	for _, k := range keys {
@@ -731,6 +758,10 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 		}
 		if e.lockfile != "" {
 			d["lockfile"] = e.lockfile
+		}
+		if e.environment != nil {
+			raw, _ := json.Marshal(e.environment)
+			d["environment"] = string(raw)
 		}
 		return d
 	}

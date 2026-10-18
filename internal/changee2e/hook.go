@@ -66,6 +66,13 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	if err != nil || def["tree"] == "" || def["file"] == "" || def["locator"] == "" || def["matcher"] == "" || def["marker"] == "" || def["replacement"] == "" {
 		return r, errors.New("e2e-hook-definition-invalid")
 	}
+	var environment *Environment
+	if raw, ok := def["environment"]; ok {
+		environment = &Environment{}
+		if json.Unmarshal([]byte(raw), environment) != nil || environment.validate() != nil {
+			return r, errors.New("e2e-hook-definition-invalid")
+		}
+	}
 	nodeBin, modules := os.Getenv(envNodeBin), os.Getenv(envModules)
 	if !filepath.IsAbs(nodeBin) || modules == "" {
 		return r, errors.New("e2e-hook-toolchain-unavailable")
@@ -105,7 +112,7 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 	}
 	receipt, runErr := runPlaywright(ctx, runInput{Tree: tree, AppIdentity: inv.Target.ApplicationRevision, Placement: def["file"],
 		Repeats: 1, NodeModules: resolvedModules, RunnerVersion: inv.Runner.RunnerVersion,
-		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout})
+		PackageJSON: def["package_json"], Lockfile: def["lockfile"], Timeout: hookRunTimeout, Environment: environment})
 	digest, reason := qualify(receipt, runErr, 1)
 	if reason != "" {
 		r.TestOutcome = "infrastructure_failed"
