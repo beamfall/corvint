@@ -3513,11 +3513,15 @@ SOP-V0-013	docs/specs/stable-operations-v0.md	127	(accepted under the owner's st
 SPC-V0-001	docs/specs/shared-path-change-policy-v0.md	27	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The poli	standing	2026-10-11; V1-1591
 SPC-V0-002	docs/specs/shared-path-change-policy-v0.md	37	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
 SPC-V0-003	docs/specs/shared-path-change-policy-v0.md	50	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) The chec	standing	2026-10-11; V1-1591
-SPC-V0-004	docs/specs/shared-path-change-policy-v0.md	56	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
-SPC-V0-005	docs/specs/shared-path-change-policy-v0.md	68	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Before a	standing	2026-10-11; V1-1591
-SPC-V0-006	docs/specs/shared-path-change-policy-v0.md	75	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) An appli	standing	2026-10-11; V1-1591
-SPC-V0-007	docs/specs/shared-path-change-policy-v0.md	79	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) `--apply	standing	2026-10-11; V1-1591
-SPC-V0-008	docs/specs/shared-path-change-policy-v0.md	84	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Both	standing	2026-10-11; V1-1591
+SPC-V0-004	docs/specs/shared-path-change-policy-v0.md	62	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591)	standing	2026-10-11; V1-1591
+SPC-V0-005	docs/specs/shared-path-change-policy-v0.md	74	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Before a	standing	2026-10-11; V1-1591
+SPC-V0-006	docs/specs/shared-path-change-policy-v0.md	81	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) An appli	standing	2026-10-11; V1-1591
+SPC-V0-007	docs/specs/shared-path-change-policy-v0.md	85	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) `--apply	standing	2026-10-11; V1-1591
+SPC-V0-008	docs/specs/shared-path-change-policy-v0.md	90	(accepted under the owner's standing auto-accept (2026-10-11); V1-1591) Both	standing	2026-10-11; V1-1591
+SPC-V0-009	docs/specs/shared-path-change-policy-v0.md	95	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710)	standing	2026-10-11; V1-1710
+SPC-V0-010	docs/specs/shared-path-change-policy-v0.md	111	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The	standing	2026-10-11; V1-1710
+SPC-V0-011	docs/specs/shared-path-change-policy-v0.md	119	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The JSON	standing	2026-10-11; V1-1710
+SPC-V0-012	docs/specs/shared-path-change-policy-v0.md	124	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With	standing	2026-10-11; V1-1710
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	89	The generator MUST derive its input set from the paths Git reports as tracked	unrecorded	-
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	93	accepted, decision 0506. The generator MUST recognise a requirement id as a toke	unrecorded	-
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	98	accepted, decision 0506. The generator MUST classify each occurrence of an id in	unrecorded	-
