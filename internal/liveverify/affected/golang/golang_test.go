@@ -589,6 +589,52 @@ func TestFileNameOnlyReadersMustPlaceThePath_AFPV0072(t *testing.T) {
 	}
 }
 
+// AFP-V0-072: a climbing token reaches the unit's ancestors, a directory
+// component the lexicon splits cannot be witnessed, and a narrowed unit's
+// frontier still bears on the plan (Codex round 1 on #1138).
+func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"pkg/model.go":            "package pkg\n",
+		"pkg/model_test.go":       "package pkg\n",
+		"pkg/check/read.go":       "package check\n\nimport \"path/filepath\"\n\nfunc Model() string { return filepath.Join(\"..\", \"model.go\") }\n",
+		"pkg/check/read_test.go":  "package check\n",
+		"guides/guides.go":        "package guides\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n)\n\nfunc Index() string { return filepath.Join(os.Getenv(\"REPO_ROOT\"), \"docs\", \"user guides\", \"README.md\") }\n",
+		"guides/guides_test.go":   "package guides\n",
+		"variant/linux.go":        "//go:build linux\n\npackage variant\n\nvar fixture = \"core.go\"\n",
+		"variant/variant_test.go": "package variant\n",
+		"core/core.go":            "package core\n",
+		"core/core_test.go":       "package core\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		// ".." puts the parent directory's model.go in reach.
+		{"pkg/model.go", "BOUNDED [pkg/check/read_test.go pkg/model_test.go]"},
+		// No ancestor of pkg/check holds other/, and no token names it.
+		{"other/model.go", "UNKNOWN []"},
+		// "user guides" lexes as two tokens; the space is never witnessed.
+		{"docs/user guides/README.md", "UNKNOWN [guides/guides_test.go]"},
+		// A lexable component outside the vocabulary still narrows.
+		{"docs/user-guides/README.md", "UNKNOWN []"},
+		// variant is narrowed away, but its build-constraint frontier stays.
+		{"core/core.go", "UNKNOWN [core/core_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.Scope, " ", plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: %s, want %s (unknown %v)", tc.dirty, got, tc.want, plan.Unknown)
+		}
+	}
+	plan := affected.Select(graph, []string{"core/core.go"})
+	if got := fmt.Sprint(plan.Unknown); got != "[{LANGUAGE_FRONTIER go:build-constraint-variants}]" {
+		t.Errorf("core/core.go unknown = %s, want the narrowed variant's frontier", got)
+	}
+}
+
 // V1-0289: every build variant's imports are edges, so a constrained file
 // raises a frontier on its own package only, named by a plan that reaches it.
 func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {

@@ -58,6 +58,18 @@ naming it or a run-time root, which no literal index bounds (AFP-V0-021).
 - Mutation: making `resolves` return true for every non-sidecar path fails three cases of
   `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`.
 
+## Review round 1 (Codex)
+
+Three findings, each fixed with a case in `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072`:
+a reader joining a parent-only `..` with a file name was dropped (P1; the bases now include every
+ancestor of the unit's directory once a token has a `..` component); a directory component with a
+space or non-ASCII letter, which the Go lexicon splits, could never be in the vocabulary (P2; such
+a component now never narrows); and a narrowed unit's build-constraint frontier vanished, turning
+an `UNKNOWN` plan `BOUNDED` against AFP-V0-072(4) (P2; `readers` returns the narrowed set and
+`Select` names its unit frontier). Each clause reverted alone fails its case. The PR #1134 range
+plan is unchanged by the repair: 156 units, the 32 unknown entries identical to the 163-unit
+plan's.
+
 ## Residuals
 
 Left open and named: anchored lone tokens and the shell lone reader (rest of V1-1766), V1-1006,

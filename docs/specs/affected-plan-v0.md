@@ -1522,15 +1522,20 @@ and container qualification; full fallback remains available.
   the path's file name. (1) For a Go unit and any dirty path except the CEM sidecar (whose own
   narrowing is unchanged), when every token that names the path does so only through such a lone
   file-name run, the unit SHALL be a `PATH_LITERAL_READER` of that path only when the path lies in
-  the unit's own directory subtree (or the unit is at the repository root), or the path has no
-  directory component, or every directory component of the path is a whole component of one of
-  the unit's tokens (so literals such as `filepath.Join(root, "docs", "specs", "README.md")` could
-  assemble it). (2) A token that places a directory SHALL keep the component-run relation: a run of
+  the unit's own directory subtree (or the unit is at the repository root), or the path lies under a
+  base the unit's literals can reach and every directory component of the path below that base is
+  a whole component of one of the unit's tokens (so literals such as
+  `filepath.Join(root, "docs", "specs", "README.md")` could assemble it) or a component the Go
+  lexicon cannot keep in one token (a space, a non-ASCII letter or any other character outside
+  `[A-Za-z0-9._~@+-]`), which no token can witness. The bases are the repository root and, when
+  any token has a `..` component (`filepath.Join("..", "model.go")`), every ancestor of the unit's
+  directory. (2) A token that places a directory SHALL keep the component-run relation: a run of
   two or more components (with its fragment outer components), an anchored token, or a climbing
   token. (3) A non-Go unit SHALL keep the component-run relation, because its tests' working
-  directory is unknown. (4) Only the reader relation changes: no unknown entry is added or removed,
-  rule (d) unbounded readers, declared read scopes (AFP-V0-023), dependency and binary edges are
-  unchanged.
+  directory is unknown. (4) Only the reader relation changes: the unit frontier (V1-0289) of a
+  unit that (1) keeps out of the plan is still named, so no unknown entry is added or removed and
+  the plan's scope is unchanged; rule (d) unbounded readers, declared read scopes (AFP-V0-023),
+  dependency and binary edges are unchanged.
   Design: a Go test runs in its package directory. A bounded unit (not a rule (d) reader) reaches
   another repository directory only through a literal that names it, which (1) and (2) keep, or a
   root supplied at run time, which no literal index bounds (AFP-V0-021). A lone `README.md` joined
@@ -1544,11 +1549,14 @@ and container qualification; full fallback remains available.
   the directory itself (an environment variable or flag set to `docs/specs`) and then a lone
   file name is no longer selected; this is the AFP-V0-021 run-time-root gap, and the plan's scope
   stays as before. A directory name assembled from fragments (`"spe" + "cs"`) is not a whole
-  component and does not place the path. Falsifier: a file-name-only fixture reader under
+  component and does not place the path. A narrowed unit whose frontier vanished would turn an
+  `UNKNOWN` plan `BOUNDED`; the narrowed set feeds the frontier, as reached units do. Falsifier: a file-name-only fixture reader under
   `t.TempDir()` is still selected for `docs/specs/README.md`, or a reader that joins `"docs"`,
   `"specs"` and `"README.md"` is dropped. Acceptance evidence:
-  `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`, `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`,
-  a mutation that restores the old relation failing the first, and the before/after plans on the
+  `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072`,
+  `TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072` (a `..` reader, a spaced directory, and
+  the narrowed unit's frontier), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`, a mutation that
+  restores the old relation failing the first and one mutation per clause failing the second, and the before/after plans on the
   PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
   `resolves` return true for every path but the CEM sidecar and delete the two tests.
 

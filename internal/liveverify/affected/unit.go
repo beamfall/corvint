@@ -60,7 +60,8 @@ const MaxPathsPerUnit = 20_000
 // read outside the unit's directory, a trailing "/" naming a subtree, and the
 // unit is selected only on a dirty path in that scope instead of on any.
 // Frontier holds the sorted, unique reasons that bear only on this unit: the
-// plan names them only when the unit is reached (V1-0289).
+// plan names them only when the unit is reached (V1-0289) or narrowed away as
+// a file-name reader (AFP-V0-072(4)).
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
