@@ -1340,6 +1340,14 @@ ATR-V0-111	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-112	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1782) The reco	standing	2026-10-11; V1-1782
 ATR-V0-113	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1782) When the	standing	2026-10-11; V1-1782
 ATR-V0-114	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1782) A launch	standing	2026-10-11; V1-1782
+ATR-V0-120	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1833) A role w	standing	2026-10-11; V1-1833
+ATR-V0-121	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1833) After a	standing	2026-10-11; V1-1833
+ATR-V0-122	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1833) When a w	standing	2026-10-11; V1-1833
+ATR-V0-123	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1833) `dispatc	standing	2026-10-11; V1-1833
+ATR-V0-124	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1833) On each	standing	2026-10-11; V1-1833
+ATR-V0-125	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1834) A host M	standing	2026-10-11; V1-1834
+ATR-V0-126	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1834)	standing	2026-10-11; V1-1834
+ATR-V0-127	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1834) The	standing	2026-10-11; V1-1834
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-

@@ -294,6 +294,28 @@ func (d *Dispatcher) salvage(w *Worker, now time.Time) {
 		Detail: map[string]string{"note": path, "messages": strconv.Itoa(len(n.Messages)), "files": strconv.Itoa(len(n.Files)), "redactedLines": strconv.Itoa(n.RedactedLines)}})
 }
 
+// SalvageWorker writes worker w's ATR-V0-104 note on demand, for a session
+// that still runs or that something other than the dispatcher's hard stop
+// ended (ATR-V0-126). It reuses the note's bounds and secret screen; the
+// context figure comes from the worker's record when the worker was not
+// stopped for context. It returns the note's path and the note.
+func SalvageWorker(dir string, w *Worker, now time.Time) (string, *HandoffNote, error) {
+	d := &Dispatcher{dir: dir}
+	n := d.buildHandoffNote(w, now)
+	if n.ContextTokens == UsageUnknown {
+		if r, err := ReadContextRecord(dir, w.ID); err == nil {
+			if t, ok := r.Estimate(); ok {
+				n.ContextTokens = strconv.FormatUint(t, 10)
+			}
+		}
+	}
+	path := HandoffNotePath(dir, w.ID)
+	if err := writeAtomic(path, n.encode()); err != nil {
+		return "", nil, err
+	}
+	return path, n, nil
+}
+
 // ReadHandoffNote reads the note at path, refusing one that is not exactly
 // its canonical encoding. Another version is UNSUPPORTED_VERSION
 // (CAL-V0-131); a missing note is fs.ErrNotExist.

@@ -15,6 +15,15 @@ const (
 	DeliveryHook        = "HOOK"
 	DeliveryUnknown     = "UNKNOWN"
 	DeliveryUnsupported = "UNSUPPORTED"
+	// DeliveryFile is the host-neutral polled-file path (ATR-V0-125).
+	DeliveryFile = "FILE"
+)
+
+const (
+	// ContextNoticesFile is the one Host.ContextNotices value (ATR-V0-125).
+	ContextNoticesFile = "file"
+	contextNoticeFile  = "context-notices.txt"
+	contextNoticeEnv   = "CORVINT_DISPATCH_CONTEXT_NOTICE_FILE"
 )
 
 const (
@@ -49,6 +58,16 @@ func hostUsesContextHook(h Host) bool {
 		}
 	}
 	return false
+}
+
+// hostUsesNoticeFile reports a host that declares the ATR-V0-125 polled
+// notice file.
+func hostUsesNoticeFile(h Host) bool { return h.ContextNotices == ContextNoticesFile }
+
+// ContextNoticePath is a worker's ATR-V0-125 notice file, handed to the
+// session as CORVINT_DISPATCH_CONTEXT_NOTICE_FILE.
+func ContextNoticePath(dir, worker string) string {
+	return filepath.Join(dir, "workers", worker, contextNoticeFile)
 }
 
 // ContextHookSettingsPath is a worker's ATR-V0-102 hook settings file.
@@ -88,10 +107,12 @@ func (d *Dispatcher) writeHookSettings(worker string) (string, error) {
 // whose usage format reports no context figure.
 func ContextDelivery(dir, worker, usageFormat string, host *Host) (mode string, delivered []string, ok bool) {
 	switch {
-	case usageFormat == "opencode":
-		mode = DeliveryUnsupported
 	case usageFormat == "claude-code" && host != nil && hostUsesContextHook(*host):
 		mode = DeliveryHook
+	case contextFormat(usageFormat) && host != nil && hostUsesNoticeFile(*host):
+		mode = DeliveryFile
+	case usageFormat == "opencode":
+		mode = DeliveryUnsupported
 	case usageFormat == "claude-code":
 		mode = DeliveryUnknown
 	default:
@@ -104,6 +125,75 @@ func ContextDelivery(dir, worker, usageFormat string, host *Host) (mode string, 
 		}
 	}
 	return mode, delivered, true
+}
+
+// deliveredText is the ATR-V0-127 summary of the levels delivered.
+func deliveredText(levels []string) string {
+	if len(levels) == 0 {
+		return "NONE"
+	}
+	return strings.Join(levels, ",")
+}
+
+// deliverNoticeFile appends to the worker's ATR-V0-125 notice file the
+// notice of each WARN or HANDOFF crossing of r that has no delivery marker,
+// then marks each one. A failed append marks nothing, so the next tick
+// retries; a level the hook marked first is not repeated. It returns the
+// levels it delivered.
+func deliverNoticeFile(dir string, r *ContextRecord) ([]string, error) {
+	wdir := filepath.Join(dir, "workers", r.Worker)
+	var due []ContextCrossing
+	var text strings.Builder
+	for _, l := range deliveredLevels {
+		c := r.crossed(l)
+		if c == nil {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(wdir, deliveredPrefix+l)); err == nil {
+			continue
+		}
+		due = append(due, *c)
+		text.WriteString(contextNoticeText(r, *c) + "\n")
+	}
+	if len(due) == 0 {
+		return nil, nil
+	}
+	// The worker directory is the session's to write: the file is opened
+	// beneath it and must be absent or regular, so it never names a FIFO
+	// or a path outside it.
+	if fi, err := os.Lstat(filepath.Join(wdir, contextNoticeFile)); err == nil && !fi.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s is not a regular file", contextNoticeFile)
+	}
+	root, err := os.OpenRoot(wdir)
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	f, err := root.OpenFile(contextNoticeFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	_, werr := f.WriteString(text.String())
+	if cerr := f.Close(); werr == nil {
+		werr = cerr
+	}
+	if werr != nil {
+		return nil, werr
+	}
+	var levels []string
+	for _, c := range due {
+		m, err := root.OpenFile(deliveredPrefix+c.Level, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			continue // the hook marked it first, or the next tick repeats it
+		}
+		_, werr := m.WriteString(c.At + "\n")
+		if cerr := m.Close(); werr != nil || cerr != nil {
+			_ = root.Remove(deliveredPrefix + c.Level)
+			continue
+		}
+		levels = append(levels, c.Level)
+	}
+	return levels, nil
 }
 
 // contextNoticeText is the notice of one delivered crossing.
@@ -163,4 +253,32 @@ func ContextHookNotice(path string) (string, error) {
 		notes = append(notes, contextNoticeText(r, *c))
 	}
 	return strings.Join(notes, "\n"), nil
+}
+
+// Salvage values of a finished worker (ATR-V0-127).
+const (
+	SalvageHardStop = "HARD_STOP"
+	SalvageOnDemand = "ON_DEMAND"
+	SalvageNone     = "NONE"
+)
+
+// finishContextDetail records on worker w's finished event how its context
+// warnings were delivered, which levels were, and whether its hand-off note
+// was salvaged at the hard stop or on demand (ATR-V0-127).
+func (d *Dispatcher) finishContextDetail(w *Worker, detail map[string]string) {
+	if r := d.Config.roleNamed(w.Role); r != nil {
+		var host *Host
+		if h, ok := d.Config.Hosts[w.Host]; ok {
+			host = &h
+		}
+		if mode, delivered, ok := ContextDelivery(d.dir, w.ID, r.UsageFormat, host); ok {
+			detail["contextDelivery"], detail["contextDelivered"] = mode, deliveredText(delivered)
+		}
+	}
+	detail["salvage"] = SalvageNone
+	if w.KillReason == "CONTEXT" {
+		detail["salvage"] = SalvageHardStop
+	} else if n, err := ReadHandoffNote(HandoffNotePath(d.dir, w.ID)); err == nil && n.Worker == w.ID {
+		detail["salvage"] = SalvageOnDemand
+	}
 }

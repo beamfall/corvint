@@ -344,6 +344,9 @@ type contextState struct {
 	// foreign marks a record another build wrote (UNSUPPORTED_VERSION):
 	// this run never writes over it (ATR-V0-054).
 	foreign bool
+	// noticeFailing marks a failing ATR-V0-125 notice file append, so its
+	// alert is raised once.
+	noticeFailing bool
 }
 
 // contextFor returns worker w's state, loading its record after a restart.
@@ -441,7 +444,30 @@ func (d *Dispatcher) noteContext(w *Worker, now time.Time) bool {
 			}
 		}
 	}
+	if !st.foreign && !st.dirty {
+		d.deliverNotices(w, st)
+	}
 	return known && lim != nil && lim.HardTokens > 0 && tokens >= lim.HardTokens
+}
+
+// deliverNotices delivers worker w's crossings through the ATR-V0-125
+// notice file when its host declares one.
+func (d *Dispatcher) deliverNotices(w *Worker, st *contextState) {
+	if h, ok := d.Config.Hosts[w.Host]; !ok || !hostUsesNoticeFile(h) {
+		return
+	}
+	levels, err := deliverNoticeFile(d.dir, &st.rec)
+	if err != nil {
+		if !st.noticeFailing {
+			st.noticeFailing = true
+			d.emit(Event{Kind: "alert", Ticket: w.Ticket, Worker: w.ID, Message: fmt.Sprintf("could not append the context notice of %s to its notice file; retrying next tick: %v", w.ID, err)})
+		}
+		return
+	}
+	st.noticeFailing = false
+	for _, l := range levels {
+		d.emit(Event{Kind: "context", Ticket: w.Ticket, Role: w.Role, Worker: w.ID, Message: fmt.Sprintf("delivered the %s context notice of %s worker %s to its notice file", l, w.Role, w.ID), Detail: map[string]string{"level": l, "delivery": DeliveryFile, "file": ContextNoticePath(d.dir, w.ID)}})
+	}
 }
 
 // contextDetailKeys are the ATR-V0-035 members a context hand-off carries.

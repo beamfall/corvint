@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04 (first drafted 2026-10-02 as a private Gate A proposal; detached runs added 2026-10-06)
-Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122)
+Intent status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 481](https://github.com/beamfall/corvint/issues/481); native ticket V1-0677;
 owner request [issue 627](https://github.com/beamfall/corvint/issues/627) and native ticket V1-0856 (detached runs);
@@ -17,6 +17,8 @@ native tickets V1-1608 and V1-1673 (ATR-V0-080..084, issues 1050 and 1068);
 native ticket V1-1647 (ATR-V0-085..089, issue 1066);
 native ticket V1-1763 (ATR-V0-101..107, issue 1109);
 native ticket V1-1782 (ATR-V0-110..114, issue 1122);
+native ticket V1-1833 (ATR-V0-120..124, issue 1147);
+native ticket V1-1834 (ATR-V0-125..127, issue 1148);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
@@ -24,7 +26,7 @@ process-group API in `internal/groupreap/owner.go`; the process start identity i
 
 ## Agent digest
 - Claim: An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.
-- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN.
+- Status: proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); experimental. ATR-V0-001..007 are implemented with focused tests on Darwin; ATR-V0-008..013 (detached runs) are implemented with focused tests on Darwin; ATR-V0-014 is implemented without a test; ATR-V0-015 (retirement of ended runs of terminal attempts, V1-0931) is accepted by decision 0440 and implemented with a focused test on Darwin. Dispatcher integration of detached runs (V1-0936, V1-0858) is proposed as CAL-V0-145..154 in the agent leases spec and implemented with focused tests on Darwin; the run side is unchanged. V1-1549 ATR-V0-030..039 (dispatch context thresholds: per-role warn, hand-off and hard token thresholds over recognised host usage events, a per-worker context record and notice, and a hard-stop hand-off, issue 1007) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live host qualification NOT_RUN; V1-1547 ATR-V0-020..029 (detached `claim` and `pool acquire` under the request id with attach, verbatim kept result and a 600-second ceiling, issue 1005) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests on Darwin, Linux NOT_RUN (re-homed from the agent leases spec, owner-approved 2026-10-17). V1-1558 ATR-V0-050..053 and ATR-V0-066 (contended or interrupted store writes report retryable `LOCK_TIMEOUT`, never `MALFORMED`; outcome-write retry; one run item once started; a kept detached `LOCK_TIMEOUT` is retried by a same-id `--detach`, issue 1026) accepted under the owner's standing auto-accept, implemented with focused writer-contention tests on Darwin, Linux NOT_RUN. V1-1575 ATR-V0-054..055 (a context record of another profile version is preserved, never overwritten, and shows `UNKNOWN`; a damaged record alerts once and is replaced) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1562 ATR-V0-056..057 (`dispatch status --worker ID` shows a worker's context notice from its record; the detached-run marker, now `taskman-dispatch-detached-run/1`, carries the `CONTEXT` hand-off detail across a restart) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1600 ATR-V0-058..059 (a controlled dispatcher writes a drain-pending signal, named to every worker as `CORVINT_DISPATCH_DRAIN_FILE`, while its service control is `DRAINING`, and removes it when the drain lifts; a claim result carries the drain notice while the signal is present, issue 1043) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1595 ATR-V0-060..062 (opt-in `shortSessions` holds a ticket's next launch after repeated short dispatcher sessions, kept in a session-churn record, shown in events and `dispatch status`, and a doctor SESSION_CHURN finding, issue 1038) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin. V1-1597 ATR-V0-063..065 (host suspend gaps detected from wall-over-monotonic jumps, recorded once with an alert, excluded from wall and idle caps, the lease keeper's idle check and the expired-lease grace, and shown in `dispatch status`, issue 1040) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; keep-awake and a doctor finding are residuals. V1-1608 and V1-1673 ATR-V0-080..084 (an opt-in policy `progressSignal` `HANDOFF_EVIDENCE`: a changed hand-off `--evidence` reference is progress for loop detection, the dispatcher's no-progress backoff and the doctor, recorded as loop evidence and named in holds, issues 1050 and 1068) and V1-1647 ATR-V0-085..089 (`ticketBudget.overrides` per ticket, label or kind with precedence and the effective limit and selector in `dispatch status`, issue 1066) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1671 ATR-V0-095 (a repeat `--detach` after a kept `LOCK_TIMEOUT` waits out the finishing child and relaunches even while its exiting process is still visible) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin, Linux NOT_RUN. V1-1763 ATR-V0-101..107 (warn and hand-off notices delivered into a claude-code session through a dispatcher-written PostToolUse hook, delivery mode in `dispatch status` with UNSUPPORTED for opencode, a bounded secret-screened hand-off note salvaged at the hard stop and offered to the next launch on the ticket, and a CONTEXT_EXHAUSTED state with one alert after `exhaustedAfter` consecutive hard stops, issue 1109) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN (V1-1563). V1-1782 ATR-V0-110..114 (per-role `carryOver`: a no-progress session's screened final-message tail and end reason recorded per ticket, removed on progress, and appended to the next launch's prompt on the ticket as a bounded block labelled untrusted prior-session output, with `carryOver` members in the `launched` and `finished` events, issue 1122) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN. V1-1833 ATR-V0-120..124 (opt-in `holdPool`: the dispatcher claims a pool ticket with its member before launch, names the hold record to the session, returns the allocation when the worker ends or a launch fails, sweeps orphaned claims and shows `poolHold` in `dispatch status`, issue 1147) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live qualification NOT_RUN. V1-1834 ATR-V0-125..127 (a host-neutral polled context-notice file for any host that declares `contextNotices: "file"`, reported as delivery `FILE`; `dispatch salvage --attempt A` writes the secret-screened hand-off note of a running or externally stopped session; `launched` and `finished` events record the delivery mode, the levels delivered, the offered note and the salvage, issue 1148) accepted under the owner's standing auto-accept, implemented with focused tests on Darwin; live host qualification NOT_RUN.
 - Exists: `corvint-tasks run --attempt ID --generation G --timeout SECONDS [--detach] -- COMMAND...` (detached: survives the launching session), `corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]`, the `RUN_OUTCOME` lease verb and its closed outcome document, the private run record of a detached run, and CLI, store and transaction tests.
 - Blocked on: owner acceptance of this technical profile, Linux and composed native qualification, required CI, integration and native completion of V1-0677 and V1-0856; owner acceptance of the dispatcher integration CAL-V0-145..154 (V1-0936, see "Detached runs").
 - Read next: Requirements; Exit status and envelope; Failure modes; Traceability.
@@ -729,14 +731,14 @@ observed queues need about 56 sessions a day for a productive ticket and 6 to 8 
 operators keep an external per-ticket cap file that dispatch status cannot show. Intent: per-ticket,
 per-label and per-kind limits under the same rolling-window rules, visible in dispatch status.
 
-- `ATR-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) A dispatch configuration's `ticketBudget` MAY carry `overrides`, an array of at most 256 objects, each with exactly one selector, `ticket` (a ticket ID or local key), `label` or `kind` (a string of 1..512 bytes), and `sessionsPerDay` (1..1000) and/or `tokensPerDay` (1..2^50). The default limits stay required. Only `ticketBudget` takes overrides.
+- `ATR-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) A dispatch configuration's `ticketBudget` MAY carry `overrides`, an array of at most 256 objects, each with exactly one selector, `ticket` (a ticket ID or local key), `label` or `kind` (a string of 1..512 bytes), and `sessionsPerDay` (1..1000) and/or `tokensPerDay` (1..2^50). Only `ticketBudget` takes overrides. Amended in place (standing auto-accept 2026-10-11; V1-1835, issue 1149): a `ticketBudget` with at least one override MAY omit both default limits. A ticket no override selects then has no ticket limit: it MUST never be held by the ticket budget, and `dispatch status` and the spend report MUST list as ticket scopes only the tickets an override selects, plus any ticket that still carries a recorded hold (its `selector` then `NONE`). A `ticketBudget` with neither a default limit nor an override is still refused, and a role budget still needs a limit.
 - `ATR-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) An override that is not an object, repeats or misspells a member, has no selector or more than one, has no limit, or has an out-of-range or null limit, an `overrides` value that is not an array (JSON `null` included) or an entry that is `null`, more than 256 overrides, and overrides on a role budget MUST refuse the configuration with the stable reason `BUDGET_OVERRIDE_MALFORMED` in the refusal message. Two overrides with the same selector type and value MUST refuse with `BUDGET_OVERRIDE_AMBIGUOUS`. An override `tokensPerDay` needs a `usageFormat` on every ticket role, as the default's does. A refused configuration is handled like any other CAL-V0-127 refusal.
 - `ATR-V0-087`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) A ticket's effective limit MUST be chosen by precedence: a `ticket` override matching its ID or local key, then a `label` override matching one of its labels, then a `kind` override matching its kind, then the default. Within one precedence class, the first matching override in configuration order wins, so a ticket with two overridden labels resolves deterministically. The winner's limits replace the default's, and a limit the winner leaves unset stays the default's. A ticket key the observation did not supply resolves by its key alone, so only a `ticket` override can select it.
 - `ATR-V0-088`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) With overrides configured, each ticket scope in `dispatch status`'s `budget.scopes` MUST show its effective `sessionsPerDay` and `tokensPerDay`, `selector` (`DEFAULT`, `ticket:ID`, `label:NAME` or `kind:KIND`), `selectorObserved` (false when the store did not supply the ticket's labels and kind) and the existing `held` hold reason. A ticket `budget` event MUST carry detail `selector`, `sessionsPerDay` and `tokensPerDay` and name the selector in its message. `dispatch status` reads the store's tickets only when overrides are configured. A store that cannot be read leaves every ticket unobserved.
 - `ATR-V0-089`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1647) The CAL-V0-155..158 rolling-window, exhaustion, release and hold-recording rules MUST apply per effective limit. Without overrides, the configuration, holds, events and `dispatch status` output MUST be unchanged.
 
 Non-goals: overrides for role budgets, a selector combining labels or kinds, an override that
-removes a default limit, and a pool-scoped budget; the pool admission and acquire paths are untouched.
+removes a default limit (a default may instead be omitted, V1-1835), an explicit `unlimited` value, and a pool-scoped budget; the pool admission and acquire paths are untouched.
 
 Failure modes: a ticket's labels or kind changing in the store moves it to another effective limit at
 the next tick; the history counts against the new limit at once. A hold recorded for a ticket the
@@ -747,7 +749,12 @@ Acceptance evidence: `TestATRV0085_TicketBudgetOverridesDecode`,
 `TestATRV0086_MalformedOrAmbiguousOverridesRefuse`, `TestATRV0087_EffectiveLimitPrecedence`,
 `TestATRV0088_HoldsAndReportNameTheSelector` and `TestATRV0089_RollingWindowPerEffectiveLimit`
 (`internal/tasks/dispatch`); `TestATRV0088_DispatchStatusShowsEffectiveLimitAndSelector`
-(`internal/tasks/cli`); and the existing CAL-V0-155..160 budget tests unchanged.
+(`internal/tasks/cli`); and the existing CAL-V0-155..160 budget tests unchanged. The V1-1835
+amendment of ATR-V0-085: `TestATRV0085_OverridesWithoutDefaultValidate` and
+`TestATRV0085_UnmatchedTicketsNeverHeld` (`internal/tasks/dispatch`) and
+`TestATRV0085_DispatchStatusListsOnlyOverrideScopes` (`internal/tasks/cli`). Rollback of that
+amendment alone: give every override-only `ticketBudget` a default limit first, because an earlier
+build refuses it.
 
 Rollback: revert the code and this amendment. Remove `overrides` from any configuration first,
 because an earlier build refuses the unknown member. The spend history and holds are unchanged in
@@ -898,6 +905,123 @@ qualification is NOT_RUN.
 Rollback: revert the code and this amendment. First remove `carryOver` from every role, because an
 earlier build refuses it. Leftover records and worker markers are inert for an earlier build.
 
+### V1-1833 dispatcher-held pool members (issue 1147)
+
+Human-owned input: native ticket V1-1833, from GitHub issue 1147 (2026-10-18). A dispatched session
+on a ticket that requires a pool claimed its member itself; when the session was killed mid-run the
+member stayed allocated until the attempt's lease expired, and `dispatch status` could not say which
+worker held which member. Intent: for a role that opts in, the dispatcher takes the member before
+launch, hands it to the session, shows it per worker, and returns it when the attempt's worker ends,
+whatever the session did, without changing the native waitlist order.
+
+- `ATR-V0-120`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1833) A role with `match.pool` MAY set `holdPool: true`; a configuration that sets it
+  on a role without `match.pool` MUST be refused. Before it spawns a worker of such a role on a ticket
+  that requires the pool, a dispatcher whose queue has the pool-hold capability MUST claim the ticket
+  natively, as `claim TICKET --holder WORKER --pool POOL --request-id ID` with the assignment's
+  `--stage` and the role's `keepLease.leaseMinutes` when set, so the store allocates the member under
+  its own admission, room and waitlist rules (PSR-V0-130..136, PSR-V0-140..143). A refused claim MUST
+  launch nothing, MUST emit one `pool-hold` event naming the refusal per ticket and distinct refusal,
+  and is retried under a fresh request ID on a later tick. The dispatcher never names a member. A role
+  without `holdPool`, a lane key, or a queue without the capability is unchanged.
+- `ATR-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1833) After a successful claim and before spawn, the dispatcher MUST write the worker's
+  hold record `workers/<worker>/pool-hold.json` in the closed profile `taskman-dispatch-pool-hold/0`
+  (worker, state `HELD`, attempt, generation, ticket, pool, member, allocation and acquire time), and
+  MUST name it to the session as `CORVINT_DISPATCH_POOL_FILE`, replacing any inherited value; a role
+  without a hold gets no such variable. A record that cannot be written fails the launch before spawn
+  and the claim is returned as ATR-V0-122 states. The CAL-V0-131 live format set gains the profile.
+- `ATR-V0-122`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1833) When a worker with a `HELD` record ends, by exit or kill, the dispatcher MUST,
+  before any hand-off of its attempt, return the exact allocation with the native `pool release`
+  (CAL-V0-201) and record state `RELEASED`; the attempt itself is then handed off as before, or left
+  to its lease when hand-off is off. When the observed attempt has already ended, the member was
+  quarantined natively (CAL-V0-202): the record becomes `ATTEMPT_ENDED` and nothing is written to the
+  store. A launch that fails before spawn MUST return the allocation and release the attempt. A
+  refused return is reported in a `pool-hold` event and the attempt's end quarantines the member.
+- `ATR-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1833) `dispatch status` MUST show, for each worker with a hold record, a `poolHold`
+  object with its state, attempt, generation, pool, member, allocation and acquire time.
+- `ATR-V0-124`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1833) On each heal the dispatcher MUST return the allocation of, and release, a live
+  attempt that holds a pool member, whose holder is not a recorded worker, and whose `HELD` record in
+  this program names that attempt, such as a claim whose spawn or ledger write a crash interrupted.
+  An attempt held by a recorded worker is never swept.
+
+Non-goals: dispatcher-held members for lane roles or for sessions that claim on their own; choosing
+or reserving a member ahead of the native order; per-member health or reuse policy; the
+dispatcher-side pool sweep (V1-1573) and pool hosting on other machines (V1-0800).
+
+Failure modes: a dispatcher that dies between the claim and the hold write leaves a live attempt
+with no record; its lease expiry ends it and quarantines the member (CAL-V0-202). A spawn that may
+have started (an unidentified tree) keeps the hold until the ATR-V0-124 sweep returns it. A store
+that refuses `pool release` leaves the member to the attempt's end. An earlier build refuses a
+configuration with `holdPool`.
+
+Acceptance evidence: `TestATRV0122_KilledSessionLeavesNoOrphanedAllocation`,
+`TestATRV0122_EndedAttemptIsNotReleasedAgain`, `TestATRV0122_FailedLaunchReturnsTheClaim`,
+`TestATRV0124_RefusedClaimKeepsNativeOrder`, `TestATRV0124_OrphanedClaimIsReturned` and
+`TestATRV0120_HoldPoolIsOptIn` (`internal/tasks/dispatch`); `TestATRV0124_PoolClaimKeepsWaiterOrderCLI`
+(a real store: a ticket waiting on the pool keeps its place and the other ticket's claim is refused
+naming it) and `TestATRV0123_DispatchStatusShowsPoolHold` (`internal/tasks/cli`); and the CAL-V0-131
+row of `format_version_test.go`. Live dispatcher qualification and Linux are NOT_RUN.
+
+Rollback: remove `holdPool` from every role, then revert the code and this amendment. Leftover hold
+records are inert for an earlier build; members still allocated end with their attempts.
+
+### V1-1834 host-neutral context notices and on-demand salvage (issue 1148)
+
+Human-owned input: native ticket V1-1834, from GitHub issue 1148 (2026-10-18). Context warnings
+reached only claude-code sessions through the PostToolUse hook (ATR-V0-101); every other host showed
+`UNSUPPORTED` and its sessions ran into the hard stop unwarned. A note could be salvaged only at the
+dispatcher's own hard stop (ATR-V0-104), so a session killed by anything else left none, and the
+events did not say whether either had happened. Intent: one delivery path any host can poll, an
+operator verb that salvages the note of a named attempt, and events that record both.
+
+- `ATR-V0-125`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1834) A host MAY
+  declare `contextNotices: "file"`; any other non-empty value MUST be refused. A worker of a role whose
+  `usageFormat` carries context estimates (`claude-code` or `opencode`) on such a host MUST be launched with `CORVINT_DISPATCH_CONTEXT_NOTICE_FILE` naming
+  `workers/<worker>/context-notices.txt`, replacing any inherited value; no other worker gets it. On
+  each tick the dispatcher MUST append, opened beneath the worker directory, one notice line per WARN
+  or HANDOFF crossing without a delivery marker, and only after the append succeeds create that
+  level's `context-delivered-<LEVEL>` marker (ATR-V0-101) and emit one `context` event with delivery
+  `FILE`. A failed append or a non-regular notice file marks nothing, alerts once while it keeps
+  failing, and is retried on the next tick. A level the hook marked first is never repeated. For such
+  a host the context delivery mode of `dispatch status` (ATR-V0-103) MUST be `FILE`, never
+  `UNSUPPORTED`; a claude-code role with the hook placeholder stays `HOOK`.
+- `ATR-V0-126`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1834)
+  `dispatch salvage --program ID --config FILE --attempt A` MUST read attempt A from the native store
+  of the configuration's `workRoot`, take its lease holder as a worker of the program, running in the
+  ledger or stopped with its worker directory still present, and write that worker's
+  `handoff-note.json` with the bounds and secret screen of ATR-V0-104, naming the attempt's ticket. It
+  MUST NOT change the attempt or the store, and MUST refuse a missing `--attempt`, a holder that names
+  no worker of the program, and a `workRoot` of another store. The result, profile
+  `taskman-dispatch-salvage/0`, reports the attempt and its phase, the worker and its state, the note
+  path and its message, file and redacted-line counts. The note is offered under ATR-V0-105.
+- `ATR-V0-127`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1834) The
+  `launched` event MUST record `contextDelivery` for a role whose `usageFormat` carries context estimates and `handoffNote`
+  (the offered note's path, or `NONE`). The worker-stop event, which is `finished` (the dispatcher's
+  own `stopped` event names no worker), MUST record `contextDelivery`, `contextDelivered` (the
+  delivered levels comma-joined, or `NONE`) and `salvage`: `HARD_STOP` for a context kill, `ON_DEMAND`
+  when the worker's own note exists otherwise, else `NONE`.
+
+Non-goals: hook delivery for hosts other than claude-code; parsing a non-Claude host's usage stream
+(V1-1768); proof that a session read the notice file; salvage of a worker whose directory was
+retired; the dispatcher-side pool sweep (V1-1573); V1-1792 and V1-0800.
+
+Failure modes: a session that never polls the file still runs to the hard stop, which is unchanged.
+Delivery is at least once: a crash between the append and the marker repeats that line on the next
+tick. A salvage that runs while the session still writes captures the log as of that read. An
+earlier build refuses a configuration with `contextNotices` and does not know the verb.
+
+Acceptance evidence: `TestATRV0125_NoticeFileDeliversOnAnyHost` (both levels delivered once to the
+file, `FILE` for claude-code and opencode formats, `UNSUPPORTED` without the declaration, an
+on-demand salvage of the running session with the secret redacted, and an externally killed
+session whose `finished` event records `FILE`, `WARN,HANDOFF` and `ON_DEMAND`),
+`TestATRV0125_NoticeFileValidationAndRetry` and `TestATRV0127_FinishedRecordsSalvage`
+(`internal/tasks/dispatch`); `TestATRV0126_SalvageAttemptWritesScreenedNote` (a real store: a
+running attempt whose session stopped, the same attempt after a dispatcher hand-off, a foreign
+holder and a missing `--attempt`) and the CAL-V0-131 output-only row (`internal/tasks/cli`). Live
+host qualification and Linux are NOT_RUN.
+
+Rollback: remove `contextNotices` from every host, then revert the code and this amendment. Notice
+files, markers and salvaged notes are inert for an earlier build.
+
 ## Outcome document
 
 Profile `taskman-attempt-run-outcome/0`, at most 4096 bytes, compact canonical JSON with one trailing
@@ -1034,6 +1158,8 @@ output; queue status of detached runs outside the dispatcher.
 | Malformed or ambiguous `ticketBudget.overrides` | The configuration is refused with `BUDGET_OVERRIDE_MALFORMED` or `BUDGET_OVERRIDE_AMBIGUOUS` (ATR-V0-086). |
 | Store unreadable when `dispatch status` resolves overrides | Every ticket is shown unobserved (`selectorObserved` false) and resolves by its key alone (ATR-V0-087, ATR-V0-088). |
 | Carry-over record damaged, of another ticket or version, or not removable after progress | A damaged or other-ticket record is never offered and is replaced after one alert; a newer-version record is kept, never offered and alerted once; a failed removal alerts and stops the offer until a later write, which replaces the record, succeeds (ATR-V0-111, ATR-V0-112). |
+| Pool-hold session killed, launch failed, or dispatcher crashed after a claim | The held allocation is returned before hand-off, on a pre-spawn failure, or by the orphan sweep; an already-ended attempt quarantined it natively; a crash before the hold record leaves it to the lease expiry (ATR-V0-122, ATR-V0-124). |
+| Context notice file unwritable, not regular, or never polled by the session | Nothing is marked; one alert while it fails and a retry each tick; an unpolled file leaves the hard stop unchanged; a crash between append and marker repeats the line once (ATR-V0-125). |
 
 ## Acceptance and rollback
 
@@ -1123,7 +1249,7 @@ receipt or wire shape changes.
 | ATR-V0-082 | `internal/tasks/transaction/loop_detect.go` (`LoopHoldOf`, `noProgressRun`, `progressChain`) | `TestATRV0082_LoopHoldHonoursProgressSignal` (`internal/tasks/transaction`), `TestATRV0082_CLIProgressSignal` (`internal/tasks/cli`) |
 | ATR-V0-083 | `internal/tasks/ticket/view.go`, `internal/tasks/cli/plan.go` (`loopHoldValue`), `internal/tasks/dispatch/loop.go` (`loopEscalations`, `finish`) | `TestATRV0082_CLIProgressSignal` (`internal/tasks/cli`), `TestATRV0083_DispatcherEventsNameProgressSignal` (`internal/tasks/dispatch`) |
 | ATR-V0-084 | `internal/tasks/dispatch/roster.go` (`baseFingerprint`), `internal/tasks/cli/dispatch.go` (`dispatchQueue.Observe`), `internal/tasks/snapshot/attempt.go` (`LatestHandoffEvidence`), `internal/tasks/transaction/lease_claim.go` | `TestATRV0084_FingerprintHonoursProgressSignal`, `TestATRV0083_DispatcherEventsNameProgressSignal` (`internal/tasks/dispatch`), `TestATRV0084_DispatchFingerprintCarriesLatestReference` (`internal/tasks/cli`), `TestATRV0084_LatestHandoffEvidence` (`internal/tasks/snapshot`) |
-| ATR-V0-085 | `internal/tasks/dispatch/config.go` (`BudgetOverride`, `Budget.UnmarshalJSON`, `decodeBudgetOverride`) | `TestATRV0085_TicketBudgetOverridesDecode` (`internal/tasks/dispatch`) |
+| ATR-V0-085 | `internal/tasks/dispatch/config.go` (`BudgetOverride`, `Budget.UnmarshalJSON`, `decodeBudgetOverride`, `Budget.validate`, `TicketLimit`), `internal/tasks/dispatch/budget.go` (`SpendReportFor`, `recordBudget`), `internal/tasks/cli/dispatch.go` (`dispatchBudgetValue`) | `TestATRV0085_TicketBudgetOverridesDecode`, `TestATRV0085_OverridesWithoutDefaultValidate`, `TestATRV0085_UnmatchedTicketsNeverHeld` (`internal/tasks/dispatch`), `TestATRV0085_DispatchStatusListsOnlyOverrideScopes` (`internal/tasks/cli`) |
 | ATR-V0-086 | `internal/tasks/dispatch/config.go` (`Budget.UnmarshalJSON`, `decodeBudgetOverride`, `validate`) | `TestATRV0086_MalformedOrAmbiguousOverridesRefuse`, `TestATRV0086_NullOverridesRefuse` (`internal/tasks/dispatch`) |
 | ATR-V0-087 | `internal/tasks/dispatch/config.go` (`TicketLimit`), `internal/tasks/dispatch/budget.go` (`ticketLimit`, `observe`) | `TestATRV0087_EffectiveLimitPrecedence` (`internal/tasks/dispatch`) |
 | ATR-V0-088 | `internal/tasks/dispatch/budget.go` (`recordBudget`, `SpendReportFor`), `internal/tasks/cli/dispatch.go` (`dispatchBudgetValue`, `dispatchBudgetTickets`) | `TestATRV0088_HoldsAndReportNameTheSelector` (`internal/tasks/dispatch`), `TestATRV0088_DispatchStatusShowsEffectiveLimitAndSelector` (`internal/tasks/cli`) |
@@ -1141,3 +1267,11 @@ receipt or wire shape changes.
 | ATR-V0-112 | `internal/tasks/dispatch/carry_over.go` (`ReadCarryOver`, `CarryOverPath`), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0112_RecordVersions` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
 | ATR-V0-113 | `internal/tasks/dispatch/carry_over.go` (`carryOverFor`, `carryBlock`, `writeCarryMarker`), `internal/tasks/dispatch/loop.go` (launch) | `TestATRV0113_NextSessionPromptCarriesBoundedLabelledBlock`, `TestATRV0113_NoCarryOverForOtherTicket`, `TestATRV0113_BlockBoundAcrossSessions` (`internal/tasks/dispatch`) |
 | ATR-V0-114 | `internal/tasks/dispatch/carry_over.go` (`carryDetail`, `carriedCount`), `internal/tasks/dispatch/loop.go` (launch, finish) | `TestATRV0114_EventsMarkCarryOverSessions`, `TestATRV0113_NextSessionPromptCarriesBoundedLabelledBlock` (`internal/tasks/dispatch`) |
+| ATR-V0-120 | `internal/tasks/dispatch/pool_hold.go` (`claimPoolHold`, `PoolHoldQueue`), `internal/tasks/dispatch/config.go` (`HoldPool`), `internal/tasks/dispatch/loop.go` (launch), `internal/tasks/cli/dispatch_pool_hold.go` (`PoolClaim`) | `TestATRV0120_HoldPoolIsOptIn`, `TestATRV0124_RefusedClaimKeepsNativeOrder` (`internal/tasks/dispatch`), `TestATRV0124_PoolClaimKeepsWaiterOrderCLI` (`internal/tasks/cli`) |
+| ATR-V0-121 | `internal/tasks/dispatch/pool_hold.go` (`PoolHold`, `ReadPoolHoldFile`, `writePoolHold`), `internal/tasks/dispatch/loop.go` (launch env), `internal/tasks/cli/cli.go` (`LiveFormats`) | `TestATRV0122_KilledSessionLeavesNoOrphanedAllocation` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
+| ATR-V0-122 | `internal/tasks/dispatch/pool_hold.go` (`releasePoolHolds`, `returnPoolHold`), `internal/tasks/dispatch/loop.go` (heal, launch), `internal/tasks/cli/dispatch_pool_hold.go` (`PoolRelease`) | `TestATRV0122_KilledSessionLeavesNoOrphanedAllocation`, `TestATRV0122_EndedAttemptIsNotReleasedAgain`, `TestATRV0122_FailedLaunchReturnsTheClaim` (`internal/tasks/dispatch`), `TestATRV0124_PoolClaimKeepsWaiterOrderCLI` (`internal/tasks/cli`) |
+| ATR-V0-123 | `internal/tasks/cli/dispatch.go` (`dispatchStatusValueFor`) | `TestATRV0123_DispatchStatusShowsPoolHold` (`internal/tasks/cli`) |
+| ATR-V0-124 | `internal/tasks/dispatch/pool_hold.go` (`releasePoolHolds`) | `TestATRV0124_OrphanedClaimIsReturned`, `TestATRV0124_RefusedClaimKeepsNativeOrder` (`internal/tasks/dispatch`), `TestATRV0124_PoolClaimKeepsWaiterOrderCLI` (`internal/tasks/cli`) |
+| ATR-V0-125 | `internal/tasks/dispatch/context_delivery.go` (`deliverNoticeFile`, `ContextDelivery`, `ContextNoticePath`), `internal/tasks/dispatch/context.go` (`deliverNotices`), `internal/tasks/dispatch/config.go` (`ContextNotices`), `internal/tasks/dispatch/loop.go` (launch env) | `TestATRV0125_NoticeFileDeliversOnAnyHost`, `TestATRV0125_NoticeFileValidationAndRetry` (`internal/tasks/dispatch`) |
+| ATR-V0-126 | `internal/tasks/cli/dispatch_salvage.go` (`dispatchSalvage`), `internal/tasks/dispatch/handoff_note.go` (`SalvageWorker`), `internal/tasks/cli/dispatch.go`, `internal/tasks/cli/cli.go`, `internal/tasks/cli/command_help.go` | `TestATRV0126_SalvageAttemptWritesScreenedNote`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`), `TestATRV0125_NoticeFileDeliversOnAnyHost` (`internal/tasks/dispatch`) |
+| ATR-V0-127 | `internal/tasks/dispatch/context_delivery.go` (`finishContextDetail`), `internal/tasks/dispatch/loop.go` (launch, `finish`) | `TestATRV0127_FinishedRecordsSalvage`, `TestATRV0125_NoticeFileDeliversOnAnyHost` (`internal/tasks/dispatch`) |
