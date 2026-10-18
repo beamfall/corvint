@@ -42,7 +42,15 @@ func TestATRV0095_RelaunchWaitsOutTheFinishingChild(t *testing.T) {
 	// The finishing child still holds the running lock for a moment.
 	dir := cli.LeaseDetachDir(repo, "claim-exiting")
 	running := acquireRunning(t, dir)
-	time.AfterFunc(300*time.Millisecond, func() { _ = syscall.Flock(int(running.Fd()), syscall.LOCK_UN) })
+	// The unlock goroutine uses running; only the kernel lock orders it
+	// before acquireRunning's Close, which the race detector cannot see.
+	// This cleanup runs before that Close and waits for the unlock.
+	unlocked := make(chan struct{})
+	t.Cleanup(func() { <-unlocked })
+	time.AfterFunc(300*time.Millisecond, func() {
+		defer close(unlocked)
+		_ = syscall.Flock(int(running.Fd()), syscall.LOCK_UN)
+	})
 	again := cliRun(t, root, claim...)
 	if again.code != 0 || again.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("repeated --detach after the ceiling: code %d %s", again.code, again.stdout)
