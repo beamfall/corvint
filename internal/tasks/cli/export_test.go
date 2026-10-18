@@ -254,10 +254,40 @@ func DoctorRepeatRefusalSeqs(events []DoctorTestEvent, tree string) ([][]uint64,
 	}
 	var seqs [][]uint64
 	var first []time.Time
-	for _, f := range doctorRepeatRefusal(failed, scan) {
+	for _, f := range doctorRepeatRefusal(failed, scan, "") {
 		seqs, first = append(seqs, f.seqs), append(first, f.firstSeen)
 	}
 	return seqs, first
+}
+
+// DoctorTestEnded is one synthetic ended generation of ticket T: its
+// retry-accounting disposition, candidate tree ("" for none) and hand-off
+// evidence reference ("" for none).
+type DoctorTestEnded struct {
+	Generation, Disposition, Tree, Evidence string
+}
+
+// DoctorRepeatRefusalDetails runs the REPEAT_REFUSAL detector over one
+// ticket's synthetic ended generations, one receipt each, under the declared
+// progress signal ("" for none), and returns each finding's detail
+// (TQD-V0-041).
+func DoctorRepeatRefusalDetails(gens []DoctorTestEnded, signal string) []string {
+	scan := &doctorScan{}
+	for i, g := range gens {
+		a := &snapshot.Attempt{AttemptID: "a1", TicketID: wire.TicketID{Raw: "T"}, Generation: wire.Size(g.Generation), Phase: "FAILED",
+			RetryAccounting: &snapshot.RetryAccounting{Disposition: g.Disposition}, HandoffEvidence: g.Evidence}
+		if g.Tree != "" {
+			tree := g.Tree
+			a.CandidateTreeOid = &tree
+		}
+		scan.events = append(scan.events, doctorEvent{seq: uint64(10 + i), at: time.Unix(int64(1000+i), 0).UTC(), attempts: []*snapshot.Attempt{a}, fresh: []bool{true}})
+	}
+	none := func(string) (*snapshot.GateResult, error) { return nil, errors.New("no gate") }
+	var out []string
+	for _, f := range doctorRepeatRefusal(none, scan, signal) {
+		out = append(out, f.detail)
+	}
+	return out
 }
 
 // SetDoctorCacheHookForTest runs hook at the named steps of a refresh

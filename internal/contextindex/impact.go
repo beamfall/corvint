@@ -71,7 +71,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	if len(forbidden) != 0 {
 		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
 		if err == nil && syntaxFrontier {
-			err = attachNonGoImpactUnknowns(result, index, cleaned, 0, nil)
+			err = attachNonGoImpactUnknowns(result, index, cleaned, 0, nil, nil)
 		}
 		return result, nil, err
 	}
@@ -100,6 +100,9 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	var registries *registryDialect
 	var registryGraph *webImportGraph
 	registryUnknowns := map[string][]any{}
+	// Ruby autoload-convention constants (NGI-V0-016 to NGI-V0-021) are
+	// indexed once, and only under the syntax profile.
+	var rubyConstants *rubyAutoload
 	typeOnlyKinds := make(map[string]map[string]bool)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
@@ -149,6 +152,14 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 				ranked = append(ranked, rows...)
 				registryUnknowns[changedPath] = unknowns
 			}
+		}
+		if syntaxFrontier && NonGoImpactLanguage(changedPath) == "ruby" {
+			if rubyConstants == nil {
+				rubyConstants = loadRubyAutoload(index)
+			}
+			rows, unknowns := rubyConstants.impact(index, changedPath)
+			ranked = append(ranked, rows...)
+			registryUnknowns[changedPath] = append(registryUnknowns[changedPath], unknowns...)
 		}
 		for _, reference := range packageReferences {
 			if isTestPath(reference.path) {
@@ -350,7 +361,11 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	}
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
-		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns)
+		var rubyReport map[string]any
+		if rubyConstants != nil {
+			rubyReport = rubyConstants.report()
+		}
+		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns, rubyReport)
 	}
 	return result, disclosures, err
 }

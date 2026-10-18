@@ -10,8 +10,8 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457).
-- Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect for syntax-profile path impact.
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674).
+- Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect and Ruby named-constant reverse references by autoload convention for syntax-profile path impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
 
@@ -42,7 +42,9 @@ test closure. The useful result is bounded evidence with an open semantic fronti
   historical default path receipt remains byte-identical. MCP non-Go requests
   and non-Go range receipts select/name this experimental profile automatically.
   The selector is unavailable with `--base` or `--working-tree-untracked`.
-  Ruby reverse-import resolution remains explicitly unavailable; JS/TS reuses
+  Ruby reverse-import (`require`) resolution remains explicitly unavailable; the
+  syntax profile adds named-constant reverse references by autoload convention
+  (`NGI-V0-016` to `NGI-V0-021`), which do not close it; JS/TS reuses
   existing relative/profile import rules, plus the tsconfig/jsconfig alias arm
   `GPK-V0-077` to `GPK-V0-081` propose (proposed, pending owner acceptance;
   V1-0958), without inferring runtime call semantics. A non-test JS/TS changed
@@ -173,6 +175,85 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   and any file containing a `with (...)` statement or an identifier escape (`\`) keep the key
   non-literal. A rest or spread `...NAME` is an occurrence, not a member access.
 
+### Ruby named-constant reverse references (V1-1674; GitHub #1077)
+
+Rails and Zeitwerk load a constant from the file its name implies, so a caller often names
+`Thing` with no `require`. These requirements apply only to the `non-go-syntax-v0` path
+impact of a changed `.rb` path; the historical default receipt and range impact are unchanged.
+
+- `NGI-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A
+  Ruby path below an autoload root (`NGI-V0-017`), and not below an ignored directory, MUST
+  map to the constant its relative path names: each directory and the basename without `.rb`
+  camelized as ActiveSupport does (split on `_`, capitalize each word, acronyms applied per
+  word, a whole-basename override first), joined with `::`. The longest matching root wins.
+  A segment that is not lower snake case (`[a-z][a-z0-9_]*`, no empty word) or does not
+  camelize to a constant name leaves the path unmapped. An unmapped changed path carries
+  `ruby-constant-unmapped` and no constant reference rows.
+- `NGI-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) Roots
+  are the documented defaults unless `.corvint/ruby-autoload.json` is present: each `app/<dir>`
+  holding Ruby source except `assets`, `javascript` and `views`, each `app/<dir>/concerns`,
+  and `lib`, with `lib/assets` and `lib/tasks` ignored. The declaration is one strict JSON
+  object `{"schema":"ruby-autoload/0","roots":[...],"inflections":{word:Constant}}` of at most
+  64 KiB, 1 to 64 distinct clean relative roots inside the repository (never `.`, `..` or a
+  `../` path) and outside `.git`, and at most 256 inflections
+  with `word` matching `[a-z0-9_]{1,64}` and `Constant` matching `[A-Z][A-Za-z0-9_]{0,63}`;
+  declared roots replace the defaults and ignore nothing. An unreadable, excluded, unknown-member,
+  duplicate-key, trailing-document or otherwise invalid declaration maps no path and carries
+  `ruby-autoload-declaration-invalid`; it never falls back to the defaults. Inflections are also
+  read from non-test Ruby source: a literal `.acronym "API"` (or `('API')`) and the literal
+  `"word" => "Constant"` pairs of one `.inflect(` call (Zeitwerk overrides, up to 64 lines to
+  its `)`). Declared entries come first; for each word the first entry read wins. Any other
+  `.acronym` or `.inflect(` form, any `.collapse`, and, without a declaration, any
+  `autoload_paths`, `eager_load_paths`, `autoload_once_paths`, `autoload_lib`,
+  `autoload_lib_once` or `push_dir` site counts in `ruby-autoload-config-unresolved`.
+- `NGI-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) For a
+  mapped changed path naming constant C, every other indexed Ruby source with a constant
+  reference resolving to C or a constant nested in C MUST be one result: kind `reference`
+  score 525, or kind `test` score 500 for a test path (the shared test rule, a `spec/`
+  directory or a `_spec.rb` name), each strictly below every direct and type-only import
+  score (the weakest, a type-only test import, is 550). Its summary names C and the autoload
+  convention; at most 10 evidence rows each bind
+  the referencing line and blob with confidence `medium` and authority `syntax`. References
+  are read from the lexically masked source (no comment, string or heredoc text), fully
+  qualified (`::A::B`) or relative (`B`, `A::B`), excluding labels and method calls `Name(`.
+  A single-segment unrooted `Name = value` (not `==`, `=~` or `=>`) is a local definition of
+  Name in the innermost enclosing namespace, never a reference; every `class`/`module` the
+  file opens is also a local definition, and each local definition's namespace prefixes exist.
+  A relative reference resolves to the innermost enclosing `module`/`class` namespace N for
+  which N::first-segment is a mapped constant, a local definition, or a namespace prefix of
+  either, else to itself, so a local definition shadows an autoloaded constant of the same
+  name. A simple name after a `class` or `module` keyword is defined inside its enclosing
+  namespace; a qualified `A::B` reopens B inside the A that lexical lookup finds from the
+  enclosing namespace (the innermost N with N::A mapped or locally defined so far, else the
+  top-level A), and the body's enclosing namespaces are that constant then the outer ones. A
+  superclass resolves in the scope outside its class. Every block opener (`module`, `class`,
+  `class << self`, `def` with a body, `begin`, `case`, statement `if`/`unless`/`while`/`until`/`for`,
+  and `do`) counts toward a nesting bound of 256 open blocks; scanning stays linear in the
+  source size. A file whose block openers and `end`s do not balance, or that nests past the
+  bound, resolves each relative reference to itself and under every namespace it opens, never
+  fewer.
+- `NGI-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674)
+  Metaprogrammed names MUST stay unknown, never become a reference: other Ruby sources'
+  `constantize`, `safe_constantize`, `const_get`, `send`, `public_send` and `__send__` words
+  count in `ruby-constant-lookup-dynamic`; quoted constant-shaped strings naming C, its last
+  segment or `...::last`, and association symbols (`belongs_to`, `has_one`, `has_many`,
+  `has_and_belongs_to_many`) camelizing to the last segment (also after dropping a trailing
+  `s`) count in `ruby-constant-name-literal`; unreadable sources count in
+  `ruby-constant-source-unavailable`. The baseline `dynamic-dispatch-unresolved` and
+  `reverse-import-rule-unavailable` rows remain on every Ruby path. Ancestor-chain lookup,
+  `include`d namespaces, collapsed directories and runtime-configured roots are not modelled.
+- `NGI-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) The
+  historical default path receipt, range receipts and syntax-profile receipts without a Ruby
+  changed path MUST keep their exact bytes. Repeat runs over the same snapshot MUST be
+  byte-identical. No source, declaration or configuration text enters the receipt beyond the
+  validated declared words, constants and paths.
+- `NGI-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A
+  syntax-profile receipt with a Ruby changed path MUST carry `ruby_autoload` naming the roots
+  applied, the ignored directories, `roots_source` (`default`, `declared` or
+  `declaration-invalid`), the declaration path when one is present, and every inflection
+  applied as `{word, constant, kind, path, line}` with `kind` `acronym`, `inflect` or
+  `declared` (line 0), sorted by word then kind.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -201,6 +282,12 @@ for languages not admitted by this new range capability.
 | `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
 | `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
 | `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
+| `ruby-constant-unmapped` | The changed Ruby path is below no autoload root, below an ignored directory, or its path does not camelize to a constant (`NGI-V0-016`). |
+| `ruby-autoload-declaration-invalid` | `.corvint/ruby-autoload.json` is present but invalid or unavailable, so no path is mapped (`NGI-V0-017`). |
+| `ruby-autoload-config-unresolved` | `count` autoload root, collapse or inflection configuration sites were not literal or not modelled (`NGI-V0-017`). |
+| `ruby-constant-lookup-dynamic` | `count` dynamic constant lookups or dynamic sends in other Ruby sources may name the constant (`NGI-V0-019`). |
+| `ruby-constant-name-literal` | `count` strings or association symbols in other Ruby sources may name the constant without a resolvable reference (`NGI-V0-019`). |
+| `ruby-constant-source-unavailable` | `count` other Ruby sources could not be read for constant references (`NGI-V0-019`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -226,6 +313,12 @@ and a validated declared identifier, never source text.
 | `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
 | `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
+| `NGI-V0-016` | `rubyAutoload.constantFor`, `camelize` (`internal/contextindex/ruby_autoload.go`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadNamedConstantReverseReference` |
+| `NGI-V0-017` | `loadRubyAutoload`, `readRubyAutoloadDeclaration`, `validRubyAutoloadDeclaration`, `defaultRubyAutoloadRoots`, `readConfiguredInflections` | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
+| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows` |
+| `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
+| `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultReceiptUnchanged`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
+| `NGI-V0-021` | `rubyAutoload.report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in
@@ -240,7 +333,11 @@ removed. The registry dialect performs no runtime evaluation, infers no accessor
 or registry, and folds no constant across files or beyond a single literal; it
 does not follow destructured or reassigned accessors, bracket-string member
 calls, or registries assembled at runtime, and it does not change range impact.
-Roll it back by removing the `registries` declarations or the dialect code. The implementation stays experimental pending human acceptance and
+Roll it back by removing the `registries` declarations or the dialect code. The Ruby
+autoload reading (`NGI-V0-016` to `NGI-V0-021`) evaluates no Ruby, loads no Rails
+configuration, follows no `require`, ancestor chain or `include`, and supports no collapsed
+directory; its reverse references are syntax-authority hints, never closure. Roll it back by
+removing `ruby_autoload.go` and its wiring in `impact`; the declaration file is then ignored. The implementation stays experimental pending human acceptance and
 integration. Revert task-owned code/spec changes to roll back; preserve original
 receipts and the failed/unsupported outcomes. Kill or repair the extension if it
 changes legacy Go bytes, invents semantic closure or weakens immutable binding.

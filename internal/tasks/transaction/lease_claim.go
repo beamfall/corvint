@@ -269,10 +269,13 @@ func (c leaseContext) admitted(rec *ticket.Record, prior *snapshot.Attempt, sc *
 		a.RetryReasons[reason] = wire.CountOf(a.RetryReasons[reason].Int() + 1)
 	}
 	history := endedHistory(prior)
-	if history != nil && c.st.policy.LoopDetection != nil {
+	if history != nil && (c.st.policy.LoopDetection != nil || c.st.policy.ProgressSignal != "") {
 		// CAL-V0-102: only an opted-in policy records the ended generation's
 		// work evidence, so a claim under any other policy keeps its bytes.
-		history.Loop = snapshot.LoopEvidenceOf(prior)
+		// A declared progress signal also records the generation's
+		// fingerprint, so the loop verdict can be audited (ATR-V0-081) and
+		// the reference outlives the claim that clears it (ATR-V0-084).
+		history.Loop = snapshot.LoopEvidenceWith(prior, c.st.policy.ProgressSignal)
 	}
 	a.PriorGenerations = append(append([]snapshot.PriorGeneration{}, prior.PriorGenerations...), snapshot.PriorGeneration{Generation: prior.Generation, Quiescence: prior.Quiescence, ProvedSeq: prior.PhaseSinceSeq, History: history})
 	return a, nil
@@ -361,7 +364,7 @@ func planClaimNext(c leaseContext) leaseOutcome {
 		out.result.Expired = reap
 		return out
 	}
-	plan := PriorityFirst(PlanInput{Pool: c.l.Pool, Stage: c.l.Stage, ExcludeMembers: c.l.ExcludeMembers, ExcludeAuthors: c.l.ExcludeAuthors, Pools: c.st.pools, Prepared: c.in.LeaseFacts.Pool.AllocationID, Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	plan := PriorityFirst(claimNextInput(c.l, c.in, c.st))
 	chosen := plan.ClaimNext(c.l.Pool)
 	if chosen == nil {
 		code, detail := plan.refusal()

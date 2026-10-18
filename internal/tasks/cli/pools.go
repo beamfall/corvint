@@ -1,9 +1,27 @@
 package cli
 
 import (
+	"time"
+
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
+
+// poolWaitlistValue renders the live pool waitlist at observedAt in
+// admission order per pool (PSR-V0-135); ok is false when it is empty.
+func poolWaitlistValue(in transaction.PlanInput, observedAt time.Time) (wire.Value, bool) {
+	now := wire.Timestamp(observedAt.UTC().Format("2006-01-02T15:04:05Z"))
+	live := transaction.PoolWaitlist(in, now)
+	if len(live) == 0 {
+		return wire.Value{}, false
+	}
+	values := []wire.Value{}
+	for _, w := range live {
+		values = append(values, transaction.PoolWaiterValue(w, now))
+	}
+	return wire.Array(values...), true
+}
 
 func poolOccupancy(rc *readCtx) (wire.Value, error) {
 	proof, e := auditState(rc, "pools.json")

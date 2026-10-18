@@ -91,6 +91,9 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
+	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
+	// for each held ticket key, in memory only.
+	poolWaitEmitted map[string]string
 	// control, set only by OpenControlled, admits each new launch and
 	// pool sweep and sees every tick boundary.
 	control LaunchControl
@@ -1284,6 +1287,15 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 		if workUnknown {
 			charged, note = map[string]string{"workState": StateUnknown}, "; its work state was UNKNOWN during the run"
 		}
+		if obs.ProgressSignal != "" {
+			// ATR-V0-084: the backoff names the declared signal that judged
+			// the run.
+			if charged == nil {
+				charged = map[string]string{}
+			}
+			charged["progressSignal"] = obs.ProgressSignal
+			note += "; judged under progress signal " + obs.ProgressSignal
+		}
 		if b.NoProgress >= d.Config.Backoff.ParkAfter {
 			b.Parked = true
 			d.emit(Event{Kind: "parked", Ticket: w.Ticket, Message: fmt.Sprintf("parked %s after %d run(s) without progress%s", d.keyText(w.Key), b.NoProgress, note), Detail: charged})
@@ -1492,9 +1504,12 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	relaunch := d.relaunches()
 	prefer := preferredRoles(relaunch)
 	spend := d.spendGate(now)
+	spend.observe(obs.Tickets)
 	spend.holdDeferred(obs.Tickets, prefer)
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend)
+	room := newPoolRoom(obs, d.ledger.Workers)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room)
 	d.recordHeld(obs, held)
+	d.recordPoolWait(room)
 	// Holds are recorded after the launches, so a budget event counts them.
 	defer d.recordBudget(spend)
 	retried := map[string]bool{}
@@ -1751,7 +1766,14 @@ func (d *Dispatcher) loopEscalations(obs *Observation, old, now *Seen) {
 			continue
 		}
 		gens := strings.Join(h.Generations, ",")
-		if err := d.record(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, gens), Detail: map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "acceptanceRevision": h.AcceptanceRevision, "generations": gens}}); err != nil {
+		detail := map[string]string{"kind": "blocked", "code": "LOOP_DETECTED", "signal": h.Signal, "acceptanceRevision": h.AcceptanceRevision, "generations": gens}
+		judged := ""
+		if obs.ProgressSignal != "" && h.Signal == "NO_PROGRESS" {
+			// ATR-V0-083: the hold names the declared signal that judged it.
+			detail["progressSignal"] = obs.ProgressSignal
+			judged = " under progress signal " + obs.ProgressSignal
+		}
+		if err := d.record(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s is held LOOP_DETECTED (%s%s) over generations %s; only the owner can acknowledge it with `corvint-tasks ticket reopen` (CAL-V0-103)", d.local(obs, id), h.Signal, judged, gens), Detail: detail}); err != nil {
 			h.Pending = true
 			now.Loops[id] = h
 		}

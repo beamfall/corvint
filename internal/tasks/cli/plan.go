@@ -8,6 +8,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"slices"
 	"strings"
+	"time"
 )
 
 // planCommand dispatches `plan preview` and `plan batches`; `plan record`
@@ -88,6 +89,12 @@ func planPreview(env Env, args []string) *wire.Result {
 			return err
 		}
 		in.Pool, in.Stage, in.ExcludeMembers, in.ExcludeAuthors = pool, stage, scopePaths(excluded), authors
+		// PSR-V0-132: a --pool plan honours the live waitlist now, as the
+		// claim it previews does.
+		observedAt := time.Now()
+		if pool != "" {
+			in.Now = wire.Timestamp(observedAt.UTC().Format("2006-01-02T15:04:05Z"))
+		}
 		if err := transaction.CheckPoolExclusions(pool, in.ExcludeMembers, in.Policy); err != nil {
 			return err
 		}
@@ -101,6 +108,11 @@ func planPreview(env Env, args []string) *wire.Result {
 		}
 		item, err = planValue(rc, digest, plan, authors != "", planOffers(rc, in, plan))
 		entries = len(plan.Entries)
+		// PSR-V0-135: the live pool waitlist as read-only data, only when
+		// non-empty, so a queue without waiters keeps its plan bytes.
+		if v, ok := poolWaitlistValue(in, observedAt); ok && err == nil && item.Kind == wire.KindObject {
+			item.Obj.Set("poolWaitlist", v)
+		}
 		return err
 	})
 	if err != nil {
@@ -333,6 +345,9 @@ func loopHoldValue(h *ticket.LoopHold) wire.Value {
 	o.Set("acceptanceRevision", wire.String(string(h.AcceptanceRevision)))
 	o.Set("generations", wire.Strings(h.Generations))
 	o.Set("limit", wire.String(string(h.Limit)))
+	if h.ProgressSignal != "" {
+		o.Set("progressSignal", wire.String(h.ProgressSignal))
+	}
 	return wire.ObjectValue(o)
 }
 

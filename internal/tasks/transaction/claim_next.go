@@ -18,10 +18,18 @@ func NextClaimTicket(queueID string, in Input, choice ...LeaseRequest) (*ticket.
 	if err := CheckPoolExclusions(l.Pool, l.ExcludeMembers, state.policy); err != nil {
 		return nil, err
 	}
-	plan := PriorityFirst(PlanInput{Pool: l.Pool, Stage: l.Stage, ExcludeMembers: l.ExcludeMembers, ExcludeAuthors: l.ExcludeAuthors, Pools: state.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: state.queue, Policy: state.policy, Tickets: state.tickets, Barrier: state.barrier != nil, Reservations: state.reservations, Attempts: state.attempts})
+	plan := PriorityFirst(claimNextInput(&l, in, state))
 	chosen := plan.ClaimNext(l.Pool)
 	if chosen == nil {
 		return nil, nil
 	}
 	return chosen.Ticket, nil
+}
+
+// claimNextInput is the one plan input both NextClaimTicket and CLAIM_NEXT
+// select from, so the store derives scope for the ticket the claim takes.
+// Now is the transaction's recorded time, at which a --pool plan honours the
+// live waitlist (PSR-V0-132).
+func claimNextInput(l *LeaseRequest, in Input, st inputState) PlanInput {
+	return PlanInput{Pool: l.Pool, Stage: l.Stage, ExcludeMembers: l.ExcludeMembers, ExcludeAuthors: l.ExcludeAuthors, Pools: st.pools, Prepared: in.LeaseFacts.Pool.AllocationID, Queue: st.queue, Policy: st.policy, Tickets: st.tickets, Barrier: st.barrier != nil, Reservations: st.reservations, Attempts: st.attempts, Now: in.RecordedAt}
 }

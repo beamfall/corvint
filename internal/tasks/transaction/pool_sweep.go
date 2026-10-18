@@ -31,6 +31,7 @@ func CheckPoolSweepResultCapacity(owner wire.Digest, selections []PoolSweepSelec
 }
 
 func sweepPosts(c leaseContext, state *snapshot.PoolState, extra map[string][]byte) leaseOutcome {
+	c.pruneWaiters(state)
 	raw, e := state.Encode()
 	if e != nil {
 		return c.fail(e)
