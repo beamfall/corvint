@@ -10,7 +10,7 @@ semantics; issue intent does not accept generated implementation detail.
 
 ## Agent digest
 - Claim: Ruby, JavaScript and TypeScript path/range impact binds syntax evidence and explicitly names unresolved dynamic dispatch.
-- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674).
+- Status: proposed/experimental; local source and focused conformance implemented; human acceptance and integration pending. NGI-V0-007..011 (declared `string-key-registry/0` dialect: literal registry keys to the tests passing them) are accepted under the owner's standing auto-accept (2026-10-11; V1-1365) and implemented over synthetic repositories. NGI-V0-012..015 (an unresolved entry widens every JS/TS path; lazy `require()`/`import()` entries; a non-exported top-level registry; a same-file top-level `const` key) are accepted under the same standing auto-accept (V1-1455, V1-1456, V1-1457). NGI-V0-016..021 (Ruby named-constant reverse references by autoload path convention: path-to-constant mapping, default roots or a declared `ruby-autoload/0` file, literal inflections, a reference class ranked below imports, metaprogrammed names kept unknown, and a report of the roots and inflections applied) are accepted under the same standing auto-accept (V1-1674). NGI-V0-027 (`bundle exec rspec` named for a Ruby path when the tree tracks a root Gemfile and `.rspec` or `spec/`) is accepted under the same standing auto-accept (V1-1796; GitHub #1130).
 - Exists: Ruby/JS/TS versioned positional, committed-range and MCP admission; bounded structured unknowns; existing JS/TS import rules; a declared string-keyed registry dialect and Ruby named-constant reverse references by autoload convention for syntax-profile path impact.
 - Blocked on: shared registry/CEM closeout, draft publication, integration and owner acceptance; no runtime-dispatch qualification.
 - Read next: Requirements; Trust and failure boundaries; Acceptance and traceability.
@@ -254,6 +254,34 @@ impact of a changed `.rb` path; the historical default receipt and range impact 
   applied as `{word, constant, kind, path, line}` with `kind` `acronym`, `inflect` or
   `declared` (line 0), sorted by word then kind.
 
+### Ruby verification command (V1-1796; GitHub #1130 item 4)
+
+- `NGI-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1796) When an
+  evidence path ends in `.rb` and the index tracks a repository-root `Gemfile` together with a
+  root `.rspec` or any tracked path under the root `spec/` directory, the receipt's
+  `verification` member MUST name `bundle exec rspec` once, before the closing gate command, for
+  `corvint impact` path receipts and every other receipt built from the shared verification plan
+  (`verificationCommands`). Because that is a project-owned signal, the receipt MUST then omit the
+  `no language-specific verification command is known for this repository` line (the GPK
+  unknown-language rule). Without a tracked root `Gemfile`, a nested `Gemfile` only, or a
+  `Gemfile` with neither `.rspec` nor `spec/`, no Ruby command is named and the unknown-language
+  line stays. Plans for Go, Python, JS/TS, web and Makefile-gated paths, and every receipt
+  without a qualifying Ruby path, MUST keep their exact bytes; this amends `NGI-V0-020` only for
+  the `verification` member and the unknown-language line of a Ruby path in a qualifying
+  repository.
+  Non-goals: committed-range receipts keep their separate Go-only `rangeVerification` plan and
+  its bytes; no per-file spec selection in impact (affected advice owns that, `AFP-V0-066`); no
+  Minitest or `rails test` command, no read of `Gemfile` or `.rspec` content, no Bundler or Ruby
+  execution, and no change to the 8-command plan cap or the gate command.
+  Failure modes: a Minitest-only repository that also tracks `spec/` or `.rspec` is told
+  `bundle exec rspec`, which is advisory and may not run its tests; an untracked or ignored
+  `Gemfile` does not count, so the unknown-language line stays.
+  Acceptance evidence: `TestNGIV0027RubyImpactNamesBundleExecRSpec`,
+  `TestNGIV0027GoAndWebPlansUnchangedByRubySignals`,
+  `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`, and the GitHub #1130 reproduction run in
+  `../build-log/2026-10-18-v1-1796-ruby-verification-command-1796.md`. Rollback: remove the
+  `.rb` case in `toolchainCommand`, `rspecProject` and `indexTracks`, and the tests.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -319,6 +347,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultReceiptUnchanged`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |
+| `NGI-V0-027` | `toolchainCommand`, `rspecProject`, `indexTracks` (`internal/contextindex/receipt.go`) | `TestNGIV0027RubyImpactNamesBundleExecRSpec`, `TestNGIV0027GoAndWebPlansUnchangedByRubySignals`, `TestNGIV0027RubyCommandAppearsOnceAcrossPaths`; real CLI output in `../build-log/2026-10-18-v1-1796-ruby-verification-command-1796.md` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in

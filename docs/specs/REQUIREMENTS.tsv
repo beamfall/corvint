@@ -53,6 +53,7 @@ AFP-V0-051	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
 AFP-V0-053	docs/specs/affected-plan-v0.md	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
 AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
+AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2999,6 +3000,7 @@ NGI-V0-018	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-019	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674)	standing	2026-10-11; V1-1674
 NGI-V0-020	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) The	standing	2026-10-11; V1-1674
 NGI-V0-021	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1674) A	standing	2026-10-11; V1-1674
+NGI-V0-027	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796) When an	standing	2026-10-11; V1-1796
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-

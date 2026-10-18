@@ -162,6 +162,15 @@ const (
 	providerMaxPackagePatterns = 4091
 )
 
+// The advisory RSpec check (AFP-V0-066).
+const (
+	adviceAdvisoryRSpec     = "bundle exec rspec"
+	adviceRSpecUnitPrefix   = "ruby:rspec:"
+	adviceMaxRSpecFiles     = 1024
+	adviceNoRSpecGemfile    = "NO_ADVISORY_RSPEC_COMMAND: the plan selected RSpec units but the repository root has no Gemfile"
+	adviceRSpecBoundUnknown = "NO_ADVISORY_RSPEC_COMMAND: %d selected spec files exceed the %d-file bound"
+)
+
 func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, error) {
 	if _, requested, _ := parseHelpInvocation(arguments); requested {
 		return affectedInvocation{}, false, nil
@@ -812,6 +821,9 @@ func compileAffectedAdvice(root string, plan affected.Plan, provider affectedGoP
 	advisory, advisoryUnknown := advisoryAffectedChecks(plan, provider)
 	checks = append(checks, advisory...)
 	unknown = append(unknown, advisoryUnknown...)
+	rspec, rspecUnknown := advisoryRSpecCheck(root, plan)
+	checks = append(checks, rspec...)
+	unknown = append(unknown, rspecUnknown...)
 	for _, entry := range plan.Unknown {
 		unknown = append(unknown, entry.Reason+": "+entry.Detail)
 	}
@@ -1048,6 +1060,41 @@ func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]
 	}
 	command := adviceAdvisoryGoTest + " " + shellQuoteJoin(provider.Packages)
 	reason := fmt.Sprintf("the plan selected %d unit(s) over %d dirty path(s), so these packages are the plausible first pass", len(plan.Selected), len(plan.Dirty))
+	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
+}
+
+// advisoryRSpecCheck proposes the RSpec spec files the plan selected, run
+// through Bundler (AFP-V0-066). It adds nothing when the plan selected no RSpec
+// unit; otherwise a missing root Gemfile or a selection past the file bound
+// yields one unknown line instead of a command.
+func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []string) {
+	units := 0
+	seen := map[string]bool{}
+	files := []string{}
+	for _, selection := range plan.Selected {
+		if !strings.HasPrefix(selection.UnitID, adviceRSpecUnitPrefix) {
+			continue
+		}
+		units++
+		for _, file := range selection.Tests {
+			if !seen[file] {
+				seen[file] = true
+				files = append(files, file)
+			}
+		}
+	}
+	if len(files) == 0 {
+		return nil, nil
+	}
+	if info, err := os.Lstat(filepath.Join(root, "Gemfile")); err != nil || !info.Mode().IsRegular() {
+		return nil, []string{adviceNoRSpecGemfile}
+	}
+	if len(files) > adviceMaxRSpecFiles {
+		return nil, []string{fmt.Sprintf(adviceRSpecBoundUnknown, len(files), adviceMaxRSpecFiles)}
+	}
+	sort.Strings(files)
+	command := adviceAdvisoryRSpec + " " + shellQuoteJoin(files)
+	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile, so these spec files are the plausible first pass", units)
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }
 
