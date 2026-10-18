@@ -31,13 +31,24 @@ retired. File the umbrella ticket and the first slice."
   test. The gate values are owner question 4.
 - One companion binary. The owner asked whether the E2E capability should be its own binary, then,
   verbatim: "do it. and while you are there we should make sure we are breaking up the tooling
-  correclty into appropriate binaries". Every CCE-V0 command is now a subcommand of `corvint-e2e`
+  correclty into appropriate binaries". Every CCE-V0 command is now one companion's subcommand
   (`catalog`, `obligations`, `compile`, `prove`, `shadow`), and V0 adds nothing to core `corvint`
   (CCE-V0-015). This replaces the first draft's split between a core `corvint e2e` group and a
   `corvint-e2e-prove` companion. The reasons are invariant 7 (the default binary stays unchanged by
   an experimental capability), one rollback unit, and the existing companion pattern
   (`corvint-tests-accept`, `corvint-behavior-falsify`). The cost is that the read subcommands live
   outside core while they are experimental; graduating them is a later owner decision.
+- Name: `corvint-test`, with E2E as its `e2e` group. The owner, verbatim: "maybe it could be
+  called corvint-test as it could cover all types of tests". The companion is therefore named for
+  testing in general and V0 defines only `corvint-test e2e`. Folding the existing test companions
+  into it is a separate restructure, recorded with the binary-boundary audit. The near names
+  `corvint test` (a core verb) and `corvint-test-runner` stay distinct binaries until that
+  restructure decides otherwise.
+
+The one read-only Codex round on the amendment returned one MEDIUM finding: the CCE-V0-015 evidence
+row checked only imports and the absence of an `e2e` verb. The row now names a before/after core
+baseline (commands, flags, transitive imports), shared-package `init` side effects, companion
+subcommand reachability and a no-`corvint`-subprocess check.
 
 ## Independent review
 
