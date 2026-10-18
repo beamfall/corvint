@@ -47,7 +47,7 @@ passing `spec-toolchain-conformance` CI run, as the owner asked.
 - `TestSTAV0001_VersionsManifest` passes; with one hex digit of the archive SHA-256 changed it
   fails on the `requirements.txt` cross-check.
 - `make spec-toolchain-conformance` passed locally on 2026-10-18 (macOS, node from Homebrew,
-  Python 3.12) in about 17 s:
+  Python 3.12). After the review fixes below it reran in about 20 s over seven intent forms:
 
   ```
   ok   openspec-spec openspec/specs/auth/spec.md: 4 item(s)
@@ -60,9 +60,12 @@ passing `spec-toolchain-conformance` CI run, as the owner asked.
   ok   ... needs-clarification: 2 item(s)
   ok   speckit-spec specs/001-session-timeout/spec.md FR/SC IDs: 6 item(s)
   ok   ... needs-clarification: 1 item(s)
+  ok   speckit-spec specs/002-out-of-section/spec.md FR/SC IDs: 6 item(s)
+  ok   ... needs-clarification: 1 item(s)
+  ok   speckit-spec specs/002-out-of-section/spec.md: FR-999 and SC-999 under ## Assumptions excluded by both sides
   specify extension add --dev: installed corvint with hooks {"before_implement":["speckit.corvint.context"],"after_implement":["speckit.corvint.review"]}
   openspec instructions: config snippet reaches apply context, apply guidance and tasks rules
-  spec-toolchain-conformance: PASS (openspec 1.14.3, spec-kit 1.2.1, 6 intent forms checked)
+  spec-toolchain-conformance: PASS (openspec 1.14.3, spec-kit 1.2.1, 7 intent forms checked)
   ```
 
   A wrapper Corvint that drops the first worklist item made the same run exit 1 with six `FAIL`
@@ -74,9 +77,29 @@ passing `spec-toolchain-conformance` CI run, as the owner asked.
   spec-kit 1.2.1 CURRENT
   ```
 
-  `make spec-toolchain-latest-test` passes six offline cases.
+  `make spec-toolchain-latest-test` passes eleven offline cases.
 - `NOT_RUN`: the first `spec-toolchain-conformance` CI run. The ubuntu-24.04 runner's node version
   and `python3 -m venv` are unobserved; the script fails closed on either.
+
+## Review fixes
+
+One independent review of `4a3879444..c19709927` raised five findings; each was confirmed and fixed.
+
+- The lockfile check accepted any `sha512-` prefix, so `sha512-` alone would let `npm ci` verify
+  nothing. The script and `TestSTAV0001_VersionsManifest` now require a full SRI SHA-512 on every
+  entry; a lock with one `sha512-???` entry stops the script before any download.
+- `spec-toolchain-latest-test` was a `shell-test` prerequisite but not a `GATE_STEPS` step, which
+  `TestSTRV0004ShellTestIsTheGateShellSteps` refuses. It left `shell-test`; making it a gate step
+  would also need a `tools/gate-ledger` scope entry, and the conformance workflow already runs it.
+- The Spec Kit oracle counted FR/SC lines in any section. It now applies the `STA-V0-005` section
+  rule, and a generated `specs/002-out-of-section` case (the fixture plus FR-999 and SC-999 under
+  `## Assumptions`) shows both sides exclude them; the previous oracle counts both.
+- The workflow path filters missed the shared intent-form registry and dispatch. They now include
+  `internal/lrfrepo/ocm_forms.go`, `ocm.go` (section helpers), `ocm_write.go` (envelope) and
+  `cmd/corvint/ocm.go`.
+- `script/spec-toolchain-latest.sh` read the manifest through process substitution, so a missing
+  manifest printed nothing and exited 0. A missing, empty, unparsable or incomplete manifest is now
+  a setup error with no verdict and exit 2, like a missing `jq`; `STA-V0-012` says so.
 
 ## Route dispositions
 

@@ -88,10 +88,16 @@ lock=$toolchains/npm/package-lock.json
 locked=$(jq -c --arg p "node_modules/$os_package" '.packages[$p] | {version, resolved, integrity}' "$lock")
 [ "$locked" = "$(jq -nc --arg v "$os_version" --arg r "$os_tarball" --arg i "$os_integrity" '{version: $v, resolved: $r, integrity: $i}')" ] ||
     die "npm/package-lock.json entry $locked disagrees with versions.json"
-unpinned=$(jq -r '.packages | to_entries[] | select(.key != "")
-    | select(((.value.integrity // "") | startswith("sha512-") | not)
+# A full SRI SHA-512 is `sha512-` and 88 base64 characters that decode to exactly 64 bytes (the
+# last data character carries 2 bits, so it is one of A, Q, g or w). A truncated or empty digest
+# would let npm ci verify nothing, so it is refused before npm runs; TestSTAV0001_VersionsManifest
+# enforces the same rule.
+sri_sha512='^sha512-[A-Za-z0-9+/]{85}[AQgw]==$'
+unpinned=$(jq -r --arg sri "$sri_sha512" '.packages | to_entries[] | select(.key != "")
+    | select(((.value.integrity // "") | test($sri) | not)
         or ((.value.resolved // "") | startswith("https://registry.npmjs.org/") | not)) | .key' "$lock")
-[ -z "$unpinned" ] || die "npm/package-lock.json entries without registry sha512 integrity: $unpinned"
+[ -z "$unpinned" ] || die "npm/package-lock.json entries without a full registry sha512 integrity: $unpinned"
+[[ $os_integrity =~ $sri_sha512 ]] || die "versions.json OpenSpec npmIntegrity is not a full sha512 digest"
 
 # The manifest's SHA-256 is cross-checked against the registry tarball, and the tarball against the
 # lockfile integrity, so the three records cannot drift apart.
@@ -184,6 +190,17 @@ cp -R "$fixtures/openspec/." "$repo/"
 cp -R "$fixtures/speckit/." "$repo/"
 mkdir -p "$repo/specs/000-upstream-template"
 cp "$core_pack/templates/spec-template.md" "$repo/specs/000-upstream-template/spec.md"
+# Out-of-section IDs: the fixture plus an FR and an SC item under `## Assumptions`, which neither
+# Corvint's form nor the template grammar may count (STA-V0-005).
+out_of_section=specs/002-out-of-section/spec.md
+mkdir -p "$repo/${out_of_section%/spec.md}"
+{
+    cat "$fixtures/speckit/specs/001-session-timeout/spec.md"
+    printf '%s\n' '' '- **FR-999**: An assumption written as a requirement is not one.' \
+        '- **SC-999**: An assumption written as a criterion is not one.'
+} >"$repo/$out_of_section"
+[ "$(grep '^## ' "$repo/$out_of_section" | tail -n 1)" = "## Assumptions" ] ||
+    die "the Spec Kit fixture no longer ends in an ## Assumptions section"
 printf 'base\n' >"$repo/conformance-marker.txt"
 git -C "$repo" init -q -b main
 git -C "$repo" add -A
@@ -267,11 +284,25 @@ grep -Eq '^## Requirements' "$template" && grep -Eq '^## Success Criteria' "$tem
     grep -Fq '[NEEDS CLARIFICATION' "$template" ||
     fail "upstream spec-template.md no longer uses the FR/SC line grammar STA-V0-005 reads"
 grammar_ids() { # grammar_ids FILE CLARIFY(0|1): unfenced FR/SC item IDs, or only those needing clarification
+    # FR lines count only inside `## Requirements` and SC lines only inside `## Success Criteria`
+    # (each with its ### subsections, and the template's `*(mandatory)*` annotation); every other
+    # level-2 heading ends the section.
     awk -v clarify="$2" '
         function flush() { if (id != "" && (clarify == 0 || text ~ /\[NEEDS CLARIFICATION/)) print id; id = ""; text = "" }
         /^ {0,3}(```|~~~)/ { flush(); fenced = !fenced; next }
         fenced { next }
-        /^- \*\*(FR|SC)-[0-9][0-9][0-9]+\*\*: / { flush(); id = $0; sub(/^- \*\*/, "", id); sub(/\*\*:.*/, "", id); text = $0; next }
+        /^##( |$)/ {
+            flush()
+            section = ""
+            if ($0 ~ /^## Requirements( \*\([^)]*\)\*)?[ \t]*$/) section = "FR"
+            else if ($0 ~ /^## Success Criteria( \*\([^)]*\)\*)?[ \t]*$/) section = "SC"
+            next
+        }
+        /^- \*\*(FR|SC)-[0-9][0-9][0-9]+\*\*: / {
+            flush()
+            if (substr($0, 5, 2) != section) next
+            id = $0; sub(/^- \*\*/, "", id); sub(/\*\*:.*/, "", id); text = $0; next
+        }
         id != "" && /^  / { text = text "\n" $0; next }
         { flush() }
         END { flush() }
@@ -282,6 +313,15 @@ while IFS= read -r spec; do
     envelope=$(prepare "$spec" speckit-spec) || { fail "$spec: corvint ocm prepare --intent-form speckit-spec refused"; continue; }
     same "speckit-spec $spec FR/SC IDs" "$(jq -c '[.worklist[].id] + [.excludedRequirements[].id]' <<<"$envelope")" "$(grammar_ids "$repo/$spec" 0)"
     same "speckit-spec $spec needs-clarification" "$(jq -c '[.excludedRequirements[] | select(.reason == "needs-clarification") | .id]' <<<"$envelope")" "$(grammar_ids "$repo/$spec" 1)"
+    if [ "$spec" = "$out_of_section" ]; then
+        out_ids=$(jq -c --argjson oracle "$(grammar_ids "$repo/$spec" 0)" \
+            '[([.worklist[].id] + [.excludedRequirements[].id] + $oracle)[] | select(. == "FR-999" or . == "SC-999")]' <<<"$envelope")
+        if [ "$out_ids" = "[]" ]; then
+            echo "ok   speckit-spec $spec: FR-999 and SC-999 under ## Assumptions excluded by both sides"
+        else
+            fail "$spec: out-of-section IDs counted: $out_ids"
+        fi
+    fi
 done < <(cd "$repo" && find specs -mindepth 2 -maxdepth 2 -name spec.md -type f | LC_ALL=C sort)
 
 # --- 4. host packaging against the upstream CLIs ------------------------------------------------

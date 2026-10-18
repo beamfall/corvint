@@ -3,7 +3,8 @@
 #
 # Offline cases for script/spec-toolchain-latest.sh (STA-V0-012), from recorded registry answers:
 # both current; OpenSpec behind; a Spec Kit prerelease or draft answer is unreadable, not BEHIND;
-# a missing answer is UNAVAILABLE and exits 0; BEHIND alone exits 1.
+# a missing answer is UNAVAILABLE and exits 0; BEHIND alone exits 1; a missing, empty, unparsable or
+# incomplete manifest prints no verdict and exits 2.
 
 set -euo pipefail
 
@@ -54,4 +55,22 @@ spec-kit $pinned_sk UNAVAILABLE fetch-failed" "" ""
 check garbage-unavailable 1 "openspec $pinned_os UNAVAILABLE unreadable-response
 spec-kit $pinned_sk BEHIND 9.1.0" '{"message":"rate limited"}' "$(gh_answer 9.1.0)"
 
-echo "spec-toolchain-latest: 6 offline cases passed"
+check_manifest() { # check_manifest LABEL [CONTENT] (no CONTENT = no manifest file): setup error, exit 2
+    local dir=$test_root/manifest-$1 output status
+    mkdir -p "$dir/answers"
+    npm_answer "$pinned_os" >"$dir/answers/openspec.json"
+    gh_answer "$pinned_sk" >"$dir/answers/spec-kit.json"
+    [ "$#" -lt 2 ] || printf '%s' "$2" >"$dir/versions.json"
+    status=0
+    output=$(SPEC_TOOLCHAIN_MANIFEST=$dir/versions.json SPEC_TOOLCHAIN_LATEST_RESPONSES=$dir/answers "$script" 2>/dev/null) || status=$?
+    [ "$status" -eq 2 ] || fail "manifest-$1: exit $status, want 2; output: $output"
+    [ -z "$output" ] || fail "manifest-$1: printed verdicts for a broken manifest: $output"
+}
+
+check_manifest missing
+check_manifest empty ''
+check_manifest unparsable '{"toolchains": ['
+check_manifest no-toolchains '{"toolchains": []}'
+check_manifest incomplete-entry '{"toolchains": [{"name": "openspec", "source": {"kind": "npm", "package": "@fission-ai/openspec"}}]}'
+
+echo "spec-toolchain-latest: 11 offline cases passed"

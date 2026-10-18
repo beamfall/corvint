@@ -282,7 +282,9 @@ spec-toolchain-conformance:
 	@script/spec-toolchain-conformance.sh
 
 # spec-toolchain-latest-test checks script/spec-toolchain-latest.sh (STA-V0-012) offline against
-# recorded registry answers; the script itself is operator-run and needs the network.
+# recorded registry answers; the script itself is operator-run and needs the network. Like
+# spec-toolchain-conformance it is not a gate step (so not a shell-test prerequisite either): the
+# spec-toolchain-conformance workflow runs it.
 spec-toolchain-latest-test:
 	@script/spec-toolchain-latest_test.sh
 
@@ -469,4 +471,4 @@ tasks-test: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test spec-toolchain-latest-test
+shell-test: go-format-test go-archive-gate-test spec-requirements-test traceability-tests-test decision-numbers-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test

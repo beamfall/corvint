@@ -12,7 +12,9 @@
 #
 # BEHIND means the registry's latest differs from the pin. It exits 1 only when some toolchain is
 # BEHIND; UNAVAILABLE (offline, rate-limited, an unreadable answer) is reported and exits 0, never
-# read as CURRENT. Moving to a new release is a manifest edit, a green spec-toolchain-conformance
+# read as CURRENT. A setup error prints no verdict lines and exits 2: a missing jq or curl, or a
+# manifest that is missing, empty, unparsable or lists no complete toolchain entry, so a broken
+# manifest is never a silent success. Moving to a new release is a manifest edit, a green spec-toolchain-conformance
 # job and a traced spec update in one change; this script never edits the manifest.
 #
 # SPEC_TOOLCHAIN_LATEST_RESPONSES=DIR reads `<name>.json` from DIR instead of the network (a missing
@@ -33,6 +35,16 @@ fetch() { # fetch NAME URL -> response body on stdout, or nonzero
     else
         curl -fsSL --proto '=https' --max-time 30 -H 'Accept: application/json' "$2"
     fi
+}
+
+rows_filter='.toolchains as $t | if ($t | type) == "array" and ($t | length) > 0
+    and all($t[]; [.name, .version, .source.kind, (.source.package // .source.repository)]
+        | all(type == "string" and . != "" and (test("[\t\n]") | not)))
+    then $t[] | [.name, .version, .source.kind, (.source.package // .source.repository)] | @tsv
+    else error("no complete toolchain entries") end'
+rows=$(jq -r "$rows_filter" "$manifest" 2>/dev/null) && [ -n "$rows" ] || {
+    echo "spec-toolchain-latest: unreadable manifest $manifest (missing, empty, unparsable or without complete toolchain entries)" >&2
+    exit 2
 }
 
 behind=0
@@ -64,6 +76,6 @@ while IFS=$'\t' read -r name pinned kind source; do
         printf '%s %s BEHIND %s\n' "$name" "$pinned" "$latest"
         behind=1
     fi
-done < <(jq -r '.toolchains[] | [.name, .version, .source.kind, (.source.package // .source.repository)] | @tsv' "$manifest")
+done <<<"$rows"
 
 exit "$behind"

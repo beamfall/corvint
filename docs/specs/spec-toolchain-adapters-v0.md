@@ -101,13 +101,13 @@ Corvint at `d35b0ee3`:
   - A README giving the exact `ocm prepare --intent-form` commands for main specs and deltas.
 - `STA-V0-010`: `interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects that pass the pinned upstream validators (`openspec validate --all --strict`; Spec Kit's own templates and `check-prerequisites.sh --json`). They include a nested capability, every delta operation, an archived change, `FR`/`SC` IDs, a clarification marker and a constitution.
 - `STA-V0-011`: `make spec-toolchain-conformance` and a CI job of the same name do four things.
-  - Install the `STA-V0-001` versions with checksum verification: npm with a committed lockfile and integrity, and Spec Kit from the pinned commit with `uv` or `pip --require-hashes`.
+  - Install the `STA-V0-001` versions with checksum verification: npm with a committed lockfile whose every entry carries a full SRI SHA-512 (88 base64 characters, 64 bytes; a truncated or empty digest is refused before `npm ci`), and Spec Kit from the pinned commit with `uv` or `pip --require-hashes`.
   - Run the upstream validators on the fixtures.
-  - Assert that Corvint's derived obligations equal upstream's view: `openspec show --json` requirement names for each OpenSpec form, and the template-grammar FR/SC ID set for Spec Kit.
+  - Assert that Corvint's derived obligations equal upstream's view: `openspec show --json` requirement names for each OpenSpec form, and the template-grammar FR/SC ID set for Spec Kit, read with the `STA-V0-005` section rule (FR only under `## Requirements`, SC only under `## Success Criteria`), including a case with FR and SC items under another section that both sides exclude.
   - Install the `STA-V0-008` extension with `specify extension add --dev`.
 
   Any mismatch fails the job. The job runs on changes to its inputs, the forms and the integrations, not on every PR.
-- `STA-V0-012`: `script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001` with the npm registry and the GitHub latest release. It prints `CURRENT`, `BEHIND <latest>` or `UNAVAILABLE` for each toolchain and exits non-zero only on `BEHIND`. Moving to a new release means a manifest edit, a green conformance job and a traced spec update in the same change.
+- `STA-V0-012`: `script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001` with the npm registry and the GitHub latest release. It prints `CURRENT`, `BEHIND <latest>` or `UNAVAILABLE` for each toolchain; of those verdicts only `BEHIND` makes it exit non-zero (1). A setup error, a missing `jq` or `curl` or a manifest that is missing, empty, unparsable or has no complete toolchain entry, prints no verdict and exits 2. Moving to a new release means a manifest edit, a green conformance job and a traced spec update in the same change.
 - `STA-V0-013`: `docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrations. The route uses `corvint affected`, the forms' focused tests and `make spec-toolchain-conformance`.
 
 ## Non-goals
@@ -155,8 +155,9 @@ Corvint at `d35b0ee3`:
   upstream CLIs, `STA-V0-010` and `STA-V0-011`.
   Delivered: `.github/workflows/spec-toolchain-conformance.yml` running `make spec-toolchain-conformance`
   (`script/spec-toolchain-conformance.sh`). It passed locally on 2026-10-18 with OpenSpec 1.14.3 and
-  Spec Kit 1.2.1 over six intent forms (`docs/build-log/2026-10-18-sta-v0-conformance.md`); the first
-  CI run is `NOT_RUN` until the workflow reaches GitHub.
+  Spec Kit 1.2.1 over seven intent forms, one with out-of-section FR/SC items
+  (`docs/build-log/2026-10-18-sta-v0-conformance.md`); the first CI run is `NOT_RUN` until the
+  workflow reaches GitHub.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
   Delivered: the 2026-10-18 transcript (`openspec 1.14.3 CURRENT`, `spec-kit 1.2.1 CURRENT`) in the
   build-log entry, and the offline cases in `script/spec-toolchain-latest_test.sh`

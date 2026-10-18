@@ -40,6 +40,11 @@ func TestSTAV0001_VersionsManifest(t *testing.T) {
 			Checked       string `json:"checked"`
 		} `json:"toolchains"`
 	}
+	for _, partial := range []string{"sha512-", "sha512-???", "sha512-" + strings.Repeat("A", 86) + "=", "sha256-" + strings.Repeat("A", 86) + "=="} {
+		if fullSRISha512(partial) {
+			t.Fatalf("fullSRISha512(%q) = true, want a partial digest refused", partial)
+		}
+	}
 	readJSONStrict(t, filepath.Join(dir, "versions.json"), &manifest)
 	if manifest.Profile != "corvint-spec-toolchain-versions/0" {
 		t.Fatalf("profile = %q", manifest.Profile)
@@ -71,9 +76,8 @@ func TestSTAV0001_VersionsManifest(t *testing.T) {
 			if !sha256Hex.MatchString(tc.TarballSha256) {
 				t.Errorf("openspec tarballSha256 = %q", tc.TarballSha256)
 			}
-			digest, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(tc.NpmIntegrity, "sha512-"))
-			if !strings.HasPrefix(tc.NpmIntegrity, "sha512-") || err != nil || len(digest) != 64 {
-				t.Errorf("openspec npmIntegrity = %q is not an SRI sha512 digest", tc.NpmIntegrity)
+			if !fullSRISha512(tc.NpmIntegrity) {
+				t.Errorf("openspec npmIntegrity = %q is not a full SRI sha512 digest", tc.NpmIntegrity)
 			}
 			checkNpmPins(t, dir, tc.Version, tc.Source.Tarball, tc.NpmIntegrity)
 		case "spec-kit":
@@ -130,10 +134,23 @@ func checkNpmPins(t *testing.T, dir, version, tarball, integrity string) {
 		if path == "" {
 			continue
 		}
-		if !strings.HasPrefix(p.Integrity, "sha512-") || !strings.HasPrefix(p.Resolved, "https://registry.npmjs.org/") {
-			t.Errorf("package-lock %s is not a sha512-verified npm registry tarball: %+v", path, p)
+		if !fullSRISha512(p.Integrity) || !strings.HasPrefix(p.Resolved, "https://registry.npmjs.org/") {
+			t.Errorf("package-lock %s is not a full-sha512-verified npm registry tarball: %+v", path, p)
 		}
 	}
+}
+
+// fullSRISha512 reports whether integrity is `sha512-` and 88 canonical base64
+// characters decoding to exactly 64 bytes, the rule
+// script/spec-toolchain-conformance.sh applies before npm ci: a truncated or
+// empty digest would let npm verify nothing.
+func fullSRISha512(integrity string) bool {
+	encoded, ok := strings.CutPrefix(integrity, "sha512-")
+	if !ok || len(encoded) != 88 {
+		return false
+	}
+	digest, err := base64.StdEncoding.Strict().DecodeString(encoded)
+	return err == nil && len(digest) == 64
 }
 
 func checkSpecKitPins(t *testing.T, dir, archive, archiveSha256 string) {
