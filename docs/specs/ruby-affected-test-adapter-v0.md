@@ -63,7 +63,8 @@ or Cucumber scenarios.
   repository loads, conditional loading, reflection/metaprogramming that can define tests, Rails
   autoloading that `RUBY-AFFECTED-V0-010` cannot bound, Cucumber feature presence, and a nonliteral, absolute, or repository-escaping
   escaped, nonliteral, absolute, or repository-escaping `Rake::TestTask` `.libs` declaration MUST
-  produce stable frontier reasons. A frontier makes
+  produce stable frontier reasons (the stock Rails gem-group load is not dynamic loading, see
+  `RUBY-AFFECTED-V0-013`). A frontier makes
   selection `UNKNOWN_SCOPE`; it MUST NOT silently omit a potentially runnable test.
 - `RUBY-AFFECTED-V0-006`: Units, paths, imports, and frontier reasons MUST be sorted and reproducible.
   Clean rebuilds over fixed admissible inputs MUST produce byte-identical graph and plan identities.
@@ -111,6 +112,27 @@ or Cucumber scenarios.
   "*.rb")]`, iterated with `require`) is covered by these edges and MUST NOT raise
   `ruby:dynamic-load`; any other glob still does. `shared_examples` and `shared_context` definitions
   in support source files do not define runnable tests and MUST NOT raise the dynamic-test frontier.
+- `RUBY-AFFECTED-V0-013`: The unindented statement `Bundler.require(*Rails.groups)`, alone on its line
+  except for a trailing comment, in a Rails application's `config/application.rb` (the root file or a
+  nested `*/config/application.rb`) loads only the Gemfile's gem groups, never application code, and
+  MUST NOT raise `ruby:dynamic-load`, so a generated Rails application whose other loads are literal
+  stays `BOUNDED` for an `app/models` change. Every other spelling MUST keep `ruby:dynamic-load`: other
+  arguments (`*Rails.groups(:assets)`, a computed group list), indentation (a conditional or nested
+  call), a further statement on the line, the same call in any other file, and any other computed
+  `require`, `load`, or `.require(` call. The recognition is lexical; it reads no Gemfile and does not
+  evaluate Bundler. Under `RUBY-AFFECTED-V0-010` the Rails 7.1 `config.autoload_lib` line remains
+  autoload-root configuration.
+- `RUBY-AFFECTED-V0-014`: `conformance/ruby-profile-v0/` MUST hold a Rails/RSpec fixture application
+  and an expected-row table that cover autoloaded constants, `described_class` specs, shared
+  examples, `spec/support/**` helpers, and request, controller, and worker specs. Every positive
+  fixture class MUST have an impact row (`contextindex.Impact` results and kinds for its changed
+  path), an affected-selection row (`BOUNDED` scope and the exact selected spec set), and a
+  provider-projection row (the `corvint-ruby-test-provider/0` example identity and its
+  `testvalidity` outcome projection from a recorded RSpec JSON report). Negative rows MUST add a
+  `constantize` or `const_get` lookup, change a constant that lookup could name, and expect impact's
+  `ruby-constant-lookup-dynamic` unknown and affected's `ruby:rails-autoload` frontier (`UNKNOWN`
+  scope). The suite MUST run as an ordinary Go test of `internal/rubyprofile`, so the existing
+  go-product CI shards execute it; it MUST NOT need Ruby, Bundler, or RSpec on the host.
 
 ### Autoload edge failure modes
 
@@ -164,6 +186,9 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
   edges are not; they raise a frontier.
 - Rollback is removal of the `ruby` plugin from callers and fixtures. Existing Go/Python graph bytes
   must remain unchanged when the plugin is not supplied.
+- Rollback of `RUBY-AFFECTED-V0-013` restores `ruby:dynamic-load` for the stock gem-group load;
+  rollback of `RUBY-AFFECTED-V0-014` removes the fixture and its suite. Neither changes Go or Python
+  graph bytes.
 - Rollback of `RUBY-AFFECTED-V0-009..012` is reverting their change: the Ruby plugin returns to the
   coarse `ruby:rails-autoload` frontier, and because `advisoryImports` is omitted when empty, no Go or
   Python graph digest or plan changes in either direction.
@@ -181,6 +206,8 @@ presence and raises `ruby:cucumber-feature-ownership`; it does not claim or enum
 | Determinism and seam composition | shared conformance suite, repeated canonical bytes | experimental |
 | Rails autoload constant edges (#1130) | fixture change to an autoloaded client selects its spec and the referencing service spec with `ADVISORY_CONSTANT_REFERENCE`; frontier only for unbounded lookup | experimental |
 | Suite helpers and support | helpers stay source; a helper or `support/**` change selects every suite test | experimental |
+| Stock Rails gem-group load | `Bundler.require(*Rails.groups)` in `config/application.rb` keeps an `app/models` change `BOUNDED`; other dynamic requires widen | experimental |
+| Ruby profile conformance fixture (#1130 S6) | `conformance/ruby-profile-v0` impact, affected and provider rows per fixture class, negative dynamic-lookup rows, run by the go-product CI shards | experimental; Ruby runtime `NOT_RUN` |
 | Real Ruby corpus | independent discovered/actual file count | observed: 24/24, 40/40, and conservative 34/31; not qualification |
 | Full repository and CLI parity | unchanged existing receipts with explicit candidate proof | `NOT_RUN` until recorded |
 
@@ -209,6 +236,8 @@ affected tuple.
 | `RUBY-AFFECTED-V0-010` | `newRailsAutoload` and `edges` in `internal/liveverify/affected/ruby/autoload.go` | `TestUnboundedConstantLookupKeepsRailsAutoloadFrontier_RUBYAFFECTEDV0010`, `TestUnitsDetectsConcurrentFrameworksAndRunnerIdentities` |
 | `RUBY-AFFECTED-V0-011` | `bootEdges` in `internal/liveverify/affected/ruby/autoload.go` | `TestRailsBootAndRouteEdgesSelectTheirSpecs_RUBYAFFECTEDV0011` |
 | `RUBY-AFFECTED-V0-012` | helper classification and `supportEdges` in `internal/liveverify/affected/ruby/` | `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012` |
+| `RUBY-AFFECTED-V0-013` | `stockGemGroupLoad` in `internal/liveverify/affected/ruby/ruby.go` | `TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013` |
+| `RUBY-AFFECTED-V0-014` | `conformance/ruby-profile-v0/` fixture and rows; `internal/rubyprofile` suite | `TestRubyProfileImpactRows_RUBYAFFECTEDV0014`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileProviderRows_RUBYAFFECTEDV0014`, `TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014` |
 
 ## Unresolved decisions
 

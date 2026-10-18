@@ -74,6 +74,9 @@ var (
 	heredocStart       = regexp.MustCompile(`<<[-~]?["']?([A-Za-z_][A-Za-z0-9_]*)["']?`)
 	rakeLibDeclaration = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\.libs\b`)
 	rakeLiteralLib     = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\.libs\s*<<\s*["']([^"'#{}]+)["']\s*(?:#.*)?$`)
+	// stockBundlerRequire is the generated Rails gem-group load, which loads
+	// Gemfile gems, never application code (RUBY-AFFECTED-V0-013).
+	stockBundlerRequire = regexp.MustCompile(`^Bundler\.require\(\*Rails\.groups\)[\t ]*(?:#.*)?$`)
 )
 
 // Language observes Ruby source and test files under one repository root.
@@ -412,7 +415,7 @@ func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
 	refs := make([]loadRef, 0, 8)
 	flags := make(map[string]bool, 2)
 	for _, line := range strings.Split(body, "\n") {
-		if coveredSupportGlob(owner, line) {
+		if coveredSupportGlob(owner, line) || stockGemGroupLoad(owner, line) {
 			continue
 		}
 		if strings.Contains(line, "$LOAD_PATH") || strings.Contains(line, "$:") || strings.Contains(line, "autoload_paths") {
@@ -453,6 +456,14 @@ func scanLoads(owner, body string) ([]loadRef, map[string]bool) {
 		}
 	}
 	return refs, flags
+}
+
+// stockGemGroupLoad reports the unindented `Bundler.require(*Rails.groups)`
+// line of a Rails application's config/application.rb. Any other spelling,
+// owner, or nesting keeps the ruby:dynamic-load frontier (RUBY-AFFECTED-V0-013).
+func stockGemGroupLoad(owner, line string) bool {
+	return (owner == "config/application.rb" || strings.HasSuffix(owner, "/config/application.rb")) &&
+		stockBundlerRequire.MatchString(strings.TrimRight(line, "\r"))
 }
 
 func resolveLoads(item observation, aliases map[string][]string, frontier map[string]bool) map[string]bool {
