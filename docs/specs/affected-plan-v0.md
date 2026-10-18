@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-016/024/027/028 amended by them
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-016/024/027/028 amended by them/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, conditional when the AGENTS.md Verify section scopes them, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards, and AFP-V0-048 makes the sharded PR driver run each slice on the shard the same helper assigns; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -386,7 +386,8 @@ and container qualification; full fallback remains available.
 
 - **AFP-V0-016:** (accepted (decision 0431); amended by decision 0431; originally decision 0320; ruleset and consent amended by decision 0390)
   `.github/workflows/ci-control-plane.yml` SHALL run
-  on `workflow_run` after `CI`, never check out or execute PR code, and post the commit status
+  on `workflow_run` after every completed `CI` run, cancelled ones included (AFP-V0-079), never check out
+  or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
   `.github/` or the PR exceeds the files API's 3000-file listing, `success` otherwise. An API
   failure MUST post nothing. Its permissions MUST be only `contents: read`, `pull-requests:
@@ -743,7 +744,8 @@ and container qualification; full fallback remains available.
   permission beyond `contents: read` (ARTIFACT-V0-008 is unchanged); artifact contents are not
   downloaded. The decision's `head` stays the merged head for either admitted run; `runId`
   names the reused run. Only the root race invocation is omitted: static, build, interop, documentation
-  and artifact checks still run. The decision, with the reused run id and tree id, SHALL be
+  and artifact checks still run, except that AFP-V0-080 skips `go-static`, `go-interop` and
+  `artifact-integrity` when the queue run of the pushed commit itself passed them. The decision, with the reused run id and tree id, SHALL be
   retained as the `ci-reuse` artifact. A missing record, an unreachable API, a failed build, any
   other event or any mismatch runs FULL. Limits: the record name is written by the reused run's
   own workflow steps, which the tree identity binds to the merged, owner-protected workflow;
@@ -829,7 +831,8 @@ and container qualification; full fallback remains available.
   batch whose own run (or merge-queue run, AFP-V0-026) tests the combined tree. The label is read
   from the event payload, so it is off for `push` and `merge_group` events, and removing it takes
   effect on the next push or reopen, not on a re-run of an earlier event. `doc-gates`,
-  `docs-plan`, `go-interop` and `artifact-integrity` still run. Limits: the label is applied by
+  `docs-plan` and `go-product` still run; AFP-V0-081 also withholds `go-interop`,
+  `artifact-integrity`, `ci-shard-cost-drift` and intake containment, which the batch reruns. Limits: the label is applied by
   the batching agent and nothing checks that a batch pull request actually contains the
   constituent; a mislabelled pull request is blocked, never merged untested. Rollback removes
   the job condition and the `go-product` message.
@@ -845,7 +848,8 @@ and container qualification; full fallback remains available.
   `main` branch rules or they lack an active `merge_queue` rule. Disabling the queue while
   narrowing is armed SHALL therefore force FULL. `merge_group`, `main` push and release stay
   FULL; static, vet, format, cross-build, interop, documentation and artifact checks stay full
-  on every event. AFP-V0-026 keeps DCI, the driver, order plan and AFP-V0-024 reuse off on
+  on every event (a `main` push takes them from the queue run of its own commit, AFP-V0-080, and a
+  `ci:batched` constituent from its batch, AFP-V0-081; neither narrows a package set). AFP-V0-026 keeps DCI, the driver, order plan and AFP-V0-024 reuse off on
   `merge_group`.
   Scope `UNKNOWN` may narrow only when every `plan.unknown` entry belongs to this closed,
   reviewed allowlist of classes already covered by AFP-V0-012 widening: `LANGUAGE_FRONTIER`
@@ -1617,6 +1621,98 @@ and container qualification; full fallback remains available.
   restores the old relation failing the first and one mutation per clause failing the second, and the before/after plans on the
   PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
   `resolves` return true for every path but the CEM sidecar and delete the two tests.
+- **AFP-V0-079:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) The
+  `control-plane` and `merge-group` jobs of `.github/workflows/ci-control-plane.yml` SHALL start
+  for every completed `CI` run of their event whatever its conclusion, `cancelled` included, and
+  each SHALL hold the job concurrency group `ci-control-plane-<event>-<head sha>` (event
+  `pull_request` or `merge_group`) with `cancel-in-progress`, so a newer completion for the same
+  event and head replaces a queued or running job. Both jobs compute their status from the
+  current pull requests at the head or the queue branch name, never from the run, so the
+  replacing job posts what the replaced one would, for every open pull request at that head, and
+  a superseded pull-request head posts nothing because no open pull request has it at its head.
+  The `forward-rows` job keeps one run per completed `success` or `failure` run and no group
+  (AFP-V0-047). A `ci:batched` constituent's pull-request jobs are kept: `ci-control-plane` is a
+  required context, and the `workflow_run` payload carries no labels, so no job-level condition
+  can read the label.
+  Design: in the window of build log 2026-10-18-ci-waste-1778-1642, 49 of 293 control-plane
+  workflow runs started a status job for a cancelled `CI` run (median queue wait 296 s each, 5.0
+  runner-minutes). Skipping them was rejected after review: GitHub can cancel a run after its
+  `go-product` passed while optional jobs still ran, and a skipped status job then leaves a head
+  with no `ci-control-plane` status and no later run to post one. The payload carries no job
+  results, so no job-level condition can tell that case apart, and a check inside the job would
+  still start the runner; the rule therefore fails toward reporting.
+  Failure modes: a job cancelled between two pull-request posts leaves the rest to the replacing
+  job. A status posted for a cancelled run grants nothing by itself: `go-product` is a separate
+  required context.
+  Acceptance evidence: `TestAFPV0079ControlPlaneReportsEveryCompletedRun` (the job conditions,
+  evaluated for every event and conclusion) and `TestAFPV0079CancelledRunStillPostsTheStatus`
+  (each status step, with a stub `gh`, posts one status on a cancelled run's head that had none);
+  hosted behavior `NOT_OBSERVED` until this change runs on `main` (the workflow runs from the
+  default branch).
+  Rollback: remove both `concurrency` blocks.
+- **AFP-V0-080:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) A `push`
+  run of `.github/workflows/ci.yml` on `refs/heads/main` SHALL skip `go-static`, `go-interop` and
+  `artifact-integrity` only when its `static-reuse` job decides `REUSE`, which it SHALL do only
+  for a run of `.github/workflows/ci.yml` in this repository, listed by
+  `head_sha=<pushed commit>&event=merge_group&status=success`, whose `head_sha` is the pushed
+  commit, event `merge_group`, conclusion `success`, `head_branch` beginning
+  `gh-readonly-queue/main/` and numeric id, among at most five such runs, and whose latest jobs
+  (`filter=latest`) include exactly one job of each of the three names, each concluded
+  `success` on the pushed commit. With merge method `MERGE` the queue commit is the pushed
+  commit (AFP-V0-024, V1-0760), so the tree, the job definitions, the `Makefile` and the pinned Go
+  version are the ones that passed. The step SHALL read only the public run and job listings,
+  with the token and then anonymously, under the workflow's existing `contents: read`, check out
+  nothing and download nothing, be `continue-on-error`, and write its decision and the reused
+  run id to the job summary. Every other outcome (any other event or ref, no such run, a failed,
+  cancelled or other-branch run, a missing, duplicated, skipped or failed job, an unreadable or
+  malformed listing, a step failure or timeout) leaves the decision empty and the three jobs run
+  in full. `go-product` SHALL accept a skipped `go-static` only on a `push` whose decision is
+  `REUSE`; otherwise `go-static` must succeed, and the shard condition is unchanged. Pull-request
+  and merge-queue runs never run the decision, so the exact tree that becomes `main` is still
+  tested in full by its queue run (AFP-V0-026, AFP-V0-046 unchanged).
+  Design: every one of the 47 `main` push runs in the build-log window had a passed queue run on
+  the same commit; the three jobs cost 610 runner-minutes there (13.0 per push) and repeated
+  that run.
+  Failure modes: a runner image, host package or module-proxy change between the queue run and
+  the push goes unobserved on the push, as AFP-V0-024 already limits the race invocation; a
+  queue run whose non-required `go-interop` or `artifact-integrity` failed concludes `failure`,
+  so its push runs them in full; a listing outage costs only the skipped saving.
+  Acceptance evidence: `TestAFPV0080WorkflowWiresPushStaticReuse`,
+  `TestAFPV0080StaticReuseDecidesOnlyForAPassedQueueRunOfThisCommit` (the extracted step with a
+  stub listing: REUSE for a passed queue run and after a refused token; empty for another commit,
+  event, conclusion, workflow, repository, branch or id type, an unreadable jobs page, a failed,
+  skipped, missing, duplicated or other-commit job; mutations of the commit, branch and count
+  clauses each fail it); live replays against hosted listings in the build log. Hosted push reuse
+  `NOT_OBSERVED` until the first push after this change lands. Rollback: delete the
+  `static-reuse` job, its `needs` and `mode` conditions, and restore
+  `test "$STATIC_RESULT" = success` in `go-product`.
+- **AFP-V0-081:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) For a pull
+  request labelled `ci:batched` (AFP-V0-027), the `go-interop`, `artifact-integrity` and
+  `ci-shard-cost-drift` jobs of `.github/workflows/ci.yml` and the `containment` job of
+  `.github/workflows/intake-containment.yml` SHALL NOT start, besides the shards and `go-static`.
+  `doc-gates`, `docs-plan` and `go-product` (failing with the label message) SHALL still run, so
+  the constituent still cannot merge alone. Each withheld job runs on the batch pull request,
+  which carries the constituent's commits, and the three `ci.yml` jobs again on its queue entry.
+  Design: 21 constituent runs in the build-log window spent 334 runner-minutes on these jobs
+  (median 12.5 minutes per constituent push).
+  Failure modes: a constituent's own interop, artifact or intake failure surfaces only on its
+  batch pull request; a mislabelled pull request stays blocked, never merged untested.
+  Acceptance evidence: `TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs`; hosted behavior
+  `NOT_OBSERVED` until the next constituent push. Rollback: remove the label clause from the four
+  job conditions.
+- **AFP-V0-082:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); V1-0728; no GitHub issue)
+  The workflow concurrency group of `.github/workflows/ci.yml` SHALL be the pull-request number
+  for a pull-request run, the pushed commit for a `push` run and the ref otherwise, with
+  `cancel-in-progress` kept, so a pull request still cancels its superseded run, each queue entry
+  stays its own group, and a later `main` push never cancels an earlier one. A reader of
+  required-check state for a `main` commit (the primary-main bridge precondition "required
+  checks green") then finds two completed check runs per required name on that commit, from its
+  queue run and its push run, and neither is cancelled by a later merge.
+  Design: 12 of 47 `main` push runs in the build-log window ended cancelled.
+  Failure modes: a rapid run of merges keeps several push runs in flight; after AFP-V0-024 and
+  AFP-V0-080 each costs about 6 runner-minutes. Acceptance evidence:
+  `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted behavior `NOT_OBSERVED` until two merges
+  land within one push run. Rollback: restore `github.event.pull_request.number || github.ref`.
 
 ## Non-goals and authority
 
@@ -1742,8 +1838,11 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-054 | `windows-vet` and `WINDOWS_VET_ENV` in `Makefile`; the `make windows-vet` fence and scoping sentence of the `AGENTS.md` Verify section | `TestAFPV0054WindowsVetTargetMatchesTheCIStep` (parity with the go-static step and its effective env, `GOENV=off`, the `go-version` prerequisite), `TestAFPV0054StepEnvOverridesJobEnv` (step-level env mutation), `TestAFPV0054WindowsVetIgnoresSavedGoEnv` (saved `go env -w` GOFLAGS), `TestAFPV0054AffectedListsWindowsVet` (conditional advice check from the real `AGENTS.md`), `TestAFPV0054WindowsVetFlagsUnixOnlyTestHelper` (unix-only helper fixture: native vet passes, the recipe fails); mutations and the `corvint affected` run in build log 2026-10-18-v1-1719-local-windows-vet |
 | AFP-V0-066 | `advisoryRSpecCheck`, `adviceAdvisoryRSpec`, `adviceMaxRSpecFiles`, `adviceNoRSpecGemfile` in `cmd/corvint/affected.go` | `TestAFPV0066AdviceListsSelectedRSpecFiles`, `TestAFPV0066NoRSpecCommandWithoutGemfile`, `TestAFPV0066RSpecAdviceOrderBoundAndScope`, `TestAFPV0066DashLeadingSpecFileIsNeverAnOption`; the reproduction run in build log 2026-10-18-v1-1796-ruby-verification-command |
 | AFP-V0-072 | `resolves` and `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` (temp-dir fixture dropped for `docs/specs/README.md`, kept in its subtree, at the root and when its tokens name every directory; anchored and multi-component readers kept), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`; PR #1134 range 163 to 156 units in build log 2026-10-18-V1-1806-affected-overselection-1806 |
-
 | AFP-V0-060 | `.github/cishards/test-slices.json` and `.github/cishards/package-costs.json` refreshed from run 39120414701 (revision 2ab0e744) | `TestAFPV0060CommittedSlicesBoundOversizedPackages`; `TestSTRV0007UniversePlacementEqualsCIPlan` and `TestSTRV0008BalancedPlacesEveryUnitOnce` over the committed files; `tools/ci-test-slices replay` in build log 2026-10-18-v1-1096-ci-slice-refresh; hosted run of this change; paired runs NOT_OBSERVED |
+| AFP-V0-079 | the event-only conditions and `concurrency` groups of the `control-plane` and `merge-group` jobs in `.github/workflows/ci-control-plane.yml` | `TestAFPV0079ControlPlaneReportsEveryCompletedRun`; `TestAFPV0079CancelledRunStillPostsTheStatus`; `actionlint`; build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
+| AFP-V0-080 | the `static-reuse` job, the `needs`/`if` of `go-static`, `go-interop` and `artifact-integrity`, and the `STATIC_REUSE` check of `go-product` in `.github/workflows/ci.yml` | `TestAFPV0080WorkflowWiresPushStaticReuse`, `TestAFPV0080StaticReuseDecidesOnlyForAPassedQueueRunOfThisCommit`; live replays in build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
+| AFP-V0-081 | the `ci:batched` clause of `go-interop`, `artifact-integrity` and `ci-shard-cost-drift` in `.github/workflows/ci.yml` and of `containment` in `.github/workflows/intake-containment.yml` | `TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs`; hosted `NOT_OBSERVED` |
+| AFP-V0-082 | the workflow `concurrency` group of `.github/workflows/ci.yml` | `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted `NOT_OBSERVED` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
