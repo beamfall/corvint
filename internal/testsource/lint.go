@@ -21,20 +21,26 @@ const (
 	RuleTautological      = "tautological-assertion"
 	RuleBrittleSelector   = "brittle-selector"
 	RuleSkipOnly          = "skip-only-without-reason"
+	// The two advisory rules (TSA-V0-029, TSA-V0-031): their findings never change the exit status.
+	RuleOneShotUIState   = "one-shot-ui-state-assertion"
+	RuleExactTextVariant = "exact-text-cross-variant"
 )
 
 // Rules lists every rule identifier in report order.
 var Rules = []string{RuleNoAssertion, RuleWeakAssertionOnly, RuleConditional, RuleSwallowedWait, RuleFixedWait,
-	RuleTautological, RuleBrittleSelector, RuleSkipOnly}
+	RuleTautological, RuleBrittleSelector, RuleSkipOnly, RuleOneShotUIState, RuleExactTextVariant}
 
 // Finding is one rule violation. Line is where it is reported and where a suppression must point;
-// EndLine closes the span whose changed lines bring a test-level finding into scope.
+// EndLine closes the span whose changed lines bring a test-level finding into scope. Advisory marks
+// a finding of an advisory rule; Resolution is UNKNOWN when a helper could not be followed.
 type Finding struct {
-	Rule    string `json:"rule"`
-	Path    string `json:"path"`
-	Line    int    `json:"line"`
-	EndLine int    `json:"endLine"`
-	Message string `json:"message"`
+	Rule       string `json:"rule"`
+	Path       string `json:"path"`
+	Line       int    `json:"line"`
+	EndLine    int    `json:"endLine"`
+	Message    string `json:"message"`
+	Advisory   bool   `json:"advisory,omitempty"`
+	Resolution string `json:"resolution,omitempty"`
 }
 
 // Suppression is one `corvint-lint-allow` annotation (TSA-V0-015). Valid ones name a known rule
@@ -62,12 +68,27 @@ type LintReport struct {
 	Suppressed   []Finding     `json:"suppressed"`
 	Suppressions []Suppression `json:"suppressions"`
 	Uncertain    []string      `json:"uncertain"`
+	CrossVariant CrossVariant  `json:"crossVariant"`
 }
 
-// LintOptions select the revisions and the line scope.
+// Blocking counts the findings that are not advisory; only they make the exit status 1
+// (TSA-V0-016, TSA-V0-029).
+func (r LintReport) Blocking() int {
+	n := 0
+	for _, f := range r.Findings {
+		if !f.Advisory {
+			n++
+		}
+	}
+	return n
+}
+
+// LintOptions select the revisions and the line scope. Runs is the Playwright evidence the
+// cross-variant rule joins; nil reports it NOT_PRODUCED (TSA-V0-031, TSA-V0-032).
 type LintOptions struct {
 	Base, Revision string
 	AllLines       bool
+	Runs           []RunEvidence
 }
 
 // isLintTarget reports a test or page-object file (TSA-V0-012).
@@ -75,7 +96,11 @@ func isLintTarget(name string) bool { return IsTestFile(name) || IsPageObjectFil
 
 // Lint runs the closed rule set over the test and page-object files changed from base to revision,
 // reading committed objects only (TSA-V0-012..016).
-func Lint(r Repo, options LintOptions) (LintReport, error) {
+func Lint(r Repo, options LintOptions) (LintReport, error) { return lint(r, options, newReadBudget()) }
+
+// lint is Lint drawing every read, the linted files and the helper modules they import, from one
+// budget (TSA-V0-012, TSA-V0-030).
+func lint(r Repo, options LintOptions, budget *readBudget) (LintReport, error) {
 	base, err := r.Resolve(options.Base)
 	if err != nil {
 		return LintReport{}, err
@@ -93,7 +118,7 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 	if options.AllLines {
 		keep = isLintTarget
 	}
-	texts, _, err := r.readFiles(revision, keep)
+	texts, _, err := r.readFilesWithin(revision, keep, budget)
 	if err != nil {
 		return LintReport{}, err
 	}
@@ -106,29 +131,54 @@ func Lint(r Repo, options LintOptions) (LintReport, error) {
 		report.Files = append(report.Files, name)
 	}
 	sort.Strings(report.Files)
+	sources := map[string]*source{}
+	for _, name := range report.Files {
+		sources[name] = parseSource(name, texts[name])
+	}
+	c := newLintContext(sources)
+	if err := c.readImports(r, revision, budget); err != nil {
+		return LintReport{}, err
+	}
+	report.CrossVariant = c.joinRuns(options.Runs, revision, report.Files)
 	for _, name := range report.Files {
 		inScope := func(start, end int) bool {
 			return options.AllLines || changed[name].touches(start, end)
 		}
-		lintFile(&report, parseSource(name, texts[name]), inScope)
+		lintFile(&report, c, sources[name], inScope)
 	}
+	// A helper module the lexer could not fully place may hide or misplace a helper the advisory
+	// rules follow, so it is uncertain too (TSA-V0-010).
+	for name, s := range c.sources {
+		if _, linted := texts[name]; !linted && s.uncertain {
+			report.Uncertain = append(report.Uncertain, name)
+		}
+	}
+	sort.Strings(report.Uncertain)
+	c.collectSplits(&report.CrossVariant)
 	return report, nil
 }
 
 // LintText lints one source with every line in scope; it serves fixtures and callers that already
 // hold the text.
-func LintText(name, text string) LintReport {
-	report := LintReport{Schema: LintSchema, Scope: "all-lines", Rules: Rules, Files: []string{name}, Findings: []Finding{},
+// Helpers resolve within the text only.
+func LintText(name, text string) LintReport { return lintText(name, text, nil, "") }
+
+func lintText(name, text string, runs []RunEvidence, revision string) LintReport {
+	report := LintReport{Schema: LintSchema, Revision: revision, Scope: "all-lines", Rules: Rules, Files: []string{name}, Findings: []Finding{},
 		Suppressed: []Finding{}, Suppressions: []Suppression{}, Uncertain: []string{}}
-	lintFile(&report, parseSource(name, text), func(int, int) bool { return true })
+	s := parseSource(name, text)
+	c := newLintContext(map[string]*source{name: s})
+	report.CrossVariant = c.joinRuns(runs, revision, report.Files)
+	lintFile(&report, c, s, func(int, int) bool { return true })
+	c.collectSplits(&report.CrossVariant)
 	return report
 }
 
-func lintFile(report *LintReport, s *source, inScope func(start, end int) bool) {
+func lintFile(report *LintReport, c *lintContext, s *source, inScope func(start, end int) bool) {
 	if s.uncertain {
 		report.Uncertain = append(report.Uncertain, s.path)
 	}
-	findings := s.lint()
+	findings := s.lint(c)
 	suppressions := s.suppressions()
 	for _, f := range findings {
 		if !inScope(f.Line, f.EndLine) {
@@ -154,7 +204,7 @@ func lintFile(report *LintReport, s *source, inScope func(start, end int) bool) 
 }
 
 // lint applies every rule and returns findings ordered by line, then rule.
-func (s *source) lint() []Finding {
+func (s *source) lint(c *lintContext) []Finding {
 	out := []Finding{}
 	add := func(rule string, line, end int, message string) {
 		if end < line {
@@ -162,11 +212,19 @@ func (s *source) lint() []Finding {
 		}
 		out = append(out, Finding{Rule: rule, Path: s.path, Line: line, EndLine: end, Message: message})
 	}
+	emit := func(f Finding) { out = append(out, f) }
 	for _, d := range s.decls {
 		s.lintDeclaration(d, add)
+		if d.kind == "test" {
+			s.lintExactVariant(c, d, emit)
+		}
 	}
+	retrying := s.toPassRanges()
 	for i, t := range s.tokens {
 		s.lintToken(i, t, add)
+		if s.ident(i, "expect") && !s.memberAccess(i) {
+			s.lintOneShot(c, i, retrying, emit)
+		}
 	}
 	sort.SliceStable(out, func(a, b int) bool {
 		if out[a].Line != out[b].Line {
