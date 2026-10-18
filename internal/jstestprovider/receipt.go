@@ -79,6 +79,9 @@ type AttemptDetail struct {
 	// RouteStubs is the attempt's request-stub record (LPCV-V0-072), unprofiled receipts only.
 	// Absent means not produced, never zero hits.
 	RouteStubs *RouteStubRecord `json:"routeStubs,omitempty"`
+	// RequestOutcomes is the attempt's declared request-outcome record (LPCV-V0-080), unprofiled
+	// receipts only. Absent means not produced, never a classification.
+	RequestOutcomes *RequestOutcomeRecord `json:"requestOutcomes,omitempty"`
 }
 
 // BrowserStep is the bounded action trace retained by the redaction-capable
