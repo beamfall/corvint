@@ -317,18 +317,24 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	case rec != want:
 		return leaseDetachConflict(cmd, want.RequestID)
 	}
-	switch kept, err := leaseDetachKept(dir); {
+	kept, retried, err := leaseDetachKept(dir)
+	switch {
 	case err != nil:
 		return errorResult(cmd, err)
 	case kept:
 		return nil
 	}
-	var child leaseDetachChild
-	switch live, err := leaseDetachChildLive(dir, &child, time.Now()); {
-	case err != nil:
-		return errorResult(cmd, err)
-	case live:
-		return nil
+	// The child that kept a retried LOCK_TIMEOUT has released the running
+	// lock and only exits; its process may still be visible, so it never
+	// holds up the relaunch (ATR-V0-095).
+	if !retried {
+		var child leaseDetachChild
+		switch live, err := leaseDetachChildLive(dir, &child, time.Now()); {
+		case err != nil:
+			return errorResult(cmd, err)
+		case live:
+			return nil
+		}
 	}
 	// No result and no live child: start one. A child that died before
 	// keeping a result is replaced; the store's request-ID replay returns
@@ -374,21 +380,31 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 // A kept LOCK_TIMEOUT means the store write never completed, so once no
 // child still runs the record it is moved to result.1.json and the request
 // runs again under the same request id; the store's request-ID replay keeps
-// the mutation exactly once (ATR-V0-066).
-func leaseDetachKept(dir string) (bool, error) {
+// the mutation exactly once (ATR-V0-066). A child that holds the running
+// lock beside a kept result is only finishing, so the launcher waits up to
+// leaseDetachLockBound for it (ATR-V0-095). retried reports the move.
+func leaseDetachKept(dir string) (kept, retried bool, err error) {
 	p := filepath.Join(dir, leaseDetachResultName)
 	raw, err := readBounded(p, maxLeaseDetachResult)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return false, nil
+		return false, false, nil
 	case err != nil:
-		return false, err
+		return false, false, err
 	}
 	res, err := wire.DecodeResult(raw)
-	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) || leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName)) {
-		return true, nil
+	if err != nil || !slices.Contains(res.Codes, wire.CodeLockTimeout) {
+		return true, false, nil
 	}
-	return false, os.Rename(p, filepath.Join(dir, leaseDetachPrevResult))
+	release, err := lockLeaseDetach(filepath.Join(dir, leaseDetachRunName), leaseDetachLockBound)
+	if err != nil {
+		return true, false, nil
+	}
+	defer release()
+	if err := os.Rename(p, filepath.Join(dir, leaseDetachPrevResult)); err != nil {
+		return false, false, err
+	}
+	return false, true, nil
 }
 
 // leaseDetachUnknownIdentity is child.json's identity when the launcher
