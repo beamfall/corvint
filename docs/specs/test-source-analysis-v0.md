@@ -135,6 +135,87 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
 - `TSA-V0-023`: (standing auto-accept, 2026-10-11; V1-1592) Every report MUST state that pairs are
   candidates for review, not verdicts.
 
+### Actor authorization (V1-1770)
+
+Ticket V1-1770, GitHub #1115. A test that logs in as a fixture actor whose role does not hold the
+ability its request needs fails with a 403 that reads like an application bug. This slice finds
+that mismatch statically, before a run, for a literal subset of one stack: JS/TS fixtures and tests
+on the client side, and Rails routes, controllers and a CanCanCan-style `Ability` class on the
+server side. It is library-only (`testsource.ActorAuthorization`); it reads no declared role table,
+because the literal Ruby forms below are parsed directly. It lives in this spec rather than the
+test-validity or application-map specs because it is a static read of committed test source, like
+lint and duplicates, and it projects no runtime receipt.
+
+- `TSA-V0-030`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Actor-role resolution
+  MUST bind a request to a fixture actor only through literal forms. A fixture is an exported
+  `function NAME(` or `const NAME = (...) =>` builder in a non-test JS/TS file whose body calls a
+  user factory: a call whose callee chain names `user`, or whose arguments carry a `role:` key. The
+  role is that key's string literal, or else the one literal `role = '...'` default among the
+  factory's definitions. The fixture's single top-level `return { ... }` maps each key to the seeded
+  user its value names (the user's variable, else an identifier passed to exactly one factory call).
+  In a test, `const V = [await] FIXTURE(...)` binds V, and the latest call whose name contains
+  `login` or `signin` before the request, in the same test or before it outside every test, sets
+  the actor from its `V.KEY` argument.
+- `TSA-V0-031`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Request-to-ability
+  resolution MUST read a request as `X.get|post|put|patch|delete('/path')` inside a test, where a
+  template substitution may fill a whole path segment and then matches only a dynamic route
+  segment. The first matching route in `config/routes.rb` is used, from these literal forms:
+  `Rails.application.routes.draw do`, `namespace :x do`, `resources :x` with `only:`/`except:`
+  symbol lists and nesting, `<verb> 'path', to: 'c#a'` (or `=>`) and `root`. The ability is the one
+  literal `authorize! :action, Constant` in that action of `app/controllers/<controller>_controller.rb`.
+- `TSA-V0-032`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Rule-set evaluation MUST
+  read `app/models/ability.rb` as a `class Ability` whose `initialize` calls `send(user.role)` (or
+  `public_send`, optionally `.to_sym`), where each argument-free method is the rule set of the role
+  it names, and a bare call to another rule set inside it is inheritance. A role holds an ability
+  when an unconditional `can` in its inheritance closure or in `initialize` matches it: the action
+  is equal, `:manage`, or a CanCanCan default alias (`read` for index/show, `create` for new,
+  `update` for edit), and the subject is equal or `:all`. A role is denied only when its whole
+  closure parsed and nothing matches.
+- `TSA-V0-033`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A denied request MUST be
+  reported with status `UNAUTHORIZED` and code `ACTOR-UNAUTHORIZED`. The report names the test file,
+  line and title, the method and path, the actor (fixture, key, role, where the role was seeded),
+  the route and the check with their file:line, and `grantedBy`, the granting rule file:line of each
+  lowest sufficient role. A lowest sufficient role holds the ability and inherits no other role
+  that holds it. The report also lists `alternatives`, every other fixture actor whose resolved
+  role holds the ability.
+- `TSA-V0-034`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) The report (schema
+  `corvint-tests-actor-authorization/0`) MUST read committed objects only at one revision, within
+  the package's `MaxFiles` and `MaxFileBytes` bounds. It MUST list the closed set of supported input
+  forms and every resolved fixture actor. It MUST be deterministic over the same inputs. Its verdict
+  is `ACTOR_UNAUTHORIZED` when any request is unauthorized, else `UNKNOWN` when any is unknown, else
+  `CLEAN`. An `AUTHORIZED` or `EXEMPT` request does not change the verdict.
+- `TSA-V0-035`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) Every link that does not
+  resolve MUST make the request `UNKNOWN`, never authorized or unauthorized. The reason names the
+  first failing link, with a file:line detail, from this closed set:
+  - actor links: `actor-unbound`, `actor-not-literal`, `actor-key-not-user`, `actor-key-ambiguous`,
+    `fixture-return-not-literal`, `fixture-ambiguous`, `role-not-literal`, `role-ambiguous`,
+    `role-default-unresolved`;
+  - the request path: `path-not-literal`;
+  - route links: `routes-unavailable`, `route-not-found`, `route-unparsed`;
+  - controller links: `controller-unavailable`, `action-not-found`, `check-not-found`,
+    `check-not-literal`, `check-implicit`, `check-multiple`;
+  - ability links: `ability-unavailable`, `role-dispatch-not-literal`, `role-undefined`,
+    `inheritance-cycle`, `rule-conditional`, `rule-cannot`, `statement-unparsed`.
+- `TSA-V0-036`: (standing auto-accept, 2026-10-11; V1-1770 / GitHub #1115) A test that asserts a
+  401, 403 or 422 status with `toBe`, `toEqual`, `toStrictEqual` or `toHaveStatus` on a numeric
+  literal MUST have every request reported `EXEMPT` with reason `asserts-rejection` and the
+  assertion's file:line, never `ACTOR-UNAUTHORIZED`.
+
+Non-goals (V1-1770): authorization libraries other than the CanCanCan-style `Ability` (Pundit,
+Action Policy, hand-written guards), runtime policy (database-held roles, conditions evaluated
+against records), requests sent through `fetch()` or a page navigation, `load_and_authorize_resource`,
+a role dispatch through `if`/`case`, and a CLI command. Each of these is UNKNOWN or out of scope,
+never authorized. Failure modes: the reading is heuristic. A login helper not named `*login*` or
+`*signin*` leaves the actor unbound, and a fixture binding is matched by name across tests in one
+file. A route matched before an unparsed `routes.rb` statement that would shadow it is still used.
+A `cannot` matching the ability makes the result UNKNOWN rather than modelling rule order. Acceptance
+evidence: the issue's assistant/manager repository as a synthetic Git fixture. The assistant's
+`PUT /api/widgets/:id` is `ACTOR-UNAUTHORIZED` with `grantedBy` manager at line 14 of the fixture Ability class,
+lowest role `manager` (admin excluded because it inherits manager), and alternative `beta.manager`.
+The manager pair is `AUTHORIZED`, the 403-asserting test is `EXEMPT`, and each closed UNKNOWN reason
+has its own case. No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/actor_auth*.go` and this section; nothing is persisted.
+
 ## Refusals
 
 Every command exits 2 with one JSON object `{"code", "error", "ok": false}` on stderr and nothing on
@@ -210,3 +291,10 @@ lines across files, honour the cutoff, gate on changed tests and resolve with re
 | TSA-V0-021 | `internal/testsource/duplicates.go`, `cmd/corvint/tests.go` | `TestDuplicatesGateAndDecisions`, `TestDuplicatesGateCountsBeyondOutputBound`, `TestDuplicatesGateSeesDeletionOnlyChange`, `TestTestsCLI` | experimental |
 | TSA-V0-022 | `internal/testsource/duplicates.go` | `TestDuplicatesGateAndDecisions` | experimental |
 | TSA-V0-023 | `internal/testsource/duplicates.go` | `TestDuplicatesReport`, `TestTestsCLI` | experimental |
+| TSA-V0-030 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks` | experimental |
+| TSA-V0-031 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationUnknownLinks` | experimental |
+| TSA-V0-032 | `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationInheritance`, `TestActorAuthorizationIssueRepro` | experimental |
+| TSA-V0-033 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationInheritance` | experimental |
+| TSA-V0-034 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro`, `TestActorAuthorizationDeterministic` | experimental |
+| TSA-V0-035 | `internal/testsource/actor_auth.go`, `internal/testsource/actor_auth_rails.go` | `TestActorAuthorizationUnknownLinks` | experimental |
+| TSA-V0-036 | `internal/testsource/actor_auth.go` | `TestActorAuthorizationIssueRepro` | experimental |
