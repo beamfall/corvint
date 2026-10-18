@@ -30,6 +30,8 @@ var leaseVerbs = map[string]string{
 	"pool acquire": transaction.LeasePoolAcquire, "pool release": transaction.LeasePoolRelease,
 	// PSR-V0-130: one ticket's bounded place on a pool's waitlist.
 	"pool wait": transaction.LeasePoolWait,
+	// PSR-V0-160..167: one declared typed member lifecycle operation.
+	"pool operate": transaction.LeasePoolOperate,
 	// PSR-V0-032..037: shared-capacity slots of a declared resource.
 	"slots acquire": transaction.LeaseSlotAcquire, "slots release": transaction.LeaseSlotRelease,
 	"pool cleanup": transaction.LeasePoolCleanup, "pool recover": transaction.LeasePoolRecover, "health": transaction.LeasePoolPrepare,
@@ -69,7 +71,7 @@ var leaseValueFlags = map[string]bool{
 	"--tree": true, "--gate": true, "--commit": true, "--worktree": true,
 	"--lock-wait": true, "--lease-expires-at": true,
 	"--slots": true, "--count": true, "--class": true, "--source": true,
-	"--ticket": true, "--ttl-seconds": true,
+	"--ticket": true, "--ttl-seconds": true, "--operation": true,
 }
 
 // lockWaitVerbs are the lease commands that take the CAL-V0-111 --lock-wait:
@@ -206,7 +208,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"], WaitSeconds: wire.Count(a.values["--ttl-seconds"])}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"], WaitSeconds: wire.Count(a.values["--ttl-seconds"]), Operation: a.values["--operation"]}
 	if t := a.values["--ticket"]; t != "" {
 		if verb != transaction.LeasePoolWait {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "--ticket is a pool wait flag")
@@ -330,6 +332,12 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 			kind = "cleanup"
 		}
 		report, err = store.PoolCommand(ctx, repo, actor, choice, kind)
+	} else if name == "pool operate" {
+		// PSR-V0-166: an interrupt kills the operation's process group and
+		// records the INTERRUPTED observation.
+		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		report, err = store.PoolOperate(ctx, repo, actor, choice)
 	} else if name == "gate run" {
 		// An interrupt kills the gate's process group and records nothing.
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
@@ -403,6 +411,14 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 		o.Set("slot", slotObservationValue(report.Slot))
 	} else if cmd[0] == "slots" {
 		o.Set("slot", wire.Null())
+	}
+	if strings.Join(cmd, " ") == "pool operate" {
+		// PSR-V0-162, PSR-V0-164: the recorded receipt, null when none is.
+		recorded := wire.Null()
+		if report.PoolOperation != nil {
+			recorded = report.PoolOperation.Value()
+		}
+		o.Set("operation", recorded)
 	}
 	if report.SharedAllocation != nil {
 		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))

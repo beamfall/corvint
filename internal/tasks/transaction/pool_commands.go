@@ -135,6 +135,9 @@ func planPoolObserve(c leaseContext) leaseOutcome {
 	if e != nil {
 		return c.fail(e)
 	}
+	if en.Operation != nil {
+		return observeOperation(c, en, o)
+	}
 	d := wire.Sum(c.in.LeaseFacts.Pool.Observation)
 	en.ObservationSha256 = &d
 	en.CleanupPassed = o.Kind == "cleanup" && o.Passed
@@ -184,6 +187,9 @@ func planPoolRecover(c leaseContext) leaseOutcome {
 	}
 	if !c.in.LeaseFacts.Pool.RunnerGone {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "runner is live or identity unknown")
+	}
+	if en.Operation != nil {
+		return recoverOperation(c, en)
 	}
 	en.State = "QUARANTINED"
 	en.Reason = "orphaned command; execution and physical cleanup unknown: " + c.l.Reason

@@ -241,6 +241,7 @@ const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else 
 var redoSettlingVerbs = map[string]bool{
 	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true,
 	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
+	"pool operate": true,
 }
 
 const redoPendingHelp = "A committed receipt that head.json does not name yet (REDO_PENDING, left by an interrupted writer) does not refuse this command: its writer settles that receipt under the store lock before its own write and reports the completed redo in a warning. A pending receipt the receipt audit does not validate as a redo is refused with the audit's own error. attempt run settles it at its first lease write, before launch; run --attach and every other read never settle one. Over a pending receipt, the policy update handoff fence preview is NOT_OBSERVED (REDO_PENDING) (CAL-V0-260..262)."
@@ -301,6 +302,7 @@ var commandUsage = map[string]string{
 	"pool confirm-safe":       "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
 	"pool acquire":            "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]; pool acquire --attach --request-id ID [--wait SECONDS]",
 	"pool release":            "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+	"pool operate":            "corvint-tasks pool operate --pool ID --member ID --operation provision|refresh|reset|retarget|teardown --request-id ID [--allocation SHA256] [--source REV:TREE] [--role OWNER|OPERATOR]",
 	"pool wait":               "corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL) [--lock-wait SECONDS] [--role ROLE]",
 	"slots acquire":           "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]",
 	"slots release":           "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]",
