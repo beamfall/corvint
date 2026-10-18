@@ -1,13 +1,19 @@
-package testvaliditydoc
-
-// External-origin dependence (PWP-V0-022..027; V1-1762; GitHub #1106). The report reads
-// producer-stated network evidence for one or more runs and a project policy that declares the
-// test environment and the external origins it accepts as deterministic. It is diagnostic: it never
-// rewrites a receipt, the five-axis projection or the passing predicate.
+// Package externalorigins reports external-origin dependence (PWP-V0-022..027; V1-1762; GitHub
+// #1106). The report reads producer-stated network evidence for one or more runs and a project
+// policy that declares the test environment and the external origins it accepts as deterministic.
+// It is diagnostic: it never rewrites a receipt, the five-axis projection or the passing predicate.
+//
+// It is a separate package from testvaliditydoc because origin parsing imports net, net/netip and
+// net/url, and the MCP tool path imports testvaliditydoc, which must stay free of network packages
+// (MTV-V0-007). Only the JS test provider imports this package.
+package externalorigins
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"net/url"
@@ -708,4 +714,18 @@ func sortedKeys[V any](values map[string]V) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// decodeClosed decodes exactly one JSON document into target, refusing unknown fields and
+// trailing data, as testvaliditydoc does for its own documents.
+func decodeClosed(data []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
+		return errors.New("carries data after the document")
+	}
+	return nil
 }

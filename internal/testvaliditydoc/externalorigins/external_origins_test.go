@@ -1,4 +1,4 @@
-package testvaliditydoc
+package externalorigins
 
 import (
 	"bytes"

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditydoc/externalorigins"
 )
 
 // errExternalOriginsRefused marks an external-origins refusal already written to stderr.
@@ -55,31 +56,31 @@ func runExternalOrigins(args []string, stdout, stderr io.Writer) error {
 	return err
 }
 
-func buildExternalOriginsReport(policyPath string, networkPaths []string) (testvaliditydoc.ExternalOriginsReport, error) {
-	data, err := readBoundedInput(policyPath, testvaliditydoc.MaxExternalOriginsPolicyBytes)
+func buildExternalOriginsReport(policyPath string, networkPaths []string) (externalorigins.ExternalOriginsReport, error) {
+	data, err := readBoundedInput(policyPath, externalorigins.MaxExternalOriginsPolicyBytes)
 	if err != nil {
-		return testvaliditydoc.ExternalOriginsReport{}, fmt.Errorf("%s: %v", testvaliditydoc.ExternalOriginsPolicyInvalid, err)
+		return externalorigins.ExternalOriginsReport{}, fmt.Errorf("%s: %v", externalorigins.ExternalOriginsPolicyInvalid, err)
 	}
-	policy, err := testvaliditydoc.DecodeExternalOriginsPolicy(data)
+	policy, err := externalorigins.DecodeExternalOriginsPolicy(data)
 	if err != nil {
-		return testvaliditydoc.ExternalOriginsReport{}, err
+		return externalorigins.ExternalOriginsReport{}, err
 	}
-	if len(networkPaths) > testvaliditydoc.MaxNetworkEvidenceRuns {
-		return testvaliditydoc.ExternalOriginsReport{}, fmt.Errorf("%s: more than %d --network files", testvaliditydoc.NetworkEvidenceInvalid, testvaliditydoc.MaxNetworkEvidenceRuns)
+	if len(networkPaths) > externalorigins.MaxNetworkEvidenceRuns {
+		return externalorigins.ExternalOriginsReport{}, fmt.Errorf("%s: more than %d --network files", externalorigins.NetworkEvidenceInvalid, externalorigins.MaxNetworkEvidenceRuns)
 	}
-	runs := make([]testvaliditydoc.NetworkEvidence, 0, len(networkPaths))
+	runs := make([]externalorigins.NetworkEvidence, 0, len(networkPaths))
 	for _, path := range networkPaths {
-		data, err := readBoundedInput(path, testvaliditydoc.MaxNetworkEvidenceBytes)
+		data, err := readBoundedInput(path, externalorigins.MaxNetworkEvidenceBytes)
 		if err != nil {
-			return testvaliditydoc.ExternalOriginsReport{}, fmt.Errorf("%s: %v", testvaliditydoc.NetworkEvidenceInvalid, err)
+			return externalorigins.ExternalOriginsReport{}, fmt.Errorf("%s: %v", externalorigins.NetworkEvidenceInvalid, err)
 		}
-		run, err := testvaliditydoc.DecodeNetworkEvidence(data)
+		run, err := externalorigins.DecodeNetworkEvidence(data)
 		if err != nil {
-			return testvaliditydoc.ExternalOriginsReport{}, fmt.Errorf("%s: %w", path, err)
+			return externalorigins.ExternalOriginsReport{}, fmt.Errorf("%s: %w", path, err)
 		}
 		runs = append(runs, run)
 	}
-	return testvaliditydoc.BuildExternalOriginsReport(policy, runs)
+	return externalorigins.BuildExternalOriginsReport(policy, runs)
 }
 
 // readBoundedInput reads one regular file without following a final symlink, refusing it above

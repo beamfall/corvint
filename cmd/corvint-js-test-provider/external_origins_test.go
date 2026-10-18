@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/testvaliditydoc"
+	"github.com/Beamfall/corvint/internal/testvaliditydoc/externalorigins"
 )
 
 const externalOriginsTestPolicy = `{"profile":"corvint-external-origins-policy/0","environment":["http://127.0.0.1:3002"],"deterministic":[{"origin":"https://assets.example-cdn.test","reason":"pinned content-hashed assets"}]}`
@@ -39,12 +39,12 @@ func TestPWPV0027ExternalOriginsCommandPrintsReport(t *testing.T) {
 	if err := runExternalOrigins([]string{"--policy", policy, "--network", network}, &stdout, &stderr); err != nil {
 		t.Fatalf("external-origins: %v %s", err, stderr.String())
 	}
-	var report testvaliditydoc.ExternalOriginsReport
+	var report externalorigins.ExternalOriginsReport
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Profile != testvaliditydoc.ExternalOriginsReportProfile || report.Verdict != testvaliditydoc.ExternalOriginsDependent ||
-		len(report.Origins) != 2 || report.Origins[0].Origin != "https://assets.example-cdn.test" || report.Origins[0].Class != testvaliditydoc.OriginAllowed ||
+	if report.Profile != externalorigins.ExternalOriginsReportProfile || report.Verdict != externalorigins.ExternalOriginsDependent ||
+		len(report.Origins) != 2 || report.Origins[0].Origin != "https://assets.example-cdn.test" || report.Origins[0].Class != externalorigins.OriginAllowed ||
 		report.Origins[1].Origin != "https://cdn.jsdelivr.example" || len(report.Findings) != 1 || report.Findings[0].FirstTest.Title != "catalog > renders" {
 		t.Fatalf("report = %s", stdout.String())
 	}
@@ -67,7 +67,7 @@ func TestPWPV0027ExternalOriginsCommandPrintsReport(t *testing.T) {
 	stdout.Reset()
 	stderr.Reset()
 	_ = runExternalOrigins([]string{"--policy", policy, "--network", invalid}, &stdout, &stderr)
-	if !strings.Contains(stderr.String(), testvaliditydoc.NetworkEvidenceInvalid) {
+	if !strings.Contains(stderr.String(), externalorigins.NetworkEvidenceInvalid) {
 		t.Errorf("invalid evidence refusal does not name its code: %s", stderr.String())
 	}
 
