@@ -117,3 +117,12 @@ func SetSyncArchiveDirForTest(f func(string) error) func() {
 	syncArchiveDir = f
 	return func() { syncArchiveDir = prev }
 }
+
+// SetAfterWorktreeLookupForTest runs f between a ticket-worktree ensure's
+// branch lookup and its path check until the returned function restores the
+// previous hook.
+func SetAfterWorktreeLookupForTest(f func()) func() {
+	prev := afterWorktreeLookup
+	afterWorktreeLookup = f
+	return func() { afterWorktreeLookup = prev }
+}
