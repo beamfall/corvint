@@ -3,16 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-10-17
 Intent status: accepted
-Delivery status: planned
+Delivery status: experimental
 Authoritative inputs: `AGENTS.md` invariants 2, 3, 6 and 7, decision 0540,
 `docs/specs/ocm-intent-forms-v0.md` (`OIF-V0`), `docs/specs/verified-absence-frontier-v0.md`,
 `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `LICENSING.md`
 
 ## Agent digest
 - Claim: Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.
-- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery planned.
-- Exists: the `OIF-V0` intent-form registry in `internal/lrfrepo/ocm_forms.go`; nothing toolchain-specific.
-- Blocked on: nothing.
+- Status: accepted intent (owner, 2026-10-17, decision 0540); delivery experimental (partial, `STA-V0-002` to `STA-V0-010`): forms, context classification and host packaging are built, but they ride the experimental `OIF-V0` registry and are not advertised as delivered until `OIF-V0` is accepted and `STA-V0-011` passes.
+- Exists: forms in `internal/lrfrepo/ocm_toolchain_forms.go`, path classification in `internal/contextindex/toolchain_status.go`, packages under `protocol/integrations/{speckit,openspec}/`, fixtures under `interop/spec-toolchains/fixtures/`.
+- Blocked on: `STA-V0-001` and `STA-V0-011` to `STA-V0-013` (V1-1697); owner acceptance of `OIF-V0`.
 - Read next: Requirements; Lanes.
 
 ## User and job
@@ -60,7 +60,7 @@ Corvint at `d35b0ee3`:
 
 - `STA-V0-001`: One manifest, `interop/spec-toolchains/versions.json`, records the supported upstream releases. Each entry has the toolchain name, version, source (npm package or Git tag), commit or tarball SHA-256, and the date checked. The initial entries are OpenSpec `@fission-ai/openspec` 1.14.3 and Spec Kit `github/spec-kit` v1.2.1. Corvint's documentation claims support only for listed versions. Every other version is untested and must be reported as such, never as supported.
 - `STA-V0-002`: `ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob needs exactly one unfenced `## Requirements` line, and the span runs to the next unfenced level-2 heading or the end of the blob, with the `OCM-V0-001` fence rules.
-  - Each unfenced line matching `^###\s*Requirement:\s*(.+?)\s*#*\s*$` (case-insensitive keyword) is one requirement. Its native name is the captured text.
+  - Each unfenced line matching `^###\s*Requirement:\s*(.+)$` (case-insensitive keyword) is one requirement. Its native name is the captured text with surrounding blanks trimmed and, as upstream, a closing `#` run removed only when a space or tab precedes it (so `C#` keeps its `#`).
   - The statement runs from the header to the byte before the next unfenced level-3 or level-2 heading, so it includes scenarios.
   - The obligation ID is `OSR-` followed by the first 12 uppercase hex digits of SHA-256 over the name's UTF-8 bytes.
   - A repeated name or ID fails `duplicate-requirement`.
@@ -76,7 +76,7 @@ Corvint at `d35b0ee3`:
   - The native ID is the obligation ID, unchanged.
   - The statement is the line plus any following lines indented at least two spaces.
   - A line whose statement contains `[NEEDS CLARIFICATION` is not an obligation. It is listed in the envelope member `excludedRequirements` as `{id, reason: "needs-clarification"}`.
-  - The header's `**Status**:` text, if present, is reported verbatim in the envelope member `nativeStatus`.
+  - The header's `**Status**:` text, if present, is reported with surrounding blanks trimmed in the envelope member `nativeStatus`; the member is absent when there is no header.
   - Zero or two `## Requirements` sections fail `invalid-requirements-section`. A repeated ID fails `duplicate-requirement`.
 - `STA-V0-006`: The three forms follow `OIF-V0-001` to `OIF-V0-003` and `OIF-V0-009`. They are explicit only, never inferred from path or content, recorded in `intentScope.form`, re-derived on every action, and capped at 256. `OIF-V0-010` applies: LRF and the change-universe surfaces refuse them with `unsupported-intent-form`.
 - `STA-V0-007`: The context index classifies documents by pinned path, with no content guessing. `documentAuthority` derives the labels below.
@@ -91,12 +91,12 @@ Corvint at `d35b0ee3`:
 
   Each result keeps the native state field so the reader sees the upstream lifecycle, not only Corvint's label.
 - `STA-V0-008`: `protocol/integrations/speckit/corvint/` holds a Spec Kit extension (Apache-2.0, `LICENSING.md` boundary).
-  - Manifest: `schema_version: "1.0"`, id `corvint`, `effect: read-only`, `requires.speckit_version: ">=1.2.1,<2"`, and a `requires.tools` entry for `corvint`.
+  - Manifest: `schema_version: "1.0"`, id `corvint`, `extension.effect: read-only` (where Spec Kit validates it), `requires.speckit_version: ">=1.2.1,<2"`, and a `requires.tools` entry for `corvint`.
   - Commands: `speckit.corvint.context`, which runs `corvint context` for the feature's spec and plan paths, and `speckit.corvint.review`, which runs `corvint affected` and `corvint review` over the working diff.
   - Hooks: `before_implement` → context and `after_implement` → review, both `optional: true`.
-  - The commands only read, report Corvint's output including every `unknown`/`NOT_PRODUCED`, and never block, edit or commit.
+  - The commands only read, report Corvint's output including every `unknown`/`NOT_PRODUCED`, and never block, edit or commit. `corvint review` refuses a dirty worktree, which is normal after implementing; the command reports that refusal as printed and never commits to satisfy it.
 - `STA-V0-009`: `protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).
-  - A `config.yaml` snippet whose `rules` tell the agent to run `corvint context` before `apply` and `corvint review` after it.
+  - A `config.yaml` snippet that tells the agent to run `corvint context` before `apply` and `corvint review` after it. OpenSpec 1.14.3 injects `rules` only into artifacts and `apply` reads `context` and `operations.apply.guidance`, so the steps appear in `rules.tasks`, `context` and `operations.apply.guidance`.
   - An agent skill file with the same two read-only steps.
   - A README giving the exact `ocm prepare --intent-form` commands for main specs and deltas.
 - `STA-V0-010`: `interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects that pass the pinned upstream validators (`openspec validate --all --strict`; Spec Kit's own templates and `check-prerequisites.sh --json`). They include a nested capability, every delta operation, an archived change, `FR`/`SC` IDs, a clarification marker and a constitution.
@@ -138,8 +138,18 @@ Corvint at `d35b0ee3`:
 - `internal/lrfrepo` tests named `TestSTAV0*` cover `STA-V0-002` to `STA-V0-006` on the
   `STA-V0-010` fixtures and hostile cases. They include default-form byte identity and an
   `ocm prepare`/`status` run on a Git fixture.
-- `internal/contextindex` tests cover `STA-V0-007`.
-- A passing `spec-toolchain-conformance` CI run covers `STA-V0-008`, `STA-V0-010` and `STA-V0-011`.
+  Delivered: `TestSTAV0002_OpenSpecRequirementBlocks`, `TestSTAV0002_OpenSpecSpecRefusals`,
+  `TestSTAV0003_OpenSpecDeltaSections`, `TestSTAV0003_OpenSpecDeltaRefusals`,
+  `TestSTAV0004_NativeNamesPrepareAndStatus`, `TestSTAV0005_SpecKitRequirementLines`,
+  `TestSTAV0005_SpecKitRefusals`, `TestSTAV0006_DeclaredFormsRegistry` and
+  `TestSTAV0010_FixturesDerive`; in `cmd/corvint`, `TestSTAV0004_PrepareEnvelopeNativeMembers` and
+  `TestSTAV0006_PrepareIntentFormFlag`.
+- `internal/contextindex` tests cover `STA-V0-007`: `TestSTAV0007_ToolchainPathClassification` and
+  `TestSTAV0007_NonToolchainPathsUnchanged`.
+- `protocol/integrations` static tests cover the package shape and read-only commands:
+  `TestSTAV0008_SpecKitExtensionManifest` and `TestSTAV0009_OpenSpecIntegration`.
+- A passing `spec-toolchain-conformance` CI run covers `STA-V0-008` and `STA-V0-009` against the
+  upstream CLIs, `STA-V0-010` and `STA-V0-011`.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
 
 ## Lanes

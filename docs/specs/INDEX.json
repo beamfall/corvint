@@ -3772,7 +3772,7 @@
     "title": "Spec toolchain adapters V0",
     "reqPrefix": "STA-V0",
     "intent": "accepted",
-    "delivery": "planned",
+    "delivery": "experimental",
     "claim": "Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream.",
     "dependsOn": [],
     "supersededBy": null,
