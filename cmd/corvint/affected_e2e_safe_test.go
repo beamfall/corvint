@@ -238,27 +238,45 @@ func runE2ESelection(t *testing.T, root, base string) appflows.E2ESelection {
 	if err := decoder.Decode(&selection); err != nil {
 		t.Fatalf("test_selection is not e2e-safe-selection/1: %v\n%s", err, raw)
 	}
+	checkE2EProofDigests(t, raw)
 	return selection
 }
 
-// e2eProof returns the stated proof an omission names, and checks that its digest binds its content.
+// checkE2EProofDigests recomputes every stated proof's digest as a consumer would, from the emitted
+// JSON alone (AFU-V1-066): drop the digest member, then hash the canonical JSON (keys sorted at
+// every level, compact, no HTML escaping, no trailing newline).
+func checkE2EProofDigests(t *testing.T, raw []byte) {
+	t.Helper()
+	var emitted struct {
+		Proofs []map[string]any `json:"proofs"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&emitted); err != nil {
+		t.Fatal(err)
+	}
+	for _, proof := range emitted.Proofs {
+		digest, _ := proof["digest"].(string)
+		delete(proof, "digest")
+		canonical, err := gokernel.CanonicalJSON(proof)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if sum := sha256.Sum256(canonical); digest != "sha256:"+hex.EncodeToString(sum[:]) {
+			t.Fatalf("proof digest %s does not bind its content without the digest member: %s", digest, canonical)
+		}
+	}
+}
+
+// e2eProof returns the stated proof an omission names; runE2ESelection already checked that each
+// stated digest binds its proof.
 func e2eProof(t *testing.T, selection appflows.E2ESelection, o appflows.E2EOmission) appflows.E2EProof {
 	t.Helper()
 	i := slices.IndexFunc(selection.Proofs, func(p appflows.E2EProof) bool { return p.Digest == o.Proof })
 	if i < 0 {
 		t.Fatalf("%s names proof %q, which proofs does not state", o.TestKey, o.Proof)
 	}
-	proof := selection.Proofs[i]
-	content := proof
-	content.Digest = ""
-	raw, err := gokernel.CanonicalJSON(content)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sum := sha256.Sum256(raw); proof.Digest != "sha256:"+hex.EncodeToString(sum[:]) {
-		t.Fatalf("proof digest %s does not bind its content", proof.Digest)
-	}
-	return proof
+	return selection.Proofs[i]
 }
 
 func e2eCodes(selection appflows.E2ESelection) []string {

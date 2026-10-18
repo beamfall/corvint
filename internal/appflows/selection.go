@@ -1,9 +1,11 @@
 package appflows
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"path"
 	"path/filepath"
@@ -29,10 +31,13 @@ const (
 
 // The documented selection ceilings (AFU-V1-065). Above one, the result is the closed
 // e2e-bound-exceeded full-suite fallback; the 5 MiB document bound still applies first.
+// MaxSelectionPaths bounds every single path list, each coverage tier's included;
+// MaxSelectionEvidencePaths bounds the changed paths held across all evidence commits read.
 const (
 	MaxSelectionTests         = 16384
 	MaxSelectionPaths         = 65536
 	MaxSelectionCoveragePaths = 131072
+	MaxSelectionEvidencePaths = 131072
 )
 
 // The closed fallback codes (AFU-V1-022). Any one of them yields the full relevant suite.
@@ -219,9 +224,16 @@ type e2eSelector struct {
 	selected  map[string]bool
 	coverage  map[string]CoverageRecord
 	closure   map[string]bool
+	globals   map[string]bool
 	evidence  map[string]*evidenceDiff
 	proofs    map[string]E2EProof
 	flowProof map[string]string
+	// evidencePaths counts the changed paths cached across evidence commits; above
+	// MaxSelectionEvidencePaths the cache is dropped and evidenceExceeded refuses the selection.
+	// reachMemo counts memoized reach answers, which stop being cached at the same bound.
+	evidencePaths    int
+	evidenceExceeded bool
+	reachMemo        int
 }
 
 // evidenceDiff is what changed between one coverage evidence commit and base, computed once per
@@ -229,7 +241,6 @@ type e2eSelector struct {
 type evidenceDiff struct {
 	ok        bool
 	global    bool
-	changed   []string
 	set       map[string]bool
 	changedBy map[string]string
 	reached   map[string]bool
@@ -257,6 +268,9 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	}
 	if len(codes) == 0 {
 		out.Selected, out.OmittedTests, codes = s.prove()
+		if s.evidenceExceeded {
+			codes = []E2EFallback{{Code: CodeBoundExceeded, Subject: "evidence-paths"}}
+		}
 	}
 	if len(codes) != 0 {
 		out.State, out.StateReason = extevidence.SelectionFull, "e2e-fallback"
@@ -273,7 +287,7 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 
 func newE2ESelector(ctx context.Context, root string, in E2EInput, provider SelectionProvider, records []CoverageRecord) *e2eSelector {
 	s := &e2eSelector{ctx: ctx, root: root, in: in, base: in.Base, provider: provider, records: records, selected: map[string]bool{}, coverage: map[string]CoverageRecord{},
-		dirty: map[string]bool{}, closure: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{}}
+		dirty: map[string]bool{}, closure: map[string]bool{}, globals: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{}}
 	if s.base == "" {
 		s.base = in.Revision
 	}
@@ -286,6 +300,9 @@ func newE2ESelector(ctx context.Context, root string, in E2EInput, provider Sele
 	}
 	for _, record := range records {
 		s.coverage[record.TestKey] = record
+	}
+	for _, g := range provider.GlobalPaths {
+		s.globals[g] = true
 	}
 	return s
 }
@@ -377,9 +394,11 @@ func (s *e2eSelector) boundCodes() []E2EFallback {
 	for _, record := range s.records {
 		for _, tier := range record.Tiers {
 			counts["coverage-paths"] += len(tier.Paths)
+			counts["coverage-tier-paths"] = max(counts["coverage-tier-paths"], len(tier.Paths))
 		}
 	}
-	limits := map[string]int{"changed-paths": MaxSelectionPaths, "inventory": MaxSelectionTests, "coverage": MaxSelectionTests, "global-paths": MaxSelectionPaths, "coverage-paths": MaxSelectionCoveragePaths}
+	limits := map[string]int{"changed-paths": MaxSelectionPaths, "inventory": MaxSelectionTests, "coverage": MaxSelectionTests, "global-paths": MaxSelectionPaths,
+		"coverage-paths": MaxSelectionCoveragePaths, "coverage-tier-paths": MaxSelectionPaths}
 	codes := []E2EFallback{}
 	for name, count := range counts {
 		if count > limits[name] {
@@ -408,7 +427,17 @@ func (s *e2eSelector) global(p string) bool {
 	if p == s.in.Provider || p == s.provider.RunnerConfig || under(p, s.provider.Flows) {
 		return true
 	}
-	return slices.ContainsFunc(s.provider.GlobalPaths, func(g string) bool { return under(p, g) })
+	// under(p, g) holds exactly when g is p or p's prefix before one of its slashes, so looking up
+	// those prefixes in the global_paths set matches without scanning every global path.
+	if s.globals[p] {
+		return true
+	}
+	for i := range len(p) {
+		if p[i] == '/' && s.globals[p[:i]] {
+			return true
+		}
+	}
+	return false
 }
 
 func under(p, dir string) bool { return p == dir || strings.HasPrefix(p, dir+"/") }
@@ -567,7 +596,8 @@ func (s *e2eSelector) inClosure(p string) bool {
 	if in, ok := s.closure[p]; ok {
 		return in
 	}
-	in := reach(s.in.Graph, s.changedBy, s.in.Plan.Dirty, p) != nil
+	// The dirty set answers reach's own changed-path membership check without its linear scan.
+	in := s.dirty[p] || reach(s.in.Graph, s.changedBy, nil, p) != nil
 	if !in {
 		owner, ok := s.in.Graph.OwnerOf(p)
 		in = ok && s.selected[owner]
@@ -633,16 +663,34 @@ func reviewedFailure(links []EvaluatedLink, unmapped []string) string {
 	return ""
 }
 
-// addProof states a proof once, keyed by the digest of its canonical JSON, and returns the digest.
+// addProof states a proof once, keyed by its digest, and returns the digest.
 func (s *e2eSelector) addProof(proof E2EProof) string {
-	raw, err := gokernel.CanonicalJSON(proof)
+	proof.Digest = proofDigest(proof)
+	s.proofs[proof.Digest] = proof
+	return proof.Digest
+}
+
+// proofDigest is `sha256:` and the hex SHA-256 of the proof's canonical JSON without its digest
+// member: keys sorted at every level, no insignificant whitespace, UTF-8 without HTML escaping and
+// no trailing newline (AFU-V1-066), so a consumer recomputes it from the emitted proof alone.
+func proofDigest(proof E2EProof) string {
+	raw, err := json.Marshal(proof)
 	if err != nil {
 		panic(err) // a proof is plain strings, numbers and booleans and always encodes
 	}
-	sum := sha256.Sum256(raw)
-	proof.Digest = proofDigestPrefix + hex.EncodeToString(sum[:])
-	s.proofs[proof.Digest] = proof
-	return proof.Digest
+	var value map[string]any
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
+		panic(err)
+	}
+	delete(value, "digest")
+	canonical, err := gokernel.CanonicalJSON(value)
+	if err != nil {
+		panic(err)
+	}
+	sum := sha256.Sum256(canonical)
+	return proofDigestPrefix + hex.EncodeToString(sum[:])
 }
 
 // proofList is every stated proof, sorted by digest.
@@ -711,12 +759,17 @@ func (s *e2eSelector) coverageStale(test string, record CoverageRecord, links []
 		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return s.reachedSince(diff, l.Target.Path) })
 }
 
-// evidenceDiff reads the change between one evidence commit and base once.
+// evidenceDiff reads the change between one evidence commit and base once. The changed paths cached
+// across commits are bounded by MaxSelectionEvidencePaths (AFU-V1-065): the read that would exceed it
+// drops the whole cache and marks the selection refused, so later reads return a failed diff.
 func (s *e2eSelector) evidenceDiff(commit string) *evidenceDiff {
 	if diff, ok := s.evidence[commit]; ok {
 		return diff
 	}
 	diff := &evidenceDiff{set: map[string]bool{}, reached: map[string]bool{}}
+	if s.evidenceExceeded {
+		return diff
+	}
 	s.evidence[commit] = diff
 	if _, err := git(s.ctx, s.root, "merge-base", "--is-ancestor", commit, s.base); err != nil {
 		return diff
@@ -725,22 +778,32 @@ func (s *e2eSelector) evidenceDiff(commit string) *evidenceDiff {
 	if err != nil {
 		return diff
 	}
+	changed := slices.DeleteFunc(strings.Split(string(out), "\x00"), func(p string) bool { return p == "" })
+	if s.evidencePaths+len(changed) > MaxSelectionEvidencePaths {
+		s.evidenceExceeded, s.evidence, s.evidencePaths = true, map[string]*evidenceDiff{}, 0
+		return &evidenceDiff{}
+	}
+	s.evidencePaths += len(changed)
 	diff.ok = true
-	diff.changed = slices.DeleteFunc(strings.Split(string(out), "\x00"), func(p string) bool { return p == "" })
-	for _, p := range diff.changed {
+	for _, p := range changed {
 		diff.set[p] = true
 		diff.global = diff.global || s.global(p)
 	}
-	diff.changedBy = changedUnits(s.in.Graph, diff.changed)
+	diff.changedBy = changedUnits(s.in.Graph, changed)
 	return diff
 }
 
+// reachedSince memoizes per evidence commit until MaxSelectionEvidencePaths answers are cached in
+// total, then answers uncached; the changed-path set replaces reach's linear membership scan.
 func (s *e2eSelector) reachedSince(diff *evidenceDiff, p string) bool {
 	if in, ok := diff.reached[p]; ok {
 		return in
 	}
-	in := reach(s.in.Graph, diff.changedBy, diff.changed, p) != nil
-	diff.reached[p] = in
+	in := diff.set[p] || reach(s.in.Graph, diff.changedBy, nil, p) != nil
+	if s.reachMemo < MaxSelectionEvidencePaths {
+		diff.reached[p] = in
+		s.reachMemo++
+	}
 	return in
 }
 
