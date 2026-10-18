@@ -101,6 +101,8 @@ Subcommands:
                           --keep-reporters-qualification or watch); prints the keep-reporters
                           qualification record (PWP-V0-015)
   negate                  generate step-level negative controls for one Playwright test (LPCV-V0-057)
+  external-origins        read a project policy and network evidence of 1..16 runs and print the
+                          external-origin dependence report; runs no test (PWP-V0-027)
   help, -h, --help        print this usage and exit 0
 
 With e2e --external-server, --test-arg (what Playwright runs) and --test-file (what identity
@@ -138,6 +140,7 @@ func printUsage(w io.Writer) {
 		func() { _, _, _ = parseUnitConfig([]string{"-h"}) },
 		func() { _ = runE2EMode("e2e", []string{"-h"}) },
 		func() { _, _ = parseNegate([]string{"-h"}) },
+		func() { _, _, _ = parseExternalOrigins([]string{"-h"}) },
 	} {
 		fmt.Fprintln(w)
 		show()
@@ -146,7 +149,7 @@ func printUsage(w io.Writer) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters> [flags]; corvint-js-test-provider --help for details")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
 		os.Exit(2)
 	}
 	var err error
@@ -167,6 +170,11 @@ func main() {
 		}
 	case "qualify-keep-reporters":
 		err = runQualifyKeepReporters(os.Args[2:])
+	case "external-origins":
+		err = runExternalOrigins(os.Args[2:], os.Stdout, os.Stderr)
+		if errors.Is(err, errExternalOriginsRefused) {
+			os.Exit(2)
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "unknown subcommand %q\n", os.Args[1])
 		os.Exit(2)

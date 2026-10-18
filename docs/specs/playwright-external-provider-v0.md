@@ -15,7 +15,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
@@ -230,6 +230,82 @@ Failure mode addressed: a mid-size suite was refused as `report-output-overflow`
 was small. Rollback restores the 256 count and the `report-output-overflow` detail and removes the
 byte bound. Retained receipts stay readable because the detail is free text; a retained freshness
 receipt with more than 256 inputs then abstains, and no receipt is deleted or rewritten.
+
+### External-origin dependence (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106)
+
+Intent: an operator whose browser tests passed or failed with a resource the test environment does
+not control (a module from a live public CDN, a third-party script, an external API) learns from a
+report, not from a hand-opened trace, which external origins the run depended on, which test first
+depended on each, and which external requests differed between a passing and a failing run of the
+same test at the same revision. A project accepts an external origin explicitly by allow-listing it
+as deterministic, or removes the dependence by vendoring or mocking the resource.
+
+- `PWP-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) Network evidence is the closed `corvint-network-evidence/0`
+  document of one run: `profile`, a `run` label, the full lower-case Git object id `revision` of the
+  test repository, and `tests` in run order, each with `file`, full `title`, `outcome` (`passed`,
+  `failed`, `timedOut`, `interrupted` or `skipped`) and `requests`. A request states `url`,
+  `resourceType` (`document`, `script`, `module`, `stylesheet`, `websocket`, `fetch`, `xhr`,
+  `beacon`, `image`, `font`, `media` or `other`), `status` (0 when no response arrived, else
+  100..599), `durationMs`, `followUps` (the requests its response initiated) and, for `fetch` and
+  `xhr` only, `awaited`. `status`, `durationMs` and `followUps` are required and non-null, so an
+  absent observation never decodes as 0. Unknown members, trailing data, a repeated test in one run, a URL with
+  userinfo or a scheme other than http, https, ws, wss, data, blob or about refuse
+  `network-evidence-invalid`, as does a document above 4 MiB, 4096 tests, 1024 requests per test or
+  1024-byte text, as does a port above 65535. A URL reduces to its canonical origin (lower-case
+  scheme and host, an IP host in its canonical address form such as compressed IPv6, the port as a
+  decimal number without leading zeros, default port elided) and a locator without query or fragment, so no query value reaches the report; data:,
+  blob: and about: URLs have no origin and are not listed. The evidence is producer-stated: Corvint
+  makes no network request and observes no browser to produce it.
+- `PWP-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) A request to an origin outside the declared environment is
+  `blocking` when its type is `document`, `script`, `module`, `stylesheet`, `websocket` or `other`,
+  or `fetch`/`xhr` unless stated `awaited: false`; it is `incidental` when its type is `beacon`,
+  `image`, `font` or `media`, or a `fetch`/`xhr` stated not awaited. `other` is blocking because its
+  dependence is unknown. Incidental traffic is listed and counted but raises no finding, so a run
+  whose only external traffic is analytics beacons is `CLEAN`.
+- `PWP-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) The report lists every origin outside the declared environment
+  once, in byte order, with its class (`undeclared` or `allowed`), its blocking and incidental
+  request counts and the resource types seen. Each undeclared origin with a blocking request yields
+  one `external-origin-dependence` finding per resource type, naming the origin, the resource type,
+  the first run and first test (input run order, then run order) that made such a request, and the
+  number of distinct tests that did.
+- `PWP-V0-025`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) The project policy is the closed `corvint-external-origins-policy/0`
+  document: `environment`, the canonical origins of the application under test and its declared
+  mocks, whose requests are never listed; and `deterministic`, the allow-list of external origins
+  the project accepts as deterministic (for example pinned content-hashed assets), each with a
+  non-empty `reason`. Request origins are matched against the policy only after the canonical
+  reduction of `PWP-V0-022`. An allow-listed origin is listed with class `allowed` and its reason and
+  raises no finding. A non-canonical origin (a path, upper case, a default or zero-padded port, or
+  an expanded IP address), an origin
+  declared twice or in both lists, a missing reason, unknown members, more than 256 origins or a
+  document above 64 KiB refuse `external-origins-policy-invalid`.
+- `PWP-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) For each test (file and title) that passed in one input run and
+  failed or timed out in another at the same revision, the report pairs its first passing run with
+  its first failing run and compares their external requests, keyed by resource type and locator
+  (first occurrence per key). Each differing request is named with its origin, locator, type, both
+  observations and its kinds: `missing-in-failed`, `missing-in-passed`, `status-differs`,
+  `follow-ups-differ`, or `slower-in-failed` when the failing duration exceeds the passing one by at
+  least 1000 ms. The pair's state is `EXTERNAL_DIFFERENCE`, `NO_EXTERNAL_DIFFERENCE`, or `UNKNOWN`
+  with reason `network-evidence-absent` when either side lacks evidence. Runs at different
+  revisions are never paired.
+- `PWP-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) `corvint-js-test-provider external-origins --policy FILE
+  --network FILE...` (1 to 16 runs, in run order) prints the closed `corvint-external-origins/0`
+  report: `verdict`, per-run `network` state (`RECORDED`, or `NOT_PRODUCED` when the run has no
+  test or any test lacks evidence; each run's state is its own and another run never clears it), `origins`, `findings`, `unknown` tests and `correlations`. A test whose `requests` is
+  absent or null is listed in `unknown` with reason `network-evidence-absent`; an empty array states
+  that no request was made. The verdict is `ENVIRONMENT_DEPENDENT` when any finding exists, else
+  `UNKNOWN` when any run is `NOT_PRODUCED`, else `CLEAN`: missing network evidence
+  never yields `CLEAN`. A refusal writes its code to stderr and exits 2. The report is diagnostic:
+  it never rewrites a receipt, the five-axis projection or the passing predicate.
+
+Non-goals: no producer in this version (a Playwright fixture or reporter that records each test's
+requests, or a HAR/trace importer, is follow-up work), no live browser run, no join into
+`corvint test-validity` or the retained receipt, no inference of which assertions read a resource,
+and no network access by Corvint. Failure modes addressed: a bulk failure caused by a live CDN
+module that rendered nothing read as a product regression or flaky locator; an analytics beacon
+raising a false dependence; a run without network evidence reading as clean. Acceptance evidence:
+the fixture-driven Go tests in Traceability; live Playwright evidence is `NOT_RUN`. Rollback removes
+the subcommand, the three profiles and `internal/testvaliditydoc/external_origins.go`; no receipt,
+projection or retained document changes, and policy files left in a project are inert.
 
 ### Application-attested revision
 
@@ -467,6 +543,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-019 (accepted under the owner's standing auto-accept (2026-10-11); V1-1242; GitHub #807) | `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReportNamesUnboundSetupProjectFiles`, `TestProviderHelpExplainsSetupProjectFileBinding`; live Playwright setup-project run `NOT_RUN` (`docs/build-log/2026-10-11-gh807-setup-project-files.md`) |
 | PWP-V0-020 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #832) | `internal/jstestprovider/external.go`, `internal/jstestprovider/runner.go` | `TestBoundaryTimeoutNamesRunnerAndFlag`, `TestE2EBoundaryFailure_WaitNotCompleted`; live Playwright timeout run `NOT_RUN` (`docs/build-log/2026-10-12-issue-832-e2e-timeout-wording.md`) |
 | PWP-V0-021 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) | `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/keep_reporters_qualification.go` | `TestQualifiedReportConfigInputBounds`, `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`; live Playwright run above 256 config inputs `NOT_RUN` (`docs/build-log/2026-10-12-gh-844-845-config-inputs-state-matchers.md`) |
+| PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`, `TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun`, `TestPWPV0022RequestObservationsAreRequired`, `TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
