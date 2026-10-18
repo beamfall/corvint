@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-090..095 experimental (V1-1797)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-090..095 experimental (V1-1797)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -609,6 +609,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
 | `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport`, `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`, `TestLPCVV0080InvalidUTF8IsRefused` and `TestLPCVV0080ScreeningCollapsesDistinctActors`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3), `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`, `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, `TestLPCVV0081ScreenedEvidenceNeverJoins` and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
+| `LPCV-V0-090..095` RSpec provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); implemented at experimental tier; preview, non-promotable; no real Ruby or container run (`NOT_RUN`) | `internal/rubytestprovider`'s `TestLPCVV0090RunBindsRepositoryBeforeAndAfter`, `TestLPCVV0090InfrastructureReasons`, `TestLPCVV0091ExecPrefixObservesGitOnHost`, `TestLPCVV0092ExampleIdentityAndBlobs`, `TestLPCVV0094FreshnessFromBlobs` and `TestLPCVV0095GitignoreCreatedOnceNeverOverwritten`; `internal/testvaliditydoc`'s `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestLPCVV0094DiscoverRubyFreshness` and `TestDiscoverProducerGuidance`; `cmd/corvint-ruby-test-provider`'s `TestLPCVV0095RetainedRunLeavesWorktreeCleanAndDiscovers` and `TestLPCVV0090RefusalsExitTwo`; all use a fake `rspec` emitting canned JSON. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -1178,3 +1179,111 @@ Rollback: remove the annotation parse, the `requestOutcomes` attempt member and 
 Decoding is closed, so a retained receipt that carries the member is then refused as unknown-field
 input until it is regenerated without the annotation; a reader older than this slice refuses it the
 same way.
+
+## RSpec provider (V1-1797; GitHub #1128, #1130, #1132)
+
+Test-validity had no Ruby producer, so a Rails project could never get association, execution or
+freshness for its RSpec examples. `LPCV-V0-090` to `LPCV-V0-095` add the experimental
+`corvint-ruby-test-provider`, which runs RSpec once and retains a closed provider document that
+`corvint test-validity --discover` projects. They were accepted under the owner's standing
+auto-accept (2026-10-11) for V1-1797. The provider follows the JavaScript provider's conventions: it
+prints one document on stdout, `--retain` writes the same bytes through `LPCV-V0-055`, and every
+projection is recomputed from observations. The document is a preview and is never promotable.
+
+- `LPCV-V0-090`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797)
+  `corvint-ruby-test-provider rspec --dir <project-directory>` MUST run the RSpec command (default
+  `bundle exec rspec`, replaceable with repeated `--rspec`) once in that directory, adding
+  `--format json --out .corvint/rspec/<nonce>.json` and, with `--junit`, `--format
+  RspecJunitFormatter --out .corvint/rspec/<nonce>.xml`. It reads both reports on the host (each at
+  most 32 MiB) and removes them. It prints the closed `corvint-ruby-test-provider/0` document:
+  `runner`, the bounded `runnerVersion` from the report, the worktree-relative `projectDirectory`,
+  the `command` (or `commandWithheld: secret-shaped` when the product secret screen matches it),
+  `objectFormat`, the `repositoryBefore` and `repositoryAfter` test repository identities (commit,
+  tree, root commit, dirty state and dirty digest) observed before and after the run, the summary,
+  the exit status, and `junit` as `NOT_REQUESTED`, `PRODUCED` with a sha256 digest, or
+  `NOT_PRODUCED` with reason `junit-report-unavailable`. A run that cannot be completely observed carries `infrastructure`
+  with one of `start-failed`, `timeout`, `cancelled`, `runner-exit-unobserved`, `report-missing`,
+  `report-invalid`, `report-count-mismatch`, `rspec-errors-outside-examples` or
+  `runner-exit-unexplained` (a nonzero exit with no failed example), exits 1 after printing, and is
+  never a pass. A `--dir` outside a Git worktree, an extra argument or a `--spec` that is not
+  project-relative is refused with exit 2 and no document. A failed example exits 0.
+- `LPCV-V0-091`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797) With
+  repeated `--exec-prefix` arguments (for example `docker compose run --rm app`), RSpec runs through
+  the prefix, whose working directory must be the project directory, so the relative report path
+  lands in it. Git MUST be observed on the host with `GIT_*` stripped, never through the prefix,
+  reusing the JavaScript provider's host observation, so a worktree whose `.git` file names a host
+  path keeps its identity when the container cannot read it.
+- `LPCV-V0-092`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of at
+  most 2,000 examples (the rest counted in `examplesOmitted`) MUST carry `id`, the worktree-relative
+  `<file>:<line>`; `rspecId`, unless longer than 512 bytes or secret-shaped; `description`, the full
+  description, or `descriptionWithheld` (`over-bound` above 1,024 bytes, `secret-shaped`); the closed
+  `status` (`passed`, `failed`, `pending`, otherwise `unknown`); and exactly one of `specBlob`, the
+  Git blob ID of its spec file, or `specBlobUnbound` (`spec-file-outside-snapshot`,
+  `spec-file-over-bound`, `spec-file-changed-during-run`, `spec-snapshot-over-bound`,
+  `spec-snapshot-unavailable`). Blob IDs come from a no-follow snapshot of the regular
+  `spec/**/*.rb` files (at most 4,096 files of at most 8 MiB) taken before and after the run. The
+  document lists, as `helpers`, the blob IDs of `spec/spec_helper.rb`, `spec/rails_helper.rb` and
+  `spec/support/**/*.rb` present before the run with `helperBasis: conventional-paths`, and each
+  example's `helpers` names their sha256 `helperSet` digest; a helper that changed during the run or
+  is over a bound empties the list and sets `helpersUnbound`. The helper set is the conventional
+  files present, not an observation of what RSpec loaded.
+- `LPCV-V0-093`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797)
+  `testvaliditydoc` MUST decode the document closed, refuse a document whose helper set digest,
+  example identity, status or blob shapes break `LPCV-V0-092`, and recompute, per example:
+  association `ASSOCIATED` anchored at its `id`; execution `PASSED`, `FAILED` or `SKIPPED` from
+  `passed`, `failed` or `pending`, `UNSUPPORTED` for `unknown`, and `INFRASTRUCTURE` for every
+  example of a run with `infrastructure`; hygiene `UNSUPPORTED`, reason `ruby-hygiene-not-produced`;
+  strength `NOT_MEASURED`. The run is `FAILED` with any non-passed, non-pending example, `PASSED`
+  otherwise, `INFRASTRUCTURE` with `infrastructure`, and carries no run outcome when there are no examples. The source
+  is `corvint-ruby-test-provider`, kind `rspec`, tier `preview`, `promotable: false`. Discovery's
+  producer guidance lists `corvint-ruby-test-provider rspec --retain --dir <project-directory>`.
+- `LPCV-V0-094`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discovered
+  freshness MUST be `STALE`, reason `retained-digest-mismatch`, when any bound spec or helper blob
+  differs from or is missing in the worktree, which also yields the `stale-evidence` abstention
+  with the start revision. Otherwise it is `UNKNOWN` when a bound file is unreadable
+  (`retained-bound-source-unreadable`), either repository identity is absent
+  (`retained-repository-identity-unavailable`), the identities differ
+  (`repository-changed-during-run`), helpers are unbound (`retained-helper-set-unbound`), an example
+  has no spec blob (`retained-spec-blob-unbound`) or nothing is bound (`retained-identity-unbound`),
+  and `CURRENT` only when every bound blob matches. A bound path naming `.git` is unreadable. The
+  digest comparison used outside discovery (`ProjectBound`) states `UNKNOWN`,
+  `retained-blob-identity-not-compared`, for this document.
+- `LPCV-V0-095`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Before the
+  run and before retention, the provider MUST create `.corvint/.gitignore` containing `*` in the
+  project directory and in the worktree when the file is absent, and MUST never overwrite an
+  existing one, so the reports and retained evidence never make the repository dirty: after a
+  retained run `git status --porcelain` is empty and the next run starts `clean`.
+
+Non-goals:
+- Ruby hygiene (empty or skipped examples) and mutation strength, which later slices own;
+- observing which helpers RSpec actually loaded, application source, `Gemfile.lock` or the Ruby
+  runtime tuple as freshness inputs;
+- parsing the JUnit report beyond its digest;
+- running the prefix's container with different paths from the host, or any container permission
+  repair;
+- Minitest and other Ruby runners; a qualified Ruby tuple or promotion.
+
+Failure modes, each prevented by the cited requirement:
+
+| Failure mode | Prevented by |
+|---|---|
+| A crashed, timed-out or report-less run reads as a pass. | `LPCV-V0-090` `infrastructure`, `LPCV-V0-093` `INFRASTRUCTURE` |
+| An exit 1 with no failed example (a load error) reads as a pass. | `LPCV-V0-090` `runner-exit-unexplained` |
+| Git inside a container cannot resolve a host `.git` file and the identity is lost. | `LPCV-V0-091` host observation |
+| A spec edited during the run binds the old blob. | `LPCV-V0-092` before/after snapshot |
+| An edited helper leaves an old result `CURRENT`. | `LPCV-V0-092` helper set, `LPCV-V0-094` `STALE` |
+| A secret in an example description or command is retained. | `LPCV-V0-090` and `LPCV-V0-092` secret screen |
+| A forged document carries its own projections or a mismatched helper set. | `LPCV-V0-093` closed decode and recomputation |
+| A repository changed during the run is reported `CURRENT`. | `LPCV-V0-094` `repository-changed-during-run` |
+| The provider's own `.corvint/` files make every later run dirty. | `LPCV-V0-095` `.gitignore` |
+| An operator's `.corvint/.gitignore` is replaced. | `LPCV-V0-095` never overwritten |
+
+Acceptance evidence: GitHub #1128/#1130 S4 acceptance 1 to 5 and #1132 are the focused tests in the
+traceability row, each using a fake `rspec` executable that writes canned JSON; Ruby is not
+installed or required. A real RSpec run, a real `docker compose` prefix and a non-root container
+writing `.corvint/rspec` are `NOT_RUN`.
+
+Rollback: remove `cmd/corvint-ruby-test-provider`, `internal/rubytestprovider`, the Ruby branch of
+`testvaliditydoc` and the fourth producer hint. Retained Ruby documents are then refused as an
+unrecognized kind and skipped by discovery, which falls back to the other producers' evidence or
+abstains; the `.corvint/.gitignore` files the provider created stay and may be deleted by hand.

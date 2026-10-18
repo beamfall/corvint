@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/rubytestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -79,6 +80,7 @@ func producerAbstention(reason string) *Abstention {
 			{Command: "corvint-js-test-provider unit --retain --dir <project-directory> --config <vitest-config> --runner-version <vitest-version> --test-file <test-file>", Qualification: "NOT_OBSERVED"},
 			{Command: "corvint-js-test-provider e2e --retain --dir <project-directory> --config <playwright-config> --runner-version <playwright-version> --external-server --app-identity <application-identity> --server-ready-url <http-or-https-url> --test-file <test-file>", Qualification: "NOT_OBSERVED"},
 			{Command: "corvint-go-test-provider session --retain --experimental --trusted-local --foreground --authority-bundle <bundle-file>", Qualification: "NOT_OBSERVED"},
+			{Command: "corvint-ruby-test-provider rspec --retain --dir <project-directory>", Qualification: "NOT_OBSERVED"},
 		},
 	}
 }
@@ -153,6 +155,14 @@ func Discover(root string) (Document, error) {
 		binding := bindFreshness(input, func(path, digest string) string {
 			return compareBound(worktree, root, path, digest)
 		})
+		if input.ruby != nil {
+			binding = rubytestprovider.Freshness(*input.ruby, func(name string) ([]byte, error) {
+				if namesGit(name) {
+					return nil, errors.New("retained bound path names .git")
+				}
+				return ReadFile(worktree, filepath.FromSlash(name))
+			})
+		}
 		binding.Anchors = []string{evidenceAnchorPrefix + discovery.Evidence}
 		discovery.Freshness = &binding
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
@@ -267,6 +277,12 @@ func isObjectID(value string) bool {
 // The application may belong to another repository. Missing or malformed object
 // IDs are unknown; arbitrary receipt strings must not become revision guidance.
 func receiptRevision(input Input) string {
+	if input.ruby != nil {
+		if revision := rubytestprovider.Revision(*input.ruby); revision != "" {
+			return revision
+		}
+		return AbstentionUnknown
+	}
 	if input.js == nil || input.js.TestRepositoryAtStart == nil {
 		return AbstentionUnknown
 	}
@@ -433,6 +449,11 @@ func bindFreshness(input Input, compare func(path, digest string) string) testva
 			return testvalidity.Axis{State: testvalidity.FreshnessStale, Reason: "workspace-execution-identity-mismatch"}
 		}
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-session-identity-unverifiable"}
+	}
+	if input.ruby != nil {
+		// Ruby binds Git blob IDs, not the sha256 digests compare checks;
+		// Discover binds it against the worktree through Freshness instead.
+		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: "retained-blob-identity-not-compared"}
 	}
 	identity := input.js.Identity
 	bound := boundDigests(input)
