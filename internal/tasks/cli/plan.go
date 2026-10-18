@@ -8,6 +8,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"slices"
 	"strings"
+	"time"
 )
 
 // planCommand dispatches `plan preview` and `plan batches`; `plan record`
@@ -101,6 +102,11 @@ func planPreview(env Env, args []string) *wire.Result {
 		}
 		item, err = planValue(rc, digest, plan, authors != "", planOffers(rc, in, plan))
 		entries = len(plan.Entries)
+		// PSR-V0-135: the live pool waitlist as read-only data, only when
+		// non-empty, so a queue without waiters keeps its plan bytes.
+		if v, ok := poolWaitlistValue(in, time.Now()); ok && err == nil && item.Kind == wire.KindObject {
+			item.Obj.Set("poolWaitlist", v)
+		}
 		return err
 	})
 	if err != nil {

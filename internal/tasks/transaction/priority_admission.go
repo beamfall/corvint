@@ -193,6 +193,11 @@ func (c leaseContext) yieldRefusal(rec *ticket.Record) *leaseOutcome {
 	if c.l.Pool == "" {
 		return nil
 	}
+	// PSR-V0-132: the explicit waitlist applies whether or not the pool
+	// opts into priority admission.
+	if refusal := c.waitlistRefusal(rec); refusal != nil {
+		return refusal
+	}
 	if p := c.st.policy.Pool(c.l.Pool); p == nil || !p.PriorityAdmission {
 		return nil
 	}

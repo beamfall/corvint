@@ -3063,6 +3063,17 @@ PSR-V0-113	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	358	(accepted under th
 PSR-V0-114	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	368	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; GitHub #	standing	2026-10-11; V1-1617; #1063
 PSR-V0-115	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	372	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; GitHub #	standing	2026-10-11; V1-1617; #1063
 PSR-V0-116	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	376	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617; review r	standing	2026-10-11; V1-1617
+PSR-V0-130	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	449	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785)	standing	2026-10-11; V1-0785
+PSR-V0-131	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	466	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A pool	standing	2026-10-11; V1-0785
+PSR-V0-132	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	474	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A	standing	2026-10-11; V1-0785
+PSR-V0-133	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	483	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A dead	standing	2026-10-11; V1-0785
+PSR-V0-134	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	490	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A waitin	standing	2026-10-11; V1-0785
+PSR-V0-135	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	493	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785)	standing	2026-10-11; V1-0785
+PSR-V0-136	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	498	(accepted under the owner's standing auto-accept (2026-10-11), V1-0785) A pool m	standing	2026-10-11; V1-0785
+PSR-V0-140	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	535	(accepted under the owner's standing auto-accept (2026-10-11), V1-1596) The	standing	2026-10-11; V1-1596
+PSR-V0-141	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	543	(accepted under the owner's standing auto-accept (2026-10-11), V1-1596) A pendin	standing	2026-10-11; V1-1596
+PSR-V0-142	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	547	(accepted under the owner's standing auto-accept (2026-10-11), V1-1596) A stale	standing	2026-10-11; V1-1596
+PSR-V0-143	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	550	(accepted under the owner's standing auto-accept (2026-10-11), V1-1596) Each tic	standing	2026-10-11; V1-1596
 PT-V0-001	docs/specs/proof-tour-v0.md	60	The fresh tour MUST create a labelled disposable synthetic Git fixture in a new	unrecorded	-
 PT-V0-002	docs/specs/proof-tour-v0.md	66	The tour MUST execute actual installed Corvint query/context/impact/affected and	unrecorded	-
 PT-V0-003	docs/specs/proof-tour-v0.md	70	The producer MUST derive the exact documented canonical diff profile, use	unrecorded	-

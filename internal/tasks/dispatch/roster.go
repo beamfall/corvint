@@ -133,6 +133,10 @@ type Observation struct {
 	// outside the selection window, and returns each planned ticket's plan
 	// state and reason by ticket ID.
 	Replan func(held, budgetHeld map[string]bool) map[string]PlanView
+	// PoolFree is the count of FREE members of each declared pool (no
+	// state entry occupies them), or nil when the observation did not read
+	// pools; a nil map applies no PSR-V0-140 pool-room gate.
+	PoolFree map[string]int
 }
 
 // PlanView is one ticket's plan state and reason.
@@ -235,7 +239,7 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
-	out, _ := roster(c, obs, busy, skip, nil, nil, nil, nil)
+	out, _ := roster(c, obs, busy, skip, nil, nil, nil, nil, nil)
 	return out
 }
 
@@ -243,7 +247,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 // tierOf (nil means every tier is 0). A candidate whose tier is at its tier
 // cap waits; it never falls back to a lower tier.
 func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
-	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil, nil)
+	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil, nil, nil)
 	return out
 }
 
@@ -255,7 +259,7 @@ func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool,
 // earlier holds) would have admitted it, unless a later exempt candidate launched the
 // same key.
 func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
-	return roster(c, obs, busy, skip, nil, budget, nil, nil)
+	return roster(c, obs, busy, skip, nil, budget, nil, nil, nil)
 }
 
 // roster is the shared pure roster behind Roster, RosterTiers and
@@ -266,7 +270,10 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 // prefer names, by ticket, the role a CAL-V0-149 relaunch must use: while
 // that role is enabled, a ticket role and matches the ticket, no other role
 // is a candidate for it.
-func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string, spend *spendGate) (out, held []Assignment) {
+//
+// room, when not nil, is the PSR-V0-140 pool-room gate: a static fence that
+// holds a ticket whose pool has no room and charges each launch.
+func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string, spend *spendGate, room *poolRoom) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -385,6 +392,10 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		if spend != nil && !spend.admits(a) {
 			continue
 		}
+		// PSR-V0-140: no session launches for a pool with no room.
+		if !room.admits(a) {
+			continue
+		}
 		if budget != nil && !budget.Accept(a) {
 			// Report a hold only while the static role, tier and global
 			// caps, charged with earlier launches and holds, would still
@@ -413,6 +424,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		if spend != nil {
 			spend.charge(a)
 		}
+		room.charge(a)
 		out = append(out, a)
 	}
 	if len(held) > 0 {
