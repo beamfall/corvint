@@ -139,7 +139,7 @@ func makeRetainedFixture(t *testing.T) string {
 			componentName = "corvint-mcp"
 		case strings.HasPrefix(name, "corvint-docs"):
 			componentName = "corvint-docs-mcp"
-		case strings.HasPrefix(name, "corvint-test"):
+		case strings.HasPrefix(name, "corvint-test-validity"):
 			componentName = "corvint-test-validity-mcp"
 		case strings.HasPrefix(name, "corvint-js"):
 			componentName = "corvint-js-test-provider"

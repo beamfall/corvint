@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-17
 Intent status: proposed
-Delivery status: not-started
+Delivery status: experimental
 Authoritative inputs: owner direction of 2026-10-17 (this session; recorded in
 `docs/build-log/2026-10-17-change-compiled-e2e-direction.md`): "Draft the spec as augment-first:
 hosted blocks, generated scenarios, a shadow evaluation against the existing suite before any test
@@ -17,8 +17,8 @@ is retired"; `AGENTS.md`; `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `docs/specs/applica
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: proposed; not-started. No requirement is implemented; every row of the traceability table reads `NOT_STARTED`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
-- Exists: nothing of this capability. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
+- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: owner acceptance of this intent; first slice V1-1665 (umbrella V1-1666).
 - Read next: Definitions; Binary boundary; Requirements; Shadow evaluation and retirement; Owner questions.
 
@@ -125,11 +125,11 @@ Every CCE-V0 command is a subcommand of the `e2e` group in one experimental comp
 named for every kind of test, not only E2E; V0 defines only the `e2e` group. Folding the existing
 test companions (`corvint-test-runner`, `corvint-tests-accept`, `corvint-behavior-falsify`,
 `corvint-playwright-minimize`) into it is outside this spec and needs its own spec and migration
-(V1-1667). Two existing names collide with `corvint-test` and must be resolved before the binary
-lands: the companion-release archive classifier maps any `corvint-test*` name to
-`corvint-test-validity-mcp` (`internal/companionrelease/retained_test.go:142@5f75cf4b`), and core
-`corvint test` already prints `corvint-test:` diagnostics
-(`cmd/corvint/session_test_shards_unix_test.go:82@8b1f3cb8`). V0 adds no command, flag, dependency or
+(V1-1667). Two existing names collided with `corvint-test` and were resolved in the first slice
+(V1-1665): the companion-release archive classifier now maps only `corvint-test-validity*` names to
+`corvint-test-validity-mcp` (`internal/companionrelease/retained_test.go:142@9304a70e`), and core `corvint test` keeps its bare
+`corvint-test:` diagnostics (`cmd/corvint/session_test_shards_unix_test.go:82@8b1f3cb8`) while the
+companion prints `corvint-test e2e:`. V0 adds no command, flag, dependency or
 default-path behaviour to core `corvint` (invariant 7), so the capability can be built, shipped,
 killed or rolled back as one unit without touching the core binary. The companion reads the same
 in-module relations core uses (AMAP-V0, ANL-V0, AFU-V1, RVN-V0, PWR-V0) as a library; it does not
@@ -287,18 +287,30 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   `INCOMPLETE`; a missing receipt reads `INCONCLUSIVE`; none of these narrows hosted selection.
 - Secrets: `input` values pass the existing secret screen; a value that matches is refused with
   `e2e-input-secret`, and PWP `/2` redaction applies to run evidence.
+- First-slice codes (V1-1665), each fail-closed:
+  - Refusals: `e2e-root-required`, `e2e-revision-invalid`, `e2e-map-unavailable`,
+    `e2e-impact-unavailable`, `e2e-obligations-over-limit`, `e2e-repeats-over-limit`,
+    `e2e-scenarios-required`, `e2e-scenarios-over-limit`, `e2e-scenario-invalid`,
+    `e2e-toolchain-unavailable` and `e2e-tree-unavailable`.
+  - Control hook refusals: `e2e-hook-definition-invalid`, `e2e-hook-toolchain-unavailable`,
+    `e2e-hook-line-out-of-range` and `e2e-hook-assertion-not-found`.
+  - Unadmitted-block reasons: `edge-unproven`, `method-not-callable`, `outcome-not-compilable` and
+    `screen-unresolved`.
+  - `INCOMPLETE` reasons: `no-admitted-fixture` and `no-flow-step-expects-outcome`.
+  - Control `not_run` reasons: `verdict-decided-before-controls`, `control-workspace-unavailable`,
+    `proof-repository-unavailable`, `plan-refused` and `execute-refused`.
 
 ## Deterministic acceptance and traceability
 
 | Requirement | Planned evidence | Status |
 |---|---|---|
-| CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | NOT_STARTED |
-| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | NOT_STARTED |
-| CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | NOT_STARTED |
-| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | NOT_STARTED |
+| CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses` |
+| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndNonUINone` |
+| CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete` |
+| CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008..009 PASS: `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
 | CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
 | CCE-V0-014 | byte-cap truncation tests per document | NOT_STARTED |
-| CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | NOT_STARTED |
+| CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | PASS: `TestCCEV0015SubcommandsReachable`, `TestCCEV0015CoreBoundary`, `TestCCEV0015NeverExecutesCorvint`; core tree byte-identical to the claim base outside docs, `go list -deps ./cmd/corvint` has no CCE package |
 
 The first slice (V1-1665) covers CCE-V0-001, 002, 004, 005, 006, 007, 008, 009 and 015 for one
 obligation on the committed fixture. CCE-V0-003 there may use a single hand-written declarations
