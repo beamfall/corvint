@@ -1479,11 +1479,12 @@ func (d *Dispatcher) unpark(obs *Observation) {
 	}
 }
 
-// stateUnknown reports a ticket key whose program work state is UNKNOWN.
+// stateUnknown reports a ticket key whose program work state is UNKNOWN,
+// or whose obligation ledger the observation could not fold (TOL-V0-124).
 func stateUnknown(obs *Observation, key string) bool {
 	for _, t := range obs.Tickets {
 		if t.ID == key {
-			return t.State == StateUnknown || t.EscalationUnknown
+			return t.State == StateUnknown || t.EscalationUnknown || t.Obligations != nil && t.Obligations.Unknown
 		}
 	}
 	return false
@@ -1998,6 +1999,9 @@ func (d *Dispatcher) diff(obs *Observation) {
 		d.emit(Event{Kind: "state", Ticket: id, Message: fmt.Sprintf("%s changed: status %s→%s, work state %s→%s, plan %s→%s", d.local(obs, id), o[0], n[0], o[1], n[1], planText(o[2], o[3]), planText(n[2], n[3]))})
 		if n[3] == "RETRY_EXHAUSTED" && o[3] != n[3] {
 			d.emit(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s exhausted its retries; only the owner can re-admit it with `corvint-tasks ticket reopen` (CAL-V0-043)", d.local(obs, id))})
+		}
+		if n[3] == PlanReasonMirrorsDecided && o[3] != n[3] {
+			d.emit(Event{Kind: "needs-owner", Ticket: id, Message: fmt.Sprintf("%s has only obligation items decided on their owner tickets; it is not dispatched and is offered to the owner for completion (TOL-V0-123)", d.local(obs, id))})
 		}
 	}
 	for _, id := range sortedKeys(now.Claims) {

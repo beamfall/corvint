@@ -209,6 +209,11 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 			}
 		}
 		o.Set("ledger", wire.String("KNOWN")).Set("entries", l.EntriesValue()).Set("headSeq", seq).Set("diagnostic", wire.Null())
+		// TOL-V0-121: mirror entries resolved against their owner ledgers,
+		// present only when the ledger declares a mirror.
+		if v, ok := mirrorsValue(newMirrorFolds(rc, rc.store.Inventory, nil), l); ok {
+			o.Set("mirrors", v)
+		}
 		v := wire.ObjectValue(o)
 		item, known = &v, l
 		return nil

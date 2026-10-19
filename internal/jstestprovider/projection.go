@@ -124,7 +124,7 @@ func qualifiedProfileShapeError(r Receipt) error {
 			return errors.New("sensitive-input-policy-requires-profile-2")
 		}
 	}
-	return nil
+	return runRecordProfileError(r)
 }
 
 // hasAttemptDetails reports the unprofiled-only attemptDetails member: an external profile gains a

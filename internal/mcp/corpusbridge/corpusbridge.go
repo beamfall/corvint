@@ -73,6 +73,10 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		if op == "gaps" {
 			properties["id"] = map[string]any{"type": "string", "maxLength": 1024}
 		}
+		if op == "trace" {
+			// DCP-V1-098: downstream flow-relation depth for a flow subject.
+			properties["depth"] = map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxFlowDepth}
+		}
 		result = append(result, bridge.ToolDescriptor{Name: name, Description: "Read source-revalidated experimental documentation corpus evidence; generated authority and explicit limitations remain.", Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: false, DestructiveHint: false}, InputSchema: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
@@ -93,6 +97,7 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		Path       string                      `json:"path"`
 		Limit      *int                        `json:"limit"`
 		Offset     int                         `json:"offset"`
+		Depth      int                         `json:"depth"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}
@@ -102,12 +107,12 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.artifact.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && doccorpus.OperationInput(op) == "query" || key == "path" && doccorpus.OperationInput(op) == "path" || key == "id" && (doccorpus.OperationInput(op) == "id" || op == "gaps")
+		allowed := key == "retirement" || key == "offset" && r.artifact.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && doccorpus.OperationInput(op) == "query" || key == "path" && doccorpus.OperationInput(op) == "path" || key == "id" && (doccorpus.OperationInput(op) == "id" || op == "gaps") || key == "depth" && op == "trace"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
 	}
-	if input.Offset < 0 || input.Offset > doccorpus.MaxCorpusRecords*4 {
+	if input.Offset < 0 || input.Offset > doccorpus.MaxCorpusRecords*4 || input.Depth < 0 || input.Depth > doccorpus.MaxFlowDepth || members["depth"] != nil && input.Depth == 0 {
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	limit := 20
@@ -135,7 +140,7 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 	if doccorpus.Digest(raw) != r.digest {
 		return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil
 	}
-	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset})
+	receipt, err := doccorpus.ReadQuery(ctx, r.root, raw, doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth})
 	if err != nil {
 		return failure(err)
 	}

@@ -1,0 +1,521 @@
+package doccorpus
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/contextindex"
+)
+
+// Symbol-anchor states (DCP-V1-140). Only live and moved assert that the
+// anchored region still exists unchanged; every refusal is unresolved.
+const (
+	SymbolAnchorLive       = "live"
+	SymbolAnchorMoved      = "moved"
+	SymbolAnchorChanged    = "changed"
+	SymbolAnchorGone       = "gone"
+	SymbolAnchorUnresolved = "unresolved"
+)
+
+const (
+	// symbolFileMaxBytes bounds one source read for re-resolution, matching
+	// the flow check's imported-source bound.
+	symbolFileMaxBytes = 4 << 20
+	// symbolReadMaxBytes bounds every source read by one resolver.
+	symbolReadMaxBytes = 64 << 20
+	// symbolCandidateMaxPaths bounds the repository-wide search for a symbol
+	// that left its anchored path.
+	symbolCandidateMaxPaths = 64
+)
+
+// SymbolLocation is where a symbol anchor's region lies in the live tree.
+// Estimated marks a changed region whose range is only the pinned range
+// shifted with its declaration line, not a proven region boundary.
+type SymbolLocation struct {
+	Revision    string `json:"revision"`
+	Path        string `json:"path"`
+	Blob        string `json:"blob"`
+	SHA256      string `json:"sha256"`
+	Start       int    `json:"start_line"`
+	End         int    `json:"end_line"`
+	Declaration int    `json:"declaration_line,omitempty"`
+	SpanSHA256  string `json:"span_sha256"`
+	Estimated   bool   `json:"estimated,omitempty"`
+}
+
+// SymbolAnchorCheck is the live re-resolution of one anchor that names a
+// symbol (`path:START-END#Symbol@REV`). The normalized digests cover the
+// region's comment- and whitespace-insensitive code lines.
+type SymbolAnchorCheck struct {
+	Anchor               string          `json:"anchor"`
+	State                string          `json:"state"`
+	Reason               string          `json:"reason"`
+	Live                 *SymbolLocation `json:"live,omitempty"`
+	NormalizedSHA256     string          `json:"normalized_sha256,omitempty"`
+	LiveNormalizedSHA256 string          `json:"live_normalized_sha256,omitempty"`
+}
+
+// FormatSymbolAnchor renders an anchor in the `path:START-END#Symbol@REV` form.
+func FormatSymbolAnchor(a Anchor) string {
+	return fmt.Sprintf("%s:%d-%d#%s@%s", a.Path, a.Start, a.End, a.Symbol, a.Revision)
+}
+
+// SymbolResolver re-resolves symbol anchors against one live tree: the
+// commit Revision, minus the working-tree paths named dirty, which it never
+// classifies. It reads through the caller's object session.
+type SymbolResolver struct {
+	auth       *gitauth.Repository
+	index      *contextindex.Index
+	repository Repository
+	dirty      map[string]bool
+	files      map[string]*symbolFile
+	byName     map[string][]string
+	read       int
+}
+
+type symbolFile struct {
+	raw     []byte
+	extents []contextindex.SymbolExtent
+	lines   []contextindex.NormalizedLine
+	count   int
+	refusal string
+}
+
+// NewSymbolResolver binds a resolver to the live tree. index must describe
+// repository.Revision; dirty names paths whose working tree differs from it.
+func NewSymbolResolver(auth *gitauth.Repository, index *contextindex.Index, repository Repository, dirty []string) *SymbolResolver {
+	r := &SymbolResolver{auth: auth, index: index, repository: repository, dirty: map[string]bool{}, files: map[string]*symbolFile{}}
+	for _, p := range dirty {
+		r.dirty[p] = true
+	}
+	return r
+}
+
+// Resolve classifies one symbol anchor. It looks for the symbol at the
+// anchored path first and then across the repository's same-language sources,
+// and reports unresolved, never a guess, whenever the evidence for live,
+// moved, changed or gone is incomplete. An error is returned only for a
+// cancelled context or a failed tree lookup.
+func (r *SymbolResolver) Resolve(ctx context.Context, a Anchor) (SymbolAnchorCheck, error) {
+	c := SymbolAnchorCheck{Anchor: FormatSymbolAnchor(a), State: SymbolAnchorUnresolved}
+	family := contextindex.SymbolRegionLanguage(a.Path)
+	switch {
+	case a.Symbol == "":
+		c.Reason = "anchor names no symbol"
+		return c, nil
+	case family == "":
+		c.Reason = "symbol re-resolution covers Ruby and TypeScript/JavaScript only; no region normalizer for this language"
+		return c, nil
+	case a.Repository != r.repository.ID:
+		c.Reason = "anchor names another repository; the live tree cannot re-resolve it"
+		return c, nil
+	}
+	old, err := r.file(ctx, a.Blob, a.Path)
+	if err != nil {
+		return c, err
+	}
+	if old.refusal != "" {
+		c.Reason = "pinned source " + old.refusal
+		return c, nil
+	}
+	declaration := 0
+	for _, e := range old.extents {
+		if e.Name == a.Symbol && e.Start >= a.Start && e.Start <= a.End {
+			if declaration != 0 {
+				c.Reason = "symbol is declared more than once in the pinned span"
+				return c, nil
+			}
+			declaration = e.Start
+		}
+	}
+	if declaration == 0 || a.Start < 1 || a.End < a.Start || a.End > old.count {
+		c.Reason = "symbol does not resolve in the pinned span"
+		return c, nil
+	}
+	region, position := regionLines(old.lines, a.Start, a.End, declaration)
+	if position < 0 {
+		c.Reason = "pinned declaration line has no code"
+		return c, nil
+	}
+	c.NormalizedSHA256 = normalizedDigest(region)
+	if r.dirty[a.Path] {
+		c.Reason = "anchored path has uncommitted working-tree changes; re-resolution reads committed content only"
+		return c, nil
+	}
+	entry, exists, err := r.auth.LookupTreeEntry(ctx, r.repository.Revision, a.Path)
+	if err != nil {
+		return c, err
+	}
+	if exists && entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755") {
+		current, err := r.file(ctx, entry.OID, a.Path)
+		if err != nil {
+			return c, err
+		}
+		if current.refusal != "" {
+			c.Reason = "live source " + current.refusal
+			return c, nil
+		}
+		var equal, different []SymbolLocation
+		var differentHash []string
+		for _, e := range current.extents {
+			if e.Name != a.Symbol {
+				continue
+			}
+			location, hash, same := r.match(a, entry.OID, current, region, position, declaration, e.Start)
+			if same {
+				equal = append(equal, location)
+			} else {
+				different = append(different, location)
+				differentHash = append(differentHash, hash)
+			}
+		}
+		switch {
+		case len(equal) == 1 && equal[0].Start == a.Start && equal[0].End == a.End:
+			c.State, c.Reason = SymbolAnchorLive, "symbol region unchanged at its pinned lines"
+		case len(equal) == 1:
+			c.State, c.Reason = SymbolAnchorMoved, "symbol region unchanged at new lines in the same path"
+		case len(equal) > 1:
+			c.Reason = "symbol region matches more than one declaration in the live path"
+			return c, nil
+		case len(different) == 1:
+			c.State, c.Reason = SymbolAnchorChanged, "symbol found in the same path but its normalized region differs"
+			c.Live, c.LiveNormalizedSHA256 = &different[0], differentHash[0]
+			return c, nil
+		case len(different) > 1:
+			c.Reason = "symbol is declared more than once in the live path and none matches"
+			return c, nil
+		}
+		if len(equal) == 1 {
+			c.Live, c.LiveNormalizedSHA256 = &equal[0], c.NormalizedSHA256
+			return c, nil
+		}
+	} else if exists {
+		c.Reason = "anchored path is no longer a regular file"
+		return c, nil
+	}
+	return r.search(ctx, c, a, family, region, position, declaration)
+}
+
+// search looks for a symbol that left its anchored path among the
+// same-language sources the live index names. Gone requires a complete
+// inventory: an unparsed, truncated, excluded or dirty source of that
+// language could still declare it.
+func (r *SymbolResolver) search(ctx context.Context, c SymbolAnchorCheck, a Anchor, family string, region []contextindex.NormalizedLine, position, declaration int) (SymbolAnchorCheck, error) {
+	if r.byName == nil {
+		r.byName = map[string][]string{}
+		seen := map[string]bool{}
+		for _, s := range r.index.Symbols {
+			key := s.Name + "\x00" + s.Path
+			if !seen[key] {
+				seen[key] = true
+				r.byName[s.Name] = append(r.byName[s.Name], s.Path)
+			}
+		}
+	}
+	var paths []string
+	for _, p := range r.byName[a.Symbol] {
+		if p != a.Path && contextindex.SymbolRegionLanguage(p) == family {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths)
+	if len(paths) > symbolCandidateMaxPaths {
+		c.Reason = fmt.Sprintf("symbol name is declared in more than %d live paths; search withheld", symbolCandidateMaxPaths)
+		return c, nil
+	}
+	var equal []SymbolLocation
+	candidates, incomplete := 0, ""
+	for _, p := range paths {
+		if r.dirty[p] {
+			incomplete = "a same-name candidate has uncommitted working-tree changes"
+			continue
+		}
+		entry, exists, err := r.auth.LookupTreeEntry(ctx, r.repository.Revision, p)
+		if err != nil {
+			return c, err
+		}
+		if !exists || entry.Type != "blob" {
+			continue
+		}
+		current, err := r.file(ctx, entry.OID, p)
+		if err != nil {
+			return c, err
+		}
+		if current.refusal != "" {
+			incomplete = "a same-name candidate " + current.refusal
+			continue
+		}
+		for _, e := range current.extents {
+			if e.Name != a.Symbol {
+				continue
+			}
+			candidates++
+			if location, _, same := r.match(a, entry.OID, current, region, position, declaration, e.Start); same {
+				location.Path = p
+				equal = append(equal, location)
+			}
+		}
+	}
+	switch {
+	case len(equal) == 1:
+		c.State, c.Reason = SymbolAnchorMoved, "symbol region unchanged in another live path"
+		c.Live, c.LiveNormalizedSHA256 = &equal[0], c.NormalizedSHA256
+		return c, nil
+	case len(equal) > 1:
+		c.Reason = "symbol region matches declarations in more than one live path"
+		return c, nil
+	case candidates > 0:
+		c.Reason = "symbol name exists only in other live paths with a different region; identity across paths is unproven"
+		return c, nil
+	case incomplete != "":
+		c.Reason = incomplete
+		return c, nil
+	}
+	if reason := r.inventoryGap(family); reason != "" {
+		c.Reason = "symbol absent from the indexed sources, but " + reason
+		return c, nil
+	}
+	c.State, c.Reason = SymbolAnchorGone, "symbol absent from the anchored path and from every same-language live source"
+	return c, nil
+}
+
+// inventoryGap names why the live index could miss a declaration of the
+// family, or "" when every same-language source was walked to its end.
+func (r *SymbolResolver) inventoryGap(family string) string {
+	for _, u := range r.index.Unparsed {
+		if contextindex.SymbolRegionLanguage(u.Path) == family {
+			return "a same-language source was not parsed: " + u.Path
+		}
+	}
+	for _, n := range r.index.ExtractionNotes {
+		if contextindex.SymbolRegionLanguage(n.Path) == family {
+			return "a same-language source was only partly walked: " + n.Path
+		}
+	}
+	for _, x := range r.index.Exclusions {
+		if contextindex.SymbolRegionLanguage(x.Path) == family {
+			return "a same-language source was excluded from the index: " + x.Path
+		}
+	}
+	for p := range r.dirty {
+		if contextindex.SymbolRegionLanguage(p) == family {
+			return "a same-language source has uncommitted working-tree changes: " + p
+		}
+	}
+	return ""
+}
+
+// match compares the pinned region against the region around one live
+// declaration. The live region is the run of normalized lines at the same
+// offsets from the declaration; its range keeps the pinned range's margins
+// outside the first and last code line. A region that does not fit, or whose
+// lines differ, yields the pinned range shifted with the declaration, marked
+// estimated.
+func (r *SymbolResolver) match(a Anchor, blob string, current *symbolFile, region []contextindex.NormalizedLine, position, declaration, line int) (SymbolLocation, string, bool) {
+	location := SymbolLocation{Revision: r.repository.Revision, Path: a.Path, Blob: blob, SHA256: Digest(current.raw), Declaration: line}
+	at := -1
+	for i, l := range current.lines {
+		if l.Line == line {
+			at = i
+			break
+		}
+	}
+	low, high := at-position, at-position+len(region)
+	same := at >= 0 && low >= 0 && high <= len(current.lines)
+	if same {
+		for i, l := range region {
+			if current.lines[low+i].Text != l.Text {
+				same = false
+				break
+			}
+		}
+	}
+	if same {
+		location.Start = current.lines[low].Line - (region[0].Line - a.Start)
+		location.End = current.lines[high-1].Line + (a.End - region[len(region)-1].Line)
+	} else {
+		location.Start = line - (declaration - a.Start)
+		location.End = line + (a.End - declaration)
+		location.Estimated = true
+	}
+	location.Start = max(location.Start, 1)
+	location.End = min(location.End, current.count)
+	location.SpanSHA256 = spanDigest(current.raw, location.Start, location.End)
+	if same {
+		return location, normalizedDigest(region), true
+	}
+	live, _ := regionLines(current.lines, location.Start, location.End, line)
+	return location, normalizedDigest(live), false
+}
+
+// file reads and parses one blob once per resolver.
+func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFile, error) {
+	key := oid + "\x00" + name
+	if f, ok := r.files[key]; ok {
+		return f, nil
+	}
+	f := &symbolFile{}
+	r.files[key] = f
+	if r.read > symbolReadMaxBytes {
+		f.refusal = "was not read: re-resolution read budget exhausted"
+		return f, nil
+	}
+	data, over, err := r.auth.BlobBytesWithin(ctx, oid, symbolFileMaxBytes)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		f.refusal = "blob is unavailable"
+		return f, nil
+	}
+	if over {
+		f.refusal = "exceeds the 4 MiB re-resolution bound"
+		return f, nil
+	}
+	r.read += len(data)
+	extents, ok := contextindex.SymbolExtents(name, data)
+	lines, normalized := contextindex.NormalizedCodeLines(name, data)
+	if !ok || !normalized {
+		f.refusal = "did not parse completely"
+		return f, nil
+	}
+	f.raw, f.extents, f.lines = data, extents, lines
+	f.count = strings.Count(string(data), "\n")
+	if len(data) > 0 && data[len(data)-1] != '\n' {
+		f.count++
+	}
+	return f, nil
+}
+
+// regionLines returns the normalized lines inside [start, end] and the index
+// of the declaration line among them, -1 when it has no code.
+func regionLines(lines []contextindex.NormalizedLine, start, end, declaration int) ([]contextindex.NormalizedLine, int) {
+	var region []contextindex.NormalizedLine
+	position := -1
+	for _, l := range lines {
+		if l.Line < start || l.Line > end {
+			continue
+		}
+		if l.Line == declaration {
+			position = len(region)
+		}
+		region = append(region, l)
+	}
+	return region, position
+}
+
+// normalizedDigest hashes length-prefixed line texts, so line boundaries are
+// part of the digest and no two different regions share an encoding.
+func normalizedDigest(lines []contextindex.NormalizedLine) string {
+	h := sha256.New()
+	for _, l := range lines {
+		fmt.Fprintf(h, "%d:%s\n", len(l.Text), l.Text)
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// spanDigest is the exact-span digest an anchor's SpanSHA256 records.
+func spanDigest(raw []byte, start, end int) string {
+	lines := strings.SplitAfter(string(raw), "\n")
+	if start < 1 || end > len(lines) || end < start {
+		return ""
+	}
+	return Digest([]byte(strings.Join(lines[start-1:end], "")))
+}
+
+// SymbolAnchorKey identifies one symbol anchor in an overlay.
+func SymbolAnchorKey(a Anchor) string {
+	return FormatSymbolAnchor(a) + ":" + a.Blob + ":" + a.SpanSHA256
+}
+
+// resolveArtifactSymbols re-resolves every symbol anchor the artifact's
+// records cite against the live tree. An anchor whose pinned blob is still the
+// committed, clean content of its path is live without a parse.
+func resolveArtifactSymbols(ctx context.Context, auth *gitauth.Repository, live *contextindex.Index, a *Artifact) (map[string]SymbolAnchorCheck, error) {
+	out := map[string]SymbolAnchorCheck{}
+	resolver := NewSymbolResolver(auth, live, Repository{ID: a.Manifest.Repository.ID, Revision: live.CommitRevision}, live.DirtyPaths)
+	blobs := map[string]string{}
+	visit := func(anchors []Anchor) error {
+		for _, anchor := range anchors {
+			key := SymbolAnchorKey(anchor)
+			if anchor.Symbol == "" {
+				continue
+			}
+			if _, done := out[key]; done {
+				continue
+			}
+			blob, seen := blobs[anchor.Path]
+			if !seen {
+				entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
+				if err != nil {
+					return err
+				}
+				if exists && entry.Type == "blob" {
+					blob = entry.OID
+				}
+				blobs[anchor.Path] = blob
+			}
+			if blob == anchor.Blob && !resolver.dirty[anchor.Path] && anchor.Repository == resolver.repository.ID && contextindex.SymbolRegionLanguage(anchor.Path) != "" {
+				out[key] = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
+					Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}
+				continue
+			}
+			check, err := resolver.Resolve(ctx, anchor)
+			if err != nil {
+				return err
+			}
+			out[key] = check
+		}
+		return nil
+	}
+	var records []any
+	for _, x := range a.Subjects {
+		records = append(records, x)
+	}
+	for _, x := range a.Claims {
+		records = append(records, x)
+	}
+	for _, x := range a.Relations {
+		records = append(records, x)
+	}
+	for _, x := range a.Journeys {
+		records = append(records, x)
+	}
+	for _, x := range a.Observations {
+		records = append(records, x)
+	}
+	for _, x := range a.TestKnowledge {
+		records = append(records, x)
+	}
+	for _, record := range records {
+		if err := visit(recordAnchors(record)); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// attachSymbolAnchors adds the overlay's check for each cited symbol anchor.
+// A nil overlay means the reader has no live tree and adds nothing; a cited
+// anchor the overlay did not evaluate is reported unresolved.
+func attachSymbolAnchors(r *Receipt, symbols map[string]SymbolAnchorCheck) {
+	r.SymbolAnchors = nil
+	if symbols == nil {
+		return
+	}
+	for _, anchor := range r.Citations {
+		if anchor.Symbol == "" {
+			continue
+		}
+		check, ok := symbols[SymbolAnchorKey(anchor)]
+		if !ok {
+			check = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorUnresolved, Reason: "cited symbol anchor was not evaluated against the live tree"}
+		}
+		r.SymbolAnchors = append(r.SymbolAnchors, check)
+	}
+}

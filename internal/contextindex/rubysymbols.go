@@ -59,6 +59,12 @@ type rubyScanner struct {
 	inBlockComment bool
 	literal        *rubyLiteral
 	heredocs       []rubyHeredoc
+	// spans and comment serve only the symbol-region normalizer: when spans
+	// is set, every blanked byte range of the line is appended to it, and
+	// comment is the column of the line's `#` comment, or left unchanged
+	// when the line has none.
+	spans   *[][2]int
+	comment int
 }
 
 // rubyLiteral is one string-like literal in progress. The four bracket pairs
@@ -85,9 +91,13 @@ type rubyHeredoc struct {
 type rubyStrip struct {
 	line    string
 	blanked []byte
+	spans   *[][2]int
 }
 
 func (strip *rubyStrip) blank(from, to int) {
+	if strip.spans != nil {
+		*strip.spans = append(*strip.spans, [2]int{from, to})
+	}
 	if strip.blanked == nil {
 		strip.blanked = []byte(strip.line)
 	}
@@ -129,7 +139,7 @@ func (scanner *rubyScanner) scanLine(line string) string {
 		return ""
 	}
 
-	strip := rubyStrip{line: line}
+	strip := rubyStrip{line: line, spans: scanner.spans}
 	index := 0
 	afterValue := false
 	if scanner.literal != nil {
@@ -146,6 +156,7 @@ func (scanner *rubyScanner) scanLine(line string) string {
 		character := line[index]
 
 		if character == '#' {
+			scanner.comment = index
 			strip.blank(index, len(line))
 			break
 		}

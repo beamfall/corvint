@@ -8,13 +8,13 @@ Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvi
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and
 [issue 53](https://github.com/beamfall/corvint/issues/53), and the owner-authorized adoption slice
-[issue 339](https://github.com/beamfall/corvint/issues/339), [issue 399](https://github.com/beamfall/corvint/issues/399) and [issue 1162](https://github.com/beamfall/corvint/issues/1162),
+[issue 339](https://github.com/beamfall/corvint/issues/339), [issue 399](https://github.com/beamfall/corvint/issues/399), [issue 1162](https://github.com/beamfall/corvint/issues/1162) and [issue 1225](https://github.com/beamfall/corvint/issues/1225),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -850,6 +850,75 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   each readable join stays within the 1 MiB record read bound. Republication parity compares each
   join by ID through a streamed digest, so member size never reports a change and an encoding
   failure is an error, not a change. No database, service or network input is added.
+- `DCP-V1-093`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) A `corvint-corpus-flow-relations/1` provider record carries only a
+  closed `flow_relations` set: a full Git `revision` and 1 to 4096 `records`. The provider needs
+  manifest `/2`, carries no other provider member, and a shard admits the member only under its
+  explicit schema. Record IDs are unique and qualified by the provider ID. Unknown members, enum
+  values and duplicate IDs refuse with `corpus-refused`.
+- `DCP-V1-094`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) Each record has a declaring `flow`, a `kind`, a `review` state of `reviewed` or
+  `unreviewed`, and an optional `source` anchor. The kind fixes exactly one target member:
+  `depends-on` carries `target`, another flow; `produces` and `consumes` carry `name`, an event or
+  job name; `external` carries `system`, an external system name. A missing or extra target member,
+  a `depends-on` on its own flow, or secret-shaped text refuses. A source anchor is pinned to the set
+  revision with the test-knowledge anchor pin rules.
+- `DCP-V1-095`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) The join runs after every provider is imported and keeps a separate
+  `flow_relations` artifact member ordered by ID. A set at another revision is `stale`. A record
+  whose flow, or `depends-on` target, is not a flow or variation subject is `unresolved`. A source
+  anchor on an undeclared path is `unanchored`. A source anchor whose bytes differ from the declared
+  input refuses. A record is `traversable` only when it is `joined` and `reviewed`; an unreviewed
+  record keeps the reason `unreviewed: declared relation awaits review`.
+- `DCP-V1-096`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) `impact` and `affected` with `--corpus` add a `flow_relations` member,
+  `corvint-corpus-flow-trace/1`, whenever the corpus has flow relations. Seeds are the flow and
+  variation subjects whose evidence anchors a changed path, plus the declaring flow of a joined
+  relation whose source anchor is a changed path. The walk goes downstream: `B depends-on A`
+  reaches B from A; `A produces J` with `B consumes J` reaches B from A through J; `A external S`
+  reaches system S as a terminal. Each reached flow or system reports its depth, its node path
+  (including the event or job name) and the relation IDs on that path; the first breadth-first path
+  in sorted edge order wins. The trace is labelled `project-declared-corpus` with a limitation that
+  it ranks below project authority; it never sets `narrowing_allowed` and never narrows required
+  checks.
+- `DCP-V1-097`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) The walk is bounded to a configurable depth in flow hops: 1 to 16, default 3,
+  set by `--corpus-depth=N` on `impact` and `affected` only (it requires `--corpus`). Edges beyond
+  the depth set `depth_truncated` and add an unknown. A relation that would extend the walk from a
+  reached node but is unreviewed or not joined is never traversed; it is listed in `withheld` with
+  its ID, node, kind, review state, status and reason, and adds the impact unknown `unreviewed or
+  unjoined flow relation reported, not traversed`.
+- `DCP-V1-098`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) The reader exposes the same relations. `trace` on a flow or variation subject
+  appends the same flow trace from that flow; the native request member `depth` (1 to 16) applies
+  only to `trace`, and the corpus MCP tool `corvint.docs_trace` accepts it. `get` returns a join by
+  ID in any status, `inventory` pages every join, and `gaps` reports `stale-flow-relation`,
+  `unresolved-flow-relation`, `unanchored-flow-relation` and `unreviewed-flow-relation`.
+- `DCP-V1-099`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-1973)) The join and the walk are deterministic: the artifact re-derives byte for byte
+  under `Open`. Relations are bounded at 4096 per corpus; `reached` and `withheld` each list at most
+  256 entries and the trace stays within 512 KiB, with a limitation naming any withheld page.
+  Republication parity compares each join by ID. No database, service or network input is added.
+
+- `DCP-V1-140`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;
+  V1-1971)) A symbol-named anchor (`path:START-END#Symbol@REV`) is re-resolved in the live tree.
+  The pinned blob must hold exactly one declaration of the symbol inside the span. Its region is
+  compared by a normalized digest: comments, blank lines, indentation and other whitespace outside
+  literals are dropped, and literal and heredoc text is kept byte for byte. The live symbol is
+  looked up in the same path first, then in the other indexed paths of the same repository and
+  language family. The state is `live` (same lines and digest), `moved` (same digest at other
+  lines or another path, with the live range), `changed` (the symbol is found in the same path but
+  the digest differs, with an `estimated` live range) or `gone` (the symbol is absent from a
+  complete inventory). Ruby and TypeScript/JavaScript reuse the index's Ruby scanner, web lexer and
+  symbol extents; no new grammar is added.
+- `DCP-V1-141`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;
+  V1-1971)) Every live reader (`docs corpus` queries, the corpus integrations and the corpus MCP
+  tools) reports each cited symbol anchor under the receipt's `symbol_anchors`, beside the
+  unchanged artifact `freshness`. Each row names the anchor, its state, a reason, both normalized
+  digests and the live location. A reader with no live tree (the indexed companion and `Query`)
+  omits the member. Re-resolution reads Git objects only, at most 64 candidate paths and 4 MiB per
+  file under the existing read budget, and writes nothing.
+- `DCP-V1-142`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;
+  V1-1971)) Missing evidence is `unresolved` with a reason, never a guessed state: another
+  language, another repository, a working-tree change to the anchored or a candidate path, a
+  pinned or live file that does not parse or normalize, several declarations or matches, a
+  same-name symbol elsewhere whose region differs, and an inventory gap (an unparsed, excluded or
+  noted file of the same family) that could hide the symbol. A cited symbol anchor the reader did
+  not evaluate is `unresolved`; when re-resolution fails, every cited symbol anchor is unevaluated
+  and the receipt carries the failure as a limitation instead of refusing the read.
 
 ## Input and authority boundary
 
@@ -1043,6 +1112,31 @@ Acceptance: `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledg
 `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure` and
 `TestDCPV1092TestKnowledgeDeterministicAndBounded`.
 
+### Experimental flow-level relations (issue 1225)
+
+A `corvint-corpus-flow-relations/1` provider record declares relations between flows that no
+source index derives (`DCP-V1-093..099`): `depends-on` another flow, `produces` or `consumes` an
+event or job, and `external` calls to a named system. Each record has an optional source anchor
+and a review state. `impact` and `affected` with `--corpus` walk reviewed joined relations
+downstream from the flows a change touches, to `--corpus-depth=N` hops (default 3), and attribute
+each reached flow to its relation path, for example `A -> job:J -> B`. An unreviewed, stale,
+unresolved or unanchored relation is reported in `withheld` and is never traversed. `trace` and the
+corpus MCP tool `corvint.docs_trace` walk the same relations from one flow. The trace is
+project-declared corpus data ranked below project authority, and it never narrows required checks.
+
+Limits:
+- Event and job names match by exact string; the corpus does not resolve aliases or schemas.
+- `corvint docs corpus trace` has no depth flag and uses the default depth; the native request
+  member and the MCP tool take `depth`.
+- Seeds come only from flow subject evidence anchors and joined relation source anchors.
+- Review state is provider-reported; the corpus does not authenticate reviewers.
+
+Acceptance: `TestDCPV1093FlowRelationSchemaIsClosed`, `TestDCPV1094FlowRelationKindFields`,
+`TestDCPV1095FlowRelationJoinStatus`, `TestDCPV1096FlowRelationImpactAttribution`,
+`TestDCPV1097FlowRelationUnreviewedAndDepth`, `TestDCPV1097CorpusDepthFlag`,
+`TestDCPV1098FlowRelationTraceAndGaps`, `TestDCPV1098TraceToolDepth` and
+`TestDCPV1099FlowRelationDeterministicAndBounded`.
+
 ### Multi-repository behavior declarations (issue 330)
 
 `corvint docs corpus behavior-provider --input REQUEST.json` is a read-only producer for
@@ -1192,6 +1286,11 @@ broken field rule, a secret-shaped free-text value, a malformed or unpinned anch
 breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
 revision). A set revision other than the corpus revision, or an undeclared anchored file, is not a refusal: the record is reported `stale` or `unanchored` and is
 not joined (`DCP-V1-089`).
+A flow-relation record refuses with `corpus-refused` for an unknown member, kind or review state,
+a kind without exactly its own target, name or system, secret-shaped text, an unpinned or forged
+source anchor, a bound breach or use under manifest `/1`. A stale, unresolved or unanchored record
+is not a refusal: it is reported, listed in `withheld` when reached, and never traversed
+(`DCP-V1-095`, `DCP-V1-097`). An invalid `--corpus-depth` or `depth` is an argument error.
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
 call failures retain the specific native error and never return successful empty evidence.
@@ -1278,6 +1377,8 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-084 | `internal/doccorpus/behavior_adapter.go` (unchanged byte-for-byte comparison) | `TestDCPV1084StateMatcherAssertionIsWitnessed` (canonical pair witnessed; non-empty other value mismatches; empty value refused) |
 | DCP-V1-085 | `internal/doccorpus/encoding.go`, `internal/corpusindex/index.go` | `TestDCPV1085StreamedEncodingIsEncode`, `TestDCPV1085ParseAllocationIgnoresEncoderPool`, `TestDCPV1085OpenAllocationIgnoresEncoderPool`, `TestIndexedCorpusCapacityQualification` |
 | DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1091TestKnowledgeOnlyCorpus`, `TestDCPV1092TestKnowledgeDeterministicAndBounded`, `TestDCPV1092ParityLargeTestKnowledge` |
+| DCP-V1-093..099 | `internal/doccorpus/flow_relations.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `integration.go`, `pagination.go`, `internal/corpusrepublish/parity.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/corpus_integration.go` | `TestDCPV1093FlowRelationSchemaIsClosed`, `TestDCPV1094FlowRelationKindFields`, `TestDCPV1095FlowRelationJoinStatus`, `TestDCPV1096FlowRelationImpactAttribution`, `TestDCPV1097FlowRelationUnreviewedAndDepth`, `TestDCPV1097CorpusDepthFlag`, `TestDCPV1098FlowRelationTraceAndGaps`, `TestDCPV1098TraceToolDepth`, `TestDCPV1099FlowRelationDeterministicAndBounded` |
+| DCP-V1-140..142 | `internal/contextindex/symbol_region.go`, `rubysymbols.go`, `internal/doccorpus/symbol_anchor.go`, `query.go`, `pagination.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestSymbolAnchorReresolution` (Ruby and TypeScript: insertion is `moved` with the new range, a one-token edit is `changed`, deletion is `gone`, a reformat is `live` or `moved`), `TestSymbolAnchorUncertainty`, `TestSymbolAnchorReaderReceipt`, `TestNormalizedCodeLines` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

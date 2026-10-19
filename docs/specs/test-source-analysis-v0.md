@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests and V1-1944, and V1-1965 / GitHub #1213, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213 and V1-1972 / GitHub #1224, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -1488,16 +1488,24 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   `toBeTruthy` on a count, a negated zero or `[]`, a negated `toBeEmpty`, or a visibility or text
   assertion on the collection or a member of it. A text assertion of `[]` or an empty string is not
   a precondition, since it passes on an empty collection.
-- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time
-  `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call to an unstubbed
-  host) is NOT_PRODUCED with reason `server-outbound-log-not-produced`: no receipt retains a server
-  log or its outbound calls. It MUST NOT be inferred from a status code alone.
-- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time
-  `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is NOT_PRODUCED with reason
-  `assertion-operands-not-produced`: no receipt records assertion operands.
-- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a
-  matrix row's `file:line` citations at the row's pinned commit is NOT_PRODUCED: no row source with
-  a pinned commit exists in this profile to read.
+- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192; amended 2026-10-19,
+  V1-1931) The run-time `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call
+  to an unstubbed host) is the `unstubbedCall` member of `LPCV-V0-123` to `LPCV-V0-125`, read from a
+  declared per-attempt outbound-call record. A test without that record stays NOT_PRODUCED with
+  reason `server-outbound-log-not-produced`; Corvint reads no server log itself. It MUST NOT be
+  inferred from a status code alone.
+- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  V1-1932) The run-time `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is the
+  `vacuousEquality` member of `LPCV-V0-120` to `LPCV-V0-122`, read from a declared per-attempt
+  assertion-operand record; a finding blocks credit. A test without that record is NOT_PRODUCED
+  with reason `assertion-operand-record-absent`.
+- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  V1-1932) Drift of a matrix row's citations at the row's pinned commit is reported by `corvint
+  tests citations` (`TSA-V0-250` to `TSA-V0-256`) when the row writes each citation as
+  `path:LINE[-END]#Symbol@REV` or the document declares its default revision: a symbol that is no
+  longer in the cited range is `symbol-not-in-range`, a range past the file's end is
+  `range-out-of-bounds`. A row citation without a symbol is checked for bounds only, and one
+  without a pinned revision is read at the documents' revision.
 
 Non-goals:
 - choosing the correct value of an either-or assertion, or reading natural-language contract
@@ -1555,9 +1563,9 @@ persisted.
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
 | TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest`, `TestVacuousEmptyEqualitySeeded` | experimental |
 | TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
-| TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
-| TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
-| TSA-V0-176 | none | NOT_PRODUCED | gap |
+| TSA-V0-174 | `internal/testvaliditydoc/unstubbed_call.go`, `internal/jstestprovider/outbound_calls.go` | `TestLPCVV0124UnstubbedCallClassification` (`LPCV-V0-123..125`) | experimental; no automatic producer |
+| TSA-V0-175 | `internal/testvaliditydoc/vacuous_equality.go`, `internal/jstestprovider/assertion_operands.go` | `TestLPCVV0121VacuousEqualityReading` (`LPCV-V0-120..122`) | experimental; no automatic producer |
+| TSA-V0-176 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms` (`TSA-V0-250..256`) | experimental |
 
 ## Browser write responses in test-validity (V1-1933)
 
@@ -1683,8 +1691,8 @@ this section. Nothing is persisted.
 V1-1934 (GitHub #1195) checks the source citations in review documents against the object store
 at the cited revision, so a review that cites a file before it existed, a range past its end or a
 symbol outside its range is caught without a checkout. It is agent-drafted and accepted under the
-owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) and row
-citation drift (V1-1932) are separate.
+owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) is
+separate; row citation drift (V1-1932, `TSA-V0-176`) is read by this check.
 
 - `TSA-V0-250`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A citation MUST be an
   inline-code span outside fenced code of the form `path[:START[-END]][#Symbol][@REV]` whose path
@@ -1697,10 +1705,11 @@ citation drift (V1-1932) are separate.
   code is ignored; a fence closes only on a line of its own character at least as long as its
   opener.
 - `TSA-V0-252`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) `corvint tests
-  citations --docs PATH[,PATH...] [--rev REV]` MUST read at most 256 named committed documents at
+  citations --docs PATH[,PATH...] [--rev REV]` MUST read the named committed documents at
   `--rev` (default `HEAD`), refusing `tests-invalid-arguments` for a path that is not repository
   relative or for no document, `tests-source-unavailable` for a document that is not a committed
-  regular file, and `tests-bound-exceeded` over 256 documents or 4096 citations.
+  regular file, and `tests-bound-exceeded` over the per-run bounds of `TSA-V0-384` (amended by
+  V1-1972: the former 256-document and 4096-citation caps are replaced).
 - `TSA-V0-253`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) Each citation MUST be
   reported with its document, line, text, resolved revision and one reason: `missing-at-revision`
   when the path is absent at the revision, `range-out-of-bounds` when the range (any given range,
@@ -1713,8 +1722,9 @@ citation drift (V1-1932) are separate.
   history names one: the first commit after the cited revision, up to the read revision, that adds
   the path, else the parent of the last commit at or before the cited revision that deleted it.
 - `TSA-V0-255`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST print
-  one `corvint-source-citations/0` document (schema, revision, checked count, findings and
-  abstentions) and exit 1 while a finding remains, 0 otherwise. A citation whose revision does not
+  one `corvint-source-citations/1` document (schema, revision, checked count, findings and
+  abstentions, and the `TSA-V0-386` additions; amended by V1-1972 from `/0`) and exit 1 while a
+  finding remains, 0 otherwise. A citation whose revision does not
   resolve, or whose file is over 1 MiB, MUST abstain (`revision-unresolved`, `file-too-large`)
   instead of being reported.
 - `TSA-V0-256`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read
@@ -1744,6 +1754,93 @@ subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is 
 | TSA-V0-254 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
 | TSA-V0-255 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
 | TSA-V0-256 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |
+
+## Configurable citation syntax and large corpora (V1-1972)
+
+V1-1972 (GitHub #1224) lets `corvint tests citations` read citations written in another syntax and
+check a whole documentation corpus in one run: an adopter with about 2,000 Markdown files and
+13,000 HTML `<sub>` anchors otherwise keeps a bespoke bounds checker nothing gates. It is
+agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). The V1-1934
+findings, revision rules and object-store-only reads (`TSA-V0-250..256`) are unchanged.
+
+- `TSA-V0-380`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--syntax NAME` MUST
+  select a named citation profile: `inline-code` (the default, `TSA-V0-250`) or `html-sub`, which
+  reads an HTML `<sub>` element (any case, attributes allowed, one line) whose text is an optional
+  `source:`, `path:`, `file:` or `see:` label, a repository path (optionally in backticks or
+  `<code>`), an optional comma or colon, `line N` or `lines N-M` (`-`, en dash, em dash or `to`),
+  an optional `#Symbol` and an optional `@REV`. Every profile skips fenced code and honours the
+  `TSA-V0-251` default revision.
+- `TSA-V0-381`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--pattern RE` MUST
+  read citations through a Go (RE2, linear-time) regular expression of at most 4096 bytes whose
+  named groups are `path` (required), `repo`, `start`, `end`, `symbol` and `rev`; `--marker RE`
+  MAY name the candidates the pattern must read whole (its `body` group, else the whole match).
+  An unknown group, a missing `path` group, a pattern that does not compile, `--marker` without
+  `--pattern`, `--pattern` with a profile or an unknown profile MUST refuse
+  `tests-invalid-arguments`. A citation whose `repo` group is non-empty and differs from
+  `--repository NAME` MUST abstain `repository-not-checked`.
+- `TSA-V0-382`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) A citation candidate
+  the syntax cannot read MUST be reported as `unparseable` with its document, line and text, never
+  skipped: for `inline-code`, a span opening with a `/`-holding path and `:DIGIT` or `@`; for
+  `html-sub`, a `<sub>` naming `line` or `lines`; for a pattern, every marker candidate (or, without
+  a marker, every match) whose path is not repository relative, whose revision is not a revision
+  token, whose symbol is not an identifier, whose line numbers are not decimal up to 2^30, or which
+  has an end without a start.
+- `TSA-V0-383`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Documents MUST be
+  selected by `--docs`, by `--manifest PATH` (a committed file of at most 16 MiB read at `--rev`,
+  one repository-relative path per line, blank and `#` lines ignored) and by `--glob PATTERN`
+  (`*`, `?` and `[...]` within a segment, `**` for zero or more segments, over the committed
+  regular files at `--rev`), each document once, in that order. At most 64 manifests and globs are
+  accepted; a malformed glob or manifest line refuses `tests-invalid-arguments`, and a selection
+  that names or matches no document refuses `tests-invalid-arguments`.
+- `TSA-V0-384`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) One run MUST read at
+  most 65,536 documents (each at most 1 MiB) and 262,144 citation candidates, refusing
+  `tests-bound-exceeded` beyond them. Memory MUST stay bounded independently of corpus size:
+  documents are read in chunks of at most 256 documents or 16 MiB, cited files through a cache of
+  at most 64 MiB, revision and path memos of at most 65,536 entries, and nearest-revision history
+  lookups for at most 256 distinct missing paths (later missing paths carry no suggestion). These
+  bounds protect hostile input and replace the former 256-document and 4096-citation caps.
+- `TSA-V0-385`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The report MUST carry
+  one total per selected document, in selection order: its citations checked, findings,
+  abstentions and unparseable candidates.
+- `TSA-V0-386`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The command MUST print
+  one `corvint-source-citations/1` document, which adds `syntax`, `documents`, `unparseable` and
+  `totals` to the `TSA-V0-255` fields, and MUST exit 1 while a finding or an unparseable citation
+  remains.
+- `TSA-V0-387`: (standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Revisions MUST be
+  resolved in batches through `cat-file --batch-check` on standard input and cited paths listed
+  through literal-pathspec `ls-tree` batches, so a run's Git process count grows with its chunks
+  and distinct revisions, not with its citations; the `TSA-V0-256` object-store-only boundary
+  holds.
+
+Non-goals: a working-tree or standard-input manifest, citations spanning lines, profiles beyond
+`inline-code` and `html-sub`, cross-repository resolution and language-aware symbols.
+
+Acceptance evidence: synthetic fixtures only. The acceptance criterion is
+`TestCitationsLargeCorpus` (a generated corpus of 2,000 Markdown documents with 13,000 `html-sub`
+citations selected by one glob and checked in one invocation; every finding names its document,
+line and citation; the unparseable marker is reported; per-document totals add up).
+`TestCitationsCustomPattern`, `TestCitationsManifestGlobAndForms`, `TestCitationGlobMatch` and the
+V1-1972 cases of `TestTestsCitationsCLI` cover patterns, markers, repository abstention, refusals,
+manifests, globs and the CLI. The V1-1934 tests still pass unchanged apart from the schema
+version. Memory bounds are structural (the constants above); no heap profile on a real corpus was
+taken (NOT_RUN), and no live qualification on the adopter's corpus was run (NOT_RUN). Rollback
+reverts `internal/testsource/citations.go` and `internal/testsource/citations_syntax.go` to the
+V1-1934 form, removes the new tests, the new flags in `cmd/corvint/tests.go` and this section, and
+restores `/0`, the 256-document and the 4096-citation wording in `TSA-V0-252` and `TSA-V0-255`.
+Nothing is persisted.
+
+### Traceability (V1-1972)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-380 | `internal/testsource/citations_syntax.go`, `cmd/corvint/tests.go` | `TestCitationsLargeCorpus`, `TestCitationsManifestGlobAndForms`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-381 | `internal/testsource/citations_syntax.go`, `internal/testsource/citations.go` | `TestCitationsCustomPattern`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-382 | `internal/testsource/citations_syntax.go` | `TestCitationsLargeCorpus`, `TestCitationsCustomPattern`, `TestCitationsManifestGlobAndForms` | experimental |
+| TSA-V0-383 | `internal/testsource/citations.go`, `internal/testsource/citations_syntax.go` | `TestCitationsManifestGlobAndForms`, `TestCitationGlobMatch`, `TestCitationsCustomPattern` | experimental |
+| TSA-V0-384 | `internal/testsource/citations.go` | `TestCitationsLargeCorpus` | experimental |
+| TSA-V0-385 | `internal/testsource/citations.go` | `TestCitationsLargeCorpus`, `TestCitationsManifestGlobAndForms` | experimental |
+| TSA-V0-386 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestTestsCitationsCLI` | experimental |
+| TSA-V0-387 | `internal/testsource/citations.go` | `TestCitationsLargeCorpus`, `TestCitationsReadOnlyObjectStore` | experimental |
 
 ## Cross-file abstentions, fixture seeding and JSON annotation (V1-1944)
 

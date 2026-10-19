@@ -1617,6 +1617,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 		if v, ok := obligationsSummary(st.Inventory); ok {
 			o.Set("obligations", v)
 		}
+		// TOL-V0-122: mirror findings of the OPEN and HELD ledger tickets,
+		// present only when some ticket has one.
+		if fs := newMirrorFolds(rc, st.Inventory, nil).findings(st.Inventory.IDs()); len(fs) > 0 {
+			o.Set("obligationMirrors", wire.Array(fs...))
+		}
 		// The per-ticket retry map dominates the bytes on a large queue, so
 		// it is opt-in (CAL-V0-169); the attempt audit above still runs.
 		if withRetries {

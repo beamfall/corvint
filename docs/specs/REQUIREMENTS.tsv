@@ -280,6 +280,7 @@ AFU-V1-069	docs/specs/application-flow-understanding-v1.md	Fail closed: a declar
 AFU-V1-070	docs/specs/application-flow-understanding-v1.md	Coverage: a coverage record's tier paths MAY be qualified, and a record names	unrecorded	-
 AFU-V1-071	docs/specs/application-flow-understanding-v1.md	Reviewed links: a `source` link target MAY name a qualified path. A declared lin	unrecorded	-
 AFU-V1-072	docs/specs/application-flow-understanding-v1.md	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
+AFU-V1-090	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -1622,6 +1623,12 @@ TOL-V0-106	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-107	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
 TOL-V0-108	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The read	standing	2026-10-11; V1-1949
 TOL-V0-109	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The	standing	2026-10-11; V1-1949
+TOL-V0-120	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
+TOL-V0-121	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
+TOL-V0-122	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
+TOL-V0-123	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
+TOL-V0-124	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966; GitHub	standing	2026-10-11; V1-1966
+TOL-V0-125	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966; GitHub	standing	2026-10-11; V1-1966
 ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	The ticket MUST carry at most one optional closed operatorNote reference, omitte	unrecorded	-
 ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma	unrecorded	-
 ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req	unrecorded	-
@@ -2089,6 +2096,16 @@ DCP-V1-089	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-090	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-091	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-092	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-093	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-094	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-095	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-096	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-097	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-098	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-099	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-140	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
+DCP-V1-141	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
+DCP-V1-142	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
@@ -2434,6 +2451,7 @@ GOC-V0-007	docs/specs/go-only-cutover-v0.md	Rollback MUST use a retained prior G
 GOC-V0-008	docs/specs/go-only-cutover-v0.md	Maintained Corvint adapters and developer tools MUST have no Python interpreter	unrecorded	-
 GOC-V0-009	docs/specs/go-only-cutover-v0.md	The cutover's final coordinator MAY complete with `prechange-impact` visibly	unrecorded	-
 GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first remove the private receipt	unrecorded	-
+GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
@@ -2804,6 +2822,12 @@ LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737
 LPCV-V0-083	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An	standing	2026-10-11; V1-1737
+LPCV-V0-120	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A	standing	2026-10-11; V1-1932
+LPCV-V0-121	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) When any	standing	2026-10-11; V1-1932
+LPCV-V0-122	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A	standing	2026-10-11; V1-1932
+LPCV-V0-123	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A	standing	2026-10-11; V1-1931
+LPCV-V0-124	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) When any	standing	2026-10-11; V1-1931
+LPCV-V0-125	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A status	standing	2026-10-11; V1-1931
 LPCV-V0-090	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
 LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) With	standing	2026-10-11; V1-1797
 LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
@@ -4318,9 +4342,9 @@ TSA-V0-170	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-171	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any match	standing	2026-10-11; V1-1931; #1192
 TSA-V0-172	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
 TSA-V0-173	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the s	standing	2026-10-11; V1-1932; #1193
-TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time	standing	2026-10-11; V1-1931; #1192
-TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time	standing	2026-10-11; V1-1932; #1193
-TSA-V0-176	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a	standing	2026-10-11; V1-1932; #1193
+TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192; amended 2026-10-19,	standing	2026-10-11; V1-1931; #1192; 2026-10-19
+TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
+TSA-V0-176	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
 TSA-V0-230	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A JS/TS example step	standing	2026-10-11; V1-1933; #1194
 TSA-V0-231	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait MUST count as	standing	2026-10-11; V1-1933; #1194
 TSA-V0-232	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite	standing	2026-10-11; V1-1933; #1194
@@ -4340,6 +4364,14 @@ TSA-V0-253	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-254	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A	standing	2026-10-11; V1-1934; #1195
 TSA-V0-255	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST prin	standing	2026-10-11; V1-1934; #1195
 TSA-V0-256	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read	standing	2026-10-11; V1-1934; #1195
+TSA-V0-380	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--syntax NAME` MUST	standing	2026-10-11; V1-1972; #1224
+TSA-V0-381	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--pattern RE` MUST	standing	2026-10-11; V1-1972; #1224
+TSA-V0-382	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) A citation candidate	standing	2026-10-11; V1-1972; #1224
+TSA-V0-383	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Documents MUST be	standing	2026-10-11; V1-1972; #1224
+TSA-V0-384	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) One run MUST read at	standing	2026-10-11; V1-1972; #1224
+TSA-V0-385	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The report MUST carry	standing	2026-10-11; V1-1972; #1224
+TSA-V0-386	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The command MUST prin	standing	2026-10-11; V1-1972; #1224
+TSA-V0-387	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Revisions MUST be	standing	2026-10-11; V1-1972; #1224
 TSA-V0-300	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld	standing	2026-10-11; V1-1944
 TSA-V0-301	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,	standing	2026-10-11; V1-1944
 TSA-V0-302	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A file with tests, no stub of its ow	standing	2026-10-11; V1-1944

@@ -136,3 +136,25 @@ func TestCALV0155_BudgetHeldTicketsLeaveWindow(t *testing.T) {
 		}
 	}
 }
+
+// TOL-V0-123: a ticket whose pending obligation items are all decided
+// mirrors is deferred with its own reason and leaves the window; a
+// work-state hold names the ticket first, and a plan without the set is
+// unchanged.
+func TestTOLV0123_MirrorsDecidedLeaveWindow(t *testing.T) {
+	in := resourcePlanInput(t, 14, 0, 4, 0, 0)
+	before := planStates(PriorityFirst(in))
+	in.WorkStateHeld = map[string]bool{fixture.TicketID("MX-00"): true}
+	in.MirrorsDecided = map[string]bool{fixture.TicketID("MX-00"): true, fixture.TicketID("MX-01"): true}
+	got := planStates(PriorityFirst(in))
+	for id, want := range map[string][2]string{
+		"MX-00": {PlanDeferred, PlanReasonWorkStateHeld},
+		"MX-01": {PlanDeferred, PlanReasonMirrorsDecided},
+		"MX-02": {PlanSelected, before["MX-00"][1]},
+		"MX-03": {PlanSelected, before["MX-00"][1]},
+	} {
+		if got[id] != want {
+			t.Errorf("%s = %v, want %v", id, got[id], want)
+		}
+	}
+}

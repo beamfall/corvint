@@ -1,8 +1,9 @@
 package doccorpus
 
 // Impact connects exact path/symbol anchors to subjects and explicit directed
-// relations. It does not infer a dependency from shared citations.
-func Impact(a *Artifact, paths []string, freshness string) map[string]any {
+// relations. It does not infer a dependency from shared citations. Declared flow
+// relations are walked separately to depth flow hops (0 selects the default).
+func Impact(a *Artifact, paths []string, freshness string, depth int) map[string]any {
 	subjects := []Subject{}
 	relations := []Relation{}
 	journeys := []Journey{}
@@ -73,6 +74,19 @@ func Impact(a *Artifact, paths []string, freshness string) map[string]any {
 	if len(a.BehaviorContracts) > 0 {
 		unknowns = append(unknowns, "behavior contract joins retain full-relevant-suite fallback; inspect corpus gaps")
 	}
+	var flows *FlowTrace
+	if len(a.FlowRelations) > 0 {
+		// DCP-V1-096/097: reached flows are attributed to their relation path; an
+		// unreviewed relation is reported and keeps the result open, never traversed.
+		t := TraceFlows(a, FlowSeeds(a, paths), depth)
+		flows = &t
+		if len(t.Withheld) > 0 {
+			unknowns = append(unknowns, "unreviewed or unjoined flow relation reported, not traversed")
+		}
+		if t.Truncated {
+			unknowns = append(unknowns, "flow relation traversal reached its depth bound")
+		}
+	}
 	omitted := map[string]int{}
 	if a.Schema == SchemaV2 {
 		omitted["subjects"] = max(0, len(subjects)-MaxResults)
@@ -91,6 +105,9 @@ func Impact(a *Artifact, paths []string, freshness string) map[string]any {
 		}
 	}
 	result := map[string]any{"schema": "corvint-corpus-impact/1", "artifact_sha256": a.SHA256, "repository": a.Manifest.Repository, "freshness": freshness, "subjects": subjects, "relations": relations, "journeys": journeys, "observations": observations, "unknowns": unknowns, "selection": map[string]any{"narrowing_allowed": false, "fallback": "full-repository-checks", "reason": "documentation evidence does not establish exhaustive test or journey coverage"}}
+	if flows != nil {
+		result["flow_relations"] = flows
+	}
 	if a.Schema == SchemaV2 {
 		if len(unknowns) > MaxResults {
 			result["unknowns_omitted"] = len(unknowns) - MaxResults

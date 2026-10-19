@@ -65,7 +65,7 @@ func TestCorpusBoundedImpact(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			a.Subjects = append(a.Subjects, Subject{ID: fmt.Sprint(i), Name: strings.Repeat("x", 8192), Evidence: Evidence{Anchors: []Anchor{{Path: "source.go"}}}})
 		}
-		r := Impact(a, []string{"source.go"}, "fresh")
+		r := Impact(a, []string{"source.go"}, "fresh", 0)
 		raw, err := Encode(r)
 		if err != nil || len(raw) > 1<<20 {
 			t.Fatal("oversized impact projection", err)

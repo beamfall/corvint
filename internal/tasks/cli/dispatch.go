@@ -903,12 +903,15 @@ type dispatchQueue struct {
 	// reviews carries the review binding fold across this dispatcher's
 	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
 	reviews *store.ReviewFold
+	// ledgers carries obligation ledger folds across ticks (TOL-V0-123);
+	// nil folds every OPEN or HELD ledger on every observation.
+	ledgers *ledgerFoldCache
 }
 
 // newDispatchQueue is the queue of a dispatcher running config c, with its
 // ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
 func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
-	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}}
+	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{}}
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
@@ -921,7 +924,13 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		if q.pools != nil {
 			in.ClaimablePools = q.pools() // pool tickets no role can claim never use the window (CAL-V0-097)
 		}
+		ledgers := observeLedgers(rc, &in, q.ledgers)
 		obs.Tickets = dispatchTickets(in)
+		for i := range obs.Tickets {
+			if v, ok := ledgers[obs.Tickets[i].ID]; ok && obs.Tickets[i].Obligations != nil {
+				obs.Tickets[i].Obligations.Unblocks, obs.Tickets[i].Obligations.Unknown = v.unblocks, v.unknown
+			}
+		}
 		obs.ProgressSignal = in.Policy.ProgressSignal // ATR-V0-084
 		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
 		// the tickets its work state holds; no store read or write happens.

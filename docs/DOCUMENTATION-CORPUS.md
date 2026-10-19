@@ -77,6 +77,16 @@ Impact follows exact source anchors and one explicitly recorded relation; incomp
 requires the repository's full mandatory checks. The corpus never executes tests. Test-validity joins
 only exact explicitly supplied `--receipt` bytes; discovery remains unlinked.
 
+A `corvint-corpus-flow-relations/1` provider declares flow-level relations: `depends-on` another
+flow, `produces` or `consumes` a named event or job, and `external` calls to a named system, each
+with an optional source anchor and a `reviewed` or `unreviewed` state. With such a provider,
+`impact` and `affected` add a `flow_relations` trace that walks reviewed joined relations
+downstream from the changed flows, to `--corpus-depth=N` hops (1 to 16, default 3). Each reached
+flow keeps its path, such as `A -> job:J -> B`, and its relation IDs. Unreviewed or unjoined
+relations are listed in `withheld` and are never traversed. `trace` on a flow, including the
+corpus MCP tool `corvint.docs_trace` with its `depth` argument, walks the same relations. The trace
+is project-declared corpus data below project authority and never narrows required checks.
+
 `docs corpus cem --artifact FILE --cem MAP [--id CLAIM]` emits original evidence citation arguments
 and a sidecar binding the corpus and CEM digests. Only exact CEM-base Git spans qualify. Keep the
 sidecar with the CEM for generated-documentation provenance; the frozen CEM wire cannot carry that

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -215,8 +216,16 @@ func TestDoctorLockHelperProcess(t *testing.T) {
 			os.Exit(3)
 		}
 	}
+	// f is unused after Flock, so without the KeepAlive below a GC could
+	// finalize it, closing the descriptor and releasing the lock while the
+	// helper still runs (V1-1780). Forcing collection and letting finalizers
+	// run before "ready" makes that regression fail every run.
+	runtime.GC()
+	runtime.GC()
+	time.Sleep(100 * time.Millisecond)
 	os.Stdout.WriteString("ready\n")
 	_, _ = io.Copy(io.Discard, os.Stdin)
+	runtime.KeepAlive(f)
 	os.Exit(0)
 }
 

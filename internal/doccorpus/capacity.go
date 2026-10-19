@@ -29,11 +29,11 @@ func encodingLimit(value any) int {
 			return MaxCorpusBytes
 		}
 	case ProviderRecord:
-		if v.Schema == AdoptionProviderSchema || v.Schema == TestKnowledgeSchema {
+		if v.Schema == AdoptionProviderSchema || v.Schema == TestKnowledgeSchema || v.Schema == FlowRelationSchema {
 			return MaxProviderBytes
 		}
 	case *ProviderRecord:
-		if v != nil && (v.Schema == AdoptionProviderSchema || v.Schema == TestKnowledgeSchema) {
+		if v != nil && (v.Schema == AdoptionProviderSchema || v.Schema == TestKnowledgeSchema || v.Schema == FlowRelationSchema) {
 			return MaxProviderBytes
 		}
 	}
