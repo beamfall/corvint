@@ -91,7 +91,7 @@ var ReadVerbs = []string{
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
-	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations boundary", "ticket obligations worklist", "ticket obligations qualify-version",
+	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations boundary", "ticket obligations worklist", "ticket obligations capability", "ticket obligations qualify-version",
 	"preflight",
 	"worktree ensure",
 	"defects add", "defects update", "defects list",

@@ -11,6 +11,10 @@ import (
 const (
 	// MaxObligationCites bounds an entry's cited source locations.
 	MaxObligationCites = 16
+	// MaxObligationScopeEvidenceBytes bounds a scope decision's evidence
+	// reference: 1..512 bytes (TOL-V0-080), wider than the 256-byte witness
+	// evidence reference.
+	MaxObligationScopeEvidenceBytes = 512
 
 	ObligationScopePropose  = "PROPOSE"
 	ObligationScopeAccept   = "ACCEPT"
@@ -26,6 +30,9 @@ const (
 	// ObligationScopeDecisionRequiredDetail prefixes the refusal of a plain
 	// core change under the requireScopeDecision policy (TOL-V0-082).
 	ObligationScopeDecisionRequiredDetail = "OBLIGATION_SCOPE_DECISION_REQUIRED:"
+	// ObligationCiteRepositoryDetail prefixes the TOL-V0-102 refusal of a
+	// cite whose repository label the policy does not declare.
+	ObligationCiteRepositoryDetail = "OBLIGATION_CITE_REPOSITORY_UNDECLARED:"
 
 	// VerdictFindingNoFalsifiableText marks a verdict whose reviewer found
 	// the obligation itself states nothing a test can falsify (TOL-V0-085).
@@ -103,7 +110,7 @@ func readObligationScopeChange(r *wire.Reader) *ObligationScopeChange {
 		r.Closed("action", "core")
 	} else {
 		r.Closed("action", "core", "evidence")
-		s.Evidence = readNonblank(r.Field("evidence"), MaxObligationEvidenceRefBytes)
+		s.Evidence = readNonblank(r.Field("evidence"), MaxObligationScopeEvidenceBytes)
 	}
 	s.Core = r.Field("core").Bool()
 	if r.Err() != nil {
@@ -154,7 +161,7 @@ func readObligationScope(r *wire.Reader) *ObligationScope {
 	r.Closed(keys...)
 	s.Core = r.Field("core").Bool()
 	s.Reason = readNonblank(r.Field("reason"), MaxObligationReasonBytes)
-	s.Evidence = readNonblank(r.Field("evidence"), MaxObligationEvidenceRefBytes)
+	s.Evidence = readNonblank(r.Field("evidence"), MaxObligationScopeEvidenceBytes)
 	s.ProposedByID, s.ProposedByRole = readObligationActor(r.Field("proposedBy"))
 	s.ProposedAt = r.Field("proposedAt").Timestamp()
 	if s.Status == ObligationScopeAccepted {

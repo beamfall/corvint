@@ -105,6 +105,7 @@ func obligationsBoundary(env Env, cmd []string, args []string) *wire.Result {
 	repoItems := make([]wire.Value, 0, len(keys))
 	for _, k := range keys {
 		b := obligation.NewBoundaryInventory(repos[k], cited[k])
+		b.Patterns = obligationPolicy(rc).ObligationTestFilePatterns()
 		inv[k] = b
 		root, err := obligationRepoRoot(env, rc, repos[k])
 		if err == nil {
@@ -121,6 +122,13 @@ func obligationsBoundary(env Env, cmd []string, args []string) *wire.Result {
 		}
 		repoItems = append(repoItems, b.Value())
 	}
+	var reviewed []*ticket.ObligationReviewRecord
+	for _, e := range ledger.Entries {
+		if obligation.BoundaryPending(e) && e.Review != nil {
+			reviewed = append(reviewed, e.Review)
+		}
+	}
+	subjects := reviewedSubjectValues(env, rc, reviewed)
 	var entries, none, rescope []wire.Value
 	for _, e := range ledger.Entries {
 		if !obligation.BoundaryPending(e) {
@@ -139,6 +147,9 @@ func obligationsBoundary(env Env, cmd []string, args []string) *wire.Result {
 			Set("verdict", wire.String(verdict)).Set("reason", wire.String(reason)).Set("cites", wire.Array(cites...))
 		if e.Scope != nil {
 			o.Set("scope", e.Scope.Value())
+		}
+		if e.Review != nil {
+			o.Set("reviewedSubject", subjects[e.Review])
 		}
 		entries = append(entries, wire.ObjectValue(o))
 		if verdict == obligation.BoundaryNoTestBoundary {
@@ -267,6 +278,11 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 			inputs[i].Stale = !ok || wire.Digest(hex.EncodeToString(sum[:])) != s.BlobSha256
 		}
 	}
+	reviewed := make([]*ticket.ObligationReviewRecord, 0, len(inputs))
+	for _, in := range inputs {
+		reviewed = append(reviewed, in.Entry.Review)
+	}
+	subjects := reviewedSubjectValues(env, rc, reviewed)
 	now := obligationWorklistNow().UTC()
 	var items []obligation.WorklistInput
 	var excluded, needsText []wire.Value
@@ -276,7 +292,8 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 		case obligation.WorklistItem:
 			items = append(items, in)
 		case obligation.WorklistExcluded:
-			excluded = append(excluded, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(in.TicketID)).Set("id", wire.String(in.Entry.ID)).Set("reason", wire.String(reason))))
+			excluded = append(excluded, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(in.TicketID)).Set("id", wire.String(in.Entry.ID)).Set("reason", wire.String(reason)).
+				Set("reviewedSubject", subjects[in.Entry.Review])))
 		case obligation.WorklistNeedsText:
 			needsText = append(needsText, obligation.WorklistNeedsTextValue(in))
 		}
@@ -287,7 +304,9 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 	}
 	vs := make([]wire.Value, 0, len(items))
 	for _, in := range items {
-		vs = append(vs, obligation.WorklistItemValue(in, now))
+		v := obligation.WorklistItemValue(in, now)
+		v.Obj.Set("reviewedSubject", subjects[in.Entry.Review])
+		vs = append(vs, v)
 	}
 	rankVals := make([]wire.Value, 0, len(keys))
 	for _, key := range keys {

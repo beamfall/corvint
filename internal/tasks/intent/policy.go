@@ -1,6 +1,7 @@
 package intent
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -170,6 +171,16 @@ type ObligationsPolicy struct {
 	// checkout path, absolute or relative to the primary worktree; nil when
 	// the member is absent.
 	TestRepositories map[string]string
+	// RequireDeclaredCites (TOL-V0-102) makes a cite whose repository label
+	// the policy does not declare refuse at write; absent keeps TOL-V0-079.
+	RequireDeclaredCites bool
+	// TestFilePatterns (TOL-V0-103) extends the boundary's closed naming
+	// classifier with declared kind/pattern pairs; nil when absent.
+	TestFilePatterns []ObligationTestFilePattern
+	// EnvironmentBaselines (TOL-V0-107) maps a repository ("." for the
+	// store's own, else a declared test repository label) to the ref or
+	// object id the test environment runs; nil when absent.
+	EnvironmentBaselines map[string]string
 }
 
 // Bounds of the TOL-V0-064 testRepositories member.
@@ -596,7 +607,8 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "obligations") {
 		o := r.Field("obligations")
-		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview", "requireScopeDecision", "testRepositories")...)
+		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview", "requireScopeDecision", "testRepositories",
+			"requireDeclaredCites", "testFilePatterns", "environmentBaselines")...)
 		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
 		if o.Err() == nil && wire.Has(o.Value(), "requireSourceReview") {
 			p.Obligations.RequireSourceReview = o.Field("requireSourceReview").Bool()
@@ -607,6 +619,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		if o.Err() == nil && wire.Has(o.Value(), "testRepositories") {
 			p.Obligations.TestRepositories = readTestRepositories(o.Field("testRepositories"))
 		}
+		readObligationsExtensions(o, p.Obligations)
 		if err := r.Err(); err != nil {
 			return nil, err
 		}
@@ -728,4 +741,134 @@ func readExternalReviews(r *wire.Reader, executable map[string]bool) []ExternalR
 		out = append(out, d)
 	}
 	return out
+}
+
+// ObligationTestFilePattern is one TOL-V0-103 declared test-file pattern:
+// a path.Match pattern matched against the base name when it holds no "/",
+// else against the whole repository-relative path, and the kind a matching
+// file is counted under.
+type ObligationTestFilePattern struct {
+	Kind    string
+	Pattern string
+}
+
+// Bounds of the TOL-V0-103 and TOL-V0-107 members.
+const (
+	MaxObligationTestFilePatterns       = 32
+	MaxObligationTestFilePatternBytes   = 256
+	MaxObligationEnvironmentBaselines   = 17
+	MaxObligationEnvironmentBaselineRef = 256
+)
+
+// readObligationsExtensions reads the TOL-V0-102, 103 and 107 members of
+// the obligations policy object, each optional.
+func readObligationsExtensions(o *wire.Reader, p *ObligationsPolicy) {
+	if o.Err() == nil && wire.Has(o.Value(), "requireDeclaredCites") {
+		p.RequireDeclaredCites = o.Field("requireDeclaredCites").Bool()
+	}
+	if o.Err() == nil && wire.Has(o.Value(), "testFilePatterns") {
+		p.TestFilePatterns = readTestFilePatterns(o.Field("testFilePatterns"))
+	}
+	if o.Err() == nil && wire.Has(o.Value(), "environmentBaselines") {
+		p.EnvironmentBaselines = readEnvironmentBaselines(o.Field("environmentBaselines"))
+	}
+}
+
+func readTestFilePatterns(r *wire.Reader) []ObligationTestFilePattern {
+	items := r.Array(MaxObligationTestFilePatterns, true)
+	if r.Err() == nil && len(items) == 0 {
+		r.Fail(wire.CodeLimitExceeded, "testFilePatterns must hold 1..%d patterns", MaxObligationTestFilePatterns)
+	}
+	out := make([]ObligationTestFilePattern, 0, len(items))
+	for _, it := range items {
+		it.Closed("kind", "pattern")
+		kind := it.Field("kind").Label()
+		f := it.Field("pattern")
+		pat := f.Prose(1, MaxObligationTestFilePatternBytes)
+		if r.Err() == nil {
+			if _, err := path.Match(pat, ""); err != nil || strings.ContainsAny(pat, "\t\n\r") || strings.HasPrefix(pat, "/") {
+				f.Fail(wire.CodeMalformed, "a test-file pattern must be a relative path.Match pattern without TAB, LF or CR")
+			}
+		}
+		if r.Err() != nil {
+			return nil
+		}
+		out = append(out, ObligationTestFilePattern{Kind: kind, Pattern: pat})
+	}
+	return out
+}
+
+func readEnvironmentBaselines(r *wire.Reader) map[string]string {
+	v := r.Value()
+	if v.Kind != wire.KindObject || v.Obj == nil {
+		r.Fail(wire.CodeMalformed, "environmentBaselines must be an object")
+		return nil
+	}
+	keys := v.Obj.SortedKeys()
+	if len(keys) == 0 || len(keys) > MaxObligationEnvironmentBaselines {
+		r.Fail(wire.CodeLimitExceeded, "environmentBaselines must name 1..%d repositories (%d)", MaxObligationEnvironmentBaselines, len(keys))
+		return nil
+	}
+	r.Closed(keys...)
+	out := map[string]string{}
+	for _, k := range keys {
+		if k != "." {
+			if _, err := wire.ParseLabel("environmentBaselines", k); err != nil {
+				r.Fail(wire.CodeMalformed, "environmentBaselines name %q is neither \".\" nor a label", k)
+				return nil
+			}
+		}
+		f := r.Field(k)
+		ref := f.Prose(1, MaxObligationEnvironmentBaselineRef)
+		if f.Err() == nil && !environmentBaselineRef(ref) {
+			f.Fail(wire.CodeMalformed, "an environment baseline must be a refs/... name or a 40 or 64 hex object id")
+		}
+		out[k] = ref
+	}
+	return out
+}
+
+// environmentBaselineRef admits a full refs/ name without whitespace,
+// "..", "~", "^", ":" or "@{", or a full lowercase hex object id: never HEAD
+// or an abbreviation, so the baseline names what the environment runs.
+func environmentBaselineRef(ref string) bool {
+	if n := len(ref); n == 40 || n == 64 {
+		hex := true
+		for _, c := range ref {
+			if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+				hex = false
+				break
+			}
+		}
+		if hex {
+			return true
+		}
+	}
+	return strings.HasPrefix(ref, "refs/") && len(ref) > len("refs/") && !strings.ContainsAny(ref, " \t\n\r~^:?*[\\") &&
+		!strings.Contains(ref, "..") && !strings.Contains(ref, "@{") && !strings.HasSuffix(ref, "/") && !strings.HasSuffix(ref, ".lock")
+}
+
+// ObligationCitesDeclaredRequired reports whether policy opts into the
+// TOL-V0-102 cite-label check. Absent or false keeps TOL-V0-079.
+func (p *Policy) ObligationCitesDeclaredRequired() bool {
+	return p != nil && p.Obligations != nil && p.Obligations.RequireDeclaredCites
+}
+
+// ObligationTestFilePatterns returns the TOL-V0-103 declared patterns, nil
+// when none.
+func (p *Policy) ObligationTestFilePatterns() []ObligationTestFilePattern {
+	if p == nil || p.Obligations == nil {
+		return nil
+	}
+	return p.Obligations.TestFilePatterns
+}
+
+// ObligationEnvironmentBaseline returns the TOL-V0-107 baseline declared
+// for repo ("." for the store's own repository).
+func (p *Policy) ObligationEnvironmentBaseline(repo string) (string, bool) {
+	if p == nil || p.Obligations == nil {
+		return "", false
+	}
+	ref, ok := p.Obligations.EnvironmentBaselines[repo]
+	return ref, ok
 }
