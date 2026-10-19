@@ -157,3 +157,43 @@ describe('cart', () => {
 		t.Errorf("findings %q, want %q", rules, wantRules)
 	}
 }
+
+// TestSourceValidityQualifiedReference: `tests validity` reads a qualified reference at the
+// revision through its one inclusion site, with the support set read from the same commit; each
+// inclusion gets its own verdict and an unbindable one abstains with its reason (TSA-V0-089..091).
+func TestSourceValidityQualifiedReference(t *testing.T) {
+	root := t.TempDir()
+	commitFiles(t, root, map[string]string{
+		"spec/widget_spec.rb": widgetSpec,
+		widgetShared:          widgetExamples,
+	})
+	repo := OpenRepo(context.Background(), root)
+	stub := "spec/widget_spec.rb:5>" + widgetShared + ":2"
+	yielding := "spec/widget_spec.rb:11>" + widgetShared + ":2"
+	missing := "spec/widget_spec.rb:3>" + widgetShared + ":2"
+	report, err := SourceValidity(repo, SourceValidityOptions{Files: []string{stub, yielding, missing}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []string{}
+	for _, test := range report.Tests {
+		got = append(got, test.Test+" "+test.Hygiene.State+" "+test.Hygiene.Reason)
+	}
+	want := []string{
+		stub + " " + testvalidity.HygieneIneligible + " " + testvalidity.RuleRBBlockNeverYielded,
+		yielding + " " + testvalidity.HygieneEligible + " " + hygieneReasonSourceRead,
+		missing + " " + testvalidity.HygieneAbstained + " " + testvalidity.InclusionNotFound,
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("tests = %q\nwant %q", got, want)
+	}
+	if f := report.Files[2]; f.Path != missing || !f.Uncertain || f.Reason != testvalidity.InclusionNotFound {
+		t.Errorf("file = %+v, want uncertain %s", f, testvalidity.InclusionNotFound)
+	}
+	if !report.Refused() {
+		t.Error("an INELIGIBLE inclusion did not refuse the report")
+	}
+	if _, err := SourceValidity(repo, SourceValidityOptions{Files: []string{"spec/widget_spec.rb:5>spec/support/gone.rb:2"}}); !hasCode(err, "tests-source-unavailable") {
+		t.Errorf("missing shared file: %v, want tests-source-unavailable", err)
+	}
+}

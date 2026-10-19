@@ -145,7 +145,7 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 // discover runs the shared retained-evidence discovery (MTV-V0-009,
 // LPCV-V0-053) on the pinned worktree root.
 func (registry *Registry) discover() (map[string]any, string, *ToolFailure, *Error) {
-	document, err := testvaliditydoc.DiscoverWithSources(registry.root, testsource.ExampleSources)
+	document, err := testvaliditydoc.DiscoverWithReaders(registry.root, testsource.ExampleSources, testvaliditydoc.RubyReaders{Examples: testsource.RSpecExampleSourcesWithSupport, Inclusion: testsource.RSpecInclusionSource})
 	var refusal *testvaliditydoc.DiscoveryError
 	if errors.As(err, &refusal) {
 		return nil, "", &ToolFailure{Code: refusal.Code, Message: refusal.Message}, nil

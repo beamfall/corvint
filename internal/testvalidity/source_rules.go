@@ -25,6 +25,9 @@ const (
 const (
 	SeverityInvalid  = "invalid"
 	SeverityAdvisory = "advisory"
+	// SeverityAbstained: the reader could not decide a rule for the test, so an ELIGIBLE hygiene
+	// axis becomes ABSTAINED with the rule as its reason instead of staying ELIGIBLE (TSA-V0-088).
+	SeverityAbstained = "abstained"
 )
 
 // HygieneReasonMemoizedBlockExpectation is the hygiene reason an invalid
@@ -52,7 +55,8 @@ type SourceFinding struct {
 // findings, which the caller has selected for the test p projects, is invalid (TSA-V0-051). The
 // reason is the first invalid finding's rule reason unless hygiene was already INELIGIBLE, and
 // each invalid finding's location and cause are appended to the existing anchors. Advisory findings and
-// the other four axes are left unchanged, so no axis rewrites another.
+// the other four axes are left unchanged, so no axis rewrites another. With no invalid finding, the
+// first abstained finding turns an ELIGIBLE hygiene axis ABSTAINED (TSA-V0-088).
 func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 	anchors := []string{}
 	reason := ""
@@ -66,6 +70,12 @@ func ApplySourceFindings(p Projection, findings []SourceFinding) Projection {
 		anchors = append(anchors, f.Location, f.Cause)
 	}
 	if reason == "" {
+		for _, f := range findings {
+			if f.Severity == SeverityAbstained && p.Hygiene.State == HygieneEligible {
+				p.Hygiene = Axis{State: HygieneAbstained, Reason: f.Rule, Anchors: append(append([]string{}, p.Hygiene.Anchors...), f.Location, f.Cause)}
+				break
+			}
+		}
 		return p
 	}
 	if p.Hygiene.State != HygieneIneligible {
