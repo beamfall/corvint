@@ -85,6 +85,10 @@ corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
+A JS/TS test file also gets EITHER-OR-OUTCOME and the advisory
+CLEANUP-HANDLE-OUTLIVED, UNSTUBBED-OUTBOUND-INPUT and VACUOUS-EMPTY-EQUALITY;
+another JS/TS file (a fixture file) CLEANUP-HANDLE-OUTLIVED; and a Markdown,
+YAML or JSON behaviour contract EITHER-OR-OUTCOME for "X or Y" expected values.
 Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise. A named JS/TS test
 file that unselected reports also gives each of its tests an invalid
