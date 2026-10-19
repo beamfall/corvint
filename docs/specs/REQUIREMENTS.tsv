@@ -1464,6 +1464,7 @@ ERG-V0-018	docs/specs/corvint-tasks-external-reviews-v0.md	Under a passed base t
 ERG-V0-019	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST fit `--max-bytes` (4096..262144, default 32768) and MUST list ev	unrecorded	-
 ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name every item of the newest RETURN event with its touched stat	unrecorded	-
 ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
+ERG-V0-022	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role w	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
