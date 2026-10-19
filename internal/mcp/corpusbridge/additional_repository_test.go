@@ -17,7 +17,7 @@ import (
 func TestDCPV1178BridgeVerifiesPinsInOwningCheckout(t *testing.T) {
 	commit := func(dir string) string {
 		t.Helper()
-		for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "c"}, {"rev-parse", "HEAD"}} {
+		for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", "c"}, {"rev-parse", "HEAD"}} {
 			c := exec.Command("git", append([]string{"-C", dir}, args...)...)
 			c.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
 			out, err := c.CombinedOutput()
