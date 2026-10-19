@@ -361,6 +361,16 @@ AMAP-V0-096	docs/specs/application-map-v0.md	Each miss MUST report its `kind` (`
 AMAP-V0-097	docs/specs/application-map-v0.md	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
 AMAP-V0-098	docs/specs/application-map-v0.md	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
 AMAP-V0-099	docs/specs/application-map-v0.md	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
+AMAP-V0-130	docs/specs/application-map-v0.md	`flows request-path --file PATH (--route 'METHOD /path' | --handler NAME)	unrecorded	-
+AMAP-V0-131	docs/specs/application-map-v0.md	The request path MUST list, in run order, the `recv.use([prefix,] ...)`	unrecorded	-
+AMAP-V0-132	docs/specs/application-map-v0.md	A call through `axios`, `node-fetch`, `cross-fetch`, `got`, `undici`,	unrecorded	-
+AMAP-V0-133	docs/specs/application-map-v0.md	Each guard reading `outbound: YES` that runs before a later guard reading	unrecorded	-
+AMAP-V0-134	docs/specs/application-map-v0.md	A key, call, middleware, receiver or source the reader cannot resolve statically	unrecorded	-
+AMAP-V0-135	docs/specs/application-map-v0.md	`--env-profile` MUST read a dotenv-format profile (at most 1 MiB) and report eac	unrecorded	-
+AMAP-V0-136	docs/specs/application-map-v0.md	The pre-run verdict MUST be `BLOCKED` when a required key is unset or empty,	unrecorded	-
+AMAP-V0-137	docs/specs/application-map-v0.md	Reads MUST stay within 64 files, 1 MiB per file, 512 function visits and a call	unrecorded	-
+AMAP-V0-138	docs/specs/application-map-v0.md	A refusal MUST exit 2 with one coded error and no stdout: no literal registratio	unrecorded	-
+AMAP-V0-139	docs/specs/application-map-v0.md	The same committed inputs and arguments MUST produce byte-identical reports:	unrecorded	-
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-

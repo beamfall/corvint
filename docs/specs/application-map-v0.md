@@ -16,11 +16,13 @@ repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982))
 [issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
 through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460), and
 [issue 705](https://github.com/beamfall/corvint/issues/705) (V1-1061, injected string enums,
-one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475).
+one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475), and
+[issue 1200](https://github.com/beamfall/corvint/issues/1200) (V1-1941, request-path keys,
+outbound calls and guard order; AMAP-V0-130..139).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches. AMAP-V0-090..099 are accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025); `flows appmap refs`, a name-level check of test-referenced routes, selectors and mocked endpoints the declared source lacks, experimental.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches. AMAP-V0-090..099 are accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025); `flows appmap refs`, a name-level check of test-referenced routes, selectors and mocked endpoints the declared source lacks, experimental. AMAP-V0-130..139 are accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200); `flows request-path`, the environment and configuration keys, outbound calls and guard order of one Express-style route, with a fail-closed pre-run profile check, experimental.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -682,6 +684,70 @@ but does not read it; only non-Go syntax impact does.
 - `AMAP-V0-099`: A secret-shaped reference value (the `internal/secretscreen` writer matcher)
   MUST be counted as unchecked with reason `secret-shaped` and never printed or looked up.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025).
+- `AMAP-V0-130`: `flows request-path --file PATH (--route 'METHOD /path' | --handler NAME)
+  [--revision REV] [--env-profile FILE [--warn]]` MUST write one `corvint-request-path/0` JSON
+  document read from committed JavaScript/TypeScript blobs at `--revision` (default `HEAD`) through
+  the shared application-map lexer. It MUST NOT read the working tree, run or evaluate code, open a
+  network connection or write any file; `--env-profile` is the only non-Git input.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-131`: The request path MUST list, in run order, the `recv.use([prefix,] ...)`
+  middleware registered earlier in `--file` on the route's receiver whose literal prefix covers the
+  route path, then the route registration's arguments (arrays flattened), each a `GUARD` except the
+  last, the `HANDLER`. For each step it MUST list the environment keys read as `process.env.KEY`,
+  `process.env['KEY']`, `process.env[CONST]` through a top-level string constant, or destructuring
+  of `process.env`, and the configuration keys read as `config.get|has('key')` through the `config`
+  or `nconf` package, in the step's function, in functions it calls that resolve to a declaration
+  in a read file, in factory-call arguments, and in top-level initializers it references. A key
+  read only with a fallback (`||`, `??`, or a destructuring default) at every read MUST read
+  `defaulted: true`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-132`: A call through `axios`, `node-fetch`, `cross-fetch`, `got`, `undici`,
+  `superagent`, `ky`, `needle`, `request` or `openid-client` (other than client construction such as
+  `create`), through `http`/`https` `request` or `get`, through the global `fetch`, or through a
+  top-level client a `pkg.create(...)` call derives, MUST be listed as an outbound call with its
+  step, callee text, location and function chain, and its step MUST read `outbound: YES`. A step
+  with no outbound call reads `UNKNOWN` when it has an unresolved call, middleware, source or
+  bound, else `NONE_FOUND`: none among the calls followed, not proof of none.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-133`: Each guard reading `outbound: YES` that runs before a later guard reading
+  `NONE_FOUND` with no unknowns MUST produce one `OUTBOUND_GUARD_BEFORE_CHEAP_GUARD` finding naming
+  the outbound guard, those later guards and the outbound callees a test of a later step must
+  stand in for. A guard order with no such pair MUST produce none.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-134`: A key, call, middleware, receiver or source the reader cannot resolve statically
+  MUST be listed under `unknowns` with kind `ENV_KEY`, `CONFIG_KEY`, `CALL`, `MIDDLEWARE`, `MOUNT`,
+  `SOURCE` or `BOUND`, a reason, its text and location; it MUST NOT be omitted or reported as an
+  absent key or call. A call through a package on neither the outbound list nor the local list
+  reads `package-not-followed`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-135`: `--env-profile` MUST read a dotenv-format profile (at most 1 MiB) and report each
+  non-defaulted request-path environment key that is unset or empty by name only, the defaulted
+  keys unset or empty, the configuration keys it does not check, and the count of unknowns by kind.
+  No profile value, and no profile key the path does not read, may appear in any output; a
+  malformed line refuses naming only its line number.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-136`: The pre-run verdict MUST be `BLOCKED` when a required key is unset or empty,
+  else `INCOMPLETE` when any unknown other than `CONFIG_KEY` exists, else `READY`. By default
+  (`FAIL_CLOSED`) a verdict other than `READY` MUST read `batch: DO_NOT_SCHEDULE` and exit 1 after
+  writing the report; `--warn` reads `SCHEDULE_WITH_WARNINGS` and exits 0; `READY` reads `SCHEDULE`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-137`: Reads MUST stay within 64 files, 1 MiB per file, 512 function visits and a call
+  depth of 24; exceeding the file, visit or depth bound MUST add a `BOUND` unknown. Relative modules
+  resolve as the exact path, then `.ts .tsx .js .jsx .mjs .cjs .mts .cts` (a `.js` specifier also as
+  its TypeScript sibling), then `index.*`; symlinks and submodules are never read, and a path
+  outside the repository reads `module-outside-repository`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-138`: A refusal MUST exit 2 with one coded error and no stdout: no literal registration
+  of the route (`request-path-route-not-found`), more than one (`request-path-route-ambiguous`), no
+  such handler (`request-path-handler-not-found`), `--file` not a committed regular file
+  (`request-path-file-not-found`), an unresolvable revision (`request-path-invalid-revision`), a Git
+  read failure (`request-path-source-unavailable`), a file over its bound
+  (`request-path-bound-exceeded`) or an unreadable or malformed profile
+  (`request-path-profile-invalid`).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-139`: The same committed inputs and arguments MUST produce byte-identical reports:
+  steps in run order, keys sorted by name, unknowns ordered by step, file and line.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 
 ## Wire contract
 
@@ -708,6 +774,15 @@ with one coded JSON error on stderr and nothing on stdout.
 `misses_unlabelled`, `misses_labelled`, then `misses` (`kind`, `value`, `match`, optional
 `class`, `occurrences`, `tests`), `unchecked` (`kind`, `reason`, `count`, `example`) and
 `omitted` (AMAP-V0-090..099).
+`corvint flows request-path --file PATH (--route 'METHOD /path' | --handler NAME) [--revision REV]
+[--env-profile FILE [--warn]]` writes `corvint-request-path/0`: `schema`, `revision`, `file`,
+`route` or `handler`, `steps` (`order`, `role`, `name`, `registered`, `outbound`, `envKeys`,
+`configKeys`, `unknowns`, `file`, `line`), `envKeys` and `configKeys` (`name`, `defaulted`,
+`steps`, `readAt`), `outboundCalls` (`step`, `callee`, `via`, `file`, `line`), `unknowns` (`kind`,
+`reason`, `text`, `step`, `file`, `line`), `guardOrder` (`finding`, `outboundGuard`,
+`cheapGuards`, `standInFor`, `message`), `filesRead` and, with `--env-profile`, `preRun`
+(`profile`, `mode`, `verdict`, `batch`, `unset`, `empty`, `defaultedUnsetOrEmpty`,
+`configKeysNotChecked`, `unresolved`, `message`) (AMAP-V0-130..139).
 
 ### Owned error codes
 
@@ -722,6 +797,14 @@ with one coded JSON error on stderr and nothing on stdout.
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
 | `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-019). |
 | `appmap-root-dirty` | An aliased root has staged, unstaged or untracked changes under the manifest or `tests.root` read from it (AMAP-V0-019). |
+| `request-path-route-not-found` | `--file` has no literal registration of the `--route` method and path, or the registration names no handler (AMAP-V0-138). |
+| `request-path-route-ambiguous` | `--file` registers the `--route` method and path more than once. |
+| `request-path-handler-not-found` | No function `--handler` is declared or imported in `--file`. |
+| `request-path-file-not-found` | `--file` is not a committed regular file at the revision. |
+| `request-path-invalid-revision` | `--revision` does not resolve to a commit. |
+| `request-path-source-unavailable` | A Git read failed. |
+| `request-path-bound-exceeded` | `--file` exceeds 1 MiB, or a read exceeded the file bound of AMAP-V0-137. |
+| `request-path-profile-invalid` | `--env-profile` is unreadable, over 1 MiB, or has a line that is not `KEY=VALUE` (named by line number only). |
 
 ### Unknown reasons
 
@@ -738,6 +821,9 @@ with one coded JSON error on stderr and nothing on stdout.
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse`, `overlay` and
 `di-constant` and (V1-1131) `router`.
+
+`flows request-path` (V1-1941, AMAP-V0-134) uses its own kinds and reasons, listed in the
+request-path section at the end of this spec.
 
 V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rails-statement`,
 `rails-constraints`, `rails-defaults`, `non-literal-rails-scope`, `non-literal-rails-resource`,
@@ -1046,3 +1132,63 @@ in `runFlowsAppmap` and its help text, the `regex` token member in `internal/app
 (nothing else reads it) and this section's requirements and fixture; `urlPath` in
 `internal/appmap/router.go` is a behavior-preserving extraction that may stay. No stored state,
 map schema or ledger needs migration; the report is an explicit stdout document.
+
+## Request-path environment, outbound calls and guard order (V1-1941)
+
+Owner input: [issue 1200](https://github.com/beamfall/corvint/issues/1200) (V1-1941). The
+requirements AMAP-V0-130..139 are accepted under the owner's standing auto-accept of 2026-10-11
+and delivered experimental. Job: before a test batch runs against a target environment, know which
+environment and configuration keys one route's request path reads (guards included), which of its
+guards call out to the network, and whether such a guard runs before a cheaper validation guard
+(so a test of the later step needs a stand-in), and refuse to schedule the batch when a required
+key is unset or empty, without ever printing a value. The reader is the new package
+`internal/requestpath`; it reuses `appmap.LexJS` and adds no map, manifest or index member.
+
+| Requirement | Implementation | Focused evidence |
+| --- | --- | --- |
+| AMAP-V0-130 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-131 | `internal/requestpath/requestpath.go`, `internal/requestpath/scan.go`, `internal/requestpath/parse.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain` |
+| AMAP-V0-132 | `internal/requestpath/scan.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain` |
+| AMAP-V0-133 | `internal/requestpath/requestpath.go` | `TestAMAPV0133GuardOrderFlagged`, `TestAMAPV0133GuardOrderNeedsProvenCheapGuard`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-134 | `internal/requestpath/scan.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0134UnresolvedMiddlewareAndReceiver` |
+| AMAP-V0-135 | `internal/requestpath/profile.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0135ProfileRefusesByLineOnly`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-136 | `internal/requestpath/profile.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-137 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go` | `TestAMAPV0137Bounds` |
+| AMAP-V0-138 | `cmd/corvint/flows_request_path.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0138Refusals`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-139 | `internal/requestpath/requestpath.go` | `TestAMAPV0139Deterministic` |
+
+Acceptance (issue 1200): (a) the token-exchange guard lists `OIDC_ISSUER` and
+`IDP_TOKEN_ENDPOINT` and marks `axios.post` outbound; (b) a profile with both keys empty reads
+`BLOCKED`, names them only and does not schedule; (c) the outbound guard before the validation
+guard is flagged and the reordered route is not; (d) a dynamic key, an escaping `process.env`, an
+unresolved import and an unfollowed package read as unknowns. The fixtures are inline in the
+tests; 20 source mutations of these rules are each killed by them (build log).
+
+Unknown reasons: `dynamic-key`, `env-object-escapes` (`ENV_KEY`, `CONFIG_KEY`);
+`module-not-found`, `module-outside-repository`, `read-failed`, `export-not-found`,
+`member-not-found`, `receiver-not-resolved`, `request-object-call`, `package-not-followed`
+(`CALL`); `middleware-not-resolved`, `middleware-expression-not-resolved`, `package-not-followed`
+(`MIDDLEWARE`); `parent-router-not-read`, `receiver-origin-not-read` (`MOUNT`); `lexer-unsure`
+(`SOURCE`); `bound-exceeded` (`BOUND`, `CALL`).
+
+Non-goals: no Koa, Fastify, NestJS, Next.js or decorator routing; no middleware registered in
+another file, on a parent router or by `app.use(router)` mounting (each reads a `MOUNT` unknown);
+no data flow through parameters, locals or returned clients, so a call on such a value is not
+followed and its step reads `NONE_FOUND`, never "no outbound call"; no module top-level code that
+is not referenced from the path; no secret-store, Vault or cloud parameter lookups; no runtime
+tracing; no check of configuration values against a profile. The batch decision is advisory
+output for the scheduler and exit code; the command schedules nothing. Simpler baseline: grep
+`process.env` in the route file. It misses keys read in imported guards and initializers, cannot
+tell guards from handlers or outbound from local calls, and silently drops dynamic reads.
+
+Failure modes: a local variable that shadows a top-level name is scanned as that name
+(over-reports keys); an object initializer referenced on the path contributes every key it reads,
+used or not (over-reports); an outbound client reached through a parameter or a local is missed
+(`NONE_FOUND`, documented above); a package missing from both lists reads `package-not-followed`
+rather than being guessed; a lexer-unsure file is still read and carries a `SOURCE` unknown. Each
+over- or under-report is visible in the report rather than resolved by guessing.
+
+Rollback: remove `internal/requestpath`, `cmd/corvint/flows_request_path.go` and its test, the
+`flowsRequestPathHelp` term in `cmd/corvint/help.go`, the eight `request-path-*` error codes above
+and this section's requirements. No stored state, schema, ledger or other command changes; the
+report is an explicit stdout document.
