@@ -300,7 +300,7 @@ func composeHolds(canonical, file []ticket.Hold) ([]Payload, *refusal) {
 		if _, ok := canonBy[h.HoldID]; !ok {
 			// The file's actor and placedAt are ignored; the reconciling
 			// context supplies them in step.
-			ops = append(ops, &HoldPayload{HoldID: h.HoldID, Reason: h.Reason})
+			ops = append(ops, &HoldPayload{HoldID: h.HoldID, Reason: h.Reason, Condition: h.Condition})
 		}
 	}
 	for _, h := range canonical {
@@ -317,6 +317,9 @@ func holdValue(h ticket.Hold) wire.Value {
 	o.Set("actor", wire.String(h.Actor))
 	o.Set("reason", wire.String(h.Reason))
 	o.Set("placedAt", wire.String(string(h.PlacedAt)))
+	if h.Condition != nil {
+		o.Set("condition", h.Condition.Value())
+	}
 	return wire.ObjectValue(o)
 }
 
@@ -344,7 +347,8 @@ func adoptCovered(canonical, work, file *ticket.Record) *refusal {
 		return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "holds difference is not covered by the composition rule")
 	}
 	for i := range work.Holds {
-		if work.Holds[i].HoldID != file.Holds[i].HoldID || work.Holds[i].Reason != file.Holds[i].Reason {
+		if work.Holds[i].HoldID != file.Holds[i].HoldID || work.Holds[i].Reason != file.Holds[i].Reason ||
+			!wire.Equal(holdValue(ticket.Hold{Condition: work.Holds[i].Condition}), holdValue(ticket.Hold{Condition: file.Holds[i].Condition})) {
 			return refuse(OutcomeValidationFailed, wire.CodeAdoptUnsupportedField, "holds order in the file is not covered by the composition rule")
 		}
 	}

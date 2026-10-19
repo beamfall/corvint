@@ -3781,5 +3781,26 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-source-containment-v0.md",
+    "title": "Corvint Tasks source containment V0",
+    "reqPrefix": "SCC-V0",
+    "intent": "accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1920, V1-1907; GitHub #1186, #1177; SCC-V0-001..005 and SCC-V0-010..014)",
+    "delivery": "experimental",
+    "claim": "`source contains` reports ancestor or patch-equivalent containment; a HOLD may carry a typed condition that status and doctor re-evaluate at each read.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/corvint-tasks-doctor-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/store/source_contains.go",
+      "internal/tasks/store/hold_condition.go",
+      "internal/tasks/ticket/hold_condition.go",
+      "internal/tasks/cli/source_contains.go",
+      "internal/tasks/cli/hold_conditions.go"
+    ]
   }
 ]

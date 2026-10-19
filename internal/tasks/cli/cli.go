@@ -94,6 +94,7 @@ var ReadVerbs = []string{
 	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations qualify-version",
 	"preflight",
 	"worktree ensure",
+	"source contains",
 	"defects add", "defects update", "defects list",
 	"run-batch",
 	"qualify",
@@ -165,6 +166,9 @@ func Run(env Env) int {
 	case "worktree":
 		// TWT-V0-002..007: the per-ticket worktree.
 		return emit(env.Stdout, worktreeCommand(env, args[1:]))
+	case "source":
+		// SCC-V0-005: patch-equivalent source containment, a pure Git read.
+		return emit(env.Stdout, sourceContainsCommand(env, args[1:]))
 	case "defects":
 		// TDR-V0-010: the defect register.
 		return emit(env.Stdout, defectsCommand(env, args[1:]))
@@ -1513,9 +1517,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes only --retries, --fields or --summary"))
 	}
 	var item wire.Value
+	var holds []heldHold
 	observedAt := time.Now().UTC()
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		st := rc.store
+		holds = collectHeldHolds(st.Inventory)
 		by := map[string]int{}
 		unknown, blocked := 0, 0
 		ctx := st.Context()
@@ -1631,6 +1637,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 	}
 	// A separate racy observation outside the store snapshot (CAL-V0-095).
 	item.Obj.Set("preparationAdmission", preparationAdmission(rc.repo))
+	// SCC-V0-013: typed hold conditions re-evaluated at this read, after the
+	// store read and only when some HELD ticket carries one.
+	if results := evaluateHeldConditions(rc.repo.PrimaryWorktree, holds); len(results) > 0 {
+		item.Obj.Set("holdConditions", holdConditionsValue(results))
+	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res

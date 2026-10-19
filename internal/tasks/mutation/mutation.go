@@ -216,6 +216,8 @@ func (*SetEffectsPayload) operation() string { return OpSetEffects }
 type HoldPayload struct {
 	HoldID string
 	Reason string
+	// Condition is the optional SCC-V0-010 condition, stored on the hold.
+	Condition *ticket.HoldCondition
 }
 
 func (*HoldPayload) operation() string { return OpHold }
@@ -517,8 +519,12 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 			ExecutionClass: r.Field("executionClass").Enum(ticket.ExecutionClasses...),
 		}
 	case OpHold:
-		r.Closed(PayloadKeys[op]...)
-		p = &HoldPayload{HoldID: r.Field("holdId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+		r.Closed(wire.OptionalKeys(r.Value(), PayloadKeys[op], "condition")...)
+		hp := &HoldPayload{HoldID: r.Field("holdId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+		if wire.Has(r.Value(), "condition") {
+			hp.Condition = ticket.ReadHoldCondition(r.Field("condition"))
+		}
+		p = hp
 	case OpReleaseHold:
 		r.Closed(PayloadKeys[op]...)
 		p = &ReleaseHoldPayload{HoldID: r.Field("holdId").Label()}
@@ -946,6 +952,9 @@ func PayloadValue(p Payload) wire.Value {
 	case *HoldPayload:
 		o.Set("holdId", wire.String(p.HoldID))
 		o.Set("reason", wire.String(p.Reason))
+		if p.Condition != nil {
+			o.Set("condition", p.Condition.Value())
+		}
 	case *ReleaseHoldPayload:
 		o.Set("holdId", wire.String(p.HoldID))
 	case *ReasonPayload:

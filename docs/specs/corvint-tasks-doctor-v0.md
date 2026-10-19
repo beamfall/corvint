@@ -85,6 +85,9 @@ Every built-in journal threshold is 3 within the 7-day window; the operational a
 | SLOW_QUEUE_COMMAND | Inspect the named command; a queue command this slow is usually waiting on the lock or a large journal read. |
 | NO_COMPLETIONS | Ready tickets and free capacity exist but nothing completed; check the dispatcher and the workers' recent output. |
 | FD_PRESSURE | Close idle sessions or raise the system file limit before launches start failing. |
+| HOLD_CONDITION_MET | The hold's typed condition is met at its ref (SCC-V0-013); release the hold (ticket release-hold) so the ticket returns to its work stage. |
+| HOLD_CONDITION_UNKNOWN | The hold's condition cannot be evaluated (SCC-V0-013); fetch the named ref or commit, or correct the condition. The ticket stays held. |
+| FREE_TEXT_HOLD_MET | The free-text hold names a commit or path that origin's default branch (`refs/remotes/origin/HEAD`) already has (SCC-V0-014); confirm the blocker is gone, then release the hold or replace it with a typed condition. |
 | NOTIFY_FAILED | Fix the notify hook named in the doctor config; the doctor retries it at the next change of findings. |
 | HOST_RETRY_STORM | The host keeps restarting turns without finishing one; check its provider limits and the worker's stdout.log lines cited. |
 | HOST_ERRORS | The host reported repeated errors; read the cited stdout.log lines before relaunching the worker. |
