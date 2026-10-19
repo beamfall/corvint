@@ -24,6 +24,8 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
+  corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
+  corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
 
@@ -92,6 +94,19 @@ only. Templated values are prefixes; catch-all routes, regular-expression patter
 application-templated names are labelled; text-level selectors and dynamic values are counted
 as unchecked. An unlabelled miss exits 1; refusals exit 2. No repository file changes.
 
+Route-action check (experimental, V1-1890): actions compiles every rails-routes/0 route (and its
+one-level draws) to a controller and action and reports ROUTE-ACTION-MISSING when the handler
+class, its ancestors, its included modules and its implicit view templates define no public
+action, with the declaration line, handler file and action. only:/except: removals are honoured;
+unresolvable handlers, ancestors, modules and dynamic definitions abstain with a reason. Other
+dialects are not applicable. A finding exits 1; refusals exit 2. No repository file changes.
+
+Branch tests and setup (experimental, V1-1891): branches reads up to 16 cited Ruby line ranges
+and lists, per if/unless/elsif/when branch, the tests that name it grouped by boundary (unit,
+request, e2e; "none at <boundary>" when none), and for a boundary not reached the guard's model
+inputs with the setup endpoints, factories and fixtures that write them. An input it cannot
+resolve is unresolved, never "no setup available". Static naming evidence, not coverage.
+
 Run verification (experimental, RVN-V0): screen and flow accept up to 16 Playwright
 external provider receipts (--receipt) and up to 64 agent-declared bindings (--bind). Each
 printed step then gets a learned fact (source run-verification) whose kind is VERIFIED at the
@@ -102,7 +117,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -157,6 +172,12 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "refs" {
 		return runFlowsAppmapRefs(ctx, root, args, out)
 	}
+	if verb == "actions" {
+		return runFlowsAppmapActions(ctx, root, args, out)
+	}
+	if verb == "branches" {
+		return runFlowsAppmapBranches(ctx, root, args, out)
+	}
 	if verb == "plan" {
 		return runFlowsAppmapPlan(ctx, root, args, out)
 	}
@@ -165,7 +186,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

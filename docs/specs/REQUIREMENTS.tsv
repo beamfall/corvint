@@ -361,6 +361,21 @@ AMAP-V0-096	docs/specs/application-map-v0.md	Each miss MUST report its `kind` (`
 AMAP-V0-097	docs/specs/application-map-v0.md	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
 AMAP-V0-098	docs/specs/application-map-v0.md	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
 AMAP-V0-099	docs/specs/application-map-v0.md	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
+AMAP-V0-100	docs/specs/application-map-v0.md	`flows appmap actions --map FILE [--budget N | --full]` MUST read only the map	unrecorded	-
+AMAP-V0-101	docs/specs/application-map-v0.md	Every route a supported Rails declaration compiles MUST resolve to a handler	unrecorded	-
+AMAP-V0-102	docs/specs/application-map-v0.md	A handler MUST be read from `app/controllers/<controller path>_controller.rb`	unrecorded	-
+AMAP-V0-103	docs/specs/application-map-v0.md	An action defined by an ancestor class or an included module MUST count as	unrecorded	-
+AMAP-V0-104	docs/specs/application-map-v0.md	A route whose action is not a public method MUST count as defined when a view	unrecorded	-
+AMAP-V0-105	docs/specs/application-map-v0.md	When an action is not found, or is found only as a non-public method, a chain	unrecorded	-
+AMAP-V0-106	docs/specs/application-map-v0.md	Each finding MUST carry rule `ROUTE-ACTION-MISSING`, the declaration	unrecorded	-
+AMAP-V0-107	docs/specs/application-map-v0.md	Router reads MUST stay within the AMAP-V0-015 router bounds and controller,	unrecorded	-
+AMAP-V0-110	docs/specs/application-map-v0.md	`flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...]	unrecorded	-
+AMAP-V0-111	docs/specs/application-map-v0.md	Branches MUST be read from the cited lines after AMAP-V0-105 masking: a	unrecorded	-
+AMAP-V0-112	docs/specs/application-map-v0.md	Each branch MUST list the tests that reach it grouped by boundary `unit`,	unrecorded	-
+AMAP-V0-113	docs/specs/application-map-v0.md	Each guard's inputs MUST be resolved to model attributes or reported	unrecorded	-
+AMAP-V0-114	docs/specs/application-map-v0.md	Setup writers MUST be derived as one reusable model-attribute writer index:	unrecorded	-
+AMAP-V0-115	docs/specs/application-map-v0.md	A branch with a boundary that is not `reached` MUST carry a `setup` entry: its	unrecorded	-
+AMAP-V0-116	docs/specs/application-map-v0.md	The document MUST fit `--budget` (256..65536, default 6144) or `--full` through	unrecorded	-
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
