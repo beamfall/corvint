@@ -75,6 +75,22 @@ Focused tests:
   `./internal/mcp/testvaliditybridge`: the whole packages.
 - `./cmd/corvint`: `-run 'TestTestsValidityCLI|TestTestValidity|TestTestsCLI|TestTestsLint'`.
 
+## Codex review fixes
+
+One Codex round on #1161 found seven gaps. All seven are fixed, each with a regression test and,
+where cheap, a mutation check that fails the test. The TSA requirement text is amended in the same
+change:
+
+- A typed arrow callback, `(): void => {…}`, is a body for a describe and an example (TSA-V0-073).
+- `expect.assertions` and `expect.hasAssertions` are not assertions: they are neither counted nor
+  read as constant (TSA-V0-077, TSA-V0-078).
+- A mock inside an example's own named callback applies to that example (TSA-V0-079).
+- A helper already followed is followed again when a shorter path reaches it.
+- `const x = 1` with the next line continuing the expression is not a literal.
+- `expectations` counts calls, and only the anchors are distinct lines.
+- A digest-bound JS receipt through `corvint test-validity --discover` and the MCP tool gives the
+  same document with JS findings, so both entry points are shown to use `testsource.ExampleSources`.
+
 ## Residuals
 
 - Helpers imported from other files are not followed. A call to one withholds `JS-NO-ASSERTION`

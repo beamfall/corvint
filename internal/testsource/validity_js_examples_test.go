@@ -218,13 +218,38 @@ describe('assertions', () => {
   it('assert member', () => { assert.equal(run(), 1); });
   it('should', () => { run().should.equal(1); });
   it('mixed constant', () => { expect(true).toBe(true); expect(run()).toBe(1); });
-  it('expect.assertions', () => { expect.assertions(1); expect(1).toBe(1); });
+  it('expect.assertions', () => {
+    expect.assertions(1);
+    expect(1).toBe(1);
+  });
+  it('declared count only', () => {
+    expect.assertions(0);
+    expect.hasAssertions();
+    run();
+  });
+  it('continued initializer', () => {
+    const x = 1
+      + run();
+    expect(x).toBe(2);
+  });
+  it('ended initializer', () => {
+    const y = 1
+    expect(y).toBe(1);
+  });
 });
+function d4(v) { expect(v).toBe(1); }
+function c3(v) { d4(v); }
+function b2(v) { c3(v); }
+function a1(v) { b2(v); c3(v); }
+it('shorter helper path', () => { a1(run()); });
 `
 
-// TestJSExampleAssertions: expectations count direct assertions and same-file helpers that assert;
-// a body with none is flagged unless it calls an unresolved relative import; all-constant
-// expectations are flagged (TSA-V0-077, TSA-V0-078).
+// TestJSExampleAssertions: expectations count direct assertion calls and same-file helpers that
+// assert, two on one line counting twice; expect.assertions and expect.hasAssertions are neither
+// counted nor read as constant; a helper reached too deep by one path is still followed by a
+// shorter one; a body with none is flagged unless it calls an unresolved relative import;
+// all-constant expectations are flagged, and an initializer continued on the next line is not a
+// literal (TSA-V0-077, TSA-V0-078).
 func TestJSExampleAssertions(t *testing.T) {
 	name := "test/assertions.test.ts"
 	at := func(line int) string { return fmt.Sprintf("%s:%d", name, line) }
@@ -237,9 +262,17 @@ func TestJSExampleAssertions(t *testing.T) {
 		12: {located + " expectations=3", fmt.Sprintf("%s advisory %s %s", testvalidity.RuleJSConstantExpectation, at(13), at(12))},
 		18: {located + " expectations=1"},
 		19: {located + " expectations=1"},
-		20: {located + " expectations=1"},
-		21: {located + " expectations=1"},
+		20: {located + " expectations=2"},
+		21: {located + " expectations=1", fmt.Sprintf("%s advisory %s %s", testvalidity.RuleJSConstantExpectation, at(23), at(21))},
+		25: {located + " expectations=0", fmt.Sprintf("%s advisory %s %s", testvalidity.RuleJSNoAssertion, at(25), at(25))},
+		30: {located + " expectations=1"},
+		35: {located + " expectations=1", fmt.Sprintf("%s advisory %s %s", testvalidity.RuleJSConstantExpectation, at(37), at(35))},
+		44: {located + " expectations=1"},
 	})
+	examples, _ := JSExampleSources(name, assertionsSpec)
+	if anchors := examples[20].ExpectationAnchors; !reflect.DeepEqual(anchors, []string{at(20)}) {
+		t.Errorf("same-line anchors %q, want one distinct line", anchors)
+	}
 }
 
 const mocksSpec = `import axios from 'axios';
@@ -294,5 +327,41 @@ func TestJSExampleMocks(t *testing.T) {
 		14: {one, subject(4, 14), boundary(5, 14), boundary(8, 14), boundary(15, 14), boundary(16, 14)},
 		19: {one, subject(4, 19), boundary(5, 19), boundary(8, 19)},
 		25: {one, subject(4, 25), boundary(5, 25), boundary(26, 25)},
+	})
+}
+
+const typedSpec = `describe.skip('s', (): void => {
+  it('inside', (): void => { expect(f()).toBe(1); });
+});
+`
+
+// TestJSExampleTypedCallback: a callback with a TypeScript return type is still the describe's
+// body, so its run state reaches the examples inside (TSA-V0-073, TSA-V0-074).
+func TestJSExampleTypedCallback(t *testing.T) {
+	name := "test/typed.test.ts"
+	at := func(line int) string { return fmt.Sprintf("%s:%d", name, line) }
+	got := jsBrief(t, name, typedSpec)
+	wantJS(t, got, map[int][]string{
+		2: {located + " expectations=1", fmt.Sprintf("%s invalid %s %s", testvalidity.RuleJSSkipped, at(2), at(1))},
+	})
+}
+
+const namedCallbackSpec = `import { Widget } from './widget';
+describe(Widget, () => {
+  it('works', function example() {
+    jest.mock('./widget');
+    expect(new Widget().ok()).toBe(true);
+  });
+});
+`
+
+// TestJSExampleNamedCallbackMock: a mock inside the example's own named callback applies to the
+// example; only an external named helper is excluded (TSA-V0-079).
+func TestJSExampleNamedCallbackMock(t *testing.T) {
+	name := "test/named.test.js"
+	at := func(line int) string { return fmt.Sprintf("%s:%d", name, line) }
+	got := jsBrief(t, name, namedCallbackSpec)
+	wantJS(t, got, map[int][]string{
+		3: {located + " expectations=1", fmt.Sprintf("%s advisory %s %s", testvalidity.RuleJSSubjectMocked, at(4), at(3))},
 	})
 }

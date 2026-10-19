@@ -711,7 +711,8 @@ model (`parseSource`); it adds no second parser.
     - its chain holds `failing`, `fails`, `fail`, `skipIf` or `runIf`, or it sits in a describe
       whose chain does: `js-example-shape-unsupported`;
     - it is not a todo and has no function or arrow-function callback after its title:
-      `js-example-body-not-literal`;
+      `js-example-body-not-literal`. An arrow function may carry a TypeScript return type,
+      `(): void => {…}`, for an example and for a describe;
     - another example's callee starts on the same line: `js-example-line-ambiguous`.
   - Members outside both lists (`test.step`, `test.use`, `test.beforeEach`, …) are not
     declarations.
@@ -736,9 +737,12 @@ model (`parseSource`); it adds no second parser.
   so a row's outcome is bound to the line, not to its row.
 - `TSA-V0-077`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `expectations` MUST
   count the assertion calls in the example body (TSA-V0-013 assertions, plus `assert.` and
-  `expect.` member calls and a `.should` member). It MUST also count each call of a same-file
-  function definition (`definitions`) whose body asserts, followed to `MaxHelperDepth`. The
-  distinct `path:line` locations are the strength anchors.
+  `expect.` member calls and a `.should` member). `expect.assertions(…)` and
+  `expect.hasAssertions(…)` declare a count and are not assertions here or in TSA-V0-078. It MUST
+  also count each call of a same-file function definition (`definitions`) whose body asserts,
+  followed to `MaxHelperDepth`; a name already followed is followed again when a shorter path
+  reaches it. Two calls on one line count twice. Only the strength anchors are distinct: one
+  `path:line` per line that holds a counted call.
   - An example that is not a todo, with zero expectations, MUST get an `advisory`
     `JS-NO-ASSERTION` finding located at the example.
   - The finding is withheld when the body, or a followed helper, calls a name that the file
@@ -751,7 +755,10 @@ model (`parseSource`); it adds no second parser.
   - its subject is one literal token (number, literal string, `true`, `false`, `null` or
     `undefined`);
   - or it is a `toBe`, `toEqual` or `toStrictEqual` whose subject renders like its argument;
-  - or its subject is one identifier bound in the example body by `const NAME = LITERAL`.
+  - or its subject is one identifier bound in the example body by `const NAME = LITERAL`, where
+    the literal ends the statement: a `;`, the end of the body, or a new line whose first token is
+    an identifier other than `in`, `instanceof`, `as` or `satisfies`. Any other next line may
+    continue the expression, so the binding is not a literal.
 - `TSA-V0-079`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) Module mocks
   (`jest.mock`, `jest.doMock`, `jest.unstable_mockModule`, `vi.mock`, `vi.doMock` with a literal
   specifier), spies (`jest.spyOn`, `vi.spyOn`), fake timers (`useFakeTimers`, `setSystemTime`)
@@ -769,7 +776,8 @@ model (`parseSource`); it adds no second parser.
     `JS-BOUNDARY-MOCKED` finding.
   - A mock applies to an example when it is in the example body, or outside every example and
     every named function definition, at file level or in an enclosing describe body (its hooks
-    included). Each distinct location gives one finding, located at the mock and caused by the
+    included). A named function that is an example's or describe's own callback,
+    `it('works', function example() {…})`, is that declaration's body, not a named helper. Each distinct location gives one finding, located at the mock and caused by the
     example. Other mocks give no finding.
 - `TSA-V0-080`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)
   `testvalidity.ApplyJSExampleSource(p, source, anchor)` MUST project one JS example as
@@ -847,16 +855,16 @@ persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-073 | `internal/testsource/validity_js_examples.go` | `TestJSExampleSourcesShapes`, `TestJSExampleSourcesAbstain` | experimental |
-| TSA-V0-074 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState`, `TestApplyJSExampleSource` | experimental |
+| TSA-V0-073 | `internal/testsource/validity_js_examples.go` | `TestJSExampleSourcesShapes`, `TestJSExampleSourcesAbstain`, `TestJSExampleTypedCallback` | experimental |
+| TSA-V0-074 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState`, `TestJSExampleTypedCallback`, `TestApplyJSExampleSource` | experimental |
 | TSA-V0-075 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState`, `TestApplyJSExampleSource` | experimental |
 | TSA-V0-076 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState` | experimental |
 | TSA-V0-077 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
-| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks` | experimental |
+| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
-| TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules` | experimental |
+| TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
 
 ## Decision file format

@@ -107,7 +107,7 @@ func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, st
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
 		facts := r.exampleFacts(e, test)
 		findings = append(findings, facts.findings...)
-		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: len(facts.anchors), Findings: findings, ExpectationAnchors: facts.anchors, EndLine: e.endLine}
+		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: facts.count, Findings: findings, ExpectationAnchors: facts.anchors, EndLine: e.endLine}
 	}
 	return out, ""
 }
@@ -179,10 +179,13 @@ func (r *jsReader) read() {
 			d.title = s.tokens[args[0][0]].Text
 		}
 		for k := 1; k < len(args); k++ {
-			if !s.callback(args[k]) {
+			// functionBody also takes a typed arrow, `(): void => {…}`, which callback does not.
+			body, _, ok := s.functionBody(args[k][0])
+			ok = ok && body[1] <= args[k][1]
+			if !ok && !s.callback(args[k]) {
 				continue
 			}
-			if body, _, ok := s.functionBody(args[k][0]); ok {
+			if ok {
 				d.body, d.hasBody = body, true
 			}
 			break
@@ -258,6 +261,7 @@ func (r *jsReader) applies(i int, e jsDecl, chain []int) bool {
 type jsFacts struct {
 	findings []testvalidity.SourceFinding
 	anchors  []string
+	count    int
 }
 
 // exampleFacts returns the TSA-V0-074..079 findings and the expectation anchors of example e.
@@ -324,9 +328,9 @@ func (r *jsReader) exampleFacts(e jsDecl, test string) jsFacts {
 	if e.members["todo"] {
 		return out
 	}
-	expectations, unresolved := r.expectations(e.body)
-	out.anchors = expectations
-	if len(expectations) == 0 && !unresolved {
+	count, anchors, unresolved := r.expectations(e.body)
+	out.count, out.anchors = count, anchors
+	if count == 0 && !unresolved {
 		out.findings = append(out.findings, finding(testvalidity.RuleJSNoAssertion, testvalidity.SeverityAdvisory, r.at(e.line), r.at(e.line),
 			"the example body asserts nothing the reader can see, directly or through a same-file helper, so it passes whenever it does not throw"))
 	}
@@ -389,6 +393,9 @@ func (r *jsReader) rows(d jsDecl) string {
 // jsAssertion reports an assertion at token k: a TSA-V0-013 assertion call, an `assert.` or
 // `expect.` member call, or a `.should` member (TSA-V0-077).
 func (s *source) jsAssertion(k int) bool {
+	if s.assertionCount(k) {
+		return false
+	}
 	if s.isAssertion(k) {
 		return true
 	}
@@ -404,10 +411,23 @@ func (s *source) jsAssertion(k int) bool {
 	return false
 }
 
-// expectations returns the distinct `path:line` locations of the assertions in body and of the
-// calls of same-file helpers that assert, and whether a call names a function imported from a
-// relative module, other than a subject module, that the reader cannot follow (TSA-V0-077).
-func (r *jsReader) expectations(body [2]int) ([]string, bool) {
+// assertionCount reports `expect.assertions(` or `expect.hasAssertions(` at token k, either at
+// `expect` or at the member: a declared count, not an assertion (TSA-V0-077).
+func (s *source) assertionCount(k int) bool {
+	counted := func(i int) bool {
+		return s.ident(i, "") && (s.tokens[i].Text == "assertions" || s.tokens[i].Text == "hasAssertions") && s.punct(i+1, "(")
+	}
+	if s.ident(k, "expect") && !s.memberAccess(k) && s.punct(k+1, ".") && counted(k+2) {
+		return true
+	}
+	return s.memberAccess(k) && s.ident(k-2, "expect") && !s.memberAccess(k-2) && counted(k)
+}
+
+// expectations returns the number of assertion calls in body plus calls of same-file helpers that
+// assert, their distinct `path:line` locations, and whether a call names a function imported
+// from a relative module, other than a subject module, that the reader cannot follow
+// (TSA-V0-077).
+func (r *jsReader) expectations(body [2]int) (int, []string, bool) {
 	s := r.s
 	lines := []int{}
 	for k := body[0]; k < body[1]; k++ {
@@ -420,35 +440,37 @@ func (r *jsReader) expectations(body [2]int) ([]string, bool) {
 		if s.jsAssertion(k) {
 			continue
 		}
-		asserts, unknown := r.helperAsserts(s.tokens[k].Text, !s.memberAccess(k), 1, map[string]bool{})
+		asserts, unknown := r.helperAsserts(s.tokens[k].Text, !s.memberAccess(k), 1, map[string]int{})
 		if asserts {
 			lines = append(lines, s.tokens[k].Line)
 		}
 		unresolved = unresolved || unknown
 	}
+	count := len(lines)
 	slices.Sort(lines)
 	lines = slices.Compact(lines)
 	out := make([]string, 0, len(lines))
 	for _, line := range lines {
 		out = append(out, r.at(line))
 	}
-	return out, unresolved
+	return count, out, unresolved
 }
 
 // helperAsserts follows a call of name to the file's own definitions. It reports whether one
 // asserts, and whether the name, or a name it calls, is imported from a relative module and not
-// defined here.
-func (r *jsReader) helperAsserts(name string, standalone bool, depth int, visited map[string]bool) (bool, bool) {
+// defined here. visited holds the shallowest depth each name was followed at, so a name reached
+// again only by a shorter path is followed again.
+func (r *jsReader) helperAsserts(name string, standalone bool, depth int, visited map[string]int) (bool, bool) {
 	s := r.s
 	defs := s.definitions()[name]
 	if len(defs) == 0 {
 		b, imported := r.bindings[name]
 		return false, standalone && imported && isRelativeSpec(b.spec) && !r.subjectSpecs[b.spec]
 	}
-	if depth > MaxHelperDepth || visited[name] {
+	if seen, ok := visited[name]; depth > MaxHelperDepth || ok && seen <= depth {
 		return false, false
 	}
-	visited[name] = true
+	visited[name] = depth
 	unresolved := false
 	for _, def := range defs {
 		for k := def.body[0]; k < def.body[1]; k++ {
@@ -489,7 +511,7 @@ func (r *jsReader) constantOnly(body [2]int) (int, bool) {
 		}
 	}
 	for _, k := range s.helperCalls(body[0], body[1]) {
-		if asserts, _ := r.helperAsserts(s.tokens[k].Text, !s.memberAccess(k), 1, map[string]bool{}); asserts && !s.jsAssertion(k) {
+		if asserts, _ := r.helperAsserts(s.tokens[k].Text, !s.memberAccess(k), 1, map[string]int{}); asserts && !s.jsAssertion(k) {
 			return 0, false
 		}
 	}
@@ -536,10 +558,15 @@ func (r *jsReader) constLiteral(body [2]int, name string) bool {
 			continue
 		}
 		next := k + 4
-		return next >= body[1] || s.punct(next, ";") || s.punct(next, "}") || s.tokens[next].Line != s.tokens[k+3].Line
+		return next >= body[1] || s.punct(next, ";") || s.punct(next, "}") ||
+			s.tokens[next].Line != s.tokens[k+3].Line && s.ident(next, "") && !jsContinuationWords[s.tokens[next].Text]
 	}
 	return false
 }
+
+// jsContinuationWords are identifiers that, starting a new line, continue the expression before
+// it, so the line break does not end the statement.
+var jsContinuationWords = map[string]bool{"in": true, "instanceof": true, "as": true, "satisfies": true}
 
 // importBindings maps each identifier an `import` declaration or a top-level `require` binds to
 // its specifier.
@@ -651,10 +678,17 @@ func (r *jsReader) mocks(e jsDecl, chain []int) []jsMock {
 	specs, names := r.subjectSpecs, r.subjectNames
 	stem := strings.TrimSuffix(path.Base(r.name), path.Ext(r.name))
 	stem = strings.TrimSuffix(strings.TrimSuffix(stem, ".spec"), ".test")
+	callbacks := map[[2]int]bool{}
+	for _, d := range r.decls {
+		if d.hasBody {
+			callbacks[d.body] = true
+		}
+	}
+	// A named example or describe callback is a declaration's own body, not an external helper.
 	inDefinition := func(i int) bool {
 		for _, defs := range s.definitions() {
 			for _, d := range defs {
-				if within(i, d.body) {
+				if within(i, d.body) && !callbacks[d.body] {
 					return true
 				}
 			}
