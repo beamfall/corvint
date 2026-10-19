@@ -25,6 +25,11 @@ recursive generated sources. Unsupported analyzers remain gaps. Native extractio
 symbols/test declarations, literal Markdown paragraphs and anchored Go imports; it does not infer
 runtime call graphs, API behavior or UI journeys. A declaration is never a test execution result.
 
+`manifest` takes repeated `--scope PATH` values and emits one manifest with one scope per path in
+byte order; a duplicate or nested scope is refused. The default `corvint-corpus-input/1` manifest
+holds at most 4,096 files; `--schema 2` emits `corvint-corpus-input/2`, bounded by its 100,000
+records. A refused inventory names the bound, the scopes and the file count.
+
 Read operations share one rederiving reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
 `related`, `journey`, `stability` (each with `--id ID`), `locate --path PATH`, `coverage`,
 `gaps [--id ID]`.

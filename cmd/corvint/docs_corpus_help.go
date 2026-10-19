@@ -28,7 +28,7 @@ func buildCorpusOperations() []corpusOperation {
 		return read(name, purpose, []string{"--" + doccorpus.OperationInput(name)})
 	}
 	return []corpusOperation{
-		{name: "manifest", purpose: "inventory one scope at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}},
+		{name: "manifest", purpose: "inventory one or more scopes at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
 		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}},
 		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
 		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
@@ -94,7 +94,8 @@ var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--p
 
 var corpusFlagHelp = map[string][2]string{
 	"--revision":             {"FULL_COMMIT", "source revision the manifest pins"},
-	"--scope":                {"PATH", "repository path the manifest inventories"},
+	"--scope":                {"PATH", "repository path the manifest inventories; repeat for more disjoint scopes"},
+	"--schema":               {"1|2", "manifest schema: 1 (default, " + strconv.Itoa(doccorpus.MaxRecords) + " files) or 2 (" + strconv.Itoa(doccorpus.MaxCorpusRecords) + " files)"},
 	"--timestamp":            {"RFC3339", "manifest timestamp"},
 	"--manifest":             {"INPUT.json", "manifest from docs corpus manifest"},
 	"--artifact":             {"CORPUS.json", "corpus artifact from docs corpus build"},

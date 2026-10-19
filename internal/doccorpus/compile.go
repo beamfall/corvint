@@ -36,10 +36,19 @@ type compiler struct {
 func inputKey(rev, p string) string { return rev + ":" + p }
 func inScope(p, s string) bool      { return p == s || strings.HasPrefix(p, s+"/") }
 
-// Inventory creates an explicit manifest candidate; it grants no authority.
+// Inventory creates an explicit corvint-corpus-input/1 manifest candidate for one scope; it grants
+// no authority.
 func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Manifest, error) {
-	if !validPath(scope) {
-		return Manifest{}, fail("invalid scope")
+	return InventoryScopes(ctx, root, revision, []string{scope}, ManifestSchema, timestamp)
+}
+
+// InventoryScopes creates one manifest candidate of the given schema over every scope (DCP-V1-160..163).
+// Scopes are emitted in byte order; a duplicate or nested scope is refused, and the inventory is bounded
+// by the schema's record limit.
+func InventoryScopes(ctx context.Context, root, revision string, scopes []string, schema, timestamp string) (Manifest, error) {
+	scopes, err := inventoryScopeSet(scopes, schema)
+	if err != nil {
+		return Manifest{}, err
 	}
 	ctx = gitstatus.WithIsolation(ctx)
 	index, err := contextindex.BuildRevisionContext(ctx, root, revision)
@@ -50,7 +59,10 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 	if err != nil {
 		return Manifest{}, err
 	}
-	m := Manifest{Schema: ManifestSchema, Repository: Repository{id, revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{{scope, revision}}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
+	m := Manifest{Schema: schema, Repository: Repository{id, revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
+	for _, scope := range scopes {
+		m.Scopes = append(m.Scopes, Scope{scope, revision})
+	}
 	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
 		return m, err
@@ -58,19 +70,24 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 	release := auth.BeginObjectSession()
 	defer release()
 	names := []string{}
+	counts := map[string]int{}
+	for _, scope := range scopes {
+		counts[scope] = 0
+	}
 	for p := range index.Tracked {
-		if inScope(p, scope) {
+		if scope, ok := owningScope(p, counts); ok {
+			counts[scope]++
 			names = append(names, p)
 		}
 	}
 	for p := range index.Skipped {
-		if inScope(p, scope) {
+		if _, ok := owningScope(p, counts); ok {
 			return m, fail("scope includes unsupported tree entry")
 		}
 	}
 	sort.Strings(names)
-	if len(names) == 0 || len(names) > MaxRecords {
-		return m, fail("empty or oversized scope")
+	if err := checkInventoryBound(m, scopes, counts, len(names)); err != nil {
+		return m, err
 	}
 	for _, p := range names {
 		source, err := loadInput(ctx, auth, index, p, MaxBytes)
@@ -80,6 +97,68 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 		m.Inputs = append(m.Inputs, Input{Path: p, Revision: revision, Blob: source.BlobHash, SHA256: Digest(source.Data), Provider: "native", Purpose: "source"})
 	}
 	return m, nil
+}
+
+// inventoryScopeSet sorts the requested scopes and refuses an unknown schema, an invalid path, or a
+// duplicate or nested scope: every input then belongs to exactly one scope (DCP-V1-161).
+func inventoryScopeSet(requested []string, schema string) ([]string, error) {
+	if schema != ManifestSchema && schema != ManifestSchemaV2 {
+		return nil, fail("unsupported manifest schema")
+	}
+	if len(requested) == 0 {
+		return nil, fail("invalid scope")
+	}
+	scopes := append([]string(nil), requested...)
+	sort.Strings(scopes)
+	for i, scope := range scopes {
+		if !validPath(scope) {
+			return nil, fail("invalid scope")
+		}
+		if i > 0 && scopes[i-1] == scope {
+			return nil, fail("duplicate scope " + scope)
+		}
+	}
+	for _, outer := range scopes {
+		for _, inner := range scopes {
+			if outer != inner && inScope(inner, outer) {
+				return nil, fail("overlapping scopes: " + outer + " contains " + inner)
+			}
+		}
+	}
+	return scopes, nil
+}
+
+// owningScope names the requested scope holding p by walking p's ancestors; scopes holds one key
+// per requested scope.
+func owningScope(p string, scopes map[string]int) (string, bool) {
+	for candidate := p; ; {
+		if _, ok := scopes[candidate]; ok {
+			return candidate, true
+		}
+		i := strings.LastIndexByte(candidate, '/')
+		if i < 0 {
+			return "", false
+		}
+		candidate = candidate[:i]
+	}
+}
+
+// checkInventoryBound refuses an empty scope or an inventory over the manifest schema's record limit,
+// naming the bound, the scopes and the file count (DCP-V1-162).
+func checkInventoryBound(m Manifest, scopes []string, counts map[string]int, total int) error {
+	for _, scope := range scopes {
+		if counts[scope] == 0 {
+			return fail("empty scope: " + scope + " holds no tracked files")
+		}
+	}
+	if limit := m.recordLimit(); total > limit {
+		message := fmt.Sprintf("oversized scope: %s holds %d tracked files, over the %s bound of %d records", strings.Join(scopes, ", "), total, m.Schema, limit)
+		if m.Schema == ManifestSchema {
+			message += fmt.Sprintf("; --schema 2 admits %d", MaxCorpusRecords)
+		}
+		return fail(message)
+	}
+	return nil
 }
 
 // Build compiles only original immutable inputs. No output is written to disk.
