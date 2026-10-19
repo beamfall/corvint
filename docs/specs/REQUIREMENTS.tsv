@@ -4134,6 +4134,13 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-140	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)	standing	2026-10-11; V1-1888; #1172
+TSA-V0-141	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) The modelled runners	standing	2026-10-11; V1-1888; #1172
+TSA-V0-142	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A configuration MUST	standing	2026-10-11; V1-1888; #1172
+TSA-V0-143	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A file's framework MU	standing	2026-10-11; V1-1888; #1172
+TSA-V0-144	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) Each test-looking fil	standing	2026-10-11; V1-1888; #1172
+TSA-V0-145	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)	standing	2026-10-11; V1-1888; #1172
+TSA-V0-146	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) `corvint tests	standing	2026-10-11; V1-1888; #1172
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

@@ -26,6 +26,7 @@ Usage:
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--rev REV]
+  corvint [--root PATH] tests unselected [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -74,14 +75,26 @@ document: each file's findings (uncertain with a reason where the reader
 abstained) and the tests. A JS/TS file lists every example in line order with
 its hygiene and a NOT_MEASURED strength; other files list each test a finding
 names with the hygiene those findings give it. Exit 1 when an invalid finding
-makes a test INELIGIBLE (refused as proof), 0 otherwise.
+makes a test INELIGIBLE (refused as proof), 0 otherwise. A named JS/TS test
+file that unselected reports also gives each of its tests an invalid
+TEST-FILE-UNSELECTED finding.
+
+unselected lists every committed test-looking JS/TS file (a test name or
+test directory, and a test or describe call) and whether a configured Jest,
+Vitest, Playwright or Mocha runner selects it under its literal configuration
+or defaults. Each file no runner selects is a TEST-FILE-UNSELECTED finding
+with reason no-runner-for-framework, outside-include, excluded (naming the
+pattern) or suffix-mismatch. A configuration it cannot read literally, an
+unmodelled runner or framework, or no runner evidence at all makes the file
+uncertain, never reported. It prints one corvint-test-file-selection/0
+document. Exit 1 when any file is reported, 0 otherwise.
 
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858).
+V1-1592, V1-1798, V1-1858, V1-1888).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -140,7 +153,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|unselected")
 	}
 	if root == "" {
 		root = "."
@@ -160,8 +173,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "unselected":
+		return runTestsUnselected(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|unselected")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
@@ -354,7 +369,7 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 {
 		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV]")
 	}
-	report, err := testsource.SourceValidity(repo, options)
+	report, err := testsource.SelectedSourceValidity(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
 	}
