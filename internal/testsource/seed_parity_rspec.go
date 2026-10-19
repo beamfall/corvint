@@ -29,6 +29,14 @@ var (
 	yamlKey         = regexp.MustCompile(`^([A-Za-z_][\w.-]*|"[^"]*"|'[^']*'):(?:\s+(.*))?$`)
 )
 
+// rspecLet is one let, let!, subject or subject! declaration; name is "subject" for an anonymous
+// subject.
+type rspecLet struct {
+	name string
+	lazy bool
+	body []rubyLine
+}
+
 // rspecSeed extracts the setup of the example declared on line (TSA-V0-101).
 func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, error) {
 	at := func(n int) string { return fmt.Sprintf("%s:%d", name, n) }

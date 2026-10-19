@@ -42,6 +42,10 @@ var (
 
 type rspecGroup struct {
 	parent int
+	// lets and fixtures are every let, let!, subject and subject! with its body and every
+	// `fixtures` line of the group, for the seed-parity reading (TSA-V0-101).
+	lets     []rspecLet
+	fixtures []rubyLine
 	// decls maps a declared name to "let", "subject" (an anonymous subject) or "let:NAME" (the
 	// `subject` alias of a named subject, which RSpec defines as a let).
 	decls map[string]string
@@ -49,18 +53,6 @@ type rspecGroup struct {
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
-	// lets and fixtures are every let, let!, subject and subject! with its body and every
-	// `fixtures` line of the group, for the seed-parity reading (TSA-V0-101).
-	lets     []rspecLet
-	fixtures []rubyLine
-}
-
-// rspecLet is one let, let!, subject or subject! declaration; name is "subject" for an anonymous
-// subject.
-type rspecLet struct {
-	name string
-	lazy bool
-	body []rubyLine
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
