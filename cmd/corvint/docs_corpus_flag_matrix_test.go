@@ -44,7 +44,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"related":             {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"journey":             {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"stability":           {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
-	"flow":                {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
+	"flow":                {required: []string{"--artifact", "--id"}, optional: append([]string{"--section", "--include"}, corpusReadOptional...)},
 	"dependencies":        {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"navigation":          {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
 	"intent":              {required: []string{"--artifact", "--id"}, optional: corpusReadOptional},
@@ -52,7 +52,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema", "--section", "--include"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {
@@ -62,6 +62,10 @@ func corpusFlagArgs(flag string) []string {
 		return []string{flag, "1"}
 	case "--schema":
 		return []string{flag, "2"}
+	case "--section":
+		return []string{flag, "readme"}
+	case "--include":
+		return []string{flag, "paragraphs"}
 	}
 	return []string{flag, "x.json"}
 }
@@ -149,6 +153,23 @@ func TestDocsCorpusOperationFlagMatrix(t *testing.T) {
 	} {
 		if got := corpusParseError(check.args); got != check.want {
 			t.Errorf("%q = %q, want %q", check.args, got, check.want)
+		}
+	}
+}
+
+// DCP-V1-174: the flow filters parse as comma-separated lists and a malformed
+// filter is an argument error before any artifact is read.
+func TestDCPV1174CorpusFlowFilterOptions(t *testing.T) {
+	t.Parallel()
+	base := []string{"flow", "--artifact", "x.json", "--id", "adapter:flow"}
+	for _, extra := range [][]string{{"--section", "readme,entities"}, {"--include", "claims,relations"}, {"--section=readme", "--include=paragraphs,claims"}} {
+		if got := corpusParseError(append(slices.Clone(base), extra...)); got != "" {
+			t.Errorf("%v refused: %s", extra, got)
+		}
+	}
+	for _, extra := range [][]string{{"--include", "subjects"}, {"--include", "claims,claims"}, {"--section", "readme,"}, {"--section", "readme", "--include", "claims"}} {
+		if got := corpusParseError(append(slices.Clone(base), extra...)); got != "invalid flow section or include filter" {
+			t.Errorf("%v = %q, want invalid filter", extra, got)
 		}
 	}
 }

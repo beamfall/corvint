@@ -202,6 +202,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if request.Depth < 0 || request.Depth > MaxFlowDepth || request.Depth != 0 && request.Operation != "trace" {
 		return Receipt{}, fail("flow trace depth is bounded and applies only to trace")
 	}
+	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
+		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
+	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}
@@ -356,7 +359,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if a.Schema == SchemaV2 {
 		return pageReceipt(ctx, a, r, request, symbols)
 	}
-	if len(r.Results) == 0 {
+	if len(r.Results) == 0 && r.Miss == "" {
 		r.State = "empty"
 		r.Miss = "no-match"
 		if request.Operation == "get" || request.Operation == "journey" || request.Operation == "stability" || request.Operation == "trace" {
