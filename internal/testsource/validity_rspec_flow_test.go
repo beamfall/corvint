@@ -1,7 +1,10 @@
 package testsource
 
 import (
+	"context"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -194,33 +197,44 @@ func TestAssertedValueNotFromSubjectRSpec(t *testing.T) {
 // command every flow finding is advisory and leaves its test ELIGIBLE, and two reads of the same
 // text give identical files and tests.
 func TestFlowFindingsAdvisoryAndDeterministic(t *testing.T) {
-	for _, c := range []struct{ name, text string }{
-		{"spec/checkout_spec.rb", stubPathSpec}, {"spec/report_spec.rb", neverInvokedSpec},
-		{"spec/invoice_spec.rb", valueOriginSpec}, {"test/checkout.test.ts", jsStubPathSpec},
-		{"test/banner.test.ts", jsValueOriginSpec},
-	} {
-		file, tests := readSourceValidity(c.name, c.text)
-		again, testsAgain := readSourceValidity(c.name, c.text)
-		if !reflect.DeepEqual(file, again) || !reflect.DeepEqual(tests, testsAgain) {
-			t.Fatalf("%s: two reads differ", c.name)
+	files := map[string]string{
+		"spec/checkout_spec.rb": stubPathSpec, "spec/report_spec.rb": neverInvokedSpec,
+		"spec/invoice_spec.rb": valueOriginSpec, "test/checkout.test.ts": jsStubPathSpec,
+		"test/banner.test.ts": jsValueOriginSpec,
+	}
+	root := t.TempDir()
+	commitFiles(t, root, files)
+	names := slices.Sorted(maps.Keys(files))
+	read := func() SourceValidityReport {
+		report, err := SourceValidity(OpenRepo(context.Background(), root), SourceValidityOptions{Files: names})
+		if err != nil {
+			t.Fatal(err)
 		}
-		flagged := map[string]bool{}
+		return report
+	}
+	report := read()
+	if again := read(); !reflect.DeepEqual(report, again) {
+		t.Fatal("two reads differ")
+	}
+	flagged := map[string]bool{}
+	for _, file := range report.Files {
+		found := false
 		for _, f := range file.Findings {
 			if len(flowRows([]string{f.Rule + " "})) == 0 {
 				continue
 			}
 			if f.Severity != testvalidity.SeverityAdvisory {
-				t.Fatalf("%s: %s at %s is %s", c.name, f.Rule, f.Location, f.Severity)
+				t.Fatalf("%s: %s at %s is %s", file.Path, f.Rule, f.Location, f.Severity)
 			}
-			flagged[f.Test] = true
+			flagged[f.Test], found = true, true
 		}
-		if len(flagged) == 0 {
-			t.Fatalf("%s: no flow findings reached the command", c.name)
+		if !found {
+			t.Fatalf("%s: no flow findings reached the command", file.Path)
 		}
-		for _, test := range tests {
-			if flagged[test.Test] && test.Hygiene.State != testvalidity.HygieneEligible {
-				t.Fatalf("%s: %s hygiene %s", c.name, test.Test, test.Hygiene.State)
-			}
+	}
+	for _, test := range report.Tests {
+		if flagged[test.Test] && test.Hygiene.State != testvalidity.HygieneEligible {
+			t.Fatalf("%s hygiene %s", test.Test, test.Hygiene.State)
 		}
 	}
 }
