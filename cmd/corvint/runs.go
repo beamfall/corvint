@@ -30,6 +30,8 @@ Usage:
     --isolated FILE[,FILE...]
   corvint [--root PATH] runs baseline diff --baseline FILE --runs FILE[,FILE...]
     [--own PATH[,PATH...]] [--base REV] [--max-age N]
+  corvint [--root PATH] runs response-wait --log FILE --url-contains S
+    [--method M] --wait-start RFC3339 --timeout-ms N
 
 stability pools each test (project, file, title path) across runs whose
 identity inputs match: Playwright version plus the applicationRevision,
@@ -124,6 +126,11 @@ and baseline, bounded Git reads of the repository at --root; writes nothing and 
 with JSON on stdout. Refusals: runs-invalid-arguments,
 runs-report-unavailable (stability, reusable, redundancy, baseline),
 runs-baseline-unavailable, runs-revision-unresolved, runs-output-unavailable.
+response-wait reads a HAR or JSON-lines server request log for a wait that
+timed out: REQUEST_NEVER_SENT (with up to 5 earlier 4xx/5xx requests on the
+same page), SLOW_RESPONSE (duration, lateness), RESPONSE_IN_WAIT, or UNKNOWN
+when the log is missing or does not cover the wait
+(docs/specs/test-source-analysis-v0.md, V1-1939).
 Contract: docs/specs/playwright-run-evidence-v0.md (proposed; V1-1230,
 V1-1229, V1-1578, V1-1590).
 `
@@ -196,6 +203,8 @@ func runRuns(ctx context.Context, root string, args []string, out, diagnostic io
 		return runRunsFresh(ctx, root, args[1:], out, diagnostic)
 	case "baseline":
 		return runRunsBaseline(ctx, root, args[1:], out, diagnostic)
+	case "response-wait":
+		return runRunsResponseWait(root, args[1:], out, diagnostic)
 	}
 	return runsRefuse(diagnostic, "runs-invalid-arguments", nil)
 }
