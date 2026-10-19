@@ -199,3 +199,98 @@ func TestAMAPV0116BudgetAndRedaction(t *testing.T) {
 		t.Fatalf("budget not honoured (%d bytes): %s", len(r.Document), r.Document)
 	}
 }
+
+// AMAP-V0-112: a callback reaches only the actions its registration applies to after only:,
+// except: and skips; a conditional registration leaves its reach possible.
+func TestAMAPV0112CallbackRestrictions(t *testing.T) {
+	cases := []struct{ register, skip, want string }{
+		{"before_action :guard, only: :preview", "", "request=none"},
+		{"before_action :guard", "skip_before_action :guard, only: :show", "request=none"},
+		{"before_action :guard, except: :preview", "", "request=reached(spec/requests/reports_spec.rb:3 callback-path-helper)"},
+		{"before_action :guard, only: %i[show]", "", "request=reached(spec/requests/reports_spec.rb:3 callback-path-helper)"},
+		{"before_action :guard, only: [:show], if: :ready?", "", "request=possible(spec/requests/reports_spec.rb:3 conditional-callback-path-helper)"},
+		{"before_action :guard", "skip_before_action :guard, unless: :ready?", "request=possible(spec/requests/reports_spec.rb:3 conditional-callback-path-helper)"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.register+" "+tc.skip, func(t *testing.T) {
+			root, m := railsFixture(t, func(f map[string]string) {
+				f["app/controllers/reports_controller.rb"] = "class ReportsController < ApplicationController\n  " + tc.register + "\n  " + tc.skip +
+					"\n  def show\n  end\n\n  private\n\n  def guard\n    head :forbidden unless @report.visible\n  end\nend\n"
+				f["spec/requests/reports_spec.rb"] = "describe \"reports\" do\n  it \"shows\" do\n    get report_path(1)\n  end\nend\n"
+			})
+			doc, _ := queryBranches(t, root, m, Options{Full: true}, "app/controllers/reports_controller.rb:10")
+			if len(doc.Branches) != 1 || !strings.Contains(branchKey(doc.Branches[0]), " | "+tc.want+" | ") {
+				t.Fatalf("want %s\n%+v", tc.want, doc.Branches)
+			}
+		})
+	}
+}
+
+// AMAP-V0-112: a request or visit inside a comment or string literal reaches nothing.
+func TestAMAPV0112CommentedCallsIgnored(t *testing.T) {
+	root, m := railsFixture(t, func(f map[string]string) {
+		f["spec/requests/orders_spec.rb"] = "RSpec.describe \"orders\" do\n  it \"updates\" do\n    # patch \"/orders/1\"\n    note = \"patch '/orders/1'\"\n  end\nend\n"
+		f["e2e/specs/orders.spec.ts"] = "test('orders', async ({ page }) => {\n  // await page.goto('/orders/1');\n  const s = \"page.goto('/orders/1')\";\n});\n"
+	})
+	doc, _ := queryBranches(t, root, m, Options{Full: true}, "app/controllers/orders_controller.rb:7-12")
+	if len(doc.Branches) != 2 {
+		t.Fatalf("%+v", doc.Branches)
+	}
+	for _, b := range doc.Branches {
+		if key := branchKey(b); !strings.Contains(key, "| request=none | e2e=none |") {
+			t.Fatalf("commented call reached: %s", key)
+		}
+	}
+}
+
+// AMAP-V0-114: nested factories inherit their ancestors' attributes in every run, and a quoted
+// class option names the model while an unread one binds to none.
+func TestAMAPV0114FactoryInheritanceAndClass(t *testing.T) {
+	src := "FactoryBot.define do\n  factory :order do\n    paid { true }\n    factory :a do\n      factory :b do\n        factory :c do\n          factory :d do\n            factory :e do\n              rush { true }\n            end\n          end\n        end\n      end\n    end\n  end\n" +
+		"  factory :admin, class: \"User\" do\n    role { \"admin\" }\n  end\n  factory :ghost, class: model_for(:ghost) do\n    role { \"none\" }\n  end\nend\n"
+	for run := 0; run < 50; run++ {
+		x := &setupWriterIndex{factories: map[string]*setupWriter{}, traits: map[string]*setupWriter{}}
+		x.readFactories("spec/factories/orders.rb", []byte(src))
+		names := []string{}
+		for _, w := range x.writersOf("Order", "paid") {
+			names = append(names, w.Name)
+		}
+		if want := []string{"factory :order", "factory :a", "factory :b", "factory :c", "factory :d", "factory :e"}; !reflect.DeepEqual(names, want) {
+			t.Fatalf("run %d: paid writers %q, want %q", run, names, want)
+		}
+		if w := x.writersOf("User", "role"); len(w) != 1 || w[0].Name != "factory :admin" {
+			t.Fatalf("quoted class: %+v", w)
+		}
+		if x.factories["ghost"].Model != "?" {
+			t.Fatalf("unread class bound to %q", x.factories["ghost"].Model)
+		}
+	}
+}
+
+// AMAP-V0-107 AMAP-V0-116: one read budget covers every application root a command loads, and
+// branches loads only the roots its cites need.
+func TestAMAPV0116SharedReadBudget(t *testing.T) {
+	saved := newAppReadBudget
+	defer func() { newAppReadBudget = saved }()
+	newAppReadBudget = func() *appReadBudget { return &appReadBudget{files: maxTestFiles, bytes: 60_000} }
+	engine := func(pad int) func(map[string]string) {
+		return func(f map[string]string) {
+			f["appmap.json"] = strings.Replace(railsManifest, `"routers":[`, `"routers":[{"path":"engine/config/routes.rb","dialect":"rails-routes/0"},`, 1)
+			f["engine/config/routes.rb"] = "Rails.application.routes.draw do\n  get \"ping\", to: \"ping#show\"\nend\n"
+			f["engine/app/controllers/ping_controller.rb"] = "class PingController < ActionController::Base\n  def show\n  end\nend\n#" + strings.Repeat("x", pad) + "\n"
+			f["app/controllers/padding_controller.rb"] = "class PaddingController < ApplicationController\nend\n#" + strings.Repeat("x", 40_000) + "\n"
+		}
+	}
+	root, m := railsFixture(t, engine(40_000))
+	if _, err := CheckActions(context.Background(), m, Options{Root: root}); codeOf(err) != "appmap-bound-exceeded" {
+		t.Fatalf("two roots within the budget each but not together: %v", err)
+	}
+	root, m = railsFixture(t, engine(70_000))
+	doc, _ := queryBranches(t, root, m, Options{Full: true}, "app/models/order.rb:3")
+	if len(doc.Branches) != 1 {
+		t.Fatalf("%+v", doc)
+	}
+	if _, err := QueryBranches(context.Background(), m, []string{"engine/app/controllers/ping_controller.rb:2"}, Options{Root: root}); codeOf(err) != "appmap-bound-exceeded" {
+		t.Fatalf("the cited engine root exceeds the budget: %v", err)
+	}
+}

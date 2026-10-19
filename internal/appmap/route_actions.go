@@ -67,7 +67,16 @@ type routeActionParser struct {
 
 var pluralActions = []struct{ action, verb, where string }{
 	{"index", "GET", "collection"}, {"create", "POST", "collection"}, {"new", "GET", "new"},
-	{"edit", "GET", "edit"}, {"show", "GET", "member"}, {"update", "PATCH", "member"}, {"destroy", "DELETE", "member"},
+	{"edit", "GET", "edit"}, {"show", "GET", "member"}, {"update", "PATCH|PUT", "member"}, {"destroy", "DELETE", "member"},
+}
+
+// controllerPath joins a controller name to the enclosing module path; a leading `/` names an
+// absolute controller that the module does not prefix, as Rails does.
+func controllerPath(module, name string) string {
+	if strings.HasPrefix(name, "/") {
+		return strings.Trim(name, "/")
+	}
+	return module + strings.Trim(name, "/")
 }
 
 // readRouteActions compiles one rails-routes/0 router file and its one-level draws.
@@ -321,7 +330,7 @@ func (p *routeActionParser) resource(file string, line int, plural bool, arg str
 	if module != "" {
 		ctrl += strings.Trim(module, "/") + "/"
 	}
-	ctrl += strings.Trim(ctrlName, "/")
+	ctrl = controllerPath(ctrl, ctrlName)
 	selected := map[string]bool{}
 	for _, a := range pluralActions {
 		selected[a.action] = plural || a.action != "index"
@@ -421,17 +430,17 @@ func (p *routeActionParser) verbRoute(file string, line int, verb, arg string, o
 		if !found || c == "" || !routeLiteralName.MatchString(a) {
 			return "no-handler"
 		}
-		ctrl, action = scope.module+strings.Trim(c, "/"), a
+		ctrl, action = controllerPath(scope.module, c), a
 	}
 	if c, has := opts["controller"]; has {
-		ctrl = scope.module + strings.Trim(c.str, "/")
+		ctrl = controllerPath(scope.module, c.str)
 	}
 	if a, has := opts["action"]; has {
 		action = a.str
 	}
 	if verb == "root" && ctrl == "" && strings.Contains(arg, "#") {
 		c, a, _ := strings.Cut(arg, "#")
-		ctrl, action, arg = scope.module+strings.Trim(c, "/"), a, ""
+		ctrl, action, arg = controllerPath(scope.module, c), a, ""
 	}
 	on := scope.on
 	if v, has := opts["on"]; has {

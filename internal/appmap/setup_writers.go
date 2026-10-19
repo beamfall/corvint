@@ -91,7 +91,7 @@ func newSetupWriterIndex(app *railsApp, routes []railsRoute) *setupWriterIndex {
 
 var (
 	factoryOpen  = regexp.MustCompile(`^factory\s*\(?\s*:([A-Za-z_]\w*)(.*)$`)
-	factoryClass = regexp.MustCompile(`class:\s*(?::?:?([A-Z][\w:]*)|:?([a-z_]\w*))`)
+	factoryClass = regexp.MustCompile(`class:\s*(?:["']?(?:::)?([A-Z][\w:]*)["']?(?:[\s,)]|$)|(?::|["'])([a-z_]\w*)["']?(?:[\s,)]|$))`)
 	traitOpen    = regexp.MustCompile(`^trait\s*\(?\s*:([A-Za-z_]\w*)`)
 	sequenceAttr = regexp.MustCompile(`^sequence\s*\(?\s*:([A-Za-z_]\w*)`)
 	factoryWords = map[string]bool{"factory": true, "trait": true, "transient": true, "after": true, "before": true, "callback": true,
@@ -136,6 +136,9 @@ func (x *setupWriterIndex) readFactories(p string, data []byte) {
 				if model == "" {
 					model = rubyCamelize(c[2])
 				}
+			} else if strings.Contains(raw[n], "class:") {
+				// An unread class option never binds to a guessed model.
+				model = "?"
 			}
 			if model == "" {
 				model = rubyCamelize(m[1])
@@ -173,7 +176,15 @@ func (x *setupWriterIndex) readFactories(p string, data []byte) {
 			x.writers[top.owner].Attributes = appendUnique(x.writers[top.owner].Attributes, attr)
 		}
 	}
-	for child, parent := range parents {
+	// A parent always precedes its children, so ascending order completes each parent's inherited
+	// attributes before a descendant copies them.
+	children := make([]int, 0, len(parents))
+	for child := range parents {
+		children = append(children, child)
+	}
+	sort.Ints(children)
+	for _, child := range children {
+		parent := parents[child]
 		for _, a := range x.writers[parent].Attributes {
 			x.writers[child].Attributes = appendUnique(x.writers[child].Attributes, a)
 		}

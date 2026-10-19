@@ -366,7 +366,7 @@ AMAP-V0-101	docs/specs/application-map-v0.md	Every route a supported Rails decla
 AMAP-V0-102	docs/specs/application-map-v0.md	A handler MUST be read from `app/controllers/<controller path>_controller.rb`	unrecorded	-
 AMAP-V0-103	docs/specs/application-map-v0.md	An action defined by an ancestor class or an included module MUST count as	unrecorded	-
 AMAP-V0-104	docs/specs/application-map-v0.md	A route whose action is not a public method MUST count as defined when a view	unrecorded	-
-AMAP-V0-105	docs/specs/application-map-v0.md	When an action is not found, a chain member that could define it at run time	unrecorded	-
+AMAP-V0-105	docs/specs/application-map-v0.md	When an action is not found, or is found only as a non-public method, a chain	unrecorded	-
 AMAP-V0-106	docs/specs/application-map-v0.md	Each finding MUST carry rule `ROUTE-ACTION-MISSING`, the declaration	unrecorded	-
 AMAP-V0-107	docs/specs/application-map-v0.md	Router reads MUST stay within the AMAP-V0-015 router bounds and controller,	unrecorded	-
 AMAP-V0-110	docs/specs/application-map-v0.md	`flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...]	unrecorded	-

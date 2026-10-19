@@ -43,15 +43,31 @@ func appJoin(root, p string) string {
 // appRootOf is the application root of a router file: two directories above it.
 func appRootOf(router string) string { return path.Dir(path.Dir(router)) }
 
-// loadRailsApp lists every file under the prefixes and reads those read accepts, within the test
-// bounds (AMAP-V0-107); a file over 1 MiB is listed but not read.
-func loadRailsApp(r repo, rev, root string, prefixes []string, read func(string) bool) (*railsApp, error) {
+// appReadBudget is one command's read allowance, shared by every application root it loads and
+// by the map's test files (AMAP-V0-107, AMAP-V0-116).
+type appReadBudget struct{ files, bytes int }
+
+// newAppReadBudget is the per-command budget; tests narrow it.
+var newAppReadBudget = func() *appReadBudget { return &appReadBudget{files: maxTestFiles, bytes: maxTestBytes} }
+
+// spend charges files and bytes already read to the budget.
+func (b *appReadBudget) spend(files, size int) error {
+	b.files, b.bytes = b.files-files, b.bytes-size
+	if b.files < 0 || b.bytes < 0 {
+		return bound("the command's application reads exceed its shared file or byte budget")
+	}
+	return nil
+}
+
+// loadRailsApp lists every file under the prefixes and reads those read accepts, within the
+// command's shared read budget (AMAP-V0-107); a file over 1 MiB is listed but not read.
+func loadRailsApp(r repo, rev, root string, prefixes []string, read func(string) bool, budget *appReadBudget) (*railsApp, error) {
 	a := &railsApp{root: root, entries: map[string]blobEntry{}, data: map[string][]byte{}, tooLarge: map[string]bool{}, parsed: map[string]*rubyFile{}}
 	full := make([]string, len(prefixes))
 	for i, p := range prefixes {
 		full[i] = appJoin(root, p)
 	}
-	entries, err := r.tree(rev, full, maxTestFiles)
+	entries, err := r.tree(rev, full, budget.files)
 	if err != nil {
 		return nil, err
 	}
@@ -68,8 +84,8 @@ func loadRailsApp(r repo, rev, root string, prefixes []string, read func(string)
 		wanted = append(wanted, e)
 		total += e.size
 	}
-	if total > maxTestBytes {
-		return nil, bound(fmt.Sprintf("application source files exceed %d bytes", maxTestBytes))
+	if err := budget.spend(len(entries), total); err != nil {
+		return nil, err
 	}
 	blobs, err := r.blobs(wanted, maxTestFileBytes, maxTestBytes)
 	if err != nil {
@@ -141,8 +157,14 @@ func (a *railsApp) resolveAction(ctrl, action string) actionVerdict {
 	visited := map[string]bool{}
 	members := 0
 	var found *rubyDef
-	var foundBasis string
-	// walk visits a class or module, then its includes (last first), then a class's superclass.
+	var foundBasis, visibility string
+	prefixes := []string{ctrl}
+	// walk visits the ancestors in Ruby's lookup order: a class or module, then its includes
+	// (the last include statement first), then a class's superclass. The first definition or
+	// visibility change (`private :x`, `public :x`) of the action decides its visibility; the walk
+	// continues past it so a later member's fallback (`action_missing`) or doubt is still seen,
+	// and so each controller class contributes its view prefix (AMAP-V0-103..105). It reports
+	// whether the chain beyond s is unknown.
 	var walk func(s *rubyScope, sf *rubyFile, basis string) bool
 	walk = func(s *rubyScope, sf *rubyFile, basis string) bool {
 		if visited[s.name] && s.kind == "module" {
@@ -154,10 +176,23 @@ func (a *railsApp) resolveAction(ctrl, action string) actionVerdict {
 		}
 		visited[s.name] = true
 		members++
-		for _, d := range s.defs {
-			if d.instance && d.name == action {
-				found, foundBasis = d, basis
-				return true
+		if s.kind == "class" && basis == "ancestor" {
+			if name, ok := strings.CutSuffix(s.name, "Controller"); ok && name != "" {
+				prefixes = append(prefixes, rubyUnderscore(name))
+			}
+		}
+		if found == nil {
+			for i := len(s.defs) - 1; i >= 0; i-- { // a later definition replaces an earlier one
+				if d := s.defs[i]; d.instance && d.name == action {
+					found, foundBasis = d, basis
+					break
+				}
+			}
+			if v, ok := s.hidden[action]; ok && visibility == "" {
+				visibility = v
+			}
+			if found != nil && visibility == "" {
+				visibility = found.visibility
 			}
 		}
 		for _, dyn := range s.dynamic {
@@ -204,11 +239,11 @@ func (a *railsApp) resolveAction(ctrl, action string) actionVerdict {
 		return walk(ps, pf, "ancestor")
 	}
 	walk(scope, f, "method")
-	if found != nil && found.effectiveVisibility() == "public" {
+	if found != nil && visibility == "public" {
 		v.status, v.basis = "defined", foundBasis
 		return v
 	}
-	if a.template(ctrl, action) {
+	if a.template(prefixes, action) {
 		v.status, v.basis = "defined", "implicit-template"
 		return v
 	}
@@ -257,12 +292,15 @@ func (a *railsApp) constant(name string, nesting []string, dirs []string) (*ruby
 	return nil, nil, reason
 }
 
-// template reports whether app/views/<ctrl>/<action>.* exists (AMAP-V0-104).
-func (a *railsApp) template(ctrl, action string) bool {
-	prefix := appJoin(a.root, "app/views/"+ctrl+"/"+action+".")
-	for p := range a.entries {
-		if strings.HasPrefix(p, prefix) && !strings.Contains(p[len(prefix):], "/") {
-			return true
+// template reports whether app/views/<prefix>/<action>.* exists for any of the controller's view
+// prefixes: its own path, then each ancestor controller's (AMAP-V0-104).
+func (a *railsApp) template(prefixes []string, action string) bool {
+	for _, vp := range prefixes {
+		prefix := appJoin(a.root, "app/views/"+vp+"/"+action+".")
+		for p := range a.entries {
+			if strings.HasPrefix(p, prefix) && !strings.Contains(p[len(prefix):], "/") {
+				return true
+			}
 		}
 	}
 	return false
@@ -385,10 +423,11 @@ func CheckActions(ctx context.Context, m *Map, o Options) (*ActionsReport, error
 		roots = append(roots, root)
 	}
 	sort.Strings(roots)
+	reads := newAppReadBudget()
 	for _, root := range roots {
 		app, err := loadRailsApp(r, rev, root, []string{"app"}, func(p string) bool {
 			return strings.HasSuffix(p, ".rb") && (strings.HasPrefix(p, appJoin(root, "app/controllers/")) || strings.HasPrefix(p, appJoin(root, "app/models/concerns/")))
-		})
+		}, reads)
 		if err != nil {
 			return nil, err
 		}

@@ -339,3 +339,102 @@ func TestAMAPV0105ChainDoubtAndDraws(t *testing.T) {
 		t.Fatalf("routes %d: the drawn file's route must compile", doc.Routes)
 	}
 }
+
+// routeVerdict is one route's verdict: defined, missing:<basis> or abstained:<reason>.
+func routeVerdict(d actionsDoc, controller, action string) string {
+	for _, f := range d.Findings {
+		if f.Controller == controller && f.Action == action {
+			return "missing:" + f.Basis
+		}
+	}
+	for _, a := range d.Abstentions {
+		if a.Controller == controller && a.Action == action {
+			return "abstained:" + a.Reason
+		}
+	}
+	return "defined"
+}
+
+// AMAP-V0-101: a leading-slash controller leaves its namespace; a resource update maps PATCH and
+// PUT.
+func TestAMAPV0101AbsoluteControllersAndUpdateVerbs(t *testing.T) {
+	p := &routeActionParser{}
+	src := "namespace :admin do\n  get \"health\", to: \"/health#show\"\n  resources :things, controller: \"/things\", only: :index\n  resources :orders, only: :update\n  resource :profile, only: :update\nend\n"
+	p.parse("config/routes.rb", []byte(src), actionScope{}, 0)
+	got := []string{}
+	for _, r := range p.routes {
+		got = append(got, r.verb+" "+r.path+" "+r.ctrl+"#"+r.action)
+	}
+	want := []string{"GET /admin/health health#show", "GET /admin/things things#index",
+		"PATCH|PUT /admin/orders/:id admin/orders#update", "PATCH|PUT /admin/profile admin/profiles#update"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("routes\n got %q\nwant %q\n%+v", got, want, p.abstain)
+	}
+}
+
+// AMAP-V0-102 AMAP-V0-103 AMAP-V0-104 AMAP-V0-105: Ruby lookup order decides each verdict: a `::`
+// reference is top-level, a later fallback or conditional definition abstains, `include A, B`
+// searches A first, inherited visibility changes apply, reopened classes join and ancestor view
+// prefixes hold implicit templates.
+func TestAMAPV0103LookupOrderCases(t *testing.T) {
+	cases := []struct {
+		name, controller, action, want string
+		files                          map[string]string
+	}{
+		{"absolute-superclass", "Admin::UsersController", "destroy", "defined", map[string]string{
+			"app/controllers/admin/users_controller.rb": "module Admin\n  class UsersController < ::BaseController\n    def index\n    end\n  end\nend\n",
+			"app/controllers/admin/base_controller.rb":  "module Admin\n  class BaseController < ApplicationController\n  end\nend\n",
+			"app/controllers/base_controller.rb":        "class BaseController < ApplicationController\n  def destroy\n  end\nend\n",
+		}},
+		{"absolute-include", "Admin::UsersController", "destroy", "defined", map[string]string{
+			"app/controllers/admin/users_controller.rb":   "module Admin\n  class UsersController < ApplicationController\n    include ::Destroyer\n\n    def index\n    end\n  end\nend\n",
+			"app/controllers/concerns/admin/destroyer.rb": "module Admin\n  module Destroyer\n  end\nend\n",
+			"app/controllers/concerns/destroyer.rb":       "module Destroyer\n  def destroy\n  end\nend\n",
+		}},
+		{"private-with-action-missing", "ReportsController", "show", "abstained:dynamic-definition", map[string]string{
+			"app/controllers/reports_controller.rb": "class ReportsController < ApplicationController\n  def action_missing(name)\n  end\n\n  private\n\n  def show\n  end\nend\n",
+		}},
+		{"conditional-definition", "ReportsController", "show", "abstained:dynamic-definition", map[string]string{
+			"app/controllers/reports_controller.rb": "class ReportsController < ApplicationController\n  if Rails.env.test?\n    def show\n    end\n  end\nend\n",
+		}},
+		{"include-argument-order", "ReportsController", "show", "defined", map[string]string{
+			"app/controllers/reports_controller.rb":     "class ReportsController < ApplicationController\n  include FirstAction, SecondAction\nend\n",
+			"app/controllers/concerns/first_action.rb":  "module FirstAction\n  def show\n  end\nend\n",
+			"app/controllers/concerns/second_action.rb": "module SecondAction\n  private\n\n  def show\n  end\nend\n",
+		}},
+		{"inherited-made-private", "ReportsController", "show", "missing:non-public-method", map[string]string{
+			"app/controllers/reports_controller.rb":      "class ReportsController < BaseReportsController\n  private :show\nend\n",
+			"app/controllers/base_reports_controller.rb": "class BaseReportsController < ApplicationController\n  def show\n  end\nend\n",
+		}},
+		{"inherited-made-public", "ReportsController", "show", "defined", map[string]string{
+			"app/controllers/reports_controller.rb":      "class ReportsController < BaseReportsController\n  public :show\nend\n",
+			"app/controllers/base_reports_controller.rb": "class BaseReportsController < ApplicationController\n  private\n\n  def show\n  end\nend\n",
+		}},
+		{"reopened-class", "ReportsController", "show", "defined", map[string]string{
+			"app/controllers/reports_controller.rb": "class ReportsController < ApplicationController\nend\n\nclass ReportsController\n  def show\n  end\nend\n",
+		}},
+		{"ancestor-view-prefix", "ReportsController", "preview", "defined", map[string]string{
+			"app/controllers/reports_controller.rb":      "class ReportsController < BaseReportsController\n  def show\n  end\nend\n",
+			"app/controllers/base_reports_controller.rb": "class BaseReportsController < ApplicationController\nend\n",
+			"app/views/reports/preview.html.erb":         "",
+			"app/views/base_reports/preview.html.erb":    "<h1>Preview</h1>\n",
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root, m := railsFixture(t, func(f map[string]string) {
+				for name, text := range tc.files {
+					if text == "" {
+						delete(f, name)
+						continue
+					}
+					f[name] = text
+				}
+			})
+			doc, _, _ := checkActions(t, root, m, Options{Full: true})
+			if got := routeVerdict(doc, tc.controller, tc.action); got != tc.want {
+				t.Fatalf("%s#%s = %s, want %s\n%q", tc.controller, tc.action, got, tc.want, abstentionKeys(doc))
+			}
+		})
+	}
+}

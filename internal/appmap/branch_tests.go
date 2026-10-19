@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -168,9 +169,19 @@ func boundaryOf(p string) string {
 
 func lineAt(text string, offset int) int { return strings.Count(text[:offset], "\n") + 1 }
 
+// scanTestRefs reads request and visit calls; a call inside a comment or string is not one.
 func scanTestRefs(p, boundary, text string) testRefs {
 	t := testRefs{path: p, boundary: boundary, text: text}
+	language := "web"
+	if strings.HasSuffix(p, ".rb") {
+		language = "ruby"
+	}
+	code := strings.Join(contextindex.FlowCodeLines(language, text), "\n")
+	isCode := func(i int) bool { return len(code) == len(text) && code[i] == text[i] }
 	for _, m := range requestCall.FindAllStringSubmatchIndex(text, -1) {
+		if !isCode(m[0]) {
+			continue
+		}
 		c := testCall{verb: strings.ToUpper(text[m[2]:m[3]]), line: lineAt(text, m[0])}
 		if m[4] >= 0 {
 			c.path = text[m[4]:m[5]]
@@ -180,6 +191,9 @@ func scanTestRefs(p, boundary, text string) testRefs {
 		t.requests = append(t.requests, c)
 	}
 	for _, m := range visitCall.FindAllStringSubmatchIndex(text, -1) {
+		if !isCode(m[0]) {
+			continue
+		}
 		c := testCall{verb: "GET", line: lineAt(text, m[0])}
 		if m[4] >= 0 {
 			c.path = text[m[4]:m[5]]
@@ -389,8 +403,9 @@ func branchSetup(app *railsApp, idx *setupWriterIndex, b rubyBranch) *setupRow {
 }
 
 // reachingRoutes are the routes whose request reaches a controller method: its own routes, the
-// routes of actions that call it (one hop) and, for a callback, every route of the controller.
-func reachingRoutes(f *rubyFile, b rubyBranch, routes []railsRoute) ([]railsRoute, string) {
+// routes of actions that call it (one hop) and, for a callback, the routes of the actions its
+// registrations apply to. maybe holds the routes a conditional or unread registration may reach.
+func reachingRoutes(f *rubyFile, b rubyBranch, routes []railsRoute) (reaching []railsRoute, via string, maybe []railsRoute) {
 	byAction := map[string][]railsRoute{}
 	for _, rt := range routes {
 		if controllerConstant(rt.ctrl) == b.constant {
@@ -398,28 +413,25 @@ func reachingRoutes(f *rubyFile, b rubyBranch, routes []railsRoute) ([]railsRout
 		}
 	}
 	if len(byAction) == 0 || b.method == "" || b.singleton {
-		return nil, ""
+		return nil, "", nil
 	}
 	if direct := byAction[b.method]; len(direct) > 0 {
-		return direct, "routed-action"
+		return direct, "routed-action", nil
 	}
 	scope := f.scope(b.constant)
 	if scope == nil {
-		return nil, ""
+		return nil, "", nil
 	}
-	for ln := scope.line; ln <= scope.end && ln <= len(f.code); ln++ {
-		words := rubyWordsOf(f.code[ln-1])
-		if len(words) > 1 && words[0].keyword && strings.HasSuffix(words[0].text, "_action") {
-			for _, w := range words[1:] {
-				if w.text == b.method && !w.keyword {
-					all := []railsRoute{}
-					for _, rs := range byAction {
-						all = append(all, rs...)
-					}
-					return all, "callback"
-				}
+	if state, registered := callbackStates(f, scope, b.method, byAction); registered {
+		for action, rs := range byAction {
+			switch state[action] {
+			case callbackApplies:
+				reaching = append(reaching, rs...)
+			case callbackMaybe:
+				maybe = append(maybe, rs...)
 			}
 		}
+		return reaching, "callback", maybe
 	}
 	out := []railsRoute{}
 	for _, d := range scope.defs {
@@ -438,9 +450,176 @@ func reachingRoutes(f *rubyFile, b rubyBranch, routes []railsRoute) ([]railsRout
 		}
 	}
 	if len(out) > 0 {
-		return out, "called-by-routed-action"
+		return out, "called-by-routed-action", nil
 	}
-	return nil, ""
+	return nil, "", nil
+}
+
+const (
+	callbackNone = iota
+	callbackMaybe
+	callbackApplies
+)
+
+var (
+	callbackRegister = regexp.MustCompile(`^(?:prepend_|append_)?(?:before|after|around)_action$`)
+	callbackSkip     = regexp.MustCompile(`^skip_(?:before|after|around)_action$`)
+)
+
+// callbackStates replays a controller's own callback statements for one method in declaration
+// order across every reopening of the class: a registration replaces the method's earlier one, a
+// skip removes it for its actions, and `only:`/`except:` restrict both. A statement with `if:` or
+// `unless:`, an unread option, or one continued past its line leaves its actions possible
+// (AMAP-V0-112). registered is false when no statement names the method.
+func callbackStates(f *rubyFile, scope *rubyScope, method string, byAction map[string][]railsRoute) (map[string]int, bool) {
+	state := map[string]int{}
+	registered := false
+	for _, part := range scope.parts {
+		for ln := part.line; ln <= part.end && ln <= len(f.code) && ln <= len(f.raw); ln++ {
+			words := rubyWordsOf(f.code[ln-1])
+			if len(words) < 2 || !words[0].keyword {
+				continue
+			}
+			register, skip := callbackRegister.MatchString(words[0].text), callbackSkip.MatchString(words[0].text)
+			if !register && !skip {
+				continue
+			}
+			named, mentioned, actions, sure := readCallback(f.raw[ln-1], words[0].text, method, byAction)
+			if !named && !mentioned {
+				continue
+			}
+			registered = registered || register
+			for action := range byAction {
+				in := actions[action]
+				switch {
+				case !named && in && register:
+					// An unread statement may register the method or read it in a condition.
+					state[action] = max(state[action], callbackMaybe)
+				case !named && in:
+					state[action] = min(state[action], callbackMaybe)
+				case register && sure:
+					state[action] = callbackNone
+					if in {
+						state[action] = callbackApplies
+					}
+				case register:
+					state[action] = callbackNone
+					if in {
+						state[action] = callbackMaybe
+					}
+				case in && sure:
+					state[action] = callbackNone
+				case in:
+					state[action] = min(state[action], callbackMaybe)
+				}
+			}
+		}
+	}
+	return state, registered
+}
+
+// readCallback reads one callback statement: whether the method is a positional callback name,
+// whether it appears elsewhere in the statement, the actions the statement applies to, and whether
+// the statement was read completely and unconditionally.
+func readCallback(line, keyword, method string, byAction map[string][]railsRoute) (named, mentioned bool, actions map[string]bool, sure bool) {
+	all := func() map[string]bool {
+		out := map[string]bool{}
+		for a := range byAction {
+			out[a] = true
+		}
+		return out
+	}
+	ts, balanced := lexRoutes(line, true)
+	for len(ts) > 0 && isPunct(ts[len(ts)-1], ";") {
+		ts = ts[:len(ts)-1]
+	}
+	if len(ts) == 0 || ts[0].kind != tokIdent || ts[0].text != keyword {
+		return false, false, nil, false
+	}
+	ts = ts[1:]
+	for _, t := range ts {
+		mentioned = mentioned || (t.kind == tokIdent || t.kind == tokString) && t.text == method
+	}
+	if !balanced || len(ts) == 0 || isPunct(ts[len(ts)-1], ",") || isPunct(ts[len(ts)-1], "\\") {
+		return false, mentioned, all(), false
+	}
+	if isPunct(ts[0], "(") && isPunct(ts[len(ts)-1], ")") {
+		ts = ts[1 : len(ts)-1]
+	}
+	elements := [][]token{}
+	depth, start := 0, 0
+	for i, t := range ts {
+		switch {
+		case next(ts, i, "(", "[", "{"):
+			depth++
+		case next(ts, i, ")", "]", "}"):
+			depth--
+		case depth == 0 && isPunct(t, ","):
+			elements = append(elements, ts[start:i])
+			start = i + 1
+		}
+	}
+	elements = append(elements, ts[start:])
+	sure = true
+	var only, except []string
+	options := false
+	for _, el := range elements {
+		if len(el) >= 3 && el[0].kind == tokIdent && isPunct(el[1], ":") {
+			options = true
+			v, ok := routeValue(el[2:])
+			names := []string{v.str}
+			if v.kind == "list" {
+				names = v.list
+			}
+			switch {
+			case el[0].text == "only" && ok && (v.kind == "symbol" || v.kind == "string" || v.kind == "list"):
+				only = append(only, names...)
+			case el[0].text == "except" && ok && (v.kind == "symbol" || v.kind == "string" || v.kind == "list"):
+				except = append(except, names...)
+			case el[0].text == "prepend" || el[0].text == "raise":
+			default:
+				sure = false
+			}
+			continue
+		}
+		v, ok := routeValue(el)
+		if options || !ok || v.kind != "symbol" && v.kind != "string" {
+			sure = false
+			continue
+		}
+		named = named || v.str == method
+	}
+	if !named {
+		return false, mentioned, all(), false
+	}
+	actions = all()
+	if only != nil {
+		actions = map[string]bool{}
+		for _, a := range only {
+			actions[a] = true
+		}
+	}
+	for _, a := range except {
+		delete(actions, a)
+	}
+	return true, mentioned, actions, sure
+}
+
+// requestReach adds the first request of a test that matches one of the routes.
+func requestReach(t testRefs, routes []railsRoute, via string, add func(reachRow)) bool {
+	for _, c := range t.requests {
+		for _, rt := range routes {
+			if c.matches(rt) {
+				basis := via + "-literal-path"
+				if c.helper != "" {
+					basis = via + "-path-helper"
+				}
+				add(reachRow{Test: t.path + ":" + strconv.Itoa(c.line), Basis: basis, Route: rt.verb + " " + rt.path})
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func sortRoutes(rs []railsRoute) {
@@ -472,8 +651,9 @@ func reach(f *rubyFile, b rubyBranch, routes []railsRoute, tests []testRefs) []b
 			rows[bd].Tests = append(rows[bd].Tests, r)
 		}
 	}
-	reaching, via := reachingRoutes(f, b, routes)
+	reaching, via, maybe := reachingRoutes(f, b, routes)
 	sortRoutes(reaching)
+	sortRoutes(maybe)
 	sameController := []railsRoute{}
 	for _, rt := range routes {
 		if controllerConstant(rt.ctrl) == b.constant && containsField(rt.verb, "GET") {
@@ -498,18 +678,8 @@ func reach(f *rubyFile, b rubyBranch, routes []railsRoute, tests []testRefs) []b
 				}
 			}
 		case "request":
-		found:
-			for _, c := range t.requests {
-				for _, rt := range reaching {
-					if c.matches(rt) {
-						basis := via + "-literal-path"
-						if c.helper != "" {
-							basis = via + "-path-helper"
-						}
-						add("request", reachRow{Test: t.path + ":" + strconv.Itoa(c.line), Basis: basis, Route: rt.verb + " " + rt.path})
-						break found
-					}
-				}
+			if !requestReach(t, reaching, via, func(r reachRow) { add("request", r) }) {
+				requestReach(t, maybe, "conditional-"+via, func(r reachRow) { possible["request"] = append(possible["request"], r) })
 			}
 		}
 		if t.boundary != "e2e" {
@@ -525,6 +695,19 @@ func reach(f *rubyFile, b rubyBranch, routes []railsRoute, tests []testRefs) []b
 						reached = true
 						break visits
 					}
+				}
+			}
+		}
+		if reached {
+			continue
+		}
+	conditional:
+		for _, c := range t.visits {
+			for _, rt := range maybe {
+				if (containsField(rt.verb, "GET") || rt.verb == "ANY") && c.matches(rt) {
+					possible["e2e"] = append(possible["e2e"], reachRow{Test: t.path + ":" + strconv.Itoa(c.line), Basis: "conditional-" + via + "-visit", Route: "GET " + rt.path})
+					reached = true
+					break conditional
 				}
 			}
 		}
@@ -608,7 +791,12 @@ func QueryBranches(ctx context.Context, m *Map, cites []string, o Options) (*Bra
 	if len(roots) == 0 {
 		roots = append(roots, ".")
 	}
-	sort.Slice(roots, func(i, j int) bool { return len(roots[i]) > len(roots[j]) })
+	sort.Slice(roots, func(i, j int) bool {
+		if len(roots[i]) != len(roots[j]) {
+			return len(roots[i]) > len(roots[j])
+		}
+		return roots[i] < roots[j]
+	})
 	rootOf := func(p string) string {
 		for _, root := range roots {
 			if root == "." || strings.HasPrefix(p, root+"/") {
@@ -644,18 +832,32 @@ func QueryBranches(ctx context.Context, m *Map, cites []string, o Options) (*Bra
 	if err != nil {
 		return nil, err
 	}
+	// One budget covers the map's test files and every root a cite needs; other roots are unread.
+	reads, needed, mapBytes := newAppReadBudget(), map[string]bool{}, 0
+	for _, data := range mapTests {
+		mapBytes += len(data)
+	}
+	if err := reads.spend(len(mapTests), mapBytes); err != nil {
+		return nil, err
+	}
+	for _, c := range parsed {
+		needed[rootOf(c.path)] = true
+	}
 	apps := map[string]*railsApp{}
 	indexes := map[string]*setupWriterIndex{}
 	appTests := map[string][]testRefs{}
 	appRoutes := map[string][]railsRoute{}
 	for _, root := range roots {
+		if !needed[root] {
+			continue
+		}
 		app, err := loadRailsApp(r, rev, root, []string{"app", "spec", "test", "factories"}, func(p string) bool {
 			rel := strings.TrimPrefix(p, appJoin(root, ""))
 			if root == "." {
 				rel = p
 			}
 			return strings.HasSuffix(p, ".rb") || strings.HasSuffix(p, ".yml") && (strings.HasPrefix(rel, "spec/fixtures/") || strings.HasPrefix(rel, "test/fixtures/"))
-		})
+		}, reads)
 		if err != nil {
 			return nil, err
 		}

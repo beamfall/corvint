@@ -695,12 +695,15 @@ but does not read it; only non-Go syntax impact does.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
 - `AMAP-V0-101`: Every route a supported Rails declaration compiles MUST resolve to a handler
   (controller constant and action). `resources :x` yields `index`, `create`, `new`, `edit`,
-  `show`, `update` and `destroy` on `XController`; `resource :x` yields the same without `index`
+  `show`, `update` (one route on verb `PATCH|PUT`, matching either) and `destroy` on
+  `XController`; `resource :x` yields the same without `index`
   on the plural controller (a name whose plural is not a bare `s` suffix, one ending `s`, `x`,
   `z`, `ch`, `sh`, `y`, `f`, `fe` or `o`, abstains `unsupported-rails-inflection` unless
   `controller:` names it). Symbol or symbol-array `only:` and `except:` (`%i[]` included)
   remove the routes they exclude, and those routes are never reported. `controller:` and
-  `module:` options, `namespace` and `scope module:` set the controller path; nested resources
+  `module:` options, `namespace` and `scope module:` set the controller path, and a controller
+  written with a leading `/` (in `to:`, `controller:` or `root`) ignores the enclosing module, as
+  Rails does; nested resources
   resolve to their own controller; `member`/`collection` blocks, `on:` options and bare verb
   routes inside a resource block resolve to that resource's controller. `get`, `post`, `patch`,
   `put`, `delete` and `match` with `to: "c#a"`, a `"path" => "c#a"` pair or `controller:` plus
@@ -720,32 +723,39 @@ but does not read it; only non-Go syntax impact does.
   `handler-file-not-found` or `handler-class-not-found`. The class's actions are its public
   instance methods: `def name` (endless definitions included) at the class body's own level,
   with bare `private`, `protected` and `public` switching visibility and `private def name` or
-  `private :a, :b` hiding the named methods. Singleton methods (`def self.x`, `class << self`)
+  `private :a, :b` hiding the named methods. `private :x` or `public :x` also changes the
+  visibility of an inherited `x`; the first definition or visibility change met in Ruby lookup
+  order decides it. Bodies of a class reopened in one file join in file order. Singleton methods (`def self.x`, `class << self`)
   are never actions. A route whose action exists only as a non-public method and has no template
   (AMAP-V0-104) is reported missing with basis `non-public-method`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
 - `AMAP-V0-103`: An action defined by an ancestor class or an included module MUST count as
   defined. The superclass resolves lexically (innermost module first, then top level) through the
-  Zeitwerk file convention under `app/controllers`; `ActionController::Base`,
+  Zeitwerk file convention under `app/controllers`, and a reference written `::X` resolves at top
+  level only; `ActionController::Base`,
   `ActionController::API` and `ActionController::Metal` end the chain with no actions. `include`d
   modules resolve under `app/controllers/concerns`, `app/controllers` and `app/models/concerns`;
   their public methods at module level and inside `included do` count, while `class_methods do`,
   `module ClassMethods` and singleton methods do not. Modules included by a module are followed;
-  a module already in the chain is skipped, as Ruby does. More than 16 classes and modules in one
+  a module already in the chain is skipped, and `include A, B` places `A` before `B` while a later
+  `include` statement precedes an earlier one, as Ruby does. More than 16 classes and modules in one
   chain, or a class cycle, abstains `ancestor-depth-exceeded`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
 - `AMAP-V0-104`: A route whose action is not a public method MUST count as defined when a view
-  template `app/views/<controller path>/<action>.*` exists at the revision (Rails implicit
-  rendering), with basis `implicit-template`.
+  template `app/views/<prefix>/<action>.*` exists at the revision for the controller path or the
+  path of an ancestor controller class in its chain (`application` included), as Rails view
+  prefixes do (implicit rendering), with basis `implicit-template`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
-- `AMAP-V0-105`: When an action is not found, a chain member that could define it at run time
+- `AMAP-V0-105`: When an action is not found, or is found only as a non-public method, a chain
+  member that could define it at run time
   MUST make the route abstain rather than report: an unresolved superclass
   (`unresolved-ancestor`) or included module (`unresolved-module`) naming the constant, a
   non-constant `include` (`unresolved-module`), a chain member using `define_method`,
   `class_eval`, `instance_eval`, `module_eval`, `class_exec` or `instance_exec` anywhere,
   defining `method_missing`, `action_missing` or `respond_to_missing?`, or calling
-  `alias_method`, `alias`, `send`, `public_send`, `attr`, `attr_*` or `delegate` at body level
-  (`dynamic-definition`, with path and line), and a
+  `alias_method`, `alias`, `send`, `public_send`, `attr`, `attr_*` or `delegate` at body level,
+  or holding a `def` inside a conditional or block at body level (`dynamic-definition`, with path
+  and line), and a
   handler file the AMAP-V0-007 Ruby masking leaves in an open or unterminated state
   (`unsupported-ruby-syntax`).
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
@@ -759,15 +769,16 @@ but does not read it; only non-Go syntax impact does.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
 - `AMAP-V0-107`: Router reads MUST stay within the AMAP-V0-015 router bounds and controller,
   concern and view reads within the test bounds (20000 paths, 1 MiB per file, 128 MiB in total,
-  else `appmap-bound-exceeded`); a Ruby file over 1 MiB is not read and a route needing it
+  else `appmap-bound-exceeded`), one budget shared by every application root a command loads
+  and, for branches, by the map's test files; a Ruby file over 1 MiB is not read and a route needing it
   abstains `handler-file-unreadable`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
 - `AMAP-V0-110`: `flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...]
   [--budget N | --full]` MUST take 1..16 cited ranges of committed `.rb` files (an obligation is
   passed as its cited lines), each at most 400 lines and inside its file at the map revision,
   and read only the map file and committed objects of `--root` at that revision: the AMAP-V0-100
-  routers, Ruby files under the application roots' `app`, `spec`, `test` and `factories`
-  directories, YAML fixtures under `spec/fixtures` and `test/fixtures`, and the map's test files.
+  routers, Ruby files under the `app`, `spec`, `test` and `factories` directories of the
+  application roots its cites belong to (other roots are not read), YAML fixtures under `spec/fixtures` and `test/fixtures`, and the map's test files.
   It writes `application-map-branches/0` to stdout and no file, index, ledger or trace. An
   escaping, duplicate, non-Ruby, absent or out-of-range cite, a cite outside every application
   root, or the AMAP-V0-090 budget errors, refuse with `appmap-invalid-query`; the AMAP-V0-100 revision errors refuse the same way.
@@ -787,9 +798,17 @@ but does not read it; only non-Go syntax impact does.
   test; the map's test files are e2e tests. A unit test reaches a branch when it names the
   enclosing constant and the method (`.m`, `#m` or `:m`). A request test reaches it when the
   enclosing method is a routed action, or a method of the same controller one routed action
-  calls, or a callback (`before_action :m` and the other `*_action` declarations) of a controller,
-  which every routed action of that controller reaches, and the test calls that route's verb with
-  a literal path matching its template or with its `_path`/`_url` helper. An e2e test reaches a GET action whose route it visits (`visit`,
+  calls, or a callback the controller's own body registers (`before_action`, `after_action`,
+  `around_action` and their `prepend_`/`append_` forms naming the method as a positional symbol),
+  which the routed actions its registration applies to reach, and the test calls that route's verb
+  with a literal path matching its template or with its `_path`/`_url` helper. Callback statements
+  replay in file order across reopened bodies: a later registration replaces an earlier one,
+  `only:`/`except:` (symbol, string or list) restrict it and `skip_*_action` removes it for its
+  actions. A registration or skip with `if:`, `unless:`, another option or a value it cannot read,
+  or continued past its line, leaves the affected actions' tests `possible` with basis
+  `conditional-callback-literal-path`, `conditional-callback-path-helper` or
+  `conditional-callback-visit`. A call inside a comment or string literal (AMAP-V0-007 masking of
+  the test file) is not a call. An e2e test reaches a GET action whose route it visits (`visit`,
   `goto`, `waitForURL`, `toHaveURL`); one that only visits another GET route of the same
   controller is `possible` with basis `same-controller-screen`. Every listed test carries its
   basis; this is static naming evidence, not execution coverage.
@@ -804,7 +823,9 @@ but does not read it; only non-Go syntax impact does.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175).
 - `AMAP-V0-114`: Setup writers MUST be derived as one reusable model-attribute writer index:
   FactoryBot factories and traits under `spec/factories`, `test/factories` and `factories`
-  (`factory :x [, class: X]`, attribute lines), YAML fixtures (file name as table, second-level
+  (`factory :x [, class: X]`, with `class:` also read as a quoted name or a symbol, attribute
+  lines; a nested factory inherits its ancestors' attributes, and a `class:` value it cannot read
+  binds the factory to no model), YAML fixtures (file name as table, second-level
   keys as attributes), and setup endpoints, the routes whose first path segment is `test`,
   `__test__`, `e2e`, `cypress`, `__cypress__`, `testing`, `test_support` or `test_setup`. An
   endpoint's action and the same-class methods it calls write through `Model.create`, `create!`,
@@ -1230,20 +1251,20 @@ and test files; they add no map member, manifest member or error code.
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
 | AMAP-V0-100 | `internal/appmap/route_handlers.go`, `cmd/corvint/flows_appmap_actions.go` | `TestAMAPV0100ActionsReadOnlyContract`, `TestAMAPV0100ClientRoutersNotChecked`, `TestAMAPV0106ActionsCLI` |
-| AMAP-V0-101 | `internal/appmap/route_actions.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0101RouteCompilation`, `TestAMAPV0105ChainDoubtAndDraws` |
-| AMAP-V0-102 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0100ActionsReadOnlyContract` |
-| AMAP-V0-103 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws` |
-| AMAP-V0-104 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts` |
-| AMAP-V0-105 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws` |
+| AMAP-V0-101 | `internal/appmap/route_actions.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0101RouteCompilation`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0101AbsoluteControllersAndUpdateVerbs` |
+| AMAP-V0-102 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0100ActionsReadOnlyContract`, `TestAMAPV0103LookupOrderCases` |
+| AMAP-V0-103 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0103LookupOrderCases` |
+| AMAP-V0-104 | `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0103LookupOrderCases` |
+| AMAP-V0-105 | `internal/appmap/ruby_structure.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0101ActionVerdicts`, `TestAMAPV0105ChainDoubtAndDraws`, `TestAMAPV0103LookupOrderCases` |
 | AMAP-V0-106 | `internal/appmap/route_handlers.go`, `cmd/corvint/flows_appmap_actions.go` | `TestAMAPV0106ActionsBudget`, `TestAMAPV0106ActionsCLI` |
-| AMAP-V0-107 | `internal/appmap/route_handlers.go` | `TestAMAPV0107OversizedHandler` |
-| AMAP-V0-110 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0116BranchesCLI` |
+| AMAP-V0-107 | `internal/appmap/route_handlers.go` | `TestAMAPV0107OversizedHandler`, `TestAMAPV0116SharedReadBudget` |
+| AMAP-V0-110 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0110BranchesReadOnlyContract`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
 | AMAP-V0-111 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0113UnresolvedGuards` |
-| AMAP-V0-112 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0112CallbackAndHelperReach` |
+| AMAP-V0-112 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0112CallbackAndHelperReach`, `TestAMAPV0112CallbackRestrictions`, `TestAMAPV0112CommentedCallsIgnored` |
 | AMAP-V0-113 | `internal/appmap/branch_tests.go` | `TestAMAPV0113UnresolvedGuards`, `TestAMAPV0111BranchReachAndSetup` |
-| AMAP-V0-114 | `internal/appmap/setup_writers.go` | `TestAMAPV0111BranchReachAndSetup` |
+| AMAP-V0-114 | `internal/appmap/setup_writers.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0114FactoryInheritanceAndClass` |
 | AMAP-V0-115 | `internal/appmap/branch_tests.go` | `TestAMAPV0111BranchReachAndSetup`, `TestAMAPV0113UnresolvedGuards` |
-| AMAP-V0-116 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0116BudgetAndRedaction`, `TestAMAPV0116BranchesCLI` |
+| AMAP-V0-116 | `internal/appmap/branch_tests.go`, `cmd/corvint/flows_appmap_branches.go` | `TestAMAPV0116BudgetAndRedaction`, `TestAMAPV0116BranchesCLI`, `TestAMAPV0116SharedReadBudget` |
 
 Fixture: the inline Rails application of `internal/appmap/route_actions_test.go`
 (`railsFixtureFiles`: routes, controllers with an ancestor, a concern, a template-only action,

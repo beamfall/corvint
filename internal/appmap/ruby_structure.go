@@ -35,11 +35,13 @@ type rubyScope struct {
 	includes  []rubyRef // an empty name is a non-constant include
 	dynamic   []rubyRef // a construct that can define methods at run time
 	hidden    map[string]string
+	parts     []*rubyScope // the reopenings a merged scope joins (rubyFile.scope)
 }
 
 type rubyFile struct {
 	path   string
 	code   []string // masked lines
+	raw    []string // original lines
 	scopes []*rubyScope
 	defs   []*rubyDef
 	broken int // first line where the nesting failed; 0 when it balanced
@@ -98,7 +100,8 @@ func rubyWordsOf(code string) []rubyWord {
 	return out
 }
 
-// rubyConstantAt reads a constant path (`A::B`, optionally `::A`) at code[i:].
+// rubyConstantAt reads a constant path (`A::B`, optionally `::A`) at code[i:]. A leading `::`
+// is kept: it makes the reference top-level only (AMAP-V0-103).
 func rubyConstantAt(code string, i int) (string, int) {
 	for i < len(code) && code[i] == ' ' {
 		i++
@@ -115,7 +118,7 @@ func rubyConstantAt(code string, i int) (string, int) {
 			i++
 		}
 		if !strings.HasPrefix(code[i:], "::") {
-			return strings.TrimPrefix(code[start:i], "::"), i
+			return code[start:i], i
 		}
 		i += 2
 	}
@@ -169,7 +172,7 @@ func rubyDefName(code string, i int) (name string, singleton, endless bool) {
 }
 
 func parseRubyStructure(p string, data []byte) *rubyFile {
-	f := &rubyFile{path: p, code: contextindex.FlowCodeLines("ruby", string(data))}
+	f := &rubyFile{path: p, code: contextindex.FlowCodeLines("ruby", string(data)), raw: strings.Split(string(data), "\n")}
 	stack := []*rubyFrame{}
 	body := func() *rubyFrame {
 		if len(stack) == 0 {
@@ -243,8 +246,11 @@ func parseRubyStructure(p string, data []byte) *rubyFile {
 				case "include":
 					rest := strings.TrimSpace(stmt[len(first.text):])
 					rest = strings.TrimSuffix(strings.TrimPrefix(rest, "("), ")")
-					for _, part := range strings.Split(rest, ",") {
-						part = strings.TrimSpace(part)
+					// `include A, B` puts A before B in the ancestors, as `include B` then
+					// `include A` would; includes are stored in that equivalent statement order.
+					parts := strings.Split(rest, ",")
+					for k := len(parts) - 1; k >= 0; k-- {
+						part := strings.TrimSpace(parts[k])
 						name, end := rubyConstantAt(part, 0)
 						if name == "" || strings.TrimSpace(part[end:]) != "" {
 							name = ""
@@ -278,6 +284,7 @@ func parseRubyStructure(p string, data []byte) *rubyFile {
 						stack = append(stack, &rubyFrame{kind: "other"})
 						continue
 					}
+					name = strings.TrimPrefix(name, "::")
 					outer := nesting()
 					full := name
 					if len(outer) > 0 && !strings.HasPrefix(strings.TrimSpace(stmt[w.at+len(w.text):]), "::") {
@@ -311,6 +318,11 @@ func parseRubyStructure(p string, data []byte) *rubyFile {
 							d.scope = innerScope()
 						default:
 							d.scope = innerScope()
+							// A def under a body-level conditional, loop, begin or block (not
+							// inside a method) may define an instance method at run time.
+							if s := conditionalBody(stack); s != nil {
+								s.dynamic = append(s.dynamic, rubyRef{name: "def", line: line})
+							}
 						}
 					}
 					if d.scope != nil {
@@ -371,6 +383,23 @@ func parseRubyStructure(p string, data []byte) *rubyFile {
 	return f
 }
 
+// conditionalBody returns the class or module whose body directly holds the open conditional,
+// loop, begin or block frames at the top of the stack, or nil when a method, singleton or
+// class_methods frame comes first.
+func conditionalBody(stack []*rubyFrame) *rubyScope {
+	for i := len(stack) - 1; i >= 0; i-- {
+		switch stack[i].kind {
+		case "class", "module", "included":
+			return stack[i].scope
+		case "other", "block":
+			continue
+		default:
+			return nil
+		}
+	}
+	return nil
+}
+
 // codeBefore returns the last code byte before column at of a masked line, or '"' when a masked
 // literal ends there (an expression value): masking blanks a whole literal, quotes included.
 func codeBefore(code, raw string, at int) byte {
@@ -385,14 +414,31 @@ func codeBefore(code, raw string, at int) byte {
 	return 0
 }
 
-// scope returns the scope with this full constant name, or nil.
+// scope returns the scope with this full constant name, or nil. A class or module reopened in
+// the same file is one scope, as in Ruby: its parts' definitions, includes, dynamic constructs
+// and visibility changes join in file order, and parts lists each reopening.
 func (f *rubyFile) scope(name string) *rubyScope {
+	var merged *rubyScope
 	for _, s := range f.scopes {
-		if s.name == name {
-			return s
+		if s.name != name {
+			continue
 		}
+		if merged == nil {
+			merged = &rubyScope{kind: s.kind, name: s.name, nesting: s.nesting, line: s.line, hidden: map[string]string{}}
+		}
+		if merged.super == "" {
+			merged.super, merged.superLine = s.super, s.superLine
+		}
+		merged.end = s.end
+		merged.defs = append(merged.defs, s.defs...)
+		merged.includes = append(merged.includes, s.includes...)
+		merged.dynamic = append(merged.dynamic, s.dynamic...)
+		for k, v := range s.hidden {
+			merged.hidden[k] = v
+		}
+		merged.parts = append(merged.parts, s)
 	}
-	return nil
+	return merged
 }
 
 // enclosing returns the innermost definition and scope spanning a line.
@@ -410,14 +456,6 @@ func (f *rubyFile) enclosing(line int) (*rubyDef, *rubyScope) {
 		}
 	}
 	return def, scope
-}
-
-// visibility returns the effective visibility of an instance method, honouring `private :name`.
-func (d *rubyDef) effectiveVisibility() string {
-	if v, ok := d.scope.hidden[d.name]; ok {
-		return v
-	}
-	return d.visibility
 }
 
 // rubyUnderscore converts a constant path to its Zeitwerk file path (`Admin::UserPhotos` ->
