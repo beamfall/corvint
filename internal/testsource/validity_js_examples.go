@@ -350,6 +350,7 @@ func (r *jsReader) exampleFacts(e jsDecl, test string) jsFacts {
 		}
 		out.findings = append(out.findings, finding(rule, testvalidity.SeverityAdvisory, r.at(m.line), r.at(e.line), message))
 	}
+	out.findings = append(out.findings, r.writeResponseFindings(e, finding)...)
 	// Subject mocks before boundary mocks, each in source order.
 	slices.SortStableFunc(out.findings, func(a, b testvalidity.SourceFinding) int {
 		return jsRuleOrder(a.Rule) - jsRuleOrder(b.Rule)

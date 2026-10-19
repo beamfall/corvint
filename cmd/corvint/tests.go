@@ -69,8 +69,12 @@ reason, or covered-by and an obligation.
 validity applies the static test-validity rules to at most 256 named
 committed files (each at most 1 MiB). To a JS/TS test file: ISOLATED-IN-SERIAL,
 JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
-JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED and
-JS-BOUNDARY-MOCKED. To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
+JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED,
+JS-BOUNDARY-MOCKED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
+when the waited method is unknown); with a committed .corvint/seed-rules.json
+(corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
+SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
+To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
 RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
 RB-ASSIGNMENT-IN-PREDICATE and the advisory DESCRIBED-CLASS-STUBBED,
 RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; a helper the reader cannot
@@ -426,6 +430,36 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		return code
 	}
 	if report.Refused() {
+		return 1
+	}
+	return 0
+}
+
+// runTestsCitations prints the revision-pinned citation findings of the named committed documents
+// (TSA-V0-255). It exits 1 when a citation is not supported by the object store.
+func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
+	f, once := testsFlags("tests citations")
+	options := testsource.CitationOptions{Revision: "HEAD"}
+	f.Func("docs", "document paths", func(value string) error {
+		for _, name := range strings.Split(value, ",") {
+			if strings.TrimSpace(name) != "" {
+				options.Docs = append(options.Docs, name)
+			}
+		}
+		return nil
+	})
+	once("rev", &options.Revision)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Docs) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests citations --docs PATH[,PATH...] [--rev REV]")
+	}
+	report, err := testsource.Citations(repo, options)
+	if err != nil {
+		return testsFailure(diagnostic, err)
+	}
+	if code := testsWrite(out, diagnostic, report); code != 0 {
+		return code
+	}
+	if len(report.Findings) > 0 {
 		return 1
 	}
 	return 0
