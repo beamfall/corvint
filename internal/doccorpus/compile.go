@@ -427,7 +427,7 @@ func (c *compiler) native(provider Provider) error {
 	index := c.indexes[c.manifest.Repository.Revision]
 	for _, in := range c.manifest.Inputs {
 		if len(c.artifact.Subjects) > c.manifest.recordLimit() || len(c.artifact.Claims) > c.manifest.recordLimit() {
-			return fail("native record bound exceeded")
+			return fail(c.boundMessage("native record bound exceeded", in.Path, 1))
 		}
 		if in.Provider != provider.ID {
 			continue
@@ -472,14 +472,14 @@ func (c *compiler) native(provider Provider) error {
 			}
 		}
 		for _, s := range index.Symbols {
-			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
-				return fail("native record bound exceeded")
-			}
 			if s.Path != in.Path {
 				continue
 			}
 			if _, bad := index.UnparsedPaths()[in.Path]; bad {
 				continue
+			}
+			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
+				return fail(c.boundMessage("native record bound exceeded", in.Path, s.Line))
 			}
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
 			if err != nil {
@@ -684,11 +684,7 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 				ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"verbatim source excerpt; quoted prose is not accepted intent or verified behavior"}}
 				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, part[0]), id, excerpt, provider.ID, ev})
 				if len(c.artifact.Claims) > c.manifest.recordLimit() {
-					message := fmt.Sprintf("native paragraph bound exceeded: more than %d records at %s:%d", c.manifest.recordLimit(), in.Path, part[0])
-					if c.manifest.Schema != ManifestSchemaV2 {
-						message += "; a " + ManifestSchemaV2 + " manifest raises the bound"
-					}
-					return fail(message)
+					return fail(c.boundMessage("native paragraph bound exceeded", in.Path, part[0]))
 				}
 			}
 			start = 0
@@ -707,4 +703,14 @@ func (c *compiler) nativeExclusion(in Input) string {
 		}
 	}
 	return ""
+}
+
+// boundMessage locates a record-bound refusal and, under /1, names the manifest that raises the
+// bound (DCP-V1-146).
+func (c *compiler) boundMessage(prefix, path string, line int) string {
+	message := fmt.Sprintf("%s: more than %d records at %s:%d", prefix, c.manifest.recordLimit(), path, line)
+	if c.manifest.Schema != ManifestSchemaV2 {
+		message += "; a " + ManifestSchemaV2 + " manifest raises the bound"
+	}
+	return message
 }

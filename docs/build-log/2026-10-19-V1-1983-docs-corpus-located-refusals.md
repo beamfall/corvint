@@ -58,6 +58,17 @@ The `/1` refusal is intended: the scope has about 30,700 paragraphs, against the
   leading over-bound line, a file with no anchorable line, and a determinism rebuild) fails on the
   split-only compiler with `vacuous or oversized anchor at docs/only.md:1-1`.
 
+## Independent review
+
+One Codex round found two P2 issues, and both are fixed:
+
+- The native symbol record-bound refusal was still unlocated. All three native record-bound refusals now
+  share `boundMessage` (path, line and the `/2` hint under `/1`). The symbol check now runs after
+  the path filter, so it fires only for a symbol it would append. Any input that built before builds
+  the same. `TestDCPV1146RefusalsNameTheSpan` covers a 4,096-declaration Go file.
+- The determinism rebuild committed the fixture twice, which risks wall-clock revision drift. It
+  now rebuilds the same pinned manifest.
+
 ## Rollback
 
 Revert the change. Oversized paragraphs and lines then refuse the build again, and refusals

@@ -13,6 +13,14 @@ import (
 // nativeDocsBuild commits docs files and builds their native corpus.
 func nativeDocsBuild(t *testing.T, files map[string]string, schema string) (*Artifact, error) {
 	t.Helper()
+	root, m := nativeDocsManifest(t, files, schema)
+	return Build(context.Background(), root, m)
+}
+
+// nativeDocsManifest commits files under docs/ and pins the inventory, so a rebuild can reuse
+// the same revision.
+func nativeDocsManifest(t *testing.T, files map[string]string, schema string) (string, Manifest) {
+	t.Helper()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o700); err != nil {
 		t.Fatal(err)
@@ -32,7 +40,7 @@ func nativeDocsBuild(t *testing.T, files map[string]string, schema string) (*Art
 	if schema != "" {
 		m.Schema = schema
 	}
-	return Build(context.Background(), root, m)
+	return root, m
 }
 
 func TestDCPV1146OversizedParagraphStaysVerbatim(t *testing.T) {
@@ -75,7 +83,8 @@ func TestDCPV1146OversizedLineIsAGap(t *testing.T) {
 		"only.md":  strings.Repeat("v", maxSpanBytes+1) + "\n",
 		"exact.md": exact,
 	}
-	a, err := nativeDocsBuild(t, files, ManifestSchemaV2)
+	root, m := nativeDocsManifest(t, files, ManifestSchemaV2)
+	a, err := Build(context.Background(), root, m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +123,7 @@ func TestDCPV1146OversizedLineIsAGap(t *testing.T) {
 	if _, ok := claims["native:file:docs/only.md:excerpt"]; ok {
 		t.Error("file with no anchorable line produced a claim")
 	}
-	again, err := nativeDocsBuild(t, files, ManifestSchemaV2)
+	again, err := Build(context.Background(), root, m)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,5 +147,15 @@ func TestDCPV1146RefusalsNameTheSpan(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "native paragraph bound exceeded: more than 4096 records at docs/page.md:") ||
 		!strings.Contains(err.Error(), ManifestSchemaV2+" manifest raises the bound") {
 		t.Fatalf("record bound refusal is not located: %v", err)
+	}
+	var decls strings.Builder
+	decls.WriteString("package x\n")
+	for i := range MaxRecords {
+		fmt.Fprintf(&decls, "func F%d() {}\n", i)
+	}
+	_, err = nativeDocsBuild(t, map[string]string{"x.go": decls.String()}, "")
+	if err == nil || !strings.Contains(err.Error(), "native record bound exceeded: more than 4096 records at docs/x.go:") ||
+		!strings.Contains(err.Error(), ManifestSchemaV2+" manifest raises the bound") {
+		t.Fatalf("native record bound refusal is not located: %v", err)
 	}
 }
