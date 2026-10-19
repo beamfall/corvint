@@ -2431,6 +2431,7 @@ GOC-V0-007	docs/specs/go-only-cutover-v0.md	Rollback MUST use a retained prior G
 GOC-V0-008	docs/specs/go-only-cutover-v0.md	Maintained Corvint adapters and developer tools MUST have no Python interpreter	unrecorded	-
 GOC-V0-009	docs/specs/go-only-cutover-v0.md	The cutover's final coordinator MAY complete with `prechange-impact` visibly	unrecorded	-
 GOC-V0-010	docs/specs/go-only-cutover-v0.md	A complete `make gate` MUST first remove the private receipt	unrecorded	-
+GOC-V0-011	docs/specs/go-only-cutover-v0.md	`script/spec-toolchain-conformance.sh` (`STA-V0-011`) MAY run Python and `pip` t	unrecorded	-
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	The migration MUST preserve the complete CLI surface present at the pinned	unrecorded	-
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	For every supported parity case, Go and the Python oracle MUST produce the exact	unrecorded	-
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage	unrecorded	-
