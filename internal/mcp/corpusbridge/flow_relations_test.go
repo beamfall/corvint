@@ -8,7 +8,7 @@ import (
 )
 
 func TestDCPV1098TraceToolDepth(t *testing.T) {
-	r := &Registry{artifact: &doccorpus.Artifact{Schema: doccorpus.SchemaV2, Capabilities: []doccorpus.Capability{{Name: "subjects", State: "present"}}}}
+	r := &Registry{header: header{Schema: doccorpus.SchemaV2, Capabilities: []doccorpus.Capability{{Name: "subjects", State: "present"}}}}
 	for _, tool := range r.Tools() {
 		props := tool.InputSchema["properties"].(map[string]any)
 		depth, ok := props["depth"].(map[string]any)
