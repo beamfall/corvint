@@ -256,7 +256,9 @@ func (c *compiler) checkEvidence(e *Evidence, external bool) error {
 	return nil
 }
 func (c *compiler) checkAnchor(a Anchor, external bool) error {
-	if a.Repository != c.manifest.Repository.ID || !textOK(a.Reason) {
+	// An anchor names the repository that owns its revision: the primary repository or a declared
+	// additional repository at its pinned revision (DCP-V1-177).
+	if repository, _ := c.manifest.revisionRepository(c.root, a.Revision); a.Repository != repository || !textOK(a.Reason) {
 		return fail("invalid anchor identity or reason")
 	}
 	if !words("source declared observed review imported")[a.Kind] {

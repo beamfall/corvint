@@ -50,85 +50,33 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 		err = gitCapacity(err, fmt.Sprintf("while checking freshness of %d inputs", len(a.Manifest.Inputs)))
 	}()
 	unknown := FreshnessOverlay{State: "unknown"}
-	live, err := contextindex.BuildContext(ctx, root, "")
+	primary := func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }
+	live, stale, limits, err := liveRepository(ctx, root, a, primary, "")
 	if err != nil {
 		return unknown, err
 	}
-	auth, err := gitauth.Open(root, newGitBudget())
-	if err != nil {
-		return unknown, err
-	}
-	release := auth.BeginObjectSession()
-	defer release()
-	state := "fresh"
-	limits := []string{"structural source binding does not prove semantic truth, test adequacy or accepted intent"}
+	limits = append(limits, "structural source binding does not prove semantic truth, test adequacy or accepted intent")
 	if a.Builder.Revision == "unrecorded" || strings.HasSuffix(a.Builder.Revision, "+dirty") {
 		limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
 	}
-	livePath := func(prefix, path string) string {
-		if a.Schema == SchemaV2 {
-			return prefix + "[outside pinned inventory]"
-		}
-		return prefix + path
-	}
-	declared := map[string]bool{}
-	for _, in := range a.Manifest.Inputs {
-		declared[inputKey(in.Revision, in.Path)] = true
-	}
-	for _, scope := range a.Manifest.Scopes {
-		for p := range live.Tracked {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				state = "stale"
-				limits = append(limits, livePath("new input in declared scope: ", p))
-			}
-		}
-		for p := range live.Skipped {
-			if inScope(p, scope.Path) {
-				state = "stale"
-				limits = append(limits, livePath("unsupported live scope entry: ", p))
-			}
-		}
-		for _, p := range live.DirtyPaths {
-			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
-				state = "stale"
-				limits = append(limits, livePath("new working-tree input in declared scope: ", p))
-			}
-		}
-	}
-	dirty := map[string]bool{}
-	for _, p := range live.DirtyPaths {
-		dirty[p] = true
-	}
-	// A clean path the live index already pinned at CommitRevision needs no
-	// further tree walk (DCP-V1-144); every other path resolves in one verified
-	// walk whose Git cost is independent of the input count (DCP-V1-155).
-	lookups := []string{}
-	for _, in := range a.Manifest.Inputs {
-		if _, ok := live.Sources[in.Path]; !ok || dirty[in.Path] {
-			lookups = append(lookups, in.Path)
-		}
-	}
-	resolved := map[string]gitauth.TreeEntry{}
-	if len(lookups) > 0 {
-		if resolved, err = auth.ResolvePaths(ctx, live.CommitRevision, lookups); err != nil {
+	observation := ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})
+	// Each additional repository's inputs are checked against its own declared checkout, never
+	// the primary tree (DCP-V1-178). The primary observation alone then no longer identifies the
+	// state, so the overlay carries no reusable observation key.
+	for _, r := range a.Manifest.AdditionalRepositories {
+		member := func(revision string) bool { return revision == r.Revision }
+		_, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
+		if err != nil {
 			return unknown, err
 		}
+		stale = stale || changed
+		limits = append(limits, reasons...)
+		observation = ""
 	}
-	for _, in := range a.Manifest.Inputs {
-		// Historical provider records are independent of source freshness. A live
-		// replacement of one is still visible; no HEAD equality heuristic is used.
-		entry, exists := resolved[in.Path]
-		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
-			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
-		}
-		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
-			state = "stale"
-			limits = append(limits, "input changed or absent: "+in.Path)
-		}
-		if dirty[in.Path] {
-			state = "stale"
-			limits = append(limits, "working-tree input differs: "+in.Path)
-		}
+	state := "fresh"
+	if stale {
+		state = "stale"
 	}
 	sort.Strings(limits)
 	if a.Schema == SchemaV2 {
@@ -144,12 +92,100 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: ObservationKey(contextindex.Observation{
-		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: observation}
 	if symbols {
 		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
 	return overlay, nil
+}
+
+// liveRepository compares the scopes and inputs whose revision member admits against the live
+// checkout at dir, returning whether any is stale and each reason under prefix.
+func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string) (*contextindex.Index, bool, []string, error) {
+	live, err := contextindex.BuildContext(ctx, dir, "")
+	if err != nil {
+		return nil, false, nil, err
+	}
+	auth, err := gitauth.Open(dir, newGitBudget())
+	if err != nil {
+		return nil, false, nil, err
+	}
+	release := auth.BeginObjectSession()
+	defer release()
+	stale := false
+	limits := []string{}
+	note := func(reason string) {
+		stale = true
+		limits = append(limits, prefix+reason)
+	}
+	livePath := func(reason, path string) string {
+		if a.Schema == SchemaV2 {
+			return reason + "[outside pinned inventory]"
+		}
+		return reason + path
+	}
+	declared := map[string]bool{}
+	inputs := []Input{}
+	for _, in := range a.Manifest.Inputs {
+		if member(in.Revision) {
+			declared[inputKey(in.Revision, in.Path)] = true
+			inputs = append(inputs, in)
+		}
+	}
+	for _, scope := range a.Manifest.Scopes {
+		if !member(scope.Revision) {
+			continue
+		}
+		for p := range live.Tracked {
+			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
+				note(livePath("new input in declared scope: ", p))
+			}
+		}
+		for p := range live.Skipped {
+			if inScope(p, scope.Path) {
+				note(livePath("unsupported live scope entry: ", p))
+			}
+		}
+		for _, p := range live.DirtyPaths {
+			if inScope(p, scope.Path) && !declared[inputKey(scope.Revision, p)] {
+				note(livePath("new working-tree input in declared scope: ", p))
+			}
+		}
+	}
+	dirty := map[string]bool{}
+	for _, p := range live.DirtyPaths {
+		dirty[p] = true
+	}
+	// A clean path the live index already pinned at CommitRevision needs no
+	// further tree walk (DCP-V1-144); every other path resolves in one verified
+	// walk whose Git cost is independent of the input count (DCP-V1-155).
+	lookups := []string{}
+	for _, in := range inputs {
+		if _, ok := live.Sources[in.Path]; !ok || dirty[in.Path] {
+			lookups = append(lookups, in.Path)
+		}
+	}
+	resolved := map[string]gitauth.TreeEntry{}
+	if len(lookups) > 0 {
+		if resolved, err = auth.ResolvePaths(ctx, live.CommitRevision, lookups); err != nil {
+			return nil, false, nil, err
+		}
+	}
+	for _, in := range inputs {
+		// Historical provider records are independent of source freshness. A live
+		// replacement of one is still visible; no HEAD equality heuristic is used.
+		entry, exists := resolved[in.Path]
+		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
+			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
+		}
+		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
+			note("input changed or absent: " + in.Path)
+		}
+		if dirty[in.Path] {
+			note("working-tree input differs: " + in.Path)
+		}
+	}
+	return live, stale, limits, nil
 }
 func CapabilityFor(operation string) string {
 	if cap := typedCapability(operation); cap != "" {

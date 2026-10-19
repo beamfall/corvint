@@ -18,6 +18,16 @@ type Repository struct {
 	ID       string `json:"id"`
 	Revision string `json:"revision"`
 }
+
+// AdditionalRepository is one further repository a manifest names explicitly (DCP-V1-175): its
+// root-commit identity, its one pinned revision and the local checkout holding its objects, as a
+// clean path relative to the primary repository root. The locator grants no identity; the build
+// verifies both against the checkout and never fetches or discovers a repository.
+type AdditionalRepository struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision"`
+	Root     string `json:"root"`
+}
 type Profile struct {
 	ID       string   `json:"id"`
 	Revision string   `json:"revision"`
@@ -46,16 +56,19 @@ type Provider struct {
 	Record   string   `json:"record"`
 }
 type Manifest struct {
-	BehaviorRepositories []BehaviorRepository `json:"behavior_repositories,omitempty"`
-	BehaviorRevisions    *BehaviorRevisions   `json:"behavior_revisions,omitempty"`
-	Schema               string               `json:"schema"`
-	Repository           Repository           `json:"repository"`
-	BuiltAt              string               `json:"built_at"`
-	Profile              Profile              `json:"profile"`
-	Scopes               []Scope              `json:"scopes"`
-	Inputs               []Input              `json:"inputs"`
-	Providers            []Provider           `json:"providers"`
-	MergeRule            string               `json:"merge_rule"`
+	// AdditionalRepositories is absent from a single-repository manifest, whose bytes are
+	// unchanged (DCP-V1-175).
+	AdditionalRepositories []AdditionalRepository `json:"additional_repositories,omitempty"`
+	BehaviorRepositories   []BehaviorRepository   `json:"behavior_repositories,omitempty"`
+	BehaviorRevisions      *BehaviorRevisions     `json:"behavior_revisions,omitempty"`
+	Schema                 string                 `json:"schema"`
+	Repository             Repository             `json:"repository"`
+	BuiltAt                string                 `json:"built_at"`
+	Profile                Profile                `json:"profile"`
+	Scopes                 []Scope                `json:"scopes"`
+	Inputs                 []Input                `json:"inputs"`
+	Providers              []Provider             `json:"providers"`
+	MergeRule              string                 `json:"merge_rule"`
 }
 type Builder struct {
 	Version  string `json:"version"`

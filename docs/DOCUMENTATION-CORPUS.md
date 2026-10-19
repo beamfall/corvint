@@ -429,3 +429,13 @@ commit the emitted provider, and list it as a `records` input in the corpus mani
 `behavior_repositories` to the independently expected repository root commits and revisions.
 The corpus reports stale/missing members and unavailable external evidence as gaps. It preserves
 full-suite fallback and does not qualify runtime claims. The `/1` behavior adapter remains unchanged.
+
+## Additional repository anchors
+
+A records provider may anchor evidence in another repository at its own pinned revision. Name
+each such repository in the manifest's `additional_repositories`, sorted by `id`:
+`{"id": ROOT_COMMIT, "revision": COMMIT, "root": "../lib"}`, where `root` is the relative path
+from the primary checkout to a local checkout of that repository. Declare the anchored files as
+scopes and inputs at that revision. The build verifies the root commit and reads only that
+checkout; it never fetches. Freshness compares those inputs with that checkout, so a change there
+makes the corpus `stale`. An anchor naming an undeclared repository is refused. See DCP-V1-175..179.
