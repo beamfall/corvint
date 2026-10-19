@@ -440,6 +440,20 @@ type Role struct {
 	// the hold to the session and return the member when the attempt's
 	// worker ends (pool_hold.go). It needs match.pool.
 	HoldPool bool `json:"holdPool,omitempty"`
+	// RunOnly (ATR-V0-151, optional) declares that the role's sessions
+	// need no author session: they only run work on a member of the pool
+	// match.pool names. It makes the role's held tickets visible to the
+	// doctor's RUNNABLE-HELD-IDLE finding. BypassFocus (opt-in, needs
+	// runOnly) lets such a ticket outside the plan window (match
+	// planSelected) be a candidate while its pool has a free member; every
+	// other fence and native claim admission still apply.
+	RunOnly     bool `json:"runOnly,omitempty"`
+	BypassFocus bool `json:"bypassFocus,omitempty"`
+	// CapMax (ATR-V0-152, optional, cap < capMax <= 64) lets a ticket
+	// role's effective cap rise toward capMax while its queue is deeper
+	// than cap and the configured pressure level is calm; it is cap
+	// otherwise, and with no pressure configured.
+	CapMax int `json:"capMax,omitempty"`
 	// Model, Escalate and DeescalateOnProgress are the CAL-V0-057
 	// escalation ladder. The role's host must render {model}.
 	Model                string `json:"model,omitempty"`
@@ -461,6 +475,8 @@ type Role struct {
 	ShortSessions *ShortSessions `json:"shortSessions,omitempty"`
 	// CarryOver is the role's optional ATR-V0-110 no-progress carry-over.
 	CarryOver *CarryOver `json:"carryOver,omitempty"`
+	// ReviewPacket is the role's optional ATR-V0-141 review packet.
+	ReviewPacket *ReviewPacket `json:"reviewPacket,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
 }
@@ -837,6 +853,15 @@ func (c *Config) validate() error {
 		if r.HoldPool && (r.Match == nil || r.Match.Pool == "") {
 			return fail("role %s holdPool needs match.pool (ATR-V0-120)", r.Name)
 		}
+		if r.RunOnly && (r.Match == nil || r.Match.Pool == "") {
+			return fail("role %s runOnly needs match.pool (ATR-V0-151)", r.Name)
+		}
+		if r.BypassFocus && !r.RunOnly {
+			return fail("role %s bypassFocus needs runOnly (ATR-V0-151)", r.Name)
+		}
+		if r.CapMax != 0 && (r.Match == nil || r.Cap < 1 || r.CapMax <= r.Cap || r.CapMax > 64) {
+			return fail("role %s capMax needs a match role with cap >= 1 and cap < capMax <= 64 (ATR-V0-152)", r.Name)
+		}
 		if r.Prompt == "" || len(r.Prompt) > 64<<10 {
 			return fail("role %s prompt must be 1..65536 bytes", r.Name)
 		}
@@ -899,6 +924,17 @@ func (c *Config) validate() error {
 			}
 			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); co.on() && err != nil {
 				return fail("role %s sets carryOver but host %q %v", r.Name, r.Host, err)
+			}
+		}
+		if rp := r.ReviewPacket; rp != nil {
+			if err := rp.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
+			if r.Lane != nil {
+				return fail("role %s reviewPacket applies to ticket roles only", r.Name)
+			}
+			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); rp.on() && err != nil {
+				return fail("role %s sets reviewPacket but host %q %v", r.Name, r.Host, err)
 			}
 		}
 		if b := r.Budget; b != nil {

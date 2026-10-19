@@ -1,17 +1,17 @@
 # Test Source Analysis V0
 
 Owner: Russell Lewis
-Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)
+Date: 2026-10-19
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
-- Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)/experimental
-- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
+- Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -529,13 +529,179 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes
 section. `BLOCK-NOT-CALLED` alone rolls back by removing `internal/testsource/validity_rspec_block.go`,
 its test, the helper capture in `validity_rspec.go`, the rule ID and reason, and TSA-V0-053..056. Nothing is persisted, and no existing projection, report or wire contract changes.
 
+## Teardown dependents (V1-1884)
+
+V1-1884 (GitHub #1168) flags an E2E test whose teardown deletes a parent resource while a dependent
+record that one of the test's actions produced is still present, so the delete can be refused
+(a 409 or 422 from a foreign-key or "in use" guard). It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). Which actions produce which dependents comes from a
+project-owned side-effect declaration, never from a guess. Deriving that graph from the source of the
+system under test is a named residual. The reading reuses the TSA-V0-010 lexer and declaration model
+for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
+
+- `TSA-V0-110`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardown
+  --files PATH[,PATH...] --declaration PATH [--receipt FILE ...] [--rev REV]` MUST read at most 256
+  named committed test files (each at most 1 MiB) and the named committed declaration file at one
+  revision (default HEAD). It MUST print one `corvint-test-teardown-dependents/0` JSON document: the
+  revision, the declaration's path, blob sha256, version and pinned revision, one entry per file
+  (`framework` `rspec` or `jsts`, `uncertain` with a reason where the reader abstained, the
+  examples read and every example that has a resource), the findings, one entry per receipt and
+  file pair, and `graphSource: "declaration"`. A `_spec.rb` file is read as RSpec and an
+  `IsTestFile` JS/TS file as Jest, Vitest or Playwright; any other file is listed uncertain with
+  `not-a-test-file`. It MUST exit 1 when a `declared` finding exists and 0 otherwise. At most 16
+  `--receipt` files are read.
+- `TSA-V0-111`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST be
+  the closed `corvint-side-effect-declaration/0` document below, decoded with unknown fields and
+  trailing data refused as `tests-declaration-invalid`. `version` is a positive integer and
+  `revision` the 40- or 64-hex commit of the system under test the declaration describes; both are
+  echoed and never resolved. Every `kind` matches `[a-z][a-z0-9_-]{0,63}` and is unique, every
+  `create`, `delete` and `call` name is an identifier (a Ruby name may end in `?` or `!`) that
+  appears once in the whole document, each resource has at least one create and one delete name,
+  an action's `parent` and `dependent` name declared kinds, `dependent` requires `parent`, and
+  `cascade` requires `dependent`. An action with no `parent` is declared inert: it produces no
+  dependent. At most 256 resources, 1024 actions and 64 names per list are read.
+- `TSA-V0-112`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST place
+  each call an example makes in one phase:
+  - JS/TS: `beforeEach` (also `test.beforeEach`) bodies are setup, the example body is body, a
+    `finally { }` block inside the body and `afterEach` (also `test.afterEach`) bodies are
+    teardown.
+  - RSpec: `before`, `before(:each)`, `before(:example)`, `prepend_before`, `append_before`, `let`,
+    `let!` and `subject` bodies are setup, the example body is body, and an `ensure` clause inside
+    the body and `after`, `after(:each)`, `after(:example)`, `prepend_after` and `append_after`
+    bodies are teardown.
+  - A hook applies to an example when it sits at file level or in a group that encloses the example,
+    wherever it is declared in that group.
+  - Body code, including its finally/ensure code, runs in source order before every hook; order
+    inside one hook is line order, and a hook in an inner group runs before one in an outer group.
+    Between two hooks of the same group the order is unknown.
+  - A call is conditional when it may not run: inside a nested arrow or function, under an
+    `if`/`for`/`while`/`else`/`do`/`catch` or `rescue` branch, after `&&`, `||` or `?`, or with a
+    Ruby `if`/`unless`/`while`/`until`/`and`/`or` modifier, lambda, proc or inline block. `try`,
+    `begin`, `finally` and `ensure` are not conditions.
+  - An RSpec hook with metadata arguments, or `around`, is not read, and a hook without a block is
+    opaque. A group delimited by `{` and `}` on separate lines is read like a `do … end` group; any
+    other group form makes the file uncertain.
+  - A call is a callee name followed by `(`; in Ruby also a declared name without parentheses and,
+    in teardown, a bare name that starts a statement.
+- `TSA-V0-113`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource of kind K MUST
+  be reported for an example when a create name of K is called in its setup or body and a delete name
+  of K is called in its teardown. The resource names its variable when the create's value is
+  assigned to one (`x = await create…(`, `const x =`, `@x = create_…`, `let(:x) { create_… }`), the
+  create line and the first teardown delete line, and lists with lines the actions after the create:
+  each declared action call whose `parent` is K (in teardown, when it may run before a parent
+  delete), and each other call whose receiver or argument
+  names the variable (an assertion call such as `expect` or a matcher is not an action).
+- `TSA-V0-114`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource's side-effect
+  graph MUST be incomplete, with every applying reason from this closed set, when: an action on it is
+  not declared (`action-not-declared`); its create is not assigned to a variable
+  (`resource-not-bound`); a `beforeAll`/`afterAll`, `before(:all)`/`after(:all)`/`:context`/`:suite`
+  or `around` hook or an RSpec hook with metadata arguments that applies to the example calls a
+  declared name, or an RSpec hook without a block applies (`hook-not-read`); a dependent delete
+  that would remove the dependent is conditional (`cleanup-conditional`); a teardown
+  call before the parent delete, or in unknown order with it, is not declared
+  (`teardown-call-not-declared`); the order of a relevant teardown pair is
+  unknown (`teardown-order-unknown`); or the file is uncertain (`file-uncertain`). Every finding
+  for an incomplete resource MUST be `advisory` and carry those reasons.
+- `TSA-V0-115`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) For each declared action
+  on a resource whose `dependent` D does not cascade, each teardown delete of K that the action may
+  run before MUST be checked. A `TEARDOWN-DEPENDENT-LEFTOVER` finding for the first failing one
+  MUST name the example, the kind, the dependent kind, the action line and that parent delete line,
+  with cause `dependent-not-removed` when no unconditional delete name of D is known to run after the
+  action and before that parent delete, or cause `parent-deleted-before-dependent`, also giving the
+  first dependent delete line after the action, when a delete of D after the action runs only after
+  the parent delete or in unknown order with it. The finding is `declared` when the graph is
+  complete.
+- `TSA-V0-116`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) There MUST be no finding
+  for an action whose dependent is deleted unconditionally after the action and before every parent
+  delete the action may run before, for an action declared `cascade: true`, or for an inert action.
+- `TSA-V0-117`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A `--receipt` MUST be a
+  test-validity provider input (`readProviderReceipt`). Only a JS provider receipt can bind; any
+  other input abstains with `receipt-not-js`. A receipt binds a file when exactly one
+  `identity.testFileDigests` key equals the path or ends with `/` plus it (else
+  `file-not-in-receipt` or `file-ambiguous`) and its digest equals the sha256 of the committed blob
+  (else `digest-mismatch`). From a bound receipt, a failed attempt (or a failed outcome without
+  attempts) whose anchor names that file at a resource's parent delete line, and whose outcome
+  `name` equals the example's literal title, unique in the file, MUST be attached to that
+  resource's findings with the receipt, retry, line, the `DELETE` status 409 or 422 when its
+  request-outcome record holds one, and the dependent kind when the resource has exactly one
+  declared non-cascading dependent kind. A resource with such a row that has a status and no other
+  finding MUST get an `advisory` finding with cause `recorded-teardown-conflict`. An attempt whose
+  anchor file names more than one `testFileDigests` key MUST attach to no file and is counted in
+  the binding's `ambiguousAnchors`.
+- `TSA-V0-118`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) Each resource MUST carry
+  a verdict from `leftover` (a finding), `unknown` (graph incomplete) or `no-leftover-declared`
+  (complete graph, no finding). The report MUST never call a teardown safe: `no-leftover-declared`
+  holds only relative to the declaration, and an example without a resource has no verdict.
+- `TSA-V0-119`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The command MUST read
+  committed Git content and the named receipts only, write nothing, use no network, and print the
+  same bytes for the same inputs. A declaration that is not a committed regular file refuses
+  `tests-source-unavailable`; an unreadable receipt refuses `tests-source-unavailable`; more files
+  or receipts than the bounds refuse `tests-bound-exceeded`.
+
+```json
+{"schema": "corvint-side-effect-declaration/0", "version": 1,
+ "revision": "0123456789abcdef0123456789abcdef01234567",
+ "resources": [
+  {"kind": "order", "create": ["createOrder", "create_order"], "delete": ["deleteOrder", "delete_order"]},
+  {"kind": "confirmation", "create": ["createConfirmation"], "delete": ["deleteConfirmation", "delete_confirmation"]},
+  {"kind": "audit_entry", "create": ["createAuditEntry"], "delete": ["deleteAuditEntry"]}],
+ "actions": [
+  {"call": "confirmOrder", "parent": "order", "dependent": "confirmation"},
+  {"call": "archiveOrder", "parent": "order", "dependent": "audit_entry", "cascade": true},
+  {"call": "renameOrder"}]}
+```
+
+Non-goals:
+- deriving the side-effect graph from the source, schema or migrations of the system under test;
+- telling two resources of one kind apart, so one dependent delete clears every action of that
+  kind;
+- reading helper files, shared contexts, fixture finalizers or `beforeAll`/`afterAll` resources;
+- a kind taken from a receiver (`record.destroy`) or a factory argument (`create(:order)`);
+- joining Ruby provider documents or mapping a request route to a kind.
+
+Failure modes:
+- A call reached only through a helper, a callback stored in a variable or a dynamic name is not
+  seen. A missed action leaves a leftover unreported but never makes a teardown safe.
+- A Ruby method called without parentheses on the resource (`order.status`) reads as an attribute,
+  not an action.
+- An undeclared teardown call such as `page.close()` before the parent delete keeps findings
+  advisory.
+- A receipt whose anchor points into a helper, or whose test title is computed or repeated, joins
+  nothing.
+
+Acceptance evidence: synthetic fixtures only. An RSpec and a Playwright file each with a leftover
+dependent, a dependent deleted first, a cascade, an inert action, a parent deleted before its
+dependent, an undeclared action, an unbound create, an `around`/`beforeAll` hook and two same-group
+`after` hooks; declarations with each refused shape; and a JS receipt that binds, one with another
+digest and one without the file. No live qualification on a real suite was run (NOT_RUN).
+
+Rollback removes `internal/testsource/teardown_*.go`, `internal/testvaliditydoc/js_receipt.go`,
+`cmd/corvint/tests_teardown.go`, the tests, the dispatch line and help entries, the `tests-declaration-invalid` code and this section.
+Nothing is persisted, and no existing report or wire contract changes.
+
+### Traceability (V1-1884)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-110 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
+| TSA-V0-111 | `internal/testsource/teardown_declaration.go` | `TestTeardownDeclarationRefusals` | experimental |
+| TSA-V0-112 | `internal/testsource/teardown_reading.go` | `TestTeardownPhasesJS`, `TestTeardownPhasesRSpec`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-113 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions` | experimental |
+| TSA-V0-114 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-115 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-116 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-117 | `internal/testsource/teardown_receipts.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownReceiptJoin`, `TestTeardownReceiptAmbiguousAnchor`, `TestTestsTeardownCLI` | experimental |
+| TSA-V0-118 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownLeftoverJS` | experimental |
+| TSA-V0-119 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
+
 ## Refusals
 
 Every command exits 2 with one JSON object `{"code", "error", "ok": false}` on stderr and nothing on
 stdout when it refuses: `tests-invalid-arguments` (usage), `tests-invalid-revision` (a revision that
 is not a commit), `tests-invalid-option` (a threshold or cutoff out of range, or `--gate` without
 `--base`), `tests-source-unavailable` (a Git or index read failed), `tests-bound-exceeded`,
-`tests-decisions-invalid` and `tests-output-unavailable` (stdout could not be written).
+`tests-decisions-invalid`, `tests-declaration-invalid` (TSA-V0-111) and `tests-output-unavailable`
+(stdout could not be written).
 
 ## RSpec hygiene and strength in test-validity (V1-1798, V1-1787)
 
@@ -867,6 +1033,176 @@ persisted.
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
 
+## Intra-example stub path and value origin (V1-1887, V1-1889)
+
+V1-1887 (GitHub #1171) and V1-1889 (GitHub #1173) add three advisory rules to the RSpec and
+Jest/Vitest example readers. A first-party stub can decide the value that an assertion checks. A
+spy can sit on an object that no code ever receives. An assertion can check a value that only the
+test built. Each rule follows values inside one example: its body, the hooks and `let`s that apply
+to it, and the declarations of its enclosing groups or describes. The rules never read the code
+under test, so they cannot prove a defect. They give an advisory finding or no finding.
+
+- `TSA-V0-120`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #1173)
+  Each located example of a `_spec.rb` file (TSA-V0-062) and of a JS/TS test file (TSA-V0-073)
+  MUST be read for `STUB-ON-PATH`, `STUB-NEVER-INVOKED` and `ASSERTED-VALUE-NOT-FROM-SUBJECT`.
+  Every finding of these rules MUST be advisory and name the test, a location line and a cause
+  line. It MUST NOT make a test INELIGIBLE, and it MUST NOT change the test's hygiene or strength.
+  An example's findings come after its existing findings, in this order: `STUB-ON-PATH` in stub
+  order, then `STUB-NEVER-INVOKED`, then `ASSERTED-VALUE-NOT-FROM-SUBJECT` in assertion line order.
+- `TSA-V0-121`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST
+  recognize these stubs:
+  - RSpec: `allow(R)` or `expect(R)` with `.to receive(:m)`, optionally `allow_any_instance_of`,
+    and an optional `.and_return(V)`, in the example body or in a `before` hook that applies to it.
+  - Jest/Vitest: `jest.spyOn(A, 'm')` and `vi.spyOn(A, 'm')`; `mocked(X)`, `(X as T)` or `X.m`
+    followed by `mockReturnValue`, `mockResolvedValue` or `mockImplementation` (each also in its
+    `Once` form).
+
+  Each receiver MUST be classified as one of four kinds:
+  - subject: the subject, `described_class`, a named subject, or a `let` or local computed from them;
+  - boundary: TSA-V0-123;
+  - first-party: a constant, or a module the test imports by a relative path or a `@/`, `~/` or
+    `src/` path;
+  - unresolved: anything else.
+
+  A receiver is fresh when the example or a `let` builds it, with `new`, a double or an object
+  literal.
+- `TSA-V0-122`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-party
+  receiver MUST be reported as `STUB-ON-PATH` in either of two cases:
+  - A positive assertion calls the stubbed method itself.
+  - The example has an action line that names the subject, and an assertion on a value that names
+    the subject expects the stub's informative return value, or the identifier it returns.
+
+  A negated (`not_to`, `to_not`, `.not`) assertion is never evidence.
+
+  The finding MUST name the stubbed symbol, the assertion line and the action line. An empty,
+  `nil`/`null`/`undefined`, boolean, `[]` or `{}` return value is not evidence. A stub that
+  TSA-V0-124 reports MUST NOT also be reported here.
+- `TSA-V0-123`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on an external
+  boundary MUST NEVER be reported as on-path. In RSpec, a boundary is any of these:
+  - the closed root list in `rspecBoundaryConsts`: HTTP clients, the clock, randomness, the
+    process and file system, logging, queues, mailers and third-party SDKs;
+  - an enqueue or delivery method such as `perform_later` or `deliver_later`.
+
+  In Jest/Vitest, a boundary is any of these:
+  - a module that is not first-party;
+  - a TSA-V0-079 boundary module or global;
+  - `Date`.
+
+  A stub on the subject (left to TSA-V0-066/079) or on an unresolved receiver MUST give no finding.
+- `TSA-V0-124`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A silent stub MUST be
+  reported as the advisory static `STUB-NEVER-INVOKED` when all of these hold:
+  - the stub is an RSpec `allow` or a JS spy, not a message expectation and not `any_instance`;
+  - its receiver is fresh and is not the subject or a boundary;
+  - in the example's scope, nothing names the receiver except its own binding, stubs on it, and
+    `have_received` or `expect(...)` reads of it.
+
+  The finding's location is the stub and its cause is the binding. The message MUST say the
+  reading is static.
+- `TSA-V0-125`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The run-based form of
+  `STUB-NEVER-INVOKED` is not built. That form would report a stubbed method that a recorded
+  passing run never called. No receipt input records RSpec or Jest/Vitest method calls; Playwright
+  route stubs cover only an HTTP boundary. The run-based form MUST stay a named residual, and
+  nothing may report it until such an input exists.
+- `TSA-V0-126`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An assertion's actual
+  value MUST be traced back through locals and `let`s, at most 4 bindings deep. It MUST be reported
+  as `ASSERTED-VALUE-NOT-FROM-SUBJECT`, with the assertion line and the origin line, when both of
+  these hold:
+  - Every source is a value the test builds alone: a literal, an object or array literal, a
+    factory `build`/`create`, a double, `Capybara.string`, a Nokogiri document, `OpenStruct`, a
+    `Struct`, or `document.createElement`.
+  - No such value is handed to the subject or to any other code in the example's scope.
+- `TSA-V0-127`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) A Jest/Vitest
+  assertion on `screen` or `document` MUST be reported when all of these hold:
+  - the example's scope writes the DOM itself, through `innerHTML =`, `createElement` or
+    `insertAdjacentHTML`;
+  - the scope has no `render`, `mount` or similar call, no subject name, no `new`, no same-file
+    function call, no use of a non-test-library import binding (a namespace import's
+    member call included) and no bare import.
+- `TSA-V0-128`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An expectation that the
+  test's own call meets MUST be reported in these forms:
+  - an RSpec `have_been_enqueued`, `have_enqueued_job` or `have_enqueued_sidekiq_job` expectation
+    whose job the example enqueues itself before the expectation, or inside the expectation's
+    block, with the expected `with` arguments (the delay of `perform_in`/`perform_at` dropped);
+  - a Jest/Vitest `toHaveBeenCalled*` expectation on a callee the example calls directly, outside
+    any nested function, with the arguments the expectation repeats. An ordinal expectation
+    (`toHaveBeenNthCalledWith`, `toHaveBeenLastCalledWith`), and a direct call followed by
+    `mockClear`, `mockReset`, `mockRestore` or an `*AllMocks` call before the expectation, give no
+    finding.
+- `TSA-V0-129`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) These MUST NOT be
+  reported:
+  - an assertion on the subject's return value or rendered output;
+  - an assertion on persisted state read back through `reload`, a finder or a query;
+  - a value handed to the subject or to other code;
+  - a negated assertion;
+  - a value from an unresolved call;
+  - a constant expectation, which JS-CONSTANT-EXPECTATION already reads.
+
+  Any trace that does not complete, because a binding cannot be resolved, a hop is too deep, a
+  nesting is unknown or a delimiter is unbalanced, MUST give no finding.
+- `TSA-V0-130`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #1173)
+  These readings MUST be deterministic over the same input, read only the given text, write nothing
+  and use no network. They reach `corvint tests validity` through the existing example readers, and
+  its help MUST name them. The JSON shape, exit statuses and projection rules MUST stay unchanged.
+
+Non-goals:
+- reading the code under test;
+- data flow across modules, helpers or examples;
+- a dependency-graph reading of what the action can reach;
+- the run-based `STUB-NEVER-INVOKED` (TSA-V0-125);
+- `receive_messages`, `receive_message_chain`, a `jest.fn()` assigned onto an object, and module
+  factory mocks as stubs;
+- Playwright-specific shapes;
+- any INVALID severity.
+
+Failure modes:
+- A first-party constant or module the boundary list does not name is treated as first-party. Its
+  stub can then be reported on-path, but only as advisory.
+- An action that reaches a stub only through a helper is unseen. The on-path finding then rests on
+  the value match alone, and a coincidental equal literal is a false advisory finding.
+- A spy whose object reaches code only through dynamic access, `eval` or a global is reported as
+  never invoked, but only as advisory.
+- A test-built value that the subject reads through a global or a database row the factory
+  persisted, without the test handing it over, is reported. `reload` and finder reads are excluded
+  for this reason, but other channels are not.
+- Fixtures cover synthetic files only. Real-suite precision is NOT_MEASURED.
+
+Acceptance evidence: synthetic fixtures only.
+- RSpec fixtures:
+  - on-path through the result value, a direct stub call and a `let`-built collaborator;
+  - boundary, clock, queue, unresolved and value-mismatch stubs that give no finding;
+  - never-invoked locals and `let`s beside passed objects, message expectations and constants;
+  - test-built factory, page and enqueue values beside reloaded, handed-over, subject, literal and
+    unresolved values.
+- The same Jest/Vitest shapes, plus a cast and object-literal spies.
+- DOM written by the test beside a rendered DOM.
+- Self-call and callback forms of call expectations.
+- `readSourceValidity` keeps every flagged test ELIGIBLE and is deterministic.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes the following and the two
+reader caches they use; callers then read the earlier rules unchanged, and nothing is persisted:
+- `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` and
+  `internal/testvalidity/source_rules_flow.go`;
+- their tests;
+- the two `flowFindings` calls and the `let` bodies map;
+- the help sentence;
+- this section.
+
+### Traceability (V1-1887, V1-1889)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-120 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go`, `internal/testvalidity/source_rules_flow.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
+| TSA-V0-121 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubNeverInvokedRSpec` | experimental |
+| TSA-V0-122 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubOnPathMessages`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-123 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
+| TSA-V0-124 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubNeverInvokedRSpec`, `TestStubOnPathJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-125 | none (residual) | `TestStubNeverInvokedRSpec` (static message) | residual |
+| TSA-V0-126 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions`, `TestFlowReviewRSpec` | experimental |
+| TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` | experimental |
+
 ## Ruby vacuous examples and cross-file helpers in test-validity (V1-1866)
 
 V1-1866 (GitHub #1163) adds RSpec example rules for assertions that cannot fail, found in an
@@ -1059,6 +1395,353 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
 
+## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)
+
+V1-1930 (GitHub #1191), V1-1919 (GitHub #1185), V1-1931 (GitHub #1192) and V1-1932 (GitHub #1193)
+add four static test-validity rules to `corvint tests validity` for JS/TS sources and behaviour
+contracts, plus one fail-closed Playwright receipt reason. They are agent-drafted and accepted under
+the owner's standing auto-accept (2026-10-11). The readers stay the TSA-V0-062 token reader over
+committed source; nothing reads a database, a network or a run. Each finding cites a committed
+`path:line`; when the file does not state what a rule needs, the rule does not report.
+
+- `TSA-V0-160`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) `EITHER-OR-OUTCOME`
+  MUST be an invalid finding on an assertion inside a JS/TS test body that accepts two or more
+  distinct literal outcomes, since it passes whichever the product returns and cannot detect a
+  regression from one to another. The finding makes the test `INELIGIBLE` (TSA-V0-051); its
+  message names the accepted values and the annotation of TSA-V0-163. An assertion outside every
+  test body is not reported.
+- `TSA-V0-161`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST be:
+  `expect([a, b]).toContain(x)` and `expect([a, b].includes(x))` with two or more distinct
+  literals; `expect(x === a || x === b)` over one subject, with or without parentheses around each
+  equality; `toBeOneOf([a, b])` and
+  `assert.oneOf(x, [a, b])`; and a regular-expression literal accepting a closed set of outcomes:
+  an anchored alternation of words (`/^(DENIED|FORBIDDEN)$/`), an alternation of digit strings
+  (`/401|403/`) or a digit class inside a status code (`/^40[13]$/`). Numbers are compared by
+  value, so `200` and `200.0` are one value. A negated chain, a non-literal set, one distinct value,
+  two different subjects, and an alternation of words that is unanchored or anchored only at its
+  ends (`/^A|B$/`, a text search) are not reported.
+- `TSA-V0-162`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or
+  JSON file named to `corvint tests validity --files` MUST be read as a behaviour contract: a line
+  whose key or label starts with `expected` and whose value is two or more distinct single-token
+  outcomes joined by `or`, or status codes or upper-case enum names joined by `/`, is an invalid
+  `EITHER-OR-OUTCOME` finding whose test, location and cause are that line and whose title is the
+  key. Prose, dates and a single value are not reported; other file types are not read as
+  contracts.
+- `TSA-V0-163`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A comment
+  `corvint-validity-allow EITHER-OR-OUTCOME: <reason>` on the flagged line, or alone on the line
+  above, MUST exempt that line. In a behaviour contract the line above MUST be a comment (`#`,
+  `//` or `<!--`); data on it naming the annotation does not exempt the value. An annotation
+  without a reason, or naming another rule, MUST NOT exempt the line.
+- `TSA-V0-164`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one value
+  a passing receipt observed is NOT_PRODUCED: no receipt records assertion operands, so the
+  message names the accepted values only and never guesses which one is correct.
+- `TSA-V0-165`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLIVED`
+  MUST be an advisory finding on a cleanup closure registered on a registry whose fixture the file
+  declares with a longer literal scope (`{ scope: 'worker' }`) when the closure captures a
+  shorter-lived handle: a test-scoped fixture the file declares, or a Playwright test-scoped
+  built-in (`request`, `page`, `context`). Its location is the registration line and its cause the
+  registry's declaration; its message names the handle and where it is declared and suggests a
+  context the closure owns (`playwright.request.newContext()`). A closure taking its own context
+  parameter, or declaring its own local under the handle's name, is not reported.
+- `TSA-V0-166`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) The rule MUST read a
+  registration inside a test body, inside a test-scoped fixture function (including through a
+  local alias `const api = request`), and an `afterAll` hook reading a variable a `beforeEach`
+  assigned from a test-scoped handle. A JS/TS file that is not a test file (a fixture file) MUST be
+  read for this rule alone, with the registration line as the finding's test.
+- `TSA-V0-167`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A registry or handle
+  whose scope the file does not state (imported from another file, or a non-literal `scope`), a
+  test-scoped registry, and a closure capturing no handle MUST NOT be reported.
+- `TSA-V0-168`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A Playwright JSON report
+  with at least one suite, a run-level `errors` entry and no outcome other than `passed`, `flaky`
+  or `skipped` MUST give the infrastructure failure `passed-cleanup-failed`, whose detail is the
+  first error's scrubbed, secret-screened message, so a run whose worker fixture teardown or
+  cleanup failed fails closed instead of reading as passed. A report with a failing outcome is
+  left unchanged.
+- `TSA-V0-169`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192)
+  `UNSTUBBED-OUTBOUND-INPUT` MUST be an advisory finding on a test input that names a stubbed
+  integration parameter with a value no stub in the file matches. The stub table is the file's
+  literal request matchers, Playwright `X.route('<glob>', ...)` and MSW
+  `http|rest.<method>('<url>', ...)`. A Playwright matcher path with query parameters names an
+  integration and its stubbed values. An input is an object property `param: 'value'` naming a
+  stubbed parameter, or a literal URL whose path a matcher names (equal, or after a leading `**`)
+  with a query value for a stubbed parameter. An input is covered by a stubbed value whose
+  Playwright glob (`**`, `*`, `{a,b}`) matches it, by an MSW handler at its path (MSW ignores the
+  query when matching), or by a Playwright matcher without a query whose glob matches the request,
+  such as a `**/*` catch-all.
+- `TSA-V0-170`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The finding's cause MUST
+  be the stub line of the nearest stubbed value of the same parameter by edit distance, the first
+  on a tie, and its message MUST name the input value and that value.
+- `TSA-V0-171`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any matcher
+  that is not a literal string, or with no stub, MUST NOT be read for the rule, since that matcher
+  may cover the value.
+- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)
+  `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or equality assertion inside a
+  test body whose two operands are both collection-derived: `toHaveCount` or `toHaveLength` with a
+  collection-derived argument, or `toBe`, `toEqual` or `toStrictEqual` between two operands ending
+  in `.length`, `.size` or `.count()`. Its location and cause are the assertion line and its
+  message suggests a non-empty precondition or the exact seeded count. A negated chain or a literal
+  operand is not reported. The reading does not model fixture seeding.
+- `TSA-V0-173`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the same
+  test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
+  with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
+  `toBeTruthy` on a count, a negated zero or `[]`, a negated `toBeEmpty`, or a visibility or text
+  assertion on the collection or a member of it. A text assertion of `[]` or an empty string is not
+  a precondition, since it passes on an empty collection.
+- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time
+  `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call to an unstubbed
+  host) is NOT_PRODUCED with reason `server-outbound-log-not-produced`: no receipt retains a server
+  log or its outbound calls. It MUST NOT be inferred from a status code alone.
+- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time
+  `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is NOT_PRODUCED with reason
+  `assertion-operands-not-produced`: no receipt records assertion operands.
+- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a
+  matrix row's `file:line` citations at the row's pinned commit is NOT_PRODUCED: no row source with
+  a pinned commit exists in this profile to read.
+
+Non-goals:
+- choosing the correct value of an either-or assertion, or reading natural-language contract
+  prose beyond `expected` keys;
+- following a fixture, registry or stub declared in another file;
+- evaluating non-literal matchers, request builders or seed functions;
+- adding a field to the appflows wire (AFU-V1-042): the qualified external path already fails
+  closed on `reporter-global-error`.
+
+Failure modes:
+- A registry imported from a fixture file is not reported in the test file that uses it; the
+  fixture file itself is read only when named.
+- A fixture that seeds rows outside the test still gets a `VACUOUS-EMPTY-EQUALITY` advisory when
+  the test has no precondition; the advisory does not change hygiene.
+- A run whose only error is a teardown failure now reports infrastructure, and the runner drops
+  its test outcomes, so its passing tests are not counted as proof.
+
+Acceptance evidence: synthetic fixtures only.
+- `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeAnnotation`,
+  `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeRefusesProof` and
+  `TestEitherOrOutcomeReviewCases`.
+- `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile`,
+  `TestCleanupHandleOutlivedAbstains`, `TestCleanupHandleOutlivedShadowed`,
+  `TestParsePlaywrightJSONPassedCleanupFailed` and
+  `TestParsePlaywrightJSONCleanupGateNegatives`.
+- `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` and
+  `TestUnstubbedOutboundInputAbstains`.
+- `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityNegatives`,
+  `TestVacuousEmptyEqualityEmptyText` and `TestVacuousEmptyEqualityOutsideTest`.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/validity_either_or.go`, `validity_cleanup_handle.go`,
+`validity_unstubbed_input.go`, `validity_vacuous_empty.go`, their tests,
+`internal/testvalidity/source_rules_outcome.go`, `internal/jstestprovider/playwright_cleanup.go`,
+the `outcomeFindings` call and the two `ValidityFindings` cases, and this section. Nothing is
+persisted.
+
+### Traceability (V1-1919, V1-1930, V1-1931, V1-1932)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-160 | `internal/testsource/validity_either_or.go`, `internal/testvalidity/source_rules_outcome.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeRefusesProof` | experimental |
+| TSA-V0-161 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeReviewCases` | experimental |
+| TSA-V0-162 | `internal/testsource/validity_either_or.go`, `internal/testsource/validity.go` | `TestEitherOrOutcomeContract` | experimental |
+| TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeReviewCases` | experimental |
+| TSA-V0-164 | none | NOT_PRODUCED | gap |
+| TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedShadowed` | experimental |
+| TSA-V0-166 | `internal/testsource/validity_cleanup_handle.go`, `internal/testsource/validity.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile` | experimental |
+| TSA-V0-167 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedAbstains` | experimental |
+| TSA-V0-168 | `internal/jstestprovider/playwright_cleanup.go`, `internal/jstestprovider/playwright.go` | `TestParsePlaywrightJSONPassedCleanupFailed`, `TestParsePlaywrightJSONCleanupGateNegatives` | experimental |
+| TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
+| TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
+| TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
+| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
+| TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
+| TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
+| TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
+| TSA-V0-176 | none | NOT_PRODUCED | gap |
+
+## Browser write responses in test-validity (V1-1933)
+
+V1-1933 (GitHub #1194) reports a browser step that triggers a create, update or delete request
+and never checks the response, so a failed write passes as long as the UI moves on. It is
+agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). The reading is
+static and uses the TSA-V0-073 JS/TS example reader; recorded network evidence is not read.
+
+- `TSA-V0-230`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A JS/TS example step
+  MUST get an advisory `WRITE-RESPONSE-UNASSERTED` finding when it holds a user action (`click`,
+  `dblclick`, `tap`, `press`, `check`, `uncheck`, `setChecked`, `selectOption`, `submit` or
+  `dispatchEvent`) and a `waitForResponse` or `waitForRequest` whose predicate resolves to a write
+  method (`POST`, `PUT`, `PATCH` or `DELETE`), and no assertion reads the waited response. A step is
+  a `test.step` callback body, or the example body outside its step callbacks. The finding's
+  location is the action line and its cause is the wait line.
+- `TSA-V0-231`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait MUST count as
+  asserted when it is started before the action and its response reaches an assertion: through
+  the variable it is assigned to (awaited or not), a `Promise.all([...])` destructured slot, a
+  same-line local derived from that variable, or an assertion inside a `.then(...)` callback on
+  the wait that reads the callback's response parameter. A wait whose predicate resolves to `GET` only MUST NOT be reported.
+- `TSA-V0-232`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite
+  the first wait in the same file that resolves to a write, is started before its action and is
+  asserted, as `path:line`; with none the message names no example.
+- `TSA-V0-233`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait whose method
+  cannot be resolved MUST get an advisory `WRITE-RESPONSE-UNRESOLVED` finding whose message starts
+  `abstained:` instead of a claim: a bare URL or glob predicate, an absolute URL, a predicate
+  holding any `!` negation, a non-literal method, or a predicate that mixes read and write methods.
+- `TSA-V0-234`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) Both rules MUST be
+  advisory: they appear in the example's findings and the `corvint tests validity` file report and
+  never change the hygiene axis.
+
+Non-goals: recorded network traces (the `corvint-network-evidence/0` profile carries no method or
+step), MCP or preflight surfaces, and frameworks other than the Playwright-style page API.
+
+Acceptance evidence: synthetic fixtures only. The four acceptance criteria are one file
+(`TestWriteResponseUnassertedAcceptance`); the binding forms (`TestWriteResponseForms`), the
+missing example (`TestWriteResponseNoExemplar`), a late asserted wait (`TestWriteResponseLateWaitIsNotExemplar`) and the advisory severity
+(`TestWriteResponseKeepsHygiene`). No live qualification on a real suite was run (NOT_RUN).
+Rollback removes `internal/testsource/validity_js_write_response.go`, its test,
+`internal/testvalidity/source_rules_write_response.go`, the one call in `exampleFacts` and this
+section. Nothing is persisted.
+
+### Traceability (V1-1933)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-230 | `internal/testsource/validity_js_write_response.go`, `internal/testsource/validity_js_examples.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-231 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms`, `TestWriteResponseReviewForms` | experimental |
+| TSA-V0-232 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseNoExemplar`, `TestWriteResponseForms`, `TestWriteResponseLateWaitIsNotExemplar` | experimental |
+| TSA-V0-233 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms`, `TestWriteResponseReviewForms` | experimental |
+| TSA-V0-234 | `internal/testvalidity/source_rules_write_response.go` | `TestWriteResponseKeepsHygiene` | experimental |
+
+## Seed validation and collisions in test-validity (V1-1935)
+
+V1-1935 (GitHub #1196) reports, before any run, a seed the server's validation would reject, a
+seed that collides with a sibling test's seed, and the tests a failing seeding hook would skip.
+It is agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). Corvint does
+not infer the server's validation: the project declares it.
+
+- `TSA-V0-240`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) `corvint tests
+  validity` MUST read `.corvint/seed-rules.json` at the report's revision, a closed
+  `corvint-seed-rules/0` profile of at most 64 KiB and 1..64 resources. Each resource names its
+  seeding calls (functions whose last argument is the record object) or request paths
+  (`X.post|put(path, { data: {...} })`, query ignored), an optional tenant field, and at least one
+  rule: unique keys (lists of fields), a range (start and end fields with `inclusive` or
+  `exclusive` bounds), or a date with an optional weekly flag and until date. An absent file MUST
+  produce no seed finding. A file that does not decode MUST produce one advisory
+  `SEED-VALIDATION-UNRESOLVED` abstention per JS/TS test file and no other seed finding.
+- `TSA-V0-241`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Two resolved seeds of
+  one resource and tenant that run in one setup sequence (one `beforeAll`/`beforeEach` hook, or one
+  example with the hooks of its file and enclosing describes) MUST get an advisory
+  `SEED-VALIDATION-REJECTED` finding on the later seed when they repeat a unique key or their
+  ranges overlap: inclusive bounds overlap when `a.start <= b.end` and `b.start <= a.end`,
+  exclusive bounds with strict comparison. A shared bound under inclusive bounds is reported.
+- `TSA-V0-242`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A single seed whose
+  start is after its end, or whose range is empty under exclusive bounds, MUST get an advisory
+  `SEED-VALIDATION-REJECTED` finding.
+- `TSA-V0-243`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Seeds owned by two
+  different examples in one file (never two seeds of one example), of one resource and tenant, MUST get an advisory `SEED-SIBLING-COLLISION`
+  finding on the later seed when they repeat a unique key, their ranges overlap, or they occupy one
+  calendar date, where a seed with the weekly flag `true` occupies its date and every seventh day
+  after it up to its until date (or ten years). Seeds of different tenants MUST NOT be reported.
+- `TSA-V0-244`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A seed whose record is
+  not an object literal, holds a spread, computed, inexact-string, method or shorthand member, or
+  whose rule field is missing or not a lone string, number or boolean literal, MUST get an advisory `SEED-VALIDATION-UNRESOLVED` finding whose message starts
+  `abstained:` and take part in no other seed rule. A later key replaces an earlier one. Two values
+  are equal only when their kinds (string, number, boolean) match, numbers by value. Values order
+  as numbers, as `YYYY-MM-DD` dates, or as RFC 3339 timestamps compared as instants; any other
+  pair, a date against a timestamp included, is not compared.
+- `TSA-V0-245`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A `beforeAll` or
+  `beforeEach` hook holding a matched seed MUST get one advisory `SEED-HOOK-BLAST-RADIUS` finding
+  that lists, in line order, the examples in its scope (its innermost describe, or the file) that
+  its failure would skip.
+- `TSA-V0-246`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Every seed finding MUST
+  be advisory and appear only in the file report: no example's hygiene changes.
+
+Non-goals: reading server code or schemas to infer validation, cross-file sibling collisions,
+values computed at run time, and recurrence rules other than weekly.
+
+Acceptance evidence: synthetic fixtures only. The five acceptance criteria are one file
+(`TestSeedAcceptance`); exclusive bounds and single-seed rejection (`TestSeedExclusiveBounds`);
+unique keys and non-literal records (`TestSeedUniqueAndForms`); the closed profile
+(`TestDecodeSeedRules`); the committed-file read and the advisory severity
+(`TestSourceValiditySeedRules`). No live qualification on a real suite was run (NOT_RUN). Rollback
+removes `internal/testsource/validity_js_seeds.go`, its test,
+`internal/testvalidity/source_rules_seeds.go`, `seedRules` and its call in `SourceValidity`, and
+this section. Nothing is persisted.
+
+### Traceability (V1-1935)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-240 | `internal/testsource/validity_js_seeds.go`, `internal/testsource/validity_command.go` | `TestDecodeSeedRules`, `TestSourceValiditySeedRules` | experimental |
+| TSA-V0-241 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-242 | `internal/testsource/validity_js_seeds.go` | `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-243 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
+| TSA-V0-244 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
+| TSA-V0-245 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance` | experimental |
+| TSA-V0-246 | `internal/testvalidity/source_rules_seeds.go`, `internal/testsource/validity_command.go` | `TestSourceValiditySeedRules` | experimental |
+
+## Revision-pinned source citations (V1-1934)
+
+V1-1934 (GitHub #1195) checks the source citations in review documents against the object store
+at the cited revision, so a review that cites a file before it existed, a range past its end or a
+symbol outside its range is caught without a checkout. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) and row
+citation drift (V1-1932) are separate.
+
+- `TSA-V0-250`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A citation MUST be an
+  inline-code span outside fenced code of the form `path[:START[-END]][#Symbol][@REV]` whose path
+  holds a `/`. It counts only when it carries a line, a symbol or a revision, or when the document
+  declares a default revision.
+- `TSA-V0-251`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A document MAY declare
+  its default citation revision with a line `<!-- corvint-cite-revision: REV -->`. A citation's
+  revision MUST be its `@REV` (resolved in the repository, so `@HEAD` is the repository HEAD), else
+  the document default, else the revision the documents are read at. A declaration inside fenced
+  code is ignored; a fence closes only on a line of its own character at least as long as its
+  opener.
+- `TSA-V0-252`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) `corvint tests
+  citations --docs PATH[,PATH...] [--rev REV]` MUST read at most 256 named committed documents at
+  `--rev` (default `HEAD`), refusing `tests-invalid-arguments` for a path that is not repository
+  relative or for no document, `tests-source-unavailable` for a document that is not a committed
+  regular file, and `tests-bound-exceeded` over 256 documents or 4096 citations.
+- `TSA-V0-253`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) Each citation MUST be
+  reported with its document, line, text, resolved revision and one reason: `missing-at-revision`
+  when the path is absent at the revision, `range-out-of-bounds` when the range (any given range,
+  `:0` included) starts before line 1, ends before it starts or ends past the file's last line, `symbol-not-in-range` when the symbol
+  is not an identifier in the range (or the file when no range is given), and `not-a-file` when a
+  range or symbol cites a directory, symlink or submodule. A citation that holds MUST produce no
+  report.
+- `TSA-V0-254`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A
+  `missing-at-revision` finding MUST suggest the nearest revision where the path exists when Git
+  history names one: the first commit after the cited revision, up to the read revision, that adds
+  the path, else the parent of the last commit at or before the cited revision that deleted it.
+- `TSA-V0-255`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST print
+  one `corvint-source-citations/0` document (schema, revision, checked count, findings and
+  abstentions) and exit 1 while a finding remains, 0 otherwise. A citation whose revision does not
+  resolve, or whose file is over 1 MiB, MUST abstain (`revision-unresolved`, `file-too-large`)
+  instead of being reported.
+- `TSA-V0-256`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read
+  the Git object store only (`rev-parse`, `ls-tree`, `cat-file` and `log`): no checkout, no index
+  or working-tree read, no write and no network.
+
+Non-goals: citations outside inline code, non-Git revisions, language-aware symbol resolution and
+an MCP or CI surface.
+
+Acceptance evidence: synthetic fixtures only. The acceptance criteria are
+`TestCitationsAcceptance` (missing-at-revision with the adding commit suggested, range past the
+end, valid citations silent, symbol outside its range, unresolved revision abstains) and
+`TestCitationsReadOnlyObjectStore` (same report with every working-tree file removed; index, HEAD
+and status unchanged); deletion suggestions and refusals are `TestCitationsDeletedPathAndRefusals`
+and the CLI is `TestTestsCitationsCLI`. No live qualification on a real review corpus was run
+(NOT_RUN). Rollback removes `internal/testsource/citations.go`, its test, the `citations`
+subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is persisted.
+
+### Traceability (V1-1934)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-250 | `internal/testsource/citations.go` | `TestCitationsAcceptance` | experimental |
+| TSA-V0-251 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms` | experimental |
+| TSA-V0-252 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsDeletedPathAndRefusals`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-253 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-254 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
+| TSA-V0-255 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-256 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |
+
 ## Decision file format
 
 ```json
@@ -1072,6 +1755,154 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 
 The pair is unordered. The file belongs to the project and is edited by people; Corvint only reads
 it.
+
+## Seed parity between linked tests (V1-1883)
+
+V1-1883 (GitHub #1167) compares the setup a new test performs with the setup of the legacy test it
+claims to preserve. Two tests can share a title and assertions while seeding different data: three
+children against one, an attribute set on one side and left at its default on the other, or a total
+asserted over a single record. It is agent-drafted and accepted under the owner's standing
+auto-accept (2026-10-11). The reading reuses the TSA-V0-062 RSpec reader and the TSA-V0-010 lexer
+and declaration model. The link is an explicit argument; no link store is added.
+
+- `TSA-V0-100`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests
+  validity` MUST accept a repeatable `--legacy NEW=LEGACY` link (`SourceValidityOptions.Links`).
+  - Each side is `PATH:LINE`: a repository-relative committed file and the declaring line of one
+    example. `--files` may be omitted when a link is given.
+  - A side that is not `PATH:LINE` with a positive line refuses `tests-invalid-arguments`; a
+    malformed `NEW=LEGACY` value exits 2. A file that is not committed at the revision refuses
+    `tests-source-unavailable`. More than 256 links refuses `tests-bound-exceeded`.
+- `TSA-V0-101`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUST
+  be read from committed Git content in exactly these forms:
+  - RSpec (`_spec.rb`): FactoryBot `create`, `create_list`, `build` and `build_list`, bare or as
+    `FactoryBot.`, with a literal kind, a literal list count, `:trait` and `key: value` or
+    `:key => value` arguments. They are read in the example body, the `before`/`before(:each)`
+    hooks, `let!` and `subject!` of its groups, and the lazy `let` and `subject` bodies that scope
+    invokes, transitively and innermost first. `subject` resolves to a named subject
+    (`subject(:user) { ... }`), and a `let!` runs the innermost definition of its name, so an inner
+    `let` overriding an outer `let!` counts once, with the inner body.
+  - RSpec YAML fixtures: a `fixtures :table, ...` line of the example's groups reads
+    `spec/fixtures/TABLE.yml`, else `test/fixtures/TABLE.yml`. Each top-level record is one seed
+    of the singular kind with its one-level `key: value` attributes.
+  - JS/TS (`IsTestFile`): `create`, `build`, `createList` and `buildList`, bare or on one receiver
+    (`factory.create('user', {...})`), with a literal string kind, a literal list count and an
+    optional object literal of `key: value` attributes. They are read in the example body and the
+    `beforeEach`/`beforeAll` hooks (bare or `test.`) that apply to it.
+  - Only a call that runs whenever its body runs is read. A call nested in a block, lambda or
+    callback, or in a condition or short-circuit operand of its statement (`if`, `unless`, a
+    modifier, `&&`, `||`, `?:`, an arrow that is not invoked), abstains per TSA-V0-107.
+  - Setup in another example, a non-applying hook, or a `def` helper scope never invokes, is not
+    read.
+- `TSA-V0-102`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MUST
+  be normalised to a sorted list of kinds. Each kind has its summed count and each explicitly set
+  attribute with its sorted distinct values.
+  - Names are lower snake_case. A trait is attribute `trait:NAME` = `true`.
+  - A symbol or string is a quoted string; a number or boolean is itself; `nil`, `null` and
+    `undefined` are `null`; any other expression, and a nested YAML value, is `<expr>`.
+- `TSA-V0-103`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The report MUST carry a
+  `seedParity` member, one entry per link in argument order, only when a link is given. Each entry
+  has `new`, `legacy`, `status`, `sides` and `findings`.
+  - `sides` holds the legacy then the new side: `side`, `test`, `analysed`, `reason` and
+    `location` when not analysed, and `kinds`.
+  - `status` is `parity` when both normalised shapes are identical, with no divergence or
+    uncertain finding; `diverges` when they differ; `uncertain` when the only differences are
+    attribute values that hold `<expr>` (TSA-V0-105); `not-analysed` per TSA-V0-107. Parity means equal setup shapes
+    only, never equal behaviour.
+- `TSA-V0-104`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A kind seeded on one
+  side only, or with different counts, MUST give an advisory `SEED-PARITY-DIVERGES` finding.
+  - Its message names both counts and, per side, the asserting lines that read the kind: an
+    identifier equal to the kind or its plural, or a name the seed is bound to (a let, a local or
+    a destructured name).
+  - Findings that an asserting line reads order first, then by kind and attribute. `location` is
+    the new side's first seed of the kind (else the new test) and `cause` the legacy side's.
+- `TSA-V0-105`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) For a kind both sides
+  seed, an attribute set explicitly on one side and left at its default on the other MUST give a
+  `SEED-PARITY-DIVERGES` finding naming the side and its values. An attribute both sides set to
+  literal values only, with different value sets, also gives one. An attribute both sides set with
+  different value sets where either holds `<expr>` MUST instead give an advisory
+  `SEED-PARITY-UNCERTAIN` finding naming both value sets; it is never parity. Equal value sets,
+  `<expr>` included, give no finding.
+- `TSA-V0-106`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) An asserting line on
+  either side whose identifiers hold an aggregate word (`total`, `sum`, `all`, `every`, `reduce`,
+  `inject`, `average`, `balance`, `aggregate`) and read a group of a kind MUST give an advisory
+  `SEED-AGGREGATE-SINGLE-MEMBER` finding when either side seeds exactly one of that kind.
+  - A group is the kind's plural identifier or a plural bound name.
+  - It is reported on each side whose assertion qualifies, at the asserting line, with `cause` the
+    first single side's seed.
+- `TSA-V0-107`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A side MUST abstain,
+  naming its first reason and `path:line`, when:
+  - the file is neither `_spec.rb` nor a JS/TS test file: `seed-file-unsupported`;
+  - the reader is uncertain or unbalanced: `seed-source-uncertain`;
+  - no single example is declared on the line: `seed-example-not-found`;
+  - a setup-like identifier (a create, build, insert, upsert, seed, fixture, factory or populate
+    word) in scope is not a supported form, including a block-taking call: `seed-form-unsupported`;
+  - setup-like code runs where scope is not resolved (`before(:all)`, `around`, `after`, an invoked
+    `def`, or a JS file-level call): `seed-scope-unresolved`;
+  - a factory call in scope may not run (TSA-V0-101): `seed-execution-unresolved`;
+  - the kind, list count or attributes are not literal: `seed-kind-not-literal`,
+    `seed-count-not-literal`, `seed-attributes-not-literal`;
+  - a fixture file is missing (`seed-fixture-unavailable`), not of the plain shape
+    (`seed-fixture-unsupported`: ERB, tabs, anchors, aliases, merge keys, lists, `fixtures :all`),
+    or over the bound (`seed-fixture-bound-exceeded`). A `spec/fixtures` file that is over the
+    bound or not a regular file abstains; `test/fixtures` is read only when it is absent.
+  When either side abstains, `status` MUST be `not-analysed`. There is one advisory
+  `SEED-PARITY-NOT-ANALYSED` finding per unanalysed side and no divergence or aggregate finding.
+- `TSA-V0-108`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Seed-parity findings
+  MUST be advisory and carry the new test as `test`. They MUST NOT add a `tests` entry, change a
+  hygiene or strength axis, or change the exit code.
+- `TSA-V0-109`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The reading MUST be
+  deterministic. It MUST read only committed Git content: each side at most 1 MiB, and at most 16
+  fixture tables per side, each at most 1 MiB. It MUST write nothing and use no network.
+
+Non-goals:
+- reusing the documentation-corpus legacy crosswalk (it needs a behaviour registry and inventory);
+  a link store;
+- telling `build` from `create` persistence, factory defaults, factory traits' contents, sequences
+  or associations a factory adds;
+- helpers, page objects or shared contexts in other files; `let_it_be`, `before(:all)` and
+  database seeds files;
+- deciding that the asserted value depends on the divergence: ordering by a reading assertion is a
+  hint, not proof.
+
+Failure modes:
+- A setup-like word the forms do not cover abstains the side, so most real suites will report
+  `not-analysed` until more forms are added; this is the intended failure direction.
+- A helper whose name holds no setup word (`make_order`, `given_cart`) is not seen. Its records are
+  missing from the shape, so parity can be reported when the helper seeds differently.
+- The plural and aggregate readings are English-word heuristics; a miss leaves a finding
+  unreported, never a side mis-analysed.
+
+Acceptance evidence: synthetic fixtures only (`internal/testsource/seed_parity_test.go`,
+`cmd/corvint/tests_test.go`).
+- A 3 vs 1 child count with the asserting lines of both sides.
+- An explicit vs default attribute and differing literal values.
+- A sum/reduce aggregate over a single-member seed, reported on both sides.
+- Each abstention reason on each side, with no parity reported, including conditional and
+  deferred calls and an oversized fixture with a fallback file present.
+- An unknown value against a literal reported uncertain; a named subject, an overridden `let!`,
+  a commented quoted YAML scalar and a `.should` aggregate chain.
+- Identical shapes written differently, with no finding.
+- YAML fixtures, including ERB and missing files; the JS/TS form; and the CLI flag and exit code.
+
+No live qualification on a real migration was run (NOT_RUN). Rollback removes
+`internal/testsource/seed_parity*.go`, `internal/testvalidity/source_rules_seed.go`, the `Links`
+option and `seedParity` member, the `lets`/`fixtures` fields of `rspecGroup`, the `--legacy` flag,
+their tests and this section. Nothing is persisted.
+
+### Traceability (V1-1883)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0101SeedNamedSubject`, `TestTSAV0101SeedOverriddenEagerLet`, `TestTSAV0101SeedYAMLQuotedComment` | experimental |
+| TSA-V0-102 | `internal/testsource/seed_parity.go` | `TestTSAV0102SeedNormalisation`, `TestTSAV0101SeedShapeRSpec` | experimental |
+| TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
+| TSA-V0-104 | `internal/testsource/seed_parity.go` | `TestTSAV0104SeedCountDivergence`, `TestTSAV0105SeedExplicitVersusDefault` | experimental |
+| TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
+| TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember`, `TestTSAV0106SeedShouldAggregate` | experimental |
+| TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0107SeedFixtureOversizeNoFallback` | experimental |
+| TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-109 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go` | `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0100SeedLinkArguments` | experimental |
 
 ## Boundaries and failure modes
 
@@ -1108,6 +1939,180 @@ fail closed through TSA-V0-007 rather than being resolved: local aliasing of the
 at runtime, chains longer than 8 hops, templates nested deeper than 8, and a destructured or method
 parameter that shadows the name (read as a whole-object use). The selector does no scope analysis.
 A shared constant written by a setup at runtime is not seen, nor is a JSON module's object.
+
+## Unselected test files (V1-1888)
+
+V1-1888 (GitHub #1172) reports committed test-looking JS/TS files that no configured runner selects,
+and keeps them out of witness credit. A Playwright spec in a Jest-only repository, or a file a
+runner's exclude pattern drops, looks like coverage but never runs. It is agent-drafted and accepted
+under the owner's standing auto-accept (2026-10-11). The reading reuses the TSA-V0-010 lexer and
+declaration model; it runs nothing and reads committed Git content only.
+
+- `TSA-V0-140`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)
+  `testsource.UnselectedFiles` MUST read, at one resolved revision, every committed runner
+  configuration file and every test-looking file under the TSA-V0-012 bounds, refusing
+  `tests-bound-exceeded` rather than reading part of the repository.
+  - A test-looking file is a JS/TS file (TSA-V0-010 extensions, not `.d.ts`) outside
+    `node_modules` whose stem ends with `.spec`, `.test`, `_spec`, `_test`, `-spec`, `-test`,
+    `.specs`, `.tests`, `.e2e` or `.cy`, or that sits under a directory named `__tests__`,
+    `__test__`, `test`, `tests`, `spec`, `specs`, `e2e`, `integration` or `cypress`, and that
+    declares at least one test or describe call.
+  - Other files are not listed.
+- `TSA-V0-141`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) The modelled runners are
+  Jest, Vitest, Playwright and Mocha. A runner instance exists in a directory for each
+  `jest.config.*`, `vitest.config.*`, `vite.config.*` with a `test` property (when no
+  `vitest.config.*` sits beside it), `playwright.config.*`, `.mocharc.*`, package.json `jest` or
+  `mocha` member, or package.json dependency on `jest`, `vitest`, `@playwright/test` or `mocha`.
+  - With no configuration file the instance uses the runner's defaults:
+    - Jest: `testMatch` `**/__tests__/**/*.?([mc])[jt]s?(x)` and
+      `**/?(*.)+(spec|test).?([mc])[jt]s?(x)`; `testPathIgnorePatterns` `/node_modules/`.
+    - Vitest: `include` `**/*.{test,spec}.?(c|m)[jt]s?(x)`; `exclude` `**/node_modules/**` and
+      `**/.git/**`.
+    - Playwright: `testDir` the configuration directory; `testMatch`
+      `**/*.@(spec|test).?(c|m)[jt]s?(x)`.
+    - Mocha: `spec` `./test`, non-recursive, extensions `js`, `cjs` and `mjs`.
+  - Jest matches globs against `<rootDir>/path` and its ignore patterns as regular expressions.
+  - Playwright matches `testMatch` and `testIgnore` case-insensitively against the absolute path,
+    directory components included. A pattern without a leading `**/` gets one, an absolute
+    pattern is outside the reading, and `testDir` moves the instance's directory.
+  - A Mocha spec without glob characters selects that file, that path with a configured
+    extension, or the files with a configured extension in that directory (recursively when set).
+    Mocha leaves out a path with a hidden segment unless the pattern names a segment that starts
+    with a literal `.`; the other runners match hidden paths.
+  - A dependency on `cypress`, `karma`, `jasmine`, `ava`, `@web/test-runner`, `@wdio/cli`, `tap`,
+    `uvu`, `@japa/runner`, `@storybook/test-runner` or `testcafe`, or one of their configuration
+    files, a `vitest.workspace` or `vitest.projects` file, or an unparsable package.json, is
+    unmodelled runner evidence. A `vitest.workspace` or `vitest.projects` file also makes every
+    Vitest instance uncertain (`runner-config-project-selection`), and one exists in its
+    directory.
+- `TSA-V0-142`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A configuration MUST be
+  read only as literal values: strings, arrays of strings and `true`/`false` for the selection keys
+  (Jest `testMatch`, `testPathIgnorePatterns`; Vitest `test.include`, `test.exclude`; Playwright
+  `testDir`, `testMatch`, `testIgnore`; Mocha `spec`, `ignore`, `exclude`, `extension`,
+  `recursive`). Other keys are ignored. The instance is uncertain, with that reason, on:
+  - a spread, `mergeConfig` or `defineWorkspace` (`runner-config-spread`, `runner-config-merged`);
+  - a Jest `testRegex`, `roots`, `rootDir`, `projects` or `testPathPattern` key, a Vitest
+    `projects`, `workspace`, `root` or `dir` key, or a Mocha `config` or `package` key
+    (`runner-config-key-unsupported`);
+  - a repeated or non-literal selection key, or a non-object Vitest `test`
+    (`runner-config-key-repeated`, `runner-config-value-dynamic`);
+  - a computed property, or a selection key name (or Vitest `test`, Playwright `projects`) that
+    is not a `key:` property, such as a shorthand `{ testMatch }`, `module.exports.testMatch = …`
+    or a variable (`runner-config-key-dynamic`);
+  - a Playwright selection key inside `projects` (`runner-config-project-selection`);
+  - unparsable JSON, YAML, or a Vitest JSON file (`runner-config-unparsed`);
+  - two configurations for one runner in one directory (`runner-config-multiple`);
+  - a pattern outside the glob dialect (`runner-pattern-unsupported`). Braces `{a,b}` and numeric
+    ranges `{1..3}` expand first, to at most 256 patterns. Then the dialect is `**` as a whole
+    path segment (elsewhere it is `*`), `*`, `?`, `[...]` with `!` negation and the extglobs
+    `?(…)`, `*(…)`, `+(…)` and `@(…)`. A negated pattern, `!(…)`, a `**` inside an extglob, a
+    letter, stepped or zero-padded range, a brace without a comma, an escape or an unbalanced
+    bracket is outside it.
+- `TSA-V0-143`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A file's framework MUST
+  be attributed from its literal imports and requires:
+  - `@playwright/test` or `playwright/test` is Playwright, `vitest` is Vitest, `@jest/globals` is
+    Jest and `mocha` is Mocha;
+  - `node:test`, `bun:test`, `ava`, `tap`, `uvu`, `@japa/runner` or `cypress` is unmodelled;
+  - more than one of these is ambiguous;
+  - otherwise, a test or describe root the file calls (or `expect`) bound from another module is
+    indirect, and anything else uses globals.
+  - An explicit framework runs only under its runner. Globals run under Jest, Vitest or Mocha, and
+    indirect under any modelled runner.
+- `TSA-V0-144`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) Each test-looking file
+  MUST get one selection:
+  - `selected` when any compatible runner instance that is not uncertain selects it: the file is
+    under the instance's directory, matches an include pattern and matches no exclude pattern.
+    Selected files MUST NOT be reported.
+  - `uncertain`, never reported, when:
+    - the file is lexically uncertain (`source-unparsed`);
+    - its framework is ambiguous or unmodelled (`framework-ambiguous`, `framework-unmodelled`);
+    - there is no runner evidence at all (`no-runner-configuration`);
+    - it uses globals or an indirect import and unmodelled runner evidence exists
+      (`runner-unmodelled`);
+    - a compatible instance is uncertain (that instance's reason).
+  - `unselected` otherwise, with reason:
+    - `no-runner-for-framework` when no compatible instance exists;
+    - otherwise the first, in this order, that any compatible instance gives:
+      - `excluded` with the exclude pattern that matched;
+      - `suffix-mismatch` when a file in the same directory named `corvintprobe.test`,
+        `corvintprobe.spec` or `corvintprobe`, with the file's extension, `.js` or `.ts`, would be
+        selected;
+      - `outside-include`.
+    - The finding names the runner and configuration that gave the reason.
+- `TSA-V0-145`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)
+  `corvint tests unselected [--rev REV]` MUST print one `corvint-test-file-selection/0` document:
+  - `revision`;
+  - `runners` (runner, config, directory, status `read`, `defaults` or `uncertain`, reason,
+    include and exclude);
+  - `unmodelledRunners`;
+  - `files`, the inventory of every test-looking file with its framework and selection;
+  - `findings`, one `TEST-FILE-UNSELECTED` per unselected file, carrying path, framework, reason,
+    runner, config and pattern.
+  - It MUST exit 1 when there is a finding and 0 otherwise. A refusal exits 2 with the TSA-V0-012
+    codes.
+  - The output is deterministic over the same revision.
+- `TSA-V0-146`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) `corvint tests
+  validity` (`testsource.SelectedSourceValidity`) MUST give every test of a named file that
+  TSA-V0-144 classifies `unselected` an `invalid` `TEST-FILE-UNSELECTED` finding, so its hygiene
+  is `INELIGIBLE` with that reason and it cannot be witness or coverage credit. The finding's
+  cause is the reason and, when present, `: pattern`.
+  - The tests are the ones the report already lists for the file, plus one per test declaration
+    it does not list.
+  - An `uncertain` or `selected` file, a `_spec.rb` file and a file that is not test-looking are
+    unchanged.
+
+Non-goals:
+- running a runner, reading CLI flags, environment-dependent configuration or a workspace's
+  per-project selection;
+- RSpec, Go and other languages, and runners other than the four modelled;
+- Jest `testRegex`, `roots` and `rootDir`, Vitest `root`/`dir` and projects, and Playwright
+  per-project selection, which abstain;
+- carrying the flag into the doc-corpus legacy crosswalk or the Playwright witness import, which
+  read receipts rather than this report (a V1-1888 residual).
+
+Failure modes:
+- A runner configured only through a CLI flag, a script argument or an environment variable is
+  not seen. Its files are reported against the defaults or another runner.
+- An import alias of a test root, or a fixture re-exported through a barrel that the file does not
+  bind by name, is read as globals, so a Playwright-only repository can report it as
+  `no-runner-for-framework`.
+- A package with a Vitest dependency and a `vite.config.*` without a `test` property uses Vitest
+  defaults.
+- Every configuration and test-looking file counts against the TSA-V0-012 bounds, so a very large
+  repository refuses `tests-bound-exceeded` instead of reporting.
+
+Acceptance evidence: synthetic Git repositories only.
+- A Jest-plus-Vitest repository reports a Playwright spec as `no-runner-for-framework`, a file
+  under an ignored directory as `excluded` naming `/legacy/`, a `.tests.js` file as
+  `suffix-mismatch` and a Vitest file outside `include` as `outside-include`. Selected files and
+  non-test-looking files are not reported, and `coverage.include` does not count.
+- Playwright `testDir`/`testIgnore` and a Mocha `.mocharc.json` spec are read.
+- Playwright matches the absolute path case-insensitively, Mocha skips hidden files and selects
+  an explicitly named file outside `extension`, brace ranges expand, an inline `**` stays in one
+  segment, and a Vitest workspace makes an explicit Vitest file uncertain.
+- Each abstain reason in TSA-V0-142 leaves files `uncertain` with no finding, as do no runner
+  evidence, an unmodelled runner and a `node:test` file.
+- The glob dialect is pinned.
+- `tests validity` on an unselected file is refused with `TEST-FILE-UNSELECTED`, and a selected
+  file is unchanged.
+- The CLI exits 1, 0 and 2.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/unselected*.go`, `cmd/corvint/tests_unselected*.go`, the `unselected`
+dispatch and help, and this section, and restores `runTestsValidity` to call `SourceValidity`.
+Nothing is persisted.
+
+### Traceability (V1-1888)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-140 | `internal/testsource/unselected.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
+| TSA-V0-141 | `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
+| TSA-V0-142 | `internal/testsource/unselected_runners.go`, `internal/testsource/unselected_glob.go` | `TestUnselectedAbstainsTSAV0142`, `TestUnselectedGlobDialectTSAV0142`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
+| TSA-V0-143 | `internal/testsource/unselected.go` | `TestUnselectedIndirectFrameworkTSAV0143`, `TestUnselectedNoEvidenceTSAV0144` | experimental |
+| TSA-V0-144 | `internal/testsource/unselected.go`, `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedNoEvidenceTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141` | experimental |
+| TSA-V0-145 | `internal/testsource/unselected.go`, `cmd/corvint/tests_unselected.go` | `TestTestsUnselectedCLI`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
+| TSA-V0-146 | `internal/testsource/unselected.go`, `cmd/corvint/tests.go` | `TestSelectedSourceValidityRefusesUnselectedTSAV0146`, `TestTestsUnselectedCLI` | experimental |
 
 ## Implementation, rollout and rollback
 
@@ -1192,3 +2197,194 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
 | TSA-V0-055 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledNegatives`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |
 | TSA-V0-056 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsBlockNotCalled`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |
+
+## Response-wait timeouts and role locators (V1-1939)
+
+V1-1939 (GitHub #1197) explains a browser test that timed out waiting for a response, and finds
+before any run a role locator that the located component cannot match. It is agent-drafted and
+accepted under the owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-200`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint runs
+  response-wait --log FILE --url-contains S [--method M] --wait-start RFC3339 --timeout-ms N` MUST
+  read one request log, either a HAR document (`log.pages`, `log.entries`) or a JSON-lines server
+  log with `time`, `method`, `url` or `path`, `status` and `durationMs`, and print one
+  `corvint-runs-response-wait/0` report. A log over 64 MiB or 200,000 requests is refused as too
+  large; a malformed log is read as unreadable.
+- `TSA-V0-201`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The verdict set is
+  closed: `REQUEST_NEVER_SENT`, `SLOW_RESPONSE`, `RESPONSE_IN_WAIT` and `UNKNOWN`. A request
+  matches when its URL contains S, its method equals M when M is given, it started no later than
+  the deadline (wait start plus timeout), and its response did not complete before the wait
+  began. Reported URLs keep scheme, host and path only, and pass the secret screen.
+- `TSA-V0-202`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) With no matching
+  request the verdict MUST be `REQUEST_NEVER_SENT`, listing up to the last 5 requests with a 4xx
+  or 5xx status that started by the deadline. In a HAR log they come from the page the wait ran
+  on (`failureScope: PAGE`, the latest page started by the wait start); in a server log they come
+  from the whole log (`failureScope: LOG`).
+- `TSA-V0-203`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A matching request
+  whose response completed after the deadline MUST be `SLOW_RESPONSE` with its `durationMs` and
+  `lateByMs`. One with no recorded response is `SLOW_RESPONSE` with reason `no-response-recorded`.
+  One answered within the window is `RESPONSE_IN_WAIT`: the log does not explain the timeout.
+- `TSA-V0-204`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A missing log
+  (`request-log-unavailable`), a malformed or oversized log (`request-log-unreadable`), an empty
+  log (`request-log-empty`) and a log whose first request starts after the deadline
+  (`request-log-starts-after-wait`) MUST give `UNKNOWN`, never `REQUEST_NEVER_SENT`.
+- `TSA-V0-205`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The command MUST
+  exit 0 with the report for every verdict, and refuse `runs-invalid-arguments` for a missing
+  `--log` or `--url-contains`, an unparsable `--wait-start`, or a `--timeout-ms` outside
+  1..86,400,000. It reads only the named file and writes nothing.
+- `TSA-V0-206`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint tests
+  role-locators [--rev REV]` MUST read the committed JS/TS files at the revision and print one
+  `corvint-tests-role-locators/0` report. It checks every locator in a test file that names the
+  role `alert`, `alertdialog`, `status` or `log`: `getByRole('x')` and its find, query and all
+  variants, `'role=x'`, and `[role="x"]`. Exit 1 when a finding is reported, otherwise 0.
+- `TSA-V0-207`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) When none of the
+  components the test mounts or renders (`mount(<Name`, `render(<Name`) renders the role, the
+  locator MUST be reported as `ROLE-LOCATOR-UNRENDERED`, with its line and the component paths.
+  A component renders a role when its markup carries a literal `role="x"`, `role='x'` or
+  `role={"x"}`, or an element with that implicit role (`<output>` for `status`).
+- `TSA-V0-208`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A mounted component
+  MUST be resolved through the test's default or named import of a relative specifier, to a
+  committed `.tsx`, `.jsx`, `.ts` or `.js` file or an `index` file. Markup is open when it could
+  render a role the reader cannot see: a non-literal `role={...}`, a spread of attributes, raw
+  HTML (`dangerouslySetInnerHTML` or `innerHTML`), a re-export, a `{children}` slot, or a child
+  component. A locator on a commented-out line is not checked.
+- `TSA-V0-209`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The check MUST
+  abstain, with no finding, when a component is unresolved (`component-unresolved`, for example
+  a package import or a missing file) or its markup is open (`component-markup-open`, with the
+  open construct as the detail), or when the test mounts nothing (`component-not-mounted`).
+
+Non-goals:
+- recording the wait itself: the start, timeout and predicate come from the caller;
+- regular-expression or callback predicates;
+- following a component's children or styled wrappers;
+- roles other than the four notification roles;
+- page-level tests, which mount nothing.
+
+Failure modes:
+- A HAR from a browser that omits the pages list gives `failureScope: LOG`, so failures from
+  other pages can be listed.
+- A matching request on another tab of the same log counts as sent.
+- A role rendered only through a child component abstains rather than being confirmed.
+- Mounts are collected per test file, not per test: a role locator in one test is checked against
+  every component the file mounts.
+- When several requests match, an answer within the window is preferred; otherwise the first
+  match is reported.
+
+## Test environment contract (V1-1940)
+
+V1-1940 (GitHub #1199) answers which environment a named profile hands to tests, which stand-in
+services it starts and how to control them, and which tests re-derive an address that the
+bootstrap already declares. This is the smallest honest slice: only committed shell bootstrap
+scripts and JS/TS route registrations are read. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-210`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) `corvint tests env
+  --profile NAME [--rev REV] [--base REV]` MUST read the committed files at the revision and print
+  one `corvint-tests-env/0` report. The profile's sources are the `.sh` files whose stem is NAME,
+  or ends in `-NAME`, `_NAME` or `.NAME`. Compose files (`[docker-]compose.NAME.y[a]ml`) and
+  `.env.NAME` are listed in `unreadSources` with reasons `compose-not-read` and
+  `dotenv-not-read`. A profile with no script has reason `profile-not-found` and no variables.
+  NAME matches `[A-Za-z0-9][A-Za-z0-9_.-]{0,63}`; any other name is refused
+  `tests-invalid-arguments`.
+- `TSA-V0-211`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) Every assignment
+  MUST carry a derivation from a closed set, and a `value` resolved from the profile alone:
+  - `LITERAL`;
+  - `VARIABLE` (`$A`, `${A}`);
+  - `INTERPOLATED`;
+  - `OFFSET` (`$((A + N))`, with the reference and offset);
+  - `DEFAULTED` (`${A:-d}`);
+  - `UNKNOWN` (command substitution, other arithmetic, other parameter expansion).
+
+  The forms read are `NAME=VALUE`, `export` / `declare -x` (with or without a value),
+  `set -a`, and prefix assignments on a command line. The script is never run.
+- `TSA-V0-212`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A variable is
+  `passedToTests` and `reliable` when it is exported (directly, by a later `export NAME`, or
+  under `set -a`), or is a prefix assignment on a test-runner line: `playwright test`,
+  `cypress run`, `jest`, `vitest`, `npm|yarn|pnpm [run] test[:x]` or `run e2e`. It is an
+  `endpoint` when its name ends in `_URL`, `_PORT`, `_HOST`, `_ADDR`, `_ADDRESS`, `_ENDPOINT` or
+  `_ORIGIN`, or its value is an http(s) URL.
+- `TSA-V0-213`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A command line in the
+  profile that runs a committed file under a `stub(s)`, `fake(s)`, `mock(s)`, `stand-in(s)`,
+  `standin(s)`, `doubles` or `test-doubles` directory, or a file whose name contains stub, fake or
+  mock, MUST be listed as a stand-in.
+  - Each stand-in lists its launch site, its URL from the line's `PORT` or `*_PORT` prefix, and
+    the passed variables that carry that port (`declaredVariables`).
+  - It also lists the Express-style routes (`app|router|server|api|fastify|stub.METHOD('path'`)
+    registered in the non-test JS/TS files of its directory.
+  - Each route records its method, path, line, kind, payload fields (`req.body.x`,
+    `const {..} = req.body`) and query fields (`req.query.x`). Kind is `FAULT_INJECTION`,
+    `RESET`, `REQUEST_LOG`, `CONTROL` or `SERVICE`, read from the path's tokens.
+  - A non-service route records its scope: `KEYED:<field>` when a path parameter or payload
+    field is a test, session, scenario, tenant or run id, a scope or a key; otherwise
+    `SERVICE_WIDE`.
+  - A control route's `teardown` lists the stand-in's `RESET` routes.
+- `TSA-V0-214`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) In test files and
+  Playwright or Cypress configs, a `process.env.X` followed by `+ N` or `- N` MUST be warned
+  `ENV-HARD-CODED-OFFSET`. A literal `localhost`, `127.0.0.1`, `0.0.0.0` or `[::1]` address with
+  a port MUST be warned `ENV-HARD-CODED-ADDRESS`. Each warning carries the value it computes in
+  the profile, or null when unknown, and the passed variables that already carry that value.
+  Reading a declared variable is a `DECLARED_VARIABLE` dependency and is not warned. The
+  warnings are advisory and do not change the exit status.
+- `TSA-V0-215`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) With `--base`, the
+  report MUST list each variable whose value or expression differs between the base and the
+  revision, with its dependent test lines:
+  - a `DECLARED_VARIABLE` read of it, with `staysValid: true`;
+  - a `HARD_CODED_OFFSET` or `HARD_CODED_LITERAL` use whose base value it carried, with
+    `staysValid` true only when the use still carries the new value.
+- `TSA-V0-216`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A value the reader
+  cannot derive MUST be null, never guessed, with `unknownReason`:
+  - `command-substitution`, `arithmetic-not-offset` or `parameter-expansion`;
+  - `not-assigned-in-profile:<NAME>`;
+  - `reference-cycle`;
+  - `assigned-in-several-scripts`.
+
+  A hard-coded use whose value is unknown has no `staysValid`.
+
+Non-goals (residuals of V1-1940):
+- reading compose files, dotenv files, CI workflow environments or Makefiles;
+- running or sourcing any script;
+- route registrations other than Express-style JS/TS (Go, Flask, Rails, WireMock mappings);
+- showing the warning in the `corvint tests validity` projection, or the impact in
+  `corvint impact`;
+- branch-sensitive shell (`if`, `case`, functions): the last assignment in each script wins.
+
+Failure modes:
+- A conditional assignment is read as unconditional, so a value can be the one set on the branch
+  that does not run. A variable set in two profile scripts is UNKNOWN for this reason.
+- A literal port shared by unrelated services can match a variable it is not about.
+- A route registered through a helper or a loop is not listed.
+- A scope is inferred from field names only.
+- A route's fields are read up to the next registration, not to the end of its handler.
+- A variable only exported, never assigned, is kept with an `inherited-from-caller` derivation
+  and no value; a value over 4096 bytes is UNKNOWN (`value-too-large`).
+- `process.env.X + N` without a numeric conversion is warned with no computed value, since
+  JavaScript concatenates strings there.
+
+Acceptance evidence for both sections: synthetic fixtures only. No live qualification on a real
+suite was run (NOT_RUN). Rollback removes `internal/playwrightruns/response_wait.go`,
+`internal/testsource/role_locators.go`, `internal/testsource/env_contract.go`,
+`internal/testsource/env_contract_refs.go`, their tests, `cmd/corvint/runs_response_wait.go`,
+`cmd/corvint/tests_env_contract.go`, the three switch cases and help lines, and these sections.
+Nothing is persisted.
+
+### Traceability (V1-1939, V1-1940)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-200 | `internal/playwrightruns/response_wait.go`, `cmd/corvint/runs_response_wait.go` | `TestResponseWaitServerLog`, `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-201 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitRequestNeverSent` | experimental |
+| TSA-V0-202 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitRequestNeverSent`, `TestResponseWaitServerLog` | experimental |
+| TSA-V0-203 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitServerLog` | experimental |
+| TSA-V0-204 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-205 | `cmd/corvint/runs_response_wait.go` | `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-206 | `internal/testsource/role_locators.go`, `cmd/corvint/tests_env_contract.go` | `TestRoleLocatorsCommitted`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+| TSA-V0-207 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered` | experimental |
+| TSA-V0-208 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered`, `TestRoleLocatorAbstains` | experimental |
+| TSA-V0-209 | `internal/testsource/role_locators.go` | `TestRoleLocatorAbstains` | experimental |
+| TSA-V0-210 | `internal/testsource/env_contract.go`, `cmd/corvint/tests_env_contract.go` | `TestEnvContractProfile`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+| TSA-V0-211 | `internal/testsource/env_contract.go` | `TestEnvContractProfile`, `TestEnvContractUnknown` | experimental |
+| TSA-V0-212 | `internal/testsource/env_contract.go` | `TestEnvContractProfile` | experimental |
+| TSA-V0-213 | `internal/testsource/env_contract.go` | `TestEnvContractStandIn` | experimental |
+| TSA-V0-214 | `internal/testsource/env_contract_refs.go` | `TestEnvContractWarnings` | experimental |
+| TSA-V0-215 | `internal/testsource/env_contract_refs.go` | `TestEnvContractImpact` | experimental |
+| TSA-V0-216 | `internal/testsource/env_contract.go` | `TestEnvContractUnknown` | experimental |

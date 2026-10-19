@@ -21,11 +21,12 @@ const (
 	hygieneReasonSourceRead = "source-rules-read"
 )
 
-// SourceValidityOptions selects the revision ("" reads HEAD) and the repository-relative test files
-// to read.
+// SourceValidityOptions selects the revision ("" reads HEAD), the repository-relative test files
+// to read and the new>legacy test links whose setup is compared (TSA-V0-100).
 type SourceValidityOptions struct {
 	Revision string
 	Files    []string
+	Links    []SeedLink
 }
 
 // SourceValidityReport is the corvint-test-source-validity/0 report.
@@ -34,6 +35,8 @@ type SourceValidityReport struct {
 	Revision string               `json:"revision"`
 	Files    []SourceValidityFile `json:"files"`
 	Tests    []SourceValidityTest `json:"tests"`
+	// SeedParity is one advisory comparison per link, in argument order (TSA-V0-103).
+	SeedParity []SeedParity `json:"seedParity,omitempty"`
 }
 
 // SourceValidityFile is one file's findings and whether the reader abstained on part of it.
@@ -68,7 +71,9 @@ func (r SourceValidityReport) Refused() bool {
 // JS/TS example rules with one test per example in line order (TSA-V0-073..081). It reads committed Git content
 // only. A path that is not a valid relative path refuses tests-invalid-arguments; a path that is
 // not a committed regular file refuses tests-source-unavailable; more than MaxValidityFiles files
-// or a file over MaxFileBytes refuses tests-bound-exceeded.
+// or a file over MaxFileBytes refuses tests-bound-exceeded. Each link then adds its advisory
+// seed-parity comparison (TSA-V0-100..109); a link reference that is not `path:line` refuses
+// tests-invalid-arguments.
 func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport, error) {
 	files := []string{}
 	seen := map[string]bool{}
@@ -81,11 +86,18 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 			files = append(files, name)
 		}
 	}
-	if len(files) == 0 {
+	for _, link := range options.Links {
+		for _, ref := range []string{link.New, link.Legacy} {
+			if _, _, ok := parseSeedRef(ref); !ok {
+				return SourceValidityReport{}, refuse("tests-invalid-arguments", "%q is not a repository-relative path:line test reference", ref)
+			}
+		}
+	}
+	if len(files) == 0 && len(options.Links) == 0 {
 		return SourceValidityReport{}, refuse("tests-invalid-arguments", "no test file was named")
 	}
-	if len(files) > MaxValidityFiles {
-		return SourceValidityReport{}, refuse("tests-bound-exceeded", "more than %d files", MaxValidityFiles)
+	if len(files) > MaxValidityFiles || len(options.Links) > MaxValidityFiles {
+		return SourceValidityReport{}, refuse("tests-bound-exceeded", "more than %d files or links", MaxValidityFiles)
 	}
 	revision := options.Revision
 	if revision == "" {
@@ -97,6 +109,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	}
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
 	supports := map[string]testvalidity.RubySupport{}
+	var seeds func(name, text string) []testvalidity.SourceFinding
 	for _, name := range files {
 		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
 			file, test, err := r.qualifiedValidity(commit, m, supports)
@@ -116,10 +129,45 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 			support = r.rubySupport(commit, name, supports)
 		}
 		file, tests := readSourceValidity(name, string(data), support)
+		if IsTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
+			if seeds == nil {
+				if seeds, err = r.seedRules(commit); err != nil {
+					return SourceValidityReport{}, err
+				}
+			}
+			file.Findings = append(file.Findings, seeds(name, string(data))...)
+		}
 		report.Files = append(report.Files, file)
 		report.Tests = append(report.Tests, tests...)
 	}
+	for _, link := range options.Links {
+		parity, err := r.seedParity(commit, link)
+		if err != nil {
+			return SourceValidityReport{}, err
+		}
+		report.SeedParity = append(report.SeedParity, parity)
+	}
 	return report, nil
+}
+
+// seedRules reads the committed seed rule file at commit (TSA-V0-240) and returns the seed
+// findings of one JS/TS test file under it: none when the file is absent, and one file-level
+// SEED-VALIDATION-UNRESOLVED abstention when it does not decode.
+func (r Repo) seedRules(commit string) (func(name, text string) []testvalidity.SourceFinding, error) {
+	data, found, err := r.readOne(commit, SeedRulesPath, MaxFileBytes)
+	if err != nil || !found {
+		return func(string, string) []testvalidity.SourceFinding { return nil }, err
+	}
+	rules, err := DecodeSeedRules(data)
+	if err != nil {
+		reason := err.Error()
+		return func(name, _ string) []testvalidity.SourceFinding {
+			return []testvalidity.SourceFinding{{Rule: testvalidity.RuleSeedValidationUnresolved, Severity: testvalidity.SeverityAdvisory,
+				Test: name, Location: SeedRulesPath, Cause: SeedRulesPath,
+				Message: "abstained: " + SeedRulesPath + " is not a valid " + SeedRulesProfile + " file (" + reason + ")"}}
+		}, nil
+	}
+	return func(name, text string) []testvalidity.SourceFinding { return SeedFindings(name, text, rules) }, nil
 }
 
 // committedFile reads one committed file at commit, refusing tests-source-unavailable when it is

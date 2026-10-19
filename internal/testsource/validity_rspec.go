@@ -42,10 +42,16 @@ var (
 
 type rspecGroup struct {
 	parent int
+	// lets and fixtures are every let, let!, subject and subject! with its body and every
+	// `fixtures` line of the group, for the seed-parity reading (TSA-V0-101).
+	lets     []rspecLet
+	fixtures []rubyLine
 	// decls maps a declared name to "let", "subject" (an anonymous subject) or "let:NAME" (the
 	// `subject` alias of a named subject, which RSpec defines as a let).
 	decls map[string]string
 	hooks []rspecHook
+	// bodies maps a let or named subject name, and "subject", to its block lines (TSA-V0-121).
+	bodies map[string][]rubyLine
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
@@ -84,6 +90,7 @@ type rspecReader struct {
 	tooDeep  bool // the last block call failed on nesting depth
 	lines    []rubyLine
 	groups   []rspecGroup
+	flow     rspecFlow
 	examples []rspecExample
 	helpers  []rspecHelper
 	includes []rspecInclude
@@ -252,6 +259,11 @@ func (r *rspecReader) read() string {
 			}
 			kind, declared := strings.TrimSuffix(m[1], "!"), m[2]+m[3]
 			g := &r.groups[group]
+			letName := declared
+			if letName == "" && kind == "subject" {
+				letName = "subject"
+			}
+			g.lets = append(g.lets, rspecLet{name: letName, lazy: !strings.HasSuffix(m[1], "!"), body: body})
 			switch {
 			case kind == "let" && declared != "":
 				g.decls[declared] = "let"
@@ -259,6 +271,15 @@ func (r *rspecReader) read() string {
 				g.decls[declared], g.decls["subject"] = "let", "let:"+declared
 			case kind == "subject":
 				g.decls["subject"] = "subject"
+			}
+			if g.bodies == nil {
+				g.bodies = map[string][]rubyLine{}
+			}
+			if declared != "" {
+				g.bodies[declared] = body
+			}
+			if kind == "subject" {
+				g.bodies["subject"] = body
 			}
 			if strings.HasSuffix(m[1], "!") {
 				// let!(:x) adds `before { x }`; subject! adds `before { subject }`.
@@ -279,6 +300,8 @@ func (r *rspecReader) read() string {
 				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{path: r.lines[i].path, line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
 			}
 			i = end
+		case rspecFixturesLine.MatchString(text) && !rubyOpens(text):
+			r.groups[group].fixtures = append(r.groups[group].fixtures, r.lines[i])
 		case rspecSkippedLine.MatchString(text):
 			body, end, ok := r.block(i)
 			if !ok {

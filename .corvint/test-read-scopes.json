@@ -321,6 +321,7 @@
     "internal/projectpath": [],
     "internal/pythongrammar": [],
     "internal/releasecandidate": [],
+    "internal/requestpath": [],
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],

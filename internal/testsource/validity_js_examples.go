@@ -68,6 +68,10 @@ type jsReader struct {
 	bindings    map[string]jsBinding
 	// subjectSpecs and subjectNames are the TSA-V0-079 subject modules and identifiers.
 	subjectSpecs, subjectNames map[string]bool
+	// flowOwner maps tokens to their example for TSA-V0-120..130, built on first use.
+	flowOwner []int
+	// flowSubjects caches each describe's subject locals for TSA-V0-120..130.
+	flowSubjects map[int]map[string]bool
 }
 
 // JSExampleSources reads one JS/TS test file's examples (TSA-V0-073). It returns each example's
@@ -107,6 +111,7 @@ func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, st
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
 		facts := r.exampleFacts(e, test)
 		findings = append(findings, facts.findings...)
+		findings = append(findings, r.flowFindings(e, test)...)
 		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: facts.count, Findings: findings, ExpectationAnchors: facts.anchors, EndLine: e.endLine}
 	}
 	return out, ""
@@ -345,6 +350,7 @@ func (r *jsReader) exampleFacts(e jsDecl, test string) jsFacts {
 		}
 		out.findings = append(out.findings, finding(rule, testvalidity.SeverityAdvisory, r.at(m.line), r.at(e.line), message))
 	}
+	out.findings = append(out.findings, r.writeResponseFindings(e, finding)...)
 	// Subject mocks before boundary mocks, each in source order.
 	slices.SortStableFunc(out.findings, func(a, b testvalidity.SourceFinding) int {
 		return jsRuleOrder(a.Rule) - jsRuleOrder(b.Rule)

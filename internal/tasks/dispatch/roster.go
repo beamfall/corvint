@@ -148,6 +148,9 @@ type Observation struct {
 	// state entry occupies them), or nil when the observation did not read
 	// pools; a nil map applies no PSR-V0-140 pool-room gate.
 	PoolFree map[string]int
+	// PoolFreeMembers names, sorted, the FREE members PoolFree counts; the
+	// ATR-V0-150 queue observation reports them.
+	PoolFreeMembers map[string][]string
 }
 
 // PlanView is one ticket's plan state and reason.
@@ -250,7 +253,7 @@ func liveAttempts(obs *Observation) map[string]Attempt {
 // Roster is the CAL-V0-054 pure roster: the same configuration,
 // observation, running set and skip set always produce the same assignments.
 func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []Assignment {
-	out, _ := roster(c, obs, busy, skip, nil, nil, nil, nil, nil)
+	out, _ := roster(c, obs, busy, skip, nil, nil, nil, nil, nil, nil)
 	return out
 }
 
@@ -258,7 +261,7 @@ func Roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool) []As
 // tierOf (nil means every tier is 0). A candidate whose tier is at its tier
 // cap waits; it never falls back to a lower tier.
 func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int) []Assignment {
-	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil, nil, nil)
+	out, _ := roster(c, obs, busy, skip, tierOf, nil, nil, nil, nil, nil)
 	return out
 }
 
@@ -270,7 +273,7 @@ func RosterTiers(c *Config, obs *Observation, busy []Busy, skip map[string]bool,
 // earlier holds) would have admitted it, unless a later exempt candidate launched the
 // same key.
 func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[string]bool, budget *PressureBudget) (out, held []Assignment) {
-	return roster(c, obs, busy, skip, nil, budget, nil, nil, nil)
+	return roster(c, obs, busy, skip, nil, budget, nil, nil, nil, nil)
 }
 
 // roster is the shared pure roster behind Roster, RosterTiers and
@@ -284,7 +287,13 @@ func RosterWithPressure(c *Config, obs *Observation, busy []Busy, skip map[strin
 //
 // room, when not nil, is the PSR-V0-140 pool-room gate: a static fence that
 // holds a ticket whose pool has no room and charges each launch.
-func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string, spend *spendGate, room *poolRoom) (out, held []Assignment) {
+//
+// adm, when not nil, carries the ATR-V0-152 calm-pressure input that lets a
+// capMax role's effective cap rise, and receives the ATR-V0-150 queue
+// observation: each ticket role's effective cap and waiting tickets, and the
+// first admission or focus fence that kept each run-only candidate out. A
+// role's run-only bypass (ATR-V0-151) applies with or without adm.
+func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tierOf func(role, key string) int, budget *PressureBudget, prefer map[string]string, spend *spendGate, room *poolRoom, adm *admission) (out, held []Assignment) {
 	type candidate struct {
 		a                    Assignment
 		pin, role, prio, ord int
@@ -328,8 +337,20 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if t.Loop != nil {
 				continue // CAL-V0-102: a session cannot claim it until the owner reopens it
 			}
-			if !matches(r.Match, t) || preferred[t.ID] && prefer[t.ID] != r.Name {
+			if preferred[t.ID] && prefer[t.ID] != r.Name {
 				continue
+			}
+			if !matches(r.Match, t) {
+				// ATR-V0-151: a run-only ticket the plan window alone keeps out
+				// is a candidate while its pool has a free member and the role
+				// opts in; otherwise the plan window is its recorded fence.
+				if !r.RunOnly || !outsideFocusOnly(r.Match, t) {
+					continue
+				}
+				if !r.BypassFocus || obs.PoolFree[r.Match.Pool] < 1 {
+					adm.note(c, Assignment{Role: r.Name, Key: t.ID, Ticket: t.ID, Local: t.Local, State: t.State, Pool: t.RequiresPool}, FencePlanWindow, t.PlanReason)
+					continue
+				}
 			}
 			pin, ok := pinned[t.ID]
 			if !ok {
@@ -362,8 +383,13 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 	})
 	caps, tierCaps := map[string]int{}, map[string]int{}
 	tierKey := func(role string, tier int) string { return fmt.Sprintf("%s\x00%d", role, tier) }
+	pending := make([]Assignment, len(cands))
+	for i, cd := range cands {
+		pending[i] = cd.a
+	}
+	depth := adm.depths(busy, pending, skip)
 	for _, r := range c.Roles {
-		caps[r.Name] = r.Cap
+		caps[r.Name] = adm.effectiveCap(r, depth[r.Name])
 		for i, t := range r.Escalate {
 			if t.Cap > 0 {
 				tierCaps[tierKey(r.Name, i+1)] = t.Cap
@@ -384,11 +410,18 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 	}
 	heldKeys, heldCount, heldTierCount, heldTotal := map[string]bool{}, map[string]int{}, map[string]int{}, 0
 	for _, cd := range cands {
-		if total >= c.GlobalCap {
-			break
-		}
 		a := cd.a
-		if taken[a.Key] || skip[a.Key] || count[a.Role] >= caps[a.Role] {
+		if taken[a.Key] || skip[a.Key] {
+			continue
+		}
+		if total >= c.GlobalCap {
+			// Every later candidate meets the same fence; the loop goes on
+			// only to record it (ATR-V0-150).
+			adm.note(c, a, FenceGlobalCap, "")
+			continue
+		}
+		if count[a.Role] >= caps[a.Role] {
+			adm.note(c, a, FenceRoleCap, "")
 			continue
 		}
 		if tierOf != nil {
@@ -396,11 +429,13 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		}
 		tk := tierKey(a.Role, a.Tier)
 		if n, ok := tierCaps[tk]; ok && tierCount[tk] >= n {
+			adm.note(c, a, FenceTierCap, "")
 			continue
 		}
 		// CAL-V0-155: a budget is a static fence too; its hold is reported
 		// as a budget event, never as pressure.
 		if spend != nil && !spend.admits(a) {
+			adm.note(c, a, FenceBudget, "")
 			continue
 		}
 		// PSR-V0-140: no session launches for a pool with no room.
@@ -408,6 +443,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			continue
 		}
 		if budget != nil && !budget.Accept(a) {
+			adm.note(c, a, FencePressure, "")
 			// Report a hold only while the static role, tier and global
 			// caps, charged with earlier launches and holds, would still
 			// admit the candidate. The shadow counters never affect
@@ -438,6 +474,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		room.charge(a)
 		out = append(out, a)
 	}
+	adm.settle(pending, taken, skip, caps)
 	if len(held) > 0 {
 		kept := held[:0]
 		for _, h := range held {
@@ -458,10 +495,26 @@ func (c *Config) relaunchRole(name string, t Ticket) *Role {
 		t.Plan = "SELECTED"
 	}
 	r := c.roleNamed(name)
-	if r == nil || r.Cap == 0 || r.Lane != nil || r.Match == nil || !matches(r.Match, t) {
+	if r == nil || r.Cap == 0 || r.Lane != nil || r.Match == nil {
+		return nil
+	}
+	// ATR-V0-151: a bypassing run-only role serves an unselected ticket too,
+	// so the relaunch keeps its role there as well.
+	if !matches(r.Match, t) && (!r.BypassFocus || !outsideFocusOnly(r.Match, t)) {
 		return nil
 	}
 	return r
+}
+
+// outsideFocusOnly reports a ticket that m would match but for its
+// planSelected focus: the native plan has not selected it.
+func outsideFocusOnly(m *Match, t Ticket) bool {
+	if !m.PlanSelected || t.Plan == "SELECTED" {
+		return false
+	}
+	unfocused := *m
+	unfocused.PlanSelected = false
+	return matches(&unfocused, t)
 }
 
 func matches(m *Match, t Ticket) bool {

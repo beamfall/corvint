@@ -91,13 +91,14 @@ var ReadVerbs = []string{
 	"slots acquire", "slots release",
 	"ticket note set", "ticket note clear", "ticket note show", "ticket note history",
 	"ticket know-how add", "ticket know-how retract", "ticket know-how reconfirm", "ticket know-how list",
-	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations qualify-version",
+	"ticket obligations seed", "ticket obligations set", "ticket obligations witness", "ticket obligations show", "ticket obligations plan", "ticket obligations boundary", "ticket obligations worklist", "ticket obligations qualify-version",
 	"preflight",
 	"worktree ensure",
+	"source contains",
 	"defects add", "defects update", "defects list",
 	"run-batch",
 	"qualify",
-	"gate record", "gate resubmit", "gate history",
+	"gate record", "gate resubmit", "gate history", "gate packet",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
@@ -165,6 +166,9 @@ func Run(env Env) int {
 	case "worktree":
 		// TWT-V0-002..007: the per-ticket worktree.
 		return emit(env.Stdout, worktreeCommand(env, args[1:]))
+	case "source":
+		// SCC-V0-005: patch-equivalent source containment, a pure Git read.
+		return emit(env.Stdout, sourceContainsCommand(env, args[1:]))
 	case "defects":
 		// TDR-V0-010: the defect register.
 		return emit(env.Stdout, defectsCommand(env, args[1:]))
@@ -287,7 +291,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, state"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, packet, state"))
 		}
 		switch args[1] {
 		case "list":
@@ -300,6 +304,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
 		case "history":
 			return emit(env.Stdout, gateHistory(env, args[2:]))
+		case "packet":
+			return emit(env.Stdout, gatePacket(env, args[2:]))
 		case "state":
 			return emit(env.Stdout, gateState(env, args[2:]))
 		}
@@ -461,6 +467,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
+		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--max-bytes 4096..262144] [--checkpoint NOTE]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
@@ -493,7 +500,7 @@ func LiveFormats() []string {
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile, obligation.ProfileQualifications,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile, dispatch.CarryOverProfile, dispatch.PoolHoldProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.AdmissionProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile, dispatch.CarryOverProfile, dispatch.PoolHoldProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}
@@ -1513,9 +1520,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes only --retries, --fields or --summary"))
 	}
 	var item wire.Value
+	var holds []heldHold
 	observedAt := time.Now().UTC()
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		st := rc.store
+		holds = collectHeldHolds(st.Inventory)
 		by := map[string]int{}
 		unknown, blocked := 0, 0
 		ctx := st.Context()
@@ -1631,6 +1640,11 @@ func queueStatus(env Env, args []string) *wire.Result {
 	}
 	// A separate racy observation outside the store snapshot (CAL-V0-095).
 	item.Obj.Set("preparationAdmission", preparationAdmission(rc.repo))
+	// SCC-V0-013: typed hold conditions re-evaluated at this read, after the
+	// store read and only when some HELD ticket carries one.
+	if results := evaluateHeldConditions(rc.repo.PrimaryWorktree, holds); len(results) > 0 {
+		item.Obj.Set("holdConditions", holdConditionsValue(results))
+	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
 	return res

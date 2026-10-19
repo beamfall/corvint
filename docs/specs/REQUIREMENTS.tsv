@@ -361,6 +361,31 @@ AMAP-V0-096	docs/specs/application-map-v0.md	Each miss MUST report its `kind` (`
 AMAP-V0-097	docs/specs/application-map-v0.md	The source corpus MUST stay within the AMAP-V0-015 test bounds (20000 files,	unrecorded	-
 AMAP-V0-098	docs/specs/application-map-v0.md	The command MUST exit 1 after writing the report when at least one unlabelled	unrecorded	-
 AMAP-V0-099	docs/specs/application-map-v0.md	A secret-shaped reference value (the `internal/secretscreen` writer matcher)	unrecorded	-
+AMAP-V0-100	docs/specs/application-map-v0.md	`flows appmap actions --map FILE [--budget N | --full]` MUST read only the map	unrecorded	-
+AMAP-V0-101	docs/specs/application-map-v0.md	Every route a supported Rails declaration compiles MUST resolve to a handler	unrecorded	-
+AMAP-V0-102	docs/specs/application-map-v0.md	A handler MUST be read from `app/controllers/<controller path>_controller.rb`	unrecorded	-
+AMAP-V0-103	docs/specs/application-map-v0.md	An action defined by an ancestor class or an included module MUST count as	unrecorded	-
+AMAP-V0-104	docs/specs/application-map-v0.md	A route whose action is not a public method MUST count as defined when a view	unrecorded	-
+AMAP-V0-105	docs/specs/application-map-v0.md	When an action is not found, or is found only as a non-public method, a chain	unrecorded	-
+AMAP-V0-106	docs/specs/application-map-v0.md	Each finding MUST carry rule `ROUTE-ACTION-MISSING`, the declaration	unrecorded	-
+AMAP-V0-107	docs/specs/application-map-v0.md	Router reads MUST stay within the AMAP-V0-015 router bounds and controller,	unrecorded	-
+AMAP-V0-110	docs/specs/application-map-v0.md	`flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...]	unrecorded	-
+AMAP-V0-111	docs/specs/application-map-v0.md	Branches MUST be read from the cited lines after AMAP-V0-105 masking: a	unrecorded	-
+AMAP-V0-112	docs/specs/application-map-v0.md	Each branch MUST list the tests that reach it grouped by boundary `unit`,	unrecorded	-
+AMAP-V0-113	docs/specs/application-map-v0.md	Each guard's inputs MUST be resolved to model attributes or reported	unrecorded	-
+AMAP-V0-114	docs/specs/application-map-v0.md	Setup writers MUST be derived as one reusable model-attribute writer index:	unrecorded	-
+AMAP-V0-115	docs/specs/application-map-v0.md	A branch with a boundary that is not `reached` MUST carry a `setup` entry: its	unrecorded	-
+AMAP-V0-116	docs/specs/application-map-v0.md	The document MUST fit `--budget` (256..65536, default 6144) or `--full` through	unrecorded	-
+AMAP-V0-130	docs/specs/application-map-v0.md	`flows request-path --file PATH (--route 'METHOD /path' | --handler NAME)	unrecorded	-
+AMAP-V0-131	docs/specs/application-map-v0.md	The request path MUST list, in run order, the `recv.use([prefix,] ...)`	unrecorded	-
+AMAP-V0-132	docs/specs/application-map-v0.md	A call through `axios`, `node-fetch`, `cross-fetch`, `got`, `undici`,	unrecorded	-
+AMAP-V0-133	docs/specs/application-map-v0.md	Each guard reading `outbound: YES` that runs before a later guard reading	unrecorded	-
+AMAP-V0-134	docs/specs/application-map-v0.md	A key, call, middleware, receiver or source the reader cannot resolve statically	unrecorded	-
+AMAP-V0-135	docs/specs/application-map-v0.md	`--env-profile` MUST read a dotenv-format profile (at most 1 MiB) and report eac	unrecorded	-
+AMAP-V0-136	docs/specs/application-map-v0.md	The pre-run verdict MUST be `BLOCKED` when a required key is unset or empty,	unrecorded	-
+AMAP-V0-137	docs/specs/application-map-v0.md	Reads MUST stay within 64 files, 1 MiB per file, 512 function visits and a call	unrecorded	-
+AMAP-V0-138	docs/specs/application-map-v0.md	A refusal MUST exit 2 with one coded error and no stdout: no literal registratio	unrecorded	-
+AMAP-V0-139	docs/specs/application-map-v0.md	The same committed inputs and arguments MUST produce byte-identical reports:	unrecorded	-
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -1356,6 +1381,10 @@ ATR-V0-127	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-133	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) With	standing	2026-10-11; V1-1852
 ATR-V0-134	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) This ext	standing	2026-10-11; V1-1852
 ATR-V0-135	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) A dispat	standing	2026-10-11; V1-1852
+ATR-V0-141	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1885, GitHub #	standing	2026-10-11; V1-1885; #1169
+ATR-V0-150	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1914 and V1-19	standing	2026-10-11; V1-1914; V1-1916
+ATR-V0-151	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1914) A role M	standing	2026-10-11; V1-1914
+ATR-V0-152	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1916) A matchi	standing	2026-10-11; V1-1916
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -1405,6 +1434,8 @@ TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	One doctor scan reads the journ
 TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVID	unrecorded	-
 TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at	unrecorded	-
 TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
+TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observa	unrecorded	-
+TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	From the same observation, a role whose queue (running plus waiting sessions) st	unrecorded	-
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-
@@ -1428,6 +1459,11 @@ ERG-V0-008	docs/specs/corvint-tasks-external-reviews-v0.md	Recovery MUST validat
 ERG-V0-009	docs/specs/corvint-tasks-external-reviews-v0.md	The native writer, policy, reads and workState adapter MUST be installed before	unrecorded	-
 ERG-V0-010	docs/specs/corvint-tasks-external-reviews-v0.md	Promotion and rollback MUST keep the pure seed, full integration and producers d	unrecorded	-
 ERG-V0-011	docs/specs/corvint-tasks-external-reviews-v0.md	`ticket show`, `ticket blockers` and `plan preview` MUST offer `nextAction: comp	unrecorded	-
+ERG-V0-017	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> [--commit REV] [--max-bytes N] [--checkpoint NOTE]` MUST r	unrecorded	-
+ERG-V0-018	docs/specs/corvint-tasks-external-reviews-v0.md	Under a passed base the packet's diff MUST be limited to test and fixture paths;	unrecorded	-
+ERG-V0-019	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST fit `--max-bytes` (4096..262144, default 32768) and MUST list ev	unrecorded	-
+ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name every item of the newest RETURN event with its touched stat	unrecorded	-
+ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1551,6 +1587,22 @@ TOL-V0-064	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-065	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))	standing	2026-10-11; #1070
 TOL-V0-066	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))	standing	2026-10-11; #1070
 TOL-V0-067	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1070))	standing	2026-10-11; #1070
+TOL-V0-073	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))	standing	2026-10-11; #1170
+TOL-V0-074	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))	standing	2026-10-11; #1170
+TOL-V0-075	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
+TOL-V0-076	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
+TOL-V0-077	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170); rev	standing	2026-10-11; #1170; 2026-10-19; #1189
+TOL-V0-078	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Eac	standing	2026-10-11; #1170
+TOL-V0-079	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An	standing	2026-10-11; #1180
+TOL-V0-080	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A c	standing	2026-10-11; #1180
+TOL-V0-081	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) `PR	standing	2026-10-11; #1180
+TOL-V0-082	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) The	standing	2026-10-11; #1180
+TOL-V0-083	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) The	standing	2026-10-11; #1180
+TOL-V0-084	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) A c	standing	2026-10-11; #1182
+TOL-V0-085	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) A v	standing	2026-10-11; #1182
+TOL-V0-086	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) The	standing	2026-10-11; #1182
+TOL-V0-087	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
+TOL-V0-088	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
 ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	The ticket MUST carry at most one optional closed operatorNote reference, omitte	unrecorded	-
 ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma	unrecorded	-
 ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req	unrecorded	-
@@ -1655,6 +1707,16 @@ PSR-V0-164	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A failed	standing	2026-10-11; V1-1585
 PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
 PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
+SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
+SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
+SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
+SCC-V0-004	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) A source	standing	2026-10-11; V1-1920
+SCC-V0-005	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `corvint	standing	2026-10-11; V1-1920
+SCC-V0-010	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) A HOLD p	standing	2026-10-11; V1-1907
+SCC-V0-011	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `store.E	standing	2026-10-11; V1-1907
+SCC-V0-012	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) SYMBOL_D	standing	2026-10-11; V1-1907
+SCC-V0-013	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `queue s	standing	2026-10-11; V1-1907
+SCC-V0-014	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `doctor`	standing	2026-10-11; V1-1907
 CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	`corvint-tasks init` MUST refuse, before it creates the state directory or any	unrecorded	-
 CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	Only `queue status`, `roadmap`, `ticket show` and `ticket search` MUST	unrecorded	-
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work	owner	2026-09-27
@@ -3697,6 +3759,58 @@ SPC-V0-009	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner'
 SPC-V0-010	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The	standing	2026-10-11; V1-1710
 SPC-V0-011	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) The JSON	standing	2026-10-11; V1-1710
 SPC-V0-012	docs/specs/shared-path-change-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1710) With	standing	2026-10-11; V1-1710
+SKH-V0-001	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Every	standing	2026-10-11; V1-1897
+SKH-V0-002	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Missing,	standing	2026-10-11; V1-1897
+SKH-V0-003	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Learned	standing	2026-10-11; V1-1897
+SKH-V0-004	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Matching	standing	2026-10-11; V1-1897
+SKH-V0-005	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897)	standing	2026-10-11; V1-1897
+SKH-V0-006	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897)	standing	2026-10-11; V1-1897
+SKH-V0-007	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) For one	standing	2026-10-11; V1-1897
+SKH-V0-008	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Each sta	standing	2026-10-11; V1-1897
+SKH-V0-009	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1897) The owne	standing	2026-10-11; V1-1897
+SKH-V0-010	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1898) A	standing	2026-10-11; V1-1898
+SKH-V0-011	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1898) Page	standing	2026-10-11; V1-1898
+SKH-V0-012	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1898) Inherite	standing	2026-10-11; V1-1898
+SKH-V0-013	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1898) The mode	standing	2026-10-11; V1-1898
+SKH-V0-014	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1898) Stage 1	standing	2026-10-11; V1-1898
+SKH-V0-020	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Spec bod	standing	2026-10-11; V1-1899
+SKH-V0-021	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Page-obj	standing	2026-10-11; V1-1899
+SKH-V0-022	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Identica	standing	2026-10-11; V1-1899
+SKH-V0-023	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1899) The IR M	standing	2026-10-11; V1-1899
+SKH-V0-030	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) The	standing	2026-10-11; V1-1900
+SKH-V0-031	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900)	standing	2026-10-11; V1-1900
+SKH-V0-032	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) Setup	standing	2026-10-11; V1-1900
+SKH-V0-033	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900)	standing	2026-10-11; V1-1900
+SKH-V0-034	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1900) A setup	standing	2026-10-11; V1-1900
+SKH-V0-040	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Static e	standing	2026-10-11; V1-1901
+SKH-V0-041	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Router	standing	2026-10-11; V1-1901
+SKH-V0-042	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Observed	standing	2026-10-11; V1-1901
+SKH-V0-043	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A dynami	standing	2026-10-11; V1-1901
+SKH-V0-050	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Step-IR	standing	2026-10-11; V1-1902
+SKH-V0-051	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Flow	standing	2026-10-11; V1-1902
+SKH-V0-052	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidat	standing	2026-10-11; V1-1902
+SKH-V0-053	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each	standing	2026-10-11; V1-1902
+SKH-V0-054	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Stage 5	standing	2026-10-11; V1-1902
+SKH-V0-060	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903)	standing	2026-10-11; V1-1903
+SKH-V0-061	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) Resoluti	standing	2026-10-11; V1-1903
+SKH-V0-062	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) An ambig	standing	2026-10-11; V1-1903
+SKH-V0-063	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) A plan w	standing	2026-10-11; V1-1903
+SKH-V0-064	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) The plan	standing	2026-10-11; V1-1903
+SKH-V0-070	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) From a	standing	2026-10-11; V1-1904
+SKH-V0-071	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Every	standing	2026-10-11; V1-1904
+SKH-V0-072	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) A line	standing	2026-10-11; V1-1904
+SKH-V0-073	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) The	standing	2026-10-11; V1-1904
+SKH-V0-074	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Generati	standing	2026-10-11; V1-1904
+SKH-V0-080	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) One	standing	2026-10-11; V1-1905
+SKH-V0-081	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The rece	standing	2026-10-11; V1-1905
+SKH-V0-082	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The live	standing	2026-10-11; V1-1905
+SKH-V0-083	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The pipe	standing	2026-10-11; V1-1905
+SKH-V0-084	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Stage 8	standing	2026-10-11; V1-1905
+SKH-V0-085	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The	standing	2026-10-11; V1-1905
+SKH-V0-086	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Validity	standing	2026-10-11; V1-1905
+SKH-V0-087	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Before a	standing	2026-10-11; V1-1905
+SKH-V0-088	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Only the	standing	2026-10-11; V1-1905
+SKH-V0-089	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) A select	standing	2026-10-11; V1-1905
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-
@@ -4119,6 +4233,16 @@ TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
 TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
 TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
+TSA-V0-110	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardo	standing	2026-10-11; V1-1884; #1168
+TSA-V0-111	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST	standing	2026-10-11; V1-1884; #1168
+TSA-V0-112	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST plac	standing	2026-10-11; V1-1884; #1168
+TSA-V0-113	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource of kind K	standing	2026-10-11; V1-1884; #1168
+TSA-V0-114	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource's side-eff	standing	2026-10-11; V1-1884; #1168
+TSA-V0-115	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) For each declared act	standing	2026-10-11; V1-1884; #1168
+TSA-V0-116	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) There MUST be no find	standing	2026-10-11; V1-1884; #1168
+TSA-V0-117	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A `--receipt` MUST be	standing	2026-10-11; V1-1884; #1168
+TSA-V0-118	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) Each resource MUST ca	standing	2026-10-11; V1-1884; #1168
+TSA-V0-119	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The command MUST read	standing	2026-10-11; V1-1884; #1168
 TSA-V0-062	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128, #1130)	standing	2026-10-11; V1-1798; #1128; #1130
 TSA-V0-063	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128
 TSA-V0-064	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128
@@ -4141,6 +4265,17 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-120	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
+TSA-V0-121	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST	standing	2026-10-11; V1-1887; #1171
+TSA-V0-122	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-par	standing	2026-10-11; V1-1887; #1171
+TSA-V0-123	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on an external	standing	2026-10-11; V1-1887; #1171
+TSA-V0-124	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A silent stub MUST be	standing	2026-10-11; V1-1887; #1171
+TSA-V0-125	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The run-based form of	standing	2026-10-11; V1-1887; #1171
+TSA-V0-126	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An assertion's actual	standing	2026-10-11; V1-1889; #1173
+TSA-V0-127	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) A Jest/Vitest	standing	2026-10-11; V1-1889; #1173
+TSA-V0-128	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An expectation that t	standing	2026-10-11; V1-1889; #1173
+TSA-V0-129	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) These MUST NOT be	standing	2026-10-11; V1-1889; #1173
+TSA-V0-130	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
 TSA-V0-084	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
 TSA-V0-085	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
 TSA-V0-086	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
@@ -4150,6 +4285,76 @@ TSA-V0-089	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-090	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Two inclusions of one	standing	2026-10-11; V1-1867; #1164
 TSA-V0-091	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) A qualified read that	standing	2026-10-11; V1-1867; #1164
 TSA-V0-092	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUS	standing	2026-10-11; V1-1867; #1164
+TSA-V0-160	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) `EITHER-OR-OUTCOME`	standing	2026-10-11; V1-1930; #1191
+TSA-V0-161	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST	standing	2026-10-11; V1-1930; #1191
+TSA-V0-162	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or	standing	2026-10-11; V1-1930; #1191
+TSA-V0-163	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A comment	standing	2026-10-11; V1-1930; #1191
+TSA-V0-164	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one val	standing	2026-10-11; V1-1930; #1191
+TSA-V0-165	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLI	standing	2026-10-11; V1-1919; #1185
+TSA-V0-166	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) The rule MUST read a	standing	2026-10-11; V1-1919; #1185
+TSA-V0-167	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A registry or handle	standing	2026-10-11; V1-1919; #1185
+TSA-V0-168	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A Playwright JSON rep	standing	2026-10-11; V1-1919; #1185
+TSA-V0-169	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192)	standing	2026-10-11; V1-1931; #1192
+TSA-V0-170	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The finding's cause M	standing	2026-10-11; V1-1931; #1192
+TSA-V0-171	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any match	standing	2026-10-11; V1-1931; #1192
+TSA-V0-172	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)	standing	2026-10-11; V1-1932; #1193
+TSA-V0-173	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the s	standing	2026-10-11; V1-1932; #1193
+TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time	standing	2026-10-11; V1-1931; #1192
+TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time	standing	2026-10-11; V1-1932; #1193
+TSA-V0-176	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a	standing	2026-10-11; V1-1932; #1193
+TSA-V0-230	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A JS/TS example step	standing	2026-10-11; V1-1933; #1194
+TSA-V0-231	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait MUST count as	standing	2026-10-11; V1-1933; #1194
+TSA-V0-232	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite	standing	2026-10-11; V1-1933; #1194
+TSA-V0-233	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait whose method	standing	2026-10-11; V1-1933; #1194
+TSA-V0-234	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) Both rules MUST be	standing	2026-10-11; V1-1933; #1194
+TSA-V0-240	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) `corvint tests	standing	2026-10-11; V1-1935; #1196
+TSA-V0-241	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Two resolved seeds of	standing	2026-10-11; V1-1935; #1196
+TSA-V0-242	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A single seed whose	standing	2026-10-11; V1-1935; #1196
+TSA-V0-243	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Seeds owned by two	standing	2026-10-11; V1-1935; #1196
+TSA-V0-244	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A seed whose record i	standing	2026-10-11; V1-1935; #1196
+TSA-V0-245	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A `beforeAll` or	standing	2026-10-11; V1-1935; #1196
+TSA-V0-246	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Every seed finding MU	standing	2026-10-11; V1-1935; #1196
+TSA-V0-250	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A citation MUST be an	standing	2026-10-11; V1-1934; #1195
+TSA-V0-251	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A document MAY declar	standing	2026-10-11; V1-1934; #1195
+TSA-V0-252	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) `corvint tests	standing	2026-10-11; V1-1934; #1195
+TSA-V0-253	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) Each citation MUST be	standing	2026-10-11; V1-1934; #1195
+TSA-V0-254	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A	standing	2026-10-11; V1-1934; #1195
+TSA-V0-255	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST prin	standing	2026-10-11; V1-1934; #1195
+TSA-V0-256	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read	standing	2026-10-11; V1-1934; #1195
+TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
+TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
+TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167
+TSA-V0-103	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The report MUST carry	standing	2026-10-11; V1-1883; #1167
+TSA-V0-104	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A kind seeded on one	standing	2026-10-11; V1-1883; #1167
+TSA-V0-105	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) For a kind both sides	standing	2026-10-11; V1-1883; #1167
+TSA-V0-106	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) An asserting line on	standing	2026-10-11; V1-1883; #1167
+TSA-V0-107	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A side MUST abstain,	standing	2026-10-11; V1-1883; #1167
+TSA-V0-108	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Seed-parity findings	standing	2026-10-11; V1-1883; #1167
+TSA-V0-109	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The reading MUST be	standing	2026-10-11; V1-1883; #1167
+TSA-V0-140	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)	standing	2026-10-11; V1-1888; #1172
+TSA-V0-141	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) The modelled runners	standing	2026-10-11; V1-1888; #1172
+TSA-V0-142	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A configuration MUST	standing	2026-10-11; V1-1888; #1172
+TSA-V0-143	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A file's framework MU	standing	2026-10-11; V1-1888; #1172
+TSA-V0-144	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) Each test-looking fil	standing	2026-10-11; V1-1888; #1172
+TSA-V0-145	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)	standing	2026-10-11; V1-1888; #1172
+TSA-V0-146	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) `corvint tests	standing	2026-10-11; V1-1888; #1172
+TSA-V0-200	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint runs	standing	2026-10-11; V1-1939; #1197
+TSA-V0-201	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The verdict set is	standing	2026-10-11; V1-1939; #1197
+TSA-V0-202	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) With no matching	standing	2026-10-11; V1-1939; #1197
+TSA-V0-203	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A matching request	standing	2026-10-11; V1-1939; #1197
+TSA-V0-204	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A missing log	standing	2026-10-11; V1-1939; #1197
+TSA-V0-205	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The command MUST	standing	2026-10-11; V1-1939; #1197
+TSA-V0-206	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint tests	standing	2026-10-11; V1-1939; #1197
+TSA-V0-207	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) When none of the	standing	2026-10-11; V1-1939; #1197
+TSA-V0-208	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A mounted component	standing	2026-10-11; V1-1939; #1197
+TSA-V0-209	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The check MUST	standing	2026-10-11; V1-1939; #1197
+TSA-V0-210	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) `corvint tests env	standing	2026-10-11; V1-1940; #1199
+TSA-V0-211	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) Every assignment	standing	2026-10-11; V1-1940; #1199
+TSA-V0-212	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A variable is	standing	2026-10-11; V1-1940; #1199
+TSA-V0-213	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A command line in the	standing	2026-10-11; V1-1940; #1199
+TSA-V0-214	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) In test files and	standing	2026-10-11; V1-1940; #1199
+TSA-V0-215	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) With `--base`, the	standing	2026-10-11; V1-1940; #1199
+TSA-V0-216	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A value the reader	standing	2026-10-11; V1-1940; #1199
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

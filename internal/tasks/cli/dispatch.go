@@ -995,19 +995,20 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		// PSR-V0-140: each declared pool's FREE members, for the launch
 		// room; a member any state entry names is not free.
 		if in.Policy != nil && in.Pools != nil {
-			obs.PoolFree = map[string]int{}
+			obs.PoolFree, obs.PoolFreeMembers = map[string]int{}, map[string][]string{}
 			occupied := map[string]bool{}
 			for _, m := range in.Pools.Entries {
 				occupied[m.PoolID+"\x00"+m.MemberID] = true
 			}
 			for _, pool := range in.Policy.Pools {
-				free := 0
+				free := []string{}
 				for _, m := range pool.Members {
 					if !occupied[pool.ID+"\x00"+m] {
-						free++
+						free = append(free, m)
 					}
 				}
-				obs.PoolFree[pool.ID] = free
+				sort.Strings(free)
+				obs.PoolFree[pool.ID], obs.PoolFreeMembers[pool.ID] = len(free), free
 			}
 		}
 		return nil

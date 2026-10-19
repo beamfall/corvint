@@ -25,6 +25,13 @@ Usage:
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
+    [--legacy NEW=LEGACY ...] [--rev REV]
+  corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
+    [--receipt FILE ...] [--rev REV]
+  corvint [--root PATH] tests unselected [--rev REV]
+  corvint [--root PATH] tests role-locators [--rev REV]
+  corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]
+  corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...]
     [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
@@ -66,8 +73,12 @@ reason, or covered-by and an obligation.
 validity applies the static test-validity rules to at most 256 named
 committed files (each at most 1 MiB). To a JS/TS test file: ISOLATED-IN-SERIAL,
 JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
-JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED and
-JS-BOUNDARY-MOCKED. To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
+JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED,
+JS-BOUNDARY-MOCKED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
+when the waited method is unknown); with a committed .corvint/seed-rules.json
+(corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
+SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
+To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
 RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
 RB-ASSIGNMENT-IN-PREDICATE and the advisory DESCRIBED-CLASS-STUBBED,
 RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; a helper the reader cannot
@@ -75,20 +86,86 @@ resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
 abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. A qualified
 reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (SHARED may be "same") reads
 a shared example through that one inclusion, or abstains with a named
-rspec-inclusion-* or rspec-shared-group-* reason. It prints one
+rspec-inclusion-* or rspec-shared-group-* reason. To both, the advisory
+intra-example STUB-ON-PATH, STUB-NEVER-INVOKED (static form) and
+ASSERTED-VALUE-NOT-FROM-SUBJECT. It prints one
 corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
+A JS/TS test file also gets EITHER-OR-OUTCOME and the advisory
+CLEANUP-HANDLE-OUTLIVED, UNSTUBBED-OUTBOUND-INPUT and VACUOUS-EMPTY-EQUALITY;
+another JS/TS file (a fixture file) CLEANUP-HANDLE-OUTLIVED; and a Markdown,
+YAML or JSON behaviour contract EITHER-OR-OUTCOME for "X or Y" expected values.
 Exit 1 when an invalid finding
-makes a test INELIGIBLE (refused as proof), 0 otherwise.
+makes a test INELIGIBLE (refused as proof), 0 otherwise. A named JS/TS test
+file that unselected reports also gives each of its tests an invalid
+TEST-FILE-UNSELECTED finding.
 
-Reads committed Git content only; writes nothing and uses no network.
+unselected lists every committed test-looking JS/TS file (a test name or
+test directory, and a test or describe call) and whether a configured Jest,
+Vitest, Playwright or Mocha runner selects it under its literal configuration
+or defaults. Each file no runner selects is a TEST-FILE-UNSELECTED finding
+with reason no-runner-for-framework, outside-include, excluded (naming the
+pattern) or suffix-mismatch. A configuration it cannot read literally, an
+unmodelled runner or framework, or no runner evidence at all makes the file
+uncertain, never reported. It prints one corvint-test-file-selection/0
+document. Exit 1 when any file is reported, 0 otherwise.
+
+--legacy NEW=LEGACY (repeatable, at most 256; --files may then be omitted)
+links a new test to the legacy test it claims to preserve, each PATH:LINE of
+the example's declaring line. The report's seedParity lists, per link, each
+side's setup as entity kinds, counts and explicitly set attributes (RSpec
+FactoryBot create/create_list/build/build_list and YAML fixtures; JS/TS
+create/build/createList/buildList factory calls) and the advisory
+SEED-PARITY-DIVERGES, SEED-PARITY-UNCERTAIN, SEED-AGGREGATE-SINGLE-MEMBER and
+SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
+not analysed, a call may not run, or an unknown value meets a different one.
+Seed parity never changes the exit code.
+
+teardown lists, for each resource an example creates and deletes in teardown
+(afterEach and finally in JS/TS; after and ensure in RSpec), the actions on it
+with lines. Which calls create, delete and produce dependents comes only from
+the committed corvint-side-effect-declaration/0 file named by --declaration.
+TEARDOWN-DEPENDENT-LEFTOVER names an action whose dependent is still present
+at the parent delete; it is advisory, with reasons, when the graph is
+incomplete. A --receipt JS provider receipt bound to the committed test blob
+attaches recorded 409/422 delete outcomes. A verdict is never "safe". Exit 1
+on a declared finding, 0 otherwise.
+
+role-locators reports ROLE-LOCATOR-UNRENDERED where a component test locates
+alert, alertdialog, status or log output by role and no mounted component's
+markup renders that role; an unresolvable component or markup that could
+render a role the reader cannot see abstains. Exit 1 on a finding.
+
+env reads the committed shell bootstrap scripts of profile NAME (stem NAME or
+ending -NAME, _NAME, .NAME): each variable's derivation, value (UNKNOWN with a
+reason when unresolvable) and whether it is passed to tests; the stand-in
+services launched, their URL and control routes; and advisory
+ENV-HARD-CODED-OFFSET / ENV-HARD-CODED-ADDRESS warnings. --base lists changed
+variables and the tests whose use stays valid or not. Compose and dotenv files
+are named, not read.
+
+citations checks the revision-pinned source citations in at most 256 named
+committed documents read at --rev: inline-code spans of the form
+path[:START[-END]][#Symbol][@REV] whose path holds a "/" and that carry a
+line, a symbol or a revision, or any such path when the document declares
+<!-- corvint-cite-revision: REV -->. Each citation is read from the object
+store at its own revision (default: the document's, else --rev) and reported
+as missing-at-revision (with the nearest revision where the path exists when
+known), range-out-of-bounds, symbol-not-in-range or not-a-file; an
+unresolvable revision or a file over 1 MiB abstains. It prints one
+corvint-source-citations/0 document and exits 1 when a finding remains.
+
+Reads committed Git content and the named receipts only; writes nothing and
+uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
-tests-decisions-invalid, tests-output-unavailable.
+tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858, V1-1866, V1-1867).
+V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
+V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
+V1-1935).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -147,7 +224,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
 	}
 	if root == "" {
 		root = "."
@@ -167,8 +244,18 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "teardown":
+		return runTestsTeardown(repo, args[1:], out, diagnostic)
+	case "unselected":
+		return runTestsUnselected(repo, args[1:], out, diagnostic)
+	case "role-locators":
+		return runTestsRoleLocators(repo, args[1:], out, diagnostic)
+	case "env":
+		return runTestsEnv(repo, args[1:], out, diagnostic)
+	case "citations":
+		return runTestsCitations(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
@@ -345,7 +432,8 @@ func runTestsDuplicates(repo testsource.Repo, args []string, out, diagnostic io.
 }
 
 // runTestsValidity prints the static test-validity findings of the named committed files
-// (TSA-V0-071). It exits 1 when a finding refuses a test as proof.
+// (TSA-V0-071) and the advisory seed parity of each --legacy link (TSA-V0-108). It exits 1 when a
+// finding refuses a test as proof.
 func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
 	f, once := testsFlags("tests validity")
 	options := testsource.SourceValidityOptions{Revision: "HEAD"}
@@ -357,11 +445,19 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		}
 		return nil
 	})
+	f.Func("legacy", "NEW=LEGACY test link, each PATH:LINE", func(value string) error {
+		current, legacy, ok := strings.Cut(value, "=")
+		if !ok || current == "" || legacy == "" {
+			return fmt.Errorf("want NEW=LEGACY")
+		}
+		options.Links = append(options.Links, testsource.SeedLink{New: current, Legacy: legacy})
+		return nil
+	})
 	once("rev", &options.Revision)
-	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV]")
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV]")
 	}
-	report, err := testsource.SourceValidity(repo, options)
+	report, err := testsource.SelectedSourceValidity(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
 	}
@@ -369,6 +465,36 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		return code
 	}
 	if report.Refused() {
+		return 1
+	}
+	return 0
+}
+
+// runTestsCitations prints the revision-pinned citation findings of the named committed documents
+// (TSA-V0-255). It exits 1 when a citation is not supported by the object store.
+func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
+	f, once := testsFlags("tests citations")
+	options := testsource.CitationOptions{Revision: "HEAD"}
+	f.Func("docs", "document paths", func(value string) error {
+		for _, name := range strings.Split(value, ",") {
+			if strings.TrimSpace(name) != "" {
+				options.Docs = append(options.Docs, name)
+			}
+		}
+		return nil
+	})
+	once("rev", &options.Revision)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Docs) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests citations --docs PATH[,PATH...] [--rev REV]")
+	}
+	report, err := testsource.Citations(repo, options)
+	if err != nil {
+		return testsFailure(diagnostic, err)
+	}
+	if code := testsWrite(out, diagnostic, report); code != 0 {
+		return code
+	}
+	if len(report.Findings) > 0 {
 		return 1
 	}
 	return 0

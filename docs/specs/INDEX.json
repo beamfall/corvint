@@ -739,7 +739,7 @@
     "path": "docs/specs/corvint-tasks-attempt-runner-v0.md",
     "title": "Corvint Tasks attempt runner V0",
     "reqPrefix": "ATR-V0",
-    "intent": "proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157)",
+    "intent": "proposed (owner issues 481 and 627; technical profile not owner-accepted); ATR-V0-020..039 accepted (standing auto-accept 2026-10-11; V1-1547, V1-1549; re-homed from the agent leases spec, owner-approved 2026-10-17); ATR-V0-050..053 and ATR-V0-066 accepted (standing auto-accept 2026-10-11; V1-1558, issue 1026); ATR-V0-054..055 accepted (standing auto-accept 2026-10-11; V1-1575); ATR-V0-056..057 accepted (standing auto-accept 2026-10-11; V1-1562); ATR-V0-058..059 accepted (standing auto-accept 2026-10-11; V1-1600); ATR-V0-060..062 accepted (standing auto-accept 2026-10-11; V1-1595); ATR-V0-063..065 accepted (standing auto-accept 2026-10-11; V1-1597); ATR-V0-080..084 accepted (standing auto-accept 2026-10-11; V1-1608, V1-1673); ATR-V0-085..089 accepted (standing auto-accept 2026-10-11; V1-1647); ATR-V0-095 accepted (standing auto-accept 2026-10-11; V1-1671); ATR-V0-101..107 accepted (standing auto-accept 2026-10-11; V1-1763, issue 1109); ATR-V0-110..114 accepted (standing auto-accept 2026-10-11; V1-1782, issue 1122); ATR-V0-120..124 accepted (standing auto-accept 2026-10-11; V1-1833, issue 1147); ATR-V0-125..127 accepted (standing auto-accept 2026-10-11; V1-1834, issue 1148); ATR-V0-133..135 accepted (standing auto-accept 2026-10-11; V1-1852, issue 1157); ATR-V0-150..152 accepted (standing auto-accept 2026-10-11; V1-1914 and V1-1916, issues 1181 and 1183)",
     "delivery": "experimental",
     "claim": "An experimental attempt runner keeps an externally leased attempt's heartbeat current, retires its owned process group and records an observational outcome.",
     "dependsOn": [
@@ -861,7 +861,7 @@
     "path": "docs/specs/corvint-tasks-doctor-v0.md",
     "title": "Corvint Tasks doctor V0",
     "reqPrefix": "TQD-V0",
-    "intent": "accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050)",
+    "intent": "accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183)",
     "delivery": "experimental",
     "claim": "`corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.",
     "dependsOn": [
@@ -3738,9 +3738,9 @@
     "path": "docs/specs/test-source-analysis-v0.md",
     "title": "Test Source Analysis V0",
     "reqPrefix": "TSA-V0",
-    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)",
     "delivery": "experimental",
-    "claim": "Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.",
+    "claim": "Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
@@ -3781,5 +3781,49 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/site-knowledge-howto-v0.md",
+    "title": "Site Knowledge How-To V0",
+    "reqPrefix": "SKH-V0",
+    "intent": "accepted",
+    "delivery": "not-started",
+    "claim": "Page objects, steps, setup and edges mined from tests answer \"how do I X\" with a live-proven E2E test, or abstain naming the missing knowledge.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/application-map-scenario-planner-v0.md",
+      "docs/specs/application-map-v0.md",
+      "docs/specs/application-navigation-ledger-v0.md",
+      "docs/specs/change-compiled-e2e-v0.md",
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/run-verified-navigation-v0.md",
+      "docs/specs/test-source-analysis-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-source-containment-v0.md",
+    "title": "Corvint Tasks source containment V0",
+    "reqPrefix": "SCC-V0",
+    "intent": "accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1920, V1-1907; GitHub #1186, #1177; SCC-V0-001..005 and SCC-V0-010..014)",
+    "delivery": "experimental",
+    "claim": "`source contains` reports ancestor or patch-equivalent containment; a HOLD may carry a typed condition that status and doctor re-evaluate at each read.",
+    "dependsOn": [
+      "docs/specs/corvint-tasks-agent-leases-v0.md",
+      "docs/specs/corvint-tasks-doctor-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/store/source_contains.go",
+      "internal/tasks/store/hold_condition.go",
+      "internal/tasks/ticket/hold_condition.go",
+      "internal/tasks/cli/source_contains.go",
+      "internal/tasks/cli/hold_conditions.go"
+    ]
   }
 ]

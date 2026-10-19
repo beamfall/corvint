@@ -69,11 +69,12 @@ func declaredTestRepository(rc *readCtx, name string) (root, declared string, er
 }
 
 // obligationsCommand runs `ticket obligations seed|set|witness|show|plan`
-// (TOL-V0-005..009, TOL-V0-020). The writes are ordinary OBLIGATIONS_*
-// mutations; show and plan are reads that write nothing.
+// (TOL-V0-005..009, TOL-V0-020) and boundary and worklist (TOL-V0-083,
+// TOL-V0-086). The writes are ordinary OBLIGATIONS_* mutations; show, plan,
+// boundary and worklist are reads that write nothing.
 func obligationsCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 {
-		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan or qualify-version")
+		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan, boundary, worklist or qualify-version")
 	}
 	cmd := []string{"ticket", "obligations", args[0]}
 	switch args[0] {
@@ -87,6 +88,10 @@ func obligationsCommand(env Env, args []string) *wire.Result {
 		return obligationsShow(env, cmd, args[1:])
 	case "plan":
 		return obligationsPlan(env, cmd, args[1:])
+	case "boundary":
+		return obligationsBoundary(env, cmd, args[1:])
+	case "worklist":
+		return obligationsWorklist(env, cmd, args[1:])
 	case "qualify-version":
 		return obligationsQualifyVersion(env, cmd, args[1:])
 	}
@@ -216,6 +221,16 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		}
 		if ok {
 			item.Obj.Set("sourceReview", review)
+		}
+		wr, ok, err := witnessReviewValue(env, rc, known)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		if ok {
+			item.Obj.Set("witnessReview", wr)
+		}
+		if out, prop, ok := obligationScopeValue(known); ok {
+			item.Obj.Set("outOfScope", out).Set("scopeProposals", prop)
 		}
 	}
 	res := success(cmd, rc)
@@ -381,7 +396,9 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
 	var testCommit, envTree, evidenceRef, testTitle, testRepo string
+	var reviewed, reviewFile, excludeAuthor string
 	if res := pairFlags(cmd, args, map[string]*string{
+		"--reviewed": &reviewed, "--review": &reviewFile, "--exclude-author": &excludeAuthor,
 		"--test-repository": &testRepo,
 		"--test-commit":     &testCommit, "--environment-tree": &envTree, "--evidence-ref": &evidenceRef, "--test-title": &testTitle,
 		"--target": &f.target, "--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
@@ -398,8 +415,14 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if f.target == "" || f.expected == "" || commit == "" {
 		return usage(cmd, "--target, --expected-revision and --commit are required")
 	}
-	if (report == "") == (declared == "") {
-		return usage(cmd, "exactly one of --from-playwright-report FILE and --declared ID,... is required")
+	if n := btoi(report != "") + btoi(declared != "") + btoi(reviewed != ""); n != 1 {
+		return usage(cmd, "exactly one of --from-playwright-report FILE, --declared ID,... and --reviewed ID is required")
+	}
+	if (reviewed != "") != (reviewFile != "") || (excludeAuthor != "" && reviewed == "") {
+		return usage(cmd, "--reviewed ID needs --review FILE; --review and --exclude-author belong to --reviewed")
+	}
+	if reviewed != "" && (manifest != "" || testID != "" || reason != "" || idsArg != "" || attempt != "" || postCheck != "") {
+		return usage(cmd, "--reviewed takes no --ids, declaration, attempt or post-check flags")
 	}
 	if report != "" && (manifest != "" || testID != "" || reason != "") {
 		return usage(cmd, "--manifest-sha256, --test-id and --reason belong to --declared")
@@ -437,8 +460,8 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		return errorResult(cmd, err)
 	}
 	var ids []string
-	if idsArg != "" || declared != "" {
-		if ids, err = obligationIDList(idsArg + declared); err != nil {
+	if idsArg != "" || declared != "" || reviewed != "" {
+		if ids, err = obligationIDList(idsArg + declared + reviewed); err != nil {
 			return errorResult(cmd, err)
 		}
 	}
@@ -490,7 +513,20 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}
 	lists := witnessLists{}
 	var check *mutation.ObligationReportCheck
-	if declared != "" {
+	if reviewed != "" {
+		review, resolved, err := reviewedWitness(env, root, commit, rec.TicketID.Raw, reviewFile, excludeAuthor)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		if e := ledger.Entry(reviewed); e == nil {
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "--reviewed", "%s obligation %s is not in the ledger", ticket.ObligationUnknownDetail, reviewed))
+		}
+		w.Source, w.Commit, w.Review = ticket.ObligationSourceReviewed, resolved, review
+		w.Credits = []ticket.ObligationCredit{{ID: reviewed}}
+		if outcome, _ := review.Outcome(); outcome == ticket.ObligationReviewCredited {
+			lists.credited = []string{reviewed}
+		}
+	} else if declared != "" {
 		resolved, _, _, err := store.FilesAtCommit(root, commit, nil)
 		if err != nil {
 			return errorResult(cmd, err)
@@ -579,6 +615,14 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		written := out.Outcome == wire.OutcomeOK
 		out.Items[0].Obj.Set("written", wire.Bool(written))
 		lists.set(out.Items[0].Obj)
+		if w.Review != nil {
+			outcome, axes := w.Review.Outcome()
+			av := make([]wire.Value, 0, len(axes))
+			for _, x := range axes {
+				av = append(av, wire.String(x))
+			}
+			out.Items[0].Obj.Set("reviewOutcome", wire.String(outcome)).Set("reviewAxes", wire.Array(av...))
+		}
 	}
 	return out
 }

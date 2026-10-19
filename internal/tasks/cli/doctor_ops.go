@@ -14,6 +14,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -373,4 +374,75 @@ func parseDoctorFileNr(s string) (uint64, uint64, error) {
 		return 0, 0, errors.New("malformed file-nr")
 	}
 	return n[0] - n[1], n[2], nil
+}
+
+// doctorAdmission reports RUNNABLE_HELD_IDLE (TQD-V0-043) and
+// ROLE_QUEUE_DEEP (TQD-V0-044) from one configured dispatcher's ATR-V0-150
+// queue observation. A missing observation reports nothing; an unreadable
+// one, or one older than three of its ticks, adds a scan warning and no
+// finding. A deep queue is reported only at CALM pressure, so an UNKNOWN or
+// unconfigured pressure level abstains, and a run-only hold only beside a
+// free member, which the dispatcher already requires.
+func doctorAdmission(d doctorDispatcher, th doctorThresholds, scan *doctorScan, warn func(string, ...any)) []doctorFinding {
+	program := filepath.Base(d.programDir)
+	// As doctorLoadLedger: no final symlink is followed and a FIFO is
+	// refused, not waited on.
+	raw, err := readBounded(filepath.Join(d.programDir, dispatch.AdmissionFile), dispatch.MaxAdmissionBytes)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	var rec *dispatch.AdmissionRecord
+	if err == nil {
+		rec, err = dispatch.DecodeAdmission(raw, program)
+	}
+	if err != nil {
+		warn("queue observation unreadable: %v", err)
+		return nil
+	}
+	if age := scan.observedAt.Sub(rec.At); age > 3*time.Duration(rec.TickSeconds)*time.Second {
+		warn("queue observation is stale: written %s, %d tick(s) of %ds ago", rec.At.UTC().Format(time.RFC3339), int64(age/(time.Duration(rec.TickSeconds)*time.Second)), rec.TickSeconds)
+		return nil
+	}
+	var out []doctorFinding
+	for _, h := range rec.Held {
+		if h.Ticks < th.heldIdleTicks || h.Free < 1 {
+			continue
+		}
+		fence := h.Fence
+		if h.Detail != "" {
+			fence += " (" + h.Detail + ")"
+		}
+		members := strings.Join(h.FreeMembers, ", ")
+		if len(h.FreeMembers) < h.Free {
+			members += ", ..."
+		}
+		out = append(out, doctorFinding{kind: "RUNNABLE_HELD_IDLE", who: program + "/" + h.Role + "/" + h.Ticket, firstSeen: h.Since,
+			detail: fmt.Sprintf("run-only ticket %s of role %s held by %s for %d tick(s) since %s while pool %s had %d free member(s): %s",
+				h.Ticket, h.Role, fence, h.Ticks, h.Since.UTC().Format(time.RFC3339), h.Pool, h.Free, members)})
+	}
+	if rec.Pressure != dispatch.AdmissionPressureCalm {
+		return out
+	}
+	room := rec.GlobalCap - rec.Running
+	for _, q := range rec.Roles {
+		if q.DeepTicks < th.queueDeepTicks || q.DeepSince == nil {
+			continue
+		}
+		oldest := "none observed"
+		if q.OldestWaitSince != nil {
+			oldest = q.OldestWaitTicket + " since " + q.OldestWaitSince.UTC().Format(time.RFC3339)
+		}
+		capText := fmt.Sprintf("effective cap %d (cap %d", q.EffectiveCap, q.Cap)
+		if q.CapMax > 0 {
+			capText += fmt.Sprintf(", capMax %d", q.CapMax)
+		}
+		headroom := fmt.Sprintf("the global cap allows %d more session(s) (%d of %d running) and calm pressure allows a raise", room, rec.Running, rec.GlobalCap)
+		if room < 1 {
+			headroom = fmt.Sprintf("the global cap is full (%d of %d running), so a raise also needs a higher globalCap; calm pressure allows it", rec.Running, rec.GlobalCap)
+		}
+		out = append(out, doctorFinding{kind: "ROLE_QUEUE_DEEP", who: program + "/" + q.Role, firstSeen: *q.DeepSince,
+			detail: fmt.Sprintf("role %s queue depth %d (%d running, %d waiting) above %s) for %d tick(s) since %s at calm pressure; oldest wait %s; headroom: %s",
+				q.Role, q.Running+q.Waiting, q.Running, q.Waiting, capText, q.DeepTicks, q.DeepSince.UTC().Format(time.RFC3339), oldest, headroom)})
+	}
+	return out
 }

@@ -493,7 +493,7 @@ func (e ObligationEvidence) Value() wire.Value {
 // ReadObligationEvidence reads and checks the source-specific shape.
 func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
 	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "eventSha256", "commit", "reportSha256", "playwrightVersion", "matches", "declaration"}, "provenance", "testRepository")...)
-	e := &ObligationEvidence{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared), EventSha256: r.Field("eventSha256").Digest(), Commit: r.Field("commit").OID()}
+	e := &ObligationEvidence{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared, ObligationSourceReviewed), EventSha256: r.Field("eventSha256").Digest(), Commit: r.Field("commit").OID()}
 	e.ReportSha256 = r.Field("reportSha256").DigestOrNull()
 	e.PlaywrightVersion = r.Field("playwrightVersion").LabelOrNull()
 	if m := r.Field("matches"); !m.IsNull() {
@@ -510,8 +510,8 @@ func ReadObligationEvidence(r *wire.Reader) *ObligationEvidence {
 	if r.Err() != nil {
 		return nil
 	}
-	report := e.Source == ObligationSourceReport
-	if report != (e.ReportSha256 != nil) || report != (e.PlaywrightVersion != nil) || report != (e.Matches != nil) || report == (e.Declaration != nil) {
+	report, declared := e.Source == ObligationSourceReport, e.Source == ObligationSourceDeclared
+	if report != (e.ReportSha256 != nil) || report != (e.PlaywrightVersion != nil) || report != (e.Matches != nil) || declared != (e.Declaration != nil) {
 		r.Fail(wire.CodeMalformed, "evidence members do not match source %s", e.Source)
 		return nil
 	}
@@ -596,14 +596,22 @@ func readObligationSources(r *wire.Reader) []ObligationReviewSource {
 // optional adopter alias fixed at seed (TOL-V0-034), "" when absent.
 // Sources is the optional review-source list (TOL-V0-037), nil when absent.
 type ObligationEntry struct {
-	ID            string
-	Alias         string
-	Title         string
-	Core          bool
-	State         string
-	Reason        *string
-	Evidence      *ObligationEvidence
-	Sources       []ObligationReviewSource
+	ID       string
+	Alias    string
+	Title    string
+	Core     bool
+	State    string
+	Reason   *string
+	Evidence *ObligationEvidence
+	Sources  []ObligationReviewSource
+	// Review is the optional latest reviewed witness (TOL-V0-075), nil when
+	// absent.
+	Review *ObligationReviewRecord
+	// Cites, Scope and Candidate are the optional TOL-V0-079, 081 and 084
+	// members, nil when absent.
+	Cites         []ObligationCite
+	Scope         *ObligationScope
+	Candidate     *ObligationCandidate
 	UpdatedAt     wire.Timestamp
 	UpdatedByID   string
 	UpdatedByRole string
@@ -623,13 +631,25 @@ func (e ObligationEntry) Value() wire.Value {
 	if e.Sources != nil {
 		v.Obj.Set("sources", obligationSourcesValue(e.Sources))
 	}
+	if e.Review != nil {
+		v.Obj.Set("review", e.Review.Value())
+	}
+	if e.Cites != nil {
+		v.Obj.Set("cites", obligationCitesValue(e.Cites))
+	}
+	if e.Scope != nil {
+		v.Obj.Set("scope", e.Scope.Value())
+	}
+	if e.Candidate != nil {
+		v.Obj.Set("candidate", e.Candidate.Value())
+	}
 	return v
 }
 
 // ReadObligationEntry reads one closed entry and checks that evidence is
 // present exactly when the state is WITNESSED.
 func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias", "sources")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias", "sources", "review", "cites", "scope", "candidate")...)
 	e := &ObligationEntry{ID: ReadObligationID(r.Field("id")), Title: readNonblank(r.Field("title"), MaxObligationTitleBytes), Core: r.Field("core").Bool(),
 		State: r.Field("state").Enum(ObligationStates...), UpdatedAt: r.Field("updatedAt").Timestamp()}
 	if wire.Has(r.Value(), "alias") {
@@ -637,6 +657,18 @@ func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
 	}
 	if wire.Has(r.Value(), "sources") {
 		e.Sources = readObligationSources(r.Field("sources"))
+	}
+	if wire.Has(r.Value(), "review") {
+		e.Review = readObligationReviewRecord(r.Field("review"))
+	}
+	if wire.Has(r.Value(), "cites") {
+		e.Cites = readObligationCites(r.Field("cites"))
+	}
+	if wire.Has(r.Value(), "scope") {
+		e.Scope = readObligationScope(r.Field("scope"))
+	}
+	if wire.Has(r.Value(), "candidate") {
+		e.Candidate = readObligationCandidate(r.Field("candidate"), true)
 	}
 	e.Reason = r.Field("reason").StringOrNull(func(x *wire.Reader) string { return readNonblank(x, MaxObligationReasonBytes) })
 	if ev := r.Field("evidence"); !ev.IsNull() {
@@ -704,13 +736,19 @@ func ReadObligationSeedPayload(r *wire.Reader) *ObligationSeedPayload {
 }
 
 // ObligationChange is one OBLIGATIONS_SET change (TOL-V0-007). Sources,
-// when non-nil, replaces the entry's review sources (TOL-V0-038).
+// when non-nil, replaces the entry's review sources (TOL-V0-038); Cites
+// replaces its cited source locations (TOL-V0-079); Scope proposes or
+// accepts a scope decision (TOL-V0-080); Candidate records a witness
+// candidate awaiting review (TOL-V0-084).
 type ObligationChange struct {
-	ID      string
-	State   *string
-	Core    *bool
-	Reason  string
-	Sources []ObligationReviewSource
+	ID        string
+	State     *string
+	Core      *bool
+	Reason    string
+	Sources   []ObligationReviewSource
+	Cites     []ObligationCite
+	Scope     *ObligationScopeChange
+	Candidate *ObligationCandidate
 }
 
 // ObligationSetPayload is the OBLIGATIONS_SET payload.
@@ -727,6 +765,15 @@ func (p ObligationSetPayload) Value() wire.Value {
 		if c.Sources != nil {
 			v.Obj.Set("sources", obligationSourcesValue(c.Sources))
 		}
+		if c.Cites != nil {
+			v.Obj.Set("cites", obligationCitesValue(c.Cites))
+		}
+		if c.Scope != nil {
+			v.Obj.Set("scope", c.Scope.Value())
+		}
+		if c.Candidate != nil {
+			v.Obj.Set("candidate", c.Candidate.Value())
+		}
 		vs = append(vs, v)
 	}
 	return noteObject("changes", wire.Array(vs...))
@@ -739,7 +786,7 @@ func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 	r.Closed("changes")
 	p := &ObligationSetPayload{}
 	readIDKeyed(r.Field("changes"), MaxObligationChanges, "changes", func(it *wire.Reader) string {
-		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "state", "core", "reason"}, "sources")...)
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "state", "core", "reason"}, "sources", "cites", "scope", "candidate")...)
 		c := ObligationChange{ID: ReadObligationID(it.Field("id")), Reason: readNonblank(it.Field("reason"), MaxObligationReasonBytes)}
 		c.State = it.Field("state").StringOrNull(func(x *wire.Reader) string {
 			return x.Enum(ObligationOpen, ObligationDefect, ObligationBlocked, ObligationDeferred, ObligationPartial)
@@ -751,8 +798,20 @@ func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 		if wire.Has(it.Value(), "sources") {
 			c.Sources = readObligationSources(it.Field("sources"))
 		}
-		if it.Err() == nil && c.State == nil && c.Core == nil && c.Sources == nil {
-			it.Fail(wire.CodeMalformed, "a change names a state, a core flag, review sources or a combination")
+		if wire.Has(it.Value(), "cites") {
+			c.Cites = readObligationCites(it.Field("cites"))
+		}
+		if wire.Has(it.Value(), "scope") {
+			c.Scope = readObligationScopeChange(it.Field("scope"))
+		}
+		if wire.Has(it.Value(), "candidate") {
+			c.Candidate = readObligationCandidate(it.Field("candidate"), false)
+		}
+		if it.Err() == nil && c.State == nil && c.Core == nil && c.Sources == nil && c.Cites == nil && c.Scope == nil && c.Candidate == nil {
+			it.Fail(wire.CodeMalformed, "a change names a state, a core flag, review sources, cites, a scope decision, a candidate or a combination")
+		}
+		if it.Err() == nil && c.Scope != nil && c.Core != nil {
+			it.Fail(wire.CodeMalformed, "a scope decision sets core itself; core must be null beside scope")
 		}
 		p.Changes = append(p.Changes, c)
 		return c.ID
@@ -783,6 +842,9 @@ type ObligationWitnessPayload struct {
 	// TestRepository is the optional policy-declared test repository name
 	// (TOL-V0-065); nil keeps the exact earlier payload bytes.
 	TestRepository *string
+	// Review is the REVIEWED source's verdicts (TOL-V0-073); nil for every
+	// other source, keeping the exact earlier payload bytes.
+	Review *ObligationReview
 }
 
 func (p ObligationWitnessPayload) Value() wire.Value {
@@ -813,14 +875,17 @@ func (p ObligationWitnessPayload) Value() wire.Value {
 	if p.TestRepository != nil {
 		v.Obj.Set("testRepository", wire.String(*p.TestRepository))
 	}
+	if p.Review != nil {
+		v.Obj.Set("review", p.Review.Value())
+	}
 	return v
 }
 
 // ReadObligationWitnessPayload reads the closed witness payload and checks
 // its source-specific members.
 func ReadObligationWitnessPayload(r *wire.Reader) *ObligationWitnessPayload {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "commit", "reportSha256", "playwrightVersion", "credits", "declaration", "attempt", "generation"}, "provenance", "testRepository")...)
-	p := &ObligationWitnessPayload{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared), Commit: r.Field("commit").OID()}
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"source", "commit", "reportSha256", "playwrightVersion", "credits", "declaration", "attempt", "generation"}, "provenance", "testRepository", "review")...)
+	p := &ObligationWitnessPayload{Source: r.Field("source").Enum(ObligationSourceReport, ObligationSourceDeclared, ObligationSourceReviewed), Commit: r.Field("commit").OID()}
 	p.ReportSha256 = r.Field("reportSha256").DigestOrNull()
 	p.PlaywrightVersion = r.Field("playwrightVersion").LabelOrNull()
 	p.Declaration = readObligationDeclaration(r.Field("declaration"))
@@ -833,11 +898,14 @@ func ReadObligationWitnessPayload(r *wire.Reader) *ObligationWitnessPayload {
 		name := r.Field("testRepository").Label()
 		p.TestRepository = &name
 	}
+	if wire.Has(r.Value(), "review") {
+		p.Review = ReadObligationReview(r.Field("review"))
+	}
 	if r.Err() != nil {
 		return p
 	}
-	report := p.Source == ObligationSourceReport
-	if report != (p.ReportSha256 != nil) || report != (p.PlaywrightVersion != nil) || report == (p.Declaration != nil) {
+	report, declared, reviewed := p.Source == ObligationSourceReport, p.Source == ObligationSourceDeclared, p.Source == ObligationSourceReviewed
+	if report != (p.ReportSha256 != nil) || report != (p.PlaywrightVersion != nil) || declared != (p.Declaration != nil) || reviewed != (p.Review != nil) {
 		r.Fail(wire.CodeMalformed, "witness members do not match source %s", p.Source)
 		return p
 	}
@@ -858,6 +926,9 @@ func ReadObligationWitnessPayload(r *wire.Reader) *ObligationWitnessPayload {
 		p.Credits = append(p.Credits, c)
 		return c.ID
 	})
+	if reviewed && r.Err() == nil && len(p.Credits) != 1 {
+		r.Field("credits").Fail(wire.CodeMalformed, "a REVIEWED witness credits exactly one obligation")
+	}
 	return p
 }
 
@@ -1203,6 +1274,19 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			if c.Sources != nil {
 				e.Sources = c.Sources
 			}
+			if c.Cites != nil {
+				e.Cites = c.Cites
+			}
+			if c.Candidate != nil {
+				cand := *c.Candidate
+				cand.At = q.IssuedAt
+				e.Candidate = &cand
+			}
+			if c.Scope != nil {
+				if err := applyScopeChange(e, c.Scope, c.Reason, q); err != nil {
+					return nil, err
+				}
+			}
 			reason := c.Reason
 			e.Reason = &reason
 			stamp(e)
@@ -1214,11 +1298,20 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			if e == nil {
 				return nil, wire.Errorf(wire.CodeMalformed, "/request/payload/credits", "%s obligation %s is not in the ledger", ObligationUnknownDetail, c.ID)
 			}
+			if w.Source == ObligationSourceReviewed {
+				if err := applyReviewedWitness(e, w, eventSha256); err != nil {
+					return nil, err
+				}
+				e.Candidate = nil
+				stamp(e)
+				continue
+			}
 			if e.State == ObligationWitnessed || e.State == ObligationDeferred {
 				return nil, wire.Errorf(wire.CodeMalformed, "/request/payload/credits", "%s obligation %s is %s and is not credited", ObligationCreditMismatchDetail, c.ID, e.State)
 			}
 			e.State = ObligationWitnessed
 			e.Reason = nil
+			e.Candidate = nil
 			e.Evidence = &ObligationEvidence{Source: w.Source, EventSha256: eventSha256, Commit: w.Commit, ReportSha256: w.ReportSha256,
 				PlaywrightVersion: w.PlaywrightVersion, Matches: c.Matches, Declaration: w.Declaration, Provenance: w.Provenance, TestRepository: w.TestRepository}
 			stamp(e)

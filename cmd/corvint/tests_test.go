@@ -230,3 +230,86 @@ func TestTestsValidityCLI(t *testing.T) {
 		t.Errorf("help: code=%d", code)
 	}
 }
+
+// TestTSAV0108SeedParityCLI: --legacy NEW=LEGACY (repeatable) adds the advisory seedParity member
+// without --files and never changes the exit code; a malformed link refuses with exit 2
+// (TSA-V0-100, TSA-V0-108).
+func TestTSAV0108SeedParityCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	testsCommit(t, root, map[string]string{
+		"spec/legacy_spec.rb": "RSpec.describe A do\n  it 'a' do\n    create_list(:item, 2)\n    expect(Item.count).to eq(2)\n  end\nend\n",
+		"spec/new_spec.rb":    "RSpec.describe A do\n  it 'a' do\n    create(:item)\n    expect(Item.count).to eq(1)\n  end\nend\n",
+		"spec/skip_spec.rb":   "RSpec.describe A do\n  xit 'a' do\n    create_list(:item, 2)\n  end\nend\n",
+	})
+	code, out, errb := runCLI(t, "--root", root, "tests", "validity", "--legacy", "spec/new_spec.rb:2=spec/legacy_spec.rb:2",
+		"--legacy", "spec/new_spec.rb:2=spec/new_spec.rb:2")
+	var report struct {
+		Files      []json.RawMessage
+		SeedParity []struct {
+			New, Legacy, Status string
+			Findings            []struct{ Rule, Severity, Location, Cause, Message string }
+		}
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &report) != nil || len(report.Files) != 0 || len(report.SeedParity) != 2 {
+		t.Fatalf("seed parity: code=%d out=%s err=%s", code, out, errb)
+	}
+	p := report.SeedParity[0]
+	if p.New != "spec/new_spec.rb:2" || p.Legacy != "spec/legacy_spec.rb:2" || p.Status != "diverges" || len(p.Findings) != 1 ||
+		p.Findings[0].Rule != "SEED-PARITY-DIVERGES" || p.Findings[0].Severity != "advisory" || p.Findings[0].Location != "spec/new_spec.rb:3" ||
+		p.Findings[0].Message != "legacy seeds 2 item, new seeds 1; asserting lines reading item: legacy spec/legacy_spec.rb:4; new spec/new_spec.rb:4" {
+		t.Errorf("link %+v", p)
+	}
+	if p := report.SeedParity[1]; p.Status != "parity" || len(p.Findings) != 0 {
+		t.Errorf("self link %+v", p)
+	}
+	// A skipped new test still exits 1 from its hygiene alone; seed parity adds nothing to it.
+	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "spec/skip_spec.rb", "--legacy", "spec/skip_spec.rb:2=spec/legacy_spec.rb:2"); code != 1 {
+		t.Errorf("hygiene exit: code=%d err=%s", code, errb)
+	}
+	for _, args := range [][]string{{"--legacy", "spec/new_spec.rb:2"}, {"--legacy", "=spec/legacy_spec.rb:2"}, {"--legacy", "spec/new_spec.rb=spec/legacy_spec.rb:2"}} {
+		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "validity"}, args...)...); code != 2 || out != "" {
+			t.Errorf("%v: code=%d out=%q", args, code, out)
+		}
+	}
+	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "--legacy NEW=LEGACY") {
+		t.Errorf("help: code=%d", code)
+	}
+}
+
+// TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/0 report,
+// exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
+// with exit 2 (TSA-V0-255).
+func TestTestsCitationsCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	testsCommit(t, root, map[string]string{"a/b.go": "package a\n\nfunc B() {}\n"})
+	head := testsCommit(t, root, map[string]string{
+		"docs/bad.md":  "See `a/b.go:2-9` and `a/b.go:3#B`.\n",
+		"docs/good.md": "See `a/b.go:1-3#B`.\n",
+	})
+	code, out, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/bad.md")
+	var report struct {
+		Schema, Revision string
+		Checked          int
+		Findings         []struct {
+			Doc, Citation, Reason string
+			Line                  int
+		}
+	}
+	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-source-citations/0" || report.Revision != head || report.Checked != 2 ||
+		len(report.Findings) != 1 || report.Findings[0].Reason != "range-out-of-bounds" || report.Findings[0].Line != 1 {
+		t.Fatalf("citations: code=%d out=%s err=%s", code, out, errb)
+	}
+	if code, _, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/good.md", "--rev", head); code != 0 {
+		t.Errorf("valid: code=%d err=%s", code, errb)
+	}
+	for _, args := range [][]string{{}, {"--docs", "../x.md"}, {"--docs", "docs/absent.md"}, {"--docs", "docs/good.md", "extra"}} {
+		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "citations"}, args...)...); code != 2 || out != "" {
+			t.Errorf("%v: code=%d out=%q", args, code, out)
+		}
+	}
+	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "tests citations --docs") {
+		t.Errorf("help: code=%d", code)
+	}
+}

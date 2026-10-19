@@ -414,7 +414,7 @@ func TestCALV0155_BudgetHeldTicketLeavesSelectionWindow(t *testing.T) {
 			}
 		}
 	}
-	launches, _ := roster(c, &Observation{Tickets: deferred}, nil, nil, nil, nil, map[string]string{ts[0].ID: c.Roles[0].Name}, nil, nil)
+	launches, _ := roster(c, &Observation{Tickets: deferred}, nil, nil, nil, nil, map[string]string{ts[0].ID: c.Roles[0].Name}, nil, nil, nil)
 	for _, a := range launches {
 		if a.Ticket == ts[0].ID {
 			t.Fatalf("a budget-held relaunch launched under %s", a.Role)

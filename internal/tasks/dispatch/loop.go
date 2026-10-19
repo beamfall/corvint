@@ -97,6 +97,10 @@ type Dispatcher struct {
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
 	poolWaitEmitted map[string]string
+	// admission holds the ATR-V0-150 queue streaks in memory only, and
+	// admissionFailed reports that the last observation write failed.
+	admission       admissionTracker
+	admissionFailed bool
 	// control, set only by OpenControlled, admits each new launch and
 	// pool sweep and sees every tick boundary.
 	control LaunchControl
@@ -1519,12 +1523,17 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	// CAL-V0-273: the opt-in hold launches nothing while the work state
 	// has been unreadable for the configured number of ticks.
 	if WorkStateHoldsLaunches(d.Config, d.ledger.WorkState) {
+		d.recordAdmission(obs, nil, d.pressureLabel(), now)
 		return
 	}
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
+		d.recordAdmission(obs, nil, d.pressureLabel(), now)
 		return
 	}
+	// ATR-V0-150..152: the pressure label after this tick's sample.
+	pressure := d.pressureLabel()
+	adm := &admission{calm: pressure == AdmissionPressureCalm}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	// CAL-V0-149: a finished detached run relaunches its ticket's role.
 	relaunch := d.relaunches()
@@ -1533,7 +1542,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	spend.observe(obs.Tickets)
 	spend.holdDeferred(obs.Tickets, prefer)
 	room := newPoolRoom(obs, d.ledger.Workers)
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
+	// ATR-V0-150: the observation is written after the launch loop, so it
+	// counts the workers actually recorded.
+	defer d.recordAdmission(obs, adm, pressure, now)
 	d.recordHeld(obs, held)
 	d.recordPoolWait(room)
 	// Holds are recorded after the launches, so a budget event counts them.
@@ -1591,6 +1603,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
+		// ATR-V0-141: the review packet is read before any pre-launch claim,
+		// because a claim opens a generation without the submitted
+		// candidate the packet diffs.
+		var packet string
+		var packetErr error
+		reviewPacket := a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.ReviewPacket.on()
+		if reviewPacket {
+			packet, packetErr = d.reviewPacketFor(ctx, obs, role.ReviewPacket, a.Ticket)
+		}
 		// ATR-V0-120: a holdPool role's ticket is claimed with its pool
 		// member before anything can spawn; a refusal launches nothing.
 		hold, ok := d.claimPoolHold(ctx, obs, role, a, id)
@@ -1646,6 +1667,21 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			if carryText != "" {
 				values["{prompt}"] += "\n\n" + carryText
+			}
+		}
+		// ATR-V0-141: a review role's prompt carries the bounded review
+		// packet after any carry-over block; it is never expanded either.
+		if reviewPacket {
+			err := packetErr
+			if err == nil {
+				err = renderedArgvSafe(host.Argv, values)
+			}
+			if err != nil {
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("review packet not offered: %v", err)})
+				packet = ""
+			}
+			if packet != "" {
+				values["{prompt}"] += "\n\n" + packet
 			}
 		}
 		argv := make([]string, len(host.Argv))
@@ -1783,6 +1819,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
 		carryDetail(detail, carried, carryText) // ATR-V0-114
+		reviewPacketDetail(detail, packet)      // ATR-V0-141
 		if role.Effort != "" {
 			detail["effort"] = role.Effort
 		}

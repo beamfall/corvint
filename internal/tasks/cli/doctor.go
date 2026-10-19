@@ -57,6 +57,11 @@ var (
 	doctorKindPattern   = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,63}$`)
 	// doctorRemedies is the fixed operator guidance per built-in kind.
 	doctorRemedies = map[string]string{
+		// Hold findings (SCC-V0-013, SCC-V0-014).
+		"HOLD_CONDITION_MET":     "The hold's typed condition is met at its ref; release the hold (ticket release-hold) so the ticket returns to its work stage.",
+		"HOLD_CONDITION_UNKNOWN": "The hold's condition cannot be evaluated; fetch the named ref or commit, or correct the condition. The ticket stays held.",
+		"FREE_TEXT_HOLD_MET":     "The free-text hold names a commit or path that origin's default branch already has; confirm the blocker is gone, then release the hold or replace it with a typed condition.",
+
 		"NO_PROGRESS_HANDOFF": "Read the hand-off evidence, then refine, split or hold the ticket instead of claiming it again.",
 		"REPEAT_REFUSAL":      "Compare the review returns and failed gates for this tree; change the candidate or the criteria before resubmitting.",
 		"SLOW_LANE_RECOVERY":  "Inspect the member's cleanup output and the external resource; repair the cleanup, then confirm safety.",
@@ -72,6 +77,8 @@ var (
 		"HOST_ERRORS":         "The host reported repeated errors; read the cited stdout.log lines before relaunching the worker.",
 		"EARLY_REFUSAL":       "The session's first tool calls were all refused; check the worker's sandbox and permission profile.",
 		"WORK_STATE_FAILING":  "The dispatcher cannot read its work-state source; run dispatch status and repair the source named in lastError.",
+		"RUNNABLE_HELD_IDLE":  "Run-only work waits beside free pool members; lift or widen the named rule for it, or set the role's bypassFocus (ATR-V0-151) when the plan window holds it.",
+		"ROLE_QUEUE_DEEP":     "The role's queue stays deeper than its cap at calm pressure; raise its cap, or set capMax (ATR-V0-152), within the reported headroom.",
 	}
 )
 
@@ -168,6 +175,7 @@ func doctorCommand(env Env, args []string) *wire.Result {
 	}
 	scan := &doctorScan{}
 	var findings []doctorFinding
+	var holds []heldHold
 	// The inventory read admits an absent journal so that a store with valid
 	// tracked intent and no local journal refuses MISSING_EVIDENCE rather
 	// than UNINITIALIZED (TQD-V0-001); a present journal is a TM-V0-008 read.
@@ -175,6 +183,7 @@ func doctorCommand(env Env, args []string) *wire.Result {
 		*scan = doctorScan{}
 		var e error
 		findings, e = doctorStoreFindings(rc, scan, cfg.thresholds)
+		holds = collectHeldHolds(rc.store.Inventory)
 		return e
 	})
 	if err != nil {
@@ -184,6 +193,10 @@ func doctorCommand(env Env, args []string) *wire.Result {
 	findings = append(findings, doctorLockFindings(rc.repo.CommonDir, cfg.thresholds, scan)...)
 	findings = append(findings, doctorFDPressure(cfg.thresholds, scan)...)
 	findings = append(findings, doctorDispatchers(cfg, scan)...)
+	// SCC-V0-013, SCC-V0-014: hold conditions and free-text holds, read from
+	// Git after the store read.
+	findings = append(findings, doctorHoldConditionFindings(evaluateHeldConditions(rc.repo.PrimaryWorktree, holds))...)
+	findings = append(findings, doctorFreeTextHoldFindings(rc.repo.PrimaryWorktree, holdFreeTextDeployRef, holds, scan)...)
 	if pluginsSet {
 		findings = append(findings, doctorPlugins(plugins, rc.repo.PrimaryWorktree)...)
 	}
