@@ -16,7 +16,9 @@ repository; AMAP-V0-016 proposed (V1-0981); AMAP-V0-017..020 proposed (V1-0982))
 [issue 685](https://github.com/beamfall/corvint/issues/685) (V1-1027, state-name tables reached
 through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 0460), and
 [issue 705](https://github.com/beamfall/corvint/issues/705) (V1-1061, injected string enums,
-one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475).
+one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475), and
+[issue 1200](https://github.com/beamfall/corvint/issues/1200) (V1-1941, request-path keys,
+outbound calls and guard order; AMAP-V0-130..139).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
@@ -903,6 +905,14 @@ optional `note`, `count` and `tests` of `test`, `basis` and optional `route`, an
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
 | `appmap-root-unavailable` | A manifest alias is not declared with `--repo`, or its root is not absolute and clean, missing, not the top of a Git worktree, without a `HEAD` commit, the `--root` repository, or its status is unreadable (AMAP-V0-019). |
 | `appmap-root-dirty` | An aliased root has staged, unstaged or untracked changes under the manifest or `tests.root` read from it (AMAP-V0-019). |
+| `request-path-route-not-found` | `--file` has no literal registration of the `--route` method and path, or the registration names no handler (AMAP-V0-138). |
+| `request-path-route-ambiguous` | `--file` registers the `--route` method and path more than once. |
+| `request-path-handler-not-found` | No function `--handler` is declared or imported in `--file`. |
+| `request-path-file-not-found` | `--file` is not a committed regular file at the revision. |
+| `request-path-invalid-revision` | `--revision` does not resolve to a commit. |
+| `request-path-source-unavailable` | A Git read of `--file` or of the `--handler` module failed. |
+| `request-path-bound-exceeded` | `--file` or the `--handler` module exceeds 1 MiB, or the 64-file bound of AMAP-V0-137 was reached before `--file` was read. |
+| `request-path-profile-invalid` | `--env-profile` is unreadable, over 1 MiB, or has a line that is not `KEY=VALUE` (named by line number only). |
 
 ### Unknown reasons
 
@@ -919,6 +929,9 @@ optional `note`, `count` and `tests` of `test`, `basis` and optional `route`, an
 `screen-permissions`, `screen-flags`, `template`, `step`, `file`, `import`, `test-join`,
 `page-object`, `selector`, `scaffold`, `scaffold-import`, `scaffold-reuse`, `overlay` and
 `di-constant` and (V1-1131) `router`.
+
+`flows request-path` (V1-1941, AMAP-V0-134) uses its own kinds and reasons, listed in the
+request-path section at the end of this spec.
 
 V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rails-statement`,
 `rails-constraints`, `rails-defaults`, `non-literal-rails-scope`, `non-literal-rails-resource`,
