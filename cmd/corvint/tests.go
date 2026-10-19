@@ -69,7 +69,8 @@ JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
 JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED and
 JS-BOUNDARY-MOCKED. To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
 RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY and the advisory
-DESCRIBED-CLASS-STUBBED. It prints one corvint-test-source-validity/0
+DESCRIBED-CLASS-STUBBED. To both, the advisory intra-example STUB-ON-PATH,
+STUB-NEVER-INVOKED (static form) and ASSERTED-VALUE-NOT-FROM-SUBJECT. It prints one corvint-test-source-validity/0
 document: each file's findings (uncertain with a reason where the reader
 abstained) and the tests. A JS/TS file lists every example in line order with
 its hygiene and a NOT_MEASURED strength; other files list each test a finding
@@ -81,7 +82,7 @@ Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858).
+V1-1592, V1-1798, V1-1858, V1-1887, V1-1889).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.

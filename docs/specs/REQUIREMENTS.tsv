@@ -4134,6 +4134,17 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-120	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
+TSA-V0-121	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST	standing	2026-10-11; V1-1887; #1171
+TSA-V0-122	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-par	standing	2026-10-11; V1-1887; #1171
+TSA-V0-123	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on an external	standing	2026-10-11; V1-1887; #1171
+TSA-V0-124	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A silent stub MUST be	standing	2026-10-11; V1-1887; #1171
+TSA-V0-125	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The run-based form of	standing	2026-10-11; V1-1887; #1171
+TSA-V0-126	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An assertion's actual	standing	2026-10-11; V1-1889; #1173
+TSA-V0-127	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) A Jest/Vitest	standing	2026-10-11; V1-1889; #1173
+TSA-V0-128	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An expectation that t	standing	2026-10-11; V1-1889; #1173
+TSA-V0-129	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) These MUST NOT be	standing	2026-10-11; V1-1889; #1173
+TSA-V0-130	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
