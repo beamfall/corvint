@@ -2,6 +2,7 @@ package testsource
 
 import (
 	"fmt"
+	"maps"
 	"path"
 	"slices"
 	"strings"
@@ -154,8 +155,9 @@ func UnselectedFiles(r Repo, options UnselectedOptions) (UnselectedReport, error
 		}
 	}
 	slices.Sort(names)
+	resolver := newRepoResolver(r, commit)
 	for _, name := range names {
-		file, ok := classifyFile(name, parseSource(name, texts[name]), set)
+		file, ok := classifyFile(name, parseSource(name, texts[name]), set, resolver)
 		if !ok {
 			continue
 		}
@@ -170,11 +172,11 @@ func UnselectedFiles(r Repo, options UnselectedOptions) (UnselectedReport, error
 
 // classifyFile classifies one candidate; ok is false when it declares no test or describe, so it
 // is not test-looking (TSA-V0-140, TSA-V0-144).
-func classifyFile(name string, s *source, set runnerSet) (SelectionFile, bool) {
+func classifyFile(name string, s *source, set runnerSet, resolver *moduleResolver) (SelectionFile, bool) {
 	if !isTestCandidatePath(name) || !slices.ContainsFunc(s.decls, func(d decl) bool { return d.kind == "test" || d.kind == "describe" }) {
 		return SelectionFile{}, false
 	}
-	file := SelectionFile{Path: name, Framework: s.framework()}
+	file := SelectionFile{Path: name, Framework: s.framework(resolver)}
 	uncertain := func(reason string) (SelectionFile, bool) {
 		file.Selection, file.Reason = SelectionUncertain, reason
 		return file, true
@@ -186,6 +188,8 @@ func classifyFile(name string, s *source, set runnerSet) (SelectionFile, bool) {
 		return uncertain("framework-ambiguous")
 	case file.Framework == frameworkOther:
 		return uncertain("framework-unmodelled")
+	case file.Framework == frameworkUnresolved:
+		return uncertain(ReasonFrameworkUnresolved)
 	case len(set.runners) == 0 && len(set.unmodelled) == 0:
 		return uncertain("no-runner-configuration")
 	}
@@ -246,48 +250,69 @@ func runnerRuns(runner, framework string) bool {
 	return runner == framework
 }
 
-// framework attributes the file from its imports and requires (TSA-V0-143): the one modelled
-// framework module it imports, "unmodelled" for another test framework module, "ambiguous" for
-// more than one, "indirect" when a test or describe root it calls (or expect) is bound from another
-// module, and "globals" otherwise.
-func (s *source) framework() string {
+// framework attributes the file from its imports and requires (TSA-V0-143, TSA-V0-147): the one
+// modelled framework module it imports, "unmodelled" for another test framework module, "ambiguous"
+// for more than one, and "globals" otherwise. A test or describe root it calls (or expect) is
+// followed through local aliases (`const test = base`, `base.extend(…)`); when it ends on a binding
+// from another module, resolver follows that binding through committed relative modules, re-exports
+// and extend-derived bindings to its framework module, and the file is "indirect" when some binding
+// cannot be followed. A test or describe root declared in the file that ends on no import is
+// "unresolved". A nil resolver follows no module.
+func (s *source) framework(resolver *moduleResolver) string {
 	found := map[string]bool{}
-	indirect := false
-	roots := map[string]bool{"expect": true}
-	for _, d := range s.decls {
-		roots[d.base] = true
-	}
 	for i, t := range s.tokens {
 		if t.Kind != appmap.JSString || !t.Literal {
 			continue
 		}
-		binding, ok := s.moduleBinding(i)
-		if !ok {
+		if _, ok := s.moduleBinding(i); !ok {
 			continue
 		}
-		module := t.Text
-		switch {
+		switch module := t.Text; {
 		case frameworkModules[module] != "":
 			found[frameworkModules[module]] = true
 		case otherFrameworkModules[module]:
 			found[frameworkOther] = true
-		default:
-			for j := binding[0]; j < binding[1]; j++ {
-				if s.ident(j, "") && roots[s.tokens[j].Text] {
-					indirect = true
-				}
-			}
 		}
+	}
+	table := s.moduleTable()
+	bound, resolved, followed, unresolved := []importedName{}, map[string]bool{}, true, false
+	roots := map[string]bool{"expect": false}
+	for _, d := range s.decls {
+		roots[d.base] = true
+	}
+	for _, root := range slices.Sorted(maps.Keys(roots)) {
+		declares, name := roots[root], table.rooted(root)
+		b, ok := table.imports[name]
+		switch {
+		case ok && frameworkModules[b.spec] == "" && !otherFrameworkModules[b.spec]:
+			bound = append(bound, b)
+		case !ok && declares && (table.declared[name] || name != root):
+			unresolved = true
+		}
+	}
+	for _, b := range bound {
+		framework := resolver.follow(s.path, b, 0)
+		if framework == "" {
+			followed = false
+			continue
+		}
+		resolved[framework] = true
+	}
+	direct := len(found) > 0
+	for framework := range resolved {
+		found[framework] = true
 	}
 	switch {
 	case len(found) > 1:
 		return frameworkAmbiguous
-	case len(found) == 1:
+	case len(found) == 1 && (direct || followed):
 		for framework := range found {
 			return framework
 		}
-	case indirect:
+	case len(bound) > 0:
 		return frameworkIndirect
+	case unresolved:
+		return frameworkUnresolved
 	}
 	return frameworkGlobals
 }
@@ -329,6 +354,7 @@ func SelectedSourceValidity(r Repo, options SourceValidityOptions) (SourceValidi
 		return report, err
 	}
 	var set *runnerSet
+	resolver := newRepoResolver(r, report.Revision)
 	for fi := range report.Files {
 		file := &report.Files[fi]
 		if !isTestCandidatePath(file.Path) {
@@ -347,7 +373,7 @@ func SelectedSourceValidity(r Repo, options SourceValidityOptions) (SourceValidi
 			return SourceValidityReport{}, err
 		}
 		s := parseSource(file.Path, string(data))
-		selection, ok := classifyFile(file.Path, s, *set)
+		selection, ok := classifyFile(file.Path, s, *set, resolver)
 		if !ok || selection.Selection != SelectionUnselected {
 			continue
 		}
