@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -102,8 +103,11 @@ type BoundaryInventory struct {
 	TestFiles int64
 	Kinds     map[string]int64
 	Examples  []string
-	cited     map[string]bool
-	tracked   map[string]bool
+	// Patterns are the TOL-V0-103 declared test-file patterns that extend
+	// the closed naming set; nil keeps BoundaryTestKind alone.
+	Patterns []intent.ObligationTestFilePattern
+	cited    map[string]bool
+	tracked  map[string]bool
 }
 
 // NewBoundaryInventory starts the inventory of repo for the cited paths.
@@ -119,7 +123,7 @@ func NewBoundaryInventory(repo *string, cited []string) *BoundaryInventory {
 // as a file or as a directory prefix. It always returns false so it can be
 // passed as a keep func that retains nothing.
 func (b *BoundaryInventory) Visit(p string) bool {
-	if k := BoundaryTestKind(p); k != "" {
+	if k := BoundaryTestKindWith(p, b.Patterns); k != "" {
 		b.TestFiles++
 		b.Kinds[k]++
 		if len(b.Examples) < MaxBoundaryExamples {
@@ -155,8 +159,14 @@ func (b *BoundaryInventory) Value() wire.Value {
 	for _, e := range b.Examples {
 		ex = append(ex, wire.String(e))
 	}
-	return wire.ObjectValue(o.Set("status", wire.String("KNOWN")).Set("commit", wire.String(b.Commit)).
-		Set("testFiles", wire.String(string(wire.CountOf(b.TestFiles)))).Set("kinds", wire.Array(kv...)).Set("examples", wire.Array(ex...)))
+	o.Set("status", wire.String("KNOWN")).Set("commit", wire.String(b.Commit)).
+		Set("testFiles", wire.String(string(wire.CountOf(b.TestFiles)))).Set("kinds", wire.Array(kv...)).Set("examples", wire.Array(ex...))
+	// TOL-V0-103: an inventory classified with declared patterns says so; one
+	// without keeps its exact earlier bytes.
+	if len(b.Patterns) > 0 {
+		o.Set("declaredPatterns", wire.String(string(wire.CountOf(int64(len(b.Patterns))))))
+	}
+	return wire.ObjectValue(o)
 }
 
 // BoundaryRepoKey is the inventory map key of a cite's repository: "" for
@@ -224,4 +234,26 @@ func boundaryCitePath(p string) string { return strings.TrimSuffix(p, "/") }
 // worth revisiting.
 func BoundaryRescopeCandidate(e ticket.ObligationEntry, verdict string) bool {
 	return e.Scope != nil && e.Scope.Status == ticket.ObligationScopeAccepted && !e.Scope.Core && !e.Core && verdict == BoundaryTestable
+}
+
+// BoundaryTestKindWith is BoundaryTestKind extended by the TOL-V0-103
+// declared patterns: the closed naming set answers first, then the first
+// declared pattern that matches gives its kind. A pattern without "/" is
+// matched against the base name, one with "/" against the whole path; "*"
+// never crosses "/" (path.Match).
+func BoundaryTestKindWith(p string, patterns []intent.ObligationTestFilePattern) string {
+	if k := BoundaryTestKind(p); k != "" {
+		return k
+	}
+	base := path.Base(p)
+	for _, tp := range patterns {
+		subject := p
+		if !strings.Contains(tp.Pattern, "/") {
+			subject = base
+		}
+		if ok, _ := path.Match(tp.Pattern, subject); ok {
+			return tp.Kind
+		}
+	}
+	return ""
 }

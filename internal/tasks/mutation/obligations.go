@@ -239,6 +239,18 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 			}
 		}
 	}
+	if p.Set != nil && c.Policy.ObligationCitesDeclaredRequired() {
+		for _, ch := range p.Set.Changes {
+			for _, ct := range ch.Cites {
+				if ct.Repository == nil {
+					continue
+				}
+				if _, ok := c.Policy.ObligationTestRepository(*ct.Repository); !ok {
+					return refuse(OutcomeValidationFailed, wire.CodeMalformed, "%s %s cites repository %s, which the policy's obligations.testRepositories does not declare (TOL-V0-102)", ticket.ObligationCiteRepositoryDetail, ch.ID, *ct.Repository)
+				}
+			}
+		}
+	}
 	w := p.Witness
 	if w == nil {
 		if role == "WORKER" {

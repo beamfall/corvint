@@ -39,8 +39,8 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-060..067 (version qualification and test repositories, GitHub #1070, V1-1648) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-079..083 (test boundaries and scope decisions, GitHub #1180, V1-1913) and TOL-V0-084..088 (reviewed-shortfall worklist, GitHub #1182, V1-1915) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
-- Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the read-only `boundary` and `worklist` verbs (TOL-V0-083, 086..088), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-060..067 (version qualification and test repositories, GitHub #1070, V1-1648) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-079..083 (test boundaries and scope decisions, GitHub #1180, V1-1913) and TOL-V0-084..088 (reviewed-shortfall worklist, GitHub #1182, V1-1915) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-100..109 (ledger gate hardening, GitHub #1202, V1-1945, V1-1946, V1-1949) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the read-only `boundary`, `worklist` and `capability` verbs (TOL-V0-083, 086..088, 108), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: no shipped Playwright version is qualified; an operator qualifies one locally by running the embedded fixture (TOL-V0-060..063), and no live run of it is retained yet.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
 
@@ -920,8 +920,10 @@ declared test repositories (TOL-V0-064); no new journal or record profile is add
   a declared test repository, and `path` is a repository path to a file or directory (a trailing
   `/` names the same directory). A change's
   `cites` replaces the entry's. An entry without the member keeps its exact earlier bytes, and an
-  older closed reader refuses a change that carries it `MALFORMED`. A label is not checked at write;
-  an undeclared label reads `UNKNOWN` (TOL-V0-083).
+  older closed reader refuses a change that carries it `MALFORMED`. A label is checked at write
+  by default under TOL-V0-102 (owner decision 2026-10-19, V1-1963); under an explicit
+  `obligations.requireDeclaredCites` false it is not, and an undeclared label reads `UNKNOWN`
+  (TOL-V0-083).
 - `TOL-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A change MUST admit the optional member
   `scope`: `{action: PROPOSE, core, evidence}` with a 1..512-byte non-blank evidence reference, or
   `{action: ACCEPT, core}`. A change with `scope` has a null `core`, else it refuses `MALFORMED`; the
@@ -995,6 +997,93 @@ witness candidate awaits review.
   head plus up to K later items that cite the same test file (test repository and path), in rank
   order.
 
+### Ledger gate hardening (V1-1945, V1-1946, V1-1949; GitHub #1202)
+
+The reviewed-witness, boundary and plan reads judged evidence at `HEAD` alone. A review whose test
+file later changed could not be resolved where it was reviewed, an unborn test-repository `HEAD`
+read as a stale review, a cite label typo was admitted silently, the test classifier was a closed
+naming set with no declared extension, a plan check counted only browser-report coverage, and no
+read answered whether a capability exists in a deployed environment rather than at `HEAD`. These
+requirements add read-side resolution and three optional policy members. They add no journal,
+record or event profile and change no accepted requirement's default output.
+
+- `TOL-V0-100`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1946)) When a
+  reviewed witness names a declared test repository whose `HEAD` names no commit (an unborn
+  branch), `show`'s `witnessReview` entry MUST report `stale` null with `staleUnknown`
+  `TEST_REPOSITORY_UNRESOLVED` and withhold the credit from `effectiveWitnessed`, exactly as for
+  a test repository that cannot be resolved (TOL-V0-077). A test repository with a `HEAD` commit
+  whose reviewed blob differs still reports `stale` true.
+- `TOL-V0-101`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) Each
+  `boundary` entry with a recorded review, and each `worklist` item and `excluded` entry, MUST
+  carry `reviewedSubject` `{repository, path, commit, status, reason}`: the reviewed file resolved
+  at the review's own commit in the repository the review read, never at `HEAD`. `status` is
+  `RESOLVED` with a null `reason` when that commit holds the file with the reviewed digest;
+  otherwise `UNAVAILABLE` with the reason `TEST_REPOSITORY_UNRESOLVED` (the repository cannot be
+  resolved), `REVIEWED_COMMIT_UNAVAILABLE` (it does not hold the reviewed commit),
+  `SUBJECT_ABSENT_AT_REVIEW`, `SUBJECT_UNREADABLE_AT_REVIEW` (over the read bound) or
+  `SUBJECT_MISMATCH_AT_REVIEW`. The member never changes a verdict, an item, an exclusion or its
+  reason; an entry without a review has no member.
+- `TOL-V0-102`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945); default
+  amended to true by owner decision 2026-10-19, V1-1963) The optional policy key
+  `obligations.requireDeclaredCites` (default true) MUST, when absent or true, refuse an
+  `OBLIGATIONS_SET` change any of whose `cites` names a repository label that
+  `obligations.testRepositories` does not declare: `VALIDATION_FAILED` with the code `MALFORMED`
+  and the detail prefix `OBLIGATION_CITE_REPOSITORY_UNDECLARED:`, writing nothing. A null
+  repository (the store's own) is always admitted. An explicit false opts out to the pre-amendment
+  TOL-V0-079 write (a label is not checked at write and reads `UNKNOWN`); a non-boolean value is
+  refused `MALFORMED`.
+- `TOL-V0-103`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) The
+  optional policy key `obligations.testFilePatterns` MUST admit 1..32 objects `{kind, pattern}`:
+  `kind` a label and `pattern` a 1..256-byte relative `path.Match` pattern with no TAB, LF or CR;
+  an empty or over-count array refuses the policy `LIMIT_EXCEEDED` and a malformed pattern
+  `MALFORMED`. The boundary inventory (TOL-V0-083) and the
+  plan witness type (TOL-V0-104) classify a tracked path by the closed naming set first, then by
+  the first declared pattern that matches: against the base name when the pattern has no `/`,
+  else against the whole path, with `*` never crossing `/`. An inventory classified with declared
+  patterns adds `declaredPatterns` (their count); without the key every inventory keeps its exact
+  bytes.
+- `TOL-V0-104`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub
+  #1202)) `ticket obligations plan --witnesses` MUST add `ledgerWitnesses`: one object per
+  `WITNESSED` entry `{id, source, testType, commit, testRepository, eventSha256, status}`, where
+  `testType` is `browser` for a Playwright report, `declared` for an OWNER declaration, the naming
+  or declared kind of a reviewed file (TOL-V0-103), else `unclassified`. A `WITNESSED` row is
+  never `UNASSIGNED` (TOL-V0-020) whatever its test type, so a plan whose open rows all hold
+  receipt-backed reviewed witnesses at a pinned commit is not refused for missing witnesses.
+  Without `--witnesses` the plan output keeps its exact earlier bytes.
+- `TOL-V0-105`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) Under
+  `--witnesses`, a `REVIEWED` witness MUST have `status` `REVIEW_STALE_AT_HEAD` when its reviewed
+  blob differs at the `HEAD` of the repository the review read, `REVIEW_UNRESOLVED_AT_HEAD` when
+  that cannot be judged (TOL-V0-077, 100), else `COVERED`; every other witness is `COVERED`. Each
+  non-`COVERED` witness adds a `STALE_REVIEW` finding, sets `ok` false and refuses the plan with a
+  warning that names `STALE_REVIEW`.
+- `TOL-V0-106`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub
+  #1202)) Under `--witnesses`, each `UNASSIGNED` finding MUST carry `considered` `{witness,
+  insufficient}`: a recorded candidate (`{kind: CANDIDATE, path}`, `CANDIDATE_AWAITING_REVIEW`), a
+  `HELD` review (`{kind: REVIEWED, path, commit, testRepository, eventSha256, axes}`,
+  `REVIEW_HELD`), else a null `witness` with `NO_LEDGER_WITNESS`.
+- `TOL-V0-107`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub
+  #1202)) The optional policy key `obligations.environmentBaselines` MUST admit 1..17 members
+  keyed `.` (the store's repository) or a test-repository label, each a full `refs/...` name
+  (no whitespace, `~^:?*[\`, `..`, `@{`, trailing `/` or `.lock`) or a 40 or 64 lowercase-hex
+  object id; an empty or over-count object refuses the policy `LIMIT_EXCEEDED` and anything else
+  `MALFORMED`. It names the revision each
+  environment runs.
+- `TOL-V0-108`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The read
+  `ticket obligations capability --path P [--contains TEXT] [--repository NAME]` MUST write
+  nothing and answer only from the declared baseline's commit, never from `HEAD`. Its untrusted
+  item is `{baseline {repository, ref, commit}, path, contains, status, reason, matches,
+  truncated}`: `PRESENT` with up to 16 tracked paths at or under `P` (containing `TEXT` when
+  given) and `truncated` when more matched or the file or blob bound left a file unexamined,
+  or `ABSENT` with `NOT_FOUND_AT_BASELINE`. `P` is a
+  clean repository-relative path (`.` for all) and `TEXT` 1..256 bytes on one line, else the
+  call refuses as usage.
+- `TOL-V0-109`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The
+  capability read MUST abstain with `status` `UNKNOWN`, empty `matches` and the reason
+  `ENVIRONMENT_BASELINE_UNDECLARED` (no baseline for that repository; `ref` and `commit` null),
+  `TEST_REPOSITORY_UNRESOLVED`, `ENVIRONMENT_BASELINE_UNRESOLVED` (the ref does not resolve or its
+  tree cannot be listed; `commit` null) or `SEARCH_BOUND_EXCEEDED` (nothing matched but more than
+  1,024 files were listed or a blob was over the read bound).
+
 ## Failure modes and trust
 
 | Failure | Effect without this profile | Required behaviour |
@@ -1042,6 +1131,11 @@ witness candidate awaits review.
 | An agent moves an obligation out of the core count to raise a completion rate | The rate counts less work while looking complete | `core` moves through a recorded proposal that a different actor accepts as OWNER; `requireScopeDecision` refuses the plain core change `APPROVAL_MISSING` (TOL-V0-081, 082). Retained limit: actor ids and roles are recorded claims (decision 0003), so one operator acting under two ids is not detected. |
 | An obligation cites no code, or a repository that cannot be listed | A missing boundary is read as "no tests" | The verdict is `UNKNOWN` (`NO_CITATIONS`, `REPOSITORY_UNAVAILABLE`), never `NO_TEST_BOUNDARY` (TOL-V0-083). The test classifier is a naming heuristic: a matching file no runner executes still counts. |
 | A worker re-queues an entry whose new candidate is not yet reviewed, or works from a stale review | Duplicate work, or work against changed bytes | The worklist excludes `CANDIDATE_AWAITING_REVIEW`, `SUBJECT_CHANGED` and `SUBJECT_UNVERIFIED` entries (TOL-V0-086). |
+| A test repository's `HEAD` is unborn, or the reviewed commit is gone | An unborn `HEAD` reads as a stale review; a reviewer cannot see what was reviewed | An unborn `HEAD` is `TEST_REPOSITORY_UNRESOLVED` with the credit withheld (TOL-V0-100); `reviewedSubject` names the reviewed commit and `REVIEWED_COMMIT_UNAVAILABLE` when it is gone (TOL-V0-101). |
+| A cite names a mistyped repository label | The obligation reads `UNKNOWN` and no one notices | `requireDeclaredCites`, default true (owner decision 2026-10-19, V1-1963), refuses it `OBLIGATION_CITE_REPOSITORY_UNDECLARED:` (TOL-V0-102). Retained limit: an explicit false opts out, and the label then reads `UNKNOWN`. |
+| A project's tests use a naming convention outside the closed set | The boundary reports `NO_RUNNABLE_TESTS` for a tested repository | Declared `testFilePatterns` extend the set (TOL-V0-103). Retained limit: still a naming heuristic, never a runner probe. |
+| A plan check counts only browser coverage, or a stale review as coverage | API or unit witnesses are re-demanded; a changed test still counts | `--witnesses` names every ledger witness and its type, and a stale review refuses `STALE_REVIEW` (TOL-V0-104, 105). |
+| A capability question is answered from `HEAD` | A feature merged but not deployed reads as present | The capability read answers only at a declared baseline and abstains `UNKNOWN` without one (TOL-V0-107..109). |
 
 ## Non-goals and simpler baseline
 
@@ -1077,13 +1171,18 @@ witness candidate awaits review.
 - Reviewer verdicts gating completion, an agreement rule other than unanimous `correct`, verifying
   that a reviewer label names a real person, or judging staleness at the reviewed candidate rather
   than at `HEAD` (TOL-V0-073..078).
-- Refusing plain core changes by default, verifying that a cite label is declared at write,
-  running a test provider to prove it runnable, or ranking by anything but priority, nearest
+- Refusing plain core changes by default, running a test provider to prove it runnable, or ranking by anything but priority, nearest
   completion and review age (TOL-V0-079..088).
 - Running Playwright to qualify a version, shipping a qualified version, sharing the allow-list
   across machines, or qualifying from anything but the embedded fixture (TOL-V0-060..063).
 - Running `run-batch`, `qualify` or `preflight` in a declared test repository, several test
   repositories per witness, or fetching or cloning one (TOL-V0-064..067).
+
+- Checking cite labels under an explicit `requireDeclaredCites` false, probing that a declared
+  pattern's files are run by any
+  runner, judging environment capability from anything but a declared ref or object id, fetching
+  a baseline, or reading deployment state; `preflight --plan` does not take `--witnesses`
+  (TOL-V0-100..109).
 
 The simpler baseline stays available: a body checklist plus the external script. This profile is
 justified only if the owner wants the queue and dispatcher to see proven progress natively.
@@ -1113,8 +1212,9 @@ fixture passes.
 | TOL-V0-055..059 (accepted, owner's standing auto-accept 2026-10-11) | V1-1649 (GitHub #1071) | `internal/tasks/wire/obligations.go` (alias limit), `internal/tasks/ticket/obligations.go` (`PARTIAL`, `ObligationPending`, provenance codec, witness fold), `internal/tasks/ticket/obligation_plan.go` (`rerun`, `RERUN_NOT_WITNESSED`, core-only `UNASSIGNED`), `internal/tasks/cli/obligations.go` (provenance flags, `reruns`), `internal/tasks/cli/preflight.go` (remedy), `internal/tasks/mutation/obligations.go` (screen), the pending checks in `internal/tasks/obligation` and `internal/tasks/cli/run_batch.go` | `TestTOLV0055_AliasLimit128` (110-row seed with 78-byte aliases, 128 admitted, 129 refused naming the limit, audit), `TestTOLV0056_0057_PlanRerunAndNonCore` (110-row plan with witnessed reruns and omitted non-core, `BLOCKED` and `DEFECT` rows passes; `RERUN_NOT_WITNESSED`, listed `SPLIT`, core `UNASSIGNED`, both-lists `MALFORMED`, old output unchanged), `TestTOLV0058_PartialNeverWitnessed` (counts, reason required, plan, witness credits), `TestTOLV0059_WitnessProvenance` (per-entry provenance, absent member kept, bad OID, secret) (`internal/tasks/cli`); `TestTOLV0020_PlanCheck` and `TestTOLV0026_PreflightPlanCheck` updated for TOL-V0-057; `TestTOLV0034_SeedWithAliases` refuses 129 bytes | the adopter's 4,562-row ledger migrated end to end (`NOT_RUN`) |
 | TOL-V0-060..067 (accepted, owner's standing auto-accept 2026-10-11) | V1-1648 (GitHub #1070) | `internal/tasks/obligation/obligation-qualification.spec.ts` (fixture), `internal/tasks/obligation/qualification.go` (`Qualify`, allow-list codec), `internal/tasks/obligation/report.go` (any-version qualification read), `internal/tasks/cli/obligation_qualify.go` (`qualify-version`), `internal/tasks/cli/obligations.go` (`--test-repository`, admitted versions), `internal/tasks/cli/run_batch.go` (admitted versions), `internal/tasks/intent/policy.go` (`obligations.testRepositories`), `internal/tasks/ticket/obligations.go` (`testRepository` member), `internal/tasks/mutation/obligations.go` (writer check), `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/store/external_review.go` and `internal/tasks/store/obligations.go` (`ExactWorktreeRoot`; audit in the test repository) | `TestTOLV0060_FixtureExpectedClasses`, `TestTOLV0061_QualifyMatchesFixture` (soft parent, retry-0, sibling, expected-fail differences; passing, failed and defect matches outside the one fixture file), `TestTOLV0062_AllowListCodec` (round trip, newer profile, unknown member, 65th version), `TestTOLV0062_AllowListReadRefusesSymlinkAndFIFO`, `TestTOLV0063_AllowListAdmitsOnlyFixtureEvidence` (`internal/tasks/obligation`); `TestTOLV0060_PrintFixture`, `TestTOLV0061_QualificationRefusals`, `TestTOLV0062_AllowListRecorded`, `TestTOLV0063_QualifiedVersionAdmitted`, `TestTOLV0063_ForgedAllowListEntryNotAdmitted`, `TestTOLV0064_PolicyTestRepositories`, `TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot`, `TestTOLV0065_SeparateTestRepository1_64` (AC3), `TestTOLV0065_WriterBindsDeclaredPath`, `TestTOLV0066_AuditInTestRepository`, `TestTOLV0066_AuditRequiresExactTestRepositoryRoot`, `TestTOLV0067_UndeclaredRefusalsUnchanged` (`internal/tasks/cli`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` classifies `taskman-obligation-qualifications/0` | a live Playwright run of the fixture recorded by `qualify-version` (`NOT_RUN`); run-batch with a store-local version (code path only, `NOT_RUN`) |
 | TOL-V0-073..078 (accepted, owner's standing auto-accept 2026-10-11) | V1-1886 (GitHub #1170) | `internal/tasks/ticket/obligation_review.go` (review codec, outcome), `internal/tasks/ticket/obligations.go` (source, evidence, entry, fold), `internal/tasks/mutation/obligations.go` (authority, screen), `internal/tasks/cli/obligations.go` (`--reviewed`, `--review`, `--exclude-author`, `witnessReview`) | `TestTOLV0074_ReviewCodec`, `TestTOLV0075_ReviewOutcome`, `TestTOLV0076_ReviewFold` (`internal/tasks/ticket`); `TestTOLV0073_ReviewedWitnessCreditsOnAgreement`, `TestTOLV0075_HeldVerdictsKeptWithReasons`, `TestTOLV0077_EditedExampleMakesReviewStale`, `TestTOLV0077_TestRepositoryReviewStaleness` (a test-repository review is judged in that repository: fresh with the store copy removed, stale after the test repository's copy changes, `TEST_REPOSITORY_UNRESOLVED` and uncredited once it no longer resolves), `TestTOLV0074_AuthorReviewerRefused` (`internal/tasks/cli`) | reviews by real independent reviewers on an adopter ledger (`NOT_RUN`) |
-| TOL-V0-079..083 (accepted, owner's standing auto-accept 2026-10-11) | V1-1913 (GitHub #1180) | `internal/tasks/ticket/obligation_scope.go` (cites, scope, fold), `internal/tasks/mutation/obligations.go` (ACCEPT authority, `requireScopeDecision`, screen), `internal/tasks/intent/policy.go`, `internal/tasks/obligation/boundary.go`, `internal/tasks/cli/obligation_boundary.go` (`boundary`, `outOfScope`) | `TestTOLV0083_NoTestBoundaryScopeDecisionAndRescope`, `TestTOLV0082_RequireScopeDecisionRefusesPlainCore` (`internal/tasks/cli`); `TestTOLV0083_BoundaryTestKind`, `TestTOLV0083_BoundaryVerdictDirectoryCite` (`internal/tasks/obligation`) | a boundary read on an adopter repository without tests (`NOT_RUN`) |
-| TOL-V0-084..088 (accepted, owner's standing auto-accept 2026-10-11) | V1-1915 (GitHub #1182) | `internal/tasks/ticket/obligation_scope.go` (candidate), `internal/tasks/ticket/obligation_review.go` (finding), `internal/tasks/obligation/worklist.go`, `internal/tasks/cli/obligation_boundary.go` (`worklist`) | `TestTOLV0086_WorklistBatchCandidateAndNeedsText`, `TestTOLV0085_FindingNeedsShortfallVerdict` (`internal/tasks/cli`); `TestTOLV0087_RankPriorityThenNearest` (`internal/tasks/obligation`) | a worker draining a real worklist (`NOT_RUN`) |
+| TOL-V0-079..083 (accepted, owner's standing auto-accept 2026-10-11) | V1-1913 (GitHub #1180) | `internal/tasks/ticket/obligation_scope.go` (cites, scope, fold), `internal/tasks/mutation/obligations.go` (ACCEPT authority, `requireScopeDecision`, screen), `internal/tasks/intent/policy.go`, `internal/tasks/obligation/boundary.go`, `internal/tasks/cli/obligation_boundary.go` (`boundary`, `outOfScope`) | `TestTOLV0079_CitesBoundsReplaceAndDefault`, `TestTOLV0080_ScopeShape`, `TestTOLV0083_NoTestBoundaryScopeDecisionAndRescope`, `TestTOLV0082_RequireScopeDecisionRefusesPlainCore` (`internal/tasks/cli`); `TestTOLV0083_BoundaryTestKind`, `TestTOLV0083_BoundaryVerdictDirectoryCite` (`internal/tasks/obligation`) | a boundary read on an adopter repository without tests (`NOT_RUN`) |
+| TOL-V0-084..088 (accepted, owner's standing auto-accept 2026-10-11) | V1-1915 (GitHub #1182) | `internal/tasks/ticket/obligation_scope.go` (candidate), `internal/tasks/ticket/obligation_review.go` (finding), `internal/tasks/obligation/worklist.go`, `internal/tasks/cli/obligation_boundary.go` (`worklist`) | `TestTOLV0084_CandidateShapeAndClear`, `TestTOLV0086_WorklistBatchCandidateAndNeedsText`, `TestTOLV0085_FindingNeedsShortfallVerdict` (`internal/tasks/cli`); `TestTOLV0087_RankPriorityThenNearest` (`internal/tasks/obligation`) | a worker draining a real worklist (`NOT_RUN`) |
+| TOL-V0-100..109 (accepted, owner's standing auto-accept 2026-10-11) | V1-1945, V1-1946, V1-1949 (GitHub #1202) | `internal/tasks/cli/obligation_review.go` (`reviewHeadStates`), `internal/tasks/cli/obligation_subject.go` (`reviewedSubject`, plan witnesses, `capability`), `internal/tasks/cli/obligation_boundary.go`, `internal/tasks/cli/obligations.go` (`plan --witnesses`), `internal/tasks/mutation/obligations.go` (`requireDeclaredCites`), `internal/tasks/intent/policy.go`, `internal/tasks/obligation/boundary.go` (`BoundaryTestKindWith`) | `TestTOLV0100_UnbornTestRepositoryHeadUnresolved`, `TestTOLV0101_ReviewedSubjectAtReviewedCommit`, `TestTOLV0102_DeclaredCitesRequired`, `TestTOLV0103_DeclaredTestFilePatterns`, `TestTOLV0104_PlanCountsLedgerWitnesses`, `TestTOLV0105_PlanStaleReviewedWitness`, `TestTOLV0106_UnassignedNamesConsideredWitness`, `TestTOLV0107_CapabilityAtEnvironmentBaseline`, `TestTOLV0107_CapabilityUndeclaredPrimary`, `TestTOLV0108_CapabilityBoundsAndReadOnly` (`internal/tasks/cli`); `TestTOLV0103_BoundaryTestKindWith` (`internal/tasks/obligation`); `TestTOLV0102_103_107_ObligationsPolicyMembers` (`internal/tasks/intent`); 12 mutations killed (build log) | a capability read against a live deployment ref and a non-browser adopter plan (`NOT_RUN`); a baseline commit whose tree cannot be listed, an over-bound blob, and `SUBJECT_ABSENT/UNREADABLE/MISMATCH_AT_REVIEW` (reachable only through a damaged object store) have no fixture (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -1248,3 +1348,16 @@ and the folded evidence). As with TOL-V0-034 and TOL-V0-059, an older binary ref
 silently stripped; a policy with `obligations.testRepositories` is likewise refused by an older
 policy reader. Rollback is reverting the change and removing the policy member before any such
 witness; after one, run the newer binary or restore the store from a backup taken before it.
+
+The accepted TOL-V0-100..109 add no journal, record, event or plan profile and no stored ledger
+bytes: `reviewedSubject`, `ledgerWitnesses`, `considered` and the `capability` item are read-side
+output, and `ledgerWitnesses` and `considered` appear only under `--witnesses`. The policy members
+`requireDeclaredCites`, `testFilePatterns` and `environmentBaselines` are optional; an older policy
+reader refuses a policy that carries one (fail-closed). `requireDeclaredCites` defaults to true
+(owner decision 2026-10-19, V1-1963): a store whose ledger relied on writing undeclared cite labels
+sets it false to keep the pre-amendment write; existing ledger bytes are never re-checked. Rollback is reverting the change and
+removing those policy members; no store state needs repair. The TOL-V0-080 scope evidence bound
+was raised from an implemented 256 bytes to the accepted 512 (build log 2026-10-19); a ledger
+holding a 257..512-byte evidence reference is refused `LIMIT_EXCEEDED` by an older binary's closed
+reader, so its ledger is `UNKNOWN`, never silently stripped, and recovery is to run the newer
+binary.

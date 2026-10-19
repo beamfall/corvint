@@ -158,36 +158,9 @@ func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.
 	if l == nil {
 		return wire.Value{}, false, nil
 	}
-	paths := map[string][]string{}
-	for _, e := range l.Entries {
-		if e.Review != nil {
-			repo := reviewRepository(e.Review)
-			paths[repo] = append(paths[repo], e.Review.Review.Subject.Path)
-		}
-	}
-	if len(paths) == 0 {
-		return wire.Value{}, false, nil
-	}
-	content := map[string]map[string][]byte{}
-	for repo, ps := range paths {
-		var root string
-		var err error
-		if repo == "" {
-			root, err = store.WorktreeRoot(env.Cwd)
-		} else if root, _, err = declaredTestRepository(rc, repo); err != nil {
-			continue
-		}
-		if err != nil {
-			return wire.Value{}, false, err
-		}
-		_, _, files, err := store.FilesAtCommit(root, "HEAD", ps)
-		if err != nil {
-			if repo != "" {
-				continue
-			}
-			return wire.Value{}, false, err
-		}
-		content[repo] = files
+	heads, err := reviewHeadStates(env, rc, l)
+	if err != nil || len(heads) == 0 {
+		return wire.Value{}, false, err
 	}
 	witnessed := l.Counts().Witnessed
 	var items []wire.Value
@@ -196,12 +169,8 @@ func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.
 			continue
 		}
 		rv := e.Review
-		files, resolved := content[reviewRepository(rv)]
-		stale := true
-		if body, ok := files[rv.Review.Subject.Path]; ok {
-			sum := sha256.Sum256(body)
-			stale = wire.Digest(hex.EncodeToString(sum[:])) != rv.Review.Subject.BlobSha256
-		}
+		h := heads[e.ID]
+		stale, resolved := h.stale, h.resolved
 		credited := e.State == ticket.ObligationWitnessed && e.Evidence != nil && e.Evidence.Source == ticket.ObligationSourceReviewed
 		if credited && (stale || !resolved) {
 			witnessed--
@@ -228,6 +197,72 @@ func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.
 		items = append(items, wire.ObjectValue(item))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("effectiveWitnessed", wire.String(string(wire.CountOf(witnessed)))).Set("entries", wire.Array(items...))), true, nil
+}
+
+// reviewHeadState is one reviewed entry's TOL-V0-077 read-time judgement:
+// whether its review's repository resolved at HEAD, and whether the cited
+// example there differs from the reviewed bytes.
+type reviewHeadState struct {
+	resolved bool
+	stale    bool
+}
+
+// reviewHeadStates judges every reviewed entry of l at HEAD of the
+// repository its review read: the store worktree, or the declared test
+// repository. A test repository that is undeclared, unreadable or has an
+// unborn HEAD leaves the entry unresolved (TOL-V0-077, TOL-V0-100); an
+// unreadable store worktree is an error.
+func reviewHeadStates(env Env, rc *readCtx, l *ticket.ObligationLedger) (map[string]reviewHeadState, error) {
+	paths := map[string][]string{}
+	for _, e := range l.Entries {
+		if e.Review != nil {
+			repo := reviewRepository(e.Review)
+			paths[repo] = append(paths[repo], e.Review.Review.Subject.Path)
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	content := map[string]map[string][]byte{}
+	for repo, ps := range paths {
+		var root string
+		var err error
+		if repo == "" {
+			root, err = store.WorktreeRoot(env.Cwd)
+		} else if root, _, err = declaredTestRepository(rc, repo); err != nil {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		commit, _, files, err := store.FilesAtCommit(root, "HEAD", ps)
+		if err != nil {
+			if repo != "" {
+				continue
+			}
+			return nil, err
+		}
+		if commit == "" && repo != "" {
+			// TOL-V0-100: an unborn test-repository HEAD names no commit, so the
+			// review cannot be checked there; it is unresolved, never stale.
+			continue
+		}
+		content[repo] = files
+	}
+	out := map[string]reviewHeadState{}
+	for _, e := range l.Entries {
+		if e.Review == nil {
+			continue
+		}
+		files, resolved := content[reviewRepository(e.Review)]
+		stale := true
+		if body, ok := files[e.Review.Review.Subject.Path]; ok {
+			sum := sha256.Sum256(body)
+			stale = wire.Digest(hex.EncodeToString(sum[:])) != e.Review.Review.Subject.BlobSha256
+		}
+		out[e.ID] = reviewHeadState{resolved: resolved, stale: stale}
+	}
+	return out, nil
 }
 
 // testRepositoryUnresolved names why a review's staleness is unknown: its
