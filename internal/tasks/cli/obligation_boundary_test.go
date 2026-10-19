@@ -297,6 +297,27 @@ func TestTOLV0085_FindingNeedsShortfallVerdict(t *testing.T) {
 	}
 }
 
+// TestTOLV0081_GrantedOperatorCannotAccept: an OPERATOR row that explicitly
+// grants OBLIGATIONS_SET admits a proposal, but ACCEPT stays OWNER-only even
+// from an actor other than the proposer (TOL-V0-081).
+func TestTOLV0081_GrantedOperatorCannotAccept(t *testing.T) {
+	r, id, _ := obligationRepoWith(t, func(p wire.Value) {
+		p.Obj.Set("roles", wire.ObjectValue(wire.NewObject().Set("OPERATOR", wire.Strings([]string{"OBLIGATIONS_SET"}))))
+	})
+	seedObligations(t, r.Root, id)
+	propose := `[{"id":"AC-2","state":null,"core":null,"reason":"no test provider","scope":{"action":"PROPOSE","core":false,"evidence":"boundary report"}}]`
+	if x := boundarySet(t, r.Root, id, "prop-op", "agent-1", "OPERATOR", propose); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("granted OPERATOR propose: %s", x.stdout)
+	}
+	accept := `[{"id":"AC-2","state":null,"core":null,"reason":"accept","scope":{"action":"ACCEPT","core":false}}]`
+	if x := boundarySet(t, r.Root, id, "acc-op", "agent-2", "OPERATOR", accept); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "TOL-V0-081") {
+		t.Fatalf("granted OPERATOR accept: %s", x.stdout)
+	}
+	if x := boundarySet(t, r.Root, id, "acc-owner", "owner", "OWNER", accept); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("owner accept: %s", x.stdout)
+	}
+}
+
 // TestTOLV0086_WorklistTestRepositoryUnverified: an item reviewed from a
 // declared test repository carries that repository, and a test checkout
 // with no HEAD commit leaves it SUBJECT_UNVERIFIED, never SUBJECT_CHANGED

@@ -21,8 +21,9 @@ accepted requirement is amended.
   and an actor id other than the proposer's. Only an accepted decision moves `core`, so the existing
   counts (`coreTotal`, `coreWitnessed`) exclude the entry with no new counting path. `show` lists
   `outOfScope` and `scopeProposals`. Under the default §3.2 role matrix only OWNER may issue
-  OBLIGATIONS_SET at all, so the separation that matters in practice is the distinct actor id; the
-  explicit OWNER-only ACCEPT check is defence in depth for a future role grant.
+  OBLIGATIONS_SET. A policy `roles.OPERATOR` row can grant it explicitly (TOL-V0-015), and the
+  OWNER-only ACCEPT check is what then refuses the OPERATOR. Without such a row, the separation is
+  the distinct actor id.
 - **Plain core changes stay admitted by default.** Refusing every plain `core` change would amend
   the accepted TOL-V0-007/015. It ships as the opt-in policy key `obligations.requireScopeDecision`
   (TOL-V0-082). Making it the default is an owner decision.
@@ -55,15 +56,16 @@ accepted requirement is amended.
   - After the Codex fixes: `obligation` ok (35.39 28.91 30.36), `mutation` ok (31.89 29.24 30.38),
     and `cli -run 'TestTOLV00(7|8)'` ok, 15.7s (33.74 30.83 30.94).
   - BASE has none of the new tests, so the BASE count is 0.
-- 20 mutations, each run against its own test, and all 20 bite. Load averages were 22.62 28.27 29.98
+- 21 mutations, each run against its own test, and all 21 bite. Load averages were 22.62 28.27 29.98
   before and 25.02 26.24 28.51 after.
   - The 16 from the first build: BoundaryVerdict's tests-present check, re-scope verdict,
     JavaScript test classifier, self-accept, no-proposal, accept sets core, propose keeps core,
     requireScopeDecision, worklist candidate exclusion, candidate cleared on review, needs-text,
     finding beside a correct verdict, `--next` batch key, nearest rank, unknown rank key, stale
     subject.
-  - 4 from the Codex fixes: the trailing-slash cite, the unborn test-repository `HEAD`, the empty
-    finding, and the OWNER-only ACCEPT guard.
+  - 5 from the Codex fixes: the trailing-slash cite, the unborn test-repository `HEAD`, the empty
+    finding, and the OWNER-only ACCEPT guard (once at the unit level, once through the CLI under an
+    explicit grant).
 - The script is a scratch file and is not retained.
 
 ## Codex review (one round)
@@ -80,9 +82,11 @@ regression and no authority or self-acceptance bypass. All four findings are fix
 3. **P3: `"finding":""` passed the CLI and was dropped at serialisation.** Fixed: the CLI reads
    `finding` as the closed enum. The empty case is now tested.
 4. **P2: the CLI test could not reach the OWNER-only ACCEPT guard,** because the default role
-   matrix already refuses OPERATOR. A policy can only remove rows, so no fixture can grant it.
-   Fixed: an internal test, `TestTOLV0081_ScopeAcceptOwnerOnly`, calls `obligationAuthority`
-   directly.
+   matrix already refuses OPERATOR. Fixed with two tests:
+   - `TestTOLV0081_GrantedOperatorCannotAccept` grants OBLIGATIONS_SET through an explicit
+     `roles.OPERATOR` policy row. There, an OPERATOR proposal is admitted, and an ACCEPT from a
+     different actor is refused.
+   - `TestTOLV0081_ScopeAcceptOwnerOnly` calls `obligationAuthority` directly.
 
 ## Residuals
 
