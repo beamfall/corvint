@@ -609,9 +609,11 @@ type ObligationEntry struct {
 	Review *ObligationReviewRecord
 	// Cites, Scope and Candidate are the optional TOL-V0-079, 081 and 084
 	// members, nil when absent.
-	Cites         []ObligationCite
-	Scope         *ObligationScope
-	Candidate     *ObligationCandidate
+	Cites     []ObligationCite
+	Scope     *ObligationScope
+	Candidate *ObligationCandidate
+	// SatisfiedBy is the optional TOL-V0-120 mirror owner, nil when absent.
+	SatisfiedBy   *ObligationMirrorRef
 	UpdatedAt     wire.Timestamp
 	UpdatedByID   string
 	UpdatedByRole string
@@ -643,13 +645,16 @@ func (e ObligationEntry) Value() wire.Value {
 	if e.Candidate != nil {
 		v.Obj.Set("candidate", e.Candidate.Value())
 	}
+	if e.SatisfiedBy != nil {
+		v.Obj.Set("satisfiedBy", e.SatisfiedBy.Value())
+	}
 	return v
 }
 
 // ReadObligationEntry reads one closed entry and checks that evidence is
 // present exactly when the state is WITNESSED.
 func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
-	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias", "sources", "review", "cites", "scope", "candidate")...)
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"id", "title", "core", "state", "reason", "evidence", "updatedAt", "updatedBy"}, "alias", "sources", "review", "cites", "scope", "candidate", "satisfiedBy")...)
 	e := &ObligationEntry{ID: ReadObligationID(r.Field("id")), Title: readNonblank(r.Field("title"), MaxObligationTitleBytes), Core: r.Field("core").Bool(),
 		State: r.Field("state").Enum(ObligationStates...), UpdatedAt: r.Field("updatedAt").Timestamp()}
 	if wire.Has(r.Value(), "alias") {
@@ -669,6 +674,9 @@ func ReadObligationEntry(r *wire.Reader) *ObligationEntry {
 	}
 	if wire.Has(r.Value(), "candidate") {
 		e.Candidate = readObligationCandidate(r.Field("candidate"), true)
+	}
+	if wire.Has(r.Value(), "satisfiedBy") {
+		e.SatisfiedBy = readObligationMirrorRef(r.Field("satisfiedBy"))
 	}
 	e.Reason = r.Field("reason").StringOrNull(func(x *wire.Reader) string { return readNonblank(x, MaxObligationReasonBytes) })
 	if ev := r.Field("evidence"); !ev.IsNull() {
@@ -749,6 +757,9 @@ type ObligationChange struct {
 	Cites     []ObligationCite
 	Scope     *ObligationScopeChange
 	Candidate *ObligationCandidate
+	// Mirror is the optional satisfiedBy member (TOL-V0-120): set or clear
+	// the entry's mirror owner.
+	Mirror *ObligationMirrorChange
 }
 
 // ObligationSetPayload is the OBLIGATIONS_SET payload.
@@ -774,6 +785,9 @@ func (p ObligationSetPayload) Value() wire.Value {
 		if c.Candidate != nil {
 			v.Obj.Set("candidate", c.Candidate.Value())
 		}
+		if c.Mirror != nil {
+			v.Obj.Set("satisfiedBy", c.Mirror.Value())
+		}
 		vs = append(vs, v)
 	}
 	return noteObject("changes", wire.Array(vs...))
@@ -786,7 +800,7 @@ func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 	r.Closed("changes")
 	p := &ObligationSetPayload{}
 	readIDKeyed(r.Field("changes"), MaxObligationChanges, "changes", func(it *wire.Reader) string {
-		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "state", "core", "reason"}, "sources", "cites", "scope", "candidate")...)
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"id", "state", "core", "reason"}, "sources", "cites", "scope", "candidate", "satisfiedBy")...)
 		c := ObligationChange{ID: ReadObligationID(it.Field("id")), Reason: readNonblank(it.Field("reason"), MaxObligationReasonBytes)}
 		c.State = it.Field("state").StringOrNull(func(x *wire.Reader) string {
 			return x.Enum(ObligationOpen, ObligationDefect, ObligationBlocked, ObligationDeferred, ObligationPartial)
@@ -807,8 +821,11 @@ func ReadObligationSetPayload(r *wire.Reader) *ObligationSetPayload {
 		if wire.Has(it.Value(), "candidate") {
 			c.Candidate = readObligationCandidate(it.Field("candidate"), false)
 		}
-		if it.Err() == nil && c.State == nil && c.Core == nil && c.Sources == nil && c.Cites == nil && c.Scope == nil && c.Candidate == nil {
-			it.Fail(wire.CodeMalformed, "a change names a state, a core flag, review sources, cites, a scope decision, a candidate or a combination")
+		if wire.Has(it.Value(), "satisfiedBy") {
+			c.Mirror = readObligationMirrorChange(it.Field("satisfiedBy"))
+		}
+		if it.Err() == nil && c.State == nil && c.Core == nil && c.Sources == nil && c.Cites == nil && c.Scope == nil && c.Candidate == nil && c.Mirror == nil {
+			it.Fail(wire.CodeMalformed, "a change names a state, a core flag, review sources, cites, a scope decision, a candidate, a mirror or a combination")
 		}
 		if it.Err() == nil && c.Scope != nil && c.Core != nil {
 			it.Fail(wire.CodeMalformed, "a scope decision sets core itself; core must be null beside scope")
@@ -1107,6 +1124,9 @@ type ObligationLedger struct {
 	// Events is the event chain from the first event to Head, kept so a
 	// reader can show each event's receipt binding.
 	Events []wire.Digest
+	// Unblocks counts, across the chain, entries that left BLOCKED
+	// (TOL-V0-124); it is derived by the fold and never encoded.
+	Unblocks int64
 }
 
 // Entry returns the entry with id, or nil.
@@ -1210,7 +1230,7 @@ func (l *ObligationLedger) EntriesValue() wire.Value {
 func (l *ObligationLedger) clone() *ObligationLedger {
 	out := &ObligationLedger{}
 	if l != nil {
-		out.Prefix, out.Revision, out.Head = l.Prefix, l.Revision, l.Head
+		out.Prefix, out.Revision, out.Head, out.Unblocks = l.Prefix, l.Revision, l.Head, l.Unblocks
 		out.Entries = append([]ObligationEntry{}, l.Entries...)
 		out.Events = append([]wire.Digest{}, l.Events...)
 	}
@@ -1287,6 +1307,11 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 					return nil, err
 				}
 			}
+			if c.Mirror != nil {
+				if err := applyMirrorChange(e, c.Mirror, q); err != nil {
+					return nil, err
+				}
+			}
 			reason := c.Reason
 			e.Reason = &reason
 			stamp(e)
@@ -1317,6 +1342,7 @@ func ApplyObligationEvent(l *ObligationLedger, ev *ObligationEvent, eventSha256 
 			stamp(e)
 		}
 	}
+	out.Unblocks += countUnblocks(l, out)
 	out.Revision = ev.Revision.Int()
 	out.Head = eventSha256
 	out.Events = append(out.Events, eventSha256)

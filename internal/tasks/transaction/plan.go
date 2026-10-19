@@ -28,6 +28,12 @@ const PlanReasonWorkStateHeld = "WORK_STATE_HELD"
 // output only, never a wire code, a stored value or a claim refusal.
 const PlanReasonBudgetHeld = "BUDGET_HELD"
 
+// PlanReasonMirrorsDecided is the deferral reason of a ticket whose pending
+// obligation items are all mirrors decided on their owner tickets
+// (TOL-V0-123). Like WORK_STATE_HELD it is derived dispatcher output only:
+// plan preview, claim and claim-next never set MirrorsDecided.
+const PlanReasonMirrorsDecided = "MIRRORS_DECIDED_ELSEWHERE"
+
 // PlanInput is the state one taskman-priority-first/0 plan reads: the
 // intent inventory, whether an admission barrier is present, the live
 // reservations, and every attempt record, which decides retry exhaustion.
@@ -58,6 +64,10 @@ type PlanInput struct {
 	// holds: an otherwise plannable entry among them is deferred as
 	// BUDGET_HELD before it can use the window (CAL-V0-155).
 	BudgetHeld map[string]bool
+	// MirrorsDecided names, by raw ticket ID, the tickets whose pending
+	// obligation items are all decided mirrors (TOL-V0-123); dispatcher
+	// only.
+	MirrorsDecided map[string]bool
 	// Now, when set, makes a --pool plan honour that pool's live waitlist
 	// at Now (PSR-V0-132): an entry the waitlist would refuse is deferred
 	// naming the head waiter, and priority admission disregards the
@@ -142,6 +152,8 @@ func PriorityFirst(in PlanInput) TicketPlan {
 			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonWorkStateHeld, []string{PlanReasonWorkStateHeld}
 		} else if e.State == "" && in.BudgetHeld[rec.TicketID.Raw] {
 			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonBudgetHeld, []string{PlanReasonBudgetHeld}
+		} else if e.State == "" && in.MirrorsDecided[rec.TicketID.Raw] {
+			e.State, e.Reason, e.Blockers = PlanDeferred, PlanReasonMirrorsDecided, []string{PlanReasonMirrorsDecided}
 		} else if e.State == "" && !waitlistDefers(in, live, &e, selected) {
 			waiting := waits.of(in, rec)
 			if live != nil && waiting != nil {

@@ -39,8 +39,8 @@ in the build log.
 
 ## Agent digest
 - Claim: A native ticket can carry a bounded ledger of named obligations that a Playwright json report witnesses step by step, so progress counts proof, not sessions.
-- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-060..067 (version qualification and test repositories, GitHub #1070, V1-1648) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-079..083 (test boundaries and scope decisions, GitHub #1180, V1-1913) and TOL-V0-084..088 (reviewed-shortfall worklist, GitHub #1182, V1-1915) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-100..109 (ledger gate hardening, GitHub #1202, V1-1945, V1-1946, V1-1949) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
-- Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the read-only `boundary`, `worklist` and `capability` verbs (TOL-V0-083, 086..088, 108), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
+- Status: accepted (decisions 0456, 0484, 0485 and 0519; V1-1022): TOL-V0-001..021 by decision 0456 (owner issue #680), TOL-V0-022..027 by decision 0484 (GitHub #712, #713) and TOL-V0-028..033 by decision 0485 (GitHub #714); TOL-V0-034..036 (obligation aliases, GitHub #792, V1-1177) by decision 0519; TOL-V0-037..046 (review sources, GitHub #813) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; TOL-V0-047..050 (preflight result cache, GitHub #1037, V1-1594) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-051..054 (failure-signature ledger, GitHub #1048, V1-1605) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-055..059 (migration blockers, GitHub #1071, V1-1649) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-060..067 (version qualification and test repositories, GitHub #1070, V1-1648) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-079..083 (test boundaries and scope decisions, GitHub #1180, V1-1913) and TOL-V0-084..088 (reviewed-shortfall worklist, GitHub #1182, V1-1915) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-100..109 (ledger gate hardening, GitHub #1202, V1-1945, V1-1946, V1-1949) accepted under the same standing auto-accept, implemented with focused tests; TOL-V0-120..125 (obligation mirrors and the #1177 unblock follow-up, GitHub #1214, V1-1966) accepted under the same standing auto-accept, implemented with focused tests; experimental; TOL-V0-001..018 and 020..036 implemented with focused tests (TOL-V0-028..033 on a fake test command); the TOL-V0-019 plain-language line and the live Playwright 1.63 fixture are NOT_RUN.
+- Exists: the experimental `ticket obligations seed|show|witness|set|plan` verbs, the read-only `preflight` verb (TOL-V0-025..027), the experimental `run-batch` and `qualify` verbs (TOL-V0-028..033), the read-only `boundary`, `worklist` and `capability` verbs (TOL-V0-083, 086..088, 108), `satisfiedBy` mirrors with their show, status, worklist and dispatch reads (TOL-V0-120..123), the record member, the `internal/tasks/obligation` report reader, the receipt audit and the fingerprint, stall and loop integration; the reused mutation, evidence-store, fingerprint (CAL-V0-057), stall (CAL-V0-185) and loop (CAL-V0-102) paths.
 - Blocked on: no shipped Playwright version is qualified; an operator qualifies one locally by running the embedded fixture (TOL-V0-060..063), and no live run of it is retained yet.
 - Read next: User and current state; Requirements; Failure modes and trust; Resolved owner decisions.
 
@@ -245,7 +245,7 @@ operations, `taskman-obligation-*` profiles) and never reuse the dependency fiel
 - `TOL-V0-017`: For a ticket that carries `obligations`, the CAL-V0-057 per-ticket fingerprint line
   MUST become `Status|AcceptanceRevision|State`, followed by the line
   `obligations|<highWater.acceptanceRevision>|<highWater.witnessed>`. Gate and attempt rows are
-  unchanged.
+  unchanged. TOL-V0-124 extends this with an unblock line.
   - Ledger, note and attachment writes therefore stop counting as progress, while a raised
     high-water mark counts.
   - A ticket without the member MUST fingerprint byte-identically to today.
@@ -1084,6 +1084,61 @@ record or event profile and change no accepted requirement's default output.
   tree cannot be listed; `commit` null) or `SEARCH_BOUND_EXCEEDED` (nothing matched but more than
   1,024 files were listed or a blob was over the read bound).
 
+### Obligation mirrors (GitHub #1214)
+
+Two tickets can carry the same obligation: a parent decides an item that a child or sibling also
+lists. The second copy stayed `OPEN` until someone repeated the decision, so the dispatcher kept
+offering a ticket whose remaining work was already done elsewhere. A ticket parked because every
+item was `BLOCKED` also stayed parked after an item was unblocked, since a state change below the
+high-water mark did not change its fingerprint (GitHub #1177 follow-up). These requirements add one
+optional entry member and read-side derivation. They add no journal, record or event profile.
+
+- `TOL-V0-120`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub
+  #1214)) A `set` change MUST admit the optional member `satisfiedBy`: either a closed object
+  `{ticketId, id}` naming an owner ticket and one of its obligation ids, or `null`, which clears
+  the mirror. The entry records it as the optional member `satisfiedBy`. An entry without it keeps
+  its exact bytes. A `ticketId` equal to the ledger's own ticket refuses `MALFORMED`
+  `OBLIGATION_MIRROR_SELF:`. The owner is not resolved at write time; a missing owner is a read
+  finding (TOL-V0-121).
+- `TOL-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub
+  #1214)) `ticket obligations show` MUST add `mirrors` `{completable, items}` when the ledger has
+  a mirror, and omit it otherwise. Each item gives the entry `id`, `satisfiedBy`, its recorded
+  `localState`, its effective `state` and `derived`. Resolution goes one hop to the owner's recorded
+  entry state. A pending local entry whose owner entry is `WITNESSED` or `DEFERRED` is derived: its
+  `state` is the owner's and its `source` is `{ticketId, id, state, eventSha256}` (the owner's
+  evidence event, null for a deferral). A derived item carries no review of its own. Any other
+  pending mirror stays at its local state with `reason`: `OWNER_TICKET_MISSING` (no such ticket in
+  this queue, including a ticket of another queue), `OWNER_LEDGER_MISSING`, `OWNER_LEDGER_UNKNOWN`
+  (the owner ledger cannot be folded), `OWNER_OBLIGATION_MISSING` (no such id, including a renamed
+  one) or `OWNER_UNDECIDED` (the owner entry is `OPEN`, `PARTIAL`, `DEFECT` or `BLOCKED`). An owner
+  that is itself a derived mirror does not decide this one. The stored ledger, its counts and its
+  high-water mark are unchanged.
+- `TOL-V0-122`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub
+  #1214)) For each `OPEN` or `HELD` ticket with a ledger, the reads MUST report
+  `MIRROR-DECIDED-ELSEWHERE` `{code, ticketId, completable, items}` listing its derived mirrors, and
+  `MIRROR-OWNER-UNRESOLVED` `{code, ticketId, items}` listing pending mirrors whose owner ticket,
+  ledger or obligation is missing or unreadable. `OWNER_UNDECIDED` is no finding. `queue status`
+  carries them as `obligationMirrors`, and `ticket obligations worklist` carries them as
+  `findings`; each member is present only when non-empty. The worklist excludes a derived mirror
+  with `MIRROR_DECIDED_ELSEWHERE` before its other classes.
+- `TOL-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub
+  #1214)) A ledger is `completable` when it has a derived mirror and every pending entry is one.
+  The dispatcher's native plan MUST defer such a ticket with `MIRRORS_DECIDED_ELSEWHERE`. The
+  deferral is dispatcher-only, like `WORK_STATE_HELD`; `plan preview` and `claim` are unchanged.
+  The roster MUST skip the ticket for every role, and the dispatcher MUST emit one `needs-owner`
+  event when the reason first appears, so the owner completes the ticket.
+- `TOL-V0-124`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966; GitHub
+  #1177 follow-up)) The fold MUST count entries that leave `BLOCKED` for any state. This count is
+  derived and never encoded. When it is positive, the TOL-V0-017 fingerprint adds the line
+  `obligations-unblocked|<n>` after the `obligations` line; a ticket that never unblocked
+  fingerprints byte-identically to before. An item leaving `BLOCKED` therefore releases a parked
+  key at the next observation through the CAL-V0-057 unpark path. An observation whose ledger fold
+  is unknown MUST NOT unpark or count as progress.
+- `TOL-V0-125`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1966; GitHub
+  #1177 follow-up)) `doctor` MUST report `PARKED_WITH_OPEN_ITEMS` for each configured dispatcher's
+  parked ticket key whose `OPEN` or `HELD` ticket has a ledger with fewer witnessed than total
+  (non-deferred) items. `who` is the ticket and the detail names the dispatcher and the count.
+
 ## Failure modes and trust
 
 | Failure | Effect without this profile | Required behaviour |
@@ -1136,6 +1191,9 @@ record or event profile and change no accepted requirement's default output.
 | A project's tests use a naming convention outside the closed set | The boundary reports `NO_RUNNABLE_TESTS` for a tested repository | Declared `testFilePatterns` extend the set (TOL-V0-103). Retained limit: still a naming heuristic, never a runner probe. |
 | A plan check counts only browser coverage, or a stale review as coverage | API or unit witnesses are re-demanded; a changed test still counts | `--witnesses` names every ledger witness and its type, and a stale review refuses `STALE_REVIEW` (TOL-V0-104, 105). |
 | A capability question is answered from `HEAD` | A feature merged but not deployed reads as present | The capability read answers only at a declared baseline and abstains `UNKNOWN` without one (TOL-V0-107..109). |
+| An obligation is decided on another ticket | The copy stays `OPEN`; the dispatcher keeps offering a ticket whose work is done | `satisfiedBy` derives the owner's terminal state with the owner's event as its source; `MIRROR-DECIDED-ELSEWHERE` lists it; a ticket with only decided mirrors is deferred and offered to the owner (TOL-V0-120..123). |
+| A mirror's owner is missing, renamed, unreadable or in another queue | The mirror silently reads as open work | It stays open with `OWNER_TICKET_MISSING`, `OWNER_LEDGER_MISSING`, `OWNER_LEDGER_UNKNOWN` or `OWNER_OBLIGATION_MISSING`, listed as `MIRROR-OWNER-UNRESOLVED` (TOL-V0-121, 122). Retained limit: resolution is one hop and same-queue only. |
+| A ticket parked with every item `BLOCKED` has an item unblocked | It stays parked: the fingerprint did not change | The unblock line changes the fingerprint and the existing unpark releases the key; an unknown fold never unparks; doctor names a parked ticket with open items (TOL-V0-124, 125). |
 
 ## Non-goals and simpler baseline
 
@@ -1183,6 +1241,9 @@ record or event profile and change no accepted requirement's default output.
   runner, judging environment capability from anything but a declared ref or object id, fetching
   a baseline, or reading deployment state; `preflight --plan` does not take `--witnesses`
   (TOL-V0-100..109).
+- Writing a mirror's state into its ledger, chaining mirrors beyond one hop, resolving owners in
+  another queue, completing a ticket on the owner's behalf, or checking the owner at write time
+  (TOL-V0-120..123).
 
 The simpler baseline stays available: a body checklist plus the external script. This profile is
 justified only if the owner wants the queue and dispatcher to see proven progress natively.
@@ -1215,6 +1276,7 @@ fixture passes.
 | TOL-V0-079..083 (accepted, owner's standing auto-accept 2026-10-11) | V1-1913 (GitHub #1180) | `internal/tasks/ticket/obligation_scope.go` (cites, scope, fold), `internal/tasks/mutation/obligations.go` (ACCEPT authority, `requireScopeDecision`, screen), `internal/tasks/intent/policy.go`, `internal/tasks/obligation/boundary.go`, `internal/tasks/cli/obligation_boundary.go` (`boundary`, `outOfScope`) | `TestTOLV0079_CitesBoundsReplaceAndDefault`, `TestTOLV0080_ScopeShape`, `TestTOLV0083_NoTestBoundaryScopeDecisionAndRescope`, `TestTOLV0082_RequireScopeDecisionRefusesPlainCore` (`internal/tasks/cli`); `TestTOLV0083_BoundaryTestKind`, `TestTOLV0083_BoundaryVerdictDirectoryCite` (`internal/tasks/obligation`) | a boundary read on an adopter repository without tests (`NOT_RUN`) |
 | TOL-V0-084..088 (accepted, owner's standing auto-accept 2026-10-11) | V1-1915 (GitHub #1182) | `internal/tasks/ticket/obligation_scope.go` (candidate), `internal/tasks/ticket/obligation_review.go` (finding), `internal/tasks/obligation/worklist.go`, `internal/tasks/cli/obligation_boundary.go` (`worklist`) | `TestTOLV0084_CandidateShapeAndClear`, `TestTOLV0086_WorklistBatchCandidateAndNeedsText`, `TestTOLV0085_FindingNeedsShortfallVerdict` (`internal/tasks/cli`); `TestTOLV0087_RankPriorityThenNearest` (`internal/tasks/obligation`) | a worker draining a real worklist (`NOT_RUN`) |
 | TOL-V0-100..109 (accepted, owner's standing auto-accept 2026-10-11) | V1-1945, V1-1946, V1-1949 (GitHub #1202) | `internal/tasks/cli/obligation_review.go` (`reviewHeadStates`), `internal/tasks/cli/obligation_subject.go` (`reviewedSubject`, plan witnesses, `capability`), `internal/tasks/cli/obligation_boundary.go`, `internal/tasks/cli/obligations.go` (`plan --witnesses`), `internal/tasks/mutation/obligations.go` (`requireDeclaredCites`), `internal/tasks/intent/policy.go`, `internal/tasks/obligation/boundary.go` (`BoundaryTestKindWith`) | `TestTOLV0100_UnbornTestRepositoryHeadUnresolved`, `TestTOLV0101_ReviewedSubjectAtReviewedCommit`, `TestTOLV0102_DeclaredCitesRequired`, `TestTOLV0103_DeclaredTestFilePatterns`, `TestTOLV0104_PlanCountsLedgerWitnesses`, `TestTOLV0105_PlanStaleReviewedWitness`, `TestTOLV0106_UnassignedNamesConsideredWitness`, `TestTOLV0107_CapabilityAtEnvironmentBaseline`, `TestTOLV0107_CapabilityUndeclaredPrimary`, `TestTOLV0108_CapabilityBoundsAndReadOnly` (`internal/tasks/cli`); `TestTOLV0103_BoundaryTestKindWith` (`internal/tasks/obligation`); `TestTOLV0102_103_107_ObligationsPolicyMembers` (`internal/tasks/intent`); 12 mutations killed (build log) | a capability read against a live deployment ref and a non-browser adopter plan (`NOT_RUN`); a baseline commit whose tree cannot be listed, an over-bound blob, and `SUBJECT_ABSENT/UNREADABLE/MISMATCH_AT_REVIEW` (reachable only through a damaged object store) have no fixture (`NOT_RUN`) |
+| TOL-V0-120..125 (accepted, owner's standing auto-accept 2026-10-11) | V1-1966 (GitHub #1214; #1177 follow-up) | `internal/tasks/ticket/obligation_mirror.go`, `internal/tasks/ticket/obligations.go` (`satisfiedBy`, `Unblocks`), `internal/tasks/obligation/mirror.go`, `internal/tasks/obligation/worklist.go`, `internal/tasks/cli/obligation_mirror.go`, `internal/tasks/cli/obligations.go`, `internal/tasks/cli/obligation_boundary.go`, `internal/tasks/cli/cli.go` (`obligationMirrors`), `internal/tasks/cli/dispatch.go`, `internal/tasks/transaction/plan.go`, `internal/tasks/dispatch/roster.go`, `internal/tasks/dispatch/loop.go`, `internal/tasks/cli/doctor_sessions.go` | `TestTOLV0120_SatisfiedByRecordedAndCleared`, `TestTOLV0124_UnblocksCounted` (`internal/tasks/ticket`); `TestTOLV0121_ResolveMirrors`, `TestTOLV0122_MirrorFindings`, `TestTOLV0123_MirrorsCompletable` (`internal/tasks/obligation`); `TestTOLV0123_MirrorsDecidedLeaveWindow` (`internal/tasks/transaction`); `TestTOLV0123_MirrorsDecidedIsNotDispatched`, `TestTOLV0124_UnblockReleasesParkedTicket` (`internal/tasks/dispatch`); `TestTOLV0120_MirrorReadsAndAcceptance`, `TestTOLV0124_UnblockObservedAndDoctorReportsParked` (`internal/tasks/cli`) | a live dispatcher run over a store with mirrors (`NOT_RUN`); cross-queue owners are reported missing, never resolved |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -1361,3 +1423,14 @@ was raised from an implemented 256 bytes to the accepted 512 (build log 2026-10-
 holding a 257..512-byte evidence reference is refused `LIMIT_EXCEEDED` by an older binary's closed
 reader, so its ledger is `UNKNOWN`, never silently stripped, and recovery is to run the newer
 binary.
+
+The accepted TOL-V0-120..125 add no journal, record, event or plan profile. Only a `set` change
+with `satisfiedBy` writes new bytes (the optional member of the retained request and the folded
+entry). An older binary refuses such a request `MALFORMED` at its closed reader, so that ledger is
+`UNKNOWN` and its audit `INCONSISTENT`, never silently stripped; clearing the mirror with `null`
+leaves the earlier event in the chain, so recovery is to run the newer binary or restore the store
+from a backup taken before the first mirror. The unblock count is fold-derived: the fingerprint of
+a ticket that had an item leave `BLOCKED` changes once when the newer binary first observes it,
+which at most releases a parked key one time. The `mirrors`, `findings` and `obligationMirrors`
+members, the `MIRRORS_DECIDED_ELSEWHERE` deferral and `PARKED_WITH_OPEN_ITEMS` are read-side and
+leave with a revert.

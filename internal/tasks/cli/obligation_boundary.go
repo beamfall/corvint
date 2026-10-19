@@ -189,10 +189,11 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 		k = n
 	}
 	var inputs []obligation.WorklistInput
-	var unknown []wire.Value
+	var unknown, findings []wire.Value
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		inputs, unknown = nil, nil
+		inputs, unknown, findings = nil, nil, nil
 		read := store.ObligationEventReader(rc.repo)
+		mirrors := newMirrorFolds(rc, rc.store.Inventory, nil)
 		var ids []string
 		if target != "" {
 			id, err := resolveTicketArg(rc, target)
@@ -211,10 +212,17 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 			if rec.ObligationsRef == nil || (target == "" && rec.Status != ticket.StatusOpen && rec.Status != ticket.StatusHeld) {
 				continue
 			}
-			l, ferr := ticket.FoldObligationChain(rec.TicketID, *rec.ObligationsRef, read)
+			l, ferr := mirrors.fold(rec)
 			if ferr != nil {
 				unknown = append(unknown, wire.ObjectValue(wire.NewObject().Set("ticketId", wire.String(id)).Set("code", wire.String(chainCode(ferr))).Set("detail", wire.String(prose(ferr.Error())))))
 				continue
+			}
+			// TOL-V0-122: a decided mirror is not a shortfall of this ticket.
+			rs := mirrors.resolve(l)
+			findings = append(findings, obligation.MirrorFindings(id, rs, obligation.MirrorsCompletable(l, rs))...)
+			decided := map[string]bool{}
+			for _, r := range rs {
+				decided[r.ID] = r.Decided
 			}
 			var remaining int64
 			for _, e := range l.Entries {
@@ -226,7 +234,7 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 				if e.Review == nil || e.Review.Outcome != ticket.ObligationReviewHeld || !obligation.BoundaryPending(e) {
 					continue
 				}
-				in := obligation.WorklistInput{TicketID: id, Priority: rec.Priority, Remaining: remaining, Entry: e}
+				in := obligation.WorklistInput{TicketID: id, Priority: rec.Priority, Remaining: remaining, Entry: e, MirrorDecided: decided[e.ID]}
 				raw, err := read(e.Review.EventSha256)
 				if err != nil || raw == nil {
 					return wire.Errorf(wire.CodeMissingEvidence, "evidence", "review event %s of %s %s is unreadable", e.Review.EventSha256, id, e.ID)
@@ -315,6 +323,9 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{wire.ObjectValue(wire.NewObject().Set("rank", wire.Array(rankVals...)).Set("items", wire.Array(vs...)).
 		Set("excluded", wire.Array(excluded...)).Set("needsObligationText", wire.Array(needsText...)).Set("unknown", wire.Array(unknown...)))}
+	if len(findings) > 0 {
+		res.Items[0].Obj.Set("findings", wire.Array(findings...))
+	}
 	res.Untrusted = true
 	return res
 }
