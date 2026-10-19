@@ -279,6 +279,7 @@ AFU-V1-069	docs/specs/application-flow-understanding-v1.md	Fail closed: a declar
 AFU-V1-070	docs/specs/application-flow-understanding-v1.md	Coverage: a coverage record's tier paths MAY be qualified, and a record names	unrecorded	-
 AFU-V1-071	docs/specs/application-flow-understanding-v1.md	Reviewed links: a `source` link target MAY name a qualified path. A declared lin	unrecorded	-
 AFU-V1-072	docs/specs/application-flow-understanding-v1.md	Compatibility: without declared or bound repositories the `e2e-safe-selection/1`	unrecorded	-
+AFU-V1-090	docs/specs/application-flow-understanding-v1.md	(accepted under the owner's standing auto-accept (2026-10-11)) `docs flows	standing	2026-10-11
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2080,6 +2081,9 @@ DCP-V1-089	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-090	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-091	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-092	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-140	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
+DCP-V1-141	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
+DCP-V1-142	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

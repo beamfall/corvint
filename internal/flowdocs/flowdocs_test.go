@@ -610,3 +610,62 @@ func TestFlowDocsSourceInventoryStillRefusesSymlink(t *testing.T) {
 		t.Fatal("non-gitlink unsupported entry admitted")
 	}
 }
+
+// TestFlowDocsImportedSymbolAnchorReresolution checks `docs flows check`
+// re-resolves an imported symbol anchor by its normalized region (AFU-V1-090).
+func TestFlowDocsImportedSymbolAnchorReresolution(t *testing.T) {
+	source := "export function View() {\n  // render\n  return fetch('/api');\n}\n"
+	for _, tc := range []struct {
+		name, next, state, symbol string
+		start                     int
+	}{
+		{"AFU-V1-090 insertion above is fresh and moved", strings.Repeat("const pad = 1;\n", 20) + source, "fresh", doccorpus.SymbolAnchorMoved, 21},
+		{"AFU-V1-090 reformat is fresh", "export function View() {\n    /* draw */\n    return fetch('/api');   // call\n}\n", "fresh", doccorpus.SymbolAnchorLive, 1},
+		{"AFU-V1-090 one-token edit is stale and changed", strings.Replace(source, "'/api'", "'/v2'", 1), "stale", doccorpus.SymbolAnchorChanged, 1},
+		{"AFU-V1-090 deletion is stale and gone", "export const other = 1;\n", "stale", doccorpus.SymbolAnchorGone, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root, rev := fixture(t, map[string]string{"app/view.ts": source})
+			ctx := context.Background()
+			index, e := contextindex.BuildRevisionContext(ctx, root, rev)
+			if e != nil {
+				t.Fatal(e)
+			}
+			id, e := contextindex.CorpusRepositoryID(ctx, root, rev)
+			if e != nil {
+				t.Fatal(e)
+			}
+			src := index.Sources["app/view.ts"]
+			a := anchor(doccorpus.Repository{ID: id, Revision: rev}, src, 1)
+			a.End, a.Symbol, a.SpanSHA256 = 4, "View", doccorpus.Digest(src.Data)
+			if e = os.WriteFile(filepath.Join(root, "app/view.ts"), []byte(tc.next), 0600); e != nil {
+				t.Fatal(e)
+			}
+			git(t, root, "commit", "-qam", "edit")
+			later := git(t, root, "rev-parse", "HEAD")
+			index, e = contextindex.BuildRevisionContext(ctx, root, later)
+			if e != nil {
+				t.Fatal(e)
+			}
+			auth, e := gitauth.Open(root, gitrun.NewDefaultBudget())
+			if e != nil {
+				t.Fatal(e)
+			}
+			release := auth.BeginObjectSession()
+			defer release()
+			repository := doccorpus.Repository{ID: id, Revision: later}
+			scan := 0
+			row, e := revalidateImported(ctx, auth, index, doccorpus.NewSymbolResolver(auth, index, repository, nil), repository, a, &scan)
+			if e != nil || row.State != tc.state || row.Symbol == nil || row.Symbol.State != tc.symbol {
+				t.Fatalf("row: %+v symbol: %+v %v", row, row.Symbol, e)
+			}
+			if tc.start == 0 {
+				if row.After != nil {
+					t.Fatalf("gone must not invent a live location: %+v", row.After)
+				}
+			} else if row.After == nil || row.After.Start != tc.start || row.After.Symbol != "View" {
+				t.Fatalf("after: %+v", row.After)
+			}
+		})
+	}
+}

@@ -17,6 +17,9 @@ type AnchorCheck struct {
 	Before doccorpus.Anchor  `json:"before"`
 	After  *doccorpus.Anchor `json:"after,omitempty"`
 	Reason string            `json:"reason"`
+	// Symbol is the live re-resolution of an imported anchor that names a
+	// symbol (AFU-V1-090).
+	Symbol *doccorpus.SymbolAnchorCheck `json:"symbol,omitempty"`
 }
 type BindingCheck struct {
 	ID       string            `json:"id"`
@@ -102,6 +105,7 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 	scanBytes := 0
 	var auth *gitauth.Repository
 	var index *contextindex.Index
+	var resolver *doccorpus.SymbolResolver
 	for _, id := range keys {
 		item := before[id]
 		row := BindingCheck{ID: id, State: "fresh", Reason: "all original bindings remain fresh", Evidence: []AnchorCheck{}}
@@ -120,6 +124,7 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 				if err != nil {
 					return result, err
 				}
+				resolver = doccorpus.NewSymbolResolver(auth, index, current.Manifest.Source, index.DirtyPaths)
 			}
 			hasSource := false
 			for _, a := range item.anchors {
@@ -127,11 +132,14 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 				if a.Revision == old.Manifest.Source.Revision {
 					hasSource = true
 					key := a.Path + ":" + a.SpanSHA256 + ":" + fmt.Sprint(a.End-a.Start+1)
+					if a.Symbol != "" {
+						key += ":" + doccorpus.SymbolAnchorKey(a)
+					}
 					if cached, ok := memo[key]; ok {
 						checked = cached
 						checked.Before = a
 					} else {
-						checked, err = relocateAnchor(ctx, auth, index, current.Manifest.Source, a, &scanBytes)
+						checked, err = revalidateImported(ctx, auth, index, resolver, current.Manifest.Source, a, &scanBytes)
 						memo[key] = checked
 					}
 					if err != nil {
@@ -205,6 +213,40 @@ func CheckRevision(ctx context.Context, root string, previous []byte, revision, 
 	}
 	return result, nil
 }
+
+// revalidateImported relocates an imported anchor by its exact span and, when
+// it names a symbol, re-resolves the symbol (AFU-V1-090). A live or moved
+// symbol keeps the binding fresh at its live lines even when reformatting
+// changed the exact span; changed and gone make it stale; an unresolved symbol
+// leaves the exact-span verdict standing.
+func revalidateImported(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, resolver *doccorpus.SymbolResolver, repository doccorpus.Repository, a doccorpus.Anchor, scanBytes *int) (AnchorCheck, error) {
+	row, err := relocateAnchor(ctx, auth, index, repository, a, scanBytes)
+	if err != nil || a.Symbol == "" {
+		return row, err
+	}
+	symbol, err := resolver.Resolve(ctx, a)
+	if err != nil {
+		return row, err
+	}
+	row.Symbol = &symbol
+	var after *doccorpus.Anchor
+	if symbol.Live != nil {
+		b := a
+		b.Revision, b.Path, b.Blob, b.SHA256 = symbol.Live.Revision, symbol.Live.Path, symbol.Live.Blob, symbol.Live.SHA256
+		b.Start, b.End, b.SpanSHA256 = symbol.Live.Start, symbol.Live.End, symbol.Live.SpanSHA256
+		after = &b
+	}
+	switch symbol.State {
+	case doccorpus.SymbolAnchorLive, doccorpus.SymbolAnchorMoved:
+		row.State, row.After, row.Reason = "fresh", after, "symbol "+symbol.State+": "+symbol.Reason
+	case doccorpus.SymbolAnchorChanged:
+		row.State, row.After, row.Reason = "stale", after, "symbol changed: "+symbol.Reason
+	case doccorpus.SymbolAnchorGone:
+		row.State, row.After, row.Reason = "stale", nil, "symbol gone: "+symbol.Reason
+	}
+	return row, nil
+}
+
 func relocateAnchor(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, repository doccorpus.Repository, a doccorpus.Anchor, scanBytes *int) (AnchorCheck, error) {
 	row := AnchorCheck{State: "unresolved", Before: a, Reason: "original source path missing or unsupported"}
 	if _, ok := index.Tracked[a.Path]; !ok {

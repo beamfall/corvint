@@ -13,13 +13,34 @@ import (
 
 // Freshness is a live overlay; it never rewrites the immutable artifact.
 func Freshness(ctx context.Context, root string, a *Artifact) (string, []string, error) {
+	overlay, err := liveFreshness(ctx, root, a, false)
+	return overlay.State, overlay.Limitations, err
+}
+
+// FreshnessOverlay is a corpus reader's live overlay: the artifact-wide state
+// and limitations Freshness reports, and the live re-resolution of every
+// symbol anchor the artifact's records cite, keyed by SymbolAnchorKey.
+type FreshnessOverlay struct {
+	State         string
+	Limitations   []string
+	SymbolAnchors map[string]SymbolAnchorCheck
+}
+
+// LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
+// The overall state is unchanged by the symbol checks.
+func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOverlay, error) {
+	return liveFreshness(ctx, root, a, true)
+}
+
+func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) (FreshnessOverlay, error) {
+	unknown := FreshnessOverlay{State: "unknown"}
 	live, err := contextindex.BuildContext(ctx, root, "")
 	if err != nil {
-		return "unknown", nil, err
+		return unknown, err
 	}
 	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
 	if err != nil {
-		return "unknown", nil, err
+		return unknown, err
 	}
 	release := auth.BeginObjectSession()
 	defer release()
@@ -67,7 +88,7 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 		// replacement of one is still visible; no HEAD equality heuristic is used.
 		entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path)
 		if err != nil {
-			return "unknown", nil, err
+			return unknown, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
 			state = "stale"
@@ -92,7 +113,20 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	return state, limits, nil
+	overlay := FreshnessOverlay{State: state, Limitations: limits}
+	if symbols {
+		// A failed re-resolution withholds every symbol state (each cited
+		// anchor reads as unevaluated) rather than refusing the whole read.
+		overlay.SymbolAnchors, err = resolveArtifactSymbols(ctx, auth, live, a)
+		if err != nil {
+			if ctx.Err() != nil {
+				return unknown, ctx.Err()
+			}
+			overlay.SymbolAnchors = nil
+			overlay.Limitations = append(overlay.Limitations, "symbol-anchor re-resolution withheld: "+err.Error())
+		}
+	}
+	return overlay, nil
 }
 func CapabilityFor(operation string) string {
 	if cap := typedCapability(operation); cap != "" {
@@ -126,6 +160,21 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 }
 
 func QueryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string) (Receipt, error) {
+	return queryContext(ctx, a, request, freshness, limitations, nil)
+}
+
+// QueryLive answers request under a live freshness overlay. Besides the
+// overlay's state and limitations, the receipt reports the re-resolution of
+// every symbol anchor it cites (DCP-V1-141).
+func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
+	symbols := overlay.SymbolAnchors
+	if symbols == nil {
+		symbols = map[string]SymbolAnchorCheck{}
+	}
+	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, symbols)
+}
+
+func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols map[string]SymbolAnchorCheck) (Receipt, error) {
 	if err := ctx.Err(); err != nil {
 		return Receipt{}, err
 	}
@@ -284,7 +333,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		return Receipt{}, err
 	}
 	if a.Schema == SchemaV2 {
-		return pageReceipt(a, r, request)
+		return pageReceipt(a, r, request, symbols)
 	}
 	if len(r.Results) == 0 {
 		r.State = "empty"
@@ -331,6 +380,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		citations = citations[:MaxResults]
 	}
 	r.Citations = citations
+	attachSymbolAnchors(&r, symbols)
 	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
@@ -514,11 +564,11 @@ func ReadQuery(ctx context.Context, root string, data []byte, request Request) (
 	if err != nil {
 		return Receipt{}, err
 	}
-	state, limits, err := Freshness(ctx, root, a)
+	overlay, err := LiveFreshness(ctx, root, a)
 	if err != nil {
 		return Receipt{}, err
 	}
-	return QueryContext(ctx, a, request, state, limits)
+	return QueryLive(ctx, a, request, overlay)
 }
 
 func coverageMetrics(a *Artifact) []any {
