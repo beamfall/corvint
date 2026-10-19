@@ -3,6 +3,7 @@ package corpusrepublish
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -408,4 +409,29 @@ func TestRepublishVerifiedPriorRefusals(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestDCPV1092ParityLargeTestKnowledge pins that a large identical test-knowledge member is
+// not reported as changed when its encoding exceeds the 4 MiB output bound.
+func TestDCPV1092ParityLargeTestKnowledge(t *testing.T) {
+	joins := func() []doccorpus.TestKnowledgeJoin {
+		out := []doccorpus.TestKnowledgeJoin{}
+		for i := range 8 {
+			out = append(out, doccorpus.TestKnowledgeJoin{ID: "tk:" + string(rune('a'+i)), Status: "joined", Record: doccorpus.TestKnowledgeRecord{Behavior: strings.Repeat("b", 600<<10)}})
+		}
+		return out
+	}
+	before, after := &doccorpus.Artifact{TestKnowledge: joins()}, &doccorpus.Artifact{TestKnowledge: joins()}
+	if n, _ := doccorpus.EncodeTo(io.Discard, before.TestKnowledge); n <= MaxBytes {
+		t.Fatalf("fixture too small: %d", n)
+	}
+	p, err := compare(before, after, nil)
+	if err != nil || len(p.Semantics.Changed)+len(p.Semantics.Added)+len(p.Semantics.Retired) != 0 {
+		t.Fatalf("identical large test knowledge reported as changed: %+v %v", p.Semantics, err)
+	}
+	after.TestKnowledge[3].Record.Behavior += "c"
+	p, err = compare(before, after, nil)
+	if err != nil || len(p.Semantics.Changed) != 1 || p.Semantics.Changed[0] != "test_knowledge:tk:d" {
+		t.Fatalf("changed record not isolated: %+v %v", p.Semantics, err)
+	}
 }

@@ -8,13 +8,13 @@ Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvi
 owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 [issue 42](https://github.com/beamfall/corvint/issues/42) and
 [issue 53](https://github.com/beamfall/corvint/issues/53), and the owner-authorized adoption slice
-[issue 339](https://github.com/beamfall/corvint/issues/339) and [issue 399](https://github.com/beamfall/corvint/issues/399),
+[issue 339](https://github.com/beamfall/corvint/issues/339), [issue 399](https://github.com/beamfall/corvint/issues/399) and [issue 1162](https://github.com/beamfall/corvint/issues/1162),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -778,6 +778,79 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   whose encoding exceeds its bound is still refused with `output bound exceeded`. The `DCP-V1-040`
   1 GiB ordinary allocation ceiling and its race guard are unchanged.
 
+- `DCP-V1-086`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) A `records` provider may supply reviewed test knowledge from any test framework as
+  one closed, versioned record `corvint-corpus-test-knowledge/1` that sets `test_knowledge` and no
+  subject, claim, relation, journey, observation, capability, detail, restricted-finding or behavior
+  member. The record requires corpus manifest `/2`. `test_knowledge` holds the pinned source
+  `revision` and 1 to 4096 `records`, and each record holds exactly: a provider-qualified unique
+  `id`; `kind` (`unit`, `request`, `model`, `component`, `integration`, `end-to-end`,
+  `legacy-suite` or `test-case-export`); `framework`; `title`; the `test` anchor (repository, file,
+  lines, blob and digests); 1 to 64 exercised `sources` anchors; the `entry` boundary and `actor`;
+  `setup`; `stubs`, each with a `boundary` of `external` or `in-app`; the demonstrated `behavior`;
+  `asserted` values; related `flows` (flow or variation IDs); `verdict` (`bound`, `partial`,
+  `unrelated` or `defect`); `gap`; `docs` consistency (`consistent`, `contradicts` with the named
+  `claim`, or `undocumented`); `trust` (`run+reviewed`, `run-unreviewed`, `read-only` or
+  `legacy-reference`); an optional run `receipt` anchor; and `reviews`. Unknown members, unknown
+  kinds, verdicts, docs states, stub boundaries or trust levels, duplicate IDs and any other schema
+  are refused with `corpus-refused`, and no artifact is produced.
+- `DCP-V1-087`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) Field rules are fail-closed. A `gap` is present exactly when the verdict is
+  `partial`; a `docs.claim` is present exactly when the state is `contradicts`; a `receipt` is
+  present exactly when the trust level is `run+reviewed` or `run-unreviewed`; and `reviews` is
+  non-empty exactly when the trust level is `run+reviewed`. Every free-text member (framework,
+  title, entry, actor, setup, stub names, behavior, asserted values, gap, reviews and anchor
+  reasons) is bounded UTF-8 text and passes the shared secret-shaped text scan; a match refuses the
+  record. Lists are bounded at 64 entries and 16 reviews, and flow IDs are unique.
+- `DCP-V1-088`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) Records are pinned. Every anchor names the manifest repository, the
+  `external-provider` authority, a closed evidence kind, a canonical path, a Git blob, a content
+  SHA-256 and a non-empty line span with its span SHA-256, and carries no symbol or region. The
+  `test` and `sources` anchors carry the set `revision`. A `receipt` anchor names the revision
+  and path of the run receipt input it cites.
+- `DCP-V1-089`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) The build joins each record after every provider is imported. A set whose `revision`
+  is not the corpus revision, whether it names another commit or none, is `stale` and none of its
+  records joins, counts or is cited. Otherwise each `test` and `sources` anchor is compared with
+  the declared input for its path at the corpus revision: an undeclared path makes the record
+  `unanchored`. Both are reported with reasons and the record is not joined. Any other mismatch is
+  a forged binding and is refused: a different blob, or an equal blob with a different content
+  digest, span digest or a span beyond the file. A `receipt` is compared the same way with the declared input at
+  its own revision; an undeclared `receipt` makes the record `unanchored` and any mismatch is
+  refused. A `joined` record lists, sorted: the claims whose
+  evidence anchors share a path and overlap the lines of its test or source anchors; its declared
+  flows that resolve to `flow` or `variation` subjects, with the rest under `unresolved_flows`; and
+  its test and source paths. The join adds one `test_knowledge` artifact member and never rewrites
+  a subject, claim, relation, journey or observation record or its evidence.
+- `DCP-V1-090`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) Trust is labelled, never promoted. A join reports its `trust_level` and
+  `counts_toward_coverage`, which is true only for a joined `run+reviewed` record with verdict
+  `bound` or `partial`. Its `selection` is `blocks` for a joined `defect` at any trust level,
+  `candidate` exactly when it counts toward coverage, and `excluded` otherwise. No trust level marks
+  a claim or flow verified: journey status, evidence trust and the verified-journey metric are
+  unchanged, and every join carries that limitation.
+- `DCP-V1-091`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) The native reader, and therefore the corpus MCP tools, the indexed companion and the
+  HTTP companion, expose joins labelled by trust. `get` returns a join by ID in any status, and
+  `inventory` pages every join. `flow` returns the joined records naming the flow. `claims` and
+  `locate` return the joined records whose test or source path is the queried path; while any join
+  exists, `get`, `locate`, `claims` and `recommend-tests` are answered even when their generic
+  capability is absent, with a limitation saying so. `coverage` reports
+  `flows_with_reviewed_test_knowledge` over the flow subjects, plus one row per trust level with
+  its joined and counted record counts and no record IDs. `gaps` reports `stale-test-knowledge`,
+  `unanchored-test-knowledge` and `unresolved-test-knowledge-flow`, and a flow's `no-tests` gap is
+  cleared only by a counted record. `recommend-tests` adds `candidate` records for the path; a
+  joined `defect` on the path withholds every candidate, lists at most 32 defect IDs in
+  `blocked_by` with their total in `blocked_by_count` and `blocked_by_truncated` when more exist,
+  and adds a missing-evidence line. The selection state stays `full-relevant-suite-required` and narrowing
+  stays disallowed.
+- `DCP-V1-092`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
+  V1-1868)) The join is deterministic: joins are ordered by ID and the artifact re-derives
+  byte for byte under `Open`. Aggregate test-knowledge records are bounded at 4096 per corpus, and
+  each readable join stays within the 1 MiB record read bound. Republication parity compares each
+  join by ID through a streamed digest, so member size never reports a change and an encoding
+  failure is an error, not a change. No database, service or network input is added.
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -949,6 +1022,27 @@ Acceptance: `TestImportLegacyCasesFormats`, `TestLegacyCasesIDsPathsTitlesWithho
 `TestSearchLegacyCasesReceipt`, `TestLegacyCasesRefusals`, `TestBehaviorLegacyParity`,
 `TestDocsCorpusLegacyCasesCLI` and `TestDCPV1077CorpusMCPSearchCases`.
 
+### Experimental test-knowledge records (issue 1162)
+
+A `corvint-corpus-test-knowledge/1` provider record carries reviewed knowledge about test examples
+from any framework (`DCP-V1-086..092`). The corpus validates the closed record, compares every
+anchor with the pinned corpus inputs, and joins current records to claims, flows and source paths
+in a separate `test_knowledge` artifact member. Stale and unanchored records are reported, not
+joined. Only a joined `run+reviewed` record with verdict `bound` or `partial` counts toward
+coverage or becomes a test-selection candidate, a joined `defect` blocks selection, and no trust
+level marks a claim or flow verified. Trust levels are provider-reported: the corpus does not
+authenticate reviewers or re-run receipts.
+
+Limits:
+- Claims are joined by path and line overlap with a claim's evidence anchors, not by semantics.
+- A generated per-flow "what the tests demonstrate" render section is not produced.
+- A record joins only when its set is pinned at the corpus revision; an older set is stale.
+
+Acceptance: `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`,
+`TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`,
+`TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure` and
+`TestDCPV1092TestKnowledgeDeterministicAndBounded`.
+
 ### Multi-repository behavior declarations (issue 330)
 
 `corvint docs corpus behavior-provider --input REQUEST.json` is a read-only producer for
@@ -1093,6 +1187,11 @@ Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicRea
   `TestDocsCorpusHelpStatesRootRelativeInputs` and `TestLocalInputPathRuleNamesTheBrokenRule`.
   Status: (accepted, decision 0520; V1-1226; GitHub #796).
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
+A test-knowledge record refuses with `corpus-refused` for an unknown member or enum value, a
+broken field rule, a secret-shaped free-text value, a malformed or unpinned anchor, a bound
+breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
+revision). A set revision other than the corpus revision, or an undeclared anchored file, is not a refusal: the record is reported `stale` or `unanchored` and is
+not joined (`DCP-V1-089`).
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
 call failures retain the specific native error and never return successful empty evidence.
@@ -1116,6 +1215,11 @@ provider transport, automatic observation collection, human-review authenticatio
 repair, inferred UI journeys, universal test adequacy, HDC/MkDocs qualification or accepted technical
 intent is delivered by this experimental profile. No change to the default one-binary local boundary.
 The optional MCP companion must be started explicitly and opens no network connection.
+Test-knowledge records (`DCP-V1-086..092`) do not authenticate reviewers, re-run or re-verify run
+receipts, judge assertion adequacy, rewrite claims, render a per-flow test section, or mark any
+claim, flow or journey verified. Rollback of that slice removes the `test_knowledge` provider
+schema, artifact member and reader rows; corpora without test-knowledge providers build the same
+bytes as before.
 
 ## Acceptance and rollback
 
@@ -1173,6 +1277,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-083 | `internal/doccorpus/behavior-events.cjs`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1081ProducerNodeUnit` (Node cases `DCP-V1-083: valueless state matchers record their canonical state name after they pass`, `DCP-V1-083: state options, extra arguments, .not and failures record nothing; hidden options never reach a recorded matcher`); live Playwright state-matcher run `NOT_RUN` |
 | DCP-V1-084 | `internal/doccorpus/behavior_adapter.go` (unchanged byte-for-byte comparison) | `TestDCPV1084StateMatcherAssertionIsWitnessed` (canonical pair witnessed; non-empty other value mismatches; empty value refused) |
 | DCP-V1-085 | `internal/doccorpus/encoding.go`, `internal/corpusindex/index.go` | `TestDCPV1085StreamedEncodingIsEncode`, `TestDCPV1085ParseAllocationIgnoresEncoderPool`, `TestDCPV1085OpenAllocationIgnoresEncoderPool`, `TestIndexedCorpusCapacityQualification` |
+| DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1091TestKnowledgeOnlyCorpus`, `TestDCPV1092TestKnowledgeDeterministicAndBounded`, `TestDCPV1092ParityLargeTestKnowledge` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
