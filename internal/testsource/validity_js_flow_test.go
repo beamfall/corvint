@@ -145,3 +145,77 @@ func TestAssertedValueNotFromSubjectJS(t *testing.T) {
 		38: {"ASSERTED-VALUE-NOT-FROM-SUBJECT advisory test/banner.test.ts:41 test/banner.test.ts:40"},
 	})
 }
+
+const jsFlowReviewHooks = `import { checkout } from '../src/checkout';
+import { totalFor } from '../src/pricing';
+
+describe('checkout', () => {
+  beforeEach(() => {
+    vi.mocked(totalFor).mockReturnValue(42);
+  });
+  afterEach(() => {
+    vi.mocked(totalFor).mockReturnValue(42);
+  });
+  it('returns the total', () => {
+    expect(checkout().total).toBe(42);
+  });
+});
+`
+
+const jsFlowReviewSpec = `import { checkout } from '../src/checkout';
+import { notify } from '../src/notify';
+
+describe('checkout', () => {
+  it('writes the subject result onto a local', () => {
+    const result = {};
+    result.total = checkout().total;
+    expect(result.total).toBe(42);
+  });
+  it('passes the spied object inside the assertion', () => {
+    const store = { load: () => 42 };
+    vi.spyOn(store, 'load');
+    expect(checkout(store)).toBe(42);
+  });
+  it('expects the second call', () => {
+    const cb = vi.fn();
+    cb('saved');
+    notify(cb);
+    expect(cb).toHaveBeenNthCalledWith(2, 'saved');
+  });
+  it('clears the mock before the action', () => {
+    const cb = vi.fn();
+    cb('saved');
+    cb.mockClear();
+    notify(cb);
+    expect(cb).toHaveBeenCalledWith('saved');
+  });
+  it('compares fixture fields', () => {
+    const fixture = { items: [1], expectedCount: 1 };
+    expect(fixture.items).toHaveLength(fixture.expectedCount);
+  });
+});
+`
+
+const jsFlowReviewDOM = `import * as helpers from './helpers';
+
+it('updates the page', () => {
+  document.body.innerHTML = '<p>old</p>';
+  helpers.update();
+  expect(document.body.textContent).toBe('new');
+});
+`
+
+// TestFlowReviewJS traces the #1184 review regressions for TSA-V0-122, TSA-V0-124 and
+// TSA-V0-126..128: a beforeEach stub is on-path and an afterEach stub is not read, a member write
+// of a subject value and a spy handed to the subject inside an expectation escape, ordered call
+// expectations and calls before a mock clear give no finding, matcher arguments that only read a
+// fixture do not hide it, and a call through an imported namespace can write the DOM.
+func TestFlowReviewJS(t *testing.T) {
+	wantExamples(t, flowBrief(jsBrief(t, "test/checkout.test.ts", jsFlowReviewHooks)), map[int][]string{
+		11: {"STUB-ON-PATH advisory test/checkout.test.ts:6 test/checkout.test.ts:12"},
+	})
+	wantExamples(t, flowBrief(jsBrief(t, "test/checkout.test.ts", jsFlowReviewSpec)), map[int][]string{
+		28: {"ASSERTED-VALUE-NOT-FROM-SUBJECT advisory test/checkout.test.ts:30 test/checkout.test.ts:29"},
+	})
+	wantExamples(t, flowBrief(jsBrief(t, "test/widget.test.ts", jsFlowReviewDOM)), map[int][]string{})
+}

@@ -56,3 +56,20 @@ readers. They add no parser and no output member.
   `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`,
   `TestStubOnPathMessages` and `TestFlowFindingsAdvisoryAndDeterministic` in `internal/testsource`.
 - Live qualification on a real suite: NOT_RUN.
+
+## Independent review (Codex, PR #1184)
+
+One Codex round raised nine medium findings. All nine are fixed, or the reader now abstains where
+a precise reading would be unsound:
+- a member write of a subject value, and a spy or built value passed to the subject inside an
+  `expect(...)` actual, now escape;
+- RSpec `not_to`/`to_not` assertions are excluded from both rules;
+- `"#{...}"` interpolation stays code, and a built value containing it abstains;
+- ordinal call expectations, and calls before a mock clear or reset, give no finding;
+- any use of a non-test-library import binding, a namespace member call included, blocks the DOM
+  guard;
+- `beforeEach`/`beforeAll` stubs are read for STUB-ON-PATH;
+- RSpec boundary receivers are never STUB-NEVER-INVOKED;
+- a fixture read only in matcher arguments is no longer an escape.
+
+`TestFlowReviewRSpec` and `TestFlowReviewJS` hold the review inputs.

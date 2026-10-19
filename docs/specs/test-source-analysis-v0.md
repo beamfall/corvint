@@ -906,6 +906,8 @@ under test, so they cannot prove a defect. They give an advisory finding or no f
   - The example has an action line that names the subject, and an assertion on a value that names
     the subject expects the stub's informative return value, or the identifier it returns.
 
+  A negated (`not_to`, `to_not`, `.not`) assertion is never evidence.
+
   The finding MUST name the stubbed symbol, the assertion line and the action line. An empty,
   `nil`/`null`/`undefined`, boolean, `[]` or `{}` return value is not evidence. A stub that
   TSA-V0-124 reports MUST NOT also be reported here.
@@ -948,14 +950,18 @@ under test, so they cannot prove a defect. They give an advisory finding or no f
   - the example's scope writes the DOM itself, through `innerHTML =`, `createElement` or
     `insertAdjacentHTML`;
   - the scope has no `render`, `mount` or similar call, no subject name, no `new`, no same-file
-    function call, no call of a non-test-library import and no bare import.
+    function call, no use of a non-test-library import binding (a namespace import's
+    member call included) and no bare import.
 - `TSA-V0-128`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An expectation that the
   test's own call meets MUST be reported in these forms:
   - an RSpec `have_been_enqueued`, `have_enqueued_job` or `have_enqueued_sidekiq_job` expectation
     whose job the example enqueues itself before the expectation, or inside the expectation's
     block, with the expected `with` arguments (the delay of `perform_in`/`perform_at` dropped);
   - a Jest/Vitest `toHaveBeenCalled*` expectation on a callee the example calls directly, outside
-    any nested function, with the arguments the expectation repeats.
+    any nested function, with the arguments the expectation repeats. An ordinal expectation
+    (`toHaveBeenNthCalledWith`, `toHaveBeenLastCalledWith`), and a direct call followed by
+    `mockClear`, `mockReset`, `mockRestore` or an `*AllMocks` call before the expectation, give no
+    finding.
 - `TSA-V0-129`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) These MUST NOT be
   reported:
   - an assertion on the subject's return value or rendered output;
@@ -1021,14 +1027,14 @@ reader caches they use; callers then read the earlier rules unchanged, and nothi
 |---|---|---|---|
 | TSA-V0-120 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go`, `internal/testvalidity/source_rules_flow.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
 | TSA-V0-121 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubNeverInvokedRSpec` | experimental |
-| TSA-V0-122 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubOnPathMessages` | experimental |
+| TSA-V0-122 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubOnPathMessages`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
 | TSA-V0-123 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
-| TSA-V0-124 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubNeverInvokedRSpec`, `TestStubOnPathJS` | experimental |
+| TSA-V0-124 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubNeverInvokedRSpec`, `TestStubOnPathJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
 | TSA-V0-125 | none (residual) | `TestStubNeverInvokedRSpec` (static message) | residual |
-| TSA-V0-126 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS` | experimental |
-| TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS` | experimental |
-| TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS` | experimental |
-| TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions` | experimental |
+| TSA-V0-126 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions`, `TestFlowReviewRSpec` | experimental |
 | TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` | experimental |
 
 ## Decision file format

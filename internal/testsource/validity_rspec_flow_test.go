@@ -252,3 +252,51 @@ func TestStubOnPathMessages(t *testing.T) {
 		}
 	}
 }
+
+const flowReviewSpec = `RSpec.describe Invoice do
+  it 'negates on a built value' do
+    invoice = build(:invoice, total: 10)
+    expect(invoice.total).not_to eq(0)
+  end
+  it 'interpolates the subject' do
+    rendered = "#{subject.call}"
+    expect(rendered).to eq("42")
+  end
+  it 'hands the value to the subject in an assertion' do
+    invoice = build(:invoice, total: 0)
+    expect(subject.update(invoice)).to be_truthy
+    expect(invoice.total).to eq(42)
+  end
+  it 'stubs a boundary client it never passes' do
+    client = Faraday.new
+    allow(client).to receive(:get)
+    expect(subject.call).to be_truthy
+  end
+  it 'negates a stubbed value' do
+    allow(PriceCalculator).to receive(:total).and_return(42)
+    expect(subject.call.total).not_to eq(42)
+  end
+  it 'still reports a built value read on its own' do
+    invoice = build(:invoice, total: 10)
+    expect(invoice.total).to eq(10)
+  end
+  it 'reads a stubbed object in an interpolation' do
+    store = Store.new
+    allow(store).to receive(:fetch).and_return([])
+    expect(subject.rows("#{store.fetch}")).to eq([])
+  end
+end
+`
+
+// TestFlowReviewRSpec traces the #1184 review regressions for TSA-V0-122, TSA-V0-124 and
+// TSA-V0-129: a negated assertion is neither on-path nor an origin finding, an interpolated
+// subject call is not a test-built value, a value handed to the subject inside an expectation
+// escapes, a boundary receiver is never a never-invoked stub, and a stubbed name read in an
+// interpolated subject argument is a use, so the stub is on-path rather than never invoked.
+func TestFlowReviewRSpec(t *testing.T) {
+	got := flowBrief(exampleBrief(t, "spec/invoice_spec.rb", flowReviewSpec))
+	wantExamples(t, got, map[int][]string{
+		24: {"ASSERTED-VALUE-NOT-FROM-SUBJECT advisory spec/invoice_spec.rb:26 spec/invoice_spec.rb:25"},
+		28: {"STUB-ON-PATH advisory spec/invoice_spec.rb:30 spec/invoice_spec.rb:31"},
+	})
+}

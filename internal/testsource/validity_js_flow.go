@@ -20,9 +20,13 @@ var (
 	// jsReachCalls mount, render or run code the test does not own (TSA-V0-127).
 	jsReachCalls = map[string]bool{"render": true, "mount": true, "shallowMount": true, "shallow": true, "renderHook": true,
 		"createComponent": true, "renderToString": true, "require": true}
-	// jsCallMatchers are the call expectations TSA-V0-128 reads, with the arguments to drop.
+	// jsCallMatchers are the call expectations TSA-V0-128 reads; -1 marks an ordered expectation
+	// (last or nth call), which a later call can fail, so it gives no finding.
 	jsCallMatchers = map[string]int{"toHaveBeenCalled": 0, "toBeCalled": 0, "toHaveBeenCalledWith": 0, "toBeCalledWith": 0,
-		"toHaveBeenLastCalledWith": 0, "lastCalledWith": 0, "toHaveBeenNthCalledWith": 1, "nthCalledWith": 1}
+		"toHaveBeenLastCalledWith": -1, "lastCalledWith": -1, "toHaveBeenNthCalledWith": -1, "nthCalledWith": -1}
+	// jsMockResets clear the calls a mock recorded before them.
+	jsMockResets = map[string]bool{"mockClear": true, "mockReset": true, "mockRestore": true, "clearAllMocks": true,
+		"resetAllMocks": true, "restoreAllMocks": true}
 	jsUninformative = map[string]bool{"": true, "true": true, "false": true, "null": true, "undefined": true, "[]": true, "{}": true, `""`: true}
 	jsValueWords    = map[string]bool{"true": true, "false": true, "null": true, "undefined": true, "NaN": true, "Infinity": true}
 )
@@ -235,7 +239,10 @@ func (r *jsReader) flowFindings(e jsDecl, test string) []testvalidity.SourceFind
 				name, f.line(bound))))
 		}
 	}
-	for k := e.body[0]; k < e.body[1]; k++ {
+	for k := range s.tokens {
+		if !jsStubSetters[s.tokens[k].Text] || !(within(k, e.body) || r.applies(k, e, f.chain) && f.beforeHook(k)) {
+			continue
+		}
 		if st, ok := f.stub(k); ok && !unused[st.start] {
 			if a, action, ok := f.onPath(st); ok {
 				out = append(out, finding(testvalidity.RuleStubOnPath, k, a.at, fmt.Sprintf(
@@ -251,6 +258,24 @@ func (r *jsReader) flowFindings(e jsDecl, test string) []testvalidity.SourceFind
 		}
 	}
 	return out
+}
+
+// beforeHook reports token k inside a beforeEach or beforeAll callback, whose stubs are set before
+// the example's action; a stub elsewhere outside the example body is not read.
+func (f *jsFlow) beforeHook(k int) bool {
+	s := f.r.s
+	for j := k - 1; j > 0; j-- {
+		if !s.punct(j, "(") || s.match[j] <= k {
+			continue
+		}
+		switch {
+		case s.ident(j-1, "beforeEach") || s.ident(j-1, "beforeAll"):
+			return true
+		case s.ident(j-1, "afterEach") || s.ident(j-1, "afterAll"):
+			return false
+		}
+	}
+	return false
 }
 
 // jsStub is one stubbed return value set at a `.mockX(...)` call.
@@ -417,7 +442,7 @@ func (f *jsFlow) neverInvoked(k int) (string, int, bool) {
 		if (s.ident(j, "jest") || s.ident(j, "vi")) && s.punct(j+1, ".") && s.ident(j+2, "spyOn") && s.punct(j+3, "(") && s.match[j+3] > j {
 			spies = append(spies, [2]int{j, s.match[j+3]})
 		}
-		if c, ok := s.readExpect(j); ok {
+		if c, ok := s.readExpect(j); ok && f.callFree(c.subject) {
 			expects = append(expects, c.subject)
 		}
 	}
@@ -432,6 +457,19 @@ func (f *jsFlow) neverInvoked(k int) (string, int, bool) {
 		symbol += "." + s.tokens[args[1][0]].Text
 	}
 	return symbol, decl, true
+}
+
+// callFree reports a range with no call or construction in it, so a reference inside it is not
+// handed to other code.
+func (f *jsFlow) callFree(rng [2]int) bool {
+	s := f.r.s
+	for k := rng[0]; k < rng[1]; k++ {
+		call := s.punct(k, "(") && k > rng[0] && (s.ident(k-1, "") || s.punct(k-1, ")") || s.punct(k-1, "]"))
+		if call || s.ident(k, "new") || s.tokens[k].Kind == appmap.JSTemplate && !s.tokens[k].Literal {
+			return false
+		}
+	}
+	return true
 }
 
 func inAny(k int, ranges [][2]int) bool {
@@ -453,6 +491,9 @@ func (f *jsFlow) notFromSubject(a jsExpect) (int, string, bool) {
 		return 0, "", false
 	}
 	if drop, ok := jsCallMatchers[a.c.matcher]; ok {
+		if drop < 0 {
+			return 0, "", false
+		}
 		if call, ok := f.ownCall(actual, a, drop); ok {
 			return call, fmt.Sprintf("the call expectation on %s is met by the test's own call at %s, so it passes whatever the subject calls",
 				s.render(actual[0], actual[1]), f.line(call)), true
@@ -539,8 +580,9 @@ func (f *jsFlow) built(rng [2]int, depth int, roots map[string][2]int, dom *bool
 }
 
 // allowedUse reports a reference to a root that does not hand it to other code: its declaration,
-// an assertion's actual, a member assignment, another root's initializer, or (for a test-built
-// DOM node) the node appended to the test's own DOM.
+// an assertion's actual or matcher arguments with no call in them, a member write of a test-built
+// value, another root's initializer, or (for a test-built DOM node) the node appended to the
+// test's own DOM.
 func (f *jsFlow) allowedUse(k int, roots map[string][2]int, dom bool) bool {
 	s := f.r.s
 	name := s.tokens[k].Text
@@ -548,11 +590,21 @@ func (f *jsFlow) allowedUse(k int, roots map[string][2]int, dom bool) bool {
 		return true
 	}
 	for _, a := range f.asserts {
-		if within(k, a.c.subject) {
+		if within(k, a.c.subject) && f.callFree(a.c.subject) || within(k, a.c.margs) && f.callFree(a.c.margs) {
 			return true
 		}
 	}
 	if s.punct(k+1, ".") && s.ident(k+2, "") && s.punct(k+3, "=") && !s.punct(k+4, "=") {
+		// A member write keeps the root test-built only when the written value is test-built too.
+		written, more, wroteDOM := [2]int{k + 4, s.exprEnd(k+4, len(s.tokens))}, map[string][2]int{}, false
+		if !f.built(written, 0, more, &wroteDOM) || wroteDOM && !dom {
+			return false
+		}
+		for other := range more {
+			if _, ok := roots[other]; !ok {
+				return false
+			}
+		}
 		return true
 	}
 	for other := range roots {
@@ -601,7 +653,8 @@ func (f *jsFlow) readDOM() (int, bool) {
 			return 0, false
 		case call && f.word(k) && len(defs[name]) > 0:
 			return 0, false
-		case call && f.word(k):
+		case f.word(k):
+			// Any use of an imported binding, a namespace member call included, can run module code.
 			if b, ok := f.r.bindings[name]; ok && !jsTestLibrary(b.spec) {
 				return 0, false
 			}
@@ -612,6 +665,17 @@ func (f *jsFlow) readDOM() (int, bool) {
 		}
 	}
 	return made, made >= 0
+}
+
+// resetBetween reports a mock reset or clear between tokens from and to, which drops the calls
+// recorded before it.
+func (f *jsFlow) resetBetween(from, to int) bool {
+	for k := from; k < to; k++ {
+		if f.r.s.ident(k, "") && jsMockResets[f.r.s.tokens[k].Text] {
+			return true
+		}
+	}
+	return false
 }
 
 // ownCall returns the example's own direct call of the expected callee whose arguments the
@@ -652,7 +716,7 @@ func (f *jsFlow) ownCall(callee [2]int, a jsExpect, drop int) (int, bool) {
 		if !same {
 			continue
 		}
-		if !has || s.render(k+n+1, s.match[k+n]) == want {
+		if (!has || s.render(k+n+1, s.match[k+n]) == want) && !f.resetBetween(k, a.at) {
 			return k, true
 		}
 	}

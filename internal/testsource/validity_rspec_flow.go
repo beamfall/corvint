@@ -59,7 +59,8 @@ var (
 
 // rubyText is one logical line with its string and percent literals masked: masked has the same
 // length as raw, with every character inside a literal replaced by \x01, so a pattern matched on
-// masked never matches literal content and its positions slice raw.
+// masked never matches literal content and its positions slice raw. A `#{...}` interpolation in a
+// double-quoted string stays code, so its names are read.
 type rubyText struct {
 	line        int
 	raw, masked string
@@ -73,9 +74,15 @@ func maskRuby(l rubyLine) rubyText {
 		}
 		b[loc[0]], b[loc[1]-1] = '"', '"'
 	}
-	quote := byte(0)
+	// stack holds the open strings and interpolations: a quote byte, or 0 for an interpolation
+	// whose brace depth is in depth.
+	stack, depth := []byte{}, []int{}
 	for i := 0; i < len(b); i++ {
 		c := b[i]
+		quote := byte(0)
+		if len(stack) > 0 {
+			quote = stack[len(stack)-1]
+		}
 		switch {
 		case quote != 0 && c == '\\':
 			b[i] = 1
@@ -84,11 +91,20 @@ func maskRuby(l rubyLine) rubyText {
 				b[i] = 1
 			}
 		case quote != 0 && c == quote:
-			quote = 0
+			stack = stack[:len(stack)-1]
+		case quote == '"' && c == '#' && i+1 < len(b) && b[i+1] == '{':
+			i++
+			stack, depth = append(stack, 0), append(depth, 1)
 		case quote != 0:
 			b[i] = 1
 		case c == '\'' || c == '"':
-			quote = c
+			stack = append(stack, c)
+		case len(stack) > 0 && c == '{':
+			depth[len(depth)-1]++
+		case len(stack) > 0 && c == '}':
+			if depth[len(depth)-1]--; depth[len(depth)-1] == 0 {
+				stack, depth = stack[:len(stack)-1], depth[:len(depth)-1]
+			}
 		}
 	}
 	return rubyText{line: l.line, raw: l.text, masked: string(b)}
@@ -148,6 +164,7 @@ type rubyAssertion struct {
 	t              rubyText
 	actual         [2]int // range in t; empty for is_expected
 	self           bool
+	negated        bool // not_to or to_not
 	matcher        string
 	expected       [2]int // the matcher's argument range, or empty
 	with           [2]int // a `.with(...)` argument range after the matcher, or empty
@@ -194,6 +211,7 @@ func (a *rubyAssertion) readMatcher(from int) bool {
 		return false
 	}
 	a.matcher = m[from+loc[2] : from+loc[3]]
+	a.negated = strings.Contains(m[from:from+loc[2]], "not")
 	at := from + loc[1]
 	rest := strings.TrimLeft(m[at:], " ")
 	start := len(m) - len(rest)
@@ -480,7 +498,7 @@ func (r *rspecReader) flowFindings(name, test string, e rspecExample) []testvali
 	onPath, never, notFrom := []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}
 	for _, s := range stubs {
 		rc := c.receiver(s)
-		unused := !s.expect && !s.anyInstance && !constant(s.recv) && rc.fresh && rc.kind != "subject" && !c.mentioned(s.recv, rc.line)
+		unused := !s.expect && !s.anyInstance && !constant(s.recv) && rc.fresh && rc.kind != "subject" && rc.kind != "boundary" && !c.mentioned(s.recv, rc.line)
 		if rc.kind == "first-party" && !unused {
 			if a, action, ok := c.onPath(s, asserts); ok {
 				onPath = append(onPath, finding(testvalidity.RuleStubOnPath, s.t.line, a.t.line, fmt.Sprintf(
@@ -535,6 +553,9 @@ func (c *flowContext) onPath(s rubyStub, asserts []rubyAssertion) (rubyAssertion
 		}
 	}
 	for _, a := range asserts {
+		if a.negated {
+			continue
+		}
 		actual := ""
 		if !a.self {
 			actual = a.t.masked[a.actual[0]:a.actual[1]]
@@ -582,7 +603,7 @@ type origin struct {
 // notFromSubject reports an assertion whose actual value only the test built (TSA-V0-126), or an
 // enqueue expectation the test's own enqueue meets (TSA-V0-128).
 func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
-	if a.self {
+	if a.self || a.negated {
 		return origin{}, false
 	}
 	actual := strings.TrimSpace(a.t.masked[a.actual[0]:a.actual[1]])
@@ -614,12 +635,13 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 			first = line
 		}
 	}
-	for line := range c.asserted {
-		allowed[line] = true
-	}
 	for name := range roots {
 		for _, i := range c.scope {
-			if !allowed[c.r.flowText[i].line] && slices.Contains(c.r.flowWords[i], name) {
+			t := c.r.flowText[i]
+			if allowed[t.line] || !slices.Contains(c.r.flowWords[i], name) {
+				continue
+			}
+			if !c.asserted[t.line] || slices.Contains(rubyWords(assertionResidue(t)), name) {
 				return origin{}, false
 			}
 		}
@@ -629,12 +651,33 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 		strings.TrimSpace(a.t.raw[a.actual[0]:a.actual[1]]), c.at(first))}, true
 }
 
+// assertionResidue returns an expectation line's masked text with the leading name of each
+// assertion's actual and expected value blanked: a value an assertion only reads. A name left in
+// the residue is passed to a call, such as `expect(subject.update(invoice))`.
+func assertionResidue(t rubyText) string {
+	b := []byte(t.masked)
+	blank := func(span [2]int) {
+		if loc := rspecIdentifier.FindStringIndex(t.masked[span[0]:span[1]]); loc != nil && strings.TrimSpace(t.masked[span[0]:span[0]+loc[0]]) == "" {
+			for i := span[0] + loc[0]; i < span[0]+loc[1]; i++ {
+				b[i] = ' '
+			}
+		}
+	}
+	for _, a := range rubyAssertions([]rubyLine{{line: t.line, text: t.raw}}) {
+		if !a.self {
+			blank(a.actual)
+		}
+		blank(a.expected)
+	}
+	return string(b)
+}
+
 // built reports that span of t holds a value the test builds alone: literals, the builder calls
 // of rspecBuilder over such values, and names bound to such values, with no subject, constant,
 // persisted read or unresolved name (TSA-V0-126). roots collects each bound name's line.
 func (c *flowContext) built(t rubyText, span [2]int, before, depth int, roots map[string]int) bool {
 	text := strings.TrimSpace(t.masked[span[0]:span[1]])
-	if text == "" || depth > maxFlowDepth || rspecPersisted.MatchString(text) || rspecSelfWords.MatchString(text) || strings.Contains(text, "->") {
+	if text == "" || strings.Contains(t.raw[span[0]:span[1]], "#{") || depth > maxFlowDepth || rspecPersisted.MatchString(text) || rspecSelfWords.MatchString(text) || strings.Contains(text, "->") {
 		return false
 	}
 	if loc := rspecBuilder.FindStringIndex(text); loc != nil {
