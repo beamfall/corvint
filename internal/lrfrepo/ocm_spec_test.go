@@ -44,10 +44,11 @@ func TestSelfObservationSpecEnumeratesEveryObligation(t *testing.T) {
 		{name: "SOL-V0-001"}, {name: "SOL-V0-002"}, {name: "SOL-V0-003"},
 		{name: "SOL-V0-004"}, {name: "SOL-V0-005"}, {name: "SOL-V0-006"},
 		{name: "SOL-V0-007"}, {name: "SOL-V0-008"}, {name: "SOL-V0-009"},
-		{name: "SOL-V0-010"},
+		{name: "SOL-V0-010"}, {name: "SOL-V0-011"}, {name: "SOL-V0-012"},
+		{name: "SOL-V0-013"},
 	}
 	if len(requirements) != len(cases) {
-		t.Fatalf("OCM enumerates %v; want all ten SOL-V0 clauses", requirements)
+		t.Fatalf("OCM enumerates %v; want all thirteen SOL-V0 clauses", requirements)
 	}
 	for i, test := range cases {
 		t.Run("registry lists "+test.name, func(t *testing.T) {
