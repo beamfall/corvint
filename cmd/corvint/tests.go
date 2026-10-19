@@ -25,7 +25,7 @@ Usage:
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
-    [--rev REV]
+    [--legacy NEW=LEGACY ...] [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -82,6 +82,17 @@ example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
 Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
+
+--legacy NEW=LEGACY (repeatable, at most 256; --files may then be omitted)
+links a new test to the legacy test it claims to preserve, each PATH:LINE of
+the example's declaring line. The report's seedParity lists, per link, each
+side's setup as entity kinds, counts and explicitly set attributes (RSpec
+FactoryBot create/create_list/build/build_list and YAML fixtures; JS/TS
+create/build/createList/buildList factory calls) and the advisory
+SEED-PARITY-DIVERGES, SEED-PARITY-UNCERTAIN, SEED-AGGREGATE-SINGLE-MEMBER and
+SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
+not analysed, a call may not run, or an unknown value meets a different one.
+Seed parity never changes the exit code.
 
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
@@ -345,7 +356,8 @@ func runTestsDuplicates(repo testsource.Repo, args []string, out, diagnostic io.
 }
 
 // runTestsValidity prints the static test-validity findings of the named committed files
-// (TSA-V0-071). It exits 1 when a finding refuses a test as proof.
+// (TSA-V0-071) and the advisory seed parity of each --legacy link (TSA-V0-108). It exits 1 when a
+// finding refuses a test as proof.
 func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
 	f, once := testsFlags("tests validity")
 	options := testsource.SourceValidityOptions{Revision: "HEAD"}
@@ -357,9 +369,17 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		}
 		return nil
 	})
+	f.Func("legacy", "NEW=LEGACY test link, each PATH:LINE", func(value string) error {
+		current, legacy, ok := strings.Cut(value, "=")
+		if !ok || current == "" || legacy == "" {
+			return fmt.Errorf("want NEW=LEGACY")
+		}
+		options.Links = append(options.Links, testsource.SeedLink{New: current, Legacy: legacy})
+		return nil
+	})
 	once("rev", &options.Revision)
-	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV]")
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV]")
 	}
 	report, err := testsource.SourceValidity(repo, options)
 	if err != nil {

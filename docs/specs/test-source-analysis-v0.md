@@ -1073,6 +1073,154 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 The pair is unordered. The file belongs to the project and is edited by people; Corvint only reads
 it.
 
+## Seed parity between linked tests (V1-1883)
+
+V1-1883 (GitHub #1167) compares the setup a new test performs with the setup of the legacy test it
+claims to preserve. Two tests can share a title and assertions while seeding different data: three
+children against one, an attribute set on one side and left at its default on the other, or a total
+asserted over a single record. It is agent-drafted and accepted under the owner's standing
+auto-accept (2026-10-11). The reading reuses the TSA-V0-062 RSpec reader and the TSA-V0-010 lexer
+and declaration model. The link is an explicit argument; no link store is added.
+
+- `TSA-V0-100`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests
+  validity` MUST accept a repeatable `--legacy NEW=LEGACY` link (`SourceValidityOptions.Links`).
+  - Each side is `PATH:LINE`: a repository-relative committed file and the declaring line of one
+    example. `--files` may be omitted when a link is given.
+  - A side that is not `PATH:LINE` with a positive line refuses `tests-invalid-arguments`; a
+    malformed `NEW=LEGACY` value exits 2. A file that is not committed at the revision refuses
+    `tests-source-unavailable`. More than 256 links refuses `tests-bound-exceeded`.
+- `TSA-V0-101`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUST
+  be read from committed Git content in exactly these forms:
+  - RSpec (`_spec.rb`): FactoryBot `create`, `create_list`, `build` and `build_list`, bare or as
+    `FactoryBot.`, with a literal kind, a literal list count, `:trait` and `key: value` or
+    `:key => value` arguments. They are read in the example body, the `before`/`before(:each)`
+    hooks, `let!` and `subject!` of its groups, and the lazy `let` and `subject` bodies that scope
+    invokes, transitively and innermost first. `subject` resolves to a named subject
+    (`subject(:user) { ... }`), and a `let!` runs the innermost definition of its name, so an inner
+    `let` overriding an outer `let!` counts once, with the inner body.
+  - RSpec YAML fixtures: a `fixtures :table, ...` line of the example's groups reads
+    `spec/fixtures/TABLE.yml`, else `test/fixtures/TABLE.yml`. Each top-level record is one seed
+    of the singular kind with its one-level `key: value` attributes.
+  - JS/TS (`IsTestFile`): `create`, `build`, `createList` and `buildList`, bare or on one receiver
+    (`factory.create('user', {...})`), with a literal string kind, a literal list count and an
+    optional object literal of `key: value` attributes. They are read in the example body and the
+    `beforeEach`/`beforeAll` hooks (bare or `test.`) that apply to it.
+  - Only a call that runs whenever its body runs is read. A call nested in a block, lambda or
+    callback, or in a condition or short-circuit operand of its statement (`if`, `unless`, a
+    modifier, `&&`, `||`, `?:`, an arrow that is not invoked), abstains per TSA-V0-107.
+  - Setup in another example, a non-applying hook, or a `def` helper scope never invokes, is not
+    read.
+- `TSA-V0-102`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MUST
+  be normalised to a sorted list of kinds. Each kind has its summed count and each explicitly set
+  attribute with its sorted distinct values.
+  - Names are lower snake_case. A trait is attribute `trait:NAME` = `true`.
+  - A symbol or string is a quoted string; a number or boolean is itself; `nil`, `null` and
+    `undefined` are `null`; any other expression, and a nested YAML value, is `<expr>`.
+- `TSA-V0-103`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The report MUST carry a
+  `seedParity` member, one entry per link in argument order, only when a link is given. Each entry
+  has `new`, `legacy`, `status`, `sides` and `findings`.
+  - `sides` holds the legacy then the new side: `side`, `test`, `analysed`, `reason` and
+    `location` when not analysed, and `kinds`.
+  - `status` is `parity` when both normalised shapes are identical, with no divergence or
+    uncertain finding; `diverges` when they differ; `uncertain` when the only differences are
+    attribute values that hold `<expr>` (TSA-V0-105); `not-analysed` per TSA-V0-107. Parity means equal setup shapes
+    only, never equal behaviour.
+- `TSA-V0-104`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A kind seeded on one
+  side only, or with different counts, MUST give an advisory `SEED-PARITY-DIVERGES` finding.
+  - Its message names both counts and, per side, the asserting lines that read the kind: an
+    identifier equal to the kind or its plural, or a name the seed is bound to (a let, a local or
+    a destructured name).
+  - Findings that an asserting line reads order first, then by kind and attribute. `location` is
+    the new side's first seed of the kind (else the new test) and `cause` the legacy side's.
+- `TSA-V0-105`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) For a kind both sides
+  seed, an attribute set explicitly on one side and left at its default on the other MUST give a
+  `SEED-PARITY-DIVERGES` finding naming the side and its values. An attribute both sides set to
+  literal values only, with different value sets, also gives one. An attribute both sides set with
+  different value sets where either holds `<expr>` MUST instead give an advisory
+  `SEED-PARITY-UNCERTAIN` finding naming both value sets; it is never parity. Equal value sets,
+  `<expr>` included, give no finding.
+- `TSA-V0-106`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) An asserting line on
+  either side whose identifiers hold an aggregate word (`total`, `sum`, `all`, `every`, `reduce`,
+  `inject`, `average`, `balance`, `aggregate`) and read a group of a kind MUST give an advisory
+  `SEED-AGGREGATE-SINGLE-MEMBER` finding when either side seeds exactly one of that kind.
+  - A group is the kind's plural identifier or a plural bound name.
+  - It is reported on each side whose assertion qualifies, at the asserting line, with `cause` the
+    first single side's seed.
+- `TSA-V0-107`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A side MUST abstain,
+  naming its first reason and `path:line`, when:
+  - the file is neither `_spec.rb` nor a JS/TS test file: `seed-file-unsupported`;
+  - the reader is uncertain or unbalanced: `seed-source-uncertain`;
+  - no single example is declared on the line: `seed-example-not-found`;
+  - a setup-like identifier (a create, build, insert, upsert, seed, fixture, factory or populate
+    word) in scope is not a supported form, including a block-taking call: `seed-form-unsupported`;
+  - setup-like code runs where scope is not resolved (`before(:all)`, `around`, `after`, an invoked
+    `def`, or a JS file-level call): `seed-scope-unresolved`;
+  - a factory call in scope may not run (TSA-V0-101): `seed-execution-unresolved`;
+  - the kind, list count or attributes are not literal: `seed-kind-not-literal`,
+    `seed-count-not-literal`, `seed-attributes-not-literal`;
+  - a fixture file is missing (`seed-fixture-unavailable`), not of the plain shape
+    (`seed-fixture-unsupported`: ERB, tabs, anchors, aliases, merge keys, lists, `fixtures :all`),
+    or over the bound (`seed-fixture-bound-exceeded`). A `spec/fixtures` file that is over the
+    bound or not a regular file abstains; `test/fixtures` is read only when it is absent.
+  When either side abstains, `status` MUST be `not-analysed`. There is one advisory
+  `SEED-PARITY-NOT-ANALYSED` finding per unanalysed side and no divergence or aggregate finding.
+- `TSA-V0-108`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Seed-parity findings
+  MUST be advisory and carry the new test as `test`. They MUST NOT add a `tests` entry, change a
+  hygiene or strength axis, or change the exit code.
+- `TSA-V0-109`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) The reading MUST be
+  deterministic. It MUST read only committed Git content: each side at most 1 MiB, and at most 16
+  fixture tables per side, each at most 1 MiB. It MUST write nothing and use no network.
+
+Non-goals:
+- reusing the documentation-corpus legacy crosswalk (it needs a behaviour registry and inventory);
+  a link store;
+- telling `build` from `create` persistence, factory defaults, factory traits' contents, sequences
+  or associations a factory adds;
+- helpers, page objects or shared contexts in other files; `let_it_be`, `before(:all)` and
+  database seeds files;
+- deciding that the asserted value depends on the divergence: ordering by a reading assertion is a
+  hint, not proof.
+
+Failure modes:
+- A setup-like word the forms do not cover abstains the side, so most real suites will report
+  `not-analysed` until more forms are added; this is the intended failure direction.
+- A helper whose name holds no setup word (`make_order`, `given_cart`) is not seen. Its records are
+  missing from the shape, so parity can be reported when the helper seeds differently.
+- The plural and aggregate readings are English-word heuristics; a miss leaves a finding
+  unreported, never a side mis-analysed.
+
+Acceptance evidence: synthetic fixtures only (`internal/testsource/seed_parity_test.go`,
+`cmd/corvint/tests_test.go`).
+- A 3 vs 1 child count with the asserting lines of both sides.
+- An explicit vs default attribute and differing literal values.
+- A sum/reduce aggregate over a single-member seed, reported on both sides.
+- Each abstention reason on each side, with no parity reported, including conditional and
+  deferred calls and an oversized fixture with a fallback file present.
+- An unknown value against a literal reported uncertain; a named subject, an overridden `let!`,
+  a commented quoted YAML scalar and a `.should` aggregate chain.
+- Identical shapes written differently, with no finding.
+- YAML fixtures, including ERB and missing files; the JS/TS form; and the CLI flag and exit code.
+
+No live qualification on a real migration was run (NOT_RUN). Rollback removes
+`internal/testsource/seed_parity*.go`, `internal/testvalidity/source_rules_seed.go`, the `Links`
+option and `seedParity` member, the `lets`/`fixtures` fields of `rspecGroup`, the `--legacy` flag,
+their tests and this section. Nothing is persisted.
+
+### Traceability (V1-1883)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0101SeedNamedSubject`, `TestTSAV0101SeedOverriddenEagerLet`, `TestTSAV0101SeedYAMLQuotedComment` | experimental |
+| TSA-V0-102 | `internal/testsource/seed_parity.go` | `TestTSAV0102SeedNormalisation`, `TestTSAV0101SeedShapeRSpec` | experimental |
+| TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
+| TSA-V0-104 | `internal/testsource/seed_parity.go` | `TestTSAV0104SeedCountDivergence`, `TestTSAV0105SeedExplicitVersusDefault` | experimental |
+| TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
+| TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember`, `TestTSAV0106SeedShouldAggregate` | experimental |
+| TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0107SeedFixtureOversizeNoFallback` | experimental |
+| TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` | experimental |
+| TSA-V0-109 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go` | `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0100SeedLinkArguments` | experimental |
+
 ## Boundaries and failure modes
 
 Non-goals: running tests, reading uncommitted changes, rewriting tests, judging whether a pair is a
