@@ -32,7 +32,8 @@ Usage:
   corvint [--root PATH] tests role-locators [--rev REV]
   corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]
   corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...]
-    [--rev REV]
+    [--manifest PATH ...] [--glob PATTERN ...] [--syntax inline-code|html-sub]
+    [--pattern RE [--marker RE]] [--repository NAME] [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -155,16 +156,25 @@ named, not read. Stand-in routes are read from JS/TS, Go, Flask, Sinatra/Rails
 and WireMock mappings; other stand-in languages abstain by name. An assignment
 made in only some branches is UNKNOWN (branch-dependent) with its alternatives.
 
-citations checks the revision-pinned source citations in at most 256 named
-committed documents read at --rev: inline-code spans of the form
+citations checks the revision-pinned source citations in the committed
+documents read at --rev: named by --docs, listed one path per line in a
+committed --manifest, or matched by a --glob (* ? [..] in a segment, ** for
+any segments); at most 65536 documents and 262144 citations per run, read in
+bounded chunks. The default inline-code syntax reads spans of the form
 path[:START[-END]][#Symbol][@REV] whose path holds a "/" and that carry a
 line, a symbol or a revision, or any such path when the document declares
-<!-- corvint-cite-revision: REV -->. Each citation is read from the object
-store at its own revision (default: the document's, else --rev) and reported
-as missing-at-revision (with the nearest revision where the path exists when
-known), range-out-of-bounds, symbol-not-in-range or not-a-file; an
-unresolvable revision or a file over 1 MiB abstains. It prints one
-corvint-source-citations/0 document and exits 1 when a finding remains.
+<!-- corvint-cite-revision: REV -->. --syntax html-sub reads <sub> markers
+carrying a path and "line N" or "lines N-M"; --pattern reads a Go regular
+expression with named groups path (required), repo, start, end, symbol and
+rev, optionally inside the candidates a --marker finds. A citation naming
+another repo than --repository abstains. Each citation is read from the
+object store at its own revision (default: the document's, else --rev) and
+reported as missing-at-revision (with the nearest revision where the path
+exists when known), range-out-of-bounds, symbol-not-in-range or not-a-file;
+an unresolvable revision or a file over 1 MiB abstains; a candidate the
+syntax cannot read is unparseable. It prints one corvint-source-citations/1
+document with per-document totals and exits 1 while a finding or an
+unparseable citation remains.
 
 Reads committed Git content and the named receipts only; writes nothing and
 uses no network.
@@ -174,7 +184,7 @@ tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
 V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
-V1-1935).
+V1-1935, V1-1972).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -480,8 +490,9 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 	return 0
 }
 
-// runTestsCitations prints the revision-pinned citation findings of the named committed documents
-// (TSA-V0-255). It exits 1 when a citation is not supported by the object store.
+// runTestsCitations prints the revision-pinned citation findings of the selected committed
+// documents (TSA-V0-255, TSA-V0-386). It exits 1 when a citation is not supported by the object
+// store or cannot be read.
 func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
 	f, once := testsFlags("tests citations")
 	options := testsource.CitationOptions{Revision: "HEAD"}
@@ -493,9 +504,21 @@ func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.W
 		}
 		return nil
 	})
+	f.Func("manifest", "committed manifest", func(value string) error {
+		options.Manifests = append(options.Manifests, value)
+		return nil
+	})
+	f.Func("glob", "committed path glob", func(value string) error {
+		options.Globs = append(options.Globs, value)
+		return nil
+	})
 	once("rev", &options.Revision)
-	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Docs) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests citations --docs PATH[,PATH...] [--rev REV]")
+	once("syntax", &options.Syntax)
+	once("pattern", &options.Pattern)
+	once("marker", &options.Marker)
+	once("repository", &options.Repository)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Docs)+len(options.Manifests)+len(options.Globs) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests citations --docs PATH[,PATH...] [--manifest PATH] [--glob PATTERN] [--syntax NAME | --pattern RE [--marker RE]] [--repository NAME] [--rev REV]")
 	}
 	report, err := testsource.Citations(repo, options)
 	if err != nil {
@@ -504,7 +527,7 @@ func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.W
 	if code := testsWrite(out, diagnostic, report); code != 0 {
 		return code
 	}
-	if len(report.Findings) > 0 {
+	if len(report.Findings) > 0 || len(report.Unparseable) > 0 {
 		return 1
 	}
 	return 0

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsource"
 )
 
 func testsCommit(t *testing.T, root string, files map[string]string) string {
@@ -277,7 +279,7 @@ func TestTSAV0108SeedParityCLI(t *testing.T) {
 	}
 }
 
-// TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/0 report,
+// TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/1 report,
 // exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
 // with exit 2 (TSA-V0-255).
 func TestTestsCitationsCLI(t *testing.T) {
@@ -287,6 +289,7 @@ func TestTestsCitationsCLI(t *testing.T) {
 	head := testsCommit(t, root, map[string]string{
 		"docs/bad.md":  "See `a/b.go:2-9` and `a/b.go:3#B`.\n",
 		"docs/good.md": "See `a/b.go:1-3#B`.\n",
+		"docs/sub.md":  "<sub>a/b.go line two</sub>\n",
 	})
 	code, out, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/bad.md")
 	var report struct {
@@ -297,14 +300,28 @@ func TestTestsCitationsCLI(t *testing.T) {
 			Line                  int
 		}
 	}
-	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-source-citations/0" || report.Revision != head || report.Checked != 2 ||
+	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-source-citations/1" || report.Revision != head || report.Checked != 2 ||
 		len(report.Findings) != 1 || report.Findings[0].Reason != "range-out-of-bounds" || report.Findings[0].Line != 1 {
 		t.Fatalf("citations: code=%d out=%s err=%s", code, out, errb)
 	}
 	if code, _, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/good.md", "--rev", head); code != 0 {
 		t.Errorf("valid: code=%d err=%s", code, errb)
 	}
-	for _, args := range [][]string{{}, {"--docs", "../x.md"}, {"--docs", "docs/absent.md"}, {"--docs", "docs/good.md", "extra"}} {
+	// V1-1972: a glob selects documents, a profile or pattern reads them, totals are per document and
+	// an unparseable citation fails the run (TSA-V0-380..386).
+	var selected testsource.CitationReport
+	if code, out, errb := runCLI(t, "--root", root, "tests", "citations", "--glob", "docs/*.md", "--syntax", "html-sub"); code != 1 || json.Unmarshal([]byte(out), &selected) != nil ||
+		len(selected.Unparseable) != 1 || selected.Unparseable[0].Doc != "docs/sub.md" || selected.Unparseable[0].Citation != "a/b.go line two" ||
+		len(selected.Totals) != 3 || selected.Totals[2] != (testsource.CitationDocumentTotal{Doc: "docs/sub.md", Unparseable: 1}) {
+		t.Errorf("html-sub: code=%d out=%s err=%s", code, out, errb)
+	}
+	selected = testsource.CitationReport{}
+	if code, out, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/good.md", "--pattern", "`(?P<path>[a-z/.]+):(?P<start>[0-9]+)-(?P<end>[0-9]+)#B`", "--repository", "core"); code != 0 ||
+		json.Unmarshal([]byte(out), &selected) != nil || selected.Syntax != "pattern" || selected.Checked != 1 {
+		t.Errorf("pattern: code=%d out=%s err=%s", code, out, errb)
+	}
+	for _, args := range [][]string{{}, {"--docs", "../x.md"}, {"--docs", "docs/absent.md"}, {"--docs", "docs/good.md", "extra"},
+		{"--glob", "docs/*.md", "--syntax", "nosuch"}, {"--glob", "docs/*.md", "--pattern", "(?P<x>y)"}, {"--glob", "docs/*.md", "--syntax", "html-sub", "--syntax", "html-sub"}} {
 		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "citations"}, args...)...); code != 2 || out != "" {
 			t.Errorf("%v: code=%d out=%q", args, code, out)
 		}

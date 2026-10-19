@@ -4331,6 +4331,14 @@ TSA-V0-253	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-254	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A	standing	2026-10-11; V1-1934; #1195
 TSA-V0-255	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST prin	standing	2026-10-11; V1-1934; #1195
 TSA-V0-256	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read	standing	2026-10-11; V1-1934; #1195
+TSA-V0-380	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--syntax NAME` MUST	standing	2026-10-11; V1-1972; #1224
+TSA-V0-381	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) `--pattern RE` MUST	standing	2026-10-11; V1-1972; #1224
+TSA-V0-382	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) A citation candidate	standing	2026-10-11; V1-1972; #1224
+TSA-V0-383	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Documents MUST be	standing	2026-10-11; V1-1972; #1224
+TSA-V0-384	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) One run MUST read at	standing	2026-10-11; V1-1972; #1224
+TSA-V0-385	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The report MUST carry	standing	2026-10-11; V1-1972; #1224
+TSA-V0-386	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) The command MUST prin	standing	2026-10-11; V1-1972; #1224
+TSA-V0-387	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1972 / GitHub #1224) Revisions MUST be	standing	2026-10-11; V1-1972; #1224
 TSA-V0-300	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld	standing	2026-10-11; V1-1944
 TSA-V0-301	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,	standing	2026-10-11; V1-1944
 TSA-V0-302	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A file with tests, no stub of its ow	standing	2026-10-11; V1-1944
