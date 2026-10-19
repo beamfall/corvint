@@ -50,6 +50,8 @@ type rspecGroup struct {
 	// `subject` alias of a named subject, which RSpec defines as a let).
 	decls map[string]string
 	hooks []rspecHook
+	// bodies maps a let or named subject name, and "subject", to its block lines (TSA-V0-121).
+	bodies map[string][]rubyLine
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
@@ -88,6 +90,7 @@ type rspecReader struct {
 	tooDeep  bool // the last block call failed on nesting depth
 	lines    []rubyLine
 	groups   []rspecGroup
+	flow     rspecFlow
 	examples []rspecExample
 	helpers  []rspecHelper
 	includes []rspecInclude
@@ -268,6 +271,15 @@ func (r *rspecReader) read() string {
 				g.decls[declared], g.decls["subject"] = "let", "let:"+declared
 			case kind == "subject":
 				g.decls["subject"] = "subject"
+			}
+			if g.bodies == nil {
+				g.bodies = map[string][]rubyLine{}
+			}
+			if declared != "" {
+				g.bodies[declared] = body
+			}
+			if kind == "subject" {
+				g.bodies["subject"] = body
 			}
 			if strings.HasSuffix(m[1], "!") {
 				// let!(:x) adds `before { x }`; subject! adds `before { subject }`.
