@@ -1,5 +1,12 @@
 package testvalidity
 
+import (
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
 // RSpec example hygiene and strength source facts (docs/specs/test-source-analysis-v0.md,
 // TSA-V0-062..072). internal/testsource reads them from committed spec source; this file holds the
 // vocabulary and the one place they reach a projection. An invalid rule here uses its rule ID as
@@ -35,6 +42,48 @@ const (
 	RuleRBHelperUnresolved = "RB-HELPER-UNRESOLVED"
 	RuleRBHelperAmbiguous  = "RB-HELPER-AMBIGUOUS"
 )
+
+// The reasons a shared example evaluated through one inclusion site abstains (TSA-V0-091,
+// TSA-V0-092).
+const (
+	InclusionNotFound            = "rspec-inclusion-not-found"
+	InclusionInExampleOrHook     = "rspec-inclusion-in-example-or-hook"
+	InclusionLoopGenerated       = "rspec-inclusion-loop-generated"
+	InclusionNameNotLiteral      = "rspec-inclusion-name-not-literal"
+	SharedGroupNotFound          = "rspec-shared-group-not-found"
+	SharedGroupAmbiguous         = "rspec-shared-group-ambiguous"
+	SharedGroupNested            = "rspec-shared-group-nested"
+	SharedGroupUnbound           = "rspec-shared-group-unbound"
+	InclusionExampleNotInGroup   = "rspec-inclusion-example-not-in-group"
+	InclusionExampleLoop         = "rspec-example-loop-generated"
+	InclusionIDUnplaced          = "rspec-inclusion-id-unplaced"
+	InclusionDescriptionMismatch = "rspec-inclusion-description-mismatch"
+	InclusionSourceUnbound       = "rspec-inclusion-source-unbound"
+)
+
+// RSpecInclusion names one shared example read through one inclusion site (TSA-V0-089): the
+// including spec, the shared group's file and the example's declaring line in it, and either the
+// inclusion's line (IncludeLine) or the receipt's scoped id path and full description
+// (ScopedID, Description; TSA-V0-092). Support is the bound support set (TSA-V0-088).
+type RSpecInclusion struct {
+	SpecPath, SpecText     string
+	IncludeLine            int
+	ScopedID               []int
+	Description            string
+	SharedPath, SharedText string
+	ExampleLine            int
+	Support                RubySupport
+}
+
+// Ref is the qualified reference `SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE`, with `same` for a shared
+// group in the including spec (TSA-V0-089).
+func (q RSpecInclusion) Ref(includeLine int) string {
+	shared := q.SharedPath
+	if shared == q.SpecPath {
+		shared = "same"
+	}
+	return fmt.Sprintf("%s:%d>%s:%d", q.SpecPath, includeLine, shared, q.ExampleLine)
+}
 
 // RubySupport is the bound support Ruby source an RSpec example can reach without a require the
 // reader follows: spec/spec_helper.rb, spec/rails_helper.rb and spec/support/**/*.rb, keyed by
@@ -104,4 +153,22 @@ func ApplyExampleSource(p Projection, source ExampleSource, anchor string) Proje
 		p.Strength = Axis{State: StrengthNotMeasured, Reason: StrengthReasonBodyExpectations, Anchors: append([]string{}, source.ExpectationAnchors...)}
 	}
 	return p
+}
+
+// rspecScopedID is an RSpec receipt id: `./PATH[1:2:3]`.
+var rspecScopedID = regexp.MustCompile(`^(?:\./)?([^\[\]]+)\[([1-9][0-9]{0,5}(?::[1-9][0-9]{0,5}){0,31})\]$`)
+
+// ParseRSpecScopedID splits an RSpec receipt id into its project-relative path and scoped id path
+// (TSA-V0-092).
+func ParseRSpecScopedID(id string) (string, []int, bool) {
+	m := rspecScopedID.FindStringSubmatch(id)
+	if m == nil {
+		return "", nil, false
+	}
+	ids := []int{}
+	for _, part := range strings.Split(m[2], ":") {
+		n, _ := strconv.Atoi(part)
+		ids = append(ids, n)
+	}
+	return m[1], ids, true
 }

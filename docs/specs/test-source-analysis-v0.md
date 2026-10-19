@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159 and V1-1866 / GitHub #1163 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -957,6 +957,93 @@ back to `RSpecExampleSources`. Nothing is persisted.
 | TSA-V0-086 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecAssignmentInPredicate` | experimental |
 | TSA-V0-087 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecRaiseErrorOnlyIsAdvisory` | experimental |
 | TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/validity_command.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles` | experimental |
+
+## RSpec shared examples through one inclusion (V1-1867)
+
+V1-1867 (GitHub #1164) reads a shared example through the one inclusion site that ran it, so its
+`let` overrides, hooks and helpers are the ones RSpec evaluates. A bare reference to a shared
+example keeps `SHARED-EXAMPLE-ONLY` (TSA-V0-065). It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). The reader stays the TSA-V0-062 line reader.
+
+- `TSA-V0-089`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) `corvint tests
+  validity` MUST accept the qualified reference `SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE`, for
+  example `spec/x_spec.rb:12>spec/support/y.rb:7`, with `same` as `SHARED` when the shared group
+  is defined in the including spec. Both files are read at the same commit with the TSA-V0-088
+  support set.
+  - The inclusion at `INCLUDE_LINE` (`it_behaves_like`, `it_should_behave_like`,
+    `include_examples` or `include_context`) MUST be read by splicing the shared group's body where
+    RSpec evaluates it: `it_behaves_like` and `it_should_behave_like` nest it in a new group placed
+    before any customization block's own body; `include_examples` and `include_context` expand it
+    inline in the including group.
+  - The example at `EXAMPLE_LINE` then gets the normal TSA-V0-062..088 verdict. Every finding's
+    test is the qualified reference; locations and causes keep their own file and line.
+  - A bare `SHARED:LINE` reference MUST keep `SHARED-EXAMPLE-ONLY`, whose message names the
+    qualified form.
+- `TSA-V0-090`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Two inclusions of one
+  shared group MUST be read independently: each qualified reference gets the verdict of its own
+  splice, so one site can be `INELIGIBLE` while the other is `ELIGIBLE`.
+- `TSA-V0-091`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) A qualified read that
+  cannot bind one inclusion MUST give the test `ABSTAINED` and the file uncertain, with a distinct
+  reason:
+  - `rspec-inclusion-not-found`: no inclusion at `INCLUDE_LINE`;
+  - `rspec-inclusion-in-example-or-hook`: the inclusion is inside an example or hook body;
+  - `rspec-inclusion-loop-generated`: the inclusion, or a sibling the scoped id walk must count,
+    is inside an `each`-style loop;
+  - `rspec-inclusion-name-not-literal`: the shared group is named by a non-literal;
+  - `rspec-shared-group-not-found`, `rspec-shared-group-ambiguous` (two or more visible
+    definitions, or a support set that could hold another), `rspec-shared-group-nested` (a shared
+    group defined in, or including, another shared group) and `rspec-shared-group-unbound` (the
+    support set is unbound);
+  - `rspec-inclusion-example-not-in-group`: `EXAMPLE_LINE` is not an example of that group;
+  - `rspec-example-loop-generated`: the example is generated in a loop.
+- `TSA-V0-092`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUST
+  read an example whose receipt id (`./spec/x_spec.rb[1:3:2:1]`) names another spec than the file
+  declaring it through the inclusion that id places, and anchor its projection at the qualified
+  reference.
+  - The scoped id walk counts top-level groups and `it_behaves_like` inclusions; an inline
+    inclusion takes one slot per shared child, and shared definitions take none.
+  - The rest of the path MUST land on the named shared example, and an `it_behaves_like` or
+    `it_should_behave_like` inclusion's generated description MUST appear in the receipt's
+    `full_description`. Otherwise the read abstains with `rspec-inclusion-id-unplaced` or
+    `rspec-inclusion-description-mismatch`.
+  - The including spec's content is the blob of another example the receipt retains for that
+    spec; without one the read abstains `rspec-inclusion-source-unbound`.
+  - `testvaliditydoc.DiscoverWithReaders` takes the readers; the CLI and the MCP test-validity
+    bridge pass `testsource.RSpecExampleSourcesWithSupport` and `testsource.RSpecInclusionSource`.
+
+Non-goals:
+- binding shared group block parameters or `it_behaves_like 'x', args` arguments: the body is
+  spliced with its parameters unbound;
+- following module `include` or `config.include_context`;
+- reading more than one inclusion per reference, or reading inclusions the receipt did not run.
+
+Failure modes:
+- A shared group that reads its arguments may be judged on its literal body; findings that depend
+  on those arguments can be missed or reported for a value the run never used.
+- A scoped id from an RSpec version that numbers differently places no inclusion and abstains.
+- A support set that could hold another definition abstains as ambiguous rather than picking one.
+
+Acceptance evidence: synthetic fixtures only.
+- A support shared group included twice, once with a stub reader and once with a yielding one
+  (`TestRSpecInclusionEvaluatesEachSiteIndependently`); a same-file group with a `let` override
+  (`TestRSpecInclusionSameFile`).
+- Every refusal code (`TestRSpecInclusionRefusals`), the scoped id and description join
+  (`TestRSpecInclusionReceiptJoin`), the CLI read (`TestSourceValidityQualifiedReference`) and
+  discovery from a receipt (`TestDiscoverRubyInclusionJoin`).
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/validity_rspec_inclusion.go`, its test, `qualifiedValidity`, the
+`RSpecInclusion` type, the inclusion reasons, `ParseRSpecScopedID`, `DiscoverWithReaders` and this
+section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
+
+### Traceability (V1-1867)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-089 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_command.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently`, `TestRSpecInclusionSameFile`, `TestSourceValidityQualifiedReference` | experimental |
+| TSA-V0-090 | `internal/testsource/validity_rspec_inclusion.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently` | experimental |
+| TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
+| TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
 
 ## Decision file format
 

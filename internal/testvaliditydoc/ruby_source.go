@@ -2,6 +2,7 @@ package testvaliditydoc
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
@@ -19,17 +20,21 @@ type rubySourceFile struct {
 }
 
 // RubyReaders are the Ruby source readers that see the receipt's bound helper set: Examples reads
-// one spec file with the support files a helper call can resolve to (TSA-V0-088).
-// testsource.RSpecExampleSourcesWithSupport implements it; a nil member falls back to the plain
-// ExampleSourceReader.
+// one spec file with the support files a helper call can resolve to (TSA-V0-088), and Inclusion
+// reads a shared example through the one inclusion site its receipt id names (TSA-V0-092).
+// testsource.RSpecExampleSourcesWithSupport and testsource.RSpecInclusionSource implement them;
+// a nil member falls back to the plain ExampleSourceReader.
 type RubyReaders struct {
-	Examples func(name, text string, support testvalidity.RubySupport) (map[int]testvalidity.ExampleSource, string)
+	Examples  func(name, text string, support testvalidity.RubySupport) (map[int]testvalidity.ExampleSource, string)
+	Inclusion func(testvalidity.RSpecInclusion) (testvalidity.ExampleSource, string)
 }
 
 // applyRubySources recomputes, in place, the hygiene and strength of each Ruby example whose
 // retained spec blob is bound (TSA-V0-068, TSA-V0-069). The spec file is read through the
 // confined, no-follow, bounded receipt reader and used only when its Git blob ID equals the
-// retained one; each file is read once. An example with no bound blob keeps its projection.
+// retained one; each file is read once. An example with no bound blob keeps its projection. An
+// example whose receipt id names another spec than its file ran through an inclusion and is read
+// through it, anchored at the qualified reference (TSA-V0-092).
 func applyRubySources(tests []Test, document rubytestprovider.Document, worktree *os.Root, read ExampleSourceReader, ruby RubyReaders) {
 	files := map[string]rubySourceFile{}
 	bound := boundRubyFiles{worktree: worktree, document: document, texts: map[string]*string{}}
@@ -42,22 +47,39 @@ func applyRubySources(tests []Test, document rubytestprovider.Document, worktree
 		if index >= len(tests) || tests[index].ID != example.ID || example.SpecBlob == "" {
 			continue
 		}
-		file, ok := files[example.File]
-		if !ok {
-			file = readRubySource(worktree, document.ObjectFormat, example, read)
-			files[example.File] = file
-		}
-		source := testvalidity.ExampleSource{Read: file.reason, Findings: []testvalidity.SourceFinding{}}
-		if file.reason == "" {
-			if located, found := file.examples[example.Line]; found {
-				source = located
-			} else {
-				source.Read = testvalidity.HygieneReasonRSpecExampleUnplaced
+		anchor := example.ID
+		var source testvalidity.ExampleSource
+		if spec, ids, through := inclusionSite(document, example); through && ruby.Inclusion != nil {
+			source, anchor = bound.inclusion(ruby.Inclusion, example, spec, ids)
+		} else {
+			file, ok := files[example.File]
+			if !ok {
+				file = readRubySource(worktree, document.ObjectFormat, example, read)
+				files[example.File] = file
+			}
+			source = testvalidity.ExampleSource{Read: file.reason, Findings: []testvalidity.SourceFinding{}}
+			if file.reason == "" {
+				if located, found := file.examples[example.Line]; found {
+					source = located
+				} else {
+					source.Read = testvalidity.HygieneReasonRSpecExampleUnplaced
+				}
 			}
 		}
-		tests[index].Projection = testvalidity.ApplyExampleSource(tests[index].Projection, source, example.ID)
+		tests[index].Projection = testvalidity.ApplyExampleSource(tests[index].Projection, source, anchor)
 		tests[index].SourceRules = &source
 	}
+}
+
+// inclusionSite reports the including spec and scoped id path of an example whose receipt id
+// names another spec file than the one declaring it: a shared example run through an inclusion.
+func inclusionSite(document rubytestprovider.Document, example rubytestprovider.Example) (string, []int, bool) {
+	file, ids, ok := testvalidity.ParseRSpecScopedID(example.RSpecID)
+	if !ok {
+		return "", nil, false
+	}
+	spec := path.Join(document.ProjectDirectory, path.Clean(file))
+	return spec, ids, spec != example.File
 }
 
 // boundRubyFiles reads worktree files only when their Git blob ID equals the one the receipt
@@ -114,6 +136,30 @@ func (b *boundRubyFiles) support() testvalidity.RubySupport {
 	}
 	b.helpers = &support
 	return support
+}
+
+// inclusion reads a shared example through the inclusion its scoped id names. The including spec
+// is bound by another example the receipt retained for that file; without one the read abstains.
+func (b *boundRubyFiles) inclusion(read func(testvalidity.RSpecInclusion) (testvalidity.ExampleSource, string), example rubytestprovider.Example, spec string, ids []int) (testvalidity.ExampleSource, string) {
+	unbound := testvalidity.ExampleSource{Read: testvalidity.InclusionSourceUnbound, Findings: []testvalidity.SourceFinding{}}
+	shared, ok := b.text(example.File, example.SpecBlob)
+	if !ok {
+		return unbound, example.ID
+	}
+	specText, found := "", false
+	for _, other := range b.document.Examples {
+		if other.File == spec && other.SpecBlob != "" {
+			specText, found = b.text(spec, other.SpecBlob)
+			break
+		}
+	}
+	if !found {
+		return unbound, example.ID
+	}
+	return read(testvalidity.RSpecInclusion{
+		SpecPath: spec, SpecText: specText, ScopedID: ids, Description: example.Description,
+		SharedPath: example.File, SharedText: shared, ExampleLine: example.Line, Support: b.support(),
+	})
 }
 
 func readRubySource(worktree *os.Root, format string, example rubytestprovider.Example, read ExampleSourceReader) rubySourceFile {

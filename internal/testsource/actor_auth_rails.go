@@ -15,8 +15,8 @@ import (
 type rubyLine struct {
 	line int
 	text string
-	// path is the file the line was read from; the RSpec reader sets it so that a helper defined in
-	// a support file keeps its own file's locations (TSA-V0-088).
+	// path is the file the line was read from; the RSpec reader sets it so that a shared group
+	// read through an inclusion keeps its own file's locations (TSA-V0-090).
 	path string
 }
 

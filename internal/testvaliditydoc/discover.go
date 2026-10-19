@@ -133,7 +133,8 @@ func DiscoverWithSources(root string, sources ExampleSourceReader) (Document, er
 }
 
 // DiscoverWithReaders is DiscoverWithSources with the Ruby readers that resolve helpers across the
-// receipt's bound support files (TSA-V0-088).
+// receipt's bound support files and read a shared example through its inclusion (TSA-V0-088,
+// TSA-V0-092).
 func DiscoverWithReaders(root string, sources ExampleSourceReader, ruby RubyReaders) (Document, error) {
 	worktree, err := os.OpenRoot(root)
 	if err != nil {

@@ -75,7 +75,7 @@ func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidit
 	}
 	out := []testvalidity.SourceFinding{}
 	// Each cause is the `path:line` of the declaration that skips, focuses or shares the example;
-	// through a support file it can sit in another file (TSA-V0-088).
+	// through an inclusion it can sit in another file (TSA-V0-090).
 	skipped, focused, shared := "", "", ""
 	head := e.body[0].text
 	switch declarator(head) {
@@ -112,7 +112,7 @@ func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidit
 	}
 	if shared != "" {
 		out = append(out, finding(testvalidity.RuleSharedExampleOnly, testvalidity.SeverityInvalid, at(e.line), shared,
-			"the example is declared in a shared example group, so its assertion runs only through an including group the cited file:line does not name; cite an example in the including spec"))
+			"the example is declared in a shared example group, so its assertion runs only through an including group the cited file:line does not name; cite an example in the including spec, or the qualified reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (TSA-V0-089)"))
 	}
 	if location, cause, ok := r.describedClassStub(e); ok {
 		out = append(out, finding(testvalidity.RuleDescribedClassStubbed, testvalidity.SeverityAdvisory, location, cause,

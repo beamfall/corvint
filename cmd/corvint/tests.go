@@ -72,7 +72,10 @@ RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
 RB-CHANGE-ON-IDENTITY, RB-ASSIGNMENT-IN-PREDICATE and the advisory
 DESCRIBED-CLASS-STUBBED and RB-RAISE-ERROR-ONLY; a helper the reader cannot
 resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
-abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. It prints one
+abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. A qualified
+reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (SHARED may be "same") reads
+a shared example through that one inclusion, or abstains with a named
+rspec-inclusion-* or rspec-shared-group-* reason. It prints one
 corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
@@ -85,7 +88,7 @@ Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858, V1-1866).
+V1-1592, V1-1798, V1-1858, V1-1866, V1-1867).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.

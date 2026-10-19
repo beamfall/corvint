@@ -98,6 +98,15 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
 	supports := map[string]testvalidity.RubySupport{}
 	for _, name := range files {
+		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
+			file, test, err := r.qualifiedValidity(commit, m, supports)
+			if err != nil {
+				return SourceValidityReport{}, err
+			}
+			report.Files = append(report.Files, file)
+			report.Tests = append(report.Tests, test)
+			continue
+		}
 		data, err := r.committedFile(commit, name)
 		if err != nil {
 			return SourceValidityReport{}, err
@@ -124,6 +133,42 @@ func (r Repo) committedFile(commit, name string) ([]byte, error) {
 		return nil, refuse("tests-source-unavailable", "%s is not a committed file at the revision", name)
 	}
 	return data, nil
+}
+
+// qualifiedValidity reads one qualified reference `SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE`: the
+// shared example evaluated through that one inclusion, reported under the reference. A reference
+// the reader cannot bind is one ABSTAINED test with the refusal reason (TSA-V0-089..091).
+func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]testvalidity.RubySupport) (SourceValidityFile, SourceValidityTest, error) {
+	q := testvalidity.RSpecInclusion{SpecPath: m[1], SharedPath: m[3]}
+	fmt.Sscanf(m[2], "%d", &q.IncludeLine)
+	fmt.Sscanf(m[4], "%d", &q.ExampleLine)
+	if q.SharedPath == "same" {
+		q.SharedPath = q.SpecPath
+	}
+	for _, path := range []string{q.SpecPath, q.SharedPath} {
+		if !fs.ValidPath(path) || path == ".git" || strings.HasPrefix(path, ".git/") {
+			return SourceValidityFile{}, SourceValidityTest{}, refuse("tests-invalid-arguments", "%q is not a repository-relative file path", path)
+		}
+	}
+	spec, err := r.committedFile(commit, q.SpecPath)
+	if err != nil {
+		return SourceValidityFile{}, SourceValidityTest{}, err
+	}
+	shared := spec
+	if q.SharedPath != q.SpecPath {
+		if shared, err = r.committedFile(commit, q.SharedPath); err != nil {
+			return SourceValidityFile{}, SourceValidityTest{}, err
+		}
+	}
+	q.SpecText, q.SharedText = string(spec), string(shared)
+	q.Support = r.rubySupport(commit, q.SpecPath, supports)
+	source, ref := RSpecInclusionSource(q)
+	file := SourceValidityFile{Path: ref, Findings: source.Findings}
+	if source.Read != testvalidity.ExampleSourceLocated {
+		file.Uncertain, file.Reason = true, source.Read
+		return file, SourceValidityTest{Test: ref, Hygiene: testvalidity.Axis{State: testvalidity.HygieneAbstained, Reason: source.Read, Anchors: []string{ref}}}, nil
+	}
+	return file, sourceTest(ref, source.Findings), nil
 }
 
 // sourceTest is the hygiene the findings give one test over the source-rules-read baseline.

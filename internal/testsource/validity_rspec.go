@@ -50,7 +50,7 @@ type rspecGroup struct {
 	line int
 	head string
 	// path is the file the group is declared in; loop marks a group declared inside a non-group
-	// block (a loop or a conditional), whose RSpec index cannot be read.
+	// block (a loop or a conditional), whose RSpec index cannot be read (TSA-V0-091).
 	path  string
 	loop  bool
 	index int // the index of the declaring line in the reader's lines
@@ -129,7 +129,7 @@ const (
 	frameInclude = -2 // the customization block of an inline include, read as part of its group
 )
 
-// rspecIncludeLine is a shared group inclusion (TSA-V0-088).
+// rspecIncludeLine is a shared group inclusion (TSA-V0-089).
 var rspecIncludeLine = regexp.MustCompile(`^(?:RSpec\.)?(it_behaves_like|it_should_behave_like|include_examples|include_context)\b`)
 
 // rspecInclude is one shared group inclusion: its index in lines, the group it is called in, the
