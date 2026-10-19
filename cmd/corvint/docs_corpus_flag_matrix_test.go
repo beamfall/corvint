@@ -16,7 +16,7 @@ type corpusFlagExpectation struct{ required, optional []string }
 var corpusReadOptional = []string{"--limit", "--offset", "--retirement"}
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
-	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}},
+	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
 	"build":               {required: []string{"--manifest"}},
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
@@ -52,7 +52,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match", "--schema"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {
@@ -60,6 +60,8 @@ func corpusFlagArgs(flag string) []string {
 		return []string{flag}
 	case "--limit", "--offset":
 		return []string{flag, "1"}
+	case "--schema":
+		return []string{flag, "2"}
 	}
 	return []string{flag, "x.json"}
 }
