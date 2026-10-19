@@ -890,7 +890,7 @@ reuse the witness write, the obligation chain and the CAL-V0-107 author derivati
   fold MUST refuse `OBLIGATION_CREDIT_MISMATCH:` for a `REVIEWED` witness of a `DEFERRED` entry, of
   an entry `WITNESSED` by another source, and of an entry `WITNESSED` by `REVIEWED` whose recorded
   subject blob equals the new one. A changed subject blob admits a fresh review.
-- `TOL-V0-077`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))
+- `TOL-V0-077`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170); review-round amendment accepted by the owner 2026-10-19, PR #1189)
   `obligations show` MUST report `witnessReview` for every entry with a `review` member: id,
   outcome, axes, verdicts with reasons, and `stale` (true when the blob of `subject.path` at
   `HEAD` of the repository the review read it from differs from `blobSha256` or the path is
