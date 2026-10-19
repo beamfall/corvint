@@ -71,8 +71,8 @@ At origin/main `6ceee260` (2026-10-18):
 - AFU-V1 flow intents are authored, and `flows import` writes proposed intents only
   (`AFU-V1-004`).
 - DCP-V1 statically inventories legacy Jasmine and Mocha/Cypress cases and their assertion criteria
-  (`DCP-V1-060`..`069`). Reviewed test-knowledge records joined by trust level (`DCP-V1-086`..`092`)
-  are in open PR #1165 (V1-1868) and are not on origin/main.
+  (`DCP-V1-060`..`069`). Reviewed test-knowledge records joined by trust level (`DCP-V1-086`..`092`,
+  V1-1868) landed at origin/main `bda19b02` (PR #1165).
 - TSA-V0 selects setup projects and flags static test-validity defects, including the JS/TS
   example-hygiene rules `JS-NO-ASSERTION`, `JS-CONSTANT-EXPECTATION` and `JS-SUBJECT-MOCKED`
   (`TSA-V0-073`..`081`, V1-1858).
@@ -154,7 +154,7 @@ Each stage extends the named point. None of these contracts is restated here.
 | AMAP-V0 | revision-pinned screen graph, selectors, dialects, `scaffold` | import-graph join (`AMAP-V0-005`), selector kind/strength (`AMAP-V0-007`), edge evidence (`AMAP-V0-008`), overlay seam (`AMAP-V0-014`), dialects (`AMAP-V0-040`..`042`) | 1, 4, 7 |
 | ANL-V0 | revision-evaluated edge ledger, navigation-events producer | static page-object step effects (`ANL-V0-035`), producer (`ANL-V0-037`..`046`) | 1, 4 |
 | AFU-V1 | flow intents, links, run evidence | `flows import` of proposed intents (`AFU-V1-004`), inferred links stay separate (`AFU-V1-009`) | 5 |
-| DCP-V1 | documentation corpus | legacy inventory (`DCP-V1-060`..`069`), test-knowledge trust joins (`DCP-V1-086`..`092`, PR #1165) | 2, 5 |
+| DCP-V1 | documentation corpus | legacy inventory (`DCP-V1-060`..`069`), test-knowledge trust joins (`DCP-V1-086`..`092`) | 2, 5 |
 | AMSP-V0 | multi-step plan over maps | step resolution (`AMSP-V0-002`), freshness (`AMSP-V0-003`), navigation (`AMSP-V0-006`), draft (`AMSP-V0-008`), budget (`AMSP-V0-009`), surfaces (`AMSP-V0-010`) | 6, 7 |
 | CCE-V0 | discrimination verdict (compilation killed by V1-1677) | `CCE-V0-009` ladder through the V1-1733 prover | 8 |
 | NEA-V0 | repeats and negative controls for new Playwright tests | `NEA-V0-002`, `NEA-V0-003` | 8 |
@@ -294,7 +294,7 @@ Each stage extends the named point. None of these contracts is restated here.
   flows MUST enter only as proposed AFU-V1 intents through `flows import` (`AFU-V1-004`). They are
   never accepted intent (invariant 8).
 - `SKH-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidates
-  MUST join DCP-V1 test-knowledge trust levels (`DCP-V1-086`..`092`, PR #1165) and rank
+  MUST join DCP-V1 test-knowledge trust levels (`DCP-V1-086`..`092`) and rank
   `run+reviewed` sources above `run-unreviewed` and unreviewed ones. Trust is labelled, never
   promoted (`DCP-V1-090`).
 - `SKH-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each
@@ -504,5 +504,3 @@ measure report. It does not cite private product names.
 3. Which Ruby page-object form does the adopter use, Capybara page classes or SitePrism? Stage 1
    needs at least one.
 4. Should the stage 7 generator target only Playwright in V0, leaving RSpec system specs for later?
-5. Should stage 5 wait for `DCP-V1-086`..`092` (PR #1165) to merge, or start with unreviewed trust
-   only?

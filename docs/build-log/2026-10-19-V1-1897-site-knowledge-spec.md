@@ -40,11 +40,12 @@ pipeline (V1-1905).
 
 - `SKH-V0` is not used in `docs/specs/INDEX.json` at origin/main `6ceee260`, and no open pull
   request (#1165, #1166, #1176, #1178, #1179, #1184) adds an `SKH-V0` ID or this spec path.
-- `DCP-V1-086`..`092` are cited as open PR #1165 (V1-1868) work, not as merged contract.
+- `DCP-V1-086`..`092` (V1-1868, PR #1165) merged at origin/main `bda19b02` during this lane; the
+  spec cites them as merged contract after the one main merge.
 - No decision number is taken.
 
 ## Owner questions
 
 The spec's "Owner questions" section lists them: confirm the adopter and local run approval,
-confirm N and the 40% threshold, name the Ruby page-object form, decide whether V0 generation is
-Playwright-only, and decide whether stage 5 waits for PR #1165.
+confirm N and the 40% threshold, name the Ruby page-object form, and decide whether V0
+generation is Playwright-only.
