@@ -4119,6 +4119,16 @@ TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
 TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
 TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
+TSA-V0-110	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardo	standing	2026-10-11; V1-1884; #1168
+TSA-V0-111	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST	standing	2026-10-11; V1-1884; #1168
+TSA-V0-112	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST plac	standing	2026-10-11; V1-1884; #1168
+TSA-V0-113	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource of kind K	standing	2026-10-11; V1-1884; #1168
+TSA-V0-114	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource's side-eff	standing	2026-10-11; V1-1884; #1168
+TSA-V0-115	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) For each declared act	standing	2026-10-11; V1-1884; #1168
+TSA-V0-116	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) There MUST be no find	standing	2026-10-11; V1-1884; #1168
+TSA-V0-117	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A `--receipt` MUST be	standing	2026-10-11; V1-1884; #1168
+TSA-V0-118	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) Each resource MUST ca	standing	2026-10-11; V1-1884; #1168
+TSA-V0-119	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The command MUST read	standing	2026-10-11; V1-1884; #1168
 TSA-V0-062	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128, #1130)	standing	2026-10-11; V1-1798; #1128; #1130
 TSA-V0-063	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128
 TSA-V0-064	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get a	standing	2026-10-11; V1-1798; #1128

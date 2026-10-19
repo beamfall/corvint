@@ -97,7 +97,7 @@ Seed parity never changes the exit code.
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
-tests-decisions-invalid, tests-output-unavailable.
+tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867).
 `
@@ -158,7 +158,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
 	}
 	if root == "" {
 		root = "."
@@ -178,8 +178,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "teardown":
+		return runTestsTeardown(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.

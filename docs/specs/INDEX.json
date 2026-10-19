@@ -3740,7 +3740,7 @@
     "reqPrefix": "TSA-V0",
     "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)",
     "delivery": "experimental",
-    "claim": "Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.",
+    "claim": "Read-only analysis of committed tests selects setup, lints changes, lists duplicates, flags validity defects and reports declared teardown dependents.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

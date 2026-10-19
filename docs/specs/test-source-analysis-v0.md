@@ -529,13 +529,179 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes
 section. `BLOCK-NOT-CALLED` alone rolls back by removing `internal/testsource/validity_rspec_block.go`,
 its test, the helper capture in `validity_rspec.go`, the rule ID and reason, and TSA-V0-053..056. Nothing is persisted, and no existing projection, report or wire contract changes.
 
+## Teardown dependents (V1-1884)
+
+V1-1884 (GitHub #1168) flags an E2E test whose teardown deletes a parent resource while a dependent
+record that one of the test's actions produced is still present, so the delete can be refused
+(a 409 or 422 from a foreign-key or "in use" guard). It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). Which actions produce which dependents comes from a
+project-owned side-effect declaration, never from a guess. Deriving that graph from the source of the
+system under test is a named residual. The reading reuses the TSA-V0-010 lexer and declaration model
+for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
+
+- `TSA-V0-110`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardown
+  --files PATH[,PATH...] --declaration PATH [--receipt FILE ...] [--rev REV]` MUST read at most 256
+  named committed test files (each at most 1 MiB) and the named committed declaration file at one
+  revision (default HEAD). It MUST print one `corvint-test-teardown-dependents/0` JSON document: the
+  revision, the declaration's path, blob sha256, version and pinned revision, one entry per file
+  (`framework` `rspec` or `jsts`, `uncertain` with a reason where the reader abstained, the
+  examples read and every example that has a resource), the findings, one entry per receipt and
+  file pair, and `graphSource: "declaration"`. A `_spec.rb` file is read as RSpec and an
+  `IsTestFile` JS/TS file as Jest, Vitest or Playwright; any other file is listed uncertain with
+  `not-a-test-file`. It MUST exit 1 when a `declared` finding exists and 0 otherwise. At most 16
+  `--receipt` files are read.
+- `TSA-V0-111`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST be
+  the closed `corvint-side-effect-declaration/0` document below, decoded with unknown fields and
+  trailing data refused as `tests-declaration-invalid`. `version` is a positive integer and
+  `revision` the 40- or 64-hex commit of the system under test the declaration describes; both are
+  echoed and never resolved. Every `kind` matches `[a-z][a-z0-9_-]{0,63}` and is unique, every
+  `create`, `delete` and `call` name is an identifier (a Ruby name may end in `?` or `!`) that
+  appears once in the whole document, each resource has at least one create and one delete name,
+  an action's `parent` and `dependent` name declared kinds, `dependent` requires `parent`, and
+  `cascade` requires `dependent`. An action with no `parent` is declared inert: it produces no
+  dependent. At most 256 resources, 1024 actions and 64 names per list are read.
+- `TSA-V0-112`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST place
+  each call an example makes in one phase:
+  - JS/TS: `beforeEach` (also `test.beforeEach`) bodies are setup, the example body is body, a
+    `finally { }` block inside the body and `afterEach` (also `test.afterEach`) bodies are
+    teardown.
+  - RSpec: `before`, `before(:each)`, `before(:example)`, `prepend_before`, `append_before`, `let`,
+    `let!` and `subject` bodies are setup, the example body is body, and an `ensure` clause inside
+    the body and `after`, `after(:each)`, `after(:example)`, `prepend_after` and `append_after`
+    bodies are teardown.
+  - A hook applies to an example when it sits at file level or in a group that encloses the example,
+    wherever it is declared in that group.
+  - Body code, including its finally/ensure code, runs in source order before every hook; order
+    inside one hook is line order, and a hook in an inner group runs before one in an outer group.
+    Between two hooks of the same group the order is unknown.
+  - A call is conditional when it may not run: inside a nested arrow or function, under an
+    `if`/`for`/`while`/`else`/`do`/`catch` or `rescue` branch, after `&&`, `||` or `?`, or with a
+    Ruby `if`/`unless`/`while`/`until`/`and`/`or` modifier, lambda, proc or inline block. `try`,
+    `begin`, `finally` and `ensure` are not conditions.
+  - An RSpec hook with metadata arguments, or `around`, is not read, and a hook without a block is
+    opaque. A group delimited by `{` and `}` on separate lines is read like a `do … end` group; any
+    other group form makes the file uncertain.
+  - A call is a callee name followed by `(`; in Ruby also a declared name without parentheses and,
+    in teardown, a bare name that starts a statement.
+- `TSA-V0-113`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource of kind K MUST
+  be reported for an example when a create name of K is called in its setup or body and a delete name
+  of K is called in its teardown. The resource names its variable when the create's value is
+  assigned to one (`x = await create…(`, `const x =`, `@x = create_…`, `let(:x) { create_… }`), the
+  create line and the first teardown delete line, and lists with lines the actions after the create:
+  each declared action call whose `parent` is K (in teardown, when it may run before a parent
+  delete), and each other call whose receiver or argument
+  names the variable (an assertion call such as `expect` or a matcher is not an action).
+- `TSA-V0-114`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource's side-effect
+  graph MUST be incomplete, with every applying reason from this closed set, when: an action on it is
+  not declared (`action-not-declared`); its create is not assigned to a variable
+  (`resource-not-bound`); a `beforeAll`/`afterAll`, `before(:all)`/`after(:all)`/`:context`/`:suite`
+  or `around` hook or an RSpec hook with metadata arguments that applies to the example calls a
+  declared name, or an RSpec hook without a block applies (`hook-not-read`); a dependent delete
+  that would remove the dependent is conditional (`cleanup-conditional`); a teardown
+  call before the parent delete, or in unknown order with it, is not declared
+  (`teardown-call-not-declared`); the order of a relevant teardown pair is
+  unknown (`teardown-order-unknown`); or the file is uncertain (`file-uncertain`). Every finding
+  for an incomplete resource MUST be `advisory` and carry those reasons.
+- `TSA-V0-115`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) For each declared action
+  on a resource whose `dependent` D does not cascade, each teardown delete of K that the action may
+  run before MUST be checked. A `TEARDOWN-DEPENDENT-LEFTOVER` finding for the first failing one
+  MUST name the example, the kind, the dependent kind, the action line and that parent delete line,
+  with cause `dependent-not-removed` when no unconditional delete name of D is known to run after the
+  action and before that parent delete, or cause `parent-deleted-before-dependent`, also giving the
+  first dependent delete line after the action, when a delete of D after the action runs only after
+  the parent delete or in unknown order with it. The finding is `declared` when the graph is
+  complete.
+- `TSA-V0-116`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) There MUST be no finding
+  for an action whose dependent is deleted unconditionally after the action and before every parent
+  delete the action may run before, for an action declared `cascade: true`, or for an inert action.
+- `TSA-V0-117`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A `--receipt` MUST be a
+  test-validity provider input (`readProviderReceipt`). Only a JS provider receipt can bind; any
+  other input abstains with `receipt-not-js`. A receipt binds a file when exactly one
+  `identity.testFileDigests` key equals the path or ends with `/` plus it (else
+  `file-not-in-receipt` or `file-ambiguous`) and its digest equals the sha256 of the committed blob
+  (else `digest-mismatch`). From a bound receipt, a failed attempt (or a failed outcome without
+  attempts) whose anchor names that file at a resource's parent delete line, and whose outcome
+  `name` equals the example's literal title, unique in the file, MUST be attached to that
+  resource's findings with the receipt, retry, line, the `DELETE` status 409 or 422 when its
+  request-outcome record holds one, and the dependent kind when the resource has exactly one
+  declared non-cascading dependent kind. A resource with such a row that has a status and no other
+  finding MUST get an `advisory` finding with cause `recorded-teardown-conflict`. An attempt whose
+  anchor file names more than one `testFileDigests` key MUST attach to no file and is counted in
+  the binding's `ambiguousAnchors`.
+- `TSA-V0-118`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) Each resource MUST carry
+  a verdict from `leftover` (a finding), `unknown` (graph incomplete) or `no-leftover-declared`
+  (complete graph, no finding). The report MUST never call a teardown safe: `no-leftover-declared`
+  holds only relative to the declaration, and an example without a resource has no verdict.
+- `TSA-V0-119`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The command MUST read
+  committed Git content and the named receipts only, write nothing, use no network, and print the
+  same bytes for the same inputs. A declaration that is not a committed regular file refuses
+  `tests-source-unavailable`; an unreadable receipt refuses `tests-source-unavailable`; more files
+  or receipts than the bounds refuse `tests-bound-exceeded`.
+
+```json
+{"schema": "corvint-side-effect-declaration/0", "version": 1,
+ "revision": "0123456789abcdef0123456789abcdef01234567",
+ "resources": [
+  {"kind": "order", "create": ["createOrder", "create_order"], "delete": ["deleteOrder", "delete_order"]},
+  {"kind": "confirmation", "create": ["createConfirmation"], "delete": ["deleteConfirmation", "delete_confirmation"]},
+  {"kind": "audit_entry", "create": ["createAuditEntry"], "delete": ["deleteAuditEntry"]}],
+ "actions": [
+  {"call": "confirmOrder", "parent": "order", "dependent": "confirmation"},
+  {"call": "archiveOrder", "parent": "order", "dependent": "audit_entry", "cascade": true},
+  {"call": "renameOrder"}]}
+```
+
+Non-goals:
+- deriving the side-effect graph from the source, schema or migrations of the system under test;
+- telling two resources of one kind apart, so one dependent delete clears every action of that
+  kind;
+- reading helper files, shared contexts, fixture finalizers or `beforeAll`/`afterAll` resources;
+- a kind taken from a receiver (`record.destroy`) or a factory argument (`create(:order)`);
+- joining Ruby provider documents or mapping a request route to a kind.
+
+Failure modes:
+- A call reached only through a helper, a callback stored in a variable or a dynamic name is not
+  seen. A missed action leaves a leftover unreported but never makes a teardown safe.
+- A Ruby method called without parentheses on the resource (`order.status`) reads as an attribute,
+  not an action.
+- An undeclared teardown call such as `page.close()` before the parent delete keeps findings
+  advisory.
+- A receipt whose anchor points into a helper, or whose test title is computed or repeated, joins
+  nothing.
+
+Acceptance evidence: synthetic fixtures only. An RSpec and a Playwright file each with a leftover
+dependent, a dependent deleted first, a cascade, an inert action, a parent deleted before its
+dependent, an undeclared action, an unbound create, an `around`/`beforeAll` hook and two same-group
+`after` hooks; declarations with each refused shape; and a JS receipt that binds, one with another
+digest and one without the file. No live qualification on a real suite was run (NOT_RUN).
+
+Rollback removes `internal/testsource/teardown_*.go`, `internal/testvaliditydoc/js_receipt.go`,
+`cmd/corvint/tests_teardown.go`, the tests, the dispatch line and help entries, the `tests-declaration-invalid` code and this section.
+Nothing is persisted, and no existing report or wire contract changes.
+
+### Traceability (V1-1884)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-110 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
+| TSA-V0-111 | `internal/testsource/teardown_declaration.go` | `TestTeardownDeclarationRefusals` | experimental |
+| TSA-V0-112 | `internal/testsource/teardown_reading.go` | `TestTeardownPhasesJS`, `TestTeardownPhasesRSpec`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-113 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions` | experimental |
+| TSA-V0-114 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-115 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-116 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-117 | `internal/testsource/teardown_receipts.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownReceiptJoin`, `TestTeardownReceiptAmbiguousAnchor`, `TestTestsTeardownCLI` | experimental |
+| TSA-V0-118 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownLeftoverJS` | experimental |
+| TSA-V0-119 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
+
 ## Refusals
 
 Every command exits 2 with one JSON object `{"code", "error", "ok": false}` on stderr and nothing on
 stdout when it refuses: `tests-invalid-arguments` (usage), `tests-invalid-revision` (a revision that
 is not a commit), `tests-invalid-option` (a threshold or cutoff out of range, or `--gate` without
 `--base`), `tests-source-unavailable` (a Git or index read failed), `tests-bound-exceeded`,
-`tests-decisions-invalid` and `tests-output-unavailable` (stdout could not be written).
+`tests-decisions-invalid`, `tests-declaration-invalid` (TSA-V0-111) and `tests-output-unavailable`
+(stdout could not be written).
 
 ## RSpec hygiene and strength in test-validity (V1-1798, V1-1787)
 
