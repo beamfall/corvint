@@ -22,8 +22,12 @@ type packetQueue struct {
 	calls  []string
 }
 
-func (q *packetQueue) ReviewPacket(_ context.Context, ticket string, maxBytes int, notePath string) (string, error) {
-	q.calls = append(q.calls, ticket+" "+strconv.Itoa(maxBytes)+" "+notePath)
+func (q *packetQueue) ReviewPacket(_ context.Context, ticket string, maxBytes int, notePath string, source PacketSource) (string, error) {
+	call := ticket + " " + strconv.Itoa(maxBytes) + " " + notePath
+	if source != (PacketSource{}) {
+		call += " " + source.Name + "=" + source.Path
+	}
+	q.calls = append(q.calls, call)
 	return q.packet, q.fail
 }
 
@@ -126,7 +130,7 @@ type holdPacketQueue struct {
 	packet string
 }
 
-func (q *holdPacketQueue) ReviewPacket(context.Context, string, int, string) (string, error) {
+func (q *holdPacketQueue) ReviewPacket(context.Context, string, int, string, PacketSource) (string, error) {
 	for _, op := range q.ops {
 		if strings.HasPrefix(op, "claim:") {
 			return "", errors.New("ticket t1 has no submitted candidate branch")
@@ -164,6 +168,48 @@ func TestATRV0141_PacketReadBeforePoolClaim(t *testing.T) {
 	for _, e := range eventsOf(t, d, "alert") {
 		if strings.Contains(e.Message, "review packet not offered") {
 			t.Fatalf("alert: %s", e.Message)
+		}
+	}
+}
+
+// TestERGV0022_RoleSourceRepositoryConfig: a role's reviewPacket names a
+// sourceRepositories entry and the dispatcher asks the queue for the packet
+// in that checkout; an undeclared name, a bad name or path and too many
+// entries refuse the configuration.
+func TestERGV0022_RoleSourceRepositoryConfig(t *testing.T) {
+	src := filepath.Join(t.TempDir(), "app")
+	c := testConfig(t, lastArgScript)
+	c.SourceRepositories = map[string]string{"app": src}
+	c.Roles[0].ReviewPacket = &ReviewPacket{SourceRepository: "app"}
+	c.Roles[0].IdleSeconds, c.Roles[0].WallSeconds = 3600, 7200
+	raw, _ := json.Marshal(c)
+	if _, err := DecodeConfig(raw); err != nil {
+		t.Fatalf("valid source repository refused: %v", err)
+	}
+	q := &packetQueue{fakeQueue: &fakeQueue{obs: Observation{Tickets: []Ticket{ticket("t1", "P1", 1)}}}, packet: "packet"}
+	d := openPacket(t, q, c)
+	tick(t, d)
+	killOnCleanup(t, d.ledger.Workers[0])
+	if len(q.calls) == 0 || q.calls[0] != "ticket:a:q:t1 32768  app="+src {
+		t.Fatalf("calls %q", q.calls)
+	}
+	for name, edit := range map[string]func(*Config){
+		"is not a sourceRepositories entry": func(c *Config) { c.Roles[0].ReviewPacket.SourceRepository = "docs" },
+		"clean absolute path":               func(c *Config) { c.SourceRepositories["app"] = "rel/app" },
+		"needs a name":                      func(c *Config) { c.SourceRepositories["Bad Name"] = src },
+		"at most 16 entries": func(c *Config) {
+			for i := 0; i < MaxSourceRepositories; i++ {
+				c.SourceRepositories["s"+strconv.Itoa(i)] = src
+			}
+		},
+	} {
+		c := testConfig(t, "exit 0")
+		c.SourceRepositories = map[string]string{"app": src}
+		c.Roles[0].ReviewPacket = &ReviewPacket{SourceRepository: "app"}
+		edit(c)
+		raw, _ := json.Marshal(c)
+		if _, err := DecodeConfig(raw); err == nil || !strings.Contains(err.Error(), name) {
+			t.Fatalf("%s: %v", name, err)
 		}
 	}
 }

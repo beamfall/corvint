@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -41,7 +42,30 @@ const (
 	PacketBaseFallback = "NO_PASSED_ANCESTOR"
 	PacketScopeTests   = "TEST_FIXTURE_PATHS"
 	PacketScopeAll     = "ALL_PATHS"
+
+	// ERG-V0-022 repository kinds and revision sources.
+	PacketRepoTask          = "TASK"
+	PacketRepoSource        = "SOURCE"
+	PacketRevArgument       = "COMMIT_ARGUMENT"
+	PacketRevCandidate      = "CANDIDATE_BRANCH"
+	PacketRevSourceHead     = "SOURCE_HEAD"
+	sourceRepositoryUnknown = "SOURCE_REPOSITORY_UNKNOWN:"
+	commitNotFound          = "COMMIT_NOT_FOUND:"
 )
+
+// packetRepo is a repository a packet's commit may resolve in (ERG-V0-022):
+// its kind, configured name (empty when given as a path) and worktree root.
+type packetRepo struct{ Kind, Name, Root string }
+
+func (r packetRepo) describe() string {
+	if r.Kind == PacketRepoTask {
+		return "the task repository " + r.Root
+	}
+	if r.Name != "" {
+		return "source repository " + r.Name + " (" + r.Root + ")"
+	}
+	return "source repository " + r.Root
+}
 
 type packetHunk struct{ Range, Text string }
 
@@ -68,6 +92,9 @@ type packetOmission struct{ Section, Path, Range string }
 
 type reviewPacket struct {
 	Ticket, Commit                       string
+	Repo                                 packetRepo
+	Requested, RevisionSource            string
+	Searched                             []packetRepo
 	Base, BaseKind, BaseSource, BaseGate string
 	Scope                                string
 	ChangedPaths                         int
@@ -228,12 +255,26 @@ func (p *reviewPacket) value(in packetInclusion, maxBytes int) wire.Value {
 	for _, o := range omitted {
 		om = append(om, wire.ObjectValue(wire.NewObject().Set("section", wire.String(o.Section)).Set("path", wire.String(o.Path)).Set("range", wire.String(o.Range))))
 	}
-	read := wire.NewObject().Set("diff", wire.String("git diff "+p.Base+" "+p.Commit+" -- <path>"))
+	gitCmd := "git "
+	if p.Repo.Kind == PacketRepoSource {
+		gitCmd = "git -C " + p.Repo.Root + " "
+	}
+	read := wire.NewObject().Set("diff", wire.String(gitCmd+"diff "+p.Base+" "+p.Commit+" -- <path>"))
+	repo := wire.NewObject().Set("kind", wire.String(p.Repo.Kind)).Set("root", wire.String(p.Repo.Root))
+	if p.Repo.Name != "" {
+		repo.Set("name", wire.String(p.Repo.Name))
+	}
+	searched := make([]wire.Value, 0, len(p.Searched))
+	for _, r := range p.Searched {
+		searched = append(searched, wire.String(r.Root))
+	}
+	repo.Set("requested", wire.String(p.Requested)).Set("resolved", wire.String(p.Commit)).Set("revisionSource", wire.String(p.RevisionSource)).
+		Set("searched", wire.Array(searched...))
 	if p.ReturnGate != "" {
 		read.Set("returnedItems", wire.String("gate history "+p.Ticket+" --gate "+p.ReturnGate))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ReviewPacketProfile)).Set("ticketId", wire.String(p.Ticket)).
-		Set("commit", wire.String(p.Commit)).Set("maxBytes", wire.String(strconv.Itoa(maxBytes))).Set("deltaBase", wire.ObjectValue(base)).
+		Set("commit", wire.String(p.Commit)).Set("repository", wire.ObjectValue(repo)).Set("maxBytes", wire.String(strconv.Itoa(maxBytes))).Set("deltaBase", wire.ObjectValue(base)).
 		Set("diff", wire.ObjectValue(wire.NewObject().Set("scope", wire.String(p.Scope)).Set("changedPaths", wire.String(strconv.Itoa(p.ChangedPaths))).Set("files", wire.Array(files...)))).
 		Set("returned", returned).
 		Set("obligations", wire.ObjectValue(wire.NewObject().Set("state", wire.String(p.ObligationsState)).Set("touched", wire.Array(obls...)))).
@@ -396,9 +437,44 @@ func packetAttempts(rc *readCtx, id string) (base, branch, cleared string, err e
 	return base, branch, cleared, nil
 }
 
+// resolvePacketSource resolves a configured source (ERG-V0-022) to its
+// worktree root; the zero source is none. A path that is not the top level of
+// a Git worktree refuses MALFORMED with SOURCE_REPOSITORY_UNKNOWN:.
+func resolvePacketSource(src dispatch.PacketSource) (*packetRepo, error) {
+	if src == (dispatch.PacketSource{}) {
+		return nil, nil
+	}
+	label := src.Path
+	if src.Name != "" {
+		label = src.Name + " (" + src.Path + ")"
+	}
+	root, err := store.ExactWorktreeRoot(src.Path)
+	if err != nil {
+		return nil, wire.Errorf(wire.CodeMalformed, "--source", "%s source repository %s is not the top level of a Git worktree: %v", sourceRepositoryUnknown, label, err)
+	}
+	return &packetRepo{Kind: PacketRepoSource, Name: src.Name, Root: root}, nil
+}
+
+// packetCommitIn resolves rev in each repository in order (ERG-V0-022): the
+// first that holds it is the packet's repository. Absent from all, it refuses
+// MISSING_EVIDENCE with COMMIT_NOT_FOUND: naming every repository searched.
+func packetCommitIn(p *reviewPacket, repos []packetRepo, rev string) error {
+	p.Requested, p.Searched = rev, repos
+	names := make([]string, 0, len(repos))
+	for _, r := range repos {
+		if c, err := store.ResolveCommit(r.Root, rev); err == nil && c != "" {
+			p.Commit, p.Repo = c, r
+			return nil
+		}
+		names = append(names, r.describe())
+	}
+	return wire.Errorf(wire.CodeMissingEvidence, "--commit", "%s the repository holds no commit %s; searched %s", commitNotFound, rev, strings.Join(names, " and "))
+}
+
 // collectReviewPacket gathers the packet for commitArg, or, when it is
-// empty, for the newest candidate branch head of the ticket.
-func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.HandoffNote, noteSource string) (*reviewPacket, *readCtx, error) {
+// empty, for the newest candidate branch head of the ticket, resolved in the
+// source repository first when one is given (ERG-V0-022).
+func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.HandoffNote, noteSource string, source dispatch.PacketSource) (*reviewPacket, *readCtx, error) {
 	p := &reviewPacket{Checkpoint: note, CheckpointSource: noteSource, ObligationsState: "NONE"}
 	var passed map[string]string
 	var attemptBase, branch, cleared string
@@ -435,23 +511,38 @@ func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.Ha
 	if note != nil && note.Ticket != p.Ticket {
 		return nil, rc, wire.Errorf(wire.CodeMalformed, "--checkpoint", "the hand-off note is for ticket %s, not %s", note.Ticket, p.Ticket)
 	}
-	root, err := store.WorktreeRoot(env.Cwd)
+	taskRoot, err := store.WorktreeRoot(env.Cwd)
 	if err != nil {
 		return nil, rc, err
 	}
-	if commitArg == "" {
-		if branch == "" && cleared != "" {
+	src, err := resolvePacketSource(source)
+	if err != nil {
+		return nil, rc, err
+	}
+	repos := []packetRepo{{Kind: PacketRepoTask, Root: taskRoot}}
+	if src != nil {
+		repos = []packetRepo{*src, repos[0]}
+	}
+	p.RevisionSource = PacketRevArgument
+	switch {
+	case commitArg != "":
+	case branch != "":
+		commitArg, p.RevisionSource = branch, PacketRevCandidate
+	case src != nil:
+		// A program whose code lives in the source repository submits no
+		// candidate branch here: review the source checkout's HEAD.
+		commitArg, p.RevisionSource, repos = "HEAD", PacketRevSourceHead, repos[:1]
+	default:
+		if cleared != "" {
 			return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "%s ticket %s has no submitted candidate branch: %s was claimed without one, and a claim clears the candidate; pass --commit",
 				candidateClearedByClaim, p.Ticket, cleared)
 		}
-		if branch == "" {
-			return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "ticket %s has no submitted candidate branch", p.Ticket)
-		}
-		commitArg = branch
+		return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "ticket %s has no submitted candidate branch", p.Ticket)
 	}
-	if p.Commit, err = store.ResolveCommit(root, commitArg); err != nil || p.Commit == "" {
-		return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "the repository holds no commit %s", commitArg)
+	if err := packetCommitIn(p, repos, commitArg); err != nil {
+		return nil, rc, err
 	}
+	root := p.Repo.Root
 	if err := packetBase(root, p, passed, attemptBase); err != nil {
 		return nil, rc, err
 	}
@@ -585,15 +676,37 @@ func parsePacketBytes(s string) (int, bool) {
 	return n, err == nil && n >= reviewPacketMinBytes && n <= reviewPacketMaxBytes
 }
 
-// gatePacket runs `gate packet <ticket> [--commit REV] [--max-bytes N]
-// [--checkpoint NOTE]` (ERG-V0-017..021). It is a read: nothing is written.
+// packetSourceArg resolves `--source PATH|NAME` (ERG-V0-022): with --config,
+// a sourceRepositories entry of that dispatch configuration wins; otherwise
+// the value is a path relative to the working directory. A name the
+// configuration lacks that is also no worktree refuses SOURCE_REPOSITORY_UNKNOWN:.
+func packetSourceArg(env Env, arg, configPath string) (dispatch.PacketSource, error) {
+	if configPath != "" {
+		raw, err := intent.ReadFile(commandPath(env.Cwd, configPath), dispatch.MaxConfig)
+		if err != nil {
+			return dispatch.PacketSource{}, wire.Errorf(wire.CodeMalformed, "--config", "dispatch configuration: %v", err)
+		}
+		c, err := dispatch.DecodeConfig(raw)
+		if err != nil {
+			return dispatch.PacketSource{}, wire.Errorf(wire.CodeMalformed, "--config", "%v", err)
+		}
+		if p, ok := c.SourceRepositories[arg]; ok {
+			return dispatch.PacketSource{Name: arg, Path: p}, nil
+		}
+	}
+	return dispatch.PacketSource{Path: commandPath(env.Cwd, arg)}, nil
+}
+
+// gatePacket runs `gate packet <ticket> [--commit REV] [--source PATH|NAME
+// [--config FILE]] [--max-bytes N] [--checkpoint NOTE]` (ERG-V0-017..022).
+// It is a read: nothing is written.
 func gatePacket(env Env, args []string) *wire.Result {
 	cmd := []string{"gate", "packet"}
 	if len(args) == 0 || strings.HasPrefix(args[0], "--") {
 		return usage(cmd, "the first argument is the ticket id or local token")
 	}
-	var commit, maxArg, checkpoint string
-	set := map[string]*string{"--commit": &commit, "--max-bytes": &maxArg, "--checkpoint": &checkpoint}
+	var commit, maxArg, checkpoint, sourceArg, configArg string
+	set := map[string]*string{"--commit": &commit, "--max-bytes": &maxArg, "--checkpoint": &checkpoint, "--source": &sourceArg, "--config": &configArg}
 	rest := args[1:]
 	for i := 0; i < len(rest); i++ {
 		dest, ok := set[rest[i]]
@@ -607,6 +720,9 @@ func gatePacket(env Env, args []string) *wire.Result {
 	if !ok {
 		return usage(cmd, fmt.Sprintf("--max-bytes is %d..%d", reviewPacketMinBytes, reviewPacketMaxBytes))
 	}
+	if configArg != "" && sourceArg == "" {
+		return usage(cmd, "--config names the configuration --source NAME is read from; pass --source")
+	}
 	var note *dispatch.HandoffNote
 	if checkpoint != "" {
 		n, err := dispatch.ReadHandoffNote(checkpoint)
@@ -615,7 +731,14 @@ func gatePacket(env Env, args []string) *wire.Result {
 		}
 		note = n
 	}
-	p, rc, err := collectReviewPacket(env, args[0], commit, note, checkpoint)
+	var source dispatch.PacketSource
+	if sourceArg != "" {
+		var err error
+		if source, err = packetSourceArg(env, sourceArg, configArg); err != nil {
+			return failure(cmd, nil, err)
+		}
+	}
+	p, rc, err := collectReviewPacket(env, args[0], commit, note, checkpoint, source)
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
@@ -631,7 +754,7 @@ func gatePacket(env Env, args []string) *wire.Result {
 
 // ReviewPacket is the ATR-V0-141 dispatch source: the packet for the
 // ticket's newest candidate branch head, framed as untrusted data.
-func (q dispatchQueue) ReviewPacket(_ context.Context, ticketID string, maxBytes int, notePath string) (string, error) {
+func (q dispatchQueue) ReviewPacket(_ context.Context, ticketID string, maxBytes int, notePath string, source dispatch.PacketSource) (string, error) {
 	var note *dispatch.HandoffNote
 	if notePath != "" {
 		if n, err := dispatch.ReadHandoffNote(notePath); err == nil && n.Ticket == ticketID {
@@ -641,7 +764,7 @@ func (q dispatchQueue) ReviewPacket(_ context.Context, ticketID string, maxBytes
 	if note == nil {
 		notePath = ""
 	}
-	p, _, err := collectReviewPacket(q.quiet(), ticketID, "", note, notePath)
+	p, _, err := collectReviewPacket(q.quiet(), ticketID, "", note, notePath, source)
 	if err != nil {
 		return "", err
 	}

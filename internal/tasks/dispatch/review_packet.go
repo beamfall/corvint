@@ -16,11 +16,22 @@ const (
 
 // ReviewPacket is a role's opt-in ATR-V0-141 review packet. Enabled
 // defaults to true; an absent MaxBytes takes the default and an explicit
-// value out of range is refused.
+// value out of range is refused. SourceRepository names a configuration
+// sourceRepositories entry whose checkout the packet's commit is resolved in
+// (ERG-V0-022); empty reads the task repository.
 type ReviewPacket struct {
-	Enabled  *bool `json:"enabled,omitempty"`
-	MaxBytes *int  `json:"maxBytes,omitempty"`
+	Enabled          *bool  `json:"enabled,omitempty"`
+	MaxBytes         *int   `json:"maxBytes,omitempty"`
+	SourceRepository string `json:"sourceRepository,omitempty"`
 }
+
+// MaxSourceRepositories bounds a configuration's sourceRepositories.
+const MaxSourceRepositories = 16
+
+// PacketSource is the ERG-V0-022 source repository a review packet resolves
+// its commit in: a configured name and its clean absolute checkout path. The
+// zero value is the task repository.
+type PacketSource struct{ Name, Path string }
 
 func (r *ReviewPacket) validate() error {
 	if m := r.MaxBytes; m != nil && (*m < MinReviewPacketBytes || *m > MaxReviewPacketBytes) {
@@ -42,9 +53,10 @@ func (r *ReviewPacket) maxBytes() int {
 // ReviewPacketSource is the optional Queue capability that builds the
 // ERG-V0-017 packet for a ticket's newest candidate, framed as untrusted
 // data, with the hand-off note at notePath (empty for none) as its partial
-// checkpoint. A Queue without it launches review roles without a packet.
+// checkpoint, resolving the commit in source (ERG-V0-022). A Queue without it
+// launches review roles without a packet.
 type ReviewPacketSource interface {
-	ReviewPacket(ctx context.Context, ticket string, maxBytes int, notePath string) (string, error)
+	ReviewPacket(ctx context.Context, ticket string, maxBytes int, notePath string, source PacketSource) (string, error)
 }
 
 // reviewPacketFor is the ATR-V0-141 packet for a launch of a role with r on,
@@ -54,7 +66,11 @@ func (d *Dispatcher) reviewPacketFor(ctx context.Context, obs *Observation, r *R
 	if !ok {
 		return "", fmt.Errorf("the queue does not build review packets")
 	}
-	return src.ReviewPacket(ctx, ticket, r.maxBytes(), d.handoffNoteFor(obs, ticket))
+	var source PacketSource
+	if name := r.SourceRepository; name != "" {
+		source = PacketSource{Name: name, Path: d.Config.SourceRepositories[name]}
+	}
+	return src.ReviewPacket(ctx, ticket, r.maxBytes(), d.handoffNoteFor(obs, ticket), source)
 }
 
 // reviewPacketDetail records the offered packet's size on the launched

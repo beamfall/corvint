@@ -73,6 +73,12 @@ type Config struct {
 	// Prompts are the CAL-V0-175 shared role prompt fragments. DecodeConfig
 	// expands every reference and leaves this nil.
 	Prompts PromptFragments `json:"prompts,omitempty"`
+	// SourceRepositories are the optional ERG-V0-022 named source
+	// repositories: a program whose code lives outside the task repository
+	// names each checkout (a clean absolute path) once, and a role's
+	// reviewPacket.sourceRepository or `gate packet --source NAME --config`
+	// selects one.
+	SourceRepositories map[string]string `json:"sourceRepositories,omitempty"`
 }
 
 // Budget is a CAL-V0-155 rolling 24-hour launch budget. An absent (zero)
@@ -754,6 +760,14 @@ func (c *Config) validate() error {
 	if c.Profile != ConfigProfile {
 		return fail("profile must be %s", ConfigProfile)
 	}
+	if len(c.SourceRepositories) > MaxSourceRepositories {
+		return fail("sourceRepositories holds at most %d entries", MaxSourceRepositories)
+	}
+	for name, p := range c.SourceRepositories {
+		if !namePattern.MatchString(name) || !clean(p) {
+			return fail("sourceRepositories entry %q needs a name matching %s and a clean absolute path", name, namePattern)
+		}
+	}
 	if !clean(c.StateDir) || !clean(c.WorkRoot) {
 		return fail("stateDir and workRoot must be clean absolute paths")
 	}
@@ -932,6 +946,11 @@ func (c *Config) validate() error {
 			}
 			if r.Lane != nil {
 				return fail("role %s reviewPacket applies to ticket roles only", r.Name)
+			}
+			if n := rp.SourceRepository; n != "" {
+				if _, ok := c.SourceRepositories[n]; !ok {
+					return fail("role %s reviewPacket sourceRepository %q is not a sourceRepositories entry", r.Name, n)
+				}
 			}
 			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); rp.on() && err != nil {
 				return fail("role %s sets reviewPacket but host %q %v", r.Name, r.Host, err)
