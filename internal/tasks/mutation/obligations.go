@@ -239,6 +239,9 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 	if w.Source == ticket.ObligationSourceDeclared && role != "OWNER" {
 		return refuse(OutcomeUnauthorized, "", "a DECLARED witness is OWNER-only (TOL-V0-015)")
 	}
+	if w.Source == ticket.ObligationSourceReviewed && role != "OWNER" {
+		return refuse(OutcomeUnauthorized, "", "a REVIEWED witness is OWNER-only (TOL-V0-073)")
+	}
 	if w.TestRepository != nil {
 		declared, ok := c.Policy.ObligationTestRepository(*w.TestRepository)
 		if !ok {
@@ -318,6 +321,12 @@ func obligationFields(p *ObligationsPayload) []string {
 			fields = append(fields, d.TestID, d.Reason)
 		}
 		fields = append(fields, p.Witness.Provenance.Strings()...)
+		if rv := p.Witness.Review; rv != nil {
+			fields = append(fields, rv.Subject.Path)
+			for _, v := range rv.Verdicts {
+				fields = append(fields, v.Reviewer, v.Reason)
+			}
+		}
 		for _, cr := range p.Witness.Credits {
 			for _, m := range cr.Matches {
 				fields = append(fields, m.Path, m.TestID)

@@ -217,6 +217,13 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		if ok {
 			item.Obj.Set("sourceReview", review)
 		}
+		wr, ok, err := witnessReviewValue(env, rc, known)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		if ok {
+			item.Obj.Set("witnessReview", wr)
+		}
 	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{}
@@ -381,7 +388,9 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	f := mutateFlags{role: "OWNER"}
 	var report, commit, idsArg, declared, manifest, testID, reason, attempt, generation, postCheck, postStatus string
 	var testCommit, envTree, evidenceRef, testTitle, testRepo string
+	var reviewed, reviewFile, excludeAuthor string
 	if res := pairFlags(cmd, args, map[string]*string{
+		"--reviewed": &reviewed, "--review": &reviewFile, "--exclude-author": &excludeAuthor,
 		"--test-repository": &testRepo,
 		"--test-commit":     &testCommit, "--environment-tree": &envTree, "--evidence-ref": &evidenceRef, "--test-title": &testTitle,
 		"--target": &f.target, "--role": &f.role, "--request-id": &f.requestID, "--expected-revision": &f.expected,
@@ -398,8 +407,14 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if f.target == "" || f.expected == "" || commit == "" {
 		return usage(cmd, "--target, --expected-revision and --commit are required")
 	}
-	if (report == "") == (declared == "") {
-		return usage(cmd, "exactly one of --from-playwright-report FILE and --declared ID,... is required")
+	if n := btoi(report != "") + btoi(declared != "") + btoi(reviewed != ""); n != 1 {
+		return usage(cmd, "exactly one of --from-playwright-report FILE, --declared ID,... and --reviewed ID is required")
+	}
+	if (reviewed != "") != (reviewFile != "") || (excludeAuthor != "" && reviewed == "") {
+		return usage(cmd, "--reviewed ID needs --review FILE; --review and --exclude-author belong to --reviewed")
+	}
+	if reviewed != "" && (manifest != "" || testID != "" || reason != "" || idsArg != "" || attempt != "" || postCheck != "") {
+		return usage(cmd, "--reviewed takes no --ids, declaration, attempt or post-check flags")
 	}
 	if report != "" && (manifest != "" || testID != "" || reason != "") {
 		return usage(cmd, "--manifest-sha256, --test-id and --reason belong to --declared")
@@ -437,8 +452,8 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		return errorResult(cmd, err)
 	}
 	var ids []string
-	if idsArg != "" || declared != "" {
-		if ids, err = obligationIDList(idsArg + declared); err != nil {
+	if idsArg != "" || declared != "" || reviewed != "" {
+		if ids, err = obligationIDList(idsArg + declared + reviewed); err != nil {
 			return errorResult(cmd, err)
 		}
 	}
@@ -490,7 +505,20 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	}
 	lists := witnessLists{}
 	var check *mutation.ObligationReportCheck
-	if declared != "" {
+	if reviewed != "" {
+		review, resolved, err := reviewedWitness(env, root, commit, rec.TicketID.Raw, reviewFile, excludeAuthor)
+		if err != nil {
+			return errorResult(cmd, err)
+		}
+		if e := ledger.Entry(reviewed); e == nil {
+			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "--reviewed", "%s obligation %s is not in the ledger", ticket.ObligationUnknownDetail, reviewed))
+		}
+		w.Source, w.Commit, w.Review = ticket.ObligationSourceReviewed, resolved, review
+		w.Credits = []ticket.ObligationCredit{{ID: reviewed}}
+		if outcome, _ := review.Outcome(); outcome == ticket.ObligationReviewCredited {
+			lists.credited = []string{reviewed}
+		}
+	} else if declared != "" {
 		resolved, _, _, err := store.FilesAtCommit(root, commit, nil)
 		if err != nil {
 			return errorResult(cmd, err)
@@ -579,6 +607,14 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 		written := out.Outcome == wire.OutcomeOK
 		out.Items[0].Obj.Set("written", wire.Bool(written))
 		lists.set(out.Items[0].Obj)
+		if w.Review != nil {
+			outcome, axes := w.Review.Outcome()
+			av := make([]wire.Value, 0, len(axes))
+			for _, x := range axes {
+				av = append(av, wire.String(x))
+			}
+			out.Items[0].Obj.Set("reviewOutcome", wire.String(outcome)).Set("reviewAxes", wire.Array(av...))
+		}
 	}
 	return out
 }

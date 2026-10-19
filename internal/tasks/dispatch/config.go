@@ -461,6 +461,8 @@ type Role struct {
 	ShortSessions *ShortSessions `json:"shortSessions,omitempty"`
 	// CarryOver is the role's optional ATR-V0-110 no-progress carry-over.
 	CarryOver *CarryOver `json:"carryOver,omitempty"`
+	// ReviewPacket is the role's optional ATR-V0-141 review packet.
+	ReviewPacket *ReviewPacket `json:"reviewPacket,omitempty"`
 	// promptParts holds an array prompt until expandPrompts joins it.
 	promptParts []promptPart
 }
@@ -899,6 +901,17 @@ func (c *Config) validate() error {
 			}
 			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); co.on() && err != nil {
 				return fail("role %s sets carryOver but host %q %v", r.Name, r.Host, err)
+			}
+		}
+		if rp := r.ReviewPacket; rp != nil {
+			if err := rp.validate(); err != nil {
+				return fail("role %s %v", r.Name, err)
+			}
+			if r.Lane != nil {
+				return fail("role %s reviewPacket applies to ticket roles only", r.Name)
+			}
+			if err := promptSafeHost(c.Hosts[r.Host], carryArgvPlaceholders); rp.on() && err != nil {
+				return fail("role %s sets reviewPacket but host %q %v", r.Name, r.Host, err)
 			}
 		}
 		if b := r.Budget; b != nil {
