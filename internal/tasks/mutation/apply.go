@@ -460,7 +460,7 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			return refuse(OutcomeValidationFailed, wire.CodeLimitExceeded, "more than %d holds", wire.MaxHolds)
 		}
 		// Actor and time come from the trusted context, never from the payload.
-		work.Holds = append(copyHolds(work.Holds), ticket.Hold{HoldID: p.HoldID, Actor: ctx.Binding.ID, Reason: p.Reason, PlacedAt: ctx.Now})
+		work.Holds = append(copyHolds(work.Holds), ticket.Hold{HoldID: p.HoldID, Actor: ctx.Binding.ID, Reason: p.Reason, PlacedAt: ctx.Now, Condition: p.Condition})
 		work.Status = ticket.StatusHeld
 	case *ReleaseHoldPayload:
 		if work.Status != ticket.StatusHeld {

@@ -220,6 +220,10 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
+	if operation == mutation.OpHold {
+		o.Set("optionalPayloadKeys", wire.Strings([]string{"condition"}))
+		o.Set("condition", wire.String("Optional machine-checkable condition (SCC-V0-010): {\"kind\":\"COMMIT_CONTAINED\",\"ref\":REF,\"commit\":OID}, {\"kind\":\"PATH_EXISTS\",\"ref\":REF,\"path\":PATH} or {\"kind\":\"SYMBOL_DEFINED\",\"ref\":REF,\"path\":FILE,\"symbol\":IDENTIFIER}; REF is a full refname under refs/. queue status re-evaluates it at every read (holdConditions: UNBLOCKED, BLOCKED or UNKNOWN with the reason) and doctor names met and unknown conditions; a met condition never releases the hold by itself. A commit is contained by ancestry or by a patch-equivalent commit (source contains)."))
+	}
 	if operation == mutation.OpCreate || operation == mutation.OpRefine {
 		o.Set("milestoneRule", wire.String("When policy sets milestones.required true, CREATE without a milestone and REFINE that sets milestone to null refuse VALIDATION_FAILED MILESTONE_REQUIRED (CAL-V0-195); existing records are never rewritten. Absent or false keeps milestone optional."))
 	}
@@ -235,7 +239,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("batch", wire.String(batchHelp))
 	}
 	o.Set("usage", wire.String(usageText))
-	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
+	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, HOLD may add condition, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 }
 

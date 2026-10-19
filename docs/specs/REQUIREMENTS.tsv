@@ -1697,6 +1697,16 @@ PSR-V0-164	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-165	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A failed	standing	2026-10-11; V1-1585
 PSR-V0-166	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) Operatio	standing	2026-10-11; V1-1585
 PSR-V0-167	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1585) A policy	standing	2026-10-11; V1-1585
+SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
+SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
+SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
+SCC-V0-004	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) A source	standing	2026-10-11; V1-1920
+SCC-V0-005	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `corvint	standing	2026-10-11; V1-1920
+SCC-V0-010	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) A HOLD p	standing	2026-10-11; V1-1907
+SCC-V0-011	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `store.E	standing	2026-10-11; V1-1907
+SCC-V0-012	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) SYMBOL_D	standing	2026-10-11; V1-1907
+SCC-V0-013	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `queue s	standing	2026-10-11; V1-1907
+SCC-V0-014	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1907) `doctor`	standing	2026-10-11; V1-1907
 CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	`corvint-tasks init` MUST refuse, before it creates the state directory or any	unrecorded	-
 CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	Only `queue status`, `roadmap`, `ticket show` and `ticket search` MUST	unrecorded	-
 CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-09-27, owner decision relayed by the orchestrator session "Work	owner	2026-09-27

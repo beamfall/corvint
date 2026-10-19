@@ -85,6 +85,9 @@ type Hold struct {
 	Actor    string
 	Reason   string
 	PlacedAt wire.Timestamp
+	// Condition is the optional machine-checkable condition (SCC-V0-010);
+	// nil keeps the hold's encoded bytes unchanged.
+	Condition *HoldCondition
 }
 
 // Approval is one `approvals` entry.
@@ -305,12 +308,15 @@ func FromValue(v wire.Value) (*Record, error) {
 	rec.Capabilities = r.Field("capabilities").Strings(wire.MaxCapabilities, false, (*wire.Reader).Identifier)
 	rec.RequiredGates = r.Field("requiredGates").Strings(wire.MaxRequiredGates, false, (*wire.Reader).Label)
 	for _, h := range r.Field("holds").Array(wire.MaxHolds, true) {
-		h.Closed("holdId", "actor", "reason", "placedAt")
+		h.Closed(wire.OptionalKeys(h.Value(), []string{"holdId", "actor", "reason", "placedAt"}, "condition")...)
 		hold := Hold{}
 		hold.HoldID = h.Field("holdId").Label()
 		hold.Actor = h.Field("actor").Label()
 		hold.Reason = h.Field("reason").Prose(0, wire.MaxProseBytes)
 		hold.PlacedAt = h.Field("placedAt").Timestamp()
+		if wire.Has(h.Value(), "condition") {
+			hold.Condition = ReadHoldCondition(h.Field("condition"))
+		}
 		rec.Holds = append(rec.Holds, hold)
 	}
 	rec.ExecutionClass = r.Field("executionClass").Enum(ExecutionClasses...)
@@ -604,6 +610,9 @@ func (rec *Record) Value() wire.Value {
 		ho.Set("actor", wire.String(h.Actor))
 		ho.Set("reason", wire.String(h.Reason))
 		ho.Set("placedAt", wire.String(string(h.PlacedAt)))
+		if h.Condition != nil {
+			ho.Set("condition", h.Condition.Value())
+		}
 		holds = append(holds, wire.ObjectValue(ho))
 	}
 	o.Set("holds", wire.Array(holds...))
