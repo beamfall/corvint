@@ -99,7 +99,12 @@ func (r *rspecReader) blockNotCalledFor(e rspecExample) []testvalidity.SourceFin
 // blockNotCalledAt is the finding of example e when it passes defective helper h a block.
 func (r *rspecReader) blockNotCalledAt(e rspecExample, h int, d blockDefect) []testvalidity.SourceFinding {
 	call := helperCall(e.body, d.name)
-	if call == 0 || r.resolveHelper(e.group, d.name) != h {
+	if call == 0 {
+		return nil
+	}
+	// The support-aware resolution decides; one that abstains is reported by vacuousFindings.
+	res := r.resolveAcross(e.group, d.name)
+	if !res.found || res.helper.path != r.helpers[h].path || res.helper.body[0].line != r.helpers[h].body[0].line {
 		return nil
 	}
 	def := fmt.Sprintf("%s:%d", r.helpers[h].path, r.helpers[h].body[0].line)
@@ -108,23 +113,6 @@ func (r *rspecReader) blockNotCalledAt(e rspecExample, h int, d blockDefect) []t
 		Test: fmt.Sprintf("%s:%d", e.path, e.line), Title: e.title, Location: fmt.Sprintf("%s:%d", e.path, call), Cause: def,
 		Message: fmt.Sprintf("the block this example passes to %s never runs, because the helper at %s does not call it, so the example passes whatever the code under test does; fix the helper", d.name, def),
 	}}
-}
-
-// resolveHelper returns the index of the helper named name that an example of group g calls: the
-// last def of that name in the innermost group on g's chain that defines one, or -1.
-func (r *rspecReader) resolveHelper(g int, name string) int {
-	for ; g >= 0; g = r.groups[g].parent {
-		found := -1
-		for k, h := range r.helpers {
-			if h.group == g && helperName(h.body) == name {
-				found = k
-			}
-		}
-		if found >= 0 {
-			return found
-		}
-	}
-	return -1
 }
 
 func helperName(body []rubyLine) string {

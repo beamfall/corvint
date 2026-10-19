@@ -147,8 +147,9 @@ end
 	}
 }
 
-// TestRSpecChangeOnIdentity pins TSA-V0-085: a negated change over a reloaded record is
-// INELIGIBLE; change { record.reload.attr } and a positive change stay clean.
+// TestRSpecChangeOnIdentity pins TSA-V0-085: a negated change over a reloaded record is advisory,
+// since a reload returning a mutable object can still change its hash, and leaves the example
+// ELIGIBLE; change { record.reload.attr } and a positive change stay clean.
 func TestRSpecChangeOnIdentity(t *testing.T) {
 	spec := `RSpec.describe Widget do
   it 'does not touch the record' do
@@ -164,30 +165,44 @@ end
 `
 	got := rbBrief(t, "spec/widget_spec.rb", spec, bound(nil))
 	wantExamples(t, got, map[int][]string{
-		2: {"RB-CHANGE-ON-IDENTITY invalid spec/widget_spec.rb:3 spec/widget_spec.rb:2"},
+		2: {"RB-CHANGE-ON-IDENTITY advisory spec/widget_spec.rb:3 spec/widget_spec.rb:2"},
 		5: {},
-		8: {"RB-CHANGE-ON-IDENTITY invalid spec/widget_spec.rb:9 spec/widget_spec.rb:8"},
+		8: {"RB-CHANGE-ON-IDENTITY advisory spec/widget_spec.rb:9 spec/widget_spec.rb:8"},
 	})
+	examples, _ := RSpecExampleSourcesWithSupport("spec/widget_spec.rb", spec, bound(nil))
+	p := testvalidity.ApplyExampleSource(testvalidity.Projection{Strength: testvalidity.Axis{State: testvalidity.StrengthNotMeasured}}, examples[2], "spec/widget_spec.rb:2")
+	if p.Hygiene.State != testvalidity.HygieneEligible {
+		t.Errorf("hygiene = %+v, want ELIGIBLE", p.Hygiene)
+	}
 }
 
-// TestRSpecAssignmentInPredicate pins TSA-V0-086: a satisfy block ending in an assignment is
-// INELIGIBLE; a comparison, in brace or do form, stays clean.
+// TestRSpecAssignmentInPredicate pins TSA-V0-086: a satisfy block ending in an assignment of a
+// truthy literal is INELIGIBLE; a comparison, or an assignment of an expression that can be false
+// (`valid = x.even?`, `x.date = Date.today`), in brace or do form, stays clean.
 func TestRSpecAssignmentInPredicate(t *testing.T) {
 	spec := `RSpec.describe Widget do
   it 'assigns' do
-    expect(row).to satisfy { |x| x["date"] = Date.today }
+    expect(row).to satisfy { |x| x["date"] = "today" }
   end
   it 'compares' do
     expect(row).to satisfy { |x| x["date"] == Date.today }
   end
   it 'assigns in a do block' do
     expect(row).to satisfy do |x|
-      x.date ||= Date.today
+      x.date ||= :today
     end
   end
   it 'compares in a do block' do
     expect(row).to satisfy do |x|
       x.date <= Date.today
+    end
+  end
+  it 'assigns a predicate' do
+    expect(value).to satisfy { |x| valid = x.even? }
+  end
+  it 'assigns an expression' do
+    expect(row).to satisfy do |x|
+      x.date = Date.today
     end
   end
 end
@@ -198,6 +213,79 @@ end
 		5:  {},
 		8:  {"RB-ASSIGNMENT-IN-PREDICATE invalid spec/widget_spec.rb:9 spec/widget_spec.rb:8"},
 		13: {},
+		18: {},
+		21: {},
+	})
+}
+
+const reportSpec = `RSpec.describe Report do
+  include_context 'report io'
+  it 'reads' do
+    read_data { |data| expect(data).to be_present }
+  end
+end
+`
+
+// TestRSpecResolutionAbstains pins TSA-V0-088 against definitions the reader cannot order or see:
+// an incomplete support set, a nested include in the shared context, and a helper no read file
+// defines while the support set is unbound abstain; the later of two defs in one context wins.
+func TestRSpecResolutionAbstains(t *testing.T) {
+	yielding := "RSpec.shared_context 'report io' do\n  def read_data; build_report_io; end\n  def read_data\n    yield build_report_io\n  end\nend\n"
+	outer := "RSpec.shared_context 'inner' do\n  def read_data\n    yield build_report_io\n  end\nend\nRSpec.shared_context 'report io' do\n  def read_data; build_report_io; end\n  include_context 'inner'\nend\n"
+	noInclude := strings.Replace(reportSpec, "  include_context 'report io'\n", "", 1)
+	cases := []struct {
+		name    string
+		spec    string
+		support testvalidity.RubySupport
+		want    []string
+	}{
+		{"unread support file", reportSpec, bound(map[string]string{"spec/support/report_io.rb": neverYieldContext, "spec/support/broken.rb": "RSpec.shared_context 'report io' do\n"}), []string{"RB-HELPER-UNRESOLVED abstained spec/report_spec.rb:4 spec/report_spec.rb:2"}},
+		{"later def in one context wins", reportSpec, bound(map[string]string{"spec/support/report_io.rb": yielding}), nil},
+		{"nested include in the context", reportSpec, bound(map[string]string{"spec/support/report_io.rb": outer}), []string{"RB-HELPER-UNRESOLVED abstained spec/report_spec.rb:4 spec/support/report_io.rb:8"}},
+		{"unknown helper, unbound support", noInclude, testvalidity.RubySupport{Unbound: "rspec-helpers-not-bound"}, []string{"RB-HELPER-UNRESOLVED abstained spec/report_spec.rb:3 spec/report_spec.rb:3"}},
+		{"unknown helper, bound support", noInclude, bound(nil), nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var rows []string
+			for _, r := range rbBrief(t, "spec/report_spec.rb", c.spec, c.support) {
+				rows = append(rows, r...)
+			}
+			if fmt.Sprint(rows) != fmt.Sprint(c.want) {
+				t.Fatalf("rows = %q, want %q", rows, c.want)
+			}
+		})
+	}
+}
+
+// TestRSpecHelperForms pins TSA-V0-084 for helper and example shapes: a default argument that
+// yields is read as yielding, an endless def is a never-yielding helper that keeps the reader
+// balanced, and a one-line example's block call is read.
+func TestRSpecHelperForms(t *testing.T) {
+	spec := `RSpec.describe Report do
+  context 'default argument' do
+    def read_data(value = yield); value; end
+    it 'reads' do
+      read_data { |data| expect(data).to be_present }
+    end
+  end
+  context 'endless def' do
+    def read_data = build_report_io
+    it 'reads' do
+      read_data { |data| expect(data).to be_present }
+    end
+  end
+  context 'one-line example' do
+    def read_data; build_report_io; end
+    it('reads') { read_data { |data| expect(data).to be_present } }
+  end
+end
+`
+	got := rbBrief(t, "spec/report_spec.rb", spec, bound(nil))
+	wantExamples(t, got, map[int][]string{
+		4:  {},
+		10: {"RB-BLOCK-NEVER-YIELDED invalid spec/report_spec.rb:11 spec/report_spec.rb:9"},
+		16: {"RB-BLOCK-NEVER-YIELDED invalid spec/report_spec.rb:16 spec/report_spec.rb:15"},
 	})
 }
 

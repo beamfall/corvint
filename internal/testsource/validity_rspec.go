@@ -222,10 +222,11 @@ func (r *rspecReader) read() string {
 		group := current()
 		switch {
 		case rspecGroupLine.MatchString(text) && rubyDo.MatchString(text):
-			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}, line: r.lines[i].line, head: text, path: r.lines[i].path, loop: inLoop(), index: i})
+			loop := inLoop() // read before the group's own frame hides the loop around it
+			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}, line: r.lines[i].line, head: text, path: r.lines[i].path, loop: loop, index: i})
 			stack = append(stack, frame{group: len(r.groups) - 1})
 			if rspecIncludeLine.MatchString(text) {
-				r.addInclude(group, i, len(r.groups)-1, inLoop())
+				r.addInclude(group, i, len(r.groups)-1, loop)
 			}
 		case rspecIncludeLine.MatchString(text):
 			r.addInclude(group, i, -1, inLoop())

@@ -137,6 +137,10 @@ func TestRSpecInclusionRefusals(t *testing.T) {
 			q.SpecText = strings.Replace(widgetSpec, "    it_behaves_like 'a widget'\n", "    before do\n      include_examples 'a widget'\n    end\n", 1)
 			q.IncludeLine = 6
 		}, testvalidity.InclusionInExampleOrHook},
+		{"loop-generated include with a block", func(q *testvalidity.RSpecInclusion) {
+			q.SpecText = strings.Replace(widgetSpec, "    it_behaves_like 'a widget'\n", "    [1, 2].each do |n|\n      it_behaves_like 'a widget' do\n        let(:size) { n }\n      end\n    end\n", 1)
+			q.IncludeLine = 6
+		}, testvalidity.InclusionLoopGenerated},
 		{"loop-generated include", func(q *testvalidity.RSpecInclusion) {
 			q.SpecText = strings.Replace(widgetSpec, "    it_behaves_like 'a widget'\n", "    [1, 2].each do |n|\n      it_behaves_like 'a widget'\n    end\n", 1)
 			q.IncludeLine = 6
@@ -186,8 +190,8 @@ func TestRSpecInclusionRefusals(t *testing.T) {
 }
 
 // TestRSpecInclusionReceiptJoin pins TSA-V0-092: a receipt's scoped id walks to the inclusion it ran
-// through, nested by it_behaves_like or inline by include_examples, and a mismatched id or
-// description abstains.
+// through, nested by it_behaves_like or inline by include_examples, and a mismatched id, a
+// mismatched description or a missing one abstains.
 func TestRSpecInclusionReceiptJoin(t *testing.T) {
 	cases := []struct {
 		id, description string
@@ -195,13 +199,14 @@ func TestRSpecInclusionReceiptJoin(t *testing.T) {
 		wantRef, want   string
 	}{
 		{"./spec/widget_spec.rb[1:1:1:1]", "Widget stub reader behaves like a widget reads the data", 2, "spec/widget_spec.rb:5>spec/support/widget_examples.rb:2", testvalidity.ExampleSourceLocated},
-		{"./spec/widget_spec.rb[1:1:1:2]", "", 5, "spec/widget_spec.rb:5>spec/support/widget_examples.rb:5", testvalidity.ExampleSourceLocated},
+		{"./spec/widget_spec.rb[1:1:1:2]", "Widget stub reader behaves like a widget has a name", 5, "spec/widget_spec.rb:5>spec/support/widget_examples.rb:5", testvalidity.ExampleSourceLocated},
 		{"./spec/widget_spec.rb[1:2:1]", "Widget yielding reader reads the data", 2, "spec/widget_spec.rb:11>spec/support/widget_examples.rb:2", testvalidity.ExampleSourceLocated},
-		{"./spec/widget_spec.rb[1:2:2]", "", 5, "spec/widget_spec.rb:11>spec/support/widget_examples.rb:5", testvalidity.ExampleSourceLocated},
+		{"./spec/widget_spec.rb[1:2:2]", "Widget yielding reader has a name", 5, "spec/widget_spec.rb:11>spec/support/widget_examples.rb:5", testvalidity.ExampleSourceLocated},
 		{"./spec/widget_spec.rb[1:1:1:2]", "", 2, "", testvalidity.InclusionIDUnplaced},
 		{"./spec/widget_spec.rb[1:3]", "", 2, "", testvalidity.InclusionIDUnplaced},
 		{"./spec/widget_spec.rb[2:1]", "", 2, "", testvalidity.InclusionIDUnplaced},
 		{"./spec/widget_spec.rb[1:1:1:1]", "Widget stub reader reads the data", 2, "", testvalidity.InclusionDescriptionMismatch},
+		{"./spec/widget_spec.rb[1:2:2]", "", 5, "", testvalidity.InclusionDescriptionMismatch},
 	}
 	for _, c := range cases {
 		t.Run(c.id+" "+c.description, func(t *testing.T) {
@@ -221,5 +226,36 @@ func TestRSpecInclusionReceiptJoin(t *testing.T) {
 		if _, _, ok := testvalidity.ParseRSpecScopedID(bad); ok {
 			t.Errorf("testvalidity.ParseRSpecScopedID(%q) accepted", bad)
 		}
+	}
+}
+
+// TestRSpecInclusionCustomizationOverride pins TSA-V0-088 and TSA-V0-089 for a helper the shared
+// body defines and the customization block redefines, directly or through an included context: the
+// two definitions sit in different files with no line order to compare, so the read abstains
+// instead of judging either, whether the shared def never yields or never calls its block.
+func TestRSpecInclusionCustomizationOverride(t *testing.T) {
+	direct := "RSpec.describe Widget do\n  it_behaves_like 'a widget' do\n    def read_data\n      yield build_widget\n    end\n  end\nend\n"
+	included := "RSpec.describe Widget do\n  it_behaves_like 'a widget' do\n    include_context 'yielding reader'\n  end\nend\n"
+	reader := "RSpec.shared_context 'yielding reader' do\n  def read_data\n    yield build_widget\n  end\nend\n"
+	cases := []struct{ name, spec, def string }{
+		{"def override, shared def never yields", direct, "  def read_data; build_widget; end\n"},
+		{"context override, shared def never calls its block", included, "  def read_data(&block)\n    build_widget\n  end\n"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// The shared def follows the examples, on a later line than the customization block's.
+			shared := strings.Replace(widgetExamples, "  end\nend\n", "  end\n"+c.def+"end\n", 1)
+			source, ref := inclusion(t, func(q *testvalidity.RSpecInclusion) {
+				q.SpecText, q.IncludeLine, q.SharedText = c.spec, 2, shared
+				q.Support.Files[widgetShared] = shared
+				q.Support.Files["spec/support/yielding_reader.rb"] = reader
+			})
+			if source.Read != testvalidity.ExampleSourceLocated {
+				t.Fatalf("read = %q, want located", source.Read)
+			}
+			if p := project(source, ref); p.Hygiene.State != testvalidity.HygieneAbstained || p.Hygiene.Reason != testvalidity.RuleRBHelperUnresolved {
+				t.Errorf("hygiene = %+v (findings %v), want ABSTAINED %s", p.Hygiene, sourceRules(source), testvalidity.RuleRBHelperUnresolved)
+			}
+		})
 	}
 }

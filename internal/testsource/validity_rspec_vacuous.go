@@ -40,8 +40,11 @@ var (
 	// rspecSatisfyBrace is a one-line satisfy block; group 1 is its body.
 	rspecSatisfyBrace = regexp.MustCompile(`\bsatisfy\b\s*(?:\([^()]*\))?\s*\{\s*(?:\|[^|]*\|)?(.*)\}`)
 	rspecSatisfyDo    = regexp.MustCompile(`\bsatisfy\b\s*(?:\([^()]*\))?\s*do(?:\s*\|[^|]*\|)?$`)
-	// rspecAssignment is an assignment or an operator assignment statement.
-	rspecAssignment = regexp.MustCompile(`^@{0,2}[A-Za-z_]\w*(?:\[[^\]]*\]|\.[A-Za-z_]\w*)*\s*(?:\|\||&&|\*\*|<<|>>|[-+*/%|&^])?=(?:[^=~>]|$)`)
+	// rspecAssignment is a plain or `||=` assignment statement; group 1 is the assigned expression.
+	rspecAssignment = regexp.MustCompile(`^@{0,2}[A-Za-z_]\w*(?:\[[^\]]*\]|\.[A-Za-z_]\w*)*\s*(?:\|\|)?=([^=~>].*)$`)
+	// rspecTruthyLiteral is an expression Ruby always reads as true: a number, a string (stripped
+	// to ""), a symbol, true, or an array or hash literal.
+	rspecTruthyLiteral = regexp.MustCompile(`^(?:-?\d[\d_]*(?:\.\d+)?|""|:[A-Za-z_]\w*[?!]?|true|\[.*\]|\{.*\})$`)
 	// rspecNegatedRaise is a `not_to raise_error` expectation.
 	rspecNegatedRaise = regexp.MustCompile(`\.\s*(?:not_to|to_not)\s*\(?\s*raise_error\b`)
 	// rspecRaiseTitle is a title that names the absence of an error as the behaviour.
@@ -112,15 +115,22 @@ type helperResolution struct {
 
 // resolveAcross resolves name for an example of group g: at each level of the chain, innermost
 // first, the group's own defs and the defs of the shared contexts it includes inline compete, and
-// the later one in the group wins. An include whose shared group cannot be bound to exactly one
-// literal definition makes the level abstain (TSA-V0-088).
+// the later one in the group wins. A level whose candidates sit in different files (a spliced
+// shared body and its customization block) has no line order to compare, so it abstains, as does
+// an include whose shared group cannot be bound to exactly one literal definition in a complete
+// support set, or whose shared group includes another (TSA-V0-088).
 func (r *rspecReader) resolveAcross(g int, name string) helperResolution {
 	readers := r.sharedReaders()
+	type candidate struct {
+		helper rspecHelper
+		path   string
+		line   int
+	}
 	for ; g >= 0; g = r.groups[g].parent {
-		best, bestAt := rspecHelper{}, -1
+		candidates := []candidate{}
 		for _, h := range r.helpers {
-			if h.group == g && helperName(h.body) == name && h.body[0].line > bestAt {
-				best, bestAt = h, h.body[0].line
+			if h.group == g && helperName(h.body) == name {
+				candidates = append(candidates, candidate{h, h.path, h.body[0].line})
 			}
 		}
 		for _, inc := range r.includes {
@@ -136,18 +146,39 @@ func (r *rspecReader) resolveAcross(g int, name string) helperResolution {
 			switch {
 			case len(defs) > 1 || len(defs) == 1 && unsure:
 				return helperResolution{abstain: testvalidity.RuleRBHelperAmbiguous, cause: cause}
-			case len(defs) == 0:
+			case len(defs) == 0 || r.supportGap() != "":
 				return helperResolution{abstain: testvalidity.RuleRBHelperUnresolved, cause: cause}
 			}
-			for _, h := range defs[0].reader.helpers {
-				if h.group == defs[0].group && helperName(h.body) == name && inc.line > bestAt {
-					best, bestAt = h, inc.line
+			d := defs[0]
+			for _, nested := range d.reader.includes {
+				if nested.group == d.group && (nested.kind == "include_context" || nested.kind == "include_examples") {
+					return helperResolution{abstain: testvalidity.RuleRBHelperUnresolved, cause: fmt.Sprintf("%s:%d", nested.path, nested.line)}
 				}
 			}
+			// Within one shared context the later def wins; the include line orders it in the group.
+			last, ok := rspecHelper{}, false
+			for _, h := range d.reader.helpers {
+				if h.group == d.group && helperName(h.body) == name && (!ok || h.body[0].line > last.body[0].line) {
+					last, ok = h, true
+				}
+			}
+			if ok {
+				candidates = append(candidates, candidate{last, inc.path, inc.line})
+			}
 		}
-		if bestAt >= 0 {
-			return helperResolution{helper: best, found: true}
+		if len(candidates) == 0 {
+			continue
 		}
+		best := candidates[0]
+		for _, c := range candidates[1:] {
+			if c.path != best.path {
+				return helperResolution{abstain: testvalidity.RuleRBHelperUnresolved, cause: fmt.Sprintf("%s:%d", c.path, c.line)}
+			}
+			if c.line > best.line {
+				best = c
+			}
+		}
+		return helperResolution{helper: best.helper, found: true}
 	}
 	// Unreached defs: a module or class method, or a def in a support file, may be the helper
 	// through an inclusion the reader does not follow.
@@ -159,6 +190,20 @@ func (r *rspecReader) resolveAcross(g int, name string) helperResolution {
 		}
 	}
 	return helperResolution{}
+}
+
+// supportGap names why the support set could hold a definition the reader did not see: the reason
+// it is unbound, or the first support file that did not read; "" when it is complete.
+func (r *rspecReader) supportGap() string {
+	switch {
+	case r.support == nil:
+		return "rspec-support-not-given"
+	case r.support.unbound != "":
+		return r.support.unbound
+	case len(r.support.unread) > 0:
+		return r.support.unread[0]
+	}
+	return ""
 }
 
 // sharedReaders returns this file's reader and the bound support readers.
@@ -186,14 +231,16 @@ func (r *rspecReader) sharedReaders() []*rspecReader {
 func neverYields(body []rubyLine) bool {
 	head := stripRubyStrings(body[0].text)
 	rest := []string{}
-	if rubyOneLine.MatchString(head) {
+	switch {
+	case rubyOneLine.MatchString(head):
 		parts := strings.Split(head, ";")
 		head = strings.TrimSpace(parts[0])
 		rest = parts[1 : len(parts)-1]
-	} else {
-		if len(body) < 2 {
-			return false
-		}
+	case rubyEndlessDef.MatchString(strings.TrimSpace(head)):
+		head = strings.TrimSpace(head) // its expression is read from the params below
+	case len(body) < 2:
+		return false
+	default:
 		for _, l := range body[1 : len(body)-1] {
 			if rspecHiddenText.MatchString(l.text) {
 				return false
@@ -215,7 +262,8 @@ func neverYields(body []rubyLine) bool {
 	if strings.Contains(params, "&") || strings.Contains(params, "...") {
 		return false
 	}
-	for _, t := range rest {
+	// A default argument such as `value = yield` runs when the caller omits it.
+	for _, t := range append(rest, params) {
 		t = strings.TrimSpace(t)
 		if rspecDefLine.MatchString(t) {
 			return false
@@ -234,8 +282,16 @@ func neverYields(body []rubyLine) bool {
 func blockCalls(body []rubyLine) []blockCall {
 	out := []blockCall{}
 	seen := map[string]bool{}
-	for _, l := range body[1:] {
+	for k, l := range body {
 		t := stripRubyStrings(l.text)
+		if k == 0 {
+			// The head only holds calls after a one-line example's opening brace.
+			open := strings.Index(t, "{")
+			if open < 0 {
+				continue
+			}
+			t = t[open+1:]
+		}
 		for _, loc := range rspecIdentifier.FindAllStringIndex(t, -1) {
 			name := t[loc[0]:loc[1]]
 			if seen[name] || rspecBlockDSL[name] || loc[0] > 0 && strings.ContainsRune(".:@$", rune(t[loc[0]-1])) {
@@ -273,18 +329,22 @@ func (r *rspecReader) vacuousFindings(test string, e rspecExample) []testvalidit
 		case res.abstain != "" && r.neverYieldingCandidate(call.name):
 			out = append(out, finding(res.abstain, testvalidity.SeverityAbstained, at(call.line), res.cause,
 				fmt.Sprintf("%s is called with a block and a definition of it never yields, but the reader cannot bind the call to exactly one definition through %s, so it abstains instead of judging the block", call.name, res.cause)))
+		case !res.found && res.abstain == "" && r.supportGap() != "":
+			gap := r.supportGap()
+			out = append(out, finding(testvalidity.RuleRBHelperUnresolved, testvalidity.SeverityAbstained, at(call.line), at(call.line),
+				fmt.Sprintf("%s is called with a block, but no read file defines it and the support set is incomplete (%s), so a never-yielding definition could hide there; the reader abstains instead of judging the block", call.name, gap)))
 		}
 	}
 	for _, l := range e.body {
 		t := stripRubyStrings(l.text)
 		if m := rspecChangeOnReload.FindStringSubmatch(t); m != nil {
-			out = append(out, finding(testvalidity.RuleRBChangeOnIdentity, testvalidity.SeverityInvalid, at(l.line), self,
-				fmt.Sprintf("change { %s } observes the record itself, which reload returns unchanged and which compares by primary key, so no attribute change can register and the negated expectation always passes; observe the attribute instead (change { %s.ATTRIBUTE })", m[1], m[1])))
+			out = append(out, finding(testvalidity.RuleRBChangeOnIdentity, testvalidity.SeverityAdvisory, at(l.line), self,
+				fmt.Sprintf("change { %s } observes the record itself; RSpec compares its before and after hash, which for an ActiveRecord model is its primary key, so an attribute change may not register and the negated expectation may always pass; observe the attribute instead (change { %s.ATTRIBUTE })", m[1], m[1])))
 		}
 	}
 	if line := assignmentPredicate(e.body); line != 0 {
 		out = append(out, finding(testvalidity.RuleRBAssignmentInPredicate, testvalidity.SeverityInvalid, at(line), self,
-			"the satisfy block ends in an assignment, which returns the assigned value, so the predicate is truthy whatever the subject holds; compare with == instead"))
+			"the satisfy block ends in an assignment of a truthy literal, which returns that literal, so the predicate is truthy whatever the subject holds; compare with == instead"))
 	}
 	if count, _ := expectations(e.path, e.body); count > 0 && !rspecRaiseTitle.MatchString(e.title) {
 		negated := 0
@@ -299,12 +359,12 @@ func (r *rspecReader) vacuousFindings(test string, e rspecExample) []testvalidit
 	return out
 }
 
-// neverYieldingCandidate reports whether any bound definition of name never yields, so an
-// unresolved call could be vacuous.
+// neverYieldingCandidate reports whether any bound definition of name never yields or never calls
+// its block parameter, so an unresolved call could be vacuous.
 func (r *rspecReader) neverYieldingCandidate(name string) bool {
 	for _, sr := range r.sharedReaders() {
 		for _, h := range append(append([]rspecHelper{}, sr.offGroupDefs...), sr.helpers...) {
-			if helperName(h.body) == name && neverYields(h.body) {
+			if helperName(h.body) == name && (neverYields(h.body) || helperDefect(h.body).reported) {
 				return true
 			}
 		}
@@ -312,8 +372,16 @@ func (r *rspecReader) neverYieldingCandidate(name string) bool {
 	return r.support == nil || r.support.unbound != "" || len(r.support.unread) > 0
 }
 
-// assignmentPredicate returns the line of a satisfy block whose last statement is an assignment,
-// or 0 (TSA-V0-086).
+// truthyAssignment reports whether a statement assigns a truthy literal, so it returns a truthy
+// value whatever the subject holds; an assignment of any other expression may be a real
+// predicate (`valid = x.even?`) and is not reported.
+func truthyAssignment(statement string) bool {
+	m := rspecAssignment.FindStringSubmatch(statement)
+	return m != nil && rspecTruthyLiteral.MatchString(strings.TrimSpace(m[1]))
+}
+
+// assignmentPredicate returns the line of a satisfy block whose last statement assigns a truthy
+// literal, or 0 (TSA-V0-086).
 func assignmentPredicate(body []rubyLine) int {
 	for k, l := range body {
 		t := stripRubyStrings(l.text)
@@ -323,14 +391,14 @@ func assignmentPredicate(body []rubyLine) int {
 				inner = inner[:end-1]
 			}
 			parts := strings.Split(inner, ";")
-			if rspecAssignment.MatchString(strings.TrimSpace(parts[len(parts)-1])) {
+			if truthyAssignment(strings.TrimSpace(parts[len(parts)-1])) {
 				return l.line
 			}
 			continue
 		}
 		if rspecSatisfyDo.MatchString(t) {
 			end := rubyBlockEnd(body, k)
-			if end < len(body) && end-k >= 2 && rspecAssignment.MatchString(strings.TrimSpace(stripRubyStrings(body[end-1].text))) {
+			if end < len(body) && end-k >= 2 && truthyAssignment(strings.TrimSpace(stripRubyStrings(body[end-1].text))) {
 				return l.line
 			}
 		}

@@ -881,22 +881,28 @@ auto-accept (2026-10-11). The reader is the TSA-V0-062 line reader; it adds no R
   to a helper call that resolves (TSA-V0-088) to a `def` with no `&` or `...` parameter whose body
   holds no nested `def`, no interpolation or heredoc, and none of `yield`, `block_given?`,
   `iterator?`, `super`, `binding`, `proc`, `Proc`, `lambda`, `define_method`, the `eval` and
-  `exec` family, `send`, `__send__`, `public_send` or `method_missing`. A one-line
-  `def name; …; end` and an endless `def name = …` are helpers. Its location is the call line and its cause the `def` line,
+  `exec` family, `send`, `__send__`, `public_send` or `method_missing`, in its body or its
+  parameters' default values (`def name(v = yield)` yields). A one-line `def name; …; end` and an
+  endless `def name = …`, which opens no block, are helpers, and a one-line example's calls after
+  its opening `{` are read. Its location is the call line and its cause the `def` line,
   in whichever file defines it. RSpec DSL calls (`expect`, `let`, `change`, `satisfy`,
   `allow`, Rails and Ruby block words such as `travel_to`, `each` and `tap`, hooks and the example
   and group words) are never helper calls.
 - `TSA-V0-085`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get an
-  `invalid` `RB-CHANGE-ON-IDENTITY` finding for `not_to change { X.reload }` or
-  `to_not change { X.reload }` whose block ends at the `reload`: the reloaded record compares equal
-  by identity whatever its attributes do. `change { X.reload.attr }` and a positive `to change`
-  give none. Location is the expectation line, cause the example.
+  `advisory` `RB-CHANGE-ON-IDENTITY` finding for `not_to change { X.reload }` or
+  `to_not change { X.reload }` whose block ends at the `reload`: RSpec compares the value's before
+  and after hash, which for an ActiveRecord model is its primary key, so the expectation may pass
+  whatever its attributes do. The reader cannot prove the receiver is such a model (a mutable
+  object whose `reload` returns itself changes its hash), so the finding is advisory and leaves
+  hygiene `ELIGIBLE`. `change { X.reload.attr }` and a positive `to change` give none. Location is
+  the expectation line, cause the example.
 - `TSA-V0-086`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get an
   `invalid` `RB-ASSIGNMENT-IN-PREDICATE` finding when the last statement of a one-line
-  `satisfy { |x| … }` block, or the last line of a `satisfy do |x| … end` block, is an assignment
-  or operator assignment (`=`, `||=`, `&&=`, `+=`, …) to a name, index or attribute, but not a
-  comparison (`==`, `=~`, `=>`): the predicate returns the assigned, usually truthy, value.
-  Location is the `satisfy` line, cause the example.
+  `satisfy { |x| … }` block, or the last line of a `satisfy do |x| … end` block, is a `=` or `||=`
+  assignment to a name, index or attribute, not a comparison (`==`, `=~`, `=>`), of a truthy
+  literal (a number, string, symbol, `true`, or array or hash literal): the predicate returns that
+  literal whatever the subject holds. An assignment of any other expression (`valid = x.even?`)
+  may be a real predicate and gives none. Location is the `satisfy` line, cause the example.
 - `TSA-V0-087`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example whose every
   expectation is a negated `raise_error`, and whose title holds none of the case-insensitive
   stems `rais`, `error`, `exception`, `fail`, `crash`, `blow`, `explod`, `succeed`, `success`,
@@ -912,7 +918,14 @@ auto-accept (2026-10-11). The reader is the TSA-V0-062 line reader; it adds no R
     receipt's retained helper set, each file only when its blob still matches.
   - A shared context named by a non-literal, defined in no read file, or not readable, and a
     module or class `def` the reader does not follow, MUST give an `abstained`
-    `RB-HELPER-UNRESOLVED` finding; two definitions MUST give `RB-HELPER-AMBIGUOUS`. Location is
+    `RB-HELPER-UNRESOLVED` finding; two definitions MUST give `RB-HELPER-AMBIGUOUS`. So MUST a
+    shared context found while the support set is unbound or a support file did not read, a shared
+    context that itself includes another inline, and one group level whose candidate definitions
+    sit in different files (a spliced shared body and its customization block, TSA-V0-089), which
+    have no line order to compare. Within one shared context the later `def` wins. A
+    block-passing call no read file defines, while the support set is unbound or incomplete, MUST
+    give `RB-HELPER-UNRESOLVED` caused at the call. The TSA-V0-054 `BLOCK-NOT-CALLED` example
+    finding MUST use this same resolution. Location is
     the call, cause the include or `def`. They are emitted only for a block-passing call that
     could resolve to a never-yielding `def`, or when the support set is unbound.
   - `ApplySourceFindings` MUST make an `ELIGIBLE` axis `ABSTAINED` with the first abstained
@@ -952,11 +965,11 @@ back to `RSpecExampleSources`. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-084 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_rspec_block.go` | `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecBlockNeverYieldedSameFile` | experimental |
+| TSA-V0-084 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_rspec_block.go` | `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecBlockNeverYieldedSameFile`, `TestRSpecHelperForms` | experimental |
 | TSA-V0-085 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecChangeOnIdentity` | experimental |
 | TSA-V0-086 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecAssignmentInPredicate` | experimental |
 | TSA-V0-087 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecRaiseErrorOnlyIsAdvisory` | experimental |
-| TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/validity_command.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles` | experimental |
+| TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/validity_command.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecResolutionAbstains`, `TestRSpecInclusionCustomizationOverride` | experimental |
 
 ## RSpec shared examples through one inclusion (V1-1867)
 
@@ -1004,7 +1017,8 @@ owner's standing auto-accept (2026-10-11). The reader stays the TSA-V0-062 line 
     inclusion takes one slot per shared child, and shared definitions take none.
   - The rest of the path MUST land on the named shared example, and an `it_behaves_like` or
     `it_should_behave_like` inclusion's generated description MUST appear in the receipt's
-    `full_description`. Otherwise the read abstains with `rspec-inclusion-id-unplaced` or
+    `full_description`, and a receipt-based read without a `full_description` cannot be
+    cross-checked. Otherwise the read abstains with `rspec-inclusion-id-unplaced` or
     `rspec-inclusion-description-mismatch`.
   - The including spec's content is the blob of another example the receipt retains for that
     spec; without one the read abstains `rspec-inclusion-source-unbound`.
@@ -1040,7 +1054,7 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-089 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_command.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently`, `TestRSpecInclusionSameFile`, `TestSourceValidityQualifiedReference` | experimental |
+| TSA-V0-089 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_command.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently`, `TestRSpecInclusionSameFile`, `TestRSpecInclusionCustomizationOverride`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-090 | `internal/testsource/validity_rspec_inclusion.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently` | experimental |
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |

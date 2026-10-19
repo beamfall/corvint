@@ -114,7 +114,8 @@ func RSpecInclusionSource(q testvalidity.RSpecInclusion) (testvalidity.ExampleSo
 	if reason := x.exampleInGroup(def); reason != "" {
 		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}}, ref
 	}
-	if q.Description != "" && !describesInclusion(q.Description, include) {
+	// A receipt-based read needs the receipt's description to cross-check the placement.
+	if q.ScopedID != nil && q.Description == "" || q.Description != "" && !describesInclusion(q.Description, include) {
 		return testvalidity.ExampleSource{Read: testvalidity.InclusionDescriptionMismatch, Findings: []testvalidity.SourceFinding{}}, ref
 	}
 	merged, at := x.splice(include, def)

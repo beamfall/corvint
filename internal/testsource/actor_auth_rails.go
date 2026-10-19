@@ -74,10 +74,13 @@ var (
 	// rubyOneLine is a statement that opens and closes on one line, such as
 	// `def read_data; build_report_io; end`; it opens no block (TSA-V0-084).
 	rubyOneLine = regexp.MustCompile(`;\s*end$`)
+	// rubyEndlessDef is an endless method, `def name = expr` or `def name(args) = expr`; it opens
+	// no block. A setter (`def name=(v)`) and a comparison (`==`) are not one.
+	rubyEndlessDef = regexp.MustCompile(`^def\s+[A-Za-z_]\w*[?!]?(?:\s+|\([^()]*\)\s*)=(?:[^=~]|$)`)
 )
 
 func rubyOpens(text string) bool {
-	return (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text)
+	return (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text) && !rubyEndlessDef.MatchString(text)
 }
 
 // rubyBlockEnd returns the index of the `end` closing the block opened at lines[i], or len(lines).
