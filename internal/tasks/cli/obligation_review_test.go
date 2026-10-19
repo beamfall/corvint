@@ -155,6 +155,46 @@ func TestTOLV0077_EditedExampleMakesReviewStale(t *testing.T) {
 	}
 }
 
+// TestTOLV0077_TestRepositoryReviewStaleness: a review read from a
+// policy-declared test repository is judged stale at that repository's HEAD,
+// not the store's: removing the store's copy leaves it fresh, editing the
+// test repository's copy makes it stale, and a test repository that no
+// longer resolves leaves stale unknown and the credit uncounted (Codex #1189
+// finding 1).
+func TestTOLV0077_TestRepositoryReviewStaleness(t *testing.T) {
+	app, appHead := separateTestRepo(t)
+	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
+	seedObligations(t, r.Root, id)
+	file := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "ok"))
+	if x := reviewWitness(t, r.Root, id, "rv-app", appHead, "AC-1", file, "--test-repository", "app"); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "reviewOutcome").Str != "CREDITED" {
+		t.Fatalf("test-repository review: %s", x.stdout)
+	}
+	git(t, r.Root, "rm", "-q", "-r", "e2e")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "drop store copy")
+	v := obligationsShow(t, r.Root, id)
+	wr := witnessReview(t, v, "AC-1")
+	if field(wr, "stale").Kind != wire.KindBool || field(wr, "stale").Bool || !field(wr, "credited").Bool || field(wr, "testRepository").Str != "app" ||
+		field(field(v, "witnessReview"), "effectiveWitnessed").Str != "1" {
+		t.Fatalf("store copy removed: %s", wire.Encode(field(v, "witnessReview")))
+	}
+	spec := filepath.Join(app, "e2e", "login.spec.ts")
+	fixture.Write(t, spec, []byte(obligationSpec+"\n// edited after review\n"))
+	git(t, app, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-am", "edit")
+	v = obligationsShow(t, r.Root, id)
+	wr = witnessReview(t, v, "AC-1")
+	if !field(wr, "stale").Bool || field(wr, "credited").Bool || field(field(v, "witnessReview"), "effectiveWitnessed").Str != "0" {
+		t.Fatalf("test repository edited: %s", wire.Encode(field(v, "witnessReview")))
+	}
+	if err := os.Rename(app, app+".moved"); err != nil {
+		t.Fatal(err)
+	}
+	v = obligationsShow(t, r.Root, id)
+	wr = witnessReview(t, v, "AC-1")
+	if field(wr, "stale").Kind != wire.KindNull || field(wr, "staleUnknown").Str != "TEST_REPOSITORY_UNRESOLVED" || field(wr, "credited").Bool {
+		t.Fatalf("unresolved test repository: %s", wire.Encode(field(v, "witnessReview")))
+	}
+}
+
 // TestTOLV0074_AuthorReviewerRefused: a reviewer named as an author is
 // refused OBLIGATION_REVIEWER_NOT_INDEPENDENT and nothing is written; a
 // secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, 078).

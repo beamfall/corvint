@@ -165,12 +165,15 @@ func (r ObligationReview) Outcome() (string, []string) {
 
 // ObligationReviewRecord is an entry's optional review member (TOL-V0-075):
 // the latest reviewed witness's outcome and its whole review.
+// TestRepository names the policy-declared repository the subject was read
+// from, so staleness is judged in that repository and not the store's.
 type ObligationReviewRecord struct {
-	Outcome     string
-	Axes        []string
-	EventSha256 wire.Digest
-	Commit      string
-	Review      ObligationReview
+	Outcome        string
+	Axes           []string
+	EventSha256    wire.Digest
+	Commit         string
+	Review         ObligationReview
+	TestRepository *string
 }
 
 func (r ObligationReviewRecord) Value() wire.Value {
@@ -178,12 +181,16 @@ func (r ObligationReviewRecord) Value() wire.Value {
 	for _, a := range r.Axes {
 		axes = append(axes, wire.String(a))
 	}
-	return noteObject("outcome", wire.String(r.Outcome), "axes", wire.Array(axes...), "eventSha256", wire.String(string(r.EventSha256)),
+	v := noteObject("outcome", wire.String(r.Outcome), "axes", wire.Array(axes...), "eventSha256", wire.String(string(r.EventSha256)),
 		"commit", wire.String(r.Commit), "review", r.Review.Value())
+	if r.TestRepository != nil {
+		v.Obj.Set("testRepository", wire.String(*r.TestRepository))
+	}
+	return v
 }
 
 func readObligationReviewRecord(r *wire.Reader) *ObligationReviewRecord {
-	r.Closed("outcome", "axes", "eventSha256", "commit", "review")
+	r.Closed(wire.OptionalKeys(r.Value(), []string{"outcome", "axes", "eventSha256", "commit", "review"}, "testRepository")...)
 	out := &ObligationReviewRecord{Outcome: r.Field("outcome").Enum(ObligationReviewCredited, ObligationReviewHeld),
 		Axes:        r.Field("axes").Strings(3, false, func(x *wire.Reader) string { return x.Enum("reviewers", "stubRisk", "verdict") }),
 		EventSha256: r.Field("eventSha256").Digest(), Commit: r.Field("commit").OID()}
@@ -192,6 +199,13 @@ func readObligationReviewRecord(r *wire.Reader) *ObligationReviewRecord {
 		return nil
 	}
 	out.Review = *rv
+	if wire.Has(r.Value(), "testRepository") {
+		name := r.Field("testRepository").Label()
+		if r.Err() != nil {
+			return nil
+		}
+		out.TestRepository = &name
+	}
 	if outcome, axes := rv.Outcome(); outcome != out.Outcome || strings.Join(axes, ",") != strings.Join(out.Axes, ",") {
 		r.Fail(wire.CodeMalformed, "review outcome does not match its verdicts")
 		return nil
@@ -209,7 +223,7 @@ func applyReviewedWitness(e *ObligationEntry, w *ObligationWitnessPayload, event
 		return wire.Errorf(wire.CodeMalformed, "/request/payload/review/subject", "%s obligation %s is already witnessed by review of this subject blob", ObligationCreditMismatchDetail, e.ID)
 	}
 	outcome, axes := w.Review.Outcome()
-	e.Review = &ObligationReviewRecord{Outcome: outcome, Axes: axes, EventSha256: eventSha256, Commit: w.Commit, Review: *w.Review}
+	e.Review = &ObligationReviewRecord{Outcome: outcome, Axes: axes, EventSha256: eventSha256, Commit: w.Commit, Review: *w.Review, TestRepository: w.TestRepository}
 	switch {
 	case outcome == ObligationReviewCredited:
 		e.State = ObligationWitnessed

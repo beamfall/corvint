@@ -256,6 +256,10 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   `queue status`, `roadmap` and the `plan preview --selected-only` projection are unchanged.
 
 - `ERG-V0-017`: `gate packet <ticket> [--commit REV] [--max-bytes N] [--checkpoint NOTE]` MUST return one bounded `taskman-review-packet/0` item for the reviewed commit (default: the head of the ticket's newest attempt branch), built from native records only.
+  Without `--commit`, a ticket whose newest generation was claimed after its candidate was
+  submitted (a claim, including a review-stage claim, clears the candidate) refuses
+  MISSING_EVIDENCE with `CANDIDATE_CLEARED_BY_CLAIM:` naming that attempt, generation and stage, so
+  the reviewer passes `--commit`.
   The delta base is the newest ancestor of the commit (commit itself excluded, at most 4096
   ancestors) whose tree is the TREE candidate of a PASS event in the ticket's review gate history;
   `deltaBase` names the commit, `kind: PASSED_REVIEW`, `source: PASSED_ANCESTOR` and the gate. The
@@ -274,7 +278,9 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
 
 - `ERG-V0-019`: The packet MUST fit `--max-bytes` (4096..262144, default 32768) and MUST list every omitted part as a named range; it never truncates silently.
   Each hunk is named by its commit line range (`lines a-b`), its base range for a pure deletion
-  (`base lines a-b`) or `binary`. Item codes and statuses, file names, the base and the omissions
+  (`base lines a-b`) or `binary`; header lines that carry a change of their own (a mode change, a
+  new or deleted file, a rename or copy) form a leading `metadata` hunk, so a mode-only change or a
+  new empty file is never shown as an empty diff. Item codes and statuses, file names, the base and the omissions
   list are always kept; returned-item text, hunks in diff order, then the checkpoint text are added
   while they fit. Whatever does not fit, the unread tail of a diff, files past the 256-file bound or
   the 1 MiB diff read budget, and review history past 200 events per gate are each listed in
@@ -282,6 +288,8 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   LIMIT_EXCEEDED; a cap outside the range is a usage error. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
 
 - `ERG-V0-020`: The packet MUST name every item of the newest RETURN event with its touched status and MUST list the obligations the delta touches.
+  Newest is journal order, the event's receipt sequence, across all gates; equal `recordedAt`
+  seconds never decide it.
   `returned` names the gate, the RETURN event digest and each reason item (`index`, `code`,
   `status: TOUCHED | UNTOUCHED`, the changed `paths` it names, `text` or null when omitted). An item
   is TOUCHED when its text names a changed path in full, or a changed file's base name of at least four
@@ -346,10 +354,10 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters, prior RETURN, subject generation or candidate tree, or a lease-bound record stripped to an operator attestation under a lease-required policy, refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict, also after a policy change or with the gate undeclared, and so is a retry on another gate or ticket or reusing another operation's request id), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` ; `TestERGV0001_ReviewerAndWorkerActors` (`gate state` and the observation expose the full `gates[G]` field set), `TestERGV0009_ReviewDescriptorMeasured` (maximal review record descriptor: 5 of 6 artifacts, 1342 of 1670 bytes, within the 1669-byte generic maximum) | operator use in a live queue |
 | ERG-V0-010 | ER504-008, ER504-009 | the native fixture set above (two-writer CAS, replay, crash/redo refusal and control redo, capacity, legacy omission, read-no-mutation) and the issue 394 mapping | independent review, current-main integration, live qualification of the issue 394 connection, native completion |
 | ERG-V0-011 | issue 587 part 3, D7(a) | `TestERGV0011_CompletionOfferNeedsEveryRequiredGateCurrentPass` (missing, STALE, UNKNOWN, RETURN, resubmitted, unbound and undeclared gates, and a policy without gates, give no offer; heads are sorted), `TestERGV0011_OfferReplacesOnlyAnUnblockedAdmit` (only an OPEN unblocked admit with nothing NOT_OBSERVED is replaced; every other view renders byte-identically), `TestERGV0011_CompletionOfferThroughTheCLI` (native RETURN, resubmission, live-attempt PASS, a queue pause with a BLOCKED/PAUSED plan entry, undeclared gate and STALE PASS give no offer; unpausing restores it; a CURRENT PASS offers through `ticket show`, `ticket blockers` and `plan preview` without advancing the journal or completing; an unreviewed ticket's show item and plan entry stay byte-identical) | a two-gate native fixture; operator use in a live queue |
-| ERG-V0-017 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (after RETURN, resubmission, PASS and a second RETURN the base is the passed commit, the diff holds only the changed test files, both returned items carry their status, the packet fits 32768 bytes with nothing omitted and `.git` is unchanged) | operator use in a live queue |
+| ERG-V0-017 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (after RETURN, resubmission, PASS and a second RETURN the base is the passed commit, the diff holds only the changed test files, both returned items carry their status, the packet fits 32768 bytes with nothing omitted and `.git` is unchanged), `TestERGV0017_ReviewClaimNamesClearedCandidate` (after a review-stage claim a packet without `--commit` refuses `CANDIDATE_CLEARED_BY_CLAIM:`) | operator use in a live queue |
 | ERG-V0-018 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (test/fixture scope), `TestERGV0018_NoPassedAncestorFallsBack` (NO_PASSED_ANCESTOR, FIRST_PARENT, ALL_PATHS, the note) | none beyond promotion |
-| ERG-V0-019 | GitHub #1169 | `TestERGV0019_CapNamesOmittedRanges` (a 4096-byte cap keeps every item status and names the omitted hunk `src/testdata/c.txt lines 1-120`; 4095, 262145 and a non-number are usage errors), `TestERGV0019_SkeletonAndRanges` (hunk and deletion ranges; an oversized skeleton refuses LIMIT_EXCEEDED) | a measured packet on a real review |
-| ERG-V0-020 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (TOUCHED/UNTOUCHED items), `TestERGV0020_TouchedObligations` (witness and review-subject paths, sorted test identities, cited lines) | none beyond promotion |
+| ERG-V0-019 | GitHub #1169 | `TestERGV0019_CapNamesOmittedRanges` (a 4096-byte cap keeps every item status and names the omitted hunk `src/testdata/c.txt lines 1-120`; 4095, 262145 and a non-number are usage errors), `TestERGV0019_SkeletonAndRanges` (hunk and deletion ranges; an oversized skeleton refuses LIMIT_EXCEEDED), `TestERGV0019_MetadataOnlyChangeKeepsHunk` (mode-only, new and deleted empty files keep a `metadata` hunk) | a measured packet on a real review |
+| ERG-V0-020 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (TOUCHED/UNTOUCHED items), `TestERGV0020_TouchedObligations` (witness and review-subject paths, sorted test identities, cited lines), `TestERGV0017_ReturnRecencyIsReceiptOrder` (equal `recordedAt` on two gates resolves by receipt sequence) | none beyond promotion |
 | ERG-V0-021 | GitHub #1169 | `TestERGV0019_SkeletonAndRanges` (a checkpoint that does not fit is named; `commitBinding: NOT_OBSERVED`), `TestATRV0141_ReviewRolePromptCarriesPacket` (the dispatch source receives the note path) | a hand-off note that records its commit |
 
 ## Rollout and rollback

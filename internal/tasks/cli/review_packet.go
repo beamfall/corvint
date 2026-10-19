@@ -97,17 +97,29 @@ func isTestPath(p string) bool {
 }
 
 // splitHunks splits one file's unified diff into hunks named by their line
-// range in the commit (or in the base for a pure deletion).
+// range in the commit (or in the base for a pure deletion). Header lines that
+// carry a change of their own (a mode change, a new or deleted empty file)
+// form a leading "metadata" hunk, so a change with no content hunk is never
+// presented as an empty diff.
 func splitHunks(diff string) []packetHunk {
 	var out []packetHunk
+	var meta string
 	for _, chunk := range strings.SplitAfter(diff, "\n") {
-		if strings.HasPrefix(chunk, "@@") {
+		switch {
+		case strings.HasPrefix(chunk, "@@"):
 			out = append(out, packetHunk{Range: hunkRange(chunk), Text: chunk})
-		} else if len(out) > 0 {
+		case len(out) > 0:
 			out[len(out)-1].Text += chunk
-		} else if strings.HasPrefix(chunk, "Binary files") {
+		case strings.HasPrefix(chunk, "Binary files"):
 			out = append(out, packetHunk{Range: "binary", Text: chunk})
+		case chunk == "" || strings.HasPrefix(chunk, "diff --git ") || strings.HasPrefix(chunk, "index ") ||
+			strings.HasPrefix(chunk, "--- ") || strings.HasPrefix(chunk, "+++ "):
+		default:
+			meta += chunk
 		}
+	}
+	if meta != "" {
+		out = append([]packetHunk{{Range: "metadata", Text: meta}}, out...)
 	}
 	return out
 }
@@ -281,7 +293,7 @@ func touchedBy(text string, changed []string) []string {
 
 // packetHistory reads each gate's newest events (at most four pages): the
 // candidate trees that passed review, newest first per gate, and the newest
-// RETURN across gates.
+// RETURN across gates by receipt sequence.
 func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) (map[string]string, error) {
 	passed := map[string]string{}
 	gates := make([]string, 0, len(rec.ExternalReviews))
@@ -289,7 +301,9 @@ func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) 
 		gates = append(gates, g)
 	}
 	sort.Strings(gates)
-	var newest wire.Timestamp
+	// Recency is journal order: receipt sequences are unique across gates,
+	// where equal recordedAt timestamps are not.
+	var newest uint64
 	for _, gate := range gates {
 		ref := rec.ExternalReviews[gate]
 		var cursor *wire.Digest
@@ -303,22 +317,7 @@ func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) 
 				if err != nil {
 					return nil, wire.Errorf(wire.CodeMissingEvidence, "gate packet", "%v", err)
 				}
-				q := e.Request
-				if q.Verdict == nil {
-					continue
-				}
-				if *q.Verdict == "PASS" && q.Candidate.Kind == "TREE" {
-					if _, ok := passed[q.Candidate.TreeOID]; !ok {
-						passed[q.Candidate.TreeOID] = gate
-					}
-				}
-				if *q.Verdict == "RETURN" && e.RecordedAt > newest {
-					newest, p.ReturnGate, p.ReturnEvent = e.RecordedAt, gate, string(wire.Sum(raw))
-					p.Items = p.Items[:0]
-					for _, r := range q.Reasons {
-						p.Items = append(p.Items, packetItem{Code: r.Code, Text: r.Text})
-					}
-				}
+				p.noteEvent(gate, e, raw, passed, &newest)
 			}
 			if cursor = pg.Next; cursor == nil {
 				break
@@ -331,21 +330,51 @@ func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) 
 	return passed, nil
 }
 
+// noteEvent folds one gate event: a PASS of a tree records that tree as
+// passed (newest first per gate), and a RETURN newer by receipt sequence than
+// *newest replaces the returned items.
+func (p *reviewPacket) noteEvent(gate string, e *snapshot.ExternalReviewEvent, raw []byte, passed map[string]string, newest *uint64) {
+	q := e.Request
+	if q.Verdict == nil {
+		return
+	}
+	if *q.Verdict == "PASS" && q.Candidate.Kind == "TREE" {
+		if _, ok := passed[q.Candidate.TreeOID]; !ok {
+			passed[q.Candidate.TreeOID] = gate
+		}
+	}
+	if seq := e.ReceiptSeq.Uint64(); *q.Verdict == "RETURN" && seq > *newest {
+		*newest, p.ReturnGate, p.ReturnEvent = seq, gate, string(wire.Sum(raw))
+		p.Items = p.Items[:0]
+		for _, r := range q.Reasons {
+			p.Items = append(p.Items, packetItem{Code: r.Code, Text: r.Text})
+		}
+	}
+}
+
+// candidateClearedByClaim prefixes the refusal when the newest generation
+// was claimed after the candidate was submitted (Codex #1189 finding 2).
+const candidateClearedByClaim = "CANDIDATE_CLEARED_BY_CLAIM:"
+
 // packetAttemptBase is the newest generation's recorded base commit and the
-// newest candidate's branch for the ticket, from the attempt records.
-func packetAttempts(rc *readCtx, id string) (base, branch string, err error) {
+// newest candidate's branch for the ticket, from the attempt records. cleared
+// names the newest generation when a later claim opened it without a
+// candidate (a re-claim, such as a review-stage claim, clears the candidate),
+// so the refusal can say why no branch is found.
+func packetAttempts(rc *readCtx, id string) (base, branch, cleared string, err error) {
 	if rc.snap.Head.Generation.Uint64() == 0 {
-		return "", "", nil
+		return "", "", "", nil
 	}
 	proof, err := auditState(rc, "reservations.json")
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	var gen, candGen uint64
+	var gen, candGen, newest uint64
+	var newestAttempt *snapshot.Attempt
 	for _, ap := range attemptPaths(proof) {
 		a, err := snapshot.DecodeAttempt(proof.Records[ap].Raw)
 		if err != nil {
-			return "", "", err
+			return "", "", "", err
 		}
 		if a.TicketID.Raw != id {
 			continue
@@ -357,8 +386,14 @@ func packetAttempts(rc *readCtx, id string) (base, branch string, err error) {
 		if a.CandidateTreeOid != nil && a.Branch != "" && g >= candGen {
 			candGen, branch = g, a.Branch
 		}
+		if g >= newest {
+			newest, newestAttempt = g, a
+		}
 	}
-	return base, branch, nil
+	if branch == "" && newestAttempt != nil && newest > 1 && newestAttempt.CandidateTreeOid == nil {
+		cleared = fmt.Sprintf("attempt %s generation %d (stage %s)", newestAttempt.AttemptID, newest, prose(newestAttempt.Stage))
+	}
+	return base, branch, cleared, nil
 }
 
 // collectReviewPacket gathers the packet for commitArg, or, when it is
@@ -366,7 +401,7 @@ func packetAttempts(rc *readCtx, id string) (base, branch string, err error) {
 func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.HandoffNote, noteSource string) (*reviewPacket, *readCtx, error) {
 	p := &reviewPacket{Checkpoint: note, CheckpointSource: noteSource, ObligationsState: "NONE"}
 	var passed map[string]string
-	var attemptBase, branch string
+	var attemptBase, branch, cleared string
 	var ledger *ticket.ObligationLedger
 	rc, err := withStore(env, func(rc *readCtx) error {
 		id, err := resolveTicketArg(rc, ticketArg)
@@ -381,7 +416,7 @@ func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.Ha
 		if passed, err = packetHistory(rc, id, rec, p); err != nil {
 			return err
 		}
-		if attemptBase, branch, err = packetAttempts(rc, id); err != nil {
+		if attemptBase, branch, cleared, err = packetAttempts(rc, id); err != nil {
 			return err
 		}
 		if rec.ObligationsRef != nil {
@@ -405,6 +440,10 @@ func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.Ha
 		return nil, rc, err
 	}
 	if commitArg == "" {
+		if branch == "" && cleared != "" {
+			return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "%s ticket %s has no submitted candidate branch: %s was claimed without one, and a claim clears the candidate; pass --commit",
+				candidateClearedByClaim, p.Ticket, cleared)
+		}
 		if branch == "" {
 			return nil, rc, wire.Errorf(wire.CodeMissingEvidence, "--commit", "ticket %s has no submitted candidate branch", p.Ticket)
 		}

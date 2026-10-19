@@ -1591,6 +1591,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
+		// ATR-V0-141: the review packet is read before any pre-launch claim,
+		// because a claim opens a generation without the submitted
+		// candidate the packet diffs.
+		var packet string
+		var packetErr error
+		reviewPacket := a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.ReviewPacket.on()
+		if reviewPacket {
+			packet, packetErr = d.reviewPacketFor(ctx, obs, role.ReviewPacket, a.Ticket)
+		}
 		// ATR-V0-120: a holdPool role's ticket is claimed with its pool
 		// member before anything can spawn; a refusal launches nothing.
 		hold, ok := d.claimPoolHold(ctx, obs, role, a, id)
@@ -1650,10 +1659,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		}
 		// ATR-V0-141: a review role's prompt carries the bounded review
 		// packet after any carry-over block; it is never expanded either.
-		var packet string
-		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.ReviewPacket.on() {
-			var err error
-			if packet, err = d.reviewPacketFor(ctx, obs, role.ReviewPacket, a.Ticket); err == nil {
+		if reviewPacket {
+			err := packetErr
+			if err == nil {
 				err = renderedArgvSafe(host.Argv, values)
 			}
 			if err != nil {

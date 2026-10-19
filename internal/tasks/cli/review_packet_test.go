@@ -160,6 +160,40 @@ func TestERGV0019_CapNamesOmittedRanges(t *testing.T) {
 	}
 }
 
+// TestERGV0017_ReviewClaimNamesClearedCandidate: before a review-stage
+// claim the packet without --commit is the submitted candidate's (what the
+// dispatcher now reads before its pre-launch claim); once the claim opens a
+// generation without the candidate, it refuses with the named reason
+// instead of a bare missing branch (Codex #1189 finding 2).
+func TestERGV0017_ReviewClaimNamesClearedCandidate(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, _ := ergStore(t)
+	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
+	runOK := func(args ...string) run {
+		t.Helper()
+		r := atm(t, root, nil, args...)
+		if r.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%v: %s", args, r.stdout)
+		}
+		return r
+	}
+	c1, tree := packetCommit(t, root, "c1", map[string]string{"src/login_test.go": "package src\n"})
+	git(t, root, "branch", id[strings.LastIndex(id, ":")+1:], c1) // the worker's candidate branch
+	c := runOK("claim", id, "--holder", "tester", "--stage", "implement", "--request-id", "claim-a")
+	attempt, generation := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+	runOK("submit", "--attempt", attempt, "--generation", generation, "--tree", tree, "--request-id", "submit-a")
+	runOK("release", "--attempt", attempt, "--generation", generation, "--reason", wire.CodeHandoff, "--request-id", "release-a")
+	if v, x := packetOf(t, root, id); field(v, "commit").Str != c1 {
+		t.Fatalf("packet before the review claim: %s", x.stdout)
+	}
+	runOK("claim", id, "--holder", "tester", "--stage", "review", "--request-id", "claim-review")
+	x := atm(t, root, nil, "gate", "packet", id)
+	if x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "CANDIDATE_CLEARED_BY_CLAIM:") || !strings.Contains(string(x.stdout), "pass --commit") {
+		t.Fatalf("packet after a review claim: %s", x.stdout)
+	}
+}
+
 // TestERGV0018_NoPassedAncestorFallsBack: a ticket with no PASS gets the
 // full diff from its fallback base, every path, and the packet says so
 // (ERG-V0-018).

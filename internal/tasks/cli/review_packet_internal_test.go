@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -57,5 +58,47 @@ func TestERGV0019_SkeletonAndRanges(t *testing.T) {
 	}
 	if _, err := p.build(4096); wire.CodeOf(err) != wire.CodeLimitExceeded {
 		t.Fatalf("an oversized skeleton was not refused: %v", err)
+	}
+}
+
+// TestERGV0019_MetadataOnlyChangeKeepsHunk: a mode-only change and a new
+// empty file have no content hunk, yet each keeps a "metadata" hunk naming
+// the change, ahead of any content hunk (Codex #1189 finding 3).
+func TestERGV0019_MetadataOnlyChangeKeepsHunk(t *testing.T) {
+	for name, tc := range map[string]struct{ diff, meta string }{
+		"mode only":      {"diff --git a/x b/x\nold mode 100755\nnew mode 100644\n", "old mode 100755\nnew mode 100644\n"},
+		"empty new file": {"diff --git a/x b/x\nnew file mode 100644\nindex 0000000..e69de29\n", "new file mode 100644\n"},
+		"mode and lines": {"diff --git a/x b/x\nold mode 100644\nnew mode 100755\nindex 1..2\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n", "old mode 100644\nnew mode 100755\n"},
+		"deleted empty":  {"diff --git a/x b/x\ndeleted file mode 100644\nindex e69de29..0000000\n", "deleted file mode 100644\n"},
+	} {
+		h := splitHunks(tc.diff)
+		if len(h) == 0 || h[0].Range != "metadata" || h[0].Text != tc.meta {
+			t.Fatalf("%s: hunks %+v", name, h)
+		}
+	}
+	if h := splitHunks("diff --git a/x b/x\nindex 1..2\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n"); len(h) != 1 || h[0].Range != "lines 1-1" {
+		t.Fatalf("content-only diff gained a metadata hunk: %+v", h)
+	}
+}
+
+// TestERGV0017_ReturnRecencyIsReceiptOrder: two RETURNs on different gates
+// with the same recordedAt second resolve to the one later in the journal,
+// whatever the gates' name order (Codex #1189 finding 4).
+func TestERGV0017_ReturnRecencyIsReceiptOrder(t *testing.T) {
+	ret := "RETURN"
+	event := func(seq uint64, code string) *snapshot.ExternalReviewEvent {
+		return &snapshot.ExternalReviewEvent{RecordedAt: wire.Timestamp("2026-10-18T00:00:00Z"), ReceiptSeq: wire.SizeOf(seq),
+			Request: snapshot.ExternalReviewRequest{Verdict: &ret, Reasons: []snapshot.ExternalReviewReason{{Code: code, Text: code}}}}
+	}
+	for _, order := range [][]string{{"a", "z"}, {"z", "a"}} {
+		p := &reviewPacket{}
+		var newest uint64
+		seqs := map[string]uint64{"a": 10, "z": 11}
+		for _, gate := range order {
+			p.noteEvent(gate, event(seqs[gate], "FROM_"+gate), []byte(gate), map[string]string{}, &newest)
+		}
+		if p.ReturnGate != "z" || len(p.Items) != 1 || p.Items[0].Code != "FROM_z" {
+			t.Fatalf("order %v: return gate %s items %+v", order, p.ReturnGate, p.Items)
+		}
 	}
 }

@@ -145,28 +145,45 @@ func reviewedWitness(env Env, root, commit, ticketID, file, excludeArg string) (
 
 // witnessReviewValue is the TOL-V0-077 read-only view: each reviewed entry's
 // outcome and verdicts, and whether the cited example changed since review
-// at the store worktree's HEAD. ok is false when no entry was reviewed, so
+// at HEAD of the repository the review read it from: the store worktree, or
+// the policy-declared test repository the record names. A test repository
+// that no longer resolves leaves stale unknown and the credit uncounted
+// (TEST_REPOSITORY_UNRESOLVED). ok is false when no entry was reviewed, so
 // show keeps its exact earlier output.
-func witnessReviewValue(env Env, l *ticket.ObligationLedger) (wire.Value, bool, error) {
+func witnessReviewValue(env Env, rc *readCtx, l *ticket.ObligationLedger) (wire.Value, bool, error) {
 	if l == nil {
 		return wire.Value{}, false, nil
 	}
-	var paths []string
+	paths := map[string][]string{}
 	for _, e := range l.Entries {
 		if e.Review != nil {
-			paths = append(paths, e.Review.Review.Subject.Path)
+			repo := reviewRepository(e.Review)
+			paths[repo] = append(paths[repo], e.Review.Review.Subject.Path)
 		}
 	}
 	if len(paths) == 0 {
 		return wire.Value{}, false, nil
 	}
-	root, err := store.WorktreeRoot(env.Cwd)
-	if err != nil {
-		return wire.Value{}, false, err
-	}
-	_, _, content, err := store.FilesAtCommit(root, "HEAD", paths)
-	if err != nil {
-		return wire.Value{}, false, err
+	content := map[string]map[string][]byte{}
+	for repo, ps := range paths {
+		var root string
+		var err error
+		if repo == "" {
+			root, err = store.WorktreeRoot(env.Cwd)
+		} else if root, _, err = declaredTestRepository(rc, repo); err != nil {
+			continue
+		}
+		if err != nil {
+			return wire.Value{}, false, err
+		}
+		_, _, files, err := store.FilesAtCommit(root, "HEAD", ps)
+		if err != nil {
+			if repo != "" {
+				continue
+			}
+			return wire.Value{}, false, err
+		}
+		content[repo] = files
 	}
 	witnessed := l.Counts().Witnessed
 	var items []wire.Value
@@ -175,13 +192,14 @@ func witnessReviewValue(env Env, l *ticket.ObligationLedger) (wire.Value, bool, 
 			continue
 		}
 		rv := e.Review
+		files, resolved := content[reviewRepository(rv)]
 		stale := true
-		if body, ok := content[rv.Review.Subject.Path]; ok {
+		if body, ok := files[rv.Review.Subject.Path]; ok {
 			sum := sha256.Sum256(body)
 			stale = wire.Digest(hex.EncodeToString(sum[:])) != rv.Review.Subject.BlobSha256
 		}
 		credited := e.State == ticket.ObligationWitnessed && e.Evidence != nil && e.Evidence.Source == ticket.ObligationSourceReviewed
-		if credited && stale {
+		if credited && (stale || !resolved) {
 			witnessed--
 			credited = false
 		}
@@ -194,11 +212,31 @@ func witnessReviewValue(env Env, l *ticket.ObligationLedger) (wire.Value, bool, 
 			verdicts = append(verdicts, wire.ObjectValue(wire.NewObject().Set("reviewer", wire.String(v.Reviewer)).Set("verdict", wire.String(v.Verdict)).
 				Set("stubRisk", wire.String(v.StubRisk)).Set("reason", wire.String(v.Reason))))
 		}
-		items = append(items, wire.ObjectValue(wire.NewObject().Set("id", wire.String(e.ID)).Set("outcome", wire.String(rv.Outcome)).
+		item := wire.NewObject().Set("id", wire.String(e.ID)).Set("outcome", wire.String(rv.Outcome)).
 			Set("axes", wire.Array(axes...)).Set("credited", wire.Bool(credited)).Set("stale", wire.Bool(stale)).
-			Set("path", wire.String(rv.Review.Subject.Path)).Set("verdicts", wire.Array(verdicts...))))
+			Set("path", wire.String(rv.Review.Subject.Path)).Set("verdicts", wire.Array(verdicts...))
+		if rv.TestRepository != nil {
+			item.Set("testRepository", wire.String(*rv.TestRepository))
+		}
+		if !resolved {
+			item.Set("stale", wire.Null()).Set("staleUnknown", wire.String(testRepositoryUnresolved))
+		}
+		items = append(items, wire.ObjectValue(item))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("effectiveWitnessed", wire.String(string(wire.CountOf(witnessed)))).Set("entries", wire.Array(items...))), true, nil
+}
+
+// testRepositoryUnresolved names why a review's staleness is unknown: its
+// test repository is no longer declared or no longer readable.
+const testRepositoryUnresolved = "TEST_REPOSITORY_UNRESOLVED"
+
+// reviewRepository is the review's test repository name, or "" for the
+// store's own worktree.
+func reviewRepository(rv *ticket.ObligationReviewRecord) string {
+	if rv.TestRepository == nil {
+		return ""
+	}
+	return *rv.TestRepository
 }
 
 func btoi(b bool) int {

@@ -217,7 +217,7 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		if ok {
 			item.Obj.Set("sourceReview", review)
 		}
-		wr, ok, err := witnessReviewValue(env, known)
+		wr, ok, err := witnessReviewValue(env, rc, known)
 		if err != nil {
 			return errorResult(cmd, err)
 		}

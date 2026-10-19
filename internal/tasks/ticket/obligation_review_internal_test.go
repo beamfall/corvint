@@ -97,4 +97,18 @@ func TestTOLV0076_ReviewFold(t *testing.T) {
 	if back := ReadObligationEntry(r); r.Err() != nil || !wire.Equal(back.Value(), entry.Value()) {
 		t.Fatalf("entry review round trip: %v", r.Err())
 	}
+	// The review record keeps the test repository the subject was read
+	// from, so staleness is judged there (Codex #1189 finding 1).
+	app := "app"
+	moved := sampleReview(1, StubRiskNone, ok)
+	moved.Subject.BlobSha256 = wire.Digest(strings.Repeat("9", 64))
+	if err := applyReviewedWitness(e, &ObligationWitnessPayload{Source: ObligationSourceReviewed, Commit: w.Commit, Review: &moved, TestRepository: &app},
+		wire.Digest(strings.Repeat("8", 64))); err != nil || e.Review.TestRepository == nil || *e.Review.TestRepository != app {
+		t.Fatalf("review test repository: %v %+v", err, e.Review)
+	}
+	entry.State, entry.Review, entry.Evidence = e.State, e.Review, e.Evidence
+	r = wire.NewReader(entry.Value(), "/entry")
+	if back := ReadObligationEntry(r); r.Err() != nil || back.Review.TestRepository == nil || !wire.Equal(back.Value(), entry.Value()) {
+		t.Fatalf("entry review test-repository round trip: %v", r.Err())
+	}
 }
