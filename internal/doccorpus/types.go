@@ -249,6 +249,9 @@ type Receipt struct {
 	Capabilities   []Capability             `json:"capabilities"`
 	Limitations    []string                 `json:"limitations"`
 	Omitted        int                      `json:"omitted"`
+	// SymbolAnchors is the live re-resolution of each cited symbol anchor,
+	// present only from a live reader (DCP-V1-141).
+	SymbolAnchors []SymbolAnchorCheck `json:"symbol_anchors,omitempty"`
 }
 type Error struct {
 	Code    string

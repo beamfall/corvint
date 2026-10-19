@@ -61,7 +61,7 @@ func boundedCapabilities(caps []Capability) []Capability {
 
 // Pagination is bound to the immutable artifact digest and deterministic result
 // order. Only the visible page contributes typed details and citations.
-func pageReceipt(a *Artifact, original Receipt, request Request) (Receipt, error) {
+func pageReceipt(a *Artifact, original Receipt, request Request, symbols map[string]SymbolAnchorCheck) (Receipt, error) {
 	total := len(original.Results)
 	start := min(request.Offset, total)
 	end := min(start+request.Limit, total)
@@ -115,6 +115,7 @@ func pageReceipt(a *Artifact, original Receipt, request Request) (Receipt, error
 		for _, key := range keys {
 			r.Citations = append(r.Citations, unique[key])
 		}
+		attachSymbolAnchors(&r, symbols)
 		finalizeEnvelope(&r)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {

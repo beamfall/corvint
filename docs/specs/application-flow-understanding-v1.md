@@ -1220,3 +1220,21 @@ its changes silently; it is `e2e-repository-unbound`.
 Rollback: revert this section, the `repositories` members of the provider, coverage record and
 result, `reviewed_at_repository`, `--repository-base` and their tests, and restore the e2e-safe
 `--repository` refusal. Providers and intents that do not use the new members need no change.
+
+## Symbol-anchor re-resolution in flows check (issue 1223, V1-1971)
+
+- **AFU-V1-090**: (accepted under the owner's standing auto-accept (2026-10-11)) `docs flows
+  check` re-resolves each imported corpus anchor that names a symbol by `DCP-V1-140..142` after the
+  exact-span relocation of AFU-V1-045, and reports the result as the row's `symbol`. A `live` or
+  `moved` symbol is `fresh` with `after` at the live range; a `changed` symbol is `stale` with the
+  estimated live range; a `gone` symbol is `stale` with no `after`. An `unresolved` symbol keeps the
+  exact-span verdict, so missing evidence never upgrades a row.
+
+Acceptance: `TestFlowDocsImportedSymbolAnchorReresolution` (a 20-line insertion is `fresh` and
+`moved` at line 21, a reformat is `fresh`, a one-token edit is `stale` and `changed`, a deletion is
+`stale` and `gone` with no `after`).
+
+Failure modes: a whitespace-only reformat would read as a content change; the region digest drops
+comments and whitespace outside literals. A same-name symbol in another file would be taken for
+the moved one; only an equal region moves across paths. Rollback: revert this section, the
+`symbol` member and `revalidateImported`; exact-span relocation is unchanged.

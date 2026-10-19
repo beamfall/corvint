@@ -153,7 +153,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		emitError(stderr, argumentError("native output is not a structured corpus consumer"))
 		return 2, true
 	}
-	freshness, limitations, err := doccorpus.Freshness(ctx, root, corpus)
+	overlay, err := doccorpus.LiveFreshness(ctx, root, corpus)
 	if err != nil {
 		emitCorpusError(stderr, err)
 		return 2, true
@@ -170,7 +170,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		request.Operation = "search"
 		request.Query = query
 	}
-	receipt, err := doccorpus.Query(corpus, request, freshness, limitations)
+	receipt, err := doccorpus.QueryLive(ctx, corpus, request, overlay)
 	if err != nil {
 		emitCorpusError(stderr, err)
 		return 2, true
@@ -218,7 +218,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		paths = append(paths, plan.Dirty...)
 	}
 	if command == "impact" || command == "affected" || len(paths) > 0 {
-		section["impact"] = doccorpus.Impact(corpus, paths, freshness, depth)
+		section["impact"] = doccorpus.Impact(corpus, paths, overlay.State, depth)
 	}
 	if command == "test-validity" {
 		// The native document stays intact; exact retained input digests alone join

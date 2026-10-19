@@ -278,7 +278,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		}
 		return nil, doccorpus.RefuseCEMProjection(data)
 	}
-	fresh, limits, err := doccorpus.Freshness(ctx, o.root, a)
+	overlay, err := doccorpus.LiveFreshness(ctx, o.root, a)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
-	receipt, err := doccorpus.QueryContext(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, fresh, limits)
+	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, overlay)
 	if err != nil {
 		return nil, err
 	}
