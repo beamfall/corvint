@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -36,10 +36,20 @@ type compiler struct {
 func inputKey(rev, p string) string { return rev + ":" + p }
 func inScope(p, s string) bool      { return p == s || strings.HasPrefix(p, s+"/") }
 
-// Inventory creates an explicit manifest candidate; it grants no authority.
+// Inventory creates an explicit corvint-corpus-input/1 manifest candidate for one scope; it grants
+// no authority.
 func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Manifest, error) {
-	if !validPath(scope) {
-		return Manifest{}, fail("invalid scope")
+	return InventoryScopes(ctx, root, revision, []string{scope}, ManifestSchema, timestamp)
+}
+
+// InventoryScopes creates one manifest candidate of the given schema over every scope (DCP-V1-160..163).
+// Scopes are emitted in byte order; a duplicate or nested scope is refused, and the inventory is bounded
+// by the schema's record limit.
+func InventoryScopes(ctx context.Context, root, revision string, scopes []string, schema, timestamp string) (_ Manifest, err error) {
+	defer func() { err = gitCapacity(err, "while inventorying the scope") }()
+	scopes, err = inventoryScopeSet(scopes, schema)
+	if err != nil {
+		return Manifest{}, err
 	}
 	ctx = gitstatus.WithIsolation(ctx)
 	index, err := contextindex.BuildRevisionContext(ctx, root, revision)
@@ -50,36 +60,118 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 	if err != nil {
 		return Manifest{}, err
 	}
-	m := Manifest{Schema: ManifestSchema, Repository: Repository{id, revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{{scope, revision}}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	m := Manifest{Schema: schema, Repository: Repository{id, revision}, BuiltAt: timestamp, Profile: Profile{ID: "native", Revision: "1", Title: "Repository evidence", Format: "markdown", Groups: []string{}}, Scopes: []Scope{}, Inputs: []Input{}, Providers: []Provider{{ID: "native", Kind: "native", Version: "1", Revision: revision}}, MergeRule: "none"}
+	for _, scope := range scopes {
+		m.Scopes = append(m.Scopes, Scope{scope, revision})
+	}
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return m, err
 	}
 	release := auth.BeginObjectSession()
 	defer release()
 	names := []string{}
+	counts := map[string]int{}
+	for _, scope := range scopes {
+		counts[scope] = 0
+	}
 	for p := range index.Tracked {
-		if inScope(p, scope) {
+		if scope, ok := owningScope(p, counts); ok {
+			counts[scope]++
 			names = append(names, p)
 		}
 	}
 	for p := range index.Skipped {
-		if inScope(p, scope) {
+		if _, ok := owningScope(p, counts); ok {
 			return m, fail("scope includes unsupported tree entry")
 		}
 	}
 	sort.Strings(names)
-	if len(names) == 0 || len(names) > MaxRecords {
-		return m, fail("empty or oversized scope")
+	if err := checkInventoryBound(m, scopes, counts, len(names)); err != nil {
+		return m, err
+	}
+	loader, err := stageInputs(ctx, auth, map[string]*contextindex.Index{revision: index}, map[string][]string{revision: names}, MaxBytes)
+	if err != nil {
+		return m, err
 	}
 	for _, p := range names {
-		source, err := loadInput(ctx, auth, index, p, MaxBytes)
+		if _, _, err := loader.admit(revision, p); err != nil {
+			return m, err
+		}
+	}
+	if err := loader.read(ctx); err != nil {
+		return m, err
+	}
+	for _, p := range names {
+		source, err := loader.source(revision, p)
 		if err != nil {
 			return m, err
 		}
 		m.Inputs = append(m.Inputs, Input{Path: p, Revision: revision, Blob: source.BlobHash, SHA256: Digest(source.Data), Provider: "native", Purpose: "source"})
 	}
 	return m, nil
+}
+
+// inventoryScopeSet sorts the requested scopes and refuses an unknown schema, an invalid path, or a
+// duplicate or nested scope: every input then belongs to exactly one scope (DCP-V1-161).
+func inventoryScopeSet(requested []string, schema string) ([]string, error) {
+	if schema != ManifestSchema && schema != ManifestSchemaV2 {
+		return nil, fail("unsupported manifest schema")
+	}
+	if len(requested) == 0 {
+		return nil, fail("invalid scope")
+	}
+	scopes := append([]string(nil), requested...)
+	sort.Strings(scopes)
+	for i, scope := range scopes {
+		if !validPath(scope) {
+			return nil, fail("invalid scope")
+		}
+		if i > 0 && scopes[i-1] == scope {
+			return nil, fail("duplicate scope " + scope)
+		}
+	}
+	for _, outer := range scopes {
+		for _, inner := range scopes {
+			if outer != inner && inScope(inner, outer) {
+				return nil, fail("overlapping scopes: " + outer + " contains " + inner)
+			}
+		}
+	}
+	return scopes, nil
+}
+
+// owningScope names the requested scope holding p by walking p's ancestors; scopes holds one key
+// per requested scope.
+func owningScope(p string, scopes map[string]int) (string, bool) {
+	for candidate := p; ; {
+		if _, ok := scopes[candidate]; ok {
+			return candidate, true
+		}
+		i := strings.LastIndexByte(candidate, '/')
+		if i < 0 {
+			return "", false
+		}
+		candidate = candidate[:i]
+	}
+}
+
+// checkInventoryBound refuses an empty scope or an inventory over the manifest schema's record limit,
+// naming the bound, the scopes and the file count (DCP-V1-162).
+func checkInventoryBound(m Manifest, scopes []string, counts map[string]int, total int) error {
+	for _, scope := range scopes {
+		if counts[scope] == 0 {
+			return fail("empty scope: " + scope + " holds no tracked files")
+		}
+	}
+	if limit := m.recordLimit(); total > limit {
+		message := fmt.Sprintf("oversized scope: %s holds %d tracked files, over the %s bound of %d records", strings.Join(scopes, ", "), total, m.Schema, limit)
+		if m.Schema == ManifestSchema {
+			message += fmt.Sprintf("; --schema 2 admits %d", MaxCorpusRecords)
+		}
+		return fail(message)
+	}
+	return nil
 }
 
 // Build compiles only original immutable inputs. No output is written to disk.
@@ -199,8 +291,17 @@ func validateManifest(m Manifest) error {
 	if len(m.Profile.Groups) > 32 {
 		return fail("profile group bound exceeded")
 	}
-	if len(m.Inputs) == 0 || len(m.Inputs) > m.recordLimit() || len(m.Scopes) == 0 || len(m.Scopes) > m.recordLimit() || len(m.Providers) == 0 || len(m.Providers) > 16 {
+	if len(m.Inputs) == 0 || len(m.Scopes) == 0 || len(m.Providers) == 0 {
 		return fail("manifest record bound exceeded")
+	}
+	if len(m.Inputs) > m.recordLimit() {
+		return capacityExceeded("manifest input count", len(m.Inputs), m.recordLimit())
+	}
+	if len(m.Scopes) > m.recordLimit() {
+		return capacityExceeded("manifest scope count", len(m.Scopes), m.recordLimit())
+	}
+	if len(m.Providers) > 16 {
+		return capacityExceeded("manifest provider count", len(m.Providers), 16)
 	}
 	if m.MergeRule != "none" && m.MergeRule != "disjoint-union" {
 		return fail("unknown merge rule")
@@ -287,8 +388,9 @@ func validateManifest(m Manifest) error {
 	}
 	return nil
 }
-func (c *compiler) pin(ctx context.Context) error {
-	auth, err := gitauth.Open(c.root, gitrun.NewDefaultBudget())
+func (c *compiler) pin(ctx context.Context) (err error) {
+	defer func() { err = gitCapacity(err, fmt.Sprintf("while pinning %d inputs", len(c.manifest.Inputs))) }()
+	auth, err := gitauth.Open(c.root, newGitBudget())
 	if err != nil {
 		return err
 	}
@@ -336,19 +438,38 @@ func (c *compiler) pin(ctx context.Context) error {
 			return fail("declared scope missing")
 		}
 	}
+	// Admit every input from the index or its Git header before any body is
+	// read, so a capacity refusal precedes the expensive work (DCP-V1-157).
+	paths := map[string][]string{}
+	for _, in := range c.manifest.Inputs {
+		paths[in.Revision] = append(paths[in.Revision], in.Path)
+	}
+	loader, err := stageInputs(ctx, auth, indexes, paths, encodingLimit(c.manifest))
+	if err != nil {
+		return err
+	}
 	inputBytes := 0
 	charged := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
-		source, err := loadInput(ctx, auth, indexes[in.Revision], in.Path, encodingLimit(c.manifest))
+		size, _, err := loader.admit(in.Revision, in.Path)
 		if err != nil {
 			return err
 		}
 		if !charged[inputKey(in.Revision, in.Path)] {
-			inputBytes += len(source.Data)
+			inputBytes += size
 			charged[inputKey(in.Revision, in.Path)] = true
-			if inputBytes > 128<<20 {
-				return fail("aggregate pinned input byte bound exceeded")
+			if inputBytes > maxPinnedInputBytes {
+				return capacityExceeded("aggregate pinned input bytes", inputBytes, maxPinnedInputBytes)
 			}
+		}
+	}
+	if err := loader.read(ctx); err != nil {
+		return err
+	}
+	for _, in := range c.manifest.Inputs {
+		source, err := loader.source(in.Revision, in.Path)
+		if err != nil {
+			return err
 		}
 		if source.BlobHash != in.Blob || Digest(source.Data) != in.SHA256 {
 			return fail("input changed after pinning")
@@ -360,40 +481,6 @@ func (c *compiler) pin(ctx context.Context) error {
 	}
 	c.indexes = indexes
 	return nil
-}
-func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, p string, limit int) (contextindex.Source, error) {
-	if source, ok := index.Sources[p]; ok {
-		text, valid, loaded := source.Text()
-		if loaded && valid && len(text) <= limit {
-			source.Data = []byte(text)
-			return source, nil
-		}
-	}
-	entry, ok, err := auth.LookupTreeEntry(ctx, index.CommitRevision, p)
-	if err != nil {
-		return contextindex.Source{}, err
-	}
-	if !ok {
-		return contextindex.Source{}, &Error{Code: "corpus-input-unavailable", Message: "declared input missing"}
-	}
-	if entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
-		return contextindex.Source{}, fail("input is not a regular Git blob")
-	}
-	var data []byte
-	over := false
-	if limit < gitauth.MaxBlobBytes {
-		// Refuse an over-bound blob from its header, before allocating its body (V1-0747).
-		data, over, err = auth.BlobBytesWithin(ctx, entry.OID, limit)
-	} else {
-		data, err = auth.BlobBytes(ctx, entry.OID)
-	}
-	if err != nil {
-		return contextindex.Source{}, err
-	}
-	if over || len(data) > limit {
-		return contextindex.Source{}, fail("input bound exceeded")
-	}
-	return contextindex.Source{Path: p, BlobHash: entry.OID, Data: data, Mode: entry.Mode}, nil
 }
 func generated(data []byte) bool {
 	trimmed := bytes.TrimSpace(data)
@@ -426,7 +513,7 @@ func (c *compiler) native(provider Provider) error {
 	index := c.indexes[c.manifest.Repository.Revision]
 	for _, in := range c.manifest.Inputs {
 		if len(c.artifact.Subjects) > c.manifest.recordLimit() || len(c.artifact.Claims) > c.manifest.recordLimit() {
-			return fail("native record bound exceeded")
+			return fail(c.boundMessage("native record bound exceeded", in.Path, 1))
 		}
 		if in.Provider != provider.ID {
 			continue
@@ -448,7 +535,11 @@ func (c *compiler) native(provider Provider) error {
 		}
 		line := firstContentLine(text)
 		if line == 0 {
-			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", "empty source has no non-vacuous anchor"})
+			reason := "empty source has no non-vacuous anchor"
+			if strings.TrimSpace(text) != "" {
+				reason = fmt.Sprintf("no line within the %d-byte anchor bound", maxSpanBytes)
+			}
+			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", reason})
 			continue
 		}
 		anchor, err := c.anchor(in.Revision, in.Path, line, line, "syntax", "source", "explicit input inventory")
@@ -467,14 +558,14 @@ func (c *compiler) native(provider Provider) error {
 			}
 		}
 		for _, s := range index.Symbols {
-			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
-				return fail("native record bound exceeded")
-			}
 			if s.Path != in.Path {
 				continue
 			}
 			if _, bad := index.UnparsedPaths()[in.Path]; bad {
 				continue
+			}
+			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
+				return fail(c.boundMessage("native record bound exceeded", in.Path, s.Line))
 			}
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
 			if err != nil {
@@ -495,9 +586,12 @@ func (c *compiler) native(provider Provider) error {
 	}
 	return nil
 }
+
+// firstContentLine is the first non-blank line whose span fits the excerpt bound, so one
+// oversized leading line no longer refuses the build (DCP-V1-146).
 func firstContentLine(text string) int {
-	for n, line := range strings.Split(text, "\n") {
-		if strings.TrimSpace(line) != "" {
+	for n, line := range strings.SplitAfter(text, "\n") {
+		if strings.TrimSpace(line) != "" && len(line) <= maxSpanBytes {
 			return n + 1
 		}
 	}
@@ -513,6 +607,10 @@ func lineText(text string, n int) string {
 func isTestPath(p string) bool {
 	return strings.HasSuffix(p, "_test.go") || strings.Contains(p, ".test.") || strings.Contains(p, ".spec.") || strings.HasPrefix(path.Base(p), "test_") || strings.HasSuffix(p, "_test.py") || strings.HasSuffix(p, "_spec.rb")
 }
+
+// maxSpanBytes bounds one evidence excerpt.
+const maxSpanBytes = 64 << 10
+
 func span(data []byte, start, end int) ([]byte, error) {
 	if start < 1 || end < start {
 		return nil, fail("invalid anchor span")
@@ -522,11 +620,38 @@ func span(data []byte, start, end int) ([]byte, error) {
 		return nil, fail("anchor span out of range")
 	}
 	s := bytes.Join(lines[start-1:end], nil)
-	if len(s) > 64<<10 || len(bytes.TrimSpace(s)) == 0 {
+	if len(s) > maxSpanBytes || len(bytes.TrimSpace(s)) == 0 {
 		return nil, fail("vacuous or oversized anchor")
 	}
 	return s, nil
 }
+
+// located names the input span a refusal concerns (DCP-V1-146).
+func located(err error, p string, start, end int) error {
+	var e *Error
+	if !errors.As(err, &e) {
+		return err
+	}
+	return &Error{Code: e.Code, Message: fmt.Sprintf("%s at %s:%d-%d", e.Message, p, start, end)}
+}
+
+// paragraphParts splits lines start..end (1-based, inclusive) into consecutive line-aligned
+// spans of at most maxSpanBytes, so an oversized paragraph such as a long table stays
+// verbatim instead of refusing the build. A single line past the bound remains its own
+// span, which the caller records as a not-collected gap (DCP-V1-146).
+func paragraphParts(lines []string, start, end int) [][2]int {
+	var parts [][2]int
+	from, size := start, 0
+	for i := start; i <= end; i++ {
+		if size > 0 && size+len(lines[i-1]) > maxSpanBytes {
+			parts = append(parts, [2]int{from, i - 1})
+			from, size = i, 0
+		}
+		size += len(lines[i-1])
+	}
+	return append(parts, [2]int{from, end})
+}
+
 func (c *compiler) anchor(revision, p string, start, end int, authority, kind, reason string) (Anchor, error) {
 	source, ok := c.sources[inputKey(revision, p)]
 	if !ok {
@@ -534,7 +659,7 @@ func (c *compiler) anchor(revision, p string, start, end int, authority, kind, r
 	}
 	data, err := span(source.Data, start, end)
 	if err != nil {
-		return Anchor{}, err
+		return Anchor{}, located(err, p, start, end)
 	}
 	return Anchor{Repository: c.manifest.Repository.ID, Revision: revision, Path: p, Blob: source.BlobHash, SHA256: Digest(source.Data), Start: start, End: end, SpanSHA256: Digest(data), Authority: authority, Kind: kind, Reason: reason}, nil
 }
@@ -617,6 +742,9 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 			continue
 		}
 		id := provider.ID + ":file:" + in.Path
+		if firstContentLine(text) == 0 {
+			continue // no file subject; native recorded the gap
+		}
 		lines := strings.SplitAfter(text, "\n")
 		start := 0
 		for i := 0; i <= len(lines); i++ {
@@ -629,17 +757,20 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 			if start == 0 {
 				continue
 			}
-			end := i
-			if end >= start {
-				anchor, err := c.anchor(in.Revision, in.Path, start, end, "source-document", "source", "verbatim source paragraph")
+			for _, part := range paragraphParts(lines, start, i) {
+				if part[0] == part[1] && len(lines[part[0]-1]) > maxSpanBytes {
+					c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", fmt.Sprintf("paragraph line %d exceeds the %d-byte anchor bound", part[0], maxSpanBytes)})
+					continue
+				}
+				anchor, err := c.anchor(in.Revision, in.Path, part[0], part[1], "source-document", "source", "verbatim source paragraph")
 				if err != nil {
 					return err
 				}
-				excerpt := strings.Join(lines[start-1:end], "")
+				excerpt := strings.Join(lines[part[0]-1:part[1]], "")
 				ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"verbatim source excerpt; quoted prose is not accepted intent or verified behavior"}}
-				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, start), id, excerpt, provider.ID, ev})
+				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, part[0]), id, excerpt, provider.ID, ev})
 				if len(c.artifact.Claims) > c.manifest.recordLimit() {
-					return fail("native paragraph bound exceeded")
+					return fail(c.boundMessage("native paragraph bound exceeded", in.Path, part[0]))
 				}
 			}
 			start = 0
@@ -658,4 +789,14 @@ func (c *compiler) nativeExclusion(in Input) string {
 		}
 	}
 	return ""
+}
+
+// boundMessage locates a record-bound refusal and, under /1, names the manifest that raises the
+// bound (DCP-V1-146).
+func (c *compiler) boundMessage(prefix, path string, line int) string {
+	message := fmt.Sprintf("%s: more than %d records at %s:%d", prefix, c.manifest.recordLimit(), path, line)
+	if c.manifest.Schema != ManifestSchemaV2 {
+		message += "; a " + ManifestSchemaV2 + " manifest raises the bound"
+	}
+	return message
 }

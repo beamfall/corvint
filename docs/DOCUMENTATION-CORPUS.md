@@ -25,12 +25,20 @@ recursive generated sources. Unsupported analyzers remain gaps. Native extractio
 symbols/test declarations, literal Markdown paragraphs and anchored Go imports; it does not infer
 runtime call graphs, API behavior or UI journeys. A declaration is never a test execution result.
 
+`manifest` takes repeated `--scope PATH` values and emits one manifest with one scope per path in
+byte order; a duplicate or nested scope is refused. The default `corvint-corpus-input/1` manifest
+holds at most 4,096 files; `--schema 2` emits `corvint-corpus-input/2`, bounded by its 100,000
+records. A refused inventory names the bound, the scopes and the file count.
+
 Read operations share one rederiving reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
 `related`, `journey`, `stability` (each with `--id ID`), `locate --path PATH`, `coverage`,
 `gaps [--id ID]`.
 All take `--artifact FILE` and optional `--limit 1..256`. Queries report omissions, absence, valid
 no-match, not-found and stale evidence separately. Coverage names its scope/denominator and never
-claims universal behavioral coverage. Every read rechecks original immutable inputs; live source
+claims universal behavioral coverage. A flow's `missing-asserting-e2e-tests` gap names the failed
+condition of its closest test link; a link that fails only because its review is provider-reported
+(attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
+(`DCP-V1-150`..`152`). Every read rechecks original immutable inputs; live source
 and provider changes are reported separately from the artifact's recorded revision.
 
 ## Larger adoption imports

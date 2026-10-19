@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
@@ -46,13 +45,16 @@ func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOver
 	return liveFreshness(ctx, root, a, true)
 }
 
-func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) (FreshnessOverlay, error) {
+func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) (_ FreshnessOverlay, err error) {
+	defer func() {
+		err = gitCapacity(err, fmt.Sprintf("while checking freshness of %d inputs", len(a.Manifest.Inputs)))
+	}()
 	unknown := FreshnessOverlay{State: "unknown"}
 	live, err := contextindex.BuildContext(ctx, root, "")
 	if err != nil {
 		return unknown, err
 	}
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return unknown, err
 	}
@@ -97,17 +99,27 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	for _, p := range live.DirtyPaths {
 		dirty[p] = true
 	}
+	// A clean path the live index already pinned at CommitRevision needs no
+	// further tree walk (DCP-V1-144); every other path resolves in one verified
+	// walk whose Git cost is independent of the input count (DCP-V1-155).
+	lookups := []string{}
+	for _, in := range a.Manifest.Inputs {
+		if _, ok := live.Sources[in.Path]; !ok || dirty[in.Path] {
+			lookups = append(lookups, in.Path)
+		}
+	}
+	resolved := map[string]gitauth.TreeEntry{}
+	if len(lookups) > 0 {
+		if resolved, err = auth.ResolvePaths(ctx, live.CommitRevision, lookups); err != nil {
+			return unknown, err
+		}
+	}
 	for _, in := range a.Manifest.Inputs {
 		// Historical provider records are independent of source freshness. A live
 		// replacement of one is still visible; no HEAD equality heuristic is used.
-		// A clean path the live index already pinned at CommitRevision needs no
-		// further tree walk (DCP-V1-144).
-		var entry gitauth.TreeEntry
-		exists := false
+		entry, exists := resolved[in.Path]
 		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
 			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
-		} else if entry, exists, err = auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path); err != nil {
-			return unknown, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
 			state = "stale"
@@ -201,6 +213,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	}
 	if request.Depth < 0 || request.Depth > MaxFlowDepth || request.Depth != 0 && request.Operation != "trace" {
 		return Receipt{}, fail("flow trace depth is bounded and applies only to trace")
+	}
+	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
+		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
 	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
@@ -356,7 +371,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if a.Schema == SchemaV2 {
 		return pageReceipt(ctx, a, r, request, symbols)
 	}
-	if len(r.Results) == 0 {
+	if len(r.Results) == 0 && r.Miss == "" {
 		r.State = "empty"
 		r.Miss = "no-match"
 		if request.Operation == "get" || request.Operation == "journey" || request.Operation == "stability" || request.Operation == "trace" {

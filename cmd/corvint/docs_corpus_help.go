@@ -28,7 +28,7 @@ func buildCorpusOperations() []corpusOperation {
 		return read(name, purpose, []string{"--" + doccorpus.OperationInput(name)})
 	}
 	return []corpusOperation{
-		{name: "manifest", purpose: "inventory one scope at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}},
+		{name: "manifest", purpose: "inventory one or more scopes at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
 		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}},
 		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
 		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
@@ -40,7 +40,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
-		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
+		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
 		read("validate", "recheck the artifact against its original inputs", nil),
 		read("inventory", "page through every subject, claim and relation ID", nil),
@@ -55,7 +55,7 @@ func buildCorpusOperations() []corpusOperation {
 		read("gaps", "reported gaps, optionally for one subject", nil, "--id"),
 		typed("concept", "typed subjects matching a concept"),
 		typed("claims", "typed claims about one path"),
-		typed("flow", "one typed flow"),
+		read("flow", "one typed flow, optionally only some sections or record kinds", []string{"--id"}, "--section", "--include"),
 		typed("dependencies", "typed dependency relations of one subject"),
 		typed("recommend-tests", "tests related to one path; grants no test-selection authority"),
 		typed("navigation", "typed navigation subject"),
@@ -94,7 +94,8 @@ var corpusLocalInputFlags = []string{"--manifest", "--artifact", "--input", "--p
 
 var corpusFlagHelp = map[string][2]string{
 	"--revision":             {"FULL_COMMIT", "source revision the manifest pins"},
-	"--scope":                {"PATH", "repository path the manifest inventories"},
+	"--scope":                {"PATH", "repository path the manifest inventories; repeat for more disjoint scopes"},
+	"--schema":               {"1|2", "manifest schema: 1 (default, " + strconv.Itoa(doccorpus.MaxRecords) + " files) or 2 (" + strconv.Itoa(doccorpus.MaxCorpusRecords) + " files)"},
 	"--timestamp":            {"RFC3339", "manifest timestamp"},
 	"--manifest":             {"INPUT.json", "manifest from docs corpus manifest"},
 	"--artifact":             {"CORPUS.json", "corpus artifact from docs corpus build"},
@@ -117,6 +118,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--path":                 {"PATH", "repository path"},
 	"--limit":                {"N", "1.." + strconv.Itoa(doccorpus.MaxResults) + " results (default 20)"},
 	"--offset":               {"N", "results to skip"},
+	"--section":              {"NAME[,NAME]", "flow sections whose paragraphs to return"},
+	"--include":              {"KIND[,KIND]", "flow record kinds: claims, relations, test_knowledge, paragraphs"},
 	"--retirement":           {"POLICY.json", "retirement policy"},
 	"--runner":               {"jasmine|mocha", "legacy test runner"},
 	"--expected-base":        {"FULL_COMMIT", "base the cem/1.0 map must bind"},

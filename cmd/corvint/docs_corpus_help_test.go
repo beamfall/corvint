@@ -69,7 +69,7 @@ func TestDocsCorpusOperationHelpPrintsFlags(t *testing.T) {
 		"search":              {"--artifact", "--query", "--limit", "--offset", "--retirement"},
 		"maintain":            {"--artifact", "--page", "--apply"},
 		"import-cases":        {"--format", "--input", "--content"},
-		"search-cases":        {"--format", "--input", "--query", "--limit"},
+		"search-cases":        {"--format", "--input", "--query", "--id", "--match", "--limit"},
 	}
 	rootRelative := map[string][]string{
 		"discover-playwright": {"--migration", "--playwright-list", "--receipt"},

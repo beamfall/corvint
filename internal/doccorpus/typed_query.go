@@ -2,8 +2,8 @@ package doccorpus
 
 import (
 	"context"
-	"slices"
 	"sort"
+	"strings"
 )
 
 // OperationInput is shared by CLI, MCP and indexed companions. The native
@@ -128,29 +128,8 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			addRecord(r, j)
 		}
 	case "flow":
-		if s, ok := indexedSubject(a, q.ID); ok && a.Details[s.ID].Flow != nil {
-			addRecord(r, s)
-			for _, i := range x.Claims[q.ID] {
-				addRecord(r, a.Claims[i])
-			}
-			for _, i := range x.Edges[q.ID] {
-				addRecord(r, a.Relations[i])
-			}
-			for _, j := range a.TestKnowledge {
-				if j.Status == "joined" && slices.Contains(j.Flows, q.ID) {
-					addRecord(r, j)
-				}
-			}
-			for _, section := range a.Details[s.ID].Flow.Sections {
-				for _, id := range section.Paragraphs {
-					if err := ctx.Err(); err != nil {
-						return err
-					}
-					if p, ok := indexedSubject(a, id); ok {
-						addRecord(r, p)
-					}
-				}
-			}
+		if err := flowQuery(ctx, a, q, r); err != nil {
+			return err
 		}
 	case "dependencies":
 		for _, direction := range []string{"upstream", "downstream"} {
@@ -344,7 +323,8 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 		if s.Kind != "flow" {
 			continue
 		}
-		tests, asserting, manual := counted[s.ID], false, false
+		tests, manual := counted[s.ID], false
+		asserting := assertingE2E{}
 		for _, i := range a.RuntimeIndex.Edges[s.ID] {
 			if err := ctx.Err(); err != nil {
 				return nil, err
@@ -352,9 +332,7 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 			rel := a.Relations[i]
 			if link := a.Details[rel.ID].TestLink; link != nil {
 				tests = true
-				if link.Role == "asserting" && link.JoinConfidence == "exact" && rel.Evidence.Trust == "reviewed" && rel.Evidence.State == "supported" {
-					asserting = true
-				}
+				asserting.observe(link, rel.Evidence)
 			}
 			if rel.Type == "tested_by" {
 				tests = true
@@ -372,8 +350,8 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 		if !tests {
 			out = append(out, Gap{s.ID, "no-tests", "no documented test links"})
 		}
-		if !asserting {
-			out = append(out, Gap{s.ID, "missing-asserting-e2e-tests", "no exact reviewed asserting test link; adequacy remains unknown"})
+		if g, ok := asserting.gap(s.ID); ok {
+			out = append(out, g)
 		}
 		if !manual {
 			out = append(out, Gap{s.ID, "missing-manual-cases", "no documented manual disposition; non-UI disposition NOT_OBSERVED"})
@@ -383,4 +361,57 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 		}
 	}
 	return out, ctx.Err()
+}
+
+// assertingE2E tracks, for one flow, the test link closest to an exact,
+// supported, authenticated-review asserting link (DCP-V1-150..152). An
+// imported "reviewed" label is attributed, not authenticated: import keeps
+// it only as ReportedTrust, so it yields the weaker distinct gap instead.
+type assertingE2E struct {
+	links      int
+	satisfied  bool
+	unverified bool
+	closest    []string
+}
+
+func (t *assertingE2E) observe(link *TestLinkDetails, e Evidence) {
+	t.links++
+	failed := []string{}
+	if link.Role != "asserting" {
+		failed = append(failed, "not asserting")
+	}
+	if link.JoinConfidence != "exact" {
+		failed = append(failed, "not exact")
+	}
+	if e.State != "supported" {
+		failed = append(failed, "not supported")
+	}
+	if len(failed) == 0 && e.Trust == "reviewed" {
+		t.satisfied = true
+		return
+	}
+	if len(failed) == 0 && e.ReportedTrust == "reviewed" {
+		t.unverified = true
+		return
+	}
+	if e.ReportedTrust == "reviewed" {
+		failed = append(failed, "review not authenticated")
+	} else if e.Trust != "reviewed" {
+		failed = append(failed, "not reviewed")
+	}
+	if t.closest == nil || len(failed) < len(t.closest) {
+		t.closest = failed
+	}
+}
+
+func (t *assertingE2E) gap(subject string) (Gap, bool) {
+	switch {
+	case t.satisfied:
+		return Gap{}, false
+	case t.unverified:
+		return Gap{subject, "asserting-e2e-tests-unauthenticated-review", "exact supported asserting test link with provider-reported review; the review is attributed, not authenticated; adequacy remains unknown"}, true
+	case t.links == 0:
+		return Gap{subject, "missing-asserting-e2e-tests", "no test link; adequacy remains unknown"}, true
+	}
+	return Gap{subject, "missing-asserting-e2e-tests", "closest test link is " + strings.Join(t.closest, ", ") + "; adequacy remains unknown"}, true
 }

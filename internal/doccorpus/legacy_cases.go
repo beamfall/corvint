@@ -103,6 +103,9 @@ type LegacyCaseHit struct {
 	Path    []string `json:"path"`
 	Title   string   `json:"title"`
 	Matched []string `json:"matched_fields"`
+	// Score is the ranked-mode score (DCP-V1-166); it is omitted under the
+	// default all-token mode so that receipt stays byte-identical.
+	Score int `json:"score,omitzero"`
 }
 
 // LegacyCaseBoundedHit names a searched case whose text was bounded, so a
@@ -116,7 +119,10 @@ type LegacyCaseBoundedHit struct {
 type LegacyCaseSearch struct {
 	Schema      string                 `json:"schema"`
 	Query       string                 `json:"query"`
+	ID          string                 `json:"id,omitzero"`
+	Mode        string                 `json:"mode,omitzero"`
 	Tokens      []string               `json:"tokens"`
+	Dropped     []string               `json:"stop_words_dropped,omitzero"`
 	Match       string                 `json:"match"`
 	Fields      []string               `json:"fields"`
 	Searched    []LegacyCaseSource     `json:"searched"`
@@ -183,34 +189,122 @@ func ImportLegacyCases(format, content, path string, data []byte) ([]byte, error
 	return Encode(record)
 }
 
+// Legacy case search modes (DCP-V1-165..168). MatchAll is the default and
+// keeps the original receipt bytes; MatchAny ranks; the id mode is set by an
+// ID lookup.
+const (
+	LegacyMatchAll = "all"
+	LegacyMatchAny = "any"
+	legacyMatchID  = "id"
+)
+
+// LegacyCaseQuery is one case search request. Exactly one of Query and ID is
+// set; Match applies to Query only and defaults to all.
+type LegacyCaseQuery struct {
+	Query string
+	ID    string
+	Match string
+	Limit int
+}
+
+// legacyFieldWeights rank a matched token by the best field it matched in
+// (title > path > preconditions = steps) under MatchAny (DCP-V1-166).
+var legacyFieldWeights = map[string]int{"title": 4, "path": 2, "preconditions": 1, "steps": 1}
+
+// legacyStopWords is the fixed English function-word list MatchAny drops from
+// the query (DCP-V1-166). MatchAll never drops a word.
+var legacyStopWords = map[string]bool{}
+
+func init() {
+	for _, word := range strings.Fields("a an and are as at be by can do does for from how i in is it my of on or should that the this to was we what when where which who why will with") {
+		legacyStopWords[word] = true
+	}
+}
+
 // SearchLegacyCases searches one export's title, suite/section path,
 // preconditions and steps (DCP-V1-075..077). Every query token must be a
 // case-insensitive prefix of a word in a searched field. The receipt names
 // the query, its tokens, the searched fields and the searched source, and
 // returns only case ID, path and title.
 func SearchLegacyCases(format, path string, data []byte, query string, limit int) ([]byte, error) {
-	if len(query) > legacyQueryBytes || !utf8.ValidString(query) {
+	return SearchLegacyCasesQuery(format, path, data, LegacyCaseQuery{Query: query, Limit: limit})
+}
+
+// SearchLegacyCasesQuery runs one case search with an explicit mode
+// (DCP-V1-165..168). An ID lookup returns exactly that case. A query that is
+// exactly one `C<digits>` word naming a case in the export is that ID lookup;
+// when no case has that ID the query searches as before, so no other query's
+// result changes. MatchAny ranks cases by score, then export order.
+func SearchLegacyCasesQuery(format, path string, data []byte, q LegacyCaseQuery) ([]byte, error) {
+	if q.ID != "" && (q.Query != "" || q.Match != "") {
+		return nil, fail("legacy case search takes a query or an id, not both, and an id lookup takes no match mode")
+	}
+	if q.Match == "" {
+		q.Match = LegacyMatchAll
+	}
+	if q.Match != LegacyMatchAll && q.Match != LegacyMatchAny {
+		return nil, fail("legacy case match must be all or any")
+	}
+	if q.Limit < 1 || q.Limit > MaxResults {
+		return nil, fail("legacy case search limit out of bounds")
+	}
+	if q.ID != "" {
+		id, ok := legacyCaseID(q.ID)
+		if !ok || strings.TrimSpace(q.ID) != q.ID {
+			return nil, fail("legacy case id must be C or a bare number of 1..10 digits without a leading zero")
+		}
+		cases, source, err := parseLegacyCases(format, path, data)
+		if err != nil {
+			return nil, err
+		}
+		return legacyIDReceipt(q.ID, "", id, cases, source, q.Limit)
+	}
+	if len(q.Query) > legacyQueryBytes || !utf8.ValidString(q.Query) {
 		return nil, fail("legacy case query must be valid UTF-8 of at most 1024 bytes")
 	}
-	tokens := legacyTokens(query)
+	tokens := legacyTokens(q.Query)
 	if len(tokens) == 0 || len(tokens) > legacyQueryTokens {
 		return nil, fail("legacy case query needs 1..32 letter or digit words")
 	}
-	if limit < 1 || limit > MaxResults {
-		return nil, fail("legacy case search limit out of bounds")
+	scored, dropped := tokens, []string(nil)
+	if q.Match == LegacyMatchAny {
+		scored = []string{}
+		for _, token := range tokens {
+			if legacyStopWords[token] {
+				dropped = append(dropped, token)
+			} else {
+				scored = append(scored, token)
+			}
+		}
+		if len(scored) == 0 {
+			return nil, fail("legacy case query has only stop words under match any")
+		}
 	}
 	cases, source, err := parseLegacyCases(format, path, data)
 	if err != nil {
 		return nil, err
 	}
-	receipt := LegacyCaseSearch{Schema: LegacyCaseSearchSchema, Query: query, Tokens: tokens,
+	if id, ok := legacyQueryID(q.Query); ok {
+		for _, c := range cases {
+			if c.id == id {
+				return legacyIDReceipt("", q.Query, id, cases, source, q.Limit)
+			}
+		}
+	}
+	receipt := LegacyCaseSearch{Schema: LegacyCaseSearchSchema, Query: q.Query, Tokens: scored, Dropped: dropped,
 		Match:  "every query token is a case-insensitive prefix of a letter-or-digit word in one of the fields",
-		Fields: legacySearchFields, Searched: []LegacyCaseSource{source}, Limit: limit, Results: []LegacyCaseHit{}, Bounded: []LegacyCaseBoundedHit{},
+		Fields: legacySearchFields, Searched: []LegacyCaseSource{source}, Limit: q.Limit, Results: []LegacyCaseHit{}, Bounded: []LegacyCaseBoundedHit{},
 		Limitations: []string{
 			"results carry case ID, path and title only; precondition and step text is searched but never returned",
 			"expected results are not searched",
 			"a none-found covers only the searched source and fields listed here, and the bounded text of the cases listed in bounded",
 		}}
+	if q.Match == LegacyMatchAny {
+		receipt.Mode = LegacyMatchAny
+		receipt.Match = "a case matches when at least one non-stop-word query token is a case-insensitive prefix of a letter-or-digit word in one of the fields; each matched token scores its best field weight (title 4, path 2, preconditions 1, steps 1); results are ordered by score descending, then export order"
+		receipt.Limitations = append(receipt.Limitations, "match any drops a fixed English stop-word list from the query; a dropped word is listed in stop_words_dropped and never scores")
+	}
+	hits := []LegacyCaseHit{}
 	for _, c := range cases {
 		fields := map[string][]string{"title": legacyTokens(c.title), "path": legacyTokens(strings.Join(c.path, " ")), "preconditions": legacyTokens(c.preconditions)}
 		steps := []string{}
@@ -221,20 +315,87 @@ func SearchLegacyCases(format, path string, data []byte, query string, limit int
 		if bounded := c.searchedBounds(); len(bounded) > 0 {
 			receipt.Bounded = append(receipt.Bounded, LegacyCaseBoundedHit{ID: c.id, Fields: bounded})
 		}
+		if q.Match == LegacyMatchAny {
+			if matched, score := legacyScore(scored, fields); score > 0 {
+				hits = append(hits, LegacyCaseHit{ID: c.id, Path: c.path, Title: c.title, Matched: matched, Score: score})
+			}
+			continue
+		}
 		matched, ok := legacyMatch(tokens, fields)
 		if !ok {
 			continue
 		}
 		receipt.Total++
-		if len(receipt.Results) < limit {
+		if len(receipt.Results) < q.Limit {
 			receipt.Results = append(receipt.Results, LegacyCaseHit{ID: c.id, Path: c.path, Title: c.title, Matched: matched})
 		}
+	}
+	if q.Match == LegacyMatchAny {
+		sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
+		receipt.Total = len(hits)
+		receipt.Results = hits[:min(len(hits), q.Limit)]
 	}
 	receipt.State = "found"
 	if receipt.Total == 0 {
 		receipt.State = "none-found"
 	}
 	return Encode(receipt)
+}
+
+// legacyQueryID reports whether the query is exactly one `C<digits>` word
+// (no surrounding space or other text), naming a case ID (DCP-V1-167).
+func legacyQueryID(query string) (string, bool) {
+	if !strings.HasPrefix(query, "C") {
+		return "", false
+	}
+	id, ok := legacyCaseID(query)
+	return id, ok && id == query
+}
+
+// legacyIDReceipt is the receipt of an ID lookup: exactly the named case, or
+// none-found when the export has no case with that ID (DCP-V1-165).
+func legacyIDReceipt(rawID, query, id string, cases []legacyCase, source LegacyCaseSource, limit int) ([]byte, error) {
+	receipt := LegacyCaseSearch{Schema: LegacyCaseSearchSchema, Query: query, ID: rawID, Mode: legacyMatchID, Tokens: []string{},
+		Match:  "the case ID equals " + id,
+		Fields: []string{"id"}, Searched: []LegacyCaseSource{source}, State: "none-found", Limit: limit, Results: []LegacyCaseHit{}, Bounded: []LegacyCaseBoundedHit{},
+		Limitations: []string{
+			"results carry case ID, path and title only",
+			"an id lookup reads only case IDs; a none-found covers only the searched source listed here",
+		}}
+	for _, c := range cases {
+		if c.id == id {
+			receipt.State, receipt.Total = "found", 1
+			receipt.Results = append(receipt.Results, LegacyCaseHit{ID: c.id, Path: c.path, Title: c.title, Matched: []string{"id"}})
+		}
+	}
+	return Encode(receipt)
+}
+
+// legacyScore sums, over the tokens that prefix a word of some field, the
+// best weight among the fields each token matched, and names the fields that
+// held a match in search-field order.
+func legacyScore(tokens []string, fields map[string][]string) ([]string, int) {
+	hit, score := map[string]bool{}, 0
+	for _, token := range tokens {
+		best := 0
+		for _, field := range legacySearchFields {
+			for _, word := range fields[field] {
+				if strings.HasPrefix(word, token) {
+					hit[field] = true
+					best = max(best, legacyFieldWeights[field])
+					break
+				}
+			}
+		}
+		score += best
+	}
+	matched := []string{}
+	for _, field := range legacySearchFields {
+		if hit[field] {
+			matched = append(matched, field)
+		}
+	}
+	return matched, score
 }
 
 // legacyMatch reports whether every token prefixes a word of some field, and

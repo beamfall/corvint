@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-146 (verbatim oversized paragraphs, over-bound line gaps and located refusals, GitHub #1242; V1-1983) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-150..152 (asserting E2E gap conditions and unauthenticated review, GitHub #1245; V1-1988) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-165..169 (case search by ID and ranked any-word match, GitHub #1246; V1-1989) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-160..163 (multi-scope /2 manifest inventory, GitHub #1241; V1-1985) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-170..174 (flow section and record-kind filters, GitHub #1247; V1-1990) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-155..159 (constant-cost Git reads and typed capacity refusals, GitHub #1240; V1-1984) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -260,7 +260,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   is inferred from shared citations; business terms resolve only documented records/relations.
   Test recommendations retain `full-relevant-suite-required` under ETS-V0: declared links and review
   labels cannot establish exhaustive adequacy. Gap kinds distinguish no tests, missing exact reviewed
-  asserting E2E links, missing manual disposition, stale journeys and stale anchors; unknown is not absence.
+  asserting E2E links (`DCP-V1-150`..`152`), missing manual disposition, stale journeys and stale anchors;
+  unknown is not absence.
 - `DCP-V1-039`: Native answers use `corvint-corpus-receipt/2` for the additive trust envelope; artifacts
   remain unchanged. Every native answer carries source revision, corpus digest, builder, generated content
   status, freshness, bounded citations, limitations and retirement envelope. Imported trust labels
@@ -947,6 +948,138 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   artifact or freshness is still being prepared), and the server keeps serving later calls. Every
   result carries `_meta["corvint/timing"]`: load, verify, freshness, query and total milliseconds
   and process CPU milliseconds.
+- `DCP-V1-146`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1242;
+  V1-1983)) A native Markdown paragraph is a verbatim blank-line excerpt. A paragraph over the
+  64 KiB excerpt bound is split at line boundaries into consecutive verbatim excerpts, each within
+  the bound and identified by its first line; joined in order they reproduce the paragraph byte
+  for byte, and it is never truncated. A single line over the bound is a `not-collected` gap on
+  its file subject naming the line and the bound, and the rest of the file and corpus still build;
+  the file excerpt anchors the first non-blank line within the bound, and a file with no such
+  line is a `not-collected` gap with no claims. A record-bound or anchor refusal names the path
+  and line span it concerns; a `corvint-corpus-input/1` record-bound refusal also says a `/2`
+  manifest raises the bound. Corpora that built before this requirement are unchanged.
+- `DCP-V1-150`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1245;
+  V1-1988)) A flow reports no asserting E2E gap exactly when one of its relations carries a
+  `test_link` with role `asserting`, join confidence `exact`, evidence state `supported` and
+  evidence trust `reviewed`. Provider import never grants `reviewed` trust (`DCP-V1-039`), so only a
+  Core-authenticated review path clears the gap.
+- `DCP-V1-151`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1245;
+  V1-1988)) When the flow's only unmet condition is that a link's review is provider-reported
+  (`reported_trust: reviewed`, trust `generated`), `gaps` reports the distinct, weaker kind
+  `asserting-e2e-tests-unauthenticated-review`, whose reason states that the review is attributed,
+  not authenticated, instead of `missing-asserting-e2e-tests`. Adequacy remains unknown.
+- `DCP-V1-152`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1245;
+  V1-1988)) Otherwise the flow reports `missing-asserting-e2e-tests`, whose reason names the failed
+  condition: `no test link`, or the closest link's failures in the fixed order `not asserting`,
+  `not exact`, `not supported`, then `review not authenticated` or `not reviewed` (the first link
+  in relation-index order wins a tie). The gap kinds stay open strings; artifacts are unchanged.
+- `DCP-V1-165`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1246; V1-1989)) `search-cases
+  --id ID` and the `corvint.docs_search_cases` argument `id` take a case ID as `C12345` or `12345`
+  (the `DCP-V1-071` ID form) instead of a query and return exactly that case, with `matched_fields`
+  `["id"]`; an ID no case holds is `none-found`. The receipt then carries `id`, `mode` `id`, the
+  searched field `id` and an empty word list.
+- `DCP-V1-166`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1246; V1-1989)) `--match any`
+  (argument `match: "any"`) ranks instead of requiring every word. A fixed English stop-word list is
+  dropped from the query in this mode only and listed under `stop_words_dropped`; a query of only
+  stop words is refused. A case matches when at least one remaining word prefixes a word of a
+  searched field; each such word scores the best weight of the fields it matched (title 4, path 2,
+  preconditions 1, steps 1). Results are ordered by score descending, then case-ID order, each hit
+  carries `score`, `total` counts every matching case, and the receipt carries `mode` `any` and a
+  match rule naming the weights.
+- `DCP-V1-167`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1246; V1-1989)) A query that is
+  exactly one `C<digits>` word in the `DCP-V1-071` ID form, with no other character, is the
+  `DCP-V1-165` lookup when a case holds that ID, keeping the query in `query`. When no case holds it,
+  the query is searched as before, so the result of every other query, and of that query against an
+  export without that case, is unchanged.
+- `DCP-V1-168`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1246; V1-1989)) `match` defaults to
+  `all`, the `DCP-V1-075` rule. A default or explicit `all` search emits the same bytes as before
+  this change: it carries no `mode`, `score` or `stop_words_dropped` member.
+- `DCP-V1-169`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1246; V1-1989)) The tool schema adds
+  `id` (pattern `^C?[1-9][0-9]{0,9}$`) and `match` (`all` or `any`) and requires only `format` and
+  `input`. Exactly one of `query` and `id` is required, and `match` is admitted only with `query`;
+  any other combination or an unknown `match` value is invalid params from the tool and
+  `invalid-arguments` from the CLI, which admits `--query`, `--id`, `--match` and `--limit` as
+  optional `search-cases` options.
+- `DCP-V1-160`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1241;
+  V1-1985)) `docs corpus manifest --schema 2` emits a `corvint-corpus-input/2` manifest whose
+  inventory bound is the /2 record limit (100,000); `--schema 1` or no `--schema` emits
+  `corvint-corpus-input/1` bounded by 4,096 files. Any other `--schema` value is a usage error.
+  Without `--schema` and with one `--scope`, the output is byte-identical to the single-scope
+  command it extends.
+- `DCP-V1-161`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1241;
+  V1-1985)) `--scope` may repeat; the command emits one manifest with one `scopes` entry per path,
+  sorted by byte order whatever the argument order, and every tracked file of every scope as an
+  input. A duplicate scope, or a scope inside another requested scope, is refused
+  (`corpus-refused`) naming the paths, so every input belongs to exactly one scope.
+- `DCP-V1-162`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1241;
+  V1-1985)) Inventory bound refusals are typed `corpus-refused` and raised before any input is read:
+  an empty scope names the scope; an inventory over the schema's record bound names the scopes,
+  the tracked-file count, the schema and its bound, and a /1 refusal also names the /2 bound.
+- `DCP-V1-163`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1241;
+  V1-1985)) A multi-scope /2 manifest from this command is accepted unchanged by
+  `docs corpus build`.
+- `DCP-V1-170`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1247;
+  V1-1990)) A flow query (`docs corpus flow`, `corvint.docs_flow`) takes an
+  optional section filter: one section name or a duplicate-free list of 1 to 64 names, each
+  matched exactly against the flow's `FlowSection.Name`. The answer is the flow subject plus the
+  paragraphs of only the named sections, in the usual record order; a section filter without `include` selects paragraphs only. A requested name the flow
+  does not have answers no records with `state` `empty`, `miss` `none-found` and a
+  `flow_selection` naming every available section and the unknown names; it never falls back to
+  the whole flow.
+- `DCP-V1-171`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1247;
+  V1-1990)) A flow query takes an
+  optional `include`: a duplicate-free, non-empty list from the closed set `claims`, `relations`,
+  `test_knowledge`, `paragraphs`. Only the listed record kinds follow the flow subject. An unknown
+  or repeated kind, an empty list, a section filter whose `include` omits `paragraphs`, or either
+  filter on any operation other than flow is refused: `invalid-arguments` from the MCP tool and the
+  CLI, `corpus-refused` from the library and indexed companion.
+- `DCP-V1-172`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1247;
+  V1-1990)) A filtered flow receipt
+  carries `flow_selection`: every section of the flow in flow order with its paragraph count, the
+  requested sections, the effective `include` kinds, and per kind (`claims`, `relations`,
+  `test_knowledge`, `paragraphs`) the records the flow has (`available`) and the records the
+  filter selected before paging (`selected`). A flow query with neither filter carries no
+  `flow_selection` and its receipt bytes are unchanged.
+- `DCP-V1-173`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1247;
+  V1-1990)) `limit` and `offset` page
+  the filtered answer exactly as they page an unfiltered one: the pages of a filtered query
+  concatenate to its single-page answer, a repeated page is identical, and `flow_selection` counts
+  do not change with the page.
+- `DCP-V1-174`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1247;
+  V1-1990)) The `corvint.docs_flow`
+  input schema declares `section` (a string or array of strings) and `include` (an array over the
+  closed set); no other corpus tool admits them. The CLI flow operation takes `--section NAME[,NAME]`
+  and `--include KIND[,KIND]`, refused by the same shape rules before any artifact is read.
+- `DCP-V1-155`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
+  V1-1984)) A corpus read checks the freshness of every pinned input for a number of Git
+  operations that does not depend on the input count: inputs the live revision index holds clean
+  need no Git operation, and the rest resolve together through one verified walk, which reads each
+  directory level the paths pass through in one batch. Every tree read is self-hashed and linked to
+  its verified parent OID, so the walk trusts Git no more than a single-path lookup does, and a
+  path that is absent or lies below a non-tree is absent. One changed or absent input still makes
+  the read `stale` and names that input.
+- `DCP-V1-156`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
+  V1-1984)) Manifest inventory and build load the inputs the revision index does not hold as text
+  (for example HTML, ERB and JSON) through batched reads: per pinned revision, one verified path
+  walk (`DCP-V1-155`), then one header batch for every distinct regular blob and one body batch for
+  every admitted blob. Every body must have its admitted size and self-hash to its OID. All reads
+  pass through the same bounded Git runner and its operation budget; none bypasses them.
+- `DCP-V1-157`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
+  V1-1984)) A corpus that exceeds a capacity limit is refused with `corpus-capacity-exceeded`, and
+  the message names the limit and the count: a manifest's input, scope or provider count, the
+  scope's input count at inventory, or the aggregate pinned input bytes (128 MiB). Count limits are
+  checked before any Git operation, and the byte limit and every per-input refusal (missing,
+  non-regular or over-bound input) before any body is read; the empty-manifest and per-input
+  refusals keep their codes. A per-input refusal is now reported before a content mismatch of an
+  earlier input.
+- `DCP-V1-158`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
+  V1-1984)) An exhausted Git operation budget or Git output bound during corpus inventory, build or
+  freshness is `corpus-capacity-exceeded`, naming the bound and the phase, and never surfaces as
+  `internal-error`. The native CLI and the corpus MCP server map such a failure to the same code
+  through one shared function.
+- `DCP-V1-159`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
+  V1-1984)) Batched loading changes no artifact byte: a corpus that built before builds to the same
+  bytes, apart from the builder identity and the digest that covers it.
 
 ## Input and authority boundary
 
@@ -1291,6 +1424,8 @@ Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicRea
 
 `corpus-refused` covers malformed/canonical/digest/closure/authority/span/bound failures.
 `corpus-input-unavailable` covers missing, unsafe or oversized local inputs.
+`corpus-capacity-exceeded` covers a corpus over a named capacity limit and an exhausted Git
+operation budget or output bound during inventory, build or freshness (`DCP-V1-157`, `DCP-V1-158`).
 
 - `DCP-V1-054`: Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,
   `--input`, `--previous`, `--cem`, `--retirement`, `--migration`, `--playwright-list`, `--receipt`,
@@ -1409,6 +1544,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-093..099 | `internal/doccorpus/flow_relations.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `integration.go`, `pagination.go`, `internal/corpusrepublish/parity.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/corpus_integration.go` | `TestDCPV1093FlowRelationSchemaIsClosed`, `TestDCPV1094FlowRelationKindFields`, `TestDCPV1095FlowRelationJoinStatus`, `TestDCPV1096FlowRelationImpactAttribution`, `TestDCPV1097FlowRelationUnreviewedAndDepth`, `TestDCPV1097CorpusDepthFlag`, `TestDCPV1098FlowRelationTraceAndGaps`, `TestDCPV1098TraceToolDepth`, `TestDCPV1099FlowRelationDeterministicAndBounded` |
 | DCP-V1-140..142 | `internal/contextindex/symbol_region.go`, `rubysymbols.go`, `internal/doccorpus/symbol_anchor.go`, `query.go`, `pagination.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestSymbolAnchorReresolution` (Ruby and TypeScript: insertion is `moved` with the new range, a one-token edit is `changed`, deletion is `gone`, a reformat is `live` or `moved`), `TestSymbolAnchorUncertainty`, `TestSymbolAnchorReaderReceipt`, `TestNormalizedCodeLines` |
 | DCP-V1-143..145 | `internal/mcp/corpusbridge/corpusbridge.go`, `cputime_unix.go`, `internal/doccorpus/query.go`, `symbol_anchor.go`, `pagination.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1143LazyLoadAndMemo`, `TestDCPV1143StartupRefusesUnreadableArtifact`, `TestDCPV1144LiveFreshnessReusedUntilTheRepositoryChanges`, `TestDCPV1144ConcurrentCallsShareOneOverlay`, `TestDCPV1144SharedOverlayMatchesAFreshReader`, `TestSymbolAnchorReaderReceipt`, `TestDCPV1145PathsBatchEqualsUnion`, `TestDCPV1145BatchDeadlineNamesUnresolved`, `TestDCPV1145BatchDeadlineBeforeLoadNamesEveryPath`, `TestDCPV1145CallDeadlineAndTiming`, `TestDCPV1145BatchFitsOneFrame`; measured on a 100,000-claim corpus in docs/build-log/2026-10-19-V1-1982-corpus-mcp-lazy-batch.md |
+| DCP-V1-146 | `internal/doccorpus/compile.go` | `TestDCPV1146OversizedParagraphStaysVerbatim`, `TestDCPV1146OversizedLineIsAGap`, `TestDCPV1146RefusalsNameTheSpan`; measured on Corvint's docs scope in docs/build-log/2026-10-19-V1-1983-docs-corpus-located-refusals.md |; | DCP-V1-150..152 | `internal/doccorpus/typed_query.go`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap`, `TestDCPV1151AuthenticatedReviewClearsAssertingGap`, `TestDCPV1152AssertingGapNamesTheFailedCondition` |; | DCP-V1-165..169 | `internal/doccorpus/legacy_cases.go`, `cmd/corvint/docs_corpus_legacy_cases.go`, `cmd/corvint/docs_corpus_help.go`, `cmd/corvint-corpus-mcp/legacycases.go` | `TestDCPV1165LegacyCaseIDLookup`, `TestDCPV1166LegacyCaseAnyMatchRanks`, `TestDCPV1167LegacyCaseQueryIDRule`, `TestDCPV1168LegacyCaseAllModeBytesUnchanged`, `TestDCPV1169CorpusMCPSearchCasesModes`, `TestDCPV1165DocsCorpusSearchCasesModesCLI`, `TestDocsCorpusOperationFlagMatrix` |; | DCP-V1-160..163 | `internal/doccorpus/compile.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1160SchemaTwoManifestOfTwentyThousandFilesBuilds`, `TestDCPV1160DefaultSingleScopeUnchanged`, `TestDCPV1160SchemaFlagValues`, `TestDCPV1161ScopesSortedAndOverlapRefused`, `TestDCPV1162BoundRefusalNamesBoundScopeAndCount` |; | DCP-V1-170..174 | `internal/doccorpus/flow_filter.go`, `typed_query.go`, `query.go`, `pagination.go`, `types.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1170FlowSectionFilter`, `TestDCPV1171FlowIncludeFilter`, `TestDCPV1172FlowSelectionReceipt`, `TestDCPV1173FlowFilterPagination`, `TestDCPV1174DocsFlowToolFilters`, `TestDCPV1174CorpusFlowFilterOptions`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-19-V1-1990-docs-flow-section-filter.md |; | DCP-V1-155..159 | `internal/cem/gitauth/pathset.go`, `internal/doccorpus/batch_input.go`, `capacity.go`, `compile.go`, `query.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1155ReadFreshnessGitOpsIndependentOfInputCount` (10,000 inputs, 16 Git operations per phase, one change is `stale`), `TestDCPV1155ResolvePathsMatchesSingleLookupsWithinOneOpPerLevel`, `TestDCPV1156ManifestAndBuildBatchNonIndexedInputs`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`, `TestDCPV1158BridgeTypesGitCapacityLikeTheCLI`, `TestDCPV1158CLITypesGitCapacityLikeTheBridge`, `TestDCPV1159BatchedPinningKeepsArtifactBytes`; measured in docs/build-log/2026-10-19-V1-1984-corpus-git-budget.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

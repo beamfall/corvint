@@ -45,8 +45,11 @@ func (l *legacyCaseSearcher) descriptor() bridge.ToolDescriptor {
 		Name: legacyCasesTool,
 		Description: "Search a caller-exported TestRail JSON or CSV test-case export (a repository-relative input) for " +
 			"cases whose title, suite/section path, preconditions or steps contain every query word as a prefix. " +
-			"Returns case ID, path and title only, with the query, fields and searched export so a none-found " +
-			"result can be audited. Manual cases are never runtime parity. Reads one file; writes nothing.",
+			"match \"any\" instead ranks cases matching any non-stop-word query word by weighted score " +
+			"(title > path > preconditions/steps) and reports a per-hit score. id (C12345 or 12345), given instead " +
+			"of query, returns exactly that case. Returns case ID, path and title only, with the query, fields and " +
+			"searched export so a none-found result can be audited. Manual cases are never runtime parity. Reads " +
+			"one file; writes nothing.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{
 			"type": "object",
@@ -54,26 +57,35 @@ func (l *legacyCaseSearcher) descriptor() bridge.ToolDescriptor {
 				"format": map[string]any{"type": "string", "enum": []any{doccorpus.LegacyFormatTestRailJSON, doccorpus.LegacyFormatCSV}},
 				"input":  map[string]any{"type": "string", "minLength": 1, "maxLength": 4096},
 				"query":  map[string]any{"type": "string", "minLength": 1, "maxLength": 1024},
+				"id":     map[string]any{"type": "string", "minLength": 1, "maxLength": 11, "pattern": "^C?[1-9][0-9]{0,9}$"},
+				"match":  map[string]any{"type": "string", "enum": []any{doccorpus.LegacyMatchAll, doccorpus.LegacyMatchAny}},
 				"limit":  map[string]any{"type": "integer", "minimum": 1, "maximum": doccorpus.MaxResults},
 			},
-			"required":             []any{"format", "input", "query"},
+			"required":             []any{"format", "input"},
 			"additionalProperties": false,
 		},
 	}
 }
 
 // decodeLegacyCaseArguments enforces the advertised schema: closed keys, no
-// null, required strings and an integer limit in bounds (default 20, as the CLI).
-func decodeLegacyCaseArguments(raw []byte) (format, input, query string, limit int, ok bool) {
-	limit = 20
+// null, required strings, exactly one of query and id, match only with query,
+// and an integer limit in bounds (default 20, as the CLI) (DCP-V1-168).
+func decodeLegacyCaseArguments(raw []byte) (format, input string, q doccorpus.LegacyCaseQuery, ok bool) {
+	q.Limit = 20
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(raw, &fields) != nil || fields == nil {
-		return "", "", "", 0, false
+		return "", "", q, false
 	}
-	for _, key := range []string{"format", "input", "query"} {
+	for _, key := range []string{"format", "input"} {
 		if _, present := fields[key]; !present {
-			return "", "", "", 0, false
+			return "", "", q, false
 		}
+	}
+	_, hasQuery := fields["query"]
+	_, hasID := fields["id"]
+	_, hasMatch := fields["match"]
+	if hasQuery == hasID || hasID && hasMatch {
+		return "", "", q, false
 	}
 	str := func(v json.RawMessage, limit int) (string, bool) {
 		var s string
@@ -87,31 +99,36 @@ func decodeLegacyCaseArguments(raw []byte) (format, input, query string, limit i
 		case "input":
 			input, valid = str(v, 4096)
 		case "query":
-			query, valid = str(v, 1024)
+			q.Query, valid = str(v, 1024)
+		case "id":
+			q.ID, valid = str(v, 11)
+		case "match":
+			q.Match, valid = str(v, 16)
+			valid = valid && (q.Match == doccorpus.LegacyMatchAll || q.Match == doccorpus.LegacyMatchAny)
 		case "limit":
 			var n *float64
 			if json.Unmarshal(v, &n) == nil && n != nil {
 				valid = *n == math.Trunc(*n) && *n >= 1 && *n <= doccorpus.MaxResults
-				limit = int(*n)
+				q.Limit = int(*n)
 			}
 		}
 		if !valid || string(bytes.TrimSpace(v)) == "null" {
-			return "", "", "", 0, false
+			return "", "", q, false
 		}
 	}
-	return format, input, query, limit, true
+	return format, input, q, true
 }
 
 // callLegacyCases returns the CLI's exact search-cases bytes framed as
 // untrusted data, with the receipt as structured content.
 func (handler *toolHandler) callLegacyCases(ctx context.Context, raw []byte) (map[string]any, *protocol.RPCError) {
-	format, input, query, limit, valid := decodeLegacyCaseArguments(raw)
+	format, input, q, valid := decodeLegacyCaseArguments(raw)
 	if !valid {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
 	data, err := doccorpus.ReadLegacyCasesFile(handler.legacyCases.root, input)
 	if err == nil {
-		data, err = doccorpus.SearchLegacyCases(format, input, data, query, limit)
+		data, err = doccorpus.SearchLegacyCasesQuery(format, input, data, q)
 	}
 	if ctx.Err() != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")

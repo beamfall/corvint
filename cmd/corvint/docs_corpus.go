@@ -13,7 +13,11 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner string
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem, retirement, runner, schema string
+	// scopes holds every repeated manifest --scope in argument order (DCP-V1-161).
+	scopes []string
+	// section and include are the flow filters as comma-separated lists (DCP-V1-170, DCP-V1-171).
+	section, include string
 	// stable is the cem-stable verifier binding; its artifact root is not a --root-relative input.
 	stable        doccorpus.StableCEMInputs
 	playwright    playwrightCorpusOptions
@@ -24,7 +28,7 @@ type corpusOptions struct {
 
 // stringFlags maps each value-taking corpus option to its field.
 func (o *corpusOptions) stringFlags() map[string]*string {
-	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner,
+	flags := map[string]*string{"--retirement": &o.retirement, "--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem, "--runner": &o.runner, "--schema": &o.schema, "--section": &o.section, "--include": &o.include,
 		"--expected-base": &o.stable.ExpectedBase, "--target": &o.stable.Target, "--stable-artifact-root": &o.stable.ArtifactRoot}
 	o.playwright.addFlags(flags)
 	o.legacyCases.addFlags(flags)
@@ -53,7 +57,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
-		if seen[flag] {
+		if seen[flag] && flag != "--scope" {
 			return o, true, argumentError("duplicate corpus option")
 		}
 		seen[flag] = true
@@ -96,6 +100,9 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			value = args[i]
 		}
 		*target = value
+		if flag == "--scope" {
+			o.scopes = append(o.scopes, value)
+		}
 	}
 	operation, ok := lookupCorpusOperation(o.op)
 	if !ok {
@@ -111,9 +118,23 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 			return o, true, argumentError("missing required corpus option")
 		}
 	}
+	if seen["--schema"] && o.schema != "1" && o.schema != "2" {
+		return o, true, argumentError("--schema must be 1 or 2")
+	}
+	if !doccorpus.ValidFlowFilter(corpusList(o.section), corpusList(o.include)) {
+		return o, true, argumentError("invalid flow section or include filter")
+	}
 	var err error
 	o.root, err = resolveExplicitRoot(o.root)
 	return o, true, err
+}
+
+// corpusList splits a comma-separated option value; an absent option is nil.
+func corpusList(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }
 
 // errCorpusCheckRefused marks a behavior-adapter check report, or a legacy inventory whose
@@ -141,6 +162,7 @@ func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) i
 	return 0
 }
 func emitCorpusError(w io.Writer, err error) {
+	err = doccorpus.Typed(err) // a Git capacity failure is typed, never internal-error (DCP-V1-158)
 	var e *doccorpus.Error
 	if errors.As(err, &e) {
 		emitError(w, &gokernel.Error{Code: e.Code, Message: e.Message})
@@ -169,7 +191,11 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return nil, err
 	}
 	if o.op == "manifest" {
-		m, err := doccorpus.Inventory(ctx, o.root, o.revision, o.scope, o.timestamp)
+		schema := doccorpus.ManifestSchema
+		if o.schema == "2" {
+			schema = doccorpus.ManifestSchemaV2
+		}
+		m, err := doccorpus.InventoryScopes(ctx, o.root, o.revision, o.scopes, schema, o.timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -293,7 +319,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, e
 		}
 	}
-	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset}, overlay)
+	receipt, err := doccorpus.QueryLive(ctx, a, doccorpus.Request{Operation: o.op, Retirement: retirement, Query: o.query, ID: o.id, Path: o.path, Limit: o.limit, Offset: o.offset, Sections: corpusList(o.section), Include: corpusList(o.include)}, overlay)
 	if err != nil {
 		return nil, err
 	}
