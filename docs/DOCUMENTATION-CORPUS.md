@@ -30,7 +30,10 @@ Read operations share one rederiving reader: `info`, `validate`, `search --query
 `gaps [--id ID]`.
 All take `--artifact FILE` and optional `--limit 1..256`. Queries report omissions, absence, valid
 no-match, not-found and stale evidence separately. Coverage names its scope/denominator and never
-claims universal behavioral coverage. Every read rechecks original immutable inputs; live source
+claims universal behavioral coverage. A flow's `missing-asserting-e2e-tests` gap names the failed
+condition of its closest test link; a link that fails only because its review is provider-reported
+(attributed, not authenticated) reports `asserting-e2e-tests-unauthenticated-review` instead
+(`DCP-V1-150`..`152`). Every read rechecks original immutable inputs; live source
 and provider changes are reported separately from the artifact's recorded revision.
 
 ## Larger adoption imports
