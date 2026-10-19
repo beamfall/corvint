@@ -265,7 +265,7 @@ func TestCorpusAdoptionReviewRegressions(t *testing.T) {
 		if err = os.WriteFile(filepath.Join(root, "src/restricted-canary-report.txt"), []byte("local restricted detail\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
-		impact := Impact(a, []string{"src/restricted-canary-report.txt"}, "stale")
+		impact := Impact(a, []string{"src/restricted-canary-report.txt"}, "stale", 0)
 		projected, err := Encode(impact)
 		if err != nil || strings.Contains(string(projected), "restricted-canary") {
 			t.Fatal("impact leaked restricted path", err)

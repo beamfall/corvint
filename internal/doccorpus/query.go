@@ -139,6 +139,9 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if request.Limit < 1 || request.Limit > MaxResults || len(request.Query) > 1024 || len(request.ID) > 1024 || len(request.Path) > 1024 {
 		return Receipt{}, fail("invalid query bounds")
 	}
+	if request.Depth < 0 || request.Depth > MaxFlowDepth || request.Depth != 0 && request.Operation != "trace" {
+		return Receipt{}, fail("flow trace depth is bounded and applies only to trace")
+	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}
@@ -191,6 +194,9 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		for _, x := range a.TestKnowledge {
 			r.Results = append(r.Results, x)
 		}
+		for _, x := range a.FlowRelations {
+			r.Results = append(r.Results, x)
+		}
 		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
 		if e := search(ctx, a, request, &r); e != nil {
@@ -198,6 +204,10 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		}
 	case "get", "trace":
 		get(a, request.ID, &r)
+		if request.Operation == "trace" && len(a.FlowRelations) > 0 && isFlowSubject(a, request.ID) {
+			// DCP-V1-098: trace walks the same declared flow relations as impact/affected.
+			r.Results = append(r.Results, TraceFlows(a, []string{request.ID}, request.Depth))
+		}
 	case "locate":
 		for _, j := range testKnowledgeOnPath(a, request.Path) {
 			addRecord(&r, j)
@@ -348,6 +358,11 @@ func subjectPath(s Subject, p string) bool {
 }
 func get(a *Artifact, id string, r *Receipt) {
 	for _, j := range a.TestKnowledge {
+		if j.ID == id {
+			addRecord(r, j)
+		}
+	}
+	for _, j := range a.FlowRelations {
 		if j.ID == id {
 			addRecord(r, j)
 		}

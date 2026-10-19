@@ -326,7 +326,7 @@ func typedKey(v any) string {
 	return recordID(v)
 }
 func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error) {
-	out := testKnowledgeGaps(a)
+	out := append(testKnowledgeGaps(a), flowRelationGaps(a)...)
 	counted := map[string]bool{}
 	for _, j := range a.TestKnowledge {
 		for _, f := range j.Flows {

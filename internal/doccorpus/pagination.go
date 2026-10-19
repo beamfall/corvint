@@ -20,6 +20,8 @@ func recordID(value any) string {
 		return x.Link.ID
 	case TestKnowledgeJoin:
 		return x.ID
+	case FlowRelationJoin:
+		return x.ID
 	}
 	return ""
 }
@@ -41,6 +43,8 @@ func recordAnchors(value any) []Anchor {
 		return x.Link.StepEvidence
 	case TestKnowledgeJoin:
 		return testKnowledgeAnchors(x)
+	case FlowRelationJoin:
+		return flowRelationAnchors(x)
 	}
 	return nil
 }
