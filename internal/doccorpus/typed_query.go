@@ -52,7 +52,13 @@ type TestRecommendation struct {
 	MissingEvidence  []string `json:"missing_evidence"`
 	Paths            []string `json:"paths"`
 	BlockedBy        []string `json:"blocked_by,omitempty"`
+	// BlockedByCount and BlockedByTruncated keep a bounded blocked_by list explicit (DCP-V1-091).
+	BlockedByCount     int  `json:"blocked_by_count,omitempty"`
+	BlockedByTruncated bool `json:"blocked_by_truncated,omitempty"`
 }
+
+// MaxBlockedBy bounds the defect IDs a test recommendation lists by name.
+const MaxBlockedBy = 32
 
 func addRecord(r *Receipt, v any) {
 	r.Results = append(r.Results, v)
@@ -239,7 +245,10 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 		if len(blocked) > 0 {
 			missing = append(missing, "test-knowledge defect blocks selection")
 		}
-		r.Selection = &TestRecommendation{State: "full-relevant-suite-required", Required: "full relevant suite and mandatory repository checks", MissingEvidence: missing, Paths: []string{q.Path}, BlockedBy: blocked}
+		r.Selection = &TestRecommendation{State: "full-relevant-suite-required", Required: "full relevant suite and mandatory repository checks", MissingEvidence: missing, Paths: []string{q.Path}, BlockedBy: blocked, BlockedByCount: len(blocked)}
+		if len(blocked) > MaxBlockedBy {
+			r.Selection.BlockedBy, r.Selection.BlockedByTruncated = blocked[:MaxBlockedBy], true
+		}
 	case "navigation":
 		selected := map[string]bool{q.ID: true}
 		if flow := a.Details[q.ID].Flow; flow != nil {

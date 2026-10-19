@@ -150,7 +150,9 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if a.Schema == SchemaV2 {
 		r.Capabilities = boundedCapabilities(a.Capabilities)
 	}
-	if !a.HasCapability(capability) {
+	if !a.HasCapability(capability) && testKnowledgeServes(a, request.Operation) {
+		r.Limitations = append(r.Limitations, capability+" capability absent; answered from test-knowledge records only")
+	} else if !a.HasCapability(capability) {
 		r.State = "unavailable"
 		r.Miss = "capability-absent"
 		for _, cap := range a.Capabilities {

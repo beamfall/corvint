@@ -179,14 +179,11 @@ func (c *compiler) checkTestKnowledgeAnchor(a Anchor) error {
 }
 
 // resolveTestKnowledgeAnchor compares a pinned anchor with the declared input
-// at revision. It reports unanchored/stale and refuses forged bindings.
-func (c *compiler) resolveTestKnowledgeAnchor(a Anchor, revision string, sameRevision bool) (string, error) {
+// at revision. It reports an undeclared path as unanchored and refuses forged bindings.
+func (c *compiler) resolveTestKnowledgeAnchor(a Anchor, revision string) (string, error) {
 	source, ok := c.sources[inputKey(revision, a.Path)]
 	if !ok {
 		return "unanchored", nil
-	}
-	if source.BlobHash != a.Blob && !sameRevision {
-		return "stale", nil
 	}
 	data, err := span(source.Data, a.Start, a.End)
 	if source.BlobHash != a.Blob || err != nil || Digest(source.Data) != a.SHA256 || Digest(data) != a.SpanSHA256 {
@@ -218,8 +215,14 @@ func (c *compiler) joinTestKnowledge(sets []providerKnowledge) error {
 			seen[r.ID] = true
 			j := TestKnowledgeJoin{ID: r.ID, Provider: pk.provider, TrustLevel: r.Trust, Verdict: r.Verdict, Status: "joined", Selection: "excluded", Claims: []string{}, Flows: []string{}, UnresolvedFlows: []string{}, Paths: []string{}, Reasons: []string{}, Limitations: []string{testKnowledgeLimitation}, Record: r}
 			anchors := append([]Anchor{r.Test}, r.Sources...)
+			if pk.set.Revision != revision {
+				// A claimed revision is never trusted on its format alone: only the corpus
+				// revision's declared inputs are verified, so any other revision is stale (DCP-V1-089).
+				j.Status, anchors = "stale", nil
+				j.Reasons = append(j.Reasons, "stale: set revision is not the corpus revision")
+			}
 			for _, a := range anchors {
-				status, err := c.resolveTestKnowledgeAnchor(a, revision, pk.set.Revision == revision)
+				status, err := c.resolveTestKnowledgeAnchor(a, revision)
 				if err != nil {
 					return err
 				}
@@ -231,7 +234,7 @@ func (c *compiler) joinTestKnowledge(sets []providerKnowledge) error {
 				}
 			}
 			if r.Receipt != nil {
-				if status, err := c.resolveTestKnowledgeAnchor(*r.Receipt, r.Receipt.Revision, true); err != nil {
+				if status, err := c.resolveTestKnowledgeAnchor(*r.Receipt, r.Receipt.Revision); err != nil {
 					return err
 				} else if status != "joined" {
 					j.Reasons = append(j.Reasons, "unanchored: run receipt "+r.Receipt.Path+" is not a declared input")
@@ -288,6 +291,17 @@ func (c *compiler) joinTestKnowledgeTargets(j *TestKnowledgeJoin, anchors []Anch
 	sort.Strings(j.UnresolvedFlows)
 }
 
+// testKnowledgeServes reports whether op is answered from test-knowledge joins, so a
+// corpus whose only rows are test knowledge still serves it without the generic capability
+// (DCP-V1-091).
+func testKnowledgeServes(a *Artifact, op string) bool {
+	switch op {
+	case "get", "locate", "claims", "recommend-tests":
+		return len(a.TestKnowledge) > 0
+	}
+	return false
+}
+
 // testKnowledgeOnPath reports joined records whose test or source path is p.
 func testKnowledgeOnPath(a *Artifact, p string) []TestKnowledgeJoin {
 	out := []TestKnowledgeJoin{}
@@ -337,17 +351,18 @@ func testKnowledgeCoverage(a *Artifact) []any {
 	limitations := []string{testKnowledgeLimitation, "only joined run+reviewed records with a bound or partial verdict count"}
 	rows := []any{map[string]any{"metric": "flows_with_reviewed_test_knowledge", "value": reviewed, "denominator": flows, "defined": flows > 0, "definition": "flow subjects named by a counted test-knowledge record / all flow subjects", "revision": a.Manifest.Repository.Revision, "limitations": limitations}}
 	for _, level := range []string{"run+reviewed", "run-unreviewed", "read-only", "legacy-reference"} {
-		joined, counted := []string{}, []string{}
+		// Rows carry counts only; record IDs page through inventory and get (DCP-V1-091).
+		joined, counted := 0, 0
 		for _, j := range a.TestKnowledge {
 			if j.TrustLevel != level || j.Status != "joined" {
 				continue
 			}
-			joined = append(joined, j.ID)
+			joined++
 			if j.CountsTowardCoverage {
-				counted = append(counted, j.ID)
+				counted++
 			}
 		}
-		rows = append(rows, map[string]any{"metric": "test_knowledge_trust_level", "trust_level": level, "joined": len(joined), "counts_toward_coverage": len(counted), "records": joined, "revision": a.Manifest.Repository.Revision, "limitations": limitations})
+		rows = append(rows, map[string]any{"metric": "test_knowledge_trust_level", "trust_level": level, "joined": joined, "counts_toward_coverage": counted, "revision": a.Manifest.Repository.Revision, "limitations": limitations})
 	}
 	return rows
 }

@@ -809,13 +809,13 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `test` and `sources` anchors carry the set `revision`. A `receipt` anchor names the revision
   and path of the run receipt input it cites.
 - `DCP-V1-089`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
-  V1-1868)) The build joins each record after every provider is imported. Each `test` and
-  `sources` anchor is compared with the declared input for its path at the corpus revision: an
-  undeclared path makes the record `unanchored`, and, when the set `revision` differs from the
-  corpus revision, a different blob makes it `stale`. Both are reported with reasons and the record
-  is not joined. Any other mismatch is a forged binding and is refused: a different blob when the
-  set `revision` is the corpus revision, or an equal blob with a different content digest, span
-  digest or a span beyond the file. A `receipt` is compared the same way with the declared input at
+  V1-1868)) The build joins each record after every provider is imported. A set whose `revision`
+  is not the corpus revision, whether it names another commit or none, is `stale` and none of its
+  records joins, counts or is cited. Otherwise each `test` and `sources` anchor is compared with
+  the declared input for its path at the corpus revision: an undeclared path makes the record
+  `unanchored`. Both are reported with reasons and the record is not joined. Any other mismatch is
+  a forged binding and is refused: a different blob, or an equal blob with a different content
+  digest, span digest or a span beyond the file. A `receipt` is compared the same way with the declared input at
   its own revision; an undeclared `receipt` makes the record `unanchored` and any mismatch is
   refused. A `joined` record lists, sorted: the claims whose
   evidence anchors share a path and overlap the lines of its test or source anchors; its declared
@@ -833,19 +833,23 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   V1-1868)) The native reader, and therefore the corpus MCP tools, the indexed companion and the
   HTTP companion, expose joins labelled by trust. `get` returns a join by ID in any status, and
   `inventory` pages every join. `flow` returns the joined records naming the flow. `claims` and
-  `locate` return the joined records whose test or source path is the queried path. `coverage`
-  reports `flows_with_reviewed_test_knowledge` over the flow subjects, plus one row per trust level
-  with its joined and counted records. `gaps` reports `stale-test-knowledge`,
+  `locate` return the joined records whose test or source path is the queried path; while any join
+  exists, `get`, `locate`, `claims` and `recommend-tests` are answered even when their generic
+  capability is absent, with a limitation saying so. `coverage` reports
+  `flows_with_reviewed_test_knowledge` over the flow subjects, plus one row per trust level with
+  its joined and counted record counts and no record IDs. `gaps` reports `stale-test-knowledge`,
   `unanchored-test-knowledge` and `unresolved-test-knowledge-flow`, and a flow's `no-tests` gap is
   cleared only by a counted record. `recommend-tests` adds `candidate` records for the path; a
-  joined `defect` on the path withholds every candidate, lists the defects in `blocked_by` and adds
-  a missing-evidence line. The selection state stays `full-relevant-suite-required` and narrowing
+  joined `defect` on the path withholds every candidate, lists at most 32 defect IDs in
+  `blocked_by` with their total in `blocked_by_count` and `blocked_by_truncated` when more exist,
+  and adds a missing-evidence line. The selection state stays `full-relevant-suite-required` and narrowing
   stays disallowed.
 - `DCP-V1-092`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;
   V1-1868)) The join is deterministic: joins are ordered by ID and the artifact re-derives
   byte for byte under `Open`. Aggregate test-knowledge records are bounded at 4096 per corpus, and
-  each readable join stays within the 1 MiB record read bound. Republication parity compares the
-  test-knowledge member. No database, service or network input is added.
+  each readable join stays within the 1 MiB record read bound. Republication parity compares each
+  join by ID through a streamed digest, so member size never reports a change and an encoding
+  failure is an error, not a change. No database, service or network input is added.
 
 ## Input and authority boundary
 
@@ -1032,7 +1036,7 @@ authenticate reviewers or re-run receipts.
 Limits:
 - Claims are joined by path and line overlap with a claim's evidence anchors, not by semantics.
 - A generated per-flow "what the tests demonstrate" render section is not produced.
-- A record pinned at an older revision joins only while every anchored blob is unchanged.
+- A record joins only when its set is pinned at the corpus revision; an older set is stale.
 
 Acceptance: `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`,
 `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`,
@@ -1185,8 +1189,8 @@ Acceptance: `TestLegacyDiscoveryInventory`, `TestLegacyDiscoveryDeterministicRea
 `corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
 A test-knowledge record refuses with `corpus-refused` for an unknown member or enum value, a
 broken field rule, a secret-shaped free-text value, a malformed or unpinned anchor, a bound
-breach, use under manifest `/1`, or a forged binding (a mismatch that is not a later-revision
-blob change). A file changed since the set revision, or an undeclared anchored file, is not a refusal: the record is reported `stale` or `unanchored` and is
+breach, use under manifest `/1`, or a forged binding (any anchor mismatch at the corpus
+revision). A set revision other than the corpus revision, or an undeclared anchored file, is not a refusal: the record is reported `stale` or `unanchored` and is
 not joined (`DCP-V1-089`).
 `corpus-invalid-revision` covers an unsupported immutable source revision.
 The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
@@ -1273,7 +1277,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-083 | `internal/doccorpus/behavior-events.cjs`, `docs/DOCUMENTATION-CORPUS.md` | `TestDCPV1081ProducerNodeUnit` (Node cases `DCP-V1-083: valueless state matchers record their canonical state name after they pass`, `DCP-V1-083: state options, extra arguments, .not and failures record nothing; hidden options never reach a recorded matcher`); live Playwright state-matcher run `NOT_RUN` |
 | DCP-V1-084 | `internal/doccorpus/behavior_adapter.go` (unchanged byte-for-byte comparison) | `TestDCPV1084StateMatcherAssertionIsWitnessed` (canonical pair witnessed; non-empty other value mismatches; empty value refused) |
 | DCP-V1-085 | `internal/doccorpus/encoding.go`, `internal/corpusindex/index.go` | `TestDCPV1085StreamedEncodingIsEncode`, `TestDCPV1085ParseAllocationIgnoresEncoderPool`, `TestDCPV1085OpenAllocationIgnoresEncoderPool`, `TestIndexedCorpusCapacityQualification` |
-| DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1092TestKnowledgeDeterministicAndBounded` |
+| DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1091TestKnowledgeOnlyCorpus`, `TestDCPV1092TestKnowledgeDeterministicAndBounded`, `TestDCPV1092ParityLargeTestKnowledge` |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

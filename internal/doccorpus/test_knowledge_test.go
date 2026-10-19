@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -267,8 +268,37 @@ func TestDCPV1089TestKnowledgeJoin(t *testing.T) {
 			t.Fatal(err)
 		}
 		j := a.TestKnowledge[0]
-		if j.Status != "stale" || len(j.Claims) != 0 || len(j.Flows) != 0 || j.CountsTowardCoverage || j.Selection != "excluded" || !slices.Contains(j.Reasons, "stale: src/value.go") {
+		if j.Status != "stale" || len(j.Claims) != 0 || len(j.Flows) != 0 || j.CountsTowardCoverage || j.Selection != "excluded" || !slices.Contains(j.Reasons, "stale: set revision is not the corpus revision") {
 			t.Fatalf("stale record joined: %+v", j)
+		}
+	})
+	t.Run("claimed revision other than the corpus revision never joins", func(t *testing.T) {
+		// Same blobs as the corpus revision, so only the claimed revision differs.
+		for name, other := range map[string]func(root string, m Manifest, p *ProviderRecord) string{
+			"nonexistent": func(string, Manifest, *ProviderRecord) string { return strings.Repeat("1", 40) },
+			"other commit": func(_ string, _ Manifest, p *ProviderRecord) string {
+				return p.TestKnowledge.Records[0].Receipt.Revision
+			},
+		} {
+			t.Run(name, func(t *testing.T) {
+				root, m, _ := testKnowledgeFixture(t, func(root string, m Manifest, p *ProviderRecord) {
+					rev := other(root, m, p)
+					r := &p.TestKnowledge.Records[0]
+					p.TestKnowledge.Revision, r.Test.Revision, r.Sources[0].Revision = rev, rev, rev
+				}, nil)
+				a, err := Build(context.Background(), root, m)
+				if err != nil {
+					t.Fatal(err)
+				}
+				j := a.TestKnowledge[0]
+				if j.Status != "stale" || len(j.Paths) != 0 || j.CountsTowardCoverage || j.Selection != "excluded" {
+					t.Fatalf("record at a claimed revision joined: %+v", j)
+				}
+				r, err := Query(a, Request{Operation: "claims", Path: "src/value.go"}, "fresh", nil)
+				if err != nil || slices.ContainsFunc(r.Results, func(v any) bool { _, ok := v.(TestKnowledgeJoin); return ok }) {
+					t.Fatalf("stale record cited: %+v %v", r.Results, err)
+				}
+			})
 		}
 	})
 	t.Run("undeclared path and receipt are unanchored", func(t *testing.T) {
@@ -466,6 +496,92 @@ func TestDCPV1091TestKnowledgeQueryExposure(t *testing.T) {
 			t.Fatalf("defect did not block selection: %+v %+v", r.Results, r.Selection)
 		}
 	})
+	t.Run("worst-case rows stay within the receipt bound", func(t *testing.T) {
+		// 4096 joined defects with 1 KiB IDs would exceed the 4 MiB receipt bound if any one
+		// coverage row or the blocked_by list named every ID.
+		wideRoot, wide := open(t, func(_ string, _ Manifest, p *ProviderRecord) {
+			r := p.TestKnowledge.Records[0]
+			r.Verdict, r.Trust, r.Receipt, r.Reviews = "defect", "read-only", nil, []string{}
+			p.TestKnowledge.Records = nil
+			for i := range MaxTestKnowledge {
+				r.ID = fmt.Sprintf("tk:%04d%s", i, strings.Repeat("x", 1017))
+				p.TestKnowledge.Records = append(p.TestKnowledge.Records, r)
+			}
+		})
+		r := read(t, wideRoot, wide, Request{Operation: "recommend-tests", Path: "src/value.go"})
+		s := r.Selection
+		if len(s.BlockedBy) != MaxBlockedBy || s.BlockedByCount != MaxTestKnowledge || !s.BlockedByTruncated || !strings.HasPrefix(s.BlockedBy[0], "tk:0000") || len(joins(r)) != 0 {
+			t.Fatalf("blocked_by not bounded explicitly: %d %d %v", len(s.BlockedBy), s.BlockedByCount, s.BlockedByTruncated)
+		}
+		// Pagination halves an oversized page, so the row must be present, not merely absent.
+		r = read(t, wideRoot, wide, Request{Operation: "coverage", Limit: MaxResults})
+		found := false
+		for _, v := range r.Results {
+			if row, ok := v.(map[string]any); ok && row["trust_level"] == "read-only" {
+				found = row["joined"] == MaxTestKnowledge && row["records"] == nil
+			}
+		}
+		if !found || r.Omitted != 0 {
+			t.Fatalf("read-only trust row withheld or not bounded to counts: omitted %d", r.Omitted)
+		}
+		for _, q := range []Request{{Operation: "recommend-tests", Path: "src/value.go"}, {Operation: "coverage", Limit: MaxResults}} {
+			if out, err := Encode(read(t, wideRoot, wide, q)); err != nil || len(out) > MaxBytes {
+				t.Fatalf("%s receipt exceeds the bound: %d %v", q.Operation, len(out), err)
+			}
+		}
+	})
+}
+
+// TestDCPV1091TestKnowledgeOnlyCorpus pins that a corpus whose only provider is a
+// test-knowledge record still answers the operations its joins serve.
+func TestDCPV1091TestKnowledgeOnlyCorpus(t *testing.T) {
+	ctx := context.Background()
+	root, m, _ := testKnowledgeFixture(t, func(_ string, _ Manifest, p *ProviderRecord) {
+		p.TestKnowledge.Records[0].Flows = []string{}
+	}, nil)
+	only := m
+	only.Providers, only.Inputs, only.Scopes = nil, nil, nil
+	for _, p := range m.Providers {
+		if p.ID == "tk" {
+			only.Providers = append(only.Providers, p)
+		}
+	}
+	for _, in := range m.Inputs {
+		if in.Purpose != "provider" || in.Provider == "tk" {
+			in.Provider = "tk"
+			only.Inputs = append(only.Inputs, in)
+		}
+	}
+	for _, s := range m.Scopes {
+		if s.Path != "evidence/provider.json" {
+			only.Scopes = append(only.Scopes, s)
+		}
+	}
+	a, err := Build(ctx, root, only)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.Subjects)+len(a.Claims)+len(a.Relations) != 0 || len(a.TestKnowledge) != 1 || a.TestKnowledge[0].Status != "joined" {
+		t.Fatalf("fixture is not test-knowledge only: %d subjects %+v", len(a.Subjects), a.TestKnowledge)
+	}
+	raw, err := Encode(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []Request{{Operation: "get", ID: "tk:count-unit"}, {Operation: "locate", Path: "src/value_test.go"}, {Operation: "claims", Path: "src/value.go"}, {Operation: "recommend-tests", Path: "src/value.go"}} {
+		t.Run(q.Operation, func(t *testing.T) {
+			r, err := ReadQuery(ctx, root, raw, q)
+			if err != nil || r.State != "ready" || r.Miss != "" || len(r.Results) != 1 || !slices.ContainsFunc(r.Limitations, func(l string) bool { return strings.HasSuffix(l, "answered from test-knowledge records only") }) {
+				t.Fatalf("%s refused on a test-knowledge-only corpus: %+v %v", q.Operation, r, err)
+			}
+			if j, ok := r.Results[0].(TestKnowledgeJoin); !ok || j.TrustLevel != "run+reviewed" {
+				t.Fatalf("%s lost the labelled join: %+v", q.Operation, r.Results)
+			}
+		})
+	}
+	if r, err := ReadQuery(ctx, root, raw, Request{Operation: "search", Query: "Count"}); err != nil || r.Miss != "capability-absent" {
+		t.Fatalf("an operation test knowledge does not serve was admitted: %+v %v", r, err)
+	}
 }
 
 func TestDCPV1092TestKnowledgeDeterministicAndBounded(t *testing.T) {

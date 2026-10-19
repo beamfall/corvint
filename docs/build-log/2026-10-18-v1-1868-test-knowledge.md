@@ -17,7 +17,7 @@ corpus path; it adds no parallel ingest, store or service.
   the framework is a bounded label, and every fact is a pinned anchor.
 - Every free-text value passes the shared secret-shaped text scan (`internal/secretscreen`).
 - The build joins records after all providers are imported. Anchors are compared with the declared
-  inputs at the corpus revision. A later-revision set whose file changed is reported `stale`, an
+  inputs at the corpus revision. A set pinned at any other revision is reported `stale`, an
   undeclared path or receipt is `unanchored`, and neither is joined. Any other mismatch is a forged
   binding and refuses the build. Claim joins use path and line overlap with existing claim evidence;
   claims and all other records are never rewritten.
@@ -40,6 +40,40 @@ corpus path; it adds no parallel ingest, store or service.
   - removing the secret scan: `TestDCPV1087` fails;
   - dropping test knowledge from the read-bound check: `TestDCPV1092` fails.
 - The full `internal/doccorpus` package and the `internal/corpusrepublish` parity tests pass.
+
+## Review fixes (Codex round on #1165 at 4c494e642)
+
+Four P2 findings were fixed, each with a regression test and a mutation check that was reverted
+after the run. `DCP-V1-089`, `DCP-V1-091` and `DCP-V1-092` are amended in the same change, under
+the same standing auto-accept.
+
+1. **Claimed revision.** The set `revision` was only format-checked, so a nonexistent or unrelated
+   revision with the corpus blobs still joined. Fix: a set must be pinned at the corpus revision.
+   Any other revision is reported `stale`, and none of its records joins, counts or is cited. The
+   earlier "older set joins while blobs are unchanged" rule is withdrawn.
+   - Test: `TestDCPV1089/claimed_revision_other_than_the_corpus_revision_never_joins` covers a
+     nonexistent revision and another real commit.
+   - Mutation: disabling the check fails both cases.
+2. **Test-knowledge-only corpus.** On a corpus whose only provider is test knowledge, the
+   capability guard refused `get`, `locate`, `claims` and `recommend-tests`. Fix: while any join
+   exists, the guard admits exactly those four operations, with a limitation naming the absent
+   capability. Other operations stay `capability-absent`.
+   - Test: `TestDCPV1091TestKnowledgeOnlyCorpus`.
+   - Mutation: removing the admission fails all four operations.
+3. **Unbounded rows.** Trust-level coverage rows and `blocked_by` named every ID without a limit.
+   Fix: coverage rows now carry counts only. `blocked_by` lists at most 32 IDs, with
+   `blocked_by_count` and `blocked_by_truncated`.
+   - Test: `TestDCPV1091/worst-case_rows_stay_within_the_receipt_bound` uses 4096 joined defects
+     with 1 KiB IDs.
+   - Mutation: an unbounded `blocked_by` exceeds the output bound. An oversized coverage row was
+     silently paged away, so the test now requires that the row is present.
+4. **Parity encode limit.** Republication parity compared the whole test-knowledge slice through
+   a bounded encoder and read the encode error as "changed". Fix: parity keys each join by ID and
+   compares streamed SHA-256 digests. An encoding failure is returned as an error, never as a
+   change.
+   - Test: `TestDCPV1092ParityLargeTestKnowledge` compares an identical collection of more than
+     4 MiB, then changes one record.
+   - Mutation: restoring the whole-slice key with the bounded comparison reports `Changed`.
 
 ## Residuals (proposed tickets, not filed by this lane)
 
