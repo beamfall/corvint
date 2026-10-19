@@ -65,12 +65,12 @@ var inlineCode = regexp.MustCompile("`([^`\n]+)`")
 
 // citation is one parsed citation.
 type citation struct {
-	line             int
-	text             string
-	path, symbol     string
-	start, end       int
-	revision         string
-	explicitRevision bool
+	line         int
+	text         string
+	path, symbol string
+	start, end   int
+	ranged       bool
+	revision     string
 }
 
 // parseCitations returns a document's citations in line order (TSA-V0-220, TSA-V0-221). A span
@@ -79,21 +79,27 @@ type citation struct {
 func parseCitations(text string) []citation {
 	out := []citation{}
 	def := ""
-	fenced := false
 	lines := strings.Split(text, "\n")
-	for _, line := range lines {
-		if m := citationDefault.FindStringSubmatch(line); m != nil {
+	inFence := make([]bool, len(lines))
+	fence := ""
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if marker := fenceMarker(trimmed); fence == "" && marker != "" {
+			fence, inFence[i] = marker, true
+			continue
+		} else if fence != "" {
+			inFence[i] = true
+			if marker != "" && marker[0] == fence[0] && len(marker) >= len(fence) && strings.TrimLeft(trimmed, marker[:1]) == "" {
+				fence = ""
+			}
+			continue
+		}
+		if m := citationDefault.FindStringSubmatch(line); m != nil && def == "" {
 			def = m[1]
-			break
 		}
 	}
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
-			fenced = !fenced
-			continue
-		}
-		if fenced {
+		if inFence[i] {
 			continue
 		}
 		for _, span := range inlineCode.FindAllStringSubmatch(line, -1) {
@@ -101,14 +107,13 @@ func parseCitations(text string) []citation {
 			if m == nil || m[2] == "" && m[4] == "" && m[5] == "" && def == "" {
 				continue
 			}
-			c := citation{line: i + 1, text: span[1], path: m[1], symbol: m[4], revision: m[5], explicitRevision: m[5] != ""}
+			c := citation{line: i + 1, text: span[1], path: m[1], symbol: m[4], revision: m[5]}
 			if c.revision == "" {
 				c.revision = def
 			}
-			if c.revision == "" {
-				c.revision = "HEAD"
-			}
+
 			if m[2] != "" {
+				c.ranged = true
 				c.start, _ = strconv.Atoi(m[2])
 				c.end = c.start
 				if m[3] != "" {
@@ -164,8 +169,8 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 			}
 			finding := CitationFinding{Doc: doc, Line: c.line, Citation: c.text, Revision: c.revision}
 			rev := c.revision
-			if rev == "HEAD" {
-				rev = commit
+			if rev == "" {
+				rev, finding.Revision = commit, commit
 			}
 			at, ok := resolved[rev]
 			if !ok {
@@ -193,7 +198,7 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 			case !file.exists:
 				finding.Reason = CitationMissingAtRevision
 				finding.Suggestion = r.nearestRevision(at, commit, c.path)
-			case c.start == 0 && c.symbol == "":
+			case !c.ranged && c.symbol == "":
 				continue
 			case file.tooLarge:
 				finding.Reason = CitationFileTooLarge
@@ -201,7 +206,7 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 				continue
 			case !file.blob:
 				finding.Reason = CitationNotAFile
-			case c.start == 0:
+			case !c.ranged:
 				if !containsSymbol(file.lines, c.symbol) {
 					finding.Reason = CitationSymbolNotInRange
 				}
@@ -216,6 +221,17 @@ func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 		}
 	}
 	return report, nil
+}
+
+// fenceMarker returns the run of three or more backticks or tildes a line opens with, or "".
+func fenceMarker(trimmed string) string {
+	for _, c := range []string{"`", "~"} {
+		n := len(trimmed) - len(strings.TrimLeft(trimmed, c))
+		if n >= 3 {
+			return trimmed[:n]
+		}
+	}
+	return ""
 }
 
 // citedFile is one cited path at one commit.

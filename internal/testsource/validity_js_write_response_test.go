@@ -206,3 +206,29 @@ test('unasserted', async ({ page }) => {
 		t.Fatalf("findings %q %+v", rows, all)
 	}
 }
+
+// TestWriteResponseReviewForms: any negation abstains, and a then callback that never reads its
+// response is not an assertion of it (TSA-V0-201, TSA-V0-203).
+func TestWriteResponseReviewForms(t *testing.T) {
+	text := `import { test, expect } from '@playwright/test';
+
+test('wrapped negation', async ({ page }) => {
+  await page.getByRole('button').click();
+  await page.waitForResponse(r => !(r.request().method() === 'POST'));
+});
+
+test('then ignores the response', async ({ page }) => {
+  const done = page.waitForResponse(r => r.request().method() === 'POST').then(r => expect(page.getByRole('dialog')).toBeHidden());
+  await page.getByRole('button', { name: 'Save' }).click();
+  await done;
+});
+`
+	rows, _ := writeFindings(t, "e2e/review.spec.ts", text)
+	want := []string{
+		"WRITE-RESPONSE-UNRESOLVED e2e/review.spec.ts:4 e2e/review.spec.ts:5",
+		"WRITE-RESPONSE-UNASSERTED e2e/review.spec.ts:10 e2e/review.spec.ts:9",
+	}
+	if !reflect.DeepEqual(rows, want) {
+		t.Fatalf("findings\n got %q\nwant %q", rows, want)
+	}
+}

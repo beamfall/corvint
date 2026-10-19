@@ -129,3 +129,21 @@ func TestCitationsDeletedPathAndRefusals(t *testing.T) {
 		}
 	}
 }
+
+// TestCitationsReviewForms: an explicit `@HEAD` names the repository HEAD, not the read revision;
+// `:0` is out of bounds; a default-revision comment inside a fence is ignored; a fence closes only
+// on its own character with at least its length (TSA-V0-220, TSA-V0-221, TSA-V0-223).
+func TestCitationsReviewForms(t *testing.T) {
+	root := t.TempDir()
+	doc := "~~~~\n```\n`a/zz.go:3`\n```\n<!-- corvint-cite-revision: nosuchrev -->\n~~~~\n\n" +
+		"- `a/x.go:1@HEAD` exists at HEAD.\n- `a/y.go:0` has no line zero.\n"
+	read := commitFiles(t, root, map[string]string{"a/y.go": "package a\n", "docs/r.md": doc})
+	commitFiles(t, root, map[string]string{"a/x.go": "package a\n"})
+	report, err := Citations(OpenRepo(context.Background(), root), CitationOptions{Revision: read, Docs: []string{"docs/r.md"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := citationRows(report.Findings); !reflect.DeepEqual(got, []string{"docs/r.md 09 a/y.go:0 range-out-of-bounds "}) || report.Checked != 2 || len(report.Abstained) != 0 {
+		t.Fatalf("findings %q abstained %+v checked %d", got, report.Abstained, report.Checked)
+	}
+}

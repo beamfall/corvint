@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"slices"
 	"strconv"
 	"strings"
@@ -70,8 +71,8 @@ func DecodeSeedRules(data []byte) (SeedRules, error) {
 	if err := dec.Decode(&rules); err != nil {
 		return SeedRules{}, err
 	}
-	if dec.More() {
-		return SeedRules{}, fmt.Errorf("trailing data")
+	if err := dec.Decode(new(json.RawMessage)); err != io.EOF {
+		return SeedRules{}, fmt.Errorf("trailing data after the rule object")
 	}
 	if rules.Profile != SeedRulesProfile {
 		return SeedRules{}, fmt.Errorf("profile %q is not %s", rules.Profile, SeedRulesProfile)
@@ -99,8 +100,10 @@ func DecodeSeedRules(data []byte) (SeedRules, error) {
 	return rules, nil
 }
 
-// seedValue is one literal field value.
+// seedValue is one literal field value. Two values are equal only when their kinds match; a number's
+// text is its canonical form, so 1 and 1.0 are one value.
 type seedValue struct {
+	kind   string // "number", "string" or "bool"
 	text   string
 	number float64
 	isNum  bool
@@ -174,7 +177,7 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 					a, b = b, a
 				}
 				key := [2]int{a.at, b.at}
-				if reported[key] {
+				if reported[key] || rule == testvalidity.RuleSeedSiblingCollision && a.owner == b.owner {
 					continue
 				}
 				why := seedConflict(a, b, rule == testvalidity.RuleSeedSiblingCollision)
@@ -280,7 +283,7 @@ func (r *jsReader) seedsIn(body [2]int, rules SeedRules, owner, hook int) []seed
 			case s.memberAccess(k) && (name == "post" || name == "put") && len(args) > 0 && s.loneString(args[0]) &&
 				slices.Contains(res.Paths, strings.SplitN(s.tokens[args[0][0]].Text, "?", 2)[0]):
 				if len(args) > 1 && s.punct(args[1][0], "{") {
-					object = r.objectMember(args[1][0], "data")
+					object, _ = r.objectMember(args[1][0], "data")
 				}
 			default:
 				continue
@@ -298,15 +301,25 @@ func (r *jsReader) seedsIn(body [2]int, rules SeedRules, owner, hook int) []seed
 	return out
 }
 
-// objectMember returns the value token index of key in the object literal at open, or -1.
-func (r *jsReader) objectMember(open int, key string) int {
+// objectMember returns the value token index of key in the object literal at open, or -1. A later
+// key replaces an earlier one, as at run time. plain is false when any member is a spread, a
+// computed or inexact key, a method or a shorthand, since such a member may set key.
+func (r *jsReader) objectMember(open int, key string) (at int, plain bool) {
 	s := r.s
+	at = -1
 	for _, el := range s.splitArgs(open, s.match[open]) {
-		if el[1]-el[0] >= 3 && (s.ident(el[0], key) || s.tokens[el[0]].Kind == appmap.JSString && s.tokens[el[0]].Text == key) && s.punct(el[0]+1, ":") {
-			return el[0] + 2
+		if el[1] <= el[0] {
+			continue
+		}
+		t := s.tokens[el[0]]
+		if el[1]-el[0] < 3 || !s.punct(el[0]+1, ":") || t.Kind != appmap.JSIdent && (t.Kind != appmap.JSString || !t.Literal) {
+			return -1, false
+		}
+		if t.Text == key {
+			at = el[0] + 2
 		}
 	}
-	return -1
+	return at, true
 }
 
 // seedFields reads every field a rule names as a literal; the first one that is not abstains.
@@ -334,7 +347,10 @@ func (r *jsReader) seedFields(open int, res *SeedResource) (map[string]seedValue
 	}
 	fields := map[string]seedValue{}
 	for _, field := range needed {
-		v := r.objectMember(open, field)
+		v, plain := r.objectMember(open, field)
+		if !plain {
+			return nil, "the record has a spread, computed or shorthand member"
+		}
 		if v < 0 {
 			if optional[field] {
 				continue
@@ -370,18 +386,19 @@ func (r *jsReader) literalValue(v, close int) (seedValue, bool) {
 		if neg {
 			n = -n
 		}
-		return seedValue{text: t.Text, number: n, isNum: true}, true
+		return seedValue{kind: "number", text: strconv.FormatFloat(n, 'g', -1, 64), number: n, isNum: true}, true
 	case neg:
 		return seedValue{}, false
 	case (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal:
-		return seedValue{text: t.Text}, true
+		return seedValue{kind: "string", text: t.Text}, true
 	case t.Kind == appmap.JSIdent && (t.Text == "true" || t.Text == "false"):
-		return seedValue{text: t.Text}, true
+		return seedValue{kind: "bool", text: t.Text}, true
 	}
 	return seedValue{}, false
 }
 
-// compareSeed orders two values: both numbers, or both ISO-8601 strings of one shape.
+// compareSeed orders two values: both numbers, both `YYYY-MM-DD` dates, or both RFC 3339
+// timestamps compared as instants. Anything else, a date against a timestamp included, abstains.
 func compareSeed(a, b seedValue) (int, bool) {
 	if a.isNum && b.isNum {
 		switch {
@@ -392,10 +409,18 @@ func compareSeed(a, b seedValue) (int, bool) {
 		}
 		return 0, true
 	}
-	if a.isNum || b.isNum || len(a.text) != len(b.text) || !isoLike(a.text) || !isoLike(b.text) {
+	if a.kind != "string" || b.kind != "string" || !isoLike(a.text) || !isoLike(b.text) {
 		return 0, false
 	}
-	return strings.Compare(a.text, b.text), true
+	if len(a.text) == 10 && len(b.text) == 10 {
+		return strings.Compare(a.text, b.text), true
+	}
+	x, errA := time.Parse(time.RFC3339Nano, a.text)
+	y, errB := time.Parse(time.RFC3339Nano, b.text)
+	if errA != nil || errB != nil {
+		return 0, false
+	}
+	return x.Compare(y), true
 }
 
 // isoLike reports a `YYYY-MM-DD` date, optionally followed by a time.
@@ -475,7 +500,7 @@ func seedDateCollision(a, b seed) (string, bool) {
 	res := a.res
 	day := func(sd seed, field string) (time.Time, bool) {
 		v, ok := sd.fields[field]
-		if !ok || v.isNum || !isoLike(v.text) {
+		if !ok || v.kind != "string" || !isoLike(v.text) {
 			return time.Time{}, false
 		}
 		t, _ := time.Parse("2006-01-02", v.text[:10])
@@ -486,7 +511,7 @@ func seedDateCollision(a, b seed) (string, bool) {
 		if !ok {
 			return nil, false
 		}
-		if res.Weekly == "" || sd.fields[res.Weekly].text != "true" {
+		if res.Weekly == "" || sd.fields[res.Weekly] != (seedValue{kind: "bool", text: "true"}) {
 			return []time.Time{start}, true
 		}
 		until, bounded := day(sd, res.Until)

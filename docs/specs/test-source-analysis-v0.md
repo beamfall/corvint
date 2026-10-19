@@ -1077,14 +1077,14 @@ static and uses the TSA-V0-073 JS/TS example reader; recorded network evidence i
   asserted when it is started before the action and its response reaches an assertion: through
   the variable it is assigned to (awaited or not), a `Promise.all([...])` destructured slot, a
   same-line local derived from that variable, or an assertion inside a `.then(...)` callback on
-  the wait. A wait whose predicate resolves to `GET` only MUST NOT be reported.
+  the wait that reads the callback's response parameter. A wait whose predicate resolves to `GET` only MUST NOT be reported.
 - `TSA-V0-202`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite
   the first wait in the same file that resolves to a write, is started before its action and is
   asserted, as `path:line`; with none the message names no example.
 - `TSA-V0-203`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait whose method
   cannot be resolved MUST get an advisory `WRITE-RESPONSE-UNRESOLVED` finding whose message starts
-  `abstained:` instead of a claim: a bare URL or glob predicate, an absolute URL, a negated method
-  comparison, a non-literal method, or a predicate that mixes read and write methods.
+  `abstained:` instead of a claim: a bare URL or glob predicate, an absolute URL, a predicate
+  holding any `!` negation, a non-literal method, or a predicate that mixes read and write methods.
 - `TSA-V0-204`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) Both rules MUST be
   advisory: they appear in the example's findings and the `corvint tests validity` file report and
   never change the hygiene axis.
@@ -1105,9 +1105,9 @@ section. Nothing is persisted.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-200 | `internal/testsource/validity_js_write_response.go`, `internal/testsource/validity_js_examples.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
-| TSA-V0-201 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-201 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms`, `TestWriteResponseReviewForms` | experimental |
 | TSA-V0-202 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseNoExemplar`, `TestWriteResponseForms`, `TestWriteResponseLateWaitIsNotExemplar` | experimental |
-| TSA-V0-203 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-203 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms`, `TestWriteResponseReviewForms` | experimental |
 | TSA-V0-204 | `internal/testvalidity/source_rules_write_response.go` | `TestWriteResponseKeepsHygiene` | experimental |
 
 ## Seed validation and collisions in test-validity (V1-1935)
@@ -1135,16 +1135,18 @@ not infer the server's validation: the project declares it.
 - `TSA-V0-212`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A single seed whose
   start is after its end, or whose range is empty under exclusive bounds, MUST get an advisory
   `SEED-VALIDATION-REJECTED` finding.
-- `TSA-V0-213`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Seeds of two different
-  examples in one file, of one resource and tenant, MUST get an advisory `SEED-SIBLING-COLLISION`
+- `TSA-V0-213`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Seeds owned by two
+  different examples in one file (never two seeds of one example), of one resource and tenant, MUST get an advisory `SEED-SIBLING-COLLISION`
   finding on the later seed when they repeat a unique key, their ranges overlap, or they occupy one
   calendar date, where a seed with the weekly flag `true` occupies its date and every seventh day
   after it up to its until date (or ten years). Seeds of different tenants MUST NOT be reported.
 - `TSA-V0-214`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A seed whose record is
-  not an object literal, or whose rule field is missing or not a lone string, number or boolean
-  literal, MUST get an advisory `SEED-VALIDATION-UNRESOLVED` finding whose message starts
-  `abstained:` and take part in no other seed rule. Values compare as numbers, or as ISO-8601
-  dates of one shape; any other pair is not compared.
+  not an object literal, holds a spread, computed, inexact-string, method or shorthand member, or
+  whose rule field is missing or not a lone string, number or boolean literal, MUST get an advisory `SEED-VALIDATION-UNRESOLVED` finding whose message starts
+  `abstained:` and take part in no other seed rule. A later key replaces an earlier one. Two values
+  are equal only when their kinds (string, number, boolean) match, numbers by value. Values order
+  as numbers, as `YYYY-MM-DD` dates, or as RFC 3339 timestamps compared as instants; any other
+  pair, a date against a timestamp included, is not compared.
 - `TSA-V0-215`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A `beforeAll` or
   `beforeEach` hook holding a matched seed MUST get one advisory `SEED-HOOK-BLAST-RADIUS` finding
   that lists, in line order, the examples in its scope (its innermost describe, or the file) that
@@ -1171,8 +1173,8 @@ this section. Nothing is persisted.
 | TSA-V0-210 | `internal/testsource/validity_js_seeds.go`, `internal/testsource/validity_command.go` | `TestDecodeSeedRules`, `TestSourceValiditySeedRules` | experimental |
 | TSA-V0-211 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedExclusiveBounds` | experimental |
 | TSA-V0-212 | `internal/testsource/validity_js_seeds.go` | `TestSeedExclusiveBounds` | experimental |
-| TSA-V0-213 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms` | experimental |
-| TSA-V0-214 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms` | experimental |
+| TSA-V0-213 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
+| TSA-V0-214 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms`, `TestSeedReviewForms` | experimental |
 | TSA-V0-215 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance` | experimental |
 | TSA-V0-216 | `internal/testvalidity/source_rules_seeds.go`, `internal/testsource/validity_command.go` | `TestSourceValiditySeedRules` | experimental |
 
@@ -1190,8 +1192,10 @@ citation drift (V1-1932) are separate.
   declares a default revision.
 - `TSA-V0-221`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A document MAY declare
   its default citation revision with a line `<!-- corvint-cite-revision: REV -->`. A citation's
-  revision MUST be its `@REV`, else the document default, else the revision the documents are read
-  at.
+  revision MUST be its `@REV` (resolved in the repository, so `@HEAD` is the repository HEAD), else
+  the document default, else the revision the documents are read at. A declaration inside fenced
+  code is ignored; a fence closes only on a line of its own character at least as long as its
+  opener.
 - `TSA-V0-222`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) `corvint tests
   citations --docs PATH[,PATH...] [--rev REV]` MUST read at most 256 named committed documents at
   `--rev` (default `HEAD`), refusing `tests-invalid-arguments` for a path that is not repository
@@ -1199,8 +1203,8 @@ citation drift (V1-1932) are separate.
   regular file, and `tests-bound-exceeded` over 256 documents or 4096 citations.
 - `TSA-V0-223`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) Each citation MUST be
   reported with its document, line, text, resolved revision and one reason: `missing-at-revision`
-  when the path is absent at the revision, `range-out-of-bounds` when the range starts before line
-  1, ends before it starts or ends past the file's last line, `symbol-not-in-range` when the symbol
+  when the path is absent at the revision, `range-out-of-bounds` when the range (any given range,
+  `:0` included) starts before line 1, ends before it starts or ends past the file's last line, `symbol-not-in-range` when the symbol
   is not an identifier in the range (or the file when no range is given), and `not-a-file` when a
   range or symbol cites a directory, symlink or submodule. A citation that holds MUST produce no
   report.
@@ -1234,9 +1238,9 @@ subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-220 | `internal/testsource/citations.go` | `TestCitationsAcceptance` | experimental |
-| TSA-V0-221 | `internal/testsource/citations.go` | `TestCitationsAcceptance` | experimental |
+| TSA-V0-221 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms` | experimental |
 | TSA-V0-222 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsDeletedPathAndRefusals`, `TestTestsCitationsCLI` | experimental |
-| TSA-V0-223 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-223 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms`, `TestTestsCitationsCLI` | experimental |
 | TSA-V0-224 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
 | TSA-V0-225 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
 | TSA-V0-226 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |

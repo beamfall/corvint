@@ -186,8 +186,18 @@ func (r *jsReader) readWait(st writeStep, k int) writeWait {
 	names, early, thenArgs := r.waitBinding(k)
 	w.early = early
 	if thenArgs[1] > thenArgs[0] {
-		for j := thenArgs[0]; j < thenArgs[1]; j++ {
-			if s.jsAssertion(j) {
+		// The callback's response parameter must be read after an assertion starts.
+		param := thenArgs[0]
+		if s.ident(param, "async") {
+			param++
+		}
+		if s.punct(param, "(") {
+			param++
+		}
+		asserting := false
+		for j := param + 1; s.ident(param, "") && j < thenArgs[1]; j++ {
+			asserting = asserting || s.jsAssertion(j)
+			if asserting && s.ident(j, s.tokens[param].Text) && !s.memberAccess(j) {
 				w.asserted = true
 			}
 		}
@@ -199,8 +209,8 @@ func (r *jsReader) readWait(st writeStep, k int) writeWait {
 }
 
 // waitMethod resolves the method a wait's first argument matches. A URL string or glob names no
-// method, a predicate must compare `.method()` with literal methods, and an absolute URL is not
-// known to be first party.
+// method, a predicate must compare `.method()` with literal methods and hold no negation, and an
+// absolute URL is not known to be first party.
 func (r *jsReader) waitMethod(arg [2]int) (string, string) {
 	s := r.s
 	methods := map[string]bool{}
@@ -221,7 +231,7 @@ func (r *jsReader) waitMethod(arg [2]int) (string, string) {
 				method = true
 			}
 		case appmap.JSPunct:
-			if t.Text == "!" && s.punct(j+1, "=") {
+			if t.Text == "!" {
 				negated = true
 			}
 		}

@@ -177,6 +177,7 @@ func TestDecodeSeedRules(t *testing.T) {
 		`{"profile":"corvint-seed-rules/0","resources":[{"name":"a","calls":["x"],"unique":[[""]]}]}`,
 		`{"profile":"corvint-seed-rules/0","resources":[{"name":"a","calls":["x"],"unique":[["k"]],"extra":1}]}`,
 		`{"profile":"corvint-seed-rules/0","resources":[{"name":"a","calls":["x"],"unique":[["k"]]}]} {}`,
+		`{"profile":"corvint-seed-rules/0","resources":[{"name":"a","calls":["x"],"unique":[["k"]]}]} ]`,
 	} {
 		if _, err := DecodeSeedRules([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)
@@ -219,5 +220,42 @@ func TestSourceValiditySeedRules(t *testing.T) {
 	commitFiles(t, root, map[string]string{SeedRulesPath: `{"profile":"corvint-seed-rules/0"}`})
 	if got := rules(); !reflect.DeepEqual(got, []string{testvalidity.RuleSeedValidationUnresolved}) {
 		t.Fatalf("invalid rule file, got %q", got)
+	}
+}
+
+// TestSeedReviewForms: a later key replaces an earlier one; a spread record abstains; a boolean
+// and a string are different values; two seeds of one test are not siblings; RFC 3339 timestamps
+// compare as instants, and a date against a timestamp abstains (TSA-V0-212..214).
+func TestSeedReviewForms(t *testing.T) {
+	text := `import { test } from '@playwright/test';
+test('later key wins', async ({ request }) => {
+  await seedUser(request, { tenant: 't1', email: 'a@example.test', email: 'b@example.test' });
+  await seedUser(request, { tenant: 't1', email: 'b@example.test' });
+});
+test('spread record', async ({ request }) => {
+  await seedUser(request, { ...base, tenant: 't2', email: 'c@example.test' });
+});
+test('typed tenant', async ({ request }) => {
+  await seedUser(request, { tenant: true, email: 'd@example.test' });
+  await seedUser(request, { tenant: 'true', email: 'd@example.test' });
+});
+test('one owner', async ({ request }) => {
+  await seedShift(request, { tenant: 't3', date: '2026-10-19' });
+  await seedShift(request, { tenant: 't3', date: '2026-10-19' });
+});
+test('offsets', async ({ request }) => {
+  await seedBooking(request, { tenant: 't4', start: '2026-10-19T10:00:00+02:00', end: '2026-10-19T09:00:00Z' });
+  await seedBooking(request, { tenant: 't5', start: '2026-10-19T10:00:00Z', end: '2026-10-19T09:00:00+02:00' });
+  await seedBooking(request, { tenant: 't6', start: '2026-10-20', end: '2026-10-19T09:00:00Z' });
+});
+`
+	got := seedRows(SeedFindings("e2e/review.spec.ts", text, seedRulesFixture(t)))
+	want := []string{
+		"SEED-VALIDATION-UNRESOLVED e2e/review.spec.ts:6 e2e/review.spec.ts:7 e2e/review.spec.ts:7",
+		"SEED-VALIDATION-REJECTED e2e/review.spec.ts:17 e2e/review.spec.ts:19 e2e/review.spec.ts:19",
+		"SEED-VALIDATION-REJECTED e2e/review.spec.ts:2 e2e/review.spec.ts:4 e2e/review.spec.ts:3",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("findings\n got %q\nwant %q", got, want)
 	}
 }

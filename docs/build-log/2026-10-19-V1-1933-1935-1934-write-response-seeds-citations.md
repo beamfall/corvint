@@ -40,3 +40,20 @@ of lane requirements (2026-10-11). The ID blocks skip the ranges held by open PR
   - seeds: inclusive overlap made strict, tenant scoping removed, weekly step changed to 8 days;
   - citations: range bound loosened, missing-path check removed.
 - No live qualification on a real suite or review corpus was run (NOT_RUN).
+
+## Independent review
+
+One Codex round (`codex exec -s read-only`) raised 13 findings. Eleven were fixed in the second
+commit, and each fix has a test that fails on the first commit:
+- `TestCitationsReviewForms`: explicit `@HEAD` resolves to the repository HEAD; `:0` is out of
+  bounds; a default-revision declaration in fenced code is ignored; fences close only on their
+  own character and length.
+- `TestDecodeSeedRules`: a trailing `]` after the rule object is refused.
+- `TestSeedReviewForms`: the last key wins; spread/computed/shorthand records abstain; values are
+  typed; two seeds of one example are not siblings; RFC 3339 timestamps compare as instants.
+- `TestWriteResponseReviewForms`: any `!` negation abstains; a then callback must read its
+  response parameter.
+
+Two findings are recorded as residuals rather than fixed:
+- a response binding reassigned before its assertion is still credited to the wait;
+- a nested `test.step` inside a step is read as part of the outer step.
