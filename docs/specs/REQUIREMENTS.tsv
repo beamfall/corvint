@@ -1563,6 +1563,16 @@ TOL-V0-075	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-076	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
 TOL-V0-077	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))	standing	2026-10-11; #1170
 TOL-V0-078	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Eac	standing	2026-10-11; #1170
+TOL-V0-079	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An	standing	2026-10-11; #1180
+TOL-V0-080	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A c	standing	2026-10-11; #1180
+TOL-V0-081	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) `PR	standing	2026-10-11; #1180
+TOL-V0-082	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) The	standing	2026-10-11; #1180
+TOL-V0-083	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) The	standing	2026-10-11; #1180
+TOL-V0-084	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) A c	standing	2026-10-11; #1182
+TOL-V0-085	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) A v	standing	2026-10-11; #1182
+TOL-V0-086	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) The	standing	2026-10-11; #1182
+TOL-V0-087	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
+TOL-V0-088	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
 ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	The ticket MUST carry at most one optional closed operatorNote reference, omitte	unrecorded	-
 ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma	unrecorded	-
 ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req	unrecorded	-

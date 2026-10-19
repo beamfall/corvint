@@ -42,6 +42,8 @@ type ObligationVerdict struct {
 	Verdict  string
 	StubRisk string
 	Reason   string
+	// Finding is the optional TOL-V0-085 finding, "" when absent.
+	Finding string
 }
 
 // ObligationReviewSubject is the cited example: a repository path, a
@@ -69,8 +71,12 @@ func (r ObligationReview) Value() wire.Value {
 	}
 	verdicts := make([]wire.Value, 0, len(r.Verdicts))
 	for _, v := range r.Verdicts {
-		verdicts = append(verdicts, noteObject("reviewer", wire.String(v.Reviewer), "verdict", wire.String(v.Verdict),
-			"stubRisk", wire.String(v.StubRisk), "reason", wire.String(v.Reason)))
+		vv := noteObject("reviewer", wire.String(v.Reviewer), "verdict", wire.String(v.Verdict),
+			"stubRisk", wire.String(v.StubRisk), "reason", wire.String(v.Reason))
+		if v.Finding != "" {
+			vv.Obj.Set("finding", wire.String(v.Finding))
+		}
+		verdicts = append(verdicts, vv)
 	}
 	return noteObject(
 		"policy", noteObject("reviewers", wire.String(string(wire.CountOf(r.Reviewers))), "maxStubRisk", wire.String(r.MaxStubRisk)),
@@ -113,9 +119,15 @@ func ReadObligationReview(r *wire.Reader) *ObligationReview {
 	}
 	prev := ""
 	for i, it := range items {
-		it.Closed("reviewer", "verdict", "stubRisk", "reason")
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"reviewer", "verdict", "stubRisk", "reason"}, "finding")...)
 		v := ObligationVerdict{Reviewer: it.Field("reviewer").Label(), Verdict: it.Field("verdict").Enum(VerdictCorrect, VerdictPartial, VerdictWrong),
 			StubRisk: it.Field("stubRisk").Enum(StubRiskNone, StubRiskBoundary, StubRiskOnPath), Reason: readNonblank(it.Field("reason"), MaxObligationReasonBytes)}
+		if wire.Has(it.Value(), "finding") {
+			v.Finding = it.Field("finding").Enum(VerdictFindingNoFalsifiableText)
+		}
+		if it.Err() == nil && v.Finding != "" && v.Verdict == VerdictCorrect {
+			it.Field("finding").Fail(wire.CodeMalformed, "a %s finding needs a partial or wrong verdict", v.Finding)
+		}
 		if it.Err() != nil {
 			return nil
 		}

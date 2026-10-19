@@ -45,9 +45,13 @@ func readReviewInput(file string) (*ticket.ObligationReview, error) {
 	out.Reviewers = pol.Field("reviewers").Count().Int()
 	out.MaxStubRisk = pol.Field("maxStubRisk").String()
 	for _, it := range r.Field("verdicts").Array(ticket.MaxObligationReviewers, true) {
-		it.Closed("reviewer", "verdict", "stubRisk", "reason")
-		out.Verdicts = append(out.Verdicts, ticket.ObligationVerdict{Reviewer: it.Field("reviewer").String(), Verdict: it.Field("verdict").String(),
-			StubRisk: it.Field("stubRisk").String(), Reason: it.Field("reason").String()})
+		it.Closed(wire.OptionalKeys(it.Value(), []string{"reviewer", "verdict", "stubRisk", "reason"}, "finding")...)
+		v := ticket.ObligationVerdict{Reviewer: it.Field("reviewer").String(), Verdict: it.Field("verdict").String(),
+			StubRisk: it.Field("stubRisk").String(), Reason: it.Field("reason").String()}
+		if wire.Has(it.Value(), "finding") {
+			v.Finding = it.Field("finding").String()
+		}
+		out.Verdicts = append(out.Verdicts, v)
 	}
 	if err := r.Err(); err != nil {
 		return nil, err

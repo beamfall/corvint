@@ -23,17 +23,17 @@ func readReview(v wire.Value) (*ObligationReview, error) {
 // author reviewer, unsorted verdicts, an out-of-range K, an on-path policy
 // and a blank reason are refused.
 func TestTOLV0074_ReviewCodec(t *testing.T) {
-	rv := sampleReview(2, StubRiskBoundary, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok"}, ObligationVerdict{"rev-b", VerdictPartial, StubRiskOnPath, "stubbed"})
+	rv := sampleReview(2, StubRiskBoundary, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok", ""}, ObligationVerdict{"rev-b", VerdictPartial, StubRiskOnPath, "stubbed", ""})
 	got, err := readReview(rv.Value())
 	if err != nil || !wire.Equal(got.Value(), rv.Value()) {
 		t.Fatalf("round trip: %v %s", err, wire.Encode(rv.Value()))
 	}
 	bad := map[string]ObligationReview{
-		ObligationReviewerNotIndependentDetail: sampleReview(1, StubRiskNone, ObligationVerdict{"author-1", VerdictCorrect, StubRiskNone, "self"}),
-		"sorted unique":                        sampleReview(1, StubRiskNone, ObligationVerdict{"rev-b", VerdictCorrect, StubRiskNone, "x"}, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "y"}),
-		"reviewers is 1..16":                   sampleReview(17, StubRiskNone, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "x"}),
-		"maxStubRisk":                          sampleReview(1, StubRiskOnPath, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "x"}),
-		"non-whitespace":                       sampleReview(1, StubRiskNone, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "   "}),
+		ObligationReviewerNotIndependentDetail: sampleReview(1, StubRiskNone, ObligationVerdict{"author-1", VerdictCorrect, StubRiskNone, "self", ""}),
+		"sorted unique":                        sampleReview(1, StubRiskNone, ObligationVerdict{"rev-b", VerdictCorrect, StubRiskNone, "x", ""}, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "y", ""}),
+		"reviewers is 1..16":                   sampleReview(17, StubRiskNone, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "x", ""}),
+		"maxStubRisk":                          sampleReview(1, StubRiskOnPath, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "x", ""}),
+		"non-whitespace":                       sampleReview(1, StubRiskNone, ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "   ", ""}),
 	}
 	for want, rv := range bad {
 		if _, err := readReview(rv.Value()); err == nil || !strings.Contains(err.Error(), want) {
@@ -45,8 +45,8 @@ func TestTOLV0074_ReviewCodec(t *testing.T) {
 // TestTOLV0075_ReviewOutcome: the outcome is CREDITED only for K correct
 // verdicts within the stub-risk policy; otherwise HELD with sorted axes.
 func TestTOLV0075_ReviewOutcome(t *testing.T) {
-	ok := ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok"}
-	ok2 := ObligationVerdict{"rev-b", VerdictCorrect, StubRiskBoundary, "ok"}
+	ok := ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok", ""}
+	ok2 := ObligationVerdict{"rev-b", VerdictCorrect, StubRiskBoundary, "ok", ""}
 	cases := []struct {
 		rv   ObligationReview
 		want string
@@ -54,8 +54,8 @@ func TestTOLV0075_ReviewOutcome(t *testing.T) {
 		{sampleReview(2, StubRiskBoundary, ok, ok2), "CREDITED:"},
 		{sampleReview(2, StubRiskNone, ok, ok2), "HELD:stubRisk"},
 		{sampleReview(3, StubRiskBoundary, ok, ok2), "HELD:reviewers"},
-		{sampleReview(2, StubRiskBoundary, ok, ObligationVerdict{"rev-b", VerdictPartial, StubRiskOnPath, "x"}), "HELD:stubRisk,verdict"},
-		{sampleReview(1, StubRiskBoundary, ObligationVerdict{"rev-a", VerdictWrong, StubRiskNone, "x"}), "HELD:verdict"},
+		{sampleReview(2, StubRiskBoundary, ok, ObligationVerdict{"rev-b", VerdictPartial, StubRiskOnPath, "x", ""}), "HELD:stubRisk,verdict"},
+		{sampleReview(1, StubRiskBoundary, ObligationVerdict{"rev-a", VerdictWrong, StubRiskNone, "x", ""}), "HELD:verdict"},
 	}
 	for i, c := range cases {
 		outcome, axes := c.rv.Outcome()
@@ -70,7 +70,7 @@ func TestTOLV0075_ReviewOutcome(t *testing.T) {
 // source's witness and a same-blob re-review are refused; a changed blob
 // admits a fresh review.
 func TestTOLV0076_ReviewFold(t *testing.T) {
-	ok := ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok"}
+	ok := ObligationVerdict{"rev-a", VerdictCorrect, StubRiskNone, "ok", ""}
 	credited := sampleReview(1, StubRiskNone, ok)
 	w := &ObligationWitnessPayload{Source: ObligationSourceReviewed, Commit: strings.Repeat("1", 40), Review: &credited}
 	e := &ObligationEntry{ID: "AC-1", State: ObligationOpen}
@@ -80,7 +80,7 @@ func TestTOLV0076_ReviewFold(t *testing.T) {
 	if err := applyReviewedWitness(e, w, wire.Digest(strings.Repeat("f", 64))); err == nil || !strings.Contains(err.Error(), ObligationCreditMismatchDetail) {
 		t.Fatalf("same-blob re-review: %v", err)
 	}
-	held := sampleReview(1, StubRiskNone, ObligationVerdict{"rev-a", VerdictPartial, StubRiskNone, "partial"})
+	held := sampleReview(1, StubRiskNone, ObligationVerdict{"rev-a", VerdictPartial, StubRiskNone, "partial", ""})
 	held.Subject.BlobSha256 = wire.Digest(strings.Repeat("b", 64))
 	if err := applyReviewedWitness(e, &ObligationWitnessPayload{Source: ObligationSourceReviewed, Commit: w.Commit, Review: &held}, wire.Digest(strings.Repeat("c", 64))); err != nil ||
 		e.State != ObligationOpen || e.Evidence != nil || e.Review.Outcome != ObligationReviewHeld {
