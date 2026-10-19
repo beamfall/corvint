@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1972)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944 and V1-1972 / GitHub #1224, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213 and V1-1972 / GitHub #1224, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1972)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -2333,6 +2333,24 @@ declaration model; it runs nothing and reads committed Git content only.
     it does not list.
   - An `uncertain` or `selected` file, a `_spec.rb` file and a file that is not test-looking are
     unchanged.
+- `TSA-V0-147`: (standing auto-accept, 2026-10-11; V1-1965 / GitHub #1213) TSA-V0-143 MUST follow
+  a test or describe root the file calls (or `expect`) to its binding before attributing it:
+  - through top-level local aliases, `const test = x` and `const test = x.extend(…)` (with or
+    without type arguments), to the name it ends on;
+  - when that name is imported or required from a relative module, through the committed module's
+    named, default and `export *` re-exports, its `export { a as b }` lists and its own aliases and
+    `extend` derivations, transitively, to a framework module. The modules followed are bounded
+    by depth 8 per binding and 256 reads per report.
+  - The file's framework is then the one framework every followed binding reaches, together with
+    any framework module it imports directly; more than one is ambiguous. A binding that cannot
+    be followed (a bare or path-aliased specifier, a namespace or whole-module binding, a missing
+    module, a cycle or a bound) leaves a file that imports no framework module directly
+    `indirect`, which is never `no-runner-for-framework`.
+  - A test or describe root declared at the top level of the file, or aliased there, that ends on
+    no import is `unresolved`, and the file is `uncertain` with reason `framework-unresolved`,
+    never reported.
+  - A file whose roots are not declared or imported still uses globals, so a spec with no binding
+    a configured runner can reach is still reported.
 
 Non-goals:
 - running a runner, reading CLI flags, environment-dependent configuration or a workspace's
@@ -2346,9 +2364,9 @@ Non-goals:
 Failure modes:
 - A runner configured only through a CLI flag, a script argument or an environment variable is
   not seen. Its files are reported against the defaults or another runner.
-- An import alias of a test root, or a fixture re-exported through a barrel that the file does not
-  bind by name, is read as globals, so a Playwright-only repository can report it as
-  `no-runner-for-framework`.
+- A fixture bound through a bare or path-aliased specifier (a `tsconfig` `paths` entry) is not
+  followed, so the file is `indirect` and any modelled runner may select it (TSA-V0-147). A root
+  bound inside a function, or through a call or member read, is not followed.
 - A package with a Vitest dependency and a `vite.config.*` without a `test` property uses Vitest
   defaults.
 - Every configuration and test-looking file counts against the TSA-V0-012 bounds, so a very large
@@ -2369,6 +2387,11 @@ Acceptance evidence: synthetic Git repositories only.
 - `tests validity` on an unselected file is refused with `TEST-FILE-UNSELECTED`, and a selected
   file is unchanged.
 - The CLI exits 1, 0 and 2.
+- A Playwright-only repository selects a spec whose `test` is `const test = scenarioTest` from a
+  two-module `base.extend` chain, through a relative path, a path alias and an `export *` barrel;
+  still reports a Vitest-derived fixture spec and a globals spec as `no-runner-for-framework`;
+  leaves a `const test = makeTest()` spec uncertain with `framework-unresolved`; and the depth
+  bound, a cycle, a namespace binding and conflicting bindings are pinned (TSA-V0-147).
 
 No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testsource/unselected*.go`, `cmd/corvint/tests_unselected*.go`, the `unselected`
@@ -2386,6 +2409,7 @@ Nothing is persisted.
 | TSA-V0-144 | `internal/testsource/unselected.go`, `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedNoEvidenceTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141` | experimental |
 | TSA-V0-145 | `internal/testsource/unselected.go`, `cmd/corvint/tests_unselected.go` | `TestTestsUnselectedCLI`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
 | TSA-V0-146 | `internal/testsource/unselected.go`, `cmd/corvint/tests.go` | `TestSelectedSourceValidityRefusesUnselectedTSAV0146`, `TestTestsUnselectedCLI` | experimental |
+| TSA-V0-147 | `internal/testsource/unselected_resolve.go`, `internal/testsource/unselected.go` | `TestUnselectedExtendResolutionTSAV0147`, `TestFrameworkResolutionBoundsTSAV0147`, `TestSelectedSourceValidityExtendTSAV0147` | experimental |
 
 ## Implementation, rollout and rollback
 

@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -673,6 +673,26 @@ separate exact extension tuple remains governed by AHI-024.
   A producer-to-consumer regression MUST cover successful publication, all retained failure classes,
   identity drift and interruption. Rollback is removal of the native plugin entry or reverting the package; no host
   fork, daemon, account, authority installation or durable outcome migration is required.
+
+- `AHI-056`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #1218)
+  Amendment to `AHI-032` latency evaluation. The OpenCode native campaign keeps the absolute AHI-012
+  limits (query p95 at most 500 ms, lifecycle p95 at most 250 ms, at least 20 post-warm-up samples
+  each). When the timing campaign's samples are complete and delivered but miss only a p95 limit, the
+  producer MUST run exactly one further same-run timing campaign against the same host, adapter and
+  Corvint images, and that re-sample alone decides the `latency` check. A short or undelivered
+  sample, or a fault during either campaign, MUST NOT be re-sampled or excused. Both attempts' p95
+  values, sample counts and missed limits MUST be retained under `metrics.latencyAttempts` with the
+  method under `metrics.latencyMethod`; `metrics.query`/`metrics.lifecycle` hold the decisive
+  attempt, which the consumer record check re-derives against the same limits. A campaign failure
+  MUST name every failed check, and for `latency` each attempt's measured p95 against its limit
+  (for example `latency (attempt 1: lifecycle p95 299ms > 250ms; attempt 2: ...)`), not only in
+  `report.json`. Rationale: 14 of about 45 campaign tries failed on latency alone with elevated early
+  samples that then dropped to baseline, which is transient host load. A steady regression misses
+  both attempts and still fails; limits are not widened and no `PASS_WITH_LATENCY_WARNING` result
+  is added. Failure mode: load that persists across both attempts still fails the campaign, and an
+  intermittent regression that clears on the re-sample can pass once; repeated campaigns retain each
+  attempt for review. Evidence: `TestAHI056LatencyResample` in `internal/opencodequalification`.
+  Rollback: revert the re-sample so the first timing campaign decides alone.
 
 
 - `AHI-033`: The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”

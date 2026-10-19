@@ -94,6 +94,7 @@ AHI-053	docs/specs/agent-harness-integration-v0.md	accepted, decision 0517 (V1-1
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
+AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
 AHI-033	docs/specs/agent-harness-integration-v0.md	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”	unrecorded	-
 AHI-034	docs/specs/agent-harness-integration-v0.md	The owner-approved change cockpit (2026-09-28, “do it” after the change	unrecorded	-
 AHI-035	docs/specs/agent-harness-integration-v0.md	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST	unrecorded	-
@@ -387,6 +388,13 @@ AMAP-V0-136	docs/specs/application-map-v0.md	The pre-run verdict MUST be `BLOCKE
 AMAP-V0-137	docs/specs/application-map-v0.md	Reads MUST stay within 64 files, 1 MiB per file, 512 function visits and a call	unrecorded	-
 AMAP-V0-138	docs/specs/application-map-v0.md	A refusal MUST exit 2 with one coded error and no stdout: no literal registratio	unrecorded	-
 AMAP-V0-139	docs/specs/application-map-v0.md	The same committed inputs and arguments MUST produce byte-identical reports:	unrecorded	-
+AMAP-V0-140	docs/specs/application-map-v0.md	`flows appmap blocker --map FILE --note TEXT [--budget N | --full]` MUST take	unrecorded	-
+AMAP-V0-141	docs/specs/application-map-v0.md	A cited request MUST be read only from a note line holding a standalone `404`	unrecorded	-
+AMAP-V0-142	docs/specs/application-map-v0.md	A request MUST match a compiled `rails-routes/0` route (AMAP-V0-101) when the	unrecorded	-
+AMAP-V0-143	docs/specs/application-map-v0.md	Each cited request MUST read exactly one verdict: `accepted` when a route	unrecorded	-
+AMAP-V0-144	docs/specs/application-map-v0.md	A `BLOCKER-404-NO-ROUTE` or `route-table-incomplete` request MUST name up to 3	unrecorded	-
+AMAP-V0-145	docs/specs/application-map-v0.md	The report head MUST carry the map identity, budget, rule	unrecorded	-
+AMAP-V0-146	docs/specs/application-map-v0.md	Router and handler reads MUST stay within the AMAP-V0-107 bounds, and the same	unrecorded	-
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -1465,6 +1473,7 @@ ERG-V0-018	docs/specs/corvint-tasks-external-reviews-v0.md	Under a passed base t
 ERG-V0-019	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST fit `--max-bytes` (4096..262144, default 32768) and MUST list ev	unrecorded	-
 ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name every item of the newest RETURN event with its touched stat	unrecorded	-
 ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
+ERG-V0-022	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role w	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -4393,6 +4402,7 @@ TSA-V0-143	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-144	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) Each test-looking fil	standing	2026-10-11; V1-1888; #1172
 TSA-V0-145	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)	standing	2026-10-11; V1-1888; #1172
 TSA-V0-146	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) `corvint tests	standing	2026-10-11; V1-1888; #1172
+TSA-V0-147	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1965 / GitHub #1213) TSA-V0-143 MUST follo	standing	2026-10-11; V1-1965; #1213
 TSA-V0-200	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint runs	standing	2026-10-11; V1-1939; #1197
 TSA-V0-201	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The verdict set is	standing	2026-10-11; V1-1939; #1197
 TSA-V0-202	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) With no matching	standing	2026-10-11; V1-1939; #1197
