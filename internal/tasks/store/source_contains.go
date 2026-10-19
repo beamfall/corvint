@@ -68,61 +68,68 @@ type SourceContainment struct {
 // (git's --cherry-mark, as `git cherry` computes it); else ABSENT, naming a
 // same-subject or same-Change-Id commit whose patch differs. It never
 // fetches or writes. A shallow repository, a missing object, a failed read,
-// the deadline or the scan bound yields UNKNOWN.
+// the deadline or the scan bound yields UNKNOWN. One deadline covers every
+// Git command of the answer (SCC-V0-003).
 func SourceContainmentOf(root, source, commit string) SourceContainment {
+	ctx, cancel := context.WithTimeout(context.Background(), sourceContainmentTimeout)
+	defer cancel()
 	out := SourceContainment{State: SourceUnknown}
+	// fail reports err as UNKNOWN: GIT_FAILED naming the deadline once it has
+	// passed, else reason with detail.
+	fail := func(reason, detail string) SourceContainment {
+		out.Reason, out.Detail = reason, detail
+		if ctx.Err() != nil {
+			out.Reason, out.Detail = SourceReasonGitFailed, "the containment deadline of "+sourceContainmentTimeout.String()+" passed: "+detail
+		}
+		return out
+	}
 	var err error
-	if out.Source, err = resolveObject(root, source, "commit"); err != nil {
-		out.Source, out.Reason, out.Detail = "", SourceReasonMissingSource, "source "+source+" does not resolve to a commit"
-		return out
+	if out.Source, err = sourceContainmentResolve(ctx, root, source); err != nil {
+		out.Source = ""
+		return fail(SourceReasonMissingSource, "source "+source+" does not resolve to a commit")
 	}
-	if out.Commit, err = resolveObject(root, commit, "commit"); err != nil {
-		out.Commit, out.Reason, out.Detail = "", SourceReasonMissingCommit, "commit "+commit+" does not resolve to a commit"
-		return out
+	if out.Commit, err = sourceContainmentResolve(ctx, root, commit); err != nil {
+		out.Commit = ""
+		return fail(SourceReasonMissingCommit, "commit "+commit+" does not resolve to a commit")
 	}
-	ancestor, err := isAncestor(root, out.Commit, out.Source)
-	if err != nil {
-		out.Reason, out.Detail = SourceReasonGitFailed, err.Error()
-		return out
-	}
-	if ancestor {
+	if _, err := sourceContainmentGit(ctx, root, "merge-base", "--is-ancestor", "--end-of-options", out.Commit, out.Source); err == nil {
 		out.State = SourceAncestor
 		return out
+	} else if exit := (*exec.ExitError)(nil); !errors.As(err, &exit) || exit.ExitCode() != 1 || ctx.Err() != nil {
+		return fail(SourceReasonGitFailed, "git merge-base failed: "+err.Error())
 	}
 	// A shallow clone hides history, so "not an ancestor" is unobservable.
-	if shallow, err := gitOutput(root, "rev-parse", "--is-shallow-repository"); err != nil || strings.TrimSpace(string(shallow)) != "false" {
-		out.Reason, out.Detail = SourceReasonShallowHistory, "the repository is shallow or its depth is unobservable; ancestry is unknown"
-		return out
+	if shallow, err := sourceContainmentGit(ctx, root, "rev-parse", "--is-shallow-repository"); err != nil || strings.TrimSpace(string(shallow)) != "false" {
+		return fail(SourceReasonShallowHistory, "the repository is shallow or its depth is unobservable; ancestry is unknown")
 	}
-	parents, err := gitOutput(root, "rev-list", "--parents", "-n", "1", "--end-of-options", out.Commit)
+	parents, err := sourceContainmentGit(ctx, root, "rev-list", "--parents", "-n", "1", "--end-of-options", out.Commit)
 	if err != nil {
-		out.Reason, out.Detail = SourceReasonGitFailed, err.Error()
-		return out
+		return fail(SourceReasonGitFailed, "git rev-list failed: "+err.Error())
 	}
 	fields := strings.Fields(string(parents))
 	if len(fields) > 2 {
 		out.State, out.Reason, out.Detail = SourceAbsent, SourceReasonMergeCommit, "a merge commit has no patch-id; only ancestry can contain it"
 		return out
 	}
-	count, err := gitOutput(root, "rev-list", "--count", "--no-merges", out.Source, "^"+out.Commit, "--")
+	count, err := sourceContainmentGit(ctx, root, "rev-list", "--count", "--no-merges", out.Source, "^"+out.Commit, "--")
 	if err != nil {
-		out.Reason, out.Detail = SourceReasonGitFailed, err.Error()
-		return out
+		return fail(SourceReasonGitFailed, "git rev-list failed: "+err.Error())
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(string(count)))
 	if err != nil || n > sourceContainmentScanBound {
 		out.Reason, out.Detail = SourceReasonScanBound, "the source has "+strings.TrimSpace(string(count))+" commits outside the commit's history; the patch-id scan bound is "+strconv.Itoa(sourceContainmentScanBound)
 		return out
 	}
-	args := []string{"log", "--no-merges", "--left-right", "--cherry-mark", "--format=%m%x1f%H%x1f%ae%x1f%s%x1f%(trailers:key=Change-Id,valueonly,separator=%x2C)",
+	// --no-show-signature: a repository's log.showSignature must not start
+	// a signature verifier program.
+	args := []string{"log", "--no-show-signature", "--no-merges", "--left-right", "--cherry-mark", "--format=%m%x1f%H%x1f%ae%x1f%s%x1f%(trailers:key=Change-Id,valueonly,separator=%x2C)",
 		out.Source + "..." + out.Commit}
 	if len(fields) == 2 {
 		args = append(args, "^"+fields[1])
 	}
-	lines, err := sourceContainmentLog(root, append(args, "--"), n+1)
+	lines, err := sourceContainmentLog(ctx, root, append(args, "--"), n+1)
 	if err != nil {
-		out.Reason, out.Detail = SourceReasonGitFailed, err.Error()
-		return out
+		return fail(SourceReasonGitFailed, err.Error())
 	}
 	var self []string
 	for _, l := range lines {
@@ -153,13 +160,37 @@ func SourceContainmentOf(root, source, commit string) SourceContainment {
 	return out
 }
 
-// sourceContainmentLog runs one bounded, deadline-limited git log and
-// splits each record into its five unit-separated fields.
-func sourceContainmentLog(root string, args []string, maxLines int) ([][]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), sourceContainmentTimeout)
-	defer cancel()
-	c := exec.CommandContext(ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
+// sourceContainmentCommand is one read-only Git command of a containment
+// answer under its deadline: no credential helper, no hooks and no
+// file-system monitor.
+func sourceContainmentCommand(ctx context.Context, root string, args ...string) *exec.Cmd {
+	argv := append(append([]string{"-c", "credential.helper="}, preflightGitConfig...), args...)
+	c := exec.CommandContext(ctx, "git", argv...)
 	c.Dir, c.Env = root, gitEnvironment()
+	return c
+}
+
+// sourceContainmentGit runs one containment Git command and returns its
+// standard output.
+func sourceContainmentGit(ctx context.Context, root string, args ...string) ([]byte, error) {
+	return sourceContainmentCommand(ctx, root, args...).Output()
+}
+
+// sourceContainmentResolve names the full commit id of rev.
+func sourceContainmentResolve(ctx context.Context, root, rev string) (string, error) {
+	out, err := sourceContainmentGit(ctx, root, "rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
+	if err != nil {
+		return "", err
+	}
+	return wire.ParseOID("commit", strings.TrimSpace(string(out)))
+}
+
+// sourceContainmentLog runs one bounded git log under the answer's deadline
+// and splits each record into its five unit-separated fields.
+func sourceContainmentLog(ctx context.Context, root string, args []string, maxLines int) ([][]string, error) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	c := sourceContainmentCommand(ctx, root, args...)
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		return nil, err

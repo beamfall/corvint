@@ -102,9 +102,12 @@ func holdConditionRef(r *wire.Reader) string {
 // HoldConditionRefValid reports whether s is a full refname under refs/ of
 // at most 256 bytes that Git's refname rules admit.
 func HoldConditionRefValid(s string) bool {
-	bad := !strings.HasPrefix(s, "refs/") || len(s) > 256 || strings.HasSuffix(s, "/") ||
-		strings.HasSuffix(s, ".lock") || strings.HasSuffix(s, ".") || strings.Contains(s, "..") ||
-		strings.Contains(s, "@{") || strings.Contains(s, "//") || strings.Contains(s, "/.")
+	bad := !strings.HasPrefix(s, "refs/") || len(s) > 256 || strings.HasSuffix(s, ".") ||
+		strings.Contains(s, "..") || strings.Contains(s, "@{")
+	// No component is empty, starts with '.' or ends with ".lock".
+	for _, comp := range strings.Split(s, "/") {
+		bad = bad || comp == "" || strings.HasPrefix(comp, ".") || strings.HasSuffix(comp, ".lock")
+	}
 	for i := 0; i < len(s) && !bad; i++ {
 		c := s[i]
 		bad = c <= ' ' || c >= 0x7F || strings.IndexByte("~^:?*[\\", c) >= 0

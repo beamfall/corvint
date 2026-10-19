@@ -70,6 +70,7 @@ func TestSCCV0010_HoldConditionRefusals(t *testing.T) {
 		"short ref":        cc("kind", k("PATH_EXISTS"), "ref", k("main"), "path", k("a/b")),
 		"range ref":        cc("kind", k("PATH_EXISTS"), "ref", k("refs/heads/x..y"), "path", k("a/b")),
 		"lock ref":         cc("kind", k("PATH_EXISTS"), "ref", k("refs/heads/x.lock"), "path", k("a/b")),
+		"inner lock ref":   cc("kind", k("PATH_EXISTS"), "ref", k("refs/heads/x.lock/y"), "path", k("a/b")),
 		"reflog ref":       cc("kind", k("PATH_EXISTS"), "ref", k("refs/heads/x@{1}"), "path", k("a/b")),
 		"revision ref":     cc("kind", k("PATH_EXISTS"), "ref", k("refs/heads/x~1"), "path", k("a/b")),
 		"dash symbol":      cc("kind", k("SYMBOL_DEFINED"), "ref", k("refs/heads/main"), "path", k("a.go"), "symbol", k("a-b")),
@@ -94,8 +95,9 @@ func TestSCCV0010_HoldConditionRefusals(t *testing.T) {
 			}
 		})
 	}
-	if !ticket.HoldConditionRefValid("refs/heads/release/v1.0") || ticket.HoldConditionRefValid("refs/heads/") {
-		t.Fatalf("refname rule misjudges a nested branch or a trailing slash")
+	if !ticket.HoldConditionRefValid("refs/heads/release/v1.0") || ticket.HoldConditionRefValid("refs/heads/") ||
+		ticket.HoldConditionRefValid("refs/heads/foo.lock/bar") || ticket.HoldConditionRefValid("refs/heads/.x/y") {
+		t.Fatalf("refname rule misjudges a nested branch, a trailing slash, an inner .lock or a dot component")
 	}
 }
 

@@ -79,14 +79,22 @@ func EvaluateHoldCondition(root string, c *ticket.HoldCondition) HoldConditionRe
 	return res
 }
 
-// holdConditionPathExists lists path (a trailing '/' names a directory) in
-// commit's tree; an empty listing is a missing path.
+// holdConditionPathExists looks path up in commit's tree: it exists when an
+// entry of that exact name is listed, and a trailing '/' requires that entry
+// to be a directory (a tree), so a file never satisfies "dir/".
 func holdConditionPathExists(root, commit, path string) (bool, error) {
-	out, err := gitOutput(root, "ls-tree", "-z", "--full-tree", "--name-only", "--end-of-options", commit, "--", strings.TrimSuffix(path, "/"))
+	name := strings.TrimSuffix(path, "/")
+	out, err := gitOutput(root, "ls-tree", "-z", "--full-tree", "--end-of-options", commit, "--", name)
 	if err != nil {
 		return false, err
 	}
-	return len(out) > 0, nil
+	for _, rec := range strings.Split(string(out), "\x00") {
+		meta, entry, ok := strings.Cut(rec, "\t")
+		if f := strings.Fields(meta); ok && entry == name && len(f) == 3 {
+			return name == path || f[1] == "tree", nil
+		}
+	}
+	return false, nil
 }
 
 // holdConditionDeclaration matches a declaration-keyword line naming the
