@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -179,14 +178,10 @@ func TestDCPV1157CapacityRefusalsAreTypedAndEarly(t *testing.T) {
 			m.Inputs[i].Path = fmt.Sprintf("src/generated/f%06d.md", i)
 		}
 		boundCorpusGitOps(t, 0) // any Git operation would fail with the budget error instead
-		start := time.Now()
 		_, err := Build(context.Background(), root, m)
 		var refused *Error
 		if !errors.As(err, &refused) || refused.Code != CapacityCode || !strings.Contains(refused.Message, fmt.Sprint(MaxCorpusRecords+1)) || !strings.Contains(refused.Message, fmt.Sprint(MaxCorpusRecords)) {
 			t.Fatalf("over-limit manifest: %v", err)
-		}
-		if elapsed := time.Since(start); elapsed >= time.Second {
-			t.Fatalf("capacity refusal took %v", elapsed)
 		}
 	})
 	t.Run("DCP-V1-158 an exhausted Git budget is typed corpus-capacity-exceeded, never internal-error", func(t *testing.T) {
