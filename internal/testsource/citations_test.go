@@ -43,7 +43,7 @@ func itoa(n int) string { return fmt.Sprintf("%02d", n) }
 // TestCitationsAcceptance: the V1-1934 acceptance criteria. A citation to a file added after the
 // cited revision is missing-at-revision with the adding commit as the nearest revision; a range
 // past the end is reported; valid citations, prose and fenced code produce nothing; a symbol
-// outside the range is reported; an unresolvable revision abstains (TSA-V0-220..225).
+// outside the range is reported; an unresolvable revision abstains (TSA-V0-250..255).
 func TestCitationsAcceptance(t *testing.T) {
 	root, commits := citationRepo(t)
 	report, err := Citations(OpenRepo(context.Background(), root), CitationOptions{Docs: []string{"docs/review.md"}})
@@ -71,7 +71,7 @@ func TestCitationsAcceptance(t *testing.T) {
 
 // TestCitationsReadOnlyObjectStore: the check reads the object store only. With every working-tree
 // file removed and the index unchanged, the report is the same and the index and HEAD are
-// untouched (TSA-V0-226).
+// untouched (TSA-V0-256).
 func TestCitationsReadOnlyObjectStore(t *testing.T) {
 	root, _ := citationRepo(t)
 	repo := OpenRepo(context.Background(), root)
@@ -106,7 +106,7 @@ func TestCitationsReadOnlyObjectStore(t *testing.T) {
 
 // TestCitationsDeletedPathAndRefusals: a path deleted before the cited revision suggests the last
 // commit that had it; a bad document path, no documents and a missing document are refused
-// (TSA-V0-224, TSA-V0-222).
+// (TSA-V0-254, TSA-V0-252).
 func TestCitationsDeletedPathAndRefusals(t *testing.T) {
 	root := t.TempDir()
 	had := commitFiles(t, root, map[string]string{"a/gone.go": "package a\n"})
@@ -132,7 +132,7 @@ func TestCitationsDeletedPathAndRefusals(t *testing.T) {
 
 // TestCitationsReviewForms: an explicit `@HEAD` names the repository HEAD, not the read revision;
 // `:0` is out of bounds; a default-revision comment inside a fence is ignored; a fence closes only
-// on its own character with at least its length (TSA-V0-220, TSA-V0-221, TSA-V0-223).
+// on its own character with at least its length (TSA-V0-250, TSA-V0-251, TSA-V0-253).
 func TestCitationsReviewForms(t *testing.T) {
 	root := t.TempDir()
 	doc := "~~~~\n```\n`a/zz.go:3`\n```\n<!-- corvint-cite-revision: nosuchrev -->\n~~~~\n\n" +

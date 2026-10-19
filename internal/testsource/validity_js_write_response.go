@@ -7,15 +7,15 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// WRITE-RESPONSE-UNASSERTED (TSA-V0-200..204; V1-1933 / GitHub #1194). A browser step whose user
+// WRITE-RESPONSE-UNASSERTED (TSA-V0-230..234; V1-1933 / GitHub #1194). A browser step whose user
 // action triggers a first-party write request, statically resolved from the response or request
 // wait the step awaits, is reported when no assertion in the same step binds that response.
 
 var (
-	// writeActions are the locator, page and keyboard calls that act for a user (TSA-V0-200).
+	// writeActions are the locator, page and keyboard calls that act for a user (TSA-V0-230).
 	writeActions = map[string]bool{"click": true, "dblclick": true, "tap": true, "press": true, "check": true,
 		"uncheck": true, "setChecked": true, "selectOption": true, "submit": true, "dispatchEvent": true}
-	// writeWaits are the waits that name the request a step triggers (TSA-V0-200).
+	// writeWaits are the waits that name the request a step triggers (TSA-V0-230).
 	writeWaits   = map[string]bool{"waitForResponse": true, "waitForRequest": true}
 	httpMethods  = map[string]bool{"GET": true, "HEAD": true, "OPTIONS": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true}
 	writeMethods = map[string]bool{"POST": true, "PUT": true, "PATCH": true, "DELETE": true}
@@ -43,7 +43,7 @@ type writeStepFacts struct {
 	waits              []writeWait
 }
 
-// writeResponseFindings returns the TSA-V0-200..203 findings of example e.
+// writeResponseFindings returns the TSA-V0-230..233 findings of example e.
 func (r *jsReader) writeResponseFindings(e jsDecl, finding func(rule, severity, location, cause, message string) testvalidity.SourceFinding) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
 	if !e.hasBody {
@@ -80,7 +80,7 @@ func (r *jsReader) writeResponseFindings(e jsDecl, finding func(rule, severity, 
 }
 
 // writeExemplar returns `path:line` of the first in-file wait that starts before its step's
-// action, resolves to a write and is asserted (TSA-V0-202), or "-" when there is none.
+// action, resolves to a write and is asserted (TSA-V0-232), or "-" when there is none.
 func (r *jsReader) writeExemplar() string {
 	for _, d := range r.decls {
 		if d.kind != "test" || !d.hasBody {
@@ -169,7 +169,7 @@ func (r *jsReader) writeStepFacts(st writeStep) writeStepFacts {
 	return facts
 }
 
-// readWait resolves the wait call whose member name is at token k (TSA-V0-200, TSA-V0-201).
+// readWait resolves the wait call whose member name is at token k (TSA-V0-230, TSA-V0-231).
 func (r *jsReader) readWait(st writeStep, k int) writeWait {
 	s := r.s
 	w := writeWait{at: k, line: s.tokens[k].Line}
@@ -334,7 +334,7 @@ func (r *jsReader) assignedName(i int) (string, bool) {
 }
 
 // assertsAny reports an assertion in step st, after token from, that reads one of names or a
-// local assigned from an expression reading one (TSA-V0-201).
+// local assigned from an expression reading one (TSA-V0-231).
 func (r *jsReader) assertsAny(st writeStep, from int, names []string) bool {
 	s := r.s
 	bound := map[string]bool{}

@@ -59,7 +59,7 @@ test('waits on a bare route', async ({ page }) => {
 // TestWriteResponseUnassertedAcceptance: the four V1-1933 acceptance criteria on one file. A
 // click-submit step whose awaited POST has no response assertion is reported and cites the in-file
 // pattern; the same step with the wait started before the click and a status assertion after it
-// is not; a GET is not; a wait with no resolvable method abstains (TSA-V0-200..203).
+// is not; a GET is not; a wait with no resolvable method abstains (TSA-V0-230..233).
 func TestWriteResponseUnassertedAcceptance(t *testing.T) {
 	name := "e2e/records.spec.ts"
 	rows, all := writeFindings(t, name, writeResponseSpec)
@@ -82,7 +82,7 @@ func TestWriteResponseUnassertedAcceptance(t *testing.T) {
 }
 
 // TestWriteResponseNoExemplar: with no correct pattern in the file the finding names none
-// (TSA-V0-202).
+// (TSA-V0-232).
 func TestWriteResponseNoExemplar(t *testing.T) {
 	text := strings.SplitN(writeResponseSpec, "test('creates a record, asserting the response'", 2)[0]
 	_, all := writeFindings(t, "e2e/records.spec.ts", text)
@@ -147,7 +147,7 @@ test('no wait, no finding', async ({ page }) => {
 // TestWriteResponseForms: Promise.all destructuring, a local alias of the body, a then callback
 // and a status assertion bind the response; a step body is read apart from the example around
 // it; an absolute URL and a negated method abstain; a step with no action or no wait is silent
-// (TSA-V0-200, TSA-V0-201, TSA-V0-203).
+// (TSA-V0-230, TSA-V0-231, TSA-V0-233).
 func TestWriteResponseForms(t *testing.T) {
 	rows, all := writeFindings(t, "e2e/forms.spec.ts", writeResponseForms)
 	want := []string{
@@ -164,7 +164,7 @@ func TestWriteResponseForms(t *testing.T) {
 }
 
 // TestWriteResponseKeepsHygiene: the rule is advisory, so the reported example stays ELIGIBLE in
-// the CLI report (TSA-V0-204).
+// the CLI report (TSA-V0-234).
 func TestWriteResponseKeepsHygiene(t *testing.T) {
 	file, tests := readSourceValidity("e2e/records.spec.ts", writeResponseSpec, testvalidity.RubySupport{})
 	if file.Uncertain {
@@ -186,7 +186,7 @@ func TestWriteResponseKeepsHygiene(t *testing.T) {
 
 // TestWriteResponseLateWaitIsNotExemplar: an asserted wait started after its action is not
 // reported, but it is not the cited pattern either, since the response can arrive before the wait
-// starts (TSA-V0-202).
+// starts (TSA-V0-232).
 func TestWriteResponseLateWaitIsNotExemplar(t *testing.T) {
 	text := `import { test, expect } from '@playwright/test';
 
@@ -208,7 +208,7 @@ test('unasserted', async ({ page }) => {
 }
 
 // TestWriteResponseReviewForms: any negation abstains, and a then callback that never reads its
-// response is not an assertion of it (TSA-V0-201, TSA-V0-203).
+// response is not an assertion of it (TSA-V0-231, TSA-V0-233).
 func TestWriteResponseReviewForms(t *testing.T) {
 	text := `import { test, expect } from '@playwright/test';
 

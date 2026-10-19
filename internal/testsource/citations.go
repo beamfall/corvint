@@ -8,14 +8,14 @@ import (
 	"strings"
 )
 
-// Revision-pinned source citations (TSA-V0-220..226; V1-1934 / GitHub #1195). A review document
+// Revision-pinned source citations (TSA-V0-250..256; V1-1934 / GitHub #1195). A review document
 // cites committed source as `path:start-end@rev`; the check reads the cited path, range and symbol
 // from the object store at the cited revision. It never checks out, writes or uses the network.
 
 // CitationsSchema is the citation report's closed profile.
 const CitationsSchema = "corvint-source-citations/0"
 
-// Citation finding reasons (TSA-V0-223).
+// Citation finding reasons (TSA-V0-253).
 const (
 	CitationMissingAtRevision  = "missing-at-revision"
 	CitationRangeOutOfBounds   = "range-out-of-bounds"
@@ -25,7 +25,7 @@ const (
 	CitationFileTooLarge       = "file-too-large"
 )
 
-// MaxCitationsPerReport bounds the citations one report checks (TSA-V0-226).
+// MaxCitationsPerReport bounds the citations one report checks (TSA-V0-256).
 const MaxCitationsPerReport = 4096
 
 // CitationOptions names the documents to check, read at Revision (default HEAD).
@@ -55,10 +55,10 @@ type CitationFinding struct {
 }
 
 // citationSpan matches one inline-code citation: a repository path holding a `/`, then a line or
-// range, an optional `#Symbol` and an optional `@rev`; or a path with `@rev` alone (TSA-V0-220).
+// range, an optional `#Symbol` and an optional `@rev`; or a path with `@rev` alone (TSA-V0-250).
 var citationSpan = regexp.MustCompile(`^([A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+)(?::([0-9]+)(?:-([0-9]+))?)?(?:#([A-Za-z_$][A-Za-z0-9_$]*))?(?:@([A-Za-z0-9_.\-/^~]+))?$`)
 
-// citationDefault is a document's default citation revision (TSA-V0-221).
+// citationDefault is a document's default citation revision (TSA-V0-251).
 var citationDefault = regexp.MustCompile(`^\s*<!--\s*corvint-cite-revision:\s*([A-Za-z0-9_.\-/^~]+)\s*-->\s*$`)
 
 var inlineCode = regexp.MustCompile("`([^`\n]+)`")
@@ -73,7 +73,7 @@ type citation struct {
 	revision     string
 }
 
-// parseCitations returns a document's citations in line order (TSA-V0-220, TSA-V0-221). A span
+// parseCitations returns a document's citations in line order (TSA-V0-250, TSA-V0-251). A span
 // counts only when it carries a line, a symbol or a revision, or the document declares a default
 // revision. Fenced code blocks are skipped.
 func parseCitations(text string) []citation {
@@ -127,7 +127,7 @@ func parseCitations(text string) []citation {
 }
 
 // Citations checks every citation of the named committed documents against the object store
-// (TSA-V0-222..226). Documents are read at options.Revision; each citation at its own revision.
+// (TSA-V0-252..256). Documents are read at options.Revision; each citation at its own revision.
 func Citations(r Repo, options CitationOptions) (CitationReport, error) {
 	docs := []string{}
 	seen := map[string]bool{}
@@ -273,7 +273,7 @@ func (r Repo) citedFile(commit, path string) (citedFile, error) {
 
 // nearestRevision names the closest commit where path exists: the first commit after at (up to
 // head) that adds it, or else the last commit before at that still had it. "" when unknown
-// (TSA-V0-224).
+// (TSA-V0-254).
 func (r Repo) nearestRevision(at, head, path string) string {
 	if at != head {
 		if out, err := r.git(1<<20, nil, "log", "--reverse", "--format=%H", "--diff-filter=A", "--max-count=64", at+".."+head, "--", path); err == nil {

@@ -77,7 +77,7 @@ test('unresolved booking', async ({ request }) => {
 // under an inclusive overlap rule are reported; a date equal to a sibling's weekly recurrence in
 // the same tenant is reported, the same date in another tenant is not; disjoint seeds are silent;
 // the seeding hook lists the tests its failure would skip; an unresolved field abstains
-// (TSA-V0-211..215).
+// (TSA-V0-241..245).
 func TestSeedAcceptance(t *testing.T) {
 	name := "e2e/bookings.spec.ts"
 	findings := SeedFindings(name, seedSpec, seedRulesFixture(t))
@@ -110,7 +110,7 @@ func TestSeedAcceptance(t *testing.T) {
 }
 
 // TestSeedExclusiveBounds: touching ranges do not overlap under exclusive bounds, and an empty or
-// reversed range is rejected on its own (TSA-V0-211, TSA-V0-212).
+// reversed range is rejected on its own (TSA-V0-241, TSA-V0-242).
 func TestSeedExclusiveBounds(t *testing.T) {
 	rules := seedRulesFixture(t)
 	rules.Resources[0].Range.Bounds = "exclusive"
@@ -138,7 +138,7 @@ test('reversed', async ({ request }) => {
 
 // TestSeedUniqueAndForms: a unique key seeded twice by sibling tests collides; a different key, a
 // non-literal record and a hook with no seeds produce nothing beyond the abstention
-// (TSA-V0-213, TSA-V0-214, TSA-V0-215).
+// (TSA-V0-243, TSA-V0-244, TSA-V0-245).
 func TestSeedUniqueAndForms(t *testing.T) {
 	text := `import { test } from '@playwright/test';
 test.beforeEach(async ({ page }) => { await page.goto('/'); });
@@ -187,7 +187,7 @@ func TestDecodeSeedRules(t *testing.T) {
 
 // TestSourceValiditySeedRules: `tests validity` reads the committed rule file at the revision and
 // adds the advisory seed findings to the file report without changing hygiene; an invalid rule
-// file abstains once per file; no rule file means no seed findings (TSA-V0-210, TSA-V0-216).
+// file abstains once per file; no rule file means no seed findings (TSA-V0-240, TSA-V0-246).
 func TestSourceValiditySeedRules(t *testing.T) {
 	root := t.TempDir()
 	commitFiles(t, root, map[string]string{"e2e/bookings.spec.ts": seedSpec})
@@ -225,7 +225,7 @@ func TestSourceValiditySeedRules(t *testing.T) {
 
 // TestSeedReviewForms: a later key replaces an earlier one; a spread record abstains; a boolean
 // and a string are different values; two seeds of one test are not siblings; RFC 3339 timestamps
-// compare as instants, and a date against a timestamp abstains (TSA-V0-212..214).
+// compare as instants, and a date against a timestamp abstains (TSA-V0-242..244).
 func TestSeedReviewForms(t *testing.T) {
 	text := `import { test } from '@playwright/test';
 test('later key wins', async ({ request }) => {

@@ -14,7 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
-// Seed validation, sibling collision and hook blast radius (TSA-V0-210..216; V1-1935 / GitHub
+// Seed validation, sibling collision and hook blast radius (TSA-V0-240..246; V1-1935 / GitHub
 // #1196). The server validation a seed must pass is read from a project-declared, committed seed
 // rule file; a seed the rules cannot decide abstains.
 
@@ -30,7 +30,7 @@ const (
 	maxSeedRecurrenceDays = 366 * 10
 )
 
-// SeedRules is the project's declared server validation for seeded resources (TSA-V0-210).
+// SeedRules is the project's declared server validation for seeded resources (TSA-V0-240).
 type SeedRules struct {
 	Profile   string         `json:"profile"`
 	Resources []SeedResource `json:"resources"`
@@ -60,7 +60,7 @@ type SeedRange struct {
 	Bounds string `json:"bounds"`
 }
 
-// DecodeSeedRules decodes and validates a seed rule file (TSA-V0-210).
+// DecodeSeedRules decodes and validates a seed rule file (TSA-V0-240).
 func DecodeSeedRules(data []byte) (SeedRules, error) {
 	var rules SeedRules
 	if len(data) > maxSeedRulesBytes {
@@ -126,7 +126,7 @@ type seedHook struct {
 	scope    int // innermost describe index, or -1 for file level
 }
 
-// SeedFindings returns the TSA-V0-211..216 findings of one JS/TS test file under rules.
+// SeedFindings returns the TSA-V0-241..246 findings of one JS/TS test file under rules.
 func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
 	if !IsTestFile(name) || ValidityFindings(name, text).Uncertain {
@@ -215,7 +215,7 @@ func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFindi
 		}), testvalidity.RuleSeedValidationRejected)
 	}
 	check(resolved(func(sd seed) bool { return sd.owner >= 0 }), testvalidity.RuleSeedSiblingCollision)
-	// Blast radius: every test a seeding hook's failure would skip (TSA-V0-215).
+	// Blast radius: every test a seeding hook's failure would skip (TSA-V0-245).
 	for i, h := range hooks {
 		if !slices.ContainsFunc(seeds, func(sd seed) bool { return sd.hook == i }) {
 			continue

@@ -233,7 +233,7 @@ func TestTestsValidityCLI(t *testing.T) {
 
 // TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/0 report,
 // exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
-// with exit 2 (TSA-V0-225).
+// with exit 2 (TSA-V0-255).
 func TestTestsCitationsCLI(t *testing.T) {
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")

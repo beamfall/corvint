@@ -131,7 +131,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	return report, nil
 }
 
-// seedRules reads the committed seed rule file at commit (TSA-V0-210) and returns the seed
+// seedRules reads the committed seed rule file at commit (TSA-V0-240) and returns the seed
 // findings of one JS/TS test file under it: none when the file is absent, and one file-level
 // SEED-VALIDATION-UNRESOLVED abstention when it does not decode.
 func (r Repo) seedRules(commit string) (func(name, text string) []testvalidity.SourceFinding, error) {

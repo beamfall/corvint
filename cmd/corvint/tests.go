@@ -394,7 +394,7 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 }
 
 // runTestsCitations prints the revision-pinned citation findings of the named committed documents
-// (TSA-V0-225). It exits 1 when a citation is not supported by the object store.
+// (TSA-V0-255). It exits 1 when a citation is not supported by the object store.
 func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
 	f, once := testsFlags("tests citations")
 	options := testsource.CitationOptions{Revision: "HEAD"}

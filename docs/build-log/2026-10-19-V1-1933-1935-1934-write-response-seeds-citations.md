@@ -4,10 +4,12 @@ Tickets: V1-1933 (GitHub #1194), V1-1935 (GitHub #1196) and V1-1934 (GitHub #119
 
 ## Decision
 
-`TSA-V0-200..204`, `TSA-V0-210..216` and `TSA-V0-220..226` are added to
+`TSA-V0-230..234`, `TSA-V0-240..246` and `TSA-V0-250..256` are added to
 `docs/specs/test-source-analysis-v0.md`. They are accepted under the owner's standing auto-accept
 of lane requirements (2026-10-11). The ID blocks skip the ranges held by open PRs (#1178, #1179,
-#1184 and #1187, TSA-V0-100..146) and by the peer lane for V1-1919 (TSA-V0-160..176).
+#1184 and #1187, TSA-V0-100..146), by the peer lane for V1-1919 (TSA-V0-160..176) and by #1205
+(TSA-V0-200..216). The blocks were first drafted as TSA-V0-200..204, 210..216 and 220..226 and
+were renumbered by 30 when batch 2026-10-19c found the collision with #1205.
 
 - V1-1933 (`WRITE-RESPONSE-UNASSERTED`, `WRITE-RESPONSE-UNRESOLVED`):
   - The reading is static, in its own file (`internal/testsource/validity_js_write_response.go`),
