@@ -2795,6 +2795,12 @@ LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737
 LPCV-V0-083	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) An	standing	2026-10-11; V1-1737
+LPCV-V0-120	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A	standing	2026-10-11; V1-1932
+LPCV-V0-121	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) When any	standing	2026-10-11; V1-1932
+LPCV-V0-122	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A	standing	2026-10-11; V1-1932
+LPCV-V0-123	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A	standing	2026-10-11; V1-1931
+LPCV-V0-124	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) When any	standing	2026-10-11; V1-1931
+LPCV-V0-125	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A status	standing	2026-10-11; V1-1931
 LPCV-V0-090	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
 LPCV-V0-091	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) With	standing	2026-10-11; V1-1797
 LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Each of	standing	2026-10-11; V1-1797
@@ -4309,9 +4315,9 @@ TSA-V0-170	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-171	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any match	standing	2026-10-11; V1-1931; #1192
 TSA-V0-172	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
 TSA-V0-173	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the s	standing	2026-10-11; V1-1932; #1193
-TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time	standing	2026-10-11; V1-1931; #1192
-TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time	standing	2026-10-11; V1-1932; #1193
-TSA-V0-176	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a	standing	2026-10-11; V1-1932; #1193
+TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192; amended 2026-10-19,	standing	2026-10-11; V1-1931; #1192; 2026-10-19
+TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
+TSA-V0-176	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
 TSA-V0-230	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A JS/TS example step	standing	2026-10-11; V1-1933; #1194
 TSA-V0-231	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait MUST count as	standing	2026-10-11; V1-1933; #1194
 TSA-V0-232	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite	standing	2026-10-11; V1-1933; #1194

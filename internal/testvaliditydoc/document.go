@@ -54,6 +54,11 @@ type Test struct {
 	RouteStubs *RouteStubs `json:"routeStubs,omitempty"`
 	// RejectionAnchor is present only when the receipt carries a request-outcome record (LPCV-V0-081).
 	RejectionAnchor *RejectionAnchor `json:"rejectionAnchor,omitempty"`
+	// VacuousEquality is present only when the receipt carries an assertion-operand record
+	// (LPCV-V0-121).
+	VacuousEquality *VacuousEquality `json:"vacuousEquality,omitempty"`
+	// UnstubbedCall is present only when the receipt carries an outbound-call record (LPCV-V0-124).
+	UnstubbedCall *UnstubbedCall `json:"unstubbedCall,omitempty"`
 	// SourceRules is present only for a discovered Ruby example (TSA-V0-068) or JS/TS outcome
 	// (TSA-V0-082) whose test source was read.
 	SourceRules *testvalidity.ExampleSource `json:"sourceRules,omitempty"`
@@ -234,6 +239,8 @@ func projectJavaScript(receipt jstestprovider.Receipt, routeStubsRequested bool)
 	tests := make([]Test, 0, len(receipt.Tests))
 	stubs := routeStubEvidence(receipt, routeStubsRequested)
 	anchors := rejectionAnchorEvidence(receipt)
+	vacuous := vacuousEqualityEvidence(receipt)
+	unstubbed := unstubbedCallEvidence(receipt)
 	for i, outcome := range receipt.Tests {
 		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)}
 		if stubs != nil {
@@ -241,6 +248,12 @@ func projectJavaScript(receipt jstestprovider.Receipt, routeStubsRequested bool)
 		}
 		if anchors != nil {
 			test.RejectionAnchor = anchors[i]
+		}
+		if vacuous != nil {
+			test.VacuousEquality = vacuous[i]
+		}
+		if unstubbed != nil {
+			test.UnstubbedCall = unstubbed[i]
 		}
 		tests = append(tests, test)
 	}

@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -609,6 +609,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
 | `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport`, `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`, `TestLPCVV0080InvalidUTF8IsRefused` and `TestLPCVV0080ScreeningCollapsesDistinctActors`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3), `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`, `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, `TestLPCVV0081ScreenedEvidenceNeverJoins` and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
+| `LPCV-V0-120..125` run-time assertion operands and outbound calls | accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); implemented at experimental tier; unprofiled receipts only; no automatic producer; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0120AnnotationIsClosed`, `TestLPCVV0123AnnotationIsClosed`, `TestLPCVV0120RunRecordsAreSecretScreened`, `TestLPCVV0120ParsedFromPlaywrightReport` and `TestLPCVV0120ProfiledReceiptsRefuseRunRecords`; `internal/testvaliditydoc`'s `TestLPCVV0121VacuousEqualityReading` (#1193 run-time), `TestLPCVV0124UnstubbedCallClassification` (#1192 run-time), `TestLPCVV0121ReceiptWithoutRecordsKeepsBytes`, `TestLPCVV0122ReadingsLeaveAxesUnchanged` and `TestLPCVV0120RetainedRecordsAreClosed`. |
 | `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `TestLPCVV0084RetentionIsDiscovered` and `TestEvidenceDirectoryMatchesDiscovery` (external package: `--discover` selects the document, and the leaf constant equals the discovery constant, V1-1811); `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
 | `LPCV-V0-090..095` RSpec provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); implemented at experimental tier; preview, non-promotable; no real Ruby or container run (`NOT_RUN`) | `internal/rubytestprovider`'s `TestLPCVV0090RunBindsRepositoryBeforeAndAfter`, `TestLPCVV0090InfrastructureReasons`, `TestLPCVV0090SignalledRunnerIsInfrastructure`, `TestLPCVV0091ExecPrefixObservesGitOnHost`, `TestLPCVV0092ExampleIdentityAndBlobs`, `TestLPCVV0092SymlinkedHelperIsUnbound`, `TestLPCVV0092SecretShapedPathsWithheld`, `TestLPCVV0092SnapshotWalkIsBounded`, `TestLPCVV0092BoundedReaderRefusesSymlinkAndFIFO`, `TestLPCVV0093TruncatedFailureFailsRun`, `TestLPCVV0094FreshnessFromBlobs`, `TestLPCVV0094AddedHelperIsStale`, `TestLPCVV0094EmptyRepositoryIdentityIsUnknown`, `TestLPCVV0095GitignoreCreatedOnceNeverOverwritten` and `TestLPCVV0095ExistingGitignoreStillClean`; `internal/testvaliditydoc`'s `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestLPCVV0092SnapshotBoundMatchesDiscoveryRead`, `TestLPCVV0094DiscoverRubyFreshness` and `TestDiscoverProducerGuidance`; `cmd/corvint-ruby-test-provider`'s `TestLPCVV0095RetainedRunLeavesWorktreeCleanAndDiscovers` and `TestLPCVV0090RefusalsExitTwo`; all use a fake `rspec` emitting canned JSON. |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
@@ -1180,6 +1181,117 @@ Rollback: remove the annotation parse, the `requestOutcomes` attempt member and 
 Decoding is closed, so a retained receipt that carries the member is then refused as unknown-field
 input until it is regenerated without the annotation; a reader older than this slice refuses it the
 same way.
+
+## Run-time assertion operands and outbound calls (V1-1931, V1-1932; GitHub #1192, #1193)
+
+The static `VACUOUS-EMPTY-EQUALITY` (`TSA-V0-172`) and `UNSTUBBED-OUTBOUND-INPUT` (`TSA-V0-169`)
+rules read test source only. A count assertion against a server list still passes when both sides
+are zero at run time, and a failure caused by an outbound call the environment did not stub still
+reads as a product failure. `LPCV-V0-120` to `LPCV-V0-125` add two optional declared per-attempt
+records and two per-test members on the test-validity document that read them. They were accepted
+under the owner's standing auto-accept (2026-10-11) for V1-1931 and V1-1932. The slice is additive
+and experimental. Corvint observes neither the assertion operands nor the server log: each record
+is provider authority, and each member states only what the record and the test's state support.
+
+- `LPCV-V0-120`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A
+  Playwright attempt MAY carry exactly one `corvint-assertion-operands` annotation whose
+  description is the closed JSON record `{"assertions"}`. `assertions` is a non-null array of at
+  most 64 `{"matcher", "file"?, "line"?, "actual", "expected"}` entries. `matcher` is one of
+  `toHaveCount`, `toHaveLength`, `toBe`, `toEqual` or `toStrictEqual`. `actual` and `expected` are
+  the integer sizes (count, length or size) of the evaluated operands, from 0 to 2,147,483,647; they
+  must be present and non-null, and operand values are never carried. `file` and `line` are both
+  present or both absent, `file` is text as in `LPCV-V0-080` and `line` is from 1 to 10,000,000. The
+  description is at most 128 KiB and must be valid UTF-8 before decoding. Unknown, case-variant and
+  duplicate members are refused at every level, in the annotation and in a retained receipt. None,
+  a duplicate, a malformed or an out-of-bounds annotation yields no record, and an unrelated
+  malformed annotation never fails the report. `file` passes the product secret screen. The record
+  is carried as the attempt detail `assertionOperands` of unprofiled receipts only; a profiled
+  receipt that carries it is refused with `external-profile-has-assertion-operands`, and an attempt
+  without it keeps its bytes.
+- `LPCV-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1932) When any
+  attempt of an unprofiled receipt carries an assertion-operand record, every test of the
+  `corvint-test-validity/0` document MUST carry `vacuousEquality: {"state", "reason"?,
+  "blocksCredit"?, "findings"?}` decided from its last attempt's record; otherwise the member is
+  omitted and the document keeps every byte. A test MUST state:
+  - `NOT_PRODUCED`, reason `assertion-operand-record-absent`, without a record;
+  - `NOT_PRODUCED`, reason `assertion-operand-record-invalid`, when the record breaks
+    `LPCV-V0-120`;
+  - `NOT_APPLICABLE`, reason `test-not-passed`, when its state is neither `passed` nor `flaky`;
+  - otherwise `RECORDED`, with one `VACUOUS-EMPTY-EQUALITY` finding `{"code", "matcher", "file"?,
+    "line"?}` per assertion whose `actual` and `expected` are both 0, in record order.
+  A missing, null or invalid size MUST never be read as empty.
+- `LPCV-V0-122`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1932) A
+  `RECORDED` test with at least one finding MUST carry `blocksCredit: true`, and no other test
+  carries it: a consumer that credits witnesses MUST NOT credit that run of the test for the row
+  bound to the assertion. The member never changes the five axes of any test or the run
+  projection, and its absence is not evidence that an assertion was non-vacuous.
+- `LPCV-V0-123`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A
+  Playwright attempt MAY carry exactly one `corvint-outbound-calls` annotation whose description is
+  the closed JSON record `{"responses"}`, summarizing the server log for the attempt's requests.
+  `responses` is a non-null array of at most 64 `{"method", "route", "status", "calls"}` entries,
+  with `method`, `route` and `status` as in `LPCV-V0-080`; `status` must be present and non-null.
+  `calls` is a non-null array of at most 64 `{"method", "host", "path", "stubbed"}` entries for the
+  outbound calls the server made while producing that response. `host` is text without `/`, `?`,
+  `#`, `@` or whitespace; `path` is text that starts with `/` and holds no `?` or `#`, so a query
+  string carrying test input is never retained; `stubbed` is a boolean that must be present and
+  non-null. The description bound, UTF-8 check, closed decoding, absent-record handling and
+  unprofiled-only carriage are those of `LPCV-V0-120`; `route`, `host` and `path` pass the product
+  secret screen. The record is carried as the attempt detail `outboundCalls`; a profiled receipt
+  that carries it is refused with `external-profile-has-outbound-calls`.
+- `LPCV-V0-124`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1931) When any
+  attempt of an unprofiled receipt carries an outbound-call record, every test of the document MUST
+  carry `unstubbedCall: {"state", "reason", "code"?, "calls"?}` decided from its last attempt's
+  record; otherwise the member is omitted and the document keeps every byte. A test MUST state:
+  - `NOT_PRODUCED`, reason `server-outbound-log-not-produced`, without a record (the
+    `TSA-V0-174` reason);
+  - `NOT_PRODUCED`, reason `outbound-call-record-invalid`, when the record breaks `LPCV-V0-123`;
+  - `NOT_APPLICABLE`, reason `test-not-failed`, when its state is neither `failed` nor `timedOut`;
+  - `NOT_CLASSIFIED`, reason `no-server-error`, when no response has a 5xx status;
+  - `NOT_CLASSIFIED`, reason `no-unstubbed-call`, when every call under a 5xx response was stubbed;
+  - otherwise `CLASSIFIED`, reason `unstubbed-call-on-server-error`, code `ENV-UNSTUBBED-CALL`, with
+    `calls` listing, in record order, each unstubbed call under a 5xx response as `{"method",
+    "host", "path", "responseMethod", "responseRoute", "responseStatus"}`.
+- `LPCV-V0-125`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1931) A status
+  code alone MUST never classify a test: `CLASSIFIED` needs a 5xx response and an unstubbed call
+  the record ties to it. The member never changes the five axes of any test or the run projection;
+  a `CLASSIFIED` test is still failed and never a witness, and the classification only names the
+  environment as the likely cause.
+
+Non-goals:
+- an automatic producer: Corvint ships no Playwright matcher wrapper that records operand sizes
+  and no server-log reader, so both records are declared by the project's fixture or reporter;
+- operand values, deep-equality of non-collection operands, and non-literal matchers;
+- classifying from a server log Corvint reads itself, from a 4xx, or from a call made outside the
+  attempt's requests;
+- profiled receipts and an external profile revision;
+- a Corvint consumer of `blocksCredit` beyond the document member;
+- the TypeScript mirror, Vitest and Go test sessions.
+
+Failure modes, each prevented by the cited requirement:
+
+| Failure mode | Prevented by |
+|---|---|
+| A count assertion with both sides zero credits the test as a witness. | `LPCV-V0-121` finding, `LPCV-V0-122` `blocksCredit` |
+| A missing or null operand size reads as empty. | `LPCV-V0-120` closed decoding, `LPCV-V0-121` |
+| A failed test with empty operands is reported as vacuous. | `LPCV-V0-121` `NOT_APPLICABLE` |
+| A 5xx alone classifies a failure as the environment's. | `LPCV-V0-125` |
+| A missing `stubbed` flag reads as an unstubbed call. | `LPCV-V0-123` closed decoding |
+| A query string or host carries test input or a secret into the document. | `LPCV-V0-123` path and host bounds, secret screen |
+| A classified failure is counted as a pass or moves an axis. | `LPCV-V0-125` |
+| A legacy document changes bytes. | `LPCV-V0-121` and `LPCV-V0-124` omission |
+
+Acceptance evidence: GitHub #1193's run-time capability (a passed count assertion with both
+operands 0 is `VACUOUS-EMPTY-EQUALITY` and blocks credit) is `TestLPCVV0121VacuousEqualityReading`;
+GitHub #1192's run-time classification (a failed test whose 500 response made an unstubbed outbound
+call is `ENV-UNSTUBBED-CALL`, and a stubbed call or a 4xx is not) is
+`TestLPCVV0124UnstubbedCallClassification`. Both use synthetic records; no live Playwright run with
+a producer is retained (`NOT_RUN`).
+
+Rollback: remove the two annotation parses, the `assertionOperands` and `outboundCalls` attempt
+members and the `vacuousEquality` and `unstubbedCall` document members. Receipts without the
+members and their documents keep their bytes. Decoding is closed, so a retained receipt that
+carries either member is then refused as unknown-field input until it is regenerated without the
+annotation; a reader older than this slice refuses it the same way.
 
 ## RSpec provider (V1-1797; GitHub #1128, #1130, #1132)
 

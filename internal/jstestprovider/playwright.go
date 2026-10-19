@@ -74,7 +74,7 @@ func (a *playwrightAnnotation) UnmarshalJSON(data []byte) error {
 	if len(wire.Description) > 0 && json.Unmarshal(wire.Description, &a.Description) != nil {
 		a.malformed = true
 	}
-	if a.Type == RequestOutcomesAnnotation && !utf8.Valid(wire.Description) {
+	if utf8CheckedAnnotations[a.Type] && !utf8.Valid(wire.Description) {
 		a.malformed = true // decoding would hide invalid bytes behind U+FFFD (LPCV-V0-080)
 	}
 	return nil
@@ -212,7 +212,7 @@ func playwrightAttemptDetail(r *playwrightResult) AttemptDetail {
 		detail.Artifacts = append(detail.Artifacts, FailureArtifact{Name: a.Name, Path: a.Path})
 	}
 	detail.RouteStubs = routeStubRecord(r.Annotations)
-	detail.RequestOutcomes = requestOutcomeRecord(r.Annotations)
+	setDeclaredRecords(&detail, r.Annotations)
 	return detail
 }
 
