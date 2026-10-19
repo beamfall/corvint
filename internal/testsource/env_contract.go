@@ -382,8 +382,11 @@ func readProfile(texts map[string]string, profile string) profileModel {
 	for _, name := range names {
 		a := assignments[name]
 		r := resolver.resolve(name, map[string]bool{})
+		// A variable every calling step exports stays exported when the script assigns it again.
+		c, called := caller[name]
+		inherited := called && c.unknown != envCallerValuesDiffer
 		v := EnvVariable{Name: name, Source: a.source, SourceKind: a.kind, Line: a.line, Value: r.value, UnknownReason: r.reason,
-			Derivation: derive(a.raw), PassedToTests: a.exported || a.toTests}
+			Derivation: derive(a.raw), PassedToTests: a.exported || a.toTests || inherited}
 		switch {
 		case several[name]:
 			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Expression: a.raw, Reason: envSeveralScripts}
@@ -466,7 +469,9 @@ func (p *shellParser) read(source, text, kind string, inherited bool, depth int)
 	lines := strings.Split(text, "\n")
 	for i := 0; i < len(lines); i++ {
 		number, line := i+1, strings.TrimSpace(lines[i])
-		for strings.HasSuffix(line, "\\") && i+1 < len(lines) {
+		// A trailing `\`, `&&` or `||` continues the command on the next line, so a list split
+		// across lines keeps its conditional part (TSA-V0-361).
+		for i+1 < len(lines) && (strings.HasSuffix(line, "\\") || strings.HasSuffix(line, "&&") || strings.HasSuffix(line, "||")) {
 			i++
 			line = strings.TrimSuffix(line, "\\") + " " + strings.TrimSpace(lines[i])
 		}
@@ -904,6 +909,9 @@ func derive(raw string) EnvDerivation {
 	return d
 }
 
+// callerMark prefixes a visiting key that records a caller value already being evaluated.
+const callerMark = "\x00caller:"
+
 type resolved struct {
 	value  *string
 	reason string
@@ -936,11 +944,12 @@ func (r envResolver) resolve(name string, visiting map[string]bool) resolved {
 	}
 	if visiting[name] {
 		// A script value naming itself (`PORT=${PORT:-3000}`) reads the caller's value (TSA-V0-354).
-		if c, ok := r.caller[name]; ok && a.kind != SourceWorkflow {
+		// The caller's value is evaluated once: a caller value naming the variable again is a cycle.
+		if c, ok := r.caller[name]; ok && a.kind != SourceWorkflow && !visiting[callerMark+name] {
 			if c.unknown != "" {
 				return resolved{reason: c.unknown}
 			}
-			return r.evaluate(c.raw, map[string]bool{})
+			return r.evaluate(c.raw, map[string]bool{callerMark + name: true})
 		}
 		return resolved{reason: envCycle}
 	}

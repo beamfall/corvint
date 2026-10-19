@@ -59,3 +59,22 @@ and accepted under the owner's standing auto-accept (2026-10-11).
   - the language abstention;
   - the validity file filter and test id.
 - Real-suite qualification: NOT_RUN.
+
+## Independent review (Codex, one round)
+
+One read-only Codex round on `aa54c0729..5b255f9dc` reported nine findings, all fixed in the
+follow-up commit and covered by `TestEnvContractReaderEdges`, with each fix's mutation killed:
+
+1. An empty quoted YAML key panicked: it is now outside the subset.
+2. A workflow value such as `$PORT's` recursed without bound: workflow values are always literal,
+   and a caller value is evaluated once (`reference-cycle`).
+3. A `&&`/`||` list continued on the next line lost its condition: such lines are joined.
+4. A compose `env_file` naming the profile's own `.env.NAME` was read: it stays unread.
+5. A script reassigning a variable every calling step exports lost its export: it stays passed.
+6. An expression-bodied arrow handler took the next function's body: the handler head is bounded.
+7. Duplicate flow-mapping keys were accepted: they are outside the subset.
+8. Block scalars were rebuilt inexactly: as an `env`/`environment` value they make the file
+   unparsed, never guessed.
+9. A WireMock mapping without a route did not advance the citation: every request advances it.
+
+The TSA-V0-353, 354, 358, 360 and 361 texts (new in this change) state these readings.

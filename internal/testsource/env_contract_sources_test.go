@@ -3,6 +3,7 @@ package testsource
 import (
 	"context"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -453,5 +454,78 @@ func TestSourceValidityEnv(t *testing.T) {
 	}
 	if _, err := SourceValidity(repo, SourceValidityOptions{Revision: "HEAD", Files: []string{"tests/pay.spec.ts"}, Profile: "../x"}); err == nil {
 		t.Fatal("invalid profile accepted")
+	}
+}
+
+// TestEnvContractReaderEdges: TSA-V0-350, TSA-V0-352..354, TSA-V0-358, TSA-V0-360 and TSA-V0-361 —
+// edge shapes that must fail closed or stay bounded rather than guess.
+func TestEnvContractReaderEdges(t *testing.T) {
+	if _, ok := readYAML("env:\n  \"\": x\n"); ok {
+		t.Fatal("an empty YAML key read")
+	}
+	run := "jobs:\n  e:\n    steps:\n      - run: scripts/bootstrap-e2e.sh\n"
+	script := "PORT=${PORT:-3000}\nnpx playwright test\n"
+	// A workflow value naming the variable is a literal, and never recurses without bound.
+	looped := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": script,
+		".github/workflows/e.yml": "env:\n  PORT: \"$PORT's\"\n" + run}, "e2e")
+	if port := envVariableIn(t, looped, "PORT", ""); valueOf(port) != "$PORT's" || !port.PassedToTests {
+		t.Fatalf("PORT = %+v", port)
+	}
+	// A caller value is evaluated once, so a self-naming caller value ends as a cycle.
+	self := envResolver{assignments: map[string]shellAssignment{"PORT": {name: "PORT", raw: "${PORT:-3000}"}},
+		caller: map[string]shellAssignment{"PORT": {name: "PORT", raw: "$PORT", kind: SourceWorkflow}}, memo: map[string]resolved{}}
+	if got := self.resolve("PORT", map[string]bool{}); got.value != nil || got.reason != envCycle {
+		t.Fatalf("self-naming caller = %+v", got)
+	}
+	// A list continued across lines keeps its condition.
+	split := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": "PORT=3000\ntest -n \"$CI\" &&\n  PORT=4000\nHOST=a\ntest -n \"$CI\" ||\n  HOST=b\nexport PORT HOST\nnpx playwright test\n"}, "e2e")
+	for name, want := range map[string]string{"PORT": "3000,4000", "HOST": "a,b"} {
+		if v := envVariableIn(t, split, name, ""); v.Value != nil || v.UnknownReason != envBranchDependent || strings.Join(v.Derivation.Alternatives, ",") != want {
+			t.Fatalf("%s = %+v", name, v)
+		}
+	}
+	// The profile's own dotenv stays unread when compose names it as an env_file.
+	own := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": "docker compose -f e2e/stack.yml up\n",
+		"e2e/stack.yml": "services:\n  t:\n    command: npx playwright test\n    env_file: ../.env.e2e\n", ".env.e2e": "SECRET=1\n"}, "e2e")
+	for _, v := range own.Variables {
+		if v.Name == "SECRET" {
+			t.Fatalf("profile dotenv read through env_file: %+v", v)
+		}
+	}
+	// Block scalars and duplicate flow keys in an env map are outside the subset.
+	for name, files := range map[string]map[string]string{
+		".github/workflows/e.yml": {".github/workflows/e.yml": "env:\n  PORT: |\n    4000\n" + run},
+		".github/workflows/f.yml": {".github/workflows/f.yml": "env: {PORT: 3000, PORT: 4000}\n" + run},
+		"e2e/stack.yml": {"e2e/stack.yml": "services:\n  t:\n    environment:\n      PORT: >\n        4000\n",
+			"scripts/bootstrap-e2e.sh": "docker compose -f e2e/stack.yml up\n"},
+	} {
+		if _, ok := files["scripts/bootstrap-e2e.sh"]; !ok {
+			files["scripts/bootstrap-e2e.sh"] = script
+		}
+		report := ReadEnvContract(files, "e2e")
+		notes := []string{}
+		for _, n := range report.UnreadSources {
+			notes = append(notes, n.Path)
+		}
+		if !slices.Contains(notes, name) {
+			t.Fatalf("%s not unread: %+v", name, report.UnreadSources)
+		}
+		for _, v := range report.Variables {
+			if v.Name == "PORT" && v.Value != nil && *v.Value != "3000" {
+				t.Fatalf("%s guessed PORT: %+v", name, v)
+			}
+		}
+	}
+	// An expression-bodied handler never borrows the next function's body.
+	arrow := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": "node stubs/x/server.js &\nnpx playwright test\n",
+		"stubs/x/server.js": "const h = (req, res) => res.end();\nfunction other(req) { return req.body.testId; }\napp.post('/a', h);\nconst g = async (req, res) => { res.json(req.query.q); };\napp.get('/b', g);\n"}, "e2e")
+	if len(arrow.StandIns) != 1 || len(arrow.StandIns[0].Routes) != 2 || len(arrow.StandIns[0].Routes[0].Payload) != 0 || strings.Join(arrow.StandIns[0].Routes[1].Query, ",") != "q" {
+		t.Fatalf("arrow stand-ins = %+v", arrow.StandIns)
+	}
+	// A mapping with no route still advances the WireMock citation.
+	mock := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": "java -jar wiremock.jar --root-dir stubs/wiremock &\nnpx playwright test\n",
+		"stubs/wiremock/mappings/m.json": "{\"mappings\": [\n  {\"request\": {}},\n  {\"request\": {\"method\": \"GET\", \"url\": \"/b\"}}\n]}\n"}, "e2e")
+	if len(mock.StandIns) != 1 || len(mock.StandIns[0].Routes) != 1 || mock.StandIns[0].Routes[0].Line != 3 {
+		t.Fatalf("wiremock stand-ins = %+v", mock.StandIns)
 	}
 }

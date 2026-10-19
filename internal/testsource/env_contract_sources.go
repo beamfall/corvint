@@ -78,7 +78,9 @@ func workflowCallers(texts map[string]string, scripts []string) (map[string]shel
 			notes = append(notes, EnvSourceNote{Path: file, Reason: envWorkflowUnparsed})
 			continue
 		}
-		workflowEnv := yamlEnv(doc.get("env"))
+		unparsed := false
+		workflowEnv := yamlEnv(doc.get("env"), &unparsed)
+		fileValues, fileSteps := map[string][]use{}, 0
 		jobs := doc.get("jobs")
 		if jobs == nil || jobs.kind != yamlMap {
 			continue
@@ -88,7 +90,7 @@ func workflowCallers(texts map[string]string, scripts []string) (map[string]shel
 			if jobNode == nil || jobNode.kind != yamlMap {
 				continue
 			}
-			jobEnv := yamlEnv(jobNode.get("env"))
+			jobEnv := yamlEnv(jobNode.get("env"), &unparsed)
 			list := jobNode.get("steps")
 			if list == nil || list.kind != yamlList {
 				continue
@@ -98,17 +100,25 @@ func workflowCallers(texts map[string]string, scripts []string) (map[string]shel
 				if step.kind != yamlMap || run == nil || run.kind != yamlScalar || !namesScript(run.text, scripts) {
 					continue
 				}
-				steps++
+				fileSteps++
 				merged := map[string]workflowEntry{}
-				for _, env := range []map[string]workflowEntry{workflowEnv, jobEnv, yamlEnv(step.get("env"))} {
+				for _, env := range []map[string]workflowEntry{workflowEnv, jobEnv, yamlEnv(step.get("env"), &unparsed)} {
 					for name, entry := range env {
 						merged[name] = entry
 					}
 				}
 				for name, entry := range merged {
-					values[name] = append(values[name], use{file: file, entry: entry})
+					fileValues[name] = append(fileValues[name], use{file: file, entry: entry})
 				}
 			}
+		}
+		if unparsed {
+			notes = append(notes, EnvSourceNote{Path: file, Reason: envWorkflowUnparsed})
+			continue
+		}
+		steps += fileSteps
+		for name, uses := range fileValues {
+			values[name] = append(values[name], uses...)
 		}
 	}
 	out := map[string]shellAssignment{}
@@ -143,7 +153,7 @@ func namesScript(text string, scripts []string) bool {
 
 // yamlEnv reads a workflow `env` map. A workflow value is not shell-expanded, so a value with a
 // `$` other than a `${{ }}` expression is kept literal.
-func yamlEnv(node *yamlNode) map[string]workflowEntry {
+func yamlEnv(node *yamlNode, unparsed *bool) map[string]workflowEntry {
 	out := map[string]workflowEntry{}
 	if node == nil || node.kind != yamlMap {
 		return out
@@ -153,8 +163,11 @@ func yamlEnv(node *yamlNode) map[string]workflowEntry {
 		if !nameWord.MatchString(name) || value == nil || value.kind != yamlScalar {
 			continue
 		}
+		if value.block {
+			*unparsed = true // a block scalar's exact value is not read, so it is never guessed
+		}
 		raw := value.text
-		if strings.Contains(raw, "$") && !strings.Contains(raw, "${{") && !strings.Contains(raw, "'") {
+		if strings.Contains(raw, "$") && !strings.Contains(raw, "${{") {
 			raw = "'" + raw + "'"
 		}
 		out[name] = workflowEntry{raw: raw, line: value.line}
@@ -188,6 +201,7 @@ func composeVariables(texts map[string]string, launches []composeLaunch, profile
 		if services == nil || services.kind != yamlMap {
 			continue
 		}
+		fileOut, blockValue := []EnvVariable{}, false
 		for _, service := range services.keys {
 			node := services.m[service]
 			if node == nil || node.kind != yamlMap {
@@ -208,6 +222,9 @@ func composeVariables(texts map[string]string, launches []composeLaunch, profile
 			}
 			for _, envFile := range composeEnvFiles(node.get("env_file")) {
 				name := path.Clean(path.Join(path.Dir(file), envFile))
+				if path.Base(name) == ".env."+profile {
+					continue // the profile's own dotenv stays unread (TSA-V0-353)
+				}
 				envText, ok := texts[name]
 				if !ok {
 					missing[name] = true
@@ -229,6 +246,9 @@ func composeVariables(texts map[string]string, launches []composeLaunch, profile
 					value := environment.m[name]
 					if value.kind != yamlScalar || !nameWord.MatchString(name) {
 						continue
+					}
+					if value.block {
+						blockValue = true
 					}
 					raw := value.text
 					if value.null {
@@ -257,9 +277,14 @@ func composeVariables(texts map[string]string, launches []composeLaunch, profile
 			}
 			sort.Strings(names)
 			for _, name := range names {
-				out = append(out, vars[name])
+				fileOut = append(fileOut, vars[name])
 			}
 		}
+		if blockValue {
+			notes = append(notes, EnvSourceNote{Path: file, Reason: envComposeUnparsed})
+			continue
+		}
+		out = append(out, fileOut...)
 	}
 	return out, notes
 }
@@ -299,6 +324,7 @@ type yamlNode struct {
 	line  int
 	text  string
 	null  bool
+	block bool // a `|` or `>` block scalar, whose bytes the reader does not keep exactly
 	keys  []string
 	m     map[string]*yamlNode
 	items []*yamlNode
@@ -437,7 +463,7 @@ func (r *yamlReader) mapping(indent int) *yamlNode {
 	for !r.bad && r.i < len(r.lines) && r.lines[r.i].indent == indent && !yamlItem(r.lines[r.i].text) {
 		line := r.lines[r.i]
 		key, rest, ok := splitKey(line.text)
-		if !ok || key == "<<" || strings.ContainsAny(key[:1], "?&*!") {
+		if !ok || key == "" || key == "<<" || strings.ContainsAny(key[:1], "?&*!") {
 			r.bad = true
 			return n
 		}
@@ -457,7 +483,7 @@ func (r *yamlReader) mapping(indent int) *yamlNode {
 				parts = append(parts, r.lines[r.i].text)
 				r.i++
 			}
-			child = &yamlNode{kind: yamlScalar, line: line.number, text: strings.Join(parts, "\n")}
+			child = &yamlNode{kind: yamlScalar, line: line.number, text: strings.Join(parts, "\n"), block: true}
 		default:
 			child = r.scalar(rest, line.number)
 		}
@@ -518,7 +544,7 @@ func (r *yamlReader) scalar(text string, line int) *yamlNode {
 				continue
 			}
 			key, value, ok := splitKey(part)
-			if !ok {
+			if _, dup := n.m[key]; !ok || key == "" || dup {
 				r.bad = true
 				return n
 			}

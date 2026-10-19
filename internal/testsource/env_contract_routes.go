@@ -123,6 +123,8 @@ func callBody(text string, start int) string {
 }
 
 // handlerBody is the balanced `{...}` body of the first definition the pattern finds, or "".
+// Only a parameter list and `=>` may sit between the definition and its `{`, so an
+// expression-bodied arrow never borrows the body of later, unrelated code (TSA-V0-360).
 func handlerBody(text string, definition *regexp.Regexp) string {
 	loc := definition.FindStringIndex(text)
 	if loc == nil {
@@ -132,11 +134,25 @@ func handlerBody(text string, definition *regexp.Regexp) string {
 	if open < 0 {
 		return ""
 	}
+	head := handlerHeadExpr
+	if strings.HasSuffix(text[loc[0]:loc[1]], "(") {
+		head = handlerParamsExpr
+	}
+	if !head.MatchString(text[loc[1] : loc[1]+open]) {
+		return ""
+	}
 	if end := balancedEnd(text, loc[1]+open); end > 0 {
 		return text[loc[1]+open : end]
 	}
 	return ""
 }
+
+var (
+	// handlerParamsExpr is the rest of a `function name(` declaration up to its body.
+	handlerParamsExpr = regexp.MustCompile(`^[^(){};=]*\)\s*$`)
+	// handlerHeadExpr is a `const name =` value up to its body: a function expression or an arrow.
+	handlerHeadExpr = regexp.MustCompile(`^\s*(?:async\s+)?(?:function\s*[\w$]*\s*\([^(){};=]*\)\s*|\([^(){};=]*\)\s*=>\s*|[A-Za-z_$][\w$]*\s*=>\s*)$`)
+)
 
 // balancedEnd is the offset after the bracket that closes the one at open, skipping quoted
 // strings and `//` and `/* */` comments, or -1 when it does not close.
@@ -368,6 +384,13 @@ func wiremockRoutes(name, text string) []StandInRoute {
 		if m.Request == nil {
 			continue
 		}
+		// Each mapping with a request advances the citation, including one with no route.
+		line := 1
+		if at := strings.Index(text[offset:], `"request"`); at >= 0 {
+			offset += at
+			line = lineAt(text, offset)
+			offset++
+		}
 		r := m.Request
 		route := r.URL + r.URLPath + r.URLPattern + r.URLPathPattern
 		if route == "" {
@@ -375,12 +398,6 @@ func wiremockRoutes(name, text string) []StandInRoute {
 		}
 		if before, _, cut := strings.Cut(r.URL, "?"); cut {
 			route = before
-		}
-		line := 1
-		if at := strings.Index(text[offset:], `"request"`); at >= 0 {
-			offset += at
-			line = lineAt(text, offset)
-			offset++
 		}
 		payload := []string{}
 		for _, p := range r.BodyPatterns {

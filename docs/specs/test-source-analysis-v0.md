@@ -1432,9 +1432,10 @@ owner's standing auto-accept (2026-10-11).
   - A workflow naming a profile script that is outside that subset is listed with reason
     `workflow-unparsed`.
 
-  The subset is block maps, block lists, scalars and empty flow collections. Anchors, aliases,
-  tags, merge keys, tabs, multiple documents and nested flow collections are outside it. A file
-  outside the subset is never guessed.
+  The subset is block maps, block lists, scalars and one-level flow collections of scalars.
+  Anchors, aliases, tags, merge keys, tabs, multiple documents, nested flow collections, empty or
+  duplicate keys and a `|`/`>` block scalar as an `env` or `environment` value are outside it. A
+  file outside the subset is never guessed.
 - `TSA-V0-354`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The script's own
   assignment MUST win over a caller's.
   - A caller's value fills a self-reference such as `PORT=${PORT:-3000}`.
@@ -1442,6 +1443,9 @@ owner's standing auto-accept (2026-10-11).
     `derivation.alternatives`, when the invoking steps set it to different values or some leave it
     unset.
   - A `${{ }}` expression is null with reason `workflow-expression`.
+  - A workflow value is never shell-expanded, and a caller value naming its own variable again is
+    a `reference-cycle`.
+  - A variable every invoking step sets stays passed to tests when the script assigns it again.
   - Without a calling workflow, the TSA-V0-216 reasons are unchanged.
 - `TSA-V0-355`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in MAY also be
   launched as:
@@ -1473,6 +1477,7 @@ owner's standing auto-accept (2026-10-11).
   - Payload fields come from `matchesJsonPath` `$.x`. Query fields come from the
     `queryParameters` keys.
   - A missing method or `ANY` is `ALL`.
+  - Each route cites its own mapping's `request` line, also after a mapping with no route.
   - WireMock's own `/__admin` API is not listed.
 - `TSA-V0-359`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in file in a
   language the reader does not read (Java, Kotlin, Scala, Groovy, C#, PHP, Rust, Elixir, Clojure,
@@ -1484,11 +1489,13 @@ owner's standing auto-accept (2026-10-11).
     whose name is the last argument;
   - for Python and Ruby, the decorated function's or block's indented body.
 
-  An unbalanced call reads its own line only.
+  An unbalanced call reads its own line only. A named handler's body is read only when just its
+  parameter list and `=>` stand between its definition and its `{`, so an expression-bodied arrow
+  never takes a later function's body.
 - `TSA-V0-361`: (standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its
   blocks. An assignment is branch-dependent when it is inside any of:
   - `if`/`elif`/`else`, a loop, a `case` arm or a function body;
-  - after `&&` or `||`;
+  - after `&&` or `||`, also when the list continues on the next line;
   - a dotenv file sourced in any of those places.
 
   A branch-dependent variable MUST be null with reason `branch-dependent` and derivation
@@ -1544,17 +1551,17 @@ Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-350 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources` | experimental |
+| TSA-V0-350 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-351 | `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractBranchDependent` | experimental |
-| TSA-V0-352 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources` | experimental |
-| TSA-V0-353 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSourceNotes` | experimental |
-| TSA-V0-354 | `internal/testsource/env_contract_sources.go`, `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractSourceNotes` | experimental |
+| TSA-V0-352 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-353 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSourceNotes`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-354 | `internal/testsource/env_contract_sources.go`, `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractSourceNotes`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-355 | `internal/testsource/env_contract_routes.go`, `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
 | TSA-V0-356 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
 | TSA-V0-357 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
-| TSA-V0-358 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-358 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-359 | `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
-| TSA-V0-360 | `internal/testsource/env_contract_routes.go` | `TestEnvContractHandlerBounded`, `TestEnvContractStandIn` | experimental |
-| TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent` | experimental |
+| TSA-V0-360 | `internal/testsource/env_contract_routes.go` | `TestEnvContractHandlerBounded`, `TestEnvContractStandIn`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent`, `TestEnvContractReaderEdges` | experimental |
 | TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
 | TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
