@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
+	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
@@ -212,5 +214,74 @@ func TestDCPV1145CallDeadlineAndTiming(t *testing.T) {
 	result, rpc = (&toolHandler{registry: registry}).call(context.Background(), map[string]any{"name": "corvint.docs_info"})
 	if rpc != nil || result["isError"] != false {
 		t.Fatalf("server stopped serving after a deadline: %#v %v", result, rpc)
+	}
+}
+
+func TestDCPV1145BatchFitsOneFrame(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	paths := make([]string, corpusbridge.MaxBatchPaths)
+	for i := range paths {
+		var page strings.Builder
+		fmt.Fprintf(&page, "# Page %d\n\n", i)
+		for j := range 40 {
+			fmt.Fprintf(&page, "Paragraph %d of page %d describes the `checkout` step.\n\n", j, i)
+		}
+		paths[i] = fmt.Sprintf("docs/p%03d.md", i)
+		if err := os.WriteFile(filepath.Join(root, paths[i]), []byte(page.String()), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git := func(args ...string) string {
+		t.Helper()
+		c := exec.Command("git", args...)
+		c.Dir = root
+		b, e := c.CombinedOutput()
+		if e != nil {
+			t.Fatalf("git: %v %s", e, b)
+		}
+		return strings.TrimSpace(string(b))
+	}
+	git("init", "-q")
+	git("add", "docs")
+	git("-c", "user.name=test", "-c", "user.email=test@invalid", "commit", "-qm", "docs")
+	m, e := doccorpus.Inventory(context.Background(), root, git("rev-parse", "HEAD"), "docs", "2026-09-19T00:00:00Z")
+	if e != nil {
+		t.Fatal(e)
+	}
+	m.Schema = doccorpus.ManifestSchemaV2
+	a, e := doccorpus.Build(context.Background(), root, m)
+	if e != nil {
+		t.Fatal(e)
+	}
+	data, e := doccorpus.Encode(a)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(filepath.Join(root, "corpus.json"), data, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	registry, failure := corpusbridge.New(root, "corpus.json")
+	if failure != nil {
+		t.Fatal(failure)
+	}
+	result, rpc := (&toolHandler{registry: registry}).call(context.Background(), map[string]any{"name": "corvint.docs_locate", "arguments": map[string]any{"paths": paths}})
+	if rpc != nil || result["isError"] != false {
+		t.Fatalf("batch failed: %#v %v", result, rpc)
+	}
+	var frame bytes.Buffer
+	encoder := json.NewEncoder(&frame)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result}); err != nil {
+		t.Fatal(err)
+	}
+	if frame.Len() > protocol.MaxMessageBytes {
+		t.Fatalf("batch frame is %d bytes, over the %d-byte MCP bound", frame.Len(), protocol.MaxMessageBytes)
+	}
+	// The fixture's receipts exceed the batch bound, so the tail is named, not dropped.
+	if !strings.Contains(frame.String(), `"output-bound-exceeded"`) {
+		t.Fatalf("batch of %d bytes named no output-bound-exceeded path", frame.Len())
 	}
 }

@@ -78,6 +78,7 @@ type SymbolResolver struct {
 	files      map[string]*symbolFile
 	byName     map[string][]string
 	read       int
+	shared     *sharedSymbolFiles
 }
 
 type symbolFile struct {
@@ -367,6 +368,13 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 		f.refusal = "was not read: re-resolution read budget exhausted"
 		return f, nil
 	}
+	if r.shared != nil {
+		if kept, ok := r.shared.get(key); ok {
+			*f = *kept.file
+			r.read += kept.cost
+			return f, nil
+		}
+	}
 	data, over, err := r.auth.BlobBytesWithin(ctx, oid, symbolFileMaxBytes)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -377,6 +385,7 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 	}
 	if over {
 		f.refusal = "exceeds the 4 MiB re-resolution bound"
+		r.keep(key, f, 0)
 		return f, nil
 	}
 	r.read += len(data)
@@ -384,6 +393,7 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 	lines, normalized := contextindex.NormalizedCodeLines(name, data)
 	if !ok || !normalized {
 		f.refusal = "did not parse completely"
+		r.keep(key, f, len(data))
 		return f, nil
 	}
 	f.raw, f.extents, f.lines = data, extents, lines
@@ -391,7 +401,15 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 	if len(data) > 0 && data[len(data)-1] != '\n' {
 		f.count++
 	}
+	r.keep(key, f, len(data))
 	return f, nil
+}
+
+// keep offers a file whose outcome the blob alone fixes to the shared files.
+func (r *SymbolResolver) keep(key string, f *symbolFile, cost int) {
+	if r.shared != nil {
+		r.shared.put(key, f, cost)
+	}
 }
 
 // regionLines returns the normalized lines inside [start, end] and the index
@@ -435,110 +453,149 @@ func SymbolAnchorKey(a Anchor) string {
 	return FormatSymbolAnchor(a) + ":" + a.Blob + ":" + a.SpanSHA256
 }
 
-// symbolOverlay re-resolves cited symbol anchors against one live tree and
-// remembers each check, so a reader answering several requests under the
-// same overlay resolves an anchor once.
+// symbolOverlay is the live tree a reader re-resolves cited symbol anchors
+// against. Requests under one overlay share its parsed source files; each
+// request still resolves under its own budget (symbolChecker).
 type symbolOverlay struct {
-	mu               sync.Mutex
 	root, repository string
 	live             *contextindex.Index
-	checks           map[string]SymbolAnchorCheck
-	withheld         string
+	files            *sharedSymbolFiles
 }
 
-// resolve returns the checks for anchors. A failed re-resolution withholds
-// every symbol state (each cited anchor reads as unevaluated) and names the
-// failure as a limitation rather than refusing the whole read; only a
-// cancelled context is an error.
-func (s *symbolOverlay) resolve(ctx context.Context, anchors []Anchor) (map[string]SymbolAnchorCheck, string, error) {
+// sharedSymbolFiles keeps parsed source files across requests. A request that
+// reuses a file is charged its bytes as if it had read them, so the shared
+// files never change a check (DCP-V1-144). Only outcomes fixed by the blob
+// itself are kept; a budget refusal or an unavailable blob is not.
+type sharedSymbolFiles struct {
+	mu    sync.Mutex
+	files map[string]sharedSymbolFile
+	bytes int
+}
+
+type sharedSymbolFile struct {
+	file *symbolFile
+	cost int
+}
+
+// sharedSymbolFilesMaxBytes bounds the bytes the shared files retain.
+const sharedSymbolFilesMaxBytes = 128 << 20
+
+func (s *sharedSymbolFiles) get(key string) (sharedSymbolFile, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.withheld == "" {
-		if err := s.resolveMissing(ctx, anchors); err != nil {
-			if ctx.Err() != nil {
-				return nil, "", ctx.Err()
-			}
-			s.withheld = "symbol-anchor re-resolution withheld: " + err.Error()
-		}
-	}
-	if s.withheld != "" {
-		return map[string]SymbolAnchorCheck{}, s.withheld, nil
-	}
-	return s.checks, "", nil
+	f, ok := s.files[key]
+	return f, ok
 }
 
-// resolveMissing resolves the anchors not yet checked. An anchor whose pinned
-// blob is still the committed, clean content of its path is live without a
-// parse.
-func (s *symbolOverlay) resolveMissing(ctx context.Context, anchors []Anchor) error {
-	var pending []Anchor
-	for _, anchor := range anchors {
-		if _, done := s.checks[SymbolAnchorKey(anchor)]; !done && anchor.Symbol != "" {
-			pending = append(pending, anchor)
-		}
-	}
-	if len(pending) == 0 {
-		return nil
-	}
-	auth, err := gitauth.Open(s.root, gitrun.NewDefaultBudget())
-	if err != nil {
-		return err
-	}
-	release := auth.BeginObjectSession()
-	defer release()
-	live := s.live
-	resolver := NewSymbolResolver(auth, live, Repository{ID: s.repository, Revision: live.CommitRevision}, live.DirtyPaths)
-	blobs := map[string]string{}
-	resolved := map[string]SymbolAnchorCheck{}
-	for _, anchor := range pending {
-		key := SymbolAnchorKey(anchor)
-		if _, done := resolved[key]; done {
-			continue
-		}
-		blob, seen := blobs[anchor.Path]
-		if !seen {
-			entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
-			if err != nil {
-				return err
-			}
-			if exists && entry.Type == "blob" {
-				blob = entry.OID
-			}
-			blobs[anchor.Path] = blob
-		}
-		if blob == anchor.Blob && !resolver.dirty[anchor.Path] && anchor.Repository == resolver.repository.ID && contextindex.SymbolRegionLanguage(anchor.Path) != "" {
-			resolved[key] = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
-				Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}
-			continue
-		}
-		check, err := resolver.Resolve(ctx, anchor)
-		if err != nil {
-			return err
-		}
-		resolved[key] = check
-	}
-	for key, check := range resolved {
-		s.checks[key] = check
-	}
-	return nil
-}
-
-// attachSymbolAnchors adds the overlay's check for each cited symbol anchor.
-// A nil overlay means the reader has no live tree and adds nothing; a cited
-// anchor the overlay did not evaluate is reported unresolved.
-func attachSymbolAnchors(r *Receipt, symbols map[string]SymbolAnchorCheck) {
-	r.SymbolAnchors = nil
-	if symbols == nil {
+func (s *sharedSymbolFiles) put(key string, f *symbolFile, cost int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.files[key]; ok || s.bytes+len(f.raw) > sharedSymbolFilesMaxBytes {
 		return
+	}
+	s.files[key] = sharedSymbolFile{file: f, cost: cost}
+	s.bytes += len(f.raw)
+}
+
+// symbolChecker answers one request's symbol-anchor checks. It resolves an
+// anchor only when a receipt cites it, under one resolver and Git budget per
+// request. A nil overlay evaluates nothing; a failed re-resolution withholds
+// every symbol state and names the failure as a limitation rather than
+// refusing the read; only a cancelled context is an error.
+type symbolChecker struct {
+	overlay  *symbolOverlay
+	resolver *SymbolResolver
+	release  func()
+	blobs    map[string]string
+	checks   map[string]SymbolAnchorCheck
+	withheld string
+}
+
+func (c *symbolChecker) close() {
+	if c.release != nil {
+		c.release()
+	}
+}
+
+func (c *symbolChecker) check(ctx context.Context, anchor Anchor) (SymbolAnchorCheck, error) {
+	key := SymbolAnchorKey(anchor)
+	if check, ok := c.checks[key]; ok {
+		return check, nil
+	}
+	if c.overlay == nil || c.withheld != "" {
+		return unevaluatedSymbolAnchor(anchor), nil
+	}
+	check, err := c.resolve(ctx, anchor)
+	if err != nil {
+		if ctx.Err() != nil {
+			return SymbolAnchorCheck{}, ctx.Err()
+		}
+		c.withheld = "symbol-anchor re-resolution withheld: " + err.Error()
+		return unevaluatedSymbolAnchor(anchor), nil
+	}
+	c.checks[key] = check
+	return check, nil
+}
+
+// resolve checks one anchor. An anchor whose pinned blob is still the
+// committed, clean content of its path is live without a parse.
+func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAnchorCheck, error) {
+	live := c.overlay.live
+	if c.resolver == nil {
+		auth, err := gitauth.Open(c.overlay.root, gitrun.NewDefaultBudget())
+		if err != nil {
+			return SymbolAnchorCheck{}, err
+		}
+		c.release = auth.BeginObjectSession()
+		c.resolver = NewSymbolResolver(auth, live, Repository{ID: c.overlay.repository, Revision: live.CommitRevision}, live.DirtyPaths)
+		c.resolver.shared = c.overlay.files
+		c.blobs = map[string]string{}
+	}
+	blob, seen := c.blobs[anchor.Path]
+	if !seen {
+		entry, exists, err := c.resolver.auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
+		if err != nil {
+			return SymbolAnchorCheck{}, err
+		}
+		if exists && entry.Type == "blob" {
+			blob = entry.OID
+		}
+		c.blobs[anchor.Path] = blob
+	}
+	if blob == anchor.Blob && !c.resolver.dirty[anchor.Path] && anchor.Repository == c.resolver.repository.ID && contextindex.SymbolRegionLanguage(anchor.Path) != "" {
+		return SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
+			Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}, nil
+	}
+	return c.resolver.Resolve(ctx, anchor)
+}
+
+func unevaluatedSymbolAnchor(anchor Anchor) SymbolAnchorCheck {
+	return SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorUnresolved, Reason: "cited symbol anchor was not evaluated against the live tree"}
+}
+
+// attachSymbolAnchors adds the check for each cited symbol anchor. A nil
+// checker means the reader has no live tree and adds nothing; a withheld
+// re-resolution reports every cited anchor unevaluated.
+func attachSymbolAnchors(ctx context.Context, r *Receipt, c *symbolChecker) error {
+	r.SymbolAnchors = nil
+	if c == nil {
+		return nil
 	}
 	for _, anchor := range r.Citations {
 		if anchor.Symbol == "" {
 			continue
 		}
-		check, ok := symbols[SymbolAnchorKey(anchor)]
-		if !ok {
-			check = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorUnresolved, Reason: "cited symbol anchor was not evaluated against the live tree"}
+		check, err := c.check(ctx, anchor)
+		if err != nil {
+			return err
 		}
 		r.SymbolAnchors = append(r.SymbolAnchors, check)
 	}
+	if c.withheld != "" {
+		for i, check := range r.SymbolAnchors {
+			r.SymbolAnchors[i] = SymbolAnchorCheck{Anchor: check.Anchor, State: SymbolAnchorUnresolved, Reason: "cited symbol anchor was not evaluated against the live tree"}
+		}
+		r.Limitations = append(r.Limitations, c.withheld)
+	}
+	return nil
 }

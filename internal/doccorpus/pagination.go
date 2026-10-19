@@ -1,6 +1,9 @@
 package doccorpus
 
-import "sort"
+import (
+	"context"
+	"sort"
+)
 
 func recordID(value any) string {
 	switch x := value.(type) {
@@ -61,7 +64,7 @@ func boundedCapabilities(caps []Capability) []Capability {
 
 // Pagination is bound to the immutable artifact digest and deterministic result
 // order. Only the visible page contributes typed details and citations.
-func pageReceipt(a *Artifact, original Receipt, request Request, symbols map[string]SymbolAnchorCheck) (Receipt, error) {
+func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Request, symbols *symbolChecker) (Receipt, error) {
 	total := len(original.Results)
 	start := min(request.Offset, total)
 	end := min(start+request.Limit, total)
@@ -115,7 +118,9 @@ func pageReceipt(a *Artifact, original Receipt, request Request, symbols map[str
 		for _, key := range keys {
 			r.Citations = append(r.Citations, unique[key])
 		}
-		attachSymbolAnchors(&r, symbols)
+		if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
+			return Receipt{}, err
+		}
 		finalizeEnvelope(&r)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {

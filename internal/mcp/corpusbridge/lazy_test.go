@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
@@ -212,4 +213,71 @@ func TestDCPV1144LiveFreshnessReusedUntilTheRepositoryChanges(t *testing.T) {
 	if got := call().Freshness; got != "computed" {
 		t.Fatalf("edited worktree reused the overlay: freshness=%q", got)
 	}
+}
+
+func TestDCPV1145BatchDeadlineBeforeLoadNamesEveryPath(t *testing.T) {
+	root, _ := lazyFixture(t)
+	r, e := New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	_, text, failure, protocol, _ := r.CallTimed(&expiresAfterEntry{Context: context.Background()}, "corvint.docs_locate", []byte(`{"paths":["docs/p0.md","docs/p1.md"]}`))
+	var batch struct {
+		Schema     string              `json:"schema"`
+		Receipts   []any               `json:"receipts"`
+		Unresolved []map[string]string `json:"unresolved"`
+	}
+	if failure != nil || protocol != nil || json.Unmarshal([]byte(text), &batch) != nil || batch.Schema != batchSchema || len(batch.Receipts) != 0 ||
+		len(batch.Unresolved) != 2 || batch.Unresolved[0]["code"] != "deadline-exceeded" || batch.Unresolved[1]["path"] != "docs/p1.md" {
+		t.Fatalf("batch past its deadline during load: %v %v %s", failure, protocol, text)
+	}
+	if _, _, failure, protocol, _ := r.CallTimed(context.Background(), "corvint.docs_locate", []byte(`{"path":"docs/p0.md"}`)); failure != nil || protocol != nil {
+		t.Fatalf("server stopped serving after a deadline: %v %v", failure, protocol)
+	}
+}
+
+func TestDCPV1144ConcurrentCallsShareOneOverlay(t *testing.T) {
+	root, _ := lazyFixture(t)
+	r, e := New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := make([]string, 3)
+	for i := range want {
+		_, want[i], _, _ = r.Call(context.Background(), "corvint.docs_locate", fmt.Appendf(nil, `{"path":"docs/p%d.md"}`, i))
+	}
+	var wg sync.WaitGroup
+	got := make([]string, 24)
+	for i := range got {
+		wg.Go(func() {
+			_, got[i], _, _ = r.Call(context.Background(), "corvint.docs_locate", fmt.Appendf(nil, `{"path":"docs/p%d.md"}`, i%3))
+		})
+	}
+	wg.Wait()
+	for i, text := range got {
+		if text == "" || text != want[i%3] {
+			t.Fatalf("concurrent call %d differs: %s", i, text)
+		}
+	}
+}
+
+// expiresAfterEntry passes the call's entry check and then reports its
+// deadline exceeded, as a deadline that passes while the artifact loads.
+type expiresAfterEntry struct {
+	context.Context
+	checked bool
+}
+
+func (c *expiresAfterEntry) Err() error {
+	if !c.checked {
+		c.checked = true
+		return nil
+	}
+	return context.DeadlineExceeded
+}
+
+func (c *expiresAfterEntry) Done() <-chan struct{} {
+	done := make(chan struct{})
+	close(done)
+	return done
 }

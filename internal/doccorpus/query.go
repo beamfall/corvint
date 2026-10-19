@@ -24,6 +24,20 @@ type FreshnessOverlay struct {
 	State       string
 	Limitations []string
 	symbols     *symbolOverlay
+	observation string
+}
+
+// Observation is the ObservationKey of the repository state the overlay was
+// built from, so a reader can reuse it only while that state holds
+// (DCP-V1-144).
+func (o FreshnessOverlay) Observation() string { return o.observation }
+
+// ObservationKey identifies a repository state by the fields
+// contextindex.Observe reports.
+func ObservationKey(o contextindex.Observation) string {
+	dirty := append([]string{}, o.DirtyPaths...)
+	sort.Strings(dirty)
+	return strings.Join(append([]string{o.ObjectFormat, o.CommitRevision, o.Revision, o.StatusSHA256}, dirty...), "\x00")
 }
 
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
@@ -118,9 +132,10 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})}
 	if symbols {
-		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, checks: map[string]SymbolAnchorCheck{}}
+		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
 	return overlay, nil
 }
@@ -161,36 +176,16 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 
 // QueryLive answers request under a live freshness overlay. Besides the
 // overlay's state and limitations, the receipt reports the re-resolution of
-// every symbol anchor it cites (DCP-V1-141). Only the cited anchors are
-// re-resolved (DCP-V1-144): a first pass selects the citations and a second
-// attaches their checks. The checks can only enlarge the receipt, so the
-// second pass cites a subset of the first.
+// every symbol anchor it cites (DCP-V1-141). Only the anchors the receipt
+// cites are re-resolved, on demand and under one budget per call, so the
+// receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	first, err := queryContext(ctx, a, request, overlay.State, overlay.Limitations, map[string]SymbolAnchorCheck{})
-	if err != nil || overlay.symbols == nil {
-		return first, err
-	}
-	var cited []Anchor
-	for _, anchor := range first.Citations {
-		if anchor.Symbol != "" {
-			cited = append(cited, anchor)
-		}
-	}
-	if len(cited) == 0 {
-		return first, nil
-	}
-	checks, withheld, err := overlay.symbols.resolve(ctx, cited)
-	if err != nil {
-		return Receipt{}, err
-	}
-	limitations := overlay.Limitations
-	if withheld != "" {
-		limitations = append(append([]string{}, limitations...), withheld)
-	}
-	return queryContext(ctx, a, request, overlay.State, limitations, checks)
+	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}}
+	defer checker.close()
+	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
 
-func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols map[string]SymbolAnchorCheck) (Receipt, error) {
+func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols *symbolChecker) (Receipt, error) {
 	if err := ctx.Err(); err != nil {
 		return Receipt{}, err
 	}
@@ -359,7 +354,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		return Receipt{}, err
 	}
 	if a.Schema == SchemaV2 {
-		return pageReceipt(a, r, request, symbols)
+		return pageReceipt(ctx, a, r, request, symbols)
 	}
 	if len(r.Results) == 0 {
 		r.State = "empty"
@@ -406,7 +401,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		citations = citations[:MaxResults]
 	}
 	r.Citations = citations
-	attachSymbolAnchors(&r, symbols)
+	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
+		return Receipt{}, err
+	}
 	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err

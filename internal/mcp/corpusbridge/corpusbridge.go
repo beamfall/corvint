@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
-	"strings"
+	"strconv"
 	"sync"
 	"time"
 
@@ -22,6 +22,8 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
+	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
 type Error struct{ Code string }
@@ -80,10 +82,15 @@ type Timing struct {
 }
 
 const (
-	// MaxBatchPaths bounds one paths batch; MaxBatchBytes bounds its receipts.
-	MaxBatchPaths = 100
-	MaxBatchBytes = 8 << 20
-	batchSchema   = "corvint-corpus-batch/1"
+	// MaxBatchPaths bounds one paths batch; MaxBatchBytes bounds what its
+	// receipts cost in the one MCP result frame, which carries the batch twice:
+	// as structured content and as escaped, enveloped text. The remainder of the
+	// frame bound covers the envelope, timing and a reserved unresolved row per
+	// path (batchRowReserve).
+	MaxBatchPaths   = 100
+	MaxBatchBytes   = protocol.MaxMessageBytes - 64<<10
+	batchRowReserve = 160
+	batchSchema     = "corvint-corpus-batch/1"
 )
 
 var tools = map[string]string{"corvint.docs_inventory": "inventory", "corvint.docs_info": "info", "corvint.docs_validate": "validate", "corvint.docs_concept": "concept", "corvint.docs_claims": "claims", "corvint.docs_flow": "flow", "corvint.docs_dependencies": "dependencies", "corvint.docs_recommend_tests": "recommend-tests", "corvint.docs_navigation": "navigation", "corvint.docs_vocabulary": "vocabulary", "corvint.docs_intent": "intent", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
@@ -260,17 +267,29 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if doccorpus.Digest(raw) != r.digest {
 		return nil, "", &ToolFailure{"corpus-refused", "configured artifact changed; restart with the new artifact"}, nil, finish()
 	}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth}
+	// A batch whose deadline passes while the artifact or freshness is still
+	// being prepared names every path unresolved (DCP-V1-145).
+	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {
+		if batch && ctx.Err() != nil {
+			data, _ := queryBatch(ctx, nil, request, doccorpus.FreshnessOverlay{}, input.Paths)
+			var result map[string]any
+			if json.Unmarshal(data, &result) == nil {
+				return result, string(data), nil, nil, finish()
+			}
+		}
+		return failure(err, finish())
+	}
 	a, err := r.artifactFor(ctx, raw, &timing)
 	if err != nil {
-		return failure(err, finish())
+		return prepared(err)
 	}
 	step := time.Now()
 	overlay, err := r.freshness(ctx, a, &timing)
 	timing.FreshnessMS = time.Since(step).Milliseconds()
 	if err != nil {
-		return failure(err, finish())
+		return prepared(err)
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth}
 	step = time.Now()
 	var data []byte
 	if batch {
@@ -321,6 +340,10 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 	out.WriteString(`,"receipts":[`)
 	unresolved := []map[string]string{}
 	answered := 0
+	budget := MaxBatchBytes
+	for _, path := range paths {
+		budget -= 2 * (len(path) + batchRowReserve)
+	}
 	for i, path := range paths {
 		if ctx.Err() != nil {
 			for _, rest := range paths[i:] {
@@ -339,9 +362,11 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 			unresolved = append(unresolved, map[string]string{"path": path, "code": code, "message": message})
 			continue
 		}
-		if out.Len()+len(data) > MaxBatchBytes {
+		if cost := frameCost(path, data); cost > budget {
 			unresolved = append(unresolved, map[string]string{"path": path, "code": "output-bound-exceeded", "message": "batch output bound reached; ask for this path separately"})
 			continue
+		} else {
+			budget -= cost
 		}
 		if answered > 0 {
 			out.WriteByte(',')
@@ -357,6 +382,15 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 	writeJSON(&out, unresolved)
 	out.WriteString("}\n")
 	return out.Bytes(), nil
+}
+
+// frameCost is what one receipt row adds to the MCP result frame: its JSON
+// bytes once as structured content, and once as the JSON string of its
+// envelope-escaped text.
+func frameCost(path string, receipt []byte) int {
+	row := len(path) + len(receipt) + 32
+	text, _ := json.Marshal(repoenvelope.EscapeHidden(`{"path":` + strconv.Quote(path) + `,"receipt":` + string(receipt) + `}`))
+	return row + len(text)
 }
 
 func writeJSON(out *bytes.Buffer, value any) {
@@ -407,7 +441,9 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing 
 	if err != nil {
 		return doccorpus.FreshnessOverlay{}, err
 	}
-	key := strings.Join(append([]string{observed.ObjectFormat, observed.CommitRevision, observed.Revision, observed.StatusSHA256}, observed.DirtyPaths...), "\x00")
+	// The memo is keyed by the state the overlay was built from, never by an
+	// earlier observation, so a change during the build cannot be reused.
+	key := doccorpus.ObservationKey(observed)
 	r.live.Lock()
 	if r.live.artifact == a && r.live.key == key {
 		overlay := r.live.overlay
@@ -421,7 +457,7 @@ func (r *Registry) freshness(ctx context.Context, a *doccorpus.Artifact, timing 
 		return overlay, err
 	}
 	r.live.Lock()
-	r.live.key, r.live.artifact, r.live.overlay = key, a, overlay
+	r.live.key, r.live.artifact, r.live.overlay = overlay.Observation(), a, overlay
 	r.live.Unlock()
 	return overlay, nil
 }

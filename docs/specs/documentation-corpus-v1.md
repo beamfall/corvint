@@ -931,15 +931,20 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   V1-1982)) Live readers re-resolve only the symbol anchors cited by the records a query returns
   (`DCP-V1-141`), so an uncited anchor costs nothing, and the corpus MCP server reuses one call's
   live freshness, including those re-resolutions, while the repository observation (object
-  format, commit, tree, status digest and dirty paths) is unchanged. The observation is read before
-  the freshness it keys, so a change during a call only forces a recompute. Reuse never changes a
-  receipt byte relative to a fresh reader.
+  format, commit, tree, status digest and dirty paths) is unchanged. The reuse key is the state
+  the freshness was built from, never an earlier observation, so a change during a call cannot be
+  reused. Each call re-resolves under its own budget; parsed sources shared between calls are
+  charged to that budget as if read. Reuse, including concurrent calls, never changes a receipt
+  byte relative to a fresh reader.
 - `DCP-V1-145`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
   V1-1982)) Path tools accept exactly one of `path` and `paths`, a duplicate-free list of 1 to 100
   paths. A batch answers with `corvint-corpus-batch/1`: per path, in request order, the receipt
   the single-path call returns (without its trailing newline), or an `unresolved` row naming the
-  path and code. A call that outlives the server's per-call deadline returns `deadline-exceeded`
-  (a batch names the unanswered paths instead), and the server keeps serving later calls. Every
+  path and code. A batch always fits one MCP message: a receipt that would push the result frame
+  past the 1 MiB message bound is withheld as `output-bound-exceeded`, so the caller asks for those
+  paths again, never receives a transport error. A call that outlives the server's per-call deadline returns `deadline-exceeded`
+  (a batch names the unanswered paths instead, including when the deadline passes while the
+  artifact or freshness is still being prepared), and the server keeps serving later calls. Every
   result carries `_meta["corvint/timing"]`: load, verify, freshness, query and total milliseconds
   and process CPU milliseconds.
 
@@ -1403,7 +1408,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1091TestKnowledgeOnlyCorpus`, `TestDCPV1092TestKnowledgeDeterministicAndBounded`, `TestDCPV1092ParityLargeTestKnowledge` |
 | DCP-V1-093..099 | `internal/doccorpus/flow_relations.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `integration.go`, `pagination.go`, `internal/corpusrepublish/parity.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/corpus_integration.go` | `TestDCPV1093FlowRelationSchemaIsClosed`, `TestDCPV1094FlowRelationKindFields`, `TestDCPV1095FlowRelationJoinStatus`, `TestDCPV1096FlowRelationImpactAttribution`, `TestDCPV1097FlowRelationUnreviewedAndDepth`, `TestDCPV1097CorpusDepthFlag`, `TestDCPV1098FlowRelationTraceAndGaps`, `TestDCPV1098TraceToolDepth`, `TestDCPV1099FlowRelationDeterministicAndBounded` |
 | DCP-V1-140..142 | `internal/contextindex/symbol_region.go`, `rubysymbols.go`, `internal/doccorpus/symbol_anchor.go`, `query.go`, `pagination.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestSymbolAnchorReresolution` (Ruby and TypeScript: insertion is `moved` with the new range, a one-token edit is `changed`, deletion is `gone`, a reformat is `live` or `moved`), `TestSymbolAnchorUncertainty`, `TestSymbolAnchorReaderReceipt`, `TestNormalizedCodeLines` |
-| DCP-V1-143..145 | `internal/mcp/corpusbridge/corpusbridge.go`, `cputime_unix.go`, `internal/doccorpus/query.go`, `symbol_anchor.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1143LazyLoadAndMemo`, `TestDCPV1143StartupRefusesUnreadableArtifact`, `TestDCPV1144LiveFreshnessReusedUntilTheRepositoryChanges`, `TestSymbolAnchorReaderReceipt`, `TestDCPV1145PathsBatchEqualsUnion`, `TestDCPV1145BatchDeadlineNamesUnresolved`, `TestDCPV1145CallDeadlineAndTiming`; measured on a 100,000-claim corpus in docs/build-log/2026-10-19-V1-1982-corpus-mcp-lazy-batch.md |
+| DCP-V1-143..145 | `internal/mcp/corpusbridge/corpusbridge.go`, `cputime_unix.go`, `internal/doccorpus/query.go`, `symbol_anchor.go`, `pagination.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1143LazyLoadAndMemo`, `TestDCPV1143StartupRefusesUnreadableArtifact`, `TestDCPV1144LiveFreshnessReusedUntilTheRepositoryChanges`, `TestDCPV1144ConcurrentCallsShareOneOverlay`, `TestDCPV1144SharedOverlayMatchesAFreshReader`, `TestSymbolAnchorReaderReceipt`, `TestDCPV1145PathsBatchEqualsUnion`, `TestDCPV1145BatchDeadlineNamesUnresolved`, `TestDCPV1145BatchDeadlineBeforeLoadNamesEveryPath`, `TestDCPV1145CallDeadlineAndTiming`, `TestDCPV1145BatchFitsOneFrame`; measured on a 100,000-claim corpus in docs/build-log/2026-10-19-V1-1982-corpus-mcp-lazy-batch.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions
