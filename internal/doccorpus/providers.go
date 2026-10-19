@@ -42,6 +42,10 @@ func (c *compiler) importRecord(p Provider) error {
 	if record.Schema == BehaviorProviderSchemaV2 {
 		return c.importBehaviorV2(record)
 	}
+	if record.Schema == TestKnowledgeSchema {
+		c.testKnowledge = append(c.testKnowledge, providerKnowledge{p.ID, record.TestKnowledge})
+		return nil
+	}
 	if record.Schema == AdoptionProviderSchema {
 		if err := c.importAdoption(record); err != nil {
 			return err
@@ -93,6 +97,12 @@ func (c *compiler) normalizedRecord(p Provider) (ProviderRecord, error) {
 			return ProviderRecord{}, fail("provider revision, version or repository mismatch")
 		}
 		return record, nil
+	}
+	if record.Schema == TestKnowledgeSchema {
+		if record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
+			return ProviderRecord{}, fail("provider revision, version or repository mismatch")
+		}
+		return record, c.admitTestKnowledge(p, record)
 	}
 	validSchema := record.Schema == AdoptionProviderSchema && c.manifest.Schema == ManifestSchemaV2 && record.BehaviorContracts == nil || record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
 	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
