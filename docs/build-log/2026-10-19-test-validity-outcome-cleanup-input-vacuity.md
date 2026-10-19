@@ -88,7 +88,8 @@ mutation:
 9. Brace alternatives (`{Acme,Globex}`) were read with Go `path.Match`. Playwright URL globs
    (`**`, `*`, `{a,b}`) are now converted.
 
-After the fixes, 24 mutations were run, and all 24 were KILLED. Mutation M22 (the MSW handler
+After the fixes, `internal/testsource` passed again under `-race` (load average 26.10), and 24
+mutations were run; all 24 were KILLED. Mutation M22 (the MSW handler
 covering its path) first SURVIVED: an operator-precedence slip in the mutation kept the glob branch
 live. With the mutation corrected, M22 was KILLED.
 
