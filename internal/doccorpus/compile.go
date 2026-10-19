@@ -449,7 +449,11 @@ func (c *compiler) native(provider Provider) error {
 		}
 		line := firstContentLine(text)
 		if line == 0 {
-			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", "empty source has no non-vacuous anchor"})
+			reason := "empty source has no non-vacuous anchor"
+			if strings.TrimSpace(text) != "" {
+				reason = fmt.Sprintf("no line within the %d-byte anchor bound", maxSpanBytes)
+			}
+			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", reason})
 			continue
 		}
 		anchor, err := c.anchor(in.Revision, in.Path, line, line, "syntax", "source", "explicit input inventory")
@@ -496,9 +500,12 @@ func (c *compiler) native(provider Provider) error {
 	}
 	return nil
 }
+
+// firstContentLine is the first non-blank line whose span fits the excerpt bound, so one
+// oversized leading line no longer refuses the build (DCP-V1-146).
 func firstContentLine(text string) int {
-	for n, line := range strings.Split(text, "\n") {
-		if strings.TrimSpace(line) != "" {
+	for n, line := range strings.SplitAfter(text, "\n") {
+		if strings.TrimSpace(line) != "" && len(line) <= maxSpanBytes {
 			return n + 1
 		}
 	}
@@ -545,7 +552,7 @@ func located(err error, p string, start, end int) error {
 // paragraphParts splits lines start..end (1-based, inclusive) into consecutive line-aligned
 // spans of at most maxSpanBytes, so an oversized paragraph such as a long table stays
 // verbatim instead of refusing the build. A single line past the bound remains its own
-// span and is refused, located, when anchored (DCP-V1-146).
+// span, which the caller records as a not-collected gap (DCP-V1-146).
 func paragraphParts(lines []string, start, end int) [][2]int {
 	var parts [][2]int
 	from, size := start, 0
@@ -649,6 +656,9 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 			continue
 		}
 		id := provider.ID + ":file:" + in.Path
+		if firstContentLine(text) == 0 {
+			continue // no file subject; native recorded the gap
+		}
 		lines := strings.SplitAfter(text, "\n")
 		start := 0
 		for i := 0; i <= len(lines); i++ {
@@ -662,6 +672,10 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 				continue
 			}
 			for _, part := range paragraphParts(lines, start, i) {
+				if part[0] == part[1] && len(lines[part[0]-1]) > maxSpanBytes {
+					c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", fmt.Sprintf("paragraph line %d exceeds the %d-byte anchor bound", part[0], maxSpanBytes)})
+					continue
+				}
 				anchor, err := c.anchor(in.Revision, in.Path, part[0], part[1], "source-document", "source", "verbatim source paragraph")
 				if err != nil {
 					return err

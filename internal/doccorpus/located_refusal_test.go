@@ -1,6 +1,7 @@
 package doccorpus
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -9,15 +10,17 @@ import (
 	"testing"
 )
 
-// nativeDocsBuild commits one docs page and builds its native corpus.
-func nativeDocsBuild(t *testing.T, page string, schema string) (*Artifact, error) {
+// nativeDocsBuild commits docs files and builds their native corpus.
+func nativeDocsBuild(t *testing.T, files map[string]string, schema string) (*Artifact, error) {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "docs", "page.md"), []byte(page), 0o600); err != nil {
-		t.Fatal(err)
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(root, "docs", name), []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	git(t, root, "init", "-q")
 	git(t, root, "add", "docs")
@@ -38,7 +41,7 @@ func TestDCPV1146OversizedParagraphStaysVerbatim(t *testing.T) {
 	for i := 0; table.Len() < 3*maxSpanBytes; i++ {
 		fmt.Fprintf(&table, "| %d | %s |\n", i, strings.Repeat("x", 200))
 	}
-	a, err := nativeDocsBuild(t, "# Index\n\n"+table.String()+"\nAfter.\n", ManifestSchemaV2)
+	a, err := nativeDocsBuild(t, map[string]string{"page.md": "# Index\n\n" + table.String() + "\nAfter.\n"}, ManifestSchemaV2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,16 +64,77 @@ func TestDCPV1146OversizedParagraphStaysVerbatim(t *testing.T) {
 	}
 }
 
+// An over-bound line is a located not-collected gap; the rest of the corpus still builds
+// (GitHub #1242).
+func TestDCPV1146OversizedLineIsAGap(t *testing.T) {
+	exact := strings.Repeat("z", maxSpanBytes-1) + "\n"
+	files := map[string]string{
+		"a.md":     "# A\n\nNormal prose.\n",
+		"big.md":   "# Big\n\n" + strings.Repeat("y", maxSpanBytes+1) + "\nTail line.\n",
+		"top.md":   strings.Repeat("w", maxSpanBytes+1) + "\n\nSecond paragraph.\n",
+		"only.md":  strings.Repeat("v", maxSpanBytes+1) + "\n",
+		"exact.md": exact,
+	}
+	a, err := nativeDocsBuild(t, files, ManifestSchemaV2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims := map[string]string{}
+	for _, c := range a.Claims {
+		claims[c.ID] = c.Text
+	}
+	gaps := map[string]string{}
+	for _, g := range a.Gaps {
+		if g.Kind == "not-collected" {
+			gaps[g.Subject] += g.Reason + ";"
+		}
+	}
+	bound := fmt.Sprintf("%d-byte anchor bound", maxSpanBytes)
+	for id, want := range map[string]string{
+		"native:file:docs/a.md:paragraph:3":     "Normal prose.\n",
+		"native:file:docs/big.md:paragraph:1":   "# Big\n",
+		"native:file:docs/big.md:paragraph:4":   "Tail line.\n",
+		"native:file:docs/top.md:excerpt":       "Second paragraph.",
+		"native:file:docs/top.md:paragraph:3":   "Second paragraph.\n",
+		"native:file:docs/exact.md:paragraph:1": exact,
+	} {
+		if claims[id] != want {
+			t.Errorf("claim %s = %.40q, want %.40q", id, claims[id], want)
+		}
+	}
+	for id, want := range map[string]string{
+		"native:file:docs/big.md":  "paragraph line 3 exceeds the " + bound,
+		"native:file:docs/top.md":  "paragraph line 1 exceeds the " + bound,
+		"native:file:docs/only.md": "no line within the " + bound,
+	} {
+		if !strings.Contains(gaps[id], want) {
+			t.Errorf("gap %s = %q, want %q", id, gaps[id], want)
+		}
+	}
+	if _, ok := claims["native:file:docs/only.md:excerpt"]; ok {
+		t.Error("file with no anchorable line produced a claim")
+	}
+	again, err := nativeDocsBuild(t, files, ManifestSchemaV2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _ := Encode(a)
+	second, _ := Encode(again)
+	if a.SHA256 != again.SHA256 || !bytes.Equal(first, second) {
+		t.Fatal("gap path is not deterministic")
+	}
+}
+
 func TestDCPV1146RefusalsNameTheSpan(t *testing.T) {
-	_, err := nativeDocsBuild(t, "# Page\n\n"+strings.Repeat("y", maxSpanBytes+1)+"\n", ManifestSchemaV2)
-	if err == nil || !strings.Contains(err.Error(), "vacuous or oversized anchor at docs/page.md:3-3") {
-		t.Fatalf("oversized line refusal is not located: %v", err)
+	_, err := nativeDocsBuild(t, map[string]string{"x.go": "package x\n\nfunc F() string { return \"" + strings.Repeat("y", maxSpanBytes) + "\" }\n"}, ManifestSchemaV2)
+	if err == nil || !strings.Contains(err.Error(), "vacuous or oversized anchor at docs/x.go:3-3") {
+		t.Fatalf("oversized anchor refusal is not located: %v", err)
 	}
 	var page strings.Builder
 	for i := range MaxRecords + 1 {
 		fmt.Fprintf(&page, "Paragraph %d.\n\n", i)
 	}
-	_, err = nativeDocsBuild(t, page.String(), "")
+	_, err = nativeDocsBuild(t, map[string]string{"page.md": page.String()}, "")
 	if err == nil || !strings.Contains(err.Error(), "native paragraph bound exceeded: more than 4096 records at docs/page.md:") ||
 		!strings.Contains(err.Error(), ManifestSchemaV2+" manifest raises the bound") {
 		t.Fatalf("record bound refusal is not located: %v", err)

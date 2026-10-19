@@ -1,7 +1,7 @@
 # V1-1983: docs corpus refusals name their span, and oversized paragraphs stay verbatim
 
 Date: 2026-10-19
-Ticket: V1-1983 (found while measuring V1-1982).
+Ticket: V1-1983 (found while measuring V1-1982); also fixes GitHub #1242.
 Requirement: DCP-V1-146 (`docs/specs/documentation-corpus-v1.md`), accepted under the owner's
 standing auto-accept of lane requirements (2026-10-11).
 
@@ -29,7 +29,11 @@ Markdown tables:
   consecutive line-aligned verbatim excerpts, each within the bound. Each excerpt keeps the
   existing `…:paragraph:<start line>` claim ID. Joined in order, the excerpts reproduce the
   paragraph byte for byte. The 64 KiB excerpt bound and "refuse, never truncate" both still hold.
-  A single line over the bound still refuses, now with its location.
+  A single Markdown line over the bound becomes a `not-collected` gap on its file subject
+  (`paragraph line N exceeds the 65536-byte anchor bound`), and the rest of the file and corpus
+  still build (GitHub #1242). The file excerpt anchors the first non-blank line within the bound;
+  a file with no such line gets a `no line within the 65536-byte anchor bound` gap and no
+  claims. A native symbol declared on an over-bound line still refuses, now located.
 - **No identity change for existing corpora.** Paragraphs within the bound produce the same claims
   as before. Any input that is now split was refused before, so no artifact that built previously
   changes.
@@ -50,8 +54,11 @@ The `/1` refusal is intended: the scope has about 30,700 paragraphs, against the
 
 - `TestDCPV1146OversizedParagraphStaysVerbatim` and `TestDCPV1146RefusalsNameTheSpan` both fail
   on the unpatched compiler, with the unlocated `vacuous or oversized anchor`.
+- `TestDCPV1146OversizedLineIsAGap` (the #1242 reproduction, the exact-bound boundary line, a
+  leading over-bound line, a file with no anchorable line, and a determinism rebuild) fails on the
+  split-only compiler with `vacuous or oversized anchor at docs/only.md:1-1`.
 
 ## Rollback
 
-Revert the change. Oversized paragraphs then refuse the build again, and refusals lose their
-location. No artifact or wire schema changes.
+Revert the change. Oversized paragraphs and lines then refuse the build again, and refusals
+lose their location. No artifact or wire schema changes.
