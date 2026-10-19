@@ -3,6 +3,7 @@ package testsource
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -127,12 +128,13 @@ func (s *source) eoTruthySubject(r [2]int) ([]string, string) {
 		}
 		return nil, ""
 	}
-	parts := s.eoSplitOperator(r, "||")
+	parts := s.eoSplitOperator(s.eoUnwrap(r), "||")
 	if len(parts) < 2 {
 		return nil, ""
 	}
 	operand, values, seen := "", []string{}, map[string]bool{}
 	for _, part := range parts {
+		part = s.eoUnwrap(part)
 		sides := s.eoSplitOperator(part, "===")
 		if len(sides) != 2 {
 			sides = s.eoSplitOperator(part, "==")
@@ -155,6 +157,14 @@ func (s *source) eoTruthySubject(r [2]int) ([]string, string) {
 		}
 	}
 	return values, "`||` of equalities on one operand"
+}
+
+// eoUnwrap strips parentheses that enclose the whole range.
+func (s *source) eoUnwrap(r [2]int) [2]int {
+	for r[1]-r[0] > 2 && s.punct(r[0], "(") && s.match[r[0]] == r[1]-1 {
+		r = [2]int{r[0] + 1, r[1] - 1}
+	}
+	return r
 }
 
 // eoLiteralSide returns the literal of a comparison and the other side's range, when exactly one
@@ -181,6 +191,10 @@ func (s *source) eoScalar(r [2]int) (string, bool) {
 	t := s.tokens[r[0]]
 	switch {
 	case t.Kind == appmap.JSNumber:
+		// Compare numbers by value, so `200` and `200.0` are one outcome.
+		if n, err := strconv.ParseFloat(t.Text, 64); err == nil {
+			return strconv.FormatFloat(n, 'g', -1, 64), true
+		}
 		return t.Text, true
 	case (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal:
 		return fmt.Sprintf("%q", t.Text), true
@@ -265,6 +279,8 @@ func eoRegex(t appmap.JSToken) []string {
 	anchored := strings.HasPrefix(body, "^") && strings.HasSuffix(body, "$") && !strings.HasSuffix(body, `\$`)
 	if anchored {
 		body = body[1 : len(body)-1]
+		// `^A|B$` anchors only the first and last alternatives, so it is not a closed set.
+		anchored = !eoTopLevelAlternation(body)
 	}
 	if m := eoDigitClass.FindStringSubmatch(body); m != nil && (anchored || len(m[1])+1+len(m[3]) == 3) {
 		values := []string{}
@@ -295,6 +311,26 @@ func eoRegex(t appmap.JSToken) []string {
 		return nil
 	}
 	return values
+}
+
+// eoTopLevelAlternation reports a `|` outside every group of a regular expression body.
+func eoTopLevelAlternation(body string) bool {
+	depth := 0
+	for i := 0; i < len(body); i++ {
+		switch body[i] {
+		case '\\':
+			i++
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case '|':
+			if depth == 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func eoContains(values []string, v string) bool {
@@ -375,7 +411,7 @@ func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 			continue
 		}
 		values := eoContractValues(m[2])
-		if len(values) < 2 || eoAnnotation(raw) || n > 0 && eoAnnotation(lines[n-1]) && !eoContractExpected.MatchString(lines[n-1]) {
+		if len(values) < 2 || eoAnnotation(raw) || n > 0 && eoContractComment(lines[n-1]) && eoAnnotation(lines[n-1]) {
 			continue
 		}
 		where := fmt.Sprintf("%s:%d", name, n+1)
@@ -386,6 +422,13 @@ func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 		})
 	}
 	return out
+}
+
+// eoContractComment reports a contract line that is a comment: YAML `#`, `//`, or a Markdown
+// `<!--` comment. Data on the line above, even naming the annotation, does not exempt a value.
+func eoContractComment(line string) bool {
+	line = strings.TrimSpace(line)
+	return strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") || strings.HasPrefix(line, "<!--")
 }
 
 // eoContractValues splits an expected value into its alternatives when every alternative is one

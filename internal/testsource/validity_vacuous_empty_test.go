@@ -68,3 +68,17 @@ func TestVacuousEmptyEqualityOutsideTest(t *testing.T) {
 `
 	wantFindings(t, "helper", ValidityFindings("e2e/helper.spec.ts", src))
 }
+
+// TestVacuousEmptyEqualityEmptyText: `toHaveText([])` or an empty text passes on an empty
+// collection, so it is not a non-empty precondition (TSA-V0-173).
+func TestVacuousEmptyEqualityEmptyText(t *testing.T) {
+	src := `test('empty text', async ({ page }) => {
+  const rows = page.locator('tr');
+  await expect(rows).toHaveText([]);
+  await expect(rows).toHaveCount(served.length);
+});
+`
+	wantFindings(t, "empty text", ValidityFindings("e2e/empty.spec.ts", src),
+		"VACUOUS-EMPTY-EQUALITY advisory e2e/empty.spec.ts:4 e2e/empty.spec.ts:4 empty text",
+	)
+}

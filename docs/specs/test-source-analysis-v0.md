@@ -1076,12 +1076,14 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   test body is not reported.
 - `TSA-V0-161`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST be:
   `expect([a, b]).toContain(x)` and `expect([a, b].includes(x))` with two or more distinct
-  literals; `expect(x === a || x === b)` over one subject; `toBeOneOf([a, b])` and
+  literals; `expect(x === a || x === b)` over one subject, with or without parentheses around each
+  equality; `toBeOneOf([a, b])` and
   `assert.oneOf(x, [a, b])`; and a regular-expression literal accepting a closed set of outcomes:
   an anchored alternation of words (`/^(DENIED|FORBIDDEN)$/`), an alternation of digit strings
-  (`/401|403/`) or a digit class inside a status code (`/^40[13]$/`). A negated chain, a
-  non-literal set, one distinct value, two different subjects and an unanchored alternation of
-  words (a text search) are not reported.
+  (`/401|403/`) or a digit class inside a status code (`/^40[13]$/`). Numbers are compared by
+  value, so `200` and `200.0` are one value. A negated chain, a non-literal set, one distinct value,
+  two different subjects, and an alternation of words that is unanchored or anchored only at its
+  ends (`/^A|B$/`, a text search) are not reported.
 - `TSA-V0-162`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or
   JSON file named to `corvint tests validity --files` MUST be read as a behaviour contract: a line
   whose key or label starts with `expected` and whose value is two or more distinct single-token
@@ -1091,7 +1093,9 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   contracts.
 - `TSA-V0-163`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A comment
   `corvint-validity-allow EITHER-OR-OUTCOME: <reason>` on the flagged line, or alone on the line
-  above, MUST exempt that line. An annotation without a reason, or naming another rule, MUST NOT.
+  above, MUST exempt that line. In a behaviour contract the line above MUST be a comment (`#`,
+  `//` or `<!--`); data on it naming the annotation does not exempt the value. An annotation
+  without a reason, or naming another rule, MUST NOT exempt the line.
 - `TSA-V0-164`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one value
   a passing receipt observed is NOT_PRODUCED: no receipt records assertion operands, so the
   message names the accepted values only and never guesses which one is correct.
@@ -1102,7 +1106,7 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   built-in (`request`, `page`, `context`). Its location is the registration line and its cause the
   registry's declaration; its message names the handle and where it is declared and suggests a
   context the closure owns (`playwright.request.newContext()`). A closure taking its own context
-  parameter, or creating its own, is not reported.
+  parameter, or declaring its own local under the handle's name, is not reported.
 - `TSA-V0-166`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) The rule MUST read a
   registration inside a test body, inside a test-scoped fixture function (including through a
   local alias `const api = request`), and an `afterAll` hook reading a variable a `beforeEach`
@@ -1121,10 +1125,13 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   `UNSTUBBED-OUTBOUND-INPUT` MUST be an advisory finding on a test input that names a stubbed
   integration parameter with a value no stub in the file matches. The stub table is the file's
   literal request matchers, Playwright `X.route('<glob>', ...)` and MSW
-  `http|rest.<method>('<url>', ...)`, each matcher path with its query parameters and values. An
-  input is an object property `param: 'value'` naming a stubbed parameter, or a literal URL whose
-  path a matcher names (equal, or after a leading `**`) with a query value for a stubbed parameter.
-  A value glob-matched by a stub, or a path a query-less matcher ending in `*` covers, is covered.
+  `http|rest.<method>('<url>', ...)`. A Playwright matcher path with query parameters names an
+  integration and its stubbed values. An input is an object property `param: 'value'` naming a
+  stubbed parameter, or a literal URL whose path a matcher names (equal, or after a leading `**`)
+  with a query value for a stubbed parameter. An input is covered by a stubbed value whose
+  Playwright glob (`**`, `*`, `{a,b}`) matches it, by an MSW handler at its path (MSW ignores the
+  query when matching), or by a Playwright matcher without a query whose glob matches the request,
+  such as a `**/*` catch-all.
 - `TSA-V0-170`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The finding's cause MUST
   be the stub line of the nearest stubbed value of the same parameter by edit distance, the first
   on a tie, and its message MUST name the input value and that value.
@@ -1142,7 +1149,8 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
   with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
   `toBeTruthy` on a count, a negated zero or `[]`, a negated `toBeEmpty`, or a visibility or text
-  assertion on the collection or a member of it.
+  assertion on the collection or a member of it. A text assertion of `[]` or an empty string is not
+  a precondition, since it passes on an empty collection.
 - `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time
   `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call to an unstubbed
   host) is NOT_PRODUCED with reason `server-outbound-log-not-produced`: no receipt retains a server
@@ -1172,13 +1180,16 @@ Failure modes:
 
 Acceptance evidence: synthetic fixtures only.
 - `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeAnnotation`,
-  `TestEitherOrOutcomeContract` and `TestEitherOrOutcomeRefusesProof`.
+  `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeRefusesProof` and
+  `TestEitherOrOutcomeReviewCases`.
 - `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile`,
-  `TestCleanupHandleOutlivedAbstains`, `TestParsePlaywrightJSONPassedCleanupFailed` and
+  `TestCleanupHandleOutlivedAbstains`, `TestCleanupHandleOutlivedShadowed`,
+  `TestParsePlaywrightJSONPassedCleanupFailed` and
   `TestParsePlaywrightJSONCleanupGateNegatives`.
-- `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputAbstains`.
-- `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityNegatives` and
-  `TestVacuousEmptyEqualityOutsideTest`.
+- `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` and
+  `TestUnstubbedOutboundInputAbstains`.
+- `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityNegatives`,
+  `TestVacuousEmptyEqualityEmptyText` and `TestVacuousEmptyEqualityOutsideTest`.
 
 No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testsource/validity_either_or.go`, `validity_cleanup_handle.go`,
@@ -1192,19 +1203,19 @@ persisted.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-160 | `internal/testsource/validity_either_or.go`, `internal/testvalidity/source_rules_outcome.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeRefusesProof` | experimental |
-| TSA-V0-161 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives` | experimental |
+| TSA-V0-161 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeReviewCases` | experimental |
 | TSA-V0-162 | `internal/testsource/validity_either_or.go`, `internal/testsource/validity.go` | `TestEitherOrOutcomeContract` | experimental |
-| TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract` | experimental |
+| TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeReviewCases` | experimental |
 | TSA-V0-164 | none | NOT_PRODUCED | gap |
-| TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest` | experimental |
+| TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedShadowed` | experimental |
 | TSA-V0-166 | `internal/testsource/validity_cleanup_handle.go`, `internal/testsource/validity.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile` | experimental |
 | TSA-V0-167 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedAbstains` | experimental |
 | TSA-V0-168 | `internal/jstestprovider/playwright_cleanup.go`, `internal/jstestprovider/playwright.go` | `TestParsePlaywrightJSONPassedCleanupFailed`, `TestParsePlaywrightJSONCleanupGateNegatives` | experimental |
-| TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
+| TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
 | TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
 | TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
-| TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives` | experimental |
+| TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
 | TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
 | TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
 | TSA-V0-176 | none | NOT_PRODUCED | gap |

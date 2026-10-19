@@ -98,3 +98,22 @@ test('x', async ({ registry, request }) => {
 `
 	wantFindings(t, "test-scoped registry", ValidityFindings("e2e/scoped.spec.ts", testScoped))
 }
+
+// TestCleanupHandleOutlivedShadowed: a closure that declares its own context under the handle's
+// name does not capture the outer handle, so it is not reported (TSA-V0-165).
+func TestCleanupHandleOutlivedShadowed(t *testing.T) {
+	src := `const test = base.extend({
+  registry: [async ({}, use) => { await use(new Registry()); }, { scope: 'worker' }],
+});
+test('x', async ({ registry, request, playwright }) => {
+  registry.add(async () => {
+    const request = await playwright.request.newContext();
+    await request.delete('/x');
+  });
+  registry.add(async () => { await request.delete('/y'); });
+});
+`
+	wantFindings(t, "shadowed", ValidityFindings("e2e/shadow.spec.ts", src),
+		"CLEANUP-HANDLE-OUTLIVED advisory e2e/shadow.spec.ts:9 e2e/shadow.spec.ts:2 x",
+	)
+}

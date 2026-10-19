@@ -65,3 +65,30 @@ token reader, and one fail-closed Playwright infrastructure reason.
   300 ms timeout and is unrelated to this change. It passed 3 of 3 alone, and the package then
   passed. It is a residual.
 - No live qualification on a real suite was run (NOT_RUN).
+
+## Review
+
+One Codex round (read-only) reported nine P2 findings. All nine are fixed, each with a test and a
+mutation:
+
+1. Equal numbers written differently (`[200, 200.0]`) were two outcomes. Numbers are now compared
+   by value.
+2. `/^BEGIN|END$/` was read as a closed set. An alternation with a top-level `|` is no longer
+   treated as anchored.
+3. Parenthesized equalities (`(s === 401) || (s === 403)`) were missed. They are now unwrapped.
+4. A YAML data line naming the annotation exempted the next contract value. The line above must now
+   be a comment.
+5. `toHaveText([])` counted as a non-empty precondition. An empty text argument no longer counts.
+6. A closure declaring its own `request` was reported as capturing the test's handle. Closure-local
+   declarations now shadow handles.
+7. MSW query parameters were treated as constraints, but MSW ignores the query when matching. An MSW
+   handler now covers every value at its path, and adds no integration.
+8. A `**/*` catch-all did not cover requests. A query-less Playwright matcher now covers any request
+   its glob matches.
+9. Brace alternatives (`{Acme,Globex}`) were read with Go `path.Match`. Playwright URL globs
+   (`**`, `*`, `{a,b}`) are now converted.
+
+After the fixes, 24 mutations were run, and all 24 were KILLED. Mutation M22 (the MSW handler
+covering its path) first SURVIVED: an operator-precedence slip in the mutation kept the glob branch
+live. With the mutation corrected, M22 was KILLED.
+

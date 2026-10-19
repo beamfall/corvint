@@ -103,6 +103,19 @@ func (s *source) veCollection(r [2]int) (string, bool) {
 	return s.render(start, end), false
 }
 
+// veEmptyArg reports a matcher argument that asserts nothing is there: `[]` or an empty string,
+// as in `toHaveText([])`, which passes on an empty collection.
+func (s *source) veEmptyArg(c expectChain) bool {
+	if c.margs[1] <= c.margs[0] {
+		return false
+	}
+	if s.render(c.margs[0], c.margs[1]) == "[]" {
+		return true
+	}
+	t := s.tokens[c.margs[0]]
+	return c.margs[1]-c.margs[0] == 1 && (t.Kind == appmap.JSString || t.Kind == appmap.JSTemplate) && t.Literal && t.Text == ""
+}
+
 // veLiteral reports an operand that is one literal token.
 func (s *source) veLiteral(r [2]int) bool {
 	if r[1]-r[0] != 1 {
@@ -133,7 +146,7 @@ func (s *source) vePrecondition(chains []expectChain, roots [2]string) bool {
 		}
 		if !names(roots[0]) && !names(roots[1]) {
 			for _, root := range roots {
-				if strings.HasPrefix(whole, root+".") && veNonEmptyLocator[c.matcher] && !s.eoNegated(c) {
+				if strings.HasPrefix(whole, root+".") && veNonEmptyLocator[c.matcher] && !s.eoNegated(c) && !s.veEmptyArg(c) {
 					return true
 				}
 			}
@@ -154,7 +167,7 @@ func (s *source) vePrecondition(chains []expectChain, roots [2]string) bool {
 			return true
 		case negated && (c.matcher == "toBeEmpty" || c.matcher == "toEqual" && s.render(c.margs[0], c.margs[1]) == "[]"):
 			return true
-		case !negated && veNonEmptyLocator[c.matcher] && !counted:
+		case !negated && veNonEmptyLocator[c.matcher] && !counted && !s.veEmptyArg(c):
 			return true
 		}
 	}

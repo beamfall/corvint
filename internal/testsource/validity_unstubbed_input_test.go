@@ -30,14 +30,36 @@ test('creates a customer', async ({ page, request }) => {
 		t.Errorf("findings %+v", r.Findings)
 	}
 
+}
+
+// TestUnstubbedOutboundInputCoverage: an MSW handler covers every query value at its path (MSW
+// ignores the query when matching), a catch-all route covers every request, and a brace
+// alternative in a route glob covers each alternative (TSA-V0-169).
+func TestUnstubbedOutboundInputCoverage(t *testing.T) {
 	msw := `const handlers = [http.get('https://crm.example/lookup?name=Acme', () => HttpResponse.json({}))];
-test('imports', async () => {
+test('imports', async ({ page }) => {
+  await page.route('https://crm.example/lookup?name=Acme', (r) => r.fulfill({}));
   await importCustomers([{ name: 'Initech' }]);
-  await importCustomers([{ name: 'Acme' }]);
 });
 `
-	wantFindings(t, "msw", ValidityFindings("src/import.test.ts", msw),
-		"UNSTUBBED-OUTBOUND-INPUT advisory src/import.test.ts:3 src/import.test.ts:1 imports",
+	wantFindings(t, "msw", ValidityFindings("src/import.test.ts", msw))
+	catchAll := `test.beforeEach(async ({ page }) => {
+  await page.route('**/lookup?name=Acme', (r) => r.fulfill({}));
+  await page.route('**/*', (r) => r.fulfill({}));
+});
+test('x', async ({ page }) => { await page.goto('https://example.test/lookup?name=Globex'); });
+`
+	wantFindings(t, "catch-all", ValidityFindings("e2e/all.spec.ts", catchAll))
+	braces := `test.beforeEach(async ({ page }) => {
+  await page.route('**/lookup?name={Acme,Globex}', (r) => r.fulfill({}));
+});
+test('x', async ({ page }) => {
+  await page.goto('https://example.test/lookup?name=Acme');
+  await page.goto('https://example.test/lookup?name=Initech');
+});
+`
+	wantFindings(t, "braces", ValidityFindings("e2e/braces.spec.ts", braces),
+		"UNSTUBBED-OUTBOUND-INPUT advisory e2e/braces.spec.ts:6 e2e/braces.spec.ts:2 x",
 	)
 }
 

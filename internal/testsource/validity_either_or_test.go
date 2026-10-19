@@ -124,3 +124,23 @@ test('allows', async () => {
 		t.Error("report not refused")
 	}
 }
+
+// TestEitherOrOutcomeReviewCases: equal numbers written differently are one outcome, and `^A|B$`
+// anchors only its ends, so neither is reported; parenthesized equalities on one operand are; a
+// contract value is exempted only by an annotation comment, not by data on the line above
+// (TSA-V0-161, TSA-V0-163).
+func TestEitherOrOutcomeReviewCases(t *testing.T) {
+	src := `test('cases', async () => {
+  expect([200, 200.0]).toContain(status);
+  expect(message).toMatch(/^BEGIN|END$/);
+  expect((status === 401) || (status === 403)).toBe(true);
+});
+`
+	wantFindings(t, "js", ValidityFindings("e2e/cases.spec.ts", src),
+		"EITHER-OR-OUTCOME invalid e2e/cases.spec.ts:4 e2e/cases.spec.ts:4 cases",
+	)
+	yml := "note: \"corvint-validity-allow EITHER-OR-OUTCOME: example\"\nexpected_status: 401 or 403\n# corvint-validity-allow EITHER-OR-OUTCOME: gateway\nexpected_code: 502 or 504\n"
+	wantFindings(t, "yaml", ValidityFindings("contracts/a.yml", yml),
+		"EITHER-OR-OUTCOME invalid contracts/a.yml:2 contracts/a.yml:2 expected_status",
+	)
+}

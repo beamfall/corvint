@@ -263,7 +263,9 @@ func (s *source) chRegistrations(fixtures map[string]chFixture, params, body [2]
 			if !ok {
 				continue
 			}
-			captured := s.chNames(chWithout(handles, s, cbParams), cbBody)
+			local := chWithout(handles, s, cbParams)
+			s.chDropDeclared(local, cbBody)
+			captured := s.chNames(local, cbBody)
 			if captured == "" {
 				continue
 			}
@@ -288,6 +290,16 @@ func chWithout(handles map[string]string, s *source, params [2]int) map[string]s
 		}
 	}
 	return out
+}
+
+// chDropDeclared removes from handles every name the closure body declares with
+// `const|let|var`, since that declaration shadows the outer handle in the closure.
+func (s *source) chDropDeclared(handles map[string]string, body [2]int) {
+	for j := body[0]; j < body[1]; j++ {
+		if (s.ident(j, "const") || s.ident(j, "let") || s.ident(j, "var")) && s.ident(j+1, "") {
+			delete(handles, s.tokens[j+1].Text)
+		}
+	}
 }
 
 func (s *source) chFinding(fixtures map[string]chFixture, test, title string, line int, cause, registry, handle string) testvalidity.SourceFinding {

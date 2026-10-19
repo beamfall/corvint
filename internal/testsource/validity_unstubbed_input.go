@@ -3,7 +3,7 @@ package testsource
 import (
 	"fmt"
 	"net/url"
-	"path"
+	"regexp"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -12,14 +12,18 @@ import (
 
 // UNSTUBBED-OUTBOUND-INPUT reads (TSA-V0-169..171): the file's stub table is its literal request
 // matchers (Playwright `X.route(glob, ...)` and MSW `http|rest.<method>(url, ...)`); an integration
-// is a matcher path with one query parameter, and its stubbed values are the parameter's values
-// across the matchers. A test input naming that parameter with a value no matcher covers would
-// reach the real outbound integration.
+// is a Playwright matcher path with a query parameter, and its stubbed values are the parameter's
+// values across the matchers. MSW ignores the query when matching, so an MSW handler covers every
+// value at its path. A test input naming that parameter with a value no matcher covers would reach
+// the real outbound integration.
 
-// uoStub is one stubbed value of one integration parameter.
+// uoStub is one stubbed value of one integration parameter, or a matcher without a query
+// constraint (param empty). anyQuery marks an MSW handler. For an input, full is the request it
+// makes: the literal URL, or the integration path with the one parameter.
 type uoStub struct {
-	path, param, value string
-	line               int
+	path, param, value, full string
+	line                     int
+	anyQuery                 bool
 }
 
 var uoMSWMethods = map[string]bool{"get": true, "post": true, "put": true, "patch": true, "delete": true, "all": true, "head": true, "options": true}
@@ -80,6 +84,10 @@ func (s *source) uoStubTable() ([]uoStub, [][2]int, bool) {
 		calls = append(calls, [2]int{open, s.match[open]})
 		pattern, line := s.tokens[args[0][0]].Text, s.tokens[args[0][0]].Line
 		base, query, _ := strings.Cut(pattern, "?")
+		if !s.ident(i, "route") {
+			stubs = append(stubs, uoStub{path: base, line: line, anyQuery: true})
+			continue
+		}
 		values, err := url.ParseQuery(query)
 		if err != nil {
 			return nil, nil, false
@@ -114,7 +122,8 @@ func (s *source) uoInputs(body [2]int, calls [][2]int, stubs []uoStub) []uoStub 
 		t := s.tokens[j]
 		if (s.ident(j, "") || s.loneString([2]int{j, j + 1})) && s.punct(j+1, ":") && s.loneString([2]int{j + 2, j + 3}) && s.tokens[j+2].Literal && (s.punct(j+3, ",") || s.punct(j+3, "}")) {
 			if p, ok := params[t.Text]; ok {
-				out = append(out, uoStub{path: p, param: t.Text, value: s.tokens[j+2].Text, line: t.Line})
+				v := s.tokens[j+2].Text
+				out = append(out, uoStub{path: p, param: t.Text, value: v, full: p + "?" + url.Values{t.Text: {v}}.Encode(), line: t.Line})
 			}
 			continue
 		}
@@ -130,7 +139,7 @@ func (s *source) uoInputs(body [2]int, calls [][2]int, stubs []uoStub) []uoStub 
 			for _, st := range stubs {
 				if st.param == param && uoPathMatches(st.path, base) {
 					for _, v := range vs {
-						out = append(out, uoStub{path: st.path, param: param, value: v, line: t.Line})
+						out = append(out, uoStub{path: st.path, param: param, value: v, full: t.Text, line: t.Line})
 					}
 					break
 				}
@@ -160,19 +169,55 @@ func uoPathMatches(matcher, request string) bool {
 }
 
 // uoCovered reports an input some matcher covers: a matcher of the same path whose value glob
-// matches it, or a matcher of the same path without a query constraint that ends in a wildcard.
+// matches it, an MSW handler at its path, or a Playwright matcher without a query constraint whose
+// glob matches the request.
 func uoCovered(stubs []uoStub, in uoStub) bool {
 	for _, st := range stubs {
-		if st.path == in.path && st.param == in.param {
-			if ok, err := path.Match(st.value, in.value); err != nil || ok {
+		switch {
+		case st.param != "":
+			if st.path == in.path && st.param == in.param && uoGlobMatch(st.value, in.value) {
 				return true
 			}
-		}
-		if st.param == "" && (st.path == in.path+"*" || st.path == in.path+"**") {
+		case st.anyQuery:
+			if uoPathMatches(st.path, in.path) || uoGlobMatch(st.path, strings.SplitN(in.full, "?", 2)[0]) {
+				return true
+			}
+		case uoGlobMatch(st.path, in.full):
 			return true
 		}
 	}
 	return false
+}
+
+// uoGlobMatch reports text matching a Playwright URL glob: `**` matches any characters, `*` any
+// characters but `/`, and `{a,b}` either alternative. A glob it cannot read covers the text, so
+// the rule stays silent rather than warn on a request a matcher may cover.
+func uoGlobMatch(glob, text string) bool {
+	var b strings.Builder
+	b.WriteString("^")
+	braces := 0
+	for i := 0; i < len(glob); i++ {
+		switch c := glob[i]; {
+		case c == '*' && i+1 < len(glob) && glob[i+1] == '*':
+			b.WriteString(".*")
+			i++
+		case c == '*':
+			b.WriteString("[^/]*")
+		case c == '{':
+			braces++
+			b.WriteString("(?:")
+		case c == '}' && braces > 0:
+			braces--
+			b.WriteString(")")
+		case c == ',' && braces > 0:
+			b.WriteString("|")
+		default:
+			b.WriteString(regexp.QuoteMeta(string(c)))
+		}
+	}
+	b.WriteString("$")
+	re, err := regexp.Compile(b.String())
+	return err != nil || braces != 0 || re.MatchString(text)
 }
 
 // uoNearest returns the stubbed value of the input's parameter closest to its value by edit
