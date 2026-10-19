@@ -14,7 +14,7 @@ owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
 
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
-- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
+- Status: proposed/experimental; DCP-V1-053 accepted (decision 0519; V1-1196); DCP-V1-054 and DCP-V1-055 accepted (decision 0520; V1-1226, V1-1231); DCP-V1-056 and DCP-V1-057 accepted under the owner's standing auto-accept (2026-10-11; GitHub #805); DCP-V1-060..069 legacy inventory producer accepted under the owner's standing auto-accept (2026-10-11; GitHub #811); DCP-V1-070..079 (test-management case import, GitHub #812) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-080..082 (behavior annotation contract, producer and missing annotations, GitHub #835; V1-1222) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-083..084 (valueless state matchers, GitHub #845; V1-1318) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-085 (encoder-pool-independent allocation, V1-1380) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-086..092 (test-knowledge records, GitHub #1162; V1-1868) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-093..099 (flow-level relations, GitHub #1225; V1-1973) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-140..142 (symbol-anchor re-resolution, GitHub #1223; V1-1971) accepted under the owner's standing auto-accept (2026-10-11); DCP-V1-143..145 (lazy corpus MCP load, reused freshness and path batches, GitHub #1236 and #1237; V1-1982) accepted under the owner's standing auto-accept (2026-10-11); this contract does not accept generated intent or qualify HDC.
 - Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
 - Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
@@ -919,6 +919,29 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   noted file of the same family) that could hide the symbol. A cited symbol anchor the reader did
   not evaluate is `unresolved`; when re-resolution fails, every cited symbol anchor is unevaluated
   and the receipt carries the failure as a limitation instead of refusing the read.
+- `DCP-V1-143`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1237;
+  V1-1982)) The corpus MCP server starts from the configured artifact's digest and top-level
+  `schema` and `capabilities` alone: tool advertisement needs no rederivation, and an artifact whose
+  header cannot be read still fails startup with `corpus-unavailable`. The first tool call opens
+  and rederives the artifact (`DCP-V1-011`) and keeps it; a later call reuses it only while the
+  artifact bytes still match the startup digest and every pinned revision still resolves to its
+  tree, and otherwise rederives. A rederivation failure is that call's typed failure. Each result
+  reports `load` as `first-call` or `reused` with the load time.
+- `DCP-V1-144`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
+  V1-1982)) Live readers re-resolve only the symbol anchors cited by the records a query returns
+  (`DCP-V1-141`), so an uncited anchor costs nothing, and the corpus MCP server reuses one call's
+  live freshness, including those re-resolutions, while the repository observation (object
+  format, commit, tree, status digest and dirty paths) is unchanged. The observation is read before
+  the freshness it keys, so a change during a call only forces a recompute. Reuse never changes a
+  receipt byte relative to a fresh reader.
+- `DCP-V1-145`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;
+  V1-1982)) Path tools accept exactly one of `path` and `paths`, a duplicate-free list of 1 to 100
+  paths. A batch answers with `corvint-corpus-batch/1`: per path, in request order, the receipt
+  the single-path call returns (without its trailing newline), or an `unresolved` row naming the
+  path and code. A call that outlives the server's per-call deadline returns `deadline-exceeded`
+  (a batch names the unanswered paths instead), and the server keeps serving later calls. Every
+  result carries `_meta["corvint/timing"]`: load, verify, freshness, query and total milliseconds
+  and process CPU milliseconds.
 
 ## Input and authority boundary
 
@@ -1292,8 +1315,9 @@ source anchor, a bound breach or use under manifest `/1`. A stale, unresolved or
 is not a refusal: it is reported, listed in `withheld` when reached, and never traversed
 (`DCP-V1-095`, `DCP-V1-097`). An invalid `--corpus-depth` or `depth` is an argument error.
 `corpus-invalid-revision` covers an unsupported immutable source revision.
-The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
-call failures retain the specific native error and never return successful empty evidence.
+The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be read or
+its header cannot be decoded; rederivation happens on the first call (`DCP-V1-143`), and call
+failures retain the specific native error and never return successful empty evidence.
 
 The experimental JSON HTTP companion returns `corvint-corpus-http-refusal/1` with
 `state: abstained` for these DCP-V1-042 transport/query refusals:
@@ -1379,6 +1403,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-086..092 | `internal/doccorpus/test_knowledge.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `pagination.go`, `internal/corpusrepublish/parity.go` | `TestDCPV1086TestKnowledgeSchemaIsClosed`, `TestDCPV1087TestKnowledgeFieldRules`, `TestDCPV1088TestKnowledgeAnchorsArePinned`, `TestDCPV1089TestKnowledgeJoin`, `TestDCPV1090TestKnowledgeTrustRules`, `TestDCPV1091TestKnowledgeQueryExposure`, `TestDCPV1091TestKnowledgeOnlyCorpus`, `TestDCPV1092TestKnowledgeDeterministicAndBounded`, `TestDCPV1092ParityLargeTestKnowledge` |
 | DCP-V1-093..099 | `internal/doccorpus/flow_relations.go`, `providers.go`, `shards.go`, `compile.go`, `query.go`, `typed_query.go`, `integration.go`, `pagination.go`, `internal/corpusrepublish/parity.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `cmd/corvint/corpus_integration.go` | `TestDCPV1093FlowRelationSchemaIsClosed`, `TestDCPV1094FlowRelationKindFields`, `TestDCPV1095FlowRelationJoinStatus`, `TestDCPV1096FlowRelationImpactAttribution`, `TestDCPV1097FlowRelationUnreviewedAndDepth`, `TestDCPV1097CorpusDepthFlag`, `TestDCPV1098FlowRelationTraceAndGaps`, `TestDCPV1098TraceToolDepth`, `TestDCPV1099FlowRelationDeterministicAndBounded` |
 | DCP-V1-140..142 | `internal/contextindex/symbol_region.go`, `rubysymbols.go`, `internal/doccorpus/symbol_anchor.go`, `query.go`, `pagination.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestSymbolAnchorReresolution` (Ruby and TypeScript: insertion is `moved` with the new range, a one-token edit is `changed`, deletion is `gone`, a reformat is `live` or `moved`), `TestSymbolAnchorUncertainty`, `TestSymbolAnchorReaderReceipt`, `TestNormalizedCodeLines` |
+| DCP-V1-143..145 | `internal/mcp/corpusbridge/corpusbridge.go`, `cputime_unix.go`, `internal/doccorpus/query.go`, `symbol_anchor.go`, `cmd/corvint-corpus-mcp/main.go` | `TestDCPV1143LazyLoadAndMemo`, `TestDCPV1143StartupRefusesUnreadableArtifact`, `TestDCPV1144LiveFreshnessReusedUntilTheRepositoryChanges`, `TestSymbolAnchorReaderReceipt`, `TestDCPV1145PathsBatchEqualsUnion`, `TestDCPV1145BatchDeadlineNamesUnresolved`, `TestDCPV1145CallDeadlineAndTiming`; measured on a 100,000-claim corpus in docs/build-log/2026-10-19-V1-1982-corpus-mcp-lazy-batch.md |
 | DCP-V1-033..037 | `internal/doccorpus/adoption.go`, `shards.go`, `pagination.go`, native CLI and corpus MCP | Capacity qualification, typed round-trip, import parity, shard closure, restricted canaries and paginated read parity |
 
 ## Open decisions

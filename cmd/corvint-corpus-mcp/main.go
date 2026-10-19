@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -20,6 +21,10 @@ const (
 	serverName    = "corvint-corpus-mcp"
 	serverVersion = "0.1.0-experimental"
 	toolError     = "corvint-corpus-mcp-tool-error/0"
+	// callDeadline bounds one corpus call so a slow request returns a typed
+	// timeout while the server keeps serving others (DCP-V1-145).
+	callDeadline = 50 * time.Second
+	timingMeta   = "corvint/timing"
 )
 
 func main() {
@@ -113,6 +118,7 @@ type toolHandler struct {
 	planner      *mapPlanner
 	consolidator *consolidator
 	legacyCases  *legacyCaseSearcher
+	deadline     time.Duration // zero means callDeadline
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -176,18 +182,32 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if name == legacyCasesTool && handler.legacyCases != nil {
 		return handler.callLegacyCases(ctx, raw)
 	}
-	structured, text, toolFailure, transportErr := handler.registry.Call(ctx, name, raw)
+	deadline := handler.deadline
+	if deadline <= 0 {
+		deadline = callDeadline
+	}
+	callCtx, cancel := context.WithTimeout(ctx, deadline)
+	defer cancel()
+	structured, text, toolFailure, transportErr, timing := handler.registry.CallTimed(callCtx, name, raw)
 	if transportErr != nil {
 		if transportErr.Code == "invalid-arguments" || transportErr.Code == "unsupported-tool" {
 			return nil, protocol.InvalidParams("Invalid params")
 		}
-		if transportErr.Code == "cancelled" || ctx.Err() != nil {
+		if ctx.Err() != nil {
 			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 		}
-		return toolFailureResult(name, transportErr.Code, transportErr.Code)
+	}
+	if (transportErr != nil || toolFailure != nil) && ctx.Err() == nil && callCtx.Err() != nil {
+		return timedFailure(name, "deadline-exceeded", "call did not finish within "+deadline.String()+"; retry with fewer paths", timing)
+	}
+	if transportErr != nil {
+		if transportErr.Code == "cancelled" {
+			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		}
+		return timedFailure(name, transportErr.Code, transportErr.Code, timing)
 	}
 	if toolFailure != nil {
-		return toolFailureResult(name, toolFailure.Code, toolFailure.Message)
+		return timedFailure(name, toolFailure.Code, toolFailure.Message, timing)
 	}
 	// Model-facing evidence uses the shared untrusted-data envelope; the
 	// structured native receipt remains unchanged.
@@ -199,7 +219,18 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		"content":           []any{map[string]any{"type": "text", "text": framed}},
 		"isError":           false,
 		"structuredContent": structured,
+		"_meta":             map[string]any{timingMeta: timing},
 	}, nil
+}
+
+// timedFailure reports the call's cost in result _meta, outside the evidence
+// receipt, so receipts stay byte-identical to the CLI (DCP-V1-145).
+func timedFailure(name, code, message string, timing corpusbridge.Timing) (map[string]any, *protocol.RPCError) {
+	result, rpcErr := toolFailureResult(name, code, message)
+	if result != nil {
+		result["_meta"] = map[string]any{timingMeta: timing}
+	}
+	return result, rpcErr
 }
 
 // callMapPlan frames the plan like every other tool result: the model-facing text in the

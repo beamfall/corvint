@@ -2106,6 +2106,9 @@ DCP-V1-099	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-140	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
 DCP-V1-141	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
 DCP-V1-142	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1223;	standing	2026-10-11; #1223
+DCP-V1-143	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1237;	standing	2026-10-11; #1237
+DCP-V1-144	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;	standing	2026-10-11; #1236
+DCP-V1-145	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1236;	standing	2026-10-11; #1236
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

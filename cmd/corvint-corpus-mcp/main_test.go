@@ -189,3 +189,28 @@ func TestCorpusMCPCollisionAndCancellation(t *testing.T) {
 		}
 	})
 }
+
+func TestDCPV1145CallDeadlineAndTiming(t *testing.T) {
+	root, _ := corpusServerFixture(t, "# Timed\n\nA claim.\n")
+	registry, e := corpusbridge.New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	result, rpc := (&toolHandler{registry: registry}).call(context.Background(), map[string]any{"name": "corvint.docs_info"})
+	if rpc != nil || result["isError"] != false {
+		t.Fatalf("info failed: %#v %v", result, rpc)
+	}
+	timing, ok := result["_meta"].(map[string]any)[timingMeta].(corpusbridge.Timing)
+	if !ok || timing.Load != "first-call" {
+		t.Fatalf("timing meta: %#v", result["_meta"])
+	}
+	expired := &toolHandler{registry: registry, deadline: time.Nanosecond}
+	result, rpc = expired.call(context.Background(), map[string]any{"name": "corvint.docs_info"})
+	if rpc != nil || result["isError"] != true || result["structuredContent"].(map[string]any)["code"] != "deadline-exceeded" {
+		t.Fatalf("deadline not reported: %#v %v", result, rpc)
+	}
+	result, rpc = (&toolHandler{registry: registry}).call(context.Background(), map[string]any{"name": "corvint.docs_info"})
+	if rpc != nil || result["isError"] != false {
+		t.Fatalf("server stopped serving after a deadline: %#v %v", result, rpc)
+	}
+}

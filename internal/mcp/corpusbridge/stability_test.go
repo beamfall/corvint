@@ -8,7 +8,7 @@ import (
 
 func TestStabilityToolIsCapabilityGated(t *testing.T) {
 	t.Run("DCP-V1-025 MCP stability join", func(t *testing.T) {
-		registry := &Registry{artifact: &doccorpus.Artifact{Capabilities: []doccorpus.Capability{{Name: "stability", State: "present"}}}}
+		registry := &Registry{header: header{Capabilities: []doccorpus.Capability{{Name: "stability", State: "present"}}}}
 		for _, tool := range registry.Tools() {
 			if tool.Name == "corvint.docs_get_stability" {
 				return

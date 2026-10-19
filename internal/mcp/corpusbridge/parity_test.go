@@ -11,7 +11,7 @@ func TestCorpusCompleteReadAndTypedToolSchema(t *testing.T) {
 		for _, name := range []string{"info", "subjects", "claims", "relations", "journeys", "coverage", "gaps", "stability"} {
 			caps = append(caps, doccorpus.Capability{Name: name, State: "present"})
 		}
-		r := &Registry{artifact: &doccorpus.Artifact{Schema: doccorpus.SchemaV2, Capabilities: caps}}
+		r := &Registry{header: header{Schema: doccorpus.SchemaV2, Capabilities: caps}}
 		seen := map[string]bool{}
 		for _, tool := range r.Tools() {
 			seen[tool.Name] = true
@@ -29,7 +29,7 @@ func TestCorpusCompleteReadAndTypedToolSchema(t *testing.T) {
 				t.Fatal("CLI operation absent MCP", op)
 			}
 		}
-		r.artifact.Capabilities = []doccorpus.Capability{{Name: "subjects", State: "absent"}}
+		r.header.Capabilities = []doccorpus.Capability{{Name: "subjects", State: "absent"}}
 		if len(r.Tools()) != 0 {
 			t.Fatal("absent capability exposed")
 		}

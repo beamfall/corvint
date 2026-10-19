@@ -18,12 +18,12 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 }
 
 // FreshnessOverlay is a corpus reader's live overlay: the artifact-wide state
-// and limitations Freshness reports, and the live re-resolution of every
-// symbol anchor the artifact's records cite, keyed by SymbolAnchorKey.
+// and limitations Freshness reports, and the live tree that re-resolves the
+// symbol anchors a receipt cites (DCP-V1-144).
 type FreshnessOverlay struct {
-	State         string
-	Limitations   []string
-	SymbolAnchors map[string]SymbolAnchorCheck
+	State       string
+	Limitations []string
+	symbols     *symbolOverlay
 }
 
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
@@ -86,8 +86,13 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	for _, in := range a.Manifest.Inputs {
 		// Historical provider records are independent of source freshness. A live
 		// replacement of one is still visible; no HEAD equality heuristic is used.
-		entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path)
-		if err != nil {
+		// A clean path the live index already pinned at CommitRevision needs no
+		// further tree walk (DCP-V1-144).
+		var entry gitauth.TreeEntry
+		exists := false
+		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
+			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
+		} else if entry, exists, err = auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path); err != nil {
 			return unknown, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
@@ -115,16 +120,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	}
 	overlay := FreshnessOverlay{State: state, Limitations: limits}
 	if symbols {
-		// A failed re-resolution withholds every symbol state (each cited
-		// anchor reads as unevaluated) rather than refusing the whole read.
-		overlay.SymbolAnchors, err = resolveArtifactSymbols(ctx, auth, live, a)
-		if err != nil {
-			if ctx.Err() != nil {
-				return unknown, ctx.Err()
-			}
-			overlay.SymbolAnchors = nil
-			overlay.Limitations = append(overlay.Limitations, "symbol-anchor re-resolution withheld: "+err.Error())
-		}
+		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, checks: map[string]SymbolAnchorCheck{}}
 	}
 	return overlay, nil
 }
@@ -165,13 +161,33 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 
 // QueryLive answers request under a live freshness overlay. Besides the
 // overlay's state and limitations, the receipt reports the re-resolution of
-// every symbol anchor it cites (DCP-V1-141).
+// every symbol anchor it cites (DCP-V1-141). Only the cited anchors are
+// re-resolved (DCP-V1-144): a first pass selects the citations and a second
+// attaches their checks. The checks can only enlarge the receipt, so the
+// second pass cites a subset of the first.
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	symbols := overlay.SymbolAnchors
-	if symbols == nil {
-		symbols = map[string]SymbolAnchorCheck{}
+	first, err := queryContext(ctx, a, request, overlay.State, overlay.Limitations, map[string]SymbolAnchorCheck{})
+	if err != nil || overlay.symbols == nil {
+		return first, err
 	}
-	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, symbols)
+	var cited []Anchor
+	for _, anchor := range first.Citations {
+		if anchor.Symbol != "" {
+			cited = append(cited, anchor)
+		}
+	}
+	if len(cited) == 0 {
+		return first, nil
+	}
+	checks, withheld, err := overlay.symbols.resolve(ctx, cited)
+	if err != nil {
+		return Receipt{}, err
+	}
+	limitations := overlay.Limitations
+	if withheld != "" {
+		limitations = append(append([]string{}, limitations...), withheld)
+	}
+	return queryContext(ctx, a, request, overlay.State, limitations, checks)
 }
 
 func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols map[string]SymbolAnchorCheck) (Receipt, error) {

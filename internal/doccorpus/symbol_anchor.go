@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
@@ -433,71 +435,92 @@ func SymbolAnchorKey(a Anchor) string {
 	return FormatSymbolAnchor(a) + ":" + a.Blob + ":" + a.SpanSHA256
 }
 
-// resolveArtifactSymbols re-resolves every symbol anchor the artifact's
-// records cite against the live tree. An anchor whose pinned blob is still the
-// committed, clean content of its path is live without a parse.
-func resolveArtifactSymbols(ctx context.Context, auth *gitauth.Repository, live *contextindex.Index, a *Artifact) (map[string]SymbolAnchorCheck, error) {
-	out := map[string]SymbolAnchorCheck{}
-	resolver := NewSymbolResolver(auth, live, Repository{ID: a.Manifest.Repository.ID, Revision: live.CommitRevision}, live.DirtyPaths)
+// symbolOverlay re-resolves cited symbol anchors against one live tree and
+// remembers each check, so a reader answering several requests under the
+// same overlay resolves an anchor once.
+type symbolOverlay struct {
+	mu               sync.Mutex
+	root, repository string
+	live             *contextindex.Index
+	checks           map[string]SymbolAnchorCheck
+	withheld         string
+}
+
+// resolve returns the checks for anchors. A failed re-resolution withholds
+// every symbol state (each cited anchor reads as unevaluated) and names the
+// failure as a limitation rather than refusing the whole read; only a
+// cancelled context is an error.
+func (s *symbolOverlay) resolve(ctx context.Context, anchors []Anchor) (map[string]SymbolAnchorCheck, string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.withheld == "" {
+		if err := s.resolveMissing(ctx, anchors); err != nil {
+			if ctx.Err() != nil {
+				return nil, "", ctx.Err()
+			}
+			s.withheld = "symbol-anchor re-resolution withheld: " + err.Error()
+		}
+	}
+	if s.withheld != "" {
+		return map[string]SymbolAnchorCheck{}, s.withheld, nil
+	}
+	return s.checks, "", nil
+}
+
+// resolveMissing resolves the anchors not yet checked. An anchor whose pinned
+// blob is still the committed, clean content of its path is live without a
+// parse.
+func (s *symbolOverlay) resolveMissing(ctx context.Context, anchors []Anchor) error {
+	var pending []Anchor
+	for _, anchor := range anchors {
+		if _, done := s.checks[SymbolAnchorKey(anchor)]; !done && anchor.Symbol != "" {
+			pending = append(pending, anchor)
+		}
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+	auth, err := gitauth.Open(s.root, gitrun.NewDefaultBudget())
+	if err != nil {
+		return err
+	}
+	release := auth.BeginObjectSession()
+	defer release()
+	live := s.live
+	resolver := NewSymbolResolver(auth, live, Repository{ID: s.repository, Revision: live.CommitRevision}, live.DirtyPaths)
 	blobs := map[string]string{}
-	visit := func(anchors []Anchor) error {
-		for _, anchor := range anchors {
-			key := SymbolAnchorKey(anchor)
-			if anchor.Symbol == "" {
-				continue
-			}
-			if _, done := out[key]; done {
-				continue
-			}
-			blob, seen := blobs[anchor.Path]
-			if !seen {
-				entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
-				if err != nil {
-					return err
-				}
-				if exists && entry.Type == "blob" {
-					blob = entry.OID
-				}
-				blobs[anchor.Path] = blob
-			}
-			if blob == anchor.Blob && !resolver.dirty[anchor.Path] && anchor.Repository == resolver.repository.ID && contextindex.SymbolRegionLanguage(anchor.Path) != "" {
-				out[key] = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
-					Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}
-				continue
-			}
-			check, err := resolver.Resolve(ctx, anchor)
+	resolved := map[string]SymbolAnchorCheck{}
+	for _, anchor := range pending {
+		key := SymbolAnchorKey(anchor)
+		if _, done := resolved[key]; done {
+			continue
+		}
+		blob, seen := blobs[anchor.Path]
+		if !seen {
+			entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
 			if err != nil {
 				return err
 			}
-			out[key] = check
+			if exists && entry.Type == "blob" {
+				blob = entry.OID
+			}
+			blobs[anchor.Path] = blob
 		}
-		return nil
-	}
-	var records []any
-	for _, x := range a.Subjects {
-		records = append(records, x)
-	}
-	for _, x := range a.Claims {
-		records = append(records, x)
-	}
-	for _, x := range a.Relations {
-		records = append(records, x)
-	}
-	for _, x := range a.Journeys {
-		records = append(records, x)
-	}
-	for _, x := range a.Observations {
-		records = append(records, x)
-	}
-	for _, x := range a.TestKnowledge {
-		records = append(records, x)
-	}
-	for _, record := range records {
-		if err := visit(recordAnchors(record)); err != nil {
-			return nil, err
+		if blob == anchor.Blob && !resolver.dirty[anchor.Path] && anchor.Repository == resolver.repository.ID && contextindex.SymbolRegionLanguage(anchor.Path) != "" {
+			resolved[key] = SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorLive, Reason: "pinned blob is unchanged at the live path",
+				Live: &SymbolLocation{Revision: live.CommitRevision, Path: anchor.Path, Blob: blob, SHA256: anchor.SHA256, Start: anchor.Start, End: anchor.End, SpanSHA256: anchor.SpanSHA256}}
+			continue
 		}
+		check, err := resolver.Resolve(ctx, anchor)
+		if err != nil {
+			return err
+		}
+		resolved[key] = check
 	}
-	return out, nil
+	for key, check := range resolved {
+		s.checks[key] = check
+	}
+	return nil
 }
 
 // attachSymbolAnchors adds the overlay's check for each cited symbol anchor.
