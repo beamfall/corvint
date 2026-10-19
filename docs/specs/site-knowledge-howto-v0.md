@@ -11,7 +11,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); not-started. SKH-V0-001..084 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11); nothing is implemented.
+- Status: accepted (owner intent 2026-10-19; V1-1897); not-started. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11); nothing is implemented.
 - Exists: only the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
 - Blocked on: owner confirmation of the assumed first adopter and of N for the preregistered measure; then stage 1 (V1-1898).
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
@@ -130,19 +130,28 @@ owner chooses a React adopter instead, V1-1712 becomes a prerequisite ticket ahe
 
 ## Definition of "confidently"
 
-A generated test demonstrates X **confidently** only when all of the following hold:
+A generated test demonstrates X **confidently** only when all six of the following hold. Each
+condition is checked on the exact candidate bytes of `SKH-V0-088`.
 
-1. it ran live against the target application at a pinned application revision and passed, with
-   repeats as in `NEA-V0-002`;
-2. it passed TSA-V0 validity with no defect finding, including the JS/TS hygiene rules of
-   TSA-V0 (`TSA-V0-073`..`081`);
-3. it discriminates: the approved negative controls (`NEA-V0-003`, with the BBF-V0 `wrong-locator`
-   and `wrong-expected-value` controls) fail it, and the seeded-mutant discrimination verdict
-   (`CCE-V0-009`), run through the V1-1733 prover, does not read non-discriminating;
-4. every line traces to learned evidence (0 unanchored statements), and its steps, selectors and
-   methods are bound to run evidence (RVN-V0, extended in stage 8).
+1. **Ran and passed**: it ran live against the target application at a pinned application
+   revision and passed every repeat as in `NEA-V0-002`, with retries at zero (`SKH-V0-082`).
+2. **Valid source**: TSA-V0 located exactly one example for it in the candidate's blob, with
+   hygiene explicitly `ELIGIBLE` and no defect finding. An abstention, an `uncertain` file or a
+   missing example is not validity (`SKH-V0-086`).
+3. **Accepted by the provider**: the complete applicable NEA-V0 assessment holds, with every
+   required axis observed and none blocked, freshness and cleanup included (`SKH-V0-082`).
+4. **Discriminates**: every approved negative control reads `killed` (the NEA-V0-003 controls and
+   the BBF-V0 `wrong-locator` and `wrong-expected-value` controls), and the discrimination verdict
+   of the V1-1733 prover is on the allowlist of `SKH-V0-085`. Any other verdict, or none, blocks.
+5. **Anchored and witnessed**: every line traces to learned evidence (0 unanchored statements),
+   and every step, selector and method it uses has a behavioural witness from the live run
+   (`SKH-V0-089`).
+6. **Demonstrates the request**: its outcome assertion is the outcome oracle accepted for the
+   request before the run (`SKH-V0-087`).
 
-Otherwise the system abstains and names what is missing. It never presents a plan, a draft or a
+Conditions 1 to 5 without 6 read `EXECUTION_VERIFIED`: the test runs and discriminates, but
+nothing shows that it demonstrates X. Only all six read `PROVEN`. Otherwise the system abstains
+and names what is missing. It never presents a plan, a draft, an execution-verified test or a
 passing but non-discriminating test as a demonstration.
 
 ## Existing contracts and extension points
@@ -197,7 +206,9 @@ Each stage extends the named point. None of these contracts is restated here.
   (invariant 5).
 - `SKH-V0-007`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1897) For one
   revision and one set of inputs, every output MUST be byte-identical across reruns, ordered by
-  stable IDs, and byte-capped with an explicit truncation marker.
+  stable IDs, and byte-capped with an explicit truncation marker. Every output record MUST carry
+  a closed, versioned profile string, and a reader MUST refuse an unknown profile or a newer
+  version by name, never coerce or partly read it.
 - `SKH-V0-008`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1897) Each stage
   MUST extend the extension point named for it in "Existing contracts and extension points"
   instead of adding a parallel model, command or MCP surface. A stage that cannot do so MUST
@@ -232,14 +243,17 @@ Each stage extends the named point. None of these contracts is restated here.
 
 - `SKH-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Spec bodies
   and page-object methods MUST normalise into one closed step IR with the kinds `visit`, `click`,
-  `fill`, `select`, `check`, `upload`, `wait-for` and `assert` (with matcher and expected value).
-  Each step carries a locator reference, parameter slots and a source span, for Playwright,
-  Cypress and Capybara at least. Legacy Jasmine cases enter through the DCP-V1 inventory criteria
-  (`DCP-V1-060`..`062`), not through a second Jasmine parser.
+  `fill`, `select`, `check`, `upload`, `wait-for`, `assert` (with matcher and expected value) and
+  `opaque`. An `opaque` step carries a closed `reason` (`parse-unsupported`, `dynamic-value` or
+  `unresolved-call`) and the source span it could not read. Each step carries a locator
+  reference, parameter slots and a source span, for Playwright, Cypress and Capybara at least.
+  Legacy Jasmine cases enter through the DCP-V1 inventory criteria (`DCP-V1-060`..`062`), not
+  through a second Jasmine parser.
 - `SKH-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Page-object
   calls MUST inline to their IR with arguments bound to parameter slots. An unparseable step MUST
   become an explicit `opaque` step with its span, never dropped. A sequence that holds an opaque
-  step is marked incomplete.
+  step is marked incomplete, and a task plan that uses it reads `INCOMPLETE` and never reaches the
+  generator. Stage 2 fixtures round-trip an `opaque` step and show that propagation.
 - `SKH-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1899) Identical
   step sequences across tests MUST deduplicate into reusable step records with usage counts, each
   citing every source test.
@@ -290,16 +304,29 @@ Each stage extends the named point. None of these contracts is restated here.
   sequences across tests MUST cluster deterministically into candidate flows (start screen, steps,
   end screen and outcome) and variations, by shared step-record IDs and screens. Each candidate
   cites its source tests.
-- `SKH-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidate
-  flows MUST enter only as proposed AFU-V1 intents through `flows import` (`AFU-V1-004`). They are
-  never accepted intent (invariant 8).
+- `SKH-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Flow
+  inference MUST only emit a proposed `corvint-behavior-adapter-request/1` import document on
+  standard output and write nothing (`SKH-V0-005`). Candidate flows become intent files only when
+  the operator separately runs `flows import` on that document, which writes them marked
+  `proposed` (`AFU-V1-004`). They are never accepted intent (invariant 8).
 - `SKH-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidates
-  MUST join DCP-V1 test-knowledge trust levels (`DCP-V1-086`..`092`) and rank
-  `run+reviewed` sources above `run-unreviewed` and unreviewed ones. Trust is labelled, never
-  promoted (`DCP-V1-090`).
+  MUST join DCP-V1 test-knowledge records (`DCP-V1-086`..`092`) and honour each join's verdict
+  and selection (`DCP-V1-090`). A joined `defect` (selection `blocks`, at any trust level) blocks
+  every candidate flow and oracle that would use that test, and the block is reported. A joined
+  `unrelated` verdict removes the test as a step or oracle source. The remaining sources rank by
+  trust: `candidate` selections (`run+reviewed` with verdict `bound` or `partial`) first, then
+  `run-unreviewed`, then unreviewed tests. A `partial` verdict's gaps are carried to the flow
+  and to stage 6 oracle selection as named gaps. High trust never overrides a defect, and trust
+  is labelled, never promoted.
 - `SKH-V0-053`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each
   candidate MUST report its support (distinct source tests) and its conflicts (tests that diverge
   at a step). A candidate with one source test is labelled `single-source`.
+- `SKH-V0-054`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Stage 5
+  evidence MUST include a read-path test showing that inference and `corvint how` leave the
+  worktree, index, refs and `.corvint/` unchanged apart from the invariant 4 ledgers, and an
+  import round-trip fixture whose emitted document, imported by `flows import`, yields `proposed`
+  intents equal to the candidates. Fixtures MUST show a `run+reviewed` test with a `defect` verdict
+  blocking its flow instead of ranking first, and an `unrelated` test never used as a source.
 
 ### Stage 6: the `corvint how` task query (V1-1903)
 
@@ -326,9 +353,14 @@ Each stage extends the named point. None of these contracts is restated here.
 ### Stage 7: generator (V1-1904)
 
 - `SKH-V0-070`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1904) From a
-  `COMPLETE` task plan, the generator MUST emit a runnable test in the target suite's framework and
-  conventions. It reuses existing page objects, setup records and fixtures, and places the test
-  beside the closest existing spec (the `AMAP-V0-013` placement rule).
+  `COMPLETE` task plan, the V0 generator MUST emit a Playwright TypeScript test only, in the target
+  suite's conventions. It reuses existing Playwright page objects, setup records and fixtures, and
+  places the test beside the closest existing Playwright spec (the `AMAP-V0-013` placement rule).
+  A plan with any step, setup or oracle mined only from another framework (Cypress, Capybara or
+  RSpec, Jasmine) MUST abstain with `source-framework-unsupported`, naming the element, because
+  copying across frameworks would be synthesis (`SKH-V0-072`). The RSpec provider's `preview`,
+  `promotable: false` result never substitutes for stage 8 proof. This scope is an orchestrator
+  decision under the owner's delegation of in-task forks (2026-10-05); the owner may revise it.
 - `SKH-V0-071`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Every
   generated line MUST trace to a learned evidence record, and the generator MUST emit that
   line-to-evidence map with the test.
@@ -339,8 +371,8 @@ Each stage extends the named point. None of these contracts is restated here.
   real tests with only parameter-slot substitution.
 - `SKH-V0-073`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1904) The
   generator MUST extend `flows appmap plan --request --draft` (`AMSP-V0-008`, the `test.fixme`
-  skeleton) and the `corvint.map_plan` MCP tool rather than a parallel surface. The draft guard
-  stays until stage 8 proves the test.
+  skeleton) and the `corvint.map_plan` MCP tool rather than a parallel surface. Core always emits
+  the guarded draft; only the stage 8 companion removes the guard, under `SKH-V0-088`.
 - `SKH-V0-074`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1904) Generation
   MUST be byte-identical across reruns for the same plan and revision, and it writes only to an
   output path the caller names explicitly.
@@ -355,18 +387,68 @@ Each stage extends the named point. None of these contracts is restated here.
   It runs the NEA-V0 and BBF-V0 negative controls and the `CCE-V0-009` discrimination verdict
   through the V1-1733 prover. The command emits one acceptance receipt.
 - `SKH-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The receipt
-  MUST read `PROVEN` only when every condition of "confidently" holds. Otherwise it names the first
-  failing stage with its evidence, using one closed code: `generate-incomplete`, `run-failed`,
-  `validity-defect`, `binding-unverified`, `control-survived`, `not-discriminating` or
-  `infrastructure`.
+  MUST read `PROVEN` only when all six conditions of "confidently" hold, and `EXECUTION_VERIFIED`
+  when conditions 1 to 5 hold and 6 does not. Otherwise it names the first failing condition with
+  its evidence, using one closed code: `generate-incomplete`, `run-failed`,
+  `validity-unestablished`, `validity-defect`, `acceptance-blocked`, `binding-unverified`,
+  `control-survived`, `not-discriminating`, `discrimination-inconclusive` or `infrastructure`. An
+  `EXECUTION_VERIFIED` receipt names `oracle-unaccepted` or `oracle-mismatch`.
 - `SKH-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The live run
-  MUST repeat as in `NEA-V0-002`, with retries at zero. A flaky result is never `PROVEN`.
+  MUST repeat as in `NEA-V0-002`, with retries at zero; a flaky result is never `PROVEN`. The
+  receipt MUST carry the complete applicable NEA-V0 assessment (`NEA-V0-004`, `NEA-V0-006`):
+  association, hygiene, freshness and execution as the provider observed them, strength derived
+  from matched controls, and cleanup facts. Any unknown required axis blocks with
+  `acceptance-blocked`: request `/0` with freshness `UNKNOWN` is never accepted, request `/1` needs
+  its observed PTF closure, and unknown cleanup blocks. Every blocked axis and its reason stays in
+  the receipt.
 - `SKH-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The pipeline
   MUST run in existing companions (`corvint-test`, `corvint-tests-accept`,
   `corvint-js-test-provider`). Core `corvint` reads only the receipt.
 - `SKH-V0-084`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Stage 8 MUST
   be qualified on the confirmed real adopter with the preregistered request set, reporting proven,
   abstained and failed counts, unanchored statements and rerun byte identity.
+- `SKH-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The
+  discrimination verdict MUST come from the V1-1733 prover applying the `CCE-V0-009` ladder, with
+  the pinned application revision as head and a seeded mutant of it as base. Only `DISCRIMINATES`
+  and `NEW_REACH` qualify, and only when the receipt names every mutant and control identity with
+  its observed result. `PRESERVES` reads `not-discriminating`, `CONTROL_SURVIVED` reads
+  `control-survived`, `REGRESSION_DETECTED` and `SCENARIO_BROKEN` read `run-failed`, and
+  `INCONCLUSIVE`, `UNSTABLE`, a missing verdict or a prover that did not run read
+  `discrimination-inconclusive`. Until the V1-1733 prover contract is accepted, nothing reads
+  `PROVEN`. Stage 8 fixtures cover every ladder verdict.
+- `SKH-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Validity
+  MUST be established positively, never inferred from an empty finding list. `corvint tests
+  validity` (`TSA-V0-081`) MUST return exactly one located example for the generated test, at its
+  callee line in the candidate's exact blob, with hygiene `ELIGIBLE` after `ApplySourceFindings`
+  and no defect finding. An `uncertain` file, an `ABSTAINED` example, a missing example, more
+  than one matching example or a read of other bytes MUST block with `validity-unestablished`; a
+  defect finding reads `validity-defect`. Stage 8 fixtures cover each blocking case.
+- `SKH-V0-087`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Before a
+  request runs, it MUST be bound to an accepted outcome oracle naming the goal screen, locator
+  reference, matcher and expected value. The oracle is either recorded by the owner in the frozen
+  request set or taken from an AFU-V1 flow intent accepted by a reviewed commit; a learned or
+  proposed oracle never qualifies. The receipt reads `PROVEN` only when the generated test's
+  outcome assertion equals that oracle on all four fields. Otherwise it reads at most
+  `EXECUTION_VERIFIED`, with `oracle-unaccepted` when no accepted oracle exists and
+  `oracle-mismatch` when the assertion differs. A passing, discriminating test for a different
+  goal is a required negative fixture and MUST NOT read `PROVEN`.
+- `SKH-V0-088`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Only the
+  stage 8 companion MAY turn the guarded draft into an executable candidate, by one recorded
+  transform that removes the `AMSP-V0-008` `test.fixme` guard and changes nothing else. The
+  receipt records the draft digest, the transform and the candidate's SHA-256. Validity, every
+  repeat, every control and the prover MUST run on those exact candidate bytes, and the final
+  artifact is those same bytes, written only to a path the caller names; any byte difference voids
+  the receipt. The guarded draft never counts as an executed test: a fixme or skipped run of it
+  reads `run-failed`, which a fixture shows.
+- `SKH-V0-089`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1905) A selector
+  or method MUST read verified only with a behavioural witness from a passing repeat of the live
+  run: a recorded action whose resolved locator is that selector's locator expression, or a
+  recorded call whose call site lies in that method's anchored span, joined to the element by ID,
+  revision and receipt under RVN-V0. Presence in a passing test's source is not a witness, and a
+  step's `VERIFIED` fact never verifies its selectors or methods (`AMSP-V0-007`). The stage amends
+  PWP-V0, RVN-V0 and AMSP-V0 to carry these observations in the same change; until then each such
+  element stays `unverified` and the receipt reads `binding-unverified`. Fixtures cover a method
+  never called, a branch not taken and a locator never exercised; each stays `unverified`.
 
 ## Preregistered measure
 
@@ -374,10 +456,12 @@ The measure is fixed before stage 6 runs on any request, and it is closable by t
 
 - **Request set**: N owner-written "how do I X" requests for the confirmed adopter. N is proposed
   as 20, and the owner confirms it (Owner question 2). The set and its SHA-256 are committed in a
-  build-log entry before the first run and are not edited afterwards. A request added later is
-  reported separately.
-- **Answered**: the stage 8 receipt reads `PROVEN`, which means a passing, discriminating test, and
-  the owner confirms that the test demonstrates X.
+  build-log entry before the first run and are not edited afterwards. Each request carries its
+  accepted outcome oracle (`SKH-V0-087`), frozen with the set. A request added later is reported
+  separately.
+- **Answered**: the stage 8 receipt reads `PROVEN`, which means a passing, discriminating test
+  whose outcome assertion is the request's accepted oracle, and the owner confirms afterwards that
+  the test demonstrates X. An `EXECUTION_VERIFIED` receipt is not answered and is counted apart.
 - **Abstained**: a closed abstention code from `SKH-V0-062` or `SKH-V0-081`. An abstention is an
   acceptable outcome, never a failure of invariant 2.
 - **Wrong**: a `PROVEN` test that the owner judges does not demonstrate X. Any wrong answer blocks
@@ -387,8 +471,8 @@ The measure is fixed before stage 6 runs on any request, and it is closable by t
 - **Hard gates**: 0 unanchored statements across all `PROVEN` tests, and byte-identical reruns of
   the model, the plans and the generated tests at the same revision. Either gate failing fails the
   run, whatever the answered rate.
-- **Report**: answered, abstained (by code), wrong and failed counts, unanchored statements, rerun
-  identity and wall minutes per request.
+- **Report**: answered, execution-verified, abstained (by code), wrong and failed counts,
+  unanchored statements, rerun identity and wall minutes per request.
 
 ## Non-goals and simpler baseline
 
@@ -437,6 +521,14 @@ and 8 may stop there.
 | Evidence changed since it was mined | `STALE` (`SKH-V0-063`) |
 | Generated line has no evidence | TODO and `INCOMPLETE` (`SKH-V0-072`) |
 | Test passes but does not discriminate | `not-discriminating`, never `PROVEN` (`SKH-V0-081`) |
+| Discrimination verdict inconclusive, unstable or not run | `discrimination-inconclusive`, never `PROVEN` (`SKH-V0-085`) |
+| Validity reader abstains, file uncertain or example missing | `validity-unestablished` (`SKH-V0-086`) |
+| A required NEA-V0 axis is unknown | `acceptance-blocked`, with the axis kept in the receipt (`SKH-V0-082`) |
+| Passing, discriminating test for a different goal | `EXECUTION_VERIFIED` with `oracle-mismatch`, never `PROVEN` (`SKH-V0-087`) |
+| Guarded draft run, or candidate bytes changed after proof | `run-failed`; a byte change voids the receipt (`SKH-V0-088`) |
+| Method or locator in the source but not exercised | `unverified`; `binding-unverified` (`SKH-V0-089`) |
+| Reviewed source test with a `defect` verdict | blocks its flow and oracle (`SKH-V0-052`) |
+| Plan element mined only from a non-Playwright test | `source-framework-unsupported` (`SKH-V0-070`) |
 | Flaky live run | never `PROVEN` (`SKH-V0-082`) |
 | Secret in `storageState` or a typed value | screened and replaced by a parameter slot (`SKH-V0-006`) |
 | Browser, server or provider failure | `infrastructure`, kept separate from test failure |
@@ -446,13 +538,13 @@ and 8 may stop there.
 | Stage | Fixture evidence | Real-adopter evidence |
 |---|---|---|
 | 1 | one fixture per supported page-object form, including inherited and helper hops | class, method, locator and abstention counts on the adopter |
-| 2 | IR fixtures for Playwright, Cypress and Capybara, with opaque steps and dedup | step-record and opaque counts |
+| 2 | IR fixtures for Playwright, Cypress and Capybara, with dedup, `opaque` round trip and propagation to an incomplete plan | step-record and opaque counts |
 | 3 | setup fixtures for each listed source, plus secret-screening tests | setup records and unresolved preconditions |
 | 4 | template-link fixtures per syntax, with dynamic targets as UNKNOWN | static and observed edge counts, kept separate |
-| 5 | clustering fixtures with conflicts and single-source candidates | candidate flows imported as proposed intents |
+| 5 | clustering fixtures with conflicts and single-source candidates, a no-mutation read test, an import round trip, and defect and unrelated sources | candidate flows imported as proposed intents |
 | 6 | `how` fixtures for answered, ambiguous and every abstention code | plans for the preregistered requests |
-| 7 | generation fixtures with evidence maps and TODO lines, plus rerun identity | generated tests for the planned requests |
-| 8 | receipt fixtures for `PROVEN` and every failing-stage code | the preregistered measure report |
+| 7 | generation fixtures with evidence maps and TODO lines, rerun identity, and a non-Playwright source abstention | generated tests for the planned requests |
+| 8 | receipt fixtures for `PROVEN`, `EXECUTION_VERIFIED` and every code; every `CCE-V0-009` verdict; each validity block; blocked NEA axes; a wrong-goal test; a guarded-draft run; uncalled method, untaken branch and unexercised locator | the preregistered measure report |
 
 Each stage's tests cite its requirement IDs in their names or docstrings. The real-adopter
 qualification is recorded in a build-log entry with the adopter revision, tool versions and the
@@ -464,13 +556,32 @@ measure report. It does not cite private product names.
   the companion commands. No surface is advertised before its stage evidence exists.
 - All learned records are derived state. Deleting them and regenerating at the same revision gives
   the same bytes (`SKH-V0-007`), so a rollback never loses authority.
-- A stage is rolled back by reverting its commits. Earlier stages keep working, because each stage
-  only reads the one before it.
+- A stage is rolled back by reverting its commits, dependents first. Before a stage is reverted,
+  every stage that reads it (table below) MUST be reverted or disabled. A stage's amendment to a
+  shared contract (AMAP-V0, AMSP-V0, RVN-V0 or PWP-V0) is reverted with it, after the consumers
+  of that amendment.
+- An older binary MUST refuse a newer derived record by its versioned profile (`SKH-V0-007`),
+  naming it, and never read it partly. The record is then regenerated at the same revision.
+- Rollback never edits or deletes intent files. Intents written by an explicit `flows import` and
+  owner-accepted AFU-V1 intents stay as committed project files.
 - If the preregistered measure meets the kill threshold, stages 7 and 8 become `deferred` with a
   `Disposition:` header naming the return condition. Stages 1..6 are kept only if their own
   evidence shows use, and the decision is recorded in a build-log entry.
 - This spec adds no wire field to an existing contract until the stage that needs it amends that
   contract's spec in the same change.
+
+Stage dependencies (each stage also reads the contracts named for it above):
+
+| Stage | Reads stages |
+|---|---|
+| 1 page objects | none |
+| 2 step IR | 1 |
+| 3 data setup | 2 |
+| 4 navigation edges | none |
+| 5 flow inference | 2, 4 |
+| 6 `corvint how` | 1, 2, 3, 4, 5 |
+| 7 generator | 1, 3, 6 |
+| 8 proof pipeline | 1, 2, 7 |
 
 ## Traceability
 
@@ -481,10 +592,10 @@ measure report. It does not cite private product names.
 | `SKH-V0-020`..`023` | V1-1899 | none | NOT_STARTED |
 | `SKH-V0-030`..`034` | V1-1900 | none | NOT_STARTED |
 | `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
-| `SKH-V0-050`..`053` | V1-1902 | none | NOT_STARTED |
+| `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |
-| `SKH-V0-080`..`084` | V1-1905 | none | NOT_STARTED |
+| `SKH-V0-080`..`089` | V1-1905 | none | NOT_STARTED |
 
 ## Promotion and kill criteria
 
@@ -503,4 +614,7 @@ measure report. It does not cite private product names.
 2. Confirm N for the preregistered measure (proposed 20) and the 40% kill threshold.
 3. Which Ruby page-object form does the adopter use, Capybara page classes or SitePrism? Stage 1
    needs at least one.
-4. Should the stage 7 generator target only Playwright in V0, leaving RSpec system specs for later?
+
+Decided without the owner: V0 generation is Playwright-only (`SKH-V0-070`). This is an orchestrator
+decision under the owner's delegation of in-task forks (2026-10-05), made after review on
+2026-10-19; the owner may revise it.

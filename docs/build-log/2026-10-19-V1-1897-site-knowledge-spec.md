@@ -9,18 +9,20 @@ pipeline (V1-1905).
 ## Acceptance
 
 - The intent is owner-written and accepted; the spec quotes it verbatim, including its spelling.
-- `SKH-V0-001`..`009`, `010`..`014`, `020`..`023`, `030`..`034`, `040`..`043`, `050`..`053`,
-  `060`..`064`, `070`..`074` and `080`..`084` are accepted under the owner's standing auto-accept
+- `SKH-V0-001`..`009`, `010`..`014`, `020`..`023`, `030`..`034`, `040`..`043`, `050`..`054`,
+  `060`..`064`, `070`..`074` and `080`..`089` are accepted under the owner's standing auto-accept
   of lane requirements (2026-10-11); V1-1897. Each marker says `standing`, so
   `make spec-acceptance-audit` lists them until the owner reads them back.
 - Delivery is `not-started`. No code changes in this lane.
 
 ## Decisions recorded in the spec
 
-- **Confidently** means the generated test ran live at a pinned revision and passed, passed TSA-V0
-  validity, survived no negative control, did not read non-discriminating under the `CCE-V0-009`
-  ladder (through the V1-1733 prover), and every line traces to learned evidence. Anything else
-  abstains with a named gap.
+- **Confidently** has six conditions, all on the exact candidate bytes: a live pass with repeats,
+  positively established TSA-V0 validity, a complete NEA-V0 assessment, an allowlisted
+  discrimination verdict with every control killed, behavioural witnesses for every line's
+  elements, and an outcome assertion equal to the oracle accepted for the request before the run.
+  The first five alone read `EXECUTION_VERIFIED`, never `PROVEN`. Anything else abstains with a
+  named gap.
 - **No synthesis.** Because CCE-V0 compilation was killed (V1-1677: 0 of 10 changes useful,
   `docs/build-log/2026-10-18-cce-spike-v1-1677.md`), the generator only copies mined statements
   and assertions with parameter-slot substitution.
@@ -44,8 +46,34 @@ pipeline (V1-1905).
   spec cites them as merged contract after the one main merge.
 - No decision number is taken.
 
+## Independent review (Codex, one round)
+
+Codex reviewed PR #1188 and raised 11 findings, all fixed in the spec:
+
+1. Discrimination failed open. `SKH-V0-085` allowlists `DISCRIMINATES` and `NEW_REACH` and maps
+   every other `CCE-V0-009` verdict, or none, to a blocking code.
+2. An empty finding list was read as validity. `SKH-V0-086` needs one located, blob-bound example
+   with explicit `ELIGIBLE` hygiene; abstentions and `uncertain` files block.
+3. NEA-V0 axes were missing. `SKH-V0-082` now requires the complete NEA-V0-004/006 assessment and
+   keeps blocked axes in the receipt.
+4. Proof did not show the test demonstrates X. `SKH-V0-087` binds each request to an accepted
+   oracle before the run, and `EXECUTION_VERIFIED` is split from `PROVEN`.
+5. The `test.fixme` guard deadlocked proof. `SKH-V0-088` defines the companion-only transform and
+   binds the same candidate bytes through every check to the final artifact.
+6. Trust ranking ignored defects. `SKH-V0-052` honours the DCP-V1-090 verdict and selection, and
+   the new `SKH-V0-054` adds the fixtures.
+7. Generation exceeded proof support. `SKH-V0-070` restricts V0 to Playwright (orchestrator
+   decision under delegated forks, revisable by the owner).
+8. The closed IR lacked `opaque`. `SKH-V0-020` adds it with `reason` and span.
+9. Flow inference had no write boundary. `SKH-V0-051` emits only an import document,
+   and `SKH-V0-054` adds the no-mutation read test and the import round trip.
+10. Selector and method verification had no witness. `SKH-V0-089` defines the behavioural
+    witness and its negative fixtures.
+11. Rollback assumed a chain. The spec records the stage dependency graph, reverts dependents
+    first, and `SKH-V0-007` makes readers refuse newer record versions.
+
 ## Owner questions
 
 The spec's "Owner questions" section lists them: confirm the adopter and local run approval,
-confirm N and the 40% threshold, name the Ruby page-object form, and decide whether V0
-generation is Playwright-only.
+confirm N and the 40% threshold, and name the Ruby page-object form. The Playwright-only V0
+generator is decided by the orchestrator (finding 7) and stays revisable by the owner.

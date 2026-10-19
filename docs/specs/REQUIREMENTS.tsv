@@ -3725,9 +3725,10 @@ SKH-V0-041	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-042	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Observed	standing	2026-10-11; V1-1901
 SKH-V0-043	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A dynami	standing	2026-10-11; V1-1901
 SKH-V0-050	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Step-IR	standing	2026-10-11; V1-1902
-SKH-V0-051	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidat	standing	2026-10-11; V1-1902
+SKH-V0-051	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Flow	standing	2026-10-11; V1-1902
 SKH-V0-052	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Candidat	standing	2026-10-11; V1-1902
 SKH-V0-053	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Each	standing	2026-10-11; V1-1902
+SKH-V0-054	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Stage 5	standing	2026-10-11; V1-1902
 SKH-V0-060	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903)	standing	2026-10-11; V1-1903
 SKH-V0-061	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) Resoluti	standing	2026-10-11; V1-1903
 SKH-V0-062	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1903) An ambig	standing	2026-10-11; V1-1903
@@ -3743,6 +3744,11 @@ SKH-V0-081	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's sta
 SKH-V0-082	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The live	standing	2026-10-11; V1-1905
 SKH-V0-083	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The pipe	standing	2026-10-11; V1-1905
 SKH-V0-084	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Stage 8	standing	2026-10-11; V1-1905
+SKH-V0-085	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) The	standing	2026-10-11; V1-1905
+SKH-V0-086	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Validity	standing	2026-10-11; V1-1905
+SKH-V0-087	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Before a	standing	2026-10-11; V1-1905
+SKH-V0-088	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) Only the	standing	2026-10-11; V1-1905
+SKH-V0-089	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1905) A select	standing	2026-10-11; V1-1905
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-
