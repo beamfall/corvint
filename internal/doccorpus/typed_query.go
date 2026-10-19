@@ -2,7 +2,6 @@ package doccorpus
 
 import (
 	"context"
-	"slices"
 	"sort"
 )
 
@@ -128,29 +127,8 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			addRecord(r, j)
 		}
 	case "flow":
-		if s, ok := indexedSubject(a, q.ID); ok && a.Details[s.ID].Flow != nil {
-			addRecord(r, s)
-			for _, i := range x.Claims[q.ID] {
-				addRecord(r, a.Claims[i])
-			}
-			for _, i := range x.Edges[q.ID] {
-				addRecord(r, a.Relations[i])
-			}
-			for _, j := range a.TestKnowledge {
-				if j.Status == "joined" && slices.Contains(j.Flows, q.ID) {
-					addRecord(r, j)
-				}
-			}
-			for _, section := range a.Details[s.ID].Flow.Sections {
-				for _, id := range section.Paragraphs {
-					if err := ctx.Err(); err != nil {
-						return err
-					}
-					if p, ok := indexedSubject(a, id); ok {
-						addRecord(r, p)
-					}
-				}
-			}
+		if err := flowQuery(ctx, a, q, r); err != nil {
+			return err
 		}
 	case "dependencies":
 		for _, direction := range []string{"upstream", "downstream"} {

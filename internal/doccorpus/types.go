@@ -227,11 +227,17 @@ type Request struct {
 	Path       string            `json:"path"`
 	Limit      int               `json:"limit"`
 	Depth      int               `json:"depth,omitempty"`
+	// Sections and Include filter a flow query (DCP-V1-170, DCP-V1-171);
+	// nil means absent.
+	Sections []string `json:"sections,omitempty"`
+	Include  []string `json:"include,omitempty"`
 }
 type Receipt struct {
-	Envelope       *TrustEnvelope           `json:"trust_envelope,omitempty"`
-	Meaning        string                   `json:"meaning,omitempty"`
-	Selection      *TestRecommendation      `json:"test_selection,omitempty"`
+	Envelope  *TrustEnvelope      `json:"trust_envelope,omitempty"`
+	Meaning   string              `json:"meaning,omitempty"`
+	Selection *TestRecommendation `json:"test_selection,omitempty"`
+	// FlowSelection is present only on a filtered flow query (DCP-V1-172).
+	FlowSelection  *FlowSelection           `json:"flow_selection,omitempty"`
 	Offset         int                      `json:"offset,omitempty"`
 	NextOffset     *int                     `json:"next_offset,omitempty"`
 	Details        map[string]RecordDetails `json:"details,omitempty"`

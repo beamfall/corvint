@@ -86,7 +86,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 			r.NextOffset = &next
 			r.Limitations = append(r.Limitations, "result page withheld records; continue at next_offset")
 		}
-		if len(r.Results) == 0 {
+		if len(r.Results) == 0 && original.Miss == "" {
 			r.State = "empty"
 			r.Miss = "no-match"
 			if total > 0 {
