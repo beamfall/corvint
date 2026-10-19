@@ -10,8 +10,8 @@ rule (c), AFP-V0-021, AFP-V0-072, and the V1-0290 file-name-only rule for lone c
 unchanged, so no requirement text changes.
 
 - `internal/liveverify/affected` `readers()` now loops over units in id order. Each unit tries the
-  sorted dirty paths in order and stops at the first one it resolves to. That path is still the
-  smallest naming dirty path, so it is still the unit's witness. Narrowing still collects the
+  sorted dirty paths in order and stops at the first naming path it resolves to. That path is
+  still the smallest naming dirty path that resolves, so it is still the unit's witness. Narrowing still collects the
   frontier reasons of every naming path that did not resolve before the witness.
   - Each unit's tokens are split into component runs once, before the loop, through
     `pathTokens()`. The lone-component `nameOnly` test is decided once per token.

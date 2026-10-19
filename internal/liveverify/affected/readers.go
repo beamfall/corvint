@@ -34,8 +34,9 @@ const PathTokenBound = "path-token-bound"
 // is not traversed to its dependents, and no unknown entry is added or removed
 // for a match: a literal index cannot bound the reads a path assembled at run
 // time makes, so the selection only adds. Dirty paths arrive sorted and units
-// in id order, so the smallest naming dirty path is each reader's witness;
-// each unit tries the dirty paths in that order and stops at its witness.
+// in id order, so the smallest naming dirty path that resolves is each
+// reader's witness; each unit tries the dirty paths in that order and stops
+// at its witness.
 // It returns the unit frontier reasons of the namers resolves kept out of a
 // path other than the CEM sidecar: Select still names them, so the AFP-V0-072
 // narrowing removes no unknown entry (AFP-V0-072(4)).
@@ -346,19 +347,6 @@ func resolvesWithin(directory, value, dirtyPath string) bool {
 		}
 	}
 	return true
-}
-
-// namers lists, in id order, the units carrying a path token that names
-// dirtyPath.
-func (graph *Graph) namers(dirtyPath string) []string {
-	parts := strings.Split(dirtyPath, "/")
-	ids := make([]string, 0)
-	for i, tokens := range graph.pathTokens() {
-		if namesAny(tokens, parts) {
-			ids = append(ids, graph.order[i])
-		}
-	}
-	return ids
 }
 
 // pathTokens holds, in graph.order, each unit's path tokens with their

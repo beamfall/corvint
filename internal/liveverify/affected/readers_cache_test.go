@@ -8,6 +8,23 @@ import (
 	"testing"
 )
 
+// namesPathOracle is namesPath before V1-1879, kept apart from pathToken so
+// the comparison does not share the matcher it checks.
+func namesPathOracle(value string, parts []string) bool {
+	for _, candidate := range componentRuns(value) {
+		first := 0
+		if len(candidate.components) == 1 && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
+			first = len(parts) - 1
+		}
+		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
+			if candidate.matchesAt(parts[offset:]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // namersOracle is namers before the token precompute: componentRuns split
 // afresh for every unit, token and dirty path.
 func namersOracle(graph *Graph, dirtyPath string) []string {
@@ -15,7 +32,7 @@ func namersOracle(graph *Graph, dirtyPath string) []string {
 	ids := make([]string, 0)
 	for _, id := range graph.order {
 		for _, value := range graph.units[id].PathTokens {
-			if newPathToken(value).names(parts) {
+			if namesPathOracle(value, parts) {
 				ids = append(ids, id)
 				break
 			}
