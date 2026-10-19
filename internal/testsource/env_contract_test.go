@@ -117,6 +117,25 @@ func TestEnvContractUnknown(t *testing.T) {
 	if region.Value != nil || region.Derivation.Kind != DerivationVariable || region.UnknownReason != envNotAssigned+":DEPLOY_REGION" {
 		t.Fatalf("REGION = %+v", region)
 	}
+	// An export-only variable is kept as inherited; ${A:-d} with an empty A uses the default; an
+	// expansion past the value bound is UNKNOWN.
+	extra := envFixture()
+	extra["scripts/bootstrap-e2e.sh"] = envBootstrap + "export CI_TOKEN\nEMPTY=\nexport PICK=${EMPTY:-fallback}\nexport KEEP=${EMPTY-kept}\n" +
+		"B0=" + strings.Repeat("x", 600) + "\nB1=$B0$B0$B0$B0$B0$B0$B0$B0\nexport B2=$B1\n"
+	more := ReadEnvContract(extra, "e2e")
+	if v := envVariable(t, more, "CI_TOKEN"); v.Value != nil || v.Derivation.Kind != DerivationUnknown || v.Derivation.Reason != envInherited ||
+		v.UnknownReason != envNotAssigned+":CI_TOKEN" || !v.PassedToTests {
+		t.Fatalf("CI_TOKEN = %+v", v)
+	}
+	if v := envVariable(t, more, "PICK"); valueOf(v) != "fallback" {
+		t.Fatalf("PICK = %+v", v)
+	}
+	if v := envVariable(t, more, "KEEP"); valueOf(v) != "" {
+		t.Fatalf("KEEP = %+v", v)
+	}
+	if v := envVariable(t, more, "B2"); v.Value != nil || v.UnknownReason != envValueTooLarge {
+		t.Fatalf("B2 = %+v value %s", v.UnknownReason, valueOf(v))
+	}
 	files := envFixture()
 	files["env/e2e.sh"] = "export APP_URL=http://localhost:9999\n"
 	twice := envVariable(t, ReadEnvContract(files, "e2e"), "APP_URL")
@@ -172,6 +191,11 @@ func TestEnvContractWarnings(t *testing.T) {
 	if literal.Rule != RuleEnvHardCodedAddress || literal.Line != 5 || *literal.ComputedValue != "4110" || strings.Join(literal.DeclaredAlternatives, ",") != "PAYMENTS_URL" {
 		t.Fatalf("literal = %+v", literal)
 	}
+	// process.env.X + N without a numeric conversion concatenates strings: still warned, value unknown.
+	concat := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": envBootstrap, "tests/c.spec.ts": "const p = process.env.BASE_PORT + 10;\n"}, "e2e")
+	if len(concat.Warnings) != 1 || concat.Warnings[0].Rule != RuleEnvHardCodedOffset || concat.Warnings[0].ComputedValue != nil {
+		t.Fatalf("concat = %+v", concat.Warnings)
+	}
 	declared := ReadEnvContract(map[string]string{"scripts/bootstrap-e2e.sh": envBootstrap, "tests/a.spec.ts": "const u = process.env.PAYMENTS_URL;\n"}, "e2e")
 	if len(declared.Warnings) != 0 || len(declared.Dependencies) != 1 || declared.Dependencies[0].Kind != DependencyDeclared {
 		t.Fatalf("declared = %+v", declared)
@@ -183,6 +207,8 @@ func TestEnvContractWarnings(t *testing.T) {
 func TestEnvContractImpact(t *testing.T) {
 	root := t.TempDir()
 	files := envFixture()
+	// A literal carrying another variable's address is not a dependent of the changed one.
+	files["tests/app.spec.ts"] = "await page.goto('http://localhost:4100/');\n"
 	base := commitFiles(t, root, files)
 	files["scripts/bootstrap-e2e.sh"] = strings.Replace(envBootstrap, "BASE_PORT + 10", "BASE_PORT + 20", 1)
 	head := commitFiles(t, root, files)
@@ -211,6 +237,27 @@ func TestEnvContractImpact(t *testing.T) {
 	for k, v := range want {
 		if got[k] != v {
 			t.Fatalf("dependents = %+v", got)
+		}
+	}
+	// An after value that cannot be resolved keeps the hard-coded dependents with validity unknown.
+	unknownAfter := map[string]string{}
+	for k, v := range files {
+		unknownAfter[k] = v
+	}
+	unknownAfter["scripts/bootstrap-e2e.sh"] = strings.Replace(envBootstrap, "$((BASE_PORT + 10))", "$(next-port)", 1)
+	for _, c := range EnvChanges(envFixture(), unknownAfter, "e2e") {
+		if c.Variable != "PAYMENTS_URL" {
+			continue
+		}
+		kinds := map[string]bool{}
+		for _, d := range c.Dependents {
+			kinds[d.Kind] = true
+			if d.Kind != DependencyDeclared && d.StaysValid != nil {
+				t.Fatalf("unknown after = %+v", d)
+			}
+		}
+		if !kinds[DependencyOffset] || !kinds[DependencyLiteral] {
+			t.Fatalf("unknown after dependents = %+v", c.Dependents)
 		}
 	}
 	// With no change there is no impact.

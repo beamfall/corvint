@@ -49,6 +49,18 @@ test('t', async ({ mount }) => { const c = await mount(<Toast />); await c.locat
 	if r.Checked != 2 || len(r.Findings) != 1 || r.Findings[0].Role != "alert" {
 		t.Fatalf("toast = %+v", r)
 	}
+	// A commented-out locator is not checked; <output/> and <output\n> carry the implicit role,
+	// <outputs> does not.
+	commented := strings.Replace(roleTest, "  await expect", "  // await expect", 1) + "/*\n * getByRole('alert')\n */\n"
+	if r := CheckRoleLocators(map[string]string{"tests/banner.spec.tsx": commented, "src/ErrorBanner.tsx": plainBanner}); r.Checked != 0 {
+		t.Fatalf("commented = %+v", r)
+	}
+	statusOnly := "import { Toast } from './Toast';\ntest('t', async ({ mount }) => { const c = await mount(<Toast />); await c.locator('role=status').click(); });\n"
+	for markup, findings := range map[string]int{`export const Toast = () => <output/>;`: 0, "export const Toast = () => <output\n>s</output>;": 0, `export const Toast = () => <outputs>s</outputs>;`: 1} {
+		if r := CheckRoleLocators(map[string]string{"src/toast.test.tsx": statusOnly, "src/Toast.tsx": markup}); len(r.Findings) != findings {
+			t.Fatalf("%q: %+v", markup, r)
+		}
+	}
 	// A non-notification role is out of scope.
 	if r := CheckRoleLocators(map[string]string{"tests/banner.spec.tsx": roleTest + "getByRole('button')\n", "src/ErrorBanner.tsx": plainBanner}); r.Checked != 1 {
 		t.Fatalf("button counted: %+v", r)
@@ -69,6 +81,9 @@ func TestRoleLocatorAbstains(t *testing.T) {
 		"dynamic role":   {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export default ({ r }) => <div role={r}>x</div>;`}, roleComponentMarkupOpen, roleMarkupDynamicRole},
 		"spread":         {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export default (p) => <div {...p}>x</div>;`}, roleComponentMarkupOpen, roleMarkupSpreadAttributes},
 		"raw html":       {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export default (p) => <div dangerouslySetInnerHTML={p.html} />;`}, roleComponentMarkupOpen, roleMarkupRawHTML},
+		"re-export":      {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export { default } from './Banner';`}, roleComponentMarkupOpen, roleMarkupReexport},
+		"children":       {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export default ({ children }) => <div>{children}</div>;`}, roleComponentMarkupOpen, roleMarkupChildren},
+		"props children": {map[string]string{"tests/banner.spec.tsx": roleTest, "src/ErrorBanner.tsx": `export default (props) => <div>{ props.children }</div>;`}, roleComponentMarkupOpen, roleMarkupChildren},
 		"not mounted":    {map[string]string{"tests/page.spec.ts": "test('x', async ({ page }) => { await page.getByRole('alert').click(); });\n"}, roleComponentNotMounted, ""},
 	}
 	for name, c := range cases {

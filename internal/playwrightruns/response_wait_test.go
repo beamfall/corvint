@@ -82,6 +82,12 @@ func TestResponseWaitSlowResponse(t *testing.T) {
 	if r := DiagnoseResponseWait(mustLog(t, get), waitAt(t, "2026-10-19T10:00:05.250Z", 30*time.Second), ""); r.Verdict != WaitRequestNeverSent {
 		t.Fatalf("other method = %+v", r)
 	}
+	// A later match answered within the window outranks an earlier slow one.
+	retried := strings.Replace(slow, `]}}`, `,
+ {"pageref":"page@2","startedDateTime":"2026-10-19T10:00:07.000Z","time":500,"request":{"method":"POST","url":"http://app.test/api/orders/submit"},"response":{"status":201}}]}}`, 1)
+	if r := DiagnoseResponseWait(mustLog(t, retried), waitAt(t, "2026-10-19T10:00:05.250Z", 30*time.Second), ""); r.Verdict != WaitResponseInWait {
+		t.Fatalf("retried = %+v", r)
+	}
 	// A response that completed before the wait began cannot satisfy it.
 	early := strings.Replace(slow, `10:00:06.000Z","time":45000`, `10:00:05.000Z","time":100`, 1)
 	if r := DiagnoseResponseWait(mustLog(t, early), waitAt(t, "2026-10-19T10:00:05.250Z", 30*time.Second), ""); r.Verdict != WaitRequestNeverSent {
@@ -124,7 +130,10 @@ func TestResponseWaitAbstains(t *testing.T) {
 	if r := DiagnoseResponseWait(mustLog(t, late), wait, ""); r.Verdict != WaitUnknown || r.Reason != WaitLogNotCovering {
 		t.Fatalf("late log = %+v", r)
 	}
-	for _, bad := range []string{`not json`, `{"time":"yesterday","path":"/x"}`, `{"log":{"entries":[{"startedDateTime":"x","request":{"url":"/a"}}]}}`} {
+	noTime := `{"log":{"entries":[{"startedDateTime":"2026-10-19T10:00:05.100Z","request":{"url":"/a"},"response":{"status":200}}]}}`
+	hugeTime := strings.Replace(noTime, `"request"`, `"time":1e300,"request"`, 1)
+	hugeLine := `{"time":"2026-10-19T10:00:05.100Z","path":"/x","status":200,"durationMs":1e300}`
+	for _, bad := range []string{`not json`, `{"time":"yesterday","path":"/x"}`, `{"log":{"entries":[{"startedDateTime":"x","request":{"url":"/a"}}]}}`, noTime, hugeTime, hugeLine} {
 		if _, err := ReadRequestLog([]byte(bad)); err != ErrShape {
 			t.Fatalf("%q: err = %v", bad, err)
 		}

@@ -38,6 +38,9 @@ const (
 	envProfileNotFound     = "profile-not-found"
 	envComposeNotRead      = "compose-not-read"
 	envDotenvNotRead       = "dotenv-not-read"
+	envInherited           = "inherited-from-caller"
+	envValueTooLarge       = "value-too-large"
+	maxEnvValueBytes       = 4096
 )
 
 // Stand-in control route kinds and scopes (TSA-V0-213).
@@ -253,6 +256,7 @@ type shellAssignment struct {
 	line              int
 	exported          bool
 	toTests           bool
+	exportOnly        bool
 }
 
 type shellLaunch struct {
@@ -266,7 +270,7 @@ var (
 	nameWord       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 	offsetExpr     = regexp.MustCompile(`^\$\(\(\s*\$?\{?([A-Za-z_][A-Za-z0-9_]*)\}?\s*([+-])\s*([0-9]+)\s*\)\)$`)
 	offsetExprLeft = regexp.MustCompile(`^\$\(\(\s*([0-9]+)\s*\+\s*\$?\{?([A-Za-z_][A-Za-z0-9_]*)\}?\s*\)\)$`)
-	defaultedExpr  = regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*):?[-=]([^}$]*)\}$`)
+	defaultedExpr  = regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*)(:?)[-=]([^}$]*)\}$`)
 	plainReference = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)`)
 	testRunnerWord = regexp.MustCompile(`(?:^|\s)(?:playwright\s+test|cypress\s+run|jest|vitest|(?:npm|yarn|pnpm)\s+(?:run\s+)?test(?::[A-Za-z0-9:_-]+)?|(?:npm|yarn|pnpm)\s+run\s+e2e)(?:\s|$)`)
 	standInSegment = map[string]bool{"stub": true, "stubs": true, "fake": true, "fakes": true, "mock": true, "mocks": true,
@@ -295,7 +299,15 @@ func readProfile(texts map[string]string, profile string) profileModel {
 	for _, script := range report.Sources {
 		own, ownLaunches := parseBootstrap(script, texts[script], texts)
 		for name, a := range own {
-			if prior, ok := assignments[name]; ok && prior.source != a.source {
+			prior, ok := assignments[name]
+			switch {
+			case !ok || prior.exportOnly && a.exportOnly:
+			case a.exportOnly:
+				prior.exported = true
+				a = prior
+			case prior.exportOnly:
+				a.exported = true
+			case prior.source != a.source:
 				several[name] = true
 			}
 			assignments[name] = a
@@ -315,6 +327,9 @@ func readProfile(texts map[string]string, profile string) profileModel {
 			Derivation: derive(a.raw), PassedToTests: a.exported || a.toTests}
 		if several[name] {
 			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Expression: a.raw, Reason: envSeveralScripts}
+		}
+		if a.exportOnly {
+			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Reason: envInherited}
 		}
 		v.Reliable = v.PassedToTests
 		v.Endpoint = endpointName(name) || (r.value != nil && (strings.HasPrefix(*r.value, "http://") || strings.HasPrefix(*r.value, "https://")))
@@ -341,7 +356,7 @@ func endpointName(name string) bool {
 // parseBootstrap reads one script's assignments, exports and launches. Lines are joined at a
 // trailing backslash; a comment line, a function body line and any other command are ignored.
 func parseBootstrap(script, text string, texts map[string]string) (map[string]shellAssignment, []shellLaunch) {
-	assignments, exported, launches := map[string]shellAssignment{}, map[string]bool{}, []shellLaunch{}
+	assignments, exported, launches := map[string]shellAssignment{}, map[string]int{}, []shellLaunch{}
 	allExport := false
 	lines := strings.Split(text, "\n")
 	for i := 0; i < len(lines); i++ {
@@ -369,9 +384,9 @@ func parseBootstrap(script, text string, texts map[string]string) (map[string]sh
 			for _, w := range words[start:] {
 				if m := assignmentWord.FindStringSubmatch(w); m != nil {
 					assignments[m[1]] = shellAssignment{name: m[1], raw: m[2], source: script, line: number, exported: true}
-					exported[m[1]] = true
+					exported[m[1]] = number
 				} else if nameWord.MatchString(w) {
-					exported[w] = true
+					exported[w] = number
 				}
 			}
 			continue
@@ -408,11 +423,13 @@ func parseBootstrap(script, text string, texts map[string]string) (map[string]sh
 			}
 		}
 	}
-	for name, a := range assignments {
-		if exported[name] {
-			a.exported = true
-			assignments[name] = a
+	for name, line := range exported {
+		a, ok := assignments[name]
+		if !ok {
+			a = shellAssignment{name: name, source: script, line: line, exportOnly: true}
 		}
+		a.exported = true
+		assignments[name] = a
 	}
 	return assignments, launches
 }
@@ -559,6 +576,9 @@ func (r envResolver) resolve(name string, visiting map[string]bool) resolved {
 	if r.several[name] {
 		return resolved{reason: envSeveralScripts}
 	}
+	if a.exportOnly {
+		return resolved{reason: envNotAssigned + ":" + name}
+	}
 	if visiting[name] {
 		return resolved{reason: envCycle}
 	}
@@ -590,11 +610,14 @@ func (r envResolver) evaluate(raw string, visiting map[string]bool) resolved {
 		out := strconv.Itoa(n + *d.Offset)
 		return resolved{value: &out}
 	case DerivationDefaulted:
-		if _, assigned := r.assignments[d.References[0]]; assigned {
-			return r.resolve(d.References[0], visiting)
-		}
 		m := defaultedExpr.FindStringSubmatch(value)
-		return resolved{value: &m[2]}
+		if a, assigned := r.assignments[d.References[0]]; assigned && !a.exportOnly {
+			got := r.resolve(d.References[0], visiting)
+			if got.value == nil || *got.value != "" || m[2] != ":" {
+				return got
+			}
+		}
+		return resolved{value: &m[3]}
 	}
 	var failed *resolved
 	out := plainReference.ReplaceAllStringFunc(value, func(ref string) string {
@@ -610,6 +633,9 @@ func (r envResolver) evaluate(raw string, visiting map[string]bool) resolved {
 	})
 	if failed != nil {
 		return *failed
+	}
+	if len(out) > maxEnvValueBytes {
+		return resolved{reason: envValueTooLarge}
 	}
 	return resolved{value: &out}
 }

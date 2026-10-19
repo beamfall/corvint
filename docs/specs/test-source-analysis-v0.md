@@ -1241,7 +1241,8 @@ accepted under the owner's standing auto-accept (2026-10-11).
   MUST be resolved through the test's default or named import of a relative specifier, to a
   committed `.tsx`, `.jsx`, `.ts` or `.js` file or an `index` file. Markup is open when it could
   render a role the reader cannot see: a non-literal `role={...}`, a spread of attributes, raw
-  HTML (`dangerouslySetInnerHTML` or `innerHTML`), or a child component.
+  HTML (`dangerouslySetInnerHTML` or `innerHTML`), a re-export, a `{children}` slot, or a child
+  component. A locator on a commented-out line is not checked.
 - `TSA-V0-209`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The check MUST
   abstain, with no finding, when a component is unresolved (`component-unresolved`, for example
   a package import or a missing file) or its markup is open (`component-markup-open`, with the
@@ -1259,6 +1260,10 @@ Failure modes:
   other pages can be listed.
 - A matching request on another tab of the same log counts as sent.
 - A role rendered only through a child component abstains rather than being confirmed.
+- Mounts are collected per test file, not per test: a role locator in one test is checked against
+  every component the file mounts.
+- When several requests match, an answer within the window is preferred; otherwise the first
+  match is reported.
 
 ## Test environment contract (V1-1940)
 
@@ -1344,6 +1349,11 @@ Failure modes:
 - A literal port shared by unrelated services can match a variable it is not about.
 - A route registered through a helper or a loop is not listed.
 - A scope is inferred from field names only.
+- A route's fields are read up to the next registration, not to the end of its handler.
+- A variable only exported, never assigned, is kept with an `inherited-from-caller` derivation
+  and no value; a value over 4096 bytes is UNKNOWN (`value-too-large`).
+- `process.env.X + N` without a numeric conversion is warned with no computed value, since
+  JavaScript concatenates strings there.
 
 Acceptance evidence for both sections: synthetic fixtures only. No live qualification on a real
 suite was run (NOT_RUN). Rollback removes `internal/playwrightruns/response_wait.go`,

@@ -24,7 +24,7 @@ const (
 
 var (
 	envRead        = regexp.MustCompile(`process\.env\.([A-Za-z_][A-Za-z0-9_]*)|process\.env\[\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]\s*\]`)
-	envOffsetTail  = regexp.MustCompile(`^(?:\s*(?:\?\?|\|\|)\s*(?:'[^']*'|"[^"]*"|[0-9]+))?\s*(?:,\s*[0-9]+\s*)?\)?\s*([+-])\s*([0-9]+)\b`)
+	envOffsetTail  = regexp.MustCompile(`^(?:\s*(?:\?\?|\|\|)\s*(?:'[^']*'|"[^"]*"|[0-9]+))?\s*(?:,\s*[0-9]+\s*)?(\))?\s*([+-])\s*([0-9]+)\b`)
 	literalAddress = regexp.MustCompile(`\b(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\]):([0-9]{2,5})\b`)
 )
 
@@ -33,6 +33,7 @@ type testEnvRef struct {
 	path, kind, variable string
 	line                 int
 	offset               int
+	numeric              bool
 	literal              string
 	warning              *EnvWarning
 }
@@ -77,15 +78,17 @@ func lineEnvRefs(name string, number int, line string, model profileModel) []tes
 			}
 			continue
 		}
-		n, _ := strconv.Atoi(tail[2])
-		if tail[1] == "-" {
+		n, _ := strconv.Atoi(tail[3])
+		if tail[2] == "-" {
 			n = -n
 		}
-		ref := testEnvRef{path: name, line: number, kind: DependencyOffset, variable: variable, offset: n}
+		// Without a closing conversion call, process.env.X + N concatenates strings: the value is
+		// left unknown rather than computed as arithmetic.
+		ref := testEnvRef{path: name, line: number, kind: DependencyOffset, variable: variable, offset: n, numeric: tail[1] != ""}
 		computed := ref.computed(model)
 		ref.warning = &EnvWarning{Rule: RuleEnvHardCodedOffset, Path: name, Line: number, Text: clip(trimmed), ComputedValue: computed,
 			DeclaredAlternatives: declaredAlternatives(model, computed),
-			Message:              "test derives a service address as " + variable + " " + tail[1] + " " + tail[2] + " instead of reading the variable the bootstrap declares for it"}
+			Message:              "test derives a service address as " + variable + " " + tail[2] + " " + tail[3] + " instead of reading the variable the bootstrap declares for it"}
 		out = append(out, ref)
 	}
 	for _, m := range literalAddress.FindAllStringSubmatchIndex(line, -1) {
@@ -120,7 +123,7 @@ func (r testEnvRef) computed(model profileModel) *string {
 		return &r.literal
 	case DependencyOffset:
 		v, ok := model.byName[r.variable]
-		if !ok || v.Value == nil {
+		if !ok || v.Value == nil || !r.numeric {
 			return nil
 		}
 		n, err := strconv.Atoi(*v.Value)
@@ -209,20 +212,16 @@ func EnvChanges(baseTexts, texts map[string]string, profile string) []EnvChange 
 				dep.StaysValid = &valid
 			case ref.kind == DependencyDeclared:
 				continue
-			case change.Before == nil || change.After == nil:
-				if ref.kind == DependencyOffset && ref.variable != name {
-					continue
-				}
-				if ref.kind == DependencyLiteral {
+			case change.Before == nil:
+				// Membership needs the base value; an offset from this variable is kept unknown.
+				if ref.kind != DependencyOffset || ref.variable != name {
 					continue
 				}
 			default:
-				then := ref.computed(before)
-				if !carries(change.Before, then) {
+				if !carries(change.Before, ref.computed(before)) {
 					continue
 				}
-				now := ref.computed(after)
-				if now != nil {
+				if now := ref.computed(after); now != nil && change.After != nil {
 					valid := carries(change.After, now)
 					dep.StaysValid = &valid
 				}

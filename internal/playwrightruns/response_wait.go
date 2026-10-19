@@ -44,6 +44,7 @@ const (
 	maxRequestLogBytes = 64 << 20
 	maxLoggedRequests  = 200000
 	maxPrecedingFailed = 5
+	maxDurationMs      = 7 * 24 * 60 * 60 * 1000
 )
 
 // LoggedRequest is one request of a run's request log. Duration is negative when the log holds
@@ -118,9 +119,9 @@ func ReadRequestLog(data []byte) (*RequestLog, error) {
 				Started string `json:"startedDateTime"`
 			} `json:"pages"`
 			Entries []struct {
-				PageRef string  `json:"pageref"`
-				Started string  `json:"startedDateTime"`
-				Time    float64 `json:"time"`
+				PageRef string   `json:"pageref"`
+				Started string   `json:"startedDateTime"`
+				Time    *float64 `json:"time"`
 				Request struct {
 					Method string `json:"method"`
 					URL    string `json:"url"`
@@ -145,11 +146,11 @@ func ReadRequestLog(data []byte) (*RequestLog, error) {
 		}
 		for _, e := range har.Log.Entries {
 			started, err := time.Parse(time.RFC3339Nano, e.Started)
-			if err != nil || e.Request.URL == "" {
+			if err != nil || e.Request.URL == "" || e.Time == nil || *e.Time > maxDurationMs {
 				return nil, ErrShape
 			}
-			duration := time.Duration(e.Time * float64(time.Millisecond))
-			if e.Response.Status == 0 || e.Time < 0 {
+			duration := time.Duration(*e.Time * float64(time.Millisecond))
+			if e.Response.Status == 0 || *e.Time < 0 {
 				duration = -1
 			}
 			out.Requests = append(out.Requests, LoggedRequest{Started: started, Method: strings.ToUpper(e.Request.Method),
@@ -159,7 +160,13 @@ func ReadRequestLog(data []byte) (*RequestLog, error) {
 		return out, nil
 	}
 	out := &RequestLog{Source: LogSourceServer}
-	for _, line := range bytes.Split(trimmed, []byte("\n")) {
+	for rest := trimmed; len(rest) > 0; {
+		line := rest
+		if i := bytes.IndexByte(rest, '\n'); i >= 0 {
+			line, rest = rest[:i], rest[i+1:]
+		} else {
+			rest = nil
+		}
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 {
 			continue
@@ -184,6 +191,9 @@ func ReadRequestLog(data []byte) (*RequestLog, error) {
 			return nil, ErrShape
 		}
 		duration := time.Duration(-1)
+		if e.DurationMs != nil && *e.DurationMs > maxDurationMs {
+			return nil, ErrShape
+		}
 		if e.DurationMs != nil && *e.DurationMs >= 0 && e.Status != 0 {
 			duration = time.Duration(*e.DurationMs * float64(time.Millisecond))
 		}
@@ -228,7 +238,9 @@ func DiagnoseResponseWait(log *RequestLog, wait ResponseWait, reason string) Res
 			page = p.ID
 		}
 	}
-	for _, r := range log.Requests {
+	// The first eligible match is reported, unless a later one answered within the window.
+	var first *LoggedRequest
+	for i, r := range log.Requests {
 		if !matchesWait(r, wait) || r.Started.After(deadline) {
 			continue
 		}
@@ -236,6 +248,16 @@ func DiagnoseResponseWait(log *RequestLog, wait ResponseWait, reason string) Res
 		if r.Duration >= 0 && r.Started.Add(r.Duration).Before(wait.Start) {
 			continue
 		}
+		if r.Duration >= 0 && !r.Started.Add(r.Duration).After(deadline) {
+			first = &log.Requests[i]
+			break
+		}
+		if first == nil {
+			first = &log.Requests[i]
+		}
+	}
+	if first != nil {
+		r := *first
 		matched := waitRequest(r)
 		report.Matched = &matched
 		switch {

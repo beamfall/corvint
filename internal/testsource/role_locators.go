@@ -26,6 +26,8 @@ const (
 	roleMarkupDynamicRole      = "role-not-literal"
 	roleMarkupSpreadAttributes = "spreads-attributes"
 	roleMarkupRawHTML          = "sets-inner-html"
+	roleMarkupReexport         = "re-exports"
+	roleMarkupChildren         = "renders-children"
 )
 
 // notificationRoles are the roles of error and notification output the check covers, with the
@@ -43,6 +45,8 @@ var (
 	bracedRoleAttr   = regexp.MustCompile(`\brole\s*=\s*\{\s*["'\x60][a-z]+["'\x60]\s*\}`)
 	childComponent   = regexp.MustCompile(`<([A-Z][A-Za-z0-9_.]*)[\s/>]`)
 	spreadAttributes = regexp.MustCompile(`<[a-zA-Z][^<>]*\{\s*\.\.\.`)
+	reexport         = regexp.MustCompile(`export\s+(?:\*|\{[^}]*\})\s*from\s*['"]`)
+	childrenSlot     = regexp.MustCompile(`\{\s*(?:props\.)?children\s*\}`)
 )
 
 // RoleLocatorFinding is one role locator no mounted component renders (TSA-V0-207).
@@ -168,11 +172,39 @@ func roleLocators(text string) []roleLocator {
 				role = text[m[2*g]:m[2*g+1]]
 			}
 		}
+		lineStart := strings.LastIndexByte(text[:m[0]], '\n') + 1
+		if commentedOut(text[lineStart:m[0]]) {
+			continue
+		}
 		if _, covered := notificationRoles[role]; covered {
 			out = append(out, roleLocator{role: role, line: 1 + strings.Count(text[:m[0]], "\n")})
 		}
 	}
 	return out
+}
+
+// commentedOut reports a match whose line prefix opens a line or block comment.
+func commentedOut(before string) bool {
+	trimmed := strings.TrimSpace(before)
+	if strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*") {
+		return true
+	}
+	i := strings.Index(before, "//")
+	return i >= 0 && (i == 0 || before[i-1] != ':')
+}
+
+// opensElement reports a literal <element> opening tag, followed by space, slash or >.
+func opensElement(text, element string) bool {
+	for rest := text; ; {
+		i := strings.Index(rest, "<"+element)
+		if i < 0 {
+			return false
+		}
+		rest = rest[i+1+len(element):]
+		if rest != "" && strings.ContainsRune(" \t\r\n/>", rune(rest[0])) {
+			return true
+		}
+	}
 }
 
 func mountedComponents(text string) []string {
@@ -236,7 +268,7 @@ func readMarkup(text string) componentMarkup {
 	}
 	for role, elements := range notificationRoles {
 		for _, element := range elements {
-			if strings.Contains(text, "<"+element+">") || strings.Contains(text, "<"+element+" ") {
+			if opensElement(text, element) {
 				markup.roles[role] = true
 			}
 		}
@@ -248,6 +280,10 @@ func readMarkup(text string) componentMarkup {
 		markup.open = roleMarkupSpreadAttributes
 	case strings.Contains(text, "dangerouslySetInnerHTML") || strings.Contains(text, "innerHTML"):
 		markup.open = roleMarkupRawHTML
+	case reexport.MatchString(text):
+		markup.open = roleMarkupReexport
+	case childrenSlot.MatchString(text):
+		markup.open = roleMarkupChildren
 	default:
 		for _, m := range childComponent.FindAllStringSubmatch(text, -1) {
 			if m[1] != "Fragment" && m[1] != "React.Fragment" {
