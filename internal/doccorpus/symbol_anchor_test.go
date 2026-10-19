@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
@@ -297,4 +298,76 @@ func symbolCheck(r Receipt, path, symbol string) *SymbolAnchorCheck {
 		}
 	}
 	return nil
+}
+
+// TestDCPV1144SharedOverlayMatchesAFreshReader: a reader that answers many
+// requests, concurrently, under one overlay returns the bytes a fresh reader
+// returns, and a reused parsed file is charged to the request's budget as if
+// it had been read.
+func TestDCPV1144SharedOverlayMatchesAFreshReader(t *testing.T) {
+	root, m := fixture(t)
+	a, err := Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.ReadFile(filepath.Join(root, "src/view.ts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commitFiles(t, root, map[string]string{"src/view.ts": insertLines(string(original), 20, "const padding = 1;\n")})
+	requests := []Request{{Operation: "search", Query: "showCount"}, {Operation: "search", Query: "count"}, {Operation: "locate", Path: "src/view.ts"}}
+	answer := func(overlay FreshnessOverlay, request Request) string {
+		t.Helper()
+		r, err := QueryLive(context.Background(), a, request, overlay)
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := Encode(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	shared, err := LiveFreshness(context.Background(), root, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	got := make([]string, len(requests)*4)
+	for i := range got {
+		wg.Go(func() {
+			r, err := QueryLive(context.Background(), a, requests[i%len(requests)], shared)
+			if err == nil {
+				data, _ := Encode(r)
+				got[i] = string(data)
+			}
+		})
+	}
+	wg.Wait()
+	moved := false
+	for i, request := range requests {
+		fresh, err := LiveFreshness(context.Background(), root, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := answer(fresh, request)
+		moved = moved || strings.Contains(want, `"state":"moved"`)
+		for j := i; j < len(got); j += len(requests) {
+			if got[j] != want {
+				t.Fatalf("request %+v under a shared overlay differs from a fresh reader:\n%s\n%s", request, got[j], want)
+			}
+		}
+	}
+	if !moved || shared.symbols.files.bytes == 0 {
+		t.Fatal("no request parsed a moved symbol; the shared files are not exercised")
+	}
+	// A kept file is served without Git and charged its recorded cost.
+	for key, kept := range shared.symbols.files.files {
+		oid, name, _ := strings.Cut(key, "\x00")
+		r := NewSymbolResolver(nil, nil, Repository{}, nil)
+		r.shared = shared.symbols.files
+		if f, err := r.file(context.Background(), oid, name); err != nil || f.refusal != kept.file.refusal || r.read != kept.cost {
+			t.Fatalf("kept file %s: read %d, want %d (%v)", name, r.read, kept.cost, err)
+		}
+	}
 }

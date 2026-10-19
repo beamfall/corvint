@@ -18,12 +18,26 @@ func Freshness(ctx context.Context, root string, a *Artifact) (string, []string,
 }
 
 // FreshnessOverlay is a corpus reader's live overlay: the artifact-wide state
-// and limitations Freshness reports, and the live re-resolution of every
-// symbol anchor the artifact's records cite, keyed by SymbolAnchorKey.
+// and limitations Freshness reports, and the live tree that re-resolves the
+// symbol anchors a receipt cites (DCP-V1-144).
 type FreshnessOverlay struct {
-	State         string
-	Limitations   []string
-	SymbolAnchors map[string]SymbolAnchorCheck
+	State       string
+	Limitations []string
+	symbols     *symbolOverlay
+	observation string
+}
+
+// Observation is the ObservationKey of the repository state the overlay was
+// built from, so a reader can reuse it only while that state holds
+// (DCP-V1-144).
+func (o FreshnessOverlay) Observation() string { return o.observation }
+
+// ObservationKey identifies a repository state by the fields
+// contextindex.Observe reports.
+func ObservationKey(o contextindex.Observation) string {
+	dirty := append([]string{}, o.DirtyPaths...)
+	sort.Strings(dirty)
+	return strings.Join(append([]string{o.ObjectFormat, o.CommitRevision, o.Revision, o.StatusSHA256}, dirty...), "\x00")
 }
 
 // LiveFreshness is Freshness plus symbol-anchor re-resolution (DCP-V1-141).
@@ -86,8 +100,13 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	for _, in := range a.Manifest.Inputs {
 		// Historical provider records are independent of source freshness. A live
 		// replacement of one is still visible; no HEAD equality heuristic is used.
-		entry, exists, err := auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path)
-		if err != nil {
+		// A clean path the live index already pinned at CommitRevision needs no
+		// further tree walk (DCP-V1-144).
+		var entry gitauth.TreeEntry
+		exists := false
+		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
+			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
+		} else if entry, exists, err = auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path); err != nil {
 			return unknown, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
@@ -113,18 +132,10 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: ObservationKey(contextindex.Observation{
+		ObjectFormat: live.ObjectFormat, CommitRevision: live.CommitRevision, Revision: live.Revision, StatusSHA256: live.StatusSHA256, DirtyPaths: live.DirtyPaths})}
 	if symbols {
-		// A failed re-resolution withholds every symbol state (each cited
-		// anchor reads as unevaluated) rather than refusing the whole read.
-		overlay.SymbolAnchors, err = resolveArtifactSymbols(ctx, auth, live, a)
-		if err != nil {
-			if ctx.Err() != nil {
-				return unknown, ctx.Err()
-			}
-			overlay.SymbolAnchors = nil
-			overlay.Limitations = append(overlay.Limitations, "symbol-anchor re-resolution withheld: "+err.Error())
-		}
+		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
 	return overlay, nil
 }
@@ -165,16 +176,16 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 
 // QueryLive answers request under a live freshness overlay. Besides the
 // overlay's state and limitations, the receipt reports the re-resolution of
-// every symbol anchor it cites (DCP-V1-141).
+// every symbol anchor it cites (DCP-V1-141). Only the anchors the receipt
+// cites are re-resolved, on demand and under one budget per call, so the
+// receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	symbols := overlay.SymbolAnchors
-	if symbols == nil {
-		symbols = map[string]SymbolAnchorCheck{}
-	}
-	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, symbols)
+	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}}
+	defer checker.close()
+	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
 
-func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols map[string]SymbolAnchorCheck) (Receipt, error) {
+func queryContext(ctx context.Context, a *Artifact, request Request, freshness string, limitations []string, symbols *symbolChecker) (Receipt, error) {
 	if err := ctx.Err(); err != nil {
 		return Receipt{}, err
 	}
@@ -343,7 +354,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		return Receipt{}, err
 	}
 	if a.Schema == SchemaV2 {
-		return pageReceipt(a, r, request, symbols)
+		return pageReceipt(ctx, a, r, request, symbols)
 	}
 	if len(r.Results) == 0 {
 		r.State = "empty"
@@ -390,7 +401,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		citations = citations[:MaxResults]
 	}
 	r.Citations = citations
-	attachSymbolAnchors(&r, symbols)
+	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
+		return Receipt{}, err
+	}
 	finalizeEnvelope(&r)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
