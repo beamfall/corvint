@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -328,6 +329,50 @@ func TestTOLV0107_CapabilityUndeclaredPrimary(t *testing.T) {
 	v := capabilityRead(t, r.Root, "--path", "e2e")
 	if field(v, "status").Str != "UNKNOWN" || field(v, "reason").Str != "ENVIRONMENT_BASELINE_UNDECLARED" || len(field(v, "matches").Arr) != 0 {
 		t.Fatalf("undeclared primary: %s", wire.Encode(v))
+	}
+}
+
+// TestTOLV0108_CapabilityBoundsAndReadOnly: matches stop at 16 with
+// truncated, a listing over 1,024 files reports truncated beside a match and
+// abstains SEARCH_BOUND_EXCEEDED without one, and the read writes nothing
+// (TOL-V0-108, 109).
+func TestTOLV0108_CapabilityBoundsAndReadOnly(t *testing.T) {
+	r, _, _ := obligationRepoWith(t, func(p wire.Value) {
+		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(false)).
+			Set("environmentBaselines", wire.ObjectValue(wire.NewObject().Set(".", wire.String("refs/heads/env"))))))
+	})
+	for i := 0; i < 20; i++ {
+		fixture.Write(t, filepath.Join(r.Root, "many", fmt.Sprintf("f%02d.txt", i)), []byte("needle\n"))
+	}
+	for i := 0; i < 1030; i++ {
+		body := "hay\n"
+		switch i {
+		case 0:
+			body = "needle\n"
+		case 1029:
+			body = "late\n"
+		}
+		fixture.Write(t, filepath.Join(r.Root, "big", fmt.Sprintf("f%04d.txt", i)), []byte(body))
+	}
+	commitTree(t, r.Root, "bounds")
+	git(t, r.Root, "branch", "env", "HEAD")
+	before := fixture.TreeSnapshot(t, r.Root)
+	for _, args := range [][]string{{"--path", "many"}, {"--path", "many", "--contains", "needle"}} {
+		v := capabilityRead(t, r.Root, args...)
+		if field(v, "status").Str != "PRESENT" || len(field(v, "matches").Arr) != 16 || !field(v, "truncated").Bool {
+			t.Fatalf("16-match bound %v: %s", args, wire.Encode(v))
+		}
+	}
+	if v := capabilityRead(t, r.Root, "--path", "big", "--contains", "late"); field(v, "status").Str != "UNKNOWN" ||
+		field(v, "reason").Str != "SEARCH_BOUND_EXCEEDED" || len(field(v, "matches").Arr) != 0 || field(field(v, "baseline"), "commit").Kind != wire.KindString {
+		t.Fatalf("file bound without a match: %s", wire.Encode(v))
+	}
+	if v := capabilityRead(t, r.Root, "--path", "big", "--contains", "needle"); field(v, "status").Str != "PRESENT" ||
+		strList(v, "matches") != "big/f0000.txt" || !field(v, "truncated").Bool {
+		t.Fatalf("file bound beside a match: %s", wire.Encode(v))
+	}
+	if after := fixture.TreeSnapshot(t, r.Root); !fixture.SameTree(before, after) {
+		t.Fatal("capability read changed the repository")
 	}
 }
 

@@ -1,6 +1,11 @@
 package intent_test
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
 
 // TestTOLV0102_103_107_ObligationsPolicyMembers: requireDeclaredCites,
 // testFilePatterns and environmentBaselines are optional obligations members;
@@ -22,13 +27,24 @@ func TestTOLV0102_103_107_ObligationsPolicyMembers(t *testing.T) {
 	if ref, ok := p.ObligationEnvironmentBaseline("app"); !ok || ref != "0123456789abcdef0123456789abcdef01234567" {
 		t.Fatalf("app baseline: %q %v", ref, ok)
 	}
-	for _, bad := range []string{
+	var many []string
+	for i := 0; i < 18; i++ {
+		many = append(many, `"r`+string(rune('a'+i))+`":"refs/heads/x"`)
+	}
+	for _, over := range []string{
 		`{"workerWitness":false,"testFilePatterns":[]}`,
+		`{"workerWitness":false,"environmentBaselines":{}}`,
+		`{"workerWitness":false,"environmentBaselines":{` + strings.Join(many, ",") + `}}`,
+	} {
+		if _, err := policyWith(t, "obligations", over); wire.CodeOf(err) != wire.CodeLimitExceeded {
+			t.Errorf("count bound %s: %v", over, err)
+		}
+	}
+	for _, bad := range []string{
 		`{"workerWitness":false,"testFilePatterns":[{"kind":"x","pattern":"["}]}`,
 		`{"workerWitness":false,"testFilePatterns":[{"kind":"x","pattern":"/abs/*.sql"}]}`,
 		`{"workerWitness":false,"testFilePatterns":[{"kind":"","pattern":"*.sql"}]}`,
 		`{"workerWitness":false,"testFilePatterns":[{"kind":"x","pattern":"*.sql","other":"1"}]}`,
-		`{"workerWitness":false,"environmentBaselines":{}}`,
 		`{"workerWitness":false,"environmentBaselines":{".":"HEAD"}}`,
 		`{"workerWitness":false,"environmentBaselines":{".":"main"}}`,
 		`{"workerWitness":false,"environmentBaselines":{".":"refs/heads/a..b"}}`,
@@ -36,8 +52,8 @@ func TestTOLV0102_103_107_ObligationsPolicyMembers(t *testing.T) {
 		`{"workerWitness":false,"environmentBaselines":{"":"refs/heads/x"}}`,
 		`{"workerWitness":false,"requireDeclaredCites":"yes"}`,
 	} {
-		if _, err := policyWith(t, "obligations", bad); err == nil {
-			t.Errorf("admitted %s", bad)
+		if _, err := policyWith(t, "obligations", bad); wire.CodeOf(err) != wire.CodeMalformed {
+			t.Errorf("not MALFORMED %s: %v", bad, err)
 		}
 	}
 }

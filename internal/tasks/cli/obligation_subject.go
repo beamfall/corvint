@@ -304,6 +304,7 @@ func obligationsCapability(env Env, cmd []string, args []string) *wire.Result {
 		return false
 	})
 	if err != nil {
+		baseline.Set("commit", wire.Null())
 		return abstain(environmentBaselineUnresolve)
 	}
 	sort.Strings(files)
@@ -313,6 +314,7 @@ func obligationsCapability(env Env, cmd []string, args []string) *wire.Result {
 		var content map[string][]byte
 		_, present, content, err = store.FilesAtCommit(root, commit, files)
 		if err != nil {
+			baseline.Set("commit", wire.Null())
 			return abstain(environmentBaselineUnresolve)
 		}
 		matched = nil
@@ -337,8 +339,9 @@ func obligationsCapability(env Env, cmd []string, args []string) *wire.Result {
 		status = "ABSENT"
 		reason = wire.String("NOT_FOUND_AT_BASELINE")
 	}
-	truncated := len(matched) > maxCapabilityMatches
-	if truncated {
+	// A bound that left files unlisted or unread may hide further matches.
+	truncated := len(matched) > maxCapabilityMatches || over || unread
+	if len(matched) > maxCapabilityMatches {
 		matched = matched[:maxCapabilityMatches]
 	}
 	res.Items = []wire.Value{wire.ObjectValue(o.Set("status", wire.String(status)).Set("reason", reason).

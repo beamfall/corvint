@@ -52,7 +52,7 @@ holding such a reference (fail-closed); see the spec's rollback paragraph.
 
 ## Mutation evidence
 
-Ten mutations, each applied alone and reverted, were killed by the named test:
+Twelve mutations, each applied alone and reverted, were killed by the named test:
 
 | Mutation | Killed by |
 | --- | --- |
@@ -66,6 +66,31 @@ Ten mutations, each applied alone and reverted, were killed by the named test:
 | Scope evidence bound 512 back to 256 | `TestTOLV0080_ScopeShape` |
 | Declared witness test type lost | `TestTOLV0104_PlanCountsLedgerWitnesses` |
 | Baseline ref validation disabled | `TestTOLV0102_103_107_ObligationsPolicyMembers` |
+| `truncated` ignores the file and blob bounds | `TestTOLV0108_CapabilityBoundsAndReadOnly` |
+| `SEARCH_BOUND_EXCEEDED` abstention removed | `TestTOLV0108_CapabilityBoundsAndReadOnly` |
+
+## Independent review (one Codex round)
+
+`codex exec -s read-only` reviewed `d283682dd..23cc352d8` and reported six findings:
+
+1. The capability listing streams the whole tree after 1,024 files. Recorded: memory stays bounded
+   (paths beyond the bound are not retained, and the listing is a streamed `ls-tree`), but time
+   grows with the tree, as for the boundary inventory. The spec's bound is on files examined.
+2. `truncated` ignored the file and blob bounds, so a match beside an unexamined file read as
+   complete. Fixed; TOL-V0-108 now names that case and `TestTOLV0108_CapabilityBoundsAndReadOnly`
+   covers it.
+3. A tree-listing or blob-read failure kept the resolved baseline commit, against TOL-V0-109.
+   Fixed: `commit` is null on that abstention. No fixture damages a tree object (`NOT_RUN`).
+4. The store's own unborn `HEAD` still reads a reviewed witness as stale (and `REVIEW_STALE_AT_HEAD`
+   in `plan --witnesses`). Recorded as a residual: accepted TOL-V0-077 defines staleness for the
+   store worktree as the path being absent at `HEAD`, and credit is withheld either way. Changing
+   it would amend TOL-V0-077.
+5. Count bounds on `testFilePatterns` and `environmentBaselines` refuse `LIMIT_EXCEEDED`, while the
+   new requirement text said `MALFORMED`. Fixed in the new requirement text to match the existing
+   `externalReviews` convention; the policy test now asserts each code.
+6. Missing coverage for the capability bounds and read-only claim: added
+   `TestTOLV0108_CapabilityBoundsAndReadOnly`. The three damaged-object-store subject reasons stay
+   without fixtures and are listed `NOT_RUN` in the acceptance row.
 
 ## Process deviation
 
