@@ -74,7 +74,7 @@ func declaredTestRepository(rc *readCtx, name string) (root, declared string, er
 // boundary and worklist are reads that write nothing.
 func obligationsCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 {
-		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan, boundary, worklist or qualify-version")
+		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan, boundary, worklist, capability or qualify-version")
 	}
 	cmd := []string{"ticket", "obligations", args[0]}
 	switch args[0] {
@@ -94,6 +94,8 @@ func obligationsCommand(env Env, args []string) *wire.Result {
 		return obligationsWorklist(env, cmd, args[1:])
 	case "qualify-version":
 		return obligationsQualifyVersion(env, cmd, args[1:])
+	case "capability":
+		return obligationsCapability(env, cmd, args[1:])
 	}
 	return usage([]string{"ticket", "obligations"}, "unknown ticket obligations verb "+args[0])
 }
@@ -248,7 +250,8 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 // which never changes ok.
 func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	var target, file, casesFile string
-	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--plan": &file, "--legacy-cases": &casesFile}, nil, nil); res != nil {
+	var withWitnesses bool
+	if res := pairFlags(cmd, args, map[string]*string{"--target": &target, "--plan": &file, "--legacy-cases": &casesFile}, nil, map[string]*bool{"--witnesses": &withWitnesses}); res != nil {
 		return res
 	}
 	if target == "" || file == "" {
@@ -285,13 +288,40 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	// --witnesses (TOL-V0-104..106) judges the plan against the ledger's
+	// witnesses of every test type: a stale or unresolved reviewed witness is
+	// a STALE_REVIEW finding, and each UNASSIGNED row names the witness it
+	// considered. Without it the output keeps its exact earlier bytes.
+	var wr planWitnessReport
+	if withWitnesses {
+		if wr, err = planWitnesses(env, rc, ledger, findings); err != nil {
+			return errorResult(cmd, err)
+		}
+		if len(wr.stale) > 0 {
+			findings = append(findings, wr.stale...)
+			sort.SliceStable(findings, func(i, j int) bool {
+				if findings[i].ID != findings[j].ID {
+					return findings[i].ID < findings[j].ID
+				}
+				return findings[i].Kind < findings[j].Kind
+			})
+			ok = false
+		}
+	}
 	items := make([]wire.Value, 0, len(findings))
 	for _, f := range findings {
-		items = append(items, wire.ObjectValue(wire.NewObject().Set("kind", wire.String(f.Kind)).Set("id", wire.String(f.ID)).
-			Set("testCount", wire.String(string(wire.CountOf(int64(len(f.Tests)))))).Set("tests", wire.Strings(f.Tests))))
+		item := wire.NewObject().Set("kind", wire.String(f.Kind)).Set("id", wire.String(f.ID)).
+			Set("testCount", wire.String(string(wire.CountOf(int64(len(f.Tests)))))).Set("tests", wire.Strings(f.Tests))
+		if c, has := wr.considered[f.ID]; has && f.Kind == ticket.PlanUnassigned {
+			item.Set("considered", c)
+		}
+		items = append(items, wire.ObjectValue(item))
 	}
 	res := success(cmd, rc)
 	po := wire.NewObject().Set("ok", wire.Bool(ok)).Set("findings", wire.Array(items...))
+	if withWitnesses {
+		po.Set("ledgerWitnesses", wire.Array(wr.witnesses...))
+	}
 	// A plan with a rerun member also reports the WITNESSED regression rows
 	// it re-runs (TOL-V0-056); an older plan keeps its exact output.
 	if ticket.PlanHasRerun(plan) {
@@ -309,6 +339,9 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	if !ok {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, "the plan leaves core open obligations unassigned, splits an obligation, names unknown or closed ids, or reruns an unwitnessed id")
+	}
+	if len(wr.stale) > 0 {
+		res.Warnings = append(res.Warnings, "a reviewed ledger witness is stale or unresolved at HEAD (STALE_REVIEW)")
 	}
 	return res
 }

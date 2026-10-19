@@ -117,7 +117,7 @@ func TestTOLV0075_HeldVerdictsKeptWithReasons(t *testing.T) {
 // TestTOLV0077_EditedExampleMakesReviewStale: editing the cited example
 // marks the review stale and un-credits it in show without writing state;
 // a re-review of the same blob is refused, and a new review of the edited
-// example credits again (TOL-V0-076, 077).
+// example credits again (TOL-V0-076, TOL-V0-077).
 func TestTOLV0077_EditedExampleMakesReviewStale(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
@@ -197,7 +197,7 @@ func TestTOLV0077_TestRepositoryReviewStaleness(t *testing.T) {
 
 // TestTOLV0074_AuthorReviewerRefused: a reviewer named as an author is
 // refused OBLIGATION_REVIEWER_NOT_INDEPENDENT and nothing is written; a
-// secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, 078).
+// secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, TOL-V0-078).
 func TestTOLV0074_AuthorReviewerRefused(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
@@ -213,5 +213,33 @@ func TestTOLV0074_AuthorReviewerRefused(t *testing.T) {
 	}
 	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
 		t.Fatal("a refused review wrote state")
+	}
+}
+
+// TestTOLV0100_UnbornTestRepositoryHeadUnresolved: a declared test repository
+// whose HEAD is unborn names no commit, so the review is unresolved
+// (TEST_REPOSITORY_UNRESOLVED, stale null) and the credit stays withheld,
+// while an edited subject at an existing HEAD still reports stale true
+// (TOL-V0-100).
+func TestTOLV0100_UnbornTestRepositoryHeadUnresolved(t *testing.T) {
+	app, appHead := separateTestRepo(t)
+	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
+	seedObligations(t, r.Root, id)
+	file := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "ok"))
+	if x := reviewWitness(t, r.Root, id, "rv-app", appHead, "AC-1", file, "--test-repository", "app"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("test-repository review: %s", x.stdout)
+	}
+	fixture.Write(t, filepath.Join(app, "e2e", "login.spec.ts"), []byte(obligationSpec+"\n// edited after review\n"))
+	git(t, app, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-am", "edit")
+	wr := witnessReview(t, obligationsShow(t, r.Root, id), "AC-1")
+	if field(wr, "stale").Kind != wire.KindBool || !field(wr, "stale").Bool || field(wr, "credited").Bool || field(wr, "staleUnknown").Str != "" {
+		t.Fatalf("existing HEAD, edited subject: %s", wire.Encode(wr))
+	}
+	git(t, app, "checkout", "-q", "--orphan", "unborn")
+	v := obligationsShow(t, r.Root, id)
+	wr = witnessReview(t, v, "AC-1")
+	if field(wr, "stale").Kind != wire.KindNull || field(wr, "staleUnknown").Str != "TEST_REPOSITORY_UNRESOLVED" || field(wr, "credited").Bool ||
+		field(field(v, "witnessReview"), "effectiveWitnessed").Str != "0" {
+		t.Fatalf("unborn test-repository HEAD: %s", wire.Encode(field(v, "witnessReview")))
 	}
 }

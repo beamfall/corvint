@@ -9,6 +9,7 @@ package testsource
 import (
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,7 +41,23 @@ const (
 	envDotenvNotRead       = "dotenv-not-read"
 	envInherited           = "inherited-from-caller"
 	envValueTooLarge       = "value-too-large"
+	envBranchDependent     = "branch-dependent"
+	envWorkflowExpression  = "workflow-expression"
+	envCallerValuesDiffer  = "caller-values-differ"
+	envComposeUnparsed     = "compose-unparsed"
+	envWorkflowUnparsed    = "workflow-unparsed"
+	envNotCommitted        = "not-committed"
+	envLanguageNotRead     = "stand-in-language-not-read"
 	maxEnvValueBytes       = 4096
+)
+
+// Source kinds of a variable not written in a bootstrap script itself (TSA-V0-350..352). The set
+// is closed; a script's own variable has none.
+const (
+	SourceDotenv             = "DOTENV"
+	SourceComposeEnvironment = "COMPOSE_ENVIRONMENT"
+	SourceComposeEnvFile     = "COMPOSE_ENV_FILE"
+	SourceWorkflow           = "WORKFLOW"
 )
 
 // Stand-in control route kinds and scopes (TSA-V0-213).
@@ -61,6 +78,8 @@ type EnvDerivation struct {
 	References []string `json:"references,omitempty"`
 	Offset     *int     `json:"offset,omitempty"`
 	Reason     string   `json:"reason,omitempty"`
+	// Alternatives are the candidate values of a branch-dependent or caller-dependent variable.
+	Alternatives []string `json:"alternatives,omitempty"`
 }
 
 // EnvVariable is one variable a profile's bootstrap assigns. Value is nil when it cannot be
@@ -69,6 +88,8 @@ type EnvDerivation struct {
 type EnvVariable struct {
 	Name          string        `json:"name"`
 	Source        string        `json:"source"`
+	SourceKind    string        `json:"sourceKind,omitempty"`
+	Service       string        `json:"service,omitempty"`
 	Line          int           `json:"line"`
 	Value         *string       `json:"value"`
 	UnknownReason string        `json:"unknownReason,omitempty"`
@@ -100,6 +121,8 @@ type StandIn struct {
 	URL               *string        `json:"url"`
 	DeclaredVariables []string       `json:"declaredVariables"`
 	Routes            []StandInRoute `json:"routes"`
+	// Abstentions name the stand-in's files in a language whose routes are not read (TSA-V0-359).
+	Abstentions []EnvSourceNote `json:"abstentions,omitempty"`
 }
 
 // EnvSourceNote is one profile source the reader names but does not read.
@@ -173,7 +196,7 @@ func EnvContract(repo Repo, options EnvContractOptions) (EnvContractReport, erro
 		return EnvContractReport{}, err
 	}
 	budget := newReadBudget()
-	texts, _, err := repo.readFilesWithin(commit, envSourceFile, budget)
+	texts, err := readEnvTexts(repo, commit, options.Profile, budget)
 	if err != nil {
 		return EnvContractReport{}, err
 	}
@@ -186,7 +209,7 @@ func EnvContract(repo Repo, options EnvContractOptions) (EnvContractReport, erro
 	if err != nil {
 		return EnvContractReport{}, err
 	}
-	baseTexts, _, err := repo.readFilesWithin(base, envSourceFile, budget)
+	baseTexts, err := readEnvTexts(repo, base, options.Profile, budget)
 	if err != nil {
 		return EnvContractReport{}, err
 	}
@@ -195,14 +218,30 @@ func EnvContract(repo Repo, options EnvContractOptions) (EnvContractReport, erro
 	return report, nil
 }
 
+// envSourceFile keeps the committed files the reader may need: shell scripts, JS/TS sources,
+// compose and dotenv files, CI workflows and the other files of stand-in directories
+// (TSA-V0-210, TSA-V0-350..359).
 func envSourceFile(name string) bool {
-	return strings.HasSuffix(name, ".sh") || webExtensions[path.Ext(name)] || composeProfile(name) != "" || strings.HasPrefix(path.Base(name), ".env.")
+	base, ext := path.Base(name), path.Ext(name)
+	yaml := ext == ".yml" || ext == ".yaml"
+	switch {
+	case strings.HasSuffix(name, ".sh") || webExtensions[ext]:
+	case yaml && (strings.HasPrefix(base, "compose") || strings.HasPrefix(base, "docker-compose")):
+	case yaml && path.Dir(name) == ".github/workflows":
+	case base == ".env" || strings.HasPrefix(base, ".env.") || strings.HasSuffix(base, ".env"):
+	case isStandInPath(name) && (standInRouteFile(name) || standInOtherLanguage[ext]):
+	default:
+		return false
+	}
+	return true
 }
 
 // profileModel is one profile's resolved bootstrap reading.
 type profileModel struct {
 	report EnvContractReport
 	byName map[string]*EnvVariable
+	// missing are files the profile names (a compose file, an env_file) that the read left out.
+	missing map[string]bool
 }
 
 // ReadEnvContract applies TSA-V0-210..214 to committed sources keyed by path.
@@ -251,17 +290,24 @@ func composeProfile(name string) string {
 	return ""
 }
 
+// shellAssignment is one assignment. script is the bootstrap script that read it; source is the
+// file it is written in (the script, a dotenv file it sources, or a CI workflow for a caller
+// value); kind is that file's source kind, empty for the script. unknown, with alternatives, marks
+// a value the reading cannot pin down (TSA-V0-354, TSA-V0-361).
 type shellAssignment struct {
-	name, raw, source string
-	line              int
-	exported          bool
-	toTests           bool
-	exportOnly        bool
+	name, raw, source, script, kind string
+	line                            int
+	exported                        bool
+	toTests                         bool
+	exportOnly                      bool
+	unknown                         string
+	alternatives                    []string
 }
 
 type shellLaunch struct {
 	source, file string
 	line         int
+	dir          bool
 	env          map[string]string
 }
 
@@ -288,16 +334,18 @@ func readProfile(texts map[string]string, profile string) profileModel {
 			report.UnreadSources = append(report.UnreadSources, EnvSourceNote{Path: name, Reason: envDotenvNotRead})
 		}
 	}
-	sort.Slice(report.UnreadSources, func(i, j int) bool { return report.UnreadSources[i].Path < report.UnreadSources[j].Path })
-	model := profileModel{report: report, byName: map[string]*EnvVariable{}}
+	model := profileModel{report: report, byName: map[string]*EnvVariable{}, missing: map[string]bool{}}
 	if len(report.Sources) == 0 {
 		model.report.Reason = envProfileNotFound
+		sortNotes(model.report.UnreadSources)
 		return model
 	}
-	assignments, launches := map[string]shellAssignment{}, []shellLaunch{}
+	assignments, launches, composes := map[string]shellAssignment{}, []shellLaunch{}, []composeLaunch{}
 	several := map[string]bool{}
 	for _, script := range report.Sources {
-		own, ownLaunches := parseBootstrap(script, texts[script], texts)
+		p := newShellParser(script, texts, profile)
+		p.read(script, texts[script], "", false, 0)
+		own, ownLaunches := p.finish()
 		for name, a := range own {
 			prior, ok := assignments[name]
 			switch {
@@ -307,41 +355,74 @@ func readProfile(texts map[string]string, profile string) profileModel {
 				a = prior
 			case prior.exportOnly:
 				a.exported = true
-			case prior.source != a.source:
+			case prior.script != a.script:
 				several[name] = true
 			}
 			assignments[name] = a
 		}
 		launches = append(launches, ownLaunches...)
+		composes = append(composes, p.composes...)
+		for name := range p.missing {
+			model.missing[name] = true
+		}
+	}
+	caller, notes := workflowCallers(texts, report.Sources)
+	model.report.UnreadSources = append(model.report.UnreadSources, notes...)
+	for name, c := range caller {
+		if a, ok := assignments[name]; !ok || a.exportOnly {
+			assignments[name] = c
+		}
 	}
 	names := make([]string, 0, len(assignments))
 	for name := range assignments {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	resolver := envResolver{assignments: assignments, several: several, memo: map[string]resolved{}}
+	resolver := envResolver{assignments: assignments, caller: caller, several: several, memo: map[string]resolved{}}
 	for _, name := range names {
 		a := assignments[name]
 		r := resolver.resolve(name, map[string]bool{})
-		v := EnvVariable{Name: name, Source: a.source, Line: a.line, Value: r.value, UnknownReason: r.reason,
-			Derivation: derive(a.raw), PassedToTests: a.exported || a.toTests}
-		if several[name] {
+		// A variable every calling step exports stays exported when the script assigns it again.
+		c, called := caller[name]
+		inherited := called && c.unknown != envCallerValuesDiffer
+		v := EnvVariable{Name: name, Source: a.source, SourceKind: a.kind, Line: a.line, Value: r.value, UnknownReason: r.reason,
+			Derivation: derive(a.raw), PassedToTests: a.exported || a.toTests || inherited}
+		switch {
+		case several[name]:
 			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Expression: a.raw, Reason: envSeveralScripts}
-		}
-		if a.exportOnly {
+		case a.exportOnly:
 			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Reason: envInherited}
+		case a.unknown != "":
+			v.Derivation = EnvDerivation{Kind: DerivationUnknown, Expression: a.raw, Reason: a.unknown, Alternatives: a.alternatives}
 		}
 		v.Reliable = v.PassedToTests
 		v.Endpoint = endpointName(name) || (r.value != nil && (strings.HasPrefix(*r.value, "http://") || strings.HasPrefix(*r.value, "https://")))
 		model.report.Variables = append(model.report.Variables, v)
 	}
+	services, notes := composeVariables(texts, composes, profile, resolver, model.missing)
+	model.report.UnreadSources = append(model.report.UnreadSources, notes...)
+	model.report.Variables = append(model.report.Variables, services...)
+	sort.SliceStable(model.report.Variables, func(i, j int) bool {
+		a, b := model.report.Variables[i], model.report.Variables[j]
+		return a.Name < b.Name || a.Name == b.Name && a.Service < b.Service
+	})
 	for i := range model.report.Variables {
-		model.byName[model.report.Variables[i].Name] = &model.report.Variables[i]
+		v := &model.report.Variables[i]
+		if _, taken := model.byName[v.Name]; !taken && (v.Service == "" || v.PassedToTests) {
+			model.byName[v.Name] = v
+		}
 	}
+	sortNotes(model.report.UnreadSources)
 	for _, launch := range launches {
 		model.report.StandIns = append(model.report.StandIns, standIn(texts, launch, resolver, model))
 	}
 	return model
+}
+
+func sortNotes(notes []EnvSourceNote) {
+	sort.Slice(notes, func(i, j int) bool {
+		return notes[i].Path < notes[j].Path || notes[i].Path == notes[j].Path && notes[i].Reason < notes[j].Reason
+	})
 }
 
 func endpointName(name string) bool {
@@ -353,85 +434,360 @@ func endpointName(name string) bool {
 	return false
 }
 
-// parseBootstrap reads one script's assignments, exports and launches. Lines are joined at a
-// trailing backslash; a comment line, a function body line and any other command are ignored.
-func parseBootstrap(script, text string, texts map[string]string) (map[string]shellAssignment, []shellLaunch) {
-	assignments, exported, launches := map[string]shellAssignment{}, map[string]int{}, []shellLaunch{}
-	allExport := false
+// shellParser reads one script's assignments, exports and launches, and the dotenv files it
+// sources (TSA-V0-351). Lines are joined at a trailing backslash and split into commands at `;`,
+// `&&`, `||` and `&`; a comment and any other command are ignored. An assignment inside an
+// if/case/loop/function body or after `&&`/`||` is conditional and keeps every candidate value
+// (TSA-V0-361).
+type shellParser struct {
+	script, profile string
+	texts           map[string]string
+	dirs            map[string]bool
+	assignments     map[string]shellAssignment
+	exported        map[string]shellAssignment
+	launches        []shellLaunch
+	composes        []composeLaunch
+	missing         map[string]bool
+	allExport       bool
+}
+
+// composeLaunch is one `docker compose` invocation of a compose file (TSA-V0-352).
+type composeLaunch struct {
+	script, file string
+	line         int
+}
+
+func newShellParser(script string, texts map[string]string, profile string) *shellParser {
+	return &shellParser{script: script, profile: profile, texts: texts, assignments: map[string]shellAssignment{},
+		exported: map[string]shellAssignment{}, missing: map[string]bool{}}
+}
+
+// read reads one shell or dotenv text; kind is "" for the script itself and SourceDotenv for a
+// sourced dotenv file, which inherits the caller's conditional state.
+func (p *shellParser) read(source, text, kind string, inherited bool, depth int) {
+	stack, pendingFunction := []string{}, false
 	lines := strings.Split(text, "\n")
 	for i := 0; i < len(lines); i++ {
 		number, line := i+1, strings.TrimSpace(lines[i])
-		for strings.HasSuffix(line, "\\") && i+1 < len(lines) {
+		// A trailing `\`, `&&` or `||` continues the command on the next line, so a list split
+		// across lines keeps its conditional part (TSA-V0-361).
+		for i+1 < len(lines) && (strings.HasSuffix(line, "\\") || strings.HasSuffix(line, "&&") || strings.HasSuffix(line, "||")) {
 			i++
 			line = strings.TrimSuffix(line, "\\") + " " + strings.TrimSpace(lines[i])
 		}
-		words := shellWords(line)
-		if len(words) == 0 {
-			continue
-		}
-		switch {
-		case words[0] == "set" && len(words) > 1 && (words[1] == "-a" || words[1] == "-o" && len(words) > 2 && words[2] == "allexport"):
-			allExport = true
-			continue
-		case words[0] == "set" && len(words) > 1 && (words[1] == "+a" || words[1] == "+o" && len(words) > 2 && words[2] == "allexport"):
-			allExport = false
-			continue
-		case words[0] == "export" || words[0] == "declare" && len(words) > 1 && words[1] == "-x":
-			start := 1
-			if words[0] == "declare" {
-				start = 2
+		for _, segment := range shellSegments(line) {
+			words := shellWords(segment.text)
+			if len(words) == 0 {
+				continue
 			}
-			for _, w := range words[start:] {
-				if m := assignmentWord.FindStringSubmatch(w); m != nil {
-					assignments[m[1]] = shellAssignment{name: m[1], raw: m[2], source: script, line: number, exported: true}
-					exported[m[1]] = number
-				} else if nameWord.MatchString(w) {
-					exported[w] = number
+			top := ""
+			if len(stack) > 0 {
+				top = stack[len(stack)-1]
+			}
+			switch words[0] {
+			case "if", "while", "until", "for", "select":
+				stack = append(stack, "branch")
+				continue
+			case "case":
+				stack = append(stack, "case")
+				continue
+			case "elif":
+				continue
+			case "fi", "done", "esac", "}":
+				if len(stack) > 0 {
+					stack = stack[:len(stack)-1]
+				}
+				continue
+			case "then", "else", "do":
+				words = words[1:]
+			case "{":
+				if !pendingFunction {
+					stack = append(stack, "group")
+				}
+				pendingFunction = false
+				words = words[1:]
+			case "function":
+				stack, pendingFunction = append(stack, "function"), !strings.HasSuffix(segment.text, "{")
+				continue
+			default:
+				if strings.HasSuffix(words[0], "()") || len(words) > 1 && words[1] == "()" {
+					stack, pendingFunction = append(stack, "function"), !strings.HasSuffix(segment.text, "{")
+					continue
+				}
+				if top == "case" {
+					if at := strings.Index(segment.text, ")"); at >= 0 && !strings.ContainsAny(segment.text[:at], "=$(") {
+						words = shellWords(segment.text[at+1:])
+					}
 				}
 			}
-			continue
-		}
-		prefix := 0
-		for prefix < len(words) && assignmentWord.MatchString(words[prefix]) {
-			prefix++
-		}
-		if prefix == len(words) {
-			for _, w := range words {
-				m := assignmentWord.FindStringSubmatch(w)
-				assignments[m[1]] = shellAssignment{name: m[1], raw: m[2], source: script, line: number, exported: allExport}
+			if len(words) == 0 {
+				continue
 			}
-			continue
+			conditional := inherited || segment.conditional
+			for _, kind := range stack {
+				conditional = conditional || kind != "group"
+			}
+			p.command(source, kind, number, words, conditional, depth)
 		}
-		command := strings.Join(words[prefix:], " ")
-		env := map[string]string{}
+	}
+}
+
+// command reads one simple command.
+func (p *shellParser) command(source, kind string, number int, words []string, conditional bool, depth int) {
+	set := func(name, raw string, exported, toTests bool) {
+		p.assign(shellAssignment{name: name, raw: raw, source: source, script: p.script, kind: kind, line: number, exported: exported, toTests: toTests}, conditional)
+	}
+	switch {
+	case words[0] == "set" && len(words) > 1 && (words[1] == "-a" || words[1] == "-o" && len(words) > 2 && words[2] == "allexport"):
+		p.allExport = true
+		return
+	case words[0] == "set" && len(words) > 1 && (words[1] == "+a" || words[1] == "+o" && len(words) > 2 && words[2] == "allexport"):
+		p.allExport = false
+		return
+	case words[0] == "export" || words[0] == "declare" && len(words) > 1 && words[1] == "-x":
+		start := 1
+		if words[0] == "declare" {
+			start = 2
+		}
+		for _, w := range words[start:] {
+			if m := assignmentWord.FindStringSubmatch(w); m != nil {
+				set(m[1], m[2], true, false)
+				p.exported[m[1]] = shellAssignment{source: source, line: number, kind: kind}
+			} else if nameWord.MatchString(w) {
+				p.exported[w] = shellAssignment{source: source, line: number, kind: kind}
+			}
+		}
+		return
+	case (words[0] == "." || words[0] == "source") && len(words) > 1:
+		file := p.scriptPath(source, words[1])
+		if text, ok := p.texts[file]; ok && dotenvFile(file, p.profile) && depth < 2 {
+			p.read(file, text, SourceDotenv, conditional, depth+1)
+		}
+		return
+	}
+	prefix := 0
+	for prefix < len(words) && assignmentWord.MatchString(words[prefix]) {
+		prefix++
+	}
+	if prefix == len(words) {
+		for _, w := range words {
+			m := assignmentWord.FindStringSubmatch(w)
+			set(m[1], m[2], p.allExport, false)
+		}
+		return
+	}
+	command := strings.Join(words[prefix:], " ")
+	env := map[string]string{}
+	for _, w := range words[:prefix] {
+		m := assignmentWord.FindStringSubmatch(w)
+		env[m[1]] = m[2]
+	}
+	if testRunnerWord.MatchString(" " + command + " ") {
 		for _, w := range words[:prefix] {
 			m := assignmentWord.FindStringSubmatch(w)
-			env[m[1]] = m[2]
+			set(m[1], m[2], false, true)
 		}
-		if testRunnerWord.MatchString(" " + command + " ") {
-			for _, w := range words[:prefix] {
-				m := assignmentWord.FindStringSubmatch(w)
-				assignments[m[1]] = shellAssignment{name: m[1], raw: m[2], source: script, line: number, toTests: true}
-			}
-			continue
+		return
+	}
+	if files := p.composeFiles(source, words[prefix:]); files != nil {
+		for _, file := range files {
+			p.composes = append(p.composes, composeLaunch{script: source, file: file, line: number})
 		}
-		for _, w := range words[prefix:] {
-			file := strings.TrimPrefix(strings.Trim(w, `"'`), "./")
-			if _, ok := texts[file]; ok && isStandInPath(file) {
-				launches = append(launches, shellLaunch{source: script, file: file, line: number, env: env})
-				break
-			}
+		return
+	}
+	for i, w := range words[prefix:] {
+		if launch, ok := p.launch(source, w, words[prefix+i+1:]); ok {
+			launch.line, launch.env = number, env
+			p.launches = append(p.launches, launch)
+			return
 		}
 	}
-	for name, line := range exported {
-		a, ok := assignments[name]
+}
+
+// assign records one assignment; a conditional one keeps the prior value as an alternative and
+// makes the variable branch-dependent until an unconditional assignment (TSA-V0-361).
+func (p *shellParser) assign(a shellAssignment, conditional bool) {
+	if conditional {
+		alternatives := []string{}
+		if prior, ok := p.assignments[a.name]; ok && !prior.exportOnly {
+			alternatives = append(alternatives, prior.alternatives...)
+			if len(prior.alternatives) == 0 {
+				alternatives = append(alternatives, prior.raw)
+			}
+		}
+		if !slices.Contains(alternatives, a.raw) {
+			alternatives = append(alternatives, a.raw)
+		}
+		a.alternatives, a.unknown = alternatives, envBranchDependent
+	}
+	p.assignments[a.name] = a
+}
+
+func (p *shellParser) finish() (map[string]shellAssignment, []shellLaunch) {
+	for name, at := range p.exported {
+		a, ok := p.assignments[name]
 		if !ok {
-			a = shellAssignment{name: name, source: script, line: line, exportOnly: true}
+			a = shellAssignment{name: name, source: at.source, script: p.script, kind: at.kind, line: at.line, exportOnly: true}
 		}
 		a.exported = true
-		assignments[name] = a
+		p.assignments[name] = a
 	}
-	return assignments, launches
+	return p.assignments, p.launches
+}
+
+// scriptPath resolves a path word of a script relative to the repository root, the directory the
+// profile is run from; `$(dirname "$0")/` names the script's directory.
+func (p *shellParser) scriptPath(source, word string) string {
+	word = strings.ReplaceAll(strings.ReplaceAll(word, `"`, ""), `'`, "")
+	for _, dir := range []string{"$(dirname $0)/", "$(dirname ${BASH_SOURCE[0]})/", "${BASH_SOURCE%/*}/"} {
+		if strings.HasPrefix(word, dir) {
+			return path.Clean(path.Join(path.Dir(source), strings.TrimPrefix(word, dir)))
+		}
+	}
+	return path.Clean(strings.TrimPrefix(word, "./"))
+}
+
+func (p *shellParser) dir(name string) bool {
+	if p.dirs == nil {
+		p.dirs = map[string]bool{}
+		for file := range p.texts {
+			for d := path.Dir(file); d != "." && d != "/" && !p.dirs[d]; d = path.Dir(d) {
+				p.dirs[d] = true
+			}
+		}
+	}
+	return p.dirs[name]
+}
+
+// composeFiles are the compose files a `docker compose` or `docker-compose` command reads: each
+// `-f`/`--file` argument, or the first default file committed at the repository root. A named file
+// that is not read is recorded as missing for a further read. Nil means the words are no compose
+// command (TSA-V0-352).
+func (p *shellParser) composeFiles(source string, words []string) []string {
+	at := -1
+	for i, w := range words {
+		if w == "docker-compose" || w == "docker" && i+1 < len(words) && words[i+1] == "compose" {
+			at = i
+			break
+		}
+	}
+	if at < 0 {
+		return nil
+	}
+	files := []string{}
+	for i := at + 1; i < len(words); i++ {
+		w, value := words[i], ""
+		switch {
+		case (w == "-f" || w == "--file") && i+1 < len(words):
+			value, i = words[i+1], i+1
+		case strings.HasPrefix(w, "--file="):
+			value = strings.TrimPrefix(w, "--file=")
+		case strings.HasPrefix(w, "-f") && len(w) > 2:
+			value = strings.TrimPrefix(strings.TrimPrefix(w, "-f"), "=")
+		default:
+			continue
+		}
+		file := p.scriptPath(source, value)
+		if _, ok := p.texts[file]; !ok {
+			p.missing[file] = true
+		}
+		files = append(files, file)
+	}
+	if len(files) == 0 {
+		for _, name := range []string{"compose.yaml", "compose.yml", "docker-compose.yaml", "docker-compose.yml"} {
+			if _, ok := p.texts[name]; ok {
+				return []string{name}
+			}
+		}
+	}
+	return files
+}
+
+// launch reads one command word as a stand-in launch: a committed stand-in file, a committed
+// stand-in directory (`go run ./stubs/x`, WireMock's `--root-dir`), or a Flask module named
+// without its `.py` (TSA-V0-213, TSA-V0-355).
+func (p *shellParser) launch(source, word string, rest []string) (shellLaunch, bool) {
+	if word == "--root-dir" && len(rest) > 0 {
+		word = rest[0]
+	}
+	word = strings.TrimPrefix(word, "--root-dir=")
+	file := strings.TrimPrefix(strings.Trim(word, `"'`), "./")
+	if file == "" || strings.HasPrefix(file, "-") {
+		return shellLaunch{}, false
+	}
+	file = path.Clean(file)
+	if _, ok := p.texts[file]; ok && isStandInPath(file) {
+		return shellLaunch{source: source, file: file}, true
+	}
+	if _, ok := p.texts[file+".py"]; ok && isStandInPath(file+".py") {
+		return shellLaunch{source: source, file: file + ".py"}, true
+	}
+	if p.dir(file) && isStandInPath(file+"/") {
+		return shellLaunch{source: source, file: file, dir: true}, true
+	}
+	return shellLaunch{}, false
+}
+
+// dotenvFile is a dotenv name a script may source: `.env`, `.env.SUFFIX` other than the profile's
+// own `.env.NAME` (TSA-V0-210, TSA-V0-353) and `NAME.env`.
+func dotenvFile(name, profile string) bool {
+	base := path.Base(name)
+	return base == ".env" || strings.HasPrefix(base, ".env.") && base != ".env."+profile || strings.HasSuffix(base, ".env") && len(base) > len(".env")
+}
+
+type shellSegment struct {
+	text        string
+	conditional bool
+}
+
+// shellSegments splits a line into commands at `;`, `;;`, `&&`, `||` and a background `&`
+// outside quotes, `$(...)` and `${...}`; a command after `&&` or `||` is conditional until the
+// next `;` or `&`. An unquoted `#` starting a word begins a comment.
+func shellSegments(line string) []shellSegment {
+	out, start, conditional := []shellSegment{}, 0, false
+	quote, depth := byte(0), 0
+	emit := func(end int) {
+		if text := strings.TrimSpace(line[start:end]); text != "" {
+			out = append(out, shellSegment{text: text, conditional: conditional})
+		}
+	}
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			}
+		case c == '"' || c == '\'' || c == '`':
+			quote = c
+		case c == '$' && i+1 < len(line) && (line[i+1] == '(' || line[i+1] == '{'):
+			depth++
+			i++
+		case depth > 0 && (c == '(' || c == '{'):
+			depth++
+		case depth > 0 && (c == ')' || c == '}'):
+			depth--
+		case depth > 0:
+		case c == '#' && (i == 0 || line[i-1] == ' ' || line[i-1] == '\t'):
+			emit(i)
+			return out
+		case c == ';':
+			emit(i)
+			if i+1 < len(line) && line[i+1] == ';' {
+				i++
+			}
+			start, conditional = i+1, false
+		case (c == '&' || c == '|') && i+1 < len(line) && line[i+1] == c:
+			emit(i)
+			i++
+			start, conditional = i+1, true
+		case c == '&' && (i == 0 || line[i-1] != '>') && (i+1 >= len(line) || line[i+1] != '>'):
+			emit(i)
+			start, conditional = i+1, false
+		}
+	}
+	emit(len(line))
+	return out
 }
 
 func isStandInPath(name string) bool {
@@ -553,6 +909,9 @@ func derive(raw string) EnvDerivation {
 	return d
 }
 
+// callerMark prefixes a visiting key that records a caller value already being evaluated.
+const callerMark = "\x00caller:"
+
 type resolved struct {
 	value  *string
 	reason string
@@ -560,6 +919,7 @@ type resolved struct {
 
 type envResolver struct {
 	assignments map[string]shellAssignment
+	caller      map[string]shellAssignment
 	several     map[string]bool
 	memo        map[string]resolved
 }
@@ -576,10 +936,21 @@ func (r envResolver) resolve(name string, visiting map[string]bool) resolved {
 	if r.several[name] {
 		return resolved{reason: envSeveralScripts}
 	}
+	if a.unknown != "" {
+		return resolved{reason: a.unknown}
+	}
 	if a.exportOnly {
 		return resolved{reason: envNotAssigned + ":" + name}
 	}
 	if visiting[name] {
+		// A script value naming itself (`PORT=${PORT:-3000}`) reads the caller's value (TSA-V0-354).
+		// The caller's value is evaluated once: a caller value naming the variable again is a cycle.
+		if c, ok := r.caller[name]; ok && a.kind != SourceWorkflow && !visiting[callerMark+name] {
+			if c.unknown != "" {
+				return resolved{reason: c.unknown}
+			}
+			return r.evaluate(c.raw, map[string]bool{callerMark + name: true})
+		}
 		return resolved{reason: envCycle}
 	}
 	visiting[name] = true
@@ -676,16 +1047,20 @@ func standIn(texts map[string]string, launch shellLaunch, resolver envResolver, 
 		}
 		break
 	}
-	dir := path.Dir(launch.file)
 	files := []string{}
 	for name := range texts {
-		if path.Dir(name) == dir && webExtensions[path.Ext(name)] && !IsTestFile(name) {
+		if launch.dir && strings.HasPrefix(name, launch.file+"/") || !launch.dir && path.Dir(name) == path.Dir(launch.file) {
 			files = append(files, name)
 		}
 	}
 	sort.Strings(files)
 	for _, name := range files {
-		s.Routes = append(s.Routes, routes(name, texts[name])...)
+		switch {
+		case standInRouteFile(name):
+			s.Routes = append(s.Routes, routes(name, texts[name], texts)...)
+		case standInOtherLanguage[path.Ext(name)]:
+			s.Abstentions = append(s.Abstentions, EnvSourceNote{Path: name, Reason: envLanguageNotRead})
+		}
 	}
 	resets := []string{}
 	for _, r := range s.Routes {
@@ -699,32 +1074,6 @@ func standIn(texts map[string]string, launch shellLaunch, resolver envResolver, 
 		}
 	}
 	return s
-}
-
-func routes(name, text string) []StandInRoute {
-	out := []StandInRoute{}
-	matches := routeRegistration.FindAllStringSubmatchIndex(text, -1)
-	for i, m := range matches {
-		end := len(text)
-		if i+1 < len(matches) {
-			end = matches[i+1][0]
-		}
-		body := text[m[0]:end]
-		r := StandInRoute{Method: strings.ToUpper(text[m[2]:m[3]]), Path: text[m[4]:m[5]], Source: name,
-			Line: 1 + strings.Count(text[:m[0]], "\n"), Payload: fieldNames(body, true), Query: fieldNames(body, false), Teardown: []string{}}
-		r.Kind = routeKind(r.Path)
-		if r.Kind != RouteService {
-			r.Scope = ScopeServiceWide
-			for _, key := range append(pathParams(r.Path), r.Payload...) {
-				if scopeKey.MatchString(key) {
-					r.Scope = scopeKeyedPrefix + key
-					break
-				}
-			}
-		}
-		out = append(out, r)
-	}
-	return out
 }
 
 func fieldNames(body string, payload bool) []string {
@@ -754,12 +1103,16 @@ func fieldNames(body string, payload bool) []string {
 	return out
 }
 
+// pathParams are a route's `:name`, `{name}` and `<name>` parameters.
 func pathParams(route string) []string {
 	out := []string{}
 	for _, segment := range strings.Split(route, "/") {
 		if strings.HasPrefix(segment, ":") {
 			out = append(out, segment[1:])
 		}
+	}
+	for _, m := range bracePathParam.FindAllStringSubmatch(route, -1) {
+		out = append(out, m[1]+m[2])
 	}
 	return out
 }

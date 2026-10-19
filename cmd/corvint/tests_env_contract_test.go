@@ -49,6 +49,7 @@ func TestTestsRoleLocatorsAndEnvCLI(t *testing.T) {
 		"src/ErrorBanner.tsx":      "export default () => <div className=\"error\">boom</div>;\n",
 		"scripts/bootstrap-e2e.sh": "export STUB_URL=http://localhost:4110\nPORT=4110 node stubs/pay/server.js &\n",
 		"stubs/pay/server.js":      "app.post('/__control/faults', (req, res) => res.end());\n",
+		"tests/pay.spec.ts":        "test('pays', async () => {\n  await fetch('http://localhost:4110/x');\n});\n",
 	})
 	code, out, errb := runCLI(t, "--root", root, "tests", "role-locators")
 	if code != 1 || !strings.Contains(out, "ROLE-LOCATOR-UNRENDERED") || !strings.Contains(out, "src/ErrorBanner.tsx") {
@@ -68,5 +69,20 @@ func TestTestsRoleLocatorsAndEnvCLI(t *testing.T) {
 	}
 	if code, _, errb := runCLI(t, "--root", root, "tests", "env", "--profile", "../x"); code != 2 || !strings.Contains(errb, "tests-invalid-arguments") {
 		t.Fatalf("bad profile: code=%d err=%s", code, errb)
+	}
+	// TSA-V0-363: the validity projection lists the profile's warnings with the containing test.
+	code, out, errb = runCLI(t, "--root", root, "tests", "validity", "--files", "tests/pay.spec.ts", "--profile", "e2e")
+	var validity struct {
+		Env struct {
+			Profile  string
+			Warnings []struct{ Test, Rule string }
+		}
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &validity) != nil || validity.Env.Profile != "e2e" || len(validity.Env.Warnings) != 1 ||
+		validity.Env.Warnings[0].Test != "tests/pay.spec.ts:1" || validity.Env.Warnings[0].Rule != "ENV-HARD-CODED-ADDRESS" {
+		t.Fatalf("validity: code=%d out=%s err=%s", code, out, errb)
+	}
+	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "tests/pay.spec.ts", "--profile", "../x"); code != 2 || !strings.Contains(errb, "tests-invalid-arguments") {
+		t.Fatalf("validity bad profile: code=%d err=%s", code, errb)
 	}
 }

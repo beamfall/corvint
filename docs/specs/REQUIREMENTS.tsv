@@ -1603,6 +1603,16 @@ TOL-V0-085	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-086	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) The	standing	2026-10-11; #1182
 TOL-V0-087	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
 TOL-V0-088	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1182)) `--	standing	2026-10-11; #1182
+TOL-V0-100	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1946)) When a	standing	2026-10-11; V1-1946
+TOL-V0-101	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) Each	standing	2026-10-11; V1-1945
+TOL-V0-102	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1945); default	standing	2026-10-11; V1-1945
+TOL-V0-103	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) The	standing	2026-10-11; V1-1945
+TOL-V0-104	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
+TOL-V0-105	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) Under	standing	2026-10-11; V1-1949
+TOL-V0-106	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
+TOL-V0-107	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
+TOL-V0-108	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The read	standing	2026-10-11; V1-1949
+TOL-V0-109	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The	standing	2026-10-11; V1-1949
 ON-V0-001	docs/specs/corvint-tasks-operator-notes-v0.md	The ticket MUST carry at most one optional closed operatorNote reference, omitte	unrecorded	-
 ON-V0-002	docs/specs/corvint-tasks-operator-notes-v0.md	Every distinct committed SET or CLEAR MUST create one immutable canonical taskma	unrecorded	-
 ON-V0-003	docs/specs/corvint-tasks-operator-notes-v0.md	NOTE_SET and NOTE_CLEAR MUST use the existing mutation envelope and original-req	unrecorded	-
@@ -4297,7 +4307,7 @@ TSA-V0-168	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-169	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192)	standing	2026-10-11; V1-1931; #1192
 TSA-V0-170	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The finding's cause M	standing	2026-10-11; V1-1931; #1192
 TSA-V0-171	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any match	standing	2026-10-11; V1-1931; #1192
-TSA-V0-172	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)	standing	2026-10-11; V1-1932; #1193
+TSA-V0-172	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,	standing	2026-10-11; V1-1932; #1193; 2026-10-19
 TSA-V0-173	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the s	standing	2026-10-11; V1-1932; #1193
 TSA-V0-174	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time	standing	2026-10-11; V1-1931; #1192
 TSA-V0-175	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time	standing	2026-10-11; V1-1932; #1193
@@ -4321,6 +4331,19 @@ TSA-V0-253	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-254	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A	standing	2026-10-11; V1-1934; #1195
 TSA-V0-255	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST prin	standing	2026-10-11; V1-1934; #1195
 TSA-V0-256	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read	standing	2026-10-11; V1-1934; #1195
+TSA-V0-300	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld	standing	2026-10-11; V1-1944
+TSA-V0-301	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,	standing	2026-10-11; V1-1944
+TSA-V0-302	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A file with tests, no stub of its ow	standing	2026-10-11; V1-1944
+TSA-V0-303	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A cleanup closure registered on a	standing	2026-10-11; V1-1944
+TSA-V0-304	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A cross-file registration whose clos	standing	2026-10-11; V1-1944
+TSA-V0-305	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A seeding call MUST be either of:	standing	2026-10-11; V1-1944
+TSA-V0-306	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST NOT be	standing	2026-10-11; V1-1944
+TSA-V0-307	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) A `VACUOUS-EMPTY-EQUALITY` reading	standing	2026-10-11; V1-1944
+TSA-V0-308	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The annotation of an	standing	2026-10-11; V1-1944
+TSA-V0-309	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) None of these MUST exempt the value:	standing	2026-10-11; V1-1944
+TSA-V0-310	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME	standing	2026-10-11; V1-1944
+TSA-V0-311	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The abstention reasons and	standing	2026-10-11; V1-1944
+TSA-V0-312	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) Resolving a sibling module's stub ta	standing	2026-10-11; V1-1944
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167
@@ -4355,6 +4378,20 @@ TSA-V0-213	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-214	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) In test files and	standing	2026-10-11; V1-1940; #1199
 TSA-V0-215	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) With `--base`, the	standing	2026-10-11; V1-1940; #1199
 TSA-V0-216	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A value the reader	standing	2026-10-11; V1-1940; #1199
+TSA-V0-350	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read	standing	2026-10-11; V1-1947; #1199
+TSA-V0-351	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A dotenv file the	standing	2026-10-11; V1-1947; #1199
+TSA-V0-352	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read	standing	2026-10-11; V1-1947; #1199
+TSA-V0-353	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The profile's own	standing	2026-10-11; V1-1947; #1199
+TSA-V0-354	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The script's own	standing	2026-10-11; V1-1947; #1199
+TSA-V0-355	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in MAY also b	standing	2026-10-11; V1-1947; #1199
+TSA-V0-356	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Flask-style decorator	standing	2026-10-11; V1-1947; #1199
+TSA-V0-357	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Sinatra blocks	standing	2026-10-11; V1-1947; #1199
+TSA-V0-358	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) WireMock mapping JSON	standing	2026-10-11; V1-1947; #1199
+TSA-V0-359	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in file in a	standing	2026-10-11; V1-1947; #1199
+TSA-V0-360	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A route's payload and query fields	standing	2026-10-11; V1-1948
+TSA-V0-361	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its	standing	2026-10-11; V1-1948
+TSA-V0-362	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked again	standing	2026-10-11; V1-1948
+TSA-V0-363	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests	standing	2026-10-11; V1-1947; #1199
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

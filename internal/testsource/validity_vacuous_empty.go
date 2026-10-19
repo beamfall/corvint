@@ -12,8 +12,9 @@ import (
 // VACUOUS-EMPTY-EQUALITY reads (TSA-V0-172, TSA-V0-173): a count or equality assertion whose two
 // operands are both derived from collections passes when nothing was seeded, since both sides are
 // then zero. The static reading flags it unless the same test asserts one of the collections
-// non-empty; it does not model fixture seeding, so a seeded fixture without a precondition is still
-// reported, as an advisory.
+// non-empty, or its setup seeds data: a fixture the file declares or a hook in scope makes a
+// seeding call (TSA-V0-305, TSA-V0-306). A test requesting a fixture declared in another file is
+// withheld as a cross-file abstention, since that fixture may seed (TSA-V0-307).
 
 var (
 	veCountMatchers    = map[string]bool{"toHaveCount": true, "toHaveLength": true}
@@ -25,10 +26,16 @@ var (
 // a test that asserts neither collection non-empty.
 func (s *source) veFindings() []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
+	fixtures := s.chFixtures()
 	for _, d := range s.decls {
 		if d.kind != "test" {
 			continue
 		}
+		params, _, _ := s.chFunction(d.body)
+		if s.xfSeeded(d, fixtures, s.chBindings(params)) {
+			continue
+		}
+		undeclared := s.xfUndeclaredFixture(params, fixtures)
 		chains := s.veChains(d.body)
 		for _, c := range chains {
 			roots, ok := s.veOperands(c)
@@ -37,11 +44,19 @@ func (s *source) veFindings() []testvalidity.SourceFinding {
 			}
 			line := s.tokens[c.subject[0]-1].Line
 			where := fmt.Sprintf("%s:%d", s.path, line)
+			test := fmt.Sprintf("%s:%d", s.path, d.line)
+			message := fmt.Sprintf("%s compares %s with %s, and both are collection-derived, so the assertion also passes when neither collection was seeded (0 equals 0); assert a non-empty precondition first, such as `expect(%s.length).toBeGreaterThan(0)`, or compare with the exact seeded count",
+				c.matcher, roots[0], roots[1], roots[1])
+			if undeclared != "" {
+				im, found := s.xfFixtureImport()
+				module, cause := s.xfWhere(im, found, where)
+				s.xfAbstain(testvalidity.RuleVacuousEmptyEquality, testvalidity.AbstainFixtureCrossFile, test, where, cause,
+					message+fmt.Sprintf("; withheld: the test requests the fixture `%s`, which this file does not declare, so it is declared in %s and may seed the collection; this reading does not follow imports", undeclared, module))
+				continue
+			}
 			out = append(out, testvalidity.SourceFinding{
 				Rule: testvalidity.RuleVacuousEmptyEquality, Severity: testvalidity.SeverityAdvisory,
-				Test: fmt.Sprintf("%s:%d", s.path, d.line), Title: d.title, Location: where, Cause: where,
-				Message: fmt.Sprintf("%s compares %s with %s, and both are collection-derived, so the assertion also passes when neither collection was seeded (0 equals 0); assert a non-empty precondition first, such as `expect(%s.length).toBeGreaterThan(0)`, or compare with the exact seeded count",
-					c.matcher, roots[0], roots[1], roots[1]),
+				Test: test, Title: d.title, Location: where, Cause: where, Message: message,
 			})
 		}
 	}

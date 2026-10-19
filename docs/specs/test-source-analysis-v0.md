@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests and V1-1944, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -1474,13 +1474,14 @@ committed source; nothing reads a database, a network or a run. Each finding cit
 - `TSA-V0-171`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any matcher
   that is not a literal string, or with no stub, MUST NOT be read for the rule, since that matcher
   may cover the value.
-- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)
-  `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or equality assertion inside a
-  test body whose two operands are both collection-derived: `toHaveCount` or `toHaveLength` with a
-  collection-derived argument, or `toBe`, `toEqual` or `toStrictEqual` between two operands ending
-  in `.length`, `.size` or `.count()`. Its location and cause are the assertion line and its
-  message suggests a non-empty precondition or the exact seeded count. A negated chain or a literal
-  operand is not reported. The reading does not model fixture seeding.
+- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  owner decision, V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or
+  equality assertion inside a test body whose two operands are both collection-derived:
+  `toHaveCount` or `toHaveLength` with a collection-derived argument, or `toBe`, `toEqual` or
+  `toStrictEqual` between two operands ending in `.length`, `.size` or `.count()`. A test whose
+  in-scope fixture or hook seeds the collection, as TSA-V0-306 defines, is excluded. Its location
+  and cause are the assertion line and its message suggests a non-empty precondition or the exact
+  seeded count. A negated chain or a literal operand is not reported.
 - `TSA-V0-173`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the same
   test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
   with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
@@ -1509,8 +1510,10 @@ Non-goals:
 Failure modes:
 - A registry imported from a fixture file is not reported in the test file that uses it; the
   fixture file itself is read only when named.
-- A fixture that seeds rows outside the test still gets a `VACUOUS-EMPTY-EQUALITY` advisory when
-  the test has no precondition; the advisory does not change hygiene.
+- A test whose in-scope fixture or hook seeds rows gets no `VACUOUS-EMPTY-EQUALITY` advisory
+  (TSA-V0-306); one whose fixture is declared in another file gets a `fixture-cross-file`
+  abstention instead (TSA-V0-307). Seeding written inside the test body is not read, so such a test
+  still gets the advisory when it has no precondition; the advisory does not change hygiene.
 - A run whose only error is a teardown failure now reports infrastructure, and the runner drops
   its test outcomes, so its passing tests are not counted as proof.
 
@@ -1550,7 +1553,7 @@ persisted.
 | TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
 | TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
-| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
+| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest`, `TestVacuousEmptyEqualitySeeded` | experimental |
 | TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
 | TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
 | TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
@@ -1741,6 +1744,179 @@ subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is 
 | TSA-V0-254 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
 | TSA-V0-255 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
 | TSA-V0-256 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |
+
+## Cross-file abstentions, fixture seeding and JSON annotation (V1-1944)
+
+V1-1944 is an agent-drafted follow-up to the V1-1919, V1-1930, V1-1931 and V1-1932 rules, accepted
+under the owner's standing auto-accept (2026-10-11). It covers three cases. A stub table or cleanup
+registry declared in a sibling module now produces an explicit cross-file abstention rather than
+silence. A test whose setup seeds data no longer gets `VACUOUS-EMPTY-EQUALITY`. A JSON behaviour
+contract gains a documented annotation form. The reader is still the TSA-V0-062 token reader over
+one committed file at a time. It does not follow imports: resolving the sibling module is
+NOT_PRODUCED (TSA-V0-312). TSA-V0-305 to TSA-V0-307 add seeding to the reading that TSA-V0-172
+describes, and TSA-V0-172 itself is amended (2026-10-19, owner decision) to exclude the tests
+TSA-V0-306 suppresses; no other accepted requirement is amended. TSA-V0-301 to TSA-V0-304 add abstention records
+while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
+
+- `TSA-V0-300`: (standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld
+  because what decides it is declared in another file MUST be recorded as an abstention, not as a
+  finding. The abstention goes in the `abstentions` list of the file's `ValidityReport` and of its
+  `corvint-test-source-validity/0` file entry, and has these members:
+  - `rule`;
+  - `reason`: `stub-table-cross-file`, `cleanup-registry-cross-file` or `fixture-cross-file`;
+  - `test` and `location`: the `path:line` of the test and of the statement;
+  - `cause`: the `path:line` of the import naming the other module, or the location when the file
+    names none;
+  - `message`: the withheld reading and the module.
+
+  An abstention changes no axis, verdict, `uncertain` flag or exit code. The member is omitted when
+  the list is empty, so a report without abstentions is byte-identical to before.
+- `TSA-V0-301`: (standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,
+  re-export, `require` or dynamic `import()` with both of these properties:
+  - its specifier is relative (`.`, `..`, `./…`, `../…`);
+  - its specifier, or a name its `import … from` or `export … from` clause names (imported or
+    local), contains `stub`, `mock`, `msw`, `handler`, `route`, `fake` or `intercept`, ignoring
+    case.
+
+  In a file that has its own literal stub table and a sibling stub import,
+  `UNSTUBBED-OUTBOUND-INPUT` MUST NOT report an input that no local stub covers. That input MUST be
+  a `stub-table-cross-file` abstention whose cause is the import and whose message is the finding's
+  message plus the module that may cover the value. A package import, or a sibling import naming
+  none of those words, leaves TSA-V0-169 unchanged.
+- `TSA-V0-302`: (standing auto-accept, 2026-10-11; V1-1944) A file with tests, no stub of its own
+  and a sibling stub import MUST record one file-level `stub-table-cross-file` abstention.
+  - Its test, location and cause are the import line.
+  - Its message names the module and says the rule is not read for this file.
+  - The file's inputs are still not read (TSA-V0-171).
+  - A file with no test records nothing.
+- `TSA-V0-303`: (standing auto-accept, 2026-10-11; V1-1944) A cleanup closure registered on a
+  registry that is a fixture the file does not declare, and that captures a test-scoped handle
+  (TSA-V0-165), MUST be a `cleanup-registry-cross-file` abstention.
+  - Its location is the registration line.
+  - Its test is the enclosing test, or the registration line in a fixture file (TSA-V0-166).
+  - Its cause is the file's first sibling import, else its first import other than
+    `@playwright/test`.
+  - Its message names the registry, the captured handle and the module that declares the
+    registry's scope.
+- `TSA-V0-304`: (standing auto-accept, 2026-10-11; V1-1944) A cross-file registration whose closure
+  captures no test-scoped handle MUST NOT record an abstention. Under TSA-V0-167, no cross-file
+  registration is a finding.
+- `TSA-V0-305`: (standing auto-accept, 2026-10-11; V1-1944) A seeding call MUST be either of:
+  - a call `name(` or `x.name(` whose name is `seed`, `create`, `insert` or `populate`, or whose
+    name starts with `seed`, `create`, `insert`, `populate` or `add` followed by an upper-case
+    letter, digit or `_` (`seedTodos`, `createUser`, `addTodo`, `db.insert`);
+  - a member call `x.post(` or `x.put(`.
+
+  A bare `add(` (a set or a cleanup registry) is not a seeding call. Neither are `addInitScript`,
+  `addCookies`, `addScriptTag`, `addStyleTag` or `addLocatorHandler`. A function or method
+  declaration `name(...) {` is not a call.
+- `TSA-V0-306`: (standing auto-accept, 2026-10-11; V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST NOT be
+  reported in a test whose setup seeds data. Setup seeds data in either of these cases:
+  - The test requests a fixture the file declares (`base.extend({...})`) whose function makes a
+    seeding call, directly or through a declared fixture that function requests in turn.
+  - A `beforeEach` or `beforeAll` hook in the test's scope has a callback that makes a seeding
+    call. The hook is in scope when it is at file level, or when every `describe` that contains the
+    hook also contains the test.
+
+  A hook in a sibling `describe`, or a fixture or hook without a seeding call, does not suppress
+  the finding.
+- `TSA-V0-307`: (standing auto-accept, 2026-10-11; V1-1944) A `VACUOUS-EMPTY-EQUALITY` reading
+  that TSA-V0-306 does not suppress MUST be a `fixture-cross-file` abstention instead of a finding
+  when the test requests a fixture that is none of these:
+  - a fixture the file declares;
+  - a Playwright built-in (`page`, `context`, `request`, `browser`, `playwright`, `browserName`);
+  - a Playwright option fixture (`baseURL`, `viewport`, `storageState`, `locale` and the other
+    `use` options).
+
+  The fixture is declared elsewhere and may seed the collection. The abstention's cause is chosen
+  as in TSA-V0-303, and its message names the fixture.
+- `TSA-V0-308`: (standing auto-accept, 2026-10-11; V1-1944) The annotation of an
+  `EITHER-OR-OUTCOME` value in a JSON behaviour contract MUST be a sibling member in the same
+  object as the flagged member:
+  `"corvint-validity-allow": {"<key>": "EITHER-OR-OUTCOME: <reason>"}`. It exempts every line that
+  holds a `<key>` member of that object. Data is not a comment, so this form keeps TSA-V0-163
+  intact: it is a keyed member of the object, not data on the line above.
+- `TSA-V0-309`: (standing auto-accept, 2026-10-11; V1-1944) None of these MUST exempt the value:
+  - a missing or empty reason;
+  - another rule;
+  - a key that does not name the member;
+  - an annotation in another object, or nested inside a member;
+  - an annotation whose value is a string instead of an object;
+  - a member with another name;
+  - data on the line above;
+  - a file that is not exactly one valid JSON value.
+- `TSA-V0-310`: (standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME`
+  finding in a `.json` contract MUST end by naming the sibling-member form with the flagged key,
+  since JSON has no comment line. Markdown and YAML messages are unchanged.
+- `TSA-V0-311`: (standing auto-accept, 2026-10-11; V1-1944) The abstention reasons and
+  `RuleAbstention` MUST be defined once in `internal/testvalidity`, which is the only owner of the
+  reason strings.
+- `TSA-V0-312`: (standing auto-accept, 2026-10-11; V1-1944) Resolving a sibling module's stub table,
+  registry scope or fixture body is NOT_PRODUCED, with reason `cross-file-resolution-not-produced`.
+  `ValidityFindings` reads one file without repository access, and an import's target, aliases and
+  re-exports are not resolved. The rules abstain (TSA-V0-301 to TSA-V0-303, TSA-V0-307) instead of
+  guessing.
+
+Non-goals:
+- following imports, path aliases or re-exports to another file;
+- reading `auto` fixtures, global setup or seeding written inside the test body;
+- tying a seeding call to the particular collection an assertion compares;
+- changing the comment annotations of TSA-V0-163.
+
+Failure modes:
+- A stub module whose name contains none of the stub words is not recognised. Its importer is read
+  as before: findings are reported when the file has local stubs, and the file is not read when it
+  has none.
+- A sibling stub import withholds every uncovered input in its file, including inputs that module
+  does not cover. The reading is advisory and is surfaced as an abstention, not dropped.
+- A seeding call that seeds an unrelated collection still suppresses the finding: the reading
+  under-reports and never over-reports.
+- A helper named like a seeding call that writes nothing (`createLocator`) suppresses the finding.
+  So does a seeding call inside a nested function the hook or fixture never invokes.
+- A JSON contract that is not valid JSON gets no exemptions, so its findings stay invalid.
+
+Acceptance evidence: synthetic fixtures only.
+- `TestUnstubbedOutboundInputCrossFile`
+- `TestCleanupHandleOutlivedCrossFile`
+- `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` and
+  `TestVacuousEmptyEqualityCrossFileFixture`
+- `TestEitherOrOutcomeJSONAnnotation`
+- `TestSourceValidityAbstentionsWire`
+
+Each new decision point was mutated, and the tests killed every mutation of tested behaviour.
+The mutated points were:
+- sibling and stub-word detection, long import clauses and `require(…,)`;
+- seeding names, the not-seeding list, the bare `add` exclusion and method declarations;
+- transitive fixtures, hook scope and option fixtures;
+- the JSON member name, key, rule, reason and single-value check, and the JSON message;
+- cross-file registration, capture and nested registrations;
+- VE seeding and cross-file fixtures;
+- the UO withheld and unread paths;
+- the wire copy. No live qualification on a real suite was run (NOT_RUN).
+
+Rollback: remove `internal/testsource/validity_crossfile.go`, its test,
+`internal/testvalidity/source_rules_crossfile.go`, the `abstentions` fields, and the cross-file,
+seeding and JSON branches in `validity_unstubbed_input.go`, `validity_cleanup_handle.go`,
+`validity_vacuous_empty.go` and `validity_either_or.go`. Then remove this section. Nothing is
+persisted. Without the `abstentions` member, the report is the prior wire.
+
+### Traceability (V1-1944)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-300 | `internal/testvalidity/source_rules_crossfile.go`, `internal/testsource/validity.go`, `internal/testsource/validity_command.go` | `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-301 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
+| TSA-V0-302 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
+| TSA-V0-303 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedCrossFile`, `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-304 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedCrossFile` | experimental |
+| TSA-V0-305 | `internal/testsource/validity_crossfile.go` | `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-306 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-307 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityCrossFileFixture`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-308 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-309 | `internal/testsource/validity_crossfile.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-310 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-311 | `internal/testvalidity/source_rules_crossfile.go` | `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-312 | none | NOT_PRODUCED (`cross-file-resolution-not-produced`) | gap |
 
 ## Decision file format
 
@@ -2340,7 +2516,8 @@ owner's standing auto-accept (2026-10-11).
 
   A hard-coded use whose value is unknown has no `staysValid`.
 
-Non-goals (residuals of V1-1940):
+Non-goals (residuals of V1-1940; all but the `corvint impact` view and the profile's own compose and
+dotenv files are addressed by TSA-V0-350..363 below):
 - reading compose files, dotenv files, CI workflow environments or Makefiles;
 - running or sourcing any script;
 - route registrations other than Express-style JS/TS (Go, Flask, Rails, WireMock mappings);
@@ -2348,7 +2525,7 @@ Non-goals (residuals of V1-1940):
   `corvint impact`;
 - branch-sensitive shell (`if`, `case`, functions): the last assignment in each script wins.
 
-Failure modes:
+Failure modes (the first and fifth are addressed by TSA-V0-361 and TSA-V0-360):
 - A conditional assignment is read as unconditional, so a value can be the one set on the branch
   that does not run. A variable set in two profile scripts is UNKNOWN for this reason.
 - A literal port shared by unrelated services can match a variable it is not about.
@@ -2388,3 +2565,184 @@ Nothing is persisted.
 | TSA-V0-214 | `internal/testsource/env_contract_refs.go` | `TestEnvContractWarnings` | experimental |
 | TSA-V0-215 | `internal/testsource/env_contract_refs.go` | `TestEnvContractImpact` | experimental |
 | TSA-V0-216 | `internal/testsource/env_contract.go` | `TestEnvContractUnknown` | experimental |
+
+## Test environment sources and stand-in languages (V1-1947, V1-1948)
+
+V1-1947 (GitHub #1199, #1200) and V1-1948 close the residuals of V1-1940. They read the
+environment a profile's callers and compose files hand to tests, read stand-in routes in more
+languages, show the profile's warnings in `corvint tests validity`, and make three readings
+more precise. The behavior of TSA-V0-210..216 is kept: these requirements add sources, routes and
+reasons and leave those requirements unchanged. The section is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-350`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read
+  the caller environment of each profile script from the committed `.github/workflows/*.y[a]ml`
+  files.
+  - Only a step whose `run` names a profile script is read.
+  - Its environment is the workflow's, the job's and the step's `env`, with the later one
+    winning.
+  - A caller variable the script does not assign is reported with `sourceKind: "WORKFLOW"`, the
+    workflow path and the line of the value. It is passed to tests and reliable.
+  - A workflow value is not shell-expanded, so a `$` in it stays literal.
+- `TSA-V0-351`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A dotenv file the
+  script sources with `.` or `source` MUST be read in the script's order. The names `.env`,
+  `.env.SUFFIX` and `NAME.env` are sourced, but not the profile's own `.env.NAME` (TSA-V0-353).
+  - Each assignment is reported with `sourceKind: "DOTENV"` and the dotenv path and line.
+  - It is exported under `set -a`, as in the script.
+  - Sourcing nests at most two levels deep.
+- `TSA-V0-352`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read a
+  compose file that a `docker compose` or `docker-compose` line launches. The file comes from
+  `-f`/`--file`, or is the first committed default root file. From each service it reads:
+  - `environment` (as a map or a list; a name with no value passes through the caller's value);
+  - `env_file` (a path relative to the compose file, `KEY=VALUE` lines).
+
+  Each variable carries:
+  - `sourceKind` `COMPOSE_ENVIRONMENT` or `COMPOSE_ENV_FILE`;
+  - its `service`;
+  - its value resolved in the profile.
+
+  A service's variables are passed to tests and reliable only when its `command` or `entrypoint`
+  runs a test runner (TSA-V0-212). A named compose or env file that the first read's filter left
+  out is read in at most two further bounded rounds.
+- `TSA-V0-353`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The profile's own
+  `[docker-]compose.NAME.y[a]ml` and `.env.NAME` MUST stay unread, as TSA-V0-210 says, even when
+  launched or sourced.
+  - A launched file that is not committed is listed in `unreadSources` with reason
+    `not-committed`.
+  - A compose file outside the reader's YAML subset is listed with reason `compose-unparsed`.
+  - A workflow naming a profile script that is outside that subset is listed with reason
+    `workflow-unparsed`.
+
+  The subset is block maps, block lists, scalars and one-level flow collections of scalars.
+  Anchors, aliases, tags, merge keys, tabs, multiple documents, nested flow collections, empty or
+  duplicate keys and a `|`/`>` block scalar as an `env` or `environment` value are outside it. A
+  file outside the subset is never guessed.
+- `TSA-V0-354`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The script's own
+  assignment MUST win over a caller's.
+  - A caller's value fills a self-reference such as `PORT=${PORT:-3000}`.
+  - A caller variable is null with unknown reason `caller-values-differ`, and lists its values in
+    `derivation.alternatives`, when the invoking steps set it to different values or some leave it
+    unset.
+  - A `${{ }}` expression is null with reason `workflow-expression`.
+  - A workflow value is never shell-expanded, and a caller value naming its own variable again is
+    a `reference-cycle`.
+  - A variable every invoking step sets stays passed to tests when the script assigns it again.
+  - Without a calling workflow, the TSA-V0-216 reasons are unchanged.
+- `TSA-V0-355`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in MAY also be
+  launched as:
+  - a committed stand-in directory (`go run ./stubs/x`, `-d DIR`, WireMock `--root-dir DIR`);
+  - a Python module named without `.py`.
+
+  A directory stand-in's routes MUST be read from all its files. Go routes are read from
+  `HandleFunc`/`Handle` (with an optional `METHOD /path` pattern or `.Methods("X")`) and from
+  gin, echo and chi style `x.METHOD("/path"`. The payload comes from `json:"x"` tags and
+  `FormValue`/`PostFormValue`/`PostForm`. The query comes from `Query().Get` and `Query("x")`. A
+  route with no method is `ALL`.
+- `TSA-V0-356`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Flask-style decorators
+  (`@app.route(path, methods=[...])`, default GET, and `@app.post(path)` and similar) MUST be read
+  as routes.
+  - Payload fields come from `request.json`, `request.form` and `request.get_json()`, directly or
+    through a local alias.
+  - Query fields come from `request.args`.
+  - `<conv:name>` path parameters count for the scope (TSA-V0-213).
+- `TSA-V0-357`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Sinatra blocks
+  (`post '/x' do`) and Rails `config/routes.rb` entries (`to: 'ctrl#action'`) MUST be read as
+  routes.
+  - A Rails route's fields come from that action in `app/controllers/<ctrl>_controller.rb` under
+    the same stand-in.
+  - Fields come from `params[:x]`, `params['x']`, `params.fetch(:x)` and `permit(:a, :b)`.
+  - They are payload fields on a write and query fields on a GET.
+- `TSA-V0-358`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) WireMock mapping JSON
+  under a `mappings` directory MUST be read as routes, from one mapping or a `mappings` array.
+  - The path comes from `url` (without its query), `urlPath`, `urlPattern` or `urlPathPattern`.
+  - Payload fields come from `matchesJsonPath` `$.x`. Query fields come from the
+    `queryParameters` keys.
+  - A missing method or `ANY` is `ALL`.
+  - Each route cites its own mapping's `request` line, also after a mapping with no route.
+  - WireMock's own `/__admin` API is not listed.
+- `TSA-V0-359`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in file in a
+  language the reader does not read (Java, Kotlin, Scala, Groovy, C#, PHP, Rust, Elixir, Clojure,
+  Swift) MUST be listed in the stand-in's `abstentions` with reason `stand-in-language-not-read`.
+  No routes are invented for it.
+- `TSA-V0-360`: (standing auto-accept, 2026-10-11; V1-1948) A route's payload and query fields
+  MUST come only from its own handler, never from code between registrations. The handler is:
+  - for JS/TS and Go, the registration call's balanced arguments plus the body of the function
+    whose name is the last argument;
+  - for Python and Ruby, the decorated function's or block's indented body.
+
+  An unbalanced call reads its own line only. A named handler's body is read only when just its
+  parameter list and `=>` stand between its definition and its `{`, so an expression-bodied arrow
+  never takes a later function's body.
+- `TSA-V0-361`: (standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its
+  blocks. An assignment is branch-dependent when it is inside any of:
+  - `if`/`elif`/`else`, a loop, a `case` arm or a function body;
+  - after `&&` or `||`, also when the list continues on the next line;
+  - a dotenv file sourced in any of those places.
+
+  A branch-dependent variable MUST be null with reason `branch-dependent` and derivation
+  `UNKNOWN`, and MUST list every value it may take in `derivation.alternatives`. A later
+  unconditional assignment settles it. A `{ }` group is not a branch. A value derived from a
+  branch-dependent variable is null with the same reason.
+- `TSA-V0-362`: (standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked against
+  the components that its own innermost test mounts, plus any mount outside every test. A mount in
+  a different test does not count. A locator outside every test sees all the file's mounts.
+- `TSA-V0-363`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests
+  validity --profile NAME` MUST add an `env` object with:
+  - the profile;
+  - its reason (`profile-not-found` when it has no script);
+  - the TSA-V0-214 warnings on the named files only. Each warning carries `test`, the `path:line`
+    id of the innermost test that contains it, which is the id the report's `tests` use. `test`
+    is omitted outside every test.
+
+  The projection is advisory: it changes no test's hygiene, finding or exit status. A NAME
+  outside TSA-V0-210's pattern is refused `tests-invalid-arguments`. Without `--profile`, the
+  report has no `env`.
+
+Non-goals and residuals:
+- The impact half of V1-1947 acceptance (c), listing tests affected by a bootstrap offset change
+  in `corvint impact`, is NOT_PRODUCED. `corvint impact` is the core indexed command: it refuses
+  `.sh` paths (`unsupported-impact-path-suffix`), its canonical receipts are frozen, and its
+  evidence providers attach only to the default profile. The supported equivalent is
+  `corvint tests env --profile NAME --base REV` (TSA-V0-215). Folding that into `corvint impact`
+  needs its own accepted contract.
+- Reading the profile's own `compose.NAME`/`.env.NAME` files would amend TSA-V0-210, so it is left
+  for an owner decision.
+- Out of scope: dotenv files loaded by test-runner configs (`dotenv.config()`), Makefiles,
+  `cd` before a relative path, workflow `matrix`, reusable workflows, `GITHUB_ENV` writes, and
+  compose `profiles`/`extends`/`include`.
+- Also out of scope: following a Go handler's named request type to its struct tags, routes
+  registered through helpers or loops, and `case` arm patterns that contain `=`, `$` or `(`.
+
+Failure modes:
+- A relative path in a script is read from the repository root; a script that changes directory
+  first is misread.
+- A stand-in directory's files are all read, so a helper file's registrations count as routes.
+- A value set in one workflow step and left unset in another is caller-dependent, even when that
+  step never reaches the variable.
+- A conditional reading is per script: a `return` or `exit` inside a branch is not followed.
+
+Acceptance evidence: synthetic fixtures and mutation checks only. Real-suite qualification is
+NOT_RUN. Rollback reverts this section's commits: `internal/testsource/env_contract_sources.go`,
+`internal/testsource/env_contract_routes.go`, `internal/testsource/validity_env.go`, their tests,
+the parser and resolver changes in `internal/testsource/env_contract.go`, the scope change in
+`internal/testsource/role_locators.go`, and the `--profile` flag of `corvint tests validity`.
+Nothing is persisted.
+
+### Traceability (V1-1947, V1-1948)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-350 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-351 | `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractBranchDependent` | experimental |
+| TSA-V0-352 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-353 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSourceNotes`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-354 | `internal/testsource/env_contract_sources.go`, `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractSourceNotes`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-355 | `internal/testsource/env_contract_routes.go`, `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-356 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-357 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-358 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-359 | `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-360 | `internal/testsource/env_contract_routes.go` | `TestEnvContractHandlerBounded`, `TestEnvContractStandIn`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent`, `TestEnvContractReaderEdges` | experimental |
+| TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
+| TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
