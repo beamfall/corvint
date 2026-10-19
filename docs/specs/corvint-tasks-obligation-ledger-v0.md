@@ -843,6 +843,64 @@ precedent: absent, it keeps the exact earlier bytes.
     commit").
   - A version neither list holds refuses as in TOL-V0-009.
 
+### Reviewer-verdict witnesses (GitHub #1170)
+
+Some obligations are witnessed by reading the cited example, not by a test run. These
+requirements let `witness` credit an obligation on K independent reviewer verdicts under an
+agreement policy, keep held verdicts, and stop crediting once the cited example changes. They
+reuse the witness write, the obligation chain and the CAL-V0-107 author derivation
+(`exclude-authors`); no new journal or record profile is added.
+
+- `TOL-V0-073`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))
+  `OBLIGATIONS_WITNESS` MUST admit the source `REVIEWED`. Such a payload credits exactly one
+  obligation `{id}`, has a null `reportSha256`, `playwrightVersion` and `declaration`, and carries
+  the optional member `review`. `review` is present exactly when the source is `REVIEWED`; a
+  payload or evidence without it keeps its exact earlier bytes, and an older closed reader refuses
+  a payload that carries it `MALFORMED`. A `REVIEWED` witness is OWNER-only (as `DECLARED`,
+  TOL-V0-015) and names no attempt.
+- `TOL-V0-074`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))
+  `review` is the closed object `{policy, subject, authors, verdicts}`:
+  - `policy` is `{reviewers, maxStubRisk}`: K in 1..16 agreeing reviewers and the highest admitted
+    stub risk, `none` or `boundary`.
+  - `subject` is `{path, startLine, endLine, blobSha256}`: the cited example's repository path, a
+    1-based line range with `startLine <= endLine`, and the sha256 of the path's blob at the
+    witness commit, which the command computes from Git.
+  - `authors` is the sorted unique list (0..64) of member labels that may not review: every pool
+    member the CAL-V0-107 derivation records for the ticket's implement generations (mode `ALL`),
+    plus the caller's `--exclude-author` labels.
+  - `verdicts` is 1..16 objects sorted unique by `reviewer`, each
+    `{reviewer, verdict, stubRisk, reason}`: a label, `correct|partial|wrong`,
+    `none|boundary|on-path` and a 1..512-byte non-blank reason.
+  - A reviewer listed in `authors` refuses `MALFORMED` with the detail prefix
+    `OBLIGATION_REVIEWER_NOT_INDEPENDENT:`. When the derivation is unverified (CAL-V0-107) and the
+    caller named no `--exclude-author`, the command refuses `INDEPENDENCE_UNVERIFIED` and writes
+    nothing.
+- `TOL-V0-075`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The
+  outcome MUST be a pure function of `review`: `CREDITED` when at least K verdicts are given, every
+  verdict is `correct` and no stub risk exceeds `maxStubRisk` (`on-path` is never admitted);
+  otherwise `HELD`, with the sorted failing axes from `reviewers`, `stubRisk` and `verdict`.
+  - `CREDITED` sets the entry `WITNESSED` with evidence `{source: REVIEWED, eventSha256, commit}`
+    (report members and `declaration` null).
+  - `HELD` writes the event and keeps every verdict and reason. An entry witnessed `REVIEWED` goes
+    back to `OPEN` with no evidence; any other state is kept.
+  - Either way the entry carries the optional member `review`
+    `{outcome, axes, eventSha256, commit, review}`; an entry without it keeps its exact bytes.
+- `TOL-V0-076`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The
+  fold MUST refuse `OBLIGATION_CREDIT_MISMATCH:` for a `REVIEWED` witness of a `DEFERRED` entry, of
+  an entry `WITNESSED` by another source, and of an entry `WITNESSED` by `REVIEWED` whose recorded
+  subject blob equals the new one. A changed subject blob admits a fresh review.
+- `TOL-V0-077`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170))
+  `obligations show` MUST report `witnessReview` for every entry with a `review` member: id,
+  outcome, axes, verdicts with reasons, and `stale` (true when the blob of `subject.path` at the
+  store worktree's `HEAD` differs from `blobSha256` or the path is absent). A stale `CREDITED`
+  review reports `credited: false`, and `witnessReview.effectiveWitnessed` counts witnessed
+  entries minus stale reviewed ones. The read writes nothing; the stored state and counts change
+  only through a new review (TOL-V0-076). A ledger without a `review` member keeps its exact
+  `show` output.
+- `TOL-V0-078`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Each
+  verdict's reviewer and reason and the subject path MUST pass the TOL-V0-009 secret screen; a
+  match refuses `SECRET_DETECTED` naming `/payload`, never the value.
+
 ## Failure modes and trust
 
 | Failure | Effect without this profile | Required behaviour |
@@ -886,6 +944,7 @@ precedent: absent, it keeps the exact earlier bytes.
 | Witness provenance is wrong or holds a secret | A misleading or leaked reference is kept with the evidence | Provenance is reported only, never evidence the writer checks; its prose is secret-screened (TOL-V0-059). |
 | A provenance flag is given an empty value (an unset shell variable) | The witness writes without the provenance the caller meant to record | Every given flag is validated; an empty value refuses `MALFORMED` before any write (TOL-V0-059). |
 | A long dotted adopter id has three dot-separated runs of 10 or more bytes | The shared secret screen reads it as token-shaped and refuses the seed `SECRET_DETECTED` | Retained limit: the screen is shared and unchanged here; such an id needs a different separator. |
+| A reviewer verdict comes from the ticket's author, or the cited example changes after review | Self-review or a stale review credits an obligation | Reviewers listed in the derived authors refuse; `show` reports a changed subject blob stale and un-credited until a new review (TOL-V0-074, 077). Retained limit: stored counts, gates and the dispatcher fingerprint do not see read-time staleness. |
 
 ## Non-goals and simpler baseline
 
@@ -918,6 +977,9 @@ precedent: absent, it keeps the exact earlier bytes.
   (TOL-V0-051..054).
 - Per-step progress counts, a step list for `PARTIAL`, checking provenance against Git or the
   report, or treating a rerun of a witnessed row as a new witness (TOL-V0-055..059).
+- Reviewer verdicts gating completion, an agreement rule other than unanimous `correct`, verifying
+  that a reviewer label names a real person, or re-checking staleness in a declared test repository
+  (TOL-V0-073..078).
 - Running Playwright to qualify a version, shipping a qualified version, sharing the allow-list
   across machines, or qualifying from anything but the embedded fixture (TOL-V0-060..063).
 - Running `run-batch`, `qualify` or `preflight` in a declared test repository, several test
@@ -950,6 +1012,7 @@ fixture passes.
 | TOL-V0-051..054 (accepted, owner's standing auto-accept 2026-10-11) | V1-1605 (GitHub #1048) | `internal/tasks/cli/failure_signatures.go` (flags, signature, ledger, audit), `internal/tasks/cli/failure_lock_unix.go` (ledger lock), `internal/tasks/cli/preflight.go`, `internal/tasks/cli/run_batch.go` | `TestTOLV0051_FailureLedgerIsOffByDefault` (off by default, flag validation, RECORDED count, CLEARED pass), `TestTOLV0052_RepeatedSignatureRefusesNamingSignatureAndCount` (typed refusal naming signature, count and digest; changed input admits), `TestTOLV0052_RunBatchRefusesRepeatedSignature` (refused before the test command and results directory, across `--out` dirs), `TestTOLV0053_RemediationClearsOnceWithAudit` (audit line, reuse refused, cache bypass), `TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning` (no repository or store change, mode 0700, SKIPPED), `TestTOLV0053_RemediationAllowsOneRunAtAnyThreshold` (N=3), `TestTOLV0051_SignatureKeepsStructuralIDs` (AC-1 and AC-2 apart, run-specific numbers folded), `TestTOLV0054_ConcurrentRunsSerializeTheLedger` (eight concurrent failures, one reference given twice), `TestTOLV0051_RunBatchDigestCoversEnvironmentAndPool` (`internal/tasks/cli`) | measured loop reduction across agent sessions (`NOT_RUN`) |
 | TOL-V0-055..059 (accepted, owner's standing auto-accept 2026-10-11) | V1-1649 (GitHub #1071) | `internal/tasks/wire/obligations.go` (alias limit), `internal/tasks/ticket/obligations.go` (`PARTIAL`, `ObligationPending`, provenance codec, witness fold), `internal/tasks/ticket/obligation_plan.go` (`rerun`, `RERUN_NOT_WITNESSED`, core-only `UNASSIGNED`), `internal/tasks/cli/obligations.go` (provenance flags, `reruns`), `internal/tasks/cli/preflight.go` (remedy), `internal/tasks/mutation/obligations.go` (screen), the pending checks in `internal/tasks/obligation` and `internal/tasks/cli/run_batch.go` | `TestTOLV0055_AliasLimit128` (110-row seed with 78-byte aliases, 128 admitted, 129 refused naming the limit, audit), `TestTOLV0056_0057_PlanRerunAndNonCore` (110-row plan with witnessed reruns and omitted non-core, `BLOCKED` and `DEFECT` rows passes; `RERUN_NOT_WITNESSED`, listed `SPLIT`, core `UNASSIGNED`, both-lists `MALFORMED`, old output unchanged), `TestTOLV0058_PartialNeverWitnessed` (counts, reason required, plan, witness credits), `TestTOLV0059_WitnessProvenance` (per-entry provenance, absent member kept, bad OID, secret) (`internal/tasks/cli`); `TestTOLV0020_PlanCheck` and `TestTOLV0026_PreflightPlanCheck` updated for TOL-V0-057; `TestTOLV0034_SeedWithAliases` refuses 129 bytes | the adopter's 4,562-row ledger migrated end to end (`NOT_RUN`) |
 | TOL-V0-060..067 (accepted, owner's standing auto-accept 2026-10-11) | V1-1648 (GitHub #1070) | `internal/tasks/obligation/obligation-qualification.spec.ts` (fixture), `internal/tasks/obligation/qualification.go` (`Qualify`, allow-list codec), `internal/tasks/obligation/report.go` (any-version qualification read), `internal/tasks/cli/obligation_qualify.go` (`qualify-version`), `internal/tasks/cli/obligations.go` (`--test-repository`, admitted versions), `internal/tasks/cli/run_batch.go` (admitted versions), `internal/tasks/intent/policy.go` (`obligations.testRepositories`), `internal/tasks/ticket/obligations.go` (`testRepository` member), `internal/tasks/mutation/obligations.go` (writer check), `internal/tasks/transaction/obligation_audit.go`, `internal/tasks/store/external_review.go` and `internal/tasks/store/obligations.go` (`ExactWorktreeRoot`; audit in the test repository) | `TestTOLV0060_FixtureExpectedClasses`, `TestTOLV0061_QualifyMatchesFixture` (soft parent, retry-0, sibling, expected-fail differences; passing, failed and defect matches outside the one fixture file), `TestTOLV0062_AllowListCodec` (round trip, newer profile, unknown member, 65th version), `TestTOLV0062_AllowListReadRefusesSymlinkAndFIFO`, `TestTOLV0063_AllowListAdmitsOnlyFixtureEvidence` (`internal/tasks/obligation`); `TestTOLV0060_PrintFixture`, `TestTOLV0061_QualificationRefusals`, `TestTOLV0062_AllowListRecorded`, `TestTOLV0063_QualifiedVersionAdmitted`, `TestTOLV0063_ForgedAllowListEntryNotAdmitted`, `TestTOLV0064_PolicyTestRepositories`, `TestTOLV0064_DeclaredDirectoryMustBeWorktreeRoot`, `TestTOLV0065_SeparateTestRepository1_64` (AC3), `TestTOLV0065_WriterBindsDeclaredPath`, `TestTOLV0066_AuditInTestRepository`, `TestTOLV0066_AuditRequiresExactTestRepositoryRoot`, `TestTOLV0067_UndeclaredRefusalsUnchanged` (`internal/tasks/cli`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` classifies `taskman-obligation-qualifications/0` | a live Playwright run of the fixture recorded by `qualify-version` (`NOT_RUN`); run-batch with a store-local version (code path only, `NOT_RUN`) |
+| TOL-V0-073..078 (accepted, owner's standing auto-accept 2026-10-11) | V1-1886 (GitHub #1170) | `internal/tasks/ticket/obligation_review.go` (review codec, outcome), `internal/tasks/ticket/obligations.go` (source, evidence, entry, fold), `internal/tasks/mutation/obligations.go` (authority, screen), `internal/tasks/cli/obligations.go` (`--reviewed`, `--review`, `--exclude-author`, `witnessReview`) | `TestTOLV0074_ReviewCodec`, `TestTOLV0075_ReviewOutcome`, `TestTOLV0076_ReviewFold` (`internal/tasks/ticket`); `TestTOLV0073_ReviewedWitnessCreditsOnAgreement`, `TestTOLV0075_HeldVerdictsKeptWithReasons`, `TestTOLV0077_EditedExampleMakesReviewStale`, `TestTOLV0074_AuthorReviewerRefused` (`internal/tasks/cli`) | reviews by real independent reviewers on an adopter ledger (`NOT_RUN`) |
 | TOL-V0-019, 020 | V1-1022 | `internal/tasks/cli` (queue status, show, list, plan) | `TestTOLV0019_QueueStatusLegacyIdentity`, `TestTOLV0019_ObligationSummary`, `TestTOLV0020_PlanCheck` (UNASSIGNED, SPLIT, UNKNOWN_OBLIGATION, ALREADY_CLOSED) (`internal/tasks/cli`) | TOL-V0-019 plain-language status line (`NOT_RUN`: `queue status` has no plain output mode to carry it; JSON members only) |
 
 Pre-design evidence (OBSERVED, non-qualifying): on 2026-10-08 a scratch run of Playwright 1.61.1
@@ -1011,6 +1074,11 @@ ledger events are inert evidence-store blobs and need no migration. A dispatcher
 TOL-V0-021 ledger version cannot be rolled back in place: an older build refuses it
 `UNSUPPORTED_VERSION` (CAL-V0-132), so the operator stops the dispatcher and restores or removes
 its state file first.
+
+The additions TOL-V0-073..078 add the optional `review` payload and entry members and the
+`REVIEWED` source. A ledger that never received a reviewed witness keeps its exact bytes; after one
+is written, an older binary refuses that ledger at the closed reader, and recovery is to run the
+newer binary or restore the store from a backup taken before the first reviewed witness.
 
 The additions TOL-V0-022..027 add no stored state: the `defectConfirmed` and `mixedExpectedFail` lists and the
 `preflight` verb are read-side output, and the witness event is unchanged, so rolling them back is

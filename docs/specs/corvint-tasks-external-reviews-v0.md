@@ -18,7 +18,7 @@ their authority; this profile never amends them.
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
 - Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and the native writer (OWNER/OPERATOR/REVIEWER recorders, WORKER resubmissions, TREE and EVIDENCE candidates, evidence references, the issue 394 acceptance mapping).
-- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011).
+- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011); the bounded `gate packet` review packet (ERG-V0-017..021).
 - Blocked on: promotion (ERG-V0-010): independent review, current-main integration, live qualification of the issue 394 connection with a real `corvint tests accept` report, and native completion.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
@@ -255,6 +255,49 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   `gateResults: NOT_OBSERVED` in the view and are not part of the predicate; ERG-V0-007 is unchanged.
   `queue status`, `roadmap` and the `plan preview --selected-only` projection are unchanged.
 
+- `ERG-V0-017`: `gate packet <ticket> [--commit REV] [--max-bytes N] [--checkpoint NOTE]` MUST return one bounded `taskman-review-packet/0` item for the reviewed commit (default: the head of the ticket's newest attempt branch), built from native records only.
+  The delta base is the newest ancestor of the commit (commit itself excluded, at most 4096
+  ancestors) whose tree is the TREE candidate of a PASS event in the ticket's review gate history;
+  `deltaBase` names the commit, `kind: PASSED_REVIEW`, `source: PASSED_ANCESTOR` and the gate. The
+  read is pure: it takes no lock and writes no store, journal, Git ref or cache, and its result is
+  marked untrusted. Its profile is output only; nothing stores it. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
+
+- `ERG-V0-018`: Under a passed base the packet's diff MUST be limited to test and fixture paths; with no passed ancestor it MUST fall back to the full diff and say so.
+  Test and fixture paths are `_test.go`, `test_*`, `*.test.*` and `*.spec.*` files and any path under a
+  `test`, `tests`, `testdata`, `fixture`, `fixtures`, `__tests__` or `e2e` directory
+  (`diff.scope: TEST_FIXTURE_PATHS`). Without a passed ancestor, `deltaBase.kind` is
+  `NO_PASSED_ANCESTOR`, its `note` says no ancestor commit passed review and the diff is the full
+  diff, and `diff.scope` is `ALL_PATHS`. The fallback base is the newest attempt's base commit when it
+  is an ancestor of the commit, else the commit's first parent, else the empty tree
+  (`source: ATTEMPT_BASE | FIRST_PARENT | EMPTY_TREE`). Renames are read as a deletion and an
+  addition, and no text conversion or external diff runs. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
+
+- `ERG-V0-019`: The packet MUST fit `--max-bytes` (4096..262144, default 32768) and MUST list every omitted part as a named range; it never truncates silently.
+  Each hunk is named by its commit line range (`lines a-b`), its base range for a pure deletion
+  (`base lines a-b`) or `binary`. Item codes and statuses, file names, the base and the omissions
+  list are always kept; returned-item text, hunks in diff order, then the checkpoint text are added
+  while they fit. Whatever does not fit, the unread tail of a diff, files past the 256-file bound or
+  the 1 MiB diff read budget, and review history past 200 events per gate are each listed in
+  `omitted` with `section`, `path` and `range`. A packet whose fixed skeleton alone exceeds the cap refuses
+  LIMIT_EXCEEDED; a cap outside the range is a usage error. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
+
+- `ERG-V0-020`: The packet MUST name every item of the newest RETURN event with its touched status and MUST list the obligations the delta touches.
+  `returned` names the gate, the RETURN event digest and each reason item (`index`, `code`,
+  `status: TOUCHED | UNTOUCHED`, the changed `paths` it names, `text` or null when omitted). An item
+  is TOUCHED when its text names a changed path in full, or a changed file's base name of at least four
+  characters containing a dot; this is a lexical heuristic, not proof the item was addressed.
+  `returned` is null without a RETURN. `obligations.touched` lists each ledger entry whose witness
+  matches a changed path, or whose TOL-V0-073 review subject is a changed path, with its state,
+  paths, test identities and cited lines (`path:start-end`); `obligations.state` is `NONE` without
+  a ledger. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
+
+- `ERG-V0-021`: A partial checkpoint MAY ride in the packet and MUST be labelled with what it does not prove.
+  `--checkpoint NOTE` (and the ATR-V0-141 dispatch source, which passes the ticket's newest ATR-V0-105
+  hand-off note) adds `checkpoint` with the note's source, worker, role, time and text. A note
+  names no commit, so `commitBinding` is `NOT_OBSERVED`: the packet never claims the checkpoint was
+  taken at the reviewed commit. A note of another ticket is not used; an unreadable `--checkpoint`
+  refuses MALFORMED. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
+
 ## Non-goals
 
 No prose interpreter, side database, daemon, network read, automatic reviewer spawning or worker
@@ -262,6 +305,9 @@ messaging. No VERIFIED actor authentication or independence: distinct IDs and ho
 independent review. No change to executable gates, TCP-00 dispositions, retry charging or completion.
 No automatic completion and no opt-in completion policy (owner decision D7, 2026-10-05): the
 ERG-V0-011 offer is a read-only suggestion, and `complete-manual` stays an operator action.
+The ERG-V0-017 review packet is a bounded read for a reviewer prompt: it is not a verdict, an
+evidence artifact, a completion input or a substitute for reading the commit, and its touched status
+does not prove an item was fixed. It reads no file outside Git objects and the named note.
 
 ## Failure modes and trust
 
@@ -276,6 +322,10 @@ CURRENT PASS gives no offer. `ticket show|blockers` then keeps its existing `nex
 `suggestedEvidence`; a `plan preview` entry carries neither member. It folds
 the receipts at most once per read and only when a ticket carries a review reference under a policy
 declaring review gates. A wrong offer can only suggest an operator disposition; it cannot complete.
+The ERG-V0-017 packet fails closed on its inputs: an unknown ticket, an unresolvable commit, an
+unreadable history or ledger refuse rather than build a packet from part of them, and every bound
+it reaches is named in `omitted`. Its diff, item text and checkpoint are repository and agent
+prose, so the item is marked untrusted and the dispatch frame labels it data, not instructions.
 
 ## Acceptance evidence and traceability
 
@@ -296,6 +346,11 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | ERG-V0-009 | ER504-001, ER504-005, ER504-006 | `TestIssue504GateAdapter` (16-gate bound, UNKNOWN for a missing head or binding or a head for another ticket or gate, STALE), `TestIssue504AnchoredHistory` (default and maximum page, cursor paging, off-chain cursor, broken link and digest refusals), `TestIssue504DispatchMisroutes` (the three issue misroutes route by typed verdict through adapter and roster), `TestERGV0009_GatePredicates` (closed predicate config, NONE only when observed, unobserved gates are UNKNOWN, STALE/UNKNOWN never match, fingerprint compatibility, programs cannot supply gates), `TestERGV0009_PolicyExternalReviewsGrantNothingByDefault`, `TestERGV0009_NativeVerdictsThroughTheCLI` (native writer, CLI verbs, history paging, observation filling ticket gates, receipt-audit binding refusing a forged receipt), `TestERGV0009_ForgedReviewEventsRefuseAtRecovery` (rehashed events with a forged actor, counters, prior RETURN, subject generation or candidate tree, or a lease-bound record stripped to an operator attestation under a lease-required policy, refuse redo as JOURNAL_FORKED with the projection unchanged, and once settled leave gates unobserved), `TestERGV0009_ReviewRetriesReplay` (retries replay after head, policy and lease changes; a changed input is a request-id conflict, also after a policy change or with the gate undeclared, and so is a retry on another gate or ticket or reusing another operation's request id), `TestONV0006_DerivedEventSlotClosedToDeclaringOperations` ; `TestERGV0001_ReviewerAndWorkerActors` (`gate state` and the observation expose the full `gates[G]` field set), `TestERGV0009_ReviewDescriptorMeasured` (maximal review record descriptor: 5 of 6 artifacts, 1342 of 1670 bytes, within the 1669-byte generic maximum) | operator use in a live queue |
 | ERG-V0-010 | ER504-008, ER504-009 | the native fixture set above (two-writer CAS, replay, crash/redo refusal and control redo, capacity, legacy omission, read-no-mutation) and the issue 394 mapping | independent review, current-main integration, live qualification of the issue 394 connection, native completion |
 | ERG-V0-011 | issue 587 part 3, D7(a) | `TestERGV0011_CompletionOfferNeedsEveryRequiredGateCurrentPass` (missing, STALE, UNKNOWN, RETURN, resubmitted, unbound and undeclared gates, and a policy without gates, give no offer; heads are sorted), `TestERGV0011_OfferReplacesOnlyAnUnblockedAdmit` (only an OPEN unblocked admit with nothing NOT_OBSERVED is replaced; every other view renders byte-identically), `TestERGV0011_CompletionOfferThroughTheCLI` (native RETURN, resubmission, live-attempt PASS, a queue pause with a BLOCKED/PAUSED plan entry, undeclared gate and STALE PASS give no offer; unpausing restores it; a CURRENT PASS offers through `ticket show`, `ticket blockers` and `plan preview` without advancing the journal or completing; an unreviewed ticket's show item and plan entry stay byte-identical) | a two-gate native fixture; operator use in a live queue |
+| ERG-V0-017 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (after RETURN, resubmission, PASS and a second RETURN the base is the passed commit, the diff holds only the changed test files, both returned items carry their status, the packet fits 32768 bytes with nothing omitted and `.git` is unchanged) | operator use in a live queue |
+| ERG-V0-018 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (test/fixture scope), `TestERGV0018_NoPassedAncestorFallsBack` (NO_PASSED_ANCESTOR, FIRST_PARENT, ALL_PATHS, the note) | none beyond promotion |
+| ERG-V0-019 | GitHub #1169 | `TestERGV0019_CapNamesOmittedRanges` (a 4096-byte cap keeps every item status and names the omitted hunk `src/testdata/c.txt lines 1-120`; 4095, 262145 and a non-number are usage errors), `TestERGV0019_SkeletonAndRanges` (hunk and deletion ranges; an oversized skeleton refuses LIMIT_EXCEEDED) | a measured packet on a real review |
+| ERG-V0-020 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (TOUCHED/UNTOUCHED items), `TestERGV0020_TouchedObligations` (witness and review-subject paths, sorted test identities, cited lines) | none beyond promotion |
+| ERG-V0-021 | GitHub #1169 | `TestERGV0019_SkeletonAndRanges` (a checkpoint that does not fit is named; `commitBinding: NOT_OBSERVED`), `TestATRV0141_ReviewRolePromptCarriesPacket` (the dispatch source receives the note path) | a hand-off note that records its commit |
 
 ## Rollout and rollback
 
@@ -312,6 +367,9 @@ compatible is not rollback.
 The ERG-V0-011 offer stores nothing: rollback is reverting its code and requirement row, after which
 `nextAction` reads `admit` again and the additive `suggestedEvidence` and plan-entry `nextAction`
 members disappear. A consumer of the offer must treat both members as optional.
+The ERG-V0-017 packet stores nothing and adds one read verb: rollback is reverting its code and
+requirement rows; a dispatch configuration that sets `reviewPacket` (ATR-V0-141) must drop it
+first, since the closed decoder would then refuse it.
 
 ## Open decisions
 

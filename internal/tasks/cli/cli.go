@@ -97,7 +97,7 @@ var ReadVerbs = []string{
 	"defects add", "defects update", "defects list",
 	"run-batch",
 	"qualify",
-	"gate record", "gate resubmit", "gate history",
+	"gate record", "gate resubmit", "gate history", "gate packet",
 	"service install", "service status", "service uninstall", "service stop", "service resume", "service run", "service run-helper",
 	"ticket escalate", "ticket answer", "ticket escalation list", "ticket escalation show", "ticket escalation history",
 }
@@ -287,7 +287,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, state"))
+			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>, run, record, resubmit, history, packet, state"))
 		}
 		switch args[1] {
 		case "list":
@@ -300,6 +300,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, gateReviewCommand(env, args[1], args[2:]))
 		case "history":
 			return emit(env.Stdout, gateHistory(env, args[2:]))
+		case "packet":
+			return emit(env.Stdout, gatePacket(env, args[2:]))
 		case "state":
 			return emit(env.Stdout, gateState(env, args[2:]))
 		}
@@ -461,6 +463,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
+		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--max-bytes 4096..262144] [--checkpoint NOTE]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",

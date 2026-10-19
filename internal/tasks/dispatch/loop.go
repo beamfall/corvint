@@ -1648,6 +1648,22 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 				values["{prompt}"] += "\n\n" + carryText
 			}
 		}
+		// ATR-V0-141: a review role's prompt carries the bounded review
+		// packet after any carry-over block; it is never expanded either.
+		var packet string
+		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.ReviewPacket.on() {
+			var err error
+			if packet, err = d.reviewPacketFor(ctx, obs, role.ReviewPacket, a.Ticket); err == nil {
+				err = renderedArgvSafe(host.Argv, values)
+			}
+			if err != nil {
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("review packet not offered: %v", err)})
+				packet = ""
+			}
+			if packet != "" {
+				values["{prompt}"] += "\n\n" + packet
+			}
+		}
 		argv := make([]string, len(host.Argv))
 		for i, s := range host.Argv {
 			argv[i] = Render(s, values)
@@ -1783,6 +1799,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
 		carryDetail(detail, carried, carryText) // ATR-V0-114
+		reviewPacketDetail(detail, packet)      // ATR-V0-141
 		if role.Effort != "" {
 			detail["effort"] = role.Effort
 		}
