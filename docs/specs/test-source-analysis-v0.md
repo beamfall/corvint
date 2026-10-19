@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1919, V1-1930, V1-1931, V1-1932)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163, V1-1867 / GitHub #1164, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192 and V1-1932 / GitHub #1193 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1919, V1-1930, V1-1931, V1-1932)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -1058,6 +1058,167 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 | TSA-V0-090 | `internal/testsource/validity_rspec_inclusion.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently` | experimental |
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
+
+## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)
+
+V1-1930 (GitHub #1191), V1-1919 (GitHub #1185), V1-1931 (GitHub #1192) and V1-1932 (GitHub #1193)
+add four static test-validity rules to `corvint tests validity` for JS/TS sources and behaviour
+contracts, plus one fail-closed Playwright receipt reason. They are agent-drafted and accepted under
+the owner's standing auto-accept (2026-10-11). The readers stay the TSA-V0-062 token reader over
+committed source; nothing reads a database, a network or a run. Each finding cites a committed
+`path:line`; when the file does not state what a rule needs, the rule does not report.
+
+- `TSA-V0-160`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) `EITHER-OR-OUTCOME`
+  MUST be an invalid finding on an assertion inside a JS/TS test body that accepts two or more
+  distinct literal outcomes, since it passes whichever the product returns and cannot detect a
+  regression from one to another. The finding makes the test `INELIGIBLE` (TSA-V0-051); its
+  message names the accepted values and the annotation of TSA-V0-163. An assertion outside every
+  test body is not reported.
+- `TSA-V0-161`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST be:
+  `expect([a, b]).toContain(x)` and `expect([a, b].includes(x))` with two or more distinct
+  literals; `expect(x === a || x === b)` over one subject, with or without parentheses around each
+  equality; `toBeOneOf([a, b])` and
+  `assert.oneOf(x, [a, b])`; and a regular-expression literal accepting a closed set of outcomes:
+  an anchored alternation of words (`/^(DENIED|FORBIDDEN)$/`), an alternation of digit strings
+  (`/401|403/`) or a digit class inside a status code (`/^40[13]$/`). Numbers are compared by
+  value, so `200` and `200.0` are one value. A negated chain, a non-literal set, one distinct value,
+  two different subjects, and an alternation of words that is unanchored or anchored only at its
+  ends (`/^A|B$/`, a text search) are not reported.
+- `TSA-V0-162`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or
+  JSON file named to `corvint tests validity --files` MUST be read as a behaviour contract: a line
+  whose key or label starts with `expected` and whose value is two or more distinct single-token
+  outcomes joined by `or`, or status codes or upper-case enum names joined by `/`, is an invalid
+  `EITHER-OR-OUTCOME` finding whose test, location and cause are that line and whose title is the
+  key. Prose, dates and a single value are not reported; other file types are not read as
+  contracts.
+- `TSA-V0-163`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A comment
+  `corvint-validity-allow EITHER-OR-OUTCOME: <reason>` on the flagged line, or alone on the line
+  above, MUST exempt that line. In a behaviour contract the line above MUST be a comment (`#`,
+  `//` or `<!--`); data on it naming the annotation does not exempt the value. An annotation
+  without a reason, or naming another rule, MUST NOT exempt the line.
+- `TSA-V0-164`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one value
+  a passing receipt observed is NOT_PRODUCED: no receipt records assertion operands, so the
+  message names the accepted values only and never guesses which one is correct.
+- `TSA-V0-165`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLIVED`
+  MUST be an advisory finding on a cleanup closure registered on a registry whose fixture the file
+  declares with a longer literal scope (`{ scope: 'worker' }`) when the closure captures a
+  shorter-lived handle: a test-scoped fixture the file declares, or a Playwright test-scoped
+  built-in (`request`, `page`, `context`). Its location is the registration line and its cause the
+  registry's declaration; its message names the handle and where it is declared and suggests a
+  context the closure owns (`playwright.request.newContext()`). A closure taking its own context
+  parameter, or declaring its own local under the handle's name, is not reported.
+- `TSA-V0-166`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) The rule MUST read a
+  registration inside a test body, inside a test-scoped fixture function (including through a
+  local alias `const api = request`), and an `afterAll` hook reading a variable a `beforeEach`
+  assigned from a test-scoped handle. A JS/TS file that is not a test file (a fixture file) MUST be
+  read for this rule alone, with the registration line as the finding's test.
+- `TSA-V0-167`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A registry or handle
+  whose scope the file does not state (imported from another file, or a non-literal `scope`), a
+  test-scoped registry, and a closure capturing no handle MUST NOT be reported.
+- `TSA-V0-168`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A Playwright JSON report
+  with at least one suite, a run-level `errors` entry and no outcome other than `passed`, `flaky`
+  or `skipped` MUST give the infrastructure failure `passed-cleanup-failed`, whose detail is the
+  first error's scrubbed, secret-screened message, so a run whose worker fixture teardown or
+  cleanup failed fails closed instead of reading as passed. A report with a failing outcome is
+  left unchanged.
+- `TSA-V0-169`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192)
+  `UNSTUBBED-OUTBOUND-INPUT` MUST be an advisory finding on a test input that names a stubbed
+  integration parameter with a value no stub in the file matches. The stub table is the file's
+  literal request matchers, Playwright `X.route('<glob>', ...)` and MSW
+  `http|rest.<method>('<url>', ...)`. A Playwright matcher path with query parameters names an
+  integration and its stubbed values. An input is an object property `param: 'value'` naming a
+  stubbed parameter, or a literal URL whose path a matcher names (equal, or after a leading `**`)
+  with a query value for a stubbed parameter. An input is covered by a stubbed value whose
+  Playwright glob (`**`, `*`, `{a,b}`) matches it, by an MSW handler at its path (MSW ignores the
+  query when matching), or by a Playwright matcher without a query whose glob matches the request,
+  such as a `**/*` catch-all.
+- `TSA-V0-170`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The finding's cause MUST
+  be the stub line of the nearest stubbed value of the same parameter by edit distance, the first
+  on a tie, and its message MUST name the input value and that value.
+- `TSA-V0-171`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any matcher
+  that is not a literal string, or with no stub, MUST NOT be read for the rule, since that matcher
+  may cover the value.
+- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)
+  `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or equality assertion inside a
+  test body whose two operands are both collection-derived: `toHaveCount` or `toHaveLength` with a
+  collection-derived argument, or `toBe`, `toEqual` or `toStrictEqual` between two operands ending
+  in `.length`, `.size` or `.count()`. Its location and cause are the assertion line and its
+  message suggests a non-empty precondition or the exact seeded count. A negated chain or a literal
+  operand is not reported. The reading does not model fixture seeding.
+- `TSA-V0-173`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the same
+  test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
+  with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
+  `toBeTruthy` on a count, a negated zero or `[]`, a negated `toBeEmpty`, or a visibility or text
+  assertion on the collection or a member of it. A text assertion of `[]` or an empty string is not
+  a precondition, since it passes on an empty collection.
+- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time
+  `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call to an unstubbed
+  host) is NOT_PRODUCED with reason `server-outbound-log-not-produced`: no receipt retains a server
+  log or its outbound calls. It MUST NOT be inferred from a status code alone.
+- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time
+  `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is NOT_PRODUCED with reason
+  `assertion-operands-not-produced`: no receipt records assertion operands.
+- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a
+  matrix row's `file:line` citations at the row's pinned commit is NOT_PRODUCED: no row source with
+  a pinned commit exists in this profile to read.
+
+Non-goals:
+- choosing the correct value of an either-or assertion, or reading natural-language contract
+  prose beyond `expected` keys;
+- following a fixture, registry or stub declared in another file;
+- evaluating non-literal matchers, request builders or seed functions;
+- adding a field to the appflows wire (AFU-V1-042): the qualified external path already fails
+  closed on `reporter-global-error`.
+
+Failure modes:
+- A registry imported from a fixture file is not reported in the test file that uses it; the
+  fixture file itself is read only when named.
+- A fixture that seeds rows outside the test still gets a `VACUOUS-EMPTY-EQUALITY` advisory when
+  the test has no precondition; the advisory does not change hygiene.
+- A run whose only error is a teardown failure now reports infrastructure, and the runner drops
+  its test outcomes, so its passing tests are not counted as proof.
+
+Acceptance evidence: synthetic fixtures only.
+- `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeAnnotation`,
+  `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeRefusesProof` and
+  `TestEitherOrOutcomeReviewCases`.
+- `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile`,
+  `TestCleanupHandleOutlivedAbstains`, `TestCleanupHandleOutlivedShadowed`,
+  `TestParsePlaywrightJSONPassedCleanupFailed` and
+  `TestParsePlaywrightJSONCleanupGateNegatives`.
+- `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` and
+  `TestUnstubbedOutboundInputAbstains`.
+- `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityNegatives`,
+  `TestVacuousEmptyEqualityEmptyText` and `TestVacuousEmptyEqualityOutsideTest`.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/validity_either_or.go`, `validity_cleanup_handle.go`,
+`validity_unstubbed_input.go`, `validity_vacuous_empty.go`, their tests,
+`internal/testvalidity/source_rules_outcome.go`, `internal/jstestprovider/playwright_cleanup.go`,
+the `outcomeFindings` call and the two `ValidityFindings` cases, and this section. Nothing is
+persisted.
+
+### Traceability (V1-1919, V1-1930, V1-1931, V1-1932)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-160 | `internal/testsource/validity_either_or.go`, `internal/testvalidity/source_rules_outcome.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeRefusesProof` | experimental |
+| TSA-V0-161 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeReviewCases` | experimental |
+| TSA-V0-162 | `internal/testsource/validity_either_or.go`, `internal/testsource/validity.go` | `TestEitherOrOutcomeContract` | experimental |
+| TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeReviewCases` | experimental |
+| TSA-V0-164 | none | NOT_PRODUCED | gap |
+| TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedShadowed` | experimental |
+| TSA-V0-166 | `internal/testsource/validity_cleanup_handle.go`, `internal/testsource/validity.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile` | experimental |
+| TSA-V0-167 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedAbstains` | experimental |
+| TSA-V0-168 | `internal/jstestprovider/playwright_cleanup.go`, `internal/jstestprovider/playwright.go` | `TestParsePlaywrightJSONPassedCleanupFailed`, `TestParsePlaywrightJSONCleanupGateNegatives` | experimental |
+| TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
+| TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
+| TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
+| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
+| TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
+| TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
+| TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
+| TSA-V0-176 | none | NOT_PRODUCED | gap |
 
 ## Decision file format
 
