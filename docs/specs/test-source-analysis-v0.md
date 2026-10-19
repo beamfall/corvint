@@ -1248,8 +1248,9 @@ while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
 - `TSA-V0-301`: (standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,
   re-export, `require` or dynamic `import()` with both of these properties:
   - its specifier is relative (`.`, `..`, `./…`, `../…`);
-  - its specifier, or a name its `import … from` clause binds, contains `stub`, `mock`, `msw`,
-    `handler`, `route`, `fake` or `intercept`, ignoring case.
+  - its specifier, or a name its `import … from` or `export … from` clause names (imported or
+    local), contains `stub`, `mock`, `msw`, `handler`, `route`, `fake` or `intercept`, ignoring
+    case.
 
   In a file that has its own literal stub table and a sibling stub import,
   `UNSTUBBED-OUTBOUND-INPUT` MUST NOT report an input that no local stub covers. That input MUST be
@@ -1281,7 +1282,8 @@ while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
   - a member call `x.post(` or `x.put(`.
 
   A bare `add(` (a set or a cleanup registry) is not a seeding call. Neither are `addInitScript`,
-  `addCookies`, `addScriptTag`, `addStyleTag` or `addLocatorHandler`.
+  `addCookies`, `addScriptTag`, `addStyleTag` or `addLocatorHandler`. A function or method
+  declaration `name(...) {` is not a call.
 - `TSA-V0-306`: (standing auto-accept, 2026-10-11; V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST NOT be
   reported in a test whose setup seeds data. Setup seeds data in either of these cases:
   - The test requests a fixture the file declares (`base.extend({...})`) whose function makes a
@@ -1316,7 +1318,7 @@ while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
   - an annotation whose value is a string instead of an object;
   - a member with another name;
   - data on the line above;
-  - a file that is not valid JSON.
+  - a file that is not exactly one valid JSON value.
 - `TSA-V0-310`: (standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME`
   finding in a `.json` contract MUST end by naming the sibling-member form with the flagged key,
   since JSON has no comment line. Markdown and YAML messages are unchanged.
@@ -1344,6 +1346,7 @@ Failure modes:
 - A seeding call that seeds an unrelated collection still suppresses the finding: the reading
   under-reports and never over-reports.
 - A helper named like a seeding call that writes nothing (`createLocator`) suppresses the finding.
+  So does a seeding call inside a nested function the hook or fixture never invokes.
 - A JSON contract that is not valid JSON gets no exemptions, so its findings stay invalid.
 
 Acceptance evidence: synthetic fixtures only.
@@ -1354,11 +1357,16 @@ Acceptance evidence: synthetic fixtures only.
 - `TestEitherOrOutcomeJSONAnnotation`
 - `TestSourceValidityAbstentionsWire`
 
-Each new decision point was mutated and every mutation was killed: sibling and stub-word
-detection, seeding names, the not-seeding list, the bare `add` exclusion, transitive fixtures, hook
-scope, option fixtures, JSON member name, key, rule and reason, the JSON message, cross-file
-registration and capture, VE seeding and cross-file fixtures, the UO withheld and unread paths, and
-the wire copy. No live qualification on a real suite was run (NOT_RUN).
+Each new decision point was mutated, and the tests killed every mutation of tested behaviour.
+The mutated points were:
+- sibling and stub-word detection, long import clauses and `require(…,)`;
+- seeding names, the not-seeding list, the bare `add` exclusion and method declarations;
+- transitive fixtures, hook scope and option fixtures;
+- the JSON member name, key, rule, reason and single-value check, and the JSON message;
+- cross-file registration, capture and nested registrations;
+- VE seeding and cross-file fixtures;
+- the UO withheld and unread paths;
+- the wire copy. No live qualification on a real suite was run (NOT_RUN).
 
 Rollback: remove `internal/testsource/validity_crossfile.go`, its test,
 `internal/testvalidity/source_rules_crossfile.go`, the `abstentions` fields, and the cross-file,

@@ -31,9 +31,27 @@ amended.
 ## Evidence
 
 Focused tests in `internal/testsource` and `internal/testvalidity` pass, as do the
-`cmd/corvint` validity CLI tests. 24 mutations were run, one per new decision point. 23 were killed.
-The survivor removed an untested Playwright option name (`bypassCSP`); the option list itself is
-covered by the `baseURL` mutation. No live qualification on a real suite was run (NOT_RUN).
+`cmd/corvint` validity CLI tests. 29 mutations were run, one per new decision point, including the
+five review fixes. 28 were killed. The survivor removed an untested Playwright option name
+(`bypassCSP`); the option list itself is covered by the `baseURL` mutation. No live qualification
+on a real suite was run (NOT_RUN).
+
+## Independent review
+
+One Codex read-only round covered this change's commits only.
+- Fixed, each with a regression test that kills the reverted fix:
+  - Several top-level JSON values kept their exemptions; the file must now be exactly one valid
+    JSON value.
+  - A registration nested in a call on an undeclared fixture was skipped.
+  - A method declaration counted as a seeding call.
+  - Import clauses longer than 64 tokens lost their names.
+  - `require('./x',)` was missed.
+- Clarified in the spec: names from re-exports and pre-alias names count toward the stub-word
+  test. The intent is that the module exports a stub, so the wording of TSA-V0-301 now says so.
+- Recorded, not changed: TSA-V0-306 narrows the unconditional TSA-V0-172 finding, and the last
+  sentence of TSA-V0-172 says the reading does not model seeding. This is the same narrowing
+  pattern TSA-V0-173 applies, and it is what the ticket's acceptance criterion (b) requires. No
+  accepted text is edited, and the owner decides whether to amend TSA-V0-172's wording.
 
 ## Residuals
 

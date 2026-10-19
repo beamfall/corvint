@@ -256,7 +256,6 @@ func (s *source) chRegistrations(fixtures map[string]chFixture, params, body [2]
 		if bound != "" && !ok {
 			// The registry is a fixture declared in another file (TSA-V0-303).
 			s.chAbstainCrossFile(handles, j, test, bound)
-			j = s.match[j+3]
 			continue
 		}
 		if !ok || registry.scope != "worker" || registry.line == 0 {

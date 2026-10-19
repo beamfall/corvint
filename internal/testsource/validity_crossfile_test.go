@@ -2,6 +2,7 @@ package testsource
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -89,6 +90,19 @@ test('again', async ({ request }) => {
 	}
 	wantAbstentions(t, "plain sibling", ValidityFindings("e2e/lookup.spec.ts", strings.Replace(unread, "crm-mocks", "crm", 1)))
 
+	comma := strings.Replace(unread, "require('../support/crm-mocks')", "require('../support/crm-mocks',)", 1)
+	if r := ValidityFindings("e2e/lookup.spec.ts", comma); len(r.Abstentions) != 1 {
+		t.Errorf("trailing comma require: %+v", r.Abstentions)
+	}
+	names := []string{"mockCrm"}
+	for i := 0; i < 40; i++ {
+		names = append(names, fmt.Sprintf("helper%d", i))
+	}
+	long := strings.Replace(stubbed, "import { stubCrm } from './stubs';\n", "import {\n  "+strings.Join(names, ", ")+",\n} from './helpers';\n", 1)
+	if r := ValidityFindings("e2e/customer.spec.ts", long); len(r.Findings) != 0 || len(r.Abstentions) != 1 {
+		t.Errorf("long import clause: %+v", r)
+	}
+
 	noTests := "import { stubs } from './stubs';\nexport const x = 1;\n"
 	wantAbstentions(t, "no tests", ValidityFindings("e2e/helpers.spec.ts", noTests))
 }
@@ -124,6 +138,19 @@ test('x', async ({ registry }) => {
 });
 `
 	wantAbstentions(t, "no capture", ValidityFindings("e2e/nocapture.spec.ts", noCapture))
+
+	// A registration nested in a call on an undeclared fixture is still read for the local registry.
+	nested := `const test = base.extend({
+  registry: [async ({}, use) => { await use(new Registry()); }, { scope: 'worker' }],
+});
+test('x', async ({ registry, request, external }) => {
+  external.run(registry.add(() => request.delete('/x')));
+});
+`
+	r = ValidityFindings("e2e/nested.spec.ts", nested)
+	wantFindings(t, "nested registration", r,
+		"CLEANUP-HANDLE-OUTLIVED advisory e2e/nested.spec.ts:5 e2e/nested.spec.ts:2 x")
+	wantAbstentions(t, "nested registration", r)
 
 	// A fixture file reads the rule alone, so its cross-file registration abstains at that line.
 	fixtureFile := `import { test as base } from './base';
@@ -183,7 +210,8 @@ test('file hook seeds', async ({ page }) => {
 }
 
 // TestVacuousEmptyEqualityNotSeeded: a declared fixture or hook without a seeding call, a page
-// method whose name starts with a seeding word, and a bare add( do not suppress the finding; a
+// method whose name starts with a seeding word, a bare add( and a method declaration named like a
+// seeding call do not suppress the finding; a
 // Playwright option fixture is not a cross-file fixture (TSA-V0-305..307).
 func TestVacuousEmptyEqualityNotSeeded(t *testing.T) {
 	src := `const test = base.extend({
@@ -197,11 +225,18 @@ test('init script', async ({ board, baseURL }) => {
 test('bare add', async ({ tags, page }) => {
   await expect(page.locator('li')).toHaveCount(served.length);
 });
+test.describe('declared only', () => {
+  test.beforeEach(async () => { const factory = { seedTodos() {} }; });
+  test('method declaration', async ({ page }) => {
+    await expect(page.locator('li')).toHaveCount(served.length);
+  });
+});
 `
 	r := ValidityFindings("e2e/plain.spec.ts", src)
 	wantFindings(t, "not seeded", r,
 		"VACUOUS-EMPTY-EQUALITY advisory e2e/plain.spec.ts:7 e2e/plain.spec.ts:7 init script",
-		"VACUOUS-EMPTY-EQUALITY advisory e2e/plain.spec.ts:10 e2e/plain.spec.ts:10 bare add")
+		"VACUOUS-EMPTY-EQUALITY advisory e2e/plain.spec.ts:10 e2e/plain.spec.ts:10 bare add",
+		"VACUOUS-EMPTY-EQUALITY advisory e2e/plain.spec.ts:15 e2e/plain.spec.ts:15 method declaration")
 	wantAbstentions(t, "not seeded", r)
 }
 
@@ -297,6 +332,8 @@ func TestEitherOrOutcomeJSONAnnotation(t *testing.T) {
 
 	invalid := strings.Replace(positive, "\"id\": \"r1\",", "\"id\": \"r1\"", 1)
 	wantFindings(t, "invalid json", ValidityFindings("contracts/gw.json", invalid),
+		"EITHER-OR-OUTCOME invalid contracts/gw.json:5 contracts/gw.json:5 expected_status")
+	wantFindings(t, "two roots", ValidityFindings("contracts/gw.json", positive+"{}\n"),
 		"EITHER-OR-OUTCOME invalid contracts/gw.json:5 contracts/gw.json:5 expected_status")
 
 	yml := "rows:\n  - expected_status: 401 or 403\n"

@@ -39,17 +39,18 @@ func (s *source) xfImports() []xfImport {
 			out = append(out, xfImport{s.tokens[k+1].Text, s.tokens[k+1].Line, s.xfBound(k)})
 		case s.ident(k, "import") && !s.memberAccess(k) && literal(k+1):
 			out = append(out, xfImport{s.tokens[k+1].Text, s.tokens[k+1].Line, nil})
-		case (s.ident(k, "require") || s.ident(k, "import")) && !s.memberAccess(k) && s.punct(k+1, "(") && literal(k+2) && s.punct(k+3, ")"):
+		case (s.ident(k, "require") || s.ident(k, "import")) && !s.memberAccess(k) && s.punct(k+1, "(") && literal(k+2) && (s.punct(k+3, ")") || s.punct(k+3, ",")):
 			out = append(out, xfImport{s.tokens[k+2].Text, s.tokens[k+2].Line, nil})
 		}
 	}
 	return out
 }
 
-// xfBound returns the names an `import ... from` clause ending at the `from` token k binds.
+// xfBound returns the names an `import ... from` or `export ... from` clause ending at the `from`
+// token k names, imported and local alike, or nil when no such clause starts the statement.
 func (s *source) xfBound(k int) []string {
 	names := []string{}
-	for j := k - 1; j >= 0 && j >= k-64; j-- {
+	for j := k - 1; j >= 0 && !s.punct(j, ";"); j-- {
 		if s.ident(j, "import") || s.ident(j, "export") {
 			return names
 		}
@@ -147,8 +148,8 @@ var xfNotSeeding = map[string]bool{"addInitScript": true, "addCookies": true, "a
 // seeding name (TSA-V0-305).
 func (s *source) xfSeedingCall(r [2]int) bool {
 	for j := r[0]; j < r[1]; j++ {
-		if !s.ident(j, "") || !s.punct(j+1, "(") || s.ident(j-1, "function") {
-			continue
+		if !s.ident(j, "") || !s.punct(j+1, "(") || s.ident(j-1, "function") || s.match[j+1] < 0 || s.punct(s.match[j+1]+1, "{") {
+			continue // not a call: a function or method declaration `name(...) {`
 		}
 		name := s.tokens[j].Text
 		if xfNotSeeding[name] {
@@ -268,7 +269,8 @@ const eoJSONAllowMember = testvalidity.ValidityAllowMarker
 // annotation (TSA-V0-308, TSA-V0-309): in the object holding the flagged member, a member
 // `"corvint-validity-allow": {"<key>": "EITHER-OR-OUTCOME: <reason>"}` exempts every line holding
 // a `<key>` member of that object. A value without a reason, naming another rule, or not a string,
-// and a key it does not name, exempt nothing. A file that is not valid JSON exempts nothing.
+// and a key it does not name, exempt nothing. A file that is not one valid JSON value exempts
+// nothing.
 func eoJSONAllowed(text string) map[int]bool {
 	type frame struct {
 		object, wantKey bool
@@ -279,6 +281,9 @@ func eoJSONAllowed(text string) map[int]bool {
 		allowFor        *frame // set on the annotation object: the object it annotates
 	}
 	exempt := map[int]bool{}
+	if !json.Valid([]byte(text)) {
+		return exempt
+	}
 	dec := json.NewDecoder(strings.NewReader(text))
 	dec.UseNumber()
 	lineAt := func(offset int64) int { return strings.Count(text[:offset], "\n") + 1 }
