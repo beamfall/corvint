@@ -2,6 +2,7 @@ package doccorpus
 
 import (
 	"context"
+	"slices"
 	"sort"
 )
 
@@ -50,6 +51,7 @@ type TestRecommendation struct {
 	Required         string   `json:"required"`
 	MissingEvidence  []string `json:"missing_evidence"`
 	Paths            []string `json:"paths"`
+	BlockedBy        []string `json:"blocked_by,omitempty"`
 }
 
 func addRecord(r *Receipt, v any) {
@@ -116,6 +118,9 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 				addRecord(r, a.indexedRecord(ref))
 			}
 		}
+		for _, j := range testKnowledgeOnPath(a, q.Path) {
+			addRecord(r, j)
+		}
 	case "flow":
 		if s, ok := indexedSubject(a, q.ID); ok && a.Details[s.ID].Flow != nil {
 			addRecord(r, s)
@@ -124,6 +129,11 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 			}
 			for _, i := range x.Edges[q.ID] {
 				addRecord(r, a.Relations[i])
+			}
+			for _, j := range a.TestKnowledge {
+				if j.Status == "joined" && slices.Contains(j.Flows, q.ID) {
+					addRecord(r, j)
+				}
 			}
 			for _, section := range a.Details[s.ID].Flow.Sections {
 				for _, id := range section.Paragraphs {
@@ -215,7 +225,21 @@ func typedQuery(ctx context.Context, a *Artifact, q Request, r *Receipt) error {
 		if r.Freshness != "fresh" {
 			missing = append(missing, "fresh corpus evidence NOT_OBSERVED")
 		}
-		r.Selection = &TestRecommendation{State: "full-relevant-suite-required", Required: "full relevant suite and mandatory repository checks", MissingEvidence: missing, Paths: []string{q.Path}}
+		knowledge, blocked := testKnowledgeOnPath(a, q.Path), []string{}
+		for _, j := range knowledge {
+			if j.Selection == "blocks" {
+				blocked = append(blocked, j.ID)
+			}
+		}
+		for _, j := range knowledge {
+			if len(blocked) == 0 && j.Selection == "candidate" {
+				addRecord(r, j)
+			}
+		}
+		if len(blocked) > 0 {
+			missing = append(missing, "test-knowledge defect blocks selection")
+		}
+		r.Selection = &TestRecommendation{State: "full-relevant-suite-required", Required: "full relevant suite and mandatory repository checks", MissingEvidence: missing, Paths: []string{q.Path}, BlockedBy: blocked}
 	case "navigation":
 		selected := map[string]bool{q.ID: true}
 		if flow := a.Details[q.ID].Flow; flow != nil {
@@ -293,7 +317,13 @@ func typedKey(v any) string {
 	return recordID(v)
 }
 func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error) {
-	out := []Gap{}
+	out := testKnowledgeGaps(a)
+	counted := map[string]bool{}
+	for _, j := range a.TestKnowledge {
+		for _, f := range j.Flows {
+			counted[f] = counted[f] || j.CountsTowardCoverage
+		}
+	}
 	journeys := map[string][]Journey{}
 	for _, j := range a.Journeys {
 		journeys[j.Subject] = append(journeys[j.Subject], j)
@@ -305,7 +335,7 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 		if s.Kind != "flow" {
 			continue
 		}
-		tests, asserting, manual := false, false, false
+		tests, asserting, manual := counted[s.ID], false, false
 		for _, i := range a.RuntimeIndex.Edges[s.ID] {
 			if err := ctx.Err(); err != nil {
 				return nil, err

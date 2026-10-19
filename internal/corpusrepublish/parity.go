@@ -64,6 +64,7 @@ func inventory(a *doccorpus.Artifact) [7]map[string]any {
 	}
 	x[6]["behavior"] = a.BehaviorContracts
 	x[6]["stability"] = a.StabilityEvidence
+	x[6]["test_knowledge"] = a.TestKnowledge
 	x[6]["gaps"] = a.Gaps
 	x[6]["import_parity"] = a.ImportParity
 	x[6]["restricted_summaries"] = a.RestrictedSummaries

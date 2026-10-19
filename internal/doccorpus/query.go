@@ -186,6 +186,9 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		for _, x := range a.Observations {
 			r.Results = append(r.Results, x)
 		}
+		for _, x := range a.TestKnowledge {
+			r.Results = append(r.Results, x)
+		}
 		sort.Slice(r.Results, func(i, j int) bool { return recordID(r.Results[i]) < recordID(r.Results[j]) })
 	case "search":
 		if e := search(ctx, a, request, &r); e != nil {
@@ -194,6 +197,9 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	case "get", "trace":
 		get(a, request.ID, &r)
 	case "locate":
+		for _, j := range testKnowledgeOnPath(a, request.Path) {
+			addRecord(&r, j)
+		}
 		if a.RuntimeIndex != nil {
 			for _, ref := range a.RuntimeIndex.Paths[request.Path] {
 				if ref.Kind == "subject" {
@@ -339,6 +345,11 @@ func subjectPath(s Subject, p string) bool {
 	return false
 }
 func get(a *Artifact, id string, r *Receipt) {
+	for _, j := range a.TestKnowledge {
+		if j.ID == id {
+			addRecord(r, j)
+		}
+	}
 	if x := a.RuntimeIndex; x != nil {
 		for _, s := range a.StabilityEvidence {
 			if s.ID == id || s.TestID == id || s.ContractID == id {
@@ -549,5 +560,6 @@ func coverageMetrics(a *Artifact) []any {
 			rows = append(rows, map[string]any{"metric": s.ID, "value": len(d.Numerator), "denominator": len(d.Denominator), "defined": len(d.Denominator) > 0, "definition": d.Definition, "rule": d.Rule, "revision": a.Manifest.Repository.Revision, "limitations": []string{"supplied membership only; original intent and semantic adequacy unassessed"}})
 		}
 	}
+	rows = append(rows, testKnowledgeCoverage(a)...)
 	return append(rows, behaviorCoverage(a)...)
 }

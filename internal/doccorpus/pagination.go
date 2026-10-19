@@ -18,6 +18,8 @@ func recordID(value any) string {
 		return x.ID
 	case Observation:
 		return x.Link.ID
+	case TestKnowledgeJoin:
+		return x.ID
 	}
 	return ""
 }
@@ -37,6 +39,8 @@ func recordAnchors(value any) []Anchor {
 		return x.Evidence.Anchors
 	case Observation:
 		return x.Link.StepEvidence
+	case TestKnowledgeJoin:
+		return testKnowledgeAnchors(x)
 	}
 	return nil
 }
@@ -154,6 +158,11 @@ func validateReadableRecords(a *Artifact) error {
 		}
 	}
 	for _, x := range a.Observations {
+		if err := check(x); err != nil {
+			return err
+		}
+	}
+	for _, x := range a.TestKnowledge {
 		if err := check(x); err != nil {
 			return err
 		}
