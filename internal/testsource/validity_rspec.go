@@ -49,6 +49,18 @@ type rspecGroup struct {
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
+	// lets and fixtures are every let, let!, subject and subject! with its body and every
+	// `fixtures` line of the group, for the seed-parity reading (TSA-V0-101).
+	lets     []rspecLet
+	fixtures []rubyLine
+}
+
+// rspecLet is one let, let!, subject or subject! declaration; name is "subject" for an anonymous
+// subject.
+type rspecLet struct {
+	name string
+	lazy bool
+	body []rubyLine
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
@@ -160,6 +172,11 @@ func (r *rspecReader) read() string {
 			}
 			kind, declared := strings.TrimSuffix(m[1], "!"), m[2]+m[3]
 			g := &r.groups[group]
+			letName := declared
+			if letName == "" && kind == "subject" {
+				letName = "subject"
+			}
+			g.lets = append(g.lets, rspecLet{name: letName, lazy: !strings.HasSuffix(m[1], "!"), body: body})
 			switch {
 			case kind == "let" && declared != "":
 				g.decls[declared] = "let"
@@ -187,6 +204,8 @@ func (r *rspecReader) read() string {
 				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
 			}
 			i = end
+		case rspecFixturesLine.MatchString(text) && !rubyOpens(text):
+			r.groups[group].fixtures = append(r.groups[group].fixtures, r.lines[i])
 		case rspecSkippedLine.MatchString(text):
 			body, end, ok := r.block(i)
 			if !ok {
