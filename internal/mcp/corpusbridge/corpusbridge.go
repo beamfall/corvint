@@ -440,7 +440,7 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 	defer func() { <-r.load }()
 	if r.artifact != nil {
 		step := time.Now()
-		err := verifyPins(ctx, r.root, r.pins)
+		err := verifyPins(ctx, r.root, r.artifact.Manifest, r.pins)
 		timing.VerifyMS = time.Since(step).Milliseconds()
 		if err == nil {
 			return r.artifact, nil
@@ -507,12 +507,20 @@ func pinnedRevisions(m doccorpus.Manifest) []string {
 	return revisions
 }
 
-func verifyPins(ctx context.Context, root string, revisions []string) error {
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
-	if err != nil {
-		return err
-	}
+// verifyPins resolves each pinned revision in the checkout that owns it: the
+// primary root or a declared additional repository (DCP-V1-178).
+func verifyPins(ctx context.Context, root string, m doccorpus.Manifest, revisions []string) error {
+	auths := map[string]*gitauth.Repository{}
 	for _, revision := range revisions {
+		dir := m.RevisionRoot(root, revision)
+		auth, ok := auths[dir]
+		if !ok {
+			var err error
+			if auth, err = gitauth.Open(dir, gitrun.NewDefaultBudget()); err != nil {
+				return err
+			}
+			auths[dir] = auth
+		}
 		if _, err := auth.CommitTree(ctx, revision); err != nil {
 			return err
 		}

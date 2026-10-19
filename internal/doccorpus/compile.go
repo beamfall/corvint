@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -279,6 +281,9 @@ func validateManifest(m Manifest) error {
 	if (m.Schema != ManifestSchema && m.Schema != ManifestSchemaV2) || !wire.IsGitOid(m.Repository.ID) || !wire.IsGitOid(m.Repository.Revision) {
 		return fail("invalid manifest identity")
 	}
+	if err := validateAdditionalRepositories(m); err != nil {
+		return err
+	}
 	if _, err := time.Parse(time.RFC3339, m.BuiltAt); err != nil {
 		return fail("build timestamp must be explicit RFC3339")
 	}
@@ -337,6 +342,9 @@ func validateManifest(m Manifest) error {
 		}
 	}
 	revisions := map[string]bool{m.Repository.Revision: true}
+	for _, r := range m.AdditionalRepositories {
+		revisions[r.Revision] = true
+	}
 	scopes := map[string]bool{}
 	for _, s := range m.Scopes {
 		if !validPath(s.Path) || !wire.IsGitOid(s.Revision) {
@@ -388,28 +396,102 @@ func validateManifest(m Manifest) error {
 	}
 	return nil
 }
+
+// validateAdditionalRepositories admits a further repository only by explicit root-commit
+// identity, one pinned revision and a clean relative checkout locator, in identity order, distinct
+// from the primary repository and from each other (DCP-V1-175).
+func validateAdditionalRepositories(m Manifest) error {
+	if len(m.AdditionalRepositories) > maxAdditionalRepositories {
+		return capacityExceeded("additional repository count", len(m.AdditionalRepositories), maxAdditionalRepositories)
+	}
+	revisions, roots := map[string]bool{m.Repository.Revision: true}, map[string]bool{}
+	for i, r := range m.AdditionalRepositories {
+		if !wire.IsGitOid(r.ID) || !wire.IsGitOid(r.Revision) || r.ID == m.Repository.ID || revisions[r.Revision] || roots[r.Root] || i > 0 && r.ID <= m.AdditionalRepositories[i-1].ID || !validRepositoryRoot(r.Root) {
+			return fail("invalid additional repository declaration")
+		}
+		revisions[r.Revision], roots[r.Root] = true, true
+	}
+	return nil
+}
+
+// maxAdditionalRepositories keeps every repository's pinned revision inside the eight-revision bound.
+const maxAdditionalRepositories = 7
+
+// validRepositoryRoot admits a clean relative checkout path other than the primary root itself; it
+// may climb out of the primary root, because a sibling checkout is the common layout.
+func validRepositoryRoot(p string) bool {
+	return p != "" && p != "." && len(p) <= 1024 && utf8.ValidString(p) && !strings.ContainsAny(p, "\\\x00\r\n\t") && !path.IsAbs(p) && path.Clean(p) == p
+}
+
+// additionalRepository returns the declared additional repository pinned at revision.
+func (m Manifest) additionalRepository(revision string) (AdditionalRepository, bool) {
+	for _, r := range m.AdditionalRepositories {
+		if r.Revision == revision {
+			return r, true
+		}
+	}
+	return AdditionalRepository{}, false
+}
+
+// revisionRepository names the repository identity and checkout directory holding revision: an
+// additional repository's pinned revision resolves to its own checkout (DCP-V1-176); every other
+// revision belongs to the primary repository at root.
+func (m Manifest) revisionRepository(root, revision string) (string, string) {
+	if r, ok := m.additionalRepository(revision); ok {
+		return r.ID, filepath.Join(root, filepath.FromSlash(r.Root))
+	}
+	return m.Repository.ID, root
+}
+
+// RevisionRoot is the checkout directory whose object store holds revision (DCP-V1-176).
+func (m Manifest) RevisionRoot(root, revision string) string {
+	_, dir := m.revisionRepository(root, revision)
+	return dir
+}
+
 func (c *compiler) pin(ctx context.Context) (err error) {
 	defer func() { err = gitCapacity(err, fmt.Sprintf("while pinning %d inputs", len(c.manifest.Inputs))) }()
-	auth, err := gitauth.Open(c.root, newGitBudget())
-	if err != nil {
-		return err
-	}
-	release := auth.BeginObjectSession()
-	defer release()
 	revisions := map[string]bool{c.manifest.Repository.Revision: true}
+	for _, r := range c.manifest.AdditionalRepositories {
+		revisions[r.Revision] = true
+	}
 	for _, s := range c.manifest.Scopes {
 		revisions[s.Revision] = true
 	}
+	// Each repository is read only from its own declared checkout, primary first (DCP-V1-176).
+	dirs, seen := []string{c.root}, map[string]bool{filepath.Clean(c.root): true}
+	for _, r := range c.manifest.AdditionalRepositories {
+		dir := c.manifest.RevisionRoot(c.root, r.Revision)
+		if seen[filepath.Clean(dir)] {
+			return fail("invalid additional repository declaration")
+		}
+		seen[filepath.Clean(dir)] = true
+		dirs = append(dirs, dir)
+	}
+	sessions := map[string]*gitauth.Repository{}
+	for i, dir := range dirs {
+		auth, err := gitauth.Open(dir, newGitBudget())
+		if err != nil {
+			if i > 0 {
+				return &Error{Code: "corpus-input-unavailable", Message: "additional repository checkout unavailable: " + c.manifest.AdditionalRepositories[i-1].ID}
+			}
+			return err
+		}
+		release := auth.BeginObjectSession()
+		defer release()
+		sessions[dir] = auth
+	}
 	indexes := map[string]*contextindex.Index{}
 	for rev := range revisions {
-		id, err := contextindex.CorpusRepositoryID(ctx, c.root, rev)
+		want, dir := c.manifest.revisionRepository(c.root, rev)
+		id, err := contextindex.CorpusRepositoryID(ctx, dir, rev)
 		if err != nil {
 			return err
 		}
-		if id != c.manifest.Repository.ID {
+		if id != want {
 			return fail("repository identity mismatch")
 		}
-		index, err := contextindex.BuildRevisionContext(ctx, c.root, rev)
+		index, err := contextindex.BuildRevisionContext(ctx, dir, rev)
 		if err != nil {
 			return err
 		}
@@ -440,18 +522,30 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 	}
 	// Admit every input from the index or its Git header before any body is
 	// read, so a capacity refusal precedes the expensive work (DCP-V1-157).
-	paths := map[string][]string{}
+	paths := map[string]map[string][]string{}
 	for _, in := range c.manifest.Inputs {
-		paths[in.Revision] = append(paths[in.Revision], in.Path)
+		dir := c.manifest.RevisionRoot(c.root, in.Revision)
+		if paths[dir] == nil {
+			paths[dir] = map[string][]string{}
+		}
+		paths[dir][in.Revision] = append(paths[dir][in.Revision], in.Path)
 	}
-	loader, err := stageInputs(ctx, auth, indexes, paths, encodingLimit(c.manifest))
-	if err != nil {
-		return err
+	loaders := map[string]*inputLoader{}
+	for _, dir := range dirs {
+		if paths[dir] == nil {
+			continue
+		}
+		loader, err := stageInputs(ctx, sessions[dir], indexes, paths[dir], encodingLimit(c.manifest))
+		if err != nil {
+			return err
+		}
+		loaders[dir] = loader
 	}
+	loaderFor := func(revision string) *inputLoader { return loaders[c.manifest.RevisionRoot(c.root, revision)] }
 	inputBytes := 0
 	charged := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
-		size, _, err := loader.admit(in.Revision, in.Path)
+		size, _, err := loaderFor(in.Revision).admit(in.Revision, in.Path)
 		if err != nil {
 			return err
 		}
@@ -463,11 +557,15 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 			}
 		}
 	}
-	if err := loader.read(ctx); err != nil {
-		return err
+	for _, dir := range dirs {
+		if loader := loaders[dir]; loader != nil {
+			if err := loader.read(ctx); err != nil {
+				return err
+			}
+		}
 	}
 	for _, in := range c.manifest.Inputs {
-		source, err := loader.source(in.Revision, in.Path)
+		source, err := loaderFor(in.Revision).source(in.Revision, in.Path)
 		if err != nil {
 			return err
 		}
@@ -661,7 +759,8 @@ func (c *compiler) anchor(revision, p string, start, end int, authority, kind, r
 	if err != nil {
 		return Anchor{}, located(err, p, start, end)
 	}
-	return Anchor{Repository: c.manifest.Repository.ID, Revision: revision, Path: p, Blob: source.BlobHash, SHA256: Digest(source.Data), Start: start, End: end, SpanSHA256: Digest(data), Authority: authority, Kind: kind, Reason: reason}, nil
+	repository, _ := c.manifest.revisionRepository(c.root, revision)
+	return Anchor{Repository: repository, Revision: revision, Path: p, Blob: source.BlobHash, SHA256: Digest(source.Data), Start: start, End: end, SpanSHA256: Digest(data), Authority: authority, Kind: kind, Reason: reason}, nil
 }
 
 // Open reconstructs all derived records before allowing a query.
