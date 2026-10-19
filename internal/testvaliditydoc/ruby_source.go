@@ -18,12 +18,26 @@ type rubySourceFile struct {
 	reason   string
 }
 
+// RubyReaders are the Ruby source readers that see the receipt's bound helper set: Examples reads
+// one spec file with the support files a helper call can resolve to (TSA-V0-088).
+// testsource.RSpecExampleSourcesWithSupport implements it; a nil member falls back to the plain
+// ExampleSourceReader.
+type RubyReaders struct {
+	Examples func(name, text string, support testvalidity.RubySupport) (map[int]testvalidity.ExampleSource, string)
+}
+
 // applyRubySources recomputes, in place, the hygiene and strength of each Ruby example whose
 // retained spec blob is bound (TSA-V0-068, TSA-V0-069). The spec file is read through the
 // confined, no-follow, bounded receipt reader and used only when its Git blob ID equals the
 // retained one; each file is read once. An example with no bound blob keeps its projection.
-func applyRubySources(tests []Test, document rubytestprovider.Document, worktree *os.Root, read ExampleSourceReader) {
+func applyRubySources(tests []Test, document rubytestprovider.Document, worktree *os.Root, read ExampleSourceReader, ruby RubyReaders) {
 	files := map[string]rubySourceFile{}
+	bound := boundRubyFiles{worktree: worktree, document: document, texts: map[string]*string{}}
+	if ruby.Examples != nil {
+		read = func(name, text string) (map[int]testvalidity.ExampleSource, string) {
+			return ruby.Examples(name, text, bound.support())
+		}
+	}
 	for index, example := range document.Examples {
 		if index >= len(tests) || tests[index].ID != example.ID || example.SpecBlob == "" {
 			continue
@@ -44,6 +58,62 @@ func applyRubySources(tests []Test, document rubytestprovider.Document, worktree
 		tests[index].Projection = testvalidity.ApplyExampleSource(tests[index].Projection, source, example.ID)
 		tests[index].SourceRules = &source
 	}
+}
+
+// boundRubyFiles reads worktree files only when their Git blob ID equals the one the receipt
+// retained, caching each read.
+type boundRubyFiles struct {
+	worktree *os.Root
+	document rubytestprovider.Document
+	texts    map[string]*string
+	helpers  *testvalidity.RubySupport
+}
+
+func (b *boundRubyFiles) text(name, blob string) (string, bool) {
+	key := name + "\x00" + blob
+	if text, ok := b.texts[key]; ok {
+		return derefText(text)
+	}
+	var text *string
+	if !namesGit(name) {
+		if data, err := ReadFile(b.worktree, filepath.FromSlash(name)); err == nil && rubytestprovider.BlobID(b.document.ObjectFormat, data) == blob {
+			s := string(data)
+			text = &s
+		}
+	}
+	b.texts[key] = text
+	return derefText(text)
+}
+
+func derefText(text *string) (string, bool) {
+	if text == nil {
+		return "", false
+	}
+	return *text, true
+}
+
+// support is the receipt's bound helper set, each file read only when its blob still matches; an
+// unbound set or any changed helper leaves it unbound with a reason (TSA-V0-088).
+func (b *boundRubyFiles) support() testvalidity.RubySupport {
+	if b.helpers != nil {
+		return *b.helpers
+	}
+	support := testvalidity.RubySupport{Files: map[string]string{}, Unbound: b.document.HelpersUnbound}
+	for _, helper := range b.document.Helpers {
+		if support.Unbound != "" {
+			break
+		}
+		if text, ok := b.text(helper.Path, helper.Blob); ok {
+			support.Files[helper.Path] = text
+		} else {
+			support.Unbound = testvalidity.HygieneReasonRSpecSourceUnbound
+		}
+	}
+	if support.Unbound != "" {
+		support.Files = nil
+	}
+	b.helpers = &support
+	return support
 }
 
 func readRubySource(worktree *os.Root, format string, example rubytestprovider.Example, read ExampleSourceReader) rubySourceFile {

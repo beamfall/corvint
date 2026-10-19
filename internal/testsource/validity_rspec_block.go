@@ -40,6 +40,7 @@ var (
 // its logical lines, the head and the closing `end` included.
 type rspecHelper struct {
 	group int
+	path  string
 	body  []rubyLine
 }
 
@@ -57,13 +58,14 @@ type blockDefect struct {
 
 // blockNotCalled reports each defective helper at its definition and each example in its scope
 // that calls it with a block (TSA-V0-054).
-func (r *rspecReader) blockNotCalled(path string) []testvalidity.SourceFinding {
+func (r *rspecReader) blockNotCalled() []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
 	for h, helper := range r.helpers {
 		d := helperDefect(helper.body)
 		if !d.reported {
 			continue
 		}
+		path := helper.path
 		def := fmt.Sprintf("%s:%d", path, helper.body[0].line)
 		message := fmt.Sprintf("%s takes a block but never calls it on any path, so the block each example passes never runs and its expectations prove nothing; call it (block.call or yield) or pass it on with &%s", d.name, d.param)
 		if d.param == "" {
@@ -77,18 +79,35 @@ func (r *rspecReader) blockNotCalled(path string) []testvalidity.SourceFinding {
 			Test: def, Title: d.name, Location: fmt.Sprintf("%s:%d", path, d.line), Cause: def, Message: message,
 		})
 		for _, e := range r.examples {
-			call := helperCall(e.body, d.name)
-			if call == 0 || r.resolveHelper(e.group, d.name) != h {
-				continue
-			}
-			out = append(out, testvalidity.SourceFinding{
-				Rule: testvalidity.RuleBlockNotCalled, Severity: testvalidity.SeverityInvalid,
-				Test: fmt.Sprintf("%s:%d", path, e.line), Title: e.title, Location: fmt.Sprintf("%s:%d", path, call), Cause: def,
-				Message: fmt.Sprintf("the block this example passes to %s never runs, because the helper at %s does not call it, so the example passes whatever the code under test does; fix the helper", d.name, def),
-			})
+			out = append(out, r.blockNotCalledAt(e, h, d)...)
 		}
 	}
 	return out
+}
+
+// blockNotCalledFor returns the BLOCK-NOT-CALLED findings of one example only (TSA-V0-054).
+func (r *rspecReader) blockNotCalledFor(e rspecExample) []testvalidity.SourceFinding {
+	out := []testvalidity.SourceFinding{}
+	for h, helper := range r.helpers {
+		if d := helperDefect(helper.body); d.reported {
+			out = append(out, r.blockNotCalledAt(e, h, d)...)
+		}
+	}
+	return out
+}
+
+// blockNotCalledAt is the finding of example e when it passes defective helper h a block.
+func (r *rspecReader) blockNotCalledAt(e rspecExample, h int, d blockDefect) []testvalidity.SourceFinding {
+	call := helperCall(e.body, d.name)
+	if call == 0 || r.resolveHelper(e.group, d.name) != h {
+		return nil
+	}
+	def := fmt.Sprintf("%s:%d", r.helpers[h].path, r.helpers[h].body[0].line)
+	return []testvalidity.SourceFinding{{
+		Rule: testvalidity.RuleBlockNotCalled, Severity: testvalidity.SeverityInvalid,
+		Test: fmt.Sprintf("%s:%d", e.path, e.line), Title: e.title, Location: fmt.Sprintf("%s:%d", e.path, call), Cause: def,
+		Message: fmt.Sprintf("the block this example passes to %s never runs, because the helper at %s does not call it, so the example passes whatever the code under test does; fix the helper", d.name, def),
+	}}
 }
 
 // resolveHelper returns the index of the helper named name that an example of group g calls: the
@@ -109,7 +128,11 @@ func (r *rspecReader) resolveHelper(g int, name string) int {
 }
 
 func helperName(body []rubyLine) string {
-	if m := rspecDefHead.FindStringSubmatch(stripRubyStrings(body[0].text)); m != nil {
+	head := stripRubyStrings(body[0].text)
+	if rubyOneLine.MatchString(head) {
+		head, _, _ = strings.Cut(head, ";") // a one-line def (TSA-V0-084)
+	}
+	if m := rspecDefHead.FindStringSubmatch(strings.TrimSpace(head)); m != nil {
 		return m[1]
 	}
 	return ""

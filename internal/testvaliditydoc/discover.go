@@ -129,6 +129,12 @@ func Discover(root string) (Document, error) {
 // The reader is passed in because internal/testsource imports this package transitively; nil reads
 // no test source.
 func DiscoverWithSources(root string, sources ExampleSourceReader) (Document, error) {
+	return DiscoverWithReaders(root, sources, RubyReaders{})
+}
+
+// DiscoverWithReaders is DiscoverWithSources with the Ruby readers that resolve helpers across the
+// receipt's bound support files (TSA-V0-088).
+func DiscoverWithReaders(root string, sources ExampleSourceReader, ruby RubyReaders) (Document, error) {
 	worktree, err := os.OpenRoot(root)
 	if err != nil {
 		return Document{}, locationError("worktree root cannot be opened")
@@ -179,7 +185,7 @@ func DiscoverWithSources(root string, sources ExampleSourceReader) (Document, er
 		discovery.Abstention = runtimeAbstention(input)
 		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
 		if input.ruby != nil && sources != nil {
-			applyRubySources(document.Tests, *input.ruby, worktree, sources)
+			applyRubySources(document.Tests, *input.ruby, worktree, sources, ruby)
 		}
 		if input.js != nil && sources != nil {
 			applyJSSources(document.Tests, *input.js, worktree, root, sources)

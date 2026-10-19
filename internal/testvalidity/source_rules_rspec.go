@@ -18,7 +18,31 @@ const (
 	// RuleDescribedClassStubbed: the example or a hook on its chain stubs described_class, so an
 	// expectation can observe the stub instead of the unit under test (TSA-V0-066).
 	RuleDescribedClassStubbed = "DESCRIBED-CLASS-STUBBED"
+	// RuleRBBlockNeverYielded: the example passes a block to a helper whose definition takes no
+	// block parameter and never yields, so Ruby discards the block (TSA-V0-084).
+	RuleRBBlockNeverYielded = "RB-BLOCK-NEVER-YIELDED"
+	// RuleRBChangeOnIdentity: a negated change matcher observes a record or its reload, which
+	// compares by identity, so attribute changes never register (TSA-V0-085).
+	RuleRBChangeOnIdentity = "RB-CHANGE-ON-IDENTITY"
+	// RuleRBAssignmentInPredicate: a satisfy block ends in an assignment, so it is always truthy
+	// (TSA-V0-086).
+	RuleRBAssignmentInPredicate = "RB-ASSIGNMENT-IN-PREDICATE"
+	// RuleRBRaiseErrorOnly: every expectation of the example is a negated raise_error; advisory
+	// only (TSA-V0-087).
+	RuleRBRaiseErrorOnly = "RB-RAISE-ERROR-ONLY"
+	// RuleRBHelperUnresolved and RuleRBHelperAmbiguous: the example passes a block to a helper the
+	// reader cannot resolve to one bound definition, so it abstains (TSA-V0-088).
+	RuleRBHelperUnresolved = "RB-HELPER-UNRESOLVED"
+	RuleRBHelperAmbiguous  = "RB-HELPER-AMBIGUOUS"
 )
+
+// RubySupport is the bound support Ruby source an RSpec example can reach without a require the
+// reader follows: spec/spec_helper.rb, spec/rails_helper.rb and spec/support/**/*.rb, keyed by
+// path. Unbound is the reason the set could not be bound, or "" (TSA-V0-088).
+type RubySupport struct {
+	Files   map[string]string
+	Unbound string
+}
 
 // Hygiene and strength reasons of the RSpec example facts (TSA-V0-068..070).
 const (

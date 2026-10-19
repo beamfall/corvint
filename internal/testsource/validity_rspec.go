@@ -49,12 +49,18 @@ type rspecGroup struct {
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
+	// path is the file the group is declared in; loop marks a group declared inside a non-group
+	// block (a loop or a conditional), whose RSpec index cannot be read.
+	path  string
+	loop  bool
+	index int // the index of the declaring line in the reader's lines
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
 // its block invokes. A let! or subject! hook calls its helper (own) by name, so its body's names
 // count only while that helper is not overridden in a nested group.
 type rspecHook struct {
+	path  string
 	line  int
 	kind  string
 	own   string
@@ -64,18 +70,29 @@ type rspecHook struct {
 
 type rspecExample struct {
 	group int
+	path  string
 	line  int
 	title string
 	body  []rubyLine
+	loop  bool
+	index int // the index of the declaring line in the reader's lines
 }
 
 type rspecReader struct {
+	path     string
 	depth    int  // open blocks around the line being read
 	tooDeep  bool // the last block call failed on nesting depth
 	lines    []rubyLine
 	groups   []rspecGroup
 	examples []rspecExample
 	helpers  []rspecHelper
+	includes []rspecInclude
+	// offGroupDefs are defs inside a module, class or other block: candidates the example
+	// helper resolution cannot reach (TSA-V0-088).
+	offGroupDefs []rspecHelper
+	// support is the bound support set helpers resolve against, or nil when none was given
+	// (TSA-V0-088).
+	support *rspecSupport
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a
@@ -85,39 +102,105 @@ type rspecReader struct {
 // too deeply (TSA-V0-050).
 func rspecValidity(name, text string) ValidityReport {
 	report := ValidityReport{Findings: []testvalidity.SourceFinding{}}
-	r := &rspecReader{lines: rubyLines(text), groups: []rspecGroup{{parent: -1, decls: map[string]string{}}}}
+	r := newRSpecReader(name, text)
 	if reason := r.read(); reason != "" {
 		report.Uncertain, report.Reason = true, reason
 		return report
 	}
 	for _, e := range r.examples {
-		for _, target := range blockExpectations(e.body) {
-			canonical := r.canonical(e.group, target.name)
-			if canonical == "" {
-				continue
-			}
-			hook, kind, ok := r.memoizingHook(e.group, canonical)
-			if !ok {
-				continue
-			}
-			test := fmt.Sprintf("%s:%d", name, e.line)
-			cause := fmt.Sprintf("%s:%d", name, hook)
-			report.Findings = append(report.Findings, testvalidity.SourceFinding{
-				Rule: testvalidity.RuleMemoizedBlockExpectation, Severity: testvalidity.SeverityInvalid,
-				Test: test, Title: e.title, Location: fmt.Sprintf("%s:%d", name, target.line), Cause: cause,
-				Message: fmt.Sprintf("expect { %s } re-reads a value the %s at %s already memoized, so the block runs nothing and a change, raise_error or have_received expectation on it is vacuous; call the action inside the block (for example expect { %s.perform }) or stop invoking %s in that hook", target.name, kind, cause, target.name, target.name),
-			})
-		}
+		report.Findings = append(report.Findings, r.memoizedFindings(e)...)
 	}
-	report.Findings = append(report.Findings, r.blockNotCalled(name)...)
+	report.Findings = append(report.Findings, r.blockNotCalled()...)
 	return report
+}
+
+// newRSpecReader returns a reader over one file's logical lines, with the file-level root group.
+func newRSpecReader(path, text string) *rspecReader {
+	lines := rubyLines(text)
+	for i := range lines {
+		lines[i].path = path
+	}
+	return &rspecReader{path: path, lines: lines, groups: []rspecGroup{{parent: -1, decls: map[string]string{}, path: path}}}
+}
+
+// Frames of read that are not example groups.
+const (
+	frameOther   = -1 // any block that is not an example group: a loop, conditional, class or helper
+	frameInclude = -2 // the customization block of an inline include, read as part of its group
+)
+
+// rspecIncludeLine is a shared group inclusion (TSA-V0-088).
+var rspecIncludeLine = regexp.MustCompile(`^(?:RSpec\.)?(it_behaves_like|it_should_behave_like|include_examples|include_context)\b`)
+
+// rspecInclude is one shared group inclusion: its index in lines, the group it is called in, the
+// group it creates (it_behaves_like with a block) or -1, its kind and the shared group's name.
+type rspecInclude struct {
+	index, group, nested int
+	line                 int
+	path                 string
+	kind, name           string
+	literal, loop        bool
+}
+
+func (r *rspecReader) addInclude(group, i, nested int, loop bool) {
+	text := r.lines[i].text
+	kind := rspecIncludeLine.FindStringSubmatch(text)[1]
+	name, literal := sharedName(strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(text, "RSpec."), kind)))
+	r.includes = append(r.includes, rspecInclude{index: i, group: group, nested: nested, line: r.lines[i].line, path: r.lines[i].path, kind: kind, name: name, literal: literal, loop: loop})
+}
+
+// rspecSharedName is the first argument of a shared group definition or inclusion: a string
+// literal without interpolation, or a symbol.
+var rspecSharedName = regexp.MustCompile(`^\(?\s*(?:'([^'\\]*)'|"([^"\\#]*)"|:(\w+[?!]?))\s*(?:[,)]|do\b|\{|$)`)
+
+// sharedName returns the literal name an argument list starts with, or false when it is not a
+// plain literal.
+func sharedName(args string) (string, bool) {
+	m := rspecSharedName.FindStringSubmatch(args)
+	if m == nil {
+		return "", false
+	}
+	return m[1] + m[2] + m[3], true
+}
+
+// memoizedFindings returns the MEMOIZED-BLOCK-EXPECTATION findings of one example (TSA-V0-048).
+func (r *rspecReader) memoizedFindings(e rspecExample) []testvalidity.SourceFinding {
+	out := []testvalidity.SourceFinding{}
+	for _, target := range blockExpectations(e.body) {
+		canonical := r.canonical(e.group, target.name)
+		if canonical == "" {
+			continue
+		}
+		hook, kind, ok := r.memoizingHook(e.group, canonical)
+		if !ok {
+			continue
+		}
+		test := fmt.Sprintf("%s:%d", e.path, e.line)
+		cause := fmt.Sprintf("%s:%d", hook.path, hook.line)
+		out = append(out, testvalidity.SourceFinding{
+			Rule: testvalidity.RuleMemoizedBlockExpectation, Severity: testvalidity.SeverityInvalid,
+			Test: test, Title: e.title, Location: fmt.Sprintf("%s:%d", e.path, target.line), Cause: cause,
+			Message: fmt.Sprintf("expect { %s } re-reads a value the %s at %s already memoized, so the block runs nothing and a change, raise_error or have_received expectation on it is vacuous; call the action inside the block (for example expect { %s.perform }) or stop invoking %s in that hook", target.name, kind, cause, target.name, target.name),
+		})
+	}
+	return out
 }
 
 // read walks the logical lines once, building groups, their declarations and hooks, and the
 // examples. It returns an uncertainty reason, or "" when every block balanced.
 func (r *rspecReader) read() string {
-	type frame struct{ group int } // group >= 0 for an example group, -1 for any other block
+	// group >= 0 for an example group, frameInclude for the customization block of an inline
+	// include (read as part of the enclosing group), frameOther for any other block.
+	type frame struct{ group int }
 	stack := []frame{}
+	inLoop := func() bool {
+		for k := len(stack) - 1; k >= 0 && stack[k].group < 0; k-- {
+			if stack[k].group == frameOther {
+				return true
+			}
+		}
+		return false
+	}
 	current := func() int {
 		for k := len(stack) - 1; k >= 0; k-- {
 			if stack[k].group >= 0 {
@@ -139,8 +222,16 @@ func (r *rspecReader) read() string {
 		group := current()
 		switch {
 		case rspecGroupLine.MatchString(text) && rubyDo.MatchString(text):
-			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}, line: r.lines[i].line, head: text})
+			r.groups = append(r.groups, rspecGroup{parent: group, decls: map[string]string{}, line: r.lines[i].line, head: text, path: r.lines[i].path, loop: inLoop(), index: i})
 			stack = append(stack, frame{group: len(r.groups) - 1})
+			if rspecIncludeLine.MatchString(text) {
+				r.addInclude(group, i, len(r.groups)-1, inLoop())
+			}
+		case rspecIncludeLine.MatchString(text):
+			r.addInclude(group, i, -1, inLoop())
+			if rubyDo.MatchString(text) {
+				stack = append(stack, frame{group: frameInclude})
+			}
 		case rspecExampleLine.MatchString(text):
 			body, end, ok := r.block(i)
 			if !ok {
@@ -150,7 +241,7 @@ func (r *rspecReader) read() string {
 			if m := rspecTitle.FindStringSubmatch(text); m != nil {
 				title = m[1] + m[2]
 			}
-			r.examples = append(r.examples, rspecExample{group: group, line: r.lines[i].line, title: title, body: body})
+			r.examples = append(r.examples, rspecExample{group: group, path: r.lines[i].path, line: r.lines[i].line, title: title, body: body, loop: inLoop(), index: i})
 			i = end
 		case rspecDeclLine.MatchString(text):
 			m := rspecDeclLine.FindStringSubmatch(text)
@@ -174,7 +265,7 @@ func (r *rspecReader) read() string {
 				if kind == "subject" {
 					own = "subject"
 				}
-				g.hooks = append(g.hooks, rspecHook{line: r.lines[i].line, kind: m[1], own: own, names: invokedNames(body), body: body})
+				g.hooks = append(g.hooks, rspecHook{path: r.lines[i].path, line: r.lines[i].line, kind: m[1], own: own, names: invokedNames(body), body: body})
 			}
 			i = end
 		case rspecHookLine.MatchString(text) && (rubyDo.MatchString(text) || strings.Contains(text, "{")):
@@ -184,7 +275,7 @@ func (r *rspecReader) read() string {
 			}
 			switch rspecHookLine.FindStringSubmatch(text)[1] {
 			case "", "each", "example":
-				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
+				r.groups[group].hooks = append(r.groups[group].hooks, rspecHook{path: r.lines[i].path, line: r.lines[i].line, kind: "before", names: invokedNames(body), body: body})
 			}
 			i = end
 		case rspecSkippedLine.MatchString(text):
@@ -195,11 +286,13 @@ func (r *rspecReader) read() string {
 			// A def directly in an example group or at file level is a helper an example can call;
 			// one inside a class, module or other block is not read (TSA-V0-053).
 			if strings.HasPrefix(text, "def") && (len(stack) == 0 || stack[len(stack)-1].group >= 0) {
-				r.helpers = append(r.helpers, rspecHelper{group: group, body: body})
+				r.helpers = append(r.helpers, rspecHelper{group: group, path: r.lines[i].path, body: body})
+			} else if strings.HasPrefix(text, "def") {
+				r.offGroupDefs = append(r.offGroupDefs, rspecHelper{group: -1, path: r.lines[i].path, body: body})
 			}
 			i = end
 		case rubyOpens(text):
-			stack = append(stack, frame{group: -1})
+			stack = append(stack, frame{group: frameOther})
 		}
 		if len(stack) > maxRSpecDepth {
 			return validityRSpecTooDeep
@@ -219,7 +312,7 @@ func (r *rspecReader) block(i int) ([]rubyLine, int, bool) {
 	r.tooDeep = false
 	text := r.lines[i].text
 	end := -1
-	if rubyDo.MatchString(text) || rubyOpener.MatchString(text) {
+	if rubyOpens(text) {
 		if end = rubyBlockEnd(r.lines, i); end >= len(r.lines) {
 			end = -1
 		}
@@ -394,15 +487,15 @@ func (r *rspecReader) declaring(g int, name string) int {
 	return -1
 }
 
-// memoizingHook returns the line and kind of the first hook, innermost group first, then in
-// source order, of group g or an enclosing group that invokes the canonical helper. A hook in a
-// sibling group is never on the chain.
-func (r *rspecReader) memoizingHook(g int, canonical string) (int, string, bool) {
+// memoizingHook returns the first hook, innermost group first, then in source order, of group g
+// or an enclosing group that invokes the canonical helper, and its kind. A hook in a sibling group
+// is never on the chain.
+func (r *rspecReader) memoizingHook(g int, canonical string) (rspecHook, string, bool) {
 	for start := g; g >= 0; g = r.groups[g].parent {
 		for _, h := range r.groups[g].hooks {
 			if h.own != "" {
 				if r.canonical(start, h.own) == canonical {
-					return h.line, h.kind, true
+					return h, h.kind, true
 				}
 				if d := r.declaring(start, h.own); d >= 0 && d != g {
 					continue // the helper is overridden below this hook's group; its body never runs
@@ -410,10 +503,10 @@ func (r *rspecReader) memoizingHook(g int, canonical string) (int, string, bool)
 			}
 			for name := range h.names {
 				if r.canonical(start, name) == canonical {
-					return h.line, h.kind, true
+					return h, h.kind, true
 				}
 			}
 		}
 	}
-	return 0, "", false
+	return rspecHook{}, "", false
 }

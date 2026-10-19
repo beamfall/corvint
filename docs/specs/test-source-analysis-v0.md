@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159 and V1-1866 / GitHub #1163 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -866,6 +866,97 @@ persisted.
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
+
+## Ruby vacuous examples and cross-file helpers in test-validity (V1-1866)
+
+V1-1866 (GitHub #1163) adds RSpec example rules for assertions that cannot fail, found in an
+adopter's suite: a block passed to a helper that never yields it, a negated `change` over a record
+identity, and a `satisfy` predicate that assigns. A helper is often defined in an included shared
+context in `spec/support`, so the reading resolves helper calls across the support files a run
+loads, bound to their content. It is agent-drafted and accepted under the owner's standing
+auto-accept (2026-10-11). The reader is the TSA-V0-062 line reader; it adds no Ruby parser.
+
+- `TSA-V0-084`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get an
+  `invalid` `RB-BLOCK-NEVER-YIELDED` finding when its body passes a block (`name do` or `name {`)
+  to a helper call that resolves (TSA-V0-088) to a `def` with no `&` or `...` parameter whose body
+  holds no nested `def`, no interpolation or heredoc, and none of `yield`, `block_given?`,
+  `iterator?`, `super`, `binding`, `proc`, `Proc`, `lambda`, `define_method`, the `eval` and
+  `exec` family, `send`, `__send__`, `public_send` or `method_missing`. A one-line
+  `def name; …; end` and an endless `def name = …` are helpers. Its location is the call line and its cause the `def` line,
+  in whichever file defines it. RSpec DSL calls (`expect`, `let`, `change`, `satisfy`,
+  `allow`, Rails and Ruby block words such as `travel_to`, `each` and `tap`, hooks and the example
+  and group words) are never helper calls.
+- `TSA-V0-085`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get an
+  `invalid` `RB-CHANGE-ON-IDENTITY` finding for `not_to change { X.reload }` or
+  `to_not change { X.reload }` whose block ends at the `reload`: the reloaded record compares equal
+  by identity whatever its attributes do. `change { X.reload.attr }` and a positive `to change`
+  give none. Location is the expectation line, cause the example.
+- `TSA-V0-086`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get an
+  `invalid` `RB-ASSIGNMENT-IN-PREDICATE` finding when the last statement of a one-line
+  `satisfy { |x| … }` block, or the last line of a `satisfy do |x| … end` block, is an assignment
+  or operator assignment (`=`, `||=`, `&&=`, `+=`, …) to a name, index or attribute, but not a
+  comparison (`==`, `=~`, `=>`): the predicate returns the assigned, usually truthy, value.
+  Location is the `satisfy` line, cause the example.
+- `TSA-V0-087`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example whose every
+  expectation is a negated `raise_error`, and whose title holds none of the case-insensitive
+  stems `rais`, `error`, `exception`, `fail`, `crash`, `blow`, `explod`, `succeed`, `success`,
+  `work`, `run`, `handle` or `accept`, MUST get an `advisory` `RB-RAISE-ERROR-ONLY` finding
+  located and caused at the example. Advisory findings leave hygiene `ELIGIBLE`.
+- `TSA-V0-088`: (standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) A helper call MUST
+  resolve to the nearest definition: a `def` in the example's group or an ancestor, then a `def`
+  in a shared context that group includes with `include_context` or `include_examples`, the later
+  line winning within one group, then a file-level `def`. Shared contexts are looked up in the spec
+  file and in `testvalidity.RubySupport`, the bound support set (`spec/spec_helper.rb`,
+  `spec/rails_helper.rb`, `spec/support/**/*.rb`).
+  - `corvint tests validity` reads the support set at the same commit; discovery uses the
+    receipt's retained helper set, each file only when its blob still matches.
+  - A shared context named by a non-literal, defined in no read file, or not readable, and a
+    module or class `def` the reader does not follow, MUST give an `abstained`
+    `RB-HELPER-UNRESOLVED` finding; two definitions MUST give `RB-HELPER-AMBIGUOUS`. Location is
+    the call, cause the include or `def`. They are emitted only for a block-passing call that
+    could resolve to a never-yielding `def`, or when the support set is unbound.
+  - `ApplySourceFindings` MUST make an `ELIGIBLE` axis `ABSTAINED` with the first abstained
+    rule as reason when no finding is invalid; an invalid finding still wins.
+  - `RSpecExampleSources` without a support set reads it as unbound,
+    `rspec-support-not-given`.
+
+Non-goals:
+- following `include` of Ruby modules, `config.include`, method_missing, `define_method` or
+  `alias`;
+- judging whether a yielded block asserts, or whether a negated change is meaningful elsewhere;
+- reading the code under test.
+
+Failure modes:
+- A helper that forwards its block implicitly through `super` or `send` is not flagged; one
+  that hands it on through a method the reader cannot see (for example a module method given the
+  block with `&`) is excluded by the `&` parameter rule, so the rule under-reports rather than
+  guesses.
+- A support set over the provider bounds is unbound, so block-passing calls abstain instead of
+  flagging.
+- The line reader inherits TSA-V0-062's uncertainty; an unbalanced file abstains whole.
+
+Acceptance evidence: synthetic fixtures only.
+- A spec and a support shared context with a never-yielding helper, a yielding one, a
+  `block.call` one and a local override (`TestRSpecBlockNeverYieldedAcrossFiles`), and a same-file
+  one-line def (`TestRSpecBlockNeverYieldedSameFile`).
+- Each abstention: unbound support, context not found, two definitions, non-literal include and a
+  module def (`TestRSpecHelperAbstentions`).
+- Clean and flagged forms of TSA-V0-085..087.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/validity_rspec_vacuous.go`, its test, the `RB-*` rules and
+`SeverityAbstained`, the support plumbing in `validity_command.go` and this section; callers go
+back to `RSpecExampleSources`. Nothing is persisted.
+
+### Traceability (V1-1866)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-084 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_rspec_block.go` | `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecBlockNeverYieldedSameFile` | experimental |
+| TSA-V0-085 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecChangeOnIdentity` | experimental |
+| TSA-V0-086 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecAssignmentInPredicate` | experimental |
+| TSA-V0-087 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecRaiseErrorOnlyIsAdvisory` | experimental |
+| TSA-V0-088 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testvalidity/source_rules.go`, `internal/testsource/validity_command.go` | `TestRSpecHelperAbstentions`, `TestRSpecBlockNeverYieldedAcrossFiles` | experimental |
 
 ## Decision file format
 

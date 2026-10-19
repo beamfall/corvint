@@ -68,12 +68,16 @@ committed files (each at most 1 MiB). To a JS/TS test file: ISOLATED-IN-SERIAL,
 JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
 JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED and
 JS-BOUNDARY-MOCKED. To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
-RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY and the advisory
-DESCRIBED-CLASS-STUBBED. It prints one corvint-test-source-validity/0
-document: each file's findings (uncertain with a reason where the reader
-abstained) and the tests. A JS/TS file lists every example in line order with
-its hygiene and a NOT_MEASURED strength; other files list each test a finding
-names with the hygiene those findings give it. Exit 1 when an invalid finding
+RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
+RB-CHANGE-ON-IDENTITY, RB-ASSIGNMENT-IN-PREDICATE and the advisory
+DESCRIBED-CLASS-STUBBED and RB-RAISE-ERROR-ONLY; a helper the reader cannot
+resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
+abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. It prints one
+corvint-test-source-validity/0 document: each file's findings (uncertain with
+a reason where the reader abstained) and the tests. A JS/TS file lists every
+example in line order with its hygiene and a NOT_MEASURED strength; other
+files list each test a finding names with the hygiene those findings give it.
+Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
 
 Reads committed Git content only; writes nothing and uses no network.
@@ -81,7 +85,7 @@ Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858).
+V1-1592, V1-1798, V1-1858, V1-1866).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.

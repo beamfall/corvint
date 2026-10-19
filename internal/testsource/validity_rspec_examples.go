@@ -33,6 +33,12 @@ var (
 // not "" the map is empty. The findings are the ValidityFindings that name the example followed by
 // TSA-V0-063..066 in rule order. Any other file, or a file over MaxFileBytes, is uncertain.
 func RSpecExampleSources(name, text string) (map[int]testvalidity.ExampleSource, string) {
+	return RSpecExampleSourcesWithSupport(name, text, testvalidity.RubySupport{Unbound: "rspec-support-not-given"})
+}
+
+// RSpecExampleSourcesWithSupport is RSpecExampleSources with the bound support files a helper
+// call can resolve to (TSA-V0-088).
+func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.RubySupport) (map[int]testvalidity.ExampleSource, string) {
 	out := map[int]testvalidity.ExampleSource{}
 	if !strings.HasSuffix(name, "_spec.rb") {
 		return out, "not-an-rspec-file"
@@ -41,10 +47,11 @@ func RSpecExampleSources(name, text string) (map[int]testvalidity.ExampleSource,
 	if base.Uncertain {
 		return out, base.Reason
 	}
-	r := &rspecReader{lines: rubyLines(text), groups: []rspecGroup{{parent: -1, decls: map[string]string{}}}}
+	r := newRSpecReader(name, text)
 	if reason := r.read(); reason != "" {
 		return out, reason
 	}
+	r.support = newRSpecSupport(support)
 	byTest := map[string][]testvalidity.SourceFinding{}
 	for _, f := range base.Findings {
 		byTest[f.Test] = append(byTest[f.Test], f)
@@ -52,8 +59,8 @@ func RSpecExampleSources(name, text string) (map[int]testvalidity.ExampleSource,
 	for _, e := range r.examples {
 		test := fmt.Sprintf("%s:%d", name, e.line)
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
-		findings = append(findings, r.exampleFindings(name, test, e)...)
-		count, anchors := expectations(name, e.body)
+		findings = append(findings, r.exampleFindings(test, e)...)
+		count, anchors := expectations(e.path, e.body)
 		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors}
 	}
 	return out, ""
@@ -61,52 +68,57 @@ func RSpecExampleSources(name, text string) (map[int]testvalidity.ExampleSource,
 
 // exampleFindings returns the TSA-V0-063..066 findings of one example: at most one finding per
 // rule, the example's own declaration first and then the innermost group.
-func (r *rspecReader) exampleFindings(name, test string, e rspecExample) []testvalidity.SourceFinding {
-	at := func(line int) string { return fmt.Sprintf("%s:%d", name, line) }
+func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidity.SourceFinding {
+	at := func(line int) string { return fmt.Sprintf("%s:%d", e.path, line) }
 	finding := func(rule, severity, location, cause, message string) testvalidity.SourceFinding {
 		return testvalidity.SourceFinding{Rule: rule, Severity: severity, Test: test, Title: e.title, Location: location, Cause: cause, Message: message}
 	}
 	out := []testvalidity.SourceFinding{}
-	skipped, focused, shared := 0, 0, 0
+	// Each cause is the `path:line` of the declaration that skips, focuses or shares the example;
+	// through a support file it can sit in another file (TSA-V0-088).
+	skipped, focused, shared := "", "", ""
 	head := e.body[0].text
 	switch declarator(head) {
 	case "xit", "xspecify", "xexample", "xscenario", "skip", "pending":
-		skipped = e.line
+		skipped = at(e.line)
 	case "fit", "fspecify", "fexample", "fscenario", "focus":
-		focused = e.line
+		focused = at(e.line)
 	}
 	s, f := metadata(head)
-	skipped, focused = pick(skipped, s, e.line), pick(focused, f, e.line)
-	if skipped == 0 {
-		skipped = skipStatement(e.body)
+	skipped, focused = pickCause(skipped, s, at(e.line)), pickCause(focused, f, at(e.line))
+	if skipped == "" {
+		if line := skipStatement(e.body); line != 0 {
+			skipped = at(line)
+		}
 	}
 	for g := e.group; g > 0; g = r.groups[g].parent {
 		group := r.groups[g]
 		word := declarator(group.head)
 		s, f := metadata(group.head)
-		skipped = pick(skipped, s || word == "xdescribe" || word == "xcontext", group.line)
-		focused = pick(focused, f || word == "fdescribe" || word == "fcontext", group.line)
-		if shared == 0 && (word == "shared_examples" || word == "shared_examples_for" || word == "shared_context") {
-			shared = group.line
+		cause := fmt.Sprintf("%s:%d", group.path, group.line)
+		skipped = pickCause(skipped, s || word == "xdescribe" || word == "xcontext", cause)
+		focused = pickCause(focused, f || word == "fdescribe" || word == "fcontext", cause)
+		if shared == "" && sharedDefinitionWords[word] {
+			shared = cause
 		}
 	}
-	if skipped != 0 {
-		out = append(out, finding(testvalidity.RuleRSpecSkipped, testvalidity.SeverityInvalid, at(e.line), at(skipped),
+	if skipped != "" {
+		out = append(out, finding(testvalidity.RuleRSpecSkipped, testvalidity.SeverityInvalid, at(e.line), skipped,
 			"the example is skipped or pending, so its result proves nothing about the code; remove the skip, pending, x-prefix or skip metadata"))
 	}
-	if focused != 0 {
-		out = append(out, finding(testvalidity.RuleRSpecFocused, testvalidity.SeverityInvalid, at(e.line), at(focused),
+	if focused != "" {
+		out = append(out, finding(testvalidity.RuleRSpecFocused, testvalidity.SeverityInvalid, at(e.line), focused,
 			"the example or a group around it is focused, so a run filters the suite to it; remove the f-prefix or focus metadata"))
 	}
-	if shared != 0 {
-		out = append(out, finding(testvalidity.RuleSharedExampleOnly, testvalidity.SeverityInvalid, at(e.line), at(shared),
+	if shared != "" {
+		out = append(out, finding(testvalidity.RuleSharedExampleOnly, testvalidity.SeverityInvalid, at(e.line), shared,
 			"the example is declared in a shared example group, so its assertion runs only through an including group the cited file:line does not name; cite an example in the including spec"))
 	}
-	if location, cause, ok := r.describedClassStub(name, e); ok {
+	if location, cause, ok := r.describedClassStub(e); ok {
 		out = append(out, finding(testvalidity.RuleDescribedClassStubbed, testvalidity.SeverityAdvisory, location, cause,
 			"described_class is stubbed, so an expectation can observe the stub instead of the unit under test"))
 	}
-	return out
+	return append(out, r.vacuousFindings(test, e)...)
 }
 
 func pick(current int, hit bool, line int) int {
@@ -115,6 +127,16 @@ func pick(current int, hit bool, line int) int {
 	}
 	return current
 }
+
+func pickCause(current string, hit bool, cause string) string {
+	if current == "" && hit {
+		return cause
+	}
+	return current
+}
+
+// sharedDefinitionWords are the declarators of a shared group definition.
+var sharedDefinitionWords = map[string]bool{"shared_examples": true, "shared_examples_for": true, "shared_context": true}
 
 // declarator returns a group or example line's first word, after any `RSpec.` receiver.
 func declarator(head string) string {
@@ -187,15 +209,14 @@ func expectations(name string, body []rubyLine) (int, []string) {
 // describedClassStub returns the first described_class stub in the example body, caused by the
 // example, or else in a before, let! or subject! hook on its group chain, innermost group first,
 // caused by the hook.
-func (r *rspecReader) describedClassStub(name string, e rspecExample) (string, string, bool) {
-	at := func(line int) string { return fmt.Sprintf("%s:%d", name, line) }
+func (r *rspecReader) describedClassStub(e rspecExample) (string, string, bool) {
 	if line := stubLine(e.body); line != 0 {
-		return at(line), at(e.line), true
+		return fmt.Sprintf("%s:%d", e.path, line), fmt.Sprintf("%s:%d", e.path, e.line), true
 	}
 	for g := e.group; g >= 0; g = r.groups[g].parent {
 		for _, h := range r.groups[g].hooks {
 			if line := stubLine(h.body); line != 0 {
-				return at(line), at(h.line), true
+				return fmt.Sprintf("%s:%d", h.path, line), fmt.Sprintf("%s:%d", h.path, h.line), true
 			}
 		}
 	}

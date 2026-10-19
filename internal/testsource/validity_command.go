@@ -96,19 +96,34 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		return SourceValidityReport{}, err
 	}
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
+	supports := map[string]testvalidity.RubySupport{}
 	for _, name := range files {
-		data, found, err := r.readOne(commit, name, MaxFileBytes)
+		data, err := r.committedFile(commit, name)
 		if err != nil {
 			return SourceValidityReport{}, err
 		}
-		if !found {
-			return SourceValidityReport{}, refuse("tests-source-unavailable", "%s is not a committed file at the revision", name)
+		support := testvalidity.RubySupport{}
+		if strings.HasSuffix(name, "_spec.rb") {
+			support = r.rubySupport(commit, name, supports)
 		}
-		file, tests := readSourceValidity(name, string(data))
+		file, tests := readSourceValidity(name, string(data), support)
 		report.Files = append(report.Files, file)
 		report.Tests = append(report.Tests, tests...)
 	}
 	return report, nil
+}
+
+// committedFile reads one committed file at commit, refusing tests-source-unavailable when it is
+// not a committed regular file.
+func (r Repo) committedFile(commit, name string) ([]byte, error) {
+	data, found, err := r.readOne(commit, name, MaxFileBytes)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, refuse("tests-source-unavailable", "%s is not a committed file at the revision", name)
+	}
+	return data, nil
 }
 
 // sourceTest is the hygiene the findings give one test over the source-rules-read baseline.
@@ -142,10 +157,10 @@ func findingTests(findings []testvalidity.SourceFinding, skip map[string]bool) [
 // ValidityFindings followed by the example rules' findings in line order, and its tests are one per
 // example in line order: a located example takes its findings and strength, an unlocated one
 // abstains with the reader's reason unless a finding already refuses it (TSA-V0-081).
-func readSourceValidity(name, text string) (SourceValidityFile, []SourceValidityTest) {
+func readSourceValidity(name, text string, support testvalidity.RubySupport) (SourceValidityFile, []SourceValidityTest) {
 	if strings.HasSuffix(name, "_spec.rb") {
 		file := SourceValidityFile{Path: name, Findings: []testvalidity.SourceFinding{}}
-		examples, reason := RSpecExampleSources(name, text)
+		examples, reason := RSpecExampleSourcesWithSupport(name, text, support)
 		if reason != "" {
 			file.Uncertain, file.Reason = true, reason
 			return file, findingTests(file.Findings, nil)
@@ -194,6 +209,43 @@ func readSourceValidity(name, text string) (SourceValidityFile, []SourceValidity
 		tests = append(tests, t)
 	}
 	return file, append(tests, findingTests(base.Findings, covered)...)
+}
+
+// RubySupportPaths reports whether path is in the support set of a spec under prefix (the text
+// before `spec/`): spec/spec_helper.rb, spec/rails_helper.rb or spec/support/**/*.rb (TSA-V0-088).
+func RubySupportPaths(prefix string) func(string) bool {
+	return func(path string) bool {
+		rest, ok := strings.CutPrefix(path, prefix+"spec/")
+		return ok && (rest == "spec_helper.rb" || rest == "rails_helper.rb" || strings.HasPrefix(rest, "support/") && strings.HasSuffix(rest, ".rb"))
+	}
+}
+
+// specPrefix is the text of a spec path before its `spec/` directory, or "" when it has none.
+func specPrefix(name string) string {
+	if strings.HasPrefix(name, "spec/") {
+		return ""
+	}
+	if k := strings.LastIndex(name, "/spec/"); k >= 0 {
+		return name[:k+1]
+	}
+	return ""
+}
+
+// rubySupport reads the committed support set of a spec at commit once per prefix. A read that
+// fails or exceeds the bounds leaves the set unbound with a named reason, so helper resolution
+// abstains instead of guessing (TSA-V0-088).
+func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.RubySupport) testvalidity.RubySupport {
+	prefix := specPrefix(name)
+	if support, ok := cache[prefix]; ok {
+		return support
+	}
+	files, _, err := r.readFiles(commit, RubySupportPaths(prefix))
+	support := testvalidity.RubySupport{Files: files}
+	if err != nil {
+		support = testvalidity.RubySupport{Unbound: "rspec-support-unreadable"}
+	}
+	cache[prefix] = support
+	return support
 }
 
 func exampleLines(examples map[int]testvalidity.ExampleSource) []int {
