@@ -156,7 +156,7 @@ cache's `notify` member at its next refresh. The journal read session (TQD-V0-03
 returns the scan to per-read access with identical results.
 The progress-signal amendments (TQD-V0-040..042) change no format; rolling them back returns the two detectors to their undeclared
 behaviour under every policy.
-TQD-V0-043..044 add two finding kinds and two optional thresholds; rolling them back removes the
+The TQD-V0-043..044 amendments add two finding kinds and two optional thresholds; rolling them back removes the
 detectors, and a doctor config naming `runnableHeldIdleTicks` or `roleQueueDeepTicks` is then refused
 as an unknown threshold, so remove those members first.
 
