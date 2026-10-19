@@ -27,7 +27,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"witness-playwright":  {required: []string{"--input", "--receipt-input", "--report"}},
 	"discover-legacy":     {required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 	"import-cases":        {required: []string{"--format", "--input"}, optional: []string{"--content"}},
-	"search-cases":        {required: []string{"--format", "--input", "--query"}, optional: []string{"--limit"}},
+	"search-cases":        {required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 	"info":                {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"validate":            {required: []string{"--artifact"}, optional: corpusReadOptional},
 	"inventory":           {required: []string{"--artifact"}, optional: corpusReadOptional},
@@ -52,7 +52,7 @@ var corpusFlagExpectations = map[string]corpusFlagExpectation{
 
 var corpusAllFlags = []string{"--revision", "--scope", "--timestamp", "--manifest", "--artifact", "--page", "--apply",
 	"--cem", "--id", "--input", "--previous", "--check", "--migration", "--config", "--playwright-list", "--receipt",
-	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner"}
+	"--receipt-input", "--report", "--query", "--path", "--limit", "--offset", "--retirement", "--format", "--content", "--runner", "--match"}
 
 func corpusFlagArgs(flag string) []string {
 	switch flag {

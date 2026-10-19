@@ -92,3 +92,62 @@ func TestDCPV1077CorpusMCPSearchCases(t *testing.T) {
 		}
 	}
 }
+
+// DCP-V1-165/166/168/169: the tool schema advertises id and match, an id or
+// match any call returns the library's exact bytes, and id with query, id with
+// match, neither, or an unknown match value are invalid arguments.
+func TestDCPV1169CorpusMCPSearchCasesModes(t *testing.T) {
+	root, _ := corpusServerFixture(t, "# Evidence\n\nOriginal source.\n")
+	export := "ID,Title,Section Hierarchy,Suite,Steps\nC12345,Cancel a paid booking,Cancellation,Travel,Press cancel\nC200,Pay for a booking,Payments,Travel,Pay\n"
+	if err := os.WriteFile(filepath.Join(root, "cases.csv"), []byte(export), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := corpusbridge.New(root, "corpus.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := &toolHandler{registry: registry, legacyCases: &legacyCaseSearcher{root: root}}
+	schema := h.legacyCases.descriptor().InputSchema
+	properties := schema["properties"].(map[string]any)
+	if _, ok := properties["id"]; !ok || properties["match"] == nil || len(schema["required"].([]any)) != 2 {
+		t.Fatalf("schema: %v", schema)
+	}
+	call := func(arguments map[string]any) (map[string]any, *protocol.RPCError) {
+		return h.call(context.Background(), map[string]any{"name": legacyCasesTool, "arguments": arguments})
+	}
+	for _, c := range []struct {
+		arguments map[string]any
+		query     doccorpus.LegacyCaseQuery
+		first     string
+	}{
+		{map[string]any{"format": "csv", "input": "cases.csv", "id": "12345"}, doccorpus.LegacyCaseQuery{ID: "12345", Limit: 20}, "C12345"},
+		{map[string]any{"format": "csv", "input": "cases.csv", "query": "how do I cancel a paid booking", "match": "any", "limit": 5}, doccorpus.LegacyCaseQuery{Query: "how do I cancel a paid booking", Match: "any", Limit: 5}, "C12345"},
+		{map[string]any{"format": "csv", "input": "cases.csv", "query": "booking", "match": "all"}, doccorpus.LegacyCaseQuery{Query: "booking", Limit: 20}, "C200"},
+	} {
+		result, rpc := call(c.arguments)
+		if rpc != nil || result["isError"] != false {
+			t.Fatalf("%v: %v %v", c.arguments, rpc, result)
+		}
+		want, err := doccorpus.SearchLegacyCasesQuery("csv", "cases.csv", []byte(export), c.query)
+		if err != nil {
+			t.Fatal(err)
+		}
+		framed, _ := repoenvelope.Frame(string(want))
+		structured := result["structuredContent"].(map[string]any)
+		if result["content"].([]any)[0].(map[string]any)["text"].(string) != framed || structured["results"].([]any)[0].(map[string]any)["id"] != c.first {
+			t.Fatalf("%v: output differs: %v", c.arguments, structured)
+		}
+	}
+	for _, bad := range []map[string]any{
+		{"format": "csv", "input": "cases.csv", "id": "C12345", "query": "cancel"},
+		{"format": "csv", "input": "cases.csv", "id": "C12345", "match": "any"},
+		{"format": "csv", "input": "cases.csv", "query": "cancel", "match": "fuzzy"},
+		{"format": "csv", "input": "cases.csv", "query": "cancel", "match": nil},
+		{"format": "csv", "input": "cases.csv", "id": ""},
+		{"format": "csv", "input": "cases.csv", "match": "any"},
+	} {
+		if _, rpc := call(bad); rpc == nil || rpc.Code != protocol.CodeInvalidParams {
+			t.Errorf("%v: want invalid params, got %v", bad, rpc)
+		}
+	}
+}

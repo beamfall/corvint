@@ -192,7 +192,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]
   corvint [--root PATH] docs corpus import-cases --format testrail-json|csv --input EXPORT [--content ids-paths-titles|full]
-  corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT --query TEXT [--limit N]
+  corvint [--root PATH] docs corpus search-cases --format testrail-json|csv --input EXPORT (--query TEXT [--match all|any] | --id C<digits>) [--limit N]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
   corvint [--root PATH] docs corpus render --artifact CORPUS.json
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
@@ -275,6 +275,10 @@ HTML-stripped text and marks the record local_only, so keep it out of commits. O
 bounded and listed under bounded, never silently cut. search-cases matches every query word as a
 prefix in title, suite/section path, preconditions and steps, returns case ID, path and title only,
 and names its query, fields and searched export, so a none-found result can be audited.
+--match any (DCP-V1-166) instead ranks cases matching any non-stop-word query word by weighted
+score (title > path > preconditions/steps), then export order, with a per-hit score. --id C12345 or
+--id 12345 (DCP-V1-165) returns exactly that case. A query that is exactly one C<digits> word naming
+a case in the export is that ID lookup; otherwise it searches as before (DCP-V1-167).
 `
 
 func parseTrustedNavArgs(options docsOptions, args []string) (docsOptions, error) {
