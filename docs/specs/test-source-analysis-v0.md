@@ -2011,3 +2011,194 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
 | TSA-V0-055 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledNegatives`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |
 | TSA-V0-056 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsBlockNotCalled`, `TestBlockNotCalledAbstainsAndVerdict` | experimental |
+
+## Response-wait timeouts and role locators (V1-1939)
+
+V1-1939 (GitHub #1197) explains a browser test that timed out waiting for a response, and finds
+before any run a role locator that the located component cannot match. It is agent-drafted and
+accepted under the owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-200`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint runs
+  response-wait --log FILE --url-contains S [--method M] --wait-start RFC3339 --timeout-ms N` MUST
+  read one request log, either a HAR document (`log.pages`, `log.entries`) or a JSON-lines server
+  log with `time`, `method`, `url` or `path`, `status` and `durationMs`, and print one
+  `corvint-runs-response-wait/0` report. A log over 64 MiB or 200,000 requests is refused as too
+  large; a malformed log is read as unreadable.
+- `TSA-V0-201`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The verdict set is
+  closed: `REQUEST_NEVER_SENT`, `SLOW_RESPONSE`, `RESPONSE_IN_WAIT` and `UNKNOWN`. A request
+  matches when its URL contains S, its method equals M when M is given, it started no later than
+  the deadline (wait start plus timeout), and its response did not complete before the wait
+  began. Reported URLs keep scheme, host and path only, and pass the secret screen.
+- `TSA-V0-202`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) With no matching
+  request the verdict MUST be `REQUEST_NEVER_SENT`, listing up to the last 5 requests with a 4xx
+  or 5xx status that started by the deadline. In a HAR log they come from the page the wait ran
+  on (`failureScope: PAGE`, the latest page started by the wait start); in a server log they come
+  from the whole log (`failureScope: LOG`).
+- `TSA-V0-203`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A matching request
+  whose response completed after the deadline MUST be `SLOW_RESPONSE` with its `durationMs` and
+  `lateByMs`. One with no recorded response is `SLOW_RESPONSE` with reason `no-response-recorded`.
+  One answered within the window is `RESPONSE_IN_WAIT`: the log does not explain the timeout.
+- `TSA-V0-204`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A missing log
+  (`request-log-unavailable`), a malformed or oversized log (`request-log-unreadable`), an empty
+  log (`request-log-empty`) and a log whose first request starts after the deadline
+  (`request-log-starts-after-wait`) MUST give `UNKNOWN`, never `REQUEST_NEVER_SENT`.
+- `TSA-V0-205`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The command MUST
+  exit 0 with the report for every verdict, and refuse `runs-invalid-arguments` for a missing
+  `--log` or `--url-contains`, an unparsable `--wait-start`, or a `--timeout-ms` outside
+  1..86,400,000. It reads only the named file and writes nothing.
+- `TSA-V0-206`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) `corvint tests
+  role-locators [--rev REV]` MUST read the committed JS/TS files at the revision and print one
+  `corvint-tests-role-locators/0` report. It checks every locator in a test file that names the
+  role `alert`, `alertdialog`, `status` or `log`: `getByRole('x')` and its find, query and all
+  variants, `'role=x'`, and `[role="x"]`. Exit 1 when a finding is reported, otherwise 0.
+- `TSA-V0-207`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) When none of the
+  components the test mounts or renders (`mount(<Name`, `render(<Name`) renders the role, the
+  locator MUST be reported as `ROLE-LOCATOR-UNRENDERED`, with its line and the component paths.
+  A component renders a role when its markup carries a literal `role="x"`, `role='x'` or
+  `role={"x"}`, or an element with that implicit role (`<output>` for `status`).
+- `TSA-V0-208`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) A mounted component
+  MUST be resolved through the test's default or named import of a relative specifier, to a
+  committed `.tsx`, `.jsx`, `.ts` or `.js` file or an `index` file. Markup is open when it could
+  render a role the reader cannot see: a non-literal `role={...}`, a spread of attributes, raw
+  HTML (`dangerouslySetInnerHTML` or `innerHTML`), a re-export, a `{children}` slot, or a child
+  component. A locator on a commented-out line is not checked.
+- `TSA-V0-209`: (standing auto-accept, 2026-10-11; V1-1939 / GitHub #1197) The check MUST
+  abstain, with no finding, when a component is unresolved (`component-unresolved`, for example
+  a package import or a missing file) or its markup is open (`component-markup-open`, with the
+  open construct as the detail), or when the test mounts nothing (`component-not-mounted`).
+
+Non-goals:
+- recording the wait itself: the start, timeout and predicate come from the caller;
+- regular-expression or callback predicates;
+- following a component's children or styled wrappers;
+- roles other than the four notification roles;
+- page-level tests, which mount nothing.
+
+Failure modes:
+- A HAR from a browser that omits the pages list gives `failureScope: LOG`, so failures from
+  other pages can be listed.
+- A matching request on another tab of the same log counts as sent.
+- A role rendered only through a child component abstains rather than being confirmed.
+- Mounts are collected per test file, not per test: a role locator in one test is checked against
+  every component the file mounts.
+- When several requests match, an answer within the window is preferred; otherwise the first
+  match is reported.
+
+## Test environment contract (V1-1940)
+
+V1-1940 (GitHub #1199) answers which environment a named profile hands to tests, which stand-in
+services it starts and how to control them, and which tests re-derive an address that the
+bootstrap already declares. This is the smallest honest slice: only committed shell bootstrap
+scripts and JS/TS route registrations are read. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-210`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) `corvint tests env
+  --profile NAME [--rev REV] [--base REV]` MUST read the committed files at the revision and print
+  one `corvint-tests-env/0` report. The profile's sources are the `.sh` files whose stem is NAME,
+  or ends in `-NAME`, `_NAME` or `.NAME`. Compose files (`[docker-]compose.NAME.y[a]ml`) and
+  `.env.NAME` are listed in `unreadSources` with reasons `compose-not-read` and
+  `dotenv-not-read`. A profile with no script has reason `profile-not-found` and no variables.
+  NAME matches `[A-Za-z0-9][A-Za-z0-9_.-]{0,63}`; any other name is refused
+  `tests-invalid-arguments`.
+- `TSA-V0-211`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) Every assignment
+  MUST carry a derivation from a closed set, and a `value` resolved from the profile alone:
+  - `LITERAL`;
+  - `VARIABLE` (`$A`, `${A}`);
+  - `INTERPOLATED`;
+  - `OFFSET` (`$((A + N))`, with the reference and offset);
+  - `DEFAULTED` (`${A:-d}`);
+  - `UNKNOWN` (command substitution, other arithmetic, other parameter expansion).
+
+  The forms read are `NAME=VALUE`, `export` / `declare -x` (with or without a value),
+  `set -a`, and prefix assignments on a command line. The script is never run.
+- `TSA-V0-212`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A variable is
+  `passedToTests` and `reliable` when it is exported (directly, by a later `export NAME`, or
+  under `set -a`), or is a prefix assignment on a test-runner line: `playwright test`,
+  `cypress run`, `jest`, `vitest`, `npm|yarn|pnpm [run] test[:x]` or `run e2e`. It is an
+  `endpoint` when its name ends in `_URL`, `_PORT`, `_HOST`, `_ADDR`, `_ADDRESS`, `_ENDPOINT` or
+  `_ORIGIN`, or its value is an http(s) URL.
+- `TSA-V0-213`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A command line in the
+  profile that runs a committed file under a `stub(s)`, `fake(s)`, `mock(s)`, `stand-in(s)`,
+  `standin(s)`, `doubles` or `test-doubles` directory, or a file whose name contains stub, fake or
+  mock, MUST be listed as a stand-in.
+  - Each stand-in lists its launch site, its URL from the line's `PORT` or `*_PORT` prefix, and
+    the passed variables that carry that port (`declaredVariables`).
+  - It also lists the Express-style routes (`app|router|server|api|fastify|stub.METHOD('path'`)
+    registered in the non-test JS/TS files of its directory.
+  - Each route records its method, path, line, kind, payload fields (`req.body.x`,
+    `const {..} = req.body`) and query fields (`req.query.x`). Kind is `FAULT_INJECTION`,
+    `RESET`, `REQUEST_LOG`, `CONTROL` or `SERVICE`, read from the path's tokens.
+  - A non-service route records its scope: `KEYED:<field>` when a path parameter or payload
+    field is a test, session, scenario, tenant or run id, a scope or a key; otherwise
+    `SERVICE_WIDE`.
+  - A control route's `teardown` lists the stand-in's `RESET` routes.
+- `TSA-V0-214`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) In test files and
+  Playwright or Cypress configs, a `process.env.X` followed by `+ N` or `- N` MUST be warned
+  `ENV-HARD-CODED-OFFSET`. A literal `localhost`, `127.0.0.1`, `0.0.0.0` or `[::1]` address with
+  a port MUST be warned `ENV-HARD-CODED-ADDRESS`. Each warning carries the value it computes in
+  the profile, or null when unknown, and the passed variables that already carry that value.
+  Reading a declared variable is a `DECLARED_VARIABLE` dependency and is not warned. The
+  warnings are advisory and do not change the exit status.
+- `TSA-V0-215`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) With `--base`, the
+  report MUST list each variable whose value or expression differs between the base and the
+  revision, with its dependent test lines:
+  - a `DECLARED_VARIABLE` read of it, with `staysValid: true`;
+  - a `HARD_CODED_OFFSET` or `HARD_CODED_LITERAL` use whose base value it carried, with
+    `staysValid` true only when the use still carries the new value.
+- `TSA-V0-216`: (standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A value the reader
+  cannot derive MUST be null, never guessed, with `unknownReason`:
+  - `command-substitution`, `arithmetic-not-offset` or `parameter-expansion`;
+  - `not-assigned-in-profile:<NAME>`;
+  - `reference-cycle`;
+  - `assigned-in-several-scripts`.
+
+  A hard-coded use whose value is unknown has no `staysValid`.
+
+Non-goals (residuals of V1-1940):
+- reading compose files, dotenv files, CI workflow environments or Makefiles;
+- running or sourcing any script;
+- route registrations other than Express-style JS/TS (Go, Flask, Rails, WireMock mappings);
+- showing the warning in the `corvint tests validity` projection, or the impact in
+  `corvint impact`;
+- branch-sensitive shell (`if`, `case`, functions): the last assignment in each script wins.
+
+Failure modes:
+- A conditional assignment is read as unconditional, so a value can be the one set on the branch
+  that does not run. A variable set in two profile scripts is UNKNOWN for this reason.
+- A literal port shared by unrelated services can match a variable it is not about.
+- A route registered through a helper or a loop is not listed.
+- A scope is inferred from field names only.
+- A route's fields are read up to the next registration, not to the end of its handler.
+- A variable only exported, never assigned, is kept with an `inherited-from-caller` derivation
+  and no value; a value over 4096 bytes is UNKNOWN (`value-too-large`).
+- `process.env.X + N` without a numeric conversion is warned with no computed value, since
+  JavaScript concatenates strings there.
+
+Acceptance evidence for both sections: synthetic fixtures only. No live qualification on a real
+suite was run (NOT_RUN). Rollback removes `internal/playwrightruns/response_wait.go`,
+`internal/testsource/role_locators.go`, `internal/testsource/env_contract.go`,
+`internal/testsource/env_contract_refs.go`, their tests, `cmd/corvint/runs_response_wait.go`,
+`cmd/corvint/tests_env_contract.go`, the three switch cases and help lines, and these sections.
+Nothing is persisted.
+
+### Traceability (V1-1939, V1-1940)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-200 | `internal/playwrightruns/response_wait.go`, `cmd/corvint/runs_response_wait.go` | `TestResponseWaitServerLog`, `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-201 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitRequestNeverSent` | experimental |
+| TSA-V0-202 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitRequestNeverSent`, `TestResponseWaitServerLog` | experimental |
+| TSA-V0-203 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitSlowResponse`, `TestResponseWaitServerLog` | experimental |
+| TSA-V0-204 | `internal/playwrightruns/response_wait.go` | `TestResponseWaitAbstains`, `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-205 | `cmd/corvint/runs_response_wait.go` | `TestRunsResponseWaitCLI` | experimental |
+| TSA-V0-206 | `internal/testsource/role_locators.go`, `cmd/corvint/tests_env_contract.go` | `TestRoleLocatorsCommitted`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+| TSA-V0-207 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered` | experimental |
+| TSA-V0-208 | `internal/testsource/role_locators.go` | `TestRoleLocatorUnrendered`, `TestRoleLocatorAbstains` | experimental |
+| TSA-V0-209 | `internal/testsource/role_locators.go` | `TestRoleLocatorAbstains` | experimental |
+| TSA-V0-210 | `internal/testsource/env_contract.go`, `cmd/corvint/tests_env_contract.go` | `TestEnvContractProfile`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |
+| TSA-V0-211 | `internal/testsource/env_contract.go` | `TestEnvContractProfile`, `TestEnvContractUnknown` | experimental |
+| TSA-V0-212 | `internal/testsource/env_contract.go` | `TestEnvContractProfile` | experimental |
+| TSA-V0-213 | `internal/testsource/env_contract.go` | `TestEnvContractStandIn` | experimental |
+| TSA-V0-214 | `internal/testsource/env_contract_refs.go` | `TestEnvContractWarnings` | experimental |
+| TSA-V0-215 | `internal/testsource/env_contract_refs.go` | `TestEnvContractImpact` | experimental |
+| TSA-V0-216 | `internal/testsource/env_contract.go` | `TestEnvContractUnknown` | experimental |
