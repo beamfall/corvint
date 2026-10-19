@@ -15,6 +15,9 @@ import (
 type rubyLine struct {
 	line int
 	text string
+	// path is the file the line was read from; the RSpec reader sets it so that a shared group
+	// read through an inclusion keeps its own file's locations (TSA-V0-090).
+	path string
 }
 
 // rubyLines splits Ruby source into logical statements.
@@ -68,9 +71,17 @@ var (
 	rubyOpener = regexp.MustCompile(`^(def|class|module|if|unless|case|while|until|begin|for)\b`)
 	rubyDo     = regexp.MustCompile(`\bdo(\s*\|[^|]*\|)?$`)
 	rubyEnd    = regexp.MustCompile(`^end\b`)
+	// rubyOneLine is a statement that opens and closes on one line, such as
+	// `def read_data; build_report_io; end`; it opens no block (TSA-V0-084).
+	rubyOneLine = regexp.MustCompile(`;\s*end$`)
+	// rubyEndlessDef is an endless method, `def name = expr` or `def name(args) = expr`; it opens
+	// no block. A setter (`def name=(v)`) and a comparison (`==`) are not one.
+	rubyEndlessDef = regexp.MustCompile(`^def\s+[A-Za-z_]\w*[?!]?(?:\s+|\([^()]*\)\s*)=(?:[^=~]|$)`)
 )
 
-func rubyOpens(text string) bool { return rubyOpener.MatchString(text) || rubyDo.MatchString(text) }
+func rubyOpens(text string) bool {
+	return (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text) && !rubyEndlessDef.MatchString(text)
+}
 
 // rubyBlockEnd returns the index of the `end` closing the block opened at lines[i], or len(lines).
 func rubyBlockEnd(lines []rubyLine, i int) int {

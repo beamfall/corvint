@@ -29,6 +29,7 @@ type compiler struct {
 	sources           map[string]contextindex.Source
 	artifact          *Artifact
 	declarations      []CapabilityDeclaration
+	testKnowledge     []providerKnowledge
 }
 
 func inputKey(rev, p string) string { return rev + ":" + p }
@@ -136,6 +137,9 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 	c.capabilities()
 	c.aggregateImportParity()
 	if err := c.validateAdoptionJoins(); err != nil {
+		return nil, err
+	}
+	if err := c.joinTestKnowledge(c.testKnowledge); err != nil {
 		return nil, err
 	}
 	if m.Schema == ManifestSchemaV2 {

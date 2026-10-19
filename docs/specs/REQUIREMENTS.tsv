@@ -2016,6 +2016,13 @@ DCP-V1-082	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-083	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
 DCP-V1-084	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #845; V1-1	standing	2026-10-11; #845; V1-1318
 DCP-V1-085	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1380)) The	standing	2026-10-11; V1-1380
+DCP-V1-086	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-087	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-088	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-089	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-090	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-091	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-092	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
@@ -4149,6 +4156,15 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-084	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
+TSA-V0-085	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
+TSA-V0-086	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example MUST get a	standing	2026-10-11; V1-1866; #1163
+TSA-V0-087	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) An example whose ever	standing	2026-10-11; V1-1866; #1163
+TSA-V0-088	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1866 / GitHub #1163) A helper call MUST	standing	2026-10-11; V1-1866; #1163
+TSA-V0-089	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) `corvint tests	standing	2026-10-11; V1-1867; #1164
+TSA-V0-090	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Two inclusions of one	standing	2026-10-11; V1-1867; #1164
+TSA-V0-091	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) A qualified read that	standing	2026-10-11; V1-1867; #1164
+TSA-V0-092	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUS	standing	2026-10-11; V1-1867; #1164
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

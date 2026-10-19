@@ -163,6 +163,7 @@ type ProviderRecord struct {
 	Details            map[string]RecordDetails `json:"details,omitempty"`
 	RestrictedFindings []RestrictedFinding      `json:"restricted_findings,omitempty"`
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
+	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
 	Schema             string                   `json:"schema"`
 	ID                 string                   `json:"id"`
 	Version            string                   `json:"version"`
@@ -199,6 +200,7 @@ type Artifact struct {
 	RestrictedSummaries []RestrictedSummary      `json:"restricted_summaries,omitempty"`
 	BehaviorContracts   []BehaviorReport         `json:"behavior_contracts,omitempty"`
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
+	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
 	Manifest            Manifest                 `json:"manifest"`
