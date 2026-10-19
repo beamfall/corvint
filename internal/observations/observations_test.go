@@ -533,7 +533,7 @@ func TestRenderGoldenAndReadOnly(t *testing.T) {
 	root := t.TempDir()
 	writeIgnore(t, root)
 	rows := []Event{
-		{Kind: "event", Event: "user-prompt", Authoritative: 0, OmittedCount: 1, LatencyMS: 10, Degradations: []string{"frontier-authority-unavailable"}},
+		{Kind: "event", Event: "user-prompt", Authoritative: 0, AuthorityCounted: true, OmittedCount: 1, LatencyMS: 10, Degradations: []string{"frontier-authority-unavailable"}},
 		{Kind: "event", Event: "file-change", LatencyMS: 30, Degradations: []string{"frontier-authority-unavailable"}, TouchedPaths: []string{"miss.go"}, RankedPaths: []string{}, MissState: "OBSERVED"},
 		{Kind: "unsupported", Code: "unsupported-query-intent", QueryIntent: "repository"},
 		{Kind: "unsupported", Code: "unsupported-query-intent", QueryIntent: "repository"},
@@ -561,7 +561,7 @@ func TestRenderGoldenAndReadOnly(t *testing.T) {
 	if !bytes.Equal(before, after) {
 		t.Fatal("triage wrote the ledger")
 	}
-	want := "SELF-OBSERVATIONS events=2 zero-authoritative-rate=1/2 budget-omission-rate=1/2 latency-p50=10ms latency-p95=30ms\nDEGRADATION count=2 key=frontier-authority-unavailable STANDING DRAFT fixes.md\nROUTING-MISS count=1 key=miss.go DRAFT ideas.md\nUNSUPPORTED count=5 key=unsupported-query-intent/repository CAPABILITY-GAP DRAFT ideas.md owning-spec=go-production-kernel-migration-v0.md\n"
+	want := "SELF-OBSERVATIONS events=2 zero-authoritative-rate=1/1 budget-omission-rate=1/2 latency-p50=10ms latency-p95=30ms\nDEGRADATION-BY-DESIGN count=2 key=frontier-authority-unavailable decision=docs/decisions/0519-w6-batch-acceptances-2026-10-11.md\nROUTING-MISS count=1 key=miss.go DRAFT ideas.md\nUNSUPPORTED count=5 key=unsupported-query-intent/repository CAPABILITY-GAP DRAFT ideas.md owning-spec=go-production-kernel-migration-v0.md\n"
 	if output.String() != want {
 		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
 	}
@@ -615,7 +615,7 @@ func TestReadSkipsOversizedRowAndKeepsReadingBoundedRows(t *testing.T) {
 // hand-edited truncated, duplicate-key, invalid-UTF-8, or trailing-value row
 // is rejected by a closed reason rather than folded as a partial observation.
 func TestRenderSkipsMalformedJSONLinesRows(t *testing.T) {
-	valid := []byte("{\"kind\":\"event\",\"event\":\"user-prompt\"}\n")
+	valid := []byte("{\"kind\":\"event\",\"event\":\"user-prompt\",\"authorityCounted\":true}\n")
 	for name, malformed := range map[string][]byte{
 		"unterminated":   []byte(`{"kind":"event","event":"user-prompt"}`),
 		"duplicate-key":  []byte("{\"kind\":\"unsupported\",\"kind\":\"event\",\"event\":\"user-prompt\"}\n"),
@@ -714,7 +714,7 @@ func TestRenderSkipsRowWhoseKeyCarriesALineBreak(t *testing.T) {
 		`{"kind":"event","event":"file-change","missState":"OBSERVED","touchedPaths":["a\u2028` + forged + `"],"rankedPaths":[]}`,
 		`{"kind":"unsupported","code":"unsupported-query-intent","queryIntent":"repository\r` + forged + `"}`,
 		`{"kind":"proof","counts":{"x\u0085` + forged + `":{"PASS":1}}}`,
-		`{"kind":"event","event":"user-prompt","authoritativeResultCount":1}`,
+		`{"kind":"event","event":"user-prompt","authoritativeResultCount":1,"authorityCounted":true}`,
 	}
 	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
 		t.Fatal(err)
@@ -1085,5 +1085,107 @@ func TestAdapterDegradationAdmitsWorktreeChurn(t *testing.T) {
 	row := AdapterDegradationEvent("codex", "user-prompt", "corvint-event-rejected:dogfood-event-worktree-churn", "1.0.0", time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC))
 	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:dogfood-event-worktree-churn" {
 		t.Fatalf("adapter codes %v", row.AdapterCodes)
+	}
+}
+
+// SOL-V0-011 (V1-1977): the zero-authoritative rate counts only user-prompt rows
+// whose writer measured the count; a legacy row without the marker is reported
+// as unmeasured instead of as zero authority, and only a user-prompt row may
+// carry the marker.
+func TestAuthorityRateCountsOnlyMeasuredUserPromptRows(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	for _, row := range []Event{
+		{Kind: "event", Event: "user-prompt"},
+		{Kind: "event", Event: "user-prompt", AuthorityCounted: true},
+		{Kind: "event", Event: "user-prompt", AuthorityCounted: true, Authoritative: 3},
+		{Kind: "event", Event: "file-change", MissState: "OBSERVED", TouchedPaths: []string{}, RankedPaths: []string{}},
+	} {
+		if err := Append(root, row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, refused := range []Event{
+		{Kind: "event", Event: "file-change", AuthorityCounted: true},
+		{Kind: "event", Event: "session-start", AuthorityCounted: true},
+		{Kind: "proof", AuthorityCounted: true},
+	} {
+		if err := Append(root, refused); err == nil {
+			t.Fatalf("Append(%+v) admitted the marker outside a user-prompt row", refused)
+		}
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	want := "SELF-OBSERVATIONS events=4 zero-authoritative-rate=1/2 budget-omission-rate=0/4 latency-p50=0ms latency-p95=0ms\n" +
+		"AUTHORITY-UNMEASURED count=1\n"
+	if output.String() != want {
+		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
+	}
+}
+
+// SOL-V0-012 (V1-1977): the fixed frontier degradation every receipt carries is
+// reported by design with its decision record, never as a STANDING defect draft,
+// while another degradation keeps the SOL-V0-006 label.
+func TestFixedFrontierDegradationIsReportedByDesign(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	for range 10 {
+		row := Event{Kind: "event", Event: "session-start", Degradations: []string{"frontier-authority-unavailable", "host-version-unknown"}}
+		if err := Append(root, row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	want := "SELF-OBSERVATIONS events=10 zero-authoritative-rate=NOT_OBSERVED budget-omission-rate=0/10 latency-p50=0ms latency-p95=0ms\n" +
+		"DEGRADATION-BY-DESIGN count=10 key=frontier-authority-unavailable decision=docs/decisions/0519-w6-batch-acceptances-2026-10-11.md\n" +
+		"DEGRADATION count=10 key=host-version-unknown STANDING DRAFT fixes.md\n"
+	if output.String() != want {
+		t.Fatalf("digest\n%s\nwant\n%s", output.String(), want)
+	}
+	for _, decision := range degradationByDesign {
+		if _, err := os.Stat(filepath.Join("..", "..", decision)); err != nil {
+			t.Fatalf("by-design decision record %s: %v", decision, err)
+		}
+	}
+}
+
+// SOL-V0-013 (V1-1977): retained stale-snapshot adapter rejections are a setup
+// gap; triage names the refresh command once, summed over hosts and events.
+func TestSetupLineNamesSnapshotRefresh(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	hour := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
+	for _, row := range []Event{
+		AdapterDegradationEvent("codex", "session-start", "corvint-event-rejected:dogfood-event-index-snapshot-stale", "1.0.0", hour),
+		AdapterDegradationEvent("codex", "user-prompt", "corvint-event-rejected:dogfood-event-index-snapshot-stale", "1.0.0", hour.Add(5*time.Hour)),
+		AdapterDegradationEvent("codex", "stop", "corvint-event-rejected:dogfood-event-deadline", "1.0.0", hour),
+	} {
+		if err := Append(root, row); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var output bytes.Buffer
+	if err := Render(root, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "\nSETUP key=index-snapshot-stale rows=2 latest=2026-10-13T17Z fix: corvint index --if-stale\n") {
+		t.Fatalf("digest lacks the setup line:\n%s", output.String())
+	}
+	empty := t.TempDir()
+	writeIgnore(t, empty)
+	if err := Append(empty, AdapterDegradationEvent("codex", "stop", "corvint-event-rejected:dogfood-event-deadline", "1.0.0", hour)); err != nil {
+		t.Fatal(err)
+	}
+	output.Reset()
+	if err := Render(empty, 120, &output); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(output.String(), "SETUP") {
+		t.Fatalf("a deadline rejection is not a setup gap:\n%s", output.String())
 	}
 }

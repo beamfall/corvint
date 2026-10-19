@@ -159,6 +159,29 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   hour windows, not occurrences. Adapter rows are not `events`, never enter `STANDING`, and never
   enter ranking, learning, evidence, or authority.
 
+- `SOL-V0-011`: (added 2026-10-19, V1-1977) A `user-prompt` row whose receipt coverage carried a
+  readable non-negative integer `authoritative_results` MUST record that count as
+  `authoritativeResultCount` and mark itself `authorityCounted: true`, whether the count reached the
+  writer as an integer or as the whole-number JSON number a decoded packet carries. No other row
+  kind or event may carry the marker; triage rejects one that does as `contract-authorityCounted`.
+  The digest's `zero-authoritative-rate` MUST count only marked `user-prompt` rows, as zero
+  numerator over marked denominator, and MUST print `AUTHORITY-UNMEASURED count=<n>` after any
+  `LEDGER-CUT` line for retained unmarked `user-prompt` rows, which carry no measured count and are
+  never reported as zero authority.
+- `SOL-V0-012`: (added 2026-10-19, V1-1977) A degradation that an accepted decision fixes on every
+  receipt MUST print `DEGRADATION-BY-DESIGN count=<n> key=<code> decision=<path>` in place of its
+  `DEGRADATION` line and is never labelled `STANDING` or given a DRAFT. The closed set is
+  `frontier-authority-unavailable`, fixed by
+  `docs/decisions/0519-w6-batch-acceptances-2026-10-11.md` (`AHI-054`): it reports the absent
+  closing Frontier authority and says nothing about project authority such as `AGENTS.md` or
+  accepted ADRs.
+- `SOL-V0-013`: (added 2026-10-19, V1-1977) When retained adapter rows carry
+  `corvint-event-rejected:dogfood-event-index-snapshot-stale` (`AHI-031`), triage MUST print one
+  `SETUP key=index-snapshot-stale rows=<n> latest=<window> fix: corvint index --if-stale` line
+  after the cut and unmeasured lines, where `rows` sums the retained adapter rows with that code
+  across hosts and events and `latest` is their latest hour window. The line is a setup diagnosis
+  read from rows already written; triage still writes nothing and never indexes.
+
 ## Non-goals and authority
 
 V0 has no daemon, network, upload, auto-filing, automatic spec change, task-text storage, index
@@ -186,11 +209,15 @@ the existing agent-memory convention.
 | OpenCode `adapterCodes` with another host, event or code, or unsorted, duplicated or empty | refuse the event as `invalid-harness-input`; no row |
 | OpenCode `adapterCodes` append fails (ledger not ignored, cap reached) | no row; the event and its receipt are unchanged |
 | OpenCode `adapterCodes` append waits on a held ledger lock | the coded append stops being awaited after the 500 ms bound and the response is unchanged (a `file-change` event's own `SOL-V0-001` append still waits on the lock); the abandoned append lands once the lock frees or is lost with the process |
+| `user-prompt` row without `authorityCounted` (written before SOL-V0-011, or with no readable count) | counted under `AUTHORITY-UNMEASURED`, never as zero authority; it ages out under the 128 KiB cap |
+| `authorityCounted` on any row but a `user-prompt` event | triage rejects it as `contract-authorityCounted` |
+| a by-design degradation's decision is superseded | the closed `SOL-V0-012` set is amended in the same change; until then the line still names the decision it cites |
+| index snapshot missing or stale for the committed tree | hooks reject as `dogfood-event-index-snapshot-stale`; triage prints the `SETUP` line naming `corvint index --if-stale` |
 
 ## Acceptance evidence and traceability
 
 `TestSelfObservationSpecEnumeratesEveryObligation` in `internal/lrfrepo/ocm_spec_test.go` checks
-that OCM enumerates all ten clauses from this document; it does not validate their runtime behavior.
+that OCM enumerates all thirteen clauses from this document; it does not validate their runtime behavior.
 
 | Requirement | Evidence |
 |---|---|
@@ -200,6 +227,9 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |
 | SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationAdmitsWorktreeChurn` (`dogfood-event-worktree-churn`, decision 0533), `TestAdapterDegradationAdmitsCompactionEventsAndCodes`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`, `TestAdapterSilentAbstentionsAreLedgered`, `TestOpenCodeAdapterCodesAreLedgeredOutsideTheReceipt`, `TestAdapterCodesAreClosedToOpenCodePathEvents`, `TestOpenCodeAdapterCodesDoNotWaitOnAHeldLedgerLock`, and under `TestHostAdapterJavaScriptHosts` `SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |
+| SOL-V0-011 | `TestAuthorityRateCountsOnlyMeasuredUserPromptRows`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` (V1-1977 external-adopter qualification: a Go module with `AGENTS.md` and accepted `docs/adr` decisions returns accepted-decision authority from a user-prompt hook event, records the measured count, and reports `zero-authoritative-rate=0/1`) |
+| SOL-V0-012 | `TestFixedFrontierDegradationIsReportedByDesign`; `TestRenderGoldenAndReadOnly`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` |
+| SOL-V0-013 | `TestSetupLineNamesSnapshotRefresh` |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's
@@ -207,4 +237,6 @@ repository evidence or authority depends on it. `SOL-V0-010` rolls back by remov
 `adapterCodes` field and then `takeAdapterCodes` in `internal/gokernel/harness.go` with
 `recordAdapterCodes` in `internal/gokernel/adapter_codes.go` (in that order,
 since Core without it refuses the field as unknown input); retained `adapter-degradation` rows then age out under the cap,
-and triage ignores them once the reader is removed.
+and triage ignores them once the reader is removed. `SOL-V0-011..013` roll back by reverting the
+`authorityCounted` marker and its reader, the by-design map, and `setupLines`; retained marked
+rows stay readable as plain rows.
