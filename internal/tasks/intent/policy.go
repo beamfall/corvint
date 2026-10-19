@@ -163,6 +163,9 @@ type Policy struct {
 type ObligationsPolicy struct {
 	WorkerWitness       bool
 	RequireSourceReview bool
+	// RequireScopeDecision (TOL-V0-082) makes a plain core change refuse, so
+	// core moves only through an accepted scope decision.
+	RequireScopeDecision bool
 	// TestRepositories (TOL-V0-064) maps a declared name to a local test
 	// checkout path, absolute or relative to the primary worktree; nil when
 	// the member is absent.
@@ -232,6 +235,13 @@ func (p *Policy) WorkerObligationWitness() bool {
 // TOL-V0-040 source-review preflight. Absent or false keeps it off.
 func (p *Policy) ObligationSourceReviewRequired() bool {
 	return p != nil && p.Obligations != nil && p.Obligations.RequireSourceReview
+}
+
+// ObligationScopeDecisionRequired reports whether policy opts into the
+// TOL-V0-082 scope-decision requirement. Absent or false keeps the
+// TOL-V0-007 core change.
+func (p *Policy) ObligationScopeDecisionRequired() bool {
+	return p != nil && p.Obligations != nil && p.Obligations.RequireScopeDecision
 }
 
 // MilestonePolicy is the CAL-V0-195 opt-in. Required makes CREATE without a
@@ -586,10 +596,13 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "obligations") {
 		o := r.Field("obligations")
-		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview", "testRepositories")...)
+		o.Closed(wire.OptionalKeys(o.Value(), []string{"workerWitness"}, "requireSourceReview", "requireScopeDecision", "testRepositories")...)
 		p.Obligations = &ObligationsPolicy{WorkerWitness: o.Field("workerWitness").Bool()}
 		if o.Err() == nil && wire.Has(o.Value(), "requireSourceReview") {
 			p.Obligations.RequireSourceReview = o.Field("requireSourceReview").Bool()
+		}
+		if o.Err() == nil && wire.Has(o.Value(), "requireScopeDecision") {
+			p.Obligations.RequireScopeDecision = o.Field("requireScopeDecision").Bool()
 		}
 		if o.Err() == nil && wire.Has(o.Value(), "testRepositories") {
 			p.Obligations.TestRepositories = readTestRepositories(o.Field("testRepositories"))

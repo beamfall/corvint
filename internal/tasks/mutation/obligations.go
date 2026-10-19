@@ -227,6 +227,16 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 			if ch.Core != nil {
 				return refuse(OutcomeUnauthorized, "", "changing core is OWNER-only (TOL-V0-015)")
 			}
+			if ch.Scope != nil && ch.Scope.Action == ticket.ObligationScopeAccept {
+				return refuse(OutcomeUnauthorized, "", "accepting a scope decision is OWNER-only (TOL-V0-081)")
+			}
+		}
+	}
+	if p.Set != nil && c.Policy.ObligationScopeDecisionRequired() {
+		for _, ch := range p.Set.Changes {
+			if ch.Core != nil {
+				return refuse(OutcomeValidationFailed, wire.CodeApprovalMissing, "%s %s: under obligations.requireScopeDecision core changes only through an accepted scope decision (TOL-V0-082)", ticket.ObligationScopeDecisionRequiredDetail, ch.ID)
+			}
 		}
 	}
 	w := p.Witness
@@ -238,6 +248,9 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 	}
 	if w.Source == ticket.ObligationSourceDeclared && role != "OWNER" {
 		return refuse(OutcomeUnauthorized, "", "a DECLARED witness is OWNER-only (TOL-V0-015)")
+	}
+	if w.Source == ticket.ObligationSourceReviewed && role != "OWNER" {
+		return refuse(OutcomeUnauthorized, "", "a REVIEWED witness is OWNER-only (TOL-V0-073)")
 	}
 	if w.TestRepository != nil {
 		declared, ok := c.Policy.ObligationTestRepository(*w.TestRepository)
@@ -308,6 +321,15 @@ func obligationFields(p *ObligationsPayload) []string {
 	case p.Set != nil:
 		for _, ch := range p.Set.Changes {
 			fields = append(fields, ch.Reason)
+			for _, ct := range ch.Cites {
+				fields = append(fields, ct.Path)
+			}
+			if ch.Scope != nil {
+				fields = append(fields, ch.Scope.Evidence)
+			}
+			if ch.Candidate != nil {
+				fields = append(fields, ch.Candidate.Path)
+			}
 			for _, src := range ch.Sources {
 				fields = append(fields, src.Ref, src.Query)
 				fields = append(fields, src.Searched...)
@@ -318,6 +340,12 @@ func obligationFields(p *ObligationsPayload) []string {
 			fields = append(fields, d.TestID, d.Reason)
 		}
 		fields = append(fields, p.Witness.Provenance.Strings()...)
+		if rv := p.Witness.Review; rv != nil {
+			fields = append(fields, rv.Subject.Path)
+			for _, v := range rv.Verdicts {
+				fields = append(fields, v.Reviewer, v.Reason)
+			}
+		}
 		for _, cr := range p.Witness.Credits {
 			for _, m := range cr.Matches {
 				fields = append(fields, m.Path, m.TestID)
