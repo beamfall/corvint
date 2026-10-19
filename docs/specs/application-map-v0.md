@@ -18,11 +18,13 @@ through AngularJS dependency injection; AMAP-V0-021..023 accepted by decision 04
 [issue 705](https://github.com/beamfall/corvint/issues/705) (V1-1061, injected string enums,
 one-level re-exports and the `di-constant` diagnostic; AMAP-V0-024..026 accepted by decision 0475), and
 [issue 1200](https://github.com/beamfall/corvint/issues/1200) (V1-1941, request-path keys,
-outbound calls and guard order; AMAP-V0-130..139).
+outbound calls and guard order; AMAP-V0-130..139), and
+[issue 1215](https://github.com/beamfall/corvint/issues/1215) (V1-1967, cross-checking a
+blocker's cited 404 against the route table; AMAP-V0-140..146).
 
 ## Agent digest
 - Claim: A revision-pinned screen graph joins routes, flows and E2E tests through imports, served as byte-capped projections that read STALE or UNKNOWN.
-- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches. AMAP-V0-090..099 are accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025); `flows appmap refs`, a name-level check of test-referenced routes, selectors and mocked endpoints the declared source lacks, experimental. AMAP-V0-100..107 (`flows appmap actions`, the ROUTE-ACTION-MISSING check; V1-1890; GitHub #1174) and AMAP-V0-110..116 (`flows appmap branches`, reaching tests by boundary and setup writers per cited branch; V1-1891; GitHub #1175) are accepted under the owner's standing auto-accept and delivered experimental over inline fixtures. AMAP-V0-130..139 are accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200); `flows request-path`, the environment and configuration keys, outbound calls and guard order of one Express-style route, with a fail-closed pre-run profile check, experimental.
+- Status: accepted (decision 0446; V1-0956); experimental. AMAP-V0-001..015 are implemented in `internal/appmap` and `corvint flows appmap` over a committed fixture; no adopter-scale qualification. AMAP-V0-016 (state names and parents read through imported constant tables) is proposed (V1-0981; GitHub #669). AMAP-V0-017..020 (tests in a second, aliased repository) are proposed (V1-0982; GitHub #669) and implemented over synthetic repositories. AMAP-V0-021..023 (state-name tables injected as AngularJS `.constant(...)` registrations within a manifest-declared scope) are accepted (decision 0460; V1-1027; GitHub #685) and implemented over synthetic repositories. AMAP-V0-024..026 (an injected string enum read only when every member is a literal string, one level of `export ... from` behind the registering file's import, and a `di-constant` unknown naming why the one in-scope registration did not resolve) are accepted (decision 0475; V1-1061; GitHub #705) and implemented over synthetic repositories. AMAP-V0-040..048 are accepted (decision 0518; V1-1131); literal Rails/React routes and optional declared-glob coverage remain experimental. AMAP-V0-050..059 are accepted (decision 0518; V1-1136); static UI-router entry candidates only, runtime and PROVEN paths deferred. AMAP-V0-060..065 are accepted (decision 0518; V1-1138); a map-only qualification report with a resolved-percent gate. AMAP-V0-070..072 are accepted (decision 0518; V1-1144); star-export ambiguity paths and a named failed hop. AMAP-V0-075..077 are accepted (decision 0518; V1-1145); `tests.root: "."` for an aliased test repository with declared-directory dirty detection. AMAP-V0-078 is accepted (decision 0519; V1-1169); a same-file `const` React route array only. AMAP-V0-079 is accepted (decision 0520; V1-1220); an imported React route array read through one literal named-import hop. AMAP-V0-080..082 are accepted (decision 0520; V1-1168); entry rows read shortest PROVEN paths from a bound edge ledger, with NOT_OBSERVED for screens no proven path reaches. AMAP-V0-090..099 are accepted under the owner's standing auto-accept (2026-10-11; V1-1581; GitHub #1025); `flows appmap refs`, a name-level check of test-referenced routes, selectors and mocked endpoints the declared source lacks, experimental. AMAP-V0-100..107 (`flows appmap actions`, the ROUTE-ACTION-MISSING check; V1-1890; GitHub #1174) and AMAP-V0-110..116 (`flows appmap branches`, reaching tests by boundary and setup writers per cited branch; V1-1891; GitHub #1175) are accepted under the owner's standing auto-accept and delivered experimental over inline fixtures. AMAP-V0-130..139 are accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200); `flows request-path`, the environment and configuration keys, outbound calls and guard order of one Express-style route, with a fail-closed pre-run profile check, experimental. AMAP-V0-140..146 are accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215); `flows appmap blocker`, a route-table cross-check of a blocker note's cited 404 requests (BLOCKER-404-NO-ROUTE), experimental over inline fixtures.
 - Exists: the `ui-router-states/0` router dialect, the import-graph test join over the existing contextindex web import relation, the four projections (`screen`, `flow`, `find`, `scaffold`) and the overlay seam (`internal/appmap/overlay.go`).
 - Blocked on: owner acceptance; alias-imported specs stay UNKNOWN until V1-0958 lands; MCP tools and corpus records are follow-ups.
 - Read next: Requirements; Overlay seam; Failure modes; Owner questions.
@@ -920,6 +922,56 @@ but does not read it; only non-Go syntax impact does.
 - `AMAP-V0-139`: The same committed inputs and arguments MUST produce byte-identical reports:
   steps in run order, keys sorted by name, unknowns ordered by step, file and line.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
+- `AMAP-V0-140`: `flows appmap blocker --map FILE --note TEXT [--budget N | --full]` MUST take
+  the text of one blocked or fixture-gap classification or run failure note (1..16384 bytes, no
+  NUL) and read only the map file and committed objects of `--root` at the map revision: the
+  AMAP-V0-100 routers and the controller and concern Ruby files of the application roots whose
+  routes a cited request matches. It writes `application-map-blocker/0` to stdout and no file,
+  index, ledger, trace or classification. An empty or oversized note, more than 16 cited requests
+  or the AMAP-V0-090 budget errors refuse with `appmap-invalid-query`; the AMAP-V0-100 revision
+  errors refuse the same way.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-141`: A cited request MUST be read only from a note line holding a standalone `404`
+  token: each `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD` or `OPTIONS` followed by a path
+  starting `/` (an `http(s)://host` prefix is dropped). The query and fragment, trailing
+  `.,;:)]}` and a trailing `/` are removed, requests are deduplicated by method and path in note
+  order, and each keeps its note line. A note citing none reads verdict `not-applicable`.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-142`: A request MUST match a compiled `rails-routes/0` route (AMAP-V0-101) when the
+  route verb serves the method (`HEAD` is served by `GET`; `PATCH|PUT` by either) and the paths
+  match segment by segment: literal segments exactly, `:param` one non-empty segment without a dot,
+  `*glob` the remaining one or more segments, after first trying the request with a trailing
+  `.format` removed from its last segment as Rails' optional format does. The first matching route
+  in compiled order decides. A request under a literal `mount` path (`=> "/p"` or `at: "/p"`), or
+  matching a literal rack-endpoint or redirect route, MUST read `uncertain` with reason
+  `mounted-application`, `rack-endpoint` or `redirect` and that declaration's `path:line`; a
+  mount, rack endpoint or redirect whose path is not literal covers every request path.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-143`: Each cited request MUST read exactly one verdict: `accepted` when a route
+  matches and AMAP-V0-102..105 find its action defined; `flagged` with rule `ROUTE-ACTION-MISSING`
+  and the handler file and basis when they find it missing; `uncertain` with the abstention
+  reason and `path:line` when they abstain; `uncertain` with `non-literal-request-path` for a
+  path holding `{`, `}`, `$`, `*` or a `:param` segment; when no route matches, `uncertain` with
+  `route-table-incomplete` and the first route abstention (or `no-server-route-table` when the
+  manifest has no Rails router) if the table is incomplete, else `flagged` with rule
+  `BLOCKER-404-NO-ROUTE`. A path the table cannot resolve is never flagged.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-144`: A `BLOCKER-404-NO-ROUTE` or `route-table-incomplete` request MUST name up to 3
+  nearest compiled routes sharing a literal segment with it, each with verb, path, declaration
+  `path:line`, controller and action, ranked by: serving the method, then more request segments
+  matched in order (`:param` matches any), then more shared literal segments, then the smaller
+  segment-count difference, then compiled order.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-145`: The report head MUST carry the map identity, budget, rule
+  `BLOCKER-404-NO-ROUTE`, routers checked, route count, `route_table_incomplete`, the cited count,
+  the overall verdict (`flagged` over `uncertain` over `accepted` over `not-applicable`) and the
+  per-verdict counts, then the `requests` rows in note order through the AMAP-V0-011 renderer
+  (default 6144 bytes). The command exits 1 after writing the report when a request is flagged,
+  0 otherwise, and 2 with no stdout on any refusal.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
+- `AMAP-V0-146`: Router and handler reads MUST stay within the AMAP-V0-107 bounds, and the same
+  committed inputs and note MUST produce a byte-identical report.
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1967; GitHub #1215).
 
 ## Wire contract
 
@@ -1450,3 +1502,52 @@ Rollback: remove `internal/requestpath`, `cmd/corvint/flows_request_path.go` and
 `flowsRequestPathHelp` term in `cmd/corvint/help.go`, the eight `request-path-*` error codes above
 and this section's requirements. No stored state, schema, ledger or other command changes; the
 report is an explicit stdout document.
+
+## Blocker 404 route cross-check (V1-1967)
+
+Owner input: [issue 1215](https://github.com/beamfall/corvint/issues/1215) (V1-1967), a
+follow-up to issue 1174. The requirements AMAP-V0-140..146 are accepted under the owner's
+standing auto-accept of 2026-10-11 and delivered experimental. Job: an obligation recorded as
+blocked or as a fixture gap because a request got HTTP 404 is checked against the route table
+before the classification is trusted, so a test that requests a path no route serves is named
+as the test's fault, with the routes it most likely meant. The verb reuses the AMAP-V0-100
+route compilation and AMAP-V0-102..105 action resolution and adds no map member, manifest member
+or error code. Corvint holds no blocker store: the caller passes the classification or failure
+note text and acts on the verdict and exit code.
+
+| Requirement | Implementation | Focused evidence |
+| --- | --- | --- |
+| AMAP-V0-140 | `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go` | `TestAMAPV0141BlockerNoteBounds`, `TestAMAPV0145BlockerCLI` |
+| AMAP-V0-141 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0141BlockerNoteBounds` |
+| AMAP-V0-142 | `internal/appmap/route_blocker.go`, `internal/appmap/route_actions.go` | `TestAMAPV0142RouteMatching`, `TestAMAPV0142BlockerUncertain`, `TestAMAPV0143BlockerVerdicts` |
+| AMAP-V0-143 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0142BlockerUncertain` |
+| AMAP-V0-144 | `internal/appmap/route_blocker.go` | `TestAMAPV0143BlockerVerdicts`, `TestAMAPV0142BlockerUncertain` |
+| AMAP-V0-145 | `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go` | `TestAMAPV0145BlockerCLI` |
+| AMAP-V0-146 | `internal/appmap/route_blocker.go`, `internal/appmap/route_handlers.go` | `TestAMAPV0146BlockerDeterministic`, `TestAMAPV0107OversizedHandler` |
+
+Acceptance (issue 1215): (a) a note citing `404 POST /api/v2/widgets/42/archive` where only
+`POST /api/widgets/:id/archive` exists is flagged `BLOCKER-404-NO-ROUTE` naming that route;
+(b) a 404 on a path the table matches with a defined action is accepted unchanged, and one whose
+action is missing reads `ROUTE-ACTION-MISSING`; (c) a mounted, rack-endpoint or non-literal path,
+and an unmatched path while the table holds an uncompiled route, read `uncertain` with a reason.
+The fixtures are inline in `internal/appmap/route_blocker_test.go` and
+`cmd/corvint/flows_appmap_blocker_test.go`.
+
+Non-goals: no blocker or obligation store, no rewrite or refusal of a recorded classification
+(the verdict and exit code are advisory to the caller); no Express, React or other non-Rails
+server router; no routing constraints, engines' own routes, custom inflections or route order
+beyond compiled order; no reading of HTTP logs or traces beyond the note text; no fuzzy matching
+of methods. Simpler baseline: grep `config/routes.rb` for the last path segment. It cannot expand
+resources, scopes or members, ignores the method, and cannot tell an unresolvable table from a
+missing route.
+
+Failure modes: a `constraints` block or a later-declared route that Rails would prefer can make
+the first compiled match differ from Rails' match (the row names the matched route); a note
+citing a path on a line without `404` is not read; a mount written other than `=> "/p"` or
+`at: "/p"` covers every path, so every unmatched request reads `uncertain` (conservative, never
+a false flag); nearest routes are a ranking hint, not a claim of intent.
+
+Rollback: remove `internal/appmap/route_blocker.go`, `cmd/corvint/flows_appmap_blocker.go`, their
+tests, the `opaque` route record in `route_actions.go` and `route_handlers.go`, the `blocker` verb
+and help text in `runFlowsAppmap`, and this section's requirements. No stored state, map schema
+or ledger needs migration.
