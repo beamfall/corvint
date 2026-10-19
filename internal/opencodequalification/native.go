@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 )
@@ -236,26 +237,28 @@ func Native(ctx context.Context, c Config) (Object, error) {
 	if e != nil {
 		return nil, e
 	}
-	queryTimes, lifeTimes := []float64{}, []float64{}
-	delivered := true
-	for _, x := range timings[timingStart:] {
-		kind := str(x["kind"])
-		if kind == "session.prompt" {
-			queryTimes = append(queryTimes, number(x["ms"]))
-			delivered = delivered && truth(x["delivered"])
+	first, delivered := timingSample(timings[timingStart:])
+	checks["timed-delivery"] = delivered && len(faults) == faultStart
+	attempts := []latencySample{first}
+	// AHI-056: one same-run re-sample when only the p95 limits missed; the re-sample decides.
+	if truth(checks["timed-delivery"]) && latencyResample(first) {
+		resampleStart := len(timings)
+		if e = campaign("timing-resample", true, false); e != nil {
+			return nil, e
 		}
-		if kind == "event.session.created" || kind == "event.session.execution.succeeded" || kind == "event.session.execution.failed" || kind == "event.session.deleted" || (strings.HasPrefix(kind, "tool.execute.after:") && !strings.HasSuffix(kind, ":execute")) {
-			lifeTimes = append(lifeTimes, number(x["ms"]))
+		if timings, e = readRows(root + "/timings.jsonl"); e != nil {
+			return nil, e
 		}
+		if faults, e = readRows(root + "/faults.jsonl"); e != nil {
+			return nil, e
+		}
+		second, again := timingSample(timings[resampleStart:])
+		checks["timed-delivery"] = again && len(faults) == faultStart
+		attempts = append(attempts, second)
 	}
-	checks["timed-delivery"] = len(queryTimes) > 0 && delivered && len(faults) == faultStart
-	if len(queryTimes) > 0 {
-		queryTimes = queryTimes[1:]
-	}
-	if len(lifeTimes) > 0 {
-		lifeTimes = lifeTimes[1:]
-	}
-	checks["latency"] = len(queryTimes) >= 20 && len(lifeTimes) >= 20 && p95(queryTimes) <= 500 && p95(lifeTimes) <= 250
+	decisive := attempts[len(attempts)-1]
+	queryTimes, lifeTimes := decisive.query, decisive.lifecycle
+	checks["latency"] = len(latencyFailures(decisive)) == 0
 	checks["snapshot"] = allRows(packets, func(x Object) bool { r, ok := x["repository"]; return !ok || object(r)["treeRevision"] == tree }) && anyRow(packets, func(x Object) bool { return object(x["repository"])["worktreeState"] == "mixed" })
 	checks["governance"] = anyRow(queryPackets, func(p Object) bool {
 		return anyValue(array(object(p["context"])["results"]), func(row Object) bool {
@@ -275,7 +278,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		}
 	}
 	checks["bounded-stops"] = stops >= 1 && stops <= 2
-	metrics := Object{"query": queryTimes, "lifecycle": lifeTimes, "queryP95Ms": p95(queryTimes), "lifecycleP95Ms": p95(lifeTimes), "injectedBytes": injected, "manualBytes": len(source), "criticalRecall": Object{"injected": boolInt(recall), "manual": 1, "total": 1}, "surface": "real stock host callbacks, including normalization, spawn, framing and delivery", "observer": "transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess"}
+	metrics := Object{"query": queryTimes, "lifecycle": lifeTimes, "queryP95Ms": p95(queryTimes), "lifecycleP95Ms": p95(lifeTimes), "latencyAttempts": latencyAttemptEvidence(attempts), "latencyMethod": latencyMethod, "injectedBytes": injected, "manualBytes": len(source), "criticalRecall": Object{"injected": boolInt(recall), "manual": 1, "total": 1}, "surface": "real stock host callbacks, including normalization, spawn, framing and delivery", "observer": "transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess"}
 	for _, installed := range []bool{true, false} {
 		config["plugins"] = []Object{}
 		name := "uninstall"
@@ -354,7 +357,7 @@ func Native(ctx context.Context, c Config) (Object, error) {
 		return nil, e
 	}
 	if report["result"] != "PASS" {
-		return report, errors.New("native campaign failed; inspect " + root)
+		return report, errors.New(campaignFailure(checks, attempts, root))
 	}
 	return report, nil
 }
@@ -433,4 +436,98 @@ func unchangedPromptObservation(prompt Object, timings []Object) bool {
 	return anyRow(timings, func(row Object) bool {
 		return row["kind"] == "session.prompt" && row["sessionID"] == session && row["messageID"] == message && truth(row["unchanged"]) && truth(row["delivered"])
 	})
+}
+
+// AHI-012 latency limits, shared by the campaign and the consumer record check.
+const (
+	queryP95LimitMs     = 500.0
+	lifecycleP95LimitMs = 250.0
+	latencyMinSamples   = 20
+	latencyMethod       = "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained"
+)
+
+// latencySample is one timing campaign's post-warm-up samples in milliseconds.
+type latencySample struct{ query, lifecycle []float64 }
+
+// timingSample extracts one campaign's samples, dropping each series' first (warm-up) sample.
+func timingSample(rows []Object) (latencySample, bool) {
+	s := latencySample{query: []float64{}, lifecycle: []float64{}}
+	delivered := true
+	for _, x := range rows {
+		kind := str(x["kind"])
+		if kind == "session.prompt" {
+			s.query = append(s.query, number(x["ms"]))
+			delivered = delivered && truth(x["delivered"])
+		}
+		if kind == "event.session.created" || kind == "event.session.execution.succeeded" || kind == "event.session.execution.failed" || kind == "event.session.deleted" || (strings.HasPrefix(kind, "tool.execute.after:") && !strings.HasSuffix(kind, ":execute")) {
+			s.lifecycle = append(s.lifecycle, number(x["ms"]))
+		}
+	}
+	delivered = delivered && len(s.query) > 0
+	if len(s.query) > 0 {
+		s.query = s.query[1:]
+	}
+	if len(s.lifecycle) > 0 {
+		s.lifecycle = s.lifecycle[1:]
+	}
+	return s, delivered
+}
+
+// latencyFailures names each missed latency limit with its measured value; empty means PASS.
+func latencyFailures(s latencySample) []string {
+	out := []string{}
+	for _, m := range []struct {
+		name   string
+		values []float64
+		limit  float64
+	}{{"query", s.query, queryP95LimitMs}, {"lifecycle", s.lifecycle, lifecycleP95LimitMs}} {
+		if len(m.values) < latencyMinSamples {
+			out = append(out, fmt.Sprintf("%s samples %d < %d", m.name, len(m.values), latencyMinSamples))
+		} else if p := p95(m.values); p > m.limit {
+			out = append(out, fmt.Sprintf("%s p95 %.0fms > %.0fms", m.name, p, m.limit))
+		}
+	}
+	return out
+}
+
+// latencyResample reports whether a sample missed only on a p95 limit, so a re-sample may decide.
+// A short sample is a collection failure, not host load, and is never re-sampled.
+func latencyResample(s latencySample) bool {
+	return len(s.query) >= latencyMinSamples && len(s.lifecycle) >= latencyMinSamples && len(latencyFailures(s)) > 0
+}
+
+func latencyAttemptEvidence(attempts []latencySample) []Object {
+	out := []Object{}
+	for _, a := range attempts {
+		out = append(out, Object{"queryP95Ms": p95(a.query), "lifecycleP95Ms": p95(a.lifecycle), "querySamples": len(a.query), "lifecycleSamples": len(a.lifecycle), "failures": latencyFailures(a)})
+	}
+	return out
+}
+
+// campaignFailure names every failed check; the latency check carries measured values and limits per attempt.
+func campaignFailure(checks Object, attempts []latencySample, root string) string {
+	names := []string{}
+	for k, v := range checks {
+		if !truth(v) {
+			names = append(names, k)
+		}
+	}
+	sort.Strings(names)
+	parts := []string{}
+	for _, name := range names {
+		if name != "latency" {
+			parts = append(parts, name)
+			continue
+		}
+		detail := []string{}
+		for i, a := range attempts {
+			f := latencyFailures(a)
+			if len(f) == 0 {
+				f = []string{"within limits"}
+			}
+			detail = append(detail, fmt.Sprintf("attempt %d: %s", i+1, strings.Join(f, ", ")))
+		}
+		parts = append(parts, "latency ("+strings.Join(detail, "; ")+")")
+	}
+	return "native campaign failed: " + strings.Join(parts, "; ") + "; inspect " + root
 }

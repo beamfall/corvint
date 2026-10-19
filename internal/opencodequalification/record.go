@@ -332,9 +332,9 @@ func BuildRecord(native, focused Object, before, after Identity) (Object, error)
 		}
 	}
 	metrics := object(native["metrics"])
-	for key, limit := range map[string]float64{"query": 500, "lifecycle": 250} {
+	for key, limit := range map[string]float64{"query": queryP95LimitMs, "lifecycle": lifecycleP95LimitMs} {
 		values := array(metrics[key])
-		if len(values) < 20 {
+		if len(values) < latencyMinSamples {
 			return fail("invalid latency samples")
 		}
 		nums := make([]float64, len(values))
