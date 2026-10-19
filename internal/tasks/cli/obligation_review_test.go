@@ -117,7 +117,7 @@ func TestTOLV0075_HeldVerdictsKeptWithReasons(t *testing.T) {
 // TestTOLV0077_EditedExampleMakesReviewStale: editing the cited example
 // marks the review stale and un-credits it in show without writing state;
 // a re-review of the same blob is refused, and a new review of the edited
-// example credits again (TOL-V0-076, 077).
+// example credits again (TOL-V0-076, TOL-V0-077).
 func TestTOLV0077_EditedExampleMakesReviewStale(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
@@ -197,7 +197,7 @@ func TestTOLV0077_TestRepositoryReviewStaleness(t *testing.T) {
 
 // TestTOLV0074_AuthorReviewerRefused: a reviewer named as an author is
 // refused OBLIGATION_REVIEWER_NOT_INDEPENDENT and nothing is written; a
-// secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, 078).
+// secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, TOL-V0-078).
 func TestTOLV0074_AuthorReviewerRefused(t *testing.T) {
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)

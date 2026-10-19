@@ -33,14 +33,21 @@ accepted requirement is amended.
   commit, abstaining `UNKNOWN` when it is undeclared or unresolved. It never fetches and never
   falls back to `HEAD`.
 
-## TOL-V0-079/080/084 traceability (V1-1945 d)
+## Unlinked requirements (V1-1945 d)
 
-PR #1203's dogfood-check reported two requirements without linked tests but did not name them, and
-the original output was not retained. A scan of the TOL-V0-079..088 tests found TOL-V0-079 and
-TOL-V0-084 only inside range comments and TOL-V0-080 with no anchor at all. Exact-ID tests now
-exist for all three (`TestTOLV0079_CitesBoundsReplaceAndDefault`, `TestTOLV0080_ScopeShape`,
-`TestTOLV0084_CandidateShapeAndClear`). Which two of the three the check counted is inferred, not
-observed.
+PR #1203's dogfood-check printed only counts (`unlinked=2`), not IDs, and its output was not
+retained. This branch's first `dogfood-check` printed `requirements=27 linked=24 unlinked=3`.
+Recomputing that count with the OCM-V0-019 rule (an exact ID token in a `*_test.go` or `*_test.sh`
+line, a table row outside the requirements section, or a linked OCM obligation) names
+TOL-V0-077, TOL-V0-078 and the new TOL-V0-109. TOL-V0-077 and TOL-V0-078 (V1-1886) were the two
+#1203 inherited: their tests name them only as a bare `077` or `078` after another ID, which is not
+a token, and the acceptance row names only the range `TOL-V0-073..078`. That identification is
+inferred from the rule and this branch's count, not read from #1203's output. All three are now
+linked by exact IDs in the existing test comments; the rebind's check records the result.
+
+A separate scan found TOL-V0-080 with no test anchor and TOL-V0-079 and TOL-V0-084 named only in
+range comments. Exact-ID tests now exist for all three (`TestTOLV0079_CitesBoundsReplaceAndDefault`,
+`TestTOLV0080_ScopeShape`, `TestTOLV0084_CandidateShapeAndClear`).
 
 ## Conformance fix found by the TOL-V0-080 test
 

@@ -335,7 +335,7 @@ func TestTOLV0107_CapabilityUndeclaredPrimary(t *testing.T) {
 // TestTOLV0108_CapabilityBoundsAndReadOnly: matches stop at 16 with
 // truncated, a listing over 1,024 files reports truncated beside a match and
 // abstains SEARCH_BOUND_EXCEEDED without one, and the read writes nothing
-// (TOL-V0-108, 109).
+// (TOL-V0-108, TOL-V0-109).
 func TestTOLV0108_CapabilityBoundsAndReadOnly(t *testing.T) {
 	r, _, _ := obligationRepoWith(t, func(p wire.Value) {
 		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(false)).
