@@ -385,12 +385,18 @@ func parseDoctorFileNr(s string) (uint64, uint64, error) {
 // free member, which the dispatcher already requires.
 func doctorAdmission(d doctorDispatcher, th doctorThresholds, scan *doctorScan, warn func(string, ...any)) []doctorFinding {
 	program := filepath.Base(d.programDir)
-	rec, err := dispatch.ReadAdmission(d.programDir, program)
-	if err != nil {
-		warn("queue observation unreadable: %v", err)
+	// As doctorLoadLedger: no final symlink is followed and a FIFO is
+	// refused, not waited on.
+	raw, err := readBounded(filepath.Join(d.programDir, dispatch.AdmissionFile), dispatch.MaxAdmissionBytes)
+	if errors.Is(err, os.ErrNotExist) {
 		return nil
 	}
-	if rec == nil {
+	var rec *dispatch.AdmissionRecord
+	if err == nil {
+		rec, err = dispatch.DecodeAdmission(raw, program)
+	}
+	if err != nil {
+		warn("queue observation unreadable: %v", err)
 		return nil
 	}
 	if age := scan.observedAt.Sub(rec.At); age > 3*time.Duration(rec.TickSeconds)*time.Second {

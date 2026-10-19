@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"time"
@@ -117,8 +116,10 @@ type admission struct {
 	calm    bool
 	holds   map[string]admissionHold
 	eff     map[string]int
-	running map[string]int
 	waiting map[string][]string
+	// planned is this tick's roster launches; the observation counts only
+	// those the launch loop then recorded as workers.
+	planned []Assignment
 }
 
 type admissionHold struct {
@@ -173,21 +174,23 @@ func (adm *admission) effectiveCap(r Role, depth int) int {
 }
 
 // settle records the queues after the roster: the effective caps, the
-// running counts with this tick's launches, the waiting tickets, and only
-// the holds of tickets that neither run nor launched nor wait out a backoff.
-func (adm *admission) settle(pending []Assignment, taken, skip map[string]bool, count, caps map[string]int) {
+// planned launches, the waiting tickets, and only the holds of tickets
+// that neither run nor launched nor wait out a backoff.
+func (adm *admission) settle(pending []Assignment, taken, skip map[string]bool, caps map[string]int) {
 	if adm == nil {
 		return
 	}
-	adm.eff, adm.running, adm.waiting = map[string]int{}, map[string]int{}, map[string][]string{}
+	adm.eff, adm.waiting = map[string]int{}, map[string][]string{}
 	for k, v := range caps {
 		adm.eff[k] = v
 	}
-	for k, v := range count {
-		adm.running[k] = v
-	}
 	for _, a := range pending {
-		if a.Ticket != "" && !taken[a.Key] && !skip[a.Key] {
+		if a.Ticket == "" || skip[a.Key] {
+			continue
+		}
+		if taken[a.Key] {
+			adm.planned = append(adm.planned, a)
+		} else {
 			adm.waiting[a.Role] = append(adm.waiting[a.Role], a.Ticket)
 		}
 	}
@@ -250,6 +253,15 @@ func (d *Dispatcher) recordAdmission(obs *Observation, adm *admission, pressure 
 		d.trackAdmission(obs, adm, pressure, now, &rec)
 	}
 	raw, err := json.Marshal(rec)
+	// The bound holds for any input: drop the shortest held streaks until
+	// the observation fits, and say so.
+	for err == nil && len(raw)+1 > MaxAdmissionBytes && len(rec.Held) > 0 {
+		rec.Held, rec.HeldTruncated = rec.Held[:len(rec.Held)/2], true
+		raw, err = json.Marshal(rec)
+	}
+	if err == nil && len(raw)+1 > MaxAdmissionBytes {
+		err = fmt.Errorf("queue observation exceeds %d bytes", MaxAdmissionBytes)
+	}
 	if err == nil {
 		err = writeAtomic(filepath.Join(d.dir, AdmissionFile), append(raw, '\n'))
 	}
@@ -262,21 +274,36 @@ func (d *Dispatcher) recordAdmission(obs *Observation, adm *admission, pressure 
 func (d *Dispatcher) trackAdmission(obs *Observation, adm *admission, pressure string, now time.Time, rec *AdmissionRecord) {
 	t := &d.admission
 	deep, waits, held := map[string]streak{}, map[string]map[string]time.Time{}, map[string]streak{}
-	for _, n := range adm.running {
-		rec.Running += n
+	// After the launch loop: running is the recorded workers, and a planned
+	// launch that control admission, a pool claim or the spawn refused is
+	// still waiting.
+	running, live := map[string]int{}, map[string]bool{}
+	for _, w := range d.ledger.Workers {
+		running[w.Role]++
+		live[w.Key] = true
+	}
+	rec.Running = len(d.ledger.Workers)
+	waiting := map[string][]string{}
+	for r, ids := range adm.waiting {
+		waiting[r] = append(waiting[r], ids...)
+	}
+	for _, a := range adm.planned {
+		if !live[a.Key] {
+			waiting[a.Role] = append(waiting[a.Role], a.Ticket)
+		}
 	}
 	for _, r := range d.Config.Roles {
 		if r.Match == nil || r.Cap == 0 {
 			continue
 		}
-		q := RoleQueue{Role: r.Name, Cap: r.Cap, CapMax: r.CapMax, EffectiveCap: adm.eff[r.Name], Running: adm.running[r.Name], Waiting: len(adm.waiting[r.Name])}
+		q := RoleQueue{Role: r.Name, Cap: r.Cap, CapMax: r.CapMax, EffectiveCap: adm.eff[r.Name], Running: running[r.Name], Waiting: len(waiting[r.Name])}
 		if pressure == AdmissionPressureCalm && q.Running+q.Waiting > q.EffectiveCap {
 			deep[r.Name] = t.deep[r.Name].next(now)
 			since := deep[r.Name].since
 			q.DeepTicks, q.DeepSince = deep[r.Name].ticks, &since
 		}
 		waits[r.Name] = map[string]time.Time{}
-		for _, id := range adm.waiting[r.Name] {
+		for _, id := range waiting[r.Name] {
 			since, ok := t.waits[r.Name][id]
 			if !ok {
 				since = now
@@ -379,17 +406,4 @@ func (r *AdmissionRecord) validate(program string) error {
 		}
 	}
 	return nil
-}
-
-// ReadAdmission reads programDir's queue observation; a missing file is
-// (nil, nil).
-func ReadAdmission(programDir, program string) (*AdmissionRecord, error) {
-	raw, err := readBounded(filepath.Join(programDir, AdmissionFile), MaxAdmissionBytes)
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return DecodeAdmission(raw, program)
 }

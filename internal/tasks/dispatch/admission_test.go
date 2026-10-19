@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -84,6 +85,15 @@ func TestATRV0151_RunOnlyBypassFocus(t *testing.T) {
 	obs.PoolFree["lanes"] = 1
 	if out, adm = admRoster(c, obs, nil, true); len(out) != 0 || len(adm.holds) != 0 {
 		t.Fatalf("author role: launches %v holds %v", keysOf(out), holdFences(adm))
+	}
+	// A pending detached relaunch keeps its role among bypassing roles.
+	c = runOnlyConfig(t, true)
+	second := c.Roles[0]
+	second.Name = "runner2"
+	c.Roles = append(c.Roles, second)
+	prefer := map[string]string{"ticket:a:q:r1": "runner2"}
+	if out, _ := roster(c, obs, nil, nil, nil, nil, prefer, nil, nil, &admission{calm: true}); !reflect.DeepEqual(keysOf(out), []string{"runner2/r1/1"}) {
+		t.Fatalf("relaunch role: launches %v", keysOf(out))
 	}
 	// A ticket another match member excludes is not a plan-window hold.
 	other := unselectedRun("r2", 2)
@@ -195,7 +205,11 @@ func openAdmission(t *testing.T, c *Config) *Dispatcher {
 
 func readAdm(t *testing.T, d *Dispatcher) *AdmissionRecord {
 	t.Helper()
-	rec, err := ReadAdmission(d.dir, "prog")
+	raw, err := os.ReadFile(filepath.Join(d.dir, AdmissionFile))
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	rec, err := DecodeAdmission(raw, "prog")
 	if err != nil || rec == nil {
 		t.Fatalf("read: %v %v", rec, err)
 	}
@@ -209,6 +223,7 @@ func TestATRV0150_ObservationStreaks(t *testing.T) {
 	c := runOnlyConfig(t, false)
 	c.Roles[1].Cap, c.Roles[1].Match = 1, &Match{}
 	d := openAdmission(t, c)
+	d.ledger.Workers = []*Worker{{ID: "w1", Role: "impl", Key: "ticket:a:q:i1"}}
 	obs := &Observation{Tickets: []Ticket{unselectedRun("r1", 1), ticket("i1", "P1", 2), ticket("i2", "P1", 3)}, PoolFree: map[string]int{"lanes": 2}, PoolFreeMembers: map[string][]string{"lanes": {"m1", "m2"}}}
 	t0 := time.Date(2026, 10, 19, 1, 0, 0, 0, time.UTC)
 	tick := func(i int, pressure string) *AdmissionRecord {
@@ -248,6 +263,51 @@ func TestATRV0150_ObservationStreaks(t *testing.T) {
 	}
 	if rec = tick(7, AdmissionPressureCalm); rec.Held[0].Ticks != 1 || rec.Roles[1].DeepTicks != 1 || !rec.Roles[1].OldestWaitSince.Equal(t0.Add(7*time.Second)) {
 		t.Fatalf("after held tick: %+v %+v", rec.Held, rec.Roles)
+	}
+}
+
+// ATR-V0-150: the observation counts the workers recorded after the launch
+// loop, so a planned launch that did not become a worker is still waiting.
+func TestATRV0150_RefusedLaunchStaysWaiting(t *testing.T) {
+	c := runOnlyConfig(t, false)
+	c.Roles[1].Match = &Match{}
+	d := openAdmission(t, c)
+	obs := &Observation{Tickets: []Ticket{ticket("i1", "P1", 1), ticket("i2", "P1", 2), ticket("i3", "P1", 3)}}
+	out, adm := admRoster(c, obs, nil, true)
+	if len(out) != 2 {
+		t.Fatalf("planned: %+v", out)
+	}
+	d.ledger.Workers = []*Worker{{ID: "w1", Role: "impl", Key: out[0].Key}}
+	d.recordAdmission(obs, adm, AdmissionPressureCalm, time.Date(2026, 10, 19, 1, 0, 0, 0, time.UTC))
+	rec := readAdm(t, d)
+	if rec.Running != 1 || rec.Roles[1].Running != 1 || rec.Roles[1].Waiting != 2 || rec.Roles[1].OldestWaitTicket != out[1].Ticket || rec.Roles[1].DeepTicks != 1 {
+		t.Fatalf("record: running %d roles %+v", rec.Running, rec.Roles)
+	}
+}
+
+// ATR-V0-150: an observation whose holds would exceed the 1 MiB bound keeps
+// the longest-held half repeatedly until it fits and sets heldTruncated.
+func TestATRV0150_OversizeHeldIsTruncated(t *testing.T) {
+	c := runOnlyConfig(t, false)
+	d := openAdmission(t, c)
+	names := make([]string, maxAdmissionFreeNames)
+	for i := range names {
+		names[i] = fmt.Sprintf("member-%03d-%s", i, strings.Repeat("x", 100))
+	}
+	obs := &Observation{PoolFree: map[string]int{"lanes": len(names)}, PoolFreeMembers: map[string][]string{"lanes": names}}
+	adm := &admission{calm: true, holds: map[string]admissionHold{}}
+	for i := 0; i < 200; i++ {
+		a := Assignment{Role: "runner", Ticket: fmt.Sprintf("ticket:a:q:r%03d", i), Key: fmt.Sprintf("ticket:a:q:r%03d", i), Pool: "lanes"}
+		adm.holds["runner/"+a.Key] = admissionHold{a: a, fence: FencePlanWindow, detail: "outside the plan window"}
+	}
+	d.recordAdmission(obs, adm, AdmissionPressureCalm, time.Date(2026, 10, 19, 1, 0, 0, 0, time.UTC))
+	raw, err := os.ReadFile(filepath.Join(d.dir, AdmissionFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := readAdm(t, d)
+	if len(raw) > MaxAdmissionBytes || !rec.HeldTruncated || len(rec.Held) == 0 || len(rec.Held) >= 200 || d.admissionFailed {
+		t.Fatalf("size %d truncated %v held %d failed %v", len(raw), rec.HeldTruncated, len(rec.Held), d.admissionFailed)
 	}
 }
 
@@ -380,8 +440,5 @@ func TestATRV0150_DecodeAdmissionRefusals(t *testing.T) {
 		if got := code(tc.raw, tc.program); got != tc.want {
 			t.Fatalf("%s: code %s want %s", name, got, tc.want)
 		}
-	}
-	if rec, err := ReadAdmission(t.TempDir(), "prog"); rec != nil || err != nil {
-		t.Fatalf("missing file: %v %v", rec, err)
 	}
 }

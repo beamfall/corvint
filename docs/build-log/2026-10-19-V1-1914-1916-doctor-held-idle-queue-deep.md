@@ -69,3 +69,42 @@ subsystem.
   `TestATRV0150_RosterNamesFences`, after which M2 was KILLED.
 - NOT_RUN: live dispatcher qualification on a running program, Linux, and `make gate`, per the
   owner's standing preference for focused tests.
+
+## Independent review (one Codex round) and fixes
+
+The single Codex round reported no change to launch decisions while `runOnly`, `bypassFocus` and
+`capMax` are unset. Its findings and the fixes:
+
+- P1: the doctor read `admission.json` with a plain read, so a FIFO there could block the scan and
+  a symbolic link was followed. The doctor now uses the bounded run-file reader. That reader opens
+  with no-follow and non-blocking flags and refuses anything that is not a regular file, giving the
+  `queue observation unreadable` warning. The dispatcher's own unused reader was removed.
+- P2a: `held` could exceed the 1 MiB bound (256 holds with 64 long member names each), and the
+  write then failed. The writer now halves `held`, keeping the longest streaks, until the object
+  fits, and sets `heldTruncated`.
+- P2b: the observation counted planned launches as running, even when control admission, the
+  pool claim or the spawn refused them. It is now written after the launch loop: `running` is the
+  workers the ledger recorded, and a planned launch with no worker stays waiting.
+- P2c: a next-stage relaunch of a bypassed ticket lost its role affinity, because the relaunch
+  check required a plan-window match. The relaunch now keeps a `bypassFocus` role for a ticket the
+  plan window alone keeps out.
+- Coverage gaps named but not added: pool-room and skip fences, tier-cap and budget fences in the
+  held record, and relaunch for every fence. Those fences reuse the existing roster checks; the
+  role-cap, global-cap, plan-window and pressure fences are tested.
+
+Evidence after the fixes:
+
+- New tests `TestATRV0150_RefusedLaunchStaysWaiting` and `TestATRV0150_OversizeHeldIsTruncated`,
+  a relaunch case in `TestATRV0151_RunOnlyBypassFocus`, and symbolic-link and FIFO cases in
+  `TestTQDV0043_RunnableHeldIdle`. That makes 13 new tests, and 0 of them compile at base.
+- Mutations M12 to M16 were all KILLED, at load averages about 29 to 31:
+  - M12: the relaunch drops the bypass role (`TestATRV0151_RunOnlyBypassFocus`).
+  - M13: there is no size truncation (`TestATRV0150_OversizeHeldIsTruncated`).
+  - M14: planned launches count as running (`TestATRV0150_RefusedLaunchStaysWaiting`).
+  - M15: `running` is not taken from the ledger (`TestATRV0150_RefusedLaunchStaysWaiting`).
+  - M16: the doctor follows a link with a plain read (`TestTQDV0043_RunnableHeldIdle`).
+- `internal/tasks/dispatch` full package with `-race`: ok in 200.0 s. Load averages were 34.44 at
+  the start and 32.08 at the end.
+- `internal/tasks/cli` with `-race` and
+  `-run 'CALV013[01]|TQDV004[34]|TQDV0020|TQDV0031|Doctor'`: ok in 17.1 s, at load averages of
+  32.6 and 33.2.

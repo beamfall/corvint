@@ -1543,7 +1543,9 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	spend.holdDeferred(obs.Tickets, prefer)
 	room := newPoolRoom(obs, d.ledger.Workers)
 	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
-	d.recordAdmission(obs, adm, pressure, now)
+	// ATR-V0-150: the observation is written after the launch loop, so it
+	// counts the workers actually recorded.
+	defer d.recordAdmission(obs, adm, pressure, now)
 	d.recordHeld(obs, held)
 	d.recordPoolWait(room)
 	// Holds are recorded after the launches, so a budget event counts them.

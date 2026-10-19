@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -83,6 +84,29 @@ func TestTQDV0043_RunnableHeldIdle(t *testing.T) {
 	}
 	if x, item := doctorOK(t, root, "--config", cfg); len(findingsOf(item, "RUNNABLE_HELD_IDLE")) != 0 || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "queue observation unreadable") {
 		t.Fatalf("unreadable: %s", x.stdout)
+	}
+	// A FIFO or a symbolic link in place of the observation is refused
+	// without blocking on it or following it.
+	path := filepath.Join(prog, dispatch.AdmissionFile)
+	good := filepath.Join(prog, "good.json")
+	writeAdmission(t, prog, admissionFixture(now, dispatch.AdmissionPressureCalm, 3, 0))
+	if err := os.Rename(path, good); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(good, path); err != nil {
+		t.Fatal(err)
+	}
+	if x, item := doctorOK(t, root, "--config", cfg); len(findingsOf(item, "RUNNABLE_HELD_IDLE")) != 0 || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "queue observation unreadable") {
+		t.Fatalf("symlink: %s", x.stdout)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mkfifo(path, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if x, item := doctorOK(t, root, "--config", cfg); len(findingsOf(item, "RUNNABLE_HELD_IDLE")) != 0 || !strings.Contains(strings.Join(x.res.Warnings, "\n"), "not a regular file") {
+		t.Fatalf("fifo: %s", x.stdout)
 	}
 }
 

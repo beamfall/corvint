@@ -474,7 +474,7 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 		room.charge(a)
 		out = append(out, a)
 	}
-	adm.settle(pending, taken, skip, count, caps)
+	adm.settle(pending, taken, skip, caps)
 	if len(held) > 0 {
 		kept := held[:0]
 		for _, h := range held {
@@ -495,7 +495,12 @@ func (c *Config) relaunchRole(name string, t Ticket) *Role {
 		t.Plan = "SELECTED"
 	}
 	r := c.roleNamed(name)
-	if r == nil || r.Cap == 0 || r.Lane != nil || r.Match == nil || !matches(r.Match, t) {
+	if r == nil || r.Cap == 0 || r.Lane != nil || r.Match == nil {
+		return nil
+	}
+	// ATR-V0-151: a bypassing run-only role serves an unselected ticket too,
+	// so the relaunch keeps its role there as well.
+	if !matches(r.Match, t) && (!r.BypassFocus || !outsideFocusOnly(r.Match, t)) {
 		return nil
 	}
 	return r

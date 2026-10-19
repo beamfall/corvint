@@ -1114,7 +1114,9 @@ calm. Both policies are off unless configured.
   `heldTruncated`. `pressure` is `NOT_CONFIGURED` (no pressure block or no recorded pressure state),
   `UNKNOWN` (the CAL-V0-068 state is unknown), `CALM` (level and pending level 0) or `RAISED`.
   `roles` holds, for each matching role with a cap, `role`, `cap`, any `capMax`, `effectiveCap`,
-  `running` (after this tick's launches) and `waiting` (candidates neither launched nor backing off).
+  `running` (the workers recorded after this tick's launch loop) and `waiting` (candidates neither
+  running nor backing off; a planned launch that control admission, a pool claim or the spawn
+  refused is still waiting).
   While pressure is `CALM` and `running + waiting` exceeds `effectiveCap`, it also holds the
   consecutive-tick streak `deepTicks` and `deepSince`. `oldestWaitTicket` and `oldestWaitSince` name
   the waiting ticket seen longest. `held` covers each ticket of a `runOnly` role that neither runs,
@@ -1123,7 +1125,8 @@ calm. Both policies are off unless configured.
   or `PRESSURE`. It also names the ticket's pool, that pool's free-member count, up to 64 sorted
   free-member names, and the streak `ticks` and `since`. A hold is recorded only while the pool has
   at least one free member. `held` keeps at most 256 entries, longest streak first, and sets
-  `heldTruncated` when more were held. Streaks live in the dispatcher's memory and restart with it.
+  `heldTruncated` when more were held or when `held` was halved, longest streaks kept, until the
+  object fits 1 MiB. Streaks live in the dispatcher's memory and restart with it.
   A tick whose launches are held before the roster (CAL-V0-273, or an unreadable pressure source)
   writes `launchesHeld` true with empty `roles` and `held`, and restarts every streak. A failed
   write MUST NOT stop the tick; it emits one `alert` until a write succeeds again. The file is a
@@ -1136,9 +1139,10 @@ calm. Both policies are off unless configured.
   role MAY also declare `bypassFocus`, which needs `runOnly` and is off by default. With it, a ticket
   the role would match but for `match.planSelected` (the native plan has not selected it) is a
   candidate while that pool has at least one free member. Otherwise the ticket is recorded as held
-  by `PLAN_WINDOW`. The bypass lifts only the plan-window match. Every cap, budget, pool-room and
-  pressure fence still applies, and so does native claim admission. A role without `runOnly` never
-  bypasses, so author-session work keeps the plan window.
+  by `PLAN_WINDOW`. A relaunch of such a ticket's next stage keeps the bypassing role. The bypass
+  lifts only the plan-window match. Every cap, budget, pool-room and pressure fence still applies,
+  and so does native claim admission. A role without `runOnly` never bypasses, so author-session
+  work keeps the plan window.
 - `ATR-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1916) A matching
   role with `cap` at least 1 MAY declare `capMax`, with `cap < capMax <= 64`; it is off by default.
   While the tick's pressure is `CALM` and the role's queue depth exceeds `cap`, the role's effective
@@ -1161,11 +1165,13 @@ place, and the doctor reports it as stale after three ticks.
 
 Acceptance evidence: in `internal/tasks/dispatch`, `TestATRV0150_RosterNamesFences` (each fence
 recorded for a run-only ticket; author-session tickets at their role cap never recorded),
-`TestATRV0150_ObservationStreaks`, `TestATRV0150_WriteFailureAlertsOnce`,
-`TestATRV0150_PressureLabel`, `TestATRV0150_TickWritesObservation` and
-`TestATRV0150_DecodeAdmissionRefusals`. `TestATRV0151_RunOnlyBypassFocus` covers a ticket held by
-the plan window with no free member or no opt-in, dispatched with a free member and `bypassFocus`,
-and author-session work that never bypasses; `TestATRV0151_ConfigValidation` covers the
+`TestATRV0150_ObservationStreaks`, `TestATRV0150_RefusedLaunchStaysWaiting` (a refused planned
+launch stays waiting; running counts recorded workers), `TestATRV0150_OversizeHeldIsTruncated`,
+`TestATRV0150_WriteFailureAlertsOnce`, `TestATRV0150_PressureLabel`,
+`TestATRV0150_TickWritesObservation` and `TestATRV0150_DecodeAdmissionRefusals`.
+`TestATRV0151_RunOnlyBypassFocus` covers a ticket held by the plan window with no free member or no
+opt-in, dispatched with a free member and `bypassFocus`, author-session work that never bypasses,
+and a relaunch that keeps the bypassing role; `TestATRV0151_ConfigValidation` covers the
 configuration refusals. `TestATRV0152_CapMaxScalesAtCalmPressure` covers scaling up while deep at
 `CALM`, bounded by depth and `capMax`, the return to `cap` as the queue drains, and no scaling when
 pressure is not calm or no pressure input is given; `TestATRV0150_PressureLabel` maps `RAISED`,
@@ -1437,6 +1443,6 @@ receipt or wire shape changes.
 | ATR-V0-133 | `internal/tasks/dispatch/config.go` (`promptSafeHost`, `argvCodeRisk`, `renderedArgvSafe`, `carryArgvPlaceholders`), `internal/tasks/dispatch/loop.go` (launch) | `TestATRV0133_CarryOverHostArgvPlaceholders`, `TestATRV0133_LaunchRechecksRenderedArgv`, `TestATRV0110_CarryOverConfigDefaultsAndBounds` (`internal/tasks/dispatch`) |
 | ATR-V0-134 | `internal/tasks/cli/dispatch.go` (`dispatchAux`) | `TestATRV0134_StatusFailsOnInvalidConfigFile`, `TestCALV0127_DispatchStatusWithInvalidConfigFile`, `TestATRV0056_DispatchStatusWorkerShowsContextNotice` (`internal/tasks/cli`) |
 | ATR-V0-135 | `internal/tasks/cli/dispatch.go` (`dispatchConfig`) | `TestATRV0134_StatusFailsOnInvalidConfigFile` (`internal/tasks/cli`) |
-| ATR-V0-150 | `internal/tasks/dispatch/admission.go` (`recordAdmission`, `trackAdmission`, `DecodeAdmission`), `internal/tasks/dispatch/roster.go` (`roster`), `internal/tasks/dispatch/loop.go` (`launchRoster`), `internal/tasks/cli/dispatch.go` (pool free members) | `TestATRV0150_RosterNamesFences`, `TestATRV0150_ObservationStreaks`, `TestATRV0150_WriteFailureAlertsOnce`, `TestATRV0150_PressureLabel`, `TestATRV0150_TickWritesObservation`, `TestATRV0150_DecodeAdmissionRefusals` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
-| ATR-V0-151 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/roster.go` (`roster`, `outsideFocusOnly`) | `TestATRV0151_RunOnlyBypassFocus`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
+| ATR-V0-150 | `internal/tasks/dispatch/admission.go` (`recordAdmission`, `trackAdmission`, `DecodeAdmission`), `internal/tasks/dispatch/roster.go` (`roster`), `internal/tasks/dispatch/loop.go` (`launchRoster`), `internal/tasks/cli/dispatch.go` (pool free members) | `TestATRV0150_RosterNamesFences`, `TestATRV0150_ObservationStreaks`, `TestATRV0150_RefusedLaunchStaysWaiting`, `TestATRV0150_OversizeHeldIsTruncated`, `TestATRV0150_WriteFailureAlertsOnce`, `TestATRV0150_PressureLabel`, `TestATRV0150_TickWritesObservation`, `TestATRV0150_DecodeAdmissionRefusals` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
+| ATR-V0-151 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/roster.go` (`roster`, `outsideFocusOnly`, `relaunchRole`) | `TestATRV0151_RunOnlyBypassFocus`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
 | ATR-V0-152 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/admission.go` (`effectiveCap`, `depths`) | `TestATRV0152_CapMaxScalesAtCalmPressure`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
