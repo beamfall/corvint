@@ -26,6 +26,8 @@ Usage:
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--rev REV]
+  corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
+    [--receipt FILE ...] [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -76,12 +78,23 @@ its hygiene and a NOT_MEASURED strength; other files list each test a finding
 names with the hygiene those findings give it. Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
 
-Reads committed Git content only; writes nothing and uses no network.
+teardown lists, for each resource an example creates and deletes in teardown
+(afterEach and finally in JS/TS; after and ensure in RSpec), the actions on it
+with lines. Which calls create, delete and produce dependents comes only from
+the committed corvint-side-effect-declaration/0 file named by --declaration.
+TEARDOWN-DEPENDENT-LEFTOVER names an action whose dependent is still present
+at the parent delete; it is advisory, with reasons, when the graph is
+incomplete. A --receipt JS provider receipt bound to the committed test blob
+attaches recorded 409/422 delete outcomes. A verdict is never "safe". Exit 1
+on a declared finding, 0 otherwise.
+
+Reads committed Git content and the named receipts only; writes nothing and
+uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
-tests-decisions-invalid, tests-output-unavailable.
+tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858).
+V1-1592, V1-1798, V1-1858, V1-1884).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -140,7 +153,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
 	}
 	if root == "" {
 		root = "."
@@ -160,8 +173,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "teardown":
+		return runTestsTeardown(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
