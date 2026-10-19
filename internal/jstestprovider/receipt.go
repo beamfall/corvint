@@ -82,6 +82,12 @@ type AttemptDetail struct {
 	// RequestOutcomes is the attempt's declared request-outcome record (LPCV-V0-080), unprofiled
 	// receipts only. Absent means not produced, never a classification.
 	RequestOutcomes *RequestOutcomeRecord `json:"requestOutcomes,omitempty"`
+	// AssertionOperands is the attempt's declared assertion-operand record (LPCV-V0-120),
+	// unprofiled receipts only. Absent means not produced, never empty operands.
+	AssertionOperands *AssertionOperandRecord `json:"assertionOperands,omitempty"`
+	// OutboundCalls is the attempt's declared server-log outbound-call record (LPCV-V0-123),
+	// unprofiled receipts only. Absent means not produced, never a stubbed environment.
+	OutboundCalls *OutboundCallRecord `json:"outboundCalls,omitempty"`
 }
 
 // BrowserStep is the bounded action trace retained by the redaction-capable

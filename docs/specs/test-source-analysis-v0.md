@@ -1488,16 +1488,24 @@ committed source; nothing reads a database, a network or a run. Each finding cit
   `toBeTruthy` on a count, a negated zero or `[]`, a negated `toBeEmpty`, or a visibility or text
   assertion on the collection or a member of it. A text assertion of `[]` or an empty string is not
   a precondition, since it passes on an empty collection.
-- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) The run-time
-  `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call to an unstubbed
-  host) is NOT_PRODUCED with reason `server-outbound-log-not-produced`: no receipt retains a server
-  log or its outbound calls. It MUST NOT be inferred from a status code alone.
-- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) The run-time
-  `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is NOT_PRODUCED with reason
-  `assertion-operands-not-produced`: no receipt records assertion operands.
-- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) Reporting drift of a
-  matrix row's `file:line` citations at the row's pinned commit is NOT_PRODUCED: no row source with
-  a pinned commit exists in this profile to read.
+- `TSA-V0-174`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192; amended 2026-10-19,
+  V1-1931) The run-time `ENV-UNSTUBBED-CALL` reading (a 5xx whose server log shows an outbound call
+  to an unstubbed host) is the `unstubbedCall` member of `LPCV-V0-123` to `LPCV-V0-125`, read from a
+  declared per-attempt outbound-call record. A test without that record stays NOT_PRODUCED with
+  reason `server-outbound-log-not-produced`; Corvint reads no server log itself. It MUST NOT be
+  inferred from a status code alone.
+- `TSA-V0-175`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  V1-1932) The run-time `VACUOUS-EMPTY-EQUALITY` reading (both operands observed empty) is the
+  `vacuousEquality` member of `LPCV-V0-120` to `LPCV-V0-122`, read from a declared per-attempt
+  assertion-operand record; a finding blocks credit. A test without that record is NOT_PRODUCED
+  with reason `assertion-operand-record-absent`.
+- `TSA-V0-176`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  V1-1932) Drift of a matrix row's citations at the row's pinned commit is reported by `corvint
+  tests citations` (`TSA-V0-250` to `TSA-V0-256`) when the row writes each citation as
+  `path:LINE[-END]#Symbol@REV` or the document declares its default revision: a symbol that is no
+  longer in the cited range is `symbol-not-in-range`, a range past the file's end is
+  `range-out-of-bounds`. A row citation without a symbol is checked for bounds only, and one
+  without a pinned revision is read at the documents' revision.
 
 Non-goals:
 - choosing the correct value of an either-or assertion, or reading natural-language contract
@@ -1555,9 +1563,9 @@ persisted.
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
 | TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest`, `TestVacuousEmptyEqualitySeeded` | experimental |
 | TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
-| TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
-| TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
-| TSA-V0-176 | none | NOT_PRODUCED | gap |
+| TSA-V0-174 | `internal/testvaliditydoc/unstubbed_call.go`, `internal/jstestprovider/outbound_calls.go` | `TestLPCVV0124UnstubbedCallClassification` (`LPCV-V0-123..125`) | experimental; no automatic producer |
+| TSA-V0-175 | `internal/testvaliditydoc/vacuous_equality.go`, `internal/jstestprovider/assertion_operands.go` | `TestLPCVV0121VacuousEqualityReading` (`LPCV-V0-120..122`) | experimental; no automatic producer |
+| TSA-V0-176 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsReviewForms` (`TSA-V0-250..256`) | experimental |
 
 ## Browser write responses in test-validity (V1-1933)
 
@@ -1683,8 +1691,8 @@ this section. Nothing is persisted.
 V1-1934 (GitHub #1195) checks the source citations in review documents against the object store
 at the cited revision, so a review that cites a file before it existed, a range past its end or a
 symbol outside its range is caught without a checkout. It is agent-drafted and accepted under the
-owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) and row
-citation drift (V1-1932) are separate.
+owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) is
+separate; row citation drift (V1-1932, `TSA-V0-176`) is read by this check.
 
 - `TSA-V0-250`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A citation MUST be an
   inline-code span outside fenced code of the form `path[:START[-END]][#Symbol][@REV]` whose path
