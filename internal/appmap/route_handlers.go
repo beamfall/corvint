@@ -326,6 +326,7 @@ type compiledRoutes struct {
 	routes     []railsRoute
 	abstain    []routeNote
 	skipped    []routeNote
+	opaque     []opaqueRoute
 	roots      map[string][]int // app root -> route indexes
 	checked    []string
 	notChecked []actionNotApplicable
@@ -354,6 +355,7 @@ func compileRailsRoutes(r repo, rev string, man Manifest) (*compiledRoutes, erro
 		}
 		out.abstain = append(out.abstain, p.abstain...)
 		out.skipped = append(out.skipped, p.skipped...)
+		out.opaque = append(out.opaque, p.opaque...)
 		out.checked = append(out.checked, rf.Path)
 		if len(out.routes) > maxStates {
 			return nil, bound(fmt.Sprintf("more than %d compiled routes", maxStates))

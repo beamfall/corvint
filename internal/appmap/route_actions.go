@@ -58,10 +58,19 @@ type actionScope struct {
 	blocked                   bool
 }
 
+// opaqueRoute is a skipped route (rack endpoint, redirect or mounted application) whose literal
+// path is known; a mount covers every path under it, and one whose path is unknown covers every
+// path (AMAP-V0-142).
+type opaqueRoute struct {
+	routeNote
+	verb, path string // verb is empty for a mount
+}
+
 type routeActionParser struct {
 	routes  []railsRoute
 	abstain []routeNote
 	skipped []routeNote
+	opaque  []opaqueRoute
 	draw    func(name string, scope actionScope, line int)
 }
 
@@ -123,7 +132,7 @@ func (p *routeActionParser) parse(file string, data []byte, initial actionScope,
 		p.abstain = append(p.abstain, routeNote{file, 1, "unsupported-rails-syntax"})
 		return
 	}
-	start, startAbstain := len(p.routes), len(p.abstain)
+	start, startAbstain, startOpaque := len(p.routes), len(p.abstain), len(p.opaque)
 	stack := []actionScope{initial}
 	broken := false
 	for i := 0; i < len(toks) && !broken; {
@@ -182,7 +191,7 @@ func (p *routeActionParser) parse(file string, data []byte, initial actionScope,
 		}
 	}
 	if broken || len(stack) != 1 {
-		p.routes = p.routes[:start]
+		p.routes, p.opaque = p.routes[:start], p.opaque[:startOpaque]
 		p.abstain = append(p.abstain[:startAbstain], routeNote{file, 1, "unsupported-rails-syntax"})
 	}
 }
@@ -265,7 +274,20 @@ func (p *routeActionParser) statement(file string, line int, ts []token, block b
 			return child, "non-literal-rails-route"
 		}
 		if v, has := opts["to"]; has && (v.kind == "redirect" || v.kind == "constant") {
-			p.skipped = append(p.skipped, routeNote{file, line, map[string]string{"redirect": "redirect", "constant": "rack-endpoint"}[v.kind]})
+			note := routeNote{file, line, map[string]string{"redirect": "redirect", "constant": "rack-endpoint"}[v.kind]}
+			p.skipped = append(p.skipped, note)
+			segment := arg
+			if v, has := opts["path"]; has {
+				segment = v.str
+			}
+			switch {
+			case scope.res == nil && verb == "root":
+				p.opaque = append(p.opaque, opaqueRoute{note, "GET", routeJoin(scope.prefix, "")})
+			case scope.res == nil && verb != "match" && segment != "" && literalRoutePath(segment):
+				p.opaque = append(p.opaque, opaqueRoute{note, strings.ToUpper(verb), routeJoin(scope.prefix, segment)})
+			default:
+				p.opaque = append(p.opaque, opaqueRoute{note, "", "/"}) // an unknown path may be any path
+			}
 			return child, ""
 		}
 		for _, k := range []string{"to", "as", "on", "controller", "action", "path"} {
@@ -275,7 +297,13 @@ func (p *routeActionParser) statement(file string, line int, ts []token, block b
 		}
 		return child, p.verbRoute(file, line, verb, arg, opts, scope)
 	case "mount":
-		p.skipped = append(p.skipped, routeNote{file, line, "mounted-application"})
+		note := routeNote{file, line, "mounted-application"}
+		p.skipped = append(p.skipped, note)
+		at, ok := mountPath(ts[1:])
+		if !ok || scope.res != nil {
+			at, scope.prefix = "/", "" // an unknown mount path may be any path
+		}
+		p.opaque = append(p.opaque, opaqueRoute{note, "", routeJoin(scope.prefix, at)})
 		return child, ""
 	case "draw":
 		switch {
@@ -685,4 +713,28 @@ func routeValue(ts []token) (routeOpt, bool) {
 		return routeOpt{kind: "list", list: list}, true
 	}
 	return routeOpt{}, false
+}
+
+// mountPath reads the literal path of `mount App => "/p"` or `mount App, at: "/p"`.
+func mountPath(ts []token) (string, bool) {
+	for i := 0; i+1 < len(ts); i++ {
+		var rest []token
+		switch {
+		case isPunct(ts[i], "=") && isPunct(ts[i+1], ">"):
+			rest = ts[i+2:]
+		case ts[i].kind == tokIdent && ts[i].text == "at" && isPunct(ts[i+1], ":") && i > 0 && isPunct(ts[i-1], ","):
+			rest = ts[i+2:]
+		default:
+			continue
+		}
+		for j, t := range rest {
+			if isPunct(t, ",") {
+				rest = rest[:j]
+				break
+			}
+		}
+		v, ok := routeValue(rest)
+		return v.str, ok && v.kind == "string" && literalRoutePath(v.str)
+	}
+	return "", false
 }

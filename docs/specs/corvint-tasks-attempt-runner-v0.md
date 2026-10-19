@@ -1110,7 +1110,8 @@ gate on the status exit code return to reading `configFile.state`.
   queue that cannot build packets, a failed build or a rendered argv that fails the ATR-V0-133
   recheck MUST launch the session without a packet and emit one alert naming the reason
   (`review packet not offered: ...`); the packet never blocks a launch. A role without the option,
-  or with `enabled: false`, launches exactly as before.
+  or with `enabled: false`, launches exactly as before. An optional `sourceRepository` names a
+  configuration `sourceRepositories` entry the packet is built in (ERG-V0-022, GitHub #1217).
 
 Non-goals (ATR-V0-141): choosing reviewers, deciding which stage is a review stage (the operator
 opts the review role in), writing the packet to the worker directory, or binding the checkpoint to

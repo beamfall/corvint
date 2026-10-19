@@ -467,7 +467,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR]",
 		"corvint-tasks gate record|resubmit <ticketId|local> --gate GATE --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [...]",
 		"corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
-		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--max-bytes 4096..262144] [--checkpoint NOTE]",
+		"corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]",
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",

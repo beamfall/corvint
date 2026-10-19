@@ -25,6 +25,7 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT]
   corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
+  corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
   corvint [--root PATH] flows appmap find --map FILE --text TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap scaffold --map FILE --flow FLOW_ID [--budget N | --full] [--revision REV]
@@ -101,6 +102,14 @@ action, with the declaration line, handler file and action. only:/except: remova
 unresolvable handlers, ancestors, modules and dynamic definitions abstain with a reason. Other
 dialects are not applicable. A finding exits 1; refusals exit 2. No repository file changes.
 
+Blocker 404 cross-check (experimental, V1-1967): blocker reads a blocked/fixture-gap
+classification or run failure note and resolves each METHOD /path cited on a line with a 404
+against the compiled rails-routes/0 table. No matching route is flagged BLOCKER-404-NO-ROUTE
+with up to 3 nearest routes; a matched route whose handler lacks the action is flagged
+ROUTE-ACTION-MISSING; a matched route with a defined action is accepted; a mounted, rack or
+redirect path, an uncompiled route or a non-literal request path is uncertain with a reason.
+A flagged request exits 1; refusals exit 2. No repository file changes.
+
 Branch tests and setup (experimental, V1-1891): branches reads up to 16 cited Ruby line ranges
 and lists, per if/unless/elsif/when branch, the tests that name it grouped by boundary (unit,
 request, e2e; "none at <boundary>" when none), and for a boundary not reached the guard's model
@@ -117,7 +126,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -175,6 +184,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "actions" {
 		return runFlowsAppmapActions(ctx, root, args, out)
 	}
+	if verb == "blocker" {
+		return runFlowsAppmapBlocker(ctx, root, args, out)
+	}
 	if verb == "branches" {
 		return runFlowsAppmapBranches(ctx, root, args, out)
 	}
@@ -186,7 +198,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")
