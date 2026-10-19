@@ -72,6 +72,8 @@ var (
 		"HOST_ERRORS":         "The host reported repeated errors; read the cited stdout.log lines before relaunching the worker.",
 		"EARLY_REFUSAL":       "The session's first tool calls were all refused; check the worker's sandbox and permission profile.",
 		"WORK_STATE_FAILING":  "The dispatcher cannot read its work-state source; run dispatch status and repair the source named in lastError.",
+		"RUNNABLE_HELD_IDLE":  "Run-only work waits beside free pool members; lift or widen the named rule for it, or set the role's bypassFocus (ATR-V0-151) when the plan window holds it.",
+		"ROLE_QUEUE_DEEP":     "The role's queue stays deeper than its cap at calm pressure; raise its cap, or set capMax (ATR-V0-152), within the reported headroom.",
 	}
 )
 

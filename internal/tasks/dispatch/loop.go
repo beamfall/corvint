@@ -97,6 +97,10 @@ type Dispatcher struct {
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
 	poolWaitEmitted map[string]string
+	// admission holds the ATR-V0-150 queue streaks in memory only, and
+	// admissionFailed reports that the last observation write failed.
+	admission       admissionTracker
+	admissionFailed bool
 	// control, set only by OpenControlled, admits each new launch and
 	// pool sweep and sees every tick boundary.
 	control LaunchControl
@@ -1519,12 +1523,17 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	// CAL-V0-273: the opt-in hold launches nothing while the work state
 	// has been unreadable for the configured number of ticks.
 	if WorkStateHoldsLaunches(d.Config, d.ledger.WorkState) {
+		d.recordAdmission(obs, nil, d.pressureLabel(), now)
 		return
 	}
 	budget, ok := d.pressureBudget(ctx, obs)
 	if !ok {
+		d.recordAdmission(obs, nil, d.pressureLabel(), now)
 		return
 	}
+	// ATR-V0-150..152: the pressure label after this tick's sample.
+	pressure := d.pressureLabel()
+	adm := &admission{calm: pressure == AdmissionPressureCalm}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	// CAL-V0-149: a finished detached run relaunches its ticket's role.
 	relaunch := d.relaunches()
@@ -1533,7 +1542,10 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	spend.observe(obs.Tickets)
 	spend.holdDeferred(obs.Tickets, prefer)
 	room := newPoolRoom(obs, d.ledger.Workers)
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room)
+	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
+	// ATR-V0-150: the observation is written after the launch loop, so it
+	// counts the workers actually recorded.
+	defer d.recordAdmission(obs, adm, pressure, now)
 	d.recordHeld(obs, held)
 	d.recordPoolWait(room)
 	// Holds are recorded after the launches, so a budget event counts them.

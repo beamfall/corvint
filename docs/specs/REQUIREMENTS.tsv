@@ -1421,6 +1421,8 @@ TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	One doctor scan reads the journ
 TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVID	unrecorded	-
 TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at	unrecorded	-
 TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
+TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observa	unrecorded	-
+TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	From the same observation, a role whose queue (running plus waiting sessions) st	unrecorded	-
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-

@@ -25,6 +25,8 @@ const (
 type doctorThresholds struct {
 	lockHeld, slowCommand, noCompletions, sessionWindow time.Duration
 	fdPercent, retryStorm, hostErrors, earlyRefusal     int
+	// heldIdleTicks and queueDeepTicks are the TQD-V0-043/044 streaks.
+	heldIdleTicks, queueDeepTicks int
 }
 
 // doctorThresholdKeys lists each threshold member, its default and its
@@ -40,6 +42,8 @@ var doctorThresholdKeys = []struct {
 	{"lockHeldSeconds", 60, 30 * 86400, true},
 	{"noCompletionsSeconds", 7200, 30 * 86400, true},
 	{"retryStorm", 3, 1 << 20, false},
+	{"roleQueueDeepTicks", 3, 1 << 20, false},
+	{"runnableHeldIdleTicks", 3, 1 << 20, false},
 	{"sessionWindowSeconds", 3600, 7 * 86400, true},
 	{"slowCommandSeconds", 60, 30 * 86400, true},
 }
@@ -172,6 +176,10 @@ func decodeDoctorConfig(v wire.Value, base string) (*doctorConfig, error) {
 			c.thresholds.noCompletions = d
 		case "retryStorm":
 			c.thresholds.retryStorm = int(n)
+		case "roleQueueDeepTicks":
+			c.thresholds.queueDeepTicks = int(n)
+		case "runnableHeldIdleTicks":
+			c.thresholds.heldIdleTicks = int(n)
 		case "sessionWindowSeconds":
 			c.thresholds.sessionWindow = d
 		case "slowCommandSeconds":
