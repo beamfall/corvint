@@ -140,7 +140,7 @@ func ParsePlaywrightJSON(data []byte) ([]TestOutcome, *InfrastructureFailure, er
 	for _, s := range report.Suites {
 		walkPlaywrightSuite(s, &out)
 	}
-	return out, nil, nil
+	return out, playwrightCleanupFailure(report.Errors, out), nil
 }
 
 func walkPlaywrightSuite(s playwrightSuite, out *[]TestOutcome) {

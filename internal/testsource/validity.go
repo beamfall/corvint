@@ -2,6 +2,7 @@ package testsource
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -29,7 +30,9 @@ type ValidityReport struct {
 // ValidityFindings reads one test file's text for the static test-validity rules: a JS/TS test
 // file (IsTestFile) for ISOLATED-IN-SERIAL (TSA-V0-045..047) and an RSpec `_spec.rb` file for
 // MEMOIZED-BLOCK-EXPECTATION (TSA-V0-048..050) and BLOCK-NOT-CALLED (TSA-V0-053..055). Any other
-// file has no applicable rule.
+// file has no applicable rule. A JS/TS test file is also read for the outcome, cleanup, input and
+// vacuity rules (TSA-V0-160..176), another JS/TS file (a fixture file) for CLEANUP-HANDLE-OUTLIVED,
+// and a behaviour contract (Markdown, YAML or JSON) for EITHER-OR-OUTCOME wording.
 func ValidityFindings(name, text string) ValidityReport {
 	report := ValidityReport{Findings: []testvalidity.SourceFinding{}}
 	if len(text) > MaxFileBytes {
@@ -40,9 +43,28 @@ func ValidityFindings(name, text string) ValidityReport {
 	case strings.HasSuffix(name, "_spec.rb"):
 		return rspecValidity(name, text)
 	case IsTestFile(name):
-		return parseSource(name, text).isolatedInSerial()
+		s := parseSource(name, text)
+		report = s.isolatedInSerial()
+		report.Findings = append(report.Findings, s.outcomeFindings()...)
+	case webExtensions[path.Ext(name)]:
+		s := parseSource(name, text)
+		report.Findings = append(report.Findings, s.chFindings()...)
+		if s.uncertain {
+			report.Uncertain, report.Reason = true, validitySourceUnparsed
+		}
+	case eoIsContract(name):
+		report.Findings = append(report.Findings, eoContractFindings(name, text)...)
 	}
 	return report
+}
+
+// outcomeFindings reads one test file for EITHER-OR-OUTCOME, CLEANUP-HANDLE-OUTLIVED,
+// UNSTUBBED-OUTBOUND-INPUT and VACUOUS-EMPTY-EQUALITY, in that order.
+func (s *source) outcomeFindings() []testvalidity.SourceFinding {
+	out := s.eoFindings()
+	out = append(out, s.chFindings()...)
+	out = append(out, s.uoFindings()...)
+	return append(out, s.veFindings()...)
 }
 
 // isolatedInSerial reports every test carrying an isolation annotation under a serial-mode
