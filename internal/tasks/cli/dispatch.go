@@ -342,6 +342,13 @@ func dispatchAux(env Env, verb string, args []string) *wire.Result {
 	for _, s := range c.RoleShadows() {
 		warnings = append(warnings, prose(s.Message()))
 	}
+	if invalid != nil {
+		// ATR-V0-134: the view is kept, but a file a restart would refuse
+		// fails the command, so a script can gate on the exit code.
+		reason, _ := invalid.Get("reason")
+		warnings = append(warnings, prose("dispatch config file is INVALID; a restart would refuse it: "+reason.Str))
+		return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeMalformed}, Items: []wire.Value{status}, Warnings: warnings}
+	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}, Warnings: warnings}
 }
 

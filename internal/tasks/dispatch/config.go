@@ -1150,35 +1150,75 @@ func validGates(gates []GateMatch) error {
 func noteSafeHost(h Host) error { return promptSafeHost(h, nil) }
 
 // carryArgvPlaceholders are the placeholders a carry-over host's argv may
-// hold besides a whole {prompt} (ATR-V0-110): their values come from the
-// configuration or the dispatcher, never from the store or a session.
-var carryArgvPlaceholders = map[string]bool{"{program}": true, "{role}": true, "{slot}": true, "{worker}": true, "{holder}": true, "{workRoot}": true, "{model}": true, "{effort}": true, "{contextHookSettings}": true}
+// hold after argv[0] besides a whole {prompt} (ATR-V0-110, ATR-V0-133):
+// every argv placeholder. The store-derived ones ({ticket}, {ticketLocal},
+// {state}, {pool}, {member}, {nextStage}) render values this check cannot
+// see, so a launch re-checks the rendered argv (renderedArgvSafe) before it
+// offers a carry-over block.
+var carryArgvPlaceholders = map[string]bool{"{program}": true, "{role}": true, "{slot}": true, "{worker}": true, "{holder}": true, "{workRoot}": true, "{model}": true, "{effort}": true, "{contextHookSettings}": true,
+	"{ticket}": true, "{ticketLocal}": true, "{state}": true, "{pool}": true, "{member}": true, "{nextStage}": true}
 
 // promptSafeHost is noteSafeHost's check, which also admits argv elements
-// after the first holding only the placeholders in allowed.
+// after the first holding only the placeholders in allowed. {prompt}
+// spliced into another element and any placeholder in argv[0] are always
+// refused: the block must reach the agent as one whole element, and the
+// executable must be the one the configuration names.
 func promptSafeHost(h Host, allowed map[string]bool) error {
-	if !slices.Contains(h.Argv, "{prompt}") {
-		return fmt.Errorf("never passes {prompt}, so the note would be dropped")
-	}
 	for i, a := range h.Argv {
 		if a == "{prompt}" {
 			continue
 		}
 		for _, p := range placeholder.FindAllString(a, -1) {
-			if i == 0 || !allowed[p] {
+			switch {
+			case p == "{prompt}":
+				return fmt.Errorf("splices {prompt} into argv element %d; it must be a whole element", i)
+			case i == 0:
+				return fmt.Errorf("argv element 0 holds the placeholder %s", p)
+			case !allowed[p]:
 				return fmt.Errorf("argv element %d holds a placeholder other than a whole {prompt}", i)
 			}
 		}
-		if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
-			return fmt.Errorf("runs the interpreter %s", a)
+		// The literal text alone is checked here: a placeholder name such as
+		// {ticketLocal} is not option text, and what it renders to is
+		// checked at launch by renderedArgvSafe.
+		if err := argvCodeRisk(i, placeholder.ReplaceAllString(a, "")); err != nil {
+			return err
 		}
-		if i > 0 && codeOption(a) {
-			return fmt.Errorf("takes the code-string option %s", a)
-		}
+	}
+	if !slices.Contains(h.Argv, "{prompt}") {
+		return fmt.Errorf("never passes {prompt} as a whole argv element, so the text would be dropped")
 	}
 	for _, p := range h.ActivityPaths {
 		if strings.Contains(p, "{prompt}") {
 			return fmt.Errorf("renders {prompt} into an activity path")
+		}
+	}
+	return nil
+}
+
+// argvCodeRisk refuses argv element i when it names an interpreter or, after
+// argv[0], is a code-string option.
+func argvCodeRisk(i int, a string) error {
+	if interpreters[strings.TrimRight(filepath.Base(a), "0123456789.")] {
+		return fmt.Errorf("runs the interpreter %s", a)
+	}
+	if i > 0 && codeOption(a) {
+		return fmt.Errorf("takes the code-string option %s", a)
+	}
+	return nil
+}
+
+// renderedArgvSafe is the ATR-V0-133 launch check: each argv element after
+// the first that holds a placeholder and is not the whole {prompt} must,
+// as rendered with values, still pass argvCodeRisk. The configuration check
+// saw only the unrendered element.
+func renderedArgvSafe(argv []string, values map[string]string) error {
+	for i, a := range argv {
+		if i == 0 || a == "{prompt}" || !placeholder.MatchString(a) {
+			continue
+		}
+		if argvCodeRisk(i, Render(a, values)) != nil {
+			return fmt.Errorf("argv element %d, as rendered for this launch, names an interpreter or a code-string option", i)
 		}
 	}
 	return nil
