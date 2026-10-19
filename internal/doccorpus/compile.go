@@ -30,6 +30,7 @@ type compiler struct {
 	artifact          *Artifact
 	declarations      []CapabilityDeclaration
 	testKnowledge     []providerKnowledge
+	flowRelations     []providerFlowRelations
 }
 
 func inputKey(rev, p string) string { return rev + ":" + p }
@@ -140,6 +141,9 @@ func build(ctx context.Context, root string, m Manifest, reuse *incrementalBuild
 		return nil, err
 	}
 	if err := c.joinTestKnowledge(c.testKnowledge); err != nil {
+		return nil, err
+	}
+	if err := c.joinFlowRelations(c.flowRelations); err != nil {
 		return nil, err
 	}
 	if m.Schema == ManifestSchemaV2 {

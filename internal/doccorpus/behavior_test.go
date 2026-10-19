@@ -176,7 +176,7 @@ func TestBehaviorContractCorpusRoundTrip(t *testing.T) {
 			t.Fatal(row)
 		}
 	}
-	if Impact(a, []string{"src/view.ts"}, "fresh")["selection"].(map[string]any)["narrowing_allowed"] != false {
+	if Impact(a, []string{"src/view.ts"}, "fresh", 0)["selection"].(map[string]any)["narrowing_allowed"] != false {
 		t.Fatal("narrowed suite")
 	}
 }

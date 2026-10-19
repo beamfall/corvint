@@ -2086,6 +2086,13 @@ DCP-V1-089	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-090	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-091	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
 DCP-V1-092	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1162;	standing	2026-10-11; #1162
+DCP-V1-093	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-094	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-095	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-096	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-097	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-098	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
+DCP-V1-099	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1225; V1-	standing	2026-10-11; #1225; V1-1973
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-

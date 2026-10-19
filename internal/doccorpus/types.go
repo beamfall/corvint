@@ -164,6 +164,7 @@ type ProviderRecord struct {
 	RestrictedFindings []RestrictedFinding      `json:"restricted_findings,omitempty"`
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
 	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
+	FlowRelations      *FlowRelationSet         `json:"flow_relations,omitempty"`
 	Schema             string                   `json:"schema"`
 	ID                 string                   `json:"id"`
 	Version            string                   `json:"version"`
@@ -201,6 +202,7 @@ type Artifact struct {
 	BehaviorContracts   []BehaviorReport         `json:"behavior_contracts,omitempty"`
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
+	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
 	Manifest            Manifest                 `json:"manifest"`
@@ -224,6 +226,7 @@ type Request struct {
 	ID         string            `json:"id"`
 	Path       string            `json:"path"`
 	Limit      int               `json:"limit"`
+	Depth      int               `json:"depth,omitempty"`
 }
 type Receipt struct {
 	Envelope       *TrustEnvelope           `json:"trust_envelope,omitempty"`

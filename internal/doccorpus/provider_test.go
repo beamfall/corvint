@@ -101,7 +101,7 @@ func TestCorpusIndependentProviderAndNativeObservation(t *testing.T) {
 		if err != nil || empty.Miss != "no-match" {
 			t.Fatalf("present zero confused with absence: %+v %v", empty, err)
 		}
-		impact := Impact(a, []string{"src/value.go"}, fresh)
+		impact := Impact(a, []string{"src/value.go"}, fresh, 0)
 		if len(impact["subjects"].([]Subject)) == 0 {
 			t.Fatal("path did not reach documented subjects")
 		}

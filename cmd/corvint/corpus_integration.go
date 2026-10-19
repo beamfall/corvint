@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
@@ -26,12 +27,23 @@ func (b *corpusCapture) Write(p []byte) (int, error) {
 func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) (int, bool) {
 	original := []string{}
 	artifact := ""
+	depth := 0
 	for i := 0; i < len(args); i++ {
 		if args[i] == "--" {
 			original = append(original, args[i:]...)
 			break
 		}
 		name, value, inline := strings.Cut(args[i], "=")
+		if name == "--corpus-depth" {
+			// DCP-V1-097: downstream flow-relation depth for impact/affected only.
+			n, err := strconv.Atoi(value)
+			if !inline || depth != 0 || err != nil || n < 1 || n > doccorpus.MaxFlowDepth {
+				emitError(stderr, argumentError("invalid or duplicate --corpus-depth=N (1-16)"))
+				return 2, true
+			}
+			depth = n
+			continue
+		}
 		if name != "--corpus" || !inline {
 			original = append(original, args[i])
 			// Native flags consume their next token; preserve it byte-for-byte.
@@ -46,6 +58,10 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 			return 2, true
 		}
 		artifact = value
+	}
+	if artifact == "" && depth != 0 {
+		emitError(stderr, argumentError("--corpus-depth requires --corpus=FILE"))
+		return 2, true
 	}
 	if artifact == "" {
 		return 0, false
@@ -68,6 +84,10 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 	}
 	if !allowed {
 		emitError(stderr, argumentError("--corpus is supported only on native evidence reads"))
+		return 2, true
+	}
+	if depth != 0 && command != "impact" && command != "affected" {
+		emitError(stderr, argumentError("--corpus-depth applies only to impact and affected"))
 		return 2, true
 	}
 	root := "."
@@ -198,7 +218,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		paths = append(paths, plan.Dirty...)
 	}
 	if command == "impact" || command == "affected" || len(paths) > 0 {
-		section["impact"] = doccorpus.Impact(corpus, paths, freshness)
+		section["impact"] = doccorpus.Impact(corpus, paths, freshness, depth)
 	}
 	if command == "test-validity" {
 		// The native document stays intact; exact retained input digests alone join
