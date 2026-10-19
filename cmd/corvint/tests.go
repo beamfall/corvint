@@ -25,7 +25,7 @@ Usage:
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
-    [--rev REV]
+    [--rev REV] [--profile NAME]
   corvint [--root PATH] tests role-locators [--rev REV]
   corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]
 
@@ -82,7 +82,9 @@ corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
-Exit 1 when an invalid finding
+--profile NAME adds an env section: profile NAME's ENV-HARD-CODED-* warnings
+on the named files, each with the path:line of the test containing it; it is
+advisory and changes no hygiene or exit status. Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
 
 role-locators reports ROLE-LOCATOR-UNRENDERED where a component test locates
@@ -95,8 +97,13 @@ ending -NAME, _NAME, .NAME): each variable's derivation, value (UNKNOWN with a
 reason when unresolvable) and whether it is passed to tests; the stand-in
 services launched, their URL and control routes; and advisory
 ENV-HARD-CODED-OFFSET / ENV-HARD-CODED-ADDRESS warnings. --base lists changed
-variables and the tests whose use stays valid or not. Compose and dotenv files
-are named, not read.
+variables and the tests whose use stays valid or not. Dotenv files a script
+sources, the environment and env_file entries of compose files a script
+launches, and the env blocks of CI workflow steps that run a script are read
+with their source cited; the profile's own compose.NAME / .env.NAME files are
+named, not read. Stand-in routes are read from JS/TS, Go, Flask, Sinatra/Rails
+and WireMock mappings; other stand-in languages abstain by name. An assignment
+made in only some branches is UNKNOWN (branch-dependent) with its alternatives.
 
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
@@ -377,8 +384,9 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		return nil
 	})
 	once("rev", &options.Revision)
+	once("profile", &options.Profile)
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV]")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--rev REV] [--profile NAME]")
 	}
 	report, err := testsource.SourceValidity(repo, options)
 	if err != nil {

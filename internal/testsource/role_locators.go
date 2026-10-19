@@ -119,10 +119,11 @@ func CheckRoleLocators(texts map[string]string) RoleLocatorReport {
 		if len(locators) == 0 {
 			continue
 		}
-		mounted := mountedComponents(text)
+		scopes := testScopes(name, text)
 		imports := componentImports(text)
 		for _, loc := range locators {
 			report.Checked++
+			mounted := mountedComponents(text, scopes, loc.line)
 			if len(mounted) == 0 {
 				report.Abstentions = append(report.Abstentions, RoleLocatorAbstention{Path: name, Line: loc.line, Role: loc.role, Reason: roleComponentNotMounted})
 				continue
@@ -207,12 +208,44 @@ func opensElement(text, element string) bool {
 	}
 }
 
-func mountedComponents(text string) []string {
+// testScopes are the line spans of a file's tests (TSA-V0-362).
+func testScopes(name, text string) [][2]int {
+	out := [][2]int{}
+	for _, d := range parseSource(name, text).decls {
+		if d.kind == "test" && d.endLine >= d.line {
+			out = append(out, [2]int{d.line, d.endLine})
+		}
+	}
+	return out
+}
+
+// innermostTest is the span of the innermost test containing the line, or false outside every test.
+func innermostTest(scopes [][2]int, line int) ([2]int, bool) {
+	best, found := [2]int{}, false
+	for _, s := range scopes {
+		if s[0] <= line && line <= s[1] && (!found || s[1]-s[0] < best[1]-best[0]) {
+			best, found = s, true
+		}
+	}
+	return best, found
+}
+
+// mountedComponents are the components mounted where a locator on the line runs (TSA-V0-362): a
+// mount inside a test counts only for locators in that same test; a mount outside every test (a
+// hook or a shared helper) counts for every locator of the file. A locator outside every test sees
+// every mount of the file.
+func mountedComponents(text string, scopes [][2]int, line int) []string {
+	own, inTest := innermostTest(scopes, line)
 	seen, out := map[string]bool{}, []string{}
-	for _, m := range mountPattern.FindAllStringSubmatch(text, -1) {
-		if !seen[m[1]] {
-			seen[m[1]] = true
-			out = append(out, m[1])
+	for _, m := range mountPattern.FindAllStringSubmatchIndex(text, -1) {
+		at := 1 + strings.Count(text[:m[0]], "\n")
+		if span, mountInTest := innermostTest(scopes, at); inTest && mountInTest && span != own {
+			continue
+		}
+		component := text[m[2]:m[3]]
+		if !seen[component] {
+			seen[component] = true
+			out = append(out, component)
 		}
 	}
 	return out

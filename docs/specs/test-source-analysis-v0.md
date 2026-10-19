@@ -1335,7 +1335,8 @@ owner's standing auto-accept (2026-10-11).
 
   A hard-coded use whose value is unknown has no `staysValid`.
 
-Non-goals (residuals of V1-1940):
+Non-goals (residuals of V1-1940; all but the `corvint impact` view and the profile's own compose and
+dotenv files are addressed by TSA-V0-350..363 below):
 - reading compose files, dotenv files, CI workflow environments or Makefiles;
 - running or sourcing any script;
 - route registrations other than Express-style JS/TS (Go, Flask, Rails, WireMock mappings);
@@ -1343,7 +1344,7 @@ Non-goals (residuals of V1-1940):
   `corvint impact`;
 - branch-sensitive shell (`if`, `case`, functions): the last assignment in each script wins.
 
-Failure modes:
+Failure modes (the first and fifth are addressed by TSA-V0-361 and TSA-V0-360):
 - A conditional assignment is read as unconditional, so a value can be the one set on the branch
   that does not run. A variable set in two profile scripts is UNKNOWN for this reason.
 - A literal port shared by unrelated services can match a variable it is not about.
@@ -1383,3 +1384,177 @@ Nothing is persisted.
 | TSA-V0-214 | `internal/testsource/env_contract_refs.go` | `TestEnvContractWarnings` | experimental |
 | TSA-V0-215 | `internal/testsource/env_contract_refs.go` | `TestEnvContractImpact` | experimental |
 | TSA-V0-216 | `internal/testsource/env_contract.go` | `TestEnvContractUnknown` | experimental |
+
+## Test environment sources and stand-in languages (V1-1947, V1-1948)
+
+V1-1947 (GitHub #1199, #1200) and V1-1948 close the residuals of V1-1940. They read the
+environment a profile's callers and compose files hand to tests, read stand-in routes in more
+languages, show the profile's warnings in `corvint tests validity`, and make three readings
+more precise. The behavior of TSA-V0-210..216 is kept: these requirements add sources, routes and
+reasons and leave those requirements unchanged. The section is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-350`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read
+  the caller environment of each profile script from the committed `.github/workflows/*.y[a]ml`
+  files.
+  - Only a step whose `run` names a profile script is read.
+  - Its environment is the workflow's, the job's and the step's `env`, with the later one
+    winning.
+  - A caller variable the script does not assign is reported with `sourceKind: "WORKFLOW"`, the
+    workflow path and the line of the value. It is passed to tests and reliable.
+  - A workflow value is not shell-expanded, so a `$` in it stays literal.
+- `TSA-V0-351`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A dotenv file the
+  script sources with `.` or `source` MUST be read in the script's order. The names `.env`,
+  `.env.SUFFIX` and `NAME.env` are sourced, but not the profile's own `.env.NAME` (TSA-V0-353).
+  - Each assignment is reported with `sourceKind: "DOTENV"` and the dotenv path and line.
+  - It is exported under `set -a`, as in the script.
+  - Sourcing nests at most two levels deep.
+- `TSA-V0-352`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read a
+  compose file that a `docker compose` or `docker-compose` line launches. The file comes from
+  `-f`/`--file`, or is the first committed default root file. From each service it reads:
+  - `environment` (as a map or a list; a name with no value passes through the caller's value);
+  - `env_file` (a path relative to the compose file, `KEY=VALUE` lines).
+
+  Each variable carries:
+  - `sourceKind` `COMPOSE_ENVIRONMENT` or `COMPOSE_ENV_FILE`;
+  - its `service`;
+  - its value resolved in the profile.
+
+  A service's variables are passed to tests and reliable only when its `command` or `entrypoint`
+  runs a test runner (TSA-V0-212). A named compose or env file that the first read's filter left
+  out is read in at most two further bounded rounds.
+- `TSA-V0-353`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The profile's own
+  `[docker-]compose.NAME.y[a]ml` and `.env.NAME` MUST stay unread, as TSA-V0-210 says, even when
+  launched or sourced.
+  - A launched file that is not committed is listed in `unreadSources` with reason
+    `not-committed`.
+  - A compose file outside the reader's YAML subset is listed with reason `compose-unparsed`.
+  - A workflow naming a profile script that is outside that subset is listed with reason
+    `workflow-unparsed`.
+
+  The subset is block maps, block lists, scalars and empty flow collections. Anchors, aliases,
+  tags, merge keys, tabs, multiple documents and nested flow collections are outside it. A file
+  outside the subset is never guessed.
+- `TSA-V0-354`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The script's own
+  assignment MUST win over a caller's.
+  - A caller's value fills a self-reference such as `PORT=${PORT:-3000}`.
+  - A caller variable is null with unknown reason `caller-values-differ`, and lists its values in
+    `derivation.alternatives`, when the invoking steps set it to different values or some leave it
+    unset.
+  - A `${{ }}` expression is null with reason `workflow-expression`.
+  - Without a calling workflow, the TSA-V0-216 reasons are unchanged.
+- `TSA-V0-355`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in MAY also be
+  launched as:
+  - a committed stand-in directory (`go run ./stubs/x`, `-d DIR`, WireMock `--root-dir DIR`);
+  - a Python module named without `.py`.
+
+  A directory stand-in's routes MUST be read from all its files. Go routes are read from
+  `HandleFunc`/`Handle` (with an optional `METHOD /path` pattern or `.Methods("X")`) and from
+  gin, echo and chi style `x.METHOD("/path"`. The payload comes from `json:"x"` tags and
+  `FormValue`/`PostFormValue`/`PostForm`. The query comes from `Query().Get` and `Query("x")`. A
+  route with no method is `ALL`.
+- `TSA-V0-356`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Flask-style decorators
+  (`@app.route(path, methods=[...])`, default GET, and `@app.post(path)` and similar) MUST be read
+  as routes.
+  - Payload fields come from `request.json`, `request.form` and `request.get_json()`, directly or
+    through a local alias.
+  - Query fields come from `request.args`.
+  - `<conv:name>` path parameters count for the scope (TSA-V0-213).
+- `TSA-V0-357`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Sinatra blocks
+  (`post '/x' do`) and Rails `config/routes.rb` entries (`to: 'ctrl#action'`) MUST be read as
+  routes.
+  - A Rails route's fields come from that action in `app/controllers/<ctrl>_controller.rb` under
+    the same stand-in.
+  - Fields come from `params[:x]`, `params['x']`, `params.fetch(:x)` and `permit(:a, :b)`.
+  - They are payload fields on a write and query fields on a GET.
+- `TSA-V0-358`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) WireMock mapping JSON
+  under a `mappings` directory MUST be read as routes, from one mapping or a `mappings` array.
+  - The path comes from `url` (without its query), `urlPath`, `urlPattern` or `urlPathPattern`.
+  - Payload fields come from `matchesJsonPath` `$.x`. Query fields come from the
+    `queryParameters` keys.
+  - A missing method or `ANY` is `ALL`.
+  - WireMock's own `/__admin` API is not listed.
+- `TSA-V0-359`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in file in a
+  language the reader does not read (Java, Kotlin, Scala, Groovy, C#, PHP, Rust, Elixir, Clojure,
+  Swift) MUST be listed in the stand-in's `abstentions` with reason `stand-in-language-not-read`.
+  No routes are invented for it.
+- `TSA-V0-360`: (standing auto-accept, 2026-10-11; V1-1948) A route's payload and query fields
+  MUST come only from its own handler, never from code between registrations. The handler is:
+  - for JS/TS and Go, the registration call's balanced arguments plus the body of the function
+    whose name is the last argument;
+  - for Python and Ruby, the decorated function's or block's indented body.
+
+  An unbalanced call reads its own line only.
+- `TSA-V0-361`: (standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its
+  blocks. An assignment is branch-dependent when it is inside any of:
+  - `if`/`elif`/`else`, a loop, a `case` arm or a function body;
+  - after `&&` or `||`;
+  - a dotenv file sourced in any of those places.
+
+  A branch-dependent variable MUST be null with reason `branch-dependent` and derivation
+  `UNKNOWN`, and MUST list every value it may take in `derivation.alternatives`. A later
+  unconditional assignment settles it. A `{ }` group is not a branch. A value derived from a
+  branch-dependent variable is null with the same reason.
+- `TSA-V0-362`: (standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked against
+  the components that its own innermost test mounts, plus any mount outside every test. A mount in
+  a different test does not count. A locator outside every test sees all the file's mounts.
+- `TSA-V0-363`: (standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests
+  validity --profile NAME` MUST add an `env` object with:
+  - the profile;
+  - its reason (`profile-not-found` when it has no script);
+  - the TSA-V0-214 warnings on the named files only. Each warning carries `test`, the `path:line`
+    id of the innermost test that contains it, which is the id the report's `tests` use. `test`
+    is omitted outside every test.
+
+  The projection is advisory: it changes no test's hygiene, finding or exit status. A NAME
+  outside TSA-V0-210's pattern is refused `tests-invalid-arguments`. Without `--profile`, the
+  report has no `env`.
+
+Non-goals and residuals:
+- The impact half of V1-1947 acceptance (c), listing tests affected by a bootstrap offset change
+  in `corvint impact`, is NOT_PRODUCED. `corvint impact` is the core indexed command: it refuses
+  `.sh` paths (`unsupported-impact-path-suffix`), its canonical receipts are frozen, and its
+  evidence providers attach only to the default profile. The supported equivalent is
+  `corvint tests env --profile NAME --base REV` (TSA-V0-215). Folding that into `corvint impact`
+  needs its own accepted contract.
+- Reading the profile's own `compose.NAME`/`.env.NAME` files would amend TSA-V0-210, so it is left
+  for an owner decision.
+- Out of scope: dotenv files loaded by test-runner configs (`dotenv.config()`), Makefiles,
+  `cd` before a relative path, workflow `matrix`, reusable workflows, `GITHUB_ENV` writes, and
+  compose `profiles`/`extends`/`include`.
+- Also out of scope: following a Go handler's named request type to its struct tags, routes
+  registered through helpers or loops, and `case` arm patterns that contain `=`, `$` or `(`.
+
+Failure modes:
+- A relative path in a script is read from the repository root; a script that changes directory
+  first is misread.
+- A stand-in directory's files are all read, so a helper file's registrations count as routes.
+- A value set in one workflow step and left unset in another is caller-dependent, even when that
+  step never reaches the variable.
+- A conditional reading is per script: a `return` or `exit` inside a branch is not followed.
+
+Acceptance evidence: synthetic fixtures and mutation checks only. Real-suite qualification is
+NOT_RUN. Rollback reverts this section's commits: `internal/testsource/env_contract_sources.go`,
+`internal/testsource/env_contract_routes.go`, `internal/testsource/validity_env.go`, their tests,
+the parser and resolver changes in `internal/testsource/env_contract.go`, the scope change in
+`internal/testsource/role_locators.go`, and the `--profile` flag of `corvint tests validity`.
+Nothing is persisted.
+
+### Traceability (V1-1947, V1-1948)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-350 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources` | experimental |
+| TSA-V0-351 | `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractBranchDependent` | experimental |
+| TSA-V0-352 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSources` | experimental |
+| TSA-V0-353 | `internal/testsource/env_contract_sources.go` | `TestEnvContractSourceNotes` | experimental |
+| TSA-V0-354 | `internal/testsource/env_contract_sources.go`, `internal/testsource/env_contract.go` | `TestEnvContractSources`, `TestEnvContractSourceNotes` | experimental |
+| TSA-V0-355 | `internal/testsource/env_contract_routes.go`, `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-356 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-357 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-358 | `internal/testsource/env_contract_routes.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-359 | `internal/testsource/env_contract.go` | `TestEnvContractStandInLanguages` | experimental |
+| TSA-V0-360 | `internal/testsource/env_contract_routes.go` | `TestEnvContractHandlerBounded`, `TestEnvContractStandIn` | experimental |
+| TSA-V0-361 | `internal/testsource/env_contract.go` | `TestEnvContractBranchDependent` | experimental |
+| TSA-V0-362 | `internal/testsource/role_locators.go` | `TestRoleLocatorPerTestMounts` | experimental |
+| TSA-V0-363 | `internal/testsource/validity_env.go`, `cmd/corvint/tests.go` | `TestSourceValidityEnv`, `TestTestsRoleLocatorsAndEnvCLI` | experimental |

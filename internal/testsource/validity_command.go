@@ -26,6 +26,8 @@ const (
 type SourceValidityOptions struct {
 	Revision string
 	Files    []string
+	// Profile, when set, adds the named environment profile's warnings on the files (TSA-V0-363).
+	Profile string
 }
 
 // SourceValidityReport is the corvint-test-source-validity/0 report.
@@ -34,6 +36,7 @@ type SourceValidityReport struct {
 	Revision string               `json:"revision"`
 	Files    []SourceValidityFile `json:"files"`
 	Tests    []SourceValidityTest `json:"tests"`
+	Env      *SourceValidityEnv   `json:"env,omitempty"`
 }
 
 // SourceValidityFile is one file's findings and whether the reader abstained on part of it.
@@ -87,6 +90,9 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	if len(files) > MaxValidityFiles {
 		return SourceValidityReport{}, refuse("tests-bound-exceeded", "more than %d files", MaxValidityFiles)
 	}
+	if options.Profile != "" && !ValidProfileName(options.Profile) {
+		return SourceValidityReport{}, refuse("tests-invalid-arguments", "%q is not a profile name", options.Profile)
+	}
 	revision := options.Revision
 	if revision == "" {
 		revision = "HEAD"
@@ -118,6 +124,11 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		file, tests := readSourceValidity(name, string(data), support)
 		report.Files = append(report.Files, file)
 		report.Tests = append(report.Tests, tests...)
+	}
+	if options.Profile != "" {
+		if report.Env, err = envValidity(r, commit, options.Profile, files); err != nil {
+			return SourceValidityReport{}, err
+		}
 	}
 	return report, nil
 }
