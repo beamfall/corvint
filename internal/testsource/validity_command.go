@@ -27,6 +27,8 @@ type SourceValidityOptions struct {
 	Revision string
 	Files    []string
 	Links    []SeedLink
+	// Profile, when set, adds the named environment profile's warnings on the files (TSA-V0-363).
+	Profile string
 }
 
 // SourceValidityReport is the corvint-test-source-validity/0 report.
@@ -36,7 +38,8 @@ type SourceValidityReport struct {
 	Files    []SourceValidityFile `json:"files"`
 	Tests    []SourceValidityTest `json:"tests"`
 	// SeedParity is one advisory comparison per link, in argument order (TSA-V0-103).
-	SeedParity []SeedParity `json:"seedParity,omitempty"`
+	SeedParity []SeedParity       `json:"seedParity,omitempty"`
+	Env        *SourceValidityEnv `json:"env,omitempty"`
 }
 
 // SourceValidityFile is one file's findings and whether the reader abstained on part of it.
@@ -101,6 +104,9 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	if len(files) > MaxValidityFiles || len(options.Links) > MaxValidityFiles {
 		return SourceValidityReport{}, refuse("tests-bound-exceeded", "more than %d files or links", MaxValidityFiles)
 	}
+	if options.Profile != "" && !ValidProfileName(options.Profile) {
+		return SourceValidityReport{}, refuse("tests-invalid-arguments", "%q is not a profile name", options.Profile)
+	}
 	revision := options.Revision
 	if revision == "" {
 		revision = "HEAD"
@@ -148,6 +154,11 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 			return SourceValidityReport{}, err
 		}
 		report.SeedParity = append(report.SeedParity, parity)
+	}
+	if options.Profile != "" {
+		if report.Env, err = envValidity(r, commit, options.Profile, files); err != nil {
+			return SourceValidityReport{}, err
+		}
 	}
 	return report, nil
 }

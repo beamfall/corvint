@@ -25,7 +25,7 @@ Usage:
   corvint [--root PATH] tests duplicates [--ref REV] [--base REV --gate TICKET]
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
-    [--legacy NEW=LEGACY ...] [--rev REV]
+    [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME]
   corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
     [--receipt FILE ...] [--rev REV]
   corvint [--root PATH] tests unselected [--rev REV]
@@ -123,6 +123,10 @@ SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
 not analysed, a call may not run, or an unknown value meets a different one.
 Seed parity never changes the exit code.
 
+--profile NAME adds an env section: profile NAME's ENV-HARD-CODED-* warnings
+on the named files, each with the path:line of the test containing it; it is
+advisory and changes no hygiene or exit status.
+
 teardown lists, for each resource an example creates and deletes in teardown
 (afterEach and finally in JS/TS; after and ensure in RSpec), the actions on it
 with lines. Which calls create, delete and produce dependents comes only from
@@ -143,8 +147,13 @@ ending -NAME, _NAME, .NAME): each variable's derivation, value (UNKNOWN with a
 reason when unresolvable) and whether it is passed to tests; the stand-in
 services launched, their URL and control routes; and advisory
 ENV-HARD-CODED-OFFSET / ENV-HARD-CODED-ADDRESS warnings. --base lists changed
-variables and the tests whose use stays valid or not. Compose and dotenv files
-are named, not read.
+variables and the tests whose use stays valid or not. Dotenv files a script
+sources, the environment and env_file entries of compose files a script
+launches, and the env blocks of CI workflow steps that run a script are read
+with their source cited; the profile's own compose.NAME / .env.NAME files are
+named, not read. Stand-in routes are read from JS/TS, Go, Flask, Sinatra/Rails
+and WireMock mappings; other stand-in languages abstain by name. An assignment
+made in only some branches is UNKNOWN (branch-dependent) with its alternatives.
 
 citations checks the revision-pinned source citations in at most 256 named
 committed documents read at --rev: inline-code spans of the form
@@ -454,8 +463,9 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		return nil
 	})
 	once("rev", &options.Revision)
+	once("profile", &options.Profile)
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV]")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV] [--profile NAME]")
 	}
 	report, err := testsource.SelectedSourceValidity(repo, options)
 	if err != nil {

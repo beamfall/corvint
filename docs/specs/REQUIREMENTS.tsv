@@ -4378,6 +4378,20 @@ TSA-V0-213	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-214	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) In test files and	standing	2026-10-11; V1-1940; #1199
 TSA-V0-215	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) With `--base`, the	standing	2026-10-11; V1-1940; #1199
 TSA-V0-216	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1940 / GitHub #1199) A value the reader	standing	2026-10-11; V1-1940; #1199
+TSA-V0-350	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read	standing	2026-10-11; V1-1947; #1199
+TSA-V0-351	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A dotenv file the	standing	2026-10-11; V1-1947; #1199
+TSA-V0-352	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The reader MUST read	standing	2026-10-11; V1-1947; #1199
+TSA-V0-353	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The profile's own	standing	2026-10-11; V1-1947; #1199
+TSA-V0-354	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) The script's own	standing	2026-10-11; V1-1947; #1199
+TSA-V0-355	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in MAY also b	standing	2026-10-11; V1-1947; #1199
+TSA-V0-356	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Flask-style decorator	standing	2026-10-11; V1-1947; #1199
+TSA-V0-357	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) Sinatra blocks	standing	2026-10-11; V1-1947; #1199
+TSA-V0-358	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) WireMock mapping JSON	standing	2026-10-11; V1-1947; #1199
+TSA-V0-359	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) A stand-in file in a	standing	2026-10-11; V1-1947; #1199
+TSA-V0-360	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A route's payload and query fields	standing	2026-10-11; V1-1948
+TSA-V0-361	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its	standing	2026-10-11; V1-1948
+TSA-V0-362	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked again	standing	2026-10-11; V1-1948
+TSA-V0-363	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests	standing	2026-10-11; V1-1947; #1199
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
