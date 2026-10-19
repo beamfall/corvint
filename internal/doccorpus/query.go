@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
@@ -46,13 +45,16 @@ func LiveFreshness(ctx context.Context, root string, a *Artifact) (FreshnessOver
 	return liveFreshness(ctx, root, a, true)
 }
 
-func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) (FreshnessOverlay, error) {
+func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) (_ FreshnessOverlay, err error) {
+	defer func() {
+		err = gitCapacity(err, fmt.Sprintf("while checking freshness of %d inputs", len(a.Manifest.Inputs)))
+	}()
 	unknown := FreshnessOverlay{State: "unknown"}
 	live, err := contextindex.BuildContext(ctx, root, "")
 	if err != nil {
 		return unknown, err
 	}
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return unknown, err
 	}
@@ -97,17 +99,27 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	for _, p := range live.DirtyPaths {
 		dirty[p] = true
 	}
+	// A clean path the live index already pinned at CommitRevision needs no
+	// further tree walk (DCP-V1-144); every other path resolves in one verified
+	// walk whose Git cost is independent of the input count (DCP-V1-155).
+	lookups := []string{}
+	for _, in := range a.Manifest.Inputs {
+		if _, ok := live.Sources[in.Path]; !ok || dirty[in.Path] {
+			lookups = append(lookups, in.Path)
+		}
+	}
+	resolved := map[string]gitauth.TreeEntry{}
+	if len(lookups) > 0 {
+		if resolved, err = auth.ResolvePaths(ctx, live.CommitRevision, lookups); err != nil {
+			return unknown, err
+		}
+	}
 	for _, in := range a.Manifest.Inputs {
 		// Historical provider records are independent of source freshness. A live
 		// replacement of one is still visible; no HEAD equality heuristic is used.
-		// A clean path the live index already pinned at CommitRevision needs no
-		// further tree walk (DCP-V1-144).
-		var entry gitauth.TreeEntry
-		exists := false
+		entry, exists := resolved[in.Path]
 		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
 			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
-		} else if entry, exists, err = auth.LookupTreeEntry(ctx, live.CommitRevision, in.Path); err != nil {
-			return unknown, err
 		}
 		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
 			state = "stale"

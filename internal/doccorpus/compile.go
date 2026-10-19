@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
@@ -46,8 +45,9 @@ func Inventory(ctx context.Context, root, revision, scope, timestamp string) (Ma
 // InventoryScopes creates one manifest candidate of the given schema over every scope (DCP-V1-160..163).
 // Scopes are emitted in byte order; a duplicate or nested scope is refused, and the inventory is bounded
 // by the schema's record limit.
-func InventoryScopes(ctx context.Context, root, revision string, scopes []string, schema, timestamp string) (Manifest, error) {
-	scopes, err := inventoryScopeSet(scopes, schema)
+func InventoryScopes(ctx context.Context, root, revision string, scopes []string, schema, timestamp string) (_ Manifest, err error) {
+	defer func() { err = gitCapacity(err, "while inventorying the scope") }()
+	scopes, err = inventoryScopeSet(scopes, schema)
 	if err != nil {
 		return Manifest{}, err
 	}
@@ -64,7 +64,7 @@ func InventoryScopes(ctx context.Context, root, revision string, scopes []string
 	for _, scope := range scopes {
 		m.Scopes = append(m.Scopes, Scope{scope, revision})
 	}
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return m, err
 	}
@@ -90,8 +90,20 @@ func InventoryScopes(ctx context.Context, root, revision string, scopes []string
 	if err := checkInventoryBound(m, scopes, counts, len(names)); err != nil {
 		return m, err
 	}
+	loader, err := stageInputs(ctx, auth, map[string]*contextindex.Index{revision: index}, map[string][]string{revision: names}, MaxBytes)
+	if err != nil {
+		return m, err
+	}
 	for _, p := range names {
-		source, err := loadInput(ctx, auth, index, p, MaxBytes)
+		if _, _, err := loader.admit(revision, p); err != nil {
+			return m, err
+		}
+	}
+	if err := loader.read(ctx); err != nil {
+		return m, err
+	}
+	for _, p := range names {
+		source, err := loader.source(revision, p)
 		if err != nil {
 			return m, err
 		}
@@ -279,8 +291,17 @@ func validateManifest(m Manifest) error {
 	if len(m.Profile.Groups) > 32 {
 		return fail("profile group bound exceeded")
 	}
-	if len(m.Inputs) == 0 || len(m.Inputs) > m.recordLimit() || len(m.Scopes) == 0 || len(m.Scopes) > m.recordLimit() || len(m.Providers) == 0 || len(m.Providers) > 16 {
+	if len(m.Inputs) == 0 || len(m.Scopes) == 0 || len(m.Providers) == 0 {
 		return fail("manifest record bound exceeded")
+	}
+	if len(m.Inputs) > m.recordLimit() {
+		return capacityExceeded("manifest input count", len(m.Inputs), m.recordLimit())
+	}
+	if len(m.Scopes) > m.recordLimit() {
+		return capacityExceeded("manifest scope count", len(m.Scopes), m.recordLimit())
+	}
+	if len(m.Providers) > 16 {
+		return capacityExceeded("manifest provider count", len(m.Providers), 16)
 	}
 	if m.MergeRule != "none" && m.MergeRule != "disjoint-union" {
 		return fail("unknown merge rule")
@@ -367,8 +388,9 @@ func validateManifest(m Manifest) error {
 	}
 	return nil
 }
-func (c *compiler) pin(ctx context.Context) error {
-	auth, err := gitauth.Open(c.root, gitrun.NewDefaultBudget())
+func (c *compiler) pin(ctx context.Context) (err error) {
+	defer func() { err = gitCapacity(err, fmt.Sprintf("while pinning %d inputs", len(c.manifest.Inputs))) }()
+	auth, err := gitauth.Open(c.root, newGitBudget())
 	if err != nil {
 		return err
 	}
@@ -416,19 +438,38 @@ func (c *compiler) pin(ctx context.Context) error {
 			return fail("declared scope missing")
 		}
 	}
+	// Admit every input from the index or its Git header before any body is
+	// read, so a capacity refusal precedes the expensive work (DCP-V1-157).
+	paths := map[string][]string{}
+	for _, in := range c.manifest.Inputs {
+		paths[in.Revision] = append(paths[in.Revision], in.Path)
+	}
+	loader, err := stageInputs(ctx, auth, indexes, paths, encodingLimit(c.manifest))
+	if err != nil {
+		return err
+	}
 	inputBytes := 0
 	charged := map[string]bool{}
 	for _, in := range c.manifest.Inputs {
-		source, err := loadInput(ctx, auth, indexes[in.Revision], in.Path, encodingLimit(c.manifest))
+		size, _, err := loader.admit(in.Revision, in.Path)
 		if err != nil {
 			return err
 		}
 		if !charged[inputKey(in.Revision, in.Path)] {
-			inputBytes += len(source.Data)
+			inputBytes += size
 			charged[inputKey(in.Revision, in.Path)] = true
-			if inputBytes > 128<<20 {
-				return fail("aggregate pinned input byte bound exceeded")
+			if inputBytes > maxPinnedInputBytes {
+				return capacityExceeded("aggregate pinned input bytes", inputBytes, maxPinnedInputBytes)
 			}
+		}
+	}
+	if err := loader.read(ctx); err != nil {
+		return err
+	}
+	for _, in := range c.manifest.Inputs {
+		source, err := loader.source(in.Revision, in.Path)
+		if err != nil {
+			return err
 		}
 		if source.BlobHash != in.Blob || Digest(source.Data) != in.SHA256 {
 			return fail("input changed after pinning")
@@ -440,40 +481,6 @@ func (c *compiler) pin(ctx context.Context) error {
 	}
 	c.indexes = indexes
 	return nil
-}
-func loadInput(ctx context.Context, auth *gitauth.Repository, index *contextindex.Index, p string, limit int) (contextindex.Source, error) {
-	if source, ok := index.Sources[p]; ok {
-		text, valid, loaded := source.Text()
-		if loaded && valid && len(text) <= limit {
-			source.Data = []byte(text)
-			return source, nil
-		}
-	}
-	entry, ok, err := auth.LookupTreeEntry(ctx, index.CommitRevision, p)
-	if err != nil {
-		return contextindex.Source{}, err
-	}
-	if !ok {
-		return contextindex.Source{}, &Error{Code: "corpus-input-unavailable", Message: "declared input missing"}
-	}
-	if entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
-		return contextindex.Source{}, fail("input is not a regular Git blob")
-	}
-	var data []byte
-	over := false
-	if limit < gitauth.MaxBlobBytes {
-		// Refuse an over-bound blob from its header, before allocating its body (V1-0747).
-		data, over, err = auth.BlobBytesWithin(ctx, entry.OID, limit)
-	} else {
-		data, err = auth.BlobBytes(ctx, entry.OID)
-	}
-	if err != nil {
-		return contextindex.Source{}, err
-	}
-	if over || len(data) > limit {
-		return contextindex.Source{}, fail("input bound exceeded")
-	}
-	return contextindex.Source{Path: p, BlobHash: entry.OID, Data: data, Mode: entry.Mode}, nil
 }
 func generated(data []byte) bool {
 	trimmed := bytes.TrimSpace(data)

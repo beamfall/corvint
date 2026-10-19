@@ -162,6 +162,7 @@ func runCorpus(ctx context.Context, o corpusOptions, stdout, stderr io.Writer) i
 	return 0
 }
 func emitCorpusError(w io.Writer, err error) {
+	err = doccorpus.Typed(err) // a Git capacity failure is typed, never internal-error (DCP-V1-158)
 	var e *doccorpus.Error
 	if errors.As(err, &e) {
 		emitError(w, &gokernel.Error{Code: e.Code, Message: e.Message})
