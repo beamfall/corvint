@@ -34,7 +34,14 @@ var uoMSWMethods = map[string]bool{"get": true, "post": true, "put": true, "patc
 func (s *source) uoFindings() []testvalidity.SourceFinding {
 	stubs, calls, ok := s.uoStubTable()
 	out := []testvalidity.SourceFinding{}
-	if !ok || len(stubs) == 0 {
+	if !ok {
+		return out
+	}
+	sibling, crossFile := s.xfStubImport()
+	if len(stubs) == 0 {
+		if crossFile {
+			s.uoAbstainUnread(sibling)
+		}
 		return out
 	}
 	for _, d := range s.decls {
@@ -48,15 +55,38 @@ func (s *source) uoFindings() []testvalidity.SourceFinding {
 			near := uoNearest(stubs, in)
 			where := fmt.Sprintf("%s:%d", s.path, in.line)
 			cause := fmt.Sprintf("%s:%d", s.path, near.line)
+			test := fmt.Sprintf("%s:%d", s.path, d.line)
+			message := fmt.Sprintf("input %s=%q reaches the stubbed integration %s, but no stub in this file matches that value, so the request goes to the real outbound integration and can fail only at run time (for example as a 500); the nearest stubbed value is %q at %s; use a stubbed value or add a stub for %q",
+				in.param, in.value, in.path, near.value, cause, in.value)
+			if crossFile {
+				// A sibling stub module may declare a stub covering the value (TSA-V0-301).
+				module, at := s.xfWhere(sibling, true, where)
+				s.xfAbstain(testvalidity.RuleUnstubbedOutboundInput, testvalidity.AbstainStubTableCrossFile, test, where, at,
+					message+fmt.Sprintf("; withheld: this file imports %s, which may declare a stub covering the value, and this reading does not follow imports", module))
+				continue
+			}
 			out = append(out, testvalidity.SourceFinding{
 				Rule: testvalidity.RuleUnstubbedOutboundInput, Severity: testvalidity.SeverityAdvisory,
-				Test: fmt.Sprintf("%s:%d", s.path, d.line), Title: d.title, Location: where, Cause: cause,
-				Message: fmt.Sprintf("input %s=%q reaches the stubbed integration %s, but no stub in this file matches that value, so the request goes to the real outbound integration and can fail only at run time (for example as a 500); the nearest stubbed value is %q at %s; use a stubbed value or add a stub for %q",
-					in.param, in.value, in.path, near.value, cause, in.value),
+				Test: test, Title: d.title, Location: where, Cause: cause, Message: message,
 			})
 		}
 	}
 	return out
+}
+
+// uoAbstainUnread records, for a file with tests but no stub of its own that imports a sibling
+// module that may declare a stub table, one file-level abstention at that import: its stub table may be declared there, which
+// this reading does not follow. The file is still not read for the rule (TSA-V0-171, TSA-V0-302).
+func (s *source) uoAbstainUnread(sibling xfImport) {
+	for _, d := range s.decls {
+		if d.kind != "test" {
+			continue
+		}
+		module, at := s.xfWhere(sibling, true, "")
+		s.xfAbstain(testvalidity.RuleUnstubbedOutboundInput, testvalidity.AbstainStubTableCrossFile, at, at, at,
+			fmt.Sprintf("this file declares no stub and imports %s, which may declare its stub table; this reading does not follow imports, so UNSTUBBED-OUTBOUND-INPUT is not read for this file", module))
+		return
+	}
 }
 
 // uoStubTable reads every literal matcher of the file and the token ranges of the stub calls. ok

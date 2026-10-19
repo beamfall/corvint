@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests and V1-1944, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -1474,13 +1474,14 @@ committed source; nothing reads a database, a network or a run. Each finding cit
 - `TSA-V0-171`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any matcher
   that is not a literal string, or with no stub, MUST NOT be read for the rule, since that matcher
   may cover the value.
-- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)
-  `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or equality assertion inside a
-  test body whose two operands are both collection-derived: `toHaveCount` or `toHaveLength` with a
-  collection-derived argument, or `toBe`, `toEqual` or `toStrictEqual` between two operands ending
-  in `.length`, `.size` or `.count()`. Its location and cause are the assertion line and its
-  message suggests a non-empty precondition or the exact seeded count. A negated chain or a literal
-  operand is not reported. The reading does not model fixture seeding.
+- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  owner decision, V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or
+  equality assertion inside a test body whose two operands are both collection-derived:
+  `toHaveCount` or `toHaveLength` with a collection-derived argument, or `toBe`, `toEqual` or
+  `toStrictEqual` between two operands ending in `.length`, `.size` or `.count()`. A test whose
+  in-scope fixture or hook seeds the collection, as TSA-V0-306 defines, is excluded. Its location
+  and cause are the assertion line and its message suggests a non-empty precondition or the exact
+  seeded count. A negated chain or a literal operand is not reported.
 - `TSA-V0-173`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the same
   test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
   with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
@@ -1509,8 +1510,10 @@ Non-goals:
 Failure modes:
 - A registry imported from a fixture file is not reported in the test file that uses it; the
   fixture file itself is read only when named.
-- A fixture that seeds rows outside the test still gets a `VACUOUS-EMPTY-EQUALITY` advisory when
-  the test has no precondition; the advisory does not change hygiene.
+- A test whose in-scope fixture or hook seeds rows gets no `VACUOUS-EMPTY-EQUALITY` advisory
+  (TSA-V0-306); one whose fixture is declared in another file gets a `fixture-cross-file`
+  abstention instead (TSA-V0-307). Seeding written inside the test body is not read, so such a test
+  still gets the advisory when it has no precondition; the advisory does not change hygiene.
 - A run whose only error is a teardown failure now reports infrastructure, and the runner drops
   its test outcomes, so its passing tests are not counted as proof.
 
@@ -1550,7 +1553,7 @@ persisted.
 | TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
 | TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
-| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
+| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest`, `TestVacuousEmptyEqualitySeeded` | experimental |
 | TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
 | TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
 | TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
@@ -1741,6 +1744,179 @@ subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is 
 | TSA-V0-254 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
 | TSA-V0-255 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
 | TSA-V0-256 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |
+
+## Cross-file abstentions, fixture seeding and JSON annotation (V1-1944)
+
+V1-1944 is an agent-drafted follow-up to the V1-1919, V1-1930, V1-1931 and V1-1932 rules, accepted
+under the owner's standing auto-accept (2026-10-11). It covers three cases. A stub table or cleanup
+registry declared in a sibling module now produces an explicit cross-file abstention rather than
+silence. A test whose setup seeds data no longer gets `VACUOUS-EMPTY-EQUALITY`. A JSON behaviour
+contract gains a documented annotation form. The reader is still the TSA-V0-062 token reader over
+one committed file at a time. It does not follow imports: resolving the sibling module is
+NOT_PRODUCED (TSA-V0-312). TSA-V0-305 to TSA-V0-307 add seeding to the reading that TSA-V0-172
+describes, and TSA-V0-172 itself is amended (2026-10-19, owner decision) to exclude the tests
+TSA-V0-306 suppresses; no other accepted requirement is amended. TSA-V0-301 to TSA-V0-304 add abstention records
+while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
+
+- `TSA-V0-300`: (standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld
+  because what decides it is declared in another file MUST be recorded as an abstention, not as a
+  finding. The abstention goes in the `abstentions` list of the file's `ValidityReport` and of its
+  `corvint-test-source-validity/0` file entry, and has these members:
+  - `rule`;
+  - `reason`: `stub-table-cross-file`, `cleanup-registry-cross-file` or `fixture-cross-file`;
+  - `test` and `location`: the `path:line` of the test and of the statement;
+  - `cause`: the `path:line` of the import naming the other module, or the location when the file
+    names none;
+  - `message`: the withheld reading and the module.
+
+  An abstention changes no axis, verdict, `uncertain` flag or exit code. The member is omitted when
+  the list is empty, so a report without abstentions is byte-identical to before.
+- `TSA-V0-301`: (standing auto-accept, 2026-10-11; V1-1944) A sibling stub import is an import,
+  re-export, `require` or dynamic `import()` with both of these properties:
+  - its specifier is relative (`.`, `..`, `./…`, `../…`);
+  - its specifier, or a name its `import … from` or `export … from` clause names (imported or
+    local), contains `stub`, `mock`, `msw`, `handler`, `route`, `fake` or `intercept`, ignoring
+    case.
+
+  In a file that has its own literal stub table and a sibling stub import,
+  `UNSTUBBED-OUTBOUND-INPUT` MUST NOT report an input that no local stub covers. That input MUST be
+  a `stub-table-cross-file` abstention whose cause is the import and whose message is the finding's
+  message plus the module that may cover the value. A package import, or a sibling import naming
+  none of those words, leaves TSA-V0-169 unchanged.
+- `TSA-V0-302`: (standing auto-accept, 2026-10-11; V1-1944) A file with tests, no stub of its own
+  and a sibling stub import MUST record one file-level `stub-table-cross-file` abstention.
+  - Its test, location and cause are the import line.
+  - Its message names the module and says the rule is not read for this file.
+  - The file's inputs are still not read (TSA-V0-171).
+  - A file with no test records nothing.
+- `TSA-V0-303`: (standing auto-accept, 2026-10-11; V1-1944) A cleanup closure registered on a
+  registry that is a fixture the file does not declare, and that captures a test-scoped handle
+  (TSA-V0-165), MUST be a `cleanup-registry-cross-file` abstention.
+  - Its location is the registration line.
+  - Its test is the enclosing test, or the registration line in a fixture file (TSA-V0-166).
+  - Its cause is the file's first sibling import, else its first import other than
+    `@playwright/test`.
+  - Its message names the registry, the captured handle and the module that declares the
+    registry's scope.
+- `TSA-V0-304`: (standing auto-accept, 2026-10-11; V1-1944) A cross-file registration whose closure
+  captures no test-scoped handle MUST NOT record an abstention. Under TSA-V0-167, no cross-file
+  registration is a finding.
+- `TSA-V0-305`: (standing auto-accept, 2026-10-11; V1-1944) A seeding call MUST be either of:
+  - a call `name(` or `x.name(` whose name is `seed`, `create`, `insert` or `populate`, or whose
+    name starts with `seed`, `create`, `insert`, `populate` or `add` followed by an upper-case
+    letter, digit or `_` (`seedTodos`, `createUser`, `addTodo`, `db.insert`);
+  - a member call `x.post(` or `x.put(`.
+
+  A bare `add(` (a set or a cleanup registry) is not a seeding call. Neither are `addInitScript`,
+  `addCookies`, `addScriptTag`, `addStyleTag` or `addLocatorHandler`. A function or method
+  declaration `name(...) {` is not a call.
+- `TSA-V0-306`: (standing auto-accept, 2026-10-11; V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST NOT be
+  reported in a test whose setup seeds data. Setup seeds data in either of these cases:
+  - The test requests a fixture the file declares (`base.extend({...})`) whose function makes a
+    seeding call, directly or through a declared fixture that function requests in turn.
+  - A `beforeEach` or `beforeAll` hook in the test's scope has a callback that makes a seeding
+    call. The hook is in scope when it is at file level, or when every `describe` that contains the
+    hook also contains the test.
+
+  A hook in a sibling `describe`, or a fixture or hook without a seeding call, does not suppress
+  the finding.
+- `TSA-V0-307`: (standing auto-accept, 2026-10-11; V1-1944) A `VACUOUS-EMPTY-EQUALITY` reading
+  that TSA-V0-306 does not suppress MUST be a `fixture-cross-file` abstention instead of a finding
+  when the test requests a fixture that is none of these:
+  - a fixture the file declares;
+  - a Playwright built-in (`page`, `context`, `request`, `browser`, `playwright`, `browserName`);
+  - a Playwright option fixture (`baseURL`, `viewport`, `storageState`, `locale` and the other
+    `use` options).
+
+  The fixture is declared elsewhere and may seed the collection. The abstention's cause is chosen
+  as in TSA-V0-303, and its message names the fixture.
+- `TSA-V0-308`: (standing auto-accept, 2026-10-11; V1-1944) The annotation of an
+  `EITHER-OR-OUTCOME` value in a JSON behaviour contract MUST be a sibling member in the same
+  object as the flagged member:
+  `"corvint-validity-allow": {"<key>": "EITHER-OR-OUTCOME: <reason>"}`. It exempts every line that
+  holds a `<key>` member of that object. Data is not a comment, so this form keeps TSA-V0-163
+  intact: it is a keyed member of the object, not data on the line above.
+- `TSA-V0-309`: (standing auto-accept, 2026-10-11; V1-1944) None of these MUST exempt the value:
+  - a missing or empty reason;
+  - another rule;
+  - a key that does not name the member;
+  - an annotation in another object, or nested inside a member;
+  - an annotation whose value is a string instead of an object;
+  - a member with another name;
+  - data on the line above;
+  - a file that is not exactly one valid JSON value.
+- `TSA-V0-310`: (standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME`
+  finding in a `.json` contract MUST end by naming the sibling-member form with the flagged key,
+  since JSON has no comment line. Markdown and YAML messages are unchanged.
+- `TSA-V0-311`: (standing auto-accept, 2026-10-11; V1-1944) The abstention reasons and
+  `RuleAbstention` MUST be defined once in `internal/testvalidity`, which is the only owner of the
+  reason strings.
+- `TSA-V0-312`: (standing auto-accept, 2026-10-11; V1-1944) Resolving a sibling module's stub table,
+  registry scope or fixture body is NOT_PRODUCED, with reason `cross-file-resolution-not-produced`.
+  `ValidityFindings` reads one file without repository access, and an import's target, aliases and
+  re-exports are not resolved. The rules abstain (TSA-V0-301 to TSA-V0-303, TSA-V0-307) instead of
+  guessing.
+
+Non-goals:
+- following imports, path aliases or re-exports to another file;
+- reading `auto` fixtures, global setup or seeding written inside the test body;
+- tying a seeding call to the particular collection an assertion compares;
+- changing the comment annotations of TSA-V0-163.
+
+Failure modes:
+- A stub module whose name contains none of the stub words is not recognised. Its importer is read
+  as before: findings are reported when the file has local stubs, and the file is not read when it
+  has none.
+- A sibling stub import withholds every uncovered input in its file, including inputs that module
+  does not cover. The reading is advisory and is surfaced as an abstention, not dropped.
+- A seeding call that seeds an unrelated collection still suppresses the finding: the reading
+  under-reports and never over-reports.
+- A helper named like a seeding call that writes nothing (`createLocator`) suppresses the finding.
+  So does a seeding call inside a nested function the hook or fixture never invokes.
+- A JSON contract that is not valid JSON gets no exemptions, so its findings stay invalid.
+
+Acceptance evidence: synthetic fixtures only.
+- `TestUnstubbedOutboundInputCrossFile`
+- `TestCleanupHandleOutlivedCrossFile`
+- `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` and
+  `TestVacuousEmptyEqualityCrossFileFixture`
+- `TestEitherOrOutcomeJSONAnnotation`
+- `TestSourceValidityAbstentionsWire`
+
+Each new decision point was mutated, and the tests killed every mutation of tested behaviour.
+The mutated points were:
+- sibling and stub-word detection, long import clauses and `require(…,)`;
+- seeding names, the not-seeding list, the bare `add` exclusion and method declarations;
+- transitive fixtures, hook scope and option fixtures;
+- the JSON member name, key, rule, reason and single-value check, and the JSON message;
+- cross-file registration, capture and nested registrations;
+- VE seeding and cross-file fixtures;
+- the UO withheld and unread paths;
+- the wire copy. No live qualification on a real suite was run (NOT_RUN).
+
+Rollback: remove `internal/testsource/validity_crossfile.go`, its test,
+`internal/testvalidity/source_rules_crossfile.go`, the `abstentions` fields, and the cross-file,
+seeding and JSON branches in `validity_unstubbed_input.go`, `validity_cleanup_handle.go`,
+`validity_vacuous_empty.go` and `validity_either_or.go`. Then remove this section. Nothing is
+persisted. Without the `abstentions` member, the report is the prior wire.
+
+### Traceability (V1-1944)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-300 | `internal/testvalidity/source_rules_crossfile.go`, `internal/testsource/validity.go`, `internal/testsource/validity_command.go` | `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-301 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
+| TSA-V0-302 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputCrossFile` | experimental |
+| TSA-V0-303 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedCrossFile`, `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-304 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedCrossFile` | experimental |
+| TSA-V0-305 | `internal/testsource/validity_crossfile.go` | `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-306 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualitySeeded`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-307 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityCrossFileFixture`, `TestVacuousEmptyEqualityNotSeeded` | experimental |
+| TSA-V0-308 | `internal/testsource/validity_crossfile.go`, `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-309 | `internal/testsource/validity_crossfile.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-310 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
+| TSA-V0-311 | `internal/testvalidity/source_rules_crossfile.go` | `TestSourceValidityAbstentionsWire` | experimental |
+| TSA-V0-312 | none | NOT_PRODUCED (`cross-file-resolution-not-produced`) | gap |
 
 ## Decision file format
 

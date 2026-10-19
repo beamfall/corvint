@@ -45,6 +45,8 @@ type SourceValidityFile struct {
 	Uncertain bool                         `json:"uncertain"`
 	Reason    string                       `json:"reason,omitempty"`
 	Findings  []testvalidity.SourceFinding `json:"findings"`
+	// Abstentions are the advisory readings withheld as cross-file (TSA-V0-300).
+	Abstentions []testvalidity.RuleAbstention `json:"abstentions,omitempty"`
 }
 
 // SourceValidityTest is the hygiene axis a test's findings give it: ELIGIBLE with only advisory
@@ -264,7 +266,7 @@ func readSourceValidity(name, text string, support testvalidity.RubySupport) (So
 		return file, findingTests(file.Findings, nil)
 	}
 	base := ValidityFindings(name, text)
-	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings}
+	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings, Abstentions: base.Abstentions}
 	if !IsTestFile(name) || base.Uncertain {
 		return file, findingTests(file.Findings, nil)
 	}

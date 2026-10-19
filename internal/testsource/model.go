@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 // source is one lexed test or page-object file (TSA-V0-010).
@@ -20,6 +21,9 @@ type source struct {
 	decls     []decl
 	// defs indexes named function definitions, built on first use (TSA-V0-030).
 	defs map[string][]helperDef
+	// abstentions collects the advisory readings the validity rules withheld because what
+	// decides them is declared in another file (TSA-V0-300).
+	abstentions []testvalidity.RuleAbstention
 }
 
 // decl is one test, describe or runtime skip/only call.

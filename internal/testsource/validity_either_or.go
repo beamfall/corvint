@@ -405,20 +405,31 @@ var (
 func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
 	lines := strings.Split(text, "\n")
+	jsonContract, jsonAllowed := strings.HasSuffix(name, ".json"), map[int]bool{}
+	if jsonContract {
+		jsonAllowed = eoJSONAllowed(text)
+	}
 	for n, raw := range lines {
 		m := eoContractExpected.FindStringSubmatch(raw)
 		if m == nil {
 			continue
 		}
 		values := eoContractValues(m[2])
-		if len(values) < 2 || eoAnnotation(raw) || n > 0 && eoContractComment(lines[n-1]) && eoAnnotation(lines[n-1]) {
+		if len(values) < 2 || eoAnnotation(raw) || n > 0 && eoContractComment(lines[n-1]) && eoAnnotation(lines[n-1]) || jsonAllowed[n+1] {
 			continue
 		}
 		where := fmt.Sprintf("%s:%d", name, n+1)
+		message := eoMessage("the contract's expected value", values)
+		if jsonContract {
+			// JSON has no comment lines, so the message also names the sibling-member form
+			// (TSA-V0-310).
+			message += fmt.Sprintf("; JSON has no comments, so in a JSON contract annotate instead with a sibling member `\"%s\": {\"%s\": \"%s: <reason>\"}` in the same object",
+				eoJSONAllowMember, strings.TrimSpace(m[1]), testvalidity.RuleEitherOrOutcome)
+		}
 		out = append(out, testvalidity.SourceFinding{
 			Rule: testvalidity.RuleEitherOrOutcome, Severity: testvalidity.SeverityInvalid,
 			Test: where, Title: strings.TrimSpace(m[1]), Location: where, Cause: where,
-			Message: eoMessage("the contract's expected value", values),
+			Message: message,
 		})
 	}
 	return out
