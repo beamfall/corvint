@@ -231,6 +231,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Corvint Tasks journal retention V0 | [`corvint-tasks-journal-retention-v0.md`](corvint-tasks-journal-retention-v0.md) | JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055) | experimental | `receipt retire` bounds the live journal by sealing the head receipt over a verified archive of the prefix; `receipt unretire` restores it. |
 | Shared-path change policy V0 | [`shared-path-change-policy-v0.md`](shared-path-change-policy-v0.md) | accepted under the owner's standing auto-accept (2026-10-11; V1-1591) | experimental | Names unlabelled commits that change shared test infrastructure, splits them out, and reports the shared-path base commits a branch lacks. |
 | Spec toolchain adapters V0 | [`spec-toolchain-adapters-v0.md`](spec-toolchain-adapters-v0.md) | accepted | experimental | Corvint reads pinned OpenSpec and Spec Kit projects as declared OCM intent forms with native IDs, and CI checks them against upstream. |
+| Site Knowledge How-To V0 | [`site-knowledge-howto-v0.md`](site-knowledge-howto-v0.md) SKH-V0-001..089 | accepted | not-started | Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

@@ -3781,5 +3781,28 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/site-knowledge-howto-v0.md",
+    "title": "Site Knowledge How-To V0",
+    "reqPrefix": "SKH-V0",
+    "intent": "accepted",
+    "delivery": "not-started",
+    "claim": "Page objects, steps, setup and edges mined from tests answer \"how do I X\" with a live-proven E2E test, or abstain naming the missing knowledge.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v1.md",
+      "docs/specs/application-map-scenario-planner-v0.md",
+      "docs/specs/application-map-v0.md",
+      "docs/specs/application-navigation-ledger-v0.md",
+      "docs/specs/change-compiled-e2e-v0.md",
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/new-e2e-test-acceptance-v0.md",
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/run-verified-navigation-v0.md",
+      "docs/specs/test-source-analysis-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
