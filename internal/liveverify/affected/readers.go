@@ -34,21 +34,29 @@ const PathTokenBound = "path-token-bound"
 // is not traversed to its dependents, and no unknown entry is added or removed
 // for a match: a literal index cannot bound the reads a path assembled at run
 // time makes, so the selection only adds. Dirty paths arrive sorted and units
-// in id order, so the smallest naming dirty path is each reader's witness.
+// in id order, so the smallest naming dirty path is each reader's witness;
+// each unit tries the dirty paths in that order and stops at its witness.
 // It returns the unit frontier reasons of the namers resolves kept out of a
 // path other than the CEM sidecar: Select still names them, so the AFP-V0-072
 // narrowing removes no unknown entry (AFP-V0-072(4)).
 func (graph *Graph) readers(reached map[string]Witness, dirty []string) map[string]bool {
-	runs := runCache{}
+	split := make([][]string, len(dirty))
+	for i, dirtyPath := range dirty {
+		split[i] = strings.Split(dirtyPath, "/")
+	}
 	narrowed := make(map[string]bool)
-	for _, dirtyPath := range dirty {
-		for _, id := range graph.namersWith(dirtyPath, runs) {
-			if _, seen := reached[id]; seen {
+	tokens := graph.pathTokens()
+	for i, id := range graph.order {
+		if _, seen := reached[id]; seen {
+			continue
+		}
+		for j, dirtyPath := range dirty {
+			if !namesAny(tokens[i], split[j]) {
 				continue
 			}
 			if graph.resolves(id, dirtyPath) {
 				reached[id] = Witness{Kind: WitnessPathLiteralReader, DirtyPath: dirtyPath, Via: []string{id}}
-				continue
+				break
 			}
 			if dirtyPath == ChangeEvidencePath {
 				continue
@@ -343,41 +351,54 @@ func resolvesWithin(directory, value, dirtyPath string) bool {
 // namers lists, in id order, the units carrying a path token that names
 // dirtyPath.
 func (graph *Graph) namers(dirtyPath string) []string {
-	return graph.namersWith(dirtyPath, runCache{})
-}
-
-// namersWith is namers with each token's component runs split once per
-// cache instead of once per unit and dirty path.
-func (graph *Graph) namersWith(dirtyPath string, runs runCache) []string {
 	parts := strings.Split(dirtyPath, "/")
 	ids := make([]string, 0)
-	for _, id := range graph.order {
-		if namesAny(graph.units[id].PathTokens, parts, runs) {
-			ids = append(ids, id)
+	for i, tokens := range graph.pathTokens() {
+		if namesAny(tokens, parts) {
+			ids = append(ids, graph.order[i])
 		}
 	}
 	return ids
 }
 
-func namesAny(tokens, parts []string, runs runCache) bool {
-	for _, value := range tokens {
-		if namesPathRuns(value, runs.of(value), parts) {
+// pathTokens holds, in graph.order, each unit's path tokens with their
+// component runs split once, a token shared by several units split once.
+func (graph *Graph) pathTokens() [][]pathToken {
+	split := map[string]pathToken{}
+	tokens := make([][]pathToken, len(graph.order))
+	for i, id := range graph.order {
+		values := graph.units[id].PathTokens
+		tokens[i] = make([]pathToken, len(values))
+		for j, value := range values {
+			token, ok := split[value]
+			if !ok {
+				token = newPathToken(value)
+				split[value] = token
+			}
+			tokens[i][j] = token
+		}
+	}
+	return tokens
+}
+
+func namesAny(tokens []pathToken, parts []string) bool {
+	for _, token := range tokens {
+		if token.names(parts) {
 			return true
 		}
 	}
 	return false
 }
 
-// runCache memoises componentRuns, a pure function of the token.
-type runCache map[string][]run
+// pathToken is a token's componentRuns with namesPath's file-name-only rule
+// for a lone component decided once.
+type pathToken struct {
+	runs     []run
+	nameOnly bool
+}
 
-func (cache runCache) of(value string) []run {
-	runs, ok := cache[value]
-	if !ok {
-		runs = componentRuns(value)
-		cache[value] = runs
-	}
-	return runs
+func newPathToken(value string) pathToken {
+	return pathToken{runs: componentRuns(value), nameOnly: !strings.HasPrefix(value, "/") && !strings.Contains(value, "..")}
 }
 
 type run struct {
@@ -413,14 +434,13 @@ func componentRuns(value string) []run {
 // of `"internal/%03d.go"` would otherwise name every path below any
 // `internal` directory (V1-0290), while `"../../.corvint"` is a path.
 func namesPath(value string, parts []string) bool {
-	return namesPathRuns(value, componentRuns(value), parts)
+	return newPathToken(value).names(parts)
 }
 
-// namesPathRuns is namesPath over the token's precomputed componentRuns.
-func namesPathRuns(value string, runs []run, parts []string) bool {
-	for _, candidate := range runs {
+func (token pathToken) names(parts []string) bool {
+	for _, candidate := range token.runs {
 		first := 0
-		if len(candidate.components) == 1 && !strings.HasPrefix(value, "/") && !strings.Contains(value, "..") {
+		if len(candidate.components) == 1 && token.nameOnly {
 			first = len(parts) - 1
 		}
 		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {

@@ -167,8 +167,10 @@ func selectPackages(plan Receipt, module, root string) []string {
 			}
 		}
 	}
-	for _, dirty := range sortedUnique(plan.Plan.Dirty) {
-		for _, rule := range index.attribute(dirty) {
+	dirties := sortedUnique(plan.Plan.Dirty)
+	readers := index.pathReaders(dirties)
+	for i, dirty := range dirties {
+		for _, rule := range index.attribute(dirty, readers[i]) {
 			if rule.kind == "data" {
 				lines = append(lines, "data "+dirty)
 				continue
@@ -234,13 +236,13 @@ type attribution struct {
 // one's dependents when the path sits directly in it, and the dependents of
 // every embedding ancestor (`//go:embed` reaches into subdirectories that are
 // packages of their own); (c) every path selects the packages whose files name
-// it. Rule (d), the unresolved packages, is index.unresolved().
-func (index *repositoryIndex) attribute(dirty string) []attribution {
-	readers := index.readers
+// it, given as readers (index.readers(dirty), or pathReaders for many paths).
+// Rule (d), the unresolved packages, is index.unresolved().
+func (index *repositoryIndex) attribute(dirty string, readers []string) []attribution {
 	if dirty == changeEvidence {
-		readers = index.resolvingReaders
+		readers = index.resolvingReaders(dirty)
 	}
-	return append(index.attributeStructure(dirty), attribution{"reader", readers(dirty)})
+	return append(index.attributeStructure(dirty), attribution{"reader", readers})
 }
 
 // attributeStructure is attribute without rule (c).

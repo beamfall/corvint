@@ -431,6 +431,29 @@ func (index *repositoryIndex) readers(dirtyPath string) []string {
 	return sortedKeys(readers)
 }
 
+// pathReaders is readers for every path at once: the same namesPath relation
+// evaluated token by token through one pathMatcher, so the paths are split
+// once and each token's runs once rather than once per path.
+func (index *repositoryIndex) pathReaders(paths []string) [][]string {
+	sets := make([]map[string]bool, len(paths))
+	matcher := newPathMatcher(paths)
+	for value, directories := range index.holders {
+		for _, i := range matcher.named(value) {
+			if sets[i] == nil {
+				sets[i] = map[string]bool{}
+			}
+			for _, directory := range directories {
+				sets[i][directory] = true
+			}
+		}
+	}
+	readers := make([][]string, len(paths))
+	for i := range paths {
+		readers[i] = sortedKeys(sets[i])
+	}
+	return readers
+}
+
 // resolvingReaders are the readers of dirtyPath whose token, resolved against
 // the holder's own directory (a root-anchored token against the root), can
 // form dirtyPath or one of its ancestor directories. A separate root anchor
