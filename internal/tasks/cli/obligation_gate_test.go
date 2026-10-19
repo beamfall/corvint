@@ -97,35 +97,46 @@ func TestTOLV0101_ReviewedSubjectAtReviewedCommit(t *testing.T) {
 	subject(field(all[0], "reviewedSubject"), "UNAVAILABLE", "TEST_REPOSITORY_UNRESOLVED")
 }
 
-// TestTOLV0102_DeclaredCitesRequired: with obligations.requireDeclaredCites
-// a cite naming an undeclared repository is refused
+// TestTOLV0102_DeclaredCitesRequired: by default (requireDeclaredCites
+// absent, owner decision 2026-10-19, V1-1963) and with an explicit true, a
+// cite naming an undeclared repository is refused
 // OBLIGATION_CITE_REPOSITORY_UNDECLARED and writes nothing, while declared
-// and primary cites are admitted; without the opt-in the TOL-V0-079
-// behavior admits it (TOL-V0-102).
+// and store-own (null repository) cites are admitted; an explicit false
+// opts out to the TOL-V0-079 behavior that admits it (TOL-V0-102).
 func TestTOLV0102_DeclaredCitesRequired(t *testing.T) {
 	infra := infraRepo(t)
-	r, id, _ := obligationRepoWith(t, withObligations(testRepoPolicy(map[string]string{"infra": infra}), func(o *wire.Object) {
-		o.Set("requireDeclaredCites", wire.Bool(true))
-	}))
-	seedObligations(t, r.Root, id)
-	before := fixture.TreeSnapshot(t, r.StateDir)
 	bad := `[{"id":"AC-2","state":null,"core":null,"reason":"typo","cites":[{"repository":"infar","path":"deploy"}]}]`
-	if x := boundarySet(t, r.Root, id, "cite-bad", "owner", "OWNER", bad); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "OBLIGATION_CITE_REPOSITORY_UNDECLARED:") {
-		t.Fatalf("undeclared cite admitted: %s", x.stdout)
-	}
-	if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
-		t.Fatal("a refused cite wrote state")
-	}
 	good := `[{"id":"AC-1","state":null,"core":null,"reason":"primary","cites":[{"repository":null,"path":"e2e/login.spec.ts"}]},` +
 		`{"id":"AC-2","state":null,"core":null,"reason":"declared","cites":[{"repository":"infra","path":"deploy"}]}]`
-	if x := boundarySet(t, r.Root, id, "cite-good", "owner", "OWNER", good); x.res.Outcome != wire.OutcomeOK {
-		t.Fatalf("declared cites: %s", x.stdout)
+	for _, tc := range []struct {
+		name   string
+		policy func(wire.Value)
+	}{
+		{"absent", testRepoPolicy(map[string]string{"infra": infra})},
+		{"true", withObligations(testRepoPolicy(map[string]string{"infra": infra}), func(o *wire.Object) {
+			o.Set("requireDeclaredCites", wire.Bool(true))
+		})},
+	} {
+		r, id, _ := obligationRepoWith(t, tc.policy)
+		seedObligations(t, r.Root, id)
+		before := fixture.TreeSnapshot(t, r.StateDir)
+		if x := boundarySet(t, r.Root, id, "cite-bad", "owner", "OWNER", bad); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "OBLIGATION_CITE_REPOSITORY_UNDECLARED:") {
+			t.Fatalf("%s: undeclared cite admitted: %s", tc.name, x.stdout)
+		}
+		if !fixture.SameTree(before, fixture.TreeSnapshot(t, r.StateDir)) {
+			t.Fatalf("%s: a refused cite wrote state", tc.name)
+		}
+		if x := boundarySet(t, r.Root, id, "cite-good", "owner", "OWNER", good); x.res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%s: declared cites: %s", tc.name, x.stdout)
+		}
 	}
 
-	r2, id2, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"infra": infra}))
+	r2, id2, _ := obligationRepoWith(t, withObligations(testRepoPolicy(map[string]string{"infra": infra}), func(o *wire.Object) {
+		o.Set("requireDeclaredCites", wire.Bool(false))
+	}))
 	seedObligations(t, r2.Root, id2)
 	if x := boundarySet(t, r2.Root, id2, "cite-bad", "owner", "OWNER", bad); x.res.Outcome != wire.OutcomeOK {
-		t.Fatalf("default policy refused an undeclared cite: %s", x.stdout)
+		t.Fatalf("explicit false refused an undeclared cite: %s", x.stdout)
 	}
 	if got := boundaryVerdicts(obligationsBoundaryRead(t, r2.Root, id2))["AC-2"]; got != "UNKNOWN/REPOSITORY_UNAVAILABLE" {
 		t.Fatalf("undeclared cite verdict: %q", got)
@@ -377,11 +388,16 @@ func TestTOLV0108_CapabilityBoundsAndReadOnly(t *testing.T) {
 }
 
 // TestTOLV0079_CitesBoundsReplaceAndDefault: cites admit 1..16 objects, a
-// trailing "/" directory and an undeclared label at write (read UNKNOWN);
+// trailing "/" directory and, under an explicit requireDeclaredCites false,
+// an undeclared label at write (read UNKNOWN);
 // a later change's cites replace the entry's, and an entry without the
 // member keeps its exact bytes (TOL-V0-079).
 func TestTOLV0079_CitesBoundsReplaceAndDefault(t *testing.T) {
-	r, id, _ := obligationRepo(t)
+	// An undeclared label is admitted only under an explicit
+	// requireDeclaredCites false (TOL-V0-102, V1-1963).
+	r, id, _ := obligationRepoWith(t, func(p wire.Value) {
+		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(false)).Set("requireDeclaredCites", wire.Bool(false))))
+	})
 	seedObligations(t, r.Root, id)
 	plain := obligationsShow(t, r.Root, id)
 	for _, e := range field(plain, "entries").Arr {

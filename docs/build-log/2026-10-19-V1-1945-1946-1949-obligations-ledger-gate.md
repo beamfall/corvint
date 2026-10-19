@@ -12,11 +12,14 @@ accepted requirement is amended.
   review's own commit in the repository the review read, never at `HEAD`. When that commit is gone
   it names `REVIEWED_COMMIT_UNAVAILABLE`; a missing, oversized or different blob has its own
   reason. It is additive output and never changes a verdict, item or exclusion.
-- **Undeclared cite labels refused only when opted in (V1-1945 b).** TOL-V0-079 says a label is not
-  checked at write, and a non-goal names that verification. Refusing by default would amend an
-  accepted requirement, so `obligations.requireDeclaredCites` (default false) refuses with
-  `OBLIGATION_CITE_REPOSITORY_UNDECLARED:`, following the TOL-V0-082 precedent for an opt-in
-  stricter write. The default stays unchecked; that is a recorded limit, not a delivered default.
+- **Undeclared cite labels refused by default (V1-1945 b, V1-1963).** The lane first shipped
+  `obligations.requireDeclaredCites` as an opt-in (default false), because refusing by default
+  amends the accepted TOL-V0-079. The owner decided on 2026-10-19 (V1-1963) that it defaults to
+  true: an absent key refuses a cite whose repository label is not declared with
+  `OBLIGATION_CITE_REPOSITORY_UNDECLARED:`, the store's own (null) repository is always admitted,
+  and an explicit false opts out. TOL-V0-079, TOL-V0-102, the failure-mode row, the non-goals and
+  the compatibility note were amended with it. The store's own unborn `HEAD` still reads as stale
+  (TOL-V0-077 unchanged).
 - **Classifier made configurable (V1-1945 c).** `obligations.testFilePatterns` extends the closed
   naming set; the closed set is still tried first, so no existing classification changes.
 - **Unborn test-repository HEAD (V1-1946).** An unborn `HEAD` now reads as

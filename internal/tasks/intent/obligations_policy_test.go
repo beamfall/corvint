@@ -9,11 +9,17 @@ import (
 
 // TestTOLV0102_103_107_ObligationsPolicyMembers: requireDeclaredCites,
 // testFilePatterns and environmentBaselines are optional obligations members;
-// each refuses a malformed declaration (TOL-V0-102, 103, 107).
+// each refuses a malformed declaration (TOL-V0-102, 103, 107). An absent
+// requireDeclaredCites requires declared cites and only an explicit false
+// opts out (owner decision 2026-10-19, V1-1963).
 func TestTOLV0102_103_107_ObligationsPolicyMembers(t *testing.T) {
 	p, err := policyWith(t, "obligations", `{"workerWitness":false}`)
-	if err != nil || p.ObligationCitesDeclaredRequired() || p.ObligationTestFilePatterns() != nil {
+	if err != nil || !p.ObligationCitesDeclaredRequired() || p.ObligationTestFilePatterns() != nil {
 		t.Fatalf("absent members: %v", err)
+	}
+	p, err = policyWith(t, "obligations", `{"workerWitness":false,"requireDeclaredCites":false}`)
+	if err != nil || p.ObligationCitesDeclaredRequired() {
+		t.Fatalf("explicit false: %v", err)
 	}
 	if _, ok := p.ObligationEnvironmentBaseline("."); ok {
 		t.Fatal("absent baseline resolved")

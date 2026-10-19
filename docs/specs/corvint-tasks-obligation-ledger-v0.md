@@ -920,8 +920,10 @@ declared test repositories (TOL-V0-064); no new journal or record profile is add
   a declared test repository, and `path` is a repository path to a file or directory (a trailing
   `/` names the same directory). A change's
   `cites` replaces the entry's. An entry without the member keeps its exact earlier bytes, and an
-  older closed reader refuses a change that carries it `MALFORMED`. A label is not checked at write;
-  an undeclared label reads `UNKNOWN` (TOL-V0-083).
+  older closed reader refuses a change that carries it `MALFORMED`. A label is checked at write
+  by default under TOL-V0-102 (owner decision 2026-10-19, V1-1963); under an explicit
+  `obligations.requireDeclaredCites` false it is not, and an undeclared label reads `UNKNOWN`
+  (TOL-V0-083).
 - `TOL-V0-080`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A change MUST admit the optional member
   `scope`: `{action: PROPOSE, core, evidence}` with a 1..512-byte non-blank evidence reference, or
   `{action: ACCEPT, core}`. A change with `scope` has a null `core`, else it refuses `MALFORMED`; the
@@ -1021,13 +1023,15 @@ record or event profile and change no accepted requirement's default output.
   `SUBJECT_ABSENT_AT_REVIEW`, `SUBJECT_UNREADABLE_AT_REVIEW` (over the read bound) or
   `SUBJECT_MISMATCH_AT_REVIEW`. The member never changes a verdict, an item, an exclusion or its
   reason; an entry without a review has no member.
-- `TOL-V0-102`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) The
-  optional policy key `obligations.requireDeclaredCites` (default false) MUST, when true, refuse an
+- `TOL-V0-102`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945); default
+  amended to true by owner decision 2026-10-19, V1-1963) The optional policy key
+  `obligations.requireDeclaredCites` (default true) MUST, when absent or true, refuse an
   `OBLIGATIONS_SET` change any of whose `cites` names a repository label that
   `obligations.testRepositories` does not declare: `VALIDATION_FAILED` with the code `MALFORMED`
   and the detail prefix `OBLIGATION_CITE_REPOSITORY_UNDECLARED:`, writing nothing. A null
-  repository (the store's own) is always admitted. Absent or false keeps the TOL-V0-079 write
-  exactly (a label is not checked at write and reads `UNKNOWN`), as TOL-V0-082 does for core.
+  repository (the store's own) is always admitted. An explicit false opts out to the pre-amendment
+  TOL-V0-079 write (a label is not checked at write and reads `UNKNOWN`); a non-boolean value is
+  refused `MALFORMED`.
 - `TOL-V0-103`: (accepted under the owner's standing auto-accept (2026-10-11; V1-1945)) The
   optional policy key `obligations.testFilePatterns` MUST admit 1..32 objects `{kind, pattern}`:
   `kind` a label and `pattern` a 1..256-byte relative `path.Match` pattern with no TAB, LF or CR;
@@ -1128,7 +1132,7 @@ record or event profile and change no accepted requirement's default output.
 | An obligation cites no code, or a repository that cannot be listed | A missing boundary is read as "no tests" | The verdict is `UNKNOWN` (`NO_CITATIONS`, `REPOSITORY_UNAVAILABLE`), never `NO_TEST_BOUNDARY` (TOL-V0-083). The test classifier is a naming heuristic: a matching file no runner executes still counts. |
 | A worker re-queues an entry whose new candidate is not yet reviewed, or works from a stale review | Duplicate work, or work against changed bytes | The worklist excludes `CANDIDATE_AWAITING_REVIEW`, `SUBJECT_CHANGED` and `SUBJECT_UNVERIFIED` entries (TOL-V0-086). |
 | A test repository's `HEAD` is unborn, or the reviewed commit is gone | An unborn `HEAD` reads as a stale review; a reviewer cannot see what was reviewed | An unborn `HEAD` is `TEST_REPOSITORY_UNRESOLVED` with the credit withheld (TOL-V0-100); `reviewedSubject` names the reviewed commit and `REVIEWED_COMMIT_UNAVAILABLE` when it is gone (TOL-V0-101). |
-| A cite names a mistyped repository label | The obligation reads `UNKNOWN` and no one notices | Opt-in `requireDeclaredCites` refuses it `OBLIGATION_CITE_REPOSITORY_UNDECLARED:` (TOL-V0-102). Retained limit: off by default, so TOL-V0-079's write is unchanged. |
+| A cite names a mistyped repository label | The obligation reads `UNKNOWN` and no one notices | `requireDeclaredCites`, default true (owner decision 2026-10-19, V1-1963), refuses it `OBLIGATION_CITE_REPOSITORY_UNDECLARED:` (TOL-V0-102). Retained limit: an explicit false opts out, and the label then reads `UNKNOWN`. |
 | A project's tests use a naming convention outside the closed set | The boundary reports `NO_RUNNABLE_TESTS` for a tested repository | Declared `testFilePatterns` extend the set (TOL-V0-103). Retained limit: still a naming heuristic, never a runner probe. |
 | A plan check counts only browser coverage, or a stale review as coverage | API or unit witnesses are re-demanded; a changed test still counts | `--witnesses` names every ledger witness and its type, and a stale review refuses `STALE_REVIEW` (TOL-V0-104, 105). |
 | A capability question is answered from `HEAD` | A feature merged but not deployed reads as present | The capability read answers only at a declared baseline and abstains `UNKNOWN` without one (TOL-V0-107..109). |
@@ -1167,15 +1171,15 @@ record or event profile and change no accepted requirement's default output.
 - Reviewer verdicts gating completion, an agreement rule other than unanimous `correct`, verifying
   that a reviewer label names a real person, or judging staleness at the reviewed candidate rather
   than at `HEAD` (TOL-V0-073..078).
-- Refusing plain core changes by default, verifying that a cite label is declared at write,
-  running a test provider to prove it runnable, or ranking by anything but priority, nearest
+- Refusing plain core changes by default, running a test provider to prove it runnable, or ranking by anything but priority, nearest
   completion and review age (TOL-V0-079..088).
 - Running Playwright to qualify a version, shipping a qualified version, sharing the allow-list
   across machines, or qualifying from anything but the embedded fixture (TOL-V0-060..063).
 - Running `run-batch`, `qualify` or `preflight` in a declared test repository, several test
   repositories per witness, or fetching or cloning one (TOL-V0-064..067).
 
-- Checking cite labels by default, probing that a declared pattern's files are run by any
+- Checking cite labels under an explicit `requireDeclaredCites` false, probing that a declared
+  pattern's files are run by any
   runner, judging environment capability from anything but a declared ref or object id, fetching
   a baseline, or reading deployment state; `preflight --plan` does not take `--witnesses`
   (TOL-V0-100..109).
@@ -1349,7 +1353,9 @@ The accepted TOL-V0-100..109 add no journal, record, event or plan profile and n
 bytes: `reviewedSubject`, `ledgerWitnesses`, `considered` and the `capability` item are read-side
 output, and `ledgerWitnesses` and `considered` appear only under `--witnesses`. The policy members
 `requireDeclaredCites`, `testFilePatterns` and `environmentBaselines` are optional; an older policy
-reader refuses a policy that carries one (fail-closed). Rollback is reverting the change and
+reader refuses a policy that carries one (fail-closed). `requireDeclaredCites` defaults to true
+(owner decision 2026-10-19, V1-1963): a store whose ledger relied on writing undeclared cite labels
+sets it false to keep the pre-amendment write; existing ledger bytes are never re-checked. Rollback is reverting the change and
 removing those policy members; no store state needs repair. The TOL-V0-080 scope evidence bound
 was raised from an implemented 256 bytes to the accepted 512 (build log 2026-10-19); a ledger
 holding a 257..512-byte evidence reference is refused `LIMIT_EXCEEDED` by an older binary's closed

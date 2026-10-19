@@ -171,9 +171,10 @@ type ObligationsPolicy struct {
 	// checkout path, absolute or relative to the primary worktree; nil when
 	// the member is absent.
 	TestRepositories map[string]string
-	// RequireDeclaredCites (TOL-V0-102) makes a cite whose repository label
-	// the policy does not declare refuse at write; absent keeps TOL-V0-079.
-	RequireDeclaredCites bool
+	// AllowUndeclaredCites records an explicit requireDeclaredCites false
+	// (TOL-V0-102): absent requires every cite's repository label to be
+	// declared (owner decision 2026-10-19, V1-1963); false opts out.
+	AllowUndeclaredCites bool
 	// TestFilePatterns (TOL-V0-103) extends the boundary's closed naming
 	// classifier with declared kind/pattern pairs; nil when absent.
 	TestFilePatterns []ObligationTestFilePattern
@@ -764,7 +765,7 @@ const (
 // the obligations policy object, each optional.
 func readObligationsExtensions(o *wire.Reader, p *ObligationsPolicy) {
 	if o.Err() == nil && wire.Has(o.Value(), "requireDeclaredCites") {
-		p.RequireDeclaredCites = o.Field("requireDeclaredCites").Bool()
+		p.AllowUndeclaredCites = !o.Field("requireDeclaredCites").Bool()
 	}
 	if o.Err() == nil && wire.Has(o.Value(), "testFilePatterns") {
 		p.TestFilePatterns = readTestFilePatterns(o.Field("testFilePatterns"))
@@ -848,10 +849,11 @@ func environmentBaselineRef(ref string) bool {
 		!strings.Contains(ref, "..") && !strings.Contains(ref, "@{") && !strings.HasSuffix(ref, "/") && !strings.HasSuffix(ref, ".lock")
 }
 
-// ObligationCitesDeclaredRequired reports whether policy opts into the
-// TOL-V0-102 cite-label check. Absent or false keeps TOL-V0-079.
+// ObligationCitesDeclaredRequired reports whether the TOL-V0-102 cite-label
+// check applies: true unless the policy sets obligations.requireDeclaredCites
+// false (owner decision 2026-10-19, V1-1963).
 func (p *Policy) ObligationCitesDeclaredRequired() bool {
-	return p != nil && p.Obligations != nil && p.Obligations.RequireDeclaredCites
+	return p == nil || p.Obligations == nil || !p.Obligations.AllowUndeclaredCites
 }
 
 // ObligationTestFilePatterns returns the TOL-V0-103 declared patterns, nil
