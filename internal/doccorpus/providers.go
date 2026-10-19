@@ -59,6 +59,7 @@ func (c *compiler) importRecord(p Provider) error {
 	c.artifact.Claims = append(c.artifact.Claims, record.Claims...)
 	c.artifact.Relations = append(c.artifact.Relations, record.Relations...)
 	c.artifact.Journeys = append(c.artifact.Journeys, record.Journeys...)
+	c.artifact.SuppliedGaps = append(c.artifact.SuppliedGaps, record.Gaps...)
 	c.declarations = append(c.declarations, record.Capabilities...)
 	for _, link := range record.Observations {
 		if !strings.HasPrefix(link.ID, p.ID+":") {
@@ -122,10 +123,11 @@ func (c *compiler) normalizedRecord(p Provider) (ProviderRecord, error) {
 	if record.Schema == AdoptionProviderSchema {
 		limit, journeys = MaxCorpusRecords, MaxCorpusJourneys
 	}
-	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit || len(record.Observations) > MaxRecords || len(record.Journeys) > journeys {
+	// DCP-V1-191: a /2 adoption provider's observations share the record limit.
+	if len(record.Subjects) > limit || len(record.Claims) > limit || len(record.Relations) > limit || len(record.Observations) > limit || len(record.Journeys) > journeys || len(record.Gaps) > limit {
 		return ProviderRecord{}, fail("provider record bound exceeded")
 	}
-	if len(record.Subjects) > c.manifest.recordLimit()-len(c.artifact.Subjects) || len(record.Claims) > c.manifest.recordLimit()-len(c.artifact.Claims) || len(record.Relations) > c.manifest.recordLimit()-len(c.artifact.Relations) || len(record.Journeys) > c.manifest.journeyLimit()-len(c.artifact.Journeys) || len(record.Observations) > MaxRecords-len(c.artifact.Observations) {
+	if len(record.Subjects) > c.manifest.recordLimit()-len(c.artifact.Subjects) || len(record.Claims) > c.manifest.recordLimit()-len(c.artifact.Claims) || len(record.Relations) > c.manifest.recordLimit()-len(c.artifact.Relations) || len(record.Journeys) > c.manifest.journeyLimit()-len(c.artifact.Journeys) || len(record.Observations) > c.manifest.recordLimit()-len(c.artifact.Observations) || len(record.Gaps) > c.manifest.recordLimit()-len(c.artifact.SuppliedGaps) {
 		return ProviderRecord{}, fail("aggregate corpus record bound exceeded")
 	}
 	if record.Schema == AdoptionProviderSchema {
@@ -138,6 +140,7 @@ func (c *compiler) normalizedRecord(p Provider) (ProviderRecord, error) {
 	record.Claims = slices.Clone(record.Claims)
 	record.Relations = slices.Clone(record.Relations)
 	record.Journeys = slices.Clone(record.Journeys)
+	record.Gaps = slices.Clone(record.Gaps)
 	declaredCaps := map[string]bool{}
 	for _, cap := range record.Capabilities {
 		if !words(strings.Join(capabilityNames, " "))[cap.Name] || declaredCaps[cap.Name] || !words("present absent unsupported not-collected")[cap.State] || !textOK(cap.Reason) {
@@ -175,6 +178,18 @@ func (c *compiler) normalizedRecord(p Provider) (ProviderRecord, error) {
 	for i := range record.Relations {
 		record.Relations[i].Evidence.Limitations = slices.Clone(record.Relations[i].Evidence.Limitations)
 		if err := c.importEvidence(p.ID, record.Relations[i].ID, record.Relations[i].Provider, &record.Relations[i].Evidence); err != nil {
+			return ProviderRecord{}, err
+		}
+	}
+	for i := range record.Gaps {
+		g := &record.Gaps[i]
+		if g.Origin != "" && g.Origin != "supplied" || !identifier(g.Kind) || len(g.Kind) > 256 || !textOK(g.Reason) {
+			return ProviderRecord{}, fail("invalid supplied gap")
+		}
+		// DCP-V1-185: the compiler labels the origin; evidence keeps the provider trust ceiling.
+		g.Origin = "supplied"
+		g.Evidence.Limitations = slices.Clone(g.Evidence.Limitations)
+		if err := c.importEvidence(p.ID, g.ID, g.Provider, &g.Evidence); err != nil {
 			return ProviderRecord{}, err
 		}
 	}
@@ -353,7 +368,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 
 func (c *compiler) validateRecords() error {
 	a := c.artifact
-	if len(a.Subjects) > c.manifest.recordLimit() || len(a.Claims) > c.manifest.recordLimit() || len(a.Relations) > c.manifest.recordLimit() || len(a.Observations) > MaxRecords || len(a.Journeys) > c.manifest.journeyLimit() {
+	if len(a.Subjects) > c.manifest.recordLimit() || len(a.Claims) > c.manifest.recordLimit() || len(a.Relations) > c.manifest.recordLimit() || len(a.Observations) > c.manifest.recordLimit() || len(a.Journeys) > c.manifest.journeyLimit() || len(a.SuppliedGaps) > c.manifest.recordLimit() {
 		return fail("corpus record bound exceeded")
 	}
 	ids := map[string]bool{}
@@ -409,6 +424,14 @@ func (c *compiler) validateRecords() error {
 			return fail("observation must join a test subject")
 		}
 		observations[o.Link.ID] = o
+	}
+	for _, g := range a.SuppliedGaps {
+		if err := admit(g.ID); err != nil {
+			return err
+		}
+		if _, ok := subjects[g.Subject]; !ok {
+			return fail("supplied gap subject missing")
+		}
 	}
 	for i := range a.Journeys {
 		j := &a.Journeys[i]

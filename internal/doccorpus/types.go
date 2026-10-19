@@ -165,16 +165,18 @@ type ProviderRecord struct {
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
 	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
 	FlowRelations      *FlowRelationSet         `json:"flow_relations,omitempty"`
-	Schema             string                   `json:"schema"`
-	ID                 string                   `json:"id"`
-	Version            string                   `json:"version"`
-	Source             Repository               `json:"source"`
-	Subjects           []Subject                `json:"subjects"`
-	Claims             []Claim                  `json:"claims"`
-	Relations          []Relation               `json:"relations"`
-	Journeys           []Journey                `json:"journeys"`
-	Observations       []ObservationLink        `json:"observations"`
-	Capabilities       []CapabilityDeclaration  `json:"capabilities"`
+	// Gaps are producer-supplied gap claims (DCP-V1-185); adoption schema only.
+	Gaps         []SuppliedGap           `json:"gaps,omitempty"`
+	Schema       string                  `json:"schema"`
+	ID           string                  `json:"id"`
+	Version      string                  `json:"version"`
+	Source       Repository              `json:"source"`
+	Subjects     []Subject               `json:"subjects"`
+	Claims       []Claim                 `json:"claims"`
+	Relations    []Relation              `json:"relations"`
+	Journeys     []Journey               `json:"journeys"`
+	Observations []ObservationLink       `json:"observations"`
+	Capabilities []CapabilityDeclaration `json:"capabilities"`
 }
 type Capability struct {
 	RecordsOmitted int      `json:"records_omitted,omitempty"`
@@ -193,6 +195,19 @@ type Gap struct {
 	Kind    string `json:"kind"`
 	Reason  string `json:"reason"`
 }
+
+// SuppliedGap is a producer's gap claim (DCP-V1-185, DCP-V1-186). It is
+// attributed provider data, never a compiler result: the compiler sets Origin
+// to "supplied" and its evidence keeps the provider trust ceiling.
+type SuppliedGap struct {
+	ID       string   `json:"id"`
+	Subject  string   `json:"subject"`
+	Kind     string   `json:"kind"`
+	Reason   string   `json:"reason"`
+	Origin   string   `json:"origin"`
+	Provider string   `json:"provider"`
+	Evidence Evidence `json:"evidence"`
+}
 type Artifact struct {
 	// RuntimeIndex is derived resident state, never evidence or serialized authority.
 	RuntimeIndex        *QueryIndex              `json:"-"`
@@ -203,6 +218,7 @@ type Artifact struct {
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
+	SuppliedGaps        []SuppliedGap            `json:"supplied_gaps,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
 	Manifest            Manifest                 `json:"manifest"`

@@ -18,6 +18,7 @@ type RecordDetails struct {
 	Coverage         *CoverageDetails         `json:"coverage,omitempty"`
 	Ticket           *TicketDetails           `json:"ticket,omitempty"`
 	IntentComparison *IntentComparisonDetails `json:"intent_comparison,omitempty"`
+	Status           *SuppliedStatusDetails   `json:"status,omitempty"`
 }
 type FlowDetails struct {
 	Sections    []FlowSection `json:"sections"`
@@ -65,6 +66,15 @@ type IntentComparisonDetails struct {
 	Conflicts      []string `json:"conflicts"`
 }
 
+// SuppliedStatusDetails is a producer's readiness or proof status for the
+// subject of the claim it details (DCP-V1-187). It is supplied, not derived:
+// a "proven" state grants no trust and changes no compiler-computed result.
+type SuppliedStatusDetails struct {
+	State      string   `json:"state"`
+	Reason     string   `json:"reason"`
+	Supporting []string `json:"supporting"`
+}
+
 // RestrictedFinding exists only in the local input. Its identity, original
 // detail path and body are never admitted to an artifact or diagnostic.
 type RestrictedFinding struct {
@@ -88,8 +98,11 @@ type ImportParity struct {
 }
 
 var flowSections = []string{"readme", "entry-points", "flow-diagram", "functional-overview", "technical-deep-dive", "entities", "exceptions", "related-flows"}
-var adoptionSubjectKinds = words("flow paragraph variation coverage_definition ticket intent_comparison inventory")
-var adoptionRelationKinds = words("asserts navigates retired_to")
+var adoptionSubjectKinds = words("flow paragraph variation coverage_definition ticket intent_comparison inventory manual_case")
+var adoptionRelationKinds = words("asserts navigates retired_to manual_case_for")
+
+// suppliedStatusStates is the closed producer status vocabulary (DCP-V1-187).
+var suppliedStatusStates = words("blocked ready proven")
 
 func (c *compiler) importAdoption(p ProviderRecord) error {
 	if c.adoptionProviders == nil {
@@ -108,6 +121,9 @@ func (c *compiler) importAdoption(p ProviderRecord) error {
 	}
 	for _, r := range p.Claims {
 		kind := p.Details[r.ID].ClaimKind
+		if p.Details[r.ID].Status != nil {
+			kind = "status"
+		}
 		if kind == "" {
 			kind = "unspecified"
 		}
@@ -119,6 +135,9 @@ func (c *compiler) importAdoption(p ProviderRecord) error {
 	counts["journey"] = len(p.Journeys)
 	counts["observation"] = len(p.Observations)
 	counts["typed_detail"] = len(p.Details)
+	if len(p.Gaps) > 0 {
+		counts["supplied_gap"] = len(p.Gaps)
+	}
 	keys := make([]string, 0, len(counts))
 	for k := range counts {
 		keys = append(keys, k)
@@ -164,14 +183,14 @@ func (c *compiler) validateAdoption(p ProviderRecord) error {
 		}
 	}
 	for _, s := range p.Subjects {
-		if adoptionSubjectKinds[s.Kind] && s.Kind != "variation" && s.Kind != "inventory" {
+		if adoptionSubjectKinds[s.Kind] && s.Kind != "variation" && s.Kind != "inventory" && s.Kind != "manual_case" {
 			if _, ok := p.Details[s.ID]; !ok {
 				return fail("typed subject requires details")
 			}
 		}
 	}
 	for _, r := range p.Relations {
-		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" {
+		if adoptionRelationKinds[r.Type] && r.Type != "retired_to" && r.Type != "manual_case_for" {
 			if _, ok := p.Details[r.ID]; !ok {
 				return fail("test relationship requires typed join details")
 			}
@@ -250,6 +269,13 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 		x := d.IntentComparison
 		if kind != "intent_comparison" || !boundedUnique(x.ReportedIntent, MaxCorpusRecords) || !boundedUnique(x.ObservedClaims, MaxCorpusRecords) || !boundedUnique(x.Missing, MaxCorpusRecords) || !boundedUnique(x.Conflicts, MaxCorpusRecords) {
 			return fail("invalid intent comparison")
+		}
+	}
+	if d.Status != nil {
+		count++
+		x := d.Status
+		if kind != "claim" || !suppliedStatusStates[x.State] || !textOK(x.Reason) || !boundedUnique(x.Supporting, 256) {
+			return fail("invalid supplied status")
 		}
 	}
 	if count != 1 {
@@ -347,10 +373,19 @@ func (c *compiler) validateAdoptionJoins() error {
 				}
 			}
 		}
+		if x := d.Status; x != nil && !require(x.Supporting, "") {
+			return fail("supplied status supporting record missing")
+		}
 		if x := d.IntentComparison; x != nil {
 			if !require(x.ReportedIntent, "") || !require(x.ObservedClaims, "claim") || !require(x.Missing, "") || !require(x.Conflicts, "") {
 				return fail("intent comparison join missing")
 			}
+		}
+	}
+	// A manual case link joins an imported case subject to any subject (DCP-V1-189).
+	for _, r := range c.artifact.Relations {
+		if r.Type == "manual_case_for" && kinds[r.From] != "manual_case" {
+			return fail("manual case link source is not a manual case")
 		}
 	}
 	// Each retirement edge is visited once, including long imported histories.

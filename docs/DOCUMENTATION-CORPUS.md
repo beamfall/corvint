@@ -51,6 +51,10 @@ All shards are validated together; missing shards, duplicate IDs and dangling jo
 
 The profile preserves typed claims, eight-section flows, stable paragraphs and retirement redirects,
 test-link roles/confidence, explicit coverage membership, ticket history and intent comparisons.
+It also gives supplied records a typed home: `gaps` (producer gap claims, returned by `docs_gaps`
+with `origin: supplied`), a `status` claim detail (`blocked`, `ready` or `proven`, counted by
+`docs_coverage`), and `manual_case` subjects linked by `manual_case_for` relations, which satisfy
+the `missing-manual-cases` gap. Supplied records stay attributed and never raise trust.
 See [typed records](../internal/doccorpus/adoption.go) and
 [the contract](specs/documentation-corpus-v1.md) for the closed fields and bounds. Supplied-record
 parity distinguishes admitted records and restricted drops; it does not infer repository completeness.
