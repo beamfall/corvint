@@ -60,6 +60,9 @@ func (c *compiler) preloadProviders() error {
 			if record.Schema != AdoptionProviderSchema && (record.Details != nil || record.RestrictedFindings != nil) {
 				return fail("adoption fields require their explicit provider schema")
 			}
+			if (record.Schema == TestKnowledgeSchema) != (record.TestKnowledge != nil) {
+				return fail("test_knowledge requires its explicit provider schema")
+			}
 			counts := [5]int{len(record.Subjects), len(record.Claims), len(record.Relations), len(record.Journeys), len(record.Observations)}
 			limits := [5]int{c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.journeyLimit(), MaxRecords}
 			for i, n := range counts {
