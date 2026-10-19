@@ -39,6 +39,12 @@ to point at them and at `TSA-V0-250..256`.
   Byte-preservation, axes-unchanged and closed-retention tests cover the rest.
 - Synthetic records only. A live Playwright run with a producer is `NOT_RUN`.
 
+- Dogfood intent scope: `docs/specs/live-proof-carrying-verification-v0.md` only. Adding
+  `docs/specs/test-source-analysis-v0.md` would exceed the 256-obligation aggregate bound
+  (96 + 190), so it is omitted under `OCM-V0-023`. The omission is not a claim that its
+  requirements hold. The amended `TSA-V0-174..176` still apply, and they are the requirements this
+  change relies on from that spec.
+
 ## Remaining
 
 - Neither record has an automatic producer, such as a matcher wrapper or a server-log adapter.
