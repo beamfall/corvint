@@ -69,11 +69,12 @@ func declaredTestRepository(rc *readCtx, name string) (root, declared string, er
 }
 
 // obligationsCommand runs `ticket obligations seed|set|witness|show|plan`
-// (TOL-V0-005..009, TOL-V0-020). The writes are ordinary OBLIGATIONS_*
-// mutations; show and plan are reads that write nothing.
+// (TOL-V0-005..009, TOL-V0-020) and boundary and worklist (TOL-V0-083,
+// TOL-V0-086). The writes are ordinary OBLIGATIONS_* mutations; show, plan,
+// boundary and worklist are reads that write nothing.
 func obligationsCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 {
-		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan or qualify-version")
+		return usage([]string{"ticket", "obligations"}, "ticket obligations needs a verb: seed, set, witness, show, plan, boundary, worklist or qualify-version")
 	}
 	cmd := []string{"ticket", "obligations", args[0]}
 	switch args[0] {
@@ -87,6 +88,10 @@ func obligationsCommand(env Env, args []string) *wire.Result {
 		return obligationsShow(env, cmd, args[1:])
 	case "plan":
 		return obligationsPlan(env, cmd, args[1:])
+	case "boundary":
+		return obligationsBoundary(env, cmd, args[1:])
+	case "worklist":
+		return obligationsWorklist(env, cmd, args[1:])
 	case "qualify-version":
 		return obligationsQualifyVersion(env, cmd, args[1:])
 	}
@@ -223,6 +228,9 @@ func obligationsShow(env Env, cmd []string, args []string) *wire.Result {
 		}
 		if ok {
 			item.Obj.Set("witnessReview", wr)
+		}
+		if out, prop, ok := obligationScopeValue(known); ok {
+			item.Obj.Set("outOfScope", out).Set("scopeProposals", prop)
 		}
 	}
 	res := success(cmd, rc)

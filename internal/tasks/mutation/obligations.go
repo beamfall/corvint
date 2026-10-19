@@ -227,6 +227,16 @@ func (c Context) obligationAuthority(pre *ticket.Record, p *ObligationsPayload) 
 			if ch.Core != nil {
 				return refuse(OutcomeUnauthorized, "", "changing core is OWNER-only (TOL-V0-015)")
 			}
+			if ch.Scope != nil && ch.Scope.Action == ticket.ObligationScopeAccept {
+				return refuse(OutcomeUnauthorized, "", "accepting a scope decision is OWNER-only (TOL-V0-081)")
+			}
+		}
+	}
+	if p.Set != nil && c.Policy.ObligationScopeDecisionRequired() {
+		for _, ch := range p.Set.Changes {
+			if ch.Core != nil {
+				return refuse(OutcomeValidationFailed, wire.CodeApprovalMissing, "%s %s: under obligations.requireScopeDecision core changes only through an accepted scope decision (TOL-V0-082)", ticket.ObligationScopeDecisionRequiredDetail, ch.ID)
+			}
 		}
 	}
 	w := p.Witness
@@ -311,6 +321,15 @@ func obligationFields(p *ObligationsPayload) []string {
 	case p.Set != nil:
 		for _, ch := range p.Set.Changes {
 			fields = append(fields, ch.Reason)
+			for _, ct := range ch.Cites {
+				fields = append(fields, ct.Path)
+			}
+			if ch.Scope != nil {
+				fields = append(fields, ch.Scope.Evidence)
+			}
+			if ch.Candidate != nil {
+				fields = append(fields, ch.Candidate.Path)
+			}
 			for _, src := range ch.Sources {
 				fields = append(fields, src.Ref, src.Query)
 				fields = append(fields, src.Searched...)
