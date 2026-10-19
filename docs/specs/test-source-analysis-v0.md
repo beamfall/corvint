@@ -571,9 +571,16 @@ for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
     bodies are teardown.
   - A hook applies to an example when it sits at file level or in a group that encloses the example,
     wherever it is declared in that group.
-  - Teardown order is known inside one hook or one body's finally/ensure code (line order),
-    finally/ensure code runs before every hook, and a hook in an inner group runs before one in an
-    outer group. Between two hooks of the same group the order is unknown.
+  - Body code, including its finally/ensure code, runs in source order before every hook; order
+    inside one hook is line order, and a hook in an inner group runs before one in an outer group.
+    Between two hooks of the same group the order is unknown.
+  - A call is conditional when it may not run: inside a nested arrow or function, under an
+    `if`/`for`/`while`/`else`/`do`/`catch` or `rescue` branch, after `&&`, `||` or `?`, or with a
+    Ruby `if`/`unless`/`while`/`until`/`and`/`or` modifier, lambda, proc or inline block. `try`,
+    `begin`, `finally` and `ensure` are not conditions.
+  - An RSpec hook with metadata arguments, or `around`, is not read, and a hook without a block is
+    opaque. A group delimited by `{` and `}` on separate lines is read like a `do … end` group; any
+    other group form makes the file uncertain.
   - A call is a callee name followed by `(`; in Ruby also a declared name without parentheses and,
     in teardown, a bare name that starts a statement.
 - `TSA-V0-113`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource of kind K MUST
@@ -581,27 +588,32 @@ for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
   of K is called in its teardown. The resource names its variable when the create's value is
   assigned to one (`x = await create…(`, `const x =`, `@x = create_…`, `let(:x) { create_… }`), the
   create line and the first teardown delete line, and lists with lines the actions after the create:
-  each declared action call whose `parent` is K, and each other call whose receiver or argument
+  each declared action call whose `parent` is K (in teardown, when it may run before a parent
+  delete), and each other call whose receiver or argument
   names the variable (an assertion call such as `expect` or a matcher is not an action).
 - `TSA-V0-114`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A resource's side-effect
   graph MUST be incomplete, with every applying reason from this closed set, when: an action on it is
   not declared (`action-not-declared`); its create is not assigned to a variable
   (`resource-not-bound`); a `beforeAll`/`afterAll`, `before(:all)`/`after(:all)`/`:context`/`:suite`
-  or `around` hook that applies to the example calls a declared name (`hook-not-read`); a teardown
+  or `around` hook or an RSpec hook with metadata arguments that applies to the example calls a
+  declared name, or an RSpec hook without a block applies (`hook-not-read`); a dependent delete
+  that would remove the dependent is conditional (`cleanup-conditional`); a teardown
   call before the parent delete, or in unknown order with it, is not declared
   (`teardown-call-not-declared`); the order of a relevant teardown pair is
   unknown (`teardown-order-unknown`); or the file is uncertain (`file-uncertain`). Every finding
   for an incomplete resource MUST be `advisory` and carry those reasons.
 - `TSA-V0-115`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) For each declared action
-  on a resource whose `dependent` D does not cascade, a `TEARDOWN-DEPENDENT-LEFTOVER` finding MUST
-  name the example, the kind, the dependent kind, the action line and the parent delete line, with
-  cause `dependent-not-removed` when no delete name of D is called after the action in the body or
-  before the parent delete in teardown, or cause `parent-deleted-before-dependent`, also giving the
-  dependent delete line, when every such delete runs after the parent delete. The finding is
-  `declared` when the graph is complete.
+  on a resource whose `dependent` D does not cascade, each teardown delete of K that the action may
+  run before MUST be checked. A `TEARDOWN-DEPENDENT-LEFTOVER` finding for the first failing one
+  MUST name the example, the kind, the dependent kind, the action line and that parent delete line,
+  with cause `dependent-not-removed` when no unconditional delete name of D is known to run after the
+  action and before that parent delete, or cause `parent-deleted-before-dependent`, also giving the
+  first dependent delete line after the action, when a delete of D after the action runs only after
+  the parent delete or in unknown order with it. The finding is `declared` when the graph is
+  complete.
 - `TSA-V0-116`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) There MUST be no finding
-  for an action whose dependent is deleted after the action in the body or before the parent delete
-  in teardown, for an action declared `cascade: true`, or for an inert action.
+  for an action whose dependent is deleted unconditionally after the action and before every parent
+  delete the action may run before, for an action declared `cascade: true`, or for an inert action.
 - `TSA-V0-117`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) A `--receipt` MUST be a
   test-validity provider input (`readProviderReceipt`). Only a JS provider receipt can bind; any
   other input abstains with `receipt-not-js`. A receipt binds a file when exactly one
@@ -613,7 +625,9 @@ for JS/TS and the logical-line Ruby reader of TSA-V0-034 for RSpec.
   resource's findings with the receipt, retry, line, the `DELETE` status 409 or 422 when its
   request-outcome record holds one, and the dependent kind when the resource has exactly one
   declared non-cascading dependent kind. A resource with such a row that has a status and no other
-  finding MUST get an `advisory` finding with cause `recorded-teardown-conflict`.
+  finding MUST get an `advisory` finding with cause `recorded-teardown-conflict`. An attempt whose
+  anchor file names more than one `testFileDigests` key MUST attach to no file and is counted in
+  the binding's `ambiguousAnchors`.
 - `TSA-V0-118`: (standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) Each resource MUST carry
   a verdict from `leftover` (a finding), `unknown` (graph incomplete) or `no-leftover-declared`
   (complete graph, no finding). The report MUST never call a teardown safe: `no-leftover-declared`
@@ -671,12 +685,12 @@ Nothing is persisted, and no existing report or wire contract changes.
 |---|---|---|---|
 | TSA-V0-110 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
 | TSA-V0-111 | `internal/testsource/teardown_declaration.go` | `TestTeardownDeclarationRefusals` | experimental |
-| TSA-V0-112 | `internal/testsource/teardown_reading.go` | `TestTeardownPhasesJS`, `TestTeardownPhasesRSpec` | experimental |
-| TSA-V0-113 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec` | experimental |
-| TSA-V0-114 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph` | experimental |
-| TSA-V0-115 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec` | experimental |
-| TSA-V0-116 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec` | experimental |
-| TSA-V0-117 | `internal/testsource/teardown_receipts.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownReceiptJoin`, `TestTestsTeardownCLI` | experimental |
+| TSA-V0-112 | `internal/testsource/teardown_reading.go` | `TestTeardownPhasesJS`, `TestTeardownPhasesRSpec`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-113 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions` | experimental |
+| TSA-V0-114 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownConditionalCleanup`, `TestTeardownSameGroupParentDeletes`, `TestTeardownRSpecHookAndGroupForms` | experimental |
+| TSA-V0-115 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownTeardownActions`, `TestTeardownSourceOrder`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-116 | `internal/testsource/teardown_dependents.go` | `TestTeardownLeftoverJS`, `TestTeardownLeftoverRSpec`, `TestTeardownConditionalCleanup` | experimental |
+| TSA-V0-117 | `internal/testsource/teardown_receipts.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownReceiptJoin`, `TestTeardownReceiptAmbiguousAnchor`, `TestTestsTeardownCLI` | experimental |
 | TSA-V0-118 | `internal/testsource/teardown_dependents.go` | `TestTeardownIncompleteGraph`, `TestTeardownLeftoverJS` | experimental |
 | TSA-V0-119 | `internal/testsource/teardown_dependents.go`, `cmd/corvint/tests_teardown.go` | `TestTeardownFrameworksAndFiles`, `TestTestsTeardownCLI` | experimental |
 

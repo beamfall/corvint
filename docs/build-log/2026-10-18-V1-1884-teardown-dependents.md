@@ -18,8 +18,8 @@ applies that standing acceptance to this lane's requirements.
   undeclared teardown call before the parent delete, an unknown teardown order, an uncertain file)
   keeps every finding `advisory` with closed reasons. Only `declared` findings exit 1. The verdict
   set is `leftover`, `unknown` and `no-leftover-declared`; nothing is ever called safe.
-- **Order.** Same-hook and same-body order is line order; `finally`/`ensure` runs before every
-  hook; an inner group's hook runs before an outer one. Two hooks of one group are treated as
+- **Order.** Same-hook order is line order; body code, `finally`/`ensure` included, runs in source
+  order before every hook; an inner group's hook runs before an outer one. Two hooks of one group are treated as
   unknown order even where the framework defines it, which only weakens a finding to advisory.
 - **Receipt join.** Only a JS provider receipt binds: exactly one `testFileDigests` key naming the
   file and a digest equal to the committed blob's sha256. Rows must be anchored at the parent
@@ -32,11 +32,33 @@ applies that standing acceptance to this lane's requirements.
 
 ## Evidence
 
-Focused tests, synthetic fixtures only: `internal/testsource/teardown_dependents_test.go` (8 tests:
+Focused tests, synthetic fixtures only: `internal/testsource/teardown_dependents_test.go` (14 tests, 6 from review round 1:
 declaration refusals, JS and RSpec phases and order, leftover/parent-first/dependent-first/
 cascade/inert in Playwright and RSpec, each incompleteness reason, the receipt join and its four
 abstentions, framework routing and bounds) and `cmd/corvint/tests_teardown_test.go`
 (`TestTestsTeardownCLI`). Live qualification on a real suite: NOT_RUN.
+
+## Review round 1 (Codex, one round)
+
+Seven findings, all fixed, each with a regression fixture:
+
+1. Declared actions inside teardown (confirm before the parent delete in `afterEach`/`after`) now
+   produce dependents (`TestTeardownTeardownActions`).
+2. Cleanup that may not run (an uncalled arrow, `if (false)`, a Ruby modifier or `if` block) no
+   longer counts as removal; the finding stays, advisory with `cleanup-conditional`
+   (`TestTeardownConditionalCleanup`).
+3. `finally`/`ensure` code keeps its source position, so a dependent delete after an early parent
+   delete is `parent-deleted-before-dependent` (`TestTeardownSourceOrder`).
+4. Every parent delete is checked, so two same-group hooks deleting the parent yield an advisory
+   `teardown-order-unknown` finding (`TestTeardownSameGroupParentDeletes`).
+5. RSpec hooks with metadata arguments are unread and hooks without a block are opaque, both
+   `hook-not-read`; 6. multi-line brace groups are read, any other group form makes the file
+   uncertain (`TestTeardownRSpecHookAndGroupForms`).
+7. An anchor file naming several receipt files attaches nowhere and is counted in
+   `ambiguousAnchors` (`TestTeardownReceiptAmbiguousAnchor`).
+
+The conditional test is lexical and conservative: a call it cannot prove runs is conditional,
+which only weakens a finding to advisory.
 
 ## Residuals
 

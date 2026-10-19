@@ -510,3 +510,243 @@ func TestTeardownFrameworksAndFiles(t *testing.T) {
 		}
 	}
 }
+
+// findingsIn returns the findings of one test in one file.
+func findingsIn(report TeardownReport, path, test string) []TeardownFinding {
+	out := []TeardownFinding{}
+	for _, f := range report.Findings {
+		if f.Path == path && f.Test == test {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// TestTeardownTeardownActions: a declared action called in teardown before the parent delete
+// produces its dependent like a body action (TSA-V0-113, TSA-V0-115).
+func TestTeardownTeardownActions(t *testing.T) {
+	js := `test.describe('orders', () => {
+  let order;
+  test.beforeEach(async ({ request }) => { order = await createOrder(request); });
+  test.afterEach(async ({ request }) => {
+    await confirmOrder(request, order);
+    await deleteOrder(request, order);
+  });
+  test('confirms in teardown', async () => {});
+});
+`
+	rb := `RSpec.describe 'Orders' do
+  let!(:order) { create_order }
+  after do
+    confirm_order(order)
+    delete_order(order)
+  end
+  it 'confirms in teardown' do
+  end
+end
+`
+	report := teardownReport(t, map[string]string{"e2e/t.spec.ts": js, "spec/t_spec.rb": rb}, TeardownOptions{Files: []string{"e2e/t.spec.ts", "spec/t_spec.rb"}})
+	for path, lines := range map[string][2]int{"e2e/t.spec.ts": {5, 6}, "spec/t_spec.rb": {4, 5}} {
+		f := findingsIn(report, path, "confirms in teardown")
+		if len(f) != 1 || f[0].Cause != causeNotRemoved || f[0].Basis != basisDeclared || f[0].ActionLine != lines[0] || f[0].DeleteLine != lines[1] {
+			t.Errorf("%s: %+v", path, f)
+		}
+	}
+	if r := resourcesByTest(report)["confirms in teardown"]; len(r.Actions) != 1 || r.Actions[0].Phase != phaseTeardown {
+		t.Errorf("teardown action %+v", r)
+	}
+}
+
+// TestTeardownConditionalCleanup: a dependent delete that may not run (an uncalled arrow, a dead
+// branch, a modifier or an if block) does not remove the dependent; the finding stays, advisory
+// with cleanup-conditional (TSA-V0-112, TSA-V0-114, TSA-V0-115).
+func TestTeardownConditionalCleanup(t *testing.T) {
+	js := `test('unused cleanup', async ({ request }) => {
+  const order = await createOrder(request);
+  await confirmOrder(request, order);
+  const unusedCleanup = () => deleteConfirmation(request, order);
+  try {} finally { await deleteOrder(request, order); }
+});
+
+test('dead branch', async ({ request }) => {
+  const order = await createOrder(request);
+  await confirmOrder(request, order);
+  if (false) await deleteConfirmation(request, order);
+  try {} finally { await deleteOrder(request, order); }
+});
+
+test('removed in try', async ({ request }) => {
+  const order = await createOrder(request);
+  try {
+    await confirmOrder(request, order);
+    await deleteConfirmation(request, order);
+  } finally { await deleteOrder(request, order); }
+});
+`
+	rb := `RSpec.describe 'Orders' do
+  let!(:order) { create_order }
+  after { delete_order(order) }
+  it 'modifier' do
+    confirm_order(order)
+    delete_confirmation(order) if false
+  end
+  it 'branch' do
+    confirm_order(order)
+    if false
+      delete_confirmation(order)
+    end
+  end
+end
+`
+	report := teardownReport(t, map[string]string{"e2e/c.spec.ts": js, "spec/c_spec.rb": rb}, TeardownOptions{Files: []string{"e2e/c.spec.ts", "spec/c_spec.rb"}})
+	findings := findingsByTest(report)
+	for _, title := range []string{"unused cleanup", "dead branch", "modifier", "branch"} {
+		f := findings[title]
+		if len(f) != 1 || f[0].Cause != causeNotRemoved || f[0].Basis != basisAdvisory || !reflect.DeepEqual(f[0].Reasons, []string{reasonCleanupConditional}) {
+			t.Errorf("%s: %+v", title, f)
+		}
+	}
+	if f := findings["removed in try"]; len(f) != 0 || resourcesByTest(report)["removed in try"].Verdict != tdVerdictNone {
+		t.Errorf("a delete inside try runs: %+v", f)
+	}
+}
+
+// TestTeardownSourceOrder: finally and ensure code runs where it stands, so a dependent delete after
+// an early finally/ensure parent delete is parent-first (TSA-V0-112, TSA-V0-115).
+func TestTeardownSourceOrder(t *testing.T) {
+	js := `test('early finally', async ({ request }) => {
+  const order = await createOrder(request);
+  await confirmOrder(request, order);
+  try {} finally { await deleteOrder(request, order); }
+  await deleteConfirmation(request, order);
+});
+`
+	rb := `RSpec.describe 'Orders' do
+  let!(:order) { create_order }
+  it 'early ensure' do
+    confirm_order(order)
+    begin
+      step_one
+    ensure
+      delete_order(order)
+    end
+    delete_confirmation(order)
+  end
+end
+`
+	report := teardownReport(t, map[string]string{"e2e/o.spec.ts": js, "spec/o_spec.rb": rb}, TeardownOptions{Files: []string{"e2e/o.spec.ts", "spec/o_spec.rb"}})
+	for _, c := range []struct {
+		path, test string
+		lines      [3]int
+	}{{"e2e/o.spec.ts", "early finally", [3]int{3, 4, 5}}, {"spec/o_spec.rb", "early ensure", [3]int{4, 8, 10}}} {
+		f := findingsIn(report, c.path, c.test)
+		if len(f) != 1 || f[0].Cause != causeParentFirst || f[0].Basis != basisDeclared || f[0].ActionLine != c.lines[0] || f[0].DeleteLine != c.lines[1] || f[0].DependentDeleteLine != c.lines[2] {
+			t.Errorf("%s: %+v", c.test, f)
+		}
+	}
+}
+
+// TestTeardownSameGroupParentDeletes: with two same-group hooks that each delete the parent, every
+// parent delete is checked, so the unknown hook order keeps an advisory finding (TSA-V0-112,
+// TSA-V0-114).
+func TestTeardownSameGroupParentDeletes(t *testing.T) {
+	js := `test.describe('two parent deletes', () => {
+  let order;
+  test.beforeEach(async ({ request }) => { order = await createOrder(request); });
+  test.afterEach(async ({ request }) => { await deleteOrder(request, order); });
+  test.afterEach(async ({ request }) => {
+    await deleteConfirmation(request, order);
+    await deleteOrder(request, order);
+  });
+  test('confirms', async ({ request }) => { await confirmOrder(request, order); });
+});
+`
+	report := teardownReport(t, map[string]string{"e2e/g.spec.ts": js}, TeardownOptions{Files: []string{"e2e/g.spec.ts"}})
+	f := findingsByTest(report)["confirms"]
+	if len(f) != 1 || f[0].Cause != causeParentFirst || f[0].Basis != basisAdvisory || f[0].DeleteLine != 4 || !reflect.DeepEqual(f[0].Reasons, []string{reasonOrderUnknown}) {
+		t.Errorf("two parent deletes %+v", f)
+	}
+}
+
+// TestTeardownRSpecHookAndGroupForms: a hook with metadata arguments is unread and a hook without a
+// block is opaque, both hook-not-read; a multi-line brace group is read like a do group and a
+// one-line brace group makes the file uncertain (TSA-V0-112, TSA-V0-114).
+func TestTeardownRSpecHookAndGroupForms(t *testing.T) {
+	hooks := `RSpec.describe 'Metadata', :db do
+  let!(:order) { create_order }
+  after { delete_order(order) }
+  around(:each, :db) do |example|
+    confirm_order(order)
+    example.run
+  end
+  it 'runs under metadata' do
+  end
+end
+
+RSpec.describe 'Opaque' do
+  let!(:order) { create_order }
+  after { delete_order(order) }
+  after(:each, &method(:cleanup))
+  it 'runs with an opaque hook' do
+    confirm_order(order)
+  end
+end
+`
+	braces := `RSpec.describe("Orders") {
+  let!(:order) { create_order }
+  after { delete_order(order) }
+  it("leaks") { confirm_order(order) }
+  context("nested") {
+    it("leaks too") { confirm_order(order) }
+  }
+}
+`
+	oneLine := `RSpec.describe("One") { it("x") { confirm_order(order) } }
+`
+	report := teardownReport(t, map[string]string{"spec/h_spec.rb": hooks, "spec/b_spec.rb": braces, "spec/l_spec.rb": oneLine},
+		TeardownOptions{Files: []string{"spec/h_spec.rb", "spec/b_spec.rb", "spec/l_spec.rb"}})
+	resources := resourcesByTest(report)
+	if r := resources["runs under metadata"]; r.Verdict != tdVerdictUnknown || !reflect.DeepEqual(r.Reasons, []string{reasonHookNotRead}) {
+		t.Errorf("metadata hook %+v", r)
+	}
+	if f := findingsByTest(report)["runs with an opaque hook"]; len(f) != 1 || f[0].Basis != basisAdvisory || !reflect.DeepEqual(f[0].Reasons, []string{reasonHookNotRead}) {
+		t.Errorf("opaque hook %+v", f)
+	}
+	b := report.Files[1]
+	if b.Uncertain || b.Examples != 2 || len(findingsIn(report, "spec/b_spec.rb", "leaks")) != 1 || len(findingsIn(report, "spec/b_spec.rb", "leaks too")) != 1 {
+		t.Errorf("brace group %+v %+v", b, report.Findings)
+	}
+	if l := report.Files[2]; !l.Uncertain || l.Reason != reasonFileUncertain {
+		t.Errorf("one-line brace group %+v", l)
+	}
+}
+
+// TestTeardownReceiptAmbiguousAnchor: an anchor file that names more than one receipt file is not
+// attributed to any of them and is counted; a full anchor path still joins (TSA-V0-117).
+func TestTeardownReceiptAmbiguousAnchor(t *testing.T) {
+	sum := sha256.Sum256([]byte(teardownJS))
+	digest := hex.EncodeToString(sum[:])
+	failed := func(title, file string, line int) jstestprovider.TestOutcome {
+		return jstestprovider.TestOutcome{Name: title, State: jstestprovider.StateFailed,
+			AttemptDetails: []jstestprovider.AttemptDetail{{State: jstestprovider.StateFailed, Anchor: &jstestprovider.Anchor{File: file, Line: line},
+				RequestOutcomes: &jstestprovider.RequestOutcomeRecord{Requests: []jstestprovider.RequestOutcome{{Method: "DELETE", Status: 409}}}}}}
+	}
+	receipt := &jstestprovider.Receipt{Identity: jstestprovider.Identity{TestFileDigests: map[string]string{"/w/a/orders.spec.ts": digest, "/w/b/orders.spec.ts": digest}},
+		Tests: []jstestprovider.TestOutcome{failed("leftover confirmation", "orders.spec.ts", 9), failed("parent first", "/w/a/orders.spec.ts", 43)}}
+	report := teardownReport(t, map[string]string{"a/orders.spec.ts": teardownJS, "b/orders.spec.ts": teardownJS},
+		TeardownOptions{Files: []string{"a/orders.spec.ts", "b/orders.spec.ts"}, Receipts: []TeardownReceipt{{Name: "r.json", JS: receipt}}})
+	if len(report.Receipts) != 2 || !report.Receipts[0].Bound || report.Receipts[0].Rows != 1 || report.Receipts[0].AmbiguousAnchors != 1 || !report.Receipts[1].Bound || report.Receipts[1].Rows != 0 || report.Receipts[1].AmbiguousAnchors != 1 {
+		t.Fatalf("bindings %+v", report.Receipts)
+	}
+	for _, path := range []string{"a/orders.spec.ts", "b/orders.spec.ts"} {
+		if f := findingsIn(report, path, "leftover confirmation"); len(f) != 1 || len(f[0].Recorded) != 0 {
+			t.Errorf("%s: an ambiguous anchor must not attach: %+v", path, f)
+		}
+	}
+	if f := findingsIn(report, "a/orders.spec.ts", "parent first"); len(f) != 1 || len(f[0].Recorded) != 1 {
+		t.Errorf("a full anchor path joins: %+v", f)
+	}
+	if f := findingsIn(report, "b/orders.spec.ts", "parent first"); len(f) != 1 || len(f[0].Recorded) != 0 {
+		t.Errorf("another file's anchor must not join: %+v", f)
+	}
+}

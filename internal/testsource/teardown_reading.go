@@ -31,6 +31,11 @@ type tdCall struct {
 	mentions map[string]bool
 	// assigned is the variable the call's value is assigned to, when it is.
 	assigned string
+	// conditional marks a call that may not run each time its code runs: it sits in a nested
+	// function, a branch, a loop, a rescue/catch, a ternary or after a short-circuit operator.
+	conditional bool
+	// at is the call's token index (JS/TS only).
+	at int
 }
 
 // tdExample is one example and the calls it runs.
@@ -41,6 +46,8 @@ type tdExample struct {
 	calls  []tdCall
 	// unread holds the calls of an applying hook the reading does not place (beforeAll, around, ...).
 	unread []tdCall
+	// opaque is set when an applying hook could not be read at all (an RSpec hook without a block).
+	opaque bool
 }
 
 // tdFile is one read test file.
@@ -121,7 +128,7 @@ func readJSTeardown(name, text string) tdFile {
 		}
 		for _, arg := range s.splitArgs(i+1, s.match[i+1]) {
 			if s.callback(arg) {
-				hooks = append(hooks, jsHook{name: t.Text, at: i, body: arg, groups: groups(i)})
+				hooks = append(hooks, jsHook{name: t.Text, at: i, body: s.callbackBody(arg), groups: groups(i)})
 				break
 			}
 		}
@@ -139,36 +146,51 @@ func readJSTeardown(name, text string) tdFile {
 			}
 		}
 		sort.SliceStable(applying, func(a, b int) bool { return len(applying[a].groups) < len(applying[b].groups) })
-		seq := 0
-		add := func(calls []tdCall, phase string, unit, rank int) {
-			for _, c := range calls {
-				c.phase, c.unit, c.rank, c.seq = phase, unit, rank, seq
-				seq++
-				ex.calls = append(ex.calls, c)
-			}
-		}
+		add := ex.adder()
 		for _, h := range applying {
 			if jsSetupHooks[h.name] {
-				add(s.tdCalls(h.body, nil), phaseSetup, 0, 0)
+				add(s.tdCalls(h.body), phaseSetup, 0, 0)
 			}
 		}
+		// finally code keeps its source position: it runs where it stands, not at the example's end.
 		finals := s.finallyBlocks(d.body)
-		add(s.tdCalls(d.body, finals), phaseBody, 0, 0)
-		for _, r := range finals {
-			add(s.tdCalls(r, nil), phaseTeardown, 0, 0)
+		for _, c := range s.tdCalls(s.callbackBody(d.body)) {
+			c.phase = phaseBody
+			for _, r := range finals {
+				if within(c.at, r) {
+					c.phase = phaseTeardown
+				}
+			}
+			add([]tdCall{c}, "", 0, 0)
 		}
 		for k := len(applying) - 1; k >= 0; k-- {
 			h := applying[k]
 			switch {
 			case jsTeardownHooks[h.name]:
-				add(s.tdCalls(h.body, nil), phaseTeardown, 1+h.at, 1+len(enclosing)-len(h.groups))
+				add(s.tdCalls(h.body), phaseTeardown, 1+h.at, 1+len(enclosing)-len(h.groups))
 			case jsUnreadHooks[h.name]:
-				ex.unread = append(ex.unread, s.tdCalls(h.body, nil)...)
+				ex.unread = append(ex.unread, s.tdCalls(h.body)...)
 			}
 		}
 		f.examples = append(f.examples, ex)
 	}
 	return f
+}
+
+// adder returns a function that appends calls to the example in run order, giving each the phase
+// ("" keeps the call's own), the teardown unit and rank, and the next sequence number.
+func (ex *tdExample) adder() func(calls []tdCall, phase string, unit, rank int) {
+	seq := 0
+	return func(calls []tdCall, phase string, unit, rank int) {
+		for _, c := range calls {
+			if phase != "" {
+				c.phase = phase
+			}
+			c.unit, c.rank, c.seq = unit, rank, seq
+			seq++
+			ex.calls = append(ex.calls, c)
+		}
+	}
 }
 
 func subset(inner, outer []int) bool {
@@ -196,25 +218,81 @@ func (s *source) finallyBlocks(r [2]int) [][2]int {
 	return out
 }
 
-// tdCalls lists the calls in a range, outside the skipped ranges, in token order.
-func (s *source) tdCalls(r [2]int, skip [][2]int) []tdCall {
+// callbackBody returns the token range of a callback argument's function body, inside its braces,
+// or the expression of a brace-less arrow; the whole argument when neither is found.
+func (s *source) callbackBody(arg [2]int) [2]int {
+	for i := arg[0]; i < arg[1]; i++ {
+		switch {
+		case s.punct(i, "(") && s.match[i] > i:
+			i = s.match[i]
+		case s.arrow(i):
+			if s.punct(i+2, "{") && s.match[i+2] > i+2 {
+				return [2]int{i + 3, s.match[i+2]}
+			}
+			return [2]int{i + 2, arg[1]}
+		case s.punct(i, "{") && s.match[i] > i:
+			return [2]int{i + 1, s.match[i]}
+		}
+	}
+	return arg
+}
+
+// conditional reports that the call at token i may not run each time the range r runs: it sits in
+// a function nested in r, an if/else, a loop, a switch, a catch, a ternary or after a short-circuit
+// operator (TSA-V0-112). try and finally blocks and plain blocks run.
+func (s *source) conditional(i int, r [2]int) bool {
+	statement := true // still inside the statement that holds the call
+	for j := i - 1; j >= r[0]; j-- {
+		if s.punct(j, ")") || s.punct(j, "]") || s.punct(j, "}") {
+			open := s.match[j]
+			if open < 0 || open > j {
+				return true // unbalanced: execution cannot be established
+			}
+			if statement && s.punct(j, ")") && (s.ident(open-1, "if") || s.ident(open-1, "for") || s.ident(open-1, "while")) {
+				return true // a brace-less if or loop
+			}
+			if s.punct(j, "}") {
+				statement = false
+			}
+			j = open
+			continue
+		}
+		switch {
+		case s.punct(j, ";"):
+			statement = false
+		case s.punct(j, "{"):
+			before := j - 1
+			switch {
+			case s.punct(before, ">") && s.arrow(before-1),
+				s.punct(before, ")"), // if/for/while/switch/catch, or a function or method body
+				s.ident(before, "else"), s.ident(before, "do"), s.ident(before, "catch"):
+				return true
+			}
+			statement = true // a block, try/finally or object literal: its own statement continues
+		case !statement:
+		case s.arrow(j), s.ident(j, "else"), s.ident(j, "do"):
+			return true
+		case s.punct(j, "?") && !s.punct(j+1, "."):
+			return true // a ternary or ??
+		case (s.punct(j, "&") && s.punct(j-1, "&")) || (s.punct(j, "|") && s.punct(j-1, "|")):
+			return true
+		}
+	}
+	return false
+}
+
+// tdCalls lists the calls in a range in token order.
+func (s *source) tdCalls(r [2]int) []tdCall {
 	out := []tdCall{}
 	for i := r[0]; i < r[1]; i++ {
-		skipped := false
-		for _, k := range skip {
-			if within(i, k) {
-				i, skipped = k[1]-1, true
-				break
-			}
-		}
-		if skipped || !s.ident(i, "") || !s.punct(i+1, "(") || s.match[i+1] < 0 {
+		if !s.ident(i, "") || !s.punct(i+1, "(") || s.match[i+1] < 0 {
 			continue
 		}
 		name := s.tokens[i].Text
 		if jsNotCalls[name] || s.ident(i-1, "function") || jsAssertion(name) {
 			continue
 		}
-		c := tdCall{name: name, line: s.tokens[i].Line, mentions: map[string]bool{}}
+		c := tdCall{name: name, line: s.tokens[i].Line, mentions: map[string]bool{}, at: i, conditional: s.conditional(i, r)}
 		root := i
 		for s.punct(root-1, ".") {
 			k := root - 2
@@ -260,8 +338,14 @@ var (
 	tdRubyGroup   = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?context|feature)\b`)
 	tdRubyExample = regexp.MustCompile(`^(?:[xf]?it|[xf]?specify|[xf]?example|[xf]?scenario)\b`)
 	tdRubyTitle   = regexp.MustCompile(`^\w+\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)")`)
-	// tdRubyHook: group 1 is the hook, group 2 or 3 its scope symbol.
-	tdRubyHook   = regexp.MustCompile(`^(before|prepend_before|append_before|after|prepend_after|append_after|around)\b\s*(?:\(\s*:(\w+)\s*\)|\s+:(\w+))?\s*(?:do\b|\{)`)
+	// tdRubyHook: group 1 is the hook, group 2 the rest of the line (its arguments and block).
+	tdRubyHook   = regexp.MustCompile(`^(before|prepend_before|append_before|after|prepend_after|append_after|around)\b(.*)$`)
+	tdRubyScope  = regexp.MustCompile(`^(?:\(\s*:(\w+)\s*\)|:(\w+))?$`)
+	tdRubyRescue = regexp.MustCompile(`^rescue\b`)
+	tdRubyElse   = regexp.MustCompile(`^else\b`)
+	// tdRubyMaybe: a statement modifier, a short-circuit operator, a ternary, a lambda, an inline
+	// block or a one-line do block, any of which may keep a call on the line from running.
+	tdRubyMaybe  = regexp.MustCompile(`\s(?:if|unless|while|until|and|or)\s|&&|\|\||\s\?\s|->|\blambda\b|\bproc\b|Proc\.new|[\w)\]?!]\s*\{|\bdo\b.*\bend\b`)
 	tdRubyLet    = regexp.MustCompile(`^(?:let!?|subject!?)\s*(?:\(\s*:(\w+[?!]?)\s*\)|\s+:(\w+[?!]?))?\s*(?:do\b|\{)`)
 	tdRubyEnsure = regexp.MustCompile(`^ensure\b`)
 	tdRubyString = regexp.MustCompile(`'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"`)
@@ -288,7 +372,7 @@ func rubyAssertion(name string) bool {
 }
 
 type rbHook struct {
-	kind  string // phaseSetup, phaseTeardown or "unread"
+	kind  string // phaseSetup, phaseTeardown, "unread" or "opaque" (no block to read)
 	body  []rubyLine
 	depth int
 	index int
@@ -374,15 +458,11 @@ func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 	hooks := append([]rbHook{}, outer...)
 	for i := lo; i < hi; i++ {
 		text := w.lines[i].text
-		if m := tdRubyHook.FindStringSubmatch(text); m != nil {
-			body, end := w.block(i)
-			kind := phaseSetup
-			if strings.HasSuffix(m[1], "after") {
-				kind = phaseTeardown
-			}
-			switch scope := m[2] + m[3]; {
-			case m[1] == "around", scope != "" && scope != "each" && scope != "example":
-				kind = "unread"
+		if m := tdRubyHook.FindStringSubmatch(text); m != nil && !strings.HasPrefix(strings.TrimSpace(m[2]), "=") {
+			kind, opens := hookKind(m[1], m[2])
+			end, body := i, []rubyLine(nil)
+			if opens {
+				body, end = w.block(i)
 			}
 			w.hooks++
 			hooks = append(hooks, rbHook{kind: kind, body: body, depth: depth, index: w.hooks})
@@ -412,6 +492,17 @@ func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 			}
 			w.group(i+1, end, depth+1, hooks)
 			i = end
+		case tdRubyGroup.MatchString(text):
+			// A brace group whose `{` ends its line and whose `}` starts its closing line is read
+			// like a do group; any other group form is not read and the file is uncertain.
+			end, ok := w.braceGroup(i, hi)
+			if !ok {
+				w.uncertain = true
+				i = w.skip(i)
+				continue
+			}
+			w.group(i+1, end, depth+1, hooks)
+			i = end
 		case tdRubyExample.MatchString(text):
 			body, end := w.block(i)
 			w.example(text, w.lines[i].line, body, depth, hooks)
@@ -422,6 +513,106 @@ func (w *rbWalker) group(lo, hi, depth int, outer []rbHook) {
 	}
 }
 
+// hookKind classifies a hook from its name and the rest of its line: an around hook, a hook with a
+// scope other than each/example or with metadata arguments is unread, and a hook without a block
+// is opaque.
+func hookKind(name, rest string) (string, bool) {
+	stripped := tdRubyString.ReplaceAllString(rest, `""`)
+	args := stripped
+	if loc := rubyDo.FindStringIndex(stripped); loc != nil {
+		args = stripped[:loc[0]]
+	} else if open := strings.Index(stripped, "{"); open >= 0 {
+		args = stripped[:open]
+	} else {
+		return "opaque", false
+	}
+	kind := phaseSetup
+	if strings.HasSuffix(name, "after") {
+		kind = phaseTeardown
+	}
+	m := tdRubyScope.FindStringSubmatch(strings.TrimSpace(args))
+	switch {
+	case name == "around", m == nil:
+		return "unread", true
+	case m[1]+m[2] != "" && m[1]+m[2] != "each" && m[1]+m[2] != "example":
+		return "unread", true
+	}
+	return kind, true
+}
+
+// braceGroup returns the closing line of a multi-line brace group opened on line i.
+func (w *rbWalker) braceGroup(i, hi int) (int, bool) {
+	text := tdRubyString.ReplaceAllString(w.lines[i].text, `""`)
+	if !strings.HasSuffix(text, "{") || strings.Count(text, "{") != strings.Count(text, "}")+1 {
+		return 0, false
+	}
+	depth := 1
+	for j := i + 1; j < hi; j++ {
+		line := tdRubyString.ReplaceAllString(w.lines[j].text, `""`)
+		depth += strings.Count(line, "{") - strings.Count(line, "}")
+		if depth <= 0 {
+			rest := strings.TrimSpace(strings.TrimPrefix(line, "}"))
+			return j, depth == 0 && strings.HasPrefix(line, "}") && (rest == "" || rest == ")")
+		}
+	}
+	return 0, false
+}
+
+// blockCalls lists the calls of block lines in order. Each call gets the phase, or teardown inside
+// the ensure clause when ensure is set, and is conditional when its line sits in an if/unless/case/
+// loop/def/do block or a rescue clause, or carries a modifier, operator or inline block that may
+// keep it from running (TSA-V0-112).
+func (w *rbWalker) blockCalls(lines []rubyLine, phase string, ensure bool) []tdCall {
+	out := []tdCall{}
+	stack := []bool{} // per open block: whether its lines may not run
+	ensureAt, rescueAt := -1, -1
+	for _, l := range lines {
+		text := tdRubyString.ReplaceAllString(l.text, `""`)
+		switch {
+		case rubyEnd.MatchString(text):
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+			}
+			if ensureAt > len(stack) {
+				ensureAt = -1
+			}
+			if rescueAt > len(stack) {
+				rescueAt = -1
+			}
+			continue
+		case tdRubyEnsure.MatchString(text):
+			rescueAt = -1
+			if ensure {
+				ensureAt = len(stack)
+			}
+			continue
+		case tdRubyRescue.MatchString(text):
+			rescueAt = len(stack)
+			continue
+		case tdRubyElse.MatchString(text) && rescueAt == len(stack):
+			rescueAt = -1
+			continue
+		}
+		conditional := rescueAt >= 0 || tdRubyMaybe.MatchString(text)
+		for _, c := range stack {
+			conditional = conditional || c
+		}
+		p := phase
+		if ensureAt >= 0 {
+			p = phaseTeardown
+		}
+		calls := w.calls([]rubyLine{l}, p == phaseTeardown)
+		for k := range calls {
+			calls[k].phase, calls[k].conditional = p, conditional
+		}
+		out = append(out, calls...)
+		if rubyOpens(text) {
+			stack = append(stack, !strings.HasPrefix(text, "begin"))
+		}
+	}
+	return out
+}
+
 func (w *rbWalker) example(text string, line int, body []rubyLine, depth int, hooks []rbHook) {
 	ex := tdExample{line: line}
 	if m := tdRubyTitle.FindStringSubmatch(text); m != nil {
@@ -429,17 +620,11 @@ func (w *rbWalker) example(text string, line int, body []rubyLine, depth int, ho
 	}
 	hooks = append([]rbHook{}, hooks...)
 	sort.SliceStable(hooks, func(a, b int) bool { return hooks[a].depth < hooks[b].depth })
-	seq := 0
-	add := func(calls []tdCall, phase string, unit, rank int) {
-		for _, c := range calls {
-			c.phase, c.unit, c.rank, c.seq = phase, unit, rank, seq
-			seq++
-			ex.calls = append(ex.calls, c)
-		}
-	}
+	add := ex.adder()
 	for _, h := range hooks {
+		ex.opaque = ex.opaque || h.kind == "opaque"
 		if h.kind == phaseSetup {
-			calls := w.calls(h.body, false)
+			calls := w.blockCalls(h.body, phaseSetup, false)
 			for k := range calls {
 				if h.let != "" && calls[k].assigned == "" {
 					if _, create := w.effects.creates[calls[k].name]; create {
@@ -450,36 +635,13 @@ func (w *rbWalker) example(text string, line int, body []rubyLine, depth int, ho
 			add(calls, phaseSetup, 0, 0)
 		}
 	}
-	main, final := []rubyLine{}, []rubyLine{}
-	level, ensureLevel := 0, -1
-	for _, l := range body {
-		switch {
-		case rubyEnd.MatchString(l.text):
-			level--
-			if ensureLevel >= 0 && level < ensureLevel {
-				ensureLevel = -1
-			}
-			continue
-		case tdRubyEnsure.MatchString(l.text):
-			ensureLevel = level
-			continue
-		}
-		if ensureLevel >= 0 {
-			final = append(final, l)
-		} else {
-			main = append(main, l)
-		}
-		if rubyOpens(l.text) {
-			level++
-		}
-	}
-	add(w.calls(main, false), phaseBody, 0, 0)
-	add(w.calls(final, true), phaseTeardown, 0, 0)
+	// ensure code keeps its source position, as JS finally code does.
+	add(w.blockCalls(body, phaseBody, true), "", 0, 0)
 	for k := len(hooks) - 1; k >= 0; k-- {
 		h := hooks[k]
 		switch h.kind {
 		case phaseTeardown:
-			add(w.calls(h.body, true), phaseTeardown, h.index, 1+depth-h.depth)
+			add(w.blockCalls(h.body, phaseTeardown, false), "", h.index, 1+depth-h.depth)
 		case "unread":
 			ex.unread = append(ex.unread, w.calls(h.body, false)...)
 		}

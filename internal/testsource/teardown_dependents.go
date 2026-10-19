@@ -34,6 +34,7 @@ const (
 	reasonHookNotRead         = "hook-not-read"
 	reasonTeardownNotDeclared = "teardown-call-not-declared"
 	reasonOrderUnknown        = "teardown-order-unknown"
+	reasonCleanupConditional  = "cleanup-conditional"
 	reasonFileUncertain       = "file-uncertain"
 
 	tdVerdictLeftover = "leftover"
@@ -246,7 +247,7 @@ func analyzeTeardown(path string, read tdFile, effects sideEffects, rows []recei
 func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects, rows []receiptRow, joinable bool) (TeardownTest, []TeardownFinding) {
 	test := TeardownTest{Test: ex.title, Line: ex.line, Resources: []TeardownResource{}}
 	findings := []TeardownFinding{}
-	creates, deletes := map[string]int{}, map[string]int{}
+	creates, parents := map[string]int{}, map[string][]tdCall{}
 	kinds := []string{}
 	for k, c := range ex.calls {
 		if kind, ok := effects.creates[c.name]; ok && c.phase != phaseTeardown {
@@ -256,21 +257,19 @@ func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects,
 			}
 		}
 		if kind, ok := effects.deletes[c.name]; ok && c.phase == phaseTeardown {
-			if _, seen := deletes[kind]; !seen {
-				deletes[kind] = k
-			}
+			parents[kind] = append(parents[kind], c)
 		}
 	}
-	hookUnread := false
+	hookUnread := ex.opaque
 	for _, c := range ex.unread {
 		hookUnread = hookUnread || effects.declared(c.name)
 	}
 	for _, kind := range kinds {
-		at, ok := deletes[kind]
+		deletes, ok := parents[kind]
 		if !ok {
 			continue
 		}
-		create, parent := ex.calls[creates[kind]], ex.calls[at]
+		create, parent := ex.calls[creates[kind]], deletes[0]
 		res := TeardownResource{Kind: kind, Variable: create.assigned, CreateLine: create.line, DeleteLine: parent.line, Actions: []TeardownAction{}}
 		reasons := map[string]bool{}
 		if create.assigned == "" {
@@ -284,13 +283,13 @@ func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects,
 		}
 		declared := []tdCall{}
 		for _, c := range ex.calls {
-			if c.phase == phaseTeardown {
-				if before, known := runsBefore(c, parent); (before || !known) && c.seq != parent.seq && !effects.declared(c.name) {
-					reasons[reasonTeardownNotDeclared] = true
-				}
+			// A call that runs after every parent delete does not act on the live resource.
+			live := runsBeforeAny(c, deletes)
+			if c.phase == phaseTeardown && live && !effects.declared(c.name) {
+				reasons[reasonTeardownNotDeclared] = true
 				continue
 			}
-			if c.seq <= create.seq || effects.creates[c.name] != "" || effects.deletes[c.name] != "" {
+			if !live || c.seq <= create.seq || effects.creates[c.name] != "" || effects.deletes[c.name] != "" {
 				continue
 			}
 			action, isAction := effects.actions[c.name]
@@ -303,7 +302,7 @@ func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects,
 				}
 			case isAction && action.Parent == "" && named:
 				res.Actions = append(res.Actions, TeardownAction{Call: c.name, Line: c.line, Phase: c.phase, Declared: true})
-			case !isAction && named:
+			case !isAction && named && c.phase != phaseTeardown:
 				res.Actions = append(res.Actions, TeardownAction{Call: c.name, Line: c.line, Phase: c.phase})
 				reasons[reasonActionNotDeclared] = true
 			}
@@ -311,24 +310,44 @@ func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects,
 		mine := []TeardownFinding{}
 		for _, action := range declared {
 			dependent := effects.actions[action.name].Dependent
-			finding, leftover := dependentLeftover(ex, action, parent, dependent, effects)
-			if finding == reasonOrderUnknown {
-				reasons[reasonOrderUnknown] = true
-				finding = causeParentFirst
+			// Every parent delete the action may precede is checked: choosing one would discard the
+			// order uncertainty between same-group hooks.
+			for _, p := range deletes {
+				before, known := runsBefore(action, p)
+				if known && !before {
+					continue
+				}
+				cause, leftover, conditional := dependentLeftover(ex, action, p, dependent, effects)
+				if !leftover {
+					continue
+				}
+				if conditional {
+					reasons[reasonCleanupConditional] = true
+				}
+				f := TeardownFinding{Rule: TeardownRule, Cause: cause, Path: path, Test: ex.title, Kind: kind, Dependent: dependent,
+					ActionLine: action.line, DeleteLine: p.line}
+				switch {
+				case cause == reasonOrderUnknown || !known:
+					reasons[reasonOrderUnknown] = true
+					if cause == reasonOrderUnknown {
+						f.Cause = causeParentFirst
+					}
+				case cause == causeParentFirst:
+					f.DependentDeleteLine = firstDependentDelete(ex, action, dependent, effects)
+				}
+				mine = append(mine, f)
+				break
 			}
-			if !leftover {
-				continue
-			}
-			f := TeardownFinding{Rule: TeardownRule, Cause: finding, Path: path, Test: ex.title, Kind: kind, Dependent: dependent,
-				ActionLine: action.line, DeleteLine: parent.line}
-			if finding == causeParentFirst && !reasons[reasonOrderUnknown] {
-				f.DependentDeleteLine = firstDependentDelete(ex, parent, dependent, effects)
-			}
-			mine = append(mine, f)
 		}
 		var recorded []TeardownRecorded
 		if joinable {
-			recorded = recordedAt(rows, ex.title, parent.line, soleDependent(res.Actions))
+			lines := map[int]bool{}
+			for _, p := range deletes {
+				if !lines[p.line] {
+					lines[p.line] = true
+					recorded = append(recorded, recordedAt(rows, ex.title, p.line, soleDependent(res.Actions))...)
+				}
+			}
 		}
 		if len(mine) == 0 && hasStatus(recorded) {
 			mine = append(mine, TeardownFinding{Rule: TeardownRule, Cause: causeRecordedFailure, Path: path, Test: ex.title, Kind: kind,
@@ -357,43 +376,59 @@ func analyzeExample(path string, read tdFile, ex tdExample, effects sideEffects,
 	return test, findings
 }
 
+// runsBeforeAny reports whether c runs before, or in unknown order with, one of the parent deletes.
+func runsBeforeAny(c tdCall, deletes []tdCall) bool {
+	for _, p := range deletes {
+		if before, known := runsBefore(c, p); before || !known {
+			return true
+		}
+	}
+	return false
+}
+
 // dependentLeftover reports the cause when a declared action's dependent is still present at the
-// parent delete (TSA-V0-115, TSA-V0-116): removed in the body after the action or in teardown before
-// the parent delete is no leftover; an unknown teardown order returns reasonOrderUnknown.
-func dependentLeftover(ex tdExample, action, parent tdCall, dependent string, effects sideEffects) (string, bool) {
+// parent delete (TSA-V0-115, TSA-V0-116). Only a dependent delete known to run after the action and
+// before the parent delete removes it, and only when it runs unconditionally; a conditional one
+// leaves the finding with conditional set. An unknown order returns reasonOrderUnknown.
+func dependentLeftover(ex tdExample, action, parent tdCall, dependent string, effects sideEffects) (cause string, leftover, conditional bool) {
 	after, unknown := false, false
 	for _, c := range ex.calls {
-		if effects.deletes[c.name] != dependent {
+		if effects.deletes[c.name] != dependent || c.phase == phaseSetup {
 			continue
 		}
-		if c.phase == phaseBody && c.seq > action.seq {
-			return "", false
-		}
-		if c.phase != phaseTeardown {
+		follows, known := runsBefore(action, c)
+		switch {
+		case !known:
+			unknown = true
+			continue
+		case !follows:
 			continue
 		}
 		before, known := runsBefore(c, parent)
 		switch {
 		case !known:
 			unknown = true
-		case before:
-			return "", false
-		default:
+		case !before:
 			after = true
+		case c.conditional:
+			conditional = true
+		default:
+			return "", false, false
 		}
 	}
 	switch {
 	case unknown:
-		return reasonOrderUnknown, true
+		return reasonOrderUnknown, true, conditional
 	case after:
-		return causeParentFirst, true
+		return causeParentFirst, true, conditional
 	}
-	return causeNotRemoved, true
+	return causeNotRemoved, true, conditional
 }
 
-func firstDependentDelete(ex tdExample, parent tdCall, dependent string, effects sideEffects) int {
+// firstDependentDelete is the line of the first dependent delete that runs after the action.
+func firstDependentDelete(ex tdExample, action tdCall, dependent string, effects sideEffects) int {
 	for _, c := range ex.calls {
-		if c.phase == phaseTeardown && effects.deletes[c.name] == dependent {
+		if follows, known := runsBefore(action, c); known && follows && c.phase != phaseSetup && effects.deletes[c.name] == dependent {
 			return c.line
 		}
 	}

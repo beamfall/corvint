@@ -17,6 +17,9 @@ type TeardownReceiptBinding struct {
 	Bound   bool   `json:"bound"`
 	Reason  string `json:"reason,omitempty"`
 	Rows    int    `json:"rows"`
+	// AmbiguousAnchors counts failed attempts left unattributed because their anchor file names
+	// more than one receipt file.
+	AmbiguousAnchors int `json:"ambiguousAnchors,omitempty"`
 }
 
 // TeardownRecorded is one recorded failed attempt at a teardown delete line.
@@ -58,6 +61,10 @@ func receiptRows(receipts []TeardownReceipt, path, digest string) ([]receiptRow,
 			}
 			for _, a := range attempts {
 				if a.State != jstestprovider.StateFailed || a.Anchor == nil || !anchorNames(a.Anchor.File, key, path) {
+					continue
+				}
+				if anchorFiles(receipt.JS, a.Anchor.File) > 1 {
+					binding.AmbiguousAnchors++
 					continue
 				}
 				row := receiptRow{receipt: receipt.Name, test: t.Name, retry: a.Retry, line: a.Anchor.Line}
@@ -104,6 +111,18 @@ func bindReceiptFile(receipt *jstestprovider.Receipt, path, digest string) (stri
 func anchorNames(file, key, path string) bool {
 	file = filepath.ToSlash(file)
 	return file == key || file == path || (file != "" && !strings.HasPrefix(file, "/") && strings.HasSuffix(key, "/"+file))
+}
+
+// anchorFiles counts the receipt files an anchor file names.
+func anchorFiles(receipt *jstestprovider.Receipt, file string) int {
+	n := 0
+	for key := range receipt.Identity.TestFileDigests {
+		key = filepath.ToSlash(key)
+		if anchorNames(file, key, "") {
+			n++
+		}
+	}
+	return n
 }
 
 // recordedAt returns the rows of the example recorded at a delete line.
