@@ -278,15 +278,15 @@ func TestUnselectedNoEvidenceTSAV0144(t *testing.T) {
 // TestUnselectedIndirectFrameworkTSAV0143 attributes a fixture-imported test to any runner.
 func TestUnselectedIndirectFrameworkTSAV0143(t *testing.T) {
 	s := parseSource("a.spec.ts", "import { test, expect } from './fixtures';\ntest('a', async () => {});\n")
-	if got := s.framework(); got != frameworkIndirect {
+	if got := s.framework(nil); got != frameworkIndirect {
 		t.Errorf("fixture import = %q", got)
 	}
 	s = parseSource("a.spec.js", "const { test } = require('./fixtures');\ntest('a', () => {});\n")
-	if got := s.framework(); got != frameworkIndirect {
+	if got := s.framework(nil); got != frameworkIndirect {
 		t.Errorf("fixture require = %q", got)
 	}
 	s = parseSource("a.spec.js", "import { render } from './render';\ntest('a', () => {});\n")
-	if got := s.framework(); got != frameworkGlobals {
+	if got := s.framework(nil); got != frameworkGlobals {
 		t.Errorf("unrelated import = %q", got)
 	}
 }
