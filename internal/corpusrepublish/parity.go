@@ -1,18 +1,39 @@
 package corpusrepublish
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"sort"
 )
 
-func delta(before, after map[string]any) Delta {
+// encodedDigest streams the canonical encoding into a hash, so a member's size never
+// decides parity; only a real encoding error is reported, and never as a change (DCP-V1-092).
+func encodedDigest(v any) ([]byte, error) {
+	h := sha256.New()
+	if _, err := doccorpus.EncodeTo(h, v); err != nil {
+		return nil, fmt.Errorf("republish parity encoding failed")
+	}
+	return h.Sum(nil), nil
+}
+func delta(before, after map[string]any) (Delta, error) {
 	d := Delta{Added: []string{}, Retired: []string{}, Changed: []string{}}
 	for k, v := range after {
 		old, ok := before[k]
 		if !ok {
 			d.Added = append(d.Added, k)
-		} else if !same(old, v) {
+			continue
+		}
+		x, err := encodedDigest(old)
+		if err != nil {
+			return d, err
+		}
+		y, err := encodedDigest(v)
+		if err != nil {
+			return d, err
+		}
+		if !bytes.Equal(x, y) {
 			d.Changed = append(d.Changed, k)
 		}
 	}
@@ -24,7 +45,7 @@ func delta(before, after map[string]any) Delta {
 	sort.Strings(d.Added)
 	sort.Strings(d.Retired)
 	sort.Strings(d.Changed)
-	return d
+	return d, nil
 }
 func inventory(a *doccorpus.Artifact) [7]map[string]any {
 	var x [7]map[string]any
@@ -64,6 +85,9 @@ func inventory(a *doccorpus.Artifact) [7]map[string]any {
 	}
 	x[6]["behavior"] = a.BehaviorContracts
 	x[6]["stability"] = a.StabilityEvidence
+	for _, j := range a.TestKnowledge {
+		x[6]["test_knowledge:"+j.ID] = j
+	}
 	x[6]["gaps"] = a.Gaps
 	x[6]["import_parity"] = a.ImportParity
 	x[6]["restricted_summaries"] = a.RestrictedSummaries
@@ -93,7 +117,14 @@ func shardInventory(a *doccorpus.Artifact) map[string]doccorpus.ShardIdentity {
 }
 func compare(previous, next *doccorpus.Artifact, allowed []doccorpus.ShardIdentity) (Parity, error) {
 	x, y := inventory(previous), inventory(next)
-	p := Parity{Subjects: delta(x[0], y[0]), Claims: delta(x[1], y[1]), Relations: delta(x[2], y[2]), Journeys: delta(x[3], y[3]), Observations: delta(x[4], y[4]), Details: delta(x[5], y[5]), Semantics: delta(x[6], y[6]), RetiredShards: []doccorpus.ShardIdentity{}}
+	p := Parity{RetiredShards: []doccorpus.ShardIdentity{}}
+	for i, out := range []*Delta{&p.Subjects, &p.Claims, &p.Relations, &p.Journeys, &p.Observations, &p.Details, &p.Semantics} {
+		d, err := delta(x[i], y[i])
+		if err != nil {
+			return p, err
+		}
+		*out = d
+	}
 	prev, cur := shardInventory(previous), shardInventory(next)
 	a, b := map[string]any{}, map[string]any{}
 	for k, v := range prev {
@@ -102,7 +133,11 @@ func compare(previous, next *doccorpus.Artifact, allowed []doccorpus.ShardIdenti
 	for k, v := range cur {
 		b[k] = v
 	}
-	p.Shards = delta(a, b)
+	shards, err := delta(a, b)
+	if err != nil {
+		return p, err
+	}
+	p.Shards = shards
 	approved := map[doccorpus.ShardIdentity]bool{}
 	for _, id := range allowed {
 		approved[id] = true
