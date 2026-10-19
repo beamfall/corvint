@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
-- Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)/experimental
-- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
+- Claim: Read-only analysis of committed tests selects setup, lints changes, lists duplicates, flags validity defects and reports declared teardown dependents.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity` and `corvint tests teardown` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -1032,6 +1032,176 @@ persisted.
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
+
+## Intra-example stub path and value origin (V1-1887, V1-1889)
+
+V1-1887 (GitHub #1171) and V1-1889 (GitHub #1173) add three advisory rules to the RSpec and
+Jest/Vitest example readers. A first-party stub can decide the value that an assertion checks. A
+spy can sit on an object that no code ever receives. An assertion can check a value that only the
+test built. Each rule follows values inside one example: its body, the hooks and `let`s that apply
+to it, and the declarations of its enclosing groups or describes. The rules never read the code
+under test, so they cannot prove a defect. They give an advisory finding or no finding.
+
+- `TSA-V0-120`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #1173)
+  Each located example of a `_spec.rb` file (TSA-V0-062) and of a JS/TS test file (TSA-V0-073)
+  MUST be read for `STUB-ON-PATH`, `STUB-NEVER-INVOKED` and `ASSERTED-VALUE-NOT-FROM-SUBJECT`.
+  Every finding of these rules MUST be advisory and name the test, a location line and a cause
+  line. It MUST NOT make a test INELIGIBLE, and it MUST NOT change the test's hygiene or strength.
+  An example's findings come after its existing findings, in this order: `STUB-ON-PATH` in stub
+  order, then `STUB-NEVER-INVOKED`, then `ASSERTED-VALUE-NOT-FROM-SUBJECT` in assertion line order.
+- `TSA-V0-121`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST
+  recognize these stubs:
+  - RSpec: `allow(R)` or `expect(R)` with `.to receive(:m)`, optionally `allow_any_instance_of`,
+    and an optional `.and_return(V)`, in the example body or in a `before` hook that applies to it.
+  - Jest/Vitest: `jest.spyOn(A, 'm')` and `vi.spyOn(A, 'm')`; `mocked(X)`, `(X as T)` or `X.m`
+    followed by `mockReturnValue`, `mockResolvedValue` or `mockImplementation` (each also in its
+    `Once` form).
+
+  Each receiver MUST be classified as one of four kinds:
+  - subject: the subject, `described_class`, a named subject, or a `let` or local computed from them;
+  - boundary: TSA-V0-123;
+  - first-party: a constant, or a module the test imports by a relative path or a `@/`, `~/` or
+    `src/` path;
+  - unresolved: anything else.
+
+  A receiver is fresh when the example or a `let` builds it, with `new`, a double or an object
+  literal.
+- `TSA-V0-122`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-party
+  receiver MUST be reported as `STUB-ON-PATH` in either of two cases:
+  - A positive assertion calls the stubbed method itself.
+  - The example has an action line that names the subject, and an assertion on a value that names
+    the subject expects the stub's informative return value, or the identifier it returns.
+
+  A negated (`not_to`, `to_not`, `.not`) assertion is never evidence.
+
+  The finding MUST name the stubbed symbol, the assertion line and the action line. An empty,
+  `nil`/`null`/`undefined`, boolean, `[]` or `{}` return value is not evidence. A stub that
+  TSA-V0-124 reports MUST NOT also be reported here.
+- `TSA-V0-123`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on an external
+  boundary MUST NEVER be reported as on-path. In RSpec, a boundary is any of these:
+  - the closed root list in `rspecBoundaryConsts`: HTTP clients, the clock, randomness, the
+    process and file system, logging, queues, mailers and third-party SDKs;
+  - an enqueue or delivery method such as `perform_later` or `deliver_later`.
+
+  In Jest/Vitest, a boundary is any of these:
+  - a module that is not first-party;
+  - a TSA-V0-079 boundary module or global;
+  - `Date`.
+
+  A stub on the subject (left to TSA-V0-066/079) or on an unresolved receiver MUST give no finding.
+- `TSA-V0-124`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A silent stub MUST be
+  reported as the advisory static `STUB-NEVER-INVOKED` when all of these hold:
+  - the stub is an RSpec `allow` or a JS spy, not a message expectation and not `any_instance`;
+  - its receiver is fresh and is not the subject or a boundary;
+  - in the example's scope, nothing names the receiver except its own binding, stubs on it, and
+    `have_received` or `expect(...)` reads of it.
+
+  The finding's location is the stub and its cause is the binding. The message MUST say the
+  reading is static.
+- `TSA-V0-125`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The run-based form of
+  `STUB-NEVER-INVOKED` is not built. That form would report a stubbed method that a recorded
+  passing run never called. No receipt input records RSpec or Jest/Vitest method calls; Playwright
+  route stubs cover only an HTTP boundary. The run-based form MUST stay a named residual, and
+  nothing may report it until such an input exists.
+- `TSA-V0-126`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An assertion's actual
+  value MUST be traced back through locals and `let`s, at most 4 bindings deep. It MUST be reported
+  as `ASSERTED-VALUE-NOT-FROM-SUBJECT`, with the assertion line and the origin line, when both of
+  these hold:
+  - Every source is a value the test builds alone: a literal, an object or array literal, a
+    factory `build`/`create`, a double, `Capybara.string`, a Nokogiri document, `OpenStruct`, a
+    `Struct`, or `document.createElement`.
+  - No such value is handed to the subject or to any other code in the example's scope.
+- `TSA-V0-127`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) A Jest/Vitest
+  assertion on `screen` or `document` MUST be reported when all of these hold:
+  - the example's scope writes the DOM itself, through `innerHTML =`, `createElement` or
+    `insertAdjacentHTML`;
+  - the scope has no `render`, `mount` or similar call, no subject name, no `new`, no same-file
+    function call, no use of a non-test-library import binding (a namespace import's
+    member call included) and no bare import.
+- `TSA-V0-128`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) An expectation that the
+  test's own call meets MUST be reported in these forms:
+  - an RSpec `have_been_enqueued`, `have_enqueued_job` or `have_enqueued_sidekiq_job` expectation
+    whose job the example enqueues itself before the expectation, or inside the expectation's
+    block, with the expected `with` arguments (the delay of `perform_in`/`perform_at` dropped);
+  - a Jest/Vitest `toHaveBeenCalled*` expectation on a callee the example calls directly, outside
+    any nested function, with the arguments the expectation repeats. An ordinal expectation
+    (`toHaveBeenNthCalledWith`, `toHaveBeenLastCalledWith`), and a direct call followed by
+    `mockClear`, `mockReset`, `mockRestore` or an `*AllMocks` call before the expectation, give no
+    finding.
+- `TSA-V0-129`: (standing auto-accept, 2026-10-11; V1-1889 / GitHub #1173) These MUST NOT be
+  reported:
+  - an assertion on the subject's return value or rendered output;
+  - an assertion on persisted state read back through `reload`, a finder or a query;
+  - a value handed to the subject or to other code;
+  - a negated assertion;
+  - a value from an unresolved call;
+  - a constant expectation, which JS-CONSTANT-EXPECTATION already reads.
+
+  Any trace that does not complete, because a binding cannot be resolved, a hop is too deep, a
+  nesting is unknown or a delimiter is unbalanced, MUST give no finding.
+- `TSA-V0-130`: (standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #1173)
+  These readings MUST be deterministic over the same input, read only the given text, write nothing
+  and use no network. They reach `corvint tests validity` through the existing example readers, and
+  its help MUST name them. The JSON shape, exit statuses and projection rules MUST stay unchanged.
+
+Non-goals:
+- reading the code under test;
+- data flow across modules, helpers or examples;
+- a dependency-graph reading of what the action can reach;
+- the run-based `STUB-NEVER-INVOKED` (TSA-V0-125);
+- `receive_messages`, `receive_message_chain`, a `jest.fn()` assigned onto an object, and module
+  factory mocks as stubs;
+- Playwright-specific shapes;
+- any INVALID severity.
+
+Failure modes:
+- A first-party constant or module the boundary list does not name is treated as first-party. Its
+  stub can then be reported on-path, but only as advisory.
+- An action that reaches a stub only through a helper is unseen. The on-path finding then rests on
+  the value match alone, and a coincidental equal literal is a false advisory finding.
+- A spy whose object reaches code only through dynamic access, `eval` or a global is reported as
+  never invoked, but only as advisory.
+- A test-built value that the subject reads through a global or a database row the factory
+  persisted, without the test handing it over, is reported. `reload` and finder reads are excluded
+  for this reason, but other channels are not.
+- Fixtures cover synthetic files only. Real-suite precision is NOT_MEASURED.
+
+Acceptance evidence: synthetic fixtures only.
+- RSpec fixtures:
+  - on-path through the result value, a direct stub call and a `let`-built collaborator;
+  - boundary, clock, queue, unresolved and value-mismatch stubs that give no finding;
+  - never-invoked locals and `let`s beside passed objects, message expectations and constants;
+  - test-built factory, page and enqueue values beside reloaded, handed-over, subject, literal and
+    unresolved values.
+- The same Jest/Vitest shapes, plus a cast and object-literal spies.
+- DOM written by the test beside a rendered DOM.
+- Self-call and callback forms of call expectations.
+- `readSourceValidity` keeps every flagged test ELIGIBLE and is deterministic.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes the following and the two
+reader caches they use; callers then read the earlier rules unchanged, and nothing is persisted:
+- `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` and
+  `internal/testvalidity/source_rules_flow.go`;
+- their tests;
+- the two `flowFindings` calls and the `let` bodies map;
+- the help sentence;
+- this section.
+
+### Traceability (V1-1887, V1-1889)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-120 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go`, `internal/testvalidity/source_rules_flow.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
+| TSA-V0-121 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubNeverInvokedRSpec` | experimental |
+| TSA-V0-122 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS`, `TestStubOnPathMessages`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-123 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubOnPathRSpec`, `TestStubOnPathJS` | experimental |
+| TSA-V0-124 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestStubNeverInvokedRSpec`, `TestStubOnPathJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-125 | none (residual) | `TestStubNeverInvokedRSpec` (static message) | residual |
+| TSA-V0-126 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewRSpec`, `TestFlowReviewJS` | experimental |
+| TSA-V0-127 | `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-128 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestFlowReviewJS` | experimental |
+| TSA-V0-129 | `internal/testsource/validity_rspec_flow.go`, `internal/testsource/validity_js_flow.go` | `TestAssertedValueNotFromSubjectRSpec`, `TestAssertedValueNotFromSubjectJS`, `TestJSExampleAssertions`, `TestFlowReviewRSpec` | experimental |
+| TSA-V0-130 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestFlowFindingsAdvisoryAndDeterministic`, `TestTestsValidityCLI` | experimental |
 
 ## Ruby vacuous examples and cross-file helpers in test-validity (V1-1866)
 

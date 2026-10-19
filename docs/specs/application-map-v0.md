@@ -716,7 +716,7 @@ but does not read it; only non-Go syntax impact does.
   `draw-depth-exceeded`. Any other construct, non-literal value or
   route without a handler MUST abstain at its declaration line with the AMAP-V0-042 reason or
   `no-handler`; a block under an abstained declaration is not mined.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-102`: A handler MUST be read from `app/controllers/<controller path>_controller.rb`
   under the application root at the map revision and MUST define the expected class constant,
   either nested in modules or by a compound name; otherwise the route abstains with
@@ -728,7 +728,7 @@ but does not read it; only non-Go syntax impact does.
   order decides it. Bodies of a class reopened in one file join in file order. Singleton methods (`def self.x`, `class << self`)
   are never actions. A route whose action exists only as a non-public method and has no template
   (AMAP-V0-104) is reported missing with basis `non-public-method`.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-103`: An action defined by an ancestor class or an included module MUST count as
   defined. The superclass resolves lexically (innermost module first, then top level) through the
   Zeitwerk file convention under `app/controllers`, and a reference written `::X` resolves at top
@@ -740,12 +740,12 @@ but does not read it; only non-Go syntax impact does.
   a module already in the chain is skipped, and `include A, B` places `A` before `B` while a later
   `include` statement precedes an earlier one, as Ruby does. More than 16 classes and modules in one
   chain, or a class cycle, abstains `ancestor-depth-exceeded`.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-104`: A route whose action is not a public method MUST count as defined when a view
   template `app/views/<prefix>/<action>.*` exists at the revision for the controller path or the
   path of an ancestor controller class in its chain (`application` included), as Rails view
   prefixes do (implicit rendering), with basis `implicit-template`.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-105`: When an action is not found, or is found only as a non-public method, a chain
   member that could define it at run time
   MUST make the route abstain rather than report: an unresolved superclass
@@ -758,7 +758,7 @@ but does not read it; only non-Go syntax impact does.
   and line), and a
   handler file the AMAP-V0-007 Ruby masking leaves in an open or unterminated state
   (`unsupported-ruby-syntax`).
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-106`: Each finding MUST carry rule `ROUTE-ACTION-MISSING`, the declaration
   `path:line`, HTTP verb, route path, controller constant, handler file and the missing action;
   each abstention carries the declaration, controller, action (when known), reason and the
@@ -772,7 +772,7 @@ but does not read it; only non-Go syntax impact does.
   else `appmap-bound-exceeded`), one budget shared by every application root a command loads
   and, for branches, by the map's test files; a Ruby file over 1 MiB is not read and a route needing it
   abstains `handler-file-unreadable`.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1890; GitHub #1174; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-110`: `flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...]
   [--budget N | --full]` MUST take 1..16 cited ranges of committed `.rb` files (an obligation is
   passed as its cited lines), each at most 400 lines and inside its file at the map revision,
@@ -782,7 +782,7 @@ but does not read it; only non-Go syntax impact does.
   It writes `application-map-branches/0` to stdout and no file, index, ledger or trace. An
   escaping, duplicate, non-Ruby, absent or out-of-range cite, a cite outside every application
   root, or the AMAP-V0-090 budget errors, refuse with `appmap-invalid-query`; the AMAP-V0-100 revision errors refuse the same way.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-111`: Branches MUST be read from the cited lines after AMAP-V0-105 masking: a
   statement-start `if`, `unless`, `elsif` or `when`, and a modifier `if` or `unless` after an
   expression. Each branch reports its `path:line`, kind, guard text (at most 200 bytes), the
@@ -812,7 +812,7 @@ but does not read it; only non-Go syntax impact does.
   `goto`, `waitForURL`, `toHaveURL`); one that only visits another GET route of the same
   controller is `possible` with basis `same-controller-screen`. Every listed test carries its
   basis; this is static naming evidence, not execution coverage.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-113`: Each guard's inputs MUST be resolved to model attributes or reported
   unresolved. `recv.attr`, followed by at most one of `present?`, `blank?`, `nil?`, `any?`,
   `empty?` or `zero?`, binds `recv` (`@x`, `x` or `current_x`) to the model `X` when
@@ -833,7 +833,7 @@ but does not read it; only non-Go syntax impact does.
   `create(:f, ...)`, `record.update(...)` and `record.attr =`; a literal hash names the
   attributes written, and a non-literal argument writes every attribute with basis
   `attributes-from-request`.
-  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175).
+  Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1891; GitHub #1175; review-round amendment accepted by the owner 2026-10-19, PR #1190).
 - `AMAP-V0-115`: A branch with a boundary that is not `reached` MUST carry a `setup` entry: its
   guard, the writers of each resolved input (setup endpoints first, then factories and traits,
   then fixtures) and every unresolved input with its reason. Status is `unresolved-guard` when any

@@ -26,6 +26,9 @@ Usage:
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--legacy NEW=LEGACY ...] [--rev REV]
+  corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
+    [--receipt FILE ...] [--rev REV]
+  corvint [--root PATH] tests unselected [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -75,13 +78,27 @@ resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support
 abstains with RB-HELPER-UNRESOLVED or RB-HELPER-AMBIGUOUS. A qualified
 reference SPEC:INCLUDE_LINE>SHARED:EXAMPLE_LINE (SHARED may be "same") reads
 a shared example through that one inclusion, or abstains with a named
-rspec-inclusion-* or rspec-shared-group-* reason. It prints one
+rspec-inclusion-* or rspec-shared-group-* reason. To both, the advisory
+intra-example STUB-ON-PATH, STUB-NEVER-INVOKED (static form) and
+ASSERTED-VALUE-NOT-FROM-SUBJECT. It prints one
 corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
 Exit 1 when an invalid finding
-makes a test INELIGIBLE (refused as proof), 0 otherwise.
+makes a test INELIGIBLE (refused as proof), 0 otherwise. A named JS/TS test
+file that unselected reports also gives each of its tests an invalid
+TEST-FILE-UNSELECTED finding.
+
+unselected lists every committed test-looking JS/TS file (a test name or
+test directory, and a test or describe call) and whether a configured Jest,
+Vitest, Playwright or Mocha runner selects it under its literal configuration
+or defaults. Each file no runner selects is a TEST-FILE-UNSELECTED finding
+with reason no-runner-for-framework, outside-include, excluded (naming the
+pattern) or suffix-mismatch. A configuration it cannot read literally, an
+unmodelled runner or framework, or no runner evidence at all makes the file
+uncertain, never reported. It prints one corvint-test-file-selection/0
+document. Exit 1 when any file is reported, 0 otherwise.
 
 --legacy NEW=LEGACY (repeatable, at most 256; --files may then be omitted)
 links a new test to the legacy test it claims to preserve, each PATH:LINE of
@@ -94,12 +111,24 @@ SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
 not analysed, a call may not run, or an unknown value meets a different one.
 Seed parity never changes the exit code.
 
-Reads committed Git content only; writes nothing and uses no network.
+teardown lists, for each resource an example creates and deletes in teardown
+(afterEach and finally in JS/TS; after and ensure in RSpec), the actions on it
+with lines. Which calls create, delete and produce dependents comes only from
+the committed corvint-side-effect-declaration/0 file named by --declaration.
+TEARDOWN-DEPENDENT-LEFTOVER names an action whose dependent is still present
+at the parent delete; it is advisory, with reasons, when the graph is
+incomplete. A --receipt JS provider receipt bound to the committed test blob
+attaches recorded 409/422 delete outcomes. A verdict is never "safe". Exit 1
+on a declared finding, 0 otherwise.
+
+Reads committed Git content and the named receipts only; writes nothing and
+uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858, V1-1866, V1-1867).
+V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
+V1-1887, V1-1888, V1-1889).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -158,7 +187,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected")
 	}
 	if root == "" {
 		root = "."
@@ -180,8 +209,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsValidity(repo, args[1:], out, diagnostic)
 	case "teardown":
 		return runTestsTeardown(repo, args[1:], out, diagnostic)
+	case "unselected":
+		return runTestsUnselected(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
