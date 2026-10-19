@@ -26,6 +26,8 @@ Usage:
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--rev REV]
+  corvint [--root PATH] tests role-locators [--rev REV]
+  corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -82,6 +84,19 @@ example in line order with its hygiene and a NOT_MEASURED strength; other
 files list each test a finding names with the hygiene those findings give it.
 Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
+
+role-locators reports ROLE-LOCATOR-UNRENDERED where a component test locates
+alert, alertdialog, status or log output by role and no mounted component's
+markup renders that role; an unresolvable component or markup that could
+render a role the reader cannot see abstains. Exit 1 on a finding.
+
+env reads the committed shell bootstrap scripts of profile NAME (stem NAME or
+ending -NAME, _NAME, .NAME): each variable's derivation, value (UNKNOWN with a
+reason when unresolvable) and whether it is passed to tests; the stand-in
+services launched, their URL and control routes; and advisory
+ENV-HARD-CODED-OFFSET / ENV-HARD-CODED-ADDRESS warnings. --base lists changed
+variables and the tests whose use stays valid or not. Compose and dotenv files
+are named, not read.
 
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
@@ -147,7 +162,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|role-locators|env")
 	}
 	if root == "" {
 		root = "."
@@ -167,8 +182,12 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "role-locators":
+		return runTestsRoleLocators(repo, args[1:], out, diagnostic)
+	case "env":
+		return runTestsEnv(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|role-locators|env")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
