@@ -3,6 +3,7 @@ package jstestprovider
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -74,15 +75,44 @@ func TestPWPV0028ExternalConsoleWithoutTee(t *testing.T) {
 }
 
 // PWP-V0-030, PWP-V0-029: a timed-out runner gets SIGINT first; one that exits
-// on it records SIGINT and keeps the timeout failure.
+// on it records SIGINT and keeps the timeout failure. The runner's timeout
+// clock starts only after the stand-in reports its traps installed, so a
+// loaded host cannot deliver SIGINT before the trap exists, and the stand-in
+// forks nothing after it reports ready, so SIGINT cannot land in a fork window
+// where the shell would lose it (V1-1942).
 func TestPWPV0030ExternalTimeoutInterruptsRunnerFirst(t *testing.T) {
-	mark := filepath.Join(t.TempDir(), "interrupted")
+	dir := t.TempDir()
+	mark, ready := filepath.Join(dir, "interrupted"), filepath.Join(dir, "trapped")
 	t.Setenv("CORVINT_TEST_MARK", mark)
-	script := `trap '/usr/bin/touch "$CORVINT_TEST_MARK"; exit 130' INT; trap 'exit 143' TERM; while :; do /bin/sleep 0.05; done`
+	t.Setenv("CORVINT_TEST_READY", ready)
+	script := `trap ': > "$CORVINT_TEST_MARK"; exit 130' INT; trap 'exit 143' TERM; : > "$CORVINT_TEST_READY"; while :; do :; done`
+	// The hook runs synchronously inside runExternal, so handshake needs no
+	// lock; t.Setenv already rules out a parallel test sharing the hook.
+	handshake := errors.New("readiness handshake never ran before the timeout clock")
+	externalRunnerAfterStart = func(ctx context.Context, _ int) error {
+		tick := time.NewTicker(5 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			if _, err := os.Stat(ready); err == nil {
+				handshake = nil
+				return nil
+			}
+			select {
+			case <-ctx.Done():
+				handshake = errors.New("stand-in runner did not install its traps within the AfterStart allowance")
+				return handshake
+			case <-tick.C:
+			}
+		}
+	}
+	t.Cleanup(func() { externalRunnerAfterStart = nil })
 	receipt := fakeExternalRun(t, script, func(cfg *E2EConfig) {
 		cfg.Timeout = 300 * time.Millisecond
 		cfg.InterruptGrace = 5 * time.Second
 	})
+	if handshake != nil {
+		t.Fatal(handshake)
+	}
 	if _, err := os.Stat(mark); err != nil {
 		t.Fatalf("runner did not see SIGINT: %v", err)
 	}

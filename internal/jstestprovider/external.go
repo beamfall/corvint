@@ -181,7 +181,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		cfg.negation.started = true
 	}
 	spec := procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit,
-		OverflowPolicy: procgroup.OverflowTruncate, InterruptGrace: cfg.InterruptGrace, ObserveDescendants: cfg.ObserveDescendants}
+		OverflowPolicy: procgroup.OverflowTruncate, InterruptGrace: cfg.InterruptGrace, ObserveDescendants: cfg.ObserveDescendants, AfterStart: externalRunnerAfterStart}
 	if cfg.RunnerOutput != nil {
 		// One lock keeps a stdout and a stderr write whole; only the tee
 		// forwarders wait on it, never the drains (PWP-V0-028).
@@ -849,3 +849,9 @@ func (l *lockedWriter) TeeIncomplete() {
 		sink.TeeIncomplete()
 	}
 }
+
+// externalRunnerAfterStart, when set, is the external runner's procgroup
+// AfterStart hook, which runs before the runner's Timeout clock starts. It is
+// a test-only readiness handshake with a stand-in runner (V1-1942); it is
+// appended here so existing line citations into this file keep their lines.
+var externalRunnerAfterStart func(context.Context, int) error
