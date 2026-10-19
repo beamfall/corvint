@@ -383,7 +383,7 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Files) == 0 && len(options.Links) == 0 {
 		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests validity --files PATH[,PATH...] [--legacy NEW=LEGACY ...] [--rev REV]")
 	}
-	report, err := testsource.SourceValidity(repo, options)
+	report, err := testsource.SelectedSourceValidity(repo, options)
 	if err != nil {
 		return testsFailure(diagnostic, err)
 	}

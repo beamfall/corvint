@@ -1423,6 +1423,180 @@ at runtime, chains longer than 8 hops, templates nested deeper than 8, and a des
 parameter that shadows the name (read as a whole-object use). The selector does no scope analysis.
 A shared constant written by a setup at runtime is not seen, nor is a JSON module's object.
 
+## Unselected test files (V1-1888)
+
+V1-1888 (GitHub #1172) reports committed test-looking JS/TS files that no configured runner selects,
+and keeps them out of witness credit. A Playwright spec in a Jest-only repository, or a file a
+runner's exclude pattern drops, looks like coverage but never runs. It is agent-drafted and accepted
+under the owner's standing auto-accept (2026-10-11). The reading reuses the TSA-V0-010 lexer and
+declaration model; it runs nothing and reads committed Git content only.
+
+- `TSA-V0-140`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)
+  `testsource.UnselectedFiles` MUST read, at one resolved revision, every committed runner
+  configuration file and every test-looking file under the TSA-V0-012 bounds, refusing
+  `tests-bound-exceeded` rather than reading part of the repository.
+  - A test-looking file is a JS/TS file (TSA-V0-010 extensions, not `.d.ts`) outside
+    `node_modules` whose stem ends with `.spec`, `.test`, `_spec`, `_test`, `-spec`, `-test`,
+    `.specs`, `.tests`, `.e2e` or `.cy`, or that sits under a directory named `__tests__`,
+    `__test__`, `test`, `tests`, `spec`, `specs`, `e2e`, `integration` or `cypress`, and that
+    declares at least one test or describe call.
+  - Other files are not listed.
+- `TSA-V0-141`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) The modelled runners are
+  Jest, Vitest, Playwright and Mocha. A runner instance exists in a directory for each
+  `jest.config.*`, `vitest.config.*`, `vite.config.*` with a `test` property (when no
+  `vitest.config.*` sits beside it), `playwright.config.*`, `.mocharc.*`, package.json `jest` or
+  `mocha` member, or package.json dependency on `jest`, `vitest`, `@playwright/test` or `mocha`.
+  - With no configuration file the instance uses the runner's defaults:
+    - Jest: `testMatch` `**/__tests__/**/*.?([mc])[jt]s?(x)` and
+      `**/?(*.)+(spec|test).?([mc])[jt]s?(x)`; `testPathIgnorePatterns` `/node_modules/`.
+    - Vitest: `include` `**/*.{test,spec}.?(c|m)[jt]s?(x)`; `exclude` `**/node_modules/**` and
+      `**/.git/**`.
+    - Playwright: `testDir` the configuration directory; `testMatch`
+      `**/*.@(spec|test).?(c|m)[jt]s?(x)`.
+    - Mocha: `spec` `./test`, non-recursive, extensions `js`, `cjs` and `mjs`.
+  - Jest matches globs against `<rootDir>/path` and its ignore patterns as regular expressions.
+  - Playwright matches `testMatch` and `testIgnore` case-insensitively against the absolute path,
+    directory components included. A pattern without a leading `**/` gets one, an absolute
+    pattern is outside the reading, and `testDir` moves the instance's directory.
+  - A Mocha spec without glob characters selects that file, that path with a configured
+    extension, or the files with a configured extension in that directory (recursively when set).
+    Mocha leaves out a path with a hidden segment unless the pattern names a segment that starts
+    with a literal `.`; the other runners match hidden paths.
+  - A dependency on `cypress`, `karma`, `jasmine`, `ava`, `@web/test-runner`, `@wdio/cli`, `tap`,
+    `uvu`, `@japa/runner`, `@storybook/test-runner` or `testcafe`, or one of their configuration
+    files, a `vitest.workspace` or `vitest.projects` file, or an unparsable package.json, is
+    unmodelled runner evidence. A `vitest.workspace` or `vitest.projects` file also makes every
+    Vitest instance uncertain (`runner-config-project-selection`), and one exists in its
+    directory.
+- `TSA-V0-142`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A configuration MUST be
+  read only as literal values: strings, arrays of strings and `true`/`false` for the selection keys
+  (Jest `testMatch`, `testPathIgnorePatterns`; Vitest `test.include`, `test.exclude`; Playwright
+  `testDir`, `testMatch`, `testIgnore`; Mocha `spec`, `ignore`, `exclude`, `extension`,
+  `recursive`). Other keys are ignored. The instance is uncertain, with that reason, on:
+  - a spread, `mergeConfig` or `defineWorkspace` (`runner-config-spread`, `runner-config-merged`);
+  - a Jest `testRegex`, `roots`, `rootDir`, `projects` or `testPathPattern` key, a Vitest
+    `projects`, `workspace`, `root` or `dir` key, or a Mocha `config` or `package` key
+    (`runner-config-key-unsupported`);
+  - a repeated or non-literal selection key, or a non-object Vitest `test`
+    (`runner-config-key-repeated`, `runner-config-value-dynamic`);
+  - a computed property, or a selection key name (or Vitest `test`, Playwright `projects`) that
+    is not a `key:` property, such as a shorthand `{ testMatch }`, `module.exports.testMatch = …`
+    or a variable (`runner-config-key-dynamic`);
+  - a Playwright selection key inside `projects` (`runner-config-project-selection`);
+  - unparsable JSON, YAML, or a Vitest JSON file (`runner-config-unparsed`);
+  - two configurations for one runner in one directory (`runner-config-multiple`);
+  - a pattern outside the glob dialect (`runner-pattern-unsupported`). Braces `{a,b}` and numeric
+    ranges `{1..3}` expand first, to at most 256 patterns. Then the dialect is `**` as a whole
+    path segment (elsewhere it is `*`), `*`, `?`, `[...]` with `!` negation and the extglobs
+    `?(…)`, `*(…)`, `+(…)` and `@(…)`. A negated pattern, `!(…)`, a `**` inside an extglob, a
+    letter, stepped or zero-padded range, a brace without a comma, an escape or an unbalanced
+    bracket is outside it.
+- `TSA-V0-143`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A file's framework MUST
+  be attributed from its literal imports and requires:
+  - `@playwright/test` or `playwright/test` is Playwright, `vitest` is Vitest, `@jest/globals` is
+    Jest and `mocha` is Mocha;
+  - `node:test`, `bun:test`, `ava`, `tap`, `uvu`, `@japa/runner` or `cypress` is unmodelled;
+  - more than one of these is ambiguous;
+  - otherwise, a test or describe root the file calls (or `expect`) bound from another module is
+    indirect, and anything else uses globals.
+  - An explicit framework runs only under its runner. Globals run under Jest, Vitest or Mocha, and
+    indirect under any modelled runner.
+- `TSA-V0-144`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) Each test-looking file
+  MUST get one selection:
+  - `selected` when any compatible runner instance that is not uncertain selects it: the file is
+    under the instance's directory, matches an include pattern and matches no exclude pattern.
+    Selected files MUST NOT be reported.
+  - `uncertain`, never reported, when:
+    - the file is lexically uncertain (`source-unparsed`);
+    - its framework is ambiguous or unmodelled (`framework-ambiguous`, `framework-unmodelled`);
+    - there is no runner evidence at all (`no-runner-configuration`);
+    - it uses globals or an indirect import and unmodelled runner evidence exists
+      (`runner-unmodelled`);
+    - a compatible instance is uncertain (that instance's reason).
+  - `unselected` otherwise, with reason:
+    - `no-runner-for-framework` when no compatible instance exists;
+    - otherwise the first, in this order, that any compatible instance gives:
+      - `excluded` with the exclude pattern that matched;
+      - `suffix-mismatch` when a file in the same directory named `corvintprobe.test`,
+        `corvintprobe.spec` or `corvintprobe`, with the file's extension, `.js` or `.ts`, would be
+        selected;
+      - `outside-include`.
+    - The finding names the runner and configuration that gave the reason.
+- `TSA-V0-145`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172)
+  `corvint tests unselected [--rev REV]` MUST print one `corvint-test-file-selection/0` document:
+  - `revision`;
+  - `runners` (runner, config, directory, status `read`, `defaults` or `uncertain`, reason,
+    include and exclude);
+  - `unmodelledRunners`;
+  - `files`, the inventory of every test-looking file with its framework and selection;
+  - `findings`, one `TEST-FILE-UNSELECTED` per unselected file, carrying path, framework, reason,
+    runner, config and pattern.
+  - It MUST exit 1 when there is a finding and 0 otherwise. A refusal exits 2 with the TSA-V0-012
+    codes.
+  - The output is deterministic over the same revision.
+- `TSA-V0-146`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) `corvint tests
+  validity` (`testsource.SelectedSourceValidity`) MUST give every test of a named file that
+  TSA-V0-144 classifies `unselected` an `invalid` `TEST-FILE-UNSELECTED` finding, so its hygiene
+  is `INELIGIBLE` with that reason and it cannot be witness or coverage credit. The finding's
+  cause is the reason and, when present, `: pattern`.
+  - The tests are the ones the report already lists for the file, plus one per test declaration
+    it does not list.
+  - An `uncertain` or `selected` file, a `_spec.rb` file and a file that is not test-looking are
+    unchanged.
+
+Non-goals:
+- running a runner, reading CLI flags, environment-dependent configuration or a workspace's
+  per-project selection;
+- RSpec, Go and other languages, and runners other than the four modelled;
+- Jest `testRegex`, `roots` and `rootDir`, Vitest `root`/`dir` and projects, and Playwright
+  per-project selection, which abstain;
+- carrying the flag into the doc-corpus legacy crosswalk or the Playwright witness import, which
+  read receipts rather than this report (a V1-1888 residual).
+
+Failure modes:
+- A runner configured only through a CLI flag, a script argument or an environment variable is
+  not seen. Its files are reported against the defaults or another runner.
+- An import alias of a test root, or a fixture re-exported through a barrel that the file does not
+  bind by name, is read as globals, so a Playwright-only repository can report it as
+  `no-runner-for-framework`.
+- A package with a Vitest dependency and a `vite.config.*` without a `test` property uses Vitest
+  defaults.
+- Every configuration and test-looking file counts against the TSA-V0-012 bounds, so a very large
+  repository refuses `tests-bound-exceeded` instead of reporting.
+
+Acceptance evidence: synthetic Git repositories only.
+- A Jest-plus-Vitest repository reports a Playwright spec as `no-runner-for-framework`, a file
+  under an ignored directory as `excluded` naming `/legacy/`, a `.tests.js` file as
+  `suffix-mismatch` and a Vitest file outside `include` as `outside-include`. Selected files and
+  non-test-looking files are not reported, and `coverage.include` does not count.
+- Playwright `testDir`/`testIgnore` and a Mocha `.mocharc.json` spec are read.
+- Playwright matches the absolute path case-insensitively, Mocha skips hidden files and selects
+  an explicitly named file outside `extension`, brace ranges expand, an inline `**` stays in one
+  segment, and a Vitest workspace makes an explicit Vitest file uncertain.
+- Each abstain reason in TSA-V0-142 leaves files `uncertain` with no finding, as do no runner
+  evidence, an unmodelled runner and a `node:test` file.
+- The glob dialect is pinned.
+- `tests validity` on an unselected file is refused with `TEST-FILE-UNSELECTED`, and a selected
+  file is unchanged.
+- The CLI exits 1, 0 and 2.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testsource/unselected*.go`, `cmd/corvint/tests_unselected*.go`, the `unselected`
+dispatch and help, and this section, and restores `runTestsValidity` to call `SourceValidity`.
+Nothing is persisted.
+
+### Traceability (V1-1888)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-140 | `internal/testsource/unselected.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
+| TSA-V0-141 | `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
+| TSA-V0-142 | `internal/testsource/unselected_runners.go`, `internal/testsource/unselected_glob.go` | `TestUnselectedAbstainsTSAV0142`, `TestUnselectedGlobDialectTSAV0142`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
+| TSA-V0-143 | `internal/testsource/unselected.go` | `TestUnselectedIndirectFrameworkTSAV0143`, `TestUnselectedNoEvidenceTSAV0144` | experimental |
+| TSA-V0-144 | `internal/testsource/unselected.go`, `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedNoEvidenceTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141` | experimental |
+| TSA-V0-145 | `internal/testsource/unselected.go`, `cmd/corvint/tests_unselected.go` | `TestTestsUnselectedCLI`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
+| TSA-V0-146 | `internal/testsource/unselected.go`, `cmd/corvint/tests.go` | `TestSelectedSourceValidityRefusesUnselectedTSAV0146`, `TestTestsUnselectedCLI` | experimental |
+
 ## Implementation, rollout and rollback
 
 Parsing lives in `internal/testsource` (lint, duplicates, Git reads) and
