@@ -62,23 +62,24 @@ var (
 		"HOLD_CONDITION_UNKNOWN": "The hold's condition cannot be evaluated; fetch the named ref or commit, or correct the condition. The ticket stays held.",
 		"FREE_TEXT_HOLD_MET":     "The free-text hold names a commit or path that origin's default branch already has; confirm the blocker is gone, then release the hold or replace it with a typed condition.",
 
-		"NO_PROGRESS_HANDOFF": "Read the hand-off evidence, then refine, split or hold the ticket instead of claiming it again.",
-		"REPEAT_REFUSAL":      "Compare the review returns and failed gates for this tree; change the candidate or the criteria before resubmitting.",
-		"SLOW_LANE_RECOVERY":  "Inspect the member's cleanup output and the external resource; repair the cleanup, then confirm safety.",
-		"SETUP_ONLY_PROOF":    "Witness the core obligations or reopen the ticket; its completion proved only setup.",
-		"FALSE_IDLE":          "The session's process tree is busy while its heartbeat is stale; inspect the run before reaping or relaunching.",
-		"PLUGIN_FAILED":       "Fix or remove the project plugin named in `who`.",
-		"QUEUE_LOCK_HELD":     "Inspect the named process; if it is wedged, stop it so the queue lock is released, then rerun the doctor.",
-		"SLOW_QUEUE_COMMAND":  "Inspect the named command; a queue command this slow is usually waiting on the lock or a large journal read.",
-		"NO_COMPLETIONS":      "Ready tickets and free capacity exist but nothing completed; check the dispatcher and the workers' recent output.",
-		"FD_PRESSURE":         "Close idle sessions or raise the system file limit before launches start failing.",
-		"NOTIFY_FAILED":       "Fix the notify hook named in the doctor config; the doctor retries it at the next change of findings.",
-		"HOST_RETRY_STORM":    "The host keeps restarting turns without finishing one; check its provider limits and the worker's stdout.log lines cited.",
-		"HOST_ERRORS":         "The host reported repeated errors; read the cited stdout.log lines before relaunching the worker.",
-		"EARLY_REFUSAL":       "The session's first tool calls were all refused; check the worker's sandbox and permission profile.",
-		"WORK_STATE_FAILING":  "The dispatcher cannot read its work-state source; run dispatch status and repair the source named in lastError.",
-		"RUNNABLE_HELD_IDLE":  "Run-only work waits beside free pool members; lift or widen the named rule for it, or set the role's bypassFocus (ATR-V0-151) when the plan window holds it.",
-		"ROLE_QUEUE_DEEP":     "The role's queue stays deeper than its cap at calm pressure; raise its cap, or set capMax (ATR-V0-152), within the reported headroom.",
+		"NO_PROGRESS_HANDOFF":    "Read the hand-off evidence, then refine, split or hold the ticket instead of claiming it again.",
+		"REPEAT_REFUSAL":         "Compare the review returns and failed gates for this tree; change the candidate or the criteria before resubmitting.",
+		"SLOW_LANE_RECOVERY":     "Inspect the member's cleanup output and the external resource; repair the cleanup, then confirm safety.",
+		"SETUP_ONLY_PROOF":       "Witness the core obligations or reopen the ticket; its completion proved only setup.",
+		"FALSE_IDLE":             "The session's process tree is busy while its heartbeat is stale; inspect the run before reaping or relaunching.",
+		"PLUGIN_FAILED":          "Fix or remove the project plugin named in `who`.",
+		"QUEUE_LOCK_HELD":        "Inspect the named process; if it is wedged, stop it so the queue lock is released, then rerun the doctor.",
+		"SLOW_QUEUE_COMMAND":     "Inspect the named command; a queue command this slow is usually waiting on the lock or a large journal read.",
+		"NO_COMPLETIONS":         "Ready tickets and free capacity exist but nothing completed; check the dispatcher and the workers' recent output.",
+		"FD_PRESSURE":            "Close idle sessions or raise the system file limit before launches start failing.",
+		"NOTIFY_FAILED":          "Fix the notify hook named in the doctor config; the doctor retries it at the next change of findings.",
+		"HOST_RETRY_STORM":       "The host keeps restarting turns without finishing one; check its provider limits and the worker's stdout.log lines cited.",
+		"HOST_ERRORS":            "The host reported repeated errors; read the cited stdout.log lines before relaunching the worker.",
+		"EARLY_REFUSAL":          "The session's first tool calls were all refused; check the worker's sandbox and permission profile.",
+		"WORK_STATE_FAILING":     "The dispatcher cannot read its work-state source; run dispatch status and repair the source named in lastError.",
+		"RUNNABLE_HELD_IDLE":     "Run-only work waits beside free pool members; lift or widen the named rule for it, or set the role's bypassFocus (ATR-V0-151) when the plan window holds it.",
+		"ROLE_QUEUE_DEEP":        "The role's queue stays deeper than its cap at calm pressure; raise its cap, or set capMax (ATR-V0-152), within the reported headroom.",
+		"PARKED_WITH_OPEN_ITEMS": "A parked ticket still has open obligation items; an item leaving BLOCKED releases it at the next dispatcher observation (TOL-V0-124), otherwise decide the items or run dispatch unpark --key with the ticket.",
 	}
 )
 
@@ -131,6 +132,9 @@ type doctorScan struct {
 	elidedBases map[string]doctorBase
 	// journal is the live journal's size and growth (JRT-V0-012).
 	journal *doctorJournal
+	// openItems is, per OPEN or HELD ledger ticket with pending items, its
+	// pending obligation count from the record counts (TOL-V0-125).
+	openItems map[string]int64
 }
 
 func doctorUsage() error {
@@ -184,6 +188,7 @@ func doctorCommand(env Env, args []string) *wire.Result {
 		var e error
 		findings, e = doctorStoreFindings(rc, scan, cfg.thresholds)
 		holds = collectHeldHolds(rc.store.Inventory)
+		scan.openItems = doctorOpenItems(rc.store.Inventory)
 		return e
 	})
 	if err != nil {

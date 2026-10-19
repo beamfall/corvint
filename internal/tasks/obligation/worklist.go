@@ -24,6 +24,7 @@ const (
 	WorklistBlocked                 = "BLOCKED"
 	WorklistSubjectChanged          = "SUBJECT_CHANGED"
 	WorklistSubjectUnverified       = "SUBJECT_UNVERIFIED"
+	WorklistMirrorDecided           = "MIRROR_DECIDED_ELSEWHERE"
 
 	WorklistRankPriority = "priority"
 	WorklistRankNearest  = "nearest"
@@ -51,17 +52,24 @@ type WorklistInput struct {
 	ReviewedAt     wire.Timestamp
 	Stale          bool
 	Unverified     bool
+	// MirrorDecided marks a mirror entry decided on its owner ticket
+	// (TOL-V0-122).
+	MirrorDecided bool
 }
 
 // ClassifyWorklist places in: "" when it is not a reviewed shortfall (no
 // HELD review, or WITNESSED or DEFERRED); NEEDS_OBLIGATION_TEXT when a
-// reviewer found no falsifiable text; EXCLUDED with a reason for a pending
+// reviewer found no falsifiable text; EXCLUDED with a reason for a mirror
+// decided on its owner ticket (TOL-V0-122), a pending
 // candidate, a BLOCKED entry, or a subject changed or unreadable at HEAD;
 // otherwise ITEM.
 func ClassifyWorklist(in WorklistInput) (class, reason string) {
 	e := in.Entry
 	if e.Review == nil || e.Review.Outcome != ticket.ObligationReviewHeld || !BoundaryPending(e) {
 		return "", ""
+	}
+	if in.MirrorDecided {
+		return WorklistExcluded, WorklistMirrorDecided
 	}
 	for _, v := range e.Review.Review.Verdicts {
 		if v.Finding == ticket.VerdictFindingNoFalsifiableText {

@@ -76,6 +76,11 @@ type Ticket struct {
 	Obligations *ObligationsView
 }
 
+// PlanReasonMirrorsDecided is the plan deferral of a ticket whose pending
+// obligation items are all mirrors decided on their owner tickets
+// (TOL-V0-123); it equals transaction.PlanReasonMirrorsDecided.
+const PlanReasonMirrorsDecided = "MIRRORS_DECIDED_ELSEWHERE"
+
 // ObligationsView is the TOL-V0-017 summary of a ticket's obligation
 // ledger reference: its counts and its monotone high-water mark.
 type ObligationsView struct {
@@ -84,6 +89,11 @@ type ObligationsView struct {
 	// acceptance revision and witnessed count.
 	HighWaterRevision string
 	HighWater         int64
+	// Unblocks is the folded count of entries that left BLOCKED
+	// (TOL-V0-124); Unknown marks a ledger the observation could not fold,
+	// which leaves the ticket's work state UNKNOWN for progress and parking.
+	Unblocks int64
+	Unknown  bool
 }
 
 // LoopHold is a CAL-V0-102 hold as the dispatcher records it: the signal,
@@ -337,6 +347,9 @@ func roster(c *Config, obs *Observation, busy []Busy, skip map[string]bool, tier
 			if t.Loop != nil {
 				continue // CAL-V0-102: a session cannot claim it until the owner reopens it
 			}
+			if t.PlanReason == PlanReasonMirrorsDecided {
+				continue // TOL-V0-123: its open items are decided elsewhere; the owner completes it
+			}
 			if preferred[t.ID] && prefer[t.ID] != r.Name {
 				continue
 			}
@@ -586,6 +599,12 @@ func baseFingerprint(obs *Observation, key string) string {
 			// revision and its monotone high-water mark instead.
 			fmt.Fprintf(h, "%s|%s|%s\n", t.Status, t.AcceptanceRevision, t.State)
 			fmt.Fprintf(h, "obligations|%s|%d\n", t.Obligations.HighWaterRevision, t.Obligations.HighWater)
+			// TOL-V0-124: an entry leaving BLOCKED is a state change, so a
+			// ticket parked while its items were blocked is released on the
+			// next observation. A ledger that never unblocked hashes as before.
+			if n := t.Obligations.Unblocks; n > 0 {
+				fmt.Fprintf(h, "obligations-unblocked|%d\n", n)
+			}
 			gateFingerprint(h, t)
 		} else if t.ID == key {
 			fmt.Fprintf(h, "%s|%s|%s\n", t.Status, t.Revision, t.State)

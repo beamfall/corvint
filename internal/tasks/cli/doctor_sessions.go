@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -136,6 +137,7 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 				formats[w.ID] = w.Usage.Format
 			}
 		}
+		out = append(out, doctorParkedOpen(d.programDir, ledger, scan.openItems)...)
 	}
 	out = append(out, doctorAdmission(d, th, scan, warn)...)
 	root := filepath.Join(d.programDir, "workers")
@@ -187,6 +189,40 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 			continue
 		}
 		out = append(out, doctorSessionFindings(th, e.Name(), format, path, doctorClassifySession(format, raw))...)
+	}
+	return out
+}
+
+// doctorParkedOpen is one PARKED_WITH_OPEN_ITEMS finding per parked
+// ticket key of ledger whose ticket still has pending obligation items
+// (TOL-V0-125), in key order.
+func doctorParkedOpen(programDir string, ledger *dispatch.Ledger, open map[string]int64) []doctorFinding {
+	keys := make([]string, 0, len(ledger.Backoff))
+	for k, b := range ledger.Backoff {
+		if b != nil && b.Parked && open[k] > 0 {
+			keys = append(keys, k)
+		}
+	}
+	slices.Sort(keys)
+	out := make([]doctorFinding, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, doctorFinding{kind: "PARKED_WITH_OPEN_ITEMS", who: k, carried: true,
+			detail: fmt.Sprintf("ticket %s is parked by dispatcher %s with %d open obligation item(s)", k, programDir, open[k])})
+	}
+	return out
+}
+
+// doctorOpenItems maps each OPEN or HELD ticket whose ledger reference
+// counts pending items (total less witnessed) to that count.
+func doctorOpenItems(inv *ticket.Inventory) map[string]int64 {
+	out := map[string]int64{}
+	for _, id := range inv.IDs() {
+		rec, _ := inv.Get(id)
+		if activeLedger(rec) {
+			if n := rec.ObligationsRef.Counts.Total - rec.ObligationsRef.Counts.Witnessed; n > 0 {
+				out[id] = n
+			}
+		}
 	}
 	return out
 }
