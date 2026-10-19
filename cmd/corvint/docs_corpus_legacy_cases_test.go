@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -57,6 +58,41 @@ func TestDocsCorpusLegacyCasesCLI(t *testing.T) {
 	for _, text := range []string{"import-cases --format testrail-json|csv", "search-cases --format", "DCP-V1-070..079", "never count as runtime parity"} {
 		if !strings.Contains(docsHelp, text) {
 			t.Errorf("docs help omits %q", text)
+		}
+	}
+}
+
+// DCP-V1-165/166/169: search-cases --id returns exactly that case, --match any
+// prints the library's ranked bytes, and --id with --query or --match, or
+// neither, is invalid-arguments.
+func TestDCPV1165DocsCorpusSearchCasesModesCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	export := "ID,Title,Section Hierarchy,Suite\nC12345,Cancel a paid booking,Cancellation,Travel\nC200,Pay for a booking,Payments,Travel\n"
+	cemWrite(t, root, "exports/cases.csv", export)
+	base := []string{"docs", "corpus", "search-cases", "--format", "csv", "--input", "exports/cases.csv"}
+	for _, c := range []struct {
+		args  []string
+		query doccorpus.LegacyCaseQuery
+	}{
+		{[]string{"--id", "C12345"}, doccorpus.LegacyCaseQuery{ID: "C12345", Limit: 20}},
+		{[]string{"--id", "99"}, doccorpus.LegacyCaseQuery{ID: "99", Limit: 20}},
+		{[]string{"--query", "how do I cancel a paid booking", "--match", "any"}, doccorpus.LegacyCaseQuery{Query: "how do I cancel a paid booking", Match: "any", Limit: 20}},
+	} {
+		code, out, stderr := corpusCLI(t, root, append(slices.Clone(base), c.args...)...)
+		want, err := doccorpus.SearchLegacyCasesQuery("csv", "exports/cases.csv", []byte(export), c.query)
+		if code != 0 || err != nil || out != string(want) {
+			t.Fatalf("%v: %d %v %s %s", c.args, code, err, stderr, out)
+		}
+	}
+	for _, args := range [][]string{
+		{"--id", "C12345", "--query", "cancel"},
+		{"--id", "C12345", "--match", "all"},
+		{"--match", "any"},
+		{"--query", "cancel", "--match", "fuzzy"},
+	} {
+		if code, out, stderr := corpusCLI(t, root, append(slices.Clone(base), args...)...); code != 2 || out != "" || !strings.Contains(stderr, "invalid-arguments") {
+			t.Fatalf("%v admitted: %d %s %s", args, code, out, stderr)
 		}
 	}
 }
