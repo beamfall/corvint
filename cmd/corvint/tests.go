@@ -29,6 +29,10 @@ Usage:
   corvint [--root PATH] tests teardown --files PATH[,PATH...] --declaration PATH
     [--receipt FILE ...] [--rev REV]
   corvint [--root PATH] tests unselected [--rev REV]
+  corvint [--root PATH] tests role-locators [--rev REV]
+  corvint [--root PATH] tests env --profile NAME [--rev REV] [--base REV]
+  corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...]
+    [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -129,6 +133,30 @@ incomplete. A --receipt JS provider receipt bound to the committed test blob
 attaches recorded 409/422 delete outcomes. A verdict is never "safe". Exit 1
 on a declared finding, 0 otherwise.
 
+role-locators reports ROLE-LOCATOR-UNRENDERED where a component test locates
+alert, alertdialog, status or log output by role and no mounted component's
+markup renders that role; an unresolvable component or markup that could
+render a role the reader cannot see abstains. Exit 1 on a finding.
+
+env reads the committed shell bootstrap scripts of profile NAME (stem NAME or
+ending -NAME, _NAME, .NAME): each variable's derivation, value (UNKNOWN with a
+reason when unresolvable) and whether it is passed to tests; the stand-in
+services launched, their URL and control routes; and advisory
+ENV-HARD-CODED-OFFSET / ENV-HARD-CODED-ADDRESS warnings. --base lists changed
+variables and the tests whose use stays valid or not. Compose and dotenv files
+are named, not read.
+
+citations checks the revision-pinned source citations in at most 256 named
+committed documents read at --rev: inline-code spans of the form
+path[:START[-END]][#Symbol][@REV] whose path holds a "/" and that carry a
+line, a symbol or a revision, or any such path when the document declares
+<!-- corvint-cite-revision: REV -->. Each citation is read from the object
+store at its own revision (default: the document's, else --rev) and reported
+as missing-at-revision (with the nearest revision where the path exists when
+known), range-out-of-bounds, symbol-not-in-range or not-a-file; an
+unresolvable revision or a file over 1 MiB abstains. It prints one
+corvint-source-citations/0 document and exits 1 when a finding remains.
+
 Reads committed Git content and the named receipts only; writes nothing and
 uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
@@ -136,7 +164,8 @@ tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
-V1-1887, V1-1888, V1-1889).
+V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
+V1-1935).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -195,7 +224,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
 	}
 	if root == "" {
 		root = "."
@@ -219,8 +248,14 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsTeardown(repo, args[1:], out, diagnostic)
 	case "unselected":
 		return runTestsUnselected(repo, args[1:], out, diagnostic)
+	case "role-locators":
+		return runTestsRoleLocators(repo, args[1:], out, diagnostic)
+	case "env":
+		return runTestsEnv(repo, args[1:], out, diagnostic)
+	case "citations":
+		return runTestsCitations(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.

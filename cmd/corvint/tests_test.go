@@ -276,3 +276,40 @@ func TestTSAV0108SeedParityCLI(t *testing.T) {
 		t.Errorf("help: code=%d", code)
 	}
 }
+
+// TestTestsCitationsCLI: `corvint tests citations` prints the corvint-source-citations/0 report,
+// exits 1 while a citation is unsupported and 0 when every citation holds; bad arguments refuse
+// with exit 2 (TSA-V0-255).
+func TestTestsCitationsCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	testsCommit(t, root, map[string]string{"a/b.go": "package a\n\nfunc B() {}\n"})
+	head := testsCommit(t, root, map[string]string{
+		"docs/bad.md":  "See `a/b.go:2-9` and `a/b.go:3#B`.\n",
+		"docs/good.md": "See `a/b.go:1-3#B`.\n",
+	})
+	code, out, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/bad.md")
+	var report struct {
+		Schema, Revision string
+		Checked          int
+		Findings         []struct {
+			Doc, Citation, Reason string
+			Line                  int
+		}
+	}
+	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-source-citations/0" || report.Revision != head || report.Checked != 2 ||
+		len(report.Findings) != 1 || report.Findings[0].Reason != "range-out-of-bounds" || report.Findings[0].Line != 1 {
+		t.Fatalf("citations: code=%d out=%s err=%s", code, out, errb)
+	}
+	if code, _, errb := runCLI(t, "--root", root, "tests", "citations", "--docs", "docs/good.md", "--rev", head); code != 0 {
+		t.Errorf("valid: code=%d err=%s", code, errb)
+	}
+	for _, args := range [][]string{{}, {"--docs", "../x.md"}, {"--docs", "docs/absent.md"}, {"--docs", "docs/good.md", "extra"}} {
+		if code, out, _ := runCLI(t, append([]string{"--root", root, "tests", "citations"}, args...)...); code != 2 || out != "" {
+			t.Errorf("%v: code=%d out=%q", args, code, out)
+		}
+	}
+	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "tests citations --docs") {
+		t.Errorf("help: code=%d", code)
+	}
+}
