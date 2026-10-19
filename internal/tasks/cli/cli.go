@@ -493,7 +493,7 @@ func LiveFormats() []string {
 		ticket.ObligationEventProfile, ticket.ObligationPlanProfile, obligation.ProfileQualifications,
 		release.Profile, release.AttestationProfile, release.MutationProfile,
 		transaction.RunOutcomeProfile, runRecordProfile, leaseDetachProfile, defects.Profile,
-		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile, dispatch.CarryOverProfile, dispatch.PoolHoldProfile,
+		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.AdmissionProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile, dispatch.CarryOverProfile, dispatch.PoolHoldProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
 		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
 	}

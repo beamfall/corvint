@@ -231,6 +231,7 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		"taskman-doctor-cache/0":       plain(cli.DecodeDoctorCache),
 		"taskman-doctor-config/0":      plain(cli.DecodeDoctorConfig),
 		dispatch.ConfigProfile:         plain(func(b []byte) error { _, e := dispatch.DecodeConfig(b); return e }),
+		dispatch.AdmissionProfile:      plain(func(b []byte) error { _, e := dispatch.DecodeAdmission(b, "prog"); return e }),
 		dispatch.StateProfile: func(t *testing.T, p string) error {
 			dir := resolvedTempDir(t)
 			if err := os.WriteFile(filepath.Join(dir, "state.json"), enc(t, p), 0o600); err != nil {

@@ -1356,6 +1356,9 @@ ATR-V0-127	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-133	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) With	standing	2026-10-11; V1-1852
 ATR-V0-134	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) This ext	standing	2026-10-11; V1-1852
 ATR-V0-135	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1852) A dispat	standing	2026-10-11; V1-1852
+ATR-V0-150	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1914 and V1-19	standing	2026-10-11; V1-1914; V1-1916
+ATR-V0-151	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1914) A role M	standing	2026-10-11; V1-1914
+ATR-V0-152	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1916) A matchi	standing	2026-10-11; V1-1916
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -1405,6 +1408,8 @@ TQD-V0-033	docs/specs/corvint-tasks-doctor-v0.md	One doctor scan reads the journ
 TQD-V0-040	docs/specs/corvint-tasks-doctor-v0.md	Under a store policy that declares the ATR-V0-080 `progressSignal` `HANDOFF_EVID	unrecorded	-
 TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	Under the same declaration REPEAT_REFUSAL MUST restart its count for a ticket at	unrecorded	-
 TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
+TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observa	unrecorded	-
+TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	From the same observation, a role whose queue (running plus waiting sessions) st	unrecorded	-
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-

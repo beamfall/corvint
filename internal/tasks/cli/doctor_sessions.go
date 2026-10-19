@@ -137,6 +137,7 @@ func doctorDispatcher1(d doctorDispatcher, th doctorThresholds, scan *doctorScan
 			}
 		}
 	}
+	out = append(out, doctorAdmission(d, th, scan, warn)...)
 	root := filepath.Join(d.programDir, "workers")
 	f, err := openDirNonblock(root)
 	if errors.Is(err, os.ErrNotExist) {

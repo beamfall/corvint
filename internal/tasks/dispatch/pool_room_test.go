@@ -32,7 +32,7 @@ func poolRoomTickets() []Ticket {
 
 func roomRoster(c *Config, obs *Observation, workers []*Worker) (out, held []Assignment, room *poolRoom) {
 	room = newPoolRoom(obs, workers)
-	out, held = roster(c, obs, nil, nil, nil, nil, nil, nil, room)
+	out, held = roster(c, obs, nil, nil, nil, nil, nil, nil, room, nil)
 	return out, held, room
 }
 

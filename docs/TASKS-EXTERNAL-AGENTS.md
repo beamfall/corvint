@@ -753,13 +753,18 @@ when the condition does.
 
 `--config FILE` names a `taskman-doctor-config/0` file that sets those thresholds
 (`lockHeldSeconds`, `slowCommandSeconds`, `noCompletionsSeconds`, `fdPressurePercent`,
-`sessionWindowSeconds`, `retryStorm`, `hostErrors`, `earlyRefusal`, as decimal strings), a
+`sessionWindowSeconds`, `retryStorm`, `hostErrors`, `earlyRefusal`, `runnableHeldIdleTicks`,
+`roleQueueDeepTicks`, as decimal strings), a
 `notify` hook and up to eight `dispatchers` (`{"programDir", "format"}`). For each dispatcher the
 item reports its work-state reader health and a failing reader is a WORK_STATE_FAILING finding;
 its workers' recent `stdout.log` files, read under the recorded usage format, yield
 HOST_RETRY_STORM (3 turn starts with no finished turn), HOST_ERRORS (3 host error events) and
 EARLY_REFUSAL (3 failed tool calls before the first success), each citing the log path and line
-range. Output in an unrecognised format yields nothing.
+range. Output in an unrecognised format yields nothing. The dispatcher's per-tick queue
+observation (`admission.json`, ATR-V0-150) yields RUNNABLE_HELD_IDLE for a `runOnly` role's ticket
+held for 3 ticks beside free pool members, naming the rule that held it, and, only at calm pressure,
+ROLE_QUEUE_DEEP for a role whose queue stayed deeper than its cap for 3 ticks, with depth, cap,
+oldest wait and headroom; a missing, stale or unreadable observation yields nothing.
 
 The `notify` hook (`{"command": [ABSOLUTE_PATH, ...], "minIntervalSeconds": "N"}`) runs only
 during `--refresh`, once per change of the finding set and at most once per interval, with the
