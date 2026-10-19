@@ -359,7 +359,7 @@ var (
 	rubyAssertionPrefixes = []string{"be_", "have_", "assert", "refute", "match_"}
 )
 
-func rubyAssertion(name string) bool {
+func tdRubyAssertion(name string) bool {
 	if rubyAssertionNames[name] {
 		return true
 	}
@@ -661,7 +661,7 @@ func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 			toks[k] = text[loc[0]:loc[1]]
 		}
 		for k, tok := range toks {
-			if !rubyName(tok) || strings.HasPrefix(tok, "@") || tdRubyNames[tok] || rubyAssertion(tok) {
+			if !tdRubyName(tok) || strings.HasPrefix(tok, "@") || tdRubyNames[tok] || tdRubyAssertion(tok) {
 				continue
 			}
 			start, end := locs[k][0], locs[k][1]
@@ -672,7 +672,7 @@ func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 				continue // a hash key
 			}
 			root := k
-			for root >= 2 && toks[root-1] == "." && rubyName(toks[root-2]) {
+			for root >= 2 && toks[root-1] == "." && tdRubyName(toks[root-2]) {
 				root -= 2
 			}
 			paren := end < len(text) && text[end] == '('
@@ -705,11 +705,11 @@ func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 				if toks[j] == "do" || toks[j] == "{" {
 					break
 				}
-				if rubyName(toks[j]) && !tdRubyNames[toks[j]] && toks[j-1] != "." && toks[j-1] != ":" {
+				if tdRubyName(toks[j]) && !tdRubyNames[toks[j]] && toks[j-1] != "." && toks[j-1] != ":" {
 					c.mentions[toks[j]] = true
 				}
 			}
-			if root == 2 && toks[1] == "=" && rubyName(toks[0]) {
+			if root == 2 && toks[1] == "=" && tdRubyName(toks[0]) {
 				c.assigned = toks[0]
 			}
 			out = append(out, c)
@@ -718,7 +718,7 @@ func (w *rbWalker) calls(lines []rubyLine, teardown bool) []tdCall {
 	return out
 }
 
-func rubyName(tok string) bool {
+func tdRubyName(tok string) bool {
 	t := strings.TrimLeft(tok, "@")
 	return t != "" && (t[0] == '_' || unicode.IsLetter(rune(t[0])))
 }
