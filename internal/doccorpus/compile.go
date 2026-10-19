@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	json "encoding/json/v2"
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -426,7 +427,7 @@ func (c *compiler) native(provider Provider) error {
 	index := c.indexes[c.manifest.Repository.Revision]
 	for _, in := range c.manifest.Inputs {
 		if len(c.artifact.Subjects) > c.manifest.recordLimit() || len(c.artifact.Claims) > c.manifest.recordLimit() {
-			return fail("native record bound exceeded")
+			return fail(c.boundMessage("native record bound exceeded", in.Path, 1))
 		}
 		if in.Provider != provider.ID {
 			continue
@@ -448,7 +449,11 @@ func (c *compiler) native(provider Provider) error {
 		}
 		line := firstContentLine(text)
 		if line == 0 {
-			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", "empty source has no non-vacuous anchor"})
+			reason := "empty source has no non-vacuous anchor"
+			if strings.TrimSpace(text) != "" {
+				reason = fmt.Sprintf("no line within the %d-byte anchor bound", maxSpanBytes)
+			}
+			c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", reason})
 			continue
 		}
 		anchor, err := c.anchor(in.Revision, in.Path, line, line, "syntax", "source", "explicit input inventory")
@@ -467,14 +472,14 @@ func (c *compiler) native(provider Provider) error {
 			}
 		}
 		for _, s := range index.Symbols {
-			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
-				return fail("native record bound exceeded")
-			}
 			if s.Path != in.Path {
 				continue
 			}
 			if _, bad := index.UnparsedPaths()[in.Path]; bad {
 				continue
+			}
+			if len(c.artifact.Subjects) >= c.manifest.recordLimit() || len(c.artifact.Claims) >= c.manifest.recordLimit() {
+				return fail(c.boundMessage("native record bound exceeded", in.Path, s.Line))
 			}
 			a, err := c.anchor(in.Revision, in.Path, s.Line, s.Line, "syntax", "source", "native indexed declaration")
 			if err != nil {
@@ -495,9 +500,12 @@ func (c *compiler) native(provider Provider) error {
 	}
 	return nil
 }
+
+// firstContentLine is the first non-blank line whose span fits the excerpt bound, so one
+// oversized leading line no longer refuses the build (DCP-V1-146).
 func firstContentLine(text string) int {
-	for n, line := range strings.Split(text, "\n") {
-		if strings.TrimSpace(line) != "" {
+	for n, line := range strings.SplitAfter(text, "\n") {
+		if strings.TrimSpace(line) != "" && len(line) <= maxSpanBytes {
 			return n + 1
 		}
 	}
@@ -513,6 +521,10 @@ func lineText(text string, n int) string {
 func isTestPath(p string) bool {
 	return strings.HasSuffix(p, "_test.go") || strings.Contains(p, ".test.") || strings.Contains(p, ".spec.") || strings.HasPrefix(path.Base(p), "test_") || strings.HasSuffix(p, "_test.py") || strings.HasSuffix(p, "_spec.rb")
 }
+
+// maxSpanBytes bounds one evidence excerpt.
+const maxSpanBytes = 64 << 10
+
 func span(data []byte, start, end int) ([]byte, error) {
 	if start < 1 || end < start {
 		return nil, fail("invalid anchor span")
@@ -522,11 +534,38 @@ func span(data []byte, start, end int) ([]byte, error) {
 		return nil, fail("anchor span out of range")
 	}
 	s := bytes.Join(lines[start-1:end], nil)
-	if len(s) > 64<<10 || len(bytes.TrimSpace(s)) == 0 {
+	if len(s) > maxSpanBytes || len(bytes.TrimSpace(s)) == 0 {
 		return nil, fail("vacuous or oversized anchor")
 	}
 	return s, nil
 }
+
+// located names the input span a refusal concerns (DCP-V1-146).
+func located(err error, p string, start, end int) error {
+	var e *Error
+	if !errors.As(err, &e) {
+		return err
+	}
+	return &Error{Code: e.Code, Message: fmt.Sprintf("%s at %s:%d-%d", e.Message, p, start, end)}
+}
+
+// paragraphParts splits lines start..end (1-based, inclusive) into consecutive line-aligned
+// spans of at most maxSpanBytes, so an oversized paragraph such as a long table stays
+// verbatim instead of refusing the build. A single line past the bound remains its own
+// span, which the caller records as a not-collected gap (DCP-V1-146).
+func paragraphParts(lines []string, start, end int) [][2]int {
+	var parts [][2]int
+	from, size := start, 0
+	for i := start; i <= end; i++ {
+		if size > 0 && size+len(lines[i-1]) > maxSpanBytes {
+			parts = append(parts, [2]int{from, i - 1})
+			from, size = i, 0
+		}
+		size += len(lines[i-1])
+	}
+	return append(parts, [2]int{from, end})
+}
+
 func (c *compiler) anchor(revision, p string, start, end int, authority, kind, reason string) (Anchor, error) {
 	source, ok := c.sources[inputKey(revision, p)]
 	if !ok {
@@ -534,7 +573,7 @@ func (c *compiler) anchor(revision, p string, start, end int, authority, kind, r
 	}
 	data, err := span(source.Data, start, end)
 	if err != nil {
-		return Anchor{}, err
+		return Anchor{}, located(err, p, start, end)
 	}
 	return Anchor{Repository: c.manifest.Repository.ID, Revision: revision, Path: p, Blob: source.BlobHash, SHA256: Digest(source.Data), Start: start, End: end, SpanSHA256: Digest(data), Authority: authority, Kind: kind, Reason: reason}, nil
 }
@@ -617,6 +656,9 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 			continue
 		}
 		id := provider.ID + ":file:" + in.Path
+		if firstContentLine(text) == 0 {
+			continue // no file subject; native recorded the gap
+		}
 		lines := strings.SplitAfter(text, "\n")
 		start := 0
 		for i := 0; i <= len(lines); i++ {
@@ -629,17 +671,20 @@ func (c *compiler) nativeParagraphs(provider Provider) error {
 			if start == 0 {
 				continue
 			}
-			end := i
-			if end >= start {
-				anchor, err := c.anchor(in.Revision, in.Path, start, end, "source-document", "source", "verbatim source paragraph")
+			for _, part := range paragraphParts(lines, start, i) {
+				if part[0] == part[1] && len(lines[part[0]-1]) > maxSpanBytes {
+					c.artifact.Gaps = append(c.artifact.Gaps, Gap{id, "not-collected", fmt.Sprintf("paragraph line %d exceeds the %d-byte anchor bound", part[0], maxSpanBytes)})
+					continue
+				}
+				anchor, err := c.anchor(in.Revision, in.Path, part[0], part[1], "source-document", "source", "verbatim source paragraph")
 				if err != nil {
 					return err
 				}
-				excerpt := strings.Join(lines[start-1:end], "")
+				excerpt := strings.Join(lines[part[0]-1:part[1]], "")
 				ev := Evidence{Derivation: "source-derived", Trust: "generated", State: "supported", Freshness: "fresh", Anchors: []Anchor{anchor}, Limitations: []string{"verbatim source excerpt; quoted prose is not accepted intent or verified behavior"}}
-				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, start), id, excerpt, provider.ID, ev})
+				c.artifact.Claims = append(c.artifact.Claims, Claim{fmt.Sprintf("%s:paragraph:%d", id, part[0]), id, excerpt, provider.ID, ev})
 				if len(c.artifact.Claims) > c.manifest.recordLimit() {
-					return fail("native paragraph bound exceeded")
+					return fail(c.boundMessage("native paragraph bound exceeded", in.Path, part[0]))
 				}
 			}
 			start = 0
@@ -658,4 +703,14 @@ func (c *compiler) nativeExclusion(in Input) string {
 		}
 	}
 	return ""
+}
+
+// boundMessage locates a record-bound refusal and, under /1, names the manifest that raises the
+// bound (DCP-V1-146).
+func (c *compiler) boundMessage(prefix, path string, line int) string {
+	message := fmt.Sprintf("%s: more than %d records at %s:%d", prefix, c.manifest.recordLimit(), path, line)
+	if c.manifest.Schema != ManifestSchemaV2 {
+		message += "; a " + ManifestSchemaV2 + " manifest raises the bound"
+	}
+	return message
 }
