@@ -48,15 +48,21 @@ One Codex read-only round covered this change's commits only.
   - `require('./x',)` was missed.
 - Clarified in the spec: names from re-exports and pre-alias names count toward the stub-word
   test. The intent is that the module exports a stub, so the wording of TSA-V0-301 now says so.
-- Recorded, not changed: TSA-V0-306 narrows the unconditional TSA-V0-172 finding, and the last
-  sentence of TSA-V0-172 says the reading does not model seeding. This is the same narrowing
-  pattern TSA-V0-173 applies, and it is what the ticket's acceptance criterion (b) requires. No
-  accepted text is edited, and the owner decides whether to amend TSA-V0-172's wording.
+- Escalated, then amended by owner decision: TSA-V0-306 narrows the unconditional TSA-V0-172
+  finding, and the last sentence of TSA-V0-172 said the reading does not model seeding. This is
+  the same narrowing pattern TSA-V0-173 applies, and it is what the ticket's acceptance criterion
+  (b) requires. The first submission left the accepted text unedited and escalated.
+
+## TSA-V0-172 amendment (owner decision, 2026-10-19)
+
+The owner decided to amend TSA-V0-172. Its MUST now excludes a test whose in-scope fixture or
+hook seeds the collection as TSA-V0-306 defines, the sentence "The reading does not model fixture
+seeding" is removed, and its acceptance line records "amended 2026-10-19, owner decision,
+V1-1944". The V1-1919 failure mode that said a seeded fixture still gets the advisory now names
+the TSA-V0-306 suppression, the TSA-V0-307 abstention and the unread in-test seeding. The
+traceability row of TSA-V0-172 adds `TestVacuousEmptyEqualitySeeded`. No code changed.
 
 ## Residuals
 
-- TSA-V0-172 still says "The reading does not model fixture seeding". It is accurate for that
-  requirement alone, and TSA-V0-305 to TSA-V0-307 now add seeding on top of it. A wording
-  amendment is left to the owner.
 - Following imports (TSA-V0-312), `auto` fixtures, global setup and in-test seeding are not
   modelled.

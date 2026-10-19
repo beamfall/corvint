@@ -1138,13 +1138,14 @@ committed source; nothing reads a database, a network or a run. Each finding cit
 - `TSA-V0-171`: (standing auto-accept, 2026-10-11; V1-1931 / GitHub #1192) A file with any matcher
   that is not a literal string, or with no stub, MUST NOT be read for the rule, since that matcher
   may cover the value.
-- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193)
-  `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or equality assertion inside a
-  test body whose two operands are both collection-derived: `toHaveCount` or `toHaveLength` with a
-  collection-derived argument, or `toBe`, `toEqual` or `toStrictEqual` between two operands ending
-  in `.length`, `.size` or `.count()`. Its location and cause are the assertion line and its
-  message suggests a non-empty precondition or the exact seeded count. A negated chain or a literal
-  operand is not reported. The reading does not model fixture seeding.
+- `TSA-V0-172`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193; amended 2026-10-19,
+  owner decision, V1-1944) `VACUOUS-EMPTY-EQUALITY` MUST be an advisory finding on a count or
+  equality assertion inside a test body whose two operands are both collection-derived:
+  `toHaveCount` or `toHaveLength` with a collection-derived argument, or `toBe`, `toEqual` or
+  `toStrictEqual` between two operands ending in `.length`, `.size` or `.count()`. A test whose
+  in-scope fixture or hook seeds the collection, as TSA-V0-306 defines, is excluded. Its location
+  and cause are the assertion line and its message suggests a non-empty precondition or the exact
+  seeded count. A negated chain or a literal operand is not reported.
 - `TSA-V0-173`: (standing auto-accept, 2026-10-11; V1-1932 / GitHub #1193) An assertion in the same
   test that one of the collections is non-empty MUST suppress the finding: `toBeGreaterThan(n)`
   with `n >= 0`, `toBeGreaterThanOrEqual(n)` with `n >= 1`, a positive literal count or length,
@@ -1173,8 +1174,10 @@ Non-goals:
 Failure modes:
 - A registry imported from a fixture file is not reported in the test file that uses it; the
   fixture file itself is read only when named.
-- A fixture that seeds rows outside the test still gets a `VACUOUS-EMPTY-EQUALITY` advisory when
-  the test has no precondition; the advisory does not change hygiene.
+- A test whose in-scope fixture or hook seeds rows gets no `VACUOUS-EMPTY-EQUALITY` advisory
+  (TSA-V0-306); one whose fixture is declared in another file gets a `fixture-cross-file`
+  abstention instead (TSA-V0-307). Seeding written inside the test body is not read, so such a test
+  still gets the advisory when it has no precondition; the advisory does not change hygiene.
 - A run whose only error is a teardown failure now reports infrastructure, and the runner drops
   its test outcomes, so its passing tests are not counted as proof.
 
@@ -1214,7 +1217,7 @@ persisted.
 | TSA-V0-169 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported`, `TestUnstubbedOutboundInputCoverage` | experimental |
 | TSA-V0-170 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputReported` | experimental |
 | TSA-V0-171 | `internal/testsource/validity_unstubbed_input.go` | `TestUnstubbedOutboundInputAbstains` | experimental |
-| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest` | experimental |
+| TSA-V0-172 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityReported`, `TestVacuousEmptyEqualityOutsideTest`, `TestVacuousEmptyEqualitySeeded` | experimental |
 | TSA-V0-173 | `internal/testsource/validity_vacuous_empty.go` | `TestVacuousEmptyEqualityNegatives`, `TestVacuousEmptyEqualityEmptyText` | experimental |
 | TSA-V0-174 | none | NOT_PRODUCED (`server-outbound-log-not-produced`) | gap |
 | TSA-V0-175 | none | NOT_PRODUCED (`assertion-operands-not-produced`) | gap |
@@ -1228,8 +1231,9 @@ registry declared in a sibling module now produces an explicit cross-file absten
 silence. A test whose setup seeds data no longer gets `VACUOUS-EMPTY-EQUALITY`. A JSON behaviour
 contract gains a documented annotation form. The reader is still the TSA-V0-062 token reader over
 one committed file at a time. It does not follow imports: resolving the sibling module is
-NOT_PRODUCED (TSA-V0-312). No accepted requirement is amended. TSA-V0-305 to TSA-V0-307 add
-seeding to the reading that TSA-V0-172 describes. TSA-V0-301 to TSA-V0-304 add abstention records
+NOT_PRODUCED (TSA-V0-312). TSA-V0-305 to TSA-V0-307 add seeding to the reading that TSA-V0-172
+describes, and TSA-V0-172 itself is amended (2026-10-19, owner decision) to exclude the tests
+TSA-V0-306 suppresses; no other accepted requirement is amended. TSA-V0-301 to TSA-V0-304 add abstention records
 while still never reporting a finding that TSA-V0-167 or TSA-V0-171 forbids.
 
 - `TSA-V0-300`: (standing auto-accept, 2026-10-11; V1-1944) An advisory reading withheld
