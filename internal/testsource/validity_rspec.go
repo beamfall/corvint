@@ -46,11 +46,11 @@ type rspecGroup struct {
 	// `subject` alias of a named subject, which RSpec defines as a let).
 	decls map[string]string
 	hooks []rspecHook
+	// bodies maps a let or named subject name, and "subject", to its block lines (TSA-V0-121).
+	bodies map[string][]rubyLine
 	// line and head are the group's declaring line and its text, for TSA-V0-063..065.
 	line int
 	head string
-	// bodies maps a let or named subject name, and "subject", to its block lines (TSA-V0-121).
-	bodies map[string][]rubyLine
 }
 
 // rspecHook is one memoizing hook: a before(:each) hook, a let! or a subject!, with the names
@@ -76,14 +76,9 @@ type rspecReader struct {
 	tooDeep  bool // the last block call failed on nesting depth
 	lines    []rubyLine
 	groups   []rspecGroup
+	flow     rspecFlow
 	examples []rspecExample
 	helpers  []rspecHelper
-	// flowText, flowWords and flowOwner index the file for TSA-V0-120..130, built on first use.
-	flowText  []rubyText
-	flowWords [][]string
-	flowOwner map[int]int
-	// flowSubjects caches each group's subject names for TSA-V0-120..130.
-	flowSubjects map[int]map[string]bool
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a
@@ -168,6 +163,14 @@ func (r *rspecReader) read() string {
 			}
 			kind, declared := strings.TrimSuffix(m[1], "!"), m[2]+m[3]
 			g := &r.groups[group]
+			switch {
+			case kind == "let" && declared != "":
+				g.decls[declared] = "let"
+			case kind == "subject" && declared != "":
+				g.decls[declared], g.decls["subject"] = "let", "let:"+declared
+			case kind == "subject":
+				g.decls["subject"] = "subject"
+			}
 			if g.bodies == nil {
 				g.bodies = map[string][]rubyLine{}
 			}
@@ -176,14 +179,6 @@ func (r *rspecReader) read() string {
 			}
 			if kind == "subject" {
 				g.bodies["subject"] = body
-			}
-			switch {
-			case kind == "let" && declared != "":
-				g.decls[declared] = "let"
-			case kind == "subject" && declared != "":
-				g.decls[declared], g.decls["subject"] = "let", "let:"+declared
-			case kind == "subject":
-				g.decls["subject"] = "subject"
 			}
 			if strings.HasSuffix(m[1], "!") {
 				// let!(:x) adds `before { x }`; subject! adds `before { subject }`.

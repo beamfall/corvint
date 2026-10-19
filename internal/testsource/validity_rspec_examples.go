@@ -53,9 +53,15 @@ func RSpecExampleSources(name, text string) (map[int]testvalidity.ExampleSource,
 		test := fmt.Sprintf("%s:%d", name, e.line)
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
 		findings = append(findings, r.exampleFindings(name, test, e)...)
-		findings = append(findings, r.flowFindings(name, test, e)...)
 		count, anchors := expectations(name, e.body)
 		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors}
+	}
+	// The flow findings follow each example's other findings (TSA-V0-120..130).
+	for _, e := range r.examples {
+		test := fmt.Sprintf("%s:%d", name, e.line)
+		source := out[e.line]
+		source.Findings = append(source.Findings, r.flowFindings(name, test, e)...)
+		out[e.line] = source
 	}
 	return out, ""
 }

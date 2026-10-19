@@ -276,27 +276,36 @@ type rubyBinding struct {
 	span  [2]int
 }
 
+// rspecFlow indexes the file for TSA-V0-120..130, built on first use: each line's masked text and
+// words, the example owning each body line, and each group's subject names.
+type rspecFlow struct {
+	text     []rubyText
+	words    [][]string
+	owner    map[int]int
+	subjects map[int]map[string]bool
+}
+
 // flowContext is one example's view for the TSA-V0-120..130 readings.
 type flowContext struct {
 	r        *rspecReader
 	name     string
 	e        rspecExample
 	subject  map[string]bool // names that are, or are computed from, the subject (TSA-V0-122)
-	scope    []int           // the r.flowText indexes of every line outside the other examples' bodies
+	scope    []int           // the r.flow.text indexes of every line outside the other examples' bodies
 	action   int             // the first body line that names the subject, or 0
 	asserted map[int]bool    // body lines holding an expectation
 }
 
 func (r *rspecReader) flowContext(name string, e rspecExample) *flowContext {
 	c := &flowContext{r: r, name: name, e: e, subject: map[string]bool{}, asserted: map[int]bool{}}
-	if r.flowSubjects == nil {
-		r.flowSubjects = map[int]map[string]bool{}
+	if r.flow.subjects == nil {
+		r.flow.subjects = map[int]map[string]bool{}
 	}
-	if known, ok := r.flowSubjects[e.group]; ok {
+	if known, ok := r.flow.subjects[e.group]; ok {
 		maps.Copy(c.subject, known)
 	} else {
 		c.groupSubjects()
-		r.flowSubjects[e.group] = maps.Clone(c.subject)
+		r.flow.subjects[e.group] = maps.Clone(c.subject)
 	}
 	for _, l := range e.body[1:] {
 		t := maskRuby(l)
@@ -311,8 +320,8 @@ func (r *rspecReader) flowContext(name string, e rspecExample) *flowContext {
 		}
 	}
 	r.flowIndex()
-	for i, t := range r.flowText {
-		if owner, ok := r.flowOwner[t.line]; !ok || owner == e.line {
+	for i, t := range r.flow.text {
+		if owner, ok := r.flow.owner[t.line]; !ok || owner == e.line {
 			c.scope = append(c.scope, i)
 		}
 	}
@@ -356,19 +365,19 @@ func (c *flowContext) groupSubjects() {
 // flowIndex masks every line and reads its words once per file, and maps each example body line
 // to its example, so the per-example readings stay linear in the file.
 func (r *rspecReader) flowIndex() {
-	if r.flowText != nil {
+	if r.flow.text != nil {
 		return
 	}
-	r.flowOwner = map[int]int{}
+	r.flow.owner = map[int]int{}
 	for _, x := range r.examples {
 		for _, l := range x.body {
-			r.flowOwner[l.line] = x.line
+			r.flow.owner[l.line] = x.line
 		}
 	}
 	for _, l := range r.lines {
 		t := maskRuby(l)
-		r.flowText = append(r.flowText, t)
-		r.flowWords = append(r.flowWords, rubyWords(t.masked))
+		r.flow.text = append(r.flow.text, t)
+		r.flow.words = append(r.flow.words, rubyWords(t.masked))
 	}
 }
 
@@ -580,8 +589,8 @@ func (c *flowContext) mentioned(name string, binding int) bool {
 	own := regexp.MustCompile(`\b(?:allow|expect)\s*\(\s*` + regexp.QuoteMeta(name) + `\s*\)\s*\.\s*(?:to|not_to|to_not)\s*\(?\s*(?:receive|have_received)\b`)
 	set := regexp.MustCompile(`^` + regexp.QuoteMeta(name) + `\s*=`)
 	for _, i := range c.scope {
-		t := c.r.flowText[i]
-		if !slices.Contains(c.r.flowWords[i], name) {
+		t := c.r.flow.text[i]
+		if !slices.Contains(c.r.flow.words[i], name) {
 			continue
 		}
 		m := own.ReplaceAllString(t.masked, "")
@@ -637,8 +646,8 @@ func (c *flowContext) notFromSubject(a rubyAssertion) (origin, bool) {
 	}
 	for name := range roots {
 		for _, i := range c.scope {
-			t := c.r.flowText[i]
-			if allowed[t.line] || !slices.Contains(c.r.flowWords[i], name) {
+			t := c.r.flow.text[i]
+			if allowed[t.line] || !slices.Contains(c.r.flow.words[i], name) {
 				continue
 			}
 			if !c.asserted[t.line] || slices.Contains(rubyWords(assertionResidue(t)), name) {
