@@ -25,6 +25,8 @@ func recordID(value any) string {
 		return x.ID
 	case FlowRelationJoin:
 		return x.ID
+	case SuppliedGap:
+		return x.ID
 	}
 	return ""
 }
@@ -48,6 +50,8 @@ func recordAnchors(value any) []Anchor {
 		return testKnowledgeAnchors(x)
 	case FlowRelationJoin:
 		return flowRelationAnchors(x)
+	case SuppliedGap:
+		return x.Evidence.Anchors
 	}
 	return nil
 }

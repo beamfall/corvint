@@ -57,7 +57,7 @@ func (c *compiler) preloadProviders() error {
 			if len(p.Shards) > 0 && record.Schema != AdoptionProviderSchema {
 				return fail("shards require adoption provider profile")
 			}
-			if record.Schema != AdoptionProviderSchema && (record.Details != nil || record.RestrictedFindings != nil) {
+			if record.Schema != AdoptionProviderSchema && (record.Details != nil || record.RestrictedFindings != nil || record.Gaps != nil) {
 				return fail("adoption fields require their explicit provider schema")
 			}
 			if (record.Schema == TestKnowledgeSchema) != (record.TestKnowledge != nil) {
@@ -67,7 +67,7 @@ func (c *compiler) preloadProviders() error {
 				return fail("flow_relations requires its explicit provider schema")
 			}
 			counts := [5]int{len(record.Subjects), len(record.Claims), len(record.Relations), len(record.Journeys), len(record.Observations)}
-			limits := [5]int{c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.journeyLimit(), MaxRecords}
+			limits := [5]int{c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.recordLimit(), c.manifest.journeyLimit(), c.manifest.recordLimit()}
 			for i, n := range counts {
 				if n > limits[i]-totals[i] {
 					return fail("aggregate provider record bound exceeded")

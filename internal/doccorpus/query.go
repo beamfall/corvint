@@ -343,6 +343,13 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 				r.Results = append(r.Results, g)
 			}
 		}
+		// DCP-V1-186: supplied gaps follow the computed ones, labelled by origin.
+		for _, g := range a.SuppliedGaps {
+			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID {
+				r.Results = append(r.Results, g)
+				r.Citations = append(r.Citations, g.Evidence.Anchors...)
+			}
+		}
 	case "concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent":
 		if a.RuntimeIndex == nil {
 			copy := *a
@@ -655,6 +662,34 @@ func coverageMetrics(a *Artifact) []any {
 			rows = append(rows, map[string]any{"metric": s.ID, "value": len(d.Numerator), "denominator": len(d.Denominator), "defined": len(d.Denominator) > 0, "definition": d.Definition, "rule": d.Rule, "revision": a.Manifest.Repository.Revision, "limitations": []string{"supplied membership only; original intent and semantic adequacy unassessed"}})
 		}
 	}
+	rows = append(rows, suppliedStatusCoverage(a)...)
 	rows = append(rows, testKnowledgeCoverage(a)...)
 	return append(rows, behaviorCoverage(a)...)
+}
+
+// suppliedStatusCoverage counts producer-supplied statuses per state
+// (DCP-V1-188). It yields no row when no status was supplied, so existing
+// coverage receipts keep their bytes.
+func suppliedStatusCoverage(a *Artifact) []any {
+	counts := map[string]int{}
+	total := 0
+	for _, claim := range a.Claims {
+		if d := a.Details[claim.ID].Status; d != nil {
+			counts[d.State]++
+			total++
+		}
+	}
+	if total == 0 {
+		return nil
+	}
+	states := make([]string, 0, len(counts))
+	for state := range counts {
+		states = append(states, state)
+	}
+	sort.Strings(states)
+	rows := []any{}
+	for _, state := range states {
+		rows = append(rows, map[string]any{"metric": "supplied_status:" + state, "value": counts[state], "denominator": total, "defined": true, "definition": "supplied status claims in this state / all supplied status claims", "origin": "supplied", "revision": a.Manifest.Repository.Revision, "limitations": []string{"producer-supplied status; not derived or verified by the compiler and grants no trust"}})
+	}
+	return rows
 }
