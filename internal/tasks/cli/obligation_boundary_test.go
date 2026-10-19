@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -289,6 +290,39 @@ func TestTOLV0085_FindingNeedsShortfallVerdict(t *testing.T) {
 	bad := reviewFile(t, "2", "none", `{"reviewer":"rev-a","verdict":"correct","stubRisk":"none","reason":"r","finding":"NO_FALSIFIABLE_TEXT"}`, verdict("rev-b", "correct", "none", "ok"))
 	if x := reviewWitness(t, r.Root, id, "rv-bad", head, "AC-1", bad); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("finding on a correct verdict admitted: %s", x.stdout)
+	}
+	empty := reviewFile(t, "2", "none", `{"reviewer":"rev-a","verdict":"correct","stubRisk":"none","reason":"r","finding":""}`, verdict("rev-b", "correct", "none", "ok"))
+	if x := reviewWitness(t, r.Root, id, "rv-empty", head, "AC-1", empty); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "finding") {
+		t.Fatalf("empty finding admitted: %s", x.stdout)
+	}
+}
+
+// TestTOLV0086_WorklistTestRepositoryUnverified: an item reviewed from a
+// declared test repository carries that repository, and a test checkout
+// with no HEAD commit leaves it SUBJECT_UNVERIFIED, never SUBJECT_CHANGED
+// (TOL-V0-086; Codex finding on this change).
+func TestTOLV0086_WorklistTestRepositoryUnverified(t *testing.T) {
+	app, appHead := separateTestRepo(t)
+	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
+	seedObligations(t, r.Root, id)
+	held := reviewFile(t, "1", "none", verdict("rev-a", "partial", "none", "misses the error branch"))
+	if x := reviewWitness(t, r.Root, id, "rv-app", appHead, "AC-1", held, "--test-repository", "app"); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "reviewOutcome").Str != "HELD" {
+		t.Fatalf("test-repository review: %s", x.stdout)
+	}
+	v := worklistRead(t, r.Root, "--target", id)
+	if worklistIDs(v, "items") != "AC-1" || field(field(v, "items").Arr[0], "testRepository").Str != "app" {
+		t.Fatalf("test-repository item: %s", wire.Encode(v))
+	}
+	if err := os.Rename(app, app+".moved"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(app, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(t, app, "init", "-q")
+	v = worklistRead(t, r.Root, "--target", id)
+	if len(field(v, "items").Arr) != 0 || worklistIDs(v, "excluded") != "AC-1:SUBJECT_UNVERIFIED" {
+		t.Fatalf("unborn test repository: %s", wire.Encode(v))
 	}
 }
 

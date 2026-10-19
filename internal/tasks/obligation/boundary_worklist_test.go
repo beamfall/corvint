@@ -29,12 +29,16 @@ func TestTOLV0083_BoundaryTestKind(t *testing.T) {
 // NO_TEST_BOUNDARY (TOL-V0-083).
 func TestTOLV0083_BoundaryVerdictDirectoryCite(t *testing.T) {
 	infra := "infra"
-	b := NewBoundaryInventory(&infra, []string{"deploy", "gone.tf"})
+	b := NewBoundaryInventory(&infra, []string{"deploy", "deploy/", "gone.tf"})
 	b.Visit("deploy/main.tf")
 	inv := map[string]*BoundaryInventory{"infra": b}
 	dir := ticket.ObligationEntry{Cites: []ticket.ObligationCite{{Repository: &infra, Path: "deploy"}}}
 	if v, r := BoundaryVerdict(dir, inv); v != BoundaryNoTestBoundary || r != BoundaryNoRunnableTests {
 		t.Fatalf("directory cite: %s/%s", v, r)
+	}
+	slash := ticket.ObligationEntry{Cites: []ticket.ObligationCite{{Repository: &infra, Path: "deploy/"}}}
+	if v, r := BoundaryVerdict(slash, inv); v != BoundaryNoTestBoundary || r != BoundaryNoRunnableTests {
+		t.Fatalf("directory cite with a trailing slash: %s/%s", v, r)
 	}
 	gone := ticket.ObligationEntry{Cites: []ticket.ObligationCite{{Repository: &infra, Path: "gone.tf"}}}
 	if v, r := BoundaryVerdict(gone, inv); v != BoundaryNoTestBoundary || r != BoundaryNoTrackedCode {

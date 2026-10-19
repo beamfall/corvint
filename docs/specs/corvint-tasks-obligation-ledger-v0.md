@@ -917,7 +917,8 @@ declared test repositories (TOL-V0-064); no new journal or record profile is add
 - `TOL-V0-079`: (accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An `OBLIGATIONS_SET`
   change and an entry MUST admit the optional member `cites`: 1..16 objects
   `{repository, path}`, where `repository` is null for the store's own repository or a label naming
-  a declared test repository, and `path` is a repository path to a file or directory. A change's
+  a declared test repository, and `path` is a repository path to a file or directory (a trailing
+  `/` names the same directory). A change's
   `cites` replaces the entry's. An entry without the member keeps its exact earlier bytes, and an
   older closed reader refuses a change that carries it `MALFORMED`. A label is not checked at write;
   an undeclared label reads `UNKNOWN` (TOL-V0-083).
@@ -977,7 +978,7 @@ witness candidate awaits review.
   `HELD`, in this order:
   - `needsObligationText` when any verdict carries `NO_FALSIFIABLE_TEXT`;
   - `excluded` with `CANDIDATE_AWAITING_REVIEW` (a `candidate` is recorded), `BLOCKED` (the entry is
-    `BLOCKED`), `SUBJECT_UNVERIFIED` (the reviewed test repository cannot be read) or
+    `BLOCKED`), `SUBJECT_UNVERIFIED` (the reviewed test repository cannot be read or has no `HEAD` commit) or
     `SUBJECT_CHANGED` (the reviewed example's blob at that repository's `HEAD` differs or is absent);
   - otherwise an item.
 

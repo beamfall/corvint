@@ -110,7 +110,7 @@ type BoundaryInventory struct {
 func NewBoundaryInventory(repo *string, cited []string) *BoundaryInventory {
 	b := &BoundaryInventory{Repository: repo, Kinds: map[string]int64{}, cited: map[string]bool{}, tracked: map[string]bool{}}
 	for _, c := range cited {
-		b.cited[c] = true
+		b.cited[boundaryCitePath(c)] = true
 	}
 	return b
 }
@@ -189,7 +189,7 @@ func BoundaryVerdict(e ticket.ObligationEntry, inv map[string]*BoundaryInventory
 			unknown = true
 			continue
 		}
-		if b.tracked[c.Path] {
+		if b.tracked[boundaryCitePath(c.Path)] {
 			if b.TestFiles > 0 {
 				return BoundaryTestable, ""
 			}
@@ -212,8 +212,12 @@ func BoundaryCiteTracked(c ticket.ObligationCite, inv map[string]*BoundaryInvent
 	if b == nil || !b.Known() {
 		return false, false
 	}
-	return b.tracked[c.Path], true
+	return b.tracked[boundaryCitePath(c.Path)], true
 }
+
+// boundaryCitePath is the key a cite matches tracked paths under: a
+// directory cite may end in "/", which tracked paths never do.
+func boundaryCitePath(p string) string { return strings.TrimSuffix(p, "/") }
 
 // BoundaryRescopeCandidate reports whether e is out of scope by an
 // accepted decision and now TESTABLE (TOL-V0-083), so the decision is

@@ -49,7 +49,7 @@ func readReviewInput(file string) (*ticket.ObligationReview, error) {
 		v := ticket.ObligationVerdict{Reviewer: it.Field("reviewer").String(), Verdict: it.Field("verdict").String(),
 			StubRisk: it.Field("stubRisk").String(), Reason: it.Field("reason").String()}
 		if wire.Has(it.Value(), "finding") {
-			v.Finding = it.Field("finding").String()
+			v.Finding = it.Field("finding").Enum(ticket.VerdictFindingNoFalsifiableText)
 		}
 		out.Verdicts = append(out.Verdicts, v)
 	}

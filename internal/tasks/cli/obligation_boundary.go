@@ -250,7 +250,11 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 		root, err := obligationRepoRoot(env, rc, repo)
 		var content map[string][]byte
 		if err == nil {
-			_, _, content, err = store.FilesAtCommit(root, "HEAD", paths)
+			var commit string
+			commit, _, content, err = store.FilesAtCommit(root, "HEAD", paths)
+			if err == nil && commit == "" {
+				err = wire.Errorf(wire.CodeMissingEvidence, "HEAD", "the repository has no HEAD commit")
+			}
 		}
 		for _, i := range idx {
 			if err != nil {

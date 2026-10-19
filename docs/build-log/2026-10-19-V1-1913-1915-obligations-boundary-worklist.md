@@ -42,30 +42,47 @@ accepted requirement is amended.
 
 ## Evidence
 
-- Load averages before the first focused run were 43.38 39.74 33.23, and 33.86 38.20 34.02
-  after the CLI run.
+- The branch is stacked on #1189: BASE is `2326a3bfe`, the merge of #1189's head `9378caa0e` into
+  `origin/main` `714393264`. The worklist reads each review's test repository from #1189's
+  `review.testRepository` record member, the same source `show` uses.
 - Focused tests, through heavy.sh, one package per command, with `-race`:
-  - `internal/tasks/obligation`: 3 new tests pass.
-  - `internal/tasks/cli -run 'TestTOLV008[2-8]'`: 4 new tests pass.
-  - BASE `f3c5e958b` has none of these tests, so the BASE count is 0.
-- 16 mutations, each run against its own test, and all 16 bite:
-  - BoundaryVerdict tests-present check
-  - re-scope verdict
-  - JavaScript test classifier
-  - self-accept
-  - no-proposal
-  - accept sets core
-  - propose keeps core
-  - requireScopeDecision
-  - worklist candidate exclusion
-  - candidate cleared on review
-  - needs-text
-  - finding beside a correct verdict
-  - `--next` batch key
-  - nearest rank
-  - unknown rank key
-  - stale subject
+  - `internal/tasks/obligation`: ok, 1.2s (load averages 36.60 36.83 36.17).
+  - `internal/tasks/ticket`: ok (36.60 36.83 36.17).
+  - `internal/tasks/mutation`: ok (34.71 36.44 36.03).
+  - `internal/tasks/intent`: ok, 56.9s (39.51 37.36 36.36).
+  - `internal/tasks/cli`, the whole package: ok, 901s (33.19 35.95 35.91 before, 33.63 28.99 30.34
+    after). This ran on the code before the Codex fixes.
+  - After the Codex fixes: `obligation` ok (35.39 28.91 30.36), `mutation` ok (31.89 29.24 30.38),
+    and `cli -run 'TestTOLV00(7|8)'` ok, 15.7s (33.74 30.83 30.94).
+  - BASE has none of the new tests, so the BASE count is 0.
+- 20 mutations, each run against its own test, and all 20 bite. Load averages were 22.62 28.27 29.98
+  before and 25.02 26.24 28.51 after.
+  - The 16 from the first build: BoundaryVerdict's tests-present check, re-scope verdict,
+    JavaScript test classifier, self-accept, no-proposal, accept sets core, propose keeps core,
+    requireScopeDecision, worklist candidate exclusion, candidate cleared on review, needs-text,
+    finding beside a correct verdict, `--next` batch key, nearest rank, unknown rank key, stale
+    subject.
+  - 4 from the Codex fixes: the trailing-slash cite, the unborn test-repository `HEAD`, the empty
+    finding, and the OWNER-only ACCEPT guard.
 - The script is a scratch file and is not retained.
+
+## Codex review (one round)
+
+There was one `codex exec -s read-only` round over `2326a3bfe..653a48d62`. It found no legacy-byte
+regression and no authority or self-acceptance bypass. All four findings are fixed:
+
+1. **P2: a directory cite ending in `/` read as `NO_TRACKED_CODE`.** Fixed: cites are matched
+   without the trailing `/` (`boundaryCitePath`). The spec says a trailing `/` names the same
+   directory.
+2. **P2: an unborn `HEAD` in a test repository read as `SUBJECT_CHANGED`.** `FilesAtCommit` returns
+   an empty commit and no error. Fixed: the worklist treats it as `SUBJECT_UNVERIFIED`, and TOL-V0-086
+   says so. Test: `TestTOLV0086_WorklistTestRepositoryUnverified`.
+3. **P3: `"finding":""` passed the CLI and was dropped at serialisation.** Fixed: the CLI reads
+   `finding` as the closed enum. The empty case is now tested.
+4. **P2: the CLI test could not reach the OWNER-only ACCEPT guard,** because the default role
+   matrix already refuses OPERATOR. A policy can only remove rows, so no fixture can grant it.
+   Fixed: an internal test, `TestTOLV0081_ScopeAcceptOwnerOnly`, calls `obligationAuthority`
+   directly.
 
 ## Residuals
 
@@ -76,3 +93,7 @@ accepted requirement is amended.
 - Cite repository labels are not validated at write. An undeclared label reads UNKNOWN.
 - The boundary and staleness reads look at each repository's HEAD, not at a reviewed commit.
 - Rank keys are fixed (priority, nearest, age). There is no per-policy default.
+- #1189's `witnessReviewValue` reads an unborn `HEAD` in a declared test repository the same way:
+  as a resolved repository whose subject is absent. So it reports `stale: true` rather than
+  `TEST_REPOSITORY_UNRESOLVED`. The credit is withheld either way. This is #1189's code and is left
+  for that change.
