@@ -1591,6 +1591,15 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			return
 		}
+		// ATR-V0-141: the review packet is read before any pre-launch claim,
+		// because a claim opens a generation without the submitted
+		// candidate the packet diffs.
+		var packet string
+		var packetErr error
+		reviewPacket := a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.ReviewPacket.on()
+		if reviewPacket {
+			packet, packetErr = d.reviewPacketFor(ctx, obs, role.ReviewPacket, a.Ticket)
+		}
 		// ATR-V0-120: a holdPool role's ticket is claimed with its pool
 		// member before anything can spawn; a refusal launches nothing.
 		hold, ok := d.claimPoolHold(ctx, obs, role, a, id)
@@ -1646,6 +1655,21 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			}
 			if carryText != "" {
 				values["{prompt}"] += "\n\n" + carryText
+			}
+		}
+		// ATR-V0-141: a review role's prompt carries the bounded review
+		// packet after any carry-over block; it is never expanded either.
+		if reviewPacket {
+			err := packetErr
+			if err == nil {
+				err = renderedArgvSafe(host.Argv, values)
+			}
+			if err != nil {
+				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("review packet not offered: %v", err)})
+				packet = ""
+			}
+			if packet != "" {
+				values["{prompt}"] += "\n\n" + packet
 			}
 		}
 		argv := make([]string, len(host.Argv))
@@ -1783,6 +1807,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			detail["model"], detail["tier"] = model, strconv.Itoa(a.Tier)
 		}
 		carryDetail(detail, carried, carryText) // ATR-V0-114
+		reviewPacketDetail(detail, packet)      // ATR-V0-141
 		if role.Effort != "" {
 			detail["effort"] = role.Effort
 		}
