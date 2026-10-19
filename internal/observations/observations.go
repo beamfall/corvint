@@ -208,6 +208,10 @@ type Event struct {
 	OmittedCount     int      `json:"omittedCount,omitempty"`
 	CriticalMissing  int      `json:"criticalMissingCount,omitempty"`
 	Authoritative    int      `json:"authoritativeResultCount,omitempty"`
+	// AuthorityCounted marks a user-prompt row whose writer read a measured
+	// authoritative-result count; a row without it (written before V1-1977, when
+	// every decoded count read as zero) enters no authority rate (SOL-V0-011).
+	AuthorityCounted bool     `json:"authorityCounted,omitempty"`
 	LatencyMS        int64    `json:"latencyMs,omitempty"`
 	TouchedPaths     []string `json:"touchedPaths,omitempty"`
 	RankedPaths      []string `json:"rankedPaths,omitempty"`
@@ -373,6 +377,9 @@ func validateWriterContract(event Event) error {
 		}
 	default:
 		return prohibitedContent("kind")
+	}
+	if event.AuthorityCounted && (event.Kind != "event" || event.Event != "user-prompt") {
+		return prohibitedContent("authorityCounted")
 	}
 	if event.UncertaintyCount < 0 || event.OmittedCount < 0 || event.CriticalMissing < 0 || event.Authoritative < 0 || event.LatencyMS < 0 {
 		return prohibitedContent("negative-count")
@@ -806,9 +813,14 @@ type Digest struct {
 	Degradations map[string]int
 	Misses       map[string]int
 	Unsupported  map[string]int
-	ZeroResults  int
-	BudgetOmit   int
-	Latencies    []int64
+	// ZeroResults counts measured user-prompt rows with no authoritative
+	// result, over AuthorityRows measured user-prompt rows; AuthorityUnmeasured
+	// counts user-prompt rows that carry no measured count (SOL-V0-011).
+	ZeroResults         int
+	AuthorityRows       int
+	AuthorityUnmeasured int
+	BudgetOmit          int
+	Latencies           []int64
 	// Proofs counts `proof` rows; Verdicts sums their counts by falsifier
 	// then verdict.
 	Proofs   int
@@ -949,8 +961,16 @@ func readRow(result *Digest, row []byte) string {
 	if event.OmittedCount > 0 {
 		result.BudgetOmit++
 	}
-	if event.Kind == "event" && event.Event == "user-prompt" && event.Authoritative == 0 {
-		result.ZeroResults++
+	if event.Kind == "event" && event.Event == "user-prompt" {
+		switch {
+		case !event.AuthorityCounted:
+			result.AuthorityUnmeasured++
+		case event.Authoritative == 0:
+			result.AuthorityRows++
+			result.ZeroResults++
+		default:
+			result.AuthorityRows++
+		}
 	}
 	if event.LatencyMS > 0 {
 		result.Latencies = append(result.Latencies, event.LatencyMS)
@@ -1104,7 +1124,7 @@ func Render(root string, limit int, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	lines := []string{fmt.Sprintf("SELF-OBSERVATIONS events=%d zero-authoritative-rate=%s budget-omission-rate=%s latency-p50=%dms latency-p95=%dms", data.Events, rate(data.ZeroResults, data.Events), rate(data.BudgetOmit, data.Events), percentile(data.Latencies, 50), percentile(data.Latencies, 95))}
+	lines := []string{fmt.Sprintf("SELF-OBSERVATIONS events=%d zero-authoritative-rate=%s budget-omission-rate=%s latency-p50=%dms latency-p95=%dms", data.Events, rate(data.ZeroResults, data.AuthorityRows), rate(data.BudgetOmit, data.Events), percentile(data.Latencies, 50), percentile(data.Latencies, 95))}
 	if data.SkippedRows > 0 {
 		lines = append(lines, fmt.Sprintf("SKIPPED-ROWS count=%d oversized", data.SkippedRows))
 	}
@@ -1119,6 +1139,10 @@ func Render(root string, limit int, output io.Writer) error {
 	if data.Truncated {
 		lines = append(lines, fmt.Sprintf("LEDGER-CUT cap-bytes=%d", maxFileBytes))
 	}
+	if data.AuthorityUnmeasured > 0 {
+		lines = append(lines, fmt.Sprintf("AUTHORITY-UNMEASURED count=%d", data.AuthorityUnmeasured))
+	}
+	lines = append(lines, setupLines(data)...)
 	lines = append(lines, falsificationLines(data)...)
 	lines = append(lines, ranked("DEGRADATION", data.Degradations, data.Events, true)...)
 	lines = append(lines, ranked("ROUTING-MISS", data.Misses, data.Events, false)...)
@@ -1191,9 +1215,43 @@ func ranked(kind string, values map[string]int, total int, standing bool) []stri
 			result = append(result, fmt.Sprintf("UNSUPPORTED-BY-DESIGN count=%d key=%s decision=%s", values[key], key, decision))
 			continue
 		}
+		if decision := degradationByDesign[key]; kind == "DEGRADATION" && decision != "" {
+			result = append(result, fmt.Sprintf("DEGRADATION-BY-DESIGN count=%d key=%s decision=%s", values[key], key, decision))
+			continue
+		}
 		result = append(result, fmt.Sprintf("%s count=%d key=%s %s", kind, values[key], key, label))
 	}
 	return result
+}
+
+// degradationByDesign is SOL-V0-012's closed registry: a receipt degradation the
+// harness emits unconditionally, by an accepted decision, mapped to that record.
+// `frontier-authority-unavailable` says no closing Frontier authority exists
+// (AHI-054); it is on every receipt and says nothing about project authority.
+var degradationByDesign = map[string]string{
+	"frontier-authority-unavailable": "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
+}
+
+// snapshotStaleCode is the adapter rejection whose remedy is a setup step, not a
+// code change: no index snapshot matches the tree (AHI-031).
+const snapshotStaleCode = "corvint-event-rejected:dogfood-event-index-snapshot-stale"
+
+// setupLines is SOL-V0-013's setup diagnosis: one SETUP line naming the refresh
+// command when any retained adapter row carries the stale-snapshot rejection.
+func setupLines(data Digest) []string {
+	rows, latest := 0, ""
+	for key, count := range data.Adapter {
+		if strings.HasSuffix(key, "/"+snapshotStaleCode) {
+			rows += count
+			if data.AdapterLatest[key] > latest {
+				latest = data.AdapterLatest[key]
+			}
+		}
+	}
+	if rows == 0 {
+		return nil
+	}
+	return []string{fmt.Sprintf("SETUP key=index-snapshot-stale rows=%d latest=%s fix: corvint index --if-stale", rows, latest)}
 }
 
 // byDesignDecision is the decision record for an UNSUPPORTED code/intent key

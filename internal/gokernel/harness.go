@@ -529,9 +529,13 @@ func observationEvent(event string, input, response, context map[string]any, ela
 	}
 	if coverage, ok := context["coverage"].(map[string]any); ok {
 		result.UncertaintyCount = countSlice(coverage["uncertainty"])
-		result.OmittedCount = integerValue(coverage["omitted_results"])
+		result.OmittedCount, _ = countValue(coverage["omitted_results"])
 		result.CriticalMissing = countSlice(coverage["critical_missing"])
-		result.Authoritative = integerValue(coverage["authoritative_results"])
+		// SOL-V0-011 (V1-1977): only a user-prompt row whose coverage carried a readable
+		// count is marked measured, so triage can tell it from a row that never measured one.
+		var counted bool
+		result.Authoritative, counted = countValue(coverage["authoritative_results"])
+		result.AuthorityCounted = counted && event == "user-prompt"
 	}
 	if event == "file-change" {
 		result.TouchedPaths = stringsFromAny(input["paths"])
@@ -558,7 +562,7 @@ func stringsFromAny(value any) []string {
 	return result
 }
 func stringValue(value any) string { text, _ := value.(string); return text }
-func integerValue(value any) int   { integer, _ := value.(int); return integer }
+
 func rankedPaths(context map[string]any) []string {
 	rows, ok := context["results"].([]any)
 	if !ok {

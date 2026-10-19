@@ -305,6 +305,7 @@
       "internal/testvaliditydoc/"
     ],
     "internal/observations": [
+      "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
     "internal/plansnapshot": [],
