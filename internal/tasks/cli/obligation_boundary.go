@@ -225,9 +225,7 @@ func obligationsWorklist(env Env, cmd []string, args []string) *wire.Result {
 					return err
 				}
 				in.ReviewedAt = ev.Decoded.IssuedAt
-				if ev.Decoded.Witness != nil {
-					in.TestRepository = ev.Decoded.Witness.TestRepository
-				}
+				in.TestRepository = e.Review.TestRepository
 				inputs = append(inputs, in)
 			}
 		}

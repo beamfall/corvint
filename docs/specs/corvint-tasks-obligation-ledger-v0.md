@@ -28,9 +28,6 @@ alias, plan reruns and non-core rows, a `PARTIAL` state and witness provenance, 
 beamfall/corvint#1071, V1-1649) were accepted on 2026-10-18 under the same standing auto-accept,
 and are experimental. The agent-drafted TOL-V0-060..067 (local Playwright version qualification
 and declared test repositories, GitHub beamfall/corvint#1070, V1-1648) were accepted on 2026-10-18
-under the same standing auto-accept, and are experimental. The agent-drafted TOL-V0-079..083 (test
-boundaries and owner-gated scope decisions, GitHub beamfall/corvint#1180, V1-1913) and TOL-V0-084..088
-(the reviewed-shortfall worklist, GitHub beamfall/corvint#1182, V1-1915) were accepted on 2026-10-19
 under the same standing auto-accept, and are experimental. The profile reuses unchanged the ticket,
 mutation, receipt and fold boundaries of the [agent lease contract](corvint-tasks-agent-leases-v0.md), the
 reference-plus-evidence-event shape of [operator notes](corvint-tasks-operator-notes-v0.md)
