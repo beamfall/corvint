@@ -1,17 +1,17 @@
 # Test Source Analysis V0
 
 Owner: Russell Lewis
-Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)
+Date: 2026-10-19
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1933, V1-1935, V1-1934)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163, V1-1867 / GitHub #1164, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867)/experimental
-- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1933, V1-1935, V1-1934)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -1058,6 +1058,188 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 | TSA-V0-090 | `internal/testsource/validity_rspec_inclusion.go` | `TestRSpecInclusionEvaluatesEachSiteIndependently` | experimental |
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
+
+## Browser write responses in test-validity (V1-1933)
+
+V1-1933 (GitHub #1194) reports a browser step that triggers a create, update or delete request
+and never checks the response, so a failed write passes as long as the UI moves on. It is
+agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). The reading is
+static and uses the TSA-V0-073 JS/TS example reader; recorded network evidence is not read.
+
+- `TSA-V0-200`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A JS/TS example step
+  MUST get an advisory `WRITE-RESPONSE-UNASSERTED` finding when it holds a user action (`click`,
+  `dblclick`, `tap`, `press`, `check`, `uncheck`, `setChecked`, `selectOption`, `submit` or
+  `dispatchEvent`) and a `waitForResponse` or `waitForRequest` whose predicate resolves to a write
+  method (`POST`, `PUT`, `PATCH` or `DELETE`), and no assertion reads the waited response. A step is
+  a `test.step` callback body, or the example body outside its step callbacks. The finding's
+  location is the action line and its cause is the wait line.
+- `TSA-V0-201`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait MUST count as
+  asserted when it is started before the action and its response reaches an assertion: through
+  the variable it is assigned to (awaited or not), a `Promise.all([...])` destructured slot, a
+  same-line local derived from that variable, or an assertion inside a `.then(...)` callback on
+  the wait. A wait whose predicate resolves to `GET` only MUST NOT be reported.
+- `TSA-V0-202`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) The finding MUST cite
+  the first wait in the same file that resolves to a write, is started before its action and is
+  asserted, as `path:line`; with none the message names no example.
+- `TSA-V0-203`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) A wait whose method
+  cannot be resolved MUST get an advisory `WRITE-RESPONSE-UNRESOLVED` finding whose message starts
+  `abstained:` instead of a claim: a bare URL or glob predicate, an absolute URL, a negated method
+  comparison, a non-literal method, or a predicate that mixes read and write methods.
+- `TSA-V0-204`: (standing auto-accept, 2026-10-11; V1-1933 / GitHub #1194) Both rules MUST be
+  advisory: they appear in the example's findings and the `corvint tests validity` file report and
+  never change the hygiene axis.
+
+Non-goals: recorded network traces (the `corvint-network-evidence/0` profile carries no method or
+step), MCP or preflight surfaces, and frameworks other than the Playwright-style page API.
+
+Acceptance evidence: synthetic fixtures only. The four acceptance criteria are one file
+(`TestWriteResponseUnassertedAcceptance`); the binding forms (`TestWriteResponseForms`), the
+missing example (`TestWriteResponseNoExemplar`), a late asserted wait (`TestWriteResponseLateWaitIsNotExemplar`) and the advisory severity
+(`TestWriteResponseKeepsHygiene`). No live qualification on a real suite was run (NOT_RUN).
+Rollback removes `internal/testsource/validity_js_write_response.go`, its test,
+`internal/testvalidity/source_rules_write_response.go`, the one call in `exampleFacts` and this
+section. Nothing is persisted.
+
+### Traceability (V1-1933)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-200 | `internal/testsource/validity_js_write_response.go`, `internal/testsource/validity_js_examples.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-201 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-202 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseNoExemplar`, `TestWriteResponseForms`, `TestWriteResponseLateWaitIsNotExemplar` | experimental |
+| TSA-V0-203 | `internal/testsource/validity_js_write_response.go` | `TestWriteResponseUnassertedAcceptance`, `TestWriteResponseForms` | experimental |
+| TSA-V0-204 | `internal/testvalidity/source_rules_write_response.go` | `TestWriteResponseKeepsHygiene` | experimental |
+
+## Seed validation and collisions in test-validity (V1-1935)
+
+V1-1935 (GitHub #1196) reports, before any run, a seed the server's validation would reject, a
+seed that collides with a sibling test's seed, and the tests a failing seeding hook would skip.
+It is agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). Corvint does
+not infer the server's validation: the project declares it.
+
+- `TSA-V0-210`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) `corvint tests
+  validity` MUST read `.corvint/seed-rules.json` at the report's revision, a closed
+  `corvint-seed-rules/0` profile of at most 64 KiB and 1..64 resources. Each resource names its
+  seeding calls (functions whose last argument is the record object) or request paths
+  (`X.post|put(path, { data: {...} })`, query ignored), an optional tenant field, and at least one
+  rule: unique keys (lists of fields), a range (start and end fields with `inclusive` or
+  `exclusive` bounds), or a date with an optional weekly flag and until date. An absent file MUST
+  produce no seed finding. A file that does not decode MUST produce one advisory
+  `SEED-VALIDATION-UNRESOLVED` abstention per JS/TS test file and no other seed finding.
+- `TSA-V0-211`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Two resolved seeds of
+  one resource and tenant that run in one setup sequence (one `beforeAll`/`beforeEach` hook, or one
+  example with the hooks of its file and enclosing describes) MUST get an advisory
+  `SEED-VALIDATION-REJECTED` finding on the later seed when they repeat a unique key or their
+  ranges overlap: inclusive bounds overlap when `a.start <= b.end` and `b.start <= a.end`,
+  exclusive bounds with strict comparison. A shared bound under inclusive bounds is reported.
+- `TSA-V0-212`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A single seed whose
+  start is after its end, or whose range is empty under exclusive bounds, MUST get an advisory
+  `SEED-VALIDATION-REJECTED` finding.
+- `TSA-V0-213`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Seeds of two different
+  examples in one file, of one resource and tenant, MUST get an advisory `SEED-SIBLING-COLLISION`
+  finding on the later seed when they repeat a unique key, their ranges overlap, or they occupy one
+  calendar date, where a seed with the weekly flag `true` occupies its date and every seventh day
+  after it up to its until date (or ten years). Seeds of different tenants MUST NOT be reported.
+- `TSA-V0-214`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A seed whose record is
+  not an object literal, or whose rule field is missing or not a lone string, number or boolean
+  literal, MUST get an advisory `SEED-VALIDATION-UNRESOLVED` finding whose message starts
+  `abstained:` and take part in no other seed rule. Values compare as numbers, or as ISO-8601
+  dates of one shape; any other pair is not compared.
+- `TSA-V0-215`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) A `beforeAll` or
+  `beforeEach` hook holding a matched seed MUST get one advisory `SEED-HOOK-BLAST-RADIUS` finding
+  that lists, in line order, the examples in its scope (its innermost describe, or the file) that
+  its failure would skip.
+- `TSA-V0-216`: (standing auto-accept, 2026-10-11; V1-1935 / GitHub #1196) Every seed finding MUST
+  be advisory and appear only in the file report: no example's hygiene changes.
+
+Non-goals: reading server code or schemas to infer validation, cross-file sibling collisions,
+values computed at run time, and recurrence rules other than weekly.
+
+Acceptance evidence: synthetic fixtures only. The five acceptance criteria are one file
+(`TestSeedAcceptance`); exclusive bounds and single-seed rejection (`TestSeedExclusiveBounds`);
+unique keys and non-literal records (`TestSeedUniqueAndForms`); the closed profile
+(`TestDecodeSeedRules`); the committed-file read and the advisory severity
+(`TestSourceValiditySeedRules`). No live qualification on a real suite was run (NOT_RUN). Rollback
+removes `internal/testsource/validity_js_seeds.go`, its test,
+`internal/testvalidity/source_rules_seeds.go`, `seedRules` and its call in `SourceValidity`, and
+this section. Nothing is persisted.
+
+### Traceability (V1-1935)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-210 | `internal/testsource/validity_js_seeds.go`, `internal/testsource/validity_command.go` | `TestDecodeSeedRules`, `TestSourceValiditySeedRules` | experimental |
+| TSA-V0-211 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-212 | `internal/testsource/validity_js_seeds.go` | `TestSeedExclusiveBounds` | experimental |
+| TSA-V0-213 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms` | experimental |
+| TSA-V0-214 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance`, `TestSeedUniqueAndForms` | experimental |
+| TSA-V0-215 | `internal/testsource/validity_js_seeds.go` | `TestSeedAcceptance` | experimental |
+| TSA-V0-216 | `internal/testvalidity/source_rules_seeds.go`, `internal/testsource/validity_command.go` | `TestSourceValiditySeedRules` | experimental |
+
+## Revision-pinned source citations (V1-1934)
+
+V1-1934 (GitHub #1195) checks the source citations in review documents against the object store
+at the cited revision, so a review that cites a file before it existed, a range past its end or a
+symbol outside its range is caught without a checkout. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). Corvint's own `line-citations-check` (V1-1530) and row
+citation drift (V1-1932) are separate.
+
+- `TSA-V0-220`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A citation MUST be an
+  inline-code span outside fenced code of the form `path[:START[-END]][#Symbol][@REV]` whose path
+  holds a `/`. It counts only when it carries a line, a symbol or a revision, or when the document
+  declares a default revision.
+- `TSA-V0-221`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A document MAY declare
+  its default citation revision with a line `<!-- corvint-cite-revision: REV -->`. A citation's
+  revision MUST be its `@REV`, else the document default, else the revision the documents are read
+  at.
+- `TSA-V0-222`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) `corvint tests
+  citations --docs PATH[,PATH...] [--rev REV]` MUST read at most 256 named committed documents at
+  `--rev` (default `HEAD`), refusing `tests-invalid-arguments` for a path that is not repository
+  relative or for no document, `tests-source-unavailable` for a document that is not a committed
+  regular file, and `tests-bound-exceeded` over 256 documents or 4096 citations.
+- `TSA-V0-223`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) Each citation MUST be
+  reported with its document, line, text, resolved revision and one reason: `missing-at-revision`
+  when the path is absent at the revision, `range-out-of-bounds` when the range starts before line
+  1, ends before it starts or ends past the file's last line, `symbol-not-in-range` when the symbol
+  is not an identifier in the range (or the file when no range is given), and `not-a-file` when a
+  range or symbol cites a directory, symlink or submodule. A citation that holds MUST produce no
+  report.
+- `TSA-V0-224`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) A
+  `missing-at-revision` finding MUST suggest the nearest revision where the path exists when Git
+  history names one: the first commit after the cited revision, up to the read revision, that adds
+  the path, else the parent of the last commit at or before the cited revision that deleted it.
+- `TSA-V0-225`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The command MUST print
+  one `corvint-source-citations/0` document (schema, revision, checked count, findings and
+  abstentions) and exit 1 while a finding remains, 0 otherwise. A citation whose revision does not
+  resolve, or whose file is over 1 MiB, MUST abstain (`revision-unresolved`, `file-too-large`)
+  instead of being reported.
+- `TSA-V0-226`: (standing auto-accept, 2026-10-11; V1-1934 / GitHub #1195) The check MUST read
+  the Git object store only (`rev-parse`, `ls-tree`, `cat-file` and `log`): no checkout, no index
+  or working-tree read, no write and no network.
+
+Non-goals: citations outside inline code, non-Git revisions, language-aware symbol resolution and
+an MCP or CI surface.
+
+Acceptance evidence: synthetic fixtures only. The acceptance criteria are
+`TestCitationsAcceptance` (missing-at-revision with the adding commit suggested, range past the
+end, valid citations silent, symbol outside its range, unresolved revision abstains) and
+`TestCitationsReadOnlyObjectStore` (same report with every working-tree file removed; index, HEAD
+and status unchanged); deletion suggestions and refusals are `TestCitationsDeletedPathAndRefusals`
+and the CLI is `TestTestsCitationsCLI`. No live qualification on a real review corpus was run
+(NOT_RUN). Rollback removes `internal/testsource/citations.go`, its test, the `citations`
+subcommand in `cmd/corvint/tests.go` and its test, and this section. Nothing is persisted.
+
+### Traceability (V1-1934)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-220 | `internal/testsource/citations.go` | `TestCitationsAcceptance` | experimental |
+| TSA-V0-221 | `internal/testsource/citations.go` | `TestCitationsAcceptance` | experimental |
+| TSA-V0-222 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsDeletedPathAndRefusals`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-223 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-224 | `internal/testsource/citations.go` | `TestCitationsAcceptance`, `TestCitationsDeletedPathAndRefusals` | experimental |
+| TSA-V0-225 | `internal/testsource/citations.go`, `cmd/corvint/tests.go` | `TestCitationsAcceptance`, `TestTestsCitationsCLI` | experimental |
+| TSA-V0-226 | `internal/testsource/citations.go` | `TestCitationsReadOnlyObjectStore` | experimental |
 
 ## Decision file format
 

@@ -97,6 +97,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	}
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
 	supports := map[string]testvalidity.RubySupport{}
+	var seeds func(name, text string) []testvalidity.SourceFinding
 	for _, name := range files {
 		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
 			file, test, err := r.qualifiedValidity(commit, m, supports)
@@ -116,10 +117,38 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 			support = r.rubySupport(commit, name, supports)
 		}
 		file, tests := readSourceValidity(name, string(data), support)
+		if IsTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
+			if seeds == nil {
+				if seeds, err = r.seedRules(commit); err != nil {
+					return SourceValidityReport{}, err
+				}
+			}
+			file.Findings = append(file.Findings, seeds(name, string(data))...)
+		}
 		report.Files = append(report.Files, file)
 		report.Tests = append(report.Tests, tests...)
 	}
 	return report, nil
+}
+
+// seedRules reads the committed seed rule file at commit (TSA-V0-210) and returns the seed
+// findings of one JS/TS test file under it: none when the file is absent, and one file-level
+// SEED-VALIDATION-UNRESOLVED abstention when it does not decode.
+func (r Repo) seedRules(commit string) (func(name, text string) []testvalidity.SourceFinding, error) {
+	data, found, err := r.readOne(commit, SeedRulesPath, MaxFileBytes)
+	if err != nil || !found {
+		return func(string, string) []testvalidity.SourceFinding { return nil }, err
+	}
+	rules, err := DecodeSeedRules(data)
+	if err != nil {
+		reason := err.Error()
+		return func(name, _ string) []testvalidity.SourceFinding {
+			return []testvalidity.SourceFinding{{Rule: testvalidity.RuleSeedValidationUnresolved, Severity: testvalidity.SeverityAdvisory,
+				Test: name, Location: SeedRulesPath, Cause: SeedRulesPath,
+				Message: "abstained: " + SeedRulesPath + " is not a valid " + SeedRulesProfile + " file (" + reason + ")"}}
+		}, nil
+	}
+	return func(name, text string) []testvalidity.SourceFinding { return SeedFindings(name, text, rules) }, nil
 }
 
 // committedFile reads one committed file at commit, refusing tests-source-unavailable when it is

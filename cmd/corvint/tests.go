@@ -26,6 +26,8 @@ Usage:
     [--threshold F] [--max-line-tests N]
   corvint [--root PATH] tests validity --files PATH[,PATH...] [--files ...]
     [--rev REV]
+  corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...]
+    [--rev REV]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -66,8 +68,12 @@ reason, or covered-by and an obligation.
 validity applies the static test-validity rules to at most 256 named
 committed files (each at most 1 MiB). To a JS/TS test file: ISOLATED-IN-SERIAL,
 JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
-JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED and
-JS-BOUNDARY-MOCKED. To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
+JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED,
+JS-BOUNDARY-MOCKED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
+when the waited method is unknown); with a committed .corvint/seed-rules.json
+(corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
+SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
+To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
 RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY, RB-BLOCK-NEVER-YIELDED,
 RB-ASSIGNMENT-IN-PREDICATE and the advisory DESCRIBED-CLASS-STUBBED,
 RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; a helper the reader cannot
@@ -83,12 +89,23 @@ files list each test a finding names with the hygiene those findings give it.
 Exit 1 when an invalid finding
 makes a test INELIGIBLE (refused as proof), 0 otherwise.
 
+citations checks the revision-pinned source citations in at most 256 named
+committed documents read at --rev: inline-code spans of the form
+path[:START[-END]][#Symbol][@REV] whose path holds a "/" and that carry a
+line, a symbol or a revision, or any such path when the document declares
+<!-- corvint-cite-revision: REV -->. Each citation is read from the object
+store at its own revision (default: the document's, else --rev) and reported
+as missing-at-revision (with the nearest revision where the path exists when
+known), range-out-of-bounds, symbol-not-in-range or not-a-file; an
+unresolvable revision or a file over 1 MiB abstains. It prints one
+corvint-source-citations/0 document and exits 1 when a finding remains.
+
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
 tests-decisions-invalid, tests-output-unavailable.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
-V1-1592, V1-1798, V1-1858, V1-1866, V1-1867).
+V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1933, V1-1934, V1-1935).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -147,7 +164,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|citations")
 	}
 	if root == "" {
 		root = "."
@@ -167,8 +184,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsDuplicates(repo, args[1:], out, diagnostic)
 	case "validity":
 		return runTestsValidity(repo, args[1:], out, diagnostic)
+	case "citations":
+		return runTestsCitations(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|citations")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.
@@ -369,6 +388,36 @@ func runTestsValidity(repo testsource.Repo, args []string, out, diagnostic io.Wr
 		return code
 	}
 	if report.Refused() {
+		return 1
+	}
+	return 0
+}
+
+// runTestsCitations prints the revision-pinned citation findings of the named committed documents
+// (TSA-V0-225). It exits 1 when a citation is not supported by the object store.
+func runTestsCitations(repo testsource.Repo, args []string, out, diagnostic io.Writer) int {
+	f, once := testsFlags("tests citations")
+	options := testsource.CitationOptions{Revision: "HEAD"}
+	f.Func("docs", "document paths", func(value string) error {
+		for _, name := range strings.Split(value, ",") {
+			if strings.TrimSpace(name) != "" {
+				options.Docs = append(options.Docs, name)
+			}
+		}
+		return nil
+	})
+	once("rev", &options.Revision)
+	if err := f.Parse(args); err != nil || f.NArg() != 0 || len(options.Docs) == 0 {
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests citations --docs PATH[,PATH...] [--rev REV]")
+	}
+	report, err := testsource.Citations(repo, options)
+	if err != nil {
+		return testsFailure(diagnostic, err)
+	}
+	if code := testsWrite(out, diagnostic, report); code != 0 {
+		return code
+	}
+	if len(report.Findings) > 0 {
 		return 1
 	}
 	return 0
