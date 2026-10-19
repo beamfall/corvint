@@ -15,7 +15,7 @@ import (
 
 // fakeRubySources returns a reader that serves sources for the declaring lines it holds, with
 // reason, and counts its calls.
-func fakeRubySources(calls *int, reason string, sources map[int]testvalidity.ExampleSource) RubySourceReader {
+func fakeRubySources(calls *int, reason string, sources map[int]testvalidity.ExampleSource) ExampleSourceReader {
 	return func(name, text string) (map[int]testvalidity.ExampleSource, string) {
 		*calls++
 		if name != "spec/user_spec.rb" || text != rubySpecBody {
@@ -25,7 +25,7 @@ func fakeRubySources(calls *int, reason string, sources map[int]testvalidity.Exa
 	}
 }
 
-func discoverRuby(t *testing.T, root string, read RubySourceReader) Document {
+func discoverRuby(t *testing.T, root string, read ExampleSourceReader) Document {
 	t.Helper()
 	document, err := DiscoverWithSources(root, read)
 	if err != nil {

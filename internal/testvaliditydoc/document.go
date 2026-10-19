@@ -54,7 +54,8 @@ type Test struct {
 	RouteStubs *RouteStubs `json:"routeStubs,omitempty"`
 	// RejectionAnchor is present only when the receipt carries a request-outcome record (LPCV-V0-081).
 	RejectionAnchor *RejectionAnchor `json:"rejectionAnchor,omitempty"`
-	// SourceRules is present only for a discovered Ruby example whose spec source was read (TSA-V0-068).
+	// SourceRules is present only for a discovered Ruby example (TSA-V0-068) or JS/TS outcome
+	// (TSA-V0-082) whose test source was read.
 	SourceRules *testvalidity.ExampleSource `json:"sourceRules,omitempty"`
 }
 

@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159 owner requests, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup projects, lints changed lines, lists candidate duplicates and flags static test-validity defects.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates` and `corvint tests validity` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -603,8 +603,8 @@ declared in a shared example group is now flagged. A preflight surface is still 
     `ApplySourceFindings` (TSA-V0-051). An `INELIGIBLE` axis is never relaxed.
   - Each such test carries a `sourceRules` member `{read, expectations, findings}`.
   - An example with no bound blob keeps its projection and has no member.
-  - JS/TS and Go documents, `--receipt` documents, and `Discover(root)` without a reader are
-    unchanged.
+  - Go documents, `--receipt` documents, and `Discover(root)` without a reader are unchanged.
+    JS/TS documents take TSA-V0-082 (amended by V1-1858).
 - `TSA-V0-069`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1130) Strength MUST stay
   `NOT_MEASURED`, and a strength a mutation run measured is kept. Only a mutation run decides
   `KILLED` or `SURVIVED`. Its reason is the first that applies:
@@ -642,7 +642,7 @@ Non-goals:
   `config.filter_run`, `define_derived_metadata` or a variable;
 - counting expectations in helper methods, hooks or custom matchers;
 - stubs on a constant that aliases `described_class`;
-- applying source findings to JS/TS discovery or to a named `--receipt`;
+- applying source findings to a named `--receipt` (JS/TS discovery is TSA-V0-082, V1-1858);
 - an MCP tool for `tests validity`, and a preflight surface.
 
 Failure modes:
@@ -685,6 +685,187 @@ the `tests validity` subcommand, the `DiscoverWithSources` callers, the pending 
 | TSA-V0-070 | `internal/rubytestprovider/document.go` | `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestTestValidityDiscoverRSpecSourceRules` | experimental |
 | TSA-V0-071 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTestsValidityCLI`, `TestSourceValidityReport`, `TestSourceValidityRefusals` | experimental |
 | TSA-V0-072 | `internal/testsource/validity_command.go`, `internal/testsource/validity_rspec_examples.go` | `TestSourceValidityReport`, `TestDiscoverRubySourceRules` | experimental |
+
+## JS/TS example hygiene and strength in test-validity (V1-1858)
+
+V1-1858 (GitHub #1159) gives Jest, Vitest and Playwright test files the per-example facts that the
+RSpec readings TSA-V0-062..072 give. Before it, `corvint tests validity` on a `.spec.ts` or `.test.ts` file
+listed only tests named by an ISOLATED-IN-SERIAL finding. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). The reading reuses the TSA-V0-010 lexer and declaration
+model (`parseSource`); it adds no second parser.
+
+- `TSA-V0-073`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)
+  `testsource.JSExampleSources(name, text)` MUST read one JS/TS test file (`IsTestFile`) with the
+  TSA-V0-010 lexer. It returns one `testvalidity.ExampleSource` per example, keyed by the line of
+  the example's callee, with `read`, `expectations` and `findings`.
+  - An example is a call rooted at `test`, `it`, `specify`, `xit`, `xtest` or `fit`. Its member
+    chain may hold `only`, `skip`, `todo`, `each`, `concurrent`, `sequential` and `fixme`. A
+    describe is rooted at `describe`, `context`, `suite`, `xdescribe`, `xcontext` or `fdescribe`,
+    or is `test.describe`; its chain may also hold `serial` and `parallel`. A `.each` chain is
+    followed by its table, either `(…)` or a tagged template, then the declaring call.
+  - `findings` are the `ValidityFindings` that name the example, then TSA-V0-074..079 findings in
+    that rule order.
+  - The whole file MUST abstain with no examples for the TSA-V0-050 reasons and
+    `source-too-large`. Any other file abstains with `not-a-js-test-file`.
+  - An example MUST be returned with `read` set to an abstention reason, and no findings, when:
+    - its chain holds `failing`, `fails`, `fail`, `skipIf` or `runIf`, or it sits in a describe
+      whose chain does: `js-example-shape-unsupported`;
+    - it is not a todo and has no function or arrow-function callback after its title:
+      `js-example-body-not-literal`. An arrow function may carry a TypeScript return type,
+      `(): void => {…}`, for an example and for a describe;
+    - another example's callee starts on the same line: `js-example-line-ambiguous`.
+  - Members outside both lists (`test.step`, `test.use`, `test.beforeEach`, …) are not
+    declarations.
+- `TSA-V0-074`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) An example MUST get an
+  `invalid` `JS-SKIPPED` finding when it is skipped, and an `invalid` `JS-TODO` finding when it is a
+  `todo`. Its location is the example's line; its cause is the first trigger, the example's own
+  declaration before its describes, innermost describe first. The skip triggers are:
+  - an `xit` or `xtest` root, or a `skip` or `fixme` member;
+  - an ancestor describe with an `xdescribe` or `xcontext` root, or a `skip` or `fixme` member;
+  - an unconditional runtime `test.skip()` or `test.fixme()` call: no arguments, or a first
+    argument that is the literal `true`. It counts when it is in the example body, or outside every
+    example in an enclosing describe body or at file level.
+- `TSA-V0-075`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) An example MUST get an
+  `invalid` `JS-FOCUSED` finding when an `fit` root or `only` member focuses it, or an `fdescribe`
+  root or `only` member focuses an ancestor describe. The location and cause are chosen as for
+  `JS-SKIPPED`.
+- `TSA-V0-076`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) An example declared
+  with `.each`, or inside a describe declared with `.each`, MUST get an `advisory`
+  `JS-EACH-ROW-BINDING` finding. Its cause is the `.each` declaration. Its message gives the row
+  count for an array literal table (top-level elements) or a tagged-template table (non-blank lines
+  after the header), and otherwise says the rows were not counted. One `file:line` names every row,
+  so a row's outcome is bound to the line, not to its row.
+- `TSA-V0-077`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `expectations` MUST
+  count the assertion calls in the example body (TSA-V0-013 assertions, plus `assert.` and
+  `expect.` member calls and a `.should` member). `expect.assertions(…)` and
+  `expect.hasAssertions(…)` declare a count and are not assertions here or in TSA-V0-078. It MUST
+  also count each call of a same-file function definition (`definitions`) whose body asserts,
+  followed to `MaxHelperDepth`; a name already followed is followed again when a shorter path
+  reaches it. Two calls on one line count twice. Only the strength anchors are distinct: one
+  `path:line` per line that holds a counted call.
+  - An example that is not a todo, with zero expectations, MUST get an `advisory`
+    `JS-NO-ASSERTION` finding located at the example.
+  - The finding is withheld when the body, or a followed helper, calls a name that the file
+    imports from a relative module other than a TSA-V0-079 subject module and does not define,
+    since the reader cannot resolve it.
+- `TSA-V0-078`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) An example whose body
+  holds at least one assertion, all of them `expect(…)` chains, and every chain constant MUST get
+  an `advisory` `JS-CONSTANT-EXPECTATION` finding. It is located at the first chain and caused by
+  the example. A chain is constant when:
+  - its subject is one literal token (number, literal string, `true`, `false`, `null` or
+    `undefined`);
+  - or it is a `toBe`, `toEqual` or `toStrictEqual` whose subject renders like its argument;
+  - or its subject is one identifier bound in the example body by `const NAME = LITERAL`, where
+    the literal ends the statement: a `;`, the end of the body, or a new line whose first token is
+    an identifier other than `in`, `instanceof`, `as` or `satisfies`. Any other next line may
+    continue the expression, so the binding is not a literal.
+- `TSA-V0-079`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) Module mocks
+  (`jest.mock`, `jest.doMock`, `jest.unstable_mockModule`, `vi.mock`, `vi.doMock` with a literal
+  specifier), spies (`jest.spyOn`, `vi.spyOn`), fake timers (`useFakeTimers`, `setSystemTime`)
+  and an assignment to `global.fetch`, `globalThis.fetch` or `window.fetch` MUST be classified.
+  - The subject under test is (a) a module specifier whose base name, without extension (or
+    the directory name for `index`), equals the test file's stem without `.spec` or `.test`; or
+    (b) the module that the outermost describe's title or identifier argument is imported from.
+    Identifiers imported from a subject module, and that title, name the subject.
+  - A mock of a subject module, or a spy whose receiver's root identifier names the subject,
+    gives an `advisory` `JS-SUBJECT-MOCKED` finding.
+  - A boundary is a mock of `axios`, `node-fetch`, `cross-fetch`, `got`, `superagent`, `undici`,
+    `ky`, `http`, `https` or their `node:` forms; a spy on `fetch`, `setTimeout`, `setInterval`
+    or `Date`, on `global`, `globalThis`, `window` or an identifier imported from a boundary
+    module; a fake-timer call; or a `fetch` assignment. It gives an `advisory`
+    `JS-BOUNDARY-MOCKED` finding.
+  - A mock applies to an example when it is in the example body, or outside every example and
+    every named function definition, at file level or in an enclosing describe body (its hooks
+    included). A named function that is an example's or describe's own callback,
+    `it('works', function example() {…})`, is that declaration's body, not a named helper. Each distinct location gives one finding, located at the mock and caused by the
+    example. Other mocks give no finding.
+- `TSA-V0-080`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)
+  `testvalidity.ApplyJSExampleSource(p, source, anchor)` MUST project one JS example as
+  `ApplyExampleSource` does, with `js-example-source-read` as the located hygiene reason.
+  Invalid findings make hygiene `INELIGIBLE` with the rule ID as reason (TSA-V0-051). Strength
+  MUST stay `NOT_MEASURED`, and a measured strength is kept. Its reason is the first that applies:
+  - `subject-mocked`, anchored at the JS-SUBJECT-MOCKED locations;
+  - `no-expectation-in-example-body`, anchored at the example;
+  - `constant-expectations-only`, anchored at the JS-CONSTANT-EXPECTATION location;
+  - `boundary-mocked`, anchored at the JS-BOUNDARY-MOCKED locations;
+  - `example-body-expectations`, anchored at the expectation lines.
+- `TSA-V0-081`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests
+  validity` MUST apply TSA-V0-073 to each named JS/TS test file. That file's `findings` are its
+  `ValidityFindings`, then the TSA-V0-074..079 findings of every example in line order, and `tests`
+  gains one entry per example, in line order, followed by any test only a finding names.
+  - A located example's hygiene is `ApplySourceFindings` over the `ELIGIBLE` `source-rules-read`
+    baseline. It also carries a `strength` member, the TSA-V0-080 strength axis.
+  - An unlocated example is `ABSTAINED` with its read reason and has no `strength` member.
+  - A file the reader abstains on is `uncertain` with that reason and keeps the TSA-V0-071
+    finding-named tests.
+  - `_spec.rb` files and the exit codes keep TSA-V0-071. `testsource.ExampleSources` routes a
+    `_spec.rb` file to TSA-V0-062 and a JS/TS test file to TSA-V0-073.
+- `TSA-V0-082`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)
+  `DiscoverWithSources` MUST apply TSA-V0-073 to discovered JS/TS receipt outcomes. `corvint
+  test-validity --discover` and the MCP `discover` argument both pass `testsource.ExampleSources`
+  and keep emitting the same bytes.
+  - An outcome is considered only when its `anchor.file` equals, or is a `/`-suffix of, exactly
+    one `identity.testFileDigests` key that is an absolute path inside the worktree.
+  - That file is read once through the confined receipt reader. When its SHA-256 differs from the
+    retained digest, or it cannot be read, hygiene is `ABSTAINED` `js-source-not-bound`.
+  - A reader abstention gives hygiene `ABSTAINED` with its reason, except `not-a-js-test-file`,
+    which keeps the projection.
+  - The example is the one declared at the anchor line, else the innermost example whose lines
+    hold it (a failure frame); with none, hygiene is `ABSTAINED` `js-example-not-located`.
+  - A placed example takes TSA-V0-080 with anchor `path:line`, and carries a `sourceRules`
+    member. An `INELIGIBLE` axis is never relaxed. Outcomes with no anchor, or an anchor that binds
+    no single digest key, are unchanged.
+- `TSA-V0-083`: (standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST be
+  deterministic over the same input. They MUST read only the given text, committed Git content or
+  the bound worktree test file, and MUST write nothing and use no network.
+
+Non-goals:
+- following helpers or mocks into other modules, or reading the module under test;
+- conditional skips (`test.skip(condition)`, `skipIf`, `runIf`), `failing` and `fail` examples,
+  and skips set through runner configuration or the command line;
+- counting assertions in hooks, in custom matchers or through `expect.assertions`;
+- mocks set inside a named helper, through `__mocks__` directories or runner config;
+- giving RSpec files one `tests` entry per example;
+- a Jest provider, or declaration anchors for passing Vitest tests.
+
+Failure modes:
+- The reading inherits the TSA-V0-010 lexer failure modes; an unbalanced file abstains.
+- A subject that the file names through an alias, a re-export or a path alias is not seen as the
+  subject, so its mock is not flagged.
+- A boundary list miss leaves a boundary mock unreported, never reported as the subject.
+- Discovery attaches only where the receipt has an anchor. Vitest anchors exist only for failures,
+  and Playwright failure anchors may point into a helper file, which keeps its projection.
+
+Acceptance evidence: synthetic fixtures only.
+- A JS file covering every skip, todo, focus and `.each` form, a conditional skip, `test.step`, an
+  unsupported `failing` example, a non-literal body and two examples on one line.
+- Assertion counting through a same-file helper, a relative-import helper and no assertions.
+- Constant, self-comparing and const-local expectations, beside a live one.
+- Subject and boundary mocks by file stem, by describe identifier, by spy and by fake timers.
+- `tests validity` on a Jest/Vitest file with one entry per example, and discovery over a bound and
+  an edited Playwright spec, with identical MCP bytes.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes
+`internal/testvalidity/source_rules_jsts.go`, `internal/testsource/validity_js_examples.go`,
+`internal/testvaliditydoc/js_source.go`, their tests, the JS branch of `readSourceValidity` and
+`ExampleSources`, and this section; callers go back to `RSpecExampleSources`. Nothing is
+persisted.
+
+### Traceability (V1-1858)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-073 | `internal/testsource/validity_js_examples.go` | `TestJSExampleSourcesShapes`, `TestJSExampleSourcesAbstain`, `TestJSExampleTypedCallback` | experimental |
+| TSA-V0-074 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState`, `TestJSExampleTypedCallback`, `TestApplyJSExampleSource` | experimental |
+| TSA-V0-075 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState`, `TestApplyJSExampleSource` | experimental |
+| TSA-V0-076 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState` | experimental |
+| TSA-V0-077 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
+| TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
+| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock` | experimental |
+| TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
+| TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
+| TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
+| TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
 
 ## Decision file format
 

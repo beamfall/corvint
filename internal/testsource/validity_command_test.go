@@ -102,3 +102,58 @@ func TestSourceValidityRefusals(t *testing.T) {
 		}
 	}
 }
+
+// TestSourceValidityJSExamples: a JS/TS test file gives one tests entry per example in line order,
+// with the example rules' hygiene and a NOT_MEASURED strength member; an unlocated example
+// abstains with no strength, and a skipped one refuses the report (TSA-V0-081).
+func TestSourceValidityJSExamples(t *testing.T) {
+	root := t.TempDir()
+	commitFiles(t, root, map[string]string{
+		"src/cart.test.ts": `import { total } from './cart';
+describe('cart', () => {
+  it('totals', () => { expect(total([1, 2])).toBe(3); });
+  it.skip('skipped', () => { expect(total([])).toBe(0); });
+  it('asserts nothing', () => { total([1]); });
+  it('by reference', handler);
+  it('constant', () => { expect(1).toBe(1); });
+});
+`,
+	})
+	repo := OpenRepo(context.Background(), root)
+	report, err := SourceValidity(repo, SourceValidityOptions{Files: []string{"src/cart.test.ts"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	type row struct{ test, hygiene, hygieneReason, strength string }
+	got := []row{}
+	for _, test := range report.Tests {
+		r := row{test.Test, test.Hygiene.State, test.Hygiene.Reason, "-"}
+		if test.Strength != nil {
+			r.strength = test.Strength.State + " " + test.Strength.Reason
+		}
+		got = append(got, r)
+	}
+	notMeasured := testvalidity.StrengthNotMeasured + " "
+	want := []row{
+		{"src/cart.test.ts:3", testvalidity.HygieneEligible, hygieneReasonSourceRead, notMeasured + testvalidity.StrengthReasonBodyExpectations},
+		{"src/cart.test.ts:4", testvalidity.HygieneIneligible, testvalidity.RuleJSSkipped, notMeasured + testvalidity.StrengthReasonBodyExpectations},
+		{"src/cart.test.ts:5", testvalidity.HygieneEligible, hygieneReasonSourceRead, notMeasured + testvalidity.StrengthReasonNoBodyExpectation},
+		{"src/cart.test.ts:6", testvalidity.HygieneAbstained, testvalidity.HygieneReasonJSBodyNotLiteral, "-"},
+		{"src/cart.test.ts:7", testvalidity.HygieneEligible, hygieneReasonSourceRead, notMeasured + testvalidity.StrengthReasonConstantOnly},
+	}
+	if !reflect.DeepEqual(got, want) || !report.Refused() {
+		t.Errorf("tests\n%v\nwant\n%v", got, want)
+	}
+	rules := []string{}
+	for _, f := range report.Files[0].Findings {
+		rules = append(rules, f.Rule+"@"+f.Test)
+	}
+	wantRules := []string{
+		testvalidity.RuleJSSkipped + "@src/cart.test.ts:4",
+		testvalidity.RuleJSNoAssertion + "@src/cart.test.ts:5",
+		testvalidity.RuleJSConstantExpectation + "@src/cart.test.ts:7",
+	}
+	if !reflect.DeepEqual(rules, wantRules) || report.Files[0].Uncertain {
+		t.Errorf("findings %q, want %q", rules, wantRules)
+	}
+}

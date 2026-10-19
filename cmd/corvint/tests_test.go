@@ -182,8 +182,9 @@ end
 
 // TestTestsValidityCLI: `corvint tests validity` reports the ISOLATED-IN-SERIAL and
 // MEMOIZED-BLOCK-EXPECTATION findings of the named committed files and refuses an example with an
-// invalid finding as proof (exit 1, hygiene INELIGIBLE); advisory-only files exit 0; bad
-// arguments refuse with exit 2 (TSA-V0-071, V1-1787).
+// invalid finding as proof (exit 1, hygiene INELIGIBLE); a JS/TS file lists every example with
+// its strength; advisory-only files exit 0; bad arguments refuse with exit 2 (TSA-V0-071,
+// TSA-V0-081, V1-1787).
 func TestTestsValidityCLI(t *testing.T) {
 	root := t.TempDir()
 	cemGit(t, root, "init", "-q")
@@ -196,20 +197,25 @@ func TestTestsValidityCLI(t *testing.T) {
 			Findings []struct{ Rule, Severity, Test string }
 		}
 		Tests []struct {
-			Test    string
-			Hygiene struct{ State, Reason string }
+			Test     string
+			Hygiene  struct{ State, Reason string }
+			Strength *struct{ State, Reason string }
 		}
 	}
 	if code != 1 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != "corvint-test-source-validity/0" || report.Revision != head || len(report.Files) != 2 {
 		t.Fatalf("validity: code=%d out=%s err=%s", code, out, errb)
 	}
-	if f := report.Files[0].Findings; len(f) != 1 || f[0].Rule != "ISOLATED-IN-SERIAL" || f[0].Severity != "advisory" {
+	if f := report.Files[0].Findings; len(f) != 3 || f[0].Rule != "ISOLATED-IN-SERIAL" || f[0].Severity != "advisory" || f[1].Rule != "JS-CONSTANT-EXPECTATION" || f[2].Rule != "JS-CONSTANT-EXPECTATION" {
 		t.Errorf("serial findings %+v", f)
 	}
 	if f := report.Files[1].Findings; len(f) != 1 || f[0].Rule != "MEMOIZED-BLOCK-EXPECTATION" || f[0].Test != "spec/widget_spec.rb:4" {
 		t.Errorf("memoized findings %+v", f)
 	}
-	if len(report.Tests) != 2 || report.Tests[0].Hygiene.State != "ELIGIBLE" || report.Tests[1].Hygiene.State != "INELIGIBLE" || report.Tests[1].Hygiene.Reason != "memoized-block-expectation" {
+	// One entry per JS example in line order, each with a NOT_MEASURED strength (TSA-V0-081).
+	if len(report.Tests) != 3 || report.Tests[0].Test != "e2e/alpha.spec.ts:3" || report.Tests[1].Test != "e2e/alpha.spec.ts:4" ||
+		report.Tests[0].Hygiene.State != "ELIGIBLE" || report.Tests[1].Hygiene.State != "ELIGIBLE" ||
+		report.Tests[1].Strength == nil || report.Tests[1].Strength.State != "NOT_MEASURED" || report.Tests[1].Strength.Reason != "constant-expectations-only" ||
+		report.Tests[2].Strength != nil || report.Tests[2].Hygiene.State != "INELIGIBLE" || report.Tests[2].Hygiene.Reason != "memoized-block-expectation" {
 		t.Errorf("tests %+v", report.Tests)
 	}
 	if code, _, errb := runCLI(t, "--root", root, "tests", "validity", "--files", "e2e/alpha.spec.ts", "--rev", head); code != 0 {
