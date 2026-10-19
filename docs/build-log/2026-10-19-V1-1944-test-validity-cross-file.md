@@ -1,0 +1,44 @@
+# 2026-10-19 V1-1944: cross-file abstentions, fixture seeding and JSON annotation
+
+Ticket: V1-1944, which follows V1-1919, V1-1930, V1-1931 and V1-1932 and is stacked on #1201.
+
+## Decision
+
+`TSA-V0-300` to `TSA-V0-312` are added to `docs/specs/test-source-analysis-v0.md` and accepted under
+the owner's standing auto-accept of lane requirements (2026-10-11). No accepted requirement is
+amended.
+
+- Cross-file abstention rather than resolution. Resolving a sibling module would mean reading
+  another file inside `ValidityFindings(name, text)`. That function has no repository access, and
+  the JS/TS example projection calls it too. Resolution would also turn an imported registry or a
+  stub-less file into a reported finding, which accepted TSA-V0-167 and TSA-V0-171 forbid.
+  Instead, a withheld reading is recorded as an abstention in a new `abstentions` list that is
+  omitted when empty and changes no axis. Resolution is NOT_PRODUCED (TSA-V0-312).
+- `SeverityAbstained` is not reused. It makes hygiene `ABSTAINED`, which would turn an advisory
+  rule into an axis change.
+- A sibling import is a stub module only when its specifier, or a name it binds, contains a stub
+  word. The first draft treated every sibling import as a stub module. That draft withheld every
+  finding in files that import `./fixtures`, and gave every such file without stubs an
+  abstention, so it was narrowed.
+- Seeding is a named call: `seed*`, `create*`, `insert*`, `populate*`, `add<Upper>`, or
+  `x.post` / `x.put`. It counts in a declared fixture (followed through the fixture's own declared
+  fixtures) or in a `beforeEach` / `beforeAll` hook in scope. The reading only under-reports. A
+  fixture the file does not declare turns the finding into a `fixture-cross-file` abstention.
+- The JSON annotation is a keyed sibling member,
+  `"corvint-validity-allow": {"<key>": "EITHER-OR-OUTCOME: <reason>"}`. It is not data on the line
+  above, so TSA-V0-163 stays intact.
+
+## Evidence
+
+Focused tests in `internal/testsource` and `internal/testvalidity` pass, as do the
+`cmd/corvint` validity CLI tests. 24 mutations were run, one per new decision point. 23 were killed.
+The survivor removed an untested Playwright option name (`bypassCSP`); the option list itself is
+covered by the `baseURL` mutation. No live qualification on a real suite was run (NOT_RUN).
+
+## Residuals
+
+- TSA-V0-172 still says "The reading does not model fixture seeding". It is accurate for that
+  requirement alone, and TSA-V0-305 to TSA-V0-307 now add seeding on top of it. A wording
+  amendment is left to the owner.
+- Following imports (TSA-V0-312), `auto` fixtures, global setup and in-test seeding are not
+  modelled.

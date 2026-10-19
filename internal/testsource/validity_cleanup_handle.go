@@ -251,7 +251,14 @@ func (s *source) chRegistrations(fixtures map[string]chFixture, params, body [2]
 		if !s.ident(j, "") || s.memberAccess(j) || !s.punct(j+1, ".") || !s.ident(j+2, "") || !s.punct(j+3, "(") || s.match[j+3] < 0 {
 			continue
 		}
-		registry, ok := fixtures[bindings[s.tokens[j].Text]]
+		bound := bindings[s.tokens[j].Text]
+		registry, ok := fixtures[bound]
+		if bound != "" && !ok {
+			// The registry is a fixture declared in another file (TSA-V0-303).
+			s.chAbstainCrossFile(handles, j, test, bound)
+			j = s.match[j+3]
+			continue
+		}
 		if !ok || registry.scope != "worker" || registry.line == 0 {
 			continue
 		}
@@ -276,6 +283,37 @@ func (s *source) chRegistrations(fixtures map[string]chFixture, params, body [2]
 		j = s.match[j+3]
 	}
 	return out
+}
+
+// chAbstainCrossFile records an abstention for the call `R.method(...)` at token j when R is bound
+// to a fixture the file does not declare and one of its closures captures a test-scoped handle:
+// the registry's scope is declared elsewhere, so whether it outlives the handle is not decided
+// (TSA-V0-303). A closure capturing no handle records nothing.
+func (s *source) chAbstainCrossFile(handles map[string]string, j int, test, registry string) {
+	for _, arg := range s.splitArgs(j+3, s.match[j+3]) {
+		if !s.callback(arg) {
+			continue
+		}
+		cbParams, cbBody, ok := s.chFunction(arg)
+		if !ok {
+			continue
+		}
+		local := chWithout(handles, s, cbParams)
+		s.chDropDeclared(local, cbBody)
+		captured := s.chNames(local, cbBody)
+		if captured == "" {
+			continue
+		}
+		where := fmt.Sprintf("%s:%d", s.path, s.tokens[j].Line)
+		if test == "" {
+			test = where
+		}
+		im, found := s.xfFixtureImport()
+		module, cause := s.xfWhere(im, found, where)
+		s.xfAbstain(testvalidity.RuleCleanupHandleOutlived, testvalidity.AbstainCleanupRegistryCrossFile, test, where, cause,
+			fmt.Sprintf("cleanup registered on `%s` captures the test-scoped fixture `%s`, but `%s` is not declared in this file, so its scope is declared in %s, which this reading does not follow; CLEANUP-HANDLE-OUTLIVED is not decided for this registration", registry, captured, registry, module))
+		return
+	}
 }
 
 // chWithout returns handles less every name the parameter range declares.

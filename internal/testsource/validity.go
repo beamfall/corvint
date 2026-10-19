@@ -25,6 +25,9 @@ type ValidityReport struct {
 	Findings  []testvalidity.SourceFinding `json:"findings"`
 	Uncertain bool                         `json:"uncertain"`
 	Reason    string                       `json:"reason,omitempty"`
+	// Abstentions are the advisory readings withheld because what decides them is declared in
+	// another file (TSA-V0-300).
+	Abstentions []testvalidity.RuleAbstention `json:"abstentions,omitempty"`
 }
 
 // ValidityFindings reads one test file's text for the static test-validity rules: a JS/TS test
@@ -46,9 +49,11 @@ func ValidityFindings(name, text string) ValidityReport {
 		s := parseSource(name, text)
 		report = s.isolatedInSerial()
 		report.Findings = append(report.Findings, s.outcomeFindings()...)
+		report.Abstentions = s.abstentions
 	case webExtensions[path.Ext(name)]:
 		s := parseSource(name, text)
 		report.Findings = append(report.Findings, s.chFindings()...)
+		report.Abstentions = s.abstentions
 		if s.uncertain {
 			report.Uncertain, report.Reason = true, validitySourceUnparsed
 		}
