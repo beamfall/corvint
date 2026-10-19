@@ -37,6 +37,8 @@ func jsSeed(name, text string, line int) seedExtract {
 	e := r.decls[found]
 	chain := r.ancestors(e.at)
 	scope := [][2]int{e.body}
+	// exec holds the function bodies that run for the example (TSA-V0-101).
+	exec := [][2]int{e.body}
 	other := [][2]int{}
 	for i := range s.tokens {
 		if !s.ident(i, "") || s.tokens[i].Text != "beforeEach" && s.tokens[i].Text != "beforeAll" {
@@ -48,6 +50,9 @@ func jsSeed(name, text string, line int) seedExtract {
 		hook := [2]int{i + 2, s.match[i+1]}
 		if r.applies(i, e, chain) {
 			scope = append(scope, hook)
+			if body, _, ok := s.functionBody(hook[0]); ok && body[1] <= hook[1] {
+				exec = append(exec, body)
+			}
 		} else {
 			other = append(other, hook)
 		}
@@ -77,7 +82,10 @@ func jsSeed(name, text string, line int) seedExtract {
 		case s.punct(i+1, ":") && (s.punct(i-1, "{") || s.punct(i-1, ",")):
 			continue // an object key
 		}
-		call, reason := s.jsSeedCall(i, consumed)
+		call, start, reason := s.jsSeedCall(i, consumed)
+		if reason == "" && !s.jsExecutes(start, exec) {
+			reason = seedReasonExecutionUnresolved
+		}
 		if reason != "" {
 			x.abstain(reason, r.at(t.Line))
 			continue
@@ -103,6 +111,18 @@ func jsSeed(name, text string, line int) seedExtract {
 				end = s.match[j+1]
 			}
 		}
+		// A `.should` chain asserts on its receiver: `users.reduce(f).should` reads users.
+		begin := k
+		for s.memberAccess(begin) {
+			p := begin - 2
+			if (s.punct(p, ")") || s.punct(p, "]")) && s.match[p] >= 0 && s.match[p] < p {
+				p = s.match[p] - 1
+			}
+			if !s.ident(p, "") || p < e.body[0] {
+				break
+			}
+			begin = p
+		}
 		ln := s.tokens[k].Line
 		a, ok := asserts[ln]
 		if !ok {
@@ -110,7 +130,7 @@ func jsSeed(name, text string, line int) seedExtract {
 			asserts[ln] = a
 			lines = append(lines, ln)
 		}
-		for j := k; j <= end && j < e.body[1]; j++ {
+		for j := begin; j <= end && j < e.body[1]; j++ {
 			if s.tokens[j].Kind == appmap.JSIdent {
 				a.idents[snake(s.tokens[j].Text)] = true
 			}
@@ -127,9 +147,50 @@ func (s *source) methodDefinition(i int) bool {
 	return !s.memberAccess(i) && s.punct(i+1, "(") && s.match[i+1] > i && s.punct(s.match[i+1]+1, "{")
 }
 
+// jsControl names the keywords whose bodies or operands may not run.
+var jsControl = map[string]bool{"if": true, "else": true, "for": true, "while": true, "do": true,
+	"switch": true, "case": true, "function": true, "try": true, "catch": true, "finally": true}
+
+// jsExecutes reports that the call starting at token start runs whenever its enclosing function
+// body in exec runs: it is not nested in a block, a callback, a condition or a short-circuit
+// operand of the statement it belongs to (TSA-V0-101).
+func (s *source) jsExecutes(start int, exec [][2]int) bool {
+	body := [2]int{-1, -1}
+	for _, b := range exec {
+		if within(start, b) && b[0] > body[0] {
+			body = b
+		}
+	}
+	if body[0] < 0 {
+		return false
+	}
+	block := s.punct(body[0], "{")
+	for j := start - 1; j >= body[0]; j-- {
+		t, next := s.tokens[j], s.tokens[j+1]
+		if t.Line < next.Line && next.Kind == appmap.JSIdent && !s.punct(j, ".") &&
+			(t.Kind == appmap.JSIdent || t.Kind == appmap.JSNumber || t.Kind == appmap.JSString || s.punct(j, ")") || s.punct(j, "]")) {
+			return true // a statement boundary without a semicolon
+		}
+		switch {
+		case s.punct(j, ";") || s.punct(j, "}"):
+			return true
+		case (s.punct(j, ")") || s.punct(j, "]")) && s.match[j] >= 0 && s.match[j] < j:
+			j = s.match[j]
+		case s.punct(j, "{"):
+			return block && j == body[0]
+		case s.punct(j, ">") && s.arrow(j-1), s.punct(j, "&"), s.punct(j, "|"), s.punct(j, "?"):
+			return false
+		case t.Kind == appmap.JSIdent && jsControl[t.Text]:
+			return false
+		}
+	}
+	return true
+}
+
 // jsSeedCall reads the factory call whose callee or receiver is token i, marking the tokens it
-// consumes. Any other seed-like identifier is an unsupported form.
-func (s *source) jsSeedCall(i int, consumed map[int]bool) (seedCall, string) {
+// consumes, and returns the token the call starts at. Any other seed-like identifier is an
+// unsupported form.
+func (s *source) jsSeedCall(i int, consumed map[int]bool) (seedCall, int, string) {
 	callee, start := i, i
 	switch {
 	case s.punct(i+1, ".") && s.ident(i+2, "") && s.punct(i+3, "(") && !s.memberAccess(i):
@@ -137,37 +198,37 @@ func (s *source) jsSeedCall(i int, consumed map[int]bool) (seedCall, string) {
 	case s.memberAccess(i) && s.ident(i-2, "") && !s.memberAccess(i-2):
 		start = i - 2
 	case s.memberAccess(i):
-		return seedCall{}, seedReasonFormUnsupported
+		return seedCall{}, start, seedReasonFormUnsupported
 	}
 	name := s.tokens[callee].Text
 	open := callee + 1
 	if !jsSeedCallees[name] || !s.punct(open, "(") || s.match[open] < 0 {
-		return seedCall{}, seedReasonFormUnsupported
+		return seedCall{}, start, seedReasonFormUnsupported
 	}
 	consumed[start], consumed[callee] = true, true
 	args := s.splitArgs(open, s.match[open])
 	if len(args) == 0 || !s.loneString(args[0]) || !s.tokens[args[0][0]].Literal {
-		return seedCall{}, seedReasonKindNotLiteral
+		return seedCall{}, start, seedReasonKindNotLiteral
 	}
 	call := seedCall{kind: snake(s.tokens[args[0][0]].Text), count: 1, attrs: map[string]string{}}
 	next := 1
 	if name == "createList" || name == "buildList" {
 		if len(args) < 2 || args[1][1]-args[1][0] != 1 || s.tokens[args[1][0]].Kind != appmap.JSNumber {
-			return seedCall{}, seedReasonCountNotLiteral
+			return seedCall{}, start, seedReasonCountNotLiteral
 		}
 		n, err := strconv.Atoi(s.tokens[args[1][0]].Text)
 		if err != nil || n < 0 {
-			return seedCall{}, seedReasonCountNotLiteral
+			return seedCall{}, start, seedReasonCountNotLiteral
 		}
 		call.count, next = n, 2
 	}
 	if len(args) > next+1 {
-		return seedCall{}, seedReasonAttributesNotRead
+		return seedCall{}, start, seedReasonAttributesNotRead
 	}
 	if len(args) == next+1 {
 		a := args[next]
 		if !s.punct(a[0], "{") || s.match[a[0]] != a[1]-1 {
-			return seedCall{}, seedReasonAttributesNotRead
+			return seedCall{}, start, seedReasonAttributesNotRead
 		}
 		for _, p := range s.splitArgs(a[0], a[1]-1) {
 			k := p[0]
@@ -176,16 +237,16 @@ func (s *source) jsSeedCall(i int, consumed map[int]bool) (seedCall, string) {
 			case s.ident(k, "") || s.tokens[k].Kind == appmap.JSString && s.tokens[k].Literal:
 				key = s.tokens[k].Text
 			default:
-				return seedCall{}, seedReasonAttributesNotRead
+				return seedCall{}, start, seedReasonAttributesNotRead
 			}
 			if !s.punct(k+1, ":") || k+2 >= p[1] {
-				return seedCall{}, seedReasonAttributesNotRead
+				return seedCall{}, start, seedReasonAttributesNotRead
 			}
 			call.attrs[snake(key)] = s.jsValue([2]int{k + 2, p[1]})
 		}
 	}
 	call.bound = s.jsBound(start)
-	return call, ""
+	return call, start, ""
 }
 
 // jsValue normalises a literal value like rubyValue; anything else is <expr>.

@@ -903,7 +903,9 @@ and declaration model. The link is an explicit argument; no link store is added.
     `FactoryBot.`, with a literal kind, a literal list count, `:trait` and `key: value` or
     `:key => value` arguments. They are read in the example body, the `before`/`before(:each)`
     hooks, `let!` and `subject!` of its groups, and the lazy `let` and `subject` bodies that scope
-    invokes, transitively and innermost first.
+    invokes, transitively and innermost first. `subject` resolves to a named subject
+    (`subject(:user) { ... }`), and a `let!` runs the innermost definition of its name, so an inner
+    `let` overriding an outer `let!` counts once, with the inner body.
   - RSpec YAML fixtures: a `fixtures :table, ...` line of the example's groups reads
     `spec/fixtures/TABLE.yml`, else `test/fixtures/TABLE.yml`. Each top-level record is one seed
     of the singular kind with its one-level `key: value` attributes.
@@ -911,6 +913,9 @@ and declaration model. The link is an explicit argument; no link store is added.
     (`factory.create('user', {...})`), with a literal string kind, a literal list count and an
     optional object literal of `key: value` attributes. They are read in the example body and the
     `beforeEach`/`beforeAll` hooks (bare or `test.`) that apply to it.
+  - Only a call that runs whenever its body runs is read. A call nested in a block, lambda or
+    callback, or in a condition or short-circuit operand of its statement (`if`, `unless`, a
+    modifier, `&&`, `||`, `?:`, an arrow that is not invoked), abstains per TSA-V0-107.
   - Setup in another example, a non-applying hook, or a `def` helper scope never invokes, is not
     read.
 - `TSA-V0-102`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MUST
@@ -924,8 +929,9 @@ and declaration model. The link is an explicit argument; no link store is added.
   has `new`, `legacy`, `status`, `sides` and `findings`.
   - `sides` holds the legacy then the new side: `side`, `test`, `analysed`, `reason` and
     `location` when not analysed, and `kinds`.
-  - `status` is `parity` when both normalised shapes are identical, with no divergence finding;
-    `diverges` when they differ; `not-analysed` per TSA-V0-107. Parity means equal setup shapes
+  - `status` is `parity` when both normalised shapes are identical, with no divergence or
+    uncertain finding; `diverges` when they differ; `uncertain` when the only differences are
+    attribute values that hold `<expr>` (TSA-V0-105); `not-analysed` per TSA-V0-107. Parity means equal setup shapes
     only, never equal behaviour.
 - `TSA-V0-104`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) A kind seeded on one
   side only, or with different counts, MUST give an advisory `SEED-PARITY-DIVERGES` finding.
@@ -937,8 +943,10 @@ and declaration model. The link is an explicit argument; no link store is added.
 - `TSA-V0-105`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) For a kind both sides
   seed, an attribute set explicitly on one side and left at its default on the other MUST give a
   `SEED-PARITY-DIVERGES` finding naming the side and its values. An attribute both sides set to
-  literal values only, with different value sets, also gives one; one that holds `<expr>` on
-  either side does not.
+  literal values only, with different value sets, also gives one. An attribute both sides set with
+  different value sets where either holds `<expr>` MUST instead give an advisory
+  `SEED-PARITY-UNCERTAIN` finding naming both value sets; it is never parity. Equal value sets,
+  `<expr>` included, give no finding.
 - `TSA-V0-106`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) An asserting line on
   either side whose identifiers hold an aggregate word (`total`, `sum`, `all`, `every`, `reduce`,
   `inject`, `average`, `balance`, `aggregate`) and read a group of a kind MUST give an advisory
@@ -955,11 +963,13 @@ and declaration model. The link is an explicit argument; no link store is added.
     word) in scope is not a supported form, including a block-taking call: `seed-form-unsupported`;
   - setup-like code runs where scope is not resolved (`before(:all)`, `around`, `after`, an invoked
     `def`, or a JS file-level call): `seed-scope-unresolved`;
+  - a factory call in scope may not run (TSA-V0-101): `seed-execution-unresolved`;
   - the kind, list count or attributes are not literal: `seed-kind-not-literal`,
     `seed-count-not-literal`, `seed-attributes-not-literal`;
   - a fixture file is missing (`seed-fixture-unavailable`), not of the plain shape
     (`seed-fixture-unsupported`: ERB, tabs, anchors, aliases, merge keys, lists, `fixtures :all`),
-    or over the bound (`seed-fixture-bound-exceeded`).
+    or over the bound (`seed-fixture-bound-exceeded`). A `spec/fixtures` file that is over the
+    bound or not a regular file abstains; `test/fixtures` is read only when it is absent.
   When either side abstains, `status` MUST be `not-analysed`. There is one advisory
   `SEED-PARITY-NOT-ANALYSED` finding per unanalysed side and no divergence or aggregate finding.
 - `TSA-V0-108`: (standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Seed-parity findings
@@ -992,7 +1002,10 @@ Acceptance evidence: synthetic fixtures only (`internal/testsource/seed_parity_t
 - A 3 vs 1 child count with the asserting lines of both sides.
 - An explicit vs default attribute and differing literal values.
 - A sum/reduce aggregate over a single-member seed, reported on both sides.
-- Each abstention reason on each side, with no parity reported.
+- Each abstention reason on each side, with no parity reported, including conditional and
+  deferred calls and an oversized fixture with a fallback file present.
+- An unknown value against a literal reported uncertain; a named subject, an overridden `let!`,
+  a commented quoted YAML scalar and a `.should` aggregate chain.
 - Identical shapes written differently, with no finding.
 - YAML fixtures, including ERB and missing files; the JS/TS form; and the CLI flag and exit code.
 
@@ -1006,13 +1019,13 @@ their tests and this section. Nothing is persisted.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-100 | `internal/testsource/validity_command.go`, `internal/testsource/seed_parity.go`, `cmd/corvint/tests.go` | `TestTSAV0100SeedLinkArguments`, `TestTSAV0108SeedParityCLI` | experimental |
-| TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault` | experimental |
+| TSA-V0-101 | `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go`, `internal/testsource/validity_rspec.go` | `TestTSAV0101SeedShapeRSpec`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0101SeedNamedSubject`, `TestTSAV0101SeedOverriddenEagerLet`, `TestTSAV0101SeedYAMLQuotedComment` | experimental |
 | TSA-V0-102 | `internal/testsource/seed_parity.go` | `TestTSAV0102SeedNormalisation`, `TestTSAV0101SeedShapeRSpec` | experimental |
-| TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence` | experimental |
+| TSA-V0-103 | `internal/testsource/seed_parity.go`, `internal/testvalidity/source_rules_seed.go` | `TestTSAV0103SeedIdenticalShapesParity`, `TestTSAV0104SeedCountDivergence`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
 | TSA-V0-104 | `internal/testsource/seed_parity.go` | `TestTSAV0104SeedCountDivergence`, `TestTSAV0105SeedExplicitVersusDefault` | experimental |
-| TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures` | experimental |
-| TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember` | experimental |
-| TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures` | experimental |
+| TSA-V0-105 | `internal/testsource/seed_parity.go` | `TestTSAV0105SeedExplicitVersusDefault`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0103SeedExprVersusLiteralUncertain` | experimental |
+| TSA-V0-106 | `internal/testsource/seed_parity.go` | `TestTSAV0106SeedAggregateSingleMember`, `TestTSAV0106SeedShouldAggregate` | experimental |
+| TSA-V0-107 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go`, `internal/testsource/seed_parity_jsts.go` | `TestTSAV0107SeedNotAnalysed`, `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0107SeedConditionalAbstains`, `TestTSAV0107SeedFixtureOversizeNoFallback` | experimental |
 | TSA-V0-108 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestTSAV0108SeedParityAdvisoryOnly`, `TestTSAV0108SeedParityCLI` | experimental |
 | TSA-V0-109 | `internal/testsource/seed_parity.go`, `internal/testsource/seed_parity_rspec.go` | `TestTSAV0101SeedYAMLFixtures`, `TestTSAV0100SeedLinkArguments` | experimental |
 

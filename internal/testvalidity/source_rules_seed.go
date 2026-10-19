@@ -15,6 +15,10 @@ const (
 	// RuleSeedParityNotAnalysed: one side's setup could not be extracted, so parity is not
 	// reported (TSA-V0-107).
 	RuleSeedParityNotAnalysed = "SEED-PARITY-NOT-ANALYSED"
+	// RuleSeedParityUncertain: both sides set an attribute, and one side's value is an
+	// expression the reading does not know, so the shapes are neither equal nor shown to differ
+	// (TSA-V0-105).
+	RuleSeedParityUncertain = "SEED-PARITY-UNCERTAIN"
 )
 
 // Seed-parity statuses (TSA-V0-103). Parity is the equality of the normalised setup shapes only,
@@ -23,4 +27,5 @@ const (
 	SeedParityStatusParity      = "parity"
 	SeedParityStatusDiverges    = "diverges"
 	SeedParityStatusNotAnalysed = "not-analysed"
+	SeedParityStatusUncertain   = "uncertain"
 )

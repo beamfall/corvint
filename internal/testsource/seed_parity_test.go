@@ -475,3 +475,210 @@ func TestTSAV0102SeedNormalisation(t *testing.T) {
 		t.Errorf("js asserts %+v", js.asserts)
 	}
 }
+
+func seedRepoWith(t *testing.T, files map[string]string) Repo {
+	t.Helper()
+	root := t.TempDir()
+	commitFiles(t, root, files)
+	return OpenRepo(context.Background(), root)
+}
+
+const seedPlainSpec = `RSpec.describe User do
+  it 'counts' do
+    create(:user)
+    expect(User.count).to eq(1)
+  end
+end
+`
+
+const seedConditionalSpec = `RSpec.describe User do
+  let(:make) { -> { create(:user) } }
+
+  it 'modifier' do
+    create(:user) if enabled
+    expect(User.count).to eq(1)
+  end
+
+  it 'lambda' do
+    make
+    expect(User.count).to eq(1)
+  end
+
+  it 'block' do
+    if enabled
+      create(:user)
+    end
+    expect(User.count).to eq(1)
+  end
+
+  it 'after a block' do
+    if enabled
+      log
+    end
+    create(:user)
+    expect(User.count).to eq(1)
+  end
+end
+`
+
+const seedConditionalJS = `test('if', async () => {
+  if (enabled) create('user');
+  expect(1).toBe(1);
+});
+
+test('deferred', async () => {
+  const make = () => create('user');
+  expect(1).toBe(1);
+});
+
+test('short-circuit', async () => {
+  enabled && create('user');
+  expect(1).toBe(1);
+});
+
+test('after a block', async () => {
+  if (enabled) { log(); }
+  const user = await create('user');
+  expect(user).toBeTruthy();
+});
+`
+
+// TestTSAV0107SeedConditionalAbstains: a factory call in a condition, a short-circuit operand or
+// a block or callback that may never run abstains with seed-execution-unresolved, naming the
+// line; a call after a closed block still reads (TSA-V0-101, TSA-V0-107; Codex review of #1178).
+func TestTSAV0107SeedConditionalAbstains(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/plain_spec.rb": seedPlainSpec, "spec/cond_spec.rb": seedConditionalSpec, "test/cond.test.ts": seedConditionalJS,
+	})
+	ps := seedRun(t, repo,
+		SeedLink{New: "spec/cond_spec.rb:4", Legacy: "spec/plain_spec.rb:2"},
+		SeedLink{New: "spec/cond_spec.rb:9", Legacy: "spec/plain_spec.rb:2"},
+		SeedLink{New: "spec/cond_spec.rb:14", Legacy: "spec/plain_spec.rb:2"},
+		SeedLink{New: "test/cond.test.ts:1", Legacy: "spec/plain_spec.rb:2"},
+		SeedLink{New: "test/cond.test.ts:6", Legacy: "spec/plain_spec.rb:2"},
+		SeedLink{New: "test/cond.test.ts:11", Legacy: "spec/plain_spec.rb:2"},
+	)
+	for k, at := range []string{"spec/cond_spec.rb:5", "spec/cond_spec.rb:2", "spec/cond_spec.rb:16", "test/cond.test.ts:2", "test/cond.test.ts:7", "test/cond.test.ts:12"} {
+		s := ps[k].Sides[1]
+		if ps[k].Status != testvalidity.SeedParityStatusNotAnalysed || s.Analysed || s.Reason != "seed-execution-unresolved" || s.Location != at {
+			t.Errorf("%d: status %s side %+v, want abstention at %s", k, ps[k].Status, s, at)
+		}
+	}
+	for _, link := range []SeedLink{{New: "spec/cond_spec.rb:21", Legacy: "spec/plain_spec.rb:2"}, {New: "test/cond.test.ts:16", Legacy: "spec/plain_spec.rb:2"}} {
+		if p := seedRun(t, repo, link)[0]; p.Status != testvalidity.SeedParityStatusParity {
+			t.Errorf("%v: a call after a closed block must read: %s %+v", link, p.Status, p.Sides)
+		}
+	}
+}
+
+// TestTSAV0107SeedFixtureOversizeNoFallback: a committed fixture file over the bound abstains with
+// seed-fixture-bound-exceeded instead of reading another directory's file of the same table
+// (TSA-V0-107, TSA-V0-109; Codex review of #1178).
+func TestTSAV0107SeedFixtureOversizeNoFallback(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/users_spec.rb":      "RSpec.describe User do\n  fixtures :users\n  it 'counts' do\n    expect(User.count).to eq(1)\n  end\nend\n",
+		"spec/plain_spec.rb":      seedPlainSpec,
+		"spec/fixtures/users.yml": "alice:\n  name: " + strings.Repeat("a", MaxFileBytes) + "\n",
+		"test/fixtures/users.yml": "alice:\n  name: Alice\n",
+	})
+	p := seedRun(t, repo, SeedLink{New: "spec/users_spec.rb:3", Legacy: "spec/plain_spec.rb:2"})[0]
+	if s := p.Sides[1]; p.Status != testvalidity.SeedParityStatusNotAnalysed || s.Analysed || s.Reason != "seed-fixture-bound-exceeded" || s.Location != "spec/users_spec.rb:2" {
+		t.Fatalf("status %s side %+v", p.Status, s)
+	}
+}
+
+// TestTSAV0103SeedExprVersusLiteralUncertain: an attribute whose value one side computes and the
+// other sets to a different literal is uncertain, never parity; equal unknown values on both sides
+// stay parity (TSA-V0-103, TSA-V0-105; Codex review of #1178).
+func TestTSAV0103SeedExprVersusLiteralUncertain(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/literal_spec.rb": "RSpec.describe Order do\n  it 'opens' do\n    create(:order, status: 'open')\n    expect(Order.count).to eq(1)\n  end\nend\n",
+		"spec/expr_spec.rb":    "RSpec.describe Order do\n  it 'opens' do\n    create(:order, status: current_status)\n    expect(Order.count).to eq(1)\n  end\nend\n",
+	})
+	p := seedRun(t, repo, SeedLink{New: "spec/expr_spec.rb:2", Legacy: "spec/literal_spec.rb:2"})[0]
+	if p.Status != testvalidity.SeedParityStatusUncertain || seedRules(p) != "SEED-PARITY-UNCERTAIN" ||
+		!strings.HasPrefix(p.Findings[0].Message, `order.status cannot be compared: legacy "open", new <expr>, and <expr> is a value the reading does not know;`) {
+		t.Fatalf("status %s rules %s %+v", p.Status, seedRules(p), p.Findings)
+	}
+	if p := seedRun(t, repo, SeedLink{New: "spec/expr_spec.rb:2", Legacy: "spec/expr_spec.rb:2"})[0]; p.Status != testvalidity.SeedParityStatusParity {
+		t.Errorf("equal unknown values: %s %+v", p.Status, p.Findings)
+	}
+}
+
+// TestTSAV0101SeedNamedSubject: `subject(:user) { ... }` used through is_expected resolves to the
+// named subject's body (TSA-V0-101; Codex review of #1178).
+func TestTSAV0101SeedNamedSubject(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/subject_spec.rb": "RSpec.describe User do\n  subject(:user) { create(:user, admin: true) }\n\n  it { is_expected.to be_admin }\nend\n",
+		"spec/plain_spec.rb":   "RSpec.describe User do\n  it 'is admin' do\n    user = create(:user, admin: true)\n    expect(user).to be_admin\n  end\nend\n",
+	})
+	p := seedRun(t, repo, SeedLink{New: "spec/subject_spec.rb:4", Legacy: "spec/plain_spec.rb:2"})[0]
+	if got := seedJSON(p.Sides[1].Kinds); p.Status != testvalidity.SeedParityStatusParity ||
+		got != `[{"kind":"user","count":1,"attributes":[{"name":"admin","values":["true"]}]}]` {
+		t.Fatalf("status %s new kinds %s", p.Status, got)
+	}
+}
+
+// TestTSAV0101SeedOverriddenEagerLet: an inner let overriding an outer let! runs only the inner
+// body (TSA-V0-101; Codex review of #1178).
+func TestTSAV0101SeedOverriddenEagerLet(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/override_spec.rb": `RSpec.describe User do
+  let!(:user) { create(:user, admin: false) }
+
+  context 'admin' do
+    let(:user) { create(:user, admin: true) }
+
+    it 'is admin' do
+      expect(user).to be_admin
+    end
+  end
+end
+`,
+	})
+	p := seedRun(t, repo, SeedLink{New: "spec/override_spec.rb:7", Legacy: "spec/override_spec.rb:7"})[0]
+	if got := seedJSON(p.Sides[1].Kinds); got != `[{"kind":"user","count":1,"attributes":[{"name":"admin","values":["true"]}]}]` {
+		t.Fatalf("new kinds %s", got)
+	}
+}
+
+// TestTSAV0101SeedYAMLQuotedComment: a comment after a quoted fixture scalar is dropped; a `#`
+// inside the quotes is kept (TSA-V0-101; Codex review of #1178).
+func TestTSAV0101SeedYAMLQuotedComment(t *testing.T) {
+	for in, want := range map[string]string{
+		`"Alice" # owner`: `"Alice"`, `'O''Neil' # c`: `'O''Neil'`, `"a # b"`: `"a # b"`,
+		`"a\" # b" # c`: `"a\" # b"`, `"Alice"#x`: `"Alice"#x`, `plain # c`: `plain`,
+	} {
+		if got := yamlStripComment(in); got != want {
+			t.Errorf("yamlStripComment(%q) = %q, want %q", in, got, want)
+		}
+	}
+	repo := seedRepoWith(t, map[string]string{
+		"spec/users_spec.rb":      "RSpec.describe User do\n  fixtures :users\n  it 'counts' do\n    expect(User.count).to eq(1)\n  end\nend\n",
+		"spec/plain_spec.rb":      "RSpec.describe User do\n  it 'counts' do\n    create(:user, name: 'Alice')\n    expect(User.count).to eq(1)\n  end\nend\n",
+		"spec/fixtures/users.yml": "alice:\n  name: \"Alice\" # the owner\n",
+	})
+	if p := seedRun(t, repo, SeedLink{New: "spec/users_spec.rb:3", Legacy: "spec/plain_spec.rb:2"})[0]; p.Status != testvalidity.SeedParityStatusParity {
+		t.Fatalf("status %s %+v sides %s", p.Status, p.Findings, seedJSON(p.Sides))
+	}
+}
+
+// TestTSAV0106SeedShouldAggregate: a `.should` chain keeps its receiver, so a group aggregate
+// asserted through should is reported against a single-member seed (TSA-V0-106; Codex review of
+// #1178).
+func TestTSAV0106SeedShouldAggregate(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"test/legacy.test.js": "test('sums', async () => {\n  const items = await createList('item', 2, { price: 5 });\n  items.reduce((a, i) => a + i.price, 0).should.equal(10);\n});\n",
+		"test/new.test.js":    "test('sums', async () => {\n  const items = await createList('item', 1, { price: 10 });\n  items.reduce((a, i) => a + i.price, 0).should.equal(10);\n});\n",
+	})
+	p := seedRun(t, repo, SeedLink{New: "test/new.test.js:1", Legacy: "test/legacy.test.js:1"})[0]
+	got := []string{}
+	for _, f := range p.Findings {
+		if f.Rule == testvalidity.RuleSeedAggregateSingleMember {
+			got = append(got, f.Location)
+		}
+	}
+	if strings.Join(got, ",") != "test/legacy.test.js:3,test/new.test.js:3" {
+		t.Fatalf("aggregate locations %v in %+v", got, p.Findings)
+	}
+}

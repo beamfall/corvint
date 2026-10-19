@@ -38,6 +38,7 @@ const (
 	seedReasonFixtureUnavailable  = "seed-fixture-unavailable"
 	seedReasonFixtureUnsupported  = "seed-fixture-unsupported"
 	seedReasonFixtureBoundReached = "seed-fixture-bound-exceeded"
+	seedReasonExecutionUnresolved = "seed-execution-unresolved"
 )
 
 // SeedLink names a new test and the legacy test it claims to preserve, each `path:line` of the
@@ -114,6 +115,13 @@ func (x *seedExtract) abstain(reason, at string) {
 // fixtureReader reads one committed fixture file: its bytes, whether it exists, or an error.
 type fixtureReader func(name string) ([]byte, bool, error)
 
+// A fixture file that is committed but over the bound, or not a regular file, is never replaced by
+// another directory's file: the side abstains (TSA-V0-107).
+var (
+	errSeedFixtureTooLarge   = errors.New("seed fixture over the bound")
+	errSeedFixtureUnreadable = errors.New("seed fixture not a regular file")
+)
+
 // parseSeedRef splits a `path:line` reference (TSA-V0-100).
 func parseSeedRef(ref string) (string, int, bool) {
 	i := strings.LastIndexByte(ref, ':')
@@ -147,8 +155,11 @@ func (r Repo) seedParity(commit string, link SeedLink) (SeedParity, error) {
 		read := func(fixture string) ([]byte, bool, error) {
 			data, found, err := r.readOne(commit, fixture, MaxFileBytes)
 			var refusal *Error
-			if errors.As(err, &refusal) {
-				return nil, false, nil
+			switch {
+			case errors.As(err, &refusal) && refusal.Code == "tests-bound-exceeded":
+				return nil, false, errSeedFixtureTooLarge
+			case errors.As(err, &refusal):
+				return nil, false, errSeedFixtureUnreadable
 			}
 			return data, found, err
 		}
@@ -281,7 +292,9 @@ func (x seedExtract) readers(kind string) []string {
 type seedDiff struct {
 	kind, attr string
 	read       bool
-	message    string
+	// uncertain marks an attribute compared against an unknown value (TSA-V0-105).
+	uncertain bool
+	message   string
 }
 
 // compareSeeds compares the two sides (TSA-V0-103..107).
@@ -314,6 +327,7 @@ func compareSeeds(link SeedLink, legacy, current seedExtract) SeedParity {
 		return out
 	}
 	diffs := seedDiffs(legacy, current, out.Sides[0].Kinds, out.Sides[1].Kinds)
+	diverges, uncertain := false, false
 	for _, d := range diffs {
 		location, cause := current.firstSeed(d.kind), legacy.firstSeed(d.kind)
 		if location == "" {
@@ -322,14 +336,24 @@ func compareSeeds(link SeedLink, legacy, current seedExtract) SeedParity {
 		if cause == "" {
 			cause = legacy.test
 		}
+		rule := testvalidity.RuleSeedParityDiverges
+		if d.uncertain {
+			rule, uncertain = testvalidity.RuleSeedParityUncertain, true
+		} else {
+			diverges = true
+		}
 		out.Findings = append(out.Findings, testvalidity.SourceFinding{
-			Rule: testvalidity.RuleSeedParityDiverges, Severity: testvalidity.SeverityAdvisory,
+			Rule: rule, Severity: testvalidity.SeverityAdvisory,
 			Test: link.New, Location: location, Cause: cause, Message: d.message,
 		})
 	}
-	out.Status = testvalidity.SeedParityStatusParity
-	if len(diffs) > 0 {
+	switch {
+	case diverges:
 		out.Status = testvalidity.SeedParityStatusDiverges
+	case uncertain:
+		out.Status = testvalidity.SeedParityStatusUncertain
+	default:
+		out.Status = testvalidity.SeedParityStatusParity
 	}
 	out.Findings = append(out.Findings, aggregateFindings(link, legacy, current)...)
 	return out
@@ -389,6 +413,12 @@ func seedDiffs(legacy, current seedExtract, legacyKinds, currentKinds []SeedKind
 				message = fmt.Sprintf("%s.%s is set explicitly on the new side (%s) and left at its default on the legacy side", kind, name, strings.Join(cv, ", "))
 			case literalOnly(lv) && literalOnly(cv) && !slices.Equal(lv, cv):
 				message = fmt.Sprintf("%s.%s differs: legacy %s, new %s", kind, name, strings.Join(lv, ", "), strings.Join(cv, ", "))
+			case !slices.Equal(lv, cv):
+				// An unknown value against a different value set is neither a divergence nor
+				// parity (TSA-V0-105).
+				diffs = append(diffs, seedDiff{kind: kind, attr: name, uncertain: true, read: legacy.readsAttr(name) || current.readsAttr(name),
+					message: fmt.Sprintf("%s.%s cannot be compared: legacy %s, new %s, and %s is a value the reading does not know; %s", kind, name, strings.Join(lv, ", "), strings.Join(cv, ", "), seedExpr, reading)})
+				continue
 			default:
 				continue
 			}

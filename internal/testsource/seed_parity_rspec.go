@@ -1,6 +1,7 @@
 package testsource
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -23,7 +24,9 @@ var (
 	rubyKeyValue      = regexp.MustCompile(`^([A-Za-z_]\w*[?!]?):(\s+\S.*|[^:\s].*)$`)
 	rubyRocket        = regexp.MustCompile(`^(?::([A-Za-z_]\w*[?!]?)|"([A-Za-z_]\w*)"|'([A-Za-z_]\w*)')\s*=>\s*(\S.*)$`)
 	seedNumber        = regexp.MustCompile(`^-?\d+(?:\.\d+)?$`)
-	yamlKey           = regexp.MustCompile(`^([A-Za-z_][\w.-]*|"[^"]*"|'[^']*'):(?:\s+(.*))?$`)
+	// rubyConditional matches a line whose calls may not all run.
+	rubyConditional = regexp.MustCompile(`\b(?:if|unless|while|until|rescue|and|or|then|else|elsif|when|case|return|next|break)\b|&&|\|\||\s\?\s`)
+	yamlKey         = regexp.MustCompile(`^([A-Za-z_][\w.-]*|"[^"]*"|'[^']*'):(?:\s+(.*))?$`)
 )
 
 // rspecSeed extracts the setup of the example declared on line (TSA-V0-101).
@@ -50,14 +53,24 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	for g := e.group; g >= 0; g = r.groups[g].parent {
 		chain = append(chain, g)
 	}
-	// scope maps each logical line that runs for the example to the let it declares, or "".
-	scope := map[int]string{}
+	// scope maps each logical line that runs for the example to the let it declares, or "";
+	// depth holds the block nesting at the line's start (TSA-V0-101).
+	scope, depth := map[int]string{}, map[int]int{}
 	add := func(body []rubyLine, own string) {
+		depths := rubyBodyDepths(body)
 		for _, l := range body {
 			if _, ok := scope[l.line]; !ok {
-				scope[l.line] = own
+				scope[l.line], depth[l.line] = own, depths[l.line]
 			}
 		}
+	}
+	// resolve finds the definition a name runs: the innermost let, or the named subject that
+	// `subject` aliases.
+	resolve := func(n string) (rspecLet, bool) {
+		if c := r.canonical(e.group, n); strings.HasPrefix(c, "let:") {
+			n = strings.TrimPrefix(c, "let:")
+		}
+		return r.innermostLet(chain, n)
 	}
 	invoked := map[string]bool{}
 	queue := []string{}
@@ -79,19 +92,24 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	visit(e.body)
 	for _, g := range chain {
 		for _, h := range r.groups[g].hooks {
-			own := ""
+			body, own := h.body, ""
 			if h.kind != "before" {
+				// let!(:x) runs `before { x }`, and x is the innermost definition: an inner let
+				// overriding an outer let! replaces its body.
 				own = h.own
+				if let, ok := resolve(h.own); ok {
+					body, own = let.body, let.name
+				}
 			}
-			add(h.body, own)
-			visit(h.body)
+			add(body, own)
+			visit(body)
 		}
 	}
 	for len(queue) > 0 {
 		n := queue[0]
 		queue = queue[1:]
-		if let, ok := r.innermostLet(chain, n); ok && let.lazy {
-			add(let.body, n)
+		if let, ok := resolve(n); ok && let.lazy {
+			add(let.body, let.name)
 			visit(let.body)
 		}
 	}
@@ -148,7 +166,7 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 			}
 			x.calls = append(x.calls, calls...)
 		case inScope:
-			calls, reason := rubySeedCalls(l.text, masked, words, at(l.line), own)
+			calls, reason := rubySeedCalls(l.text, masked, words, at(l.line), own, depth[l.line])
 			if reason != "" {
 				x.abstain(reason, at(l.line))
 				continue
@@ -170,6 +188,39 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		x.asserts = append(x.asserts, a)
 	}
 	return x, nil
+}
+
+// rubyBodyDepths maps each line of a block body (head line first) to the nesting at its start
+// relative to the block's own body: 0 runs with the block, more is nested in an inner block,
+// lambda or keyword construct. A brace-delimited block starts at -1 so its own `{` reaches 0. A
+// body whose keyword nesting cannot be followed marks every line nested.
+func rubyBodyDepths(body []rubyLine) map[int]int {
+	out := map[int]int{}
+	if len(body) == 0 {
+		return out
+	}
+	brace, kw := 0, 0
+	if !rubyDo.MatchString(body[0].text) {
+		brace = -1
+	}
+	for k, l := range body {
+		if k > 0 && rubyEnd.MatchString(l.text) {
+			kw--
+		}
+		if kw < 0 && k < len(body)-1 {
+			for _, l := range body {
+				out[l.line] = 1
+			}
+			return out
+		}
+		out[l.line] = kw + brace
+		if k > 0 && rubyOpens(l.text) {
+			kw++
+		}
+		m := maskRubyStrings(l.text)
+		brace += strings.Count(m, "{") - strings.Count(m, "}")
+	}
+	return out
 }
 
 // innermostLet is the let named n declared by the nearest group of chain (innermost first).
@@ -230,7 +281,7 @@ func seedWordSpans(masked string) [][2]int {
 
 // rubySeedCalls reads every FactoryBot call on one logical line. Any other seed-like word on the
 // line abstains as an unsupported form.
-func rubySeedCalls(text, masked string, words [][2]int, at, own string) ([]seedCall, string) {
+func rubySeedCalls(text, masked string, words [][2]int, at, own string, depth int) ([]seedCall, string) {
 	calls := []seedCall{}
 	consumed := [][2]int{}
 	for _, m := range rspecSeedCall.FindAllStringSubmatchIndex(masked, -1) {
@@ -247,6 +298,10 @@ func rubySeedCalls(text, masked string, words [][2]int, at, own string) ([]seedC
 		}
 		if args[0] < 0 {
 			continue // a bare word such as a local named build: not a call this reader reads
+		}
+		// A call nested in a block, a lambda or a condition may never run (TSA-V0-101).
+		if depth+strings.Count(masked[:start], "{")-strings.Count(masked[:start], "}") != 0 || rubyConditional.MatchString(masked) {
+			return nil, seedReasonExecutionUnresolved
 		}
 		consumed = append(consumed, [2]int{start, nameEnd})
 		call, reason := rubySeedCall(masked[m[2]:m[3]], text, masked, args, at)
@@ -449,7 +504,13 @@ func fixtureSeeds(text, at string, read fixtureReader, tables *int) ([]seedCall,
 		found := false
 		for _, dir := range []string{"spec/fixtures/", "test/fixtures/"} {
 			var err error
-			if data, found, err = read(dir + table + ".yml"); err != nil {
+			data, found, err = read(dir + table + ".yml")
+			switch {
+			case errors.Is(err, errSeedFixtureTooLarge):
+				return nil, seedReasonFixtureBoundReached, nil
+			case errors.Is(err, errSeedFixtureUnreadable):
+				return nil, seedReasonFixtureUnavailable, nil
+			case err != nil:
 				return nil, "", err
 			}
 			if found {
@@ -524,8 +585,25 @@ func fixtureRecords(text string) ([]map[string]string, bool) {
 	return records, true
 }
 
+// yamlStripComment drops a ` #` comment, after a quoted scalar's closing quote too.
 func yamlStripComment(v string) string {
-	if v == "" || v[0] == '"' || v[0] == '\'' {
+	if v == "" {
+		return v
+	}
+	if q := v[0]; q == '"' || q == '\'' {
+		for i := 1; i < len(v); i++ {
+			switch {
+			case q == '"' && v[i] == '\\':
+				i++
+			case q == '\'' && v[i] == q && i+1 < len(v) && v[i+1] == q:
+				i++
+			case v[i] == q:
+				if rest := v[i+1:]; strings.HasPrefix(strings.TrimLeft(rest, " "), "#") && strings.HasPrefix(rest, " ") {
+					return v[:i+1]
+				}
+				return v
+			}
+		}
 		return v
 	}
 	if i := strings.Index(v, " #"); i >= 0 {

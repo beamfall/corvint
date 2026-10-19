@@ -82,9 +82,10 @@ the example's declaring line. The report's seedParity lists, per link, each
 side's setup as entity kinds, counts and explicitly set attributes (RSpec
 FactoryBot create/create_list/build/build_list and YAML fixtures; JS/TS
 create/build/createList/buildList factory calls) and the advisory
-SEED-PARITY-DIVERGES, SEED-AGGREGATE-SINGLE-MEMBER and
+SEED-PARITY-DIVERGES, SEED-PARITY-UNCERTAIN, SEED-AGGREGATE-SINGLE-MEMBER and
 SEED-PARITY-NOT-ANALYSED findings. Parity is never reported when a side was
-not analysed. Seed parity never changes the exit code.
+not analysed, a call may not run, or an unknown value meets a different one.
+Seed parity never changes the exit code.
 
 Reads committed Git content only; writes nothing and uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
