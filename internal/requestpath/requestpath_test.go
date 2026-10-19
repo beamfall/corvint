@@ -228,20 +228,21 @@ func TestAMAPV0134UnresolvableIsUnknown(t *testing.T) {
 	for _, u := range r.Unknowns {
 		got = append(got, u.Kind+":"+u.Reason+":"+u.Text)
 	}
+	// config is an undeclared global here, so its call is unresolved rather than a config read.
 	want := []string{"ENV_KEY:dynamic-key:process.env[name]", "ENV_KEY:env-object-escapes:process.env",
-		"CALL:module-not-found:audit", "CALL:package-not-followed:jwks.getSigningKey (jwks-rsa)"}
+		"CALL:callee-not-resolved:config.get", "CALL:module-not-found:audit", "CALL:package-not-followed:jwks.getSigningKey (jwks-rsa)"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unknowns = %q, want %q", got, want)
 	}
 	if !reflect.DeepEqual(envNames(r), []string{"TOKEN_AUDIENCE"}) {
 		t.Fatalf("env keys = %v", envNames(r))
 	}
-	if s := r.Steps[0]; s.Outbound != OutboundUnknown || s.Unknowns != 4 || s.Role != RoleHandler {
+	if s := r.Steps[0]; s.Outbound != OutboundUnknown || s.Unknowns != 5 || s.Role != RoleHandler {
 		t.Fatalf("step = %+v", s)
 	}
 	p, _ := ParseProfile("ci", "TOKEN_AUDIENCE=api\n")
 	if pre := Check(r, p, false); pre.Verdict != VerdictIncomplete || pre.Batch != BatchDoNotSchedule ||
-		!reflect.DeepEqual(pre.Unresolved, map[string]int{UnknownEnvKey: 2, UnknownCall: 2}) {
+		!reflect.DeepEqual(pre.Unresolved, map[string]int{UnknownEnvKey: 2, UnknownCall: 3}) {
 		t.Fatalf("pre-run = %+v", pre)
 	}
 }
@@ -255,6 +256,98 @@ func TestAMAPV0134DynamicConfigKey(t *testing.T) {
 	if len(r.ConfigKeys) != 1 || r.ConfigKeys[0].Name != "a.b" || r.Steps[0].Outbound != OutboundNoneFound {
 		t.Fatalf("report = %+v", r)
 	}
+	// A configuration unknown is counted but does not make the environment check INCOMPLETE.
+	p, _ := ParseProfile("ci", "")
+	if pre := Check(r, p, false); pre.Verdict != VerdictReady || !reflect.DeepEqual(pre.Unresolved, map[string]int{UnknownConfigKey: 1}) {
+		t.Fatalf("pre-run = %+v", pre)
+	}
+}
+
+// TestAMAPV0134ReviewReproductions pins the independent review's reproductions: each read or call
+// is reported or marked unknown, never silently dropped (AMAP-V0-131, AMAP-V0-132, AMAP-V0-134).
+func TestAMAPV0134ReviewReproductions(t *testing.T) {
+	for name, tc := range map[string]struct {
+		src      string
+		keys     []string
+		calls    []string
+		unknowns []string
+		outbound string
+	}{
+		"call on a parameter or local is unresolved": {
+			src: "function h(req, res) { const svc = pick(); svc.lookup(); res.json(JSON.stringify(req.body)); }\n", unknowns: []string{"CALL:callee-not-resolved:pick", "CALL:callee-not-resolved:svc.lookup"}, outbound: OutboundUnknown,
+		},
+		"derived client call is outbound and its initializer read": {
+			src:  "import axios from 'axios';\nconst client = axios.create({ baseURL: process.env.API_URL });\nfunction h() { return client('/x') && client.get('/y'); }\n",
+			keys: []string{"API_URL"}, calls: []string{"client", "client.get"}, outbound: OutboundYes,
+		},
+		"parameter default is read": {
+			src: "function helper(x = process.env.TOKEN) { return x; }\nfunction h() { return helper(); }\n", keys: []string{"TOKEN"}, outbound: OutboundNoneFound,
+		},
+		"later declarator is read": {
+			src: "const unused = 0, token = process.env.TOKEN;\nfunction h() { return token; }\n", keys: []string{"TOKEN"}, outbound: OutboundNoneFound,
+		},
+		"dynamic subscript expression is scanned": {
+			src: "function h() { return process.env[fetch(process.env.KEY)]; }\n", keys: []string{"KEY"}, calls: []string{"fetch"},
+			unknowns: []string{"ENV_KEY:dynamic-key:process.env[fetch(process.env.KEY)]"}, outbound: OutboundYes,
+		},
+		"lexer uncertainty makes the step unknown": {
+			src: "function h() { return `${1 / 2}`; }\n", unknowns: []string{"SOURCE:lexer-unsure:h.js", "SOURCE:lexer-unsure:h.js"}, outbound: OutboundUnknown,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := analyze(t, memSource{"h.js": tc.src}, Query{File: "h.js", Handler: "h"})
+			calls, unknowns := []string{}, []string{}
+			for _, c := range r.OutboundCalls {
+				calls = append(calls, c.Callee)
+			}
+			for _, u := range r.Unknowns {
+				unknowns = append(unknowns, u.Kind+":"+u.Reason+":"+u.Text)
+			}
+			if tc.keys == nil {
+				tc.keys = []string{}
+			}
+			if tc.calls == nil {
+				tc.calls = []string{}
+			}
+			if tc.unknowns == nil {
+				tc.unknowns = []string{}
+			}
+			if !reflect.DeepEqual(envNames(r), tc.keys) || !reflect.DeepEqual(calls, tc.calls) || !reflect.DeepEqual(unknowns, tc.unknowns) || r.Steps[0].Outbound != tc.outbound {
+				t.Fatalf("keys %v calls %v unknowns %q outbound %s", envNames(r), calls, unknowns, r.Steps[0].Outbound)
+			}
+		})
+	}
+}
+
+func TestAMAPV0135QuotedEmptyWithComment(t *testing.T) {
+	p, err := ParseProfile("ci", "A=\"\" # unset\nB='x' # set\n")
+	if err != nil || p.nonEmpty["A"] || !p.nonEmpty["B"] {
+		t.Fatalf("profile = %+v %v", p, err)
+	}
+}
+
+// TestAMAPV0138ImportedHandlerReadBound refuses, rather than mislabels, a handler whose module is
+// over the file bound.
+func TestAMAPV0138ImportedHandlerReadBound(t *testing.T) {
+	src := boundSource{memSource{"h.js": "import { h } from './big.js';\n"}, "big.js"}
+	if _, err := Analyze(src, "r", Query{File: "h.js", Handler: "h"}); err == nil || err.(*Error).Code != "request-path-bound-exceeded" {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+// boundSource refuses one path as over the file bound, as GitSource does.
+type boundSource struct {
+	memSource
+	big string
+}
+
+func (b boundSource) Read(candidates []string) (string, string, bool, error) {
+	for _, c := range candidates {
+		if c == b.big {
+			return "", "", false, refuse("request-path-bound-exceeded", "%s exceeds %d bytes", c, MaxFileBytes)
+		}
+	}
+	return b.memSource.Read(candidates)
 }
 
 var commonJS = memSource{

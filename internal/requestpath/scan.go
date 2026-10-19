@@ -72,11 +72,14 @@ type stepScan struct {
 	calls   int
 	unknown int
 	bounded bool
-	req     string // the request parameter of the step function
+	req     string          // the request parameter of the step function
+	params  map[string]bool // the step function's parameters (Express req, res, next)
+	unsure  map[*jsFile]bool
 }
 
 func (a *analyzer) runStep(order int, role string, p pending) {
-	st := &stepScan{order: order, visited: map[*body]bool{}, keys: map[string]bool{}, config: map[string]bool{}}
+	st := &stepScan{order: order, visited: map[*body]bool{}, keys: map[string]bool{}, config: map[string]bool{},
+		params: map[string]bool{}, unsure: map[*jsFile]bool{}}
 	file := ""
 	if p.file != nil {
 		file = p.file.path
@@ -96,6 +99,9 @@ func (a *analyzer) runStep(order int, role string, p pending) {
 	case p.fn != nil:
 		if len(p.fn.params) > 0 {
 			st.req = p.fn.params[0]
+		}
+		for _, n := range p.fn.params {
+			st.params[n] = true
 		}
 		a.scan(st, p.fn, []string{p.name}, 0)
 	}
@@ -177,6 +183,10 @@ func (a *analyzer) scan(st *stepScan, b *body, via []string, depth int) {
 		return
 	}
 	f := b.file
+	if f.unsure && !st.unsure[f] {
+		st.unsure[f] = true
+		a.stepUnknown(st, UnknownSource, "lexer-unsure", f.path, 1, f.path)
+	}
 	toks := f.toks
 	end := b.end
 	if end > len(toks) {
@@ -256,7 +266,7 @@ func (a *analyzer) envRead(st *stepScan, f *jsFile, b *body, j, end int) int {
 	case k < end && isPunct(toks[k], "["):
 		c := closeOf(toks, k)
 		a.stepUnknown(st, UnknownEnvKey, "dynamic-key", f.path, line, "process.env["+tokenText(toks[k+1:min(c, len(toks))])+"]")
-		return c
+		return k // the subscript expression is scanned too
 	default:
 		if a.destructure(st, f, b, j, line) {
 			return k - 1
@@ -374,6 +384,7 @@ func (a *analyzer) callChain(st *stepScan, b *body, chain, via []string, line, d
 	case t.fn != nil:
 		a.scan(st, t.fn, append(via, t.fn.name), depth+1)
 	case t.pkg != "":
+		a.reference(st, b, chain[0], via, depth) // a top-level client's initializer (AMAP-V0-131)
 		switch classify(t.pkg, t.pkgMember) {
 		case OutboundYes:
 			a.call(st, text, via, f.path, line)
@@ -384,46 +395,67 @@ func (a *analyzer) callChain(st *stepScan, b *body, chain, via []string, line, d
 		a.stepUnknown(st, UnknownCall, t.unknown, f.path, line, text)
 	case chain[0] == "fetch" && len(chain) == 1:
 		a.call(st, "fetch", via, f.path, line)
+	case st.params[chain[0]] && len(chain) <= 2, builtinGlobals[chain[0]]:
+		// The Express req/res/next API of the step function, or a JavaScript built-in.
 	default:
-		a.reference(st, b, chain[0], via, depth)
+		if !a.reference(st, b, chain[0], via, depth) {
+			a.stepUnknown(st, UnknownCall, "callee-not-resolved", f.path, line, text)
+		}
 	}
 }
 
+// builtinGlobals are JavaScript and Node.js built-ins that make no network call.
+var builtinGlobals = map[string]bool{"JSON": true, "Object": true, "Array": true, "Math": true, "console": true, "Promise": true,
+	"Number": true, "String": true, "Boolean": true, "Date": true, "Buffer": true, "Error": true, "TypeError": true,
+	"RangeError": true, "parseInt": true, "parseFloat": true, "isNaN": true, "isFinite": true, "Symbol": true, "Map": true,
+	"Set": true, "WeakMap": true, "WeakSet": true, "RegExp": true, "encodeURIComponent": true, "decodeURIComponent": true,
+	"encodeURI": true, "decodeURI": true, "structuredClone": true, "setTimeout": true, "clearTimeout": true,
+	"setImmediate": true, "queueMicrotask": true, "BigInt": true, "URL": true, "URLSearchParams": true,
+	"TextEncoder": true, "TextDecoder": true, "atob": true, "btoa": true, "Reflect": true}
+
 // reference scans a top-level value or a function a name refers to (a callback or an initializer
-// read on the path) once per step.
-func (a *analyzer) reference(st *stepScan, b *body, name string, via []string, depth int) {
+// read on the path) once per step. It reports false when name is not a top-level declaration or
+// import of the file, such as a parameter, local or undeclared global.
+func (a *analyzer) reference(st *stepScan, b *body, name string, via []string, depth int) bool {
 	f := b.file
 	if v := f.values[name]; v != nil && v.start >= 0 && v != b {
 		if _, imported := f.imports[name]; !imported {
 			a.scan(st, v, via, depth+1)
-			return
+			return true
 		}
 	}
 	if fn := f.funcs[name]; fn != nil {
 		a.scan(st, fn, append(via, fn.name), depth+1)
-		return
+		return true
+	}
+	if f.members[name] != nil || f.newOf[name] != "" {
+		return true
 	}
 	bnd, ok := f.imports[name]
-	if !ok || !relative(bnd.module) {
-		return
+	if !ok {
+		return false
+	}
+	if !relative(bnd.module) {
+		return true
 	}
 	g, reason := a.module(f, bnd.module)
 	if g == nil {
 		a.stepUnknown(st, UnknownCall, reason, f.path, b.line, name+" ("+bnd.module+")")
-		return
+		return true
 	}
 	local := g.exports[bnd.name]
 	if local == "" && bnd.name == "module" {
 		local = g.cjs
 	}
 	if local == "" {
-		return
+		return true
 	}
 	if v := g.values[local]; v != nil && v.start >= 0 {
 		a.scan(st, v, via, depth+1)
-		return
+		return true
 	}
 	if fn := g.funcs[local]; fn != nil {
 		a.scan(st, fn, append(via, fn.name), depth+1)
 	}
+	return true
 }

@@ -135,9 +135,10 @@ func functionAt(f *jsFile, i int, name string) (*body, bool) {
 		if k >= len(toks) {
 			return nil, false
 		}
-		return &body{file: f, start: k, end: closeOf(toks, k) + 1, line: toks[i].Line, name: name, params: params}, true
+		return &body{file: f, start: j, end: closeOf(toks, k) + 1, line: toks[i].Line, name: name, params: params}, true
 	}
 	var arrow int
+	start := i
 	switch {
 	case toks[i].Kind == appmap.JSIdent && i+2 < len(toks) && isPunct(toks[i+1], "=") && isPunct(toks[i+2], ">"):
 		params, arrow = []string{toks[i].Text}, i+3
@@ -148,6 +149,7 @@ func functionAt(f *jsFile, i int, name string) (*body, bool) {
 		}
 		end := closeOf(toks, j)
 		params = paramNames(toks, j+1, end)
+		start = j
 		k := end + 1
 		if k < len(toks) && isPunct(toks[k], ":") { // a return type annotation
 			for k < len(toks) && !(isPunct(toks[k], "=") && k+1 < len(toks) && isPunct(toks[k+1], ">")) {
@@ -165,9 +167,9 @@ func functionAt(f *jsFile, i int, name string) (*body, bool) {
 		return nil, false
 	}
 	if isPunct(toks[arrow], "{") {
-		return &body{file: f, start: arrow, end: closeOf(toks, arrow) + 1, line: toks[i].Line, name: name, params: params}, true
+		return &body{file: f, start: start, end: closeOf(toks, arrow) + 1, line: toks[i].Line, name: name, params: params}, true
 	}
-	return &body{file: f, start: arrow, end: statementEnd(toks, arrow), line: toks[i].Line, name: name, params: params}, true
+	return &body{file: f, start: start, end: statementEnd(toks, arrow), line: toks[i].Line, name: name, params: params}, true
 }
 
 func skipTypeParams(toks []tok, j int) int {
@@ -505,7 +507,7 @@ func (f *jsFile) classMembers(start, end int) map[string]*body {
 			if open >= end {
 				continue
 			}
-			out[t.Text] = &body{file: f, start: open, end: closeOf(toks, open) + 1, line: t.Line, name: t.Text, params: paramNames(toks, p+1, c)}
+			out[t.Text] = &body{file: f, start: p, end: closeOf(toks, open) + 1, line: t.Line, name: t.Text, params: paramNames(toks, p+1, c)}
 			j = closeOf(toks, open)
 			continue
 		}
@@ -550,7 +552,7 @@ func (f *jsFile) objectMembers(open int) map[string]*body {
 			c := closeOf(toks, k+1)
 			open := skipToBrace(toks, c+1)
 			if open < end {
-				out[key] = &body{file: f, start: open, end: closeOf(toks, open) + 1, line: t.Line, name: key, params: paramNames(toks, k+2, c)}
+				out[key] = &body{file: f, start: k + 1, end: closeOf(toks, open) + 1, line: t.Line, name: key, params: paramNames(toks, k+2, c)}
 				j = closeOf(toks, open)
 			}
 		case k+1 < end && isPunct(toks[k+1], ":"):
@@ -605,7 +607,12 @@ func (f *jsFile) declaration(i int, exported bool) int {
 	if k >= len(toks) || !isPunct(toks[k], "=") {
 		return k
 	}
-	return f.assign(k+1, name, exported)
+	e := f.assign(k+1, name, exported)
+	// `const a = 1, b = process.env.B`: read each later declarator too.
+	for e+3 < len(toks) && isPunct(toks[e], ",") && toks[e+1].Kind == appmap.JSIdent && isPunct(toks[e+2], "=") && !isPunct(toks[e+3], "=") {
+		e = f.assign(e+3, toks[e+1].Text, exported)
+	}
+	return e
 }
 
 // assign reads the initializer at i bound to name.

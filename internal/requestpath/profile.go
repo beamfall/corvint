@@ -75,8 +75,10 @@ func validKey(k string) bool {
 }
 
 func unquote(v string) string {
-	if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') && v[len(v)-1] == v[0] {
-		return v[1 : len(v)-1]
+	if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') {
+		if i := strings.IndexByte(v[1:], v[0]); i >= 0 {
+			return v[1 : i+1] // `KEY="" # note` is empty
+		}
 	}
 	if strings.HasPrefix(v, "#") {
 		return ""
@@ -126,20 +128,24 @@ func Check(r *Report, p *Profile, warn bool) *PreRun {
 	for _, k := range r.ConfigKeys {
 		out.ConfigKeysNotChecked = append(out.ConfigKeysNotChecked, k.Name)
 	}
+	blocking := 0
 	for _, u := range r.Unknowns {
+		out.Unresolved[u.Kind]++
 		if u.Kind != UnknownConfigKey {
-			out.Unresolved[u.Kind]++
+			blocking++
 		}
 	}
 	switch {
 	case len(out.Unset)+len(out.Empty) > 0:
 		out.Verdict = VerdictBlocked
 		out.Message = fmt.Sprintf("required environment key(s) unset or empty in profile %s: %s", p.Name, strings.Join(append(append([]string{}, out.Unset...), out.Empty...), ", "))
-	case len(out.Unresolved) > 0:
+	case blocking > 0:
 		out.Verdict = VerdictIncomplete
 		kinds := make([]string, 0, len(out.Unresolved))
 		for k := range out.Unresolved {
-			kinds = append(kinds, k)
+			if k != UnknownConfigKey {
+				kinds = append(kinds, k)
+			}
 		}
 		sort.Strings(kinds)
 		out.Message = "the request path has unresolved " + strings.Join(kinds, ", ") + " entries; a key read there is not checked"

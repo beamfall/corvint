@@ -173,7 +173,13 @@ func Analyze(src Source, revision string, q Query) (*Report, error) {
 	if q.Handler != "" {
 		a.report.Handler = q.Handler
 		t := a.resolveName(f, q.Handler, 0)
-		if t.fn == nil {
+		switch {
+		case t.fn != nil:
+		case t.unknown == "bound-exceeded":
+			return nil, refuse("request-path-bound-exceeded", "the module declaring %s exceeds a read bound", q.Handler)
+		case t.unknown == "read-failed":
+			return nil, refuse("request-path-source-unavailable", "the module declaring %s could not be read", q.Handler)
+		default:
 			return nil, refuse("request-path-handler-not-found", "no function %s is declared or imported in %s", q.Handler, q.File)
 		}
 		steps = []pending{{name: q.Handler, registered: "route", file: t.fn.file, fn: t.fn, line: t.fn.line}}
@@ -303,7 +309,7 @@ func (a *analyzer) resolveName(f *jsFile, name string, depth int) target {
 	}
 	if d, ok := f.derived[name]; ok {
 		if t := a.resolveName(f, d, depth+1); t.pkg != "" {
-			return target{pkg: t.pkg, pkgMember: "create"}
+			return target{pkg: t.pkg} // the client itself; its members are classified on call
 		}
 	}
 	return target{}
@@ -527,6 +533,9 @@ func (a *analyzer) memberOf(f *jsFile, t target, m string) target {
 		}
 		return target{unknown: "member-not-found"}
 	case t.pkg != "":
+		if t.pkgMember != "" && t.pkgMember != "default" && t.pkgMember != "module" && t.pkgMember != "*" {
+			return t // `https.request.call(...)` stays a call of request
+		}
 		return target{pkg: t.pkg, pkgMember: m}
 	case t.unknown != "":
 		return t

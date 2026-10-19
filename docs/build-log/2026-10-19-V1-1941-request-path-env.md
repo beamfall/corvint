@@ -23,12 +23,31 @@ Decisions:
   Fail-closed is the default; `--warn` schedules with the same findings. Unresolved entries give
   `INCOMPLETE`, which also does not schedule by default, because a key read there is unchecked.
 
-Mutation evidence: 20 source mutations of the new rules (outbound list, initializer scan, empty
+Independent review (one Codex round, read-only) reported ten findings; all ten were confirmed by
+a reproduction that now passes, and none needed an accepted requirement amended:
+
+- Calls on parameters, locals or undeclared globals were silently dropped, so a step could read
+  `NONE_FOUND`. They now read `callee-not-resolved` (`CALL`), except the step function's own
+  `req`/`res`/`next` API (one member deep) and JavaScript built-ins.
+- Calling a `pkg.create()` client was classified as `create` (local); it is now outbound, and the
+  client's initializer is scanned, so `axios.create({ baseURL: process.env.API_URL })` lists
+  `API_URL`.
+- Parameter defaults and later declarators (`const a = 0, b = process.env.B`) are now read.
+- A dynamic `process.env[...]` subscript is reported and its expression still scanned.
+- Lexer uncertainty is now a `SOURCE` unknown on each step that reads the file, not only global.
+- `KEY="" # note` in a profile now reads empty.
+- `preRun.unresolved` counts every kind; only `CONFIG_KEY` does not make the check INCOMPLETE.
+- A `--handler` imported from a module over the bound or unreadable now refuses with
+  `request-path-bound-exceeded` or `request-path-source-unavailable` instead of
+  `request-path-handler-not-found`; an imported module needed by a step stays a `CALL` unknown,
+  as AMAP-V0-137/138 now state.
+
+Mutation evidence: 30 source mutations of the new rules (outbound list, initializer scan, empty
 value, cheap-guard proof, finding emission, dynamic and escaping env reads, unknown packages,
 fallback defaults, INCOMPLETE verdict, `--warn`, unresolved module calls, UNKNOWN step outbound,
 `use` prefixes, express() receivers, destructuring defaults, constant keys, `this.m()`, global
-`fetch`, depth bound) were each applied alone and each failed at least one
-`internal/requestpath` test (20/20 killed).
+`fetch`, depth bound, and the ten review fixes) were each applied alone and each failed at least
+one `internal/requestpath` test (30/30 killed).
 
 Limits recorded as non-goals in the spec: other frameworks, middleware mounted in other files,
 data flow through parameters or locals, and value checks of configuration keys.

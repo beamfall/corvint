@@ -696,18 +696,21 @@ but does not read it; only non-Go syntax impact does.
   last, the `HANDLER`. For each step it MUST list the environment keys read as `process.env.KEY`,
   `process.env['KEY']`, `process.env[CONST]` through a top-level string constant, or destructuring
   of `process.env`, and the configuration keys read as `config.get|has('key')` through the `config`
-  or `nconf` package, in the step's function, in functions it calls that resolve to a declaration
-  in a read file, in factory-call arguments, and in top-level initializers it references. A key
+  or `nconf` package, in the step's function (parameter defaults included), in functions it calls
+  that resolve to a declaration in a read file, in factory-call arguments, and in top-level
+  initializers (every declarator of a declaration) it references, a called client's included. A key
   read only with a fallback (`||`, `??`, or a destructuring default) at every read MUST read
   `defaulted: true`.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 - `AMAP-V0-132`: A call through `axios`, `node-fetch`, `cross-fetch`, `got`, `undici`,
   `superagent`, `ky`, `needle`, `request` or `openid-client` (other than client construction such as
   `create`), through `http`/`https` `request` or `get`, through the global `fetch`, or through a
-  top-level client a `pkg.create(...)` call derives, MUST be listed as an outbound call with its
-  step, callee text, location and function chain, and its step MUST read `outbound: YES`. A step
-  with no outbound call reads `UNKNOWN` when it has an unresolved call, middleware, source or
-  bound, else `NONE_FOUND`: none among the calls followed, not proof of none.
+  top-level client a `pkg.create(...)` call derives (calling the client or a member of it), MUST be
+  listed as an outbound call with its step, callee text, location and function chain, and its step
+  MUST read `outbound: YES`. A step with no outbound call reads `UNKNOWN` when it has an
+  unresolved call, middleware, source or bound, else `NONE_FOUND`. Calls on the step function's
+  own parameters with at most one member (the Express `req`, `res` and `next` API) and on
+  JavaScript built-in globals read as local; every other call is resolved, classified or unknown.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 - `AMAP-V0-133`: Each guard reading `outbound: YES` that runs before a later guard reading
   `NONE_FOUND` with no unknowns MUST produce one `OUTBOUND_GUARD_BEFORE_CHEAP_GUARD` finding naming
@@ -718,11 +721,14 @@ but does not read it; only non-Go syntax impact does.
   MUST be listed under `unknowns` with kind `ENV_KEY`, `CONFIG_KEY`, `CALL`, `MIDDLEWARE`, `MOUNT`,
   `SOURCE` or `BOUND`, a reason, its text and location; it MUST NOT be omitted or reported as an
   absent key or call. A call through a package on neither the outbound list nor the local list
-  reads `package-not-followed`.
+  reads `package-not-followed`; a call on a name that is not a top-level declaration or import
+  (a parameter, local or undeclared global) reads `callee-not-resolved`; a file the lexer is unsure
+  of adds a `SOURCE` unknown to each step that reads it.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 - `AMAP-V0-135`: `--env-profile` MUST read a dotenv-format profile (at most 1 MiB) and report each
   non-defaulted request-path environment key that is unset or empty by name only, the defaulted
-  keys unset or empty, the configuration keys it does not check, and the count of unknowns by kind.
+  keys unset or empty, the configuration keys it does not check, and the count of every unknown by
+  kind.
   No profile value, and no profile key the path does not read, may appear in any output; a
   malformed line refuses naming only its line number.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
@@ -735,14 +741,15 @@ but does not read it; only non-Go syntax impact does.
   depth of 24; exceeding the file, visit or depth bound MUST add a `BOUND` unknown. Relative modules
   resolve as the exact path, then `.ts .tsx .js .jsx .mjs .cjs .mts .cts` (a `.js` specifier also as
   its TypeScript sibling), then `index.*`; symlinks and submodules are never read, and a path
-  outside the repository reads `module-outside-repository`.
+  outside the repository reads `module-outside-repository`. An imported module over 1 MiB or
+  unreadable reads a `CALL` unknown (`bound-exceeded`, `read-failed`) on the step that needs it.
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 - `AMAP-V0-138`: A refusal MUST exit 2 with one coded error and no stdout: no literal registration
   of the route (`request-path-route-not-found`), more than one (`request-path-route-ambiguous`), no
   such handler (`request-path-handler-not-found`), `--file` not a committed regular file
   (`request-path-file-not-found`), an unresolvable revision (`request-path-invalid-revision`), a Git
-  read failure (`request-path-source-unavailable`), a file over its bound
-  (`request-path-bound-exceeded`) or an unreadable or malformed profile
+  read failure of `--file` or of the `--handler` module (`request-path-source-unavailable`), either
+  over its bound (`request-path-bound-exceeded`) or an unreadable or malformed profile
   (`request-path-profile-invalid`).
   Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1941; GitHub #1200).
 - `AMAP-V0-139`: The same committed inputs and arguments MUST produce byte-identical reports:
@@ -802,8 +809,8 @@ with one coded JSON error on stderr and nothing on stdout.
 | `request-path-handler-not-found` | No function `--handler` is declared or imported in `--file`. |
 | `request-path-file-not-found` | `--file` is not a committed regular file at the revision. |
 | `request-path-invalid-revision` | `--revision` does not resolve to a commit. |
-| `request-path-source-unavailable` | A Git read failed. |
-| `request-path-bound-exceeded` | `--file` exceeds 1 MiB, or a read exceeded the file bound of AMAP-V0-137. |
+| `request-path-source-unavailable` | A Git read of `--file` or of the `--handler` module failed. |
+| `request-path-bound-exceeded` | `--file` or the `--handler` module exceeds 1 MiB, or the 64-file bound of AMAP-V0-137 was reached before `--file` was read. |
 | `request-path-profile-invalid` | `--env-profile` is unreadable, over 1 MiB, or has a line that is not `KEY=VALUE` (named by line number only). |
 
 ### Unknown reasons
@@ -1147,35 +1154,36 @@ key is unset or empty, without ever printing a value. The reader is the new pack
 | Requirement | Implementation | Focused evidence |
 | --- | --- | --- |
 | AMAP-V0-130 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0138RequestPathCLI` |
-| AMAP-V0-131 | `internal/requestpath/requestpath.go`, `internal/requestpath/scan.go`, `internal/requestpath/parse.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain` |
-| AMAP-V0-132 | `internal/requestpath/scan.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain` |
+| AMAP-V0-131 | `internal/requestpath/requestpath.go`, `internal/requestpath/scan.go`, `internal/requestpath/parse.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain`, `TestAMAPV0134ReviewReproductions` |
+| AMAP-V0-132 | `internal/requestpath/scan.go` | `TestAMAPV0131TokenExchangeKeysAndOutbound`, `TestAMAPV0132CommonJSRouterChain`, `TestAMAPV0134ReviewReproductions` |
 | AMAP-V0-133 | `internal/requestpath/requestpath.go` | `TestAMAPV0133GuardOrderFlagged`, `TestAMAPV0133GuardOrderNeedsProvenCheapGuard`, `TestAMAPV0138RequestPathCLI` |
-| AMAP-V0-134 | `internal/requestpath/scan.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0134UnresolvedMiddlewareAndReceiver` |
-| AMAP-V0-135 | `internal/requestpath/profile.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0135ProfileRefusesByLineOnly`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-134 | `internal/requestpath/scan.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0134UnresolvedMiddlewareAndReceiver`, `TestAMAPV0134ReviewReproductions` |
+| AMAP-V0-135 | `internal/requestpath/profile.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0135ProfileRefusesByLineOnly`, `TestAMAPV0135QuotedEmptyWithComment`, `TestAMAPV0134DynamicConfigKey`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-136 | `internal/requestpath/profile.go`, `cmd/corvint/flows_request_path.go` | `TestAMAPV0135PreRunBlocksByNameOnly`, `TestAMAPV0134UnresolvableIsUnknown`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-137 | `internal/requestpath/requestpath.go`, `internal/requestpath/git.go` | `TestAMAPV0137Bounds` |
-| AMAP-V0-138 | `cmd/corvint/flows_request_path.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0138Refusals`, `TestAMAPV0138RequestPathCLI` |
+| AMAP-V0-138 | `cmd/corvint/flows_request_path.go`, `internal/requestpath/requestpath.go` | `TestAMAPV0138Refusals`, `TestAMAPV0138ImportedHandlerReadBound`, `TestAMAPV0138RequestPathCLI` |
 | AMAP-V0-139 | `internal/requestpath/requestpath.go` | `TestAMAPV0139Deterministic` |
 
 Acceptance (issue 1200): (a) the token-exchange guard lists `OIDC_ISSUER` and
 `IDP_TOKEN_ENDPOINT` and marks `axios.post` outbound; (b) a profile with both keys empty reads
 `BLOCKED`, names them only and does not schedule; (c) the outbound guard before the validation
 guard is flagged and the reordered route is not; (d) a dynamic key, an escaping `process.env`, an
-unresolved import and an unfollowed package read as unknowns. The fixtures are inline in the
-tests; 20 source mutations of these rules are each killed by them (build log).
+unresolved import, an unfollowed package and a call on an undeclared global read as unknowns. The
+fixtures are inline in the tests; 30 source mutations of these rules are each killed by them
+(build log).
 
 Unknown reasons: `dynamic-key`, `env-object-escapes` (`ENV_KEY`, `CONFIG_KEY`);
 `module-not-found`, `module-outside-repository`, `read-failed`, `export-not-found`,
-`member-not-found`, `receiver-not-resolved`, `request-object-call`, `package-not-followed`
-(`CALL`); `middleware-not-resolved`, `middleware-expression-not-resolved`, `package-not-followed`
+`member-not-found`, `receiver-not-resolved`, `request-object-call`, `package-not-followed`,
+`callee-not-resolved` (`CALL`); `middleware-not-resolved`, `middleware-expression-not-resolved`, `package-not-followed`
 (`MIDDLEWARE`); `parent-router-not-read`, `receiver-origin-not-read` (`MOUNT`); `lexer-unsure`
 (`SOURCE`); `bound-exceeded` (`BOUND`, `CALL`).
 
 Non-goals: no Koa, Fastify, NestJS, Next.js or decorator routing; no middleware registered in
 another file, on a parent router or by `app.use(router)` mounting (each reads a `MOUNT` unknown);
-no data flow through parameters, locals or returned clients, so a call on such a value is not
-followed and its step reads `NONE_FOUND`, never "no outbound call"; no module top-level code that
-is not referenced from the path; no secret-store, Vault or cloud parameter lookups; no runtime
+no data flow through parameters, locals or returned clients, so a call on such a value reads
+`callee-not-resolved` rather than being followed; no module top-level code that is not referenced
+from the path; no secret-store, Vault or cloud parameter lookups; no runtime
 tracing; no check of configuration values against a profile. The batch decision is advisory
 output for the scheduler and exit code; the command schedules nothing. Simpler baseline: grep
 `process.env` in the route file. It misses keys read in imported guards and initializers, cannot
@@ -1183,9 +1191,12 @@ tell guards from handlers or outbound from local calls, and silently drops dynam
 
 Failure modes: a local variable that shadows a top-level name is scanned as that name
 (over-reports keys); an object initializer referenced on the path contributes every key it reads,
-used or not (over-reports); an outbound client reached through a parameter or a local is missed
-(`NONE_FOUND`, documented above); a package missing from both lists reads `package-not-followed`
-rather than being guessed; a lexer-unsure file is still read and carries a `SOURCE` unknown. Each
+used or not (over-reports); a call on a call's result (`a().b()`) is not classified apart from
+`a()`, and a step-parameter call such as `res.json()` is taken as the Express API even when a
+guard was handed some other object; a package missing from both lists reads
+`package-not-followed` rather than being guessed; a lexer-unsure file is still read and carries a
+`SOURCE` unknown on each step that reads it. Real handlers that call methods on locals read
+`UNKNOWN` often, which keeps the guard-order finding conservative. Each
 over- or under-report is visible in the report rather than resolved by guessing.
 
 Rollback: remove `internal/requestpath`, `cmd/corvint/flows_request_path.go` and its test, the
