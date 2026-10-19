@@ -497,6 +497,7 @@ func failure(err error, timing Timing) (map[string]any, string, *ToolFailure, *E
 }
 
 func failureCode(err error) (string, string) {
+	err = doccorpus.Typed(err) // the CLI types Git capacity failures the same way (DCP-V1-158)
 	var e *doccorpus.Error
 	if errors.As(err, &e) {
 		return e.Code, e.Message
