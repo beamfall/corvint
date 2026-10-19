@@ -12,7 +12,7 @@ import (
 
 const fixtureModule = "example.com/fixture"
 
-func writeFixture(t *testing.T, files map[string]string) string {
+func writeFixture(t testing.TB, files map[string]string) string {
 	t.Helper()
 	root := t.TempDir()
 	for file, body := range files {
@@ -338,4 +338,62 @@ func TestPathMatcherAgreesWithNamesPath(t *testing.T) {
 			t.Errorf("%q: matcher %v, namesPath %v", value, got, want)
 		}
 	}
+}
+
+// TestPathReadersAgreesWithReaders keeps Select's batched rule (c) equal to
+// readers() per dirty path (V1-1879).
+func TestPathReadersAgreesWithReaders(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/core.go":          "package core\n\nvar seed = \"testdata/seed.txt\"\n",
+		"reader/reader_test.go": "package reader\n\nvar guide, specs = \"docs/guide.md\", \"../docs/specs/\"\n",
+		"spec/spec.go":          "package spec\n\nvar ledger, partial = \"gate-ledger-v0.md\", \"decisions/000\"\n",
+		"cem/cem.go":            "package cem\n\nvar sidecar = \".corvint/change.cem.json\"\n",
+	})
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{".corvint/change.cem.json", "core/testdata/seed.txt", "docs/decisions/0001.md", "docs/guide.md", "docs/specs/gate-ledger-v0.md", "testdata/seed.txt", "unrelated/x.go"}
+	got := index.pathReaders(paths)
+	matched := 0
+	for i, p := range paths {
+		want := index.readers(p)
+		if fmt.Sprint(got[i]) != fmt.Sprint(want) {
+			t.Errorf("%s: pathReaders %v, readers %v", p, got[i], want)
+		}
+		matched += len(want)
+	}
+	if matched == 0 {
+		t.Fatal("fixture names no reader; the comparison proves nothing")
+	}
+}
+
+// BenchmarkPathReaders measures rule (c) attribution over many dirty paths,
+// batched against per path (V1-1879).
+func BenchmarkPathReaders(b *testing.B) {
+	files := map[string]string{}
+	var paths []string
+	for i := range 200 {
+		files[fmt.Sprintf("p%03d/p.go", i)] = fmt.Sprintf("package p\n\nvar a, b, c = \"docs/specs/s%03d.md\", \"testdata/%03d.txt\", \"x/y%03d\"\n", i, i, i)
+	}
+	for i := range 600 {
+		paths = append(paths, fmt.Sprintf("docs/specs/s%03d.md", i%300), fmt.Sprintf("p%03d/testdata/%03d.txt", i%200, i))
+	}
+	root := writeFixture(b, files)
+	index, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.Run("batched", func(b *testing.B) {
+		for b.Loop() {
+			index.pathReaders(paths)
+		}
+	})
+	b.Run("per-path", func(b *testing.B) {
+		for b.Loop() {
+			for _, p := range paths {
+				index.readers(p)
+			}
+		}
+	})
 }
