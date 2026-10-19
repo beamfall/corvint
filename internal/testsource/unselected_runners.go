@@ -28,8 +28,8 @@ const (
 	RunnerUncertain = "uncertain"
 )
 
-// jestRoot stands for Jest's <rootDir> in the absolute path Jest matches testMatch and
-// testPathIgnorePatterns against.
+// jestRoot stands for the repository root in the absolute path Jest (as <rootDir>) and Playwright
+// match their patterns against.
 const jestRoot = "/__corvint_root__"
 
 // SelectionRunner is one configured runner: its configuration file ("" for package defaults), the
@@ -47,6 +47,10 @@ type SelectionRunner struct {
 	extensions []string
 	include    []*regexp.Regexp
 	exclude    []*regexp.Regexp
+	// hidden, per include and exclude pattern, reports whether it may match a path with a hidden
+	// segment; only Mocha leaves hidden files out (glob dot:false and its directory scan).
+	includeHidden []bool
+	excludeHidden []bool
 }
 
 var (
@@ -102,6 +106,7 @@ func discoverRunners(files map[string]string) runnerSet {
 	type key struct{ runner, dir string }
 	configs := map[key][]string{}
 	declared := map[key]bool{}
+	workspaces := []string{}
 	names := make([]string, 0, len(files))
 	for name := range files {
 		names = append(names, name)
@@ -136,6 +141,9 @@ func discoverRunners(files map[string]string) runnerSet {
 			}
 		case unmodelledConfigStems[stem]:
 			set.unmodelled = append(set.unmodelled, name)
+			if stem == "vitest.workspace" || stem == "vitest.projects" {
+				workspaces = append(workspaces, dir)
+			}
 		case strings.HasPrefix(base, ".mocharc."):
 			configs[key{RunnerMocha, dir}] = append(configs[key{RunnerMocha, dir}], name)
 		case stem == "jest.config":
@@ -160,13 +168,22 @@ func discoverRunners(files map[string]string) runnerSet {
 			delete(configs, k)
 		}
 	}
+	for _, dir := range workspaces {
+		declared[key{RunnerVitest, dir}] = true
+	}
 	for k := range declared {
 		if _, ok := configs[k]; !ok {
 			configs[k] = nil
 		}
 	}
 	for k, list := range configs {
-		set.runners = append(set.runners, readRunner(k.runner, k.dir, list, files))
+		r := readRunner(k.runner, k.dir, list, files)
+		if r.Runner == RunnerVitest && len(workspaces) > 0 {
+			// A Vitest workspace selects per project, which this reading does not model, so every
+			// Vitest instance abstains, and one exists at each workspace file.
+			r = r.uncertain("runner-config-project-selection")
+		}
+		set.runners = append(set.runners, r)
 	}
 	slices.SortFunc(set.runners, func(a, b SelectionRunner) int {
 		return strings.Compare(a.Directory+"\x00"+a.Runner+"\x00"+a.Config, b.Directory+"\x00"+b.Runner+"\x00"+b.Config)
@@ -298,6 +315,9 @@ func readModuleConfig(runner, text string) (map[string]configValue, string) {
 			return nil, "runner-config-key-unsupported"
 		}
 	}
+	if s.selectionKeyDynamic(runner) {
+		return nil, "runner-config-key-dynamic"
+	}
 	var testObject [2]int
 	if runner == RunnerVitest {
 		at, found := configKeysIn(s, "test")
@@ -362,6 +382,34 @@ func configKeysIn(s *source, key string) ([]int, bool) {
 		}
 	}
 	return out, len(out) > 0
+}
+
+// selectionKeyDynamic reports a selection key the literal reading cannot place: a computed
+// property, or a selection key name (or Vitest `test`, Playwright `projects`) that is not a
+// `key:` property, such as a shorthand `{ testMatch }`, `module.exports.testMatch = …` or a
+// variable (TSA-V0-142).
+func (s *source) selectionKeyDynamic(runner string) bool {
+	keys := selectionKeys[runner]
+	watched := append(append([]string{}, keys[0]...), keys[1]...)
+	switch runner {
+	case RunnerVitest:
+		watched = append(watched, "test")
+	case RunnerPlaywright:
+		watched = append(watched, "projects")
+	}
+	for i, t := range s.tokens {
+		if s.punct(i, "]") && s.punct(i+1, ":") && s.match[i] >= 0 && (s.punct(s.match[i]-1, "{") || s.punct(s.match[i]-1, ",")) {
+			return true
+		}
+		if !slices.Contains(watched, t.Text) || !(t.Kind == appmap.JSIdent || t.Kind == appmap.JSString && t.Literal) {
+			continue
+		}
+		property := (s.punct(i-1, "{") || s.punct(i-1, ",")) && s.punct(i+1, ":") && !s.memberAccess(i)
+		if !property {
+			return true
+		}
+	}
+	return false
 }
 
 // directMember reports a property token directly inside the object literal spanning object.
@@ -519,22 +567,33 @@ func joinRelative(dir, relative string) (string, bool) {
 
 // compile turns the runner's patterns into matchers over the path relative to its directory.
 func (r *SelectionRunner) compile() string {
-	r.include, r.exclude = nil, nil
+	r.include, r.exclude, r.includeHidden, r.excludeHidden = nil, nil, nil, nil
 	for _, pattern := range r.Include {
 		re, ok := r.includeMatcher(pattern)
 		if !ok {
 			return "runner-pattern-unsupported"
 		}
-		r.include = append(r.include, re)
+		r.include, r.includeHidden = append(r.include, re), append(r.includeHidden, r.matchesHidden(pattern))
 	}
 	for _, pattern := range r.Exclude {
 		re, ok := r.excludeMatcher(pattern)
 		if !ok {
 			return "runner-pattern-unsupported"
 		}
-		r.exclude = append(r.exclude, re)
+		r.exclude, r.excludeHidden = append(r.exclude, re), append(r.excludeHidden, r.matchesHidden(pattern))
 	}
 	return ""
+}
+
+// matchesHidden reports whether pattern may match a path with a hidden segment: always, except
+// for Mocha, whose glob and directory scan skip hidden entries unless the pattern names a segment
+// starting with a literal `.`.
+func (r *SelectionRunner) matchesHidden(pattern string) bool {
+	if r.Runner != RunnerMocha {
+		return true
+	}
+	pattern = strings.TrimPrefix(pattern, "./")
+	return strings.HasPrefix(pattern, ".") || strings.Contains(pattern, "/.")
 }
 
 func (r *SelectionRunner) includeMatcher(pattern string) (*regexp.Regexp, bool) {
@@ -542,19 +601,24 @@ func (r *SelectionRunner) includeMatcher(pattern string) (*regexp.Regexp, bool) 
 	case RunnerJest:
 		return globRegexp(strings.ReplaceAll(pattern, "<rootDir>", jestRoot))
 	case RunnerPlaywright:
-		if !strings.HasPrefix(pattern, "**/") && !strings.HasPrefix(pattern, "/") {
-			pattern = "**/" + pattern
-		}
-		return globRegexp(pattern)
+		return playwrightMatcher(pattern)
 	case RunnerMocha:
 		pattern = strings.TrimPrefix(pattern, "./")
-		if !strings.ContainsAny(pattern, "*?[{") && !slices.Contains(r.extensions, strings.TrimPrefix(path.Ext(pattern), ".")) {
-			// A directory spec selects its files with a configured extension, recursively when set.
+		if !strings.ContainsAny(pattern, "*?[{") {
+			// A spec without glob characters is an existing file, that path plus a configured
+			// extension, or a directory whose files with a configured extension it selects
+			// (recursively when set). Mocha checks the file first; the committed tree alone does
+			// not tell them apart here, so any of them selects.
+			exts := ".{" + strings.Join(r.extensions, ",") + "}"
+			if len(r.extensions) == 1 {
+				exts = "." + r.extensions[0]
+			}
 			files := "/*"
 			if r.recursive {
 				files = "/**/*"
 			}
-			pattern = strings.TrimSuffix(pattern, "/") + files + ".{" + strings.Join(r.extensions, ",") + "}"
+			dir := strings.TrimSuffix(pattern, "/")
+			return globsRegexp([]string{pattern, pattern + exts, dir + files + exts}, false)
 		}
 		return globRegexp(pattern)
 	}
@@ -568,17 +632,32 @@ func (r *SelectionRunner) excludeMatcher(pattern string) (*regexp.Regexp, bool) 
 		re, err := regexp.Compile(strings.ReplaceAll(pattern, "<rootDir>", regexp.QuoteMeta(jestRoot)))
 		return re, err == nil
 	case RunnerPlaywright:
-		if !strings.HasPrefix(pattern, "**/") && !strings.HasPrefix(pattern, "/") {
-			pattern = "**/" + pattern
-		}
+		return playwrightMatcher(pattern)
 	}
 	return globRegexp(strings.TrimPrefix(pattern, "./"))
 }
 
-// selectionSubject is the string a runner's patterns match for a path relative to its directory.
+// playwrightMatcher compiles a Playwright testMatch or testIgnore glob: matched case-insensitively
+// against the absolute file path, with `**/` prepended unless it starts with `**/`. An absolute
+// pattern is outside the reading.
+func playwrightMatcher(pattern string) (*regexp.Regexp, bool) {
+	if strings.HasPrefix(pattern, "/") {
+		return nil, false
+	}
+	if !strings.HasPrefix(pattern, "**/") {
+		pattern = "**/" + pattern
+	}
+	return globsRegexp([]string{pattern}, true)
+}
+
+// selectionSubject is the string a runner's patterns match for a path relative to its directory:
+// Jest and Playwright match the absolute path, the others the relative one.
 func (r *SelectionRunner) selectionSubject(relative string) string {
-	if r.Runner == RunnerJest {
+	switch r.Runner {
+	case RunnerJest:
 		return jestRoot + "/" + relative
+	case RunnerPlaywright:
+		return jestRoot + "/" + path.Join(r.Directory, relative)
 	}
 	return relative
 }
@@ -590,21 +669,24 @@ func (r *SelectionRunner) verdict(name string) (bool, string, string) {
 	if !inside {
 		return false, ReasonOutsideInclude, ""
 	}
-	subject := r.selectionSubject(relative)
+	subject, hidden := r.selectionSubject(relative), hiddenPath(relative)
 	for i, re := range r.exclude {
-		if re.MatchString(subject) {
+		if re.MatchString(subject) && (!hidden || r.excludeHidden[i]) {
 			return false, ReasonExcluded, r.Exclude[i]
 		}
 	}
-	if r.included(subject) {
+	if r.included(subject, hidden) {
 		return true, "", ""
+	}
+	if hidden && r.Runner == RunnerMocha {
+		return false, ReasonOutsideInclude, "" // Mocha leaves hidden files out
 	}
 	// The directory is in scope when a conventionally named sibling would be selected.
 	dir, extension := path.Dir(relative), path.Ext(relative)
 	for _, ext := range []string{extension, ".js", ".ts"} {
 		for _, stem := range []string{"corvintprobe.test", "corvintprobe.spec", "corvintprobe"} {
 			probe := path.Join(dir, stem+ext)
-			if r.included(r.selectionSubject(probe)) && !r.excluded(r.selectionSubject(probe)) {
+			if r.included(r.selectionSubject(probe), false) && !r.excluded(r.selectionSubject(probe)) {
 				return false, ReasonSuffixMismatch, ""
 			}
 		}
@@ -612,9 +694,9 @@ func (r *SelectionRunner) verdict(name string) (bool, string, string) {
 	return false, ReasonOutsideInclude, ""
 }
 
-func (r *SelectionRunner) included(subject string) bool {
-	for _, re := range r.include {
-		if re.MatchString(subject) {
+func (r *SelectionRunner) included(subject string, hidden bool) bool {
+	for i, re := range r.include {
+		if re.MatchString(subject) && (!hidden || r.includeHidden[i]) {
 			return true
 		}
 	}
@@ -628,6 +710,11 @@ func (r *SelectionRunner) excluded(subject string) bool {
 		}
 	}
 	return false
+}
+
+// hiddenPath reports a path with a segment starting with `.`.
+func hiddenPath(relative string) bool {
+	return strings.HasPrefix(relative, ".") || strings.Contains(relative, "/.")
 }
 
 // relativeTo returns name relative to dir ("." is the repository root).

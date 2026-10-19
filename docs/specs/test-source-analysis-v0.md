@@ -949,13 +949,19 @@ declaration model; it runs nothing and reads committed Git content only.
       `**/*.@(spec|test).?(c|m)[jt]s?(x)`.
     - Mocha: `spec` `./test`, non-recursive, extensions `js`, `cjs` and `mjs`.
   - Jest matches globs against `<rootDir>/path` and its ignore patterns as regular expressions.
-    Playwright patterns without a leading `**/` or `/` get one, and `testDir` moves the
-    instance's directory. A Mocha spec without glob characters or a configured extension is a
-    directory.
+  - Playwright matches `testMatch` and `testIgnore` case-insensitively against the absolute path,
+    directory components included. A pattern without a leading `**/` gets one, an absolute
+    pattern is outside the reading, and `testDir` moves the instance's directory.
+  - A Mocha spec without glob characters selects that file, that path with a configured
+    extension, or the files with a configured extension in that directory (recursively when set).
+    Mocha leaves out a path with a hidden segment unless the pattern names a segment that starts
+    with a literal `.`; the other runners match hidden paths.
   - A dependency on `cypress`, `karma`, `jasmine`, `ava`, `@web/test-runner`, `@wdio/cli`, `tap`,
     `uvu`, `@japa/runner`, `@storybook/test-runner` or `testcafe`, or one of their configuration
-    files, a `vitest.workspace` file, or an unparsable package.json, is unmodelled runner
-    evidence.
+    files, a `vitest.workspace` or `vitest.projects` file, or an unparsable package.json, is
+    unmodelled runner evidence. A `vitest.workspace` or `vitest.projects` file also makes every
+    Vitest instance uncertain (`runner-config-project-selection`), and one exists in its
+    directory.
 - `TSA-V0-142`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A configuration MUST be
   read only as literal values: strings, arrays of strings and `true`/`false` for the selection keys
   (Jest `testMatch`, `testPathIgnorePatterns`; Vitest `test.include`, `test.exclude`; Playwright
@@ -967,12 +973,18 @@ declaration model; it runs nothing and reads committed Git content only.
     (`runner-config-key-unsupported`);
   - a repeated or non-literal selection key, or a non-object Vitest `test`
     (`runner-config-key-repeated`, `runner-config-value-dynamic`);
+  - a computed property, or a selection key name (or Vitest `test`, Playwright `projects`) that
+    is not a `key:` property, such as a shorthand `{ testMatch }`, `module.exports.testMatch = …`
+    or a variable (`runner-config-key-dynamic`);
   - a Playwright selection key inside `projects` (`runner-config-project-selection`);
   - unparsable JSON, YAML, or a Vitest JSON file (`runner-config-unparsed`);
   - two configurations for one runner in one directory (`runner-config-multiple`);
-  - a pattern outside the glob dialect (`runner-pattern-unsupported`). The dialect is `**`, `*`,
-    `?`, `[...]` with `!` negation, `{a,b}` and the extglobs `?(…)`, `*(…)`, `+(…)` and `@(…)`. A
-    negated pattern, `!(…)`, an escape or an unbalanced bracket is outside it.
+  - a pattern outside the glob dialect (`runner-pattern-unsupported`). Braces `{a,b}` and numeric
+    ranges `{1..3}` expand first, to at most 256 patterns. Then the dialect is `**` as a whole
+    path segment (elsewhere it is `*`), `*`, `?`, `[...]` with `!` negation and the extglobs
+    `?(…)`, `*(…)`, `+(…)` and `@(…)`. A negated pattern, `!(…)`, a `**` inside an extglob, a
+    letter, stepped or zero-padded range, a brace without a comma, an escape or an unbalanced
+    bracket is outside it.
 - `TSA-V0-143`: (standing auto-accept, 2026-10-11; V1-1888 / GitHub #1172) A file's framework MUST
   be attributed from its literal imports and requires:
   - `@playwright/test` or `playwright/test` is Playwright, `vitest` is Vitest, `@jest/globals` is
@@ -1052,6 +1064,9 @@ Acceptance evidence: synthetic Git repositories only.
   `suffix-mismatch` and a Vitest file outside `include` as `outside-include`. Selected files and
   non-test-looking files are not reported, and `coverage.include` does not count.
 - Playwright `testDir`/`testIgnore` and a Mocha `.mocharc.json` spec are read.
+- Playwright matches the absolute path case-insensitively, Mocha skips hidden files and selects
+  an explicitly named file outside `extension`, brace ranges expand, an inline `**` stays in one
+  segment, and a Vitest workspace makes an explicit Vitest file uncertain.
 - Each abstain reason in TSA-V0-142 leaves files `uncertain` with no finding, as do no runner
   evidence, an unmodelled runner and a `node:test` file.
 - The glob dialect is pinned.
@@ -1069,8 +1084,8 @@ Nothing is persisted.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-140 | `internal/testsource/unselected.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |
-| TSA-V0-141 | `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141` | experimental |
-| TSA-V0-142 | `internal/testsource/unselected_runners.go`, `internal/testsource/unselected_glob.go` | `TestUnselectedAbstainsTSAV0142`, `TestUnselectedGlobDialectTSAV0142` | experimental |
+| TSA-V0-141 | `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
+| TSA-V0-142 | `internal/testsource/unselected_runners.go`, `internal/testsource/unselected_glob.go` | `TestUnselectedAbstainsTSAV0142`, `TestUnselectedGlobDialectTSAV0142`, `TestUnselectedRunnerSemanticsTSAV0141` | experimental |
 | TSA-V0-143 | `internal/testsource/unselected.go` | `TestUnselectedIndirectFrameworkTSAV0143`, `TestUnselectedNoEvidenceTSAV0144` | experimental |
 | TSA-V0-144 | `internal/testsource/unselected.go`, `internal/testsource/unselected_runners.go` | `TestUnselectedReasonsTSAV0144`, `TestUnselectedNoEvidenceTSAV0144`, `TestUnselectedPlaywrightAndMochaTSAV0141` | experimental |
 | TSA-V0-145 | `internal/testsource/unselected.go`, `cmd/corvint/tests_unselected.go` | `TestTestsUnselectedCLI`, `TestUnselectedRevisionRefusalTSAV0145` | experimental |

@@ -37,8 +37,24 @@ Synthetic Git repositories in `internal/testsource/unselected_test.go` and
 files not reported, every abstain reason, the glob dialect, the validity refusal and the CLI exit
 codes 0, 1 and 2.
 
+## Review round (Codex, one round)
+
+The round raised eight findings. All eight are fixed, each with a regression test that fails on
+the first commit:
+- shorthand, computed and member-assigned selection keys now abstain (`runner-config-key-dynamic`);
+- Playwright matches the absolute path, keeping `testDir`, and matches case-insensitively;
+- a Vitest workspace makes every Vitest instance uncertain, including for explicit Vitest imports;
+- an inline `**` stays within one segment;
+- Mocha skips hidden files;
+- numeric brace ranges expand, and other ranges abstain;
+- an explicitly named Mocha spec selects that file whatever its extension.
+
 ## Residuals
 
+- A configuration whose export is not an object literal (`module.exports = require('./base')`) is
+  still read as defaults.
+- Mocha's hidden-file rule is approximated per pattern: a pattern naming a segment that starts
+  with a literal `.` is allowed to match any hidden path.
 - The doc-corpus legacy crosswalk and the Playwright witness import read receipts, not this report,
   and do not yet consume the flag (NOT_PRODUCED here; owned by the doccorpus and witness lanes).
 - RSpec, Go and unmodelled runners are not modelled. Their files are absent or abstain.

@@ -152,6 +152,12 @@ func TestUnselectedAbstainsTSAV0142(t *testing.T) {
 		"projects":        {map[string]string{"playwright.config.ts": "export default { projects: [{ name: 'a', testMatch: '**/*.x.ts' }] };\n"}, "runner-config-project-selection"},
 		"negated glob":    {map[string]string{"jest.config.js": "module.exports = { testMatch: ['**/!(skip).js'] };\n"}, "runner-pattern-unsupported"},
 		"two configs":     {map[string]string{"jest.config.js": "module.exports = {};\n", "jest.config.ts": "export default {};\n"}, "runner-config-multiple"},
+		"shorthand key": {map[string]string{"jest.config.js": "const testMatch = ['**/*.tests.js'];\nmodule.exports = { testMatch };\n"},
+			"runner-config-key-dynamic"},
+		"computed key": {map[string]string{"jest.config.js": "const k = 'testMatch';\nmodule.exports = { [k]: ['**/*.tests.js'] };\n"},
+			"runner-config-key-dynamic"},
+		"member assignment": {map[string]string{"jest.config.js": "module.exports = {};\nmodule.exports.testMatch = ['**/*.tests.js'];\n"},
+			"runner-config-key-dynamic"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -170,6 +176,77 @@ func TestUnselectedAbstainsTSAV0142(t *testing.T) {
 			}
 			if len(report.Findings) != 0 {
 				t.Errorf("an abstaining reading reported %+v", report.Findings)
+			}
+		})
+	}
+}
+
+// TestUnselectedRunnerSemanticsTSAV0141 pins runner-specific matching: Playwright matches the
+// absolute path case-insensitively, Mocha skips hidden files and selects an explicitly named file
+// whatever its extension, brace ranges expand, and a Vitest workspace makes explicit Vitest files
+// abstain (TSA-V0-141, TSA-V0-142, TSA-V0-144).
+func TestUnselectedRunnerSemanticsTSAV0141(t *testing.T) {
+	pw := "import { test } from '@playwright/test';\ntest('x', async () => {});\n"
+	mocha := "describe('d', () => { it('works', () => {}); });\n"
+	cases := map[string]struct {
+		files map[string]string
+		want  map[string]string
+	}{
+		"playwright testMatch keeps testDir in the path": {map[string]string{
+			"package.json":         `{"devDependencies":{"@playwright/test":"1.55.0"}}`,
+			"playwright.config.ts": "export default { testDir: './e2e', testMatch: 'e2e/**/*.spec.ts' };\n",
+			"e2e/a.spec.ts":        pw,
+		}, map[string]string{"e2e/a.spec.ts": SelectionSelected}},
+		"playwright testIgnore sees testDir": {map[string]string{
+			"package.json":         `{"devDependencies":{"@playwright/test":"1.55.0"}}`,
+			"playwright.config.ts": "export default { testDir: './e2e', testIgnore: '**/e2e/**' };\n",
+			"e2e/a.spec.ts":        pw,
+		}, map[string]string{"e2e/a.spec.ts": SelectionUnselected}},
+		"playwright is case-insensitive": {map[string]string{
+			"package.json":         `{"devDependencies":{"@playwright/test":"1.55.0"}}`,
+			"playwright.config.ts": "export default { testMatch: '**/A.spec.ts' };\n",
+			"e2e/a.spec.ts":        pw,
+		}, map[string]string{"e2e/a.spec.ts": SelectionSelected}},
+		"brace range expands": {map[string]string{
+			"package.json":         `{"devDependencies":{"@playwright/test":"1.55.0"}}`,
+			"playwright.config.ts": "export default { testMatch: '**/test{1..3}.spec.ts' };\n",
+			"e2e/test1.spec.ts":    pw,
+			"e2e/test4.spec.ts":    pw,
+		}, map[string]string{"e2e/test1.spec.ts": SelectionSelected, "e2e/test4.spec.ts": SelectionUnselected}},
+		"mocha skips hidden files": {map[string]string{
+			"package.json":         `{"devDependencies":{"mocha":"11.0.0"}}`,
+			"test/.hidden.spec.js": mocha,
+			"test/shown.spec.js":   mocha,
+		}, map[string]string{"test/.hidden.spec.js": SelectionUnselected, "test/shown.spec.js": SelectionSelected}},
+		"mocha explicit file outside extension": {map[string]string{
+			"package.json":    `{"devDependencies":{"mocha":"11.0.0"}}`,
+			".mocharc.json":   `{"spec":"test/a.test.cjs","extension":["js"]}`,
+			"test/a.test.cjs": mocha,
+			"test/b.test.cjs": mocha,
+		}, map[string]string{"test/a.test.cjs": SelectionSelected, "test/b.test.cjs": SelectionUnselected}},
+		"inline globstar stays in one segment": {map[string]string{
+			"package.json":        `{"devDependencies":{"mocha":"11.0.0"}}`,
+			".mocharc.json":       `{"spec":"test/**.spec.js"}`,
+			"test/a.spec.js":      mocha,
+			"test/deep/b.spec.js": mocha,
+		}, map[string]string{"test/a.spec.js": SelectionSelected, "test/deep/b.spec.js": SelectionUnselected}},
+		"vitest workspace abstains for explicit vitest": {map[string]string{
+			"package.json":        `{"devDependencies":{"vitest":"3.2.4"}}`,
+			"vitest.workspace.ts": "export default [{ test: { name: 'unit', include: ['**/*.tests.ts'] } }];\n",
+			"src/a.tests.ts":      "import { test } from 'vitest';\n" + globalTest,
+		}, map[string]string{"src/a.tests.ts": SelectionUncertain}},
+		"vitest workspace without a vitest dependency": {map[string]string{
+			"vitest.workspace.ts": "export default ['packages/*'];\n",
+			"src/a.tests.ts":      "import { test } from 'vitest';\n" + globalTest,
+		}, map[string]string{"src/a.tests.ts": SelectionUncertain}},
+	}
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			report := unselectedReport(t, c.files)
+			for file, want := range c.want {
+				if got, _ := selectionOf(report, file); got.Selection != want {
+					t.Errorf("%s = %+v, want %s; runners %+v", file, got, want, report.Runners)
+				}
 			}
 		})
 	}
@@ -229,6 +306,13 @@ func TestUnselectedGlobDialectTSAV0142(t *testing.T) {
 		{"src/*.test.js", "src/deep/a.test.js", false},
 		{"test/[!x]*.js", "test/a.js", true},
 		{"test/[!x]*.js", "test/x.js", false},
+		{"test/**.spec.js", "test/a.spec.js", true},
+		{"test/**.spec.js", "test/deep/a.spec.js", false},
+		{"a/**", "a/b/c.js", true},
+		{"**/test{1..3}.spec.ts", "e2e/test2.spec.ts", true},
+		{"**/test{1..3}.spec.ts", "e2e/test4.spec.ts", false},
+		{"{src,lib}/**/*.{js,ts}", "lib/x/y.ts", true},
+		{"{src,lib}/**/*.{js,ts}", "app/y.ts", false},
 	}
 	for _, c := range cases {
 		re, ok := globRegexp(c.glob)
@@ -236,7 +320,7 @@ func TestUnselectedGlobDialectTSAV0142(t *testing.T) {
 			t.Errorf("%q vs %q: ok=%v match=%v, want %v", c.glob, c.path, ok, ok && re.MatchString(c.path), c.match)
 		}
 	}
-	for _, unsupported := range []string{"", "!a.js", "**/!(x).js", "a\\b.js", "{a,b", "a)b"} {
+	for _, unsupported := range []string{"", "!a.js", "**/!(x).js", "a\\b.js", "{a,b", "a)b", "{a..c}.js", "{01..03}.js", "{a}.js", "@(**/a).js"} {
 		if _, ok := globRegexp(unsupported); ok {
 			t.Errorf("%q compiled, want unsupported", unsupported)
 		}
