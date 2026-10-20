@@ -74,6 +74,9 @@ type ExampleJoinRecord struct {
 type ExampleJoinVerdict struct {
 	Hygiene  testvalidity.Axis `json:"hygiene"`
 	Strength testvalidity.Axis `json:"strength"`
+	// Conditions are the flag values the example forces; its verdict holds only under them
+	// (TSA-V0-440).
+	Conditions []testvalidity.FlagCondition `json:"conditions,omitempty"`
 }
 
 // ExampleJoinSource is the revision and the committed files the verdict read.
@@ -205,7 +208,7 @@ func joinVerdict(apply func(testvalidity.Projection, testvalidity.ExampleSource,
 	if p.Strength.Anchors == nil {
 		p.Strength.Anchors = []string{}
 	}
-	return ExampleJoinVerdict{Hygiene: p.Hygiene, Strength: p.Strength}
+	return ExampleJoinVerdict{Hygiene: p.Hygiene, Strength: p.Strength, Conditions: source.Conditions}
 }
 
 // ruby joins the examples of one Ruby provider document.
@@ -251,6 +254,8 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 	supports := map[string]joinSupport{}
 	sources := map[string]map[int]testvalidity.ExampleSource{}
 	reasons := map[string]string{}
+	var flags *testvalidity.FlagLookups
+	var flagFile []ExampleJoinFile
 	for index, example := range document.Examples {
 		record := &rows[index].record
 		switch {
@@ -273,6 +278,22 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 		shared, _ := j.file(example.File)
 		record.Source.Files = append(record.Source.Files, ExampleJoinFile{Path: example.File, Blob: shared.blob})
 		if spec == example.File {
+			if flags == nil {
+				// The flag lookup declaration classifies stubs (TSA-V0-439); read once per document.
+				f, err := j.file(testvalidity.FlagLookupsPath)
+				if err != nil {
+					return nil, err
+				}
+				read := testvalidity.BuiltinFlagLookups()
+				if f.found {
+					if read, err = DecodeFlagLookups([]byte(f.text)); err != nil {
+						return nil, err
+					}
+					flagFile = []ExampleJoinFile{{Path: testvalidity.FlagLookupsPath, Blob: f.blob}}
+				}
+				flags = &read
+			}
+			support.Flags = flags
 			examples, ok := sources[spec]
 			if !ok {
 				examples, reasons[spec] = RSpecExampleSourcesWithSupport(spec, shared.text, support)
@@ -287,7 +308,7 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 				}
 			}
 			record.Verdict = joinVerdict(testvalidity.ApplyExampleSource, source, fmt.Sprintf("%s:%d", example.File, example.Line))
-			record.Source.Files = withSupport(record.Source.Files, set.files)
+			record.Source.Files = withSupport(withSupport(record.Source.Files, set.files), flagFile)
 			continue
 		}
 		including, err := j.file(spec)

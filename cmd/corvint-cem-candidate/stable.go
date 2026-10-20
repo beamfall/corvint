@@ -61,8 +61,28 @@ func stableCommand(ctx context.Context, args []string, out, errout io.Writer) in
 	if e != nil {
 		return fail(e)
 	}
-	if e := json.NewEncoder(out).Encode(result); e != nil {
+	if e := encodeOK(out, result); e != nil {
 		return fail(e)
 	}
 	return 0
+}
+
+// encodeOK writes result as json.Encoder does, with one leading top-level
+// "ok": true member; every other byte is the result's own encoding
+// (CEM-V1-341).
+func encodeOK(out io.Writer, result any) error {
+	encoded, e := json.Marshal(result)
+	if e != nil {
+		return e
+	}
+	if len(encoded) < 2 || encoded[0] != '{' {
+		return fmt.Errorf("assembly result is not a JSON object")
+	}
+	envelope := []byte(`{"ok":true`)
+	if string(encoded) != "{}" {
+		envelope = append(envelope, ',')
+	}
+	envelope = append(append(envelope, encoded[1:]...), '\n')
+	_, e = out.Write(envelope)
+	return e
 }

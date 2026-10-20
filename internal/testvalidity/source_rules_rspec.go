@@ -91,6 +91,9 @@ func (q RSpecInclusion) Ref(includeLine int) string {
 type RubySupport struct {
 	Files   map[string]string
 	Unbound string
+	// Flags is the flag lookup list stubs are classified against (TSA-V0-435); nil uses
+	// BuiltinFlagLookups.
+	Flags *FlagLookups
 }
 
 // Hygiene and strength reasons of the RSpec example facts (TSA-V0-068..070).
@@ -123,6 +126,8 @@ type ExampleSource struct {
 	// TitlePath is the example's literal title path, outermost group first and its own title
 	// last (LPCV-V0-147). It is nil when any title on the path is not a literal string.
 	TitlePath []string `json:"-"`
+	// Conditions are the flag values the example forces, in stub line order (TSA-V0-437).
+	Conditions []FlagCondition `json:"conditions,omitempty"`
 }
 
 // anchors is the example's anchor followed by the abstention's cause, when it has one.

@@ -402,7 +402,11 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 	}
 	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, output, output
 	command.WaitDelay = time.Second
-	owner, err := groupreap.StartWith(command, attemptGroupPrimitives)
+	// A group SIGKILL can miss a member forked alongside it on Darwin, so
+	// the owner repeats it while a live member remains (ATR-V0-153).
+	primitives := attemptGroupPrimitives
+	primitives.RepeatKillWhileLive = true
+	owner, err := groupreap.StartWith(command, primitives)
 	if err != nil {
 		out.Class, out.EndedAt = transaction.RunSpawnFailed, string(nowStamp())
 		return out

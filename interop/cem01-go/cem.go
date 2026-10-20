@@ -1142,7 +1142,20 @@ func candidateCanonicalRecord(row map[string]json.RawMessage) ([]byte, error) {
 		}
 		out.WriteString(canonicalString(key))
 		out.WriteByte(':')
-		if key == "criterionIndex" {
+		if key == "externalSpan" {
+			// CEM-V1-332: the external span member is the closed {end,start}
+			// object, written in canonical key order.
+			var sp map[string]json.RawMessage
+			if json.Unmarshal(row[key], &sp) != nil || len(sp) != 2 {
+				return nil, errors.New("external span type")
+			}
+			start, okStart := candidateWireInteger(sp["start"])
+			end, okEnd := candidateWireInteger(sp["end"])
+			if !okStart || !okEnd {
+				return nil, errors.New("external span type")
+			}
+			out.WriteString(`{"end":` + strconv.FormatUint(end, 10) + `,"start":` + strconv.FormatUint(start, 10) + `}`)
+		} else if key == "criterionIndex" {
 			n, ok := candidateWireInteger(row[key])
 			if !ok {
 				return nil, errors.New("criterion index type")
@@ -2616,10 +2629,12 @@ func (r *result03) fail(stage string, e *cemError, verification bool) int {
 // retain the full document; no 0.x profile substitution or lossy writer is used.
 const stableSpec = "cem/1.0"
 
-// stableCriterion has two closed forms (CEM-V1-083): the plain Git blob span
-// form {id, criterionIndex, criterionSha256, evidenceId}, or the optional Tasks
-// extension with all eight Tasks members and no evidenceId. Empty members are
-// omitted, so the Tasks form keeps its identity and encoding.
+// stableCriterion has three closed forms: the plain Git blob span form {id,
+// criterionIndex, criterionSha256, evidenceId} (CEM-V1-083), the optional Tasks
+// extension with all eight Tasks members and no evidenceId, or the external
+// form {id, criterionIndex, criterionSha256, externalRepository,
+// externalBlobOid, externalSpan} (CEM-V1-330). Empty members are omitted, so
+// the plain and Tasks forms keep their identity and encoding.
 type stableCriterion struct {
 	ID                         string `json:"id"`
 	TicketID                   string `json:"ticketId,omitempty"`
@@ -2633,18 +2648,44 @@ type stableCriterion struct {
 	SnapshotHeadReceiptSHA256  string `json:"snapshotHeadReceiptSha256,omitempty"`
 	SnapshotHeadArtifactSHA256 string `json:"snapshotHeadArtifactSha256,omitempty"`
 	EvidenceID                 string `json:"evidenceId,omitempty"`
+	ExternalRepository         string `json:"externalRepository,omitempty"`
+	ExternalBlobOID            string `json:"externalBlobOid,omitempty"`
+	ExternalSpan               *span  `json:"externalSpan,omitempty"`
+}
+
+var stableExternalCriterionKeys = []string{"externalRepository", "externalBlobOid", "externalSpan"}
+
+// stableExternalRepositoryName is the closed external repository name
+// (CEM-V1-330): ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$.
+func stableExternalRepositoryName(s string) bool {
+	if len(s) < 1 || len(s) > 64 {
+		return false
+	}
+	for i, r := range s {
+		alnum := r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z' || r >= '0' && r <= '9'
+		if !alnum && (i == 0 || r != '.' && r != '_' && r != '-') {
+			return false
+		}
+	}
+	return true
 }
 
 var stableTasksCriterionKeys = []string{"ticketId", "acceptanceRevision", "acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
 
 // stableCriterionKeys selects the closed set: any Tasks member requires the
-// whole Tasks form; otherwise the plain form applies.
+// whole Tasks form; otherwise any external member requires the whole external
+// form (CEM-V1-331); otherwise the plain form applies.
 func stableCriterionKeys(raw json.RawMessage) []string {
 	var obj map[string]json.RawMessage
 	_ = json.Unmarshal(raw, &obj)
 	for _, k := range stableTasksCriterionKeys {
 		if _, ok := obj[k]; ok {
 			return []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		}
+	}
+	for _, k := range stableExternalCriterionKeys {
+		if _, ok := obj[k]; ok {
+			return []string{"id", "criterionIndex", "criterionSha256", "externalRepository", "externalBlobOid", "externalSpan"}
 		}
 	}
 	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
@@ -3042,7 +3083,8 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 	}
 	for _, raw := range cs {
 		keys := stableCriterionKeys(raw)
-		tasks := len(keys) > 4
+		tasks := keys[1] == "ticketId"
+		external := keys[3] == "externalRepository"
 		o, e := object03(raw, keys, nil)
 		if e != nil {
 			return m, e
@@ -3081,7 +3123,24 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 				return m, e
 			}
 		}
-		if !tasks {
+		if external {
+			if c.ExternalRepository, e = stableString(o, "externalRepository", stableExternalRepositoryName); e != nil {
+				return m, e
+			}
+			if c.ExternalBlobOID, e = stableString(o, "externalBlobOid", validOID); e != nil {
+				return m, e
+			}
+			so, e := object03(o["externalSpan"], []string{"start", "end"}, nil)
+			if e != nil {
+				return m, e
+			}
+			start, okStart := uint03(so["start"])
+			end, okEnd := uint03(so["end"])
+			if !okStart || !okEnd || start >= end {
+				return m, invalid("invalid-field")
+			}
+			c.ExternalSpan = &span{Start: start, End: end}
+		} else if !tasks {
 			if c.EvidenceID, e = stableString(o, "evidenceId", func(s string) bool { return prefixedStable(s, "evidence:sha256:") }); e != nil {
 				return m, e
 			}
@@ -3101,7 +3160,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		if v.SHA256, e = stableString(o, "sha256", validDigest); e != nil {
 			return m, e
 		}
-		if v.Profile, e = stableString(o, "profile", func(s string) bool { return s == "corvint-test-runner-receipt/0" }); e != nil {
+		if v.Profile, e = stableString(o, "profile", func(s string) bool { return s == "corvint-test-runner-receipt/0" || s == "opaque/0" }); e != nil {
 			return m, e
 		}
 		if v.PlanSHA256, e = stableString(o, "planSha256", validDigest); e != nil {
@@ -3219,11 +3278,15 @@ func validateStableReferences(m *stableMap) *cemError {
 		}
 		// Plain criteria form one unnamed group that no Tasks ticket can occupy.
 		tuple := c.TicketID + ":" + c.AcceptanceRevision + ":" + strconv.FormatUint(c.CriterionIndex, 10)
-		plain := c.EvidenceID != ""
-		if criteria[c.ID] || tuples[tuple] || plain && spans[c.EvidenceID] {
+		plain := c.TicketID == ""
+		key := c.EvidenceID
+		if c.ExternalSpan != nil {
+			key = "external\x00" + c.ExternalRepository + "\x00" + c.ExternalBlobOID + "\x00" + strconv.FormatUint(c.ExternalSpan.Start, 10) + "\x00" + strconv.FormatUint(c.ExternalSpan.End, 10)
+		}
+		if criteria[c.ID] || tuples[tuple] || plain && spans[key] {
 			return invalid("duplicate-reference")
 		}
-		spans[c.EvidenceID] = plain
+		spans[key] = plain
 		criteria[c.ID] = true
 		tuples[tuple] = true
 		group := c.TicketID + ":" + c.AcceptanceRevision
@@ -3335,7 +3398,8 @@ func validateStableReferences(m *stableMap) *cemError {
 		return true
 	}
 	for _, c := range m.CriterionBindings {
-		if c.EvidenceID != "" {
+		// Plain and external criteria (CEM-V1-332) carry no Tasks artifact role.
+		if c.TicketID == "" {
 			continue
 		}
 		if !want(c.CaptureSHA256, "tasks-capture") || !want(c.VerificationSHA256, "tasks-verification") || !want(c.ClaimTicketSHA256, "tasks-claimed-ticket") || !want(c.SnapshotHeadArtifactSHA256, "tasks-snapshot-head-receipt") {
@@ -3533,6 +3597,12 @@ func runStable(ctx context.Context, repo string, raw []byte, base, target, artif
 // runStableTrusted is runStable with the consumer --trusted-keys set; nil
 // means no file was supplied (CEM-V1-084).
 func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target, artifacts string, trusted map[string]ed25519.PublicKey) (stableResult, int) {
+	return runStableExternal(ctx, repo, raw, base, target, artifacts, trusted, nil)
+}
+
+// runStableExternal is runStableTrusted with the consumer
+// --external-repository roots by name (CEM-V1-333); nil supplies none.
+func runStableExternal(ctx context.Context, repo string, raw []byte, base, target, artifacts string, trusted map[string]ed25519.PublicKey, externals map[string]string) (stableResult, int) {
 	r := newStableResult(base, target)
 	r.MapSHA256 = string03(shaHex(raw))
 	m, e := decodeStable(raw)
@@ -3854,6 +3924,9 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 		}
 		r.Axes["authentication"] = axis
 	}
+	if e := checkStableExternal(ctx, v, m.CriterionBindings, externals); e != nil {
+		return failStable(&r, "artifacts", e, true)
+	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"
 	if len(m.Artifacts) == 0 {
@@ -3868,11 +3941,28 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 }
 
 func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
+	r, status, _, _ := executeStableCLIExternal(ctx, argv)
+	return r, status
+}
+
+// executeStableCLIExternal also returns the map bytes read and the supplied
+// external repository roots, for the CEM-V1-336 stderr fix line.
+func executeStableCLIExternal(ctx context.Context, argv []string) (stableResult, int, []byte, map[string]string) {
 	flags := map[string]string{}
+	externals := map[string]string{}
 	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true, "--trusted-keys": true}
 	bad := len(argv)%2 != 0
 	if !bad {
 		for i := 0; i < len(argv); i += 2 {
+			if argv[i] == "--external-repository" {
+				name, root, ok := strings.Cut(argv[i+1], "=")
+				if _, dup := externals[name]; !ok || dup || !stableExternalRepositoryName(name) || !filepath.IsAbs(root) || filepath.Clean(root) != root {
+					bad = true
+					break
+				}
+				externals[name] = root
+				continue
+			}
 			if !allowed[argv[i]] || flags[argv[i]] != "" || argv[i+1] == "" {
 				bad = true
 				break
@@ -3882,24 +3972,31 @@ func executeStableCLI(ctx context.Context, argv []string) (stableResult, int) {
 	}
 	r := newStableResult(flags["--expected-base"], flags["--target"])
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
-		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
+		return res, status, nil, externals
 	}
 	trusted, ok := readStableTrustedKeys(ctx, flags["--trusted-keys"])
 	if !ok {
-		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
+		return res, status, nil, externals
 	}
 	raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
 	if e != nil {
-		return failStable(&r, "input", operational("map-unavailable"), false)
+		res, status := failStable(&r, "input", operational("map-unavailable"), false)
+		return res, status, nil, externals
 	}
-	return runStableTrusted(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], trusted)
+	res, status := runStableExternal(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], trusted, externals)
+	return res, status, raw, externals
 }
 func runStableCLI(argv []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
 	defer cancel()
-	r, status := executeStableCLI(ctx, argv)
+	r, status, raw, externals := executeStableCLIExternal(ctx, argv)
 	_ = json.NewEncoder(os.Stdout).Encode(r)
 	if fix := stableRelativePathFix(r, argv); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable: "+fix)
+	}
+	if fix := stableExternalFix(r, raw, externals); fix != "" {
 		fmt.Fprintln(os.Stderr, "cem01-go verify-stable: "+fix)
 	}
 	os.Exit(status)
@@ -3914,9 +4011,13 @@ func stableRelativePathFix(r stableResult, argv []string) string {
 		return ""
 	}
 	var relative []string
-	for _, name := range []string{"--repository", "--map", "--artifacts", "--trusted-keys"} {
+	for _, name := range []string{"--repository", "--map", "--artifacts", "--trusted-keys", "--external-repository"} {
 		for i := 0; i+1 < len(argv); i += 2 {
-			if argv[i] == name && argv[i+1] != "" && !filepath.IsAbs(argv[i+1]) {
+			value := argv[i+1]
+			if name == "--external-repository" {
+				_, value, _ = strings.Cut(value, "=")
+			}
+			if argv[i] == name && value != "" && !filepath.IsAbs(value) {
 				relative = append(relative, name)
 				break
 			}
@@ -3926,4 +4027,63 @@ func stableRelativePathFix(r stableResult, argv []string) string {
 		return ""
 	}
 	return "invalid-arguments: relative path option " + strings.Join(relative, ", ") + "; fix: pass each as an absolute path such as \"$PWD/<path>\"; a relative path is refused, never resolved"
+}
+
+// checkStableExternal observes each external criterion span (CEM-V1-334) in
+// map order. An unsupplied, inadmissible or unreadable external repository is
+// artifact-unavailable, so the verification abstains and never accepts; only
+// observed bytes that differ from criterionSha256 reject. Every external read
+// charges the primary verifier's Git-operation and distinct-blob budgets
+// (CEM-V1-335).
+func checkStableExternal(ctx context.Context, primary *verifier, criteria []stableCriterion, externals map[string]string) *cemError {
+	for _, c := range criteria {
+		if c.ExternalSpan == nil {
+			continue
+		}
+		root, ok := externals[c.ExternalRepository]
+		if !ok || repository03(root) != nil {
+			return operational("artifact-unavailable")
+		}
+		v := &verifier{ctx: ctx, repo: root, gitOps: primary.gitOps, blobBytes: primary.blobBytes, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
+		b, e := v.blob03(c.ExternalBlobOID)
+		primary.gitOps, primary.blobBytes = v.gitOps, v.blobBytes
+		if ctx.Err() != nil {
+			return operational("verification-timeout")
+		}
+		if e != nil {
+			return operational("artifact-unavailable")
+		}
+		if c.ExternalSpan.End > uint64(len(b)) || shaHex(b[c.ExternalSpan.Start:c.ExternalSpan.End]) != c.CriterionSHA256 {
+			return invalid("artifact-digest-mismatch")
+		}
+	}
+	return nil
+}
+
+// stableExternalFix names every external repository the map binds that the
+// consumer did not supply, after an artifact-unavailable abstention
+// (CEM-V1-336). It goes to stderr, never into the closed result.
+func stableExternalFix(r stableResult, raw []byte, externals map[string]string) string {
+	if r.Code == nil || *r.Code != "artifact-unavailable" || r.Stage != "artifacts" || raw == nil {
+		return ""
+	}
+	m, e := decodeStable(raw)
+	if e != nil {
+		return ""
+	}
+	missing := map[string]bool{}
+	for _, c := range m.CriterionBindings {
+		if _, ok := externals[c.ExternalRepository]; c.ExternalSpan != nil && !ok {
+			missing[c.ExternalRepository] = true
+		}
+	}
+	if len(missing) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(missing))
+	for name := range missing {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return "artifact-unavailable: external repository " + strings.Join(names, ", ") + " not supplied; external criteria stay NOT_OBSERVED; fix: pass --external-repository NAME=/absolute/path for each"
 }

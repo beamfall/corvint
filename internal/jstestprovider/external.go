@@ -486,7 +486,8 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 		attemptOption = ", retainAttemptDetails:true"
 	}
 	if c.Freshness != nil {
-		attemptOption = ", freshnessProfile:true"
+		tuples, _ := json.Marshal(freshnessReporterTuples())
+		attemptOption = ", freshnessProfile:true, freshnessTuples:" + string(tuples)
 	}
 	prelude, kept := "", ""
 	if c.KeepReporters {

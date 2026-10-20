@@ -298,8 +298,8 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:347@e3eaf1ea` |
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
-| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:343@c89d4e2d`; `internal/testrunner/dynamic/parse.go:363@5e2333a0`; `internal/testrunner/dynamic/parse.go:387@a3fc5178` |
-| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:358@3ad339db` |
+| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:348@c89d4e2d`; `internal/testrunner/dynamic/parse.go:375@5e2333a0`; `internal/testrunner/dynamic/parse.go:399@a3fc5178` |
+| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:370@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
 | `hook-or-unmatched-result` | The Cypress/Mocha result-status identity count differs from the collected test-row count. | `internal/testrunner/dynamic/browser.go:105@7ff4ce18` |
@@ -332,7 +332,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:241@5e6d82cd` |
 | `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:205@40fd52ec` |
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
-| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:346@503ba44e` |
+| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:351@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
 | `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:239@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
@@ -1007,6 +1007,117 @@ exclude tags are not admitted.
 Rollback removes `storybookSkipTags` and the `--skipTags` append. A plan with a
 non-empty `Target` would then rebuild without the pair and be refused as not
 matching the profile; empty-`Target` plans are unchanged.
+
+## RSpec exec prefix and container path mapping (experimental)
+
+GitHub #1333 (V1-2101): `runnerAdmission: corvint-test-runner/0` admits only
+corvint-test-runner plans and receipts, but the `rspec` profile invoked the
+executable directly with `--format json --out <host reportDir>/rspec.json`. A
+containerised run therefore needed an unbound wrapper that mounted the report
+directory at the identical host path. The Ruby provider's
+`--exec-prefix`/`--formatter corvint-rspec-json/0` document records
+shared-example inclusion lines, but no admission profile accepts that document.
+
+Route chosen: the exec prefix, host-to-container path mapping and the Corvint
+formatter become optional members of the `rspec` plan request (route A of the
+issue). They are part of the plan's request, so the plan identity, the
+receipt's `planSha256` and the runner's rebuild of the invocation at `run` all
+bind them, and the one admitted profile `corvint-test-runner/0` and its
+existing `CEM-V1-281` to `CEM-V1-285` checks admit the receipt without any new
+admission code. The other route, admitting the Ruby provider's document, was
+not taken: it would add a second, provider-shaped admission profile with
+different binding semantics to the CEM admission surface.
+
+- `TRE-V0-081`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) A plan request
+  MAY carry `execPrefix` (an argv prefix), `pathMap` (host-to-container path
+  pairs) and `formatter`, only for `rspec`. The registry and the dynamic
+  builder MUST refuse any of them for every other runner before a plan
+  exists. The executable stays the independently pinned `--executable`
+  identity, and the prefix words follow it in argv order before the fixed
+  RSpec arguments. A present prefix MUST hold at most 64 words, each non-empty, at most
+  4096 bytes and free of NUL, CR and LF. A secret-shaped prefix MUST be
+  refused, as it would be retained in the plan.
+- `TRE-V0-082`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) A `pathMap`
+  MUST have a non-empty `execPrefix`, and MUST hold 1..8 mappings. Each host
+  path MUST be absolute, clean and not the root, and each container path MUST
+  be absolute, clean, slash-separated and not `/`. No two host paths, and no
+  two container paths, may nest. The report directory MUST lie under one
+  mapping. Every runner-visible path the profile writes into argv (the report,
+  the formatter, an absolute `--options` file and absolute selectors) MUST be
+  rewritten through the mapping, and an absolute path that is not clean or
+  lies outside every mapping MUST be refused, so `..` cannot escape a mount. Relative selectors and configuration pass unchanged and
+  resolve in the prefix's working directory. Report files are still read only
+  from the fresh host report directory.
+- `TRE-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The prefix,
+  mapping and formatter MUST be bound into the plan identity. A receipt MUST
+  NOT be replayable under a different prefix, mapping or formatter: `run`
+  MUST refuse a plan whose invocation no longer matches the profile rebuilt
+  from its request, and plain CEM admission MUST refuse a receipt whose
+  `planSha256` no longer matches the edited plan as `runner-receipt-tampered`.
+- `TRE-V0-084`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The only
+  admitted `formatter` value is `corvint-rspec-json/0`, the Ruby provider's
+  Corvint formatter. Under it the profile MUST write those exact formatter
+  bytes as the profile-owned file `corvint_rspec_formatter.rb` beneath the
+  fresh report directory. Its argv MUST be `--require <formatter>`,
+  `--format CorvintRSpecJsonFormatter` and `--out <rspec-corvint.json>`, both
+  paths mapped. The report inventory is exactly `rspec-corvint.json`. Any
+  other formatter value MUST be refused.
+- `TRE-V0-085`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The
+  `rspec-corvint.json` parser MUST require `shared_group_inclusion_backtrace`
+  on every example. It MUST retain each frame's `inclusion_location`, in
+  native order, as that test's `inclusionLocations`, and MUST refuse a
+  missing or null backtrace, more than 64 frames, or a frame whose location
+  is missing, empty, over 4096 bytes or multi-line. An example with an empty
+  backtrace carries no member. The stock `rspec.json` report keeps its
+  historical parse and never decodes that member.
+- `TRE-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) With
+  `execPrefix`, `pathMap` and `formatter` all absent, the `rspec` argv, report
+  inventory and parse, and every other profile, MUST stay byte-identical. The
+  new request and test members MUST be omitted from JSON when empty, so
+  historical plan and receipt bytes and identities do not change.
+
+Failure modes. A prefix that runs a different image or tool than the caller
+intended is caught only through the bound plan identity, not by the runner. An
+unmapped report directory, overlapping mappings, an unknown formatter, or a
+prefix on another runner is refused before a plan exists. A report lacking
+the inclusion backtrace is refused as unparseable rather than read as an
+example with no inclusions. Editing the prefix, mapping or formatter after
+approval is refused by `run` without launching anything, and by CEM
+admission as tampered.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-081 | `testrunner/types.go` `Request.HasRSpecOnlyMembers`; `registry/registry.go` `Build`; `dynamic/build.go`; `dynamic/rspec_prefix.go` `rspecPathMapper`; `TestRSpecOnlyMembersRefusedForOtherRunners`, `TestRSpecExecPrefixRefusals` | Focused unit tests, 2026-10-20 |
+| TRE-V0-082 | `dynamic/rspec_prefix.go` `rspecPathMapper`, `buildRSpec`; `TestRSpecExecPrefixPathMapArgv`, `TestRSpecExecPrefixRefusals`; `cmd/corvint-test-runner` `TestContainerisedRSpecPlanRunReceipt` | A fake docker-shaped prefix maps `--require` and `--out` back to its host mount and refuses an unmapped path; the runner read the report from the host directory |
+| TRE-V0-083 | `cmd/corvint-test-runner` `admittedInvocation`; `TestContainerisedRSpecPlanRunReceipt` subtests; `cemcandidate` `TestCEMV1280AdmitsContainerisedRSpecReceipt` | Edited prefix, mapping or formatter refused by `run` with no report directory created, and by plain admission as `runner-receipt-tampered` |
+| TRE-V0-084 | `rubytestprovider/runner.go` `CorvintFormatterSource`, `FormatterClass`; `dynamic/rspec_prefix.go` `buildRSpec`; `TestRSpecExecPrefixPathMapArgv` | The fake container found the profile-written formatter at the mapped path |
+| TRE-V0-085 | `dynamic/parse.go` `parseRSpec`; `dynamic/rspec_prefix.go` `inclusionLocations`; `TestRSpecCorvintInclusionLocations`, `TestContainerisedRSpecPlanRunReceipt` | The admitted receipt carries `inclusionLocations` for each shared-example inclusion |
+| TRE-V0-086 | `TestRSpecHistoricalArgvUnchanged`; existing `cmd/corvint-test-runner` historical byte tests | Historical rspec argv and frozen plan/receipt bytes unchanged |
+
+Recorded limits.
+- Live qualification is NOT_RUN: no Ruby, RSpec or Docker ran. The tests use
+  a sh stand-in for the container tool and a synthetic Corvint-formatter
+  report, not one generated by RSpec.
+- The image identity is bound only as far as the prefix text binds it: the
+  plan pins a tag-only image name, not its content, unless the prefix names
+  an `@sha256:` digest. The dependency closure inside the container stays
+  NOT_OBSERVED.
+- The container's working directory is set by the prefix. Relative selectors
+  and `--options` resolve there, not under the plan's `root`.
+- The formatter's `corvint_runtime.container` identifier is ignored by this
+  parser and is not checked against anything.
+- The runner sets `HOME` to a fresh directory, so tool plugins found through
+  the user's home (for example `docker compose` CLI plugins) are unavailable.
+  Use `docker run` or a standalone binary.
+- The report directory is created 0700 on the host. A container running as a
+  different non-root uid may be unable to write it on Linux.
+- Inclusion locations are retained as RSpec reports them, so they may be
+  container-relative paths.
+
+Rollback removes the three request members, `InclusionLocations`,
+`dynamic/rspec_prefix.go`, the registry guard, the exported formatter accessors
+and these tests, and this section. Plans carrying the new members would then
+fail closed decoding. Historical plans and receipts are unaffected.
 
 ## Native qualification matrix 2026-10-17 (V1-0593)
 

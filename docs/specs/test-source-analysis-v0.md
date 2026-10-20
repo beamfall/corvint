@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292 and V1-2041 / GitHub #1293, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339 and V1-2108 / GitHub #1340, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -2274,6 +2274,165 @@ the `readOneBlob` split in `internal/testsource/git.go`, `RubyDocument` in
 | TSA-V0-417 | `internal/testsource/example_join_select.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
 | TSA-V0-418 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
 | TSA-V0-419 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestExampleJoinJS` | experimental |
+
+## Stub-decided assertions and flag conditions (V1-2104, V1-2108)
+
+V1-2104 (GitHub #1339) flags a cited RSpec example whose assertion a stub decides: a stub that
+fixes the observed value or replaces the operation a negated change matcher watches, and a
+`receive_message_chain` stub asserted only on a prefix of its chain. V1-2108 (GitHub #1340)
+classifies stubs of feature-flag and configuration lookups apart from collaborator stubs, reports
+the key, the forced value and a declared default, and carries a "conditional on flag KEY=VALUE"
+condition into the downstream evidence. Both are agent-drafted and accepted under the owner's
+standing auto-accept (2026-10-11). Like the stub rules of the intra-example section they read one
+example and its hooks, never the code under test, so a stub-decided assertion abstains rather than
+refusing and a flag stub qualifies the verdict rather than changing it.
+
+- `TSA-V0-430`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) For each cited
+  `_spec.rb` example the RSpec reader MUST read the stubs of the example body and of the `before`,
+  `let!` and `subject!` hooks on its group chain, outermost group first, and report the rules of
+  this section after the example's existing findings, in the order `RB-STUB-DECIDES-ASSERTION`,
+  `RB-MESSAGE-CHAIN-PREFIX-ONLY`, `RB-FLAG-CONDITIONAL`, `RB-FLAG-FORCED-NON-DEFAULT`, each in line
+  order. It MUST NOT read application code, a required file or a shared-group inclusion for them.
+- `TSA-V0-431`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An example MUST get an
+  abstained `RB-STUB-DECIDES-ASSERTION` finding, located at the assertion with the stub as its
+  cause, when its body (the declaring line of a one-line example) holds a negated change matcher
+  (`not_to` or `to_not change`) whose observed
+  value is one call chain on a root (`change { R.a.b }`) or `change(R, :attr)`, and a stub on that
+  same root (`allow` or `expect(R).to receive(:m)`, or `allow_any_instance_of(C)` when the root is
+  the constant `C`) in a hook or in the body before the matcher either fixes the observed value or
+  replaces the operation. It fixes the value when `m` is the first observed call after a leading
+  `reload`, the stub neither raises nor returns several values, and it is not an any-instance stub.
+  It replaces the operation when `m` is not a predicate, not `reload` and not an observed call, and
+  is a bang method or one of the write operations `save`, `update`, `update_attribute`,
+  `update_attributes`, `update_column`, `update_columns`, `destroy`, `delete`, `touch`,
+  `increment`, `decrement`, `toggle`, `create`, `insert`, `upsert`, `cancel`, `commit`,
+  `transition`, `apply`, `perform`, `call`, `run`, `execute` or `process`.
+- `TSA-V0-432`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) A stub that calls
+  through (`and_call_original`, `and_wrap_original`), takes a block, or continues past what the
+  reader reads (an unknown chained call, or a chain continued on the next line) MUST NOT give
+  `RB-STUB-DECIDES-ASSERTION`. Neither MUST a body stub after the matcher, a stub on another root, a
+  positive change matcher, a predicate stub that the matcher does not read first, nor a flag stub
+  (`TSA-V0-435`). The finding MUST be abstained, never invalid, because whether the code under test
+  reaches the stub is not read.
+- `TSA-V0-433`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An example MUST get an
+  abstained `RB-MESSAGE-CHAIN-PREFIX-ONLY` finding, located at the assertion with the stub as its
+  cause, when `allow(R).to receive_message_chain(...)` in its body or a hook on its chain stubs two
+  or more messages (symbols, one dotted string, or a trailing hash key), the body asserts
+  `expect(R).to have_received(:p)` for a message `p` before the last one, and no other expectation
+  line of the body names the final message.
+- `TSA-V0-434`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An
+  `expect(R).to receive_message_chain` stub (which verifies the whole chain), a chain of one
+  message, chain arguments the reader cannot read, an expectation that names the final message, or
+  a `have_received` on another receiver MUST NOT give `RB-MESSAGE-CHAIN-PREFIX-ONLY`.
+- `TSA-V0-435`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) A stub MUST be a flag
+  stub when its receiver is a constant path, or a verified double or new object bound to a class,
+  that matches one lookup `Receiver.method` on the flag lookup list. Without a committed
+  declaration the list MUST be `Feature`, `FeatureFlag`, `FeatureFlags`, `FeatureToggle`,
+  `Features` and `Flipper` with `enabled?`, `FeatureToggle.active?` and `ENV.fetch`; a committed
+  declaration (`TSA-V0-439`) replaces it. A flag stub MUST NOT be read as a collaborator by
+  `STUB-ON-PATH`, `STUB-NEVER-INVOKED`, `ASSERTED-VALUE-NOT-FROM-SUBJECT` or
+  `RB-STUB-DECIDES-ASSERTION`. A flag stub that calls through forces nothing: as the effective stub
+  of its lookup and key (`TSA-V0-437`) it leaves that key without a condition, and beside a forcing
+  stub of the same rank it leaves the value unresolved.
+- `TSA-V0-436`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) Each flag an example
+  forces MUST give one advisory `RB-FLAG-CONDITIONAL` finding at its effective stub, naming the
+  lookup, the forced value, the condition's qualifier and the declared default, or stating that no
+  default is declared and whether the forced value is the default is not known. It MUST NOT change
+  the hygiene or strength axis.
+- `TSA-V0-437`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) Each forced flag MUST
+  yield one condition `{lookup, key, forced, default?, defaultFrom?, location, qualifier}` on the
+  example source, as the additive optional `conditions` member (the rest of the shape fixed by
+  `TSA-V0-130` is unchanged). The key is the literal first `.with` argument, `*` without `.with`,
+  or empty when that argument is not a literal matching `[\w.:/-]{1,128}`. The forced value is the
+  literal of one `and_return` value, `nil` without `and_return`, or empty when the stub raises,
+  calls through, takes a block, returns several or non-literal values, passes arguments without
+  parentheses or continues past what the reader reads. A key read as a symbol or either string
+  quote is one key.
+  The effective stub of one lookup and key is the last to run: the body over hooks and an inner
+  group's hook over an outer one; stubs of one rank that force different values leave the value
+  empty. The qualifier is `conditional on flag KEY=VALUE`, with `<unresolved>` for an empty key or
+  value and `LOOKUP(*)` for every key. Conditions are ordered by location.
+- `TSA-V0-438`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) When the declared
+  default of the key and the forced value are both known and differ, the example MUST also get an
+  advisory `RB-FLAG-FORCED-NON-DEFAULT` finding naming the key, both values and the declaring file.
+  An undeclared default, a `*` or unread key, or an unread forced value MUST NOT give it.
+- `TSA-V0-439`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) A project MAY commit
+  `.corvint/flag-lookups.json`, read at the analysed revision: a closed `corvint-flag-lookups/0`
+  document with `schema`, `lookups` (1 to 256 unique `{receiver, method}` pairs, a constant path and
+  a method name) and optional `defaults` (at most 1024 keys matching `[\w.:/-]{1,128}`, each value
+  1 to 256 bytes without control characters). A declaration that does not decode, holds unknown
+  fields or trailing data, or breaks a bound MUST refuse `tests-declaration-invalid`; nothing is
+  printed. Without the file, the built-in list applies and no default is declared.
+- `TSA-V0-440`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) The conditions MUST
+  reach downstream evidence: each `corvint tests validity` test record of a `_spec.rb` example
+  carries them as `conditions`; each `corvint tests example-join` record carries them beside its
+  verdict and, when the declaration is committed, cites it with its blob ID among its source files;
+  the test-validity discovery source rules serialize them with the example source. They MUST NOT
+  change an outcome or an axis.
+- `TSA-V0-441`: (standing auto-accept, 2026-10-11; V1-2104, V1-2108) Every finding of this section
+  MUST name the stub and the assertion it relates by `path:line` and source text cut at 160
+  characters, and carry a hint (inject the failure below the operation or assert state the stub
+  cannot decide; assert the whole chain or the final message on a returned double; cite a second
+  example for the default or record the condition).
+- `TSA-V0-442`: (standing auto-accept, 2026-10-11; V1-2104, V1-2108) What the reader cannot decide
+  MUST become an abstention or an unresolved condition, never an `ELIGIBLE` verdict that hides it
+  and never an invalid finding. The section adds no network, write or process and reads only the
+  committed spec, its hooks and the declaration.
+
+Non-goals: reading application code for a flag's default (only the project declaration supplies
+it); `Flipper.enable` and other non-stub flag setters, `ENV[]`, `receive_messages`, block-form
+stubs `receive(:m) { ... }`, multi-line stubs, and stub receivers written `::Const` or `@ivar`
+(the shared stub reader of the intra-example rules does not read them); examples read through a shared-group inclusion;
+deciding whether the code under test reaches the stub; refusing an example on these rules.
+
+Failure modes: a flag stub misread as a collaborator would refuse or weaken a valid example, so
+flag stubs are excluded from the collaborator rules; a stub whose value the reader cannot read
+leaves the condition unresolved instead of inventing a value; a generic stub that runs after a
+keyed one is not modelled as overriding it, so both conditions are reported; a declaration that
+does not validate refuses rather than falling back silently to the built-in list; a dirty
+example-join receipt reads the declaration at the join revision; discovery uses the built-in list
+because it binds no declaration.
+
+Acceptance evidence: inline RSpec fixtures in `internal/testsource/validity_rspec_stubs_test.go`.
+`TestStubDecidesAssertion` (the issue's `cancel`/`cancelled?` case from a hook, a value-fixing
+stub, a raising `save!`, and ten negative controls: call-through, other receiver, positive
+matcher, later stub, an operation that is not a known write, an unobserved predicate, a continued
+chain, a block stub, a computed observation and a flag stub; the example abstains through
+`ApplyExampleSource`), `TestMessageChainPrefixOnly` (the issue's `Mailer` case, dotted-string,
+hash-tail and hook stubs, and negatives for an `expect` chain, the final message asserted, no
+prefix assertion, another receiver and a computed chain), `TestFlagConditions` (key, value and default, forced non-default,
+unresolved key and value, inner-hook override, the built-in list, `STUB-ON-PATH` excluded for a
+flag stub and kept under a list without it, serialized `conditions`), `TestDecodeFlagLookups` (a
+valid declaration and eleven invalid ones), `TestSourceValidityFlagConditions` and
+`TestExampleJoinFlagConditions` (the declaration cited with its blob), and `TestStubRuleEdges` (a
+one-line example, a compact hash tail, one key in two quotes, a body call-through overriding a
+hook, and an `and_return` without parentheses left unresolved). Real-suite precision and
+recall are NOT_MEASURED; no live qualification on a real Rails suite was run (NOT_RUN).
+
+Rollback: remove `internal/testsource/validity_rspec_stubs.go` and its test,
+`internal/testvalidity/source_rules_stubs.go`, the `Flags` and `Conditions` fields and their
+readers in `internal/testvalidity/source_rules_rspec.go`, `internal/testsource/validity_rspec.go`,
+`validity_rspec_examples.go`, `validity_rspec_flow.go`, `validity_command.go` and
+`example_join.go`, the help sentence in `cmd/corvint/tests.go`, and this section. Nothing is
+persisted; a committed `.corvint/flag-lookups.json` is then ignored.
+
+### Traceability (V1-2104, V1-2108)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-430 | `internal/testsource/validity_rspec_stubs.go`, `internal/testsource/validity_rspec_examples.go` | `TestStubDecidesAssertion`, `TestFlagConditions` | experimental |
+| TSA-V0-431 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestStubRuleEdges` | experimental |
+| TSA-V0-432 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion` | experimental |
+| TSA-V0-433 | `internal/testsource/validity_rspec_stubs.go` | `TestMessageChainPrefixOnly`, `TestStubRuleEdges` | experimental |
+| TSA-V0-434 | `internal/testsource/validity_rspec_stubs.go` | `TestMessageChainPrefixOnly` | experimental |
+| TSA-V0-435 | `internal/testvalidity/source_rules_stubs.go`, `internal/testsource/validity_rspec_flow.go` | `TestFlagConditions`, `TestStubRuleEdges` | experimental |
+| TSA-V0-436 | `internal/testsource/validity_rspec_stubs.go` | `TestFlagConditions` | experimental |
+| TSA-V0-437 | `internal/testsource/validity_rspec_stubs.go`, `internal/testvalidity/source_rules_stubs.go` | `TestFlagConditions`, `TestStubRuleEdges` | experimental |
+| TSA-V0-438 | `internal/testsource/validity_rspec_stubs.go` | `TestFlagConditions` | experimental |
+| TSA-V0-439 | `internal/testsource/validity_rspec_stubs.go` | `TestDecodeFlagLookups`, `TestSourceValidityFlagConditions` | experimental |
+| TSA-V0-440 | `internal/testsource/validity_command.go`, `internal/testsource/example_join.go` | `TestSourceValidityFlagConditions`, `TestExampleJoinFlagConditions`, `TestFlagConditions` | experimental |
+| TSA-V0-441 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestMessageChainPrefixOnly`, `TestFlagConditions` | experimental |
+| TSA-V0-442 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestFlagConditions` | experimental |
 
 ## Decision file format
 

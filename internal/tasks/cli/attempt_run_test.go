@@ -288,11 +288,21 @@ func TestATRV0004_InterruptStopsTheRun(t *testing.T) {
 	if r.code != 128+15 || r.res.Outcome != wire.OutcomeRefused {
 		t.Fatalf("interrupt: code %d %+v", r.code, r.res)
 	}
-	if o := recordedOutcome(t, root, r); o.Class != transaction.RunInterrupted || o.Signal == nil || *o.Signal != 9 || o.ExitCode != nil {
+	o := recordedOutcome(t, root, r)
+	if o.Class != transaction.RunInterrupted || o.Cleanup != transaction.CleanupReleased {
 		t.Fatalf("interrupt outcome %+v", o)
 	}
-	if got := field(r.res.Items[0], "childSignal").Str; got != "9" {
-		t.Fatalf("childSignal %q, want the group SIGKILL", got)
+	// The shell usually dies from the group SIGKILL. On Darwin a shell that is
+	// forking `sleep` as the signal arrives can miss it while its new child is
+	// killed; the shell then exits 128+9 on its own, and the outcome keeps
+	// that status (ATR-V0-004, ATR-V0-153). Neither is the runner's SIGTERM.
+	signal, exit := field(r.res.Items[0], "childSignal").Str, field(r.res.Items[0], "childExit").Str
+	switch {
+	case o.Signal != nil && *o.Signal == 9 && o.ExitCode == nil && signal == "9":
+	case o.Signal == nil && o.ExitCode != nil && *o.ExitCode == 128+9 && exit == "137":
+		t.Logf("the shell missed the group SIGKILL while forking and exited 137:\n%s", r.stderr)
+	default:
+		t.Fatalf("interrupt outcome %+v, childSignal %q childExit %q, want the group SIGKILL\n%s", o, signal, exit, r.stderr)
 	}
 }
 

@@ -34,6 +34,9 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	if !known(r.Runner) {
 		return tr.Invocation{}, fmt.Errorf("unknown dynamic runner %q", r.Runner)
 	}
+	if r.HasRSpecOnlyMembers() && r.Runner != "rspec" {
+		return tr.Invocation{}, fmt.Errorf("execPrefix, pathMap and formatter are admitted only for rspec")
+	}
 	if !filepath.IsAbs(r.Executable) || !filepath.IsAbs(r.ReportDir) {
 		return tr.Invocation{}, fmt.Errorf("absolute executable and fresh report directory required")
 	}
@@ -120,11 +123,9 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		add(plugin("unittest_reporter.py"), report("unittest.json"))
 		add(r.Selectors...)
 	case "rspec":
-		add("--format", "json", "--out", report("rspec.json"))
-		if r.Config != "" {
-			add("--options", r.Config)
+		if err := buildRSpec(r, &v); err != nil {
+			return tr.Invocation{}, err
 		}
-		add(r.Selectors...)
 	case "minitest", "rails-test":
 		if len(r.Selectors) == 0 {
 			return tr.Invocation{}, fmt.Errorf("explicit test files required for %s; no implicit Ruby loader", r.Runner)
