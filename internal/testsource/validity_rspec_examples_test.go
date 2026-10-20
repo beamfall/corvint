@@ -88,8 +88,9 @@ end
 
 // TestRSpecExampleSkippedAndFocused: x-prefixed, skip and pending declarators, skip/pending/focus
 // metadata, an unconditional body skip, and xdescribe or focused ancestor groups are invalid
-// RSPEC-SKIPPED and RSPEC-FOCUSED findings naming the triggering line; `skip: false`, a
-// conditional skip and the words inside a title are not (TSA-V0-062, TSA-V0-063, TSA-V0-064).
+// RSPEC-SKIPPED and RSPEC-FOCUSED findings naming the triggering line; `skip: false` and the words
+// inside a title are not, and a conditional skip abstains RSPEC-CONDITIONAL-SKIP instead
+// (TSA-V0-062, TSA-V0-063, TSA-V0-064, TSA-V0-450).
 func TestRSpecExampleSkippedAndFocused(t *testing.T) {
 	p := "spec/models/widget_spec.rb"
 	at := func(n int) string { return fmt.Sprintf("%s:%d", p, n) }
@@ -102,7 +103,7 @@ func TestRSpecExampleSkippedAndFocused(t *testing.T) {
 		11: {"expectations=0", skipped(11, 11)},
 		13: {"expectations=1"},
 		16: {"expectations=0", skipped(16, 17)},
-		19: {"expectations=1"},
+		19: {"expectations=1", "RSPEC-CONDITIONAL-SKIP abstained " + at(20) + " " + at(19)},
 		23: {"expectations=1"},
 		26: {"expectations=1", focused(26, 26)},
 		29: {"expectations=1", focused(29, 29)},
@@ -111,6 +112,92 @@ func TestRSpecExampleSkippedAndFocused(t *testing.T) {
 		42: {"expectations=1", skipped(42, 42)},
 		45: {"expectations=1"},
 	})
+}
+
+const skipConfigSpec = `RSpec.describe Widget do
+  it 'skips under an env flag' do
+    skip 'no network' unless ENV['NETWORK']
+    expect(1).to eq(1)
+  end
+  it 'skips inside a block' do
+    if ENV['CI']
+      pending 'flaky on CI'
+    end
+    expect(2).to eq(2)
+  end
+  it 'is slow', :slow do
+    expect(3).to eq(3)
+  end
+  context 'features', type: :feature do
+    it 'inherits the excluded type' do
+      expect(4).to eq(4)
+    end
+  end
+  it 'is a model', type: :model do
+    expect(5).to eq(5)
+  end
+  it 'is not slow', slow: false do
+    expect(6).to eq(6)
+  end
+  it 'has a skipped body and is slow', :slow do
+    skip 'later'
+  end
+end
+`
+
+const skipConfigHelper = `RSpec.configure do |config|
+  # config.filter_run_excluding :commented
+  config.filter_run_excluding :slow unless ENV['SLOW']
+  config.filter_run_excluding type: :feature, broken: false
+end
+`
+
+// TestRSpecConditionalAndConfigSkips pins TSA-V0-450 (V1-1837): a skip or pending statement with a
+// trailing if or unless, or inside a nested block, abstains RSPEC-CONDITIONAL-SKIP; metadata a
+// committed support file's filter_run_excluding names abstains RSPEC-CONFIG-EXCLUDED, matched on
+// the example or an ancestor group and on the filtered value; an unconditional skip stays
+// RSPEC-SKIPPED alone, and without a bound support set nothing is config-excluded.
+func TestRSpecConditionalAndConfigSkips(t *testing.T) {
+	p := "spec/models/widget_spec.rb"
+	at := func(n int) string { return fmt.Sprintf("%s:%d", p, n) }
+	conditional := func(line, example int) string {
+		return "RSPEC-CONDITIONAL-SKIP abstained " + at(line) + " " + at(example)
+	}
+	excluded := func(example, cause int) string {
+		return fmt.Sprintf("RSPEC-CONFIG-EXCLUDED abstained %s spec/spec_helper.rb:%d", at(example), cause)
+	}
+	examples, reason := RSpecExampleSourcesWithSupport(p, skipConfigSpec, testvalidity.RubySupport{Files: map[string]string{"spec/spec_helper.rb": skipConfigHelper}})
+	if reason != "" {
+		t.Fatalf("uncertain %q", reason)
+	}
+	got := map[int][]string{}
+	for line, e := range examples {
+		rows := []string{}
+		for _, f := range e.Findings {
+			rows = append(rows, fmt.Sprintf("%s %s %s %s", f.Rule, f.Severity, f.Location, f.Cause))
+		}
+		got[line] = rows
+	}
+	wantExamples(t, got, map[int][]string{
+		2:  {conditional(3, 2)},
+		6:  {conditional(8, 6)},
+		12: {excluded(12, 3)},
+		16: {excluded(16, 4)},
+		20: {},
+		23: {},
+		26: {"RSPEC-SKIPPED invalid " + at(26) + " " + at(27)},
+	})
+	p16 := testvalidity.ApplySourceFindings(testvalidity.Projection{Hygiene: testvalidity.Axis{State: testvalidity.HygieneEligible}}, examples[16].Findings)
+	if p16.Hygiene.State != testvalidity.HygieneAbstained || p16.Hygiene.Reason != testvalidity.RuleRSpecConfigExcluded {
+		t.Errorf("config-excluded hygiene = %+v, want ABSTAINED %s", p16.Hygiene, testvalidity.RuleRSpecConfigExcluded)
+	}
+	for line, rows := range exampleBrief(t, p, skipConfigSpec) {
+		for _, row := range rows {
+			if strings.HasPrefix(row, "RSPEC-CONFIG-EXCLUDED") {
+				t.Errorf("%d: config exclusion without a support set: %s", line, row)
+			}
+		}
+	}
 }
 
 const sharedSpec = `RSpec.shared_examples 'a persisted record' do

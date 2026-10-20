@@ -730,7 +730,7 @@ declared in a shared example group is now flagged. A preflight surface is still 
   - `:skip` or `:pending` symbol metadata, or a `skip:` or `pending:` key whose value is not
     `false` or `nil`, on the declaring line outside string literals and before the block opens;
   - an unconditional `skip` or `pending` statement directly in the example body: not in a nested
-    block and with no trailing `if` or `unless`;
+    block and with no trailing `if` or `unless` (a conditional one abstains under TSA-V0-450);
   - an ancestor group declared with `xdescribe` or `xcontext`, or carrying that metadata.
 - `TSA-V0-064`: (standing auto-accept, 2026-10-11; V1-1798 / GitHub #1128) An example MUST get an
   `invalid` `RSPEC-FOCUSED` finding when it is focused, with its location and cause chosen
@@ -2526,6 +2526,21 @@ refusing because the code is read statically and not run.
   and hint asserting it (`root.reader?`). Every finding MUST carry a hint to assert the state the
   code writes or to write the accessor on that path, and MUST say the example abstains because the
   code under test is read statically and not run.
+- `TSA-V0-450`: (standing auto-accept, 2026-10-11; V1-1837) An example no TSA-V0-063
+  `RSPEC-SKIPPED` finding covers MUST NOT be left clean when a run may not execute it:
+  - a `skip` or `pending` statement in its body with a trailing `if` or `unless`, or inside a
+    nested block, MUST give an `abstained` `RSPEC-CONDITIONAL-SKIP` finding located at that
+    statement's line, with the example's line as its cause;
+  - metadata on the example's declaring line or an ancestor group's that a bound committed support
+    file (TSA-V0-414) excludes with `config.filter_run_excluding` MUST give an `abstained`
+    `RSPEC-CONFIG-EXCLUDED` finding located at the example's line, with the
+    `filter_run_excluding` line as its cause. A filter matches a `:tag` symbol as `tag: true`, a
+    symbol or word value exactly, and any other value (a lambda, string or constant) by its key; a
+    filter or metadata value of `false` or `nil` excludes nothing, and commented lines are ignored.
+  The findings follow TSA-V0-051: the hygiene axis abstains with the rule as its reason. Without a
+  bound support set nothing is config-excluded. Non-goals: evaluating the condition or the
+  environment, `filter_run_when_matching`, `filter_run_including`, exclusions set in `.rspec` or
+  the command line, and inclusion filters that drop examples by omission.
 
 Non-goals: running the code under test or a Rails autoloader; expanding spec or support helper
 methods; reopened classes, concerns, modules,
@@ -2590,6 +2605,7 @@ Nothing is persisted.
 | TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused` | experimental |
 
 ## Decision file format
 
