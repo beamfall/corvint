@@ -94,6 +94,30 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 		read.Evidence[0]["state"] != "verified" || read.Evidence[1]["state"] != "parsed" {
 		t.Fatalf("provenance rows: %s", out)
 	}
+	// CEM-V1-273, CEM-V1-277: --artifacts appends the native verdict to the
+	// ledger; --verdicts lists it without moving any ref.
+	code, out, stderr = runCLI(t, "--root", root, "cem", "anchor", "--map", ".corvint/change.cem.json", "--artifacts", root)
+	var recorded struct {
+		Verdict map[string]any `json:"verdict"`
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &recorded) != nil || recorded.Verdict["written"] != true ||
+		recorded.Verdict["ref"] != "refs/notes/corvint-verdicts" || recorded.Verdict["state"] != "verified" {
+		t.Fatalf("anchor --artifacts: %d %s %s", code, out, stderr)
+	}
+	refs = cemGit(t, root, "for-each-ref")
+	code, out, stderr = runCLI(t, "--root", root, "cem", "provenance", "--commit", "HEAD", "--verdicts")
+	var listed struct {
+		Mutates  bool `json:"mutates"`
+		Verdicts struct {
+			State   string           `json:"state"`
+			Records []map[string]any `json:"records"`
+		} `json:"verdicts"`
+	}
+	if code != 0 || json.Unmarshal([]byte(out), &listed) != nil || listed.Mutates || listed.Verdicts.State != "verified" ||
+		len(listed.Verdicts.Records) != 1 || listed.Verdicts.Records[0]["verdictSha256"] != recorded.Verdict["record"].(map[string]any)["verdictSha256"] ||
+		cemGit(t, root, "for-each-ref") != refs {
+		t.Fatalf("provenance --verdicts: %d %s %s", code, out, stderr)
+	}
 	tip := cemGit(t, root, "rev-parse", "refs/notes/corvint")
 	cemGit(t, root, "update-ref", "-d", "refs/notes/corvint")
 	code, out, stderr = runCLI(t, "--root", root, "cem", "provenance", "--commit", "HEAD", "--notes-tip", tip)
@@ -106,7 +130,8 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 		t.Fatalf("provenance --notes-tip after a deleted notes ref: %d %s %s", code, out, stderr)
 	}
 	code, out, _ = runCLI(t, "cem", "anchor", "--help")
-	if code != 0 || !strings.Contains(out, "cem anchor --map MAP") || !strings.Contains(out, "cem provenance --commit REV [--notes-tip OID]") {
+	if code != 0 || !strings.Contains(out, "cem anchor --map MAP [--commit REV] [--artifacts DIR]") ||
+		!strings.Contains(out, "cem provenance --commit REV [--notes-tip OID] [--verdicts]") {
 		t.Fatalf("help: %d %s", code, out)
 	}
 }

@@ -32,6 +32,13 @@ func Provenance(ctx context.Context, root, commit string) (map[string]any, error
 // note holds, so a reset ref never reads as an absent anchor. An empty
 // notesTip reads exactly as Provenance.
 func ProvenanceWithNotesTip(ctx context.Context, root, commit, notesTip string) (map[string]any, error) {
+	return ProvenanceWithVerdicts(ctx, root, commit, notesTip, false)
+}
+
+// ProvenanceWithVerdicts is ProvenanceWithNotesTip that, when verdicts is
+// set, adds the read-only `verdicts` listing of commit's verdict ledger
+// (CEM-V1-277). It writes nothing either way.
+func ProvenanceWithVerdicts(ctx context.Context, root, commit, notesTip string, verdicts bool) (map[string]any, error) {
 	repo, err := open(root)
 	if err != nil {
 		return nil, err
@@ -71,6 +78,11 @@ func ProvenanceWithNotesTip(ctx context.Context, root, commit, notesTip string) 
 	result := map[string]any{
 		"ok": true, "mutates": false, "tool": "cem-provenance", "commit": target,
 		"evidence": append(rows, trailers...),
+	}
+	if verdicts {
+		if result["verdicts"], err = repo.verdictsMember(ctx, target); err != nil {
+			return nil, err
+		}
 	}
 	if tip != nil {
 		// The rows must come from the tip the rollback state was computed

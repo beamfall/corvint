@@ -113,11 +113,11 @@ var cemActions = map[string]cemAction{
 		required:  []string{"--map", "--target"},
 	},
 	"anchor": {
-		arguments: []string{"--map", "--commit"},
+		arguments: []string{"--map", "--commit", "--artifacts"},
 		required:  []string{"--map"},
 		paths:     []string{"--map"},
 	},
-	"provenance": {arguments: []string{"--commit", "--notes-tip"}, required: []string{"--commit"}},
+	"provenance": {arguments: []string{"--commit", "--notes-tip"}, required: []string{"--commit"}, booleans: []string{"--verdicts"}},
 	"export": {
 		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness", "--artifacts"},
 		required:  []string{"--map", "--expected-base", "--target", "--output"},
@@ -133,8 +133,9 @@ var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "sta
 
 // GitNotes serves anchor and provenance (internal/gitnotes). The binary
 // installs it, so the CEM seams' dependency closure stays the standard library
-// and internal/cem; an uninstalled handler is an invalid choice.
-var GitNotes func(ctx context.Context, root, action string, values map[string]string) (map[string]any, error)
+// and internal/cem; an uninstalled handler is an invalid choice. values holds
+// only the valued arguments given; booleans the boolean flags given.
+var GitNotes func(ctx context.Context, root, action string, values map[string]string, booleans map[string]bool) (map[string]any, error)
 
 // Export serves export (internal/receiptbundle), installed by the binary for
 // the same reason as GitNotes; cem/1.0 admits callerRoot (CEM-V1-060).
@@ -467,7 +468,7 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 		})
 	case "anchor", "provenance":
 		if GitNotes != nil {
-			return GitNotes(ctx, root, action, flags.values)
+			return GitNotes(ctx, root, action, flags.values, flags.booleans)
 		}
 	case "export":
 		if Export != nil {

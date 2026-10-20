@@ -46,6 +46,15 @@ func (p Pointer) fields() map[string]any {
 // must hash to the map's patchSha256), never replaces a different note, and
 // reads the note back before reporting.
 func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, error) {
+	return AnchorWithVerdict(ctx, root, mapPath, commit, "", false)
+}
+
+// AnchorWithVerdict is Anchor that, when record is set, also runs the native
+// stable verifier over the committed map against commit with the absolute
+// artifact root artifacts, and appends its verdictSha256 to commit's verdict
+// ledger (CEM-V1-273..275). Every refusal, of the pointer or of the verdict,
+// is decided before any note is written.
+func AnchorWithVerdict(ctx context.Context, root, mapPath, commit, artifacts string, record bool) (map[string]any, error) {
 	repo, err := open(root)
 	if err != nil {
 		return nil, err
@@ -61,7 +70,7 @@ func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, 
 	if err != nil {
 		return nil, err
 	}
-	pointer, err := repo.committedPointer(ctx, head, mapPath)
+	pointer, raw, err := repo.committedPointer(ctx, head, mapPath)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +85,21 @@ func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, 
 		return nil, cemcode.New(CodeScopeMismatch, "map %s does not describe commit %s: the canonical %s..%s patch does not hash to its patchSha256",
 			mapPath, target, pointer.Base, target).Guided("anchor the map onto the commit it was built for")
 	}
+	var ledgerBody []byte
+	var recorded *VerdictRecord
+	if record {
+		candidate, err := repo.verdictRecord(ctx, raw, pointer, target, artifacts)
+		if err != nil {
+			return nil, err
+		}
+		current, err := repo.readLedger(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		if ledgerBody, recorded, err = planAppend(current, candidate); err != nil {
+			return nil, err
+		}
+	}
 	body, err := json.Marshal(pointer)
 	if err != nil {
 		return nil, cemcode.New("output-failed", "cannot encode anchor pointer")
@@ -88,11 +112,27 @@ func Anchor(ctx context.Context, root, mapPath, commit string) (map[string]any, 
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{
+	result := map[string]any{
 		"ok": readBack["state"] == "verified", "mutates": true, "tool": "cem-anchor",
 		"ref": Ref, "commit": target, "written": written, "pointer": pointer.fields(),
 		"verification": readBack["state"],
-	}, nil
+	}
+	if record {
+		verdict := map[string]any{"ref": VerdictRef, "written": ledgerBody != nil, "record": *recorded, "state": "verified"}
+		if ledgerBody != nil {
+			after, err := repo.appendLedger(ctx, target, ledgerBody)
+			if err != nil {
+				return nil, err
+			}
+			verdict["state"] = after.state
+			appended, _ := json.Marshal(*recorded)
+			if after.state != "verified" || len(after.lines) == 0 || !bytes.Equal(after.lines[len(after.lines)-1], appended) {
+				result["ok"] = false
+			}
+		}
+		result["verdict"] = verdict
+	}
+	return result, nil
 }
 
 // requireCleanMap refuses an untracked map and any staged, unstaged, or
@@ -118,26 +158,26 @@ func (r *repository) requireCleanMap(ctx context.Context, mapPath string) error 
 // by the stable parser (CEM-V1-065); a retired cem/0.x map refuses with
 // unsupported-spec and the migration fix line (CEM-V1-210), and no note is
 // written.
-func (r *repository) committedPointer(ctx context.Context, head, mapPath string) (Pointer, error) {
+func (r *repository) committedPointer(ctx context.Context, head, mapPath string) (Pointer, []byte, error) {
 	out, err := r.git(ctx, 256, nil, "rev-parse", "--verify", "--end-of-options", head+":"+mapPath)
 	if err != nil {
-		return Pointer{}, cemcode.New(CodeMapUncommitted, "map %s is not committed at HEAD", mapPath)
+		return Pointer{}, nil, cemcode.New(CodeMapUncommitted, "map %s is not committed at HEAD", mapPath)
 	}
 	blob := strings.TrimSpace(string(out))
 	data, err := r.blob(ctx, blob, wire.MaxMapBytes)
 	if err != nil {
-		return Pointer{}, cemcode.New(CodeBlobUnavailable, "map blob %s is not in the object database", blob)
+		return Pointer{}, nil, cemcode.New(CodeBlobUnavailable, "map blob %s is not in the object database", blob)
 	}
 	parsed, err := wire.ParseStable(data)
 	if err != nil {
-		return Pointer{}, err
+		return Pointer{}, nil, err
 	}
 	digest := sha256.Sum256(data)
 	return Pointer{
 		Schema: PointerSchema, CEMCommit: head, MapPath: mapPath, MapBlob: blob,
 		MapSha256: hex.EncodeToString(digest[:]), MapSpec: parsed.Change.Spec,
 		Base: parsed.Change.BaseRevision, PatchSha256: parsed.Change.PatchSha256,
-	}, nil
+	}, data, nil
 }
 
 // tree returns the tree object ID of commit.
