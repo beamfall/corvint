@@ -23,7 +23,7 @@ func TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable(t *testing.T) {
 			t.Fatalf("receipt classification disagrees with row %+v", row)
 		}
 	}
-	if runtimeTupleAdmitted(FreshnessProfile, "1.64.0", qualifiedNodeVersion, BrowserSourceBundled) || runtimeTupleAdmitted(FreshnessProfile, "1.63.0", qualifiedNodeVersion, BrowserSourceBundled) {
+	if runtimeTupleAdmitted(FreshnessProfile, "1.63.0", qualifiedNodeVersion, BrowserSourceBundled) || runtimeTupleAdmitted(FreshnessProfile, "1.64.0", admittedBundledNodeVersion, BrowserSourceBundled) || runtimeTupleAdmitted(FreshnessProfile, "1.64.0", qualifiedNodeVersion, BrowserSourceSystem) {
 		t.Fatal("freshness admitted a tuple without a live freshness run")
 	}
 	current := func(r Receipt) string { return ReceiptTestProjection(r, r.Tests[0]).Freshness.State }
@@ -64,7 +64,10 @@ func TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues(t *testing.T) {
 		admitted                      []string
 	}{
 		{ExternalProfile, "1.65.0", "", "", TupleFieldRunner, []string{"1.63.0", "1.64.0"}},
-		{FreshnessProfile, "1.64.0", "", "", TupleFieldRunner, []string{"1.63.0"}},
+		{FreshnessProfile, "1.60.0", "", "", TupleFieldRunner, []string{"1.63.0", "1.64.0"}},
+		{FreshnessProfile, "1.64.0", "v22.23.3", "", TupleFieldNode, []string{"v22.23.2"}},
+		{FreshnessProfile, "1.64.0", "v24.11.1", "", TupleFieldNode, []string{"v22.23.2"}},
+		{FreshnessProfile, "1.64.0", "v22.23.2", BrowserSourceSystem, TupleFieldBrowserSource, []string{BrowserSourceBundled}},
 		{FreshnessProfile, "1.63.0", "v22.23.2", "", TupleFieldNode, []string{"v22.23.3"}},
 		{ExternalProfile, "1.64.0", "v22.23.3", "", TupleFieldNode, []string{"v22.23.2", "v24.11.1"}},
 		{SensitiveExternalProfile, "1.64.0", "v24.11.1", "", TupleFieldNode, []string{"v22.23.2"}},
@@ -72,6 +75,7 @@ func TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues(t *testing.T) {
 		{ExternalProfile, "1.64.0", "v24.11.1", BrowserSourceSystem, TupleFieldBrowserSource, []string{BrowserSourceBundled}},
 		{ExternalProfile, "1.64.0", "v22.23.2", BrowserSourceSystem, "", nil},
 		{FreshnessProfile, "1.63.0", "v22.23.3", BrowserSourceBundled, "", nil},
+		{FreshnessProfile, "1.64.0", "v22.23.2", BrowserSourceBundled, "", nil},
 	} {
 		m := AdmittedRuntimeTupleMismatch(tc.profile, tc.runner, tc.node, tc.source)
 		if tc.field == "" {
@@ -85,17 +89,17 @@ func TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues(t *testing.T) {
 		}
 	}
 
-	_, err := RunE2E(context.Background(), E2EConfig{Config: Config{RunnerVersion: "1.64.0"}, Freshness: &FreshnessConfig{}})
+	_, err := RunE2E(context.Background(), E2EConfig{Config: Config{RunnerVersion: "1.60.0"}, Freshness: &FreshnessConfig{}})
 	var refusal *E2ERefusal
 	if !errors.As(err, &refusal) || refusal.Code != "freshness-runtime-tuple-unqualified" {
 		t.Fatalf("freshness runner refusal untyped: %v", err)
 	}
 	// Direct freshness callers get the same typed refusal (PWP-V0-040).
 	var direct *E2ERefusal
-	if _, err := RunFreshE2E(context.Background(), E2EConfig{Config: Config{RunnerVersion: "1.64.0"}, Freshness: &FreshnessConfig{}}); !errors.As(err, &direct) || direct.Code != refusal.Code || direct.Tuple == nil || direct.Tuple.Field != "runner" {
+	if _, err := RunFreshE2E(context.Background(), E2EConfig{Config: Config{RunnerVersion: "1.60.0"}, Freshness: &FreshnessConfig{}}); !errors.As(err, &direct) || direct.Code != refusal.Code || direct.Tuple == nil || direct.Tuple.Field != "runner" {
 		t.Fatalf("direct freshness refusal untyped: %v", err)
 	}
-	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"freshness-runtime-tuple-unqualified","message":"freshness-runtime-tuple-unqualified: runner not admitted for corvint-playwright-freshness/0; admitted runner values: 1.63.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"],"runtimeTuple":{"profile":"corvint-playwright-freshness/0","field":"runner","admitted":["1.63.0"]}}` + "\n"
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"freshness-runtime-tuple-unqualified","message":"freshness-runtime-tuple-unqualified: runner not admitted for corvint-playwright-freshness/0; admitted runner values: 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"],"runtimeTuple":{"profile":"corvint-playwright-freshness/0","field":"runner","admitted":["1.63.0","1.64.0"]}}` + "\n"
 	if got := string(EncodeE2ERefusal(refusal)); got != want {
 		t.Fatalf("document\n got %s\nwant %s", got, want)
 	}

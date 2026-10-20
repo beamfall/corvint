@@ -184,7 +184,7 @@ func (a *stableAdmission) admit(root string) (*Repository, error) {
 	}
 	if os.Getenv("GIT_ALTERNATE_OBJECT_DIRECTORIES") != "" {
 		return nil, cemcode.New(cemcode.UnsupportedObjectAlternates,
-			"ambient GIT_ALTERNATE_OBJECT_DIRECTORIES is not supported")
+			"ambient GIT_ALTERNATE_OBJECT_DIRECTORIES is not supported; %s", ambientAlternatesFix)
 	}
 	if objectsInfo != nil {
 		for _, name := range []string{"alternates", "http-alternates"} {
@@ -194,7 +194,7 @@ func (a *stableAdmission) admit(root string) (*Repository, error) {
 			}
 			if info != nil {
 				return nil, cemcode.New(cemcode.UnsupportedObjectAlternates,
-					"repository objects/info/%s is not supported", name)
+					"repository objects/info/%s is not supported; %s", name, objectAlternatesFix)
 			}
 		}
 	}

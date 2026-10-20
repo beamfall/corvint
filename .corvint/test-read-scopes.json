@@ -199,6 +199,7 @@
       "protocol/cem-1.0/repository/",
       "protocol/cem-1.0/stable/citation-vectors/",
       "protocol/cem-1.0/stable/drift-resource-limit/",
+      "protocol/cem-1.0/stable/external-criterion/",
       "protocol/cem-1.0/stable/manifest.json",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
@@ -211,6 +212,7 @@
       ".corvint/changes/",
       "interop/cem01-go/testdata/stable-map-members/",
       "protocol/cem-1.0/maps/",
+      "protocol/cem-1.0/stable/external-criterion/",
       "protocol/cem-1.0/stable/neutral-criterion/",
       "protocol/cem-1.0/stable/receipt-authentication/",
       "protocol/cem-1.0/stable/stable.schema.json"

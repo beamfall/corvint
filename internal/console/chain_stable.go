@@ -146,6 +146,9 @@ func stableEdges(chain *Chain) []ChainEdge {
 		if criterion.Plain() {
 			detail = "span " + criterion.EvidenceID
 		}
+		if criterion.External() {
+			detail = "external " + criterion.ExternalRepository + " blob " + criterion.ExternalBlobOid
+		}
 		reference(criterion.ID, "criterionBindings["+strconv.Itoa(index)+"]", detail)
 	}
 	for index, receipt := range document.Receipts {

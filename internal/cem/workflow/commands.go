@@ -440,12 +440,15 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 		if classification == verify.DriftStable || classification == verify.DriftRelocated {
 			return nil
 		}
+		// CEM-V1-322: every refusal states the rule and names the nearest
+		// citable base lines, so the caller can retry without guessing.
+		guidance := citeSpanGuidance(group, baseBlob, patchedBlob, span)
 		if classification == verify.DriftStale || classification == verify.DriftDeleted {
 			// Decision 0165: removed base intent is named by its base blob pin
 			// for an unknown-plan detail; it never enters the map as evidence.
 			return cemcode.New(cemcode.CiteSpanNotStable,
-				"evidence span in %q would be %s after applying its CEM hunk group; removed base intent pin removed-intent.%s.%d-%d",
-				evidencePath, classification, baseBlobOID, span.Start, span.End)
+				"evidence span in %q would be %s after applying its CEM hunk group; removed base intent pin removed-intent.%s.%d-%d; %s",
+				evidencePath, classification, baseBlobOID, span.Start, span.End, guidance)
 		}
 		// V1-1418, V1-1349: stability matches the span's text, not git's line
 		// alignment, so name the alignment used and, for lines no hunk touches,
@@ -454,17 +457,129 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 		occurrences := verify.SpanOccurrences(patchedBlob, needle)
 		if start, end := spanLines(baseBlob, span); spanUneditedByHunks(group, start, end) {
 			return cemcode.New(cemcode.CiteSpanNotStable,
-				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file",
-				evidencePath, classification, start, end, occurrences)
+				"evidence span in %q would be %s after applying its CEM hunk group; base lines %d:%d are edited by no hunk (at most hunk context), so git's line alignment leaves them unchanged, but the stability check matches the span text, which occurs %d times in the changed file; %s",
+				evidencePath, classification, start, end, occurrences, guidance)
 		}
 		return cemcode.New(cemcode.CiteSpanNotStable,
-			"evidence span in %q would be %s after applying its CEM hunk group; the stability check matches the span text, which occurs %d times in the changed file",
-			evidencePath, classification, occurrences)
+			"evidence span in %q would be %s after applying its CEM hunk group; the stability check matches the span text, which occurs %d times in the changed file; %s",
+			evidencePath, classification, occurrences, guidance)
 	}
 	if changedByDisplayPath {
 		return cemcode.New(cemcode.PatchDigestMismatch, "CEM patch has no hunk group for changed evidence path %q", evidencePath)
 	}
 	return nil
+}
+
+// citeSpanRule is the stability rule every cite-span-not-stable refusal states.
+const citeSpanRule = "rule: a cited BASE span must survive the change, so its exact text must occur exactly once in the changed file (stable or relocated); cite base lines no hunk removes"
+
+// citeSpanGuidance returns the rule plus the nearest stable base line spans
+// before and after span (CEM-V1-322). A candidate is the nearest maximal run
+// of base lines no hunk removes or splits, clipped toward span to the citation
+// byte bound, and is named only when its text classifies stable or relocated
+// against the patched blob, so a named span is citable as stated. At most two
+// candidates are classified, so the refusal stays linear in the file.
+func citeSpanGuidance(group *patch.Group, baseBlob, patchedBlob []byte, span wire.Span) string {
+	targetExists := group.NewPath != nil && *group.NewPath == *group.OldPath
+	if !targetExists {
+		return citeSpanRule + "; the change deletes or renames this file, so no base line of it is citable"
+	}
+	starts := lineStarts(baseBlob)
+	lines := int64(len(starts))
+	edited := make([]bool, lines+2)
+	splitBefore := make([]bool, lines+2)
+	for _, hunk := range group.Hunks {
+		line := hunk.OldRange.Start
+		if hunk.OldRange.Count == 0 {
+			line++
+		}
+		for _, body := range hunk.Body {
+			switch body.Prefix {
+			case ' ':
+				line++
+			case '-':
+				if line >= 1 && line <= lines {
+					edited[line] = true
+				}
+				line++
+			case '+':
+				if line >= 1 && line <= lines+1 {
+					splitBefore[line] = true
+				}
+			}
+		}
+	}
+	first, last := spanLines(baseBlob, span)
+	unchanged := bytes.Equal(baseBlob, patchedBlob)
+	bytesOf := func(start, end int64) wire.Span {
+		candidate := wire.Span{Start: starts[start-1], End: int64(len(baseBlob))}
+		if end < lines {
+			candidate.End = starts[end]
+		}
+		return candidate
+	}
+	var found []string
+	name := func(start, end int64) {
+		candidate := bytesOf(start, end)
+		if candidate.End <= candidate.Start || candidate.End-candidate.Start > wire.MaxCitationSpanBytes {
+			return
+		}
+		status, _ := verify.ClassifySpan(true, unchanged, patchedBlob, baseBlob[candidate.Start:candidate.End], candidate)
+		if status == verify.DriftStable || status == verify.DriftRelocated {
+			found = append(found, strconv.FormatInt(start, 10)+":"+strconv.FormatInt(end, 10))
+		}
+	}
+	// Before: the run ending at the nearest unedited line above the span,
+	// clipped from its far (upper) end to the byte bound.
+	end := first - 1
+	for end >= 1 && edited[end] {
+		end--
+	}
+	if end >= 1 {
+		start := end
+		for start > 1 && !edited[start-1] && !splitBefore[start] {
+			start--
+		}
+		for start < end && bytesOf(start, end).End-bytesOf(start, end).Start > wire.MaxCitationSpanBytes {
+			start++
+		}
+		name(start, end)
+	}
+	// After: the run starting at the nearest unedited line below the span,
+	// clipped from its far (lower) end.
+	start := last + 1
+	for start <= lines && edited[start] {
+		start++
+	}
+	if start <= lines {
+		end := start
+		for end < lines && !edited[end+1] && !splitBefore[end+1] {
+			end++
+		}
+		for end > start && bytesOf(start, end).End-bytesOf(start, end).Start > wire.MaxCitationSpanBytes {
+			end--
+		}
+		name(start, end)
+	}
+	if len(found) == 0 {
+		return citeSpanRule + "; no nearby unedited base line span is stable"
+	}
+	return citeSpanRule + "; nearest stable base spans: --lines " + strings.Join(found, ", --lines ")
+}
+
+// lineStarts returns the byte offset of each line of blob; a final line
+// without a newline is a line.
+func lineStarts(blob []byte) []int64 {
+	var starts []int64
+	for offset := 0; offset < len(blob); {
+		starts = append(starts, int64(offset))
+		next := bytes.IndexByte(blob[offset:], '\n')
+		if next < 0 {
+			break
+		}
+		offset += next + 1
+	}
+	return starts
 }
 
 // spanLines returns the one-based inclusive base lines a non-empty span covers.
@@ -896,9 +1011,10 @@ func (s *Session) preflightStableSidecar(replace bool) error {
 // map that is not a stable producer map.
 // Core mutates only the producer map it writes; a bound map's criteria,
 // receipts, links, artifacts and provenance belong to the candidate assembler,
-// and the Core read is status or verify (CEM-V1-017, CEM-V1-143).
+// and the Core read is status or verify (CEM-V1-017, CEM-V1-143). Its code is
+// not-a-producer-map, never unsupported-spec: cem/1.0 is supported (CEM-V1-342).
 func stableMutationRefusal(tool, relative string) error {
-	return cemcode.New(cemcode.UnsupportedSpec,
+	return cemcode.New(cemcode.NotAProducerMap,
 		"%s is a %s map, which Core cem %s does not mutate or replace here: Core mutates only a producer map without criteria, receipts, links, artifacts or provenance; read it with cem status or cem verify and --artifacts",
 		relative, wire.StableSpec, tool)
 }

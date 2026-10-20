@@ -130,8 +130,11 @@ func TestCEMAnchorAndProvenanceInteropThroughTheCLI(t *testing.T) {
 		t.Fatalf("provenance --notes-tip after a deleted notes ref: %d %s %s", code, out, stderr)
 	}
 	code, out, _ = runCLI(t, "cem", "anchor", "--help")
-	if code != 0 || !strings.Contains(out, "cem anchor --map MAP [--commit REV] [--artifacts DIR]") ||
-		!strings.Contains(out, "cem provenance --commit REV [--notes-tip OID] [--verdicts]") {
-		t.Fatalf("help: %d %s", code, out)
+	if code != 0 || !strings.Contains(out, "cem anchor --map MAP [--commit REV] [--artifacts DIR]") {
+		t.Fatalf("anchor help: %d %s", code, out)
+	}
+	code, out, _ = runCLI(t, "cem", "provenance", "--help")
+	if code != 0 || !strings.Contains(out, "cem provenance --commit REV [--notes-tip OID] [--verdicts]") {
+		t.Fatalf("provenance help: %d %s", code, out)
 	}
 }

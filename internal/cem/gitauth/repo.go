@@ -15,6 +15,14 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
+// objectAlternatesFix and ambientAlternatesFix are the recovery the
+// unsupported-object-alternates refusal names (CEM-V1-323): the code is
+// unchanged, only its message says how to make the repository self-contained.
+const (
+	objectAlternatesFix  = "the clone borrows objects from another repository (git clone --shared or --reference); fix: run git repack -a -d, then remove objects/info/alternates (and objects/info/http-alternates) under the Git common directory, and rewrite or remove objects/info/commit-graphs with git commit-graph write --reachable; or clone again without --shared or --reference"
+	ambientAlternatesFix = "fix: unset GIT_ALTERNATE_OBJECT_DIRECTORIES and rerun"
+)
+
 // Bounded metadata limits.
 const (
 	maxGitfileBytes    = 4096
@@ -226,12 +234,12 @@ func (r *Repository) denyAlternates() error {
 	}
 	if value := os.Getenv("GIT_ALTERNATE_OBJECT_DIRECTORIES"); value != "" {
 		return cemcode.New(cemcode.UnsupportedObjectAlternates,
-			"ambient GIT_ALTERNATE_OBJECT_DIRECTORIES is not supported")
+			"ambient GIT_ALTERNATE_OBJECT_DIRECTORIES is not supported; %s", ambientAlternatesFix)
 	}
 	alternates := filepath.Join(objects, "info", "alternates")
 	if _, err := os.Lstat(alternates); err == nil {
 		return cemcode.New(cemcode.UnsupportedObjectAlternates,
-			"repository objects/info/alternates is not supported")
+			"repository objects/info/alternates is not supported; %s", objectAlternatesFix)
 	}
 	return nil
 }

@@ -1301,3 +1301,37 @@ func TestMarkRefusesARetiredMapBeforeMutation(t *testing.T) {
 		t.Fatalf("got %v, want unsupported-spec with the migration fix", err)
 	}
 }
+
+// TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans pins
+// CEM-V1-322: citing base lines the change removes keeps the code
+// cite-span-not-stable, states the stability rule, and names the nearest
+// stable base spans above and below, each of which then cites.
+func TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans(t *testing.T) {
+	baseContent := "one\ntwo\nthree\nfour\nfive\nsix\n"
+	root, base, target := makeCiteSpanRepoFrom(t, baseContent, "one\ntwo\nfive\nsix\n")
+	session := openSession(t, root)
+	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := session.Cite(ctx(), CiteOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "src/app.txt",
+		Lines: "3:4", Relation: "implementation",
+	})
+	if cemcode.CodeOf(err) != cemcode.CiteSpanNotStable {
+		t.Fatalf("got %v, want cite-span-not-stable", err)
+	}
+	message := cemcode.MessageOf(err)
+	for _, want := range []string{"would be stale", citeSpanRule, "nearest stable base spans: --lines 1:2, --lines 5:6"} {
+		if !strings.Contains(message, want) {
+			t.Fatalf("refusal %q lacks %q", message, want)
+		}
+	}
+	for _, lines := range []string{"1:2", "5:6"} {
+		if _, err := session.Cite(ctx(), CiteOptions{
+			MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "src/app.txt",
+			Lines: lines, Relation: "implementation",
+		}); err != nil {
+			t.Fatalf("named span %s does not cite: %v", lines, err)
+		}
+	}
+}

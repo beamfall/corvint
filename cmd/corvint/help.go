@@ -11,6 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
+	"cover": true, "discriminate": true,
 	"anchor": true, "provenance": true, "export": true,
 }
 
@@ -118,6 +119,9 @@ func commandHelpTopic(rest []string) string {
 		return corpusHelpTopic(rest[2:])
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
 		return ""
+	case rest[0] == "cem" && len(rest) > 1 && choices[rest[1]]:
+		// One cem action's help, not the whole family's (CEM-V1-340).
+		return cemActionHelpPrefix + rest[1]
 	}
 	return topic
 }
@@ -163,6 +167,9 @@ func publicHelpTopic(command string) (string, bool) {
 }
 
 func helpText(topic string) string {
+	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
+		return cemActionHelp(action)
+	}
 	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
 		return docsCorpusOperationHelp(operation)
 	}
@@ -1105,11 +1112,24 @@ Verification options:
                        test-cited Go source hunk in a disposable export of the
                        target and re-run its named tests; adds the hunkRevert
                        report (cem-hunk-revert/0), and only a consumer-observed
-                       failure counts as held. Bounds: 300 s per go test run,
+                       failure counts as held; every hunk it did not attempt
+                       is listed in notAttempted with its reason. Bounds: 300 s per go test run,
                        1200 s in total (reasons timeout, total-limit). It
                        executes the target's own tests UNCONFINED: no sandbox,
                        with the caller's privileges; use it only on a target
                        you trust. status and report refuse it.
+
+Map paths:
+  status and verify read --map MAP repository-relative, or as an absolute
+  path outside the repository and its Git directories (for example an
+  assembled or exported bundle's map); an absolute path inside them is refused,
+  so name it repository-relative. The map binds the repository by object IDs;
+  the read is bounded and writes nothing, and a symlinked map is refused.
+  verify-stable reads its --map at any path; every other action takes MAP
+  repository-relative only. anchor and its
+  --artifacts verdict ledger read the map committed at HEAD under MAP, so an
+  out-of-tree map must be committed in the product repository before it can
+  be anchored; there is no out-of-tree anchor or verdict-ledger mode yet.
 
 cem/1.0 is the only wire. Verification derives the canonical
 whole-repository patch itself excluding exactly .corvint/change.cem.json. A

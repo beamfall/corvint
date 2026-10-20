@@ -56,8 +56,25 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 			bad = true
 		}
 	}
+	external := map[string]string{}
 	for i := at + 2; i < len(args); i++ {
 		key := args[i]
+		// CEM-V1-333: --external-repository NAME=PATH repeats once per
+		// distinct name; PATH is an absolute repository root.
+		if key == "--external-repository" {
+			if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
+				bad = true
+				break
+			}
+			i++
+			name, root, ok := verify.ParseExternalRepository(args[i])
+			if _, dup := external[name]; !ok || dup {
+				bad = true
+				break
+			}
+			external[name] = root
+			continue
+		}
 		if key != "--repository" && key != "--map" && key != "--expected-base" && key != "--target" && key != "--artifacts" && key != "--trusted-keys" {
 			bad = true
 			break
@@ -77,11 +94,20 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 	options.ExpectedBase = values["--expected-base"]
 	options.Target = values["--target"]
 	options.ArtifactRoot = values["--artifacts"]
+	if len(external) > 0 {
+		options.ExternalRepositories = external
+	}
 	r := verify.NewStableResult(options)
 	exit := 2
+	var raw []byte
 	emit := func() (int, bool) {
 		if e := json.NewEncoder(out).Encode(r); e != nil {
 			return 2, true
+		}
+		if r.Code != nil && *r.Code == "artifact-unavailable" && r.Stage == "artifacts" {
+			if fix := verify.StableExternalFix(raw, external); fix != "" {
+				_, _ = io.WriteString(errout, "corvint cem verify-stable: "+fix+"\n")
+			}
 		}
 		if r.Code != nil && *r.Code == "invalid-arguments" {
 			// Scan the supplied argv, not the parsed values, so a relative path in
@@ -94,12 +120,15 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 				}
 				return [2]string{name, ""}
 			}
-			paths := [][2]string{relative("--root", 0, at), relative("--repository", at+2, len(args)), relative("--map", at+2, len(args)), relative("--artifacts", at+2, len(args)), relative("--trusted-keys", at+2, len(args))}
+			paths := [][2]string{relative("--root", 0, at), relative("--repository", at+2, len(args)), relative("--map", at+2, len(args)), relative("--artifacts", at+2, len(args)), relative("--trusted-keys", at+2, len(args)), relativeExternal(args[at+2:])}
 			if fix := verify.RelativePathFix(paths...); fix != "" {
 				_, _ = io.WriteString(errout, "corvint cem verify-stable: "+fix+"\n")
 			}
 		}
 		return exit, true
+	}
+	for _, root := range external {
+		bad = bad || !filepath.IsAbs(root) || filepath.Clean(root) != root
 	}
 	if bad || !filepath.IsAbs(options.Repository) || !filepath.IsAbs(values["--map"]) || globalRoot != "" && (!filepath.IsAbs(globalRoot) || filepath.Clean(globalRoot) != globalRoot || filepath.Clean(options.Repository) != globalRoot) {
 		exit = r.Refuse("arguments", "invalid-arguments", true)
@@ -126,7 +155,7 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 		exit = r.Refuse("input", "map-unavailable", true)
 		return emit()
 	}
-	raw, e := io.ReadAll(io.LimitReader(f, wire.MaxMapBytes+1))
+	raw, e = io.ReadAll(io.LimitReader(f, wire.MaxMapBytes+1))
 	closeErr := f.Close()
 	if e != nil || closeErr != nil || len(raw) > wire.MaxMapBytes {
 		exit = r.Refuse("input", "map-unavailable", true)
@@ -134,6 +163,20 @@ func RunStableInvocation(ctx context.Context, args []string, out, errout io.Writ
 	}
 	r, exit = verify.Stable(ctx, raw, options)
 	return emit()
+}
+
+// relativeExternal returns the first --external-repository value whose PATH
+// is relative, for the CEM-V1-117 fix line.
+func relativeExternal(args []string) [2]string {
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] != "--external-repository" {
+			continue
+		}
+		if _, root, ok := verify.ParseExternalRepository(args[i+1]); ok && !filepath.IsAbs(root) {
+			return [2]string{"--external-repository", root}
+		}
+	}
+	return [2]string{"--external-repository", ""}
 }
 
 // readTrustedKeys reads the consumer --trusted-keys file (CEM-V1-084) once,

@@ -179,6 +179,12 @@ const (
 	// CiteSelfModifiedAuthority refuses a citation of a governing instruction
 	// file that the map's own patch changes (CEM-V1-114, V1-0414).
 	CiteSelfModifiedAuthority = "cite-self-modified-authority"
+
+	// NotAProducerMap refuses a Core mutation of a cem/1.0 map that is not a
+	// producer map, such as an assembled stable map with criteria, receipts,
+	// links, artifacts or provenance (CEM-V1-342, V1-2102). The spec is
+	// supported, so unsupported-spec misnamed it.
+	NotAProducerMap = "not-a-producer-map"
 )
 
 // Typed bounded-runner codes.

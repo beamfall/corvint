@@ -80,7 +80,8 @@ func TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin(t *testing.T)
 		{"frontier command", []string{"help", "frontier"}, frontierHelp},
 		{"event flag", []string{"harness", "event", "--help"}, harnessEventHelp},
 		{"event command", []string{"help", "harness", "event"}, harnessEventHelp},
-		{"cem prepare flag", []string{"cem", "prepare", "--help"}, cemHelp},
+		{"CEM-V1-340 cem prepare flag", []string{"cem", "prepare", "--help"}, cemActionHelp("prepare")},
+		{"cem flag", []string{"cem", "--help"}, cemHelp},
 		{"harness flag", []string{"harness", "--help"}, harnessEventHelp},
 		{"harness command", []string{"help", "harness"}, harnessEventHelp},
 		{"WQO-V0-032 work flag is help, not command input", []string{"work", "--help"}, workHelp},
@@ -130,7 +131,7 @@ func TestHelpFlagAnywhereFollowsArgparse(t *testing.T) {
 			{[]string{"impact", "path/a.go", "--help"}, impactHelp},
 			{[]string{"prove", "--task", "x", "--help"}, proveHelp},
 			{[]string{"index", "--if-stale", "--help"}, indexHelp},
-			{[]string{"cem", "begin", "--patch", "p", "--help"}, cemHelp},
+			{[]string{"cem", "begin", "--patch", "p", "--help"}, cemActionHelp("begin")},
 			{[]string{"harness", "event", "--host", "codex", "--help"}, harnessEventHelp},
 			{[]string{"docs", "maintain", "--page", "p", "--help"}, docsMaintainHelp},
 			{[]string{"--help", "query"}, rootHelp},
@@ -308,7 +309,7 @@ func TestHFlagAliasesHelpFlag(t *testing.T) {
 		{"root", []string{"-h"}, rootHelp},
 		{"command", []string{"query", "-h"}, helpText("query")},
 		{"anywhere before --", []string{"query", "--task", "x", "-h"}, helpText("query")},
-		{"nested cem action", []string{"cem", "begin", "--patch", "p", "-h"}, cemHelp},
+		{"nested cem action", []string{"cem", "begin", "--patch", "p", "-h"}, cemActionHelp("begin")},
 		{"harness event", []string{"harness", "event", "--host", "codex", "-h"}, harnessEventHelp},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -507,5 +508,39 @@ func TestUnknownHelpTopicIsConventionalError(t *testing.T) {
 		!strings.HasPrefix(stderr.String(), "{\"code\": \"invalid-arguments\", \"error\": \"unknown help topic: 'not-a-command' (choose from 'init', ") ||
 		!strings.HasSuffix(stderr.String(), "'docs maintain')\", \"ok\": false}\n") {
 		t.Fatalf("exit=%d stdout=%q stderr=%q reads=%d", exit, &stdout, &stderr, reader.reads)
+	}
+}
+
+// TestCEMV1340CEMActionHelpNamesOnlyThatAction: every parsed cem action has
+// its own help, projected from cemHelp, that carries its usage and Actions
+// paragraph and no other action's usage line (CEM-V1-340).
+func TestCEMV1340CEMActionHelpNamesOnlyThatAction(t *testing.T) {
+	t.Parallel()
+	for action := range cemHelpActions {
+		text := cemActionHelp(action)
+		if text == "" {
+			t.Fatalf("cem %s has no action help", action)
+		}
+		if !strings.Contains(text, "  corvint [--root PATH] cem "+action+" ") {
+			t.Errorf("cem %s help lacks its usage: %q", action, text)
+		}
+		if len(text) >= len(cemHelp) {
+			t.Errorf("cem %s help is not narrower than cem --help", action)
+		}
+		for other := range cemHelpActions {
+			if other != action && strings.Contains(text, "  corvint [--root PATH] cem "+other+" ") {
+				t.Errorf("cem %s help carries the usage of cem %s", action, other)
+			}
+		}
+		verifying := action == "status" || action == "verify" || action == "report"
+		if strings.Contains(text, "\nVerification options:\n") != verifying {
+			t.Errorf("cem %s help: Verification options present = %v, want %v", action, !verifying, verifying)
+		}
+	}
+	if !strings.Contains(cemActionHelp("cite"), "--relation accepts: call-site") {
+		t.Errorf("cem cite help lacks its relation list: %q", cemActionHelp("cite"))
+	}
+	if cemActionHelp("no-such-action") != "" {
+		t.Error("an undocumented action has help")
 	}
 }

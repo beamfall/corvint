@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,5 +42,35 @@ func TestCEMV1240PlainProfileSelectsPlainDecoder(t *testing.T) {
 		if code != 1 || out.Len() != 0 || !strings.Contains(errout.String(), "stable assembly refused:") || !strings.Contains(errout.String(), want) {
 			t.Fatalf("%s: code=%d out=%s err=%s, want %q", profile, code, out.String(), errout.String(), want)
 		}
+	}
+}
+
+// TestCEMV1341AssemblyResultCarriesTopLevelOK: the assembly result gains one
+// leading "ok": true member and keeps every other byte json.Encoder writes,
+// for both result profiles (CEM-V1-341).
+func TestCEMV1341AssemblyResultCarriesTopLevelOK(t *testing.T) {
+	for _, result := range []any{
+		cc.StableAssemblyResult{Profile: cc.StableAssemblyProfile},
+		cc.PlainAssemblyResult{Profile: cc.PlainAssemblyProfile},
+	} {
+		var plain, got bytes.Buffer
+		if e := json.NewEncoder(&plain).Encode(result); e != nil {
+			t.Fatal(e)
+		}
+		if e := encodeOK(&got, result); e != nil {
+			t.Fatal(e)
+		}
+		want := `{"ok":true,` + strings.TrimPrefix(plain.String(), "{")
+		if got.String() != want {
+			t.Fatalf("got %s\nwant %s", got.String(), want)
+		}
+		var decoded map[string]any
+		if e := json.Unmarshal(got.Bytes(), &decoded); e != nil || decoded["ok"] != true {
+			t.Fatalf("decoded %v, %v", decoded, e)
+		}
+	}
+	var out bytes.Buffer
+	if e := encodeOK(&out, []string{}); e == nil || out.Len() != 0 {
+		t.Fatalf("non-object result: %v %q", e, out.String())
 	}
 }

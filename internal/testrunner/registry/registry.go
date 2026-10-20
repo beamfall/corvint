@@ -32,6 +32,9 @@ func Build(r testrunner.Request) (testrunner.Invocation, error) {
 	if err := testrunner.AdmitSelection(r); err != nil {
 		return testrunner.Invocation{}, err
 	}
+	if r.HasRSpecOnlyMembers() && r.Runner != "rspec" {
+		return testrunner.Invocation{}, fmt.Errorf("execPrefix, pathMap and formatter are admitted only for rspec")
+	}
 	switch {
 	case has(dynamic.Runners(), r.Runner):
 		return dynamic.Build(r)
