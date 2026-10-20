@@ -411,6 +411,8 @@ ceiling expired, or that was interrupted, reported the same `MALFORMED`. A bare 
 `wire.CodeOf`, which maps every uncoded error to `MALFORMED`. Intent: a store write that ran out of
 time or was interrupted reports one documented retryable code, and a run that started a command
 never ends `MALFORMED`.
+Native ticket V1-1582, filed from the same issue, is its duplicate; its acceptance criteria are
+these requirements and their tests (build log `2026-10-20-impact-deadline-retry`).
 
 - `ATR-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A store
   write whose context expired or was cancelled MUST report `LOCK_TIMEOUT`, marked retryable, and
@@ -1240,14 +1242,14 @@ times out or loses its lease meets the same race.
   live member, and only then. Every repeat is sent while the exited leader is held unreaped, so its
   PID pins the group ID, and none is sent once the reap has begun. A failed repeat HOLDs without a
   reap, as a failed first signal does. The 10-second `FinishBounded` bound, the post-reap signal-0
-  absence proof and every other `ATR-V0-003` rule are unchanged. Other Owner callers keep the
-  single signal of `PGO-V0-001`.
+  absence proof and every other `ATR-V0-003` rule are unchanged. `PGO-V0-017` names the other
+  Owner callers that set it and the one that keeps the single signal of `PGO-V0-001`.
 
 Non-goals: a descendant that left the group (for example with `setsid`) stays outside the runner,
 as before. A member that keeps forking faster than the repeats can still reach the bound and HOLD.
-The other Owner callers (the dispatcher reader, the CEM Git runner, the dogfood aggregate worker and
-the Linux service descendants probe) are not changed here; whether they need the same opt-in is a
-separate question.
+The other Owner callers are decided separately by `PGO-V0-017` (V1-2111): the dispatcher reader, the
+CEM Git runner and the dogfood aggregate worker set the same opt-in, and the Linux service helper
+retirement keeps the single signal.
 
 Failure modes: a repeated signal that fails HOLDs (`SURVIVORS`), as before. A same-session process
 that joins the group with `setpgid` before the reap is signalled by a repeat, where the single

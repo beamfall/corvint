@@ -7737,6 +7737,9 @@ A command reader holds one creation-owned process slot through result handling.
 After command exit or cancellation, retirement uses one fixed deadline: the earlier
 of command deadline plus one second and retirement trigger plus one second. Only
 Owner RELEASED permits inspecting output and returning ordinary read results.
+The reader's Owner repeats the group SIGKILL on each pre-reap live observation
+while the leader is unreaped, so a member forked alongside the first signal on
+Darwin is retired too (`PGO-V0-017`).
 Unproved retirement retains UNKNOWN and poisons the dispatcher invocation;
 subsequent Tick/Run calls stop, including bounded runs and canceled contexts.
 Close releases the lock through the terminal UNKNOWN path without normal ledger

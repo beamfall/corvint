@@ -251,6 +251,10 @@ func RunAggregateWorker(ctx context.Context, root, mode string, expected tracere
 // replace it to fire the deadline once a fixture is ready.
 var newAggregateWorkTimer = time.NewTimer
 
+// aggregateWorkerHost replaces the owned group's host operations in tests; it
+// is zero in production. The repeated group SIGKILL opt-in applies either way.
+var aggregateWorkerHost groupreap.Primitives
+
 // runAggregateOwnedProcess uses one retirement allowance for all cleanup stages.
 // Output is accepted only after observed RELEASED, including normal exit.
 func runAggregateOwnedProcess(ctx context.Context, command *exec.Cmd, stdoutLimit, stderrLimit int, workDeadline time.Time) ([]byte, []byte, int, error) {
@@ -277,7 +281,12 @@ func runAggregateOwnedProcess(ctx context.Context, command *exec.Cmd, stdoutLimi
 	stdout := &aggregateWorkerBuffer{limit: stdoutLimit, overflow: make(chan struct{})}
 	stderr := &aggregateWorkerBuffer{limit: stderrLimit, overflow: make(chan struct{})}
 	command.Stdout, command.Stderr = stdout, stderr
-	owner, err := groupreap.Start(command)
+	// The worker's nested Git forks, and on Darwin a group SIGKILL can miss a
+	// member forked alongside it, so the owner repeats it while a live member
+	// remains before the reap (PGO-V0-017).
+	host := aggregateWorkerHost
+	host.RepeatKillWhileLive = true
+	owner, err := groupreap.StartWith(command, host)
 	if err != nil {
 		return nil, nil, -1, err
 	}

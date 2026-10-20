@@ -84,6 +84,37 @@ func TestCALV0053_ReaderReleased(t *testing.T) {
 	}
 }
 
+// PGO-V0-017: the default reader start opts into RepeatKillWhileLive. The
+// fake host's first pre-reap quiet proof sees a live member, as one forked
+// alongside the group SIGKILL can be on Darwin; a later proof is quiet only
+// after a second group signal and otherwise fails, which HOLDs and poisons the
+// dispatcher. The leader exits on its own and is reaped for real.
+func TestPGOV0017ReaderRepeatsGroupKillWhileMemberLive(t *testing.T) {
+	d, _ := readerDispatcher(t)
+	var kills, proofs atomic.Int32
+	d.readerStart = nil
+	d.readerHost = groupreap.Primitives{
+		KillGroup: func(int) error { kills.Add(1); return nil },
+		QuietProof: func(int) (groupreap.Probe, error) {
+			switch {
+			case proofs.Add(1) == 1:
+				return groupreap.ProbeLive, nil
+			case kills.Load() < 2:
+				return groupreap.ProbeLive, errors.New("live member after a single group signal")
+			}
+			return groupreap.ProbeQuiet, nil
+		},
+		ProbeGroup: func(int) (groupreap.Probe, error) { return groupreap.ProbeAbsent, nil },
+	}
+	states, err := d.stateCommand(context.Background(), d.Config.WorkRoot, []string{"/bin/sh", "-c", `printf '{"t":"ready"}'`})
+	if err != nil || states["t"].State != "ready" || d.readerErr != nil {
+		t.Fatalf("states=%v err=%v poisoned=%v", states, err, d.readerErr)
+	}
+	if got := kills.Load(); got != 2 {
+		t.Fatalf("group signals = %d, want the first and one repeat", got)
+	}
+}
+
 func TestCALV0053_ReaderFixedRetirementBound(t *testing.T) {
 	now := time.Now()
 	for _, deadline := range []time.Time{now.Add(time.Hour), now.Add(-time.Second / 2)} {

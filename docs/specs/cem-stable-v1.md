@@ -194,6 +194,9 @@ process-group retirement whose unobserved cleanup is `repository` /
 Darwin keeps the quiet-first retirement sequence: after an owned successful group
 signal, signal 0 is polled while the leader is unreaped until the group is no
 longer signalable, then the leader is reaped and post-reap absence is observed.
+The Core runner repeats the group SIGKILL on each pre-reap live observation while
+the leader is unreaped, because a Darwin group signal can miss a member forked
+alongside it (`PGO-V0-017`).
 Linux uses `ReapAfterSuccessfulSignal`: after the owned successful group signal
 and observed leader exit, the leader is reaped exactly once and only signal-0
 absence polling follows. Linux preserves all `KillGroup` errors, including

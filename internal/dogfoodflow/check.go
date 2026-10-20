@@ -379,6 +379,14 @@ func (c *check) checkContextAbstention(report []byte) bool {
 		if _, err := os.Stat(artifact); digest != "" || err == nil {
 			c.fail("context-abstention-evidence-drift")
 		}
+		// DCW-V0-075: an admitted deadline overrun keeps the exact envelope
+		// and empty stdout of its last run; it is not rerun.
+		if reason == impactDeadlineReason {
+			if !impactDeadlineOverrun(2, c.evidence+"/coordination-time-impact.json", c.evidence+"/coordination-time-impact.stderr") {
+				c.fail("context-abstention-evidence-drift")
+			}
+			c.say("dogfood-check: NOTE coordination-time-impact NOT_PRODUCED %s\n", reason)
+		}
 		if c.aggregate == nil && !hasLine(report, `  ,"contextAbstentionEvidenceSha256": null`) {
 			c.fail("dogfood-report-drift")
 		}
