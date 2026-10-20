@@ -40,7 +40,9 @@ func (connection *connection) handleLegacyRequest(ctx context.Context, active *a
 		return
 	}
 	if inbound.Method == "ping" {
-		connection.respond(active, func() error { return connection.writeResultContext(ctx, *inbound.ID, map[string]any{}) })
+		connection.respond(active, func() error {
+			return connection.writeResultContext(ctx, *inbound.ID, map[string]any{}, inbound.Method, nil)
+		})
 		return
 	}
 	// Session declarations are data only. Each handler gets an independent copy.
@@ -63,7 +65,7 @@ func (connection *connection) handleLegacyRequest(ctx context.Context, active *a
 	delete(result, "cacheScope")
 	delete(result, "ttlMs")
 	delete(result, "resultType")
-	connection.respond(active, func() error { return connection.writeResultContext(ctx, request.ID, result) })
+	connection.respond(active, func() error { return connection.writeResultContext(ctx, request.ID, result, request.Method, nil) })
 }
 
 func (connection *connection) initializeLegacy(ctx context.Context, active *activeRequest, inbound protocol.Inbound) {

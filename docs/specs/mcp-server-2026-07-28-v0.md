@@ -702,6 +702,16 @@ Each row cites the first emitting site and states only the condition checked the
   that still describes the old commit on a clean worktree; a dirty worktree modified; a response
   without the block. Rollback: remove `--follow-ref` and `cmd/corvint-mcp/follow_ref.go`; the
   default server and its bytes never changed.
+- `MCPV0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A
+  `tools/call` result that cannot fit one MCP message on any server built on
+  `internal/mcp/server` (both the `2026-07-28` and the legacy `2025-11-25` path) MUST be answered
+  as a successful `tools/call` response with `isError: true` whose one text block is
+  `output-bound-exceeded: tool result of <bytes> bytes exceeds the <bound>-byte MCP message bound`,
+  never a generic `-32603`. The text carries only the measured size and the bound, no tool output.
+  A tool that bounds its own result first (the corpus bridge, `DCP-V1-200..202`) is unchanged; any
+  other oversized or unencodable result stays the sanitized `-32603` of `MCPV0-004`. Falsifier: an
+  over-bound tool result answered `-32603`, or a refusal frame that itself exceeds the bound.
+  Rollback: restore the `-32603` branch in `writeResultContext`.
 
 ## Acceptance matrix
 
