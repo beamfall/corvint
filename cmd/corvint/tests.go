@@ -97,7 +97,10 @@ RB-STUB-DECIDES-ASSERTION or RB-MESSAGE-CHAIN-PREFIX-ONLY, and a stub of a
 flag lookup (the built-in list or a committed .corvint/flag-lookups.json,
 corvint-flag-lookups/0) gives the advisory RB-FLAG-CONDITIONAL and
 RB-FLAG-FORCED-NON-DEFAULT and a "conditional on flag KEY=VALUE" condition on
-the test. It prints one
+the test. A _spec.rb example also abstains with RB-ASSERT-TARGET-NEVER-WRITTEN
+when it asserts a plain attr_accessor of an object it builds that nothing it
+exercises writes, read from the committed app/, lib/ and db/schema.rb. It
+prints one
 corvint-test-source-validity/0 document: each file's findings (uncertain with
 a reason where the reader abstained) and the tests. A JS/TS file lists every
 example in line order with its hygiene and a NOT_MEASURED strength; other

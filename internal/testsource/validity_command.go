@@ -372,8 +372,55 @@ func (r Repo) rubySupport(commit, name string, cache map[string]testvalidity.Rub
 	if err != nil {
 		support = testvalidity.RubySupport{Unbound: "rspec-support-unreadable"}
 	}
+	support.App = r.rubyApp(commit, prefix)
 	cache[prefix] = support
 	return support
+}
+
+// maxAppFiles bounds the application files one prefix lists for TSA-V0-448.
+const maxAppFiles = 20000
+
+// rubyApp lists the committed application source under prefix that a never-written assertion
+// target resolves in (TSA-V0-448): the .rb files under app/ and lib/, and db/schema.rb. Each file
+// is read on first use, at most MaxFileBytes, within one read budget, and cached; a file over a
+// bound reads as absent. A listing that fails or exceeds maxAppFiles lists none, so no target
+// resolves.
+func (r Repo) rubyApp(commit, prefix string) *testvalidity.RubyApp {
+	entries, err := r.tree(commit, func(path string) bool {
+		rest, ok := strings.CutPrefix(path, prefix)
+		return ok && (rest == "db/schema.rb" || (strings.HasPrefix(rest, "app/") || strings.HasPrefix(rest, "lib/")) && strings.HasSuffix(rest, ".rb"))
+	}, maxAppFiles)
+	if err != nil {
+		return nil
+	}
+	sizes := map[string]int{}
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		sizes[e.path] = e.size
+		paths = append(paths, e.path)
+	}
+	slices.Sort(paths)
+	budget := newReadBudget()
+	read := map[string]string{}
+	absent := map[string]bool{}
+	return &testvalidity.RubyApp{Paths: paths, Read: func(path string) (string, bool) {
+		if text, ok := read[path]; ok {
+			return text, true
+		}
+		size, listed := sizes[path]
+		if !listed || absent[path] || size > MaxFileBytes || size > budget.bytes || budget.files == 0 {
+			return "", false
+		}
+		data, found, err := r.readOne(commit, path, MaxFileBytes)
+		if err != nil || !found {
+			absent[path] = true
+			return "", false
+		}
+		budget.files--
+		budget.bytes -= len(data)
+		read[path] = string(data)
+		return read[path], true
+	}}
 }
 
 func exampleLines(examples map[int]testvalidity.ExampleSource) []int {

@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339 and V1-2108 / GitHub #1340, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339, V1-2108 / GitHub #1340 and V1-2114 / GitHub #1339, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -2433,6 +2433,126 @@ persisted; a committed `.corvint/flag-lookups.json` is then ignored.
 | TSA-V0-440 | `internal/testsource/validity_command.go`, `internal/testsource/example_join.go` | `TestSourceValidityFlagConditions`, `TestExampleJoinFlagConditions`, `TestFlagConditions` | experimental |
 | TSA-V0-441 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestMessageChainPrefixOnly`, `TestFlagConditions` | experimental |
 | TSA-V0-442 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestFlagConditions` | experimental |
+
+## Never-written assertion targets (V1-2114)
+
+V1-2114 (the third pattern of GitHub #1339) flags a cited RSpec example that asserts a plain
+`attr_accessor` or `attr_reader` of an object it builds when no code the example exercises writes
+that accessor: the assertion reads the accessor's initial value whatever the exercised code does.
+It is agent-drafted and accepted under the owner's standing auto-accept (2026-10-11). Unlike the
+stub rules above it reads the code under test: the committed class the receiver is built from, its
+superclasses and the methods the example calls on it. It reports only a target it resolves
+completely; every form it cannot read gives no finding, and the finding abstains rather than
+refusing because the code is read statically and not run.
+
+- `TSA-V0-443`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) For each cited
+  `_spec.rb` example the RSpec reader MUST read every assertion whose actual is one reader call
+  `root.reader` on a local name, and report `RB-ASSERT-TARGET-NEVER-WRITTEN` after the example's
+  other findings, including the stub and flag findings of TSA-V0-430, in assertion line order. An
+  example read through a shared-group inclusion MUST get none.
+- `TSA-V0-444`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) The finding MUST be
+  abstained (`SeverityAbstained`), located at the assertion with its cause at the first exercised
+  call that resolves to a method definition, and its message MUST start "assertion target is never
+  written on the exercised path" and name the assertion by `path:line` and source text, the reader
+  and its root, the declaration kind, class and `path:line`, and each exercised method as
+  `Class#method`. `ApplyExampleSource` then makes the example `ABSTAINED` with the rule as reason.
+- `TSA-V0-445`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) The root MUST resolve
+  to a `let`, a named subject or its name, the anonymous subject, a local assignment in the example
+  body, or the implicit subject of the innermost constant group description, whose whole value is
+  `Class.new` or `described_class.new` with an optional parenthesised argument list. The class MUST
+  resolve to exactly one committed file under the spec's prefix, `app/<dir>/<underscored path>.rb`
+  or `lib/<underscored path>.rb`, holding exactly one declaration of it, and its superclasses MUST
+  resolve the same way for at most four hops, ending at a plain object or at `ApplicationRecord` or
+  `ActiveRecord::Base`. A record chain MUST also have a committed `db/schema.rb` that never names
+  the reader as a word, so a database column is never mistaken for an accessor. The reader MUST be
+  declared by `attr_accessor` or `attr_reader` on the chain and defined by no `def` of that name.
+- `TSA-V0-446`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) From `initialize`, the
+  exercised methods (calls on the root in the example's `before`, `let!` and `subject!` hooks and
+  body up to the assertion, except calls on expectation lines) and the record callbacks declared by
+  symbol, the reader MUST follow method names reached by a bare call, a `self.` call, a symbol and
+  an operator `self.x =` assignment, for at most 256 names. Any of these MUST count as a write and
+  give no finding: `@reader` assigned with `=`, `||=`, `&&=` or an operator assignment; an
+  attribute assignment `.reader =` on any receiver, including `self`; a symbol, hash key or string
+  literal naming the reader or its setter; in a record chain, a mass assignment (`assign_attributes`,
+  `attributes=`, `update`, `update!`, `update_attributes`, `update_attributes!`, `write_attribute`,
+  `update_column`, `update_columns`); an assignment of the reader in the example or its hooks; and
+  an argument of `.new` that names the reader.
+- `TSA-V0-447`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) What the reader cannot
+  resolve MUST give no finding, never a finding: a class-level statement other than `attr_*`
+  declarations, defs, symbol callbacks, visibility changes, constants, table settings,
+  associations, validations and scopes (so `include`, `extend`, `define_method` and concerns bail);
+  an `attr_*` argument that is not a symbol; a callback with a block; a reached method that uses
+  `send`, `public_send`, `__send__`, `instance_variable_set`, `instance_eval`/`exec`,
+  `class_eval`/`exec`, `module_eval`, `define_method`, `define_singleton_method`, `eval`, `binding`
+  or `method_missing`; `self` not followed by `.`; a `super` a record chain does not resolve; an
+  exercised call that resolves to no method, reader or writer; a root that another `let` uses, that
+  is passed, stubbed or used other than as `root.`; an exercised call that asserts only; and a file
+  with an `around` hook, a `before(:all)`, `before(:context)` or `before(:suite)` hook, or an
+  `include_context`, `include_examples`, `it_behaves_like` or `it_should_behave_like` inclusion.
+- `TSA-V0-448`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) `corvint tests
+  validity` MUST give the RSpec reader the committed `.rb` files under the spec prefix's `app/`
+  and `lib/` and its `db/schema.rb`, listing at most 20000 files and reading each lazily, at most
+  once and at `MaxFileBytes`, within the command's read budget; a listing that fails or exceeds the
+  bound gives no application source. Without application source (`RubySupport.App` nil) the rule
+  MUST NOT be reported. The example receipt join, discovery and the static example reading do not
+  supply application source, so they do not report the rule.
+- `TSA-V0-449`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) When the chain defines
+  the sibling predicate `reader?`, the finding MUST name it as `Class#reader?` with its `path:line`
+  and hint asserting it (`root.reader?`). Every finding MUST carry a hint to assert the state the
+  code writes or to write the accessor on that path, and MUST say the example abstains because the
+  code under test is read statically and not run.
+
+Non-goals: running the code under test or a Rails autoloader; reopened classes, concerns, modules,
+`Struct`/`Data` classes, `define_attribute_methods` and ActiveModel attributes (they give no
+finding); receivers built through factories, `create`, `build` or any constructor other than
+`.new`; writes reached through a collaborator object, a block yielded to the receiver or a
+superclass outside the committed `app/` and `lib/`; deciding whether a write reached statically
+runs on the example's path (a constructor write counts as written); refusing an example on this
+rule.
+
+Failure modes: a column, override, metaprogrammed or unread write misread as absent would hide a
+real test as weak, so every unresolved form gives no finding; a schema that names the reader in any
+table bails even when the column belongs to another table; a write on a branch the example never
+takes still counts as a write, so the rule misses those examples (false negatives, never false
+positives of that kind); an application listing over the bound or an unreadable file gives no
+finding rather than a partial reading.
+
+Acceptance evidence: inline RSpec and application fixtures in
+`internal/testsource/validity_rspec_accessor_test.go`. `TestAssertTargetNeverWritten` (the
+finding for a `let`, a local, a named subject and its alias, the implicit subject and a record whose
+schema lacks the reader; the message names the reader, the declaration and the exercised method and
+the sibling predicate `flag?`; no finding without application source, for an example that
+exercises nothing or for an asserted predicate; `ApplyExampleSource` abstains),
+`TestAssertTargetWritten` (an instance variable, `self.x =`, a setter call, `||=`, an attribute
+assignment on another receiver, a helper reached by name and by symbol, a spec-side assignment in
+the body and a hook, a record callback, a record mass assignment, a constructor write and a hash
+argument to `.new` give no finding; two control examples still do), `TestAssertTargetUncertain` (a
+database column, an overridden reader, an unresolved class, `include`, `define_method`,
+`public_send`, `self` passed out, an unresolved superclass, a factory, the receiver passed or
+stubbed, an unresolved method, another `let` on the receiver, an `around` hook, a schema-less record
+and an ambiguous class file give no finding) and `TestSourceValidityAccessorNeverWritten` (`corvint
+tests validity` reads the committed application and the example abstains with the rule).
+Real-suite precision and recall are NOT_MEASURED; no live qualification on a real Rails suite was
+run (NOT_RUN).
+
+Rollback: remove `internal/testsource/validity_rspec_accessor.go` and its test,
+`internal/testvalidity/source_rules_accessor.go`, the `App` field in
+`internal/testvalidity/source_rules_rspec.go`, the `app` field in
+`internal/testsource/validity_rspec.go`, its wiring in `validity_rspec_examples.go` and
+`rubyApp` in `validity_command.go`, the help sentence in `cmd/corvint/tests.go`, and this section.
+Nothing is persisted.
+
+### Traceability (V1-2114)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-443 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec_examples.go` | `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-444 | `internal/testsource/validity_rspec_accessor.go`, `internal/testvalidity/source_rules_accessor.go` | `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorNeverWritten` | experimental |
+| TSA-V0-445 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetUncertain` | experimental |
+| TSA-V0-446 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetWritten` | experimental |
+| TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetUncertain` | experimental |
+| TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
 
 ## Decision file format
 
