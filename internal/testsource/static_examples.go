@@ -39,7 +39,7 @@ func StaticExamples(r Repo, revision string, paths []string) (string, []StaticEx
 		return root == "." || name == root || strings.HasPrefix(name, root+"/")
 	}
 	keep := func(name string) bool {
-		if !strings.HasSuffix(name, "_spec.rb") && !IsTestFile(name) {
+		if !strings.HasSuffix(name, "_spec.rb") && !IsJSValidityTestFile(name) {
 			return false
 		}
 		return len(paths) == 0 || slices.ContainsFunc(paths, func(root string) bool { return under(name, root) })

@@ -48,8 +48,12 @@ The focused tests are listed in the spec's traceability row. Their packages pass
 - the dependents `doccorpus`, `testplan`, `testevidence`, `companionrelease` and
   `playwrightminimize`.
 
-`NOT_RUN`: a real Playwright run, a real RSpec run, and a formatter that emits
-`shared_group_inclusion_backtrace`.
+`NOT_RUN`: a real Playwright run and a real RSpec run through this projection, including the
+Corvint formatter's inclusion frames (`LPCV-V0-136`, merged from main during this change).
+
+After merging origin/main (23c9dd5c5), static mode selects JS/TS files with
+`IsJSValidityTestFile`, the predicate the example readers now use, so Jest `__tests__` files are
+read as discovery reads them.
 
 ## Residuals
 

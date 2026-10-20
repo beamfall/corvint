@@ -36,12 +36,15 @@ type jsDecl struct {
 	members     map[string]bool
 	unsupported bool
 	title       string
-	eachTable   [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
-	eachKind    string // "call", "template" or ""
-	hasBody     bool
-	body        [2]int
-	concise     bool // the body is an arrow function's expression, which the example returns
-	noParams    bool // the callback declares no parameter, so it takes no `done` (TSA-V0-389)
+	// literalTitle marks a title that is one exact string literal on a declaration with no
+	// `.each` table, so it names the example or group as the runner does (LPCV-V0-147).
+	literalTitle bool
+	eachTable    [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
+	eachKind     string // "call", "template" or ""
+	hasBody      bool
+	body         [2]int
+	concise      bool // the body is an arrow function's expression, which the example returns
+	noParams     bool // the callback declares no parameter, so it takes no `done` (TSA-V0-389)
 }
 
 // jsAnnotation is one runtime `test.skip()` or `test.fixme()` call with no title.
