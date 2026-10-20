@@ -162,3 +162,39 @@ func TestDocumentTitleUsesFirstH1WhenItEqualsStem(t *testing.T) {
 		t.Fatalf("record = %#v, ok=%v", record, ok)
 	}
 }
+
+// TestInstructionsSummaryIsTitleOrPreamble: V1-2074. An instructions file's
+// summary is its preamble -- body text under the title before any section --
+// or, with no preamble, its title, so adding or reordering sections never
+// makes one section's first line read as the document's purpose. Other
+// documents keep the first body line (control).
+func TestInstructionsSummaryIsTitleOrPreamble(t *testing.T) {
+	const corvint = "## Corvint context\n\nBefore editing, read `corvint context`.\n\n"
+	const build = "## Build\n\nRun `make`.\n\n"
+	for _, test := range []struct {
+		name, path, text, want string
+	}{
+		{"section first", "AGENTS.md", "# Beamfall agents\n\n" + corvint + build, "Beamfall agents"},
+		{"section order swapped", "AGENTS.md", "# Beamfall agents\n\n" + build + corvint, "Beamfall agents"},
+		{"preamble", "AGENTS.md", "# Beamfall agents\n\nHow agents work in this repository.\n\n" + corvint + build, "How agents work in this repository."},
+		{"preamble with sections swapped", "AGENTS.md", "# Beamfall agents\n\nHow agents work in this repository.\n\n" + build + corvint, "How agents work in this repository."},
+		{"fenced comment before section", "CLAUDE.md", "# Claude\n\n```sh\n# not a section\n```\n" + corvint, "Claude"},
+		{"untitled", "AGENTS.md", corvint, "AGENTS"},
+		{"other document control", "docs/specs/guide.md", "# Guide\n\n" + corvint, "Before editing, read `corvint context`."},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			source := Source{Path: test.path, BlobHash: strings.Repeat("0", 40), Data: []byte(test.text)}
+			body, valid, loaded := source.Text()
+			if !loaded || !valid {
+				t.Fatal("test source is not loaded valid text")
+			}
+			record, ok := documentRecord(source, body, map[string]Source{source.Path: source})
+			if !ok {
+				t.Fatal("document was not recognized")
+			}
+			if record.Fields["summary"] != test.want {
+				t.Fatalf("summary = %q, want %q", record.Fields["summary"], test.want)
+			}
+		})
+	}
+}
