@@ -282,6 +282,63 @@ func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
 	}
 }
 
+// AFP-V0-088: in a repository with a Corvint Tasks store, a dirty projection
+// that no package names is task state with a stated reason and leaves scope
+// BOUNDED; a projection file a Go test names by literal still selects that
+// package and keeps its UNOWNED_DIRTY_PATH entry. The default compact receipt
+// and the --full receipt both carry plan.nonSource.
+func TestAffectedTaskStoreProjectionIsTaskState_AFPV0088(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	for relative, body := range map[string]string{
+		".taskman/policy.json":          "{}\n",
+		".taskman/queue.json":           "{}\n",
+		".taskman/tickets/V1-0001.json": "{}\n",
+		"core/policy_test.go":           "package core\n\nconst policy = \".taskman/policy.json\"\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, relative), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "tasks store")
+	edit := func(relative string) {
+		if err := os.WriteFile(filepath.Join(root, relative), []byte("{\"edited\":true}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	edit(".taskman/queue.json")
+	edit(".taskman/tickets/V1-0001.json")
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	reason := "Corvint Tasks store projection written by corvint-tasks; no unit's path literal or declared read scope names it, so it is task state, not a build or test input"
+	want := "[map[class:TASK_STORE_PROJECTION paths:[.taskman/queue.json .taskman/tickets/V1-0001.json] reason:" + reason + "]]"
+	if plan["scope"] != "BOUNDED" || fmt.Sprint(plan["unknown"]) != "[]" || fmt.Sprint(plan["selected"]) != "[]" || fmt.Sprint(plan["nonSource"]) != want {
+		t.Fatalf("an unread projection must be task state: scope=%v unknown=%v selected=%v nonSource=%v", plan["scope"], plan["unknown"], plan["selected"], plan["nonSource"])
+	}
+	edit(".taskman/policy.json")
+	receipt, _, stderr, code = runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan = receipt["plan"].(map[string]any)
+	if want := "[map[tests:[core/core_test.go core/policy_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:.taskman/policy.json kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; fmt.Sprint(plan["selected"]) != want {
+		t.Fatalf("the reader of a projection file must be selected: %v", plan["selected"])
+	}
+	// The read path is unowned as before, so every plugin's frontier bears on
+	// the plan again (V1-0289); the unread projection added none above.
+	unknown := fmt.Sprint(plan["unknown"])
+	if plan["scope"] != "UNKNOWN" || strings.Count(unknown, "UNOWNED_DIRTY_PATH") != 1 || !strings.Contains(unknown, "map[detail:.taskman/policy.json reason:UNOWNED_DIRTY_PATH]") || !strings.Contains(fmt.Sprint(plan["nonSource"]), "paths:[.taskman/queue.json .taskman/tickets/V1-0001.json]") {
+		t.Fatalf("a read projection file stays unknown: scope=%v unknown=%v nonSource=%v", plan["scope"], plan["unknown"], plan["nonSource"])
+	}
+}
+
 // AFP-V0-020: an edited Go package with no _test.go file is named in
 // plan.unknown and leaves scope UNKNOWN instead of being omitted.
 func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {
