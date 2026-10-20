@@ -251,11 +251,15 @@ accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #
   declaration (no step facts) with the same canonical input; `null`, a malformed fact, one key
   twice or a bound overrun MUST refuse with `test-plan-invalid-input`. Step facts MUST NOT create a
   requires conflict (TCN-V0-007 compatible sets), MUST NOT create a precedence edge with any
-  `requires` or `changes` fact of any variation, and MUST NOT change abstention, reuse, isolation
-  reasons, step order or test numbering. Non-empty step facts MUST be part of the canonical input,
-  sorted, as member `step_facts` after `changes`, so they change `input_digest` and with it the
-  table header and `table_digest`; every other table and JSON plan byte MUST stay as it would be
-  without them, and no plan member is added. Input order MUST NOT affect any output byte.
+  `requires` or `changes` fact of any variation. Non-empty step facts MUST be part of the canonical
+  input, sorted, as member `step_facts` after `changes`, so they change `input_digest` and with it
+  the table header and `table_digest`; no plan member is added. When adding step facts leaves every
+  TCN-V0-005 duplicate class unchanged, they MUST NOT change abstention, reuse, isolation reasons,
+  step order or test numbering, and every other table and JSON plan byte MUST stay as it would be
+  without them. Step facts can split a duplicate class (TCN-V0-015): a variation that was a
+  duplicate becomes a planned variation, so rows, counts and isolation reasons then follow
+  TCN-V0-005..012 for the new classes and this invariance does not apply. Input order MUST NOT
+  affect any output byte.
   (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
 - `TCN-V0-014`: A variation naming one fact key in both `requires` and `step_facts`, whatever the
   values, MUST refuse with `test-plan-invalid-input`. The same key in the `requires` of one
@@ -263,7 +267,8 @@ accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #
   auto-accept (2026-10-11; V1-2093))
 - `TCN-V0-015`: Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variations
   that differ only in their step facts MUST NOT be classed as duplicates, and absent and empty step
-  facts compare equal. (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
+  facts compare equal. Splitting a class this way changes the plan as any distinct variation does;
+  it is the one exception to the TCN-V0-013 output invariance. (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
 
 ## Grouping algorithm (informative restatement of TCN-V0-003..008)
 
@@ -391,7 +396,7 @@ Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/co
 | TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
 | TCN-V0-013 | `TestStepFactsNeverConflictOrOrder` (different values of one step-fact key share a test; no edge from a `changes` fact to a step fact; table and JSON equal the plan without step facts apart from `input_digest`, the header and `table_digest`; the same values as `requires` read `conflicting-state`), `TestStepFactsDecoding` (absent equals empty, sorted set, canonical member, every refusal and bound), `TestInputOrderDoesNotChangeOutput` (step facts permuted). |
 | TCN-V0-014 | `TestStepFactKeyAlsoRequiredRefuses` (equal and different values refuse; the key across variations is valid). |
-| TCN-V0-015 | `TestStepFactsInDuplicateKey` (differing step facts are not duplicates; equal, absent and empty ones class). |
+| TCN-V0-015 | `TestStepFactsInDuplicateKey` (differing step facts are not duplicates; equal, absent and empty ones class), `TestStepFactsSplitDuplicateChangesPlan` (a step fact on one of two identical variations turns a duplicate into a planned variation; the plan changes beyond its digests). |
 
 Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
 (issue 681 cites 3,614 core rows over 133 flows) and record new tests versus

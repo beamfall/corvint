@@ -12,7 +12,9 @@ accepted under the owner's standing auto-accept of lane requirements (2026-10-11
 
 - `TCN-V0-013`: an optional `step_facts` set per variation, with the `requires` fact syntax and
   bounds. It never creates a requires conflict or a precedence edge. It is part of the canonical
-  input, so only `input_digest` (and the header and `table_digest` that carry it) changes.
+  input, so `input_digest` (and the header and `table_digest` that carry it) changes. While the
+  duplicate classes stay the same, nothing else changes. A step fact that splits a duplicate class
+  (TCN-V0-015) changes the plan as any distinct variation does (Codex review finding on #1325).
 - `TCN-V0-014`: one key in both `requires` and `step_facts` of one variation refuses
   `test-plan-invalid-input`.
 - `TCN-V0-015`: step facts are part of the TCN-V0-005 duplicate key.

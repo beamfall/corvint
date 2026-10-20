@@ -150,3 +150,31 @@ func canonicalBytes(t *testing.T, in *Input) []byte {
 	}
 	return data
 }
+
+// TestStepFactsSplitDuplicateChangesPlan: a step fact on only one of two otherwise identical
+// variations splits their duplicate class, so the plan changes beyond its digests; this is the
+// TCN-V0-015 exception to the TCN-V0-013 output invariance.
+func TestStepFactsSplitDuplicateChangesPlan(t *testing.T) {
+	act, see := set("action", []any{"element:V1.act"}), set("assertion", []any{"element:V1.see"})
+	before := build(t, Evidence{}, 8, variation("V1", act, see), variation("V2", act, see))
+	after := build(t, Evidence{}, 8, variation("V1", act, see), variation("V2", act, see, set("step_facts", []any{"api=429"})))
+
+	if want := []Duplicate{{"V2", "V1"}}; !reflect.DeepEqual(before.Duplicates, want) {
+		t.Fatalf("before: duplicates %+v\n%s", before.Duplicates, before.Table())
+	}
+	wantBefore := []string{
+		"| T001 | tests/e2e/teesheet.spec.ts | V1 | unique-context |",
+		"| DUPLICATE V1 | tests/e2e/teesheet.spec.ts | V2 | duplicate |",
+	}
+	if got := rows(before); !reflect.DeepEqual(got, wantBefore) {
+		t.Fatalf("before rows:\n%s", strings.Join(got, "\n"))
+	}
+
+	if len(after.Duplicates) != 0 {
+		t.Fatalf("after: a step fact on one variation must split the class, got %+v", after.Duplicates)
+	}
+	wantAfter := []string{"| T001 | tests/e2e/teesheet.spec.ts | V1, V2 | - |"}
+	if got := rows(after); !reflect.DeepEqual(got, wantAfter) {
+		t.Fatalf("after rows:\n%s", strings.Join(got, "\n"))
+	}
+}
