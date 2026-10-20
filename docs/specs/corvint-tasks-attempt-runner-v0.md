@@ -411,6 +411,8 @@ ceiling expired, or that was interrupted, reported the same `MALFORMED`. A bare 
 `wire.CodeOf`, which maps every uncoded error to `MALFORMED`. Intent: a store write that ran out of
 time or was interrupted reports one documented retryable code, and a run that started a command
 never ends `MALFORMED`.
+Native ticket V1-1582, filed from the same issue, is its duplicate; its acceptance criteria are
+these requirements and their tests (build log `2026-10-20-impact-deadline-retry`).
 
 - `ATR-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1558) A store
   write whose context expired or was cancelled MUST report `LOCK_TIMEOUT`, marked retryable, and

@@ -503,6 +503,21 @@ var impactAbstentions = map[string]bool{
 	"unsupported-impact-path":       true,
 }
 
+// impactDeadlineEnvelope is the exact refusal `corvint impact` writes when one
+// of its Git phases overruns the contextindex 30-second Git deadline, which has
+// no override (DCW-V0-075).
+const impactDeadlineEnvelope = "{\"error\": \"Git repository index exceeded its deadline\", \"ok\": false}\n"
+
+// impactDeadlineReason is the visible, non-blocking row reason of an impact
+// step whose one bounded retry also overran that deadline (DCW-V0-075).
+const impactDeadlineReason = "impact-deadline-exceeded"
+
+// impactDeadlineOverrun reports an impact run that refused with exactly the
+// deadline envelope, exit 2 and empty stdout.
+func impactDeadlineOverrun(status int, output, errorFile string) bool {
+	return status == 2 && !hasContent(output) && string(readFile(errorFile)) == impactDeadlineEnvelope
+}
+
 func (f *flow) acquireOperation() {
 	if f.operationUnlock != nil {
 		return
