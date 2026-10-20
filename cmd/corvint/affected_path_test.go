@@ -221,6 +221,10 @@ func TestAFPV0094PathListRefusesIgnoredFilesUnitsRead(t *testing.T) {
 		{name: "read scope", ignore: "docs/generated.md", file: "docs/generated.md", refuses: true, committed: map[string]string{
 			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"core":["docs/"]}}`,
 		}},
+		// A read-scoped unit reads its own package subtree even with no entries.
+		{name: "read scope package subtree", ignore: "core/fixtures/generated.json", file: "core/fixtures/generated.json", refuses: true, committed: map[string]string{
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"core":[]}}`,
+		}},
 		{name: "unread", ignore: "build/out.bin", file: "build/out.bin", refuses: false},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {

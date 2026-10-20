@@ -898,8 +898,9 @@ func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revi
 }
 
 // ignoredCheckAreas lists the paths a Go unit reads beyond its own files: its
-// directory's testdata, the directory itself when it embeds, and each declared
-// read-scope entry ("/"-suffixed for a subtree).
+// directory's testdata, the directory's subtree when it embeds or declares a
+// read scope (affected.InReadScope admits it even with no entries), and each
+// declared read-scope entry ("/"-suffixed for a subtree).
 func ignoredCheckAreas(id string, unit affected.Unit) []string {
 	files := append(append([]string{}, unit.Sources...), unit.Tests...)
 	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
@@ -911,7 +912,7 @@ func ignoredCheckAreas(id string, unit affected.Unit) []string {
 		prefix = ""
 	}
 	areas := []string{prefix + "testdata/"}
-	if unit.Embeds {
+	if unit.Embeds || unit.ReadScoped {
 		areas = append(areas, prefix)
 	}
 	return append(areas, unit.ReadScope...)
