@@ -1,6 +1,7 @@
 {
   "profile": "cem-stable-consumer-migration-proposal/1",
-  "status": "PROPOSED_NOT_IMPLEMENTED",
+  "status": "IMPLEMENTED_NOT_PROMOTED",
+  "statusNote": "Updated by V1-0595 under decision 0525 section 6 against origin/main f3ca72248. Each family's currentStatus names its owning docs/specs/cem-stable-v1.md requirements. The stable wire was frozen by V1-1265 (1f35e3da7), every committed map was migrated by V1-1277 (35c365a9e) and cem/0.x was removed by V1-1278 S1..S3 (baseline 88197e465). The stableDecision, priorProfileObservation and rollback text is the original proposal, kept as history; its promises to keep 0.x profiles, defaults and packets and to roll back to them are superseded by decision 0525 section 6. Promotion, qualification breadth, independent external conformance (CEM-V1-008) and A02 remain open.",
   "parentPlan": "../migration-plan.json",
   "parentPlanSHA256": "1218845629d95bd03648c6e91124064359cfd70e8124beed998cbdc132237cd2",
   "ownerTickets": "Existing native Corvint Tasks V1-0591..0596; this file is a review artifact, not a competing queue.",
@@ -20,7 +21,7 @@
       ],
       "stableDecision": "Add StableMap/ParseStable/EncodeStable and an exact-profile Document tag; retain OriginalBytes for sidecar/hash. Stable verifier accepts explicit artifact root and returns separate integrity/authority axes. Existing ParseMap/Canonical/ParseCandidate remain closed.",
       "acceptanceEvidenceRequired": "Roundtrip both witness objects and all four reference arrays; malformed stable and old/candidate dispatch controls; independent canonical object/sidecar/closure refusal cases.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: stable wire and verifier (StableMap/ParseStable/EncodeStable in internal/cem/wire/stable.go, VerifyStable in internal/cem/verify/stable.go); cem-stable-v1.md CEM-V1-001, CEM-V1-011..013, CEM-V1-050, CEM-V1-066, CEM-V1-080..095; wire frozen by V1-1265 (merge 1f35e3da7); the 0.x ParseMap/Canonical paths named in stableDecision were deleted by V1-1278 S2b (CEM-V1-215).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -41,7 +42,7 @@
       ],
       "stableDecision": "Add explicit stable prepare/assembly and stable-owned mark/cite/cover/discriminate operations. Never pass stable through a 0.x serializer. Preserve optional absence and full links/artifacts; reject mutations making links/digests stale. Keep default prepare0.2 and old0.3 output prohibitions.",
       "acceptanceEvidenceRequired": "Actual CLI writer readback retains reference graph and caller witness fields; changed hunk/link/artifact invalidates rather than truncates; original default output byte fixtures unchanged.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: Core producer and mutators write cem/1.0 by default (CEM-V1-140..146, V1-1276, merge 9deae4838); the 0.x serializers and the --spec cem/0.2 producer were deleted by V1-1278 S2b (CEM-V1-215..219), so the 'keep default prepare0.2' clause of stableDecision is superseded by decision 0525.",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -63,7 +64,7 @@
       ],
       "stableDecision": "Add corvint cem verify-stable with the five explicit inputs; status/report/MCP gain explicit tagged stable read context and artifact root. Render full integrity axes and graph/witness state, never a generic complete label. Keep historical command ABI in first slice.",
       "acceptanceEvidenceRequired": "CLI result preserves decoded covered/uncovered/survived/not-run witness values and all13 NOT_OBSERVED axes. Exact raw artifact readback retains FAILED/SKIPPED-containing opaque runner receipt bytes and their references; low-level output does not project these observations. Separately admitted runner-semantic companion rendering requires its own later bound proof. Explicit Core CLI executes exact stable sidecar, missing-root and wrong-profile cases. Status/report/MCP remain later integrations.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: Core status/verify/report and the MCP report preview read cem/1.0 through the stable verifier (CEM-V1-017..019, CEM-V1-034..036, CEM-V1-145); hidden verify-stable CLI; every non-1.0 spec refuses unsupported-spec (CEM-V1-215).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -82,7 +83,7 @@
       ],
       "stableDecision": "Add verify-stable in existing Apache Go files from public algorithms; keep verify/ci/verify-candidate/verify-03 distinct. Pure shared primitives may be reused but the stable schema/result remain separate. Native AGPL implementation cannot be imported or translated.",
       "acceptanceEvidenceRequired": "Same raw fixtures and exact base/target/artifacts through native and portable process outputs; old0.1/0.2/candidate frozen packets unchanged; Go floor and structural tuple evidence distinct.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: portable consumer interop/cem01-go verifies cem/1.0 only (verify-stable, verify-stable-canonical; verify-candidate for the experimental profile); its 0.x default route and ci.go report were deleted by V1-1278 S3 (CEM-V1-220..225, merge 94a7d3dc5).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -105,7 +106,7 @@
       ],
       "stableDecision": "Add an explicit cem/1.0 OCM/LRF adapter and owning profile admission. Authenticate exact original CEM bytes, base/target, artifacts and upstream universe; use read-only verified change projection while retaining full stable digest/profile.",
       "acceptanceEvidenceRequired": "Stable sidecar/OCM chain retains unsatisfied obligations; swapped artifact/map/profile or missing root cannot yield closed/empty frontier; old OCM/LRF admission remains unchanged.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: OCM/LRF stable universe admission (CEM-V1-051..059) and OCM prepare/read/link over cem/1.0 (CEM-V1-149); lrf/0 is retired (CEM-V1-215); stable LRF evaluation has no accepted profile.",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -126,7 +127,7 @@
       ],
       "stableDecision": "Extend exact TCQ/frontier profile admissions and upstream bindings; recompute against full stable CEM and required artifact result. A criterion link or caller discrimination witness never grants TCQ adequacy/EMPTY.",
       "acceptanceEvidenceRequired": "Stable OCM/frontier path preserves open edges and runtime unknowns; invalid root/digest/generation/receipt cannot close. Source selection is not execution.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: library-level tcq-stable/0 and frontierrepo.RecomputeStable (CEM-V1-120..127, merge b8ba8425b); no stable frontier document; frontier/0 and tcq/0 retired (CEM-V1-215).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -145,7 +146,7 @@
       ],
       "stableDecision": "Add stable obligation admission with exact upstream CEM hash/profile and bounded artifact context; keep obligation evidence separate from declared criterion associations.",
       "acceptanceEvidenceRequired": "Stable obligation projection works without erasing unresolved obligations; dangling/upstream-stale maps refuse; obligation closure requires its own authority.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: external-frontier-obligations-stable/0 in internal/extevidence/obligations_stable.go and the corvint obligations selection (CEM-V1-130..135); the frozen sidecar is retired (CEM-V1-215).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -166,7 +167,7 @@
       ],
       "stableDecision": "Add explicit stable input mode at companion boundary; reuse native Tasks wire and actual pinned historical/live verifier, and shared runner semantic contract. Low-level CEM stays stdlib+Git. No copied partial native validator or authority from retained JSON.",
       "acceptanceEvidenceRequired": "Disposable exact-target Tasks historical check plus fresh current gate, stale-generation/policy negative, native runner plan/receipt identity, classified criterion oracle controls; changed inputs invalidate.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: criterion experiment stable input mode (CEM-V1-136..139, internal/criterionexperiment/stable.go).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -188,7 +189,7 @@
       ],
       "stableDecision": "Add stable completion/dogfood path only after full integrity and separate native authority chain. Frozen gate binds exact map/artifact/source inputs. Sidecar-only reuse needs full verification and unchanged relevant artifact inputs.",
       "acceptanceEvidenceRequired": "Disposable lifecycle reaches native completion only with required current receipts; sidecar exact bytes alone cannot complete; changed artifact/source invalidates reuse; no primary queue fixture mutation.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: daily bind loop, batch-check and local completion on cem/1.0 (CEM-V1-147, CEM-V1-148, CEM-V1-150, CEM-V1-200..209); every committed map migrated by V1-1277 (merge 35c365a9e, CEM-V1-230..232).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -207,7 +208,7 @@
       ],
       "stableDecision": "Add stable bundle/export schema admission carrying the full six-role artifact set as exact bytes plus stable map/base/target. Relocate root while preserving internal artifact paths/digests; refuse missing/unused/escaping entries.",
       "acceptanceEvidenceRequired": "Export/import relocation verifies same map and all roles, including snapshot-head bytes; byte tamper and omitted artifact refuse; no 0.x map rewrite.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: cem export writes a relocatable stable bundle (CEM-V1-060..064).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -229,7 +230,7 @@
       ],
       "stableDecision": "Add explicit CEM1.0 document admission to attest/prove while retaining attestation-profile version distinction. Bind signature to exact map and declared artifact closure; signature validates provenance of bytes only.",
       "acceptanceEvidenceRequired": "Stable map and artifact tampering invalidates attest binding; successful signature cannot upgrade nativeAuthority/execution/criterion axes; existing attestation fixtures unchanged.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: cem/v2 attestation over a stable map (CEM-V1-065); the cem/0 and cem/v1 predicates and internal/attest/cem_v1.go are retired (CEM-V1-218).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -249,7 +250,7 @@
       ],
       "stableDecision": "Add exact stable note/anchor admission with original map digest/profile and committed target; carry full closure manifest or explicit root requirement. Existing notes stay unchanged.",
       "acceptanceEvidenceRequired": "Notes roundtrip original stable bytes and target, missing external artifacts stays unavailable, and detached/wrong target refuses.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: corvint-cem-anchor/1 pointers and the verdict ledger (CEM-V1-065, CEM-V1-067, CEM-V1-271..279).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -267,7 +268,7 @@
       ],
       "stableDecision": "Add read-only stable documentation projection through tagged verified change view; retain full source map digest/profile, original evidence spans and unknown authority. It never serializes a reduced stable map.",
       "acceptanceEvidenceRequired": "Projection cites correct immutable spans with map identity and reference limits; edits or wrong base do not fabricate authority; writer fallback forbidden.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: docs corpus cem-stable (CEM-V1-076, CEM-V1-162..163).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -286,7 +287,7 @@
       ],
       "stableDecision": "Add stable witness/collapse admission using complete input binding, exact basis relations and full semantic limits. Collapsing a presentation cannot remove original graph/witness evidence or turn caller mutation state into criterion satisfaction.",
       "acceptanceEvidenceRequired": "Collapsed output retains link to full map/artifacts and NOT_OBSERVED axes; evidence drift and unsupported runtime refuse rather than yielding equivalent proof.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: stable witness and witness collapse (CEM-V1-070..079, CEM-V1-160..161; internal/witness/stable.go, internal/witnesscollapse/stable.go).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -304,7 +305,7 @@
       ],
       "stableDecision": "Add stable capsule closure as exact raw map plus artifacts and separately admitted native evidence. No graph/hash-only shortcut to authority. Keep native wire identities untouched.",
       "acceptanceEvidenceRequired": "Capsule tamper/missing-role/stale-live-gate controls refuse; closure list accounts all six roles and required native context, not only outer reference integrity.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: local-authority capsule stable closure (CEM-V1-167, CEM-V1-290..299).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -321,7 +322,7 @@
       ],
       "stableDecision": "Extend console profile registry/display for stable only when operation is integrated. Show change/reference/authority axes, sidecar state and unsupported envelope; never execute artifact content.",
       "acceptanceEvidenceRequired": "UI snapshot distinguishes valid references from task completion and shows unknown/stale/survived states; closed registry rejects unsupported profiles.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: console chain pane verified mode (CEM-V1-077, CEM-V1-164..166).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -344,7 +345,7 @@
       ],
       "stableDecision": "Extend dashboard source/registry policy and snapshot schema for exact stable plus admitted OCM versions. Preserve full digest and projections with visible integrity/authority gaps.",
       "acceptanceEvidenceRequired": "Stable snapshot readback retains axes, base/target and input hash; unavailable artifacts or OCM failure cannot present complete status.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "IMPLEMENTED_NOT_PROMOTED: dashboard separate cem-stable document with stale and incomplete binding controls (CEM-V1-168, CEM-V1-290..299).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -365,7 +366,7 @@
       ],
       "stableDecision": "Keep frozen0.1 runner and0.2/candidate packets byte-identical. Add separate stable packet/runner/trial registration with strict schema, complete result axes and supplied artifact root. Old commands stay explicitly historical.",
       "acceptanceEvidenceRequired": "Hash all frozen files before/after; native/portable stable positives/adversaries separately qualified. External authored consumer remains a mandatory separate evidence item.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "RETIRED_WITH_CEM_0X: interop/cem-0.1, tools/cem-interop-runner and the 0.x packets were deleted by V1-1278 S3 (CEM-V1-220..225, merge 94a7d3dc5); the stable sibling is the self-contained protocol/cem-1.0 packet run by both consumers (CEM-V1-226..229); tools/cem-trial map-carrying arms refuse retired maps (CEM-V1-215).",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     },
     {
@@ -386,7 +387,7 @@
       ],
       "stableDecision": "Add explicitly named stable CI recipe with immutable independent base/target and artifact root; existing examples remain versioned historical recipes. The recipe states integrity-only result and requires separate native gate for completion claims.",
       "acceptanceEvidenceRequired": "Execute real shell recipe against good sidecar/full closure and tampered/root-missing input; proper exit propagation; no automatic old default cutover.",
-      "currentStatus": "OPEN_NOT_IMPLEMENTED_BY_THIS_PROPOSAL",
+      "currentStatus": "RETIRED_WITH_CEM_0X: examples/cem and docs/CEM-CI.md were deleted by V1-1278 S3 (CEM-V1-222, CEM-V1-223); no stable example CI integration ships.",
       "rollback": "Disable new stable route/registration only; preserve old profiles/defaults/packets and all stored evidence."
     }
   ],
@@ -405,7 +406,7 @@
         "C08"
       ],
       "evidence": "Actual native artifact bytes preserved; empty/nonempty reference variants; exact sidecar lifecycle; no new native authority from opaque capture; changed-source and target-sidecar conflict controls.",
-      "status": "OPEN"
+      "status": "IMPLEMENTED_EXPERIMENTAL: corvint-cem-candidate assemble-stable and the plain producer (CEM-V1-240, CEM-V1-280..287); companion only, not promoted."
     },
     {
       "id": "A02",

@@ -158,8 +158,9 @@ cem-stable-regen-check:
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the
-# Git index, so stage the changed spec first. Nothing is copied unless all three regenerate.
-SPEC_GENERATE = script/gen-spec-requirements.sh >"$$tmp/REQUIREMENTS.tsv" && script/gen-spec-requirements.sh --index >"$$tmp/INDEX.json" && script/gen-spec-requirements.sh --readme >"$$tmp/README.md"
+# Git index, so stage the changed spec first. One generator pass writes all three (SRG-V0-018);
+# nothing is copied unless all three regenerate.
+SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
 SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
 
 spec-requirements:

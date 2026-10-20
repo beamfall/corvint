@@ -262,6 +262,10 @@ func AdmitE2E(cfg E2EConfig) error {
 		}
 	}
 	if cfg.Freshness != nil {
+		// The freshness runner admits from the shared tuple table (PWP-V0-040).
+		if m := AdmittedRuntimeTupleMismatch(FreshnessProfile, cfg.RunnerVersion, "", ""); m != nil {
+			return &E2ERefusal{Code: "freshness-runtime-tuple-unqualified", Detail: m.detail(), Tuple: m}
+		}
 		return nil
 	}
 	if cfg.RetainAttemptDetails && (!cfg.ExternalServer || cfg.ApplicationAttestation != nil || cfg.SensitiveInputPolicy != nil) {

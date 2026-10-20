@@ -475,10 +475,13 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
    base; the lanes may run at the same time (`DCW-V0-044`).
    [LANE-ORCHESTRATION](LANE-ORCHESTRATION.md) is the multi-lane procedure: one finish per lane
    with every input supplied up front, heavy commands through `script/heavy.sh`, and checkout cleanup.
-2. Merge the sealed branches into the batch branch one at a time, two parents per merge. Resolve a
-   conflict with `git merge -X ours` or `-X theirs`; commit any other edit to the batch, such as an
-   orchestrator's index or decision update or a hand-merged file, as its own sealed change on a
-   branch and merge that.
+2. Merge the sealed branches into the batch branch one at a time, two parents per merge, with a
+   plain `git merge --no-ff`. When a branch conflicts with the batch, do not resolve it in the merge
+   and do not use `-X ours` or `-X theirs`, which silently drop the other side's conflicting hunks:
+   rebase that change's own work commits (not its old bind and seal commits) onto the batch head,
+   resolve each conflict there, bind, check and seal it again with `BASE=<batch head>`, then merge it.
+   Commit any other edit to the batch, such as an orchestrator's index or decision update or a
+   hand-merged file, as its own sealed change on a branch and merge that.
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or
    `corvint dogfood batch-check $BASE`).
 
@@ -498,7 +501,13 @@ a constituent's own range, to be its rename-only seal commit, or to be a two-par
 is its first parent's tree or the tree `git merge-tree` derives with the default, `-Xours` or
 `-Xtheirs` strategy (`MERGE <sha> derivation=...`), derived in a private scratch repository that
 applies none of the repository's configuration or attributes, so a merge driver never runs and a
-merge that relied on one fails. Each failure prints `FAIL <reason> count=N`, the
+merge that relied on one fails. A merge derived with `-Xours` or `-Xtheirs`, or as its first
+parent's tree while Git would merge the other side, prints one line per dropped conflict hunk
+(`dropped-hunk path=... hunk=N kept=L<start>+<lines> dropped=<lines> side=<parent> id=<sha256>
+coverage=...`) and fails `merge-side-dropped` unless a sealed change based on that merge restores
+the dropped lines at `HEAD` (`coverage=restored:<bind>`) or the merge's message carries
+`Corvint-Dropped-Hunk: <id> <reason>` for a hunk dropped on purpose (`coverage=disposition`); a
+hunk it cannot recompute is `hunk=UNKNOWN` and fails (`DCW-V0-073`). Each failure prints `FAIL <reason> count=N`, the
 listed commits, paths or binds, and one `fix:` line; it exits 1. A dirty worktree, an empty range,
 a range over 1,024 commits or more than 256 sealed changes refuses with exit 2; split the range
 by checking out a piece's last commit and using the previous piece's last commit as `BASE`.
@@ -510,7 +519,8 @@ and the head may then drop the shared path.
 
 A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
 not reverified (each change's own check already did), the merged changes' interaction is not
-observed, the count of merges that dropped one conflict side, and that one verifier ran. The CEM
+observed, `conflict-side-dropped merges=N hunks=H restored=R dispositioned=D` when a merge dropped
+a conflict side, and that one verifier ran. The CEM
 alone does not say which paths a change declared as intents, so the unknown allowance is every
 whole-file `no-evidence` hunk on a path absent at the change's base; each is printed as
 `bootstrap-unknown PATH` and counted in `SUMMARY`, and is wider than the exact allowance the
