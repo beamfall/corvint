@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23); decision 0375 amends `PUB-V0-021` (the build number is provenance, not an ordering or identity key, and is monotonic only along `origin/main`'s first-parent chain since decision 0331).; decision 0384 (V1-0018) widens the `PUB-V0-023` candidate version grammar to admit `MAJOR.MINOR.PATCH-rc.N` and `MAJOR.MINOR.PATCH` beside the retained alpha form.; V1-0589 proposes the `PUB-V0-024` closed-JSON trailing-byte rule for release smoke receipts.; V1-1528 raises the `PUB-V0-012` export bounds to 50,000 entries and 512 MiB (2026-10-16).
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23); decision 0375 amends `PUB-V0-021` (the build number is provenance, not an ordering or identity key, and is monotonic only along `origin/main`'s first-parent chain since decision 0331).; decision 0384 (V1-0018) widens the `PUB-V0-023` candidate version grammar to admit `MAJOR.MINOR.PATCH-rc.N` and `MAJOR.MINOR.PATCH` beside the retained alpha form.; V1-0589 proposes the `PUB-V0-024` closed-JSON trailing-byte rule for release smoke receipts.; V1-1528 raises the `PUB-V0-012` export bounds to 50,000 entries and 512 MiB (2026-10-16); V1-2043 adds `PUB-V0-027..030` (opt-in receipt producer identity, 2026-10-20).
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -751,3 +751,55 @@ and final release-checklist rows. An explicit deferred editor row remains nonblo
 marked PASS; missing core installed or required exact runtime FULL/retrieval evidence blocks release.
 Rollback removes `/2` publication eligibility and the core checker path, preserves old reader
 behavior and all failed/NOT_PRODUCED receipts, and never downgrades or promotes retained evidence.
+
+## Receipt producer identity amendment (V1-2043, 2026-10-20)
+
+Source: GitHub #1300. An `impact` or `test-validity` receipt states nothing about the binary
+that produced it, and `corvint --version` of a source `go build` prints build `0`. The owner's
+standing auto-accept of lane requirements (2026-10-11) accepts `PUB-V0-027..030`.
+
+- `PUB-V0-027`: `corvint impact ... --producer` and `corvint test-validity ... --producer` MUST
+  add exactly one `producer` member to their stdout JSON, and every other byte MUST equal the
+  same call without `--producer`. `producer` has four string members: `version` (the compiled
+  `VERSION`), `build` (the `PUB-V0-021` stamped number), `commit` and `commitState`. The flag
+  takes no value and may be given once; otherwise the call exits 2 with no stdout. It does not
+  change refusals, exit codes or stderr.
+- `PUB-V0-028`: Each member MUST come from its own source only, and a member that source cannot
+  state MUST be an explicit marker, never a guess: `build` is `unstamped` when the binary carries
+  the unstamped value `0`; `commit` is the Go toolchain's `vcs.revision` only when `vcs` is `git`
+  and the revision is 40 or 64 lower-case hex digits, otherwise `unknown`; `commitState` is
+  `clean` or `modified` from `vcs.modified` when a commit is stated, otherwise `unknown`.
+- `PUB-V0-029`: Build `0` is correct only for an unstamped source build (for example the
+  README's `go build -o corvint ./cmd/corvint`). Release and candidate archives are stamped with a
+  non-zero first-parent count by `PUB-V0-021` (`conformance/release-artifact-v0/build.go`
+  `buildArguments`, `internal/companionrelease`), so an installed release reports a non-zero
+  build. Those archives are built with `-trimpath -buildvcs=false`, so their `commit` is
+  `unknown`; consumers identify a release build, as `PUB-V0-021` already states, by `VERSION`
+  plus the released commit named in the release manifest and the installed executable digest.
+  `make build` stamps the build and keeps VCS settings, so a local `make build` states both.
+- `PUB-V0-030`: Without `--producer`, both receipts MUST stay byte-identical to their frozen
+  form. Making `producer` default-on changes `impact` stdout pinned by `CCF-V1-006`
+  (`conformance/cli-parity-v0`), the VS Code envelope's closed top-level keys (`VSC-V0`) and the
+  `MTV-V0-005` CLI/MCP test-validity equality; it needs its own owner decision and divergence
+  record and is not part of this amendment.
+
+Failure modes: a guessed commit or build (prevented by `PUB-V0-028` markers); a default-output
+change that breaks frozen parity pins (prevented by opt-in and `PUB-V0-030`); a consumer treating
+build `unstamped` or commit `unknown` as an error rather than a statement.
+Non-goals: default-on producer identity, MCP impact/test-validity producer members (MCP
+`serverInfo` already states the version), adding a commit stamp to release archives, signing or
+attestation, and any change to `--version`.
+Acceptance evidence: `TestPUBV0027ImpactProducerIsAdditive`,
+`TestPUBV0027TestValidityProducerIsAdditive`, `TestPUBV0028ProducerDevBuildMarkers` (dev build),
+`TestPUBV0029ProducerReleaseStampedBuild` (release-stamped build) and
+`TestPUBV0030DefaultReceiptsCarryNoProducer`; the existing `PUB-V0-021` evidence for stamped
+release archives is unchanged.
+Rollback: remove the `--producer` flags, `cmd/corvint/producer.go` and the help lines; default
+receipts never changed, so no fixture, trace or index migration is needed.
+
+| Requirement | Implementation | Test |
+|---|---|---|
+| PUB-V0-027 | `cmd/corvint/main.go` (impact `--producer`, `emitContextPayloadWithProducer`), `cmd/corvint/test_validity.go` (`testValidityWithProducer`) | `TestPUBV0027ImpactProducerIsAdditive`, `TestPUBV0027TestValidityProducerIsAdditive` |
+| PUB-V0-028 | `cmd/corvint/producer.go` (`producerFrom`) | `TestPUBV0028ProducerDevBuildMarkers` |
+| PUB-V0-029 | `cmd/corvint/producer.go`, `conformance/release-artifact-v0/build.go` (`buildArguments`) | `TestPUBV0029ProducerReleaseStampedBuild` |
+| PUB-V0-030 | `cmd/corvint/main.go`, `cmd/corvint/test_validity.go` (default path unchanged) | `TestPUBV0030DefaultReceiptsCarryNoProducer` |

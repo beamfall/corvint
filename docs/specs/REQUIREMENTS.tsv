@@ -44,6 +44,9 @@ AFP-V0-042	docs/specs/affected-plan-v0.md	(accepted, decision 0496; V1-1117; no 
 AFP-V0-043	docs/specs/affected-plan-v0.md	(accepted, decision 0505) Cost-table	owner	decision 0505
 AFP-V0-044	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
 AFP-V0-045	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
+AFP-V0-094	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-095	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-096	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
 AFP-V0-046	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
 AFP-V0-047	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
 AFP-V0-048	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
@@ -60,6 +63,7 @@ AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
 AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
 AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
+AFP-V0-088	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2049); no GitHu	standing	2026-10-11; V1-2049
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2645,6 +2649,9 @@ GPK-V0-080	docs/specs/go-production-kernel-migration-v0.md	(accepted by decision
 GPK-V0-081	docs/specs/go-production-kernel-migration-v0.md	(accepted by decision 0445; V1-0958) The alias arm reads only the	owner	decision 0445; V1-0958
 GPK-V0-082	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-08, decision 0464; V1-0967) In `GPK-V0-077` and	owner	2026-10-08; decision 0464; V1-0967
 GPK-V0-083	docs/specs/go-production-kernel-migration-v0.md	(accepted, decision 0516 (V1-0266)) For this experimental	owner	decision 0516; V1-0266
+GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `corvint impact	standing	2026-10-20; V1-2047
+GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
+GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
@@ -3663,6 +3670,10 @@ PUB-V0-023	docs/specs/public-release-v0.md	The candidate MUST carry a closed mac
 PUB-V0-024	docs/specs/public-release-v0.md	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w	unrecorded	-
 PUB-V0-025	docs/specs/public-release-v0.md	The candidate installer MUST reverify the closed candidate, select only the exac	unrecorded	-
 PUB-V0-026	docs/specs/public-release-v0.md	Candidate assembly or installation MUST fail without retained output when any co	unrecorded	-
+PUB-V0-027	docs/specs/public-release-v0.md	`corvint impact ... --producer` and `corvint test-validity ... --producer` MUST	unrecorded	-
+PUB-V0-028	docs/specs/public-release-v0.md	Each member MUST come from its own source only, and a member that source cannot	unrecorded	-
+PUB-V0-029	docs/specs/public-release-v0.md	Build `0` is correct only for an unstamped source build (for example the	unrecorded	-
+PUB-V0-030	docs/specs/public-release-v0.md	Without `--producer`, both receipts MUST stay byte-identical to their frozen	unrecorded	-
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	The coordinator MUST be one client-owned local Go process over stdio, one serial	unrecorded	-
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon	unrecorded	-
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect	unrecorded	-
@@ -4482,6 +4493,8 @@ TSA-V0-089	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-090	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Two inclusions of one	standing	2026-10-11; V1-1867; #1164
 TSA-V0-091	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) A qualified read that	standing	2026-10-11; V1-1867; #1164
 TSA-V0-092	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUS	standing	2026-10-11; V1-1867; #1164
+TSA-V0-396	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader	standing	2026-10-11; V1-2063; #1312
+TSA-V0-397	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) A support file that d	standing	2026-10-11; V1-2063; #1312
 TSA-V0-160	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) `EITHER-OR-OUTCOME`	standing	2026-10-11; V1-1930; #1191
 TSA-V0-161	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST	standing	2026-10-11; V1-1930; #1191
 TSA-V0-162	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or	standing	2026-10-11; V1-1930; #1191
@@ -4539,6 +4552,16 @@ TSA-V0-309	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-310	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME	standing	2026-10-11; V1-1944
 TSA-V0-311	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The abstention reasons and	standing	2026-10-11; V1-1944
 TSA-V0-312	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) Resolving a sibling module's stub ta	standing	2026-10-11; V1-1944
+TSA-V0-410	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) `corvint tests	standing	2026-10-11; V1-2039; #1291
+TSA-V0-411	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) Each record MUST be	standing	2026-10-11; V1-2039; #1291
+TSA-V0-412	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry t	standing	2026-10-11; V1-2039; #1291
+TSA-V0-413	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST refuse	standing	2026-10-11; V1-2039; #1291
+TSA-V0-414	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST also	standing	2026-10-11; V1-2039; #1291
+TSA-V0-415	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The verdict MUST be	standing	2026-10-11; V1-2039; #1291
+TSA-V0-416	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039, V1-2040) The join MUST read the obje	standing	2026-10-11; V1-2039; V1-2040
+TSA-V0-417	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A caller MAY pass	standing	2026-10-11; V1-2040; #1292
+TSA-V0-418	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A selector or pair th	standing	2026-10-11; V1-2040; #1292
+TSA-V0-419	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) Each matched record	standing	2026-10-11; V1-2040; #1292
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167

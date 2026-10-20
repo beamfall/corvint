@@ -336,30 +336,36 @@ func hunkRange(text string) (int, int, bool) {
 
 // readOne reads one committed regular file at rev, or reports it absent.
 func (r Repo) readOne(rev, name string, limit int) ([]byte, bool, error) {
+	data, _, found, err := r.readOneBlob(rev, name, limit)
+	return data, found, err
+}
+
+// readOneBlob is readOne that also returns the file's Git blob ID (TSA-V0-414).
+func (r Repo) readOneBlob(rev, name string, limit int) ([]byte, string, bool, error) {
 	if name == "" || strings.ContainsAny(name, "\x00\n\r") {
-		return nil, false, errors.New("invalid path")
+		return nil, "", false, errors.New("invalid path")
 	}
 	out, err := r.git(1<<16, nil, "ls-tree", "-z", "-l", "--full-tree", rev, "--", name)
 	if err != nil {
-		return nil, false, err
+		return nil, "", false, err
 	}
 	meta, listed, ok := strings.Cut(strings.TrimSuffix(string(out), "\x00"), "\t")
 	if !ok || listed != name {
-		return nil, false, nil
+		return nil, "", false, nil
 	}
 	fields := strings.Fields(meta)
 	if len(fields) != 4 || fields[1] != "blob" || (fields[0] != "100644" && fields[0] != "100755") {
-		return nil, false, refuse("tests-source-unavailable", "%s is not a regular committed file", name)
+		return nil, "", false, refuse("tests-source-unavailable", "%s is not a regular committed file", name)
 	}
 	size, err := strconv.Atoi(fields[3])
 	if err != nil || size > limit {
-		return nil, false, refuse("tests-bound-exceeded", "%s exceeds %d bytes", name, limit)
+		return nil, "", false, refuse("tests-bound-exceeded", "%s exceeds %d bytes", name, limit)
 	}
 	data, _, err := r.blobs([]entry{{path: name, oid: fields[2], size: size}}, maxTotalBytes)
 	if err != nil {
-		return nil, false, err
+		return nil, "", false, err
 	}
-	return data[fields[2]], true, nil
+	return data[fields[2]], fields[2], true, nil
 }
 
 var webExtensions = map[string]bool{".js": true, ".jsx": true, ".ts": true, ".tsx": true, ".mjs": true, ".cjs": true, ".mts": true, ".cts": true}

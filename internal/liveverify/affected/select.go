@@ -107,6 +107,9 @@ type Plan struct {
 	Selected    []Selection `json:"selected"`
 	Excluded    []Exclusion `json:"excluded"`
 	Unknown     []Unknown   `json:"unknown"`
+	// NonSource names the dirty paths classified as task state, not source
+	// (AFP-V0-088). It is omitted when empty.
+	NonSource []NonSource `json:"nonSource,omitempty"`
 }
 
 // Select computes the plan for one dirty path set.
@@ -124,7 +127,9 @@ type Plan struct {
 // A changed unit that no selectable test checks is named as unknown scope
 // instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
 // Every dirty path also selects the units whose path literals name it
-// (AFP-V0-021); an unowned path stays unknown all the same.
+// (AFP-V0-021); an unowned path stays unknown all the same, except a Tasks
+// store projection path no unit names, which is classified as task state in
+// plan.NonSource instead (AFP-V0-088).
 //
 // Selected units are emitted in the AFP-V0-007 order: witness chain length
 // ascending, shared directory prefix with the witness's dirty path descending,
@@ -140,7 +145,8 @@ func Select(graph *Graph, dirty []string) Plan {
 		Unknown:     []Unknown{},
 	}
 	reached, seeds, unknown, narrowed := graph.reach(normalized)
-	plan.Unknown = append(graph.frontierUnknowns(reached, narrowed, normalized), unknown...)
+	plan.NonSource, unknown = graph.taskState(unknown)
+	plan.Unknown = append(graph.frontierUnknowns(reached, narrowed, normalized, plan.NonSource), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
@@ -318,9 +324,9 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // frontierUnknowns names, in reason order, the frontier of every participating
 // plugin, the unit frontier of every reached unit (V1-0289) and the narrowed
 // readers' frontier reasons (AFP-V0-072(4)). A clean plan names none.
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[string]bool, dirty []string) []Unknown {
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[string]bool, dirty []string, nonSource []NonSource) []Unknown {
 	reasons := narrowed
-	for _, name := range graph.participants(reached, dirty) {
+	for _, name := range graph.participants(reached, dirty, nonSource) {
 		for _, reason := range graph.frontierBy[name] {
 			reasons[reason] = true
 		}
@@ -340,9 +346,10 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[st
 // participants lists the plugins a plan with this dirty set takes part in: one
 // that owns a dirty path or a reached unit, one whose units read any path, and
 // every plugin once a dirty path is owned by none, since a path no plugin
-// claims may be an edge any of them could not resolve. An empty dirty set
-// shows no plugin's absence, so every plugin takes part in it.
-func (graph *Graph) participants(reached map[string]Witness, dirty []string) []string {
+// claims may be an edge any of them could not resolve. A path classified as
+// task state is no such edge, so it involves no plugin (AFP-V0-088). An empty
+// dirty set shows no plugin's absence, so every plugin takes part in it.
+func (graph *Graph) participants(reached map[string]Witness, dirty []string, nonSource []NonSource) []string {
 	if len(dirty) == 0 {
 		return graph.languages
 	}
@@ -356,7 +363,16 @@ func (graph *Graph) participants(reached map[string]Witness, dirty []string) []s
 			involved[name] = true
 		}
 	}
+	taskState := make(map[string]bool)
+	for _, group := range nonSource {
+		for _, path := range group.Paths {
+			taskState[path] = true
+		}
+	}
 	for _, path := range dirty {
+		if taskState[path] {
+			continue
+		}
 		claimed := graph.claimantsOf(path)
 		if len(claimed) == 0 {
 			return graph.languages

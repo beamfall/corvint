@@ -396,6 +396,7 @@ const testValidityHelp = `Project test-level results through the shared test-val
 
 Usage:
   corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover | --static [PATH...]]
+      [--producer]
   corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
       [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
       [external-server provider options]
@@ -413,7 +414,9 @@ run axis is UNSUPPORTED with reason no-input-supplied. --route-stubs makes every
 JavaScript test carry routeStubs: a receipt with no route-stub producer record
 then states NOT_PRODUCED with reason route-stub-producer-absent, and a profiled
 receipt states route-stub-external-profile, instead of omitting the member. An unreadable, oversized,
-malformed or receipt-less FILE exits 2 with no stdout.
+malformed or receipt-less FILE exits 2 with no stdout. --producer appends one
+"producer" member (version, build, commit, commitState; "unknown" or
+"unstamped" when not stated) and leaves every other member unchanged.
 
 --discover instead reads the newest completed provider document retained as a
 regular *.json file directly under .corvint/test-evidence of the worktree (at
@@ -652,6 +655,7 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 
 Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full] --path PATH [--path PATH ...]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -704,6 +708,19 @@ count: the plan mixes that commit with mutable worktree content.
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--path (experimental; repeatable, up to 4096) plans exactly the named
+repository-relative paths at HEAD instead of the worktree status or a range,
+for example a change list captured elsewhere. It walks reverse dependencies
+transitively, as the default form does, so a test two importers away is
+selected, and keeps the same scope and unknown vocabulary: a path no language
+claims leaves plan.scope UNKNOWN. A path absent at HEAD is planned as a
+deleted path. The receipt's path_list member echoes the sorted paths. A dirty
+worktree, or an ignored file HEAD does not track that the list names or the
+graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
+would not be HEAD's. Write --path=VALUE for a name that begins with -. It does
+not combine with --snapshot, --base, --provider, --playwright-config,
+--playwright-discovery or --appmap-impact.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
@@ -1175,7 +1192,8 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
     [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
-    [--language-profile non-go-syntax-v0] [--require-clean] PATH...
+    [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...
+  corvint [--root PATH] impact --capabilities
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -1206,6 +1224,10 @@ Non-Go range receipts and MCP paths name that experimental profile automatically
 The path selector cannot be combined with --base or --working-tree-untracked.
 Other indexed suffixes keep positional evidence and missing-rule uncertainty.
 MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
+Reverse-import results stop at direct importers (one hop; Ruby's advisory
+autoload rows reach two): a test reached through an intermediate importer is
+absent, and a READY receipt is evidence, not a closed test selection.
+corvint affected --path PATH... plans a transitive selection at HEAD.
 
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
@@ -1255,6 +1277,14 @@ Options:
                              the local Git checkout at DIR (its top level). Binding
                              holds only when the declared origin is a root commit of
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
+  --capabilities             Print the corvint-impact-capabilities/0 listing and
+                             exit: suffixes with a reverse-import rule, suffixes
+                             admitted without one, and the per-call limits, derived
+                             from the admission tables. Takes no other argument.
+  --producer                 Add one "producer" member (version, build, commit,
+                             commitState) to the receipt; an unknown member reads
+                             "unknown" and an unstamped build reads "unstamped".
+                             Every other byte equals the default receipt.
   --                         Treat all remaining arguments as paths.
 
 Requirements:

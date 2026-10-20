@@ -34,6 +34,8 @@ Usage:
   corvint [--root PATH] tests citations --docs PATH[,PATH...] [--docs ...]
     [--manifest PATH ...] [--glob PATTERN ...] [--syntax inline-code|html-sub]
     [--pattern RE [--marker RE]] [--repository NAME] [--rev REV]
+  corvint [--root PATH] tests example-join --receipt FILE [--rev REV]
+    [--select SELECTOR=REQ[,REQ...] ...] [--requirements FILE]
 
 setup-select lists the setup projects (*.setup.* and *.seed.* files) the
 named spec files reach at the revision: by a static import, export-from,
@@ -177,15 +179,27 @@ syntax cannot read is unparseable. It prints one corvint-source-citations/1
 document with per-document totals and exits 1 while a finding or an
 unparseable citation remains.
 
+example-join prints one corvint-example-join/0 record per example of one
+Ruby or JS provider receipt: a line-free identity (spec path plus RSpec scoped
+id, or file > project > full title), the run outcome, the static hygiene and
+strength verdict at the revision the receipt ran on, and the committed files
+and blob IDs both used. A receipt without a retained revision, run across two
+revisions, at another --rev, or bound to a file whose committed content
+differs is refused. --select and --requirements (one SELECTOR=REQ[,REQ...]
+pair per line) echo requirement IDs on the examples a PATH, PATH:LINE or
+PATH[ID] selector names, marked caller-asserted; they never change a verdict.
+
 Reads committed Git content and the named receipts only; writes nothing and
 uses no network.
 Refusals: tests-invalid-arguments, tests-invalid-revision,
 tests-invalid-option, tests-source-unavailable, tests-bound-exceeded,
-tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable.
+tests-decisions-invalid, tests-declaration-invalid, tests-output-unavailable,
+tests-join-revision-unbound, tests-join-revision-mismatch,
+tests-join-selector-malformed, tests-join-selector-unknown.
 Contract: docs/specs/test-source-analysis-v0.md (experimental; V1-1587, V1-1589,
 V1-1592, V1-1798, V1-1858, V1-1866, V1-1867, V1-1883, V1-1884,
 V1-1887, V1-1888, V1-1889, V1-1933, V1-1934,
-V1-1935, V1-1972).
+V1-1935, V1-1972, V1-2039, V1-2040).
 `
 
 // testsInvocation recognises `[--root PATH] tests ...`.
@@ -244,7 +258,7 @@ func testsWrite(out, diagnostic io.Writer, value any) int {
 
 func runTests(ctx context.Context, root string, args []string, out, diagnostic io.Writer) int {
 	if len(args) == 0 {
-		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
+		return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations|example-join")
 	}
 	if root == "" {
 		root = "."
@@ -274,8 +288,10 @@ func runTests(ctx context.Context, root string, args []string, out, diagnostic i
 		return runTestsEnv(repo, args[1:], out, diagnostic)
 	case "citations":
 		return runTestsCitations(repo, args[1:], out, diagnostic)
+	case "example-join":
+		return runTestsExampleJoin(repo, args[1:], out, diagnostic)
 	}
-	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations")
+	return testsRefuse(diagnostic, "tests-invalid-arguments", "usage: corvint tests setup-select|lint|duplicates|validity|teardown|unselected|role-locators|env|citations|example-join")
 }
 
 // testsFlags builds a quiet flag set whose string options may each be given once.

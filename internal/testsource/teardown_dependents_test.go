@@ -596,6 +596,12 @@ test('removed in try', async ({ request }) => {
       delete_confirmation(order)
     end
   end
+  it 'value begin' do
+    confirm_order(order)
+    cleanup = begin
+      delete_confirmation(order)
+    end
+  end
 end
 `
 	report := teardownReport(t, map[string]string{"e2e/c.spec.ts": js, "spec/c_spec.rb": rb}, TeardownOptions{Files: []string{"e2e/c.spec.ts", "spec/c_spec.rb"}})
@@ -608,6 +614,10 @@ end
 	}
 	if f := findings["removed in try"]; len(f) != 0 || resourcesByTest(report)["removed in try"].Verdict != tdVerdictNone {
 		t.Errorf("a delete inside try runs: %+v", f)
+	}
+	// A value-position begin runs its body unconditionally, as a statement begin does (TSA-V0-396).
+	if f := findings["value begin"]; len(f) != 0 || resourcesByTest(report)["value begin"].Verdict != tdVerdictNone {
+		t.Errorf("a delete inside a value begin runs: %+v", f)
 	}
 }
 

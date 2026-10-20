@@ -114,12 +114,23 @@ type ExampleSource struct {
 	Expectations       int             `json:"expectations"`
 	Findings           []SourceFinding `json:"findings"`
 	ExpectationAnchors []string        `json:"-"`
+	// Cause is the file behind an abstention, when one file is: a support file that did not read
+	// and could define the shared group (TSA-V0-397). It is anchored after the example.
+	Cause string `json:"-"`
 	// EndLine is a JS/TS example's last declaring line, so a failure frame inside it can be
 	// placed (TSA-V0-082). The RSpec reader leaves it zero.
 	EndLine int `json:"-"`
 	// TitlePath is the example's literal title path, outermost group first and its own title
 	// last (LPCV-V0-147). It is nil when any title on the path is not a literal string.
 	TitlePath []string `json:"-"`
+}
+
+// anchors is the example's anchor followed by the abstention's cause, when it has one.
+func (source ExampleSource) anchors(anchor string) []string {
+	if source.Cause == "" {
+		return []string{anchor}
+	}
+	return []string{anchor, source.Cause}
 }
 
 // ApplyExampleSource returns p with hygiene and strength recomputed from one example's source
@@ -130,7 +141,7 @@ type ExampleSource struct {
 func ApplyExampleSource(p Projection, source ExampleSource, anchor string) Projection {
 	if source.Read != ExampleSourceLocated {
 		if p.Hygiene.State != HygieneIneligible {
-			p.Hygiene = Axis{State: HygieneAbstained, Reason: source.Read, Anchors: []string{anchor}}
+			p.Hygiene = Axis{State: HygieneAbstained, Reason: source.Read, Anchors: source.anchors(anchor)}
 		}
 		return p
 	}

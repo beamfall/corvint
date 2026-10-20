@@ -607,7 +607,8 @@ func (w *rbWalker) blockCalls(lines []rubyLine, phase string, ensure bool) []tdC
 		}
 		out = append(out, calls...)
 		if rubyOpens(text) {
-			stack = append(stack, !strings.HasPrefix(text, "begin"))
+			// begin, statement or value (`cleanup = begin`), runs its body unconditionally.
+			stack = append(stack, !strings.HasPrefix(text, "begin") && rubyValueKeyword(text) != "begin")
 		}
 	}
 	return out
