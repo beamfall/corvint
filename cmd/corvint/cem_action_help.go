@@ -28,6 +28,12 @@ func cemActionHelp(action string) string {
 			text.WriteString("\nVerification options:\n" + options)
 		}
 	}
+	if action == "status" || action == "verify" || action == "anchor" {
+		// The out-of-tree map rules (CEM-V1-317).
+		if paths, ok := cemHelpBlock("\nMap paths:\n"); ok {
+			text.WriteString("\nMap paths:\n" + paths)
+		}
+	}
 	if note, ok := cemHelpBlock("\ncem/1.0 is the only wire."); ok {
 		text.WriteString("\ncem/1.0 is the only wire." + note)
 	}
