@@ -8,6 +8,7 @@ import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -307,7 +308,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if batch {
 		data, err = queryBatch(ctx, a, request, overlay, input.Paths)
 	} else {
-		data, err = query(ctx, a, request, overlay)
+		data, err = boundedQuery(ctx, a, request, overlay, singleFrameBytes)
 	}
 	var result map[string]any
 	if err == nil {
@@ -357,6 +358,45 @@ func query(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Request
 		return nil, err
 	}
 	return doccorpus.Encode(receipt)
+}
+
+// singleFrameBytes bounds what one single-call receipt costs in its MCP result
+// frame; it shares the batch reserve for the envelope, timing and _meta.
+var singleFrameBytes = MaxBatchBytes
+
+// boundedQuery answers one single call within its MCP result frame
+// (DCP-V1-200). A paged receipt over the bound is asked again with a smaller
+// limit, so the caller gets the CLI's own receipt for that limit and continues
+// at next_offset (DCP-V1-201); a receipt that cannot shrink is refused as
+// output-bound-exceeded naming the bound (DCP-V1-202), never an internal error.
+func boundedQuery(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Request, overlay doccorpus.FreshnessOverlay, budget int) ([]byte, error) {
+	for {
+		receipt, err := doccorpus.QueryLive(ctx, a, request, overlay)
+		if err != nil {
+			return nil, err
+		}
+		data, err := doccorpus.Encode(receipt)
+		if err != nil {
+			return nil, err
+		}
+		cost := singleFrameCost(data)
+		if cost <= budget {
+			return data, nil
+		}
+		shown := len(receipt.Results)
+		if a.Schema != doccorpus.SchemaV2 || shown <= 1 {
+			return nil, &doccorpus.Error{Code: "output-bound-exceeded", Message: fmt.Sprintf("receipt of %d results needs %d of the %d-byte MCP result bound; ask a narrower query", shown, cost, budget)}
+		}
+		request.Limit = max(1, min(shown-1, shown*budget/cost))
+	}
+}
+
+// singleFrameCost is what one receipt costs in its MCP result frame: its JSON
+// bytes once as structured content, and once as the JSON string of its
+// enveloped text.
+func singleFrameCost(receipt []byte) int {
+	text, _ := json.Marshal(repoenvelope.EscapeHidden(string(receipt)))
+	return len(receipt) + len(text) + len(repoenvelope.Prefix) + len(repoenvelope.Suffix)
 }
 
 // queryBatch answers each path in order. A path whose answer is a typed
