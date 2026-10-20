@@ -273,6 +273,8 @@
       "internal/cem/gitauth/",
       "internal/cem/gitrun/",
       "internal/cem/patch/",
+      "internal/cem/sim/",
+      "internal/cem/verify/",
       "internal/cem/wire/",
       "internal/groupreap/",
       "protocol/cem-1.0/stable/receipt-authentication/"
