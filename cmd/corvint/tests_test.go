@@ -396,7 +396,7 @@ func TestTestsExampleJoinCLI(t *testing.T) {
 	}
 	first, second, third := report.Examples[0], report.Examples[1], report.Examples[2]
 	if first.Example != "spec/user_spec.rb[1:1]" || first.Outcome != "passed" || third.Outcome != "failed" || second.Requirements != nil ||
-		first.Verdict.Hygiene.State == testvalidity.HygieneAbstained || len(first.Source.Files) != 1 {
+		first.Verdict.Hygiene.State == testvalidity.HygieneAbstained || len(first.Source.Files) != 2 || first.Source.Files[1].Path != "spec/spec_helper.rb" {
 		t.Fatalf("records = %+v", report.Examples)
 	}
 	if r := first.Requirements; r == nil || r.Basis != "caller-asserted" || strings.Join(r.IDs, ",") != "TSA-V0-410,TSA-V0-417" {

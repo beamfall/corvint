@@ -2042,7 +2042,8 @@ unchanged; the join is a separate read of a retained receipt and the object stor
 - `TSA-V0-412`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry the
   run outcome as the receipt states it, the hygiene and strength axes the static example rules give
   the example at the revision (`TSA-V0-068`, `TSA-V0-080`), and the source both used: the revision
-  and each file read with its Git blob ID at that revision. A located example cites its
+  and each file read with its Git blob ID at that revision, including every committed Ruby support
+  file the helper resolution of the verdict was read with. A located example cites its
   `path:line` at the revision on the verdict anchors.
 - `TSA-V0-413`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST refuse
   `tests-join-revision-unbound` when the receipt retains no repository revision before and after
@@ -2053,8 +2054,10 @@ unchanged; the join is a separate read of a retained receipt and the object stor
   ID, a JS test-file SHA-256 under the repository root) is absent at the revision or differs from
   its committed content there. An example whose own file the receipt left unbound MUST abstain
   (`example-source-unbound`); in a dirty receipt a shared example whose including spec no retained
-  blob binds abstains with `rspec-inclusion-source-unbound`, and a helper set the receipt does not
-  bind leaves helper resolution unbound.
+  blob binds abstains with `rspec-inclusion-source-unbound`. A helper set the receipt does not
+  bind (`helpersUnbound`) MUST leave helper resolution unbound with that reason whether the receipt
+  is clean or dirty, and the join then reads no support file; in a dirty receipt a committed
+  support file that is not a retained helper leaves it unbound (`rspec-source-not-bound`).
 - `TSA-V0-415`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The verdict MUST be
   read at the example's location in the receipt against the content at the revision, so an example
   whose lines shifted between two revisions keeps one identity, and a receipt from the earlier
@@ -2065,7 +2068,9 @@ unchanged; the join is a separate read of a retained receipt and the object stor
 - `TSA-V0-416`: (standing auto-accept, 2026-10-11; V1-2039, V1-2040) The join MUST read the object
   store only (no checkout, index or working-tree read, no write, no network) besides the named
   receipt and mapping file. More than 2000 examples or 256 distinct source files refuses
-  `tests-bound-exceeded`; a file over 1 MiB refuses as `TSA-V0-252` does.
+  `tests-bound-exceeded`; a file over 1 MiB refuses as `TSA-V0-252` does. Support files count
+  against the same file and size bounds as every other source read, so an oversized or
+  over-budget support set refuses rather than degrading to an unreadable support reason.
 - `TSA-V0-417`: (standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A caller MAY pass
   requirement IDs per selector with repeated `--select SELECTOR=REQ[,REQ...]` or a mapping file
   `--requirements FILE` holding one such pair per line (blank and `#` lines skipped). A selector is
@@ -2084,8 +2089,10 @@ unchanged; the join is a separate read of a retained receipt and the object stor
   steps, and the IDs MUST NOT change the outcome or the verdict.
 
 Failure modes: a missing or edited receipt revision refuses rather than joining across revisions;
-a receipt from a dirty tree joins only through the blobs it retained; a stale caller mapping is
-refused as unknown instead of silently dropped.
+a receipt from a dirty tree joins only through the blobs it retained; a receipt with an unbound
+helper set never resolves helpers from other committed support files; a support set past the join
+bounds refuses instead of being read under a wider budget; a stale caller mapping is refused as
+unknown instead of silently dropped.
 
 Non-goals: changing the provider documents or `corvint-test-validity/0` projections (the sibling
 V1-2045 structured location is separate); Go and Playwright-session receipts; checking that a
@@ -2094,7 +2101,9 @@ caller-asserted requirement exists or is satisfied; an MCP surface; persisting t
 Acceptance evidence: synthetic Git fixtures only. `TestExampleJoinRubyShiftedLines` (one identity
 at two revisions with different lines; the earlier receipt refused against the later revision;
 blob mismatch refused), `TestExampleJoinSharedGroup` (a shared example keyed by the including spec
-and read through its inclusion), `TestExampleJoinJS`, `TestExampleJoinRevisionRefusals`,
+and read through its inclusion), `TestExampleJoinSupportFiles` (a support helper's blob cited by
+the verdict it decides, a clean receipt with an unbound helper set abstaining, and the file and size
+bounds on support reads), `TestExampleJoinJS`, `TestExampleJoinRevisionRefusals`,
 `TestExampleJoinRequirements` (malformed and unknown selectors, mapping file, caller-asserted echo)
 and `TestTestsExampleJoinCLI`. No live qualification on a real receipt was run (NOT_RUN).
 
@@ -2109,11 +2118,11 @@ the `readOneBlob` split in `internal/testsource/git.go`, `RubyDocument` in
 |---|---|---|---|
 | TSA-V0-410 | `internal/testsource/example_join.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestTestsExampleJoinCLI` | experimental |
 | TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
-| TSA-V0-412 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinJS` | experimental |
+| TSA-V0-412 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
 | TSA-V0-413 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals`, `TestExampleJoinRubyShiftedLines` | experimental |
-| TSA-V0-414 | `internal/testsource/example_join.go`, `internal/testsource/git.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
+| TSA-V0-414 | `internal/testsource/example_join.go`, `internal/testsource/git.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS`, `TestExampleJoinSupportFiles` | experimental |
 | TSA-V0-415 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup` | experimental |
-| TSA-V0-416 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals` | experimental |
+| TSA-V0-416 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals`, `TestExampleJoinSupportFiles` | experimental |
 | TSA-V0-417 | `internal/testsource/example_join_select.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
 | TSA-V0-418 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
 | TSA-V0-419 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestExampleJoinJS` | experimental |

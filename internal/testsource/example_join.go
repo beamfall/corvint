@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
@@ -247,7 +248,7 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 		}
 		rows = append(rows, row)
 	}
-	supports := map[string]testvalidity.RubySupport{}
+	supports := map[string]joinSupport{}
 	sources := map[string]map[int]testvalidity.ExampleSource{}
 	reasons := map[string]string{}
 	for index, example := range document.Examples {
@@ -264,7 +265,11 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 			continue
 		}
 		spec := rows[index].path
-		support := j.rubySupport(spec, supports, helpers, dirty, document.HelpersUnbound != "")
+		set, err := j.rubySupport(spec, supports, helpers, dirty, document.HelpersUnbound)
+		if err != nil {
+			return nil, err
+		}
+		support := set.support
 		shared, _ := j.file(example.File)
 		record.Source.Files = append(record.Source.Files, ExampleJoinFile{Path: example.File, Blob: shared.blob})
 		if spec == example.File {
@@ -282,6 +287,7 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 				}
 			}
 			record.Verdict = joinVerdict(testvalidity.ApplyExampleSource, source, fmt.Sprintf("%s:%d", example.File, example.Line))
+			record.Source.Files = withSupport(record.Source.Files, set.files)
 			continue
 		}
 		including, err := j.file(spec)
@@ -299,27 +305,67 @@ func (j *joiner) ruby(document rubytestprovider.Document, dirty bool) ([]joined,
 			SharedPath: example.File, SharedText: shared.text, ExampleLine: example.Line, Support: support,
 		})
 		record.Verdict = joinVerdict(testvalidity.ApplyExampleSource, source, ref)
+		record.Source.Files = withSupport(record.Source.Files, set.files)
 	}
 	return rows, nil
 }
 
-// rubySupport is the committed support set of a spec. A dirty receipt binds it only when it bound
-// its helper set and every committed support file is one of the helpers it retained with a
-// matching blob (TSA-V0-414).
-func (j *joiner) rubySupport(spec string, cache map[string]testvalidity.RubySupport, helpers map[string]bool, dirty, helpersUnbound bool) testvalidity.RubySupport {
-	support := j.r.rubySupport(j.commit, spec, cache)
-	if !dirty || support.Unbound != "" {
-		return support
+// joinSupport is the support set of one spec prefix and the committed files it was read from.
+type joinSupport struct {
+	support testvalidity.RubySupport
+	files   []ExampleJoinFile
+}
+
+// rubySupport is the committed support set of a spec, read once per prefix through the join's own
+// file and size bounds (TSA-V0-416). A receipt that did not bind its helper set leaves it unbound
+// whatever its dirty state; a dirty receipt binds it only when every committed support file is a
+// helper it retained with a matching blob (TSA-V0-414).
+func (j *joiner) rubySupport(spec string, cache map[string]joinSupport, helpers map[string]bool, dirty bool, helpersUnbound string) (joinSupport, error) {
+	prefix := specPrefix(spec)
+	if set, ok := cache[prefix]; ok {
+		return set, nil
 	}
-	if helpersUnbound {
-		return testvalidity.RubySupport{Unbound: testvalidity.HygieneReasonRSpecSourceUnbound}
+	set, err := j.readSupport(prefix, helpers, dirty, helpersUnbound)
+	if err != nil {
+		return joinSupport{}, err
 	}
-	for name := range support.Files {
-		if !helpers[name] {
-			return testvalidity.RubySupport{Unbound: testvalidity.HygieneReasonRSpecSourceUnbound}
+	cache[prefix] = set
+	return set, nil
+}
+
+func (j *joiner) readSupport(prefix string, helpers map[string]bool, dirty bool, helpersUnbound string) (joinSupport, error) {
+	if helpersUnbound != "" {
+		return joinSupport{support: testvalidity.RubySupport{Unbound: helpersUnbound}}, nil
+	}
+	entries, err := j.r.tree(j.commit, RubySupportPaths(prefix), MaxFiles)
+	if err != nil {
+		return joinSupport{}, err
+	}
+	set := joinSupport{support: testvalidity.RubySupport{Files: map[string]string{}}}
+	for _, e := range entries {
+		if dirty && !helpers[e.path] {
+			return joinSupport{support: testvalidity.RubySupport{Unbound: testvalidity.HygieneReasonRSpecSourceUnbound}}, nil
+		}
+		f, err := j.file(e.path)
+		if err != nil {
+			return joinSupport{}, err
+		}
+		set.support.Files[e.path] = f.text
+		set.files = append(set.files, ExampleJoinFile{Path: e.path, Blob: f.blob})
+	}
+	slices.SortFunc(set.files, func(a, b ExampleJoinFile) int { return strings.Compare(a.Path, b.Path) })
+	return set, nil
+}
+
+// withSupport appends the support files a verdict was read with to its source record, each once
+// (TSA-V0-412).
+func withSupport(files, support []ExampleJoinFile) []ExampleJoinFile {
+	for _, f := range support {
+		if !slices.ContainsFunc(files, func(g ExampleJoinFile) bool { return g.Path == f.Path }) {
+			files = append(files, f)
 		}
 	}
-	return support
+	return files
 }
 
 // js joins the tests of one JS provider receipt. A test file is bound by its retained SHA-256

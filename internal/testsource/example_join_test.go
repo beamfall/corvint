@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -159,7 +160,7 @@ func TestExampleJoinSharedGroup(t *testing.T) {
 		}
 		paths = append(paths, f.Path)
 	}
-	if !slices.Equal(paths, []string{"spec/widget_spec.rb", widgetShared}) {
+	if !slices.Equal(paths, []string{"spec/widget_spec.rb", widgetShared, "spec/rails_helper.rb"}) {
 		t.Fatalf("source files = %v", paths)
 	}
 
@@ -170,6 +171,69 @@ func TestExampleJoinSharedGroup(t *testing.T) {
 	bound := joinOne(t, root, ExampleJoinOptions{Ruby: widgetDocument(t, root, commit, "dirty", true)})
 	if got := bound.Examples[1].Verdict.Hygiene; got.State != testvalidity.HygieneEligible {
 		t.Fatalf("dirty with the including spec bound: %+v", got)
+	}
+}
+
+func reportDocument(t *testing.T, root, commit, helpersUnbound string) *rubytestprovider.Document {
+	t.Helper()
+	return &rubytestprovider.Document{
+		RepositoryBefore: repoAt(commit, "clean"), RepositoryAfter: repoAt(commit, "clean"), HelpersUnbound: helpersUnbound,
+		Examples: []rubytestprovider.Example{{
+			ID: "./spec/report_spec.rb[1:1]", RSpecID: "./spec/report_spec.rb[1:1]", File: "spec/report_spec.rb", Line: 4,
+			Description: "Report reads the header", Status: "passed", SpecBlob: blobAt(t, root, commit, "spec/report_spec.rb"),
+		}},
+	}
+}
+
+// TestExampleJoinSupportFiles pins TSA-V0-412, TSA-V0-414 and TSA-V0-416 for the support set: a
+// verdict read through a support helper cites that helper's blob, a receipt that did not bind its
+// helper set abstains on the helper even when clean, and support reads draw on the join's file and
+// size bounds.
+func TestExampleJoinSupportFiles(t *testing.T) {
+	root := t.TempDir()
+	commit := commitFiles(t, root, map[string]string{
+		"spec/report_spec.rb": neverYieldSpec, "spec/support/report_io.rb": neverYieldContext, "spec/rails_helper.rb": "require 'spec_helper'\n",
+	})
+	record := joinOne(t, root, ExampleJoinOptions{Ruby: reportDocument(t, root, commit, "")}).Examples[0]
+	if got := record.Verdict.Hygiene; got.State != testvalidity.HygieneIneligible || got.Reason != testvalidity.RuleRBBlockNeverYielded {
+		t.Fatalf("hygiene = %+v, want INELIGIBLE %s", got, testvalidity.RuleRBBlockNeverYielded)
+	}
+	want := []ExampleJoinFile{
+		{Path: "spec/report_spec.rb", Blob: blobAt(t, root, commit, "spec/report_spec.rb")},
+		{Path: "spec/rails_helper.rb", Blob: blobAt(t, root, commit, "spec/rails_helper.rb")},
+		{Path: "spec/support/report_io.rb", Blob: blobAt(t, root, commit, "spec/support/report_io.rb")},
+	}
+	if !slices.Equal(record.Source.Files, want) {
+		t.Fatalf("source files = %+v, want %+v", record.Source.Files, want)
+	}
+
+	unbound := joinOne(t, root, ExampleJoinOptions{Ruby: reportDocument(t, root, commit, "helper-not-regular-file")}).Examples[0]
+	if got := unbound.Verdict.Hygiene; got.State != testvalidity.HygieneAbstained {
+		t.Fatalf("clean receipt with an unbound helper set: %+v, want ABSTAINED", got)
+	}
+	if len(unbound.Source.Files) != 1 {
+		t.Fatalf("unbound helper set cites support files: %+v", unbound.Source.Files)
+	}
+
+	many := map[string]string{}
+	for i := range MaxJoinFiles + 44 {
+		many[fmt.Sprintf("spec/support/helper_%03d.rb", i)] = "module H; end\n"
+	}
+	crowded := commitFiles(t, root, many)
+	repo := OpenRepo(context.Background(), root)
+	if _, err := ExampleJoin(repo, ExampleJoinOptions{Ruby: reportDocument(t, root, crowded, "")}); !hasCode(err, "tests-bound-exceeded") {
+		t.Fatalf("support files past the join file bound: %v", err)
+	}
+	if r := joinOne(t, root, ExampleJoinOptions{Ruby: reportDocument(t, root, crowded, "helper-not-regular-file")}); r.Examples[0].Verdict.Hygiene.State != testvalidity.HygieneAbstained {
+		t.Fatalf("unbound helper set read the support files: %+v", r.Examples[0])
+	}
+
+	other := t.TempDir()
+	big := commitFiles(t, other, map[string]string{
+		"spec/report_spec.rb": neverYieldSpec, "spec/support/report_io.rb": "# " + strings.Repeat("x", MaxFileBytes) + "\n",
+	})
+	if _, err := ExampleJoin(OpenRepo(context.Background(), other), ExampleJoinOptions{Ruby: reportDocument(t, other, big, "")}); !hasCode(err, "tests-bound-exceeded") {
+		t.Fatalf("oversized support file: %v", err)
 	}
 }
 

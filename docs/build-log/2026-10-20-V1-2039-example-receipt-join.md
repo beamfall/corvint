@@ -35,6 +35,22 @@ on origin/main and in the open PRs checked at lane start.
   (`./internal/testsource`, whole package passes) and `TestTestsExampleJoinCLI` (`./cmd/corvint`).
 - Base fails: on the lane base the new tests do not build (`undefined: ExampleJoin`).
 
+## Review fixes
+
+One independent Codex round found three P2 defects; each is fixed with a regression test in
+`TestExampleJoinSupportFiles`:
+
+- A clean receipt whose helper set was unbound (for example a committed helper symlink,
+  `helper-not-regular-file`) still resolved helpers from the other committed support files. Helper
+  resolution now stays unbound with the receipt's reason whether the receipt is clean or dirty, and
+  no support file is read (`TSA-V0-414`).
+- Support files were read under the validity command's own budget, so 300 support files passed the
+  256-file bound and an oversized one degraded to `rspec-support-unreadable`. They are now read
+  through the join's file cache, so both refuse `tests-bound-exceeded` (`TSA-V0-416`).
+- A verdict decided by a support helper did not cite it. Every support file the verdict was read
+  with is now recorded with its blob (`TSA-V0-412`); a shared example's record now also lists the
+  support set after the including spec and the shared file.
+
 ## Limits
 
 - Live qualification against a real RSpec or Playwright run: `NOT_RUN`; the tests use constructed
