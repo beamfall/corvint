@@ -34,9 +34,15 @@ them for a Corvint runner receipt.
   unadmitted map. That is the safe direction, and it is recorded in the spec's failure modes.
 - A legacy label on an old map still does not show that its bytes were admitted.
 - No reader-side admission and no new result axis.
+- Open (independent review finding): `RESULT.schema.json` in both copies still pins
+  `references.runnerReceipts[].profile` to the legacy label. A verify result for a new unadmitted
+  map therefore does not validate against the published result schema. Widening it needs a
+  re-binding of the sealed `CEM-V1-091` chain, and `cem-stable-regen` has no mode for that. It is
+  deferred to a follow-up.
 
 ## Verification
 
 - `go test` passed on Darwin arm64 for `./internal/cem/wire`, `./internal/cem/verify`,
   `./internal/cemcandidate`, `./internal/cemchain`, `./cmd/corvint-cem-candidate`,
   `./tools/cem-stable-regen`, `./internal/cem/...` and the `interop/cem01-go` module.
+- Independent review: one Codex round with one P2 finding, the result schema limit above.

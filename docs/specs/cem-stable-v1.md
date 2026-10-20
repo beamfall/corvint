@@ -2496,6 +2496,13 @@ Failure modes: an unknown runner label is refused by both readers at the existin
 runner-limitation check, with the same stage and code as before; a third-party `cem/1.0` reader that still accepts only the legacy label refuses
 a newly produced unadmitted map instead of misreading it, which is the safe direction.
 
+Open limit: the result schema `RESULT.schema.json` (stable and sealed repository-envelope copies)
+still pins `references.runnerReceipts[].profile` to the legacy label. Both verifiers echo the
+receipt record into the result, so the result for a newly produced unadmitted map carries
+`opaque/0` and does not validate against that schema, although the verdict itself is ACCEPT.
+Widening the result schema needs a re-binding of the sealed `CEM-V1-091` chain, and
+`cem-stable-regen` has no enum-widening mode. That is left as a follow-up.
+
 ### Opaque runner receipt label traceability
 
 | Requirement | Test | Evidence |
