@@ -86,6 +86,11 @@ func ParseMap(raw []byte) (*Map, error) {
 	if m.Schema != MapSchema {
 		return nil, bad("--map schema must be " + MapSchema)
 	}
+	for _, f := range m.Files {
+		if f.ClassExport != "" && f.ClassExport != ClassExportDefault {
+			return nil, bad("--map class_export must be omitted or " + ClassExportDefault)
+		}
+	}
 	if sum, err := mapDigest(&m); err != nil || sum != m.Digest {
 		return nil, bad("--map digest does not match its content")
 	}

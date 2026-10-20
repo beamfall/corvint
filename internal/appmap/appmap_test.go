@@ -1470,3 +1470,31 @@ func TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold(t *testing.T) {
 		t.Fatalf("scaffold called a method through an unknown-strength selector: %s", body)
 	}
 }
+
+// AMAP-V0-013: a loaded map's class_export is either omitted or "default"; any other value is
+// refused rather than read as a named export.
+func TestAMAPV0013ParseMapRefusesUnknownClassExport(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	if len(m.Files) == 0 {
+		t.Fatal("fixture map has no files")
+	}
+	for _, value := range []string{"", ClassExportDefault, "named", "Default"} {
+		c := *m
+		c.Files = append([]TestFile(nil), m.Files...)
+		c.Files[0].ClassExport = value
+		sum, err := mapDigest(&c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		c.Digest = sum
+		raw, err := json.Marshal(&c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ParseMap(raw)
+		if want := value == "" || value == ClassExportDefault; (err == nil) != want {
+			t.Errorf("class_export %q: ParseMap error %v", value, err)
+		}
+	}
+}

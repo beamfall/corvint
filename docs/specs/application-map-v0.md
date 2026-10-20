@@ -204,7 +204,7 @@ but does not read it; only non-Go syntax impact does.
   methods for steps that reuse them, adding an import under the class's own name when the borrowed
   imports bind it only under an alias. A page-object file whose class is declared
   `export default class` records `class_export: "default"` in the map (omitted for any other
-  class); when the borrowed imports do not bind such a class under its own name, the scaffold
+  class; a loaded map with any other value is refused as `appmap-invalid-map`); when the borrowed imports do not bind such a class under its own name, the scaffold
   emits `// UNRESOLVED import { Class }`, reports `scaffold-import` / `default-export`, and calls
   none of its methods (V1-0974). Every name the scaffold binds (borrowed imports, generated
   imports, page-object variables, `page`, `test`, `expect`) is reserved for one file; a reused file
@@ -1186,7 +1186,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold`, `TestAMAPV0013ParseMapRefusesUnknownClassExport` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |
