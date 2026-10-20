@@ -185,7 +185,8 @@
     "internal/breakagemap": [],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
-      "interop/cem01-go/testdata/inherited-vectors/"
+      "interop/cem01-go/testdata/inherited-vectors/",
+      "interop/cem01-go/testdata/metadata-only/"
     ],
     "internal/cem/sim": [
       "interop/cem01-go/testdata/inherited-vectors/"

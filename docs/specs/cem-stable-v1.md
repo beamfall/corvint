@@ -3279,3 +3279,78 @@ capsule refuses every `cem/1.0` enrollment with `capsule CEM base` again.
 | CEM-V1-297 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Minimal capsule admits with and without two checks; other sidecar, missing sidecar and missing evidence blob refuse; an evidence OID naming another carried blob is `capsule CEM blob binding`; a missing driver blob and a missing subject blob of an unchanged, uncited path are each `changed blob missing`; an absent driver path is `required capsule path missing` |
 | CEM-V1-298 | `TestCEMV1295CapsuleAdmitsStableClosure` | Published view `ACCEPT` with the same keys and axes as the direct run; tampered artifact `REJECT` `artifact-digest-mismatch` |
 | CEM-V1-299 | `TestCEMV1297CapsuleRefusesStableClosureControls` | Every refusal from the closure step, which precedes publication; enrolled map unchanged |
+
+## Metadata-only change typed refusal (V1-0609, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-0609.
+Whether `cem/1.0` should represent metadata-only changes is a wire change. That decision is still
+the owner's to make. Until then, these requirements only make the refusal explicit.
+
+Git emits a headerless group for three kinds of change: an empty-file creation, an empty-file
+deletion, and a mode-only change. Each group is a `diff --git` line followed by exactly two
+metadata lines, with no `---`/`+++` header and no hunk. The two lines are:
+
+- `new file mode M` and `index O..N` for a creation;
+- `deleted file mode M` and `index O..N` for a deletion;
+- `old mode A` and `new mode B` for a mode-only change.
+
+The group ends at EOF or at the next `diff --git` line. Before this change both consumers refused
+these groups with misleading grammar codes. Native gave `malformed-patch` ("expected --- file
+header"). Portable gave `metadata`, `file-header` or `unsupported-tree-mode`.
+
+- `CEM-V1-300`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0609) The native
+  parser (`internal/cem/patch`) and the portable consumer (`interop/cem01-go`) MUST refuse such a
+  group with the same code, `metadata-only-change-unsupported`.
+  - The refusal names the change kind (`empty-file-creation`, `empty-file-deletion` or `mode-only`)
+    and the repository path.
+  - It applies whether the group stands alone or sits before or after a text group in the same
+    patch.
+  - It is an operational refusal of a documented limit, not a protocol-invalid patch.
+  - It never invents a text hunk, and it publishes no map.
+  - Recognition requires these exact conditions: both modes are `100644` or `100755`, a mode-only
+    change has two different modes, the `index` mode is absent or equal to the file mode, and the
+    unquoted `diff --git a/PATH b/PATH` names one valid path on both sides.
+- `CEM-V1-301`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0609) Any group
+  outside the `CEM-V1-300` shape MUST keep its pre-V1-0609 error unchanged. Examples:
+  - a mode change together with a text change;
+  - a creation without an `index` line;
+  - an unchanged or non-regular mode;
+  - an asymmetric `diff --git` path.
+- `CEM-V1-302`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0609) The frozen
+  stable profile MUST stay byte-identical. Its closed `code` and `issueCodes` enums
+  (`protocol/cem-1.0/stable/RESULT.schema.json`) have no metadata-only code. Therefore:
+  - The native stable verifier reports `malformed-patch` for these groups, as before.
+  - The portable stable verifier reports its legacy code: `metadata` when another group follows,
+    `file-header` at EOF, and `unsupported-tree-mode` for a mode-only change.
+  - No file under `protocol/cem-1.0/stable/` changes.
+
+Non-goals:
+- no wire representation, metadata identity or binding for empty files or modes in `cem/1.0`; that
+  is deferred to an owner decision;
+- no change to `ALGORITHMS.md`, the inherited algorithms, the stable schema or the manifest;
+- no reconciliation of the existing native/portable stable issue-code divergence on these inputs.
+
+Failure modes:
+- A canonical change that contains an empty file or a chmod still cannot be bound. It now refuses
+  with a code that names the path and kind instead of a grammar error. The work-around is the one
+  the fixture precedent already uses (`docs/build-log/2026-10-11-cem03-untracked-empty-vector.md`):
+  keep zero-byte artifacts out of the bound change.
+- The portable `verify-candidate` result carries only the code. The kind and path are kept in the
+  error value, and native messages print them.
+
+Acceptance evidence: the tests below pass, and each fails without the parser change, where the
+vectors give `malformed-patch` natively and `metadata`/`file-header`/`unsupported-tree-mode`
+portably. The vectors in `interop/cem01-go/testdata/metadata-only/` are canonical-diff output from
+Git 2.54, plus hand-built near misses. Build log
+`docs/build-log/2026-10-20-V1-0609-metadata-only-typed-refusal.md`.
+
+Rollback: revert the change commit. Both consumers then return the earlier grammar codes, and the
+stable results are unchanged either way.
+
+### Metadata-only change typed refusal traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-300 | `TestMetadataOnlyChangeRefusalVectors` (`internal/cem/patch`, `interop/cem01-go`), `TestPrepareRefusesMetadataOnlyChanges` (`internal/cem/workflow`) | Five shared vectors (creation, deletion, mode-only, and both mixed orders) give the identical code, kind and path natively and portably; `cem prepare` on real commits refuses each kind and the mixed case |
+| CEM-V1-301 | `TestMetadataOnlyChangeRefusalVectors` (`internal/cem/patch`, `interop/cem01-go`) | Mode-and-text, asymmetric-path, no-index, symlink-mode and unchanged-mode vectors keep `malformed-patch` natively and their legacy portable code |
+| CEM-V1-302 | `TestStablePatchRefusalKeepsFrozenVocabulary` (`internal/cem/verify`), `TestMetadataOnlyChangeRefusalVectors` (`interop/cem01-go`) | Native stable maps the refusal to `malformed-patch` with the same message; the portable stable code equals the manifest's `portableStableIssue`; `make cem-stable-regen-check` passes with no stable byte change |
