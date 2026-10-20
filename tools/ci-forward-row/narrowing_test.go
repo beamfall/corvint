@@ -260,6 +260,8 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 		verdict   any      // verdict.json of the verdict run, or a raw string
 		rows      []string // the newest forward-row names
 		epoch     string
+		pages     [][]any // when set, the full artifact listing page by page (page N+1 onward is empty)
+		killPages string  // KILL_PAGES, the page budget of the scan since the verdict
 	}
 	artifact := func(run string, age time.Duration) doc {
 		id, _ := strconv.Atoi(run)
@@ -296,6 +298,12 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			all = append(all, doc{"name": n, "expired": false, "workflow_run": doc{"head_branch": "main", "repository_id": 1, "head_repository_id": 1}})
 		}
 		writeDoc(t, filepath.Join(dir, "all-artifacts.json"), doc{"artifacts": all})
+		if s.pages != nil {
+			writeDoc(t, filepath.Join(dir, "all-artifacts.json"), doc{"artifacts": []any{}})
+			for i, page := range s.pages {
+				writeDoc(t, filepath.Join(dir, fmt.Sprintf("all-artifacts-%d.json", i+1)), doc{"artifacts": page})
+			}
+		}
 		output := filepath.Join(dir, "output")
 		writeFile(t, output, nil)
 		cmd := exec.Command("sh", script(t, "accept.sh"))
@@ -303,6 +311,9 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			"GH_TOKEN=x", "REPO=" + repo, "FORWARD_EPOCH=" + s.epoch, "RUNNER_TEMP=" + dir, "GITHUB_OUTPUT=" + output,
 			"GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary"), "VERDICT_WORKFLOW=" + workflow,
 			"NOW=" + strconv.FormatInt(now.Unix(), 10)}
+		if s.killPages != "" {
+			cmd.Env = append(cmd.Env, "KILL_PAGES="+s.killPages)
+		}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("accept.sh: %v\n%s", err, out)
 		}
@@ -313,6 +324,30 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			t.Fatalf("accept.sh wrote no verdict:\n%s", o)
 		}
 		return verdict[1], reason[1]
+	}
+	// listed builds a listing page: the named main rows created `age` ago, then the verdict
+	// artifact when `verdict` is set, then artifacts of another branch up to `size`.
+	listed := func(names []string, age time.Duration, verdict bool, size int) []any {
+		var page []any
+		for _, n := range names {
+			page = append(page, doc{"name": n, "expired": false, "created_at": now.Add(-age).Format(time.RFC3339),
+				"workflow_run": doc{"head_branch": "main", "repository_id": 1, "head_repository_id": 1}})
+		}
+		if verdict {
+			page = append(page, artifact(run, 24*time.Hour))
+		}
+		for i := len(page); i < size; i++ {
+			page = append(page, doc{"name": fmt.Sprintf("other-%d", i), "expired": false, "created_at": now.Format(time.RFC3339),
+				"workflow_run": doc{"head_branch": "claude/x", "repository_id": 1, "head_repository_id": 1}})
+		}
+		return page
+	}
+	epochRows := func(n int) []string {
+		var names []string
+		for pr := 1; pr <= n; pr++ {
+			names = append(names, barNames("CLEAN", 1000+pr, "1", "0"))
+		}
+		return names
 	}
 	cases := []struct {
 		name, want string
@@ -356,6 +391,28 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 		{"a verdict naming another run", "unparseable or names another run", func(s *setup) { s.verdict.(doc)["runId"] = 1 }},
 		{"a verdict that cannot be downloaded", "could not be downloaded", func(s *setup) { s.verdict = nil }},
 		{"a MISS row since the verdict", "show a MISS", func(s *setup) { s.rows = append([]string{barNames("MISS", 400, "1", "1")}, s.rows...) }},
+		// The scan since the verdict must prove its coverage when it stops at the page budget.
+		{"the page budget runs out with no main row", "do not reach the verdict", func(s *setup) {
+			s.pages = [][]any{listed(nil, 0, false, 100), listed(nil, 0, false, 100), listed(nil, 0, false, 100),
+				listed(nil, 0, false, 100), listed(nil, 0, false, 100)}
+		}},
+		{"a MISS beyond the scanned pages", "do not reach the verdict", func(s *setup) {
+			s.killPages = "1"
+			s.pages = [][]any{listed(epochRows(100), time.Hour, false, 100),
+				listed([]string{barNames("MISS", 400, "1", "1")}, 2*time.Hour, true, 2)}
+		}},
+		{"the scanned pages reach the verdict but hold under 20 rows", "fewer than 20 rows", func(s *setup) {
+			s.killPages = "1"
+			s.pages = [][]any{listed(epochRows(5), time.Hour, true, 100)}
+		}},
+		{"MET when the scanned pages reach the verdict and hold 20 rows", "MET", func(s *setup) {
+			s.killPages = "1"
+			s.pages = [][]any{listed(epochRows(25), time.Hour, true, 100)}
+		}},
+		{"a MISS within the scanned pages", "show a MISS", func(s *setup) {
+			s.killPages = "1"
+			s.pages = [][]any{listed(append([]string{barNames("MISS", 400, "1", "1")}, epochRows(25)...), time.Hour, true, 100)}
+		}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -476,6 +533,187 @@ func TestAFPV0098SupersetGuard(t *testing.T) {
 	}
 }
 
+// TestAFPV0098SupersetGuardFilter runs the tests step's narrowing filter from ci.yml: only a
+// retained NARROWED record whose `executed` list equals its sidecar narrows the shard; every
+// other gate outcome, including a skipped or refused gate (empty NARROW_MODE), runs it whole.
+func TestAFPV0098SupersetGuardFilter(t *testing.T) {
+	const a, c, d = "example.org/m/a", "example.org/m/c", "example.org/m/d"
+	b, err := os.ReadFile("../../.github/workflows/ci.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := regexp.MustCompile(`(?ms)^( {10}narrowed=""\n.*?)^ {10}if \[ -z "\$packages" \] && \[ -z "\$slices" \]; then$`).FindAllStringSubmatch(string(b), -1)
+	if len(m) != 1 {
+		t.Fatalf("%d narrowing filters in ci.yml, want 1", len(m))
+	}
+	filter := regexp.MustCompile(`(?m)^ {10}`).ReplaceAllString(m[0][1], "")
+	const packages, slices = a + "\n" + d, "-run ^(TestX)$ " + c + "\n-run ^(TestY)$ " + c
+	whole := "narrowed=\npackages=" + packages + "\nslices=" + slices + "\n"
+	type in struct {
+		event, mode, recorded string
+		record, sidecar       any // a doc, a raw string, or nil for no file
+		sidecarDir            bool
+	}
+	good := func() in {
+		return in{event: "pull_request", mode: "NARROWED", recorded: "success",
+			record:  narrowingRecord(3, "NARROWED", prRun, []string{a, c}, []string{d}),
+			sidecar: a + "\n" + c + "\n"}
+	}
+	run := func(t *testing.T, x in) string {
+		dir := t.TempDir()
+		out := filepath.Join(dir, "corvint-narrowing")
+		if err := os.MkdirAll(out, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		for name, v := range map[string]any{"narrowing.json": x.record, "executed": x.sidecar} {
+			switch v := v.(type) {
+			case string:
+				writeFile(t, filepath.Join(out, name), []byte(v))
+			case doc:
+				writeDoc(t, filepath.Join(out, name), v)
+			}
+		}
+		if x.sidecarDir {
+			if err := os.MkdirAll(filepath.Join(out, "executed"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		state := filepath.Join(dir, "state")
+		script := "packages=$PACKAGES\nslices=$SLICES\n" + filter +
+			"printf 'narrowed=%s\\npackages=%s\\nslices=%s\\n' \"$narrowed\" \"$packages\" \"$slices\" > \"$STATE\"\n"
+		cmd := exec.Command("bash", "-e", "-o", "pipefail", "-c", script)
+		cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "GITHUB_EVENT_NAME=" + x.event, "NARROW_MODE=" + x.mode,
+			"NARROW_RECORDED=" + x.recorded, "RUNNER_TEMP=" + dir, "SHARD=3", "PACKAGES=" + packages, "SLICES=" + slices, "STATE=" + state}
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("filter: %v\n%s", err, out)
+		}
+		got, err := os.ReadFile(state)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(got)
+	}
+	cases := []struct {
+		name, want string
+		edit       func(*in)
+	}{
+		{"a retained NARROWED record that agrees with its sidecar", "narrowed=1\npackages=" + a + "\nslices=" + slices + "\n", func(*in) {}},
+		{"an empty intersection runs no Go test (AFP-V0-028)", "narrowed=1\npackages=\nslices=\n", func(x *in) {
+			x.record, x.sidecar = narrowingRecord(3, "NARROWED", prRun, []string{}, []string{a, c, d}), ""
+		}},
+		{"a skipped or refused gate (empty mode)", whole, func(x *in) { x.mode = "" }},
+		{"a FULL gate", whole, func(x *in) { x.mode = "FULL" }},
+		{"an unretained record", whole, func(x *in) { x.recorded = "failure" }},
+		{"a skipped record upload", whole, func(x *in) { x.recorded = "" }},
+		{"a merge-queue run", whole, func(x *in) { x.event = "merge_group" }},
+		{"a missing sidecar", whole, func(x *in) { x.sidecar = nil }},
+		{"an unreadable sidecar", whole, func(x *in) { x.sidecar, x.sidecarDir = nil, true }},
+		{"an empty sidecar for a non-empty record", whole, func(x *in) { x.sidecar = "" }},
+		{"a sidecar that names more than the record", whole, func(x *in) { x.sidecar = a + "\n" + c + "\n" + d + "\n" }},
+		{"a sidecar in another order", whole, func(x *in) { x.sidecar = c + "\n" + a + "\n" }},
+		{"a missing record", whole, func(x *in) { x.record = nil }},
+		{"an unreadable record", whole, func(x *in) { x.record = "{" }},
+		{"a FULL record", whole, func(x *in) { x.record = narrowingRecord(3, "FULL", prRun, []string{a, c, d}, []string{}) }},
+		{"a record naming a package outside the shard", whole, func(x *in) {
+			x.record = narrowingRecord(3, "NARROWED", prRun, []string{a, "example.org/m/z"}, []string{d})
+			x.sidecar = a + "\nexample.org/m/z\n"
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			x := good()
+			tc.edit(&x)
+			if got := run(t, x); got != tc.want {
+				t.Fatalf("filter output:\n%s\nwant:\n%s", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestAFPV0098SupersetGuardSidecar runs narrow.sh with fake tools: a NARROWED decision writes
+// the `executed` sidecar equal to its record, and a sidecar that cannot be written drops the
+// record and reports FULL, so the tests step runs the whole shard.
+func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
+	const (
+		base   = "142f0e3e7bfb153f803fb6c4bad7989f87ee324a"
+		head   = "460fc31ae6d0134fa27f7a66336b99db88fc91c6"
+		target = "5163d1ed4b61084fc32cf79355848899c3e8a5bb"
+		a, b   = "example.org/m/a", "example.org/m/b"
+		c, d   = "example.org/m/c", "example.org/m/d"
+	)
+	narrow := func(t *testing.T, blockSidecar bool) (string, string) {
+		dir := t.TempDir()
+		fake := filepath.Join(dir, "fake")
+		bin := filepath.Join(dir, "bin")
+		writeDoc(t, filepath.Join(fake, "selection.json"), doc{"Base": base, "Head": head, "Target": target, "Packages": []string{a, b, c}})
+		writeDoc(t, filepath.Join(fake, "shadow.json"), doc{"scope": "NARROWED", "incomplete": []string{},
+			"invocations": []any{doc{"units": []any{doc{"adapter": "go", "unit": "go:" + a}, doc{"adapter": "go", "unit": "go:" + b}}}}})
+		tools := map[string]string{
+			"git":       "#!/bin/sh\necho internal/x.go\n",
+			"gh":        "#!/bin/sh\necho true\n",
+			"go":        "#!/bin/sh\nprintf '%s\\n' " + a + " " + b + " " + c + " " + d + "\n",
+			"driver":    "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\ncat \"$FAKE/selection.json\" > \"$o/selection.json\"\n",
+			"shadow":    "#!/bin/sh\ncat \"$FAKE/shadow.json\"\n",
+			"ci-shards": "#!/bin/sh\ncase \"$*\" in *--slices*) echo '-run ^(TestX)$ " + c + "' ;; *) printf '%s\\n' " + a + " " + d + " ;; esac\n",
+		}
+		for name, body := range tools {
+			writeFile(t, filepath.Join(bin, name), []byte(body))
+			if err := os.Chmod(filepath.Join(bin, name), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if blockSidecar {
+			if err := os.MkdirAll(filepath.Join(dir, "corvint-narrowing", "executed"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		output := filepath.Join(dir, "output")
+		writeFile(t, output, nil)
+		cmd := exec.Command("sh", script(t, "narrow.sh"))
+		cmd.Dir = dir
+		cmd.Env = []string{"PATH=" + bin + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir, "FAKE=" + fake,
+			"GH_TOKEN=x", "REPO=beamfall/corvint", "BASE_REF=main", "PR_BASE=" + base, "PR_HEAD=" + head, "PR_NUMBER=868",
+			"TESTED_MERGE=" + target, "SHARD=3", "SHARDS=8", "TOOL_SOURCE=" + target, "VERDICT_RUN=4242", "PR_BIN=" + bin,
+			"SHADOW=" + filepath.Join(bin, "shadow"), "CI_SHARDS=" + filepath.Join(bin, "ci-shards"), "CONFINE=" + filepath.Join(bin, "confine"),
+			"GITHUB_RUN_ID=" + prRun, "GITHUB_RUN_ATTEMPT=1", "RUNNER_TEMP=" + dir, "GITHUB_OUTPUT=" + output,
+			"GITHUB_STEP_SUMMARY=" + filepath.Join(dir, "summary")}
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("narrow.sh: %v\n%s", err, out)
+		}
+		o, _ := os.ReadFile(output)
+		mode := regexp.MustCompile(`(?m)^mode=(.*)$`).FindStringSubmatch(string(o))
+		if mode == nil {
+			t.Fatalf("narrow.sh wrote no mode:\n%s", o)
+		}
+		return mode[1], filepath.Join(dir, "corvint-narrowing")
+	}
+	t.Run("a NARROWED record and its sidecar agree", func(t *testing.T) {
+		mode, out := narrow(t, false)
+		record, err := os.ReadFile(filepath.Join(out, "narrowing.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var v doc
+		if err := jsonUnmarshal(string(record), &v); err != nil {
+			t.Fatal(err)
+		}
+		sidecar, err := os.ReadFile(filepath.Join(out, "executed"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if mode != "NARROWED" || v["mode"] != "NARROWED" || fmt.Sprint(v["executed"]) != fmt.Sprint([]string{a, c}) ||
+			string(sidecar) != a+"\n"+c+"\n" {
+			t.Fatalf("mode %s, record %v, sidecar %q", mode, v, sidecar)
+		}
+	})
+	t.Run("a sidecar that cannot be written is FULL without a record", func(t *testing.T) {
+		mode, out := narrow(t, true)
+		if _, err := os.Stat(filepath.Join(out, "narrowing.json")); mode != "FULL" || !os.IsNotExist(err) {
+			t.Fatalf("mode %s, record stat %v; want FULL and no record", mode, err)
+		}
+	})
+}
+
 func TestAFPV0097WorkflowBindings(t *testing.T) {
 	read := func(path string) string {
 		b, err := os.ReadFile(path)
@@ -544,6 +782,18 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 		if !strings.Contains(ci, want) {
 			t.Fatalf("ci.yml lacks %q", want)
 		}
+	}
+	// The gate is the only route to a narrowed shard: the tests step never runs the deciding
+	// driver, so a skipped or refused verdict or gate (empty NARROW_MODE) runs the whole shard,
+	// and no historical qualification pin can admit a narrowed run.
+	tests := one(ci, `(?ms)^      - name: Go tests \(full until.*?\n(.*?)\n      - name: `)
+	for _, banned := range []string{"corvint-pr-bin", "--qualification", "--profile", `-z "$NARROW_MODE"`, "/driver"} {
+		if strings.Contains(tests, banned) {
+			t.Fatalf("the Go tests step contains %q", banned)
+		}
+	}
+	if strings.Contains(ci, "CORVINT_PR_QUALIFICATION") || strings.Contains(ci, "trusted-qualification") {
+		t.Fatal("ci.yml still pins a qualification for the driver path")
 	}
 }
 

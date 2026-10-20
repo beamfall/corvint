@@ -38,6 +38,13 @@ go list ./... > "$out/universe" 2> /dev/null || : > "$out/universe"
 "$CI_SHARDS" --shard "$SHARD" --shards "$SHARDS" < "$out/universe" > "$out/packages" 2> /dev/null || : > "$out/packages"
 "$CI_SHARDS" --shard "$SHARD" --shards "$SHARDS" --slices < "$out/universe" > "$out/slices" 2> /dev/null || : > "$out/slices"
 [ -s "$out/universe" ] || : > "$out/driver/selection.json"
+# full REASON: drop the record and its sidecar, so the shard runs whole.
+full() {
+  echo "AFP-V0-098 shard $SHARD: FULL ($1)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+  /bin/rm -f "$out/narrowing.json" "$out/executed"
+  echo "mode=FULL" >> "$GITHUB_OUTPUT"
+  exit 0
+}
 if ! jq -n -c --slurpfile driver "$out/driver/selection.json" --slurpfile shadow "$out/shadow.json" \
   --arg shadowExit "$shadow_exit" --rawfile packages "$out/packages" --rawfile slices "$out/slices" \
   --arg github "$github" --arg mergeQueue "$queue" --arg baseRef "$BASE_REF" --arg base "$PR_BASE" \
@@ -45,13 +52,14 @@ if ! jq -n -c --slurpfile driver "$out/driver/selection.json" --slurpfile shadow
   --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg shard "$SHARD" --arg shards "$SHARDS" \
   --arg toolSource "$TOOL_SOURCE" --arg verdictRun "$VERDICT_RUN" \
   -f "$here/narrow.jq" > "$out/narrowing.json" 2> "$out/narrow.err"; then
-  echo "AFP-V0-098 shard $SHARD: FULL (the narrowing decision failed: $(head -c 200 "$out/narrow.err"))" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
-  /bin/rm -f "$out/narrowing.json"
-  echo "mode=FULL" >> "$GITHUB_OUTPUT"
-  exit 0
+  full "the narrowing decision failed: $(head -c 200 "$out/narrow.err")"
 fi
-mode=$(jq -r '.mode' "$out/narrowing.json")
-jq -r '.executed[]' "$out/narrowing.json" > "$out/executed"
+mode=$(jq -r '.mode' "$out/narrowing.json" 2> /dev/null) || full "the narrowing record is unreadable"
+# The tests step narrows only when this sidecar equals the record's `executed` line for line.
+jq -r '.executed[]' "$out/narrowing.json" > "$out/executed" 2> /dev/null ||
+  full "the executed list could not be written beside the record"
+[ "$(jq -r '.executed | join("\n")' "$out/narrowing.json" 2> /dev/null)" = "$(cat "$out/executed" 2> /dev/null)" ] ||
+  full "the executed list beside the record disagrees with it"
 jq -r --arg shard "$SHARD" '"AFP-V0-098 shard \($shard): \(.mode), \(.executed | length) of \(.shardPackages) package(s); driver \(.driverSelected), shadow \(.shadowSelected)\(if (.reasons | length) > 0 then "; " + (.reasons | join("; ")) else "" end)"' \
   "$out/narrowing.json" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
 echo "mode=$mode" >> "$GITHUB_OUTPUT"

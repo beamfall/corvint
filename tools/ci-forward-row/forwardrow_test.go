@@ -669,7 +669,9 @@ if [ "$1" = api ]; then
   */workflows/ci.yml/runs*) cat "$d/selection-run" ;;
   */actions/runs/*) id=${2#*/actions/runs/}; [ "$3" = --jq ]; jq -r "$4" "$d/run-$id.json" ;;
   */actions/artifacts\?name=*) [ "$3" = --jq ]; jq -r "$4" "$d/verdict-artifacts.json" ;;
-  */actions/artifacts*) [ "$3" = --jq ]; case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; *) [ ! -f "$d/every-page" ] || jq -r "$4" "$d/all-artifacts.json" ;; esac ;;
+  */actions/artifacts*) [ "$3" = --jq ]; p=${2##*page=}
+    if [ -f "$d/all-artifacts-$p.json" ]; then jq -r "$4" "$d/all-artifacts-$p.json"
+    else case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; *) [ ! -f "$d/every-page" ] || jq -r "$4" "$d/all-artifacts.json" ;; esac; fi ;;
   *) exit 1 ;;
   esac
   exit 0

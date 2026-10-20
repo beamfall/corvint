@@ -13,8 +13,10 @@
 #   (c) was created at most 7 days ago and has not expired, and
 #   (d) names the current forward epoch;
 # and the newest KILL_PAGES pages of forward rows show no MISS of the epoch and
-# no tripped kill switch since. Anything missing, expired, unparseable or not
-# MET writes `verdict=FULL` with the reason: the pull request runs full CI.
+# no tripped kill switch since, where those pages either end the listing or reach
+# back to the verdict's creation and hold the latest 20 rows of the epoch (or its
+# start). Anything missing, expired, unparseable, uncovered or not MET writes
+# `verdict=FULL` with the reason: the pull request runs full CI.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=names.sh
@@ -76,10 +78,24 @@ status=$(jq -r '.status' "$dir/$name/verdict.json")
 [ "$(jq -r '.killSwitch' "$dir/$name/verdict.json")" = clear ] ||
   decide FULL "the verdict of run $run has a tripped or unknown kill switch" "$run"
 # The verdict may be up to 7 days old: rows since then can trip the kill switch.
-list_names "${KILL_PAGES:-5}" "$dir/names"
+pages=${KILL_PAGES:-5}
+list_names "$pages" "$dir/names" "$dir/times"
 [ -z "$limit" ] || decide FULL "the newest forward rows are unreadable: $limit" "$run"
-live=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg format json -f "$here/bar.jq" < "$dir/names") ||
+live=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg exhausted "$exhausted" --arg format json -f "$here/bar.jq" < "$dir/names") ||
   decide FULL "the newest forward rows could not be classified" "$run"
+# A listing that stopped at the page budget proves nothing about the rows it did not read. It
+# must reach back to the verdict's creation (the verdict artifact itself is a main artifact),
+# so every row since the verdict was read, and hold the whole AFP-V0-030 window: 20 rows of
+# the epoch, or the epoch's start. Otherwise a MISS beyond it cannot be excluded.
+if [ "$exhausted" != 1 ]; then
+  reached=$(jq -R -s -r --arg created "$created" '($created | fromdateiso8601) as $c
+    | any(split("\n")[] | select(length > 0) | split(" ")[0] | (try fromdateiso8601 catch null); . != null and . <= $c)' \
+    < "$dir/times" 2> /dev/null) || reached=""
+  [ "$reached" = true ] ||
+    decide FULL "the newest $pages artifact page(s) do not reach the verdict of $created, so rows since it cannot be excluded" "$run"
+  [ "$(printf '%s' "$live" | jq -r '.covered or .window.rows >= 20' 2> /dev/null)" = true ] ||
+    decide FULL "the newest $pages artifact page(s) hold fewer than 20 rows of epoch $FORWARD_EPOCH and not its start, so the AFP-V0-030 window is not covered" "$run"
+fi
 if [ "$(printf '%s' "$live" | jq -r '.killSwitch')" != clear ] || [ "$(printf '%s' "$live" | jq -r '.epochRows.miss')" != 0 ]; then
   decide FULL "the newest forward rows show a MISS or a tripped kill switch" "$run"
 fi

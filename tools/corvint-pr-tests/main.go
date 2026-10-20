@@ -706,6 +706,7 @@ func runPR(ctx context.Context, o options) (int, error) {
 	}
 	return execute(ctx, o, s)
 }
+
 // planOnly writes the deciding selection of one (base, head) to selection.json
 // and executes nothing (AFP-V0-098). It needs no qualification: the PR
 // narrowing gate compares it with the shadow selection and decides itself.

@@ -60,6 +60,22 @@ under that delegation. Narrowing stays off: nothing here sets `CORVINT_PR_NARROW
 `TestAFPV0099CollectorFetchesNarrowing`, `TestAFPV0099BarExcludesNarrowedRows`;
 `TestAFPV0098PlanModeExecutesNothing` in `tools/corvint-pr-tests`. Local only.
 
+## Review fixes (Codex, one round)
+
+- The tests step no longer runs the deciding driver: with the historical qualification pins
+  removed, an empty `NARROW_MODE` (a skipped or refused verdict or gate) ran the legacy driver
+  path, which could narrow without the MET verdict, the variable or the fork guard. The gate is
+  now the only route to a narrowed shard.
+- `accept.sh` treated a scan that stopped at its page budget as covering everything. The pages
+  must now end the listing, or reach back to the verdict's `created_at` and hold 20 rows of the
+  epoch or its start; otherwise FULL.
+- `narrow.sh` now checks that the `executed` sidecar was written and equals the record (else
+  FULL and no record), and the tests step narrows only when the retained record's `executed`
+  equals the sidecar line for line. A verified empty list still runs no Go test (AFP-V0-028).
+- Evidence: `TestAFPV0097VerdictAcceptance` page-budget cases, `TestAFPV0098SupersetGuardFilter`,
+  `TestAFPV0098SupersetGuardSidecar`, and the no-driver assertions in
+  `TestAFPV0097WorkflowBindings`.
+
 ## Rollback
 
 Unset (or set to anything but `on`) the repository variable `CORVINT_PR_NARROWING`: every PR is
