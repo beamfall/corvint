@@ -395,7 +395,7 @@ stdout.
 const testValidityHelp = `Project test-level results through the shared test-validity shape.
 
 Usage:
-  corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover]
+  corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover | --static [PATH...]]
   corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
       [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
       [external-server provider options]
@@ -428,6 +428,18 @@ ABSTAINED when the file or line cannot be read; strength stays NOT_MEASURED
 with the example-body expectation count or a described_class stub as its
 reason, and sourceRules lists the findings. The command runs no test and never
 writes. Experimental.
+
+Every test carries location: its repository-relative file, declaring line and
+literal titlePath where the provider or a bound source reading knows them, and
+absent naming each missing member with one closed reason (an RSpec shared
+example adds includedAt).
+
+--static [PATH...] needs no retained run: it reads the committed HEAD RSpec
+(_spec.rb) and JS/TS test files under each repository-relative PATH (default:
+the whole tree) and projects one test per example. Hygiene comes from source
+(skipped, pending, focused, fixme and assertion-free tests are named in
+sourceRules); execution, freshness and strength stay NOT_OBSERVED. It reads Git
+objects only and writes nothing. A PATH with no committed test file exits 2.
 
 negate is the only mode that runs tests or writes. It execs the named
 corvint-js-test-provider file (never a PATH lookup), which runs the one test

@@ -184,7 +184,7 @@ func DiscoverWithReaders(root string, sources ExampleSourceReader, ruby RubyRead
 		discovery.Freshness = &binding
 		discovery.ReceiptAge = ReceiptAge{Basis: "retained-file-mtime", Since: item.info.ModTime().UTC().Format(time.RFC3339Nano)}
 		discovery.Abstention = runtimeAbstention(input)
-		document := JoinStepNegation(applyFreshness(Project(input), binding), input, root)
+		document := Locate(JoinStepNegation(applyFreshness(Project(input), binding), input, root), input, root)
 		if input.ruby != nil && sources != nil {
 			applyRubySources(document.Tests, *input.ruby, worktree, sources, ruby)
 		}

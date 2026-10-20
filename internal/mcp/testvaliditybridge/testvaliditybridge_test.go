@@ -229,3 +229,30 @@ func TestNewAdmitsLinkedWorktreeOnly(t *testing.T) {
 		}
 	}
 }
+
+// LPCV-V0-149: the MCP receipt projection binds each declaring anchor's file relative to the root,
+// as the CLI does, so both surfaces present the same location.
+func TestLPCVV0149ReceiptLocationMatchesCLI(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := strconv.Quote(filepath.Join(root, "e2e", "login.spec.ts"))
+	body := `{"receipt":{"kind":"e2e","identity":{"runnerName":"playwright","testFileDigests":{` + key + `:"` + strings.Repeat("a", 64) +
+		`"}},"tests":[{"name":"login works","state":"passed","anchor":{"file":"e2e/login.spec.ts","line":4}}]}}`
+	if err := os.WriteFile(filepath.Join(root, "receipt.json"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := os.Stat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := &Registry{root: root, rootIdentity: identity}
+	document, refusal := registry.project("receipt.json")
+	if refusal != nil {
+		t.Fatalf("refusal=%+v", refusal)
+	}
+	if location := document.Tests[0].Location; location == nil || location.File != "e2e/login.spec.ts" || location.Line != 4 {
+		t.Fatalf("location=%+v", location)
+	}
+}

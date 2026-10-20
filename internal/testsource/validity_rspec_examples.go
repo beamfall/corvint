@@ -3,6 +3,7 @@ package testsource
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -61,7 +62,7 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
 		findings = append(findings, r.exampleFindings(test, e)...)
 		count, anchors := expectations(e.path, e.body)
-		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors}
+		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors, TitlePath: r.titlePath(e)}
 	}
 	// The flow findings follow each example's other findings (TSA-V0-120..130).
 	for _, e := range r.examples {
@@ -71,6 +72,35 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		out[e.line] = source
 	}
 	return out, ""
+}
+
+// rspecGroupTitle reads an example group's description from its declaring line: one string
+// literal or one constant, followed by metadata, the block or the end of the call.
+var rspecGroupTitle = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?context|feature)\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)"|((?:::)?[A-Z]\w*(?:::[A-Z]\w*)*))\s*(?:,\s*([^\s]))?`)
+
+// titlePath returns example e's literal title path, outermost group first and e's own title last
+// (LPCV-V0-147), or nil when a title on it is not one literal string or constant: an interpolated
+// or missing title, a constant joined with a second description, a shared group or inclusion, or
+// a declaration read from another file.
+func (r *rspecReader) titlePath(e rspecExample) []string {
+	literal := func(text string) bool { return text != "" && !strings.Contains(text, "#{") }
+	if e.path != r.path || !literal(e.title) {
+		return nil
+	}
+	path := []string{e.title}
+	for g := e.group; g > 0; g = r.groups[g].parent {
+		m := rspecGroupTitle.FindStringSubmatch(r.groups[g].head)
+		if m == nil || r.groups[g].path != r.path {
+			return nil
+		}
+		title := m[1] + m[2] + m[3]
+		if !literal(title) || m[3] != "" && (m[4] == "'" || m[4] == `"`) {
+			return nil
+		}
+		path = append(path, title)
+	}
+	slices.Reverse(path)
+	return path
 }
 
 // exampleFindings returns the TSA-V0-063..066 findings of one example: at most one finding per

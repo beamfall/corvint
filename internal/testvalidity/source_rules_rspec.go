@@ -117,6 +117,9 @@ type ExampleSource struct {
 	// EndLine is a JS/TS example's last declaring line, so a failure frame inside it can be
 	// placed (TSA-V0-082). The RSpec reader leaves it zero.
 	EndLine int `json:"-"`
+	// TitlePath is the example's literal title path, outermost group first and its own title
+	// last (LPCV-V0-147). It is nil when any title on the path is not a literal string.
+	TitlePath []string `json:"-"`
 }
 
 // ApplyExampleSource returns p with hygiene and strength recomputed from one example's source

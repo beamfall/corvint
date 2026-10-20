@@ -1,6 +1,8 @@
 package main
 
 import (
+	"cmp"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -38,12 +40,26 @@ type testValidityOptions struct {
 	receipt    string
 	discover   bool
 	routeStubs bool
+	// static and paths select the static source projection (LPCV-V0-150).
+	static bool
+	paths  []string
 }
 
 func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 	options := testValidityOptions{}
 	for index := 0; index < len(arguments); index++ {
+		if !strings.HasPrefix(arguments[index], "-") {
+			options.paths = append(options.paths, arguments[index])
+			continue
+		}
 		name, value, inline := splitWitnessFlag(arguments[index])
+		if name == "--static" {
+			if inline || options.static {
+				return testValidityOptions{}, argumentError("--static takes no value and may be given once")
+			}
+			options.static = true
+			continue
+		}
 		if name == "--discover" {
 			if inline || options.discover {
 				return testValidityOptions{}, argumentError("--discover takes no value and may be given once")
@@ -82,6 +98,12 @@ func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 	if options.routeStubs && options.receipt == "" {
 		return testValidityOptions{}, argumentError("--route-stubs requires --receipt")
 	}
+	if options.static && (options.discover || options.receipt != "") {
+		return testValidityOptions{}, argumentError("--static excludes --receipt and --discover")
+	}
+	if len(options.paths) > 0 && !options.static {
+		return testValidityOptions{}, argumentError("a PATH operand requires --static")
+	}
 	return options, nil
 }
 
@@ -110,6 +132,16 @@ func runTestValidity(root string, arguments []string, stdout, stderr io.Writer) 
 			project = testvaliditydoc.ProjectRouteStubs
 		}
 		document = testvaliditydoc.JoinStepNegation(project(receipt), receipt, root)
+		// Each declaring anchor's file is made relative to the root or working directory (LPCV-V0-145).
+		document = testvaliditydoc.Locate(document, receipt, cmp.Or(root, "."))
+	}
+	if options.static {
+		static, staticErr := staticTestValidity(root, options.paths)
+		if staticErr != nil {
+			emitError(stderr, staticErr)
+			return 2
+		}
+		document = static
 	}
 	if options.discover {
 		discovered, discoverErr := discoverTestValidity(root)
@@ -145,6 +177,28 @@ func discoverTestValidity(root string) (testValidityDocument, error) {
 		return testValidityDocument{}, &gokernel.Error{Code: refusal.Code, Message: refusal.Message}
 	}
 	return document, err
+}
+
+// staticTestValidity projects the committed HEAD test source under paths (default: the whole
+// tree) without a retained run (LPCV-V0-150..152). It reads Git objects only and writes nothing.
+func staticTestValidity(root string, paths []string) (testValidityDocument, error) {
+	resolved, err := resolveExplicitRoot(cmp.Or(root, "."))
+	if err != nil {
+		return testValidityDocument{}, err
+	}
+	revision, read, err := testsource.StaticExamples(testsource.OpenRepo(context.Background(), resolved), "HEAD", paths)
+	var refusal *testsource.Error
+	if errors.As(err, &refusal) {
+		return testValidityDocument{}, &gokernel.Error{Code: refusal.Code, Message: refusal.Message}
+	}
+	if err != nil {
+		return testValidityDocument{}, err
+	}
+	files := make([]testvaliditydoc.StaticFile, 0, len(read))
+	for _, file := range read {
+		files = append(files, testvaliditydoc.StaticFile{Path: file.Path, Examples: file.Examples, Reason: file.Reason})
+	}
+	return testvaliditydoc.ProjectStatic(revision, files), nil
 }
 
 // readProviderReceipt decodes one bounded, closed provider document. Any
