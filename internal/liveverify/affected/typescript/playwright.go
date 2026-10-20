@@ -63,6 +63,9 @@ type PlaywrightProject struct {
 	// hasGrep and hasGrepInvert record that the project declares the member, even when its
 	// value is dynamic and Grep or GrepInvert is therefore empty (TJAA-V0-021).
 	hasGrep, hasGrepInvert bool
+	// unresolved holds the selection unknowns scoped to this one project, so advisory narrowing
+	// can keep the projects that resolve statically (TJAA-V0-032).
+	unresolved []PlaywrightUnknown
 }
 
 type PlaywrightWitness struct {
@@ -107,6 +110,9 @@ type PlaywrightPlan struct {
 	Selected     []PlaywrightSelection      `json:"selected"`
 	SourceDigest string                     `json:"sourceDigest"`
 	Unknown      []PlaywrightUnknown        `json:"unknown"`
+	// Narrowed is advisory evidence present only beside FULL_RELEVANT_SUITE; it never changes
+	// Scope, Fallback, Selected or Excluded (TJAA-V0-030).
+	Narrowed *PlaywrightNarrowing `json:"narrowed,omitzero"`
 }
 
 type playwrightMatcher struct {
@@ -127,24 +133,33 @@ func (language observedTypeScript) Units(context.Context, string) (affected.Resu
 // selectPlaywrightStatic computes candidates; only receipt reconciliation may
 // expose these candidates through the public selection API.
 func selectPlaywrightStatic(root, configPath string, dirty []string) (PlaywrightPlan, error) {
+	plan, _, err := selectPlaywrightStaticDraft(root, configPath, dirty)
+	return plan, err
+}
+
+// selectPlaywrightStaticDraft also returns the advisory narrowing draft that SelectPlaywright
+// publishes only when the final plan falls back to the full suite (TJAA-V0-030).
+func selectPlaywrightStaticDraft(root, configPath string, dirty []string) (PlaywrightPlan, playwrightNarrowingDraft, error) {
+	none := playwrightNarrowingDraft{}
 	if !affected.ValidRelativePath(configPath) || !hasSourceExtension(configPath) {
-		return PlaywrightPlan{}, errors.New("playwright config path is not canonical TypeScript/JavaScript source")
+		return PlaywrightPlan{}, none, errors.New("playwright config path is not canonical TypeScript/JavaScript source")
 	}
 	sourceDigest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
-		return PlaywrightPlan{}, err
+		return PlaywrightPlan{}, none, err
 	}
 	configBytes, err := affected.ReadSource(root, configPath)
 	if err != nil || !utf8.Valid(configBytes) {
-		return PlaywrightPlan{}, errors.New("playwright config is unreadable")
+		return PlaywrightPlan{}, none, errors.New("playwright config is unreadable")
 	}
 	configSum := sha256.Sum256(configBytes)
 	projects, globalTestDir, configUnknown := parsePlaywrightConfig(configPath, string(configBytes))
 	result, err := New().units(root, true)
 	if err != nil {
-		return PlaywrightPlan{}, err
+		return PlaywrightPlan{}, none, err
 	}
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
+	observed := snapshotPlaywrightResult(result)
 	tests := playwrightSourcePaths(result)
 	if playwrightPathOutsideMatcherModel(root) || slices.ContainsFunc(tests, playwrightPathOutsideMatcherModel) {
 		configUnknown = append(configUnknown, selectionUnknown(PlaywrightUnknownProjectMembership, "a test path contains a line terminator or a character outside the Basic Multilingual Plane, which Go and JavaScript regular expressions treat differently"))
@@ -162,7 +177,7 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	}
 	graph, err := affected.Build(context.Background(), root, observedTypeScript{result: filtered})
 	if err != nil {
-		return PlaywrightPlan{}, err
+		return PlaywrightPlan{}, none, err
 	}
 	normalizedDirty := affected.NormalizePaths(dirty)
 	base := affected.Select(graph, normalizedDirty)
@@ -170,6 +185,10 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 		selectionUnknown = append(selectionUnknown, PlaywrightUnknown{Axis: PlaywrightAxisSelection, Reason: PlaywrightUnknownDynamicSource, Detail: "the shared TypeScript graph has an unresolved selection frontier"})
 	}
 	selected := selectPlaywrightUnits(configPath, base, projects, units, normalizedDirty)
+	draft, err := draftPlaywrightNarrowing(root, configPath, observed, graph, base, configUnknown, projects, units, normalizedDirty)
+	if err != nil {
+		return PlaywrightPlan{}, none, err
+	}
 	selectionUnknown = canonicalPlaywrightUnknowns(selectionUnknown)
 	if len(configUnknown) != 0 {
 		units = []PlaywrightSelection{}
@@ -195,16 +214,16 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	plan.Excluded = excludedPlaywrightUnits(units, selected)
 	plan.GraphDigest, err = playwrightGraphDigest(graph.Digest(), plan.Config, plan.Projects, units)
 	if err != nil {
-		return PlaywrightPlan{}, err
+		return PlaywrightPlan{}, none, err
 	}
 	after, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
-		return PlaywrightPlan{}, err
+		return PlaywrightPlan{}, none, err
 	}
 	if after != sourceDigest {
-		return PlaywrightPlan{}, errors.New("Playwright source changed while the plan was compiled")
+		return PlaywrightPlan{}, none, errors.New("Playwright source changed while the plan was compiled")
 	}
-	return plan, nil
+	return plan, draft, nil
 }
 
 // ObservePlaywrightSources returns a bounded content identity for every input
@@ -445,6 +464,7 @@ func publicPlaywrightProjects(projects []PlaywrightProject) []PlaywrightProject 
 	for index := range public {
 		public[index].matchers = nil
 		public[index].ignores = nil
+		public[index].unresolved = nil
 	}
 	return public
 }
@@ -515,6 +535,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if project.Name == "" {
 			continue
 		}
+		project.unresolved = itemUnknown
 		if names[project.Name] {
 			unknown = append(unknown, selectionUnknown(PlaywrightUnknownProjectSet, "duplicate project name "+project.Name))
 			continue
@@ -523,10 +544,12 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		projects = append(projects, project)
 	}
 	sort.Slice(projects, func(i, j int) bool { return projects[i].Name < projects[j].Name })
-	for _, project := range projects {
+	for index, project := range projects {
 		for _, dependency := range append(append([]string{}, project.Dependencies...), project.Teardown) {
 			if dependency != "" && !names[dependency] {
-				unknown = append(unknown, selectionUnknown(PlaywrightUnknownProjectDependency, project.Name+" references unknown project "+dependency))
+				missing := selectionUnknown(PlaywrightUnknownProjectDependency, project.Name+" references unknown project "+dependency)
+				unknown = append(unknown, missing)
+				projects[index].unresolved = append(projects[index].unresolved, missing)
 			}
 		}
 	}

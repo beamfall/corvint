@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2041)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213 and V1-1972 / GitHub #1224, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224 and V1-2041 / GitHub #1293, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2041)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -1032,6 +1032,80 @@ persisted.
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |
 | TSA-V0-083 | `internal/testsource/validity_js_examples.go`, `internal/testvaliditydoc/js_source.go` | `TestJSExampleSourcesShapes`, `TestDiscoverJSSourceRules` | experimental |
+
+## Jest test files in test-validity (V1-2041)
+
+V1-2041 (GitHub #1293) asks that Jest TypeScript tests get the verdict axes the JS reader gives
+(skipped, assertion-free and never-executed assertions), or that the spec name each axis that
+cannot apply. Jest `.test.ts` and `.spec.ts` files already took TSA-V0-073..083. Before this, a file
+under Jest's default `__tests__` directory with any other name abstained with `not-a-js-test-file`,
+and no JS rule read an assertion that never runs. It is agent-drafted and accepted under the
+owner's standing auto-accept (2026-10-11). It reuses the TSA-V0-010 lexer and the TSA-V0-073
+reader; it adds no parser.
+
+- `TSA-V0-388`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293)
+  `testsource.IsJSValidityTestFile(name)` MUST hold for an `IsTestFile` name and for any file with
+  a TSA-V0-010 JS/TS extension that has a `__tests__` directory segment, which Jest's default
+  `testMatch` selects. `ValidityFindings`, `JSExampleSources` (and so TSA-V0-082 discovery), the
+  TSA-V0-081 `tests validity` reading and the TSA-V0-241 seed reading MUST use it in place of
+  `IsTestFile`. `IsTestFile` itself, and lint, role-locator, teardown and the other readers that
+  use it, MUST stay unchanged.
+- `TSA-V0-389`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) A located example MUST
+  get an `advisory` `JS-ASSERTION-NOT-AWAITED` finding, located at the call and caused by the
+  example, for each `.then(`, `.catch(` or `.finally(` call in its body when all of these hold:
+  - the example's callback has a block body and declares no parameter, so it takes no `done`;
+  - the call is not inside a function nested in the body;
+  - its arguments hold a TSA-V0-077 assertion;
+  - its member chain starts a statement: after `;`, `{` or `}`, or on a new line after a value,
+    and not after `await`, `return`, `new` or another keyword that takes an expression. So it is
+    not awaited, returned, assigned or passed as an argument;
+  - no `await` follows the call in the body, which could let the callback run.
+  The finding changes neither hygiene nor the TSA-V0-077 count; the assertion still counts.
+- `TSA-V0-390`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) For a Jest test file
+  the axes MUST be:
+  - skipped: TSA-V0-074 `JS-SKIPPED` from `xit`, `xtest`, `xdescribe`, `skip` members and
+    unconditional runtime skips; `JS-TODO` and `JS-FOCUSED` as for any JS file;
+  - assertion-free: TSA-V0-077 `JS-NO-ASSERTION` and the `no-expectation-in-example-body`
+    strength reason;
+  - never-executed assertions: TSA-V0-389, statically, as an advisory finding;
+  - measured strength, run outcome and freshness do not apply and stay `NOT_MEASURED` or absent.
+    They need a run receipt, and `corvint-js-test-provider` runs only Vitest and Playwright, so
+    no Jest receipt exists for `test-validity --discover` to project. A Jest `test.failing`
+    example abstains with `js-example-shape-unsupported` (TSA-V0-073).
+
+Non-goals:
+- a Jest run provider or receipt, a custom `testMatch` or `testRegex` from Jest configuration,
+  and widening `IsTestFile` for lint and the other readers;
+- `setTimeout` and other timer callbacks, which fake timers can run inside the example;
+- following a promise into a helper, or deciding that a later `await` really flushes it.
+
+Failure modes:
+- A promise that an unparsed construct awaits, or an example that awaits it through a `done`
+  passed under another name, can be reported; the finding is advisory and names the call.
+- A promise that a later unrelated `await` happens to flush is not reported (a miss, never an
+  invented finding).
+- A non-test helper module under `__tests__` is read as a test file and lists no examples.
+
+Acceptance evidence: synthetic fixtures only.
+- `IsJSValidityTestFile` over `__tests__` paths, other directories and non-JS files, with
+  `IsTestFile` unchanged.
+- A Jest fixture with unawaited `.then` and chained `.catch` assertions beside awaited, returned,
+  concise, `done`, later-awaited, nested-executor and passed-on forms.
+- `tests validity` on a `__tests__/cart.ts` Jest file: `xit`, `xtest`, `test.skip` and `xdescribe`
+  examples `INELIGIBLE` `JS-SKIPPED`, an assertion-free example with
+  `no-expectation-in-example-body`, and the never-executed assertion's advisory finding.
+
+No live qualification on a real Jest suite was run (NOT_RUN). Rollback removes
+`internal/testsource/validity_js_jest.go`, its test, the `JS-ASSERTION-NOT-AWAITED` constant and
+call, restores `IsTestFile` at the five call sites, and removes this section. Nothing is persisted.
+
+### Traceability (V1-2041)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-388 | `internal/testsource/validity_js_jest.go`, `internal/testsource/validity.go`, `internal/testsource/validity_command.go` | `TestJestValidityTestFile`, `TestJestValidityAxes` | experimental |
+| TSA-V0-389 | `internal/testsource/validity_js_jest.go`, `internal/testsource/validity_js_examples.go` | `TestJestAssertionNotAwaited`, `TestJestValidityAxes` | experimental |
+| TSA-V0-390 | `internal/testsource/validity_command.go` | `TestJestValidityAxes` | experimental |
 
 ## Intra-example stub path and value origin (V1-1887, V1-1889)
 

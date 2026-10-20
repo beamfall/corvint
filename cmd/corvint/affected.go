@@ -509,7 +509,14 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	}
 	allDirty := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	discovery := readPlaywrightDiscovery(root, invocation.PlaywrightDiscovery)
-	plan, err := typescript.SelectPlaywright(root, invocation.PlaywrightConfig, revision, allDirty, discovery)
+	comparison := revision
+	if invocation.Base != "" {
+		if comparison, err = affectedRevision(ctx, gitExecutable, root, invocation.Base); err != nil {
+			return playwrightAffectedReceipt{}, affectedBaseRefusal(invocation.Base)
+		}
+	}
+	before := playwrightBaseContent(ctx, gitExecutable, root, comparison, allDirty)
+	plan, err := typescript.SelectPlaywrightWithBase(root, invocation.PlaywrightConfig, revision, allDirty, discovery, before)
 	if err != nil {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-playwright-affected", Message: err.Error()}
 	}

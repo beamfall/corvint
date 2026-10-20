@@ -253,6 +253,41 @@ func TestCALV0016_GateRunRecordsEachResult(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
+// TestCALV0319_InterruptedGateRunRecordsItsResult: a gate run whose context
+// ends while the gate runs (the CLI's SIGINT/SIGTERM) stops the gate's
+// process group and still records the run as a FAILED result carrying the
+// output the gate printed before the interrupt, reports the interruption,
+// and stays unretryable (V1-2012).
+func TestCALV0319_InterruptedGateRunRecordsItsResult(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t, commandGate("chatty", "printf partial; /bin/sleep 30", "60", false))
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	at, err := time.Parse("2006-01-02T15:04:05Z", string(s.at(t, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	time.AfterFunc(2*time.Second, cancel)
+	started := time.Now()
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "gate-interrupted", Root: s.root, Lease: gateOf(claim, "chatty")}
+	report, err := store.GateRun(ctx, s.repo, operator(), choice, s.root, func() time.Time { return at })
+	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted || !report.GateInterrupted || !report.Unretryable {
+		t.Fatalf("interrupted gate run: %+v %v", report, err)
+	}
+	if elapsed := time.Since(started); elapsed > 20*time.Second {
+		t.Fatalf("the interrupt did not stop the gate: %s", elapsed)
+	}
+	g := s.results(t, claim.AttemptID)["chatty"]
+	if g == nil || g.State != "FAILED" || (g.OutcomeClass == "EXIT" && g.ExitCode.Int() == 0) {
+		t.Fatalf("interrupted result: %+v", g)
+	}
+	if out := s.evidence(t, string(g.Evidence[0].Sha256)); string(out) != "partial" {
+		t.Fatalf("output: %q", out)
+	}
+	auditOK(t, s.repo)
+}
+
 // TestCALV0016_GateRunRefusesWithoutRunning: an unsubmitted attempt, a dirty
 // or moved worktree and an unknown gate are refused and record nothing.
 func TestCALV0016_GateRunRefusesWithoutRunning(t *testing.T) {

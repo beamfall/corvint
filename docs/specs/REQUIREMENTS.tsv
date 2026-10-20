@@ -484,6 +484,11 @@ BBF-V0-025	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-026	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
 BBF-V0-027	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
 BBF-V0-028	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011)	standing	2026-10-11; V1-2011
+BBF-V0-029	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A reques	standing	2026-10-11; V1-2027
+BBF-V0-030	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runn	standing	2026-10-11; V1-2027
+BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runn	standing	2026-10-11; V1-2027
+BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
+BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -851,6 +856,9 @@ CEM-V1-296	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-297	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The obje	standing	2026-10-11; V1-0632
 CEM-V1-298	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The	standing	2026-10-11; V1-0632
 CEM-V1-299	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0632) Every	standing	2026-10-11; V1-0632
+CEM-V1-300	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0609) The nati	standing	2026-10-11; V1-0609
+CEM-V1-301	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0609) Any grou	standing	2026-10-11; V1-0609
+CEM-V1-302	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0609) The froz	standing	2026-10-11; V1-0609
 CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
 CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
 CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-
@@ -1339,6 +1347,7 @@ CAL-V0-315	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-316	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548)	standing	2026-10-11; V1-1548
 CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The	standing	2026-10-11; V1-1548
 CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
+CAL-V0-319	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the	standing	2026-10-11; V1-2012
 CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
@@ -2807,6 +2816,7 @@ KAT-V0-005	docs/specs/kotlin-jvm-affected-test-v0.md	`src/test` and `src/jvmTest
 KAT-V0-006	docs/specs/kotlin-jvm-affected-test-v0.md	Static package/import edges, aliases, wildcard imports, same-package visibility,	unrecorded	-
 KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	Unparsed source, dynamic/reflection-driven discovery, custom source sets, unknow	unrecorded	-
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	Fixed inputs MUST reproduce byte-identical graph and selection bodies	unrecorded	-
+KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that may assign a project directory (`projectDir = ...`,	unrecorded	-
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp	unrecorded	-
@@ -2947,6 +2957,10 @@ LPCV-V0-132	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-133	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) With	standing	2026-10-11; V1-2010
 LPCV-V0-134	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) Each	standing	2026-10-11; V1-2010
 LPCV-V0-135	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010)	standing	2026-10-11; V1-2010
+LPCV-V0-136	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2013) With	standing	2026-10-11; V1-2013
+LPCV-V0-137	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) A line	standing	2026-10-11; V1-2010
+LPCV-V0-138	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2014) Under	standing	2026-10-11; V1-2014
+LPCV-V0-139	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010, V1-2013,	standing	2026-10-11; V1-2010; V1-2013
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
@@ -4436,6 +4450,9 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-388	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293)	standing	2026-10-11; V1-2041; #1293
+TSA-V0-389	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) A located example MUS	standing	2026-10-11; V1-2041; #1293
+TSA-V0-390	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) For a Jest test file	standing	2026-10-11; V1-2041; #1293
 TSA-V0-120	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
 TSA-V0-121	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST	standing	2026-10-11; V1-1887; #1171
 TSA-V0-122	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-par	standing	2026-10-11; V1-1887; #1171
@@ -4617,6 +4634,10 @@ TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, d
 TJAA-V0-019	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0483; V1-1066; GitHub #709; V1-1175 amendment accepted, deci	owner	decision 0483; V1-1066; #709; V1-1175; decision 0519
 TJAA-V0-020	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0483; V1-1067; GitHub #709) When `discovery.state`	owner	decision 0483; V1-1067; #709
 TJAA-V0-021	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0519 (V1-1175); GitHub #790) A project `grep` or	owner	decision 0519; V1-1175; #790
+TJAA-V0-030	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042; GitHub #	standing	2026-10-11; V1-2042; #1294
+TJAA-V0-031	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) The stat	standing	2026-10-11; V1-2042
+TJAA-V0-032	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) Narrowin	standing	2026-10-11; V1-2042
+TJAA-V0-033	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2042) `symbols	standing	2026-10-11; V1-2042
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

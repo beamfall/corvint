@@ -24,7 +24,8 @@ const (
 	SelectorNoExample = "NO_EXAMPLE"
 	// SelectorUnattributed: examples ran from the selector's file but none is
 	// declared on its lines, so the report cannot attribute them (a line
-	// naming a group, a line inside an example, or a shared-group inclusion).
+	// naming a group, a line inside an example, or a shared-group inclusion
+	// line when the report does not state inclusions, LPCV-V0-137).
 	SelectorUnattributed = "UNATTRIBUTED"
 	// SelectorNotEvaluated: the run produced no readable report.
 	SelectorNotEvaluated = "NOT_EVALUATED"
@@ -120,10 +121,20 @@ func locationLine(text string) (int, bool) {
 type reportedLocation struct {
 	rerunPath, scopedID, file string
 	line                      int
+	// inclusions are the project-relative shared-group inclusion lines the
+	// report states, empty when it states none (LPCV-V0-137).
+	inclusions []reportedInclusion
+}
+
+// reportedInclusion is one project-relative shared-group inclusion file:line.
+type reportedInclusion struct {
+	file string
+	line int
 }
 
 func locate(raw rspecExample) reportedLocation {
 	location := reportedLocation{file: path.Clean(strings.TrimPrefix(raw.FilePath, "./")), line: raw.LineNumber}
+	location.inclusions, _ = inclusionFrames(raw.SharedGroupInclusionBacktrace)
 	if open := strings.LastIndexByte(raw.ID, '['); open > 0 && strings.HasSuffix(raw.ID, "]") {
 		location.rerunPath = path.Clean(strings.TrimPrefix(raw.ID[:open], "./"))
 		location.scopedID = raw.ID[open+1 : len(raw.ID)-1]
@@ -156,11 +167,8 @@ func selectionOutcomes(specs []string, examples []rspecExample) []SelectorOutcom
 					}
 				case SelectorLine:
 					fromFile = fromFile || location.file == parsed.path || location.rerunPath == parsed.path
-					for _, line := range parsed.lines {
-						if location.file == parsed.path && location.line == line {
-							matched++
-							break
-						}
+					if lineSelected(parsed, location) {
+						matched++
 					}
 				case SelectorID:
 					for _, id := range parsed.ids {
@@ -183,6 +191,23 @@ func selectionOutcomes(specs []string, examples []rspecExample) []SelectorOutcom
 		outcomes = append(outcomes, outcome)
 	}
 	return outcomes
+}
+
+// lineSelected reports whether a path:line selector names the example's
+// declaration line or, when the report states the example's shared-group
+// inclusions, the line that included its shared group (LPCV-V0-137).
+func lineSelected(parsed selector, location reportedLocation) bool {
+	for _, line := range parsed.lines {
+		if location.file == parsed.path && location.line == line {
+			return true
+		}
+		for _, inclusion := range location.inclusions {
+			if inclusion.file == parsed.path && inclusion.line == line {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateSelection(document Document) error {
@@ -215,8 +240,28 @@ func validateSelection(document Document) error {
 
 // observeShared records an example's shared-example origin from the report's
 // shared_group_inclusion_backtrace, which the stock RSpec JSON formatter does
-// not emit (LPCV-V0-134). origin is the example's own worktree file:line.
+// not emit and the Corvint formatter does (LPCV-V0-134, LPCV-V0-136). origin
+// is the example's own worktree file:line.
 func observeShared(backtrace json.RawMessage, project, origin string) (*SharedExample, string) {
+	frames, absent := inclusionFrames(backtrace)
+	if absent != "" {
+		return nil, absent
+	}
+	shared := &SharedExample{Origin: origin, IncludedAt: []string{}}
+	for _, frame := range frames {
+		location := path.Join(project, frame.file) + ":" + strconv.Itoa(frame.line)
+		if !inclusionLocation(location) {
+			return nil, sharedInclusionUnbnd
+		}
+		shared.IncludedAt = append(shared.IncludedAt, location)
+	}
+	return shared, ""
+}
+
+// inclusionFrames reads the project-relative inclusion file:line of every
+// frame of a shared_group_inclusion_backtrace, or the closed reason there is
+// none: not-reported, not-shared or inclusion-unbound.
+func inclusionFrames(backtrace json.RawMessage) ([]reportedInclusion, string) {
 	if len(backtrace) == 0 || string(backtrace) == "null" {
 		return nil, sharedNotReported
 	}
@@ -232,7 +277,7 @@ func observeShared(backtrace json.RawMessage, project, origin string) (*SharedEx
 	if len(frames) > maxInclusions {
 		return nil, sharedInclusionUnbnd
 	}
-	shared := &SharedExample{Origin: origin, IncludedAt: []string{}}
+	inclusions := make([]reportedInclusion, 0, len(frames))
 	for _, frame := range frames {
 		if frame.InclusionLocation == nil {
 			return nil, sharedInclusionUnbnd
@@ -247,13 +292,9 @@ func observeShared(backtrace json.RawMessage, project, origin string) (*SharedEx
 		if !ok || !fs.ValidPath(file) || file == "." {
 			return nil, sharedInclusionUnbnd
 		}
-		location := path.Join(project, file) + ":" + strconv.Itoa(line)
-		if !inclusionLocation(location) {
-			return nil, sharedInclusionUnbnd
-		}
-		shared.IncludedAt = append(shared.IncludedAt, location)
+		inclusions = append(inclusions, reportedInclusion{file: file, line: line})
 	}
-	return shared, ""
+	return inclusions, ""
 }
 
 func inclusionLocation(location string) bool {

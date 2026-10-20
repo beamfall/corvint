@@ -64,12 +64,19 @@ const playwrightMalformedDetailMax = 240
 // SelectPlaywright reconciles static project/file candidates with a bounded,
 // canonical discovery receipt before exposing runnable file selections.
 func SelectPlaywright(root, configPath, revision string, dirty []string, receipt []byte) (PlaywrightPlan, error) {
-	plan, err := selectPlaywrightStatic(root, configPath, dirty)
+	return SelectPlaywrightWithBase(root, configPath, revision, dirty, receipt, nil)
+}
+
+// SelectPlaywrightWithBase is SelectPlaywright whose advisory narrowing also reports changed
+// symbols against the content that before reads at the comparison base; a nil reader reports every
+// owned dirty path's symbols as UNRESOLVED (TJAA-V0-033).
+func SelectPlaywrightWithBase(root, configPath, revision string, dirty []string, receipt []byte, before PlaywrightBaseReader) (PlaywrightPlan, error) {
+	plan, draft, err := selectPlaywrightStaticDraft(root, configPath, dirty)
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}
-	var unverified []PlaywrightDiscoveryUnit
-	plan.Discovery, unverified = reconcilePlaywrightDiscovery(plan, revision, receipt)
+	var unverified, listed []PlaywrightDiscoveryUnit
+	plan.Discovery, unverified, listed = reconcilePlaywrightDiscovery(plan, revision, receipt)
 	if plan.Discovery.State == "MATCHED" && len(unverified) != 0 {
 		// The units are the config's file membership either way; what is missing is the listing's
 		// cross-check, so a run of such a unit may find no case. It stays visible (TJAA-V0-021).
@@ -86,15 +93,21 @@ func SelectPlaywright(root, configPath, revision string, dirty []string, receipt
 		plan.Excluded = []PlaywrightExclusion{}
 		plan.Unknown = canonicalPlaywrightUnknowns(append(plan.Unknown, selectionUnknown("playwright:discovery-unproven", plan.Discovery.State)))
 	}
+	if plan.Fallback == PlaywrightFallbackFullSuite {
+		narrowing := finishPlaywrightNarrowing(draft, plan.Discovery, listed)
+		narrowing.Symbols = playwrightChangedSymbols(root, plan.Dirty, before)
+		plan.Narrowed = &narrowing
+	}
 	return plan, nil
 }
 
 // reconcilePlaywrightDiscovery returns the discovery summary and, for a decoded receipt, its
-// unverified units.
-func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) (PlaywrightDiscoverySummary, []PlaywrightDiscoveryUnit) {
+// unverified units; for a receipt bound to this revision, config and sources it also returns the
+// listed units, which advisory narrowing compares per project (TJAA-V0-032).
+func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []byte) (PlaywrightDiscoverySummary, []PlaywrightDiscoveryUnit, []PlaywrightDiscoveryUnit) {
 	summary := PlaywrightDiscoverySummary{State: "MISSING", OnlyInReceipt: []PlaywrightDiscoveryUnit{}, OnlyInStatic: []PlaywrightDiscoveryUnit{}}
 	if len(raw) == 0 {
-		return summary, nil
+		return summary, nil, nil
 	}
 	sum := sha256.Sum256(raw)
 	summary.InputSHA256 = hex.EncodeToString(sum[:])
@@ -102,11 +115,11 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	receipt, malformed := decodePlaywrightDiscovery(raw)
 	if malformed != nil {
 		summary.Reason, summary.Detail = malformed.reason, malformed.detail
-		return summary, nil
+		return summary, nil, nil
 	}
 	summary.State = "BINDING_MISMATCH"
 	if receipt.Revision != revision || receipt.Config != plan.Config || receipt.SourceDigest != plan.SourceDigest {
-		return summary, nil
+		return summary, nil, nil
 	}
 	static := map[PlaywrightDiscoveryUnit]bool{}
 	for _, unit := range plan.Selected {
@@ -128,15 +141,15 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	summary.State = "STATIC_UNRESOLVED"
 	for _, unknown := range plan.Unknown {
 		if strings.HasPrefix(unknown.Reason, "playwright:") && unknown.Reason != PlaywrightUnknownDynamicSource && unknown.Axis == PlaywrightAxisSelection {
-			return summary, receipt.UnverifiedUnits
+			return summary, receipt.UnverifiedUnits, receipt.Units
 		}
 	}
 	summary.State = "UNIVERSE_MISMATCH"
 	if len(summary.OnlyInStatic) != 0 || len(summary.OnlyInReceipt) != 0 {
-		return summary, receipt.UnverifiedUnits
+		return summary, receipt.UnverifiedUnits, receipt.Units
 	}
 	summary.State = "MATCHED"
-	return summary, receipt.UnverifiedUnits
+	return summary, receipt.UnverifiedUnits, receipt.Units
 }
 
 // VerifyPlaywrightDiscovery decodes a canonical receipt and binds it to revision, the config bytes

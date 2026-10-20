@@ -173,15 +173,15 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		want  Runtime
 	}{
 		"reported": {"echo noise; echo 'corvint-runtime-identity ruby=3.3.5 bundler=2.5.16 container=" + container + "'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside}},
+			Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside, nil}},
 		"partial": {"echo 'corvint-runtime-identity ruby=3.3.5 bundler=2/5 container=ABC ruby=3.3.5'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, notInside}},
+			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, RuntimeFact{Unknown: runtimeNotReported}, notInside, nil}},
 		"failed": {"echo 'corvint-runtime-identity ruby=3.3.5'; exit 1",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
+			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
 		"two lines": {"echo 'corvint-runtime-identity ruby=3.3.5'; echo 'corvint-runtime-identity ruby=3.2.0'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
+			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
 		"stderr overflow": {"head -c 70000 /dev/zero | tr '\\0' x >&2; echo 'corvint-runtime-identity ruby=3.3.5 bundler=2.5.16'; exit 0",
-			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
+			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside, nil}},
 	} {
 		document := run(t, Config{Dir: root, ExecPrefix: prefix(test.probe), RSpec: rspec})
 		if document.Runtime == nil || *document.Runtime != test.want {
@@ -198,7 +198,7 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		t.Fatalf("a host run records a runtime identity: %+v", document.Runtime)
 	}
 
-	reported := Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside}
+	reported := Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside, nil}
 	if err := validateRuntime(&reported); err != nil {
 		t.Fatal(err)
 	}

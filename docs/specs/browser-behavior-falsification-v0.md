@@ -2,7 +2,7 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-015..018 and BBF-V0-019..028 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011)
+- Intent status: proposed; BBF-V0-015..018, BBF-V0-019..028 and BBF-V0-029..033 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027)
 - Delivery status: experimental
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
@@ -10,8 +10,8 @@
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-015..018 and BBF-V0-019..028 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
-- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018); an opt-in declared shared-server isolation profile resets and checks a caller-declared loopback server identity around every control (BBF-V0-019..023), and an opt-in runner-neutral profile reruns selected Go test examples under a pinned caller perturbation hook (BBF-V0-024..028).
+- Status: proposed; BBF-V0-015..018, BBF-V0-019..028 and BBF-V0-029..033 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018); an opt-in declared shared-server isolation profile resets and checks a caller-declared loopback server identity around every control (BBF-V0-019..023), and an opt-in runner-neutral profile reruns selected Go test examples under a pinned caller perturbation hook (BBF-V0-024..028), with an RSpec binding whose negative controls ran live through a docker-prefixed RSpec (BBF-V0-029..033).
 - Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
@@ -230,6 +230,53 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `execute-receipt` refuses a provider-profile plan with `receipt-profile-unsupported`, and
   `verify-receipt` refuses any receipt whose plan declares a provider or whose report names one,
   until the provider's native event stream has its own retained-evidence binding.
+- `BBF-V0-029`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A request
+  may instead declare `provider` with name `rspec`, a pinned RSpec `toolchain` command (for example
+  a wrapper that runs RSpec through a container), one repository-relative project directory as
+  `package` equal to the target project, and 1..256 unique `examples`, each one RSpec example id: a
+  project-relative spec file whose path components do not start with a dot, ending in `.rb`, and
+  one scoped id such as `spec/checkout_spec.rb[1:2]`, at most 1024 bytes, including the target
+  assertion. Its runner identity is `rspec` with browser and browser version `none` and config file
+  `.rspec` or `Gemfile`. Each control's unrelated criteria and required setup may be RSpec example
+  ids and must be other selected examples. The other BBF-V0-024 rules (perturbation keys,
+  application markers, clean test repository) are unchanged, and a mixed identity (an `rspec`
+  provider with a `go-test` runner or `go.mod`, or the reverse) is refused.
+- `BBF-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runner
+  runs the pinned RSpec command after its digest check, in the declared project directory of the
+  same disposable clone BBF-V0-026 stages, as `<toolchain> --format json --out
+  .corvint-behavior-rspec.json <examples>`, so a container wrapper that shares the directory writes
+  the report where the runner reads it. A pre-existing entry at the report path is refused before
+  the run. The environment is a scratch HOME and TMPDIR, a fixed PATH, the declared keys, the
+  perturbation and the forced `BUNDLE_FROZEN=true` and `SPEC_OPTS=` (empty), which neither the
+  declared nor the perturbation environment may name. The report is read through a root-confined,
+  regular-file, no-symlink open of at most 16 MiB; its bytes are the native receipt. The
+  BBF-V0-026 drift and mutation rules apply unchanged.
+- `BBF-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runner
+  synthesizes the hook receipt from the report: each selected example takes the status of the
+  report example whose id, without its leading `./`, equals it (`passed`, `pending` as `skipped`,
+  `failed`); a missing example is `not_run`. A failure is an `assertion` only when its exception
+  class is `RSpec::Expectations::ExpectationNotMetError`,
+  `RSpec::Expectations::MultipleExpectationsNotMetError` or `RSpec::Mocks::MockExpectationError`;
+  any other failure, or none stated, is a `panic` failure, never an assertion. A missing,
+  unreadable or non-JSON report, a report without `examples`, `summary.example_count` or
+  `summary.errors_outside_of_examples_count`, or another status is `provider-output-invalid`; a
+  nonzero `errors_outside_of_examples_count` (a load or syntax error) is `infrastructure_failed`
+  with `provider-build-failed`; an example count that disagrees with the list, a repeated example
+  or an example that was not selected is `provider-output-contradictory`. An RSpec exit other than
+  0 or 1, timeout, overflow or other boundary loss is `infrastructure_failed` with
+  `provider-process-failed`. The admitted receipt is classified by the unchanged BBF-V0-006 rules.
+- `BBF-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2027)
+  `execute-receipt` refuses an RSpec provider plan with `receipt-profile-unsupported` and
+  `verify-receipt` refuses any receipt whose plan or report names the RSpec provider, as BBF-V0-028
+  does for every provider, until its report has its own retained-evidence binding.
+- `BBF-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live test
+  MUST run the RSpec negative controls with real RSpec through a docker-prefixed toolchain and
+  classify them: a perturbation that breaks the target expectation is `killed`, an error raised
+  outside an expectation is `invalid_control` with a `panic` failure, an unused perturbation is
+  `survived`, a hook naming an undeclared key is `invalid_control` with
+  `perturbation-output-invalid`, and a spec that writes a tracked file is classified while the
+  protected test repository stays at its revision. The test is skipped without docker or the
+  owner-approved qualification image `corvint-rspec-qual:2026-10-20`.
 
 ### Approval-bound evidence wire
 
@@ -300,9 +347,9 @@ always attempted with its own bounded context even after execution failure or ca
 | `receipt-tool-identity-invalid` | The executing companion's name, version, revision or executable digest is missing or malformed. |
 | `history-receipt-invalid` | An inert-control history receipt fails offline verification against its pinned digests. |
 | `history-bound-exceeded` | An inert-control history is empty or holds more than 64 receipts. |
-| `receipt-profile-unsupported` | `execute-receipt` was asked to retain evidence for a runner-neutral provider plan, which has no retained-evidence binding yet (BBF-V0-028). |
+| `receipt-profile-unsupported` | `execute-receipt` was asked to retain evidence for a runner-neutral provider plan, which has no retained-evidence binding yet (BBF-V0-028, BBF-V0-032). |
 
-Attempt reasons added by the opt-in profiles (BBF-V0-021, BBF-V0-025..027): `isolation-reset-failed`,
+Attempt reasons added by the opt-in profiles (BBF-V0-021, BBF-V0-025..027, BBF-V0-030..031): `isolation-reset-failed`,
 `isolation-identity-drift`, `isolation-health-failed`, `isolation-observation-unexpected`,
 `perturbation-output-invalid`, `test-repository-drift`, `test-repository-mutated`,
 `provider-staging-unavailable`, `provider-process-failed`, `provider-build-failed`,
@@ -325,6 +372,7 @@ Attempt reasons added by the opt-in profiles (BBF-V0-021, BBF-V0-025..027): `iso
 | attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 | declared shared-server isolation | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical` |
 | runner-neutral Go provider | `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
+| RSpec provider binding | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`; live `TestBBFV0033LiveRSpecNegativeControls` (real RSpec 3.13.6 in `corvint-rspec-qual:2026-10-20`) |
 
 Focused package and command tests run first. Repository completion additionally requires the
 canonical Go test/vet and interoperability gates, independent review, and the dogfood CEM/OCM
@@ -353,6 +401,7 @@ default commands remain unchanged.
 | BBF-V0-017 | `internal/behaviorfalsify/history.go` | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 | BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
+| BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
 
 ## Unresolved decisions and promotion criteria
 

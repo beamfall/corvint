@@ -259,3 +259,72 @@ export default defineConfig({
 		t.Fatalf("command mutated fixture: %q", status)
 	}
 }
+
+// GitHub #1294 (V1-2042): a shared test-support module change under per-project config unknowns
+// keeps FULL_RELEVANT_SUITE and reports the importing tests and the changed symbols against HEAD,
+// or against the --base commit when one is given (TJAA-V0-030, TJAA-V0-033).
+func TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033(t *testing.T) {
+	root := t.TempDir()
+	writePlaywrightCLIFile(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
+	writePlaywrightCLIFile(t, root, "playwright.config.ts", `
+import { defineConfig } from "@playwright/test"
+export default defineConfig({
+  testDir: "./tests",
+  projects: [
+    { name: "chromium" },
+    { name: "mobile", testDir: process.env.MOBILE_DIR },
+  ],
+})
+`)
+	writePlaywrightCLIFile(t, root, "tests/support/fixture.ts", "export const user = \"u\"\n")
+	writePlaywrightCLIFile(t, root, "tests/login.spec.ts", `import { test } from "@playwright/test"; import { user } from "./support/fixture"; test("login", () => user)`)
+	writePlaywrightCLIFile(t, root, "tests/cart.spec.ts", `import { test } from "@playwright/test"; test("cart", () => {})`)
+	affectedGit(t, root, "init", "-q")
+	affectedGit(t, root, "config", "user.email", "corvint@example.test")
+	affectedGit(t, root, "config", "user.name", "Corvint Test")
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "fixture")
+	first := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	writePlaywrightCLIFile(t, root, "tests/support/fixture.ts", "export const user = \"u\"\nexport const admin = \"a\"\n")
+	affectedGit(t, root, "commit", "-qam", "admin")
+	writePlaywrightCLIFile(t, root, "tests/support/fixture.ts", "export const user = \"u\"\nexport const admin = \"a\"\nexport const role = \"r\"\n")
+
+	run := func(extra ...string) typescript.PlaywrightPlan {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		arguments := append([]string{"--root", root, "affected", "--playwright-config", "playwright.config.ts"}, extra...)
+		if code := runContext(t.Context(), arguments, strings.NewReader(""), &stdout, &stderr); code != 0 {
+			t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+		}
+		var receipt playwrightAffectedReceipt
+		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
+			t.Fatal(err)
+		}
+		return receipt.Plan
+	}
+	for _, testCase := range []struct {
+		name  string
+		extra []string
+		added []string
+	}{
+		{name: "HEAD", added: []string{"role"}},
+		{name: "--base", extra: []string{"--base", first}, added: []string{"admin", "role"}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			plan := run(testCase.extra...)
+			if plan.Scope != "UNKNOWN" || plan.Fallback != typescript.PlaywrightFallbackFullSuite || len(plan.Selected) != 0 {
+				t.Fatalf("fallback changed: %+v", plan)
+			}
+			narrowing := plan.Narrowed
+			if narrowing == nil || narrowing.State != typescript.PlaywrightNarrowed || len(narrowing.Candidates) != 1 || narrowing.Candidates[0].Test != "tests/login.spec.ts" || narrowing.Candidates[0].Project != "chromium" {
+				t.Fatalf("narrowing: %+v", narrowing)
+			}
+			if len(narrowing.Symbols) != 1 || narrowing.Symbols[0].State != typescript.PlaywrightSymbolsResolved || !narrowing.Symbols[0].AdditiveOnly || strings.Join(narrowing.Symbols[0].Added, ",") != strings.Join(testCase.added, ",") {
+				t.Fatalf("symbols: %+v", narrowing.Symbols)
+			}
+		})
+	}
+	if status := affectedGit(t, root, "status", "--porcelain"); strings.TrimSpace(status) != "M tests/support/fixture.ts" {
+		t.Fatalf("command mutated fixture: %q", status)
+	}
+}

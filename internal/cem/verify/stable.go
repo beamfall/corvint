@@ -366,7 +366,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	}
 	parsed, err := patch.Parse(patchBytes)
 	if err != nil {
-		exit = fail("verification", err)
+		exit = fail("verification", stablePatchRefusal(err))
 		return r, exit
 	}
 	source := &baseSource{ctx: ctx, repository: repo, base: d.Change.BaseRevision}
@@ -577,4 +577,16 @@ func (s *stableSimulationSource) BaseBlob(path string) ([]byte, string, bool, er
 		return nil, "", false, nil
 	}
 	return s.source.BaseBlob(path)
+}
+
+// stablePatchRefusal keeps the frozen stable result vocabulary closed: the
+// stable profile's code and issueCodes enums have no metadata-only code, so a
+// metadata-only-change-unsupported parse refusal reports the pre-V1-0609
+// malformed-patch code and the stable result bytes stay unchanged
+// (CEM-V1-302).
+func stablePatchRefusal(err error) error {
+	if cemcode.CodeOf(err) != cemcode.MetadataOnlyChangeUnsupported {
+		return err
+	}
+	return cemcode.New(cemcode.MalformedPatch, "%s", cemcode.MessageOf(err))
 }

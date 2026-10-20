@@ -89,7 +89,8 @@ func repository(t *testing.T) string {
 	return root
 }
 
-// fakeRSpec writes canned JSON to the json --out path and exits with code.
+// fakeRSpec writes canned JSON to the json (or Corvint formatter) --out
+// path, exits 97 when a --require file is absent, and otherwise exits with code.
 func fakeRSpec(t *testing.T, report string, code int) string {
 	t.Helper()
 	bin := t.TempDir()
@@ -98,7 +99,8 @@ func fakeRSpec(t *testing.T, report string, code int) string {
 	script := "#!/bin/sh\nformat=\nprevious=\nfor argument in \"$@\"; do\n" +
 		"  case \"$previous\" in\n" +
 		"    --format) format=\"$argument\" ;;\n" +
-		"    --out) if [ \"$format\" = json ] && [ -s '" + canned + "' ]; then cat '" + canned + "' > \"$argument\"; fi\n" +
+		"    --require) [ -f \"$argument\" ] || exit 97 ;;\n" +
+		"    --out) if { [ \"$format\" = json ] || [ \"$format\" = CorvintRSpecJsonFormatter ]; } && [ -s '" + canned + "' ]; then cat '" + canned + "' > \"$argument\"; fi\n" +
 		"           if [ \"$format\" = RspecJunitFormatter ]; then echo '<testsuite/>' > \"$argument\"; fi ;;\n" +
 		"  esac\n  previous=\"$argument\"\ndone\nexit " + strconv.Itoa(code) + "\n"
 	path := filepath.Join(bin, "rspec")

@@ -185,7 +185,8 @@
     "internal/breakagemap": [],
     "internal/cem/gitauth": [],
     "internal/cem/patch": [
-      "interop/cem01-go/testdata/inherited-vectors/"
+      "interop/cem01-go/testdata/inherited-vectors/",
+      "interop/cem01-go/testdata/metadata-only/"
     ],
     "internal/cem/sim": [
       "interop/cem01-go/testdata/inherited-vectors/"
@@ -328,7 +329,9 @@
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],
-    "internal/rubytestprovider": [],
+    "internal/rubytestprovider": [
+      "internal/rubytestprovider/testdata/live/"
+    ],
     "internal/sessiontest": [
       ".github/cishards/",
       ".github/workflows/ci.yml"
