@@ -893,12 +893,18 @@ nothing was mutable, the ten-minute budget ran out, the baseline failed, or
 dependencies were unavailable offline. A Python row is judged the same way by
 python3 -m pytest -q -x on the cited test functions, with one-line token
 rewrite mutants that Python must first parse; without python3 or pytest the
-row stays NOT_RUN with the reason. Every cited test runs inside a host
+row stays NOT_RUN with the reason. An RSpec row (a *_spec.rb file claiming a
+changed .rb source) is judged by bundle exec rspec, or rspec on PATH, against
+up to twelve relational, arithmetic, integer-constant and condition-negation
+mutants of the changed lines; every mutant runs, and the row carries a
+mutation record with each mutant's verdict and RSpec receipt. Without a
+runner, or with a baseline that does not pass, the row stays NOT_RUN with an
+UNSUPPORTED witness naming why. Every cited test runs inside a host
 sandbox (macOS sandbox-exec, Linux bwrap) that denies network access, signals
 to outside processes, and every write except to a scratch directory emptied
 before each run and the invocation's build cache; the exported revision is
 read-only to the tests, and each run's process group is killed afterwards. A
-run that ends without go test's or pytest's own failure report is an error,
+run that ends without go test's, pytest's or RSpec's own failure report is an error,
 never a kill. A host without a sandbox runs no test and the row stays NOT_RUN. The
 repository is never written.
 
