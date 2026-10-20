@@ -268,7 +268,8 @@ accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #
 - `TCN-V0-015`: Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variations
   that differ only in their step facts MUST NOT be classed as duplicates, and absent and empty step
   facts compare equal. Splitting a class this way changes the plan as any distinct variation does;
-  it is the one exception to the TCN-V0-013 output invariance. (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
+  it is the one exception to the TCN-V0-013 output invariance. (accepted under the owner's
+  standing auto-accept (2026-10-11; V1-2093))
 
 ## Grouping algorithm (informative restatement of TCN-V0-003..008)
 
