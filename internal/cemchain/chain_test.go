@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
@@ -20,12 +19,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/cemcandidate"
 	"github.com/Beamfall/corvint/internal/taskman"
-	"github.com/Beamfall/corvint/internal/tasks/fixture"
-	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/mutation"
-	"github.com/Beamfall/corvint/internal/tasks/snapshot"
-	"github.com/Beamfall/corvint/internal/tasks/store"
-	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -41,8 +34,6 @@ const (
 	calcTest  = "package src\n\nimport \"testing\"\n\nfunc TestPass(t *testing.T) {\n\tif Add(2, 3) != 5 {\n\t\tt.Fatal(\"Add(2, 3) != 5\")\n\t}\n}\n\nfunc TestFail(t *testing.T) { t.Fatal(\"failed-receipt control\") }\n\nfunc TestSkip(t *testing.T) { t.Skip(\"skipped-receipt control\") }\n"
 )
 
-var operator = mutation.Binding{ID: "tester", Role: "OWNER"}
-
 func obj(kv ...any) wire.Value {
 	o := wire.NewObject()
 	for i := 0; i+1 < len(kv); i += 2 {
@@ -52,15 +43,6 @@ func obj(kv ...any) wire.Value {
 }
 
 func str(s string) wire.Value { return wire.String(s) }
-
-func stamp(t *testing.T) wire.Timestamp {
-	t.Helper()
-	ts, err := wire.ParseTimestamp("at", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ts
-}
 
 func realTemp(t *testing.T) string {
 	t.Helper()
@@ -110,50 +92,160 @@ func (c checkout) git(args ...string) string {
 
 func (c checkout) put(path, data string) {
 	c.t.Helper()
-	fixture.Write(c.t, filepath.Join(c.root, filepath.FromSlash(path)), []byte(data))
+	write(c.t, filepath.Join(c.root, filepath.FromSlash(path)), []byte(data))
 }
 
-// tasks is a private disposable native Tasks store whose policy declares the
+func write(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// queueID is the private store's queue; tickets are minted under it.
+const queueID = "queue:acme:main"
+
+// queueValue is a native taskman-queue/0 manifest for the private store.
+func queueValue() wire.Value {
+	return obj("profile", str("taskman-queue/0"), "queueId", str(queueID), "repositoryAuthorityId", str("repo:acme"), "prefix", str("AT"),
+		"nextSerial", str("2"), "schemaVersion", str("0"), "canonicalWriter", str("NATIVE"), "foreignAdapterId", wire.Null(),
+		"intentBranch", str("main"), "fixture", wire.Bool(true), "executionCutover", wire.Null(), "importMapSha256", wire.Null(),
+		"writeBarrier", obj("reason", str("NONE"), "since", wire.Null()))
+}
+
+// policyValue is the store's initial taskman-policy/0 (version 1) with one
+// required COMMAND gate `verify`; newTasks replaces it through the CLI.
+func policyValue() wire.Value {
+	gate := obj("gateId", str("verify"), "kind", str("COMMAND"), "argv", wire.Strings([]string{"make", "verify"}), "cwd", str("WORKTREE"),
+		"env", wire.Strings(nil), "timeoutSeconds", str("1800"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings(nil), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(true), "required", wire.Bool(true))
+	return obj("profile", str("taskman-policy/0"), "policyVersion", str("1"), "roles", wire.ObjectValue(wire.NewObject()),
+		"capacity", obj("maxActiveAttempts", str("1"), "maxWorkersTotal", str("4"), "classes", wire.Array()),
+		"budgets", obj(
+			"lane", obj("inputTokens", str("2000000"), "cacheCreationTokens", str("1000000"), "cacheReadTokens", str("100000000"),
+				"outputTokens", str("400000"), "turns", str("400"), "wallClockMinutes", str("90")),
+			"ticketMultiplier", str("4"), "requireEnforcedFields", wire.Strings([]string{"turns", "wallClockMinutes"})),
+		"retries", obj("admissionsPerRevision", str("3"), "repairRounds", str("2"), "malformedReviewRetry", str("1"),
+			"gateRerunOnStale", str("1"), "reconcileAttempts", str("3")),
+		"retention", obj("evidenceDays", str("90")), "gates", wire.Array(gate), "serialFallback", str("BLOCK"),
+		"integrationRequiredKinds", wire.Strings(nil), "allowEmptyObligationsKinds", wire.Strings([]string{"CHORE"}),
+		"reviewLane", obj("required", wire.Bool(true)), "docsLane", obj("required", wire.Bool(false)),
+		"cemRequired", wire.Bool(false), "ocmRequired", wire.Bool(false), "runtimes", wire.Array(),
+		"environment", obj("allowedEnvKeys", wire.Strings(nil)))
+}
+
+// tasks drives a private disposable native Tasks store only through the
+// built corvint-tasks CLI: Core imports no Tasks package but wire. The store
+// is initialized in the fixture checkout, which is on the intent branch, and
+// its intent directory is excluded from Git there, so the checkout's commits,
+// diffs and worktree status never contain it. Its policy declares the
 // production cem-verdict gate shape against the built binaries.
 type tasks struct {
-	repo *intent.Repository
-	code string
+	t         *testing.T
+	bin, root string
+	stateDir  string
 }
 
-func newTasks(t *testing.T, code, corvint, consumer string) *tasks {
+// envelope is the part of a taskman-command-result/0 this test reads.
+type envelope struct {
+	Outcome  string            `json:"outcome"`
+	Codes    []string          `json:"codes"`
+	Items    []json.RawMessage `json:"items"`
+	Warnings []string          `json:"warnings"`
+}
+
+// item is the part of a mutation or lease result this test reads.
+type item struct {
+	Outcome    string   `json:"outcome"`
+	TicketID   string   `json:"ticketId"`
+	AttemptID  string   `json:"attemptId"`
+	Generation string   `json:"generation"`
+	StateDir   string   `json:"stateDir"`
+	Results    []string `json:"gateResults"`
+}
+
+// run executes one corvint-tasks command in the checkout and decodes its
+// envelope.
+func (s *tasks) run(args ...string) (envelope, []byte) {
+	s.t.Helper()
+	command := exec.Command(s.bin, args...)
+	command.Dir = s.root
+	command.Env = append(os.Environ(), "CORVINT_TASKS_ACTOR=tester", "ATM_ACTOR=tester")
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	runErr := command.Run()
+	var e envelope
+	if err := json.Unmarshal(stdout.Bytes(), &e); err != nil {
+		s.t.Fatalf("corvint-tasks %v: %v (%v)\n%s\n%s", args, err, runErr, stdout.Bytes(), stderr.Bytes())
+	}
+	return e, stdout.Bytes()
+}
+
+// item decodes the envelope's single item.
+func (s *tasks) item(e envelope, raw []byte) item {
+	s.t.Helper()
+	var it item
+	if len(e.Items) != 1 || json.Unmarshal(e.Items[0], &it) != nil {
+		s.t.Fatalf("not one result item: %s", raw)
+	}
+	return it
+}
+
+// mutate runs one write command and requires an OK envelope whose item
+// committed (outcome COMPLETED), as the in-process store reported it.
+func (s *tasks) mutate(args ...string) item {
+	s.t.Helper()
+	e, raw := s.run(append(args, "--role", "OWNER")...)
+	it := s.item(e, raw)
+	if e.Outcome != "OK" || it.Outcome != "COMPLETED" {
+		s.t.Fatalf("corvint-tasks %v not completed: %s", args, raw)
+	}
+	return it
+}
+
+func newTasks(t *testing.T, bin, root, corvint, consumer string) *tasks {
 	t.Helper()
-	r := fixture.TempRepo(t)
-	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
-	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
-	repo, err := intent.Resolve(r.Root)
+	s := &tasks{t: t, bin: bin, root: root}
+	exclude, err := os.OpenFile(filepath.Join(root, ".git", "info", "exclude"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err == nil {
+		_, err = exclude.WriteString("/.taskman/\n")
+		if closeErr := exclude.Close(); err == nil {
+			err = closeErr
+		}
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Init(context.Background(), repo, operator, "req-init", stamp(t)); err != nil {
-		t.Fatal(err)
+	write(t, filepath.Join(root, ".taskman", "queue.json"), wire.EncodeFile(queueValue()))
+	write(t, filepath.Join(root, ".taskman", "policy.json"), wire.EncodeFile(policyValue()))
+	e, raw := s.run("init", "--role", "OWNER", "--request-id", "req-init")
+	if s.stateDir = s.item(e, raw).StateDir; e.Outcome != "OK" || s.stateDir == "" {
+		t.Fatalf("init: %s", raw)
 	}
-	argv := []string{corvint, "cem", "gate-verdict", "--base", store.GateArgBaseCommit, "--candidate", store.GateArgCandidateCommit,
-		"--predicate", "touched-anchored", "--touch-paths", store.GateArgTouchPaths, "--portable-consumer", consumer}
+	argv := []string{corvint, "cem", "gate-verdict", "--base", "{attempt.baseCommit}", "--candidate", "{attempt.candidateCommit}",
+		"--predicate", "touched-anchored", "--touch-paths", "{claim.touchPaths}", "--portable-consumer", consumer}
 	gate := obj("gateId", str("cem-verdict"), "kind", str("COMMAND"), "argv", wire.Strings(argv), "cwd", str("WORKTREE"),
 		"env", wire.Strings([]string{"PATH"}), "timeoutSeconds", str("600"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
 		"evidence", wire.Strings([]string{"output"}), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(false), "required", wire.Bool(false))
-	v := fixture.PolicyValue()
+	v := policyValue()
 	v.Obj.Set("gates", wire.Array(gate))
 	v.Obj.Set("environment", obj("allowedEnvKeys", wire.Strings([]string{"PATH"})))
 	v.Obj.Set("policyVersion", str("2"))
 	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
 	budgets, _ := v.Obj.Get("budgets")
 	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
-	request := store.PolicyRequest{QueueID: fixture.QueueID, RequestID: "policy-chain", ExpectedPolicyVersion: wire.Size("1"), Policy: wire.EncodeFile(v)}
-	if report, err := store.PolicyUpdate(context.Background(), repo, operator, request, stamp(t)); err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("policy: %+v %v", report, err)
-	}
-	return &tasks{repo: repo, code: code}
+	path := filepath.Join(realTemp(t), "policy-2.json")
+	write(t, path, wire.EncodeFile(v))
+	s.mutate("policy", "update", "--request-id", "policy-chain", "--expected-policy-version", "1", "--file", path)
+	return s
 }
 
 // ticket creates one native ticket whose declared touch path is src/.
-func (s *tasks) ticket(t *testing.T) string {
-	t.Helper()
+func (s *tasks) ticket() string {
+	s.t.Helper()
 	payload := obj(
 		"acceptanceCriteria", wire.Strings([]string{"Add returns the sum and its runner receipt passes"}),
 		"body", wire.Null(), "capabilities", wire.Strings(nil), "dependencies", wire.Array(), "dueDate", wire.Null(),
@@ -161,66 +253,82 @@ func (s *tasks) ticket(t *testing.T) string {
 		"estimateMinutes", wire.Null(), "executionClass", str("AUTONOMOUS"), "kind", str("FEATURE"), "labels", wire.Strings(nil),
 		"milestone", wire.Null(), "order", str("0"), "owner", wire.Null(), "priority", str("P2"), "requiredGates", wire.Strings(nil),
 		"requirementRefs", wire.Strings(nil),
-		"source", obj("kind", str("NATIVE"), "sourceItemId", wire.Null(), "sourceQueueId", str(fixture.QueueID), "sourceRevisionSha256", wire.Null()),
+		"source", obj("kind", str("NATIVE"), "sourceItemId", wire.Null(), "sourceQueueId", str(queueID), "sourceRevisionSha256", wire.Null()),
 		"supersededBy", wire.Null(), "supersedes", wire.Null(), "title", str("chain"))
-	envelope := wire.EncodeFile(obj("profile", str(mutation.Profile), "requestId", str("create-chain"), "actor", obj("id", str("tester"), "role", str("OWNER")),
-		"queueId", str(fixture.QueueID), "targetId", wire.Null(), "expectedRevision", wire.Null(), "operation", str(mutation.OpCreate),
-		"payload", payload, "issuedAt", str("2026-09-07T12:00:00Z")))
-	report, err := store.Mutate(context.Background(), s.repo, operator, envelope, stamp(t))
-	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("create: %+v %v", report, err)
+	created := s.mutate("ticket", "create", "--request-id", "create-chain", "--issued-at", "2026-09-07T12:00:00Z",
+		"--payload", string(bytes.TrimSpace(wire.EncodeFile(payload))))
+	return created.TicketID
+}
+
+// claim claims the ticket on the checkout's HEAD, the base.
+func (s *tasks) claim(ticketID string, scope ...string) item {
+	s.t.Helper()
+	args := append([]string{"claim", ticketID, "--holder", "agent-1", "--request-id", "claim-chain", "--lease-minutes", "60", "--scope"}, scope...)
+	return s.mutate(args...)
+}
+
+// submit records a tree as the attempt's candidate.
+func (s *tasks) submit(requestID string, claim item, tree string) {
+	s.t.Helper()
+	s.mutate("submit", "--attempt", claim.AttemptID, "--generation", claim.Generation, "--request-id", requestID, "--tree", tree)
+}
+
+// gate runs the attempt's cem-verdict gate in the checkout.
+func (s *tasks) gate(requestID string, claim item) (envelope, []byte) {
+	s.t.Helper()
+	return s.run("gate", "run", "--attempt", claim.AttemptID, "--generation", claim.Generation, "--request-id", requestID,
+		"--gate", "cem-verdict", "--worktree", s.root, "--role", "OWNER")
+}
+
+// gateRan requires a gate run to have committed its result.
+func (s *tasks) gateRan(requestID string, claim item) {
+	s.t.Helper()
+	e, raw := s.gate(requestID, claim)
+	if it := s.item(e, raw); e.Outcome != "OK" || it.Outcome != "COMPLETED" {
+		s.t.Fatalf("gate %s: %s", requestID, raw)
 	}
-	return report.Ticket
 }
 
-func (s *tasks) lease(t *testing.T, requestID string, l transaction.LeaseRequest) *store.Report {
-	t.Helper()
-	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.code, Lease: l}
-	report, err := store.Lease(context.Background(), s.repo, operator, choice, stamp(t))
-	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("lease %s: %+v %v", requestID, report, err)
-	}
-	return report
+// gateResult is the part of a taskman-gate-result/0 this test reads.
+type gateResult struct {
+	GateID   string `json:"gateId"`
+	State    string `json:"state"`
+	Evidence []struct {
+		Sha256 string `json:"sha256"`
+	} `json:"evidence"`
 }
 
-func (s *tasks) gate(requestID string, claim *store.Report) (*store.Report, error) {
-	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.code,
-		Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: claim.AttemptID, Generation: claim.Generation, Gate: "cem-verdict"}}
-	return store.GateRun(context.Background(), s.repo, operator, choice, s.code, time.Now)
-}
-
-// result is the attempt's latest cem-verdict result and its output evidence.
-func (s *tasks) result(t *testing.T, attemptID string) (*snapshot.GateResult, []byte) {
-	t.Helper()
+// result is the attempt's latest cem-verdict result and its output evidence:
+// `attempt show` lists the result digests, read from the store's
+// content-addressed evidence directory.
+func (s *tasks) result(attemptID string) (*gateResult, []byte) {
+	s.t.Helper()
 	evidence := func(digest string) []byte {
-		raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "evidence", digest))
+		raw, err := os.ReadFile(filepath.Join(s.stateDir, "evidence", digest))
 		if err != nil {
-			t.Fatal(err)
+			s.t.Fatal(err)
 		}
 		return raw
 	}
-	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", attemptID+".json"))
-	if err != nil {
-		t.Fatal(err)
+	e, raw := s.run("attempt", "show", attemptID)
+	a := s.item(e, raw)
+	if e.Outcome != "OK" || a.AttemptID != attemptID {
+		s.t.Fatalf("attempt show: %s", raw)
 	}
-	a, err := snapshot.DecodeAttempt(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var last *snapshot.GateResult
-	for _, d := range a.GateResults {
-		g, err := snapshot.DecodeGateResult(evidence(d))
-		if err != nil {
-			t.Fatal(err)
+	var last *gateResult
+	for _, d := range a.Results {
+		var g gateResult
+		if err := json.Unmarshal(evidence(d), &g); err != nil {
+			s.t.Fatal(err)
 		}
 		if g.GateID == "cem-verdict" {
-			last = g
+			last = &g
 		}
 	}
 	if last == nil || len(last.Evidence) != 1 {
-		t.Fatalf("no cem-verdict result with one output: %+v", last)
+		s.t.Fatalf("no cem-verdict result with one output: %+v", last)
 	}
-	return last, evidence(string(last.Evidence[0].Sha256))
+	return last, evidence(last.Evidence[0].Sha256)
 }
 
 // verdictDoc is the part of the gate document this test reads.
@@ -329,7 +437,8 @@ func (r runner) run(name, root, test string, wantExit int) ([]byte, []byte) {
 }
 
 // TestCEMV1286TasksRunnerProducerVerifyChain drives the bounded chain on one
-// private disposable Tasks store and one fixture checkout: a native claim, the
+// private disposable Tasks store, through the built corvint-tasks CLI, and one
+// fixture checkout: a native claim, the
 // trusted runner's plan and receipt, the plain producer with runner
 // admission, and the Tasks cem-verdict gate running the built corvint CLI,
 // which recomputes the verdict natively and through the independently
@@ -347,6 +456,7 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 		t.Fatal(err)
 	}
 	corvint := build(t, repoRoot, "./cmd/corvint", "corvint")
+	tasksBin := build(t, repoRoot, "./cmd/corvint-tasks", "corvint-tasks")
 	runnerBin := build(t, repoRoot, "./cmd/corvint-test-runner", "corvint-test-runner")
 	consumer := build(t, filepath.Join(repoRoot, "interop", "cem01-go"), ".", "cem01-go")
 	run := newRunner(t, runnerBin)
@@ -363,10 +473,8 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	base := code.git("rev-parse", "HEAD")
 
 	// Tasks: one native ticket claimed on the base; the attempt's base is it.
-	s := newTasks(t, code.root, corvint, consumer)
-	id := s.ticket(t)
-	claim := s.lease(t, "claim-chain", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: id, Holder: "agent-1", LeaseMinutes: "60",
-		Scope: []string{".corvint/changes/", "artifacts/", "src/"}})
+	s := newTasks(t, tasksBin, code.root, corvint, consumer)
+	claim := s.claim(s.ticket(), ".corvint/changes/", "artifacts/", "src/")
 
 	// Runner: a passing receipt over a draft that later changes is stale;
 	// the final sources yield the passing, failed and skipped receipts.
@@ -490,13 +598,11 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	code.git("mv", cw.ExcludedCEMPath, ".corvint/changes/"+bind+".cem.json")
 	code.git("commit", "-qm", "chore: seal change evidence")
 	seal := code.git("rev-parse", "HEAD")
-	s.lease(t, "submit-seal", transaction.LeaseRequest{Verb: transaction.LeaseSubmit, AttemptID: claim.AttemptID, Generation: claim.Generation, Tree: code.git("rev-parse", "HEAD^{tree}")})
+	s.submit("submit-seal", claim, code.git("rev-parse", "HEAD^{tree}"))
 
 	// Tasks gate: GRANT with native and portable ACCEPT and src/ anchored.
-	if report, err := s.gate("gate-seal", claim); err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("gate: %+v %v", report, err)
-	}
-	g, out := s.result(t, claim.AttemptID)
+	s.gateRan("gate-seal", claim)
+	g, out := s.result(claim.AttemptID)
 	doc := decodeVerdict(t, out)
 	if g.State != "PASSED" || doc.Outcome != "GRANT" || doc.Verdict == nil || doc.Verdict.Outcome != "ACCEPT" || doc.Verdict.Sidecar != "EXACT" ||
 		doc.Portable == nil || doc.Portable.Outcome != "ACCEPT" || doc.Portable.VerdictSha256 != doc.Verdict.VerdictSha256 || len(doc.Paths) == 0 {
@@ -512,8 +618,8 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	// checkout, and the gate's native and portable recomputations both
 	// reject the artifact digest, so the verdict is not granted.
 	code.put("artifacts/runner-receipt.json", strings.Replace(string(passReceipt), `"state":"PASSED"`, `"state":"PASSED" `, 1))
-	if _, err := s.gate("gate-dirty", claim); wire.CodeOf(err) != wire.CodeDirtyWorktree {
-		t.Fatalf("dirty worktree gate: %v", err)
+	if e, raw := s.gate("gate-dirty", claim); e.Outcome == "OK" || !slices.Contains(e.Codes, wire.CodeDirtyWorktree) {
+		t.Fatalf("dirty worktree gate: %s", raw)
 	}
 	direct, err := taskman.EvaluateCEMVerdictGate(ctx, taskman.CEMVerdictInput{Root: code.root, BaseCommit: base, CandidateCommit: seal,
 		TouchPaths: []string{"src/"}, Predicate: taskman.PredicateTouchedAnchored, PortableConsumer: consumer})
@@ -534,11 +640,9 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	// Committed tamper: the candidate is no longer the sealed target with
 	// only its sidecar moved, so the Tasks gate fails.
 	code.git("commit", "-qam", "tamper with the runner receipt")
-	s.lease(t, "submit-tamper", transaction.LeaseRequest{Verb: transaction.LeaseSubmit, AttemptID: claim.AttemptID, Generation: claim.Generation, Tree: code.git("rev-parse", "HEAD^{tree}")})
-	if report, err := s.gate("gate-tamper", claim); err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
-		t.Fatalf("tamper gate: %+v %v", report, err)
-	}
-	g, out = s.result(t, claim.AttemptID)
+	s.submit("submit-tamper", claim, code.git("rev-parse", "HEAD^{tree}"))
+	s.gateRan("gate-tamper", claim)
+	g, out = s.result(claim.AttemptID)
 	doc = decodeVerdict(t, out)
 	if g.State != "FAILED" || doc.Outcome != "REFUSE" || deref(doc.Code) != taskman.CEMVerdictProducerMismatch || deref(doc.Reason) != "sealed-tree-mismatch" {
 		t.Fatalf("committed tamper not refused: state %s\n%s", g.State, out)
