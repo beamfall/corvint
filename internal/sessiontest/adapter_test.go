@@ -2,6 +2,7 @@ package sessiontest
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -56,5 +57,82 @@ func TestSTRV0004AdapterManifestRefusals(t *testing.T) {
 		if got := adapterRefusal(test.manifests, AdapterGo); got != test.reason {
 			t.Errorf("%s: refusal %q, want %q", name, got, test.reason)
 		}
+	}
+}
+
+// adapterManifestContent is what a capability manifest version names: its
+// profile and its operation set, whichever adapter carries it.
+type adapterManifestContent struct {
+	Operations []string `json:"operations"`
+	Profile    string   `json:"profile"`
+}
+
+// adapterManifestVersionPins is the append-only history of shipped
+// capability manifest versions and the digest of their content
+// (STR-V0-058). A pin is never edited or removed: a manifest whose
+// operations change needs a new version and a new pin beside the old ones.
+var adapterManifestVersionPins = map[string]string{
+	"corvint-test-adapter/0": "sha256:4378e5864ff8bce9f1ee4f01540134197dff5e39ff424f5d06418fa0a3e1066b",
+}
+
+// manifestVersionDrift names why manifest's version does not identify its
+// content under pins, or "" when its version is pinned to exactly this
+// content.
+func manifestVersionDrift(pins map[string]string, manifest AdapterManifest) string {
+	digest, err := Digest(adapterManifestContent{Operations: manifest.Operations, Profile: manifest.Profile})
+	if err != nil {
+		return manifest.Adapter + ": " + err.Error()
+	}
+	pinned, ok := pins[manifest.Profile]
+	switch {
+	case !ok:
+		return manifest.Adapter + ": capability manifest version " + manifest.Profile + " has no pin; a new version needs its content digest pinned"
+	case pinned != digest:
+		return manifest.Adapter + ": capability manifest " + manifest.Profile + " changed without a version bump: content " + digest + ", pinned " + pinned
+	}
+	return ""
+}
+
+// STR-V0-058: the capability manifest version identifies its content. Every
+// registered manifest matches its version's pin, and the check refuses a
+// changed operation set under an existing version and a new version without
+// a pin.
+func TestSTRV0058AdapterManifestVersionPinned(t *testing.T) {
+	for adapter, manifest := range AdapterManifests() {
+		if drift := manifestVersionDrift(adapterManifestVersionPins, manifest); drift != "" {
+			t.Errorf("registered adapter %s: %s", adapter, drift)
+		}
+	}
+	good := AdapterManifests()[AdapterGo]
+	with := func(profile string, operations ...string) AdapterManifest {
+		return AdapterManifest{Adapter: AdapterGo, Operations: operations, Profile: profile}
+	}
+	for name, test := range map[string]struct {
+		manifest AdapterManifest
+		drift    string
+	}{
+		"operation added, same version":   {with(good.Profile, "cancel", "discover", "execute", "health", "plan"), "go: capability manifest corvint-test-adapter/0 changed without a version bump"},
+		"operation dropped, same version": {with(good.Profile, "discover", "execute", "plan"), "go: capability manifest corvint-test-adapter/0 changed without a version bump"},
+		"new version without a pin":       {with("corvint-test-adapter/1", "cancel", "discover", "execute", "health", "plan"), "go: capability manifest version corvint-test-adapter/1 has no pin"},
+	} {
+		if drift := manifestVersionDrift(adapterManifestVersionPins, test.manifest); !strings.HasPrefix(drift, test.drift) {
+			t.Errorf("%s: drift %q, want prefix %q", name, drift, test.drift)
+		}
+	}
+	// A bump that pins its new content passes, and the old pin still holds.
+	bumped := with("corvint-test-adapter/1", "cancel", "discover", "execute", "health", "plan")
+	digest, err := Digest(adapterManifestContent{Operations: bumped.Operations, Profile: bumped.Profile})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pins := map[string]string{bumped.Profile: digest}
+	for version, pin := range adapterManifestVersionPins {
+		pins[version] = pin
+	}
+	if drift := manifestVersionDrift(pins, bumped); drift != "" {
+		t.Fatalf("pinned bump: %s", drift)
+	}
+	if drift := manifestVersionDrift(pins, good); drift != "" {
+		t.Fatalf("earlier version after the bump: %s", drift)
 	}
 }

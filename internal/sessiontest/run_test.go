@@ -35,7 +35,7 @@ func twoShardManifest(t *testing.T) (Manifest, string) {
 func shardReceipt(m Manifest, digest string, shard int, outcomes ...Outcome) Receipt {
 	receipt := NewReceipt(m, digest, shard, "corvint test")
 	if len(outcomes) != 0 {
-		receipt.Invocations = []Invocation{{Adapter: AdapterGo, Argv: []string{"go"}, Env: []string{}, Outcomes: outcomes}}
+		receipt.Invocations = []Invocation{{Adapter: AdapterGo, AdapterManifest: AdapterManifestProfile, Argv: []string{"go"}, Env: []string{}, Outcomes: outcomes}}
 	}
 	return Finish(receipt, m)
 }
