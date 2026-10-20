@@ -77,10 +77,28 @@ var admittedRuntimeTuples = func() []admittedRuntimeTuple {
 	add("1.64.0", qualifiedNodeVersion, BrowserSourceSystem, ExternalProfile)
 	add("1.64.0", admittedBundledNodeVersion, BrowserSourceBundled, ExternalProfile, AttemptExternalProfile)
 	// Per-test freshness (PTF-V0): 1.63.0 on Node v22.23.3, bundled only.
-	// Freshness on 1.64.0 or on another Node has no live run and no row.
 	add("1.63.0", freshnessNodeVersion, BrowserSourceBundled, FreshnessProfile)
+	// PWP-V0-050: 1.64.0 on Node v22.23.2, bundled only, after its own live
+	// freshness run, so one exact tuple admits external and freshness
+	// receipts alike. Freshness on v24.11.1 or another 1.64.0 Node has no
+	// live run and no row.
+	add("1.64.0", qualifiedNodeVersion, BrowserSourceBundled, FreshnessProfile)
 	return rows
 }()
+
+// freshnessReporterTuples lists the table's bundled freshness (runner, Node)
+// rows in table order. The provider passes them to the reporter, so its
+// freshness pre-filter reads this table instead of a copied literal
+// (PWP-V0-052).
+func freshnessReporterTuples() [][2]string {
+	rows := [][2]string{}
+	for _, row := range admittedRuntimeTuples {
+		if row.profile == FreshnessProfile && row.source == BrowserSourceBundled {
+			rows = append(rows, [2]string{row.runner, row.node})
+		}
+	}
+	return rows
+}
 
 // runtimeTupleAdmitted reports whether the exact tuple is a row. An empty
 // source matches any admitted browser source for the profile, runner and Node.

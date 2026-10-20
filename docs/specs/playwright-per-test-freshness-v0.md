@@ -115,14 +115,19 @@ The browser-consuming tuple is Darwin arm64, Node v22.23.3, Playwright 1.63.0, h
 Chromium headless-shell revision1243, manifest153.0.8010.12, executable SHA-256
 `a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282` and observed executable version
 `Google Chrome for Testing 153.0.8010.12`. The launched browser version is153.0.8010.12.
-No old Node v22.23.2 profile gains support. Reporter-specific actual tuple evidence is still required.
+Under the shared tuple table (`PWP-V0-050`), one further exact tuple is admitted after its own live
+run: Darwin arm64, official Node v22.23.2, Playwright 1.64.0, bundled headless-shell revision 1248,
+manifest 156.0.8078.4, executable SHA-256
+`77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`. No other Node v22.23.2 or
+v24.11.1 freshness tuple gains support. Reporter-specific actual tuple evidence is still required.
 The launcher binds PATH/LANG/LC_ALL/TMPDIR; optional OS-derived ambient fields do not silently become
 selection authority or imply whole-environment coverage. Legacy authenticated-operator,
 authenticated-hook and independent-process-and-artifact-observation unsupported claims remain
 visible; this profile adds only the named local native join, not generic falsifier authority.
 
 One source artifact is at most64KiB, actual runner reports at most4MiB, assessments at most16MiB,
-processes at most60s, readiness and application observations at most5s. Secret-screen source bytes
+processes at most60s, readiness and application observations at most5s. A command executable is
+digested in a stream up to 256 MiB (`PWP-V0-051`). Secret-screen source bytes
 after decoding; artifact retention is private evidence and cannot bypass screening via base64.
 All new failures are value-free typed reason codes and fail closed.
 

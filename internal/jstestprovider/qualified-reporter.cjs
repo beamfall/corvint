@@ -330,10 +330,12 @@ function bundledBrowserIdentity(headless) {
 // PWP-V0-009: v24.11.1 is admitted for the 1.63.0 bundled headless shell;
 // 1.64.0 ran live on v22.23.2 (PWP-V0-033) and v24.11.1 (PWP-V0-036). The Go
 // predicate stays the authority for which profile may project it as passing.
-function qualifiedBundledIdentity(browser, version, freshnessProfile = false) {
+// PWP-V0-052: the freshness (runner, Node) rows are not repeated here; the
+// provider passes them from its one shared table as freshnessTuples.
+function qualifiedBundledIdentity(browser, version, freshnessProfile = false, freshnessTuples = []) {
   const qualified = Object.hasOwn(qualifiedBundledBrowsers, version) ? qualifiedBundledBrowsers[version] : null;
   const nodes = ['v22.23.2', 'v24.11.1'];
-  return qualified && browser && browser.platform === 'darwin' && browser.arch === 'arm64' && (freshnessProfile ? version === '1.63.0' && browser.nodeVersion === 'v22.23.3' : nodes.includes(browser.nodeVersion)) &&
+  return qualified && browser && browser.platform === 'darwin' && browser.arch === 'arm64' && (freshnessProfile ? freshnessTuples.some(row => row[0] === version && row[1] === browser.nodeVersion) : nodes.includes(browser.nodeVersion)) &&
     browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
     browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
     browser.executablePath.endsWith(qualified.pathSuffix) && browser.executableSha256 === qualified.executableSha256 &&
@@ -343,7 +345,7 @@ function qualifiedBundledIdentity(browser, version, freshnessProfile = false) {
 
 // Qualified against 1.60.0, 1.63.0 and 1.64.0 in-process reporter objects. Serialization or a
 // custom executable fixture can erase effective options; that is unknown.
-function effectiveUse(test, project, version, freshnessProfile = false) {
+function effectiveUse(test, project, version, freshnessProfile = false, freshnessTuples = []) {
   if (!['1.60.0', '1.63.0', '1.64.0'].includes(version) || !Array.isArray(test._testType?.fixtures)) return null;
   const use = {};
   const assign = (fixtures, builtin) => {
@@ -387,7 +389,7 @@ function effectiveUse(test, project, version, freshnessProfile = false) {
     resolved.channel = resolved.channel || '';
     resolved.corvintBrowser = executablePath ? {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: executableVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)} : bundledBrowserIdentity(resolved.headless);
     const systemQualified = Object.hasOwn(qualifiedSystemBrowsers, version) && resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === qualifiedSystemBrowsers[version] && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true && (version !== '1.64.0' || resolved.headless === true);
-    if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!(systemQualified && !freshnessProfile) && !qualifiedBundledIdentity(resolved.corvintBrowser, version, freshnessProfile))) return null;
+    if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!(systemQualified && !freshnessProfile) && !qualifiedBundledIdentity(resolved.corvintBrowser, version, freshnessProfile, freshnessTuples))) return null;
   } else {
     delete resolved.headless;
     delete resolved.connectOptions;
@@ -428,7 +430,7 @@ function keptReporterEntries(reporters, output) {
 
 // The config supplies only a private output path. Nothing is read from stdout.
 class Reporter {
-  constructor(options) { this.keepReporters = options.keepReporters === true; this.freshnessProfile = options.freshnessProfile === true; this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
+  constructor(options) { this.keepReporters = options.keepReporters === true; this.freshnessProfile = options.freshnessProfile === true; this.freshnessTuples = this.freshnessProfile && Array.isArray(options.freshnessTuples) ? options.freshnessTuples.filter(row => Array.isArray(row) && row.length === 2 && row.every(v => typeof v === 'string')) : []; this.path = options.output; this.tests = new Map(); this.errors = []; this.sensitiveInputPolicy = options.sensitiveInputPolicy || null; this.policy = sensitivePolicy(this.sensitiveInputPolicy); this.hasSensitiveInput = false; this.sensitiveValues = new Set(); this.sensitiveStepCount = 0; this.retainAttemptDetails = options.retainAttemptDetails === true; if (this.retainAttemptDetails && this.policy) throw new Error('external-attempt-details-composition-unsupported'); }
   onBegin(config, suite) {
 	this.schedule = {workers: config.workers, starts: []};
     if (this.keepReporters) this.projectReporters = keptReporterEntries(config.reporter, this.path);
@@ -454,7 +456,7 @@ class Reporter {
   }
   onTestEnd(test, result) {
     const project = test.parent.project();
-    const use = project ? effectiveUse(test, project, this.version, this.freshnessProfile) : null;
+    const use = project ? effectiveUse(test, project, this.version, this.freshnessProfile, this.freshnessTuples) : null;
     const errors = result.errors || [];
     let message = errors.map(e => e.message || '').join('\n');
     if (this.policy) {
