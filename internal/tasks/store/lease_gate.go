@@ -25,6 +25,10 @@ import (
 // output pipe open through a descendant outside its process group.
 const gateWaitDelay = 5 * time.Second
 
+// gateInterruptRecordBound bounds the store write that records an
+// interrupted gate run's result (CAL-V0-319).
+const gateInterruptRecordBound = 30 * time.Second
+
 // gateRecordFault, when set by a package test, fails GateRun after the gate
 // program ran and before its result is recorded; it is nil in production.
 var gateRecordFault func() error
@@ -44,13 +48,14 @@ type gateRun struct{ record, output, source []byte }
 // retried after a crash recovers as any other writer does (CAL-V0-019).
 func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (report *Report, err error) {
 	// Once the program has started, every return reports it (CAL-V0-078).
-	executed := false
+	executed, interrupted := false, false
 	defer func() {
 		if executed {
 			if report == nil {
 				report = &Report{}
 			}
 			report.Unretryable = true
+			report.GateInterrupted = interrupted
 		}
 	}()
 	redone, err := settleLease(ctx, repo)
@@ -88,7 +93,17 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			}
 		}
 		if err = ctx.Err(); err != nil {
-			return &Report{}, err
+			if reused {
+				return &Report{}, err
+			}
+			// CAL-V0-319: the run's context ended while or after the gate
+			// ran; the process group is already reaped. The run's result and
+			// captured output are recorded under a bounded write instead of
+			// being discarded.
+			interrupted = true
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(context.WithoutCancel(ctx), gateInterruptRecordBound)
+			defer cancel()
 		}
 		choice.gate = &run
 		if gateRecordFault != nil {

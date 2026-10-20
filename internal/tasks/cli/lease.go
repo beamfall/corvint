@@ -339,7 +339,8 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 		defer stop()
 		report, err = store.PoolOperate(ctx, repo, actor, choice)
 	} else if name == "gate run" {
-		// An interrupt kills the gate's process group and records nothing.
+		// An interrupt kills the gate's process group; a run that started is
+		// still recorded with its partial output (CAL-V0-319).
 		ctx, stop := signal.NotifyContext(writerContext(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		report, err = store.GateRun(ctx, repo, actor, choice, gateWorktree(env.Cwd, worktree), time.Now)
@@ -430,6 +431,9 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("attemptId", wire.String(r.AttemptID)))
 		}
 		o.Set("reusedFrom", reused)
+		if report.GateInterrupted {
+			res.Warnings = append(res.Warnings, "gate run interrupted: the gate's process group was stopped and the run's result and captured output were recorded (CAL-V0-319)")
+		}
 	}
 	if report.LaneUntouchedAttestation != nil {
 		o.Set("laneUntouchedAttestation", snapshot.LaneUntouchedAttestationValue(report.LaneUntouchedAttestation))
