@@ -758,6 +758,24 @@ func isRubyTestPath(value string) bool {
 }
 
 // rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).
+// withRubyMapped returns a view of index naming the paths autoload maps, or
+// index itself when it maps none. The view is a shallow copy, so the shared
+// index is never written and a concurrent request never sees another's set.
+func (index *Index) withRubyMapped(paths []string, autoload *rubyAutoload) *Index {
+	mapped := map[string]struct{}{}
+	for _, name := range paths {
+		if autoload.mapped(name) {
+			mapped[name] = struct{}{}
+		}
+	}
+	if len(mapped) == 0 {
+		return index
+	}
+	view := *index
+	view.rubyMapped = mapped
+	return &view
+}
+
 func rubyImpactRequested(paths []string) bool {
 	for _, name := range paths {
 		if NonGoImpactLanguage(name) == "ruby" {

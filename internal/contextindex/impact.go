@@ -21,30 +21,31 @@ type rankedResult struct {
 }
 
 func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
-	result, _, err := impact(index, paths, limit, rubyImpactRequested(paths)) // a Ruby path selects the syntax profile (NGI-V0-033)
+	result, _, _, err := impact(index, paths, limit, rubyImpactRequested(paths)) // a Ruby path selects the syntax profile (NGI-V0-033)
 	return result, err
 }
 
 // ImpactSyntax adds the versioned non-Go syntax frontier. Impact retains the
 // immutable historical path receipt; this profile does not assert runtime closure.
 func ImpactSyntax(index *Index, paths []string, limit int) (map[string]any, error) {
-	result, _, err := impact(index, paths, limit, true)
+	result, _, _, err := impact(index, paths, limit, true)
 	return result, err
 }
 
 // impact compiles the path impact receipt and also returns its omitted-caller
-// disclosures, so EvalImpact can carry them through its budget compilation.
-func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[string]any, []string, error) {
+// disclosures and the index view its coverage was computed over, so EvalImpact
+// can carry both through its budget compilation.
+func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[string]any, []string, *Index, error) {
 	cleaned, err := cleanImpactRequest(paths, limit)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// Decision 0015: only rule (a) resolves through the Go module path, so
 	// the slash-qualified module is a precondition for `.go` paths alone;
 	// `.py` and web paths are admitted in any Git repository, as the oracle
 	// admits them.
 	if needsGoModule(cleaned) && (index.Module == "" || !strings.Contains(index.Module, "/")) {
-		return nil, nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module for .go paths"}
+		return nil, nil, nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module for .go paths"}
 	}
 	tracked := make(map[string]struct{}, len(index.Sources)+len(index.Exclusions))
 	for value := range index.Sources {
@@ -60,7 +61,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		}
 	}
 	if len(missing) != 0 {
-		return nil, nil, &Error{Message: fmt.Sprintf("impact paths are not tracked at revision %s: %s", index.Revision, strings.Join(missing, ", "))}
+		return nil, nil, nil, &Error{Message: fmt.Sprintf("impact paths are not tracked at revision %s: %s", index.Revision, strings.Join(missing, ", "))}
 	}
 	forbidden := make([]string, 0)
 	for _, value := range cleaned {
@@ -73,7 +74,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		if err == nil && syntaxFrontier {
 			err = attachNonGoImpactUnknowns(result, index, cleaned, 0, nil, nil)
 		}
-		return result, nil, err
+		return result, nil, index, err
 	}
 
 	ranked := make([]rankedResult, 0)
@@ -359,6 +360,9 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			"reverse-import results for %d changed paths are incomplete: %d bare import specifiers in %d sources resolve to no repository file or declared package",
 			webChanged, webGraph.unresolved, webGraph.sources))
 	}
+	// A mapped Ruby path has a named reverse-reference rule (NGI-V0-036), so
+	// the coverage it is compiled under withholds the profile gap for it.
+	index = index.withRubyMapped(cleaned, rubyConstants)
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
 		// The Ruby reading (nil when no Ruby path was requested) supplies the
@@ -367,7 +371,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		// resolves those paths' reverse references.
 		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns, rubyConstants)
 	}
-	return result, disclosures, err
+	return result, disclosures, index, err
 }
 
 // Per-result row caps for the path impact receipt (MCPV0-031, proposed). A

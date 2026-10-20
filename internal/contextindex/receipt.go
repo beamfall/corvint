@@ -412,6 +412,9 @@ func admittedResultCount(receipt map[string]any, present int) int {
 // The count is keyed on `ImpactRuleNamed`, so widening the profile retires the
 // disclosure for the widened suffixes in the same edit that computes them.
 //
+// A Ruby path the autoload mapper resolves is excluded too: the convention is
+// its named reverse-reference rule (NGI-V0-036).
+//
 // Test paths are excluded because the reverse-import stage never runs for them
 // in either runtime, so nothing is withheld there. Paths absent from
 // `index.Sources` are excluded because no ranking stage ran on them at all.
@@ -426,6 +429,9 @@ func reverseImportProfileGap(index *Index, receipt map[string]any) int {
 	gaps := 0
 	for _, changedPath := range stringsField(request["paths"]) {
 		if ImpactRuleNamed(changedPath) || isTestPath(changedPath) {
+			continue
+		}
+		if _, mapped := index.rubyMapped[changedPath]; mapped {
 			continue
 		}
 		if _, indexed := index.Sources[changedPath]; !indexed {

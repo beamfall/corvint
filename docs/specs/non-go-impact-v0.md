@@ -285,7 +285,10 @@ path receives it by default, add a bounded second hop, and mark every such row a
   changed path the mapper resolves to a constant MUST NOT carry
   `reverse-import-rule-unavailable`: its named-constant rule is the reverse-reference rule.
   An unmapped Ruby path (including one under an invalid declaration) keeps it, and every Ruby
-  path keeps `dynamic-dispatch-unresolved`. This amends `NGI-V0-019`.
+  path keeps `dynamic-dispatch-unresolved`. This amends `NGI-V0-019`. For the same reason a
+  mapped Ruby path MUST NOT be counted in the `GPK-V0-027` no-named-resolution-rule coverage
+  disclosure, in the default or the budgeted receipt; an unmapped non-test Ruby path still is
+  (V1-1814).
 - `NGI-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) A
   default or expanded committed range admitting a Ruby path MUST attach, for each admitted
   Ruby path, the same advisory rows (both hops) and Ruby unknown rows as path impact, merged
@@ -487,7 +490,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-033` | `rubyImpactRequested` and the syntax-frontier selection in `impact` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestNonGoImpactCLIProfile`; Go/JS goldens `conformance/cli-parity-v0`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-034` | `rubyAutoload.impact` second hop (`traversed`), `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce`, `TestRubyAutoloadSecondHopConstantOnce` |
 | `NGI-V0-035` | `result` (`advisory`); `setCoverage` (`internal/contextindex/receipt.go`); range coverage in `compileRangeImpact` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadRangeImpact`, `TestRubyAutoloadNamedConstantReverseReference` |
-| `NGI-V0-036` | `rubyAutoload.mapped`; `nonGoImpactUnknowns` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadNamedConstantReverseReference` |
+| `NGI-V0-036` | `rubyAutoload.mapped`; `nonGoImpactUnknowns`; `reverseImportProfileGap` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadMappedPathHasNoProfileGap` |
 | `NGI-V0-037` | `rangeRubyAutoload`, wiring in `compileRangeImpact` | `TestRubyAutoloadRangeImpact`; `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-038` | `isRubyTestPath` (`internal/contextindex/ruby_autoload.go`); `isTestPath` unchanged | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubySpecPathNonRubyRequestBaseBytes` |
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
