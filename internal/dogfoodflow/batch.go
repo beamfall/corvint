@@ -55,7 +55,8 @@ var batchRecovery = map[string]string{
 	"constituent-migrated":          "the migration commit rewrote this sealed CEM after the batch's BASE added it; split the batch at the migration commit: batch-check up to its parent, then rerun with BASE=<the migration commit's parent>",
 	"constituent-cem-policy":        "rebind and reseal that change with the normal loop on its own branch (dogfood-change BASE=<its base>), then remerge it",
 	"unbound-commits":               "bind each listed commit through a sealed change: commit it on its own branch, run dogfood-change, dogfood-check and dogfood-seal there with BASE=<its parent>, and merge that branch instead",
-	"merge-resolution-unbound":      "redo the merge with git merge -X ours (or -X theirs) so its tree is derivable, then commit the manual resolution as its own sealed change",
+	"merge-resolution-unbound":      "a hand-resolved merge is unbound: drop it, rebase the conflicting change's own work commits (not its old bind and seal commits) onto the merge's first parent, resolve each conflict there, bind, check and seal it with BASE=<that first parent>, then merge it with plain git merge --no-ff so ort derives the tree; -X ours or -X theirs drops the other side's conflicting hunks and fails merge-side-dropped",
+	"merge-side-dropped":            "restore each listed hunk's dropped side through a sealed change merged after this merge, or, for a hunk dropped on purpose, add the line Corvint-Dropped-Hunk: <id> <reason> to that merge's message; otherwise redo the merge as the merge-resolution-unbound recovery says",
 	"octopus-merge-unbound":         "merge one branch at a time so each merge tree is derivable from two parents",
 }
 
@@ -74,6 +75,10 @@ type batch struct {
 	bootstrap    int
 	inherited    inheritedCEM
 	archived     bool
+	// bases maps each verified constituent's bind commit to its base, the
+	// bound changes that can restore a dropped hunk (DCW-V0-073).
+	bases   map[string]string
+	dropped droppedTally
 }
 
 // BatchCheck verifies a merge batch whose every change is already bound and
@@ -87,6 +92,7 @@ func BatchCheck(ctx context.Context, options BatchCheckOptions, stdout, stderr i
 		flow:    flow{ctx: ctx, prefix: "dogfood-batch-check", root: options.Root, stderr: stderr},
 		options: options, stdout: stdout,
 		constituents: map[string]bool{}, covered: map[string]bool{}, failures: map[string][]string{}, derived: map[string]int{},
+		bases: map[string]string{},
 	}
 	return boundary(ctx, run.run, run.cleanup)
 }
@@ -380,6 +386,7 @@ func (b *batch) verifyConstituent(bind string) {
 		b.failure(result.failure, result.detail)
 		return
 	}
+	b.bases[bind] = result.base
 	covered := b.gitValue("rev-list", bind, "^"+result.base, "^"+b.base)
 	for _, commit := range nonEmpty(strings.Split(covered, "\n")) {
 		b.covered[commit] = true
@@ -431,30 +438,41 @@ func (b *batch) archivesInherited(parent, commit string) bool {
 }
 
 // deriveMerge accepts a merge whose tree Git reproduces from its two parents
-// alone; the manual part of any other merge is unbound content.
+// alone; the manual part of any other merge is unbound content. A merge that
+// keeps one side of a conflict, or its first parent's tree over a second side
+// Git would merge, has each dropped hunk checked (DCW-V0-073).
 func (b *batch) deriveMerge(merge, first, second string) {
 	tree := b.gitValue("rev-parse", merge+"^{tree}")
-	if tree == b.gitValue("rev-parse", first+"^{tree}") {
-		b.derive(merge, "first-parent-tree")
-		return
-	}
-	var attempted string
+	firstTree := tree == b.gitValue("rev-parse", first+"^{tree}")
+	var attempted, conflicted string
 	for _, strategy := range []struct{ name, option string }{{"ort", ""}, {"ort-ours", "-Xours"}, {"ort-theirs", "-Xtheirs"}} {
-		args := []string{"merge-tree", "--write-tree", "--no-messages"}
+		// The merge conflict style is fixed so that the conflict markers
+		// droppedSide parses do not depend on any configuration.
+		args := []string{"-c", "merge.conflictStyle=merge", "merge-tree", "--write-tree", "--no-messages", "-z"}
 		if strategy.option != "" {
 			args = append(args, strategy.option)
 		}
 		result, status := b.scratchGit(append(args, first, second)...)
-		written := strings.SplitN(result, "\n", 2)[0]
+		written := strings.SplitN(result, "\x00", 2)[0]
+		if strategy.name == "ort" && status == 1 {
+			conflicted = result
+		}
 		if status == 0 && written == tree {
-			b.derive(merge, strategy.name)
+			derivation := strategy.name
+			if firstTree && strategy.name != "ort-theirs" {
+				derivation = "first-parent-tree"
+			}
+			b.derive(merge, derivation)
+			if strategy.name != "ort" {
+				b.droppedSide(merge, first, second, strategy.name == "ort-ours", conflicted)
+			}
 			return
 		}
 		if attempted == "" && fullRevision.MatchString(written) {
 			attempted = written
 		}
 	}
-	detail := merge
+	detail := ""
 	if attempted != "" {
 		differing, _ := b.scratchGit("diff-tree", "-r", "--name-only", attempted, tree)
 		paths := nonEmpty(strings.Split(chomp(differing), "\n"))
@@ -462,10 +480,17 @@ func (b *batch) deriveMerge(merge, first, second string) {
 			paths = append(paths[:batchPathsShown], fmt.Sprintf("... %d more", len(paths)-batchPathsShown))
 		}
 		if len(paths) > 0 {
-			detail += " paths=" + strings.Join(paths, ",")
+			detail = " paths=" + strings.Join(paths, ",")
 		}
 	}
-	b.failure("merge-resolution-unbound", detail)
+	if firstTree {
+		// The first parent's tree over changes Git would merge: the whole
+		// second side is dropped, not only its conflicting hunks.
+		b.derive(merge, "first-parent-tree")
+		b.dropUnknown(merge, second, "", "second-side-discarded"+detail)
+		return
+	}
+	b.failure("merge-resolution-unbound", merge+detail)
 }
 
 func (b *batch) derive(merge, derivation string) {
@@ -493,19 +518,37 @@ func (b *batch) scratchGit(args ...string) (string, int) {
 			b.refuse("scratch-repository-unavailable")
 		}
 	}
-	return b.runScratch(append([]string{"--git-dir=repository.git", "-c", "core.hooksPath=" + os.DevNull,
-		"-c", "core.attributesFile=" + os.DevNull}, args...)...)
-}
-
-func (b *batch) runScratch(args ...string) (string, int) {
-	command := exec.CommandContext(b.ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
-	command.Dir = b.scratch
-	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_ATTR_NOSYSTEM=1", "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
-	output, status, bounded := b.readGit(command)
+	output, status, bounded := b.readScratch(true, args...)
 	if !bounded {
 		b.refuse(gitOutputOverBound)
 	}
 	return output, status
+}
+
+// readScratch is scratchGit's read; a repository read reports its overflow
+// to the caller instead of refusing (scratchGit must already have run once).
+func (b *batch) readScratch(repository bool, args ...string) (string, int, bool) {
+	if repository {
+		args = append([]string{"--git-dir=repository.git", "-c", "core.hooksPath=" + os.DevNull,
+			"-c", "core.attributesFile=" + os.DevNull}, args...)
+	}
+	b.checkpoint()
+	return b.readGit(b.scratchCommand(args...))
+}
+
+func (b *batch) runScratch(args ...string) (string, int) {
+	output, status, bounded := b.readScratch(false, args...)
+	if !bounded {
+		b.refuse(gitOutputOverBound)
+	}
+	return output, status
+}
+
+func (b *batch) scratchCommand(args ...string) *exec.Cmd {
+	command := exec.CommandContext(b.ctx, "git", append([]string{"-c", "credential.helper="}, args...)...)
+	command.Dir = b.scratch
+	command.Env = append(gokernel.SanitizedGitEnvironment(), "GIT_ATTR_NOSYSTEM=1", "GIT_CEILING_DIRECTORIES="+filepath.Dir(b.scratch))
+	return command
 }
 
 func (b *batch) finish(commits, constituents int) int {
@@ -535,10 +578,11 @@ func (b *batch) finish(commits, constituents int) int {
 	}
 	b.print("%s: NOTE ocm NOT_REVERIFIED sealed-constituent\n", b.prefix)
 	b.print("%s: NOTE composition NOT_OBSERVED merged-change-interaction\n", b.prefix)
-	if sided := b.derived["ort-ours"] + b.derived["ort-theirs"]; sided > 0 {
-		// A one-sided resolution keeps bound content only, but the dropped
-		// side's conflicting hunks are absent from HEAD.
-		b.print("%s: NOTE conflict-side-dropped merges=%d\n", b.prefix, sided)
+	if b.dropped.merges > 0 {
+		// Every dropped hunk passed only because a later sealed change
+		// restored it or the merge's message dispositions it (DCW-V0-073).
+		b.print("%s: NOTE conflict-side-dropped merges=%d hunks=%d restored=%d dispositioned=%d\n",
+			b.prefix, b.dropped.merges, b.dropped.hunks, b.dropped.restored, b.dropped.dispositioned)
 	}
 	b.print("%s: NOTE local-outcome NOT_PRODUCED batch-check\n", b.prefix)
 	b.print("%s: NOTE verifier-independence NOT_OBSERVED single-verifier verifier=%s\n", b.prefix, verifier)
