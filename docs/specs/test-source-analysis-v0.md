@@ -932,8 +932,12 @@ model (`parseSource`); it adds no second parser.
   and an assignment to `global.fetch`, `globalThis.fetch` or `window.fetch` MUST be classified.
   - The subject under test is (a) a module specifier whose base name, without extension (or
     the directory name for `index`), equals the test file's stem without `.spec` or `.test`; or
-    (b) the module that the outermost describe's title or identifier argument is imported from.
-    Identifiers imported from a subject module, and that title, name the subject.
+    (b) the module that the outermost describe's title or identifier argument is imported from,
+    the title matching either the local name or, for `import { X as Y }`, the exported name `X`;
+    or (c) a relative module (such as an `index` barrel re-exporting the subject) from which the
+    file imports a name equal to that stem, compared without case and without `-`, `_` or `.`
+    (V1-1862). Identifiers imported from a subject module, and that title, name the subject.
+    A barrel reached through a path alias or a bare package specifier is not resolved.
   - A mock of a subject module, or a spy whose receiver's root identifier names the subject,
     gives an `advisory` `JS-SUBJECT-MOCKED` finding.
   - A boundary is a mock of `axios`, `node-fetch`, `cross-fetch`, `got`, `superagent`, `undici`,
@@ -1028,7 +1032,7 @@ persisted.
 | TSA-V0-076 | `internal/testsource/validity_js_examples.go` | `TestJSExampleRunState` | experimental |
 | TSA-V0-077 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
 | TSA-V0-078 | `internal/testsource/validity_js_examples.go` | `TestJSExampleAssertions` | experimental |
-| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock` | experimental |
+| TSA-V0-079 | `internal/testsource/validity_js_examples.go` | `TestJSExampleMocks`, `TestJSExampleNamedCallbackMock`, `TestJSExampleBarrelAndAliasSubjects` | experimental |
 | TSA-V0-080 | `internal/testvalidity/source_rules_jsts.go` | `TestApplyJSExampleSource` | experimental |
 | TSA-V0-081 | `internal/testsource/validity_command.go`, `cmd/corvint/tests.go` | `TestSourceValidityJSExamples`, `TestTestsValidityCLI` | experimental |
 | TSA-V0-082 | `internal/testvaliditydoc/js_source.go`, `cmd/corvint/test_validity.go`, `internal/mcp/testvaliditybridge` | `TestDiscoverJSSourceRules`, `TestTestValidityDiscoverJSSourceRules` | experimental |

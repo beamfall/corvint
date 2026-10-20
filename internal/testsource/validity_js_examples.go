@@ -57,6 +57,8 @@ type jsAnnotation struct {
 type jsBinding struct {
 	spec string
 	line int
+	// imported is the exported name an `import { X as Y }` binding takes (X), or the local name.
+	imported string
 }
 
 type jsMock struct {
@@ -620,7 +622,11 @@ func (s *source) importBindings() map[string]jsBinding {
 			for k := i + 1; k < len(s.tokens) && k < i+256; k++ {
 				if s.ident(k, "from") && literal(k+1) {
 					for _, n := range names {
-						out[s.tokens[n].Text] = jsBinding{spec: s.tokens[k+1].Text, line: s.tokens[i].Line}
+						imported := s.tokens[n].Text
+						if n >= 2 && s.ident(n-1, "as") && s.ident(n-2, "") {
+							imported = s.tokens[n-2].Text
+						}
+						out[s.tokens[n].Text] = jsBinding{spec: s.tokens[k+1].Text, line: s.tokens[i].Line, imported: imported}
 					}
 					break
 				}
@@ -646,7 +652,7 @@ func (s *source) importBindings() map[string]jsBinding {
 			}
 			if s.punct(j, "=") && s.ident(j+1, "require") && s.punct(j+2, "(") && literal(j+3) && s.punct(j+4, ")") {
 				for _, n := range names {
-					out[s.tokens[n].Text] = jsBinding{spec: s.tokens[j+3].Text, line: s.tokens[i].Line}
+					out[s.tokens[n].Text] = jsBinding{spec: s.tokens[j+3].Text, line: s.tokens[i].Line, imported: s.tokens[n].Text}
 				}
 			}
 		}
@@ -671,6 +677,12 @@ func boundaryModule(spec string) bool {
 	return jsBoundaryModules[strings.TrimPrefix(spec, "node:")]
 }
 
+// subjectWord folds a stem or identifier for the TSA-V0-079 (c) comparison: lower case, without
+// `-`, `_` or `.`, so `user-service` and `UserService` agree.
+func subjectWord(name string) string {
+	return strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(name))
+}
+
 // subjects returns the subject module specifiers and the identifiers that name the subject
 // (TSA-V0-079).
 func (r *jsReader) subjects() (map[string]bool, map[string]bool) {
@@ -678,9 +690,29 @@ func (r *jsReader) subjects() (map[string]bool, map[string]bool) {
 	stem = strings.TrimSuffix(strings.TrimSuffix(stem, ".spec"), ".test")
 	specs, names := map[string]bool{}, map[string]bool{}
 	for _, b := range r.bindings {
-		if !boundaryModule(b.spec) && specStem(b.spec) == stem {
+		switch {
+		case boundaryModule(b.spec):
+		case specStem(b.spec) == stem:
+			specs[b.spec] = true
+		case isRelativeSpec(b.spec) && b.imported != "" && subjectWord(b.imported) == subjectWord(stem):
+			// (c) a relative module, such as a barrel, that exports the stem's name (V1-1862).
 			specs[b.spec] = true
 		}
+	}
+	locals := make([]string, 0, len(r.bindings))
+	for local := range r.bindings {
+		locals = append(locals, local)
+	}
+	slices.Sort(locals)
+	// importedAs finds the first local, in name order, whose exported name is title, for
+	// `import { X as Y }`.
+	importedAs := func(title string) (string, jsBinding, bool) {
+		for _, local := range locals {
+			if b := r.bindings[local]; b.imported == title {
+				return local, b, true
+			}
+		}
+		return "", jsBinding{}, false
 	}
 	s := r.s
 	for _, d := range r.decls {
@@ -696,7 +728,14 @@ func (r *jsReader) subjects() (map[string]bool, map[string]bool) {
 				name = s.tokens[first+1].Text
 			}
 		}
-		if b, ok := r.bindings[name]; ok && !boundaryModule(b.spec) {
+		b, ok := r.bindings[name]
+		if !ok {
+			var local string
+			if local, b, ok = importedAs(name); ok {
+				names[local] = true
+			}
+		}
+		if ok && !boundaryModule(b.spec) {
 			specs[b.spec] = true
 			names[name] = true
 		}
