@@ -57,7 +57,7 @@ func TestCEMV1341AssemblyResultCarriesTopLevelOK(t *testing.T) {
 		if e := json.NewEncoder(&plain).Encode(result); e != nil {
 			t.Fatal(e)
 		}
-		if e := encodeOK(&got, result); e != nil {
+		if e := encodeOK(&got, result, nil); e != nil {
 			t.Fatal(e)
 		}
 		want := `{"ok":true,` + strings.TrimPrefix(plain.String(), "{")
@@ -70,7 +70,7 @@ func TestCEMV1341AssemblyResultCarriesTopLevelOK(t *testing.T) {
 		}
 	}
 	var out bytes.Buffer
-	if e := encodeOK(&out, []string{}); e == nil || out.Len() != 0 {
+	if e := encodeOK(&out, []string{}, nil); e == nil || out.Len() != 0 {
 		t.Fatalf("non-object result: %v %q", e, out.String())
 	}
 }
