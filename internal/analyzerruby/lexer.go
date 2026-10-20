@@ -35,12 +35,17 @@ type masker struct {
 	lastCode     byte
 	dataSection  bool
 	blockComment bool
+	comments     []int // offsets of line comments' `#`, for MaskSource
 }
 
 // maskRuby returns the masked code view. An unterminated string, heredoc, or
 // block comment fails closed.
 func maskRuby(src []byte) ([]byte, string) {
-	m := &masker{src: src, out: append([]byte(nil), src...)}
+	return (&masker{src: src, out: append([]byte(nil), src...)}).mask()
+}
+
+func (m *masker) mask() ([]byte, string) {
+	src := m.src
 	for at := 0; at < len(src); {
 		stop := at
 		for stop < len(src) && src[stop] != '\n' {
@@ -63,11 +68,14 @@ func maskRuby(src []byte) ([]byte, string) {
 
 // MaskSource is maskRuby for other packages: the offset-preserving code view
 // of src, in which comments, strings, heredocs, percent literals, regexes and
-// the data section are blanked to spaces. ok is false when the source does not
-// lex (an unterminated literal, or more pending heredocs than the bound).
-func MaskSource(src []byte) (masked []byte, ok bool) {
-	masked, why := maskRuby(src)
-	return masked, why == ""
+// the data section are blanked to spaces, and the ascending offsets of every
+// line comment's `#`, which the blanked view alone cannot tell from a literal.
+// ok is false when the source does not lex (an unterminated literal, or more
+// pending heredocs than the bound).
+func MaskSource(src []byte) (masked []byte, comments []int, ok bool) {
+	m := &masker{src: src, out: append([]byte(nil), src...)}
+	masked, why := m.mask()
+	return masked, m.comments, why == ""
 }
 
 // blank erases a byte range from the code view, preserving line structure.
@@ -192,6 +200,7 @@ func (m *masker) openState(from int, line []byte, at, codeEnd int, pending *[]he
 	current := line[at]
 	switch {
 	case current == '#':
+		m.comments = append(m.comments, from+at)
 		m.blank(from+at, from+len(line))
 		return len(line), ""
 	case current == '\'' || current == '"' || current == '`':

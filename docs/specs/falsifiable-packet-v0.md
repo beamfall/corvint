@@ -986,13 +986,15 @@ above stands with that substitution.
   `test-kills-mutant` to an `affected-test` row whose path is an RSpec spec file (base name ending
   `_spec.rb`) claiming a changed `.rb` source that is not itself a selected test, as FPK-V0-019
   does for pytest. Under `--mutate`, `internal/liveverify/rbmutate` MUST plan mutants over the
-  changed source's offset-preserving masked code view (`analyzerruby.MaskSource`), so strings,
+  changed source's offset-preserving masked code view (`analyzerruby.MaskSource`, which also
+  returns every line comment's offset, so a `#` inside a string is not a comment), so strings,
   comments, regular expressions, heredocs, symbols and `%` literals are never mutated, confined to
   the range's changed lines of that path. The operator set is closed: `relational-boundary`
   (`<`/`<=`, `>`/`>=` swapped), `relational-negation` (`==`/`!=`), `arithmetic-swap` (`+`/`-`,
   `*`/`/`), `constant-decrement` and `constant-increment` (a decimal integer literal by one, never
   below zero), and `negate-condition` (an `if`, `elsif`, `unless`, `while` or `until` condition
-  wrapped as `!(...)` when it is balanced and does not continue onto the next line). Floats, radix literals,
+  wrapped as `!(...)` when it is balanced, does not continue onto the next line, and no bare `end`
+  follows it on its line). Floats (their exponent included, such as `1e-3`), radix literals,
   superclass `<`, `<=>`, `**`, unary signs, splats, method calls named like keywords, hash keys
   and conditions continued on the next line are never sites. A changed file that does not lex is
   `NOT_RUN` with `changed file does not lex: C`. Sites are ordered by source offset and at most
@@ -1004,15 +1006,18 @@ above stands with that substitution.
   `bundle exec rspec` when the revision has a `Gemfile` and `bundle` is on `PATH`, else `rspec` on
   `PATH`, and proves inside the sandbox that `--version` starts; otherwise the row is `NOT_RUN`
   with `detail` `bundle is not available`, `rspec is not available`, `gem dependencies unavailable
-  offline`, `rspec does not start within the per-run timeout` or `rspec cannot run inside the
-  sandbox`. Each run is `RUNNER --format json --out SCRATCH/rspec.json --no-color T` with the cited
-  spec file `T`, host `SPEC_OPTS` cleared, temporary files and Bundler's home in the scratch
+  offline`, `rspec does not start within the per-run timeout`, `rspec cannot run inside the
+  sandbox` or `cannot write the rspec options file`. Each run is `RUNNER --options
+  EXPORT/.corvint-rspec-options --format json --out SCRATCH/rspec.json --no-color T` with the cited
+  spec file `T`; the options file holds only the revision's `.rspec` and `.rspec-local`, so RSpec
+  reads no host `~/.rspec` or `$XDG_CONFIG_HOME/rspec/options`. Host `SPEC_OPTS` is cleared, temporary files and Bundler's home in the scratch
   directory, and a per-run timeout of the budget over the selection bound plus two, at least ten
   seconds. The unmodified baseline MUST load, run at least one example and pass; else the row is
   `NOT_RUN` with a `detail` naming why (over the timeout, offline gems, no report, examples that
   do not load, no examples, red examples, or a non-zero exit with every example passing). Every
   selected mutant MUST then run, the changed file restored after each. RSpec's JSON report
-  decides a mutant: a report with errors outside examples or no examples, a missing report, or an
+  decides a mutant: a report with errors outside examples or no examples, a failed example whose
+  exception class is in Ruby's `ScriptError` family (such as `SyntaxError` or `LoadError`), a missing report, or an
   exit status that disagrees with the report's failure count is `unloadable`, and a run the per-run timeout ends is
   `timed-out`; neither is ever killed nor survived. Only failed examples with a non-zero exit
   kill. The row is `PASS` when any mutant is killed, `FAIL` when at least one survives and none is
@@ -1673,6 +1678,8 @@ verification.
 | (FPK-V0-069) RSpec runner absent, unable to start in the sandbox, or missing gems offline | row `NOT_RUN`, `detail` names the cause, witness `UNSUPPORTED` `ruby-runner-unavailable` |
 | (FPK-V0-069) RSpec baseline red, unloadable, empty, over the timeout, or without a report | row `NOT_RUN`, `detail` names the cause, witness `UNSUPPORTED` `ruby-baseline-unusable`; the `mutation` record keeps the baseline receipt |
 | (FPK-V0-069) Ruby mutant that does not load, or whose run the per-run timeout ends | mutant `unloadable` or `timed-out` with its receipt, never killed nor survived; counted in `detail` |
+| (FPK-V0-069) A mutant loaded lazily inside an example raises `SyntaxError` or `LoadError` | mutant `unloadable`, never killed |
+| (FPK-V0-069) Host `~/.rspec` or XDG RSpec options (`--dry-run`, filters) | not read: every run names the export's options file, which holds only the revision's `.rspec` and `.rspec-local` |
 | (FPK-V0-068) Changed `.rb` source that does not lex, or a range with no site | row `NOT_RUN`, witness `NOT_PRODUCED` `mutation-input-unavailable` or `no-mutant-in-range` |
 | Checkpoint document missing, unreadable, non-regular, changed while opening, or over 256 KiB | exit 2, `unreadable-checkpoint-document`, no stdout |
 | Checkpoint document fails schema or canonical-JSON validation | exit 2, `invalid-checkpoint-document`, no stdout |
@@ -1785,8 +1792,8 @@ which is the whole of what the row asserts.
 | FPK-V0-055 | experimental `witnessing`, `coverage` (`internal/revieworder/order.go`), accepted, decision 0515 | `TestWitnessAndCoverageUnknownsRemainIndependent`, `TestRankUnwitnessedIsOnlyDiscriminatingFactor`, `TestCoverageTargetsAIAddedLines` |
 | FPK-V0-056 | experimental `revieworder.Rank`, accepted, decision 0515 | `TestRankDeterministicAndDoesNotMutateInputs`, `TestCommitWithoutGitAINoteReportsUnknownAuthorship` |
 | FPK-V0-057 | `discloseUnsupportedMutations`, `unsupportedMutationLanguage` (`cmd/corvint/prove_unsupported.go`), called from `compileProof` | `TestFPKV0057UnsupportedLanguageLeavesEngineAndCrossLanguageRowsAlone` (Go, Python, RSpec, testdata, cross-language, test-to-test, already-falsified and packet rows unmarked; minitest named ruby, typescript named); the earlier RSpec row test is `TestFPKV0071RubyRowsUnderMutateNeverStaySilent` since revision 27 |
-| FPK-V0-068 | `mutationTestPath`, `mutationLanguage` (`cmd/corvint/prove_py.go`), `rangeHunkSpans` `*.rb`, `judgeMutationMode` `.rb` branch (`cmd/corvint/prove.go`); `planMutations`, `lineTokens`, `planLine`, `constantSites`, `negateCondition`, `render` (`internal/liveverify/rbmutate/plan.go`); `analyzerruby.MaskSource` | `TestFPKV0068PlannerAppliesTheBoundedOperatorSet`, `TestFPKV0068PlannerLeavesNonCodeAndAmbiguousSitesAlone`, `TestFPKV0068PlannerConfinesSitesToChangedLines`, `TestFPKV0068RequestRejectsCallerMistakes`, `TestFPKV0069SelectionBoundIsDisclosed` |
-| FPK-V0-069 | `Judge`, `Run`, `falsify`, `judgeMutants`, `perRunTimeout` (`internal/liveverify/rbmutate/rbmutate.go`); `findRunner`, `runSpec`, `classifyRun`, `environment`, `baselineDetail` (`rspec.go`) | `TestFPKV0069WeakSpecLeavesBandMutantsSurviving` (issue #1321 band shape: 14 mutants, 6 killed, 8 survived, tree digest), `TestFPKV0069StrongSpecKillsBandMutants`, `TestFPKV0069UnloadableMutantIsNeverCredited`, `TestFPKV0069ClassifyRunReadsTheRSpecReport`, `TestFPKV0069BaselineMustPass`, `TestFPKV0069RunnerUnavailableIsUnsupportedAtTheRunnerStage`, all through the `minirspec` double on host Ruby; opt-in live `TestFPKV0069LiveRSpecQualification` (`CORVINT_TEST_RSPEC_IMAGE`, real RSpec 3.13 on Ruby 3.4 in a network-less container: the same 6 killed and 8 survived, 2026-10-20) |
+| FPK-V0-068 | `mutationTestPath`, `mutationLanguage` (`cmd/corvint/prove_py.go`), `rangeHunkSpans` `*.rb`, `judgeMutationMode` `.rb` branch (`cmd/corvint/prove.go`); `planMutations`, `lineTokens`, `planLine`, `constantSites`, `negateCondition`, `render` (`internal/liveverify/rbmutate/plan.go`); `analyzerruby.MaskSource` | `TestFPKV0068PlannerAppliesTheBoundedOperatorSet`, `TestFPKV0068PlannerLeavesNonCodeAndAmbiguousSitesAlone`, `TestFPKV0068PlannerConfinesSitesToChangedLines`, `TestFPKV0068PlannerKeepsLiteralsCommentsAndExponentsWhole`, `TestFPKV0068RequestRejectsCallerMistakes`, `TestFPKV0069SelectionBoundIsDisclosed` |
+| FPK-V0-069 | `Judge`, `Run`, `falsify`, `judgeMutants`, `perRunTimeout` (`internal/liveverify/rbmutate/rbmutate.go`); `findRunner`, `writeOptions`, `runSpec`, `classifyRun`, `loadFailure`, `environment`, `baselineDetail` (`rspec.go`) | `TestFPKV0069WeakSpecLeavesBandMutantsSurviving` (issue #1321 band shape: 14 mutants, 6 killed, 8 survived, tree digest), `TestFPKV0069StrongSpecKillsBandMutants`, `TestFPKV0069UnloadableMutantIsNeverCredited`, `TestFPKV0069ClassifyRunReadsTheRSpecReport`, `TestFPKV0069HostRSpecOptionsNeverApply`, `TestFPKV0069BaselineMustPass`, `TestFPKV0069RunnerUnavailableIsUnsupportedAtTheRunnerStage`, all through the `minirspec` double on host Ruby; opt-in live `TestFPKV0069LiveRSpecQualification` (`CORVINT_TEST_RSPEC_IMAGE`, real RSpec 3.13 on Ruby 3.4 in a network-less container: the same 6 killed and 8 survived, 2026-10-20) |
 | FPK-V0-070 | `proveMutationRecord`, `rubyVerdict` (`cmd/corvint/prove_rb.go`); `Receipt`, `Result`, `Report` (`rbmutate.go`); `proveRow.Mutation` | `TestFPKV0070RSpecRowCarriesPerMutantVerdictsAndReceipts` (end to end through `prove --base B --mutate`: 8 mutants on the two changed lines, 2 killed, 6 survived, every receipt and the baseline retained, tree digest), `TestFPKV0069WeakSpecLeavesBandMutantsSurviving` (per-mutant receipts) |
 | FPK-V0-071 | `rubyWitness` (`cmd/corvint/prove_rb.go`) | `TestFPKV0071RubyWitnessNamesWhyNoReplayableWitnessExists` (eight report shapes), `TestFPKV0071RubyRowsUnderMutateNeverStaySilent` (a Gemfile project without installed gems: `UNSUPPORTED` with a typed reason and a `mutation` record naming the stage; nothing without `--mutate`), `TestFPKV0070RSpecRowCarriesPerMutantVerdictsAndReceipts` |
 | FPK-V0-072 | `unsupportedMutationLanguage` unchanged; the RSpec-path predicate in `internal/liveverify/rbmutate/rbmutate.go` | `TestFPKV0057UnsupportedLanguageLeavesEngineAndCrossLanguageRowsAlone` (minitest still marked ruby), existing `Prove`/`Mutat`/`Python` focused tests unchanged |

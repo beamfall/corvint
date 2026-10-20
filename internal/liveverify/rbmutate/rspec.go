@@ -56,10 +56,23 @@ type summary struct {
 		ErrorsOutsideOfExamplesCount int `json:"errors_outside_of_examples_count"`
 	} `json:"summary"`
 	Examples []struct {
-		ID     string `json:"id"`
-		Status string `json:"status"`
+		ID        string `json:"id"`
+		Status    string `json:"status"`
+		Exception *struct {
+			Class string `json:"class"`
+		} `json:"exception"`
 	} `json:"examples"`
 }
+
+// scriptErrors are Ruby's ScriptError family. An example that fails with one
+// failed to load code (a mutant that no longer parses, required lazily), not
+// on behaviour.
+var scriptErrors = map[string]bool{"ScriptError": true, "SyntaxError": true, "LoadError": true, "NotImplementedError": true, "Gem::LoadError": true, "Gem::MissingSpecError": true}
+
+// optionsName is the options file, in the export's root, that replaces
+// RSpec's own options-file lookup: the revision's `.rspec` and `.rspec-local`
+// only, never the host's `~/.rspec` or `$XDG_CONFIG_HOME/rspec/options`.
+const optionsName = ".corvint-rspec-options"
 
 type specRun struct {
 	outcome  runOutcome
@@ -73,6 +86,7 @@ type rspecRunner struct {
 	argv          []string
 	copy          Copy
 	configuration settings
+	options       string
 }
 
 // name is the runner's argv prefix with absolute paths cut to base names,
@@ -114,6 +128,11 @@ func findRunner(ctx context.Context, copy Copy, configuration settings) (rspecRu
 	output, timedOut, err := runner.run(ctx, "--version")
 	switch {
 	case err == nil:
+		options, err := writeOptions(copy.Dir())
+		if err != nil {
+			return runner, "cannot write the rspec options file"
+		}
+		runner.options = options
 		return runner, ""
 	case timedOut:
 		return runner, "rspec does not start within the per-run timeout"
@@ -121,6 +140,27 @@ func findRunner(ctx context.Context, copy Copy, configuration settings) (rspecRu
 		return runner, "gem dependencies unavailable offline"
 	}
 	return runner, "rspec cannot run inside the sandbox"
+}
+
+// writeOptions writes the options file every spec run names with
+// `--options`, which makes RSpec skip the global, project and local files it
+// would otherwise read: the revision's own `.rspec` and `.rspec-local` are
+// copied in, the host's files never are.
+func writeOptions(dir string) (string, error) {
+	var content []byte
+	for _, name := range []string{".rspec", ".rspec-local"} {
+		path := filepath.Join(dir, name)
+		if !regularFile(path) {
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		content = append(append(content, data...), '\n')
+	}
+	target := filepath.Join(dir, optionsName)
+	return target, os.WriteFile(target, content, 0o644)
 }
 
 func (runner rspecRunner) run(ctx context.Context, arguments ...string) (string, bool, error) {
@@ -132,7 +172,7 @@ func (runner rspecRunner) run(ctx context.Context, arguments ...string) (string,
 // source is the changed file's content the run sees, for the receipt.
 func (runner rspecRunner) runSpec(ctx context.Context, source []byte) specRun {
 	reportPath := filepath.Join(runner.copy.Scratch(), reportName)
-	output, timedOut, err := runner.run(ctx, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.testPath)
+	output, timedOut, err := runner.run(ctx, "--options", runner.options, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.testPath)
 	content, readErr := os.ReadFile(reportPath)
 	return classifyRun(err, timedOut, output, content, readErr == nil, digest(source))
 }
@@ -167,7 +207,7 @@ func classifyRun(err error, timedOut bool, output string, content []byte, haveRe
 	run.receipt.ErrorsOutsideExamples = parsed.Summary.ErrorsOutsideOfExamplesCount
 	run.receipt.FailedExamples = failedExamples(parsed)
 	switch {
-	case run.receipt.ErrorsOutsideExamples > 0 || run.receipt.Examples == 0:
+	case run.receipt.ErrorsOutsideExamples > 0 || run.receipt.Examples == 0 || loadFailure(parsed):
 		run.outcome = runUnloadable
 	case run.receipt.Failures > 0 && run.receipt.ExitStatus != 0:
 		run.outcome = runFailed
@@ -177,6 +217,17 @@ func classifyRun(err error, timedOut bool, output string, content []byte, haveRe
 		run.outcome = runUnloadable
 	}
 	return run
+}
+
+// loadFailure reports whether a failed example failed with a ScriptError:
+// code that did not load, which is never a behavioural kill.
+func loadFailure(parsed summary) bool {
+	for _, example := range parsed.Examples {
+		if example.Status == "failed" && example.Exception != nil && scriptErrors[example.Exception.Class] {
+			return true
+		}
+	}
+	return false
 }
 
 // failedExamples is the sorted, bounded list of failed example ids.

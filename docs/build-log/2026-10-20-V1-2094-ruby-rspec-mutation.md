@@ -54,3 +54,22 @@ sandbox, the row is the typed `UNSUPPORTED` witness.
   `CORVINT_TEST_RSPEC_DIR` under a shared path.
 - The `prove.go` and `help.go` line citations in three specs were repinned mechanically. Each one
   moved only by the inserted lines, and its original content anchor still matches.
+
+## Independent review
+
+One Codex round (read-only) reported five findings. All five were confirmed and fixed in this
+change.
+
+- A failed example whose exception is a Ruby `ScriptError` (a lazily loaded mutant that no longer
+  parses) was being counted as a kill. It is now `unloadable`.
+- The host's `~/.rspec` and XDG options could reach runs. Every run now names an options file in
+  the export that holds only the revision's `.rspec` and `.rspec-local`.
+- The planner split a string at an inner `#`. It now ends a line's code only at comment offsets
+  recorded by `MaskSource`.
+- A condition closed by a bare `end` on its own line (`def f; x if y end`) was negated into
+  invalid Ruby. Such a condition is now skipped.
+- A float exponent such as `1e-3` was split into separate sites. It is now kept as part of the
+  float.
+
+After the fixes, the live RSpec qualification gave the same result: 6 of 14 mutants killed and 8
+survived.

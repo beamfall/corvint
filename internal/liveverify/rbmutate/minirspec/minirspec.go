@@ -1,6 +1,6 @@
 // Package minirspec is a test double for RSpec: a small Ruby program that
-// accepts the command line rbmutate passes (`--version`, or `--format json
-// --out PATH --no-color SPEC`), runs `describe`/`it`/`expect(...).to eq(...)`
+// accepts the command line rbmutate passes (`--version`, or `--options FILE
+// --format json --out PATH --no-color SPEC`), runs `describe`/`it`/`expect(...).to eq(...)`
 // examples, and writes RSpec's JSON summary shape. Tests use it to drive the
 // Ruby mutation runner through a real Ruby interpreter on hosts without the
 // rspec gem; it is never used outside tests.
@@ -26,7 +26,7 @@ until args.empty?
   arg = args.shift
   case arg
   when '--out' then out = args.shift
-  when '--format' then args.shift
+  when '--format', '--options' then args.shift
   when /\A--/ then nil
   else files << arg
   end
@@ -67,13 +67,14 @@ end
 results = []
 if errors.zero?
   $mini_examples.each_with_index do |(name, block), index|
-    status = 'passed'
+    result = { 'id' => "./#{files.first}[1:#{index + 1}]", 'full_description' => name, 'status' => 'passed' }
     begin
       block.call
-    rescue Exception
-      status = 'failed'
+    rescue Exception => e
+      result['status'] = 'failed'
+      result['exception'] = { 'class' => e.class.name, 'message' => e.message }
     end
-    results << { 'id' => "./#{files.first}[1:#{index + 1}]", 'full_description' => name, 'status' => status }
+    results << result
   end
 end
 failures = results.count { |result| result['status'] == 'failed' }

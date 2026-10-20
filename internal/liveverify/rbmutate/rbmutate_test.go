@@ -349,6 +349,8 @@ func TestFPKV0069ClassifyRunReadsTheRSpecReport(t *testing.T) {
 		{"load error", exitError(t, 1), false, report(0, 0, 1), true, runUnloadable},
 		{"no report", exitError(t, 1), false, nil, false, runUnloadable},
 		{"non-zero all passed", exitError(t, 2), false, report(3, 0, 0), true, runUnloadable},
+		{"script error in an example", exitError(t, 1), false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"SyntaxError"}}]}`), true, runUnloadable},
+		{"behavioural failure", exitError(t, 1), false, []byte(`{"summary":{"example_count":2,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0},"examples":[{"id":"./a[1:1]","status":"failed","exception":{"class":"RSpec::Expectations::ExpectationNotMetError"}}]}`), true, runFailed},
 		{"timed out", errors.New("killed"), true, nil, false, runTimedOut},
 		{"no exit status", errors.New("sandbox did not start"), false, nil, false, runBroken},
 	}
@@ -444,5 +446,32 @@ func TestFPKV0068RequestRejectsCallerMistakes(t *testing.T) {
 		if _, err := Judge(context.Background(), fakeCopy{dir: t.TempDir()}, request); err == nil {
 			t.Errorf("accepted %+v", request)
 		}
+	}
+}
+
+// TestFPKV0069HostRSpecOptionsNeverApply pins the options file: every spec
+// run names one, inside the export, holding the revision's `.rspec` and
+// `.rspec-local` only, so RSpec reads no host options file.
+func TestFPKV0069HostRSpecOptionsNeverApply(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".rspec"), []byte("--require spec_helper"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path, err := writeOptions(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, err := os.ReadFile(path)
+	if err != nil || filepath.Dir(path) != dir || string(content) != "--require spec_helper\n" {
+		t.Fatalf("options file %s: %q %v", path, content, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".rspec-local"), []byte("--order defined\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if path, err = writeOptions(dir); err != nil {
+		t.Fatal(err)
+	}
+	if content, _ = os.ReadFile(path); string(content) != "--require spec_helper\n--order defined\n\n" {
+		t.Fatalf("options file: %q", content)
 	}
 }

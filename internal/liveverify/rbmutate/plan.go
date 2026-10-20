@@ -86,16 +86,20 @@ type site struct {
 // planMutations lists every candidate mutation inside lines (all lines when
 // lines is empty) in source order. ok is false when the source does not lex.
 func planMutations(source []byte, lines []mutate.LineSpan) ([]site, bool) {
-	masked, ok := analyzerruby.MaskSource(source)
+	masked, commentOffsets, ok := analyzerruby.MaskSource(source)
 	if !ok || len(masked) != len(source) {
 		return nil, false
+	}
+	comments := make(map[int]bool, len(commentOffsets))
+	for _, offset := range commentOffsets {
+		comments[offset] = true
 	}
 	var sites []site
 	for number, bounds := range lineBounds(source) {
 		if !inSpans(number+1, lines) {
 			continue
 		}
-		tokens := lineTokens(source, masked, bounds[0], bounds[1])
+		tokens := lineTokens(source, masked, comments, bounds[0], bounds[1])
 		sites = append(sites, planLine(source, tokens, number+1)...)
 	}
 	sort.SliceStable(sites, func(left, right int) bool { return sites[left].Start < sites[right].Start })
@@ -130,20 +134,23 @@ func inSpans(line int, spans []mutate.LineSpan) bool {
 }
 
 // lineTokens tokenizes one physical line of the masked view. A blanked run is
-// a literal operand, unless the source shows it is a comment, which ends the
-// line's code.
-func lineTokens(source, masked []byte, from, to int) []token {
+// one literal operand, spaces inside it included, unless the masker recorded
+// it as a comment, which ends the line's code.
+func lineTokens(source, masked []byte, comments map[int]bool, from, to int) []token {
 	var tokens []token
 	for at := from; at < to; {
 		current := masked[at]
 		switch {
 		case current == ' ' && source[at] != ' ' && source[at] != '\t' && source[at] != '\r':
-			if source[at] == '#' {
+			if comments[at] {
 				return markSpacing(masked, tokens, to)
 			}
 			end := at
-			for end < to && masked[end] == ' ' && source[end] != ' ' && source[end] != '\t' {
+			for end < to && masked[end] == ' ' && !comments[end] {
 				end++
+			}
+			for end > at && (source[end-1] == ' ' || source[end-1] == '\t' || source[end-1] == '\r') {
+				end--
 			}
 			tokens = append(tokens, token{kind: kindLiteral, start: at, end: end})
 			at = end
@@ -214,11 +221,35 @@ func numberEnd(masked []byte, at, to int) (int, bool) {
 			end++
 		}
 	}
+	// An exponent, signed or not, belongs to the float: `1e-3` is one
+	// literal, never `1e` minus 3. A radix prefix stops the digits first.
+	if exponent := exponentEnd(masked, end, to); exponent > end {
+		decimal, end = false, exponent
+	}
 	for end < to && wordByte(masked[end]) {
 		decimal = false
 		end++
 	}
 	return end, decimal
+}
+
+// exponentEnd is the end of a float exponent (`e`, an optional sign, digits)
+// starting at at, or at itself when there is none.
+func exponentEnd(masked []byte, at, to int) int {
+	if at >= to || masked[at] != 'e' && masked[at] != 'E' {
+		return at
+	}
+	next := at + 1
+	if next < to && (masked[next] == '+' || masked[next] == '-') {
+		next++
+	}
+	if next >= to || masked[next] < '0' || masked[next] > '9' {
+		return at
+	}
+	for next < to && (masked[next] >= '0' && masked[next] <= '9' || masked[next] == '_') {
+		next++
+	}
+	return next
 }
 
 func operatorAt(masked []byte, at, to int) string {
@@ -296,8 +327,9 @@ func constantSites(current token, line int) []site {
 
 // negateCondition wraps the condition after an if, elsif, unless, while, or
 // until keyword in `!(...)`. The condition runs to `then`, `do`, `;`, or the
-// end of the line's code; a condition that continues on the next line or
-// whose brackets do not balance is never touched.
+// end of the line's code; a condition that continues on the next line, whose
+// brackets do not balance, or that a bare `end` follows on the same line
+// (`def f; x if y end`) is never touched.
 func negateCondition(source []byte, tokens []token, index, line int) (site, bool) {
 	keyword := tokens[index]
 	if !conditionKeywords[keyword.text] || index > 0 && tokens[index-1].text == "." {
@@ -311,6 +343,9 @@ func negateCondition(source []byte, tokens []token, index, line int) (site, bool
 		text := tokens[last].text
 		if depth == 0 && (text == ";" || tokens[last].kind == kindWord && (text == "then" || text == "do")) {
 			break
+		}
+		if depth == 0 && text == "end" && tokens[last].kind == kindWord && tokens[last-1].text != "." && tokens[last-1].text != "&." && tokens[last-1].text != "::" {
+			return site{}, false
 		}
 		switch text {
 		case "(", "[", "{":

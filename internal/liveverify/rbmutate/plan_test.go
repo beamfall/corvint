@@ -104,3 +104,35 @@ func TestFPKV0068PlannerConfinesSitesToChangedLines(t *testing.T) {
 		t.Fatal("an unterminated literal lexed")
 	}
 }
+
+// TestFPKV0068PlannerKeepsLiteralsCommentsAndExponentsWhole pins three
+// FPK-V0-068 boundaries: a `#` inside a string is not a comment, a condition
+// that a bare `end` closes on its own line is never negated, and a float's
+// exponent is part of the float.
+func TestFPKV0068PlannerKeepsLiteralsCommentsAndExponentsWhole(t *testing.T) {
+	source := "if value == \"a # b\" then 1 end\n" +
+		"if label == \"a\" # note\n" +
+		"end\n" +
+		"def f; true if ready? end\n" +
+		"x = 1e-3\n" +
+		"y = 2.5E+4\n" +
+		"z = 0x1e - 3\n"
+	sites, ok := planMutations([]byte(source), nil)
+	if !ok {
+		t.Fatal("fixture does not lex")
+	}
+	want := []string{
+		"1 negate-condition value == \"a # b\" -> !(value == \"a # b\")",
+		"1 relational-negation == -> !=",
+		"1 constant-decrement 1 -> 0",
+		"1 constant-increment 1 -> 2",
+		"2 negate-condition label == \"a\" -> !(label == \"a\")",
+		"2 relational-negation == -> !=",
+		"7 arithmetic-swap - -> +",
+		"7 constant-decrement 3 -> 2",
+		"7 constant-increment 3 -> 4",
+	}
+	if got := describeSites(sites); !reflect.DeepEqual(got, want) {
+		t.Fatalf("sites:\n got %q\nwant %q", got, want)
+	}
+}
