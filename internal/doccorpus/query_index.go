@@ -150,6 +150,8 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			terms[i][term] = true
 		}
 	}
+	// V1-2001: one reused set holds each claim's terms in turn.
+	claimTerms := map[string]struct{}{}
 	for i, c := range a.Claims {
 		if err := add(c, RecordRef{"claim", i}); err != nil {
 			return nil, err
@@ -161,7 +163,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			x.Claims[c.Subject] = append(x.Claims[c.Subject], i)
 		}
 		if j, ok := subjectIDs[c.Subject]; ok {
-			for term := range contextindex.EvidenceTerms(c.Text) {
+			clear(claimTerms)
+			contextindex.CollectEvidenceTerms(c.Text, claimTerms)
+			for term := range claimTerms {
 				if !terms[j][term] {
 					if err := charge(term); err != nil {
 						return nil, err
