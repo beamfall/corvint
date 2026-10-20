@@ -69,7 +69,10 @@ platforms. It is exactly:
    `make interop-gate`. (accepted 2026-09-26, decision 0424; from decision 0398) That second
    consumer, `interop/cem01-go`, covers `cem/0.1` only; `cem/0.2`, OCM and frontier are
    single-implementation at 1.0, held by their canonical vectors alone, and 1.0 claims no second
-   consumer and no interoperability for them (`PRS-V1-007`).
+   consumer and no interoperability for them (`PRS-V1-007`). Amended by decision 0525 §6 (V1-0595, decision
+   0546): `cem/0.x` is retired, and `interop/cem01-go` now verifies `cem/1.0` only. OCM and
+   frontier stay single-implementation, and 1.0 claims no independent CEM consumer
+   (`CEM-V1-008`).
 3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
    producing a retained, explicit local outcome bound to a CEM.
 4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
