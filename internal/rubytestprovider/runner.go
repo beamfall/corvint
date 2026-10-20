@@ -50,6 +50,16 @@ const (
 //go:embed corvint_formatter.rb
 var corvintFormatter []byte
 
+// FormatterClass is the Ruby class the Corvint-shipped formatter registers.
+const FormatterClass = formatterClass
+
+// CorvintFormatterSource returns a copy of the Corvint-shipped formatter
+// bytes. The corvint-test-runner rspec profile writes these same bytes, so one
+// formatter source serves both the provider and the runner (TRE-V0-084).
+func CorvintFormatterSource() []byte {
+	return append([]byte(nil), corvintFormatter...)
+}
+
 // Config is one RSpec run. Dir is the absolute project directory RSpec runs
 // in; ExecPrefix, when present, runs RSpec through a wrapper such as
 // `docker compose run --rm app` whose working directory must be the same

@@ -74,7 +74,7 @@ func Parse(in tr.Input) (tr.Observation, error) {
 			case "playwright":
 				err = parsePlaywright(b, &o)
 			case "rspec":
-				err = parseRSpec(b, &o)
+				err = parseRSpec(b, &o, n == rspecCorvintReport)
 			case "unittest", "minitest", "rails-test", "test-unit":
 				err = parseOwned(b, &o)
 			case "testcafe":
@@ -318,13 +318,20 @@ func failureKind(s string) string {
 	return ""
 }
 
-func parseRSpec(b []byte, o *tr.Observation) error {
+// parseRSpec reads RSpec's JSON report. Under the Corvint formatter
+// (corvint) every example must also carry its shared-group inclusion
+// backtrace, retained as InclusionLocations (TRE-V0-085); the stock report
+// ignores that member.
+func parseRSpec(b []byte, o *tr.Observation, corvint bool) error {
 	var r struct {
 		Version  string
 		Examples []struct {
 			ID, Description, Status string
 			File                    string `json:"file_path"`
 			Exception               *struct{ Class, Message string }
+			Inclusions              *[]struct {
+				Location *string `json:"inclusion_location"`
+			} `json:"shared_group_inclusion_backtrace"`
 		}
 		Summary *struct {
 			Count    int `json:"example_count"`
@@ -348,6 +355,13 @@ func parseRSpec(b []byte, o *tr.Observation) error {
 	failed, pending := 0, 0
 	for _, e := range r.Examples {
 		t := tr.Test{ID: e.ID, Name: e.Description, File: e.File, State: state(e.Status)}
+		if corvint {
+			locations, err := inclusionLocations(e.ID, e.Inclusions)
+			if err != nil {
+				return err
+			}
+			t.InclusionLocations = locations
+		}
 		if t.State == tr.Failed {
 			failed++
 		}

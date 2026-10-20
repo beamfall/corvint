@@ -222,3 +222,60 @@ func mustJSON(t *testing.T, v any) []byte {
 	}
 	return b
 }
+
+// TestCEMV1280AdmitsContainerisedRSpecReceipt traces TRE-V0-083 and
+// TRE-V0-085 through the one admitted profile: a corvint-test-runner rspec
+// plan carrying an exec prefix, path map and the Corvint formatter, with a
+// receipt that names shared-example inclusion locations, is admitted
+// unchanged; editing any of those plan members without re-binding the receipt
+// is refused as tampered, so a receipt cannot be replayed under another
+// prefix, mapping or formatter.
+func TestCEMV1280AdmitsContainerisedRSpecReceipt(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	r, _, _ := plainFixture(t)
+	rspec := func() runnerDocs {
+		d := neutralRunnerDocs(t, r.Repository, r.Target)
+		d.plan.Request = tr.Request{Runner: "rspec", Root: r.Repository, Executable: "/usr/local/bin/docker", ReportDir: "/host/reports/run", InputFiles: d.plan.Request.InputFiles, TimeoutSeconds: 120,
+			ExecPrefix: []string{"run", "--rm", "-v", "/host/reports:/reports", "ruby@sha256:" + tr.Digest(nil), "rspec"}, PathMap: []tr.PathMapping{{Host: "/host/reports", Container: "/reports"}}, Formatter: "corvint-rspec-json/0"}
+		d.receipt.PlanSha256 = tr.Identity(d.plan)
+		d.receipt.Execution.Runner, d.receipt.Observation.Runner = "rspec", "rspec"
+		d.receipt.Observation.Tests = []tr.Test{{ID: "./spec/widget_spec.rb[1:2:1]", Name: "is valid", State: tr.Passed, InclusionLocations: []string{"./spec/widget_spec.rb:7"}}}
+		return d
+	}
+	d := rspec()
+	plan, receipt := mustJSON(t, d.plan), mustJSON(t, d.receipt)
+	for _, member := range []string{`"execPrefix"`, `"pathMap"`, `"formatter"`} {
+		if !strings.Contains(string(plan), member) {
+			t.Fatalf("plan omits %s: %s", member, plan)
+		}
+	}
+	if !strings.Contains(string(receipt), `"inclusionLocations":["./spec/widget_spec.rb:7"]`) {
+		t.Fatalf("receipt omits inclusion locations: %s", receipt)
+	}
+	out := filepath.Join(realTemp(t), "bundle")
+	if _, e := admit(t, r, out, plan, receipt); e != nil {
+		t.Fatalf("containerised rspec receipt refused: %v", e)
+	}
+	if got, e := os.ReadFile(filepath.Join(out, "artifacts/runner-receipt.json")); e != nil || string(got) != string(receipt) {
+		t.Fatalf("admitted receipt differs: %v", e)
+	}
+	for name, edit := range map[string]func(*tr.Request){
+		"prefix":    func(q *tr.Request) { q.ExecPrefix[4] = "ruby:latest" },
+		"path map":  func(q *tr.Request) { q.PathMap = []tr.PathMapping{{Host: "/host/reports", Container: "/elsewhere"}} },
+		"formatter": func(q *tr.Request) { q.Formatter = "" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			d := rspec()
+			edit(&d.plan.Request)
+			out, e := admit(t, r, filepath.Join(realTemp(t), "bundle"), mustJSON(t, d.plan), mustJSON(t, d.receipt))
+			if got := cemcode.CodeOf(e); got != "runner-receipt-tampered" {
+				t.Fatalf("code %q (%v), want runner-receipt-tampered", got, e)
+			}
+			if _, e := os.Stat(out); !os.IsNotExist(e) {
+				t.Fatalf("refused receipt left a bundle: %v", e)
+			}
+		})
+	}
+}

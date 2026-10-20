@@ -4378,6 +4378,12 @@ TRE-V0-041	docs/specs/test-runner-execution-v0.md	Runner plan and receipt decode
 TRE-V0-042	docs/specs/test-runner-execution-v0.md	The `gradle-junit` profile MUST pass `--gradle-user-home`	unrecorded	-
 TRE-V0-043	docs/specs/test-runner-execution-v0.md	New `gradle-junit` plans MUST set `retireDetachedDescendants`	unrecorded	-
 TRE-V0-044	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0612) For `sto	standing	2026-10-11; V1-0612
+TRE-V0-081	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) A plan r	standing	2026-10-11; V1-2101
+TRE-V0-082	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) A `pathM	standing	2026-10-11; V1-2101
+TRE-V0-083	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The pref	standing	2026-10-11; V1-2101
+TRE-V0-084	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The only	standing	2026-10-11; V1-2101
+TRE-V0-085	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The	standing	2026-10-11; V1-2101
+TRE-V0-086	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2101) With	standing	2026-10-11; V1-2101
 TRE-V0-045	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `cargo-d	standing	2026-10-11; V1-0593
 TRE-V0-046	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593
 TRE-V0-047	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0593) `catch2`	standing	2026-10-11; V1-0593

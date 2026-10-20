@@ -49,6 +49,25 @@ type Request struct {
 	// ExpectedSelection is omitted when absent so historical plan bytes and
 	// identities are unchanged.
 	ExpectedSelection *Selection `json:"expectedSelection,omitempty"`
+	// ExecPrefix, PathMap and Formatter are admitted only for the rspec
+	// profile (TRE-V0-081..085). Each is omitted when absent, so every other
+	// plan keeps its historical bytes and identity (TRE-V0-086).
+	ExecPrefix []string      `json:"execPrefix,omitempty"`
+	PathMap    []PathMapping `json:"pathMap,omitempty"`
+	Formatter  string        `json:"formatter,omitempty"`
+}
+
+// HasRSpecOnlyMembers reports whether any member admitted only for the rspec
+// profile is present; every other profile refuses such a request (TRE-V0-081).
+func (r Request) HasRSpecOnlyMembers() bool {
+	return len(r.ExecPrefix) > 0 || len(r.PathMap) > 0 || r.Formatter != ""
+}
+
+// PathMapping names one host directory and the path at which the exec
+// prefix's runtime sees it (TRE-V0-082).
+type PathMapping struct {
+	Host      string `json:"host"`
+	Container string `json:"container"`
 }
 type Phase struct {
 	StdoutReport string            `json:"stdoutReport"`
@@ -111,6 +130,10 @@ type Test struct {
 	Suite         string    `json:"suite"`
 	State         string    `json:"state"`
 	Attempts      []Attempt `json:"attempts"`
+	// InclusionLocations is the native shared-group inclusion backtrace of an
+	// RSpec example under the corvint-rspec-json/0 formatter (TRE-V0-085);
+	// omitted when the example was not included through a shared group.
+	InclusionLocations []string `json:"inclusionLocations,omitempty"`
 }
 type Problem struct {
 	Code   string `json:"code"`
