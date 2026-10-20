@@ -100,6 +100,8 @@ type rspecReader struct {
 	// support is the bound support set helpers resolve against, or nil when none was given
 	// (TSA-V0-088).
 	support *rspecSupport
+	// flags is the flag lookup list stubs are classified against (TSA-V0-435).
+	flags testvalidity.FlagLookups
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a

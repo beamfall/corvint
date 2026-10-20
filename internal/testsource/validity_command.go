@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -54,11 +55,13 @@ type SourceValidityFile struct {
 
 // SourceValidityTest is the hygiene axis a test's findings give it: ELIGIBLE with only advisory
 // findings, INELIGIBLE with any invalid one (TSA-V0-051). A located JS/TS example also carries its
-// NOT_MEASURED strength axis (TSA-V0-081).
+// NOT_MEASURED strength axis (TSA-V0-081). Conditions are the flag values an RSpec example forces,
+// each with its "conditional on flag KEY=VALUE" qualifier (TSA-V0-440).
 type SourceValidityTest struct {
-	Test     string             `json:"test"`
-	Hygiene  testvalidity.Axis  `json:"hygiene"`
-	Strength *testvalidity.Axis `json:"strength,omitempty"`
+	Test       string                       `json:"test"`
+	Hygiene    testvalidity.Axis            `json:"hygiene"`
+	Strength   *testvalidity.Axis           `json:"strength,omitempty"`
+	Conditions []testvalidity.FlagCondition `json:"conditions,omitempty"`
 }
 
 // Refused reports whether any test is refused as proof.
@@ -118,6 +121,7 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 	report := SourceValidityReport{Schema: SourceValiditySchema, Revision: commit, Files: []SourceValidityFile{}, Tests: []SourceValidityTest{}}
 	supports := map[string]testvalidity.RubySupport{}
 	var seeds func(name, text string) []testvalidity.SourceFinding
+	var flags *testvalidity.FlagLookups
 	for _, name := range files {
 		if m := RSpecQualifiedRef.FindStringSubmatch(name); m != nil {
 			file, test, err := r.qualifiedValidity(commit, m, supports)
@@ -135,6 +139,14 @@ func SourceValidity(r Repo, options SourceValidityOptions) (SourceValidityReport
 		support := testvalidity.RubySupport{}
 		if strings.HasSuffix(name, "_spec.rb") {
 			support = r.rubySupport(commit, name, supports)
+			if flags == nil {
+				read, err := r.flagLookups(commit)
+				if err != nil {
+					return SourceValidityReport{}, err
+				}
+				flags = &read
+			}
+			support.Flags = flags
 		}
 		file, tests := readSourceValidity(name, string(data), support)
 		if IsJSValidityTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
@@ -278,7 +290,13 @@ func readSourceValidity(name, text string, support testvalidity.RubySupport) (So
 		for _, line := range exampleLines(examples) {
 			file.Findings = append(file.Findings, examples[line].Findings...)
 		}
-		return file, findingTests(file.Findings, nil)
+		tests := findingTests(file.Findings, nil)
+		for i, t := range tests {
+			if line, err := strconv.Atoi(t.Test[strings.LastIndex(t.Test, ":")+1:]); err == nil {
+				tests[i].Conditions = examples[line].Conditions
+			}
+		}
+		return file, tests
 	}
 	base := ValidityFindings(name, text)
 	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings, Abstentions: base.Abstentions}
