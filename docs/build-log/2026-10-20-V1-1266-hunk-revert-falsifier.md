@@ -53,8 +53,8 @@ Method: the 2026-10-15 tally definition, unchanged.
 cited a guarding test. The full window holds 49 candidate hunks in 10 maps, and the consumer held
 none of them. Following decision 0523 §5, the hunk-revert headline is not carried in rc.3 text, and
 P0 (consumer-derived tiers and the `citation` block) is the rc.3 support claim. `--hunk-revert` and
-`--guarding-tests` stay shipped as opt-in steps with their recorded limits. Whether to keep them,
-retire them, or rerun K1 after making the step automatic is not decided here.
+`--guarding-tests` stay shipped as opt-in steps with their recorded limits (orchestrator decision,
+2026-10-20; see Residuals).
 
 ### The 49 candidates
 
@@ -79,14 +79,25 @@ counted as recorded.
 
 ### Why the share is zero
 
-- **The step was not used.** `--guarding-tests` emits a plan row only for a test it saw fail with
-  that one hunk reverted. Re-run at the same target, such a row is `held` unless the test is flaky.
-  None of the 49 rows is `held`, so, by inference, none came from the step. The citations were
-  written by hand.
-- **Hand citations name the change's own new tests.** Ten rows cite a span with no base test
-  declaration (`no-named-test`). Twenty fail to compile with the hunk reverted, typically because a
-  new test calls the new code. Eighteen name a test that still passes reverted (`survived`), so the
-  citation is weaker than it claims. That is the outcome the falsifier exists to expose.
+- **Misplaced spans.** The candidates cite tests that already exist at base, not tests the change
+  adds. Several spans do not cover a test declaration at all.
+  - Ten rows are `no-named-test`: the cited span declares no top-level test. In `31be1c53` the
+    unnamed spans cover base imports and helpers, for example
+    `internal/extevidence/repository_test.go` bytes 0-1032 (package clause, imports, `gitIn`,
+    `writeFile`) and `internal/appflows/intent_test.go` bytes 2696-2962 (the `commitAll` helper).
+    The other three cover parts of existing test bodies in `cmd/corvint/affected_selection_test.go`
+    (bytes 7986-8111, 7986-8769 and 11352-11885).
+  - Eighteen rows name a base test that still passes with the hunk reverted (`survived`), so the
+    test does not guard that hunk. That is the outcome the falsifier exists to expose.
+- **`revert-breaks-build`.** Twenty rows cannot be judged, because reverting the one hunk alone
+  breaks the package. For example, `38b05710` changes only `internal/testsource/teardown_reading.go`
+  among Go files. All four of its rows cite existing tests in
+  `internal/testsource/teardown_dependents_test.go`, and every revert fails to build.
+- **Provenance is unverified.** One hypothesis is that no producer used `--guarding-tests` here and
+  the rows were written by hand. The step emits a row only for a test it saw fail with that hunk
+  reverted, so a replay at the same target should give `held`. This is unverified. One replay with
+  zero `held` cannot establish provenance: the host, the caches or flakiness could differ. No
+  producer record was checked.
 - **No automatic run.** `internal/dogfoodflow` reports `guarding-tests` `NOT_PRODUCED`
   `guarding-tests-not-run` and does not block, so producers skip the search. Its probe cost
   (1200 s on a 42-hunk change, `2026-10-15` entry) also discourages manual use.
@@ -108,7 +119,12 @@ so the decision 0375 line citations further down the file stay pinned.
 
 - **Ticket state.** All three acceptance criteria now have retained evidence. K1 is a kill outcome,
   not a pass, and the orchestrator decides closure.
-- **Follow-up.** Whether to rerun K1 once the step runs automatically, or to retire the P2 surfaces,
-  needs an owner or orchestrator decision.
-- **Outside this lane's paths.** `docs/CHANGE-EVIDENCE-MAP.md` lists K1 without its outcome. It
-  is not edited here. The spec needs no change: no requirement text claims the headline.
+- **Follow-up decision (orchestrator, 2026-10-20).** `--hunk-revert` and `--guarding-tests` stay
+  opt-in. A K1 re-measure, once dogfood runs the guarding-test search by default, is filed as
+  V1-2032.
+- **Outside this lane's paths.** `docs/CHANGE-EVIDENCE-MAP.md` line 70 lists K1 without its
+  outcome. This is filed as V1-2031. The spec needs no change: no requirement text claims the
+  headline.
+- **Review.** One Codex round agreed with the counts, the window boundaries, the totals and the K1
+  conclusion. It asked for two wording fixes, both applied here: the spans are misplaced rather
+  than new tests, and provenance is a hypothesis.
