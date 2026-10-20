@@ -21,7 +21,7 @@ import (
 // obligationQualifiedVersions is the TOL-V0-009 qualified Playwright version
 // list a report is admitted against. It is a variable only so tests can
 // exercise the admitted path with a synthetic version; the shipped list is
-// obligation.QualifiedVersions, empty until the live fixture passes.
+// obligation.QualifiedVersions (1.63.0, TOL-V0-126).
 var obligationQualifiedVersions = obligation.QualifiedVersions
 
 // admittedVersions is the shipped TOL-V0-009 list with the store-local

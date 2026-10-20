@@ -497,3 +497,28 @@ func TestTOLV0066_AuditRequiresExactTestRepositoryRoot(t *testing.T) {
 		t.Fatal("audit resolved the declared directory to the enclosing repository")
 	}
 }
+
+// TestTOLV0126_ShippedVersionAdmitted: the shipped TOL-V0-009 list holds
+// exactly 1.63.0, whose live fixture run is retained, so a 1.63.0 report
+// credits in a store with no allow-list, and another 1.63 patch still refuses.
+func TestTOLV0126_ShippedVersionAdmitted(t *testing.T) {
+	if got := strings.Join(obligation.QualifiedVersions(), ","); got != "1.63.0" {
+		t.Fatalf("shipped qualified versions %q, want 1.63.0", got)
+	}
+	r, id, head := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	spec := pwSpec{Title: "AC-1 login", ID: "s1", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}}
+	other := atm(t, r.Root, nil, witnessArgs(id, "w-other", obligationRevision(t, r.Root, id), head, "--from-playwright-report",
+		writeReport(t, t.TempDir(), r.Root, "1.63.1", spec))...)
+	if other.res.Outcome == wire.OutcomeOK || !hasCode(other.res, wire.CodeUnsupportedVersion) {
+		t.Fatalf("1.63.1 admitted: %s", other.stdout)
+	}
+	x := atm(t, r.Root, nil, witnessArgs(id, "w-shipped", obligationRevision(t, r.Root, id), head, "--from-playwright-report",
+		writeReport(t, t.TempDir(), r.Root, "1.63.0", spec))...)
+	if x.res.Outcome != wire.OutcomeOK || strList(x.res.Items[0], "credited") != "AC-1" || !auditConsistent(t, r.Root) {
+		t.Fatalf("shipped 1.63.0 witness: %s", x.stdout)
+	}
+	if _, err := os.Lstat(obligation.AllowListPath(r.CommonDir)); !os.IsNotExist(err) {
+		t.Fatalf("a shipped-version witness touched the allow-list: %v", err)
+	}
+}
