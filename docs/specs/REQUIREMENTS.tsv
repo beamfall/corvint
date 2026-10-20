@@ -1339,6 +1339,7 @@ CAL-V0-315	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-316	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548)	standing	2026-10-11; V1-1548
 CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The	standing	2026-10-11; V1-1548
 CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
+CAL-V0-319	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the	standing	2026-10-11; V1-2012
 CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-

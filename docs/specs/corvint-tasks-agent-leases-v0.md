@@ -144,6 +144,7 @@ one.
 | V1-1511 | CAL-V0-277..278 | Accepted (standing auto-accept, 2026-10-16): heartbeat and renew help state that a renew records the signal, so a same-tick heartbeat is redundant, and when a renew-only holder can read `STALE_HOLDER`; `policy show` reports the effective `heartbeatTTLSeconds`; focused tests |
 | V1-1526 | CAL-V0-310 | Accepted (standing auto-accept, 2026-10-16): an unknown `--fields` key is still refused `MALFORMED`, with a warning naming the key, listing the item's keys and suggesting `PARENT.KEY` one level down (`record.body`); `ticket show` usage names the `record.` prefix; focused tests |
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
+| V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 
@@ -7171,6 +7172,44 @@ launched under it keep it until they end). To revert the build, drain the dispat
 ledger version move is. Then revert the code and this amendment; no store, receipt or policy byte
 changes.
 
+### V1-2012 interrupted gate run retention
+
+Human-owned input: native ticket V1-2012 (2026-10-20), the successor of
+CORE-FINISH-INTERRUPTED-TRANSCRIPT-PRESERVATION-1 after decision 0544. Its question was whether an
+interrupted `gate run` keeps the gate transcript and an interrupted outcome. Observed on the built
+binary before this change: on SIGINT or SIGTERM the gate's process group was killed (no survivor),
+`gate run` answered `MALFORMED` with the warning `context canceled`, the attempt kept no gate
+result, and every byte the gate had printed was discarded. Intent: keep what the run produced.
+
+- `CAL-V0-319`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the
+  run context of a `gate run` ends (SIGINT or SIGTERM to the CLI) after the gate program started,
+  `gate run` still stops the gate's process group and reaps it, and then records that run as an
+  ordinary gate result instead of discarding it: its state is set by the existing §7.1 rules (an
+  interrupted gate is `FAILED`; a gate that had already exited keeps its own outcome), its outcome
+  class is the one the process observation gives (for a killed gate `SIGNAL`), and its `output`
+  evidence is the captured output up to the interrupt, bounded by the executable gate's 16 MiB
+  output cap. The record write runs under its own 30-second bound rather than the ended context. The
+  result carries the warning `gate run interrupted: ...`, and stays unretryable as CAL-V0-078 says.
+  An interrupt before the gate starts, or during a reuse (CAL-V0-240), records nothing as before.
+
+Non-goals: a new gate outcome class (TCP-00 §7.1's closed set is unchanged, so no reader version
+moves); streaming gate output to the terminal; retaining output beyond the existing cap; surviving
+SIGKILL of the CLI, which leaves the gate as before and records nothing.
+
+Failure modes: the record write can still fail (store lock held past the bound, a fenced attempt):
+`gate run` then reports that error, as an uninterrupted run whose write failed does. A supervisor
+that sends SIGKILL soon after SIGTERM can end the write; the journal recovers it as any writer
+crash (CAL-V0-019).
+
+Acceptance evidence: `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`):
+the context ends two seconds into a gate that printed `partial` and sleeps 30 seconds; the run
+returns promptly, the attempt holds a `FAILED` result whose `output` evidence is `partial`, the
+report is interrupted and unretryable, and the receipt audit passes. The reproduction before and
+after the change is in `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`.
+
+Rollback: revert the change; a recorded interrupted result is an ordinary §7.1 gate result that an
+earlier build reads unchanged, and a later `gate run` replaces it.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -7280,7 +7319,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
   The gate runs in the caller's worktree (`executedCwd` `WORKTREE`) with only the environment
   names the gate's `env` declares, taken from the caller, so a gate whose commands need `PATH`
   must declare it. The first argv element is resolved on `corvint-tasks`' own `PATH`, not the
-  declared one. An interrupt kills the gate's process group and records nothing. The CAL-V0-024
+  declared one. An interrupt kills the gate's process group; a run that started is still recorded
+  as CAL-V0-319 says (V1-2012 amends the earlier "records nothing"). The CAL-V0-024
   scope check at `submit` counts only paths that differ from both the base commit's tree and the
   intent branch tip's tree, so a candidate rebased onto a later `main` is not charged with paths
   other tickets merged. The check therefore guards what a lease completion certifies, not the
@@ -8116,3 +8156,4 @@ after this restore.
 | CAL-V0-316 | `TestCALV0316_DispatchStatusShowsKeeperPerWorker` (`internal/tasks/cli`) |
 | CAL-V0-317 | `TestCALV0317_UnobservedTreeIsNotKept` (`internal/tasks/dispatch`) |
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
+| CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md` |
