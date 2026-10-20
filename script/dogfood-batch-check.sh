@@ -14,6 +14,7 @@ go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 
 base_arg=${1:?usage: dogfood-batch-check.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
+source "$repo/script/dogfood-build-corvint.sh" || exit 2
 expected_version=$(cat "$repo/VERSION")
 if [[ -z $expected_version ]]; then
   printf 'dogfood-batch-check: REFUSE project-version-unavailable\n' >&2
@@ -23,8 +24,7 @@ if [[ -z $corvint_bin_set ]]; then
   build_dir=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-check.XXXXXX") || exit 2
   trap 'rm -rf "$build_dir"' EXIT
   corvint_bin="$build_dir/corvint"
-  if ! (cd "$repo" && GOCACHE="$go_cache" GOTOOLCHAIN=local \
-    go build -o "$corvint_bin" -trimpath ./cmd/corvint 2> /dev/null); then
+  if ! dogfood_build_tree_corvint "$corvint_bin"; then
     printf 'dogfood-batch-check: REFUSE current-tree-corvint-build-failed\n' >&2
     exit 2
   fi

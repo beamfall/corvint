@@ -12,7 +12,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check}.sh "$root/repo/script/"
+/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint}.sh "$root/repo/script/"
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -85,7 +85,7 @@ for route in direct make; do
         }
         count=$((count + 1))
         if [[ $count == 1 ]]; then [[ $source == tree-source ]] || exit 1; else [[ $source == base-source ]] || exit 1; fi
-        if [[ $action != change ]]; then [[ $argv == *' -trimpath ./cmd/corvint' ]] || exit 1; fi
+        [[ $argv == *' -trimpath ./cmd/corvint' ]] || exit 1
       done < "$TEST_BUILD_LOG"
       if [[ $action == change ]]; then
         [[ $count == 1 ]] || exit 1
