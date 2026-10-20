@@ -90,6 +90,11 @@ func TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues(t *testing.T) {
 	if !errors.As(err, &refusal) || refusal.Code != "freshness-runtime-tuple-unqualified" {
 		t.Fatalf("freshness runner refusal untyped: %v", err)
 	}
+	// Direct freshness callers get the same typed refusal (PWP-V0-040).
+	var direct *E2ERefusal
+	if _, err := RunFreshE2E(context.Background(), E2EConfig{Config: Config{RunnerVersion: "1.64.0"}, Freshness: &FreshnessConfig{}}); !errors.As(err, &direct) || direct.Code != refusal.Code || direct.Tuple == nil || direct.Tuple.Field != "runner" {
+		t.Fatalf("direct freshness refusal untyped: %v", err)
+	}
 	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"freshness-runtime-tuple-unqualified","message":"freshness-runtime-tuple-unqualified: runner not admitted for corvint-playwright-freshness/0; admitted runner values: 1.63.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"],"runtimeTuple":{"profile":"corvint-playwright-freshness/0","field":"runner","admitted":["1.63.0"]}}` + "\n"
 	if got := string(EncodeE2ERefusal(refusal)); got != want {
 		t.Fatalf("document\n got %s\nwant %s", got, want)

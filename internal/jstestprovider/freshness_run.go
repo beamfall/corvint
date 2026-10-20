@@ -98,8 +98,12 @@ func RunFreshE2E(ctx context.Context, cfg E2EConfig) (r Receipt, err error) {
 	if cfg.KeepReporters {
 		return Receipt{}, errors.New("keep-reporters-unsupported-mode")
 	}
+	// Direct callers get the same typed tuple refusal as RunE2E (PWP-V0-040).
+	if m := AdmittedRuntimeTupleMismatch(FreshnessProfile, cfg.RunnerVersion, "", ""); m != nil {
+		return Receipt{}, &E2ERefusal{Code: "freshness-runtime-tuple-unqualified", Detail: m.detail(), Tuple: m}
+	}
 	c := cfg.Freshness
-	if c == nil || cfg.ExternalServer || cfg.ApplicationAttestation == nil || cfg.SensitiveInputPolicy != nil || cfg.RetainAttemptDetails || !freshRepoComplete(c.ProductExpected) || !freshRepoComplete(c.TestExpected) || !freshLoopback(c.DocumentURL) || !freshLoopback(cfg.ServerReadyURL) || !filepath.IsAbs(c.ProductDir) || filepath.IsAbs(c.ArtifactPath) || filepath.Clean(c.ArtifactPath) != c.ArtifactPath || c.ArtifactPath == "." || strings.HasPrefix(c.ArtifactPath, "../") || !rawDigestPattern.MatchString(c.SourceDigest) || !rawDigestPattern.MatchString(c.ObserverConfigDigest) || !reflect.DeepEqual(cfg.ServerArgv, c.Server.Argv) || AdmittedRuntimeTupleMismatch(FreshnessProfile, cfg.RunnerVersion, "", "") != nil || cfg.Timeout <= 0 || cfg.Timeout > 60*time.Second {
+	if c == nil || cfg.ExternalServer || cfg.ApplicationAttestation == nil || cfg.SensitiveInputPolicy != nil || cfg.RetainAttemptDetails || !freshRepoComplete(c.ProductExpected) || !freshRepoComplete(c.TestExpected) || !freshLoopback(c.DocumentURL) || !freshLoopback(cfg.ServerReadyURL) || !filepath.IsAbs(c.ProductDir) || filepath.IsAbs(c.ArtifactPath) || filepath.Clean(c.ArtifactPath) != c.ArtifactPath || c.ArtifactPath == "." || strings.HasPrefix(c.ArtifactPath, "../") || !rawDigestPattern.MatchString(c.SourceDigest) || !rawDigestPattern.MatchString(c.ObserverConfigDigest) || !reflect.DeepEqual(cfg.ServerArgv, c.Server.Argv) || cfg.Timeout <= 0 || cfg.Timeout > 60*time.Second {
 		return Receipt{}, errors.New("freshness-config-unsupported")
 	}
 	environment := declaredEnv([]string{"PATH", "LANG", "LC_ALL", "TMPDIR"})
