@@ -39,3 +39,9 @@ func affectedMixedWorktreeRefusal(revision string, dirty int) error {
 func affectedPathListMixedRefusal(revision string, dirty int) error {
 	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths", revision, dirty)}
 }
+
+// affectedPathListIgnoredRefusal names an ignored file HEAD does not track that
+// a --path plan would read from disk (AFP-V0-094).
+func affectedPathListIgnoredRefusal(revision, path string) error {
+	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses ignored file %s, which HEAD does not track and the graph reads; HEAD is commit %s", path, revision)}
+}

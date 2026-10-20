@@ -1187,14 +1187,20 @@ and container qualification; full fallback remains available.
   repository, index or ledger write. Rollback: remove the flag and its refusal.
 - **AFP-V0-094:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
   `affected` MUST accept the experimental repeatable `--path PATH` (as `--path PATH` or
-  `--path=PATH`, at most 4096 distinct paths) and plan exactly that changed-path set at the
+  `--path=PATH`, at most 4096 distinct paths; the separated form refuses a value that begins with
+  `-` as `invalid-arguments`, so `--path --full` never swallows the next option, and a
+  dash-prefixed name is written `--path=VALUE`) and plan exactly that changed-path set at the
   captured HEAD instead of the worktree status set or a `--base` range. Each value MUST be a
   canonical repository-relative path (`ValidRelativePath`), else `invalid-arguments`; a repeated
   path collapses, and `plan.dirty` is the sorted unique set. A path absent at HEAD is planned as
   a deleted or unindexed path under AFP-V0-004, never refused. The worktree status is still read
   (AFP-V0-001): any entry, untracked included, MUST refuse with exit 2, code
   `unsupported-affected-mixed-worktree`, a message naming the HEAD commit and dirty count, and
-  no stdout document, before the graph walk, because a dirty graph is not HEAD's. The receipt is
+  no stdout document, before the graph walk, because a dirty graph is not HEAD's. An ignored file
+  HEAD does not track is not a dirty path, so after the graph build the ignored untracked set
+  (`git ls-files --others --ignored --exclude-standard --directory`, with the status bounds) is
+  read, and a listed path or any graph unit source or test that is, or lies under, an ignored
+  entry MUST refuse with the same code, naming that path and the HEAD commit. The receipt is
   the `affected-plan/1` (or, with `--full`, `affected-plan/0`) document of the default form with
   the same advice, provider projection, drift checks and `range` `{base: "", paths: []}`, plus
   one optional top-level `path_list` member echoing the sorted set (CCF-V1-006: an added optional
@@ -1815,8 +1821,10 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 `NOT_VERIFIED`, and net runner cost and ready-to-merge effects are `NOT_OBSERVED`.
 
 `--path` failure modes (AFP-V0-094/095): a non-canonical value or an unsupported combination is
-`invalid-arguments`; a dirty worktree is `unsupported-affected-mixed-worktree`, never a plan that
-mixes uncommitted bytes into HEAD's graph; a listed path no language claims widens to `UNKNOWN`
+`invalid-arguments`, and so is a separated `--path` value that begins with `-`; a dirty worktree,
+or an ignored untracked file the list names or the graph reads, is
+`unsupported-affected-mixed-worktree`, never a plan that mixes bytes HEAD does not pin into HEAD's
+graph; a listed path no language claims widens to `UNKNOWN`
 rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure depth from an
 `impact` receipt; only the help says so (AFP-V0-096).
 
@@ -1869,7 +1877,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-043 | `run` strict per-log `observeStream` in `tools/ci-shard-costs/main.go` | `TestAFPV0043RefreshRefusesMalformedLine`, `TestAFPV0043RefreshRefusesTruncatedFinalEvent`, `TestAFPV0043RefreshRefusesUnfinishedPackage`, `TestAFPV0043RefreshRefusesEmptyShard`, `TestAFPV0043RefreshValidStreamByteParity` |
 | AFP-V0-044 | `affectedMixedWarning` in `cmd/corvint/affected_freshness.go`; `Warning` in `affectedReceipt`, `playwrightAffectedReceipt`, `affectedCompactReceipt` | `TestAffectedMixedRangeWarning` (warning on /1 and /0 with a dirty path outside the range; none for a clean worktree, the worktree-only form or a range inside the dirty set; no mutable content), `TestAffectedPlaywrightFreshness` (Playwright receipt warning; none clean or worktree-only) |
 | AFP-V0-045 | `RequireClean` parsing in `parseAffectedOptions`; `affectedMixedWorktreeRefusal` in `compileAffected` and `compilePlaywrightAffected` | `TestAffectedRequireClean` (clean byte parity; untracked entry refuses on the worktree, `--full --base` and provider forms before the provider runs, with no write; value, repetition, `--snapshot` and `discovery` refused), `TestAffectedPlaywrightFreshness` (Playwright clean byte parity and dirty refusal with no write) |
-| AFP-V0-094 | `addAffectedPath` and the `--path` combination check in `parseAffectedOptions`; `affectedPathListMixedRefusal` and the `PathList` branch in `compileAffectedGraph`; `path_list` in `affectedReceipt` and `affectedCompactReceipt` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (HEAD revision, empty range, no warning, `plan` byte-identical to the `--base` plan in compact and `--full`, repeated path collapses, no `path_list` without the flag), `TestAFPV0094PathListRefusals` (absolute, parent, empty and missing values; `--base`, `--snapshot`, `--provider`, `--playwright-config`; dirty worktree refuses with the HEAD commit and no write) |
+| AFP-V0-094 | `addAffectedPath` and the `--path` combination check in `parseAffectedOptions`; `affectedPathListMixedRefusal`, `affectedPathListIgnoredCheck` over `affected.IgnoredPaths`, and the `PathList` branch in `compileAffectedGraph`; `path_list` in `affectedReceipt` and `affectedCompactReceipt` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (HEAD revision, empty range, no warning, `plan` byte-identical to the `--base` plan in compact and `--full`, repeated path collapses, no `path_list` without the flag), `TestAFPV0094PathListRefusals` (absolute, parent, empty and missing values; `--base`, `--snapshot`, `--provider`, `--playwright-config`; dirty worktree refuses with the HEAD commit and no write), `TestAFPV0094PathListRefusesIgnoredFilesTheGraphReads` (an ignored `core/generated.go` refuses whether listed or only read), `TestAFPV0094PathListRejectsOptionLookingSeparatedValue` (`--path --path=..`, `--path --full`, `--path -x` refuse; `--path=-dash.txt` plans) |
 | AFP-V0-095 | `affected.Select` reached unchanged through `compileAffectedGraph` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (leaf selected through an untested mid with witness core, mid, leaf), `TestAFPV0095PathListKeepsUnknownScope` (an unowned listed path keeps `UNKNOWN` with `UNOWNED_DIRTY_PATH`) |
 | AFP-V0-096 | `impactHelp` and `affectedHelp` in `cmd/corvint/help.go`; `docs/CAPABILITIES.md` `impact` and `affected` rows | `TestAFPV0096HelpStatesImpactClosureDepth` |
 | AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the record-step condition in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |

@@ -250,6 +250,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError(name + " requires exactly one value")
 			}
 			value = rest[index+1]
+			if name == "--path" && strings.HasPrefix(value, "-") {
+				return affectedInvocation{}, argumentError("--path requires a path value, got option " + pythonRepr(value) + "; write --path=VALUE for a name that begins with -")
+			}
 			index++
 		}
 		index++
@@ -714,6 +717,11 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if len(invocation.PathList) != 0 {
 		changed = invocation.PathList
 	}
+	if len(invocation.PathList) != 0 {
+		if err := affectedPathListIgnoredCheck(ctx, gitExecutable, root, revision, graph, invocation.PathList); err != nil {
+			return affectedReceipt{}, nil, err
+		}
+	}
 	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, gitExecutable, root, invocation.Base, revision, changed))
 	plan := affected.Select(graph, changed)
 	provider := providerGoProjection(graph, plan)
@@ -838,6 +846,33 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
 	}
 	return paths, nil
+}
+
+// affectedPathListIgnoredCheck refuses a --path plan whose disk graph reads, or
+// whose list names, an ignored file HEAD does not track: such a file is not a
+// dirty path, yet a graph built over it is not HEAD's (AFP-V0-094).
+func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revision string, graph *affected.Graph, listed []string) error {
+	ignored, err := affected.IgnoredPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	if len(ignored) == 0 {
+		return nil
+	}
+	paths := append([]string{}, listed...)
+	for _, id := range graph.UnitIDs() {
+		if unit, ok := graph.Unit(id); ok {
+			paths = append(append(paths, unit.Sources...), unit.Tests...)
+		}
+	}
+	for _, path := range affected.NormalizePaths(paths) {
+		for _, entry := range ignored {
+			if path == entry || (strings.HasSuffix(entry, "/") && strings.HasPrefix(path, entry)) {
+				return affectedPathListIgnoredRefusal(revision, path)
+			}
+		}
+	}
+	return nil
 }
 
 // compileAffectedAdvice joins the repository-declared mandatory gate, the

@@ -441,7 +441,7 @@ above stands with that substitution.
   that a handle was read. `repository.dirty_paths_sha256` is the lowercase hex SHA-256 of the
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
-  in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
+  in `DecodeStatus` at `internal/liveverify/affected/dirty.go:229@a543bfa1` via `NormalizePaths`,
   `internal/liveverify/affected/select.go:498-511@eadff8fe`), by the same construction
   `internal/gokernel/repository.go:405-406@425ed3ff` and `internal/gokernel/repository.go:416@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's

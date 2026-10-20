@@ -701,9 +701,11 @@ transitively, as the default form does, so a test two importers away is
 selected, and keeps the same scope and unknown vocabulary: a path no language
 claims leaves plan.scope UNKNOWN. A path absent at HEAD is planned as a
 deleted path. The receipt's path_list member echoes the sorted paths. A dirty
-worktree refuses with unsupported-affected-mixed-worktree, since the graph
-would not be HEAD's. It does not combine with --snapshot, --base, --provider,
---playwright-config, --playwright-discovery or --appmap-impact.
+worktree, or an ignored file HEAD does not track that the list names or the
+graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
+would not be HEAD's. Write --path=VALUE for a name that begins with -. It does
+not combine with --snapshot, --base, --provider, --playwright-config,
+--playwright-discovery or --appmap-impact.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one

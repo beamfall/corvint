@@ -173,3 +173,49 @@ func TestAFPV0096HelpStatesImpactClosureDepth(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-094: an ignored file absent from HEAD is not dirty, but the disk
+// graph reads it, so a --path plan over it would not be HEAD's; it refuses
+// whether the ignored file is listed or only read by the graph.
+func TestAFPV0094PathListRefusesIgnoredFilesTheGraphReads(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("core/generated.go\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".gitignore")
+	affectedGit(t, root, "commit", "-qm", "ignore generated source")
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	if err := os.WriteFile(filepath.Join(root, "core", "generated.go"), []byte("package core\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := treeDigest(t, root)
+	for _, listed := range []string{"core/generated.go", "core/core.go"} {
+		receipt, stdout, stderr, code := runAffectedCLI(t, root, "--path", listed)
+		if code != 2 || len(stdout) != 0 || receipt != nil || !strings.Contains(stderr, "unsupported-affected-mixed-worktree") ||
+			!strings.Contains(stderr, "core/generated.go") || !strings.Contains(stderr, head) {
+			t.Fatalf("--path %s over an ignored graph file: exit %d stdout=%s stderr=%s", listed, code, stdout, stderr)
+		}
+	}
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("a refused --path run must not write")
+	}
+}
+
+// AFP-V0-094: the separated form never takes an option-looking token as its
+// value, so `--path --full` cannot swallow the next option; a dash-prefixed
+// file name is still reachable as `--path=VALUE`.
+func TestAFPV0094PathListRejectsOptionLookingSeparatedValue(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	for _, options := range [][]string{{"--path", "--path=core/core.go"}, {"--path", "--full"}, {"--path", "-x"}} {
+		receipt, stdout, stderr, code := runAffectedCLI(t, root, options...)
+		if code != 2 || len(stdout) != 0 || receipt != nil || !strings.Contains(stderr, "invalid-arguments") {
+			t.Fatalf("%v: exit %d stdout=%s stderr=%s", options, code, stdout, stderr)
+		}
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--path=-dash.txt")
+	if code != 0 || !slices.Equal(anyStrings(receipt["path_list"]), []string{"-dash.txt"}) {
+		t.Fatalf("--path=-dash.txt: exit %d stderr=%s receipt=%v", code, stderr, receipt)
+	}
+}

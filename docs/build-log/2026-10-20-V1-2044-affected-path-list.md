@@ -43,3 +43,13 @@ gap above `AFP-V0-088`, which open PR #1314 uses.
 - No machine-readable closure-depth member on `impact` receipts. That needs a CCF-V1-006
   divergence decision.
 - No `--path` for the Playwright, provider or snapshot profiles.
+
+## Review fixes (Codex, PR #1316)
+
+- An ignored file HEAD does not track was not dirty but was read by the disk graph, so `--path`
+  could report `BOUNDED` at HEAD over it. `--path` now refuses `unsupported-affected-mixed-worktree`
+  when the list names, or any graph unit source or test is, an ignored untracked path
+  (`affected.IgnoredPaths`).
+- `--path --full` consumed the next option as its value. The separated form now refuses a value
+  that begins with `-`; `--path=VALUE` still admits such a name.
+- Each fix has a regression test that failed before it.
