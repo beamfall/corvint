@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -44,7 +46,7 @@ func neutralRunnerDocs(t *testing.T, repo, target string) runnerDocs {
 func admit(t *testing.T, r PlainRequest, out string, plan, receipt []byte) (string, error) {
 	t.Helper()
 	dir := realTemp(t)
-	r.RunnerAdmission = RunnerAdmissionProfile
+	r.RunnerAdmission = json.RawMessage(strconv.Quote(RunnerAdmissionProfile))
 	r.RunnerPlan = save(t, filepath.Join(dir, "plan.json"), plan)
 	r.RunnerReceipt = save(t, filepath.Join(dir, "receipt.json"), receipt)
 	_, e := AssemblePlain(context.Background(), r, out)
@@ -62,7 +64,7 @@ func TestCEMV1280RunnerAdmissionIsOptIn(t *testing.T) {
 	}
 	r, out, _ := plainFixture(t)
 	other := r
-	other.RunnerAdmission = "corvint-test-runner/1"
+	other.RunnerAdmission = json.RawMessage(`"corvint-test-runner/1"`)
 	if _, e := AssemblePlain(context.Background(), other, out); e == nil {
 		t.Fatal("an unknown runner admission profile was accepted")
 	}
@@ -81,6 +83,45 @@ func TestCEMV1280RunnerAdmissionIsOptIn(t *testing.T) {
 	}
 	if _, e := os.Stat(filepath.Join(out, "stable.json")); e != nil {
 		t.Fatalf("admitted receipt wrote no stable map: %v", e)
+	}
+}
+
+// TestCEMV1280PresentAdmissionMemberIsNeverOpaque decodes request JSON through
+// the CLI's closed decoder: a present runnerAdmission of "" or null is refused
+// before any read, like any other value, rather than read as absent, so a
+// failed receipt cannot reach an opaque ACCEPT; the admitted profile still
+// refuses that receipt as failed.
+func TestCEMV1280PresentAdmissionMemberIsNeverOpaque(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	r, _, _ := plainFixture(t)
+	docs := neutralRunnerDocs(t, r.Repository, r.Target)
+	docs.receipt.Observation.Tests[0].State = tr.Failed
+	dir := realTemp(t)
+	r.RunnerPlan = save(t, filepath.Join(dir, "plan.json"), mustJSON(t, docs.plan))
+	r.RunnerReceipt = save(t, filepath.Join(dir, "receipt.json"), mustJSON(t, docs.receipt))
+	raw := mustJSON(t, r)
+	if strings.Contains(string(raw), "runnerAdmission") {
+		t.Fatalf("absent member was encoded: %s", raw)
+	}
+	for member, want := range map[string]string{`""`: "", `null`: "", `"corvint-test-runner/0"`: "runner-receipt-failed"} {
+		request := append(raw[:len(raw)-1:len(raw)-1], []byte(`,"runnerAdmission":`+member+`}`)...)
+		var decoded PlainRequest
+		if e := Decode(request, &decoded); e != nil {
+			t.Fatalf("%s: closed decoder refused the request: %v", member, e)
+		}
+		out := filepath.Join(realTemp(t), "bundle")
+		result, e := AssemblePlain(context.Background(), decoded, out)
+		if e == nil {
+			t.Fatalf("runnerAdmission %s produced %s with a failed receipt", member, result.Verification.Outcome)
+		}
+		if got := cemcode.CodeOf(e); got != want || want == "" && e.Error() != "incomplete plain stable assembly request" {
+			t.Fatalf("runnerAdmission %s: code %q (%v), want %q", member, got, e, want)
+		}
+		if _, e := os.Stat(out); !os.IsNotExist(e) {
+			t.Fatalf("runnerAdmission %s left a bundle: %v", member, e)
+		}
 	}
 }
 

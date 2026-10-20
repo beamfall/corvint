@@ -2358,8 +2358,9 @@ rule, map byte or `corvint cem` verb.
 
 - `CEM-V1-280`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) A
   `cem-stable-plain-assembly/1` request MAY carry one more optional member, `runnerAdmission`.
-  Its only accepted value is `corvint-test-runner/0`; any other value is refused before any read.
-  When it is absent the runner files stay opaque exactly as `CEM-V1-240` states. When it is present
+  Its only accepted value is `corvint-test-runner/0`; any other value, including the empty string
+  and `null`, is refused before any read. Only an absent member keeps the runner files opaque,
+  exactly as `CEM-V1-240` states. When it is present
   the producer applies `CEM-V1-281..285` in that order, after the source-map check and before it
   creates the bundle, and a refusal writes no bundle at all. An admitted receipt yields the same
   map, artifacts and result as the opaque path; the map does not record that admission ran, and
@@ -2415,7 +2416,7 @@ refused without a code; an unknown `runnerAdmission` value is refused before any
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-280 | `TestCEMV1280RunnerAdmissionIsOptIn` (`internal/cemcandidate`); the opaque control in `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | `docs/build-log/2026-10-20-V1-0632-cem10-tasks-chain.md` |
+| CEM-V1-280 | `TestCEMV1280RunnerAdmissionIsOptIn` and `TestCEMV1280PresentAdmissionMemberIsNeverOpaque` (`internal/cemcandidate`); the opaque control in `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | `docs/build-log/2026-10-20-V1-0632-cem10-tasks-chain.md` |
 | CEM-V1-281 | `TestCEMV1281To1285RunnerAdmissionRefusals` (opaque public-case files, unknown receipt member, input path escapes) | Fails with the admission call disabled (build log) |
 | CEM-V1-282 | `TestCEMV1281To1285RunnerAdmissionRefusals` (another plan, other inputs, another runner); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |
 | CEM-V1-283 | `TestCEMV1281To1285RunnerAdmissionRefusals` (earlier source, absent path, no inputs); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |

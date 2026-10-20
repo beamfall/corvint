@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -431,7 +432,7 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 		return cemcandidate.PlainRequest{Profile: cemcandidate.PlainAssemblyProfile, Repository: code.root, ExpectedBase: base, Target: target,
 			SourceMap: ref(name+"-source.json", sourceBytes), RunnerPlan: ref(name+"-plan.json", plan), RunnerReceipt: ref(name+"-receipt.json", receipt),
 			Criteria:        []cemcandidate.PlainCriterion{{CriterionEvidenceID: evidence, HunkIDs: hunks, EvidenceIDs: []string{evidence}}},
-			RunnerAdmission: cemcandidate.RunnerAdmissionProfile}
+			RunnerAdmission: json.RawMessage(strconv.Quote(cemcandidate.RunnerAdmissionProfile))}
 	}
 
 	// Producer controls: each refused with its code, nothing written.
@@ -456,7 +457,7 @@ func TestCEMV1286TasksRunnerProducerVerifyChain(t *testing.T) {
 	// Without admission the producer keeps CEM-V1-240's opaque files: the
 	// failed receipt is then accepted, so the refusals above are admission's.
 	opaque := request("opaque", failPlan, failReceipt)
-	opaque.RunnerAdmission = ""
+	opaque.RunnerAdmission = nil
 	if result, err := cemcandidate.AssemblePlain(ctx, opaque, filepath.Join(realTemp(t), "bundle")); err != nil || result.Verification.Outcome != "ACCEPT" {
 		t.Fatalf("opaque failed receipt: %+v %v", result.Verification, err)
 	}
