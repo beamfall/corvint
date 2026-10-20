@@ -63,6 +63,33 @@ Receipts that built before are byte-identical: no receipt struct, member or enco
 1.63.0 tuple values are unchanged (asserted by `TestPWPV0032...` "no 1.63 regression" and the live
 1.63.0 run). The embedded reporter bytes changed but are not part of receipt identity.
 
+## Independent review
+
+One independent review round of PR #1269 found two issues. Both are fixed in a normal commit after
+the sealed CEM (bind `7f287dcb9`, seal `9b7539c5e`). Dogfood was not rerun, so that commit has no
+CEM binding.
+
+- P2: only errors returned by `runE2EReceipt` wrote the refusal document. CLI admission refusals
+  (`interrupt-grace-invalid`, `runner-control-requires-external-server`,
+  `runner-output-unavailable`) exited 1 with an empty stdout. `admitRunnerControl` and
+  `openRunnerOutput` now return a typed `E2ERefusal` with the same text. One-shot `e2e` routes all
+  three through the same writer. `watch` and `qualify-keep-reporters` still write nothing.
+  PWP-V0-034 is narrowed to refusals with a closed code. Free-text usage errors (malformed
+  attestation argv or config, sensitive additions without the flag, path resolution, an unreadable
+  qualification record, flag parsing) keep an empty stdout, because the document's `code` admits
+  only closed codes. Test: `TestPWPV0034CLIAdmissionRefusalWritesTypedDocument`.
+- P3: the writer ignored the write count and error. A failed or short write now keeps the original
+  refusal on stderr, followed by `; refusal-output-incomplete: <error>`. Exit status is unchanged,
+  and the error still unwraps to the typed refusal. No existing code fit: `runner-output-incomplete`
+  belongs to the runner console tee. Test: `TestPWPV0034RefusalWriteFailureKeepsDiagnostic`, which
+  covers failing and short writers.
+
+Each new test failed with its fix removed. Without the P2 routing, stdout was empty where the
+document was expected. With the write result ignored, the failing writer produced no
+refusal-output-incomplete. With the short-write check disabled, the short writer produced none
+either. Both tests pass with the fixes, as do the focused `./cmd/corvint-js-test-provider` and
+`./internal/jstestprovider` packages.
+
 ## NOT_RUN
 
 - `make gate` (owner preference for scoped work; `corvint affected` scope UNKNOWN, dependency-path
