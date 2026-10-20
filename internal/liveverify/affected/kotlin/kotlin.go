@@ -177,10 +177,46 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 			continue
 		}
 		text := string(body)
-		layout.projectMapped = layout.projectMapped || strings.Contains(text, "projectDir")
+		layout.projectMapped = layout.projectMapped || remapsProjectDirectory(text)
 		layout.composite = layout.composite || strings.Contains(text, "includeBuild(") || strings.Contains(text, "includeBuild ")
 	}
 	return layout, nil
+}
+
+// remapsProjectDirectory reports whether a Gradle manifest assigns a project
+// directory (KAT-V0-009): `projectDir = ...`, `project(":x").projectDir = ...`
+// or `setProjectDir(...)`. Reads such as `rootProject.projectDir.resolve(...)`
+// or `layout.projectDirectory` leave the conventional layout intact.
+func remapsProjectDirectory(text string) bool {
+	return wordFollowedBy(text, "projectDir", func(rest string) bool {
+		return strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==")
+	}) || wordFollowedBy(text, "setProjectDir", func(rest string) bool {
+		return strings.HasPrefix(rest, "(")
+	})
+}
+
+// wordFollowedBy reports whether word occurs as a whole identifier whose
+// following non-space text satisfies next.
+func wordFollowedBy(text, word string, next func(string) bool) bool {
+	for offset := 0; ; {
+		index := strings.Index(text[offset:], word)
+		if index < 0 {
+			return false
+		}
+		start := offset + index
+		end := start + len(word)
+		offset = end
+		if start > 0 && identifierByte(text[start-1]) || end < len(text) && identifierByte(text[end]) {
+			continue
+		}
+		if next(strings.TrimLeft(text[end:], " \t\r\n")) {
+			return true
+		}
+	}
+}
+
+func identifierByte(value byte) bool {
+	return value == '_' || value >= '0' && value <= '9' || value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z'
 }
 
 func makeObservation(relative string, scan sourceScan, layout buildLayout, frontier map[string]bool) sourceObservation {
