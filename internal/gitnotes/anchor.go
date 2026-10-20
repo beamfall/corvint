@@ -3,9 +3,11 @@ package gitnotes
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -85,6 +87,16 @@ func AnchorWithVerdict(ctx context.Context, root, mapPath, commit, artifacts str
 		return nil, cemcode.New(CodeScopeMismatch, "map %s does not describe commit %s: the canonical %s..%s patch does not hash to its patchSha256",
 			mapPath, target, pointer.Base, target).Guided("anchor the map onto the commit it was built for")
 	}
+	// Both tips are read before the notes they hold: the joint publish below
+	// is a compare-and-swap against exactly these values (CEM-V1-275).
+	pointerTip, err := repo.refTip(ctx, Ref)
+	if err != nil {
+		return nil, err
+	}
+	ledgerTip, err := repo.refTip(ctx, VerdictRef)
+	if err != nil {
+		return nil, err
+	}
 	var ledgerBody []byte
 	var recorded *VerdictRecord
 	if record {
@@ -104,8 +116,14 @@ func AnchorWithVerdict(ctx context.Context, root, mapPath, commit, artifacts str
 	if err != nil {
 		return nil, cemcode.New("output-failed", "cannot encode anchor pointer")
 	}
-	written, err := repo.writeNote(ctx, target, body)
+	pointerBlob, written, err := repo.planNote(ctx, target, body)
 	if err != nil {
+		return nil, err
+	}
+	if err := repo.publishNotes(ctx, target, record, []noteUpdate{
+		{ref: Ref, old: pointerTip, blob: pointerBlob, write: written},
+		{ref: VerdictRef, old: ledgerTip, body: ledgerBody, write: ledgerBody != nil, check: record},
+	}); err != nil {
 		return nil, err
 	}
 	readBack, err := repo.anchorRow(ctx, target)
@@ -120,7 +138,7 @@ func AnchorWithVerdict(ctx context.Context, root, mapPath, commit, artifacts str
 	if record {
 		verdict := map[string]any{"ref": VerdictRef, "written": ledgerBody != nil, "record": *recorded, "state": "verified"}
 		if ledgerBody != nil {
-			after, err := repo.appendLedger(ctx, target, ledgerBody)
+			after, err := repo.readLedger(ctx, target)
 			if err != nil {
 				return nil, err
 			}
@@ -211,29 +229,164 @@ func (r *repository) describes(ctx context.Context, p Pointer, commit string) (b
 	return hex.EncodeToString(digest[:]) == p.PatchSha256, nil
 }
 
-// writeNote stores body byte-exact as a blob and attaches it with `notes add
-// -C`, so Git's message cleanup never rewrites it. An identical note is a
-// no-op; a different one is refused, never overwritten.
-func (r *repository) writeNote(ctx context.Context, target string, body []byte) (bool, error) {
+// planNote stores body byte-exact as a blob, so Git's message cleanup never
+// rewrites it, and decides whether target's pointer note needs writing. An
+// identical note is a no-op; a different one is refused, never overwritten.
+func (r *repository) planNote(ctx context.Context, target string, body []byte) (string, bool, error) {
 	out, err := r.git(ctx, 256, body, "hash-object", "-w", "--stdin")
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	blob := strings.TrimSpace(string(out))
 	existing, err := r.noteBlob(ctx, Ref, target)
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	if existing == blob {
-		return false, nil
+		return blob, false, nil
 	}
 	if existing != "" {
-		return false, cemcode.New(CodeNoteConflict, "commit %s already carries a different %s note", target, Ref).
+		return "", false, cemcode.New(CodeNoteConflict, "commit %s already carries a different %s note", target, Ref).
 			Guided("inspect it with git notes --ref=" + Ref + " show " + target + "; remove it deliberately before re-anchoring")
 	}
-	args := append(append([]string{}, committer...), "notes", "--ref="+Ref, "add", "-C", blob, target)
-	if _, err := r.git(ctx, 64<<10, nil, args...); err != nil {
-		return false, err
+	return blob, true, nil
+}
+
+// beforePublish runs between the last validation and the joint publish of
+// the notes refs; tests set it to interleave a second writer
+// deterministically. Like verdictNow it is package state, so no test that
+// sets it runs in parallel.
+var beforePublish = func() {}
+
+// noteUpdate is one notes ref of the joint publish: the tip its note was
+// validated against ("" when the ref was absent) and, when write is set, the
+// note blob (or body to store) to attach to the target. check verifies an
+// unwritten ref still holds its validated tip.
+type noteUpdate struct {
+	ref, old, blob string
+	body           []byte
+	write, check   bool
+}
+
+// publishNotes builds each written ref's new notes commit on a private
+// staging ref seeded with the validated tip, then publishes every update in
+// one `git update-ref --stdin` transaction whose old values are the validated
+// tips (the zero object ID for an absent ref). Either every ref moves or none
+// does: a ref that moved since validation, a lock, or any other failure
+// leaves both refs as they were. A lost race is refused after re-reading the
+// tips: verdict-ledger-conflict when the ledger moved, anchor-note-conflict
+// when only the pointer did (CEM-V1-275).
+func (r *repository) publishNotes(ctx context.Context, target string, record bool, updates []noteUpdate) error {
+	var script strings.Builder
+	script.WriteString("start\n")
+	staged := false
+	zero := ""
+	for index := range updates {
+		update := &updates[index]
+		if !update.write {
+			continue
+		}
+		if update.blob == "" {
+			out, err := r.git(ctx, 256, update.body, "hash-object", "-w", "--stdin")
+			if err != nil {
+				return err
+			}
+			update.blob = strings.TrimSpace(string(out))
+		}
+		commit, err := r.stageNote(ctx, update.old, update.blob, target)
+		if err != nil {
+			return err
+		}
+		zero = strings.Repeat("0", len(commit))
+		update.blob = commit
+		staged = true
 	}
-	return true, nil
+	if !staged {
+		return nil
+	}
+	for _, update := range updates {
+		old := update.old
+		if old == "" {
+			old = zero
+		}
+		switch {
+		case update.write:
+			fmt.Fprintf(&script, "update %s %s %s\n", update.ref, update.blob, old)
+		case update.check:
+			fmt.Fprintf(&script, "verify %s %s\n", update.ref, old)
+		}
+	}
+	script.WriteString("prepare\ncommit\n")
+	beforePublish()
+	_, publishErr := r.git(ctx, 64<<10, []byte(script.String()), "update-ref", "--stdin")
+	if publishErr == nil {
+		return nil
+	}
+	moved := ""
+	for _, update := range updates {
+		if !update.write && !update.check {
+			continue
+		}
+		now, err := r.refTip(ctx, update.ref)
+		if err != nil {
+			return err
+		}
+		if now == update.old {
+			continue
+		}
+		if record && update.ref == VerdictRef {
+			return cemcode.New(CodeVerdictConflict, "the %s ref moved after the ledger of %s was validated; nothing was written", VerdictRef, target).
+				Guided("another writer recorded first; rerun cem anchor --artifacts to read the ledger it left")
+		}
+		moved = update.ref
+	}
+	if moved != "" {
+		return cemcode.New(CodeNoteConflict, "the %s ref moved after the note of %s was validated; nothing was written", moved, target).
+			Guided("another writer anchored first; rerun cem anchor to read the note it left")
+	}
+	return publishErr
+}
+
+// stageNote returns the notes commit that attaches blob to target on top of
+// the validated tip old ("" for an absent ref), built by `git notes` on a
+// private staging ref under refs/notes/ that it removes before returning. No
+// public ref moves.
+func (r *repository) stageNote(ctx context.Context, old, blob, target string) (string, error) {
+	nonce := make([]byte, 16)
+	if _, err := rand.Read(nonce); err != nil {
+		return "", cemcode.New("output-failed", "cannot name a staging ref")
+	}
+	staging := stagingRefPrefix + hex.EncodeToString(nonce)
+	defer func() { _, _ = r.git(context.WithoutCancel(ctx), 64<<10, nil, "update-ref", "-d", staging) }()
+	if old != "" {
+		if _, err := r.git(ctx, 64<<10, nil, "update-ref", staging, old); err != nil {
+			return "", err
+		}
+	}
+	args := append(append([]string{}, committer...), "notes", "--ref="+staging, "add", "-f", "-C", blob, target)
+	if _, err := r.git(ctx, 64<<10, nil, args...); err != nil {
+		return "", err
+	}
+	out, err := r.git(ctx, 256, nil, "rev-parse", "--verify", "--end-of-options", staging)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// stagingRefPrefix holds the transient refs publishNotes builds notes commits
+// on; each lives only for the duration of one stageNote call.
+const stagingRefPrefix = "refs/notes/corvint-staging/"
+
+// refTip is ref's current object ID, "" when the ref is absent.
+func (r *repository) refTip(ctx context.Context, ref string) (string, error) {
+	out, err := r.git(ctx, 4<<10, nil, "for-each-ref", "--format=%(objectname)", ref)
+	if err != nil {
+		return "", err
+	}
+	tip := strings.TrimSpace(string(out))
+	if strings.Contains(tip, "\n") {
+		return "", cemcode.New(cemcode.RepositoryObjectUnavailable, "ref %s does not name one object", ref)
+	}
+	return tip, nil
 }

@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -335,5 +337,93 @@ func TestCEMV1275FullLedgerIsRefused(t *testing.T) {
 	full.records, full.lines = full.records[1:], full.lines[1:]
 	if body, _, err := planAppend(full, record); err != nil || body == nil {
 		t.Fatalf("one slot left: %v", err)
+	}
+}
+
+// interleave makes the next joint publish run second first, once.
+func interleave(t *testing.T, second func()) {
+	t.Helper()
+	previous := beforePublish
+	beforePublish = func() {
+		beforePublish = previous
+		second()
+	}
+	t.Cleanup(func() { beforePublish = previous })
+}
+
+// CEM-V1-275: two writers that both validate an absent ledger cannot both
+// succeed. The second writer publishes between the first's validation and its
+// publish; the first then loses the compare-and-swap, is refused
+// verdict-ledger-conflict and overwrites nothing.
+func TestCEMV1275LostRaceIsRefusedWithoutOverwrite(t *testing.T) {
+	t.Run("second anchor", func(t *testing.T) {
+		pinVerdictClock(t)
+		root := fixtureRepo(t)
+		head := fixtureGit(t, root, nil, "rev-parse", "HEAD")
+		var winner map[string]any
+		interleave(t, func() {
+			verdictNow = func() time.Time { return time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC) }
+			var err error
+			if winner, err = AnchorWithVerdict(context.Background(), root, mapPath, "HEAD", root, true); err != nil {
+				t.Errorf("winner: %v", err)
+			}
+		})
+		_, err := AnchorWithVerdict(context.Background(), root, mapPath, "HEAD", root, true)
+		if cemcode.CodeOf(err) != CodeVerdictConflict {
+			t.Fatalf("loser code %q (%v)", cemcode.CodeOf(err), err)
+		}
+		if winner == nil || winner["ok"] != true {
+			t.Fatalf("winner receipt: %v", winner)
+		}
+		want := winner["verdict"].(map[string]any)["record"].(VerdictRecord)
+		if want.RecordedAt != "2026-10-21T00:00:00Z" || ledgerNote(t, root, head) != string(recordLine(t, want))+"\n" {
+			t.Fatalf("ledger holds %q, want only the winner's record", ledgerNote(t, root, head))
+		}
+		if fixtureGit(t, root, nil, "for-each-ref", "refs/notes/corvint-staging/") != "" {
+			t.Fatal("a staging ref survived")
+		}
+	})
+	t.Run("differing verdict", func(t *testing.T) {
+		pinVerdictClock(t)
+		root := fixtureRepo(t)
+		head := fixtureGit(t, root, nil, "rev-parse", "HEAD")
+		_, _, mapSha256 := expectedVerdict(t, root)
+		forged := append(recordLine(t, handRecord(t, root, mapSha256, strings.Repeat("c", 64), nil)), '\n')
+		interleave(t, func() { attachLedger(t, root, head, forged) })
+		_, err := AnchorWithVerdict(context.Background(), root, mapPath, "HEAD", root, true)
+		if cemcode.CodeOf(err) != CodeVerdictConflict {
+			t.Fatalf("loser code %q (%v)", cemcode.CodeOf(err), err)
+		}
+		if ledgerNote(t, root, head) != string(forged) || fixtureGit(t, root, nil, "for-each-ref", Ref) != "" {
+			t.Fatal("the losing anchor overwrote the ledger or wrote its pointer")
+		}
+	})
+}
+
+// CEM-V1-275: the pointer and the ledger are published in one transaction.
+// A lock on the ledger ref fails the anchor and leaves the pointer ref
+// unwritten; once the lock is gone the same anchor writes both.
+func TestCEMV1275LockedLedgerRefLeavesThePointerUnwritten(t *testing.T) {
+	pinVerdictClock(t)
+	root := fixtureRepo(t)
+	lock := filepath.Join(root, ".git", filepath.FromSlash(VerdictRef)+".lock")
+	if err := os.MkdirAll(filepath.Dir(lock), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lock, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AnchorWithVerdict(context.Background(), root, mapPath, "HEAD", root, true); err == nil {
+		t.Fatal("anchor succeeded with the ledger ref locked")
+	}
+	if refs := fixtureGit(t, root, nil, "for-each-ref", "refs/notes/"); refs != "" {
+		t.Fatalf("a failed publish left refs: %s", refs)
+	}
+	if err := os.Remove(lock); err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := AnchorWithVerdict(context.Background(), root, mapPath, "HEAD", root, true)
+	if err != nil || receipt["ok"] != true || receipt["written"] != true || receipt["verdict"].(map[string]any)["written"] != true {
+		t.Fatalf("anchor after unlock: %v (%v)", receipt, err)
 	}
 }

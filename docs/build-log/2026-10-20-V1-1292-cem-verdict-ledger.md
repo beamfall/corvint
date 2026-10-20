@@ -33,6 +33,13 @@ already holds through the `CEM-V1-066` tests.
   `cem verify` would report. Only ACCEPT and REJECT are recorded. Every refusal is decided before
   any write, whether of the pointer or of the verdict. The refusals are
   `verdict-ledger-conflict`, `-malformed`, `-unsupported-result` and `-full`.
+- Publish (review fix): the pointer and ledger notes commits are built on private
+  `refs/notes/corvint-staging/` refs seeded with the validated tips, then both public refs move in
+  one `git update-ref --stdin` transaction (start, update, update or verify, prepare, commit) with
+  those tips as old values. The first version replaced the ledger with `notes add -f` after
+  writing the pointer, so two anchors could both read an absent ledger and both report `ok`, and
+  a ledger failure left a pointer with no verdict. A lost race is now refused
+  `verdict-ledger-conflict` after re-reading the tips.
 - An identical repeat writes nothing and returns the first record, so `recordedAt` keeps the
   first verification time.
 - Reader: `cem provenance --verdicts` adds a `verdicts` member. Records are listed only when the
@@ -63,6 +70,10 @@ already holds through the `CEM-V1-066` tests.
   - Listing rewriting the note: `TestCEMV1277VerdictListingIsReadOnly` failed.
   - `--verdicts` inverted: `TestCEMV1277` failed.
   - Full bound off by one: `TestCEMV1275FullLedgerIsRefused` failed.
+  - Publish without old values (the overwrite the first version had):
+    `TestCEMV1275LostRaceIsRefusedWithoutOverwrite` failed in both cases (the loser succeeded).
+  - Pointer published in its own update before the transaction:
+    `TestCEMV1275LockedLedgerRefLeavesThePointerUnwritten` failed (`refs/notes/corvint` written).
   - At the base commit none of the new tests compile, because `AnchorWithVerdict` is absent.
 - The fixture's verdict is checked against an independent `wire.ParseStable` and `verify.Stable`
   run. The fixture reaches REJECT: it is the public receipt-authentication map rebound to the
@@ -76,8 +87,9 @@ already holds through the `CEM-V1-066` tests.
   change does not touch.
 - An ACCEPT record end to end: not run, because the fixture map verifies to REJECT. The
   record path does not depend on the outcome beyond the ACCEPT/REJECT domain check.
-- Concurrent anchors of one commit: not tested. This is a stated non-goal, with no
-  compare-and-swap.
+- Concurrent anchors from separate processes: not run. The race test interleaves a second writer
+  in process through a hook between validation and publish; the atomicity itself is Git's
+  `update-ref` transaction.
 
 ## Rollback
 

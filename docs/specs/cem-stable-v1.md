@@ -2997,7 +2997,12 @@ re-qualify it.
   `verdict-ledger-unsupported-result` when the verifier reaches no verdict (`UNSUPPORTED`, for
   example a relative or missing artifact root); and `verdict-ledger-full` when the note already
   holds 256 records. Every refusal of the pointer or of the verdict MUST be decided before any
-  note is written.
+  note is written. Anchor MUST build each new notes commit on the ref tip it validated and publish
+  the pointer ref and the ledger ref in one atomic `git update-ref --stdin` transaction whose old
+  values are those tips (the zero object ID for an absent ref), so a lock, a failure or a lost race
+  leaves both refs unchanged. A lost race MUST be refused after re-reading the tips, with
+  `verdict-ledger-conflict` when the ledger ref moved and `anchor-note-conflict` when only the
+  pointer ref moved; nothing is overwritten.
 - `CEM-V1-276`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1292) A ledger
   read MUST report exactly one state: `absent` (no note), `verified`, `malformed` (empty note, no
   final LF, more than 256 lines, a line that is not one canonical well-formed record),
@@ -3025,9 +3030,8 @@ map, `cem-stable-verification/1`, the anchor pointer profile and every provenanc
 unchanged, so the change is additive.
 
 Non-goals: no portable writer and no portable reader of the ledger (the portable consumer agrees on
-`verdictSha256` by `CEM-V1-066`; only the native consumer writes); no compare-and-swap between
-concurrent writers of the same note; no `--notes-tip` rollback check for the ledger ref; no
-signing; no default-on recording; no automatic removal or migration of a conflicting record.
+`verdictSha256` by `CEM-V1-066`; only the native consumer writes); no retry of a lost race; no
+`--notes-tip` rollback check for the ledger ref; no signing; no default-on recording; no automatic removal or migration of a conflicting record.
 
 Failure modes: a differing verdict for an anchored map blocks recording with
 `verdict-ledger-conflict`; the operator finds the cause (artifacts, verifier release) and removes
@@ -3035,8 +3039,10 @@ the note deliberately (`git notes --ref=refs/notes/corvint-verdicts remove REV`)
 again. An edited, reordered or truncated ledger note reads `malformed`, `chain-broken`,
 `scope-mismatch` or `conflict`, lists no records, and is never extended. A deleted or reset ledger
 ref reads `absent`; the chain detects edits inside one note, not removal of a whole note. Two
-concurrent anchors of the same commit can race: the later `notes add -f` wins, and the loser's
-read-back fails its `ok`.
+concurrent anchors of the same commit cannot both publish: the second compare-and-swap fails, and
+that anchor is refused `verdict-ledger-conflict` with nothing written; rerunning it reads the
+winner's ledger. A crash between building a notes commit and publishing it leaves at most a
+transient `refs/notes/corvint-staging/` ref and unreachable objects, never a moved public ref.
 
 Acceptance evidence: the tests below, each shown failing under a mutation of its guard; build log
 `docs/build-log/2026-10-20-V1-1292-cem-verdict-ledger.md`.
@@ -3054,7 +3060,7 @@ depends on the ledger.
 | CEM-V1-272 | `TestCEMV1276TamperedLedgerIsNeitherListedNorExtended` (`internal/gitnotes`); `VerdictRecord`, `wellFormedRecord` in `internal/gitnotes/verdict.go` | An unknown member, non-canonical spacing, a missing final LF and an unknown outcome each read `malformed` |
 | CEM-V1-273 | `TestCEMV1273AnchorAppendsOneVerdictRecordAndRepeatsIdempotently` (`internal/gitnotes`); `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`cmd/corvint`); `AnchorWithVerdict` in `internal/gitnotes/anchor.go` | The record's `verdictSha256` equals the digest of an independent `verify.Stable` run over the same inputs |
 | CEM-V1-274 | `TestCEMV1274AppendLinksToThePreviousRecord`, `TestCEMV1274UnsupportedResultWritesNothing`, `TestCEMV1273AnchorAppendsOneVerdictRecordAndRepeatsIdempotently` (`internal/gitnotes`); `planAppend` | A repeat leaves every ref, note and object unchanged and returns the first `recordedAt`; a second key keeps the first line's bytes and links to its digest; a relative artifact root writes no note |
-| CEM-V1-275 | `TestCEMV1275DifferingVerdictIsRefused`, `TestCEMV1275FullLedgerIsRefused`, `TestCEMV1274UnsupportedResultWritesNothing`, `TestCEMV1276TamperedLedgerIsNeitherListedNorExtended` (`internal/gitnotes`); `planAppend` | `verdict-ledger-conflict` creates no `refs/notes/corvint` pointer; each refusal leaves every ref, note and object unchanged; a 256-record ledger plans no body |
+| CEM-V1-275 | `TestCEMV1275DifferingVerdictIsRefused`, `TestCEMV1275FullLedgerIsRefused`, `TestCEMV1275LostRaceIsRefusedWithoutOverwrite`, `TestCEMV1275LockedLedgerRefLeavesThePointerUnwritten`, `TestCEMV1274UnsupportedResultWritesNothing`, `TestCEMV1276TamperedLedgerIsNeitherListedNorExtended` (`internal/gitnotes`); `planAppend` | `verdict-ledger-conflict` creates no `refs/notes/corvint` pointer; each refusal leaves every ref, note and object unchanged; a 256-record ledger plans no body; a writer interleaved between validation and publish wins and the other is refused with the winner's ledger intact; a locked ledger ref leaves the pointer ref unwritten |
 | CEM-V1-276 | `TestCEMV1276TamperedLedgerIsNeitherListedNorExtended` (`internal/gitnotes`); `readLedger` | Eight tamper cases read `malformed`, `chain-broken`, `scope-mismatch` or `conflict` |
 | CEM-V1-277 | `TestCEMV1277VerdictListingIsReadOnly` (`internal/gitnotes`); `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`cmd/corvint`); `ProvenanceWithVerdicts` in `internal/gitnotes/provenance.go` | Refs, notes and objects are unchanged across the listing; no `verdicts` member without the flag |
 | CEM-V1-278 | `TestCEMV1277VerdictListingIsReadOnly` (`internal/gitnotes`); `readLedger` is called only by `AnchorWithVerdict`, `appendLedger` and `verdictsMember` in `internal/gitnotes` | No verifier, status, export, tier or ranking path reads `refs/notes/corvint-verdicts`; the listing reports `mutates` false and changes nothing |

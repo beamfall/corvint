@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -244,21 +243,6 @@ func planAppend(current ledger, record VerdictRecord) ([]byte, *VerdictRecord, e
 	}
 	body = append(append(body, line...), '\n')
 	return body, &record, nil
-}
-
-// appendLedger replaces target's verdict note with body, which extends the
-// note read before it, and reads the ledger back.
-func (r *repository) appendLedger(ctx context.Context, target string, body []byte) (ledger, error) {
-	out, err := r.git(ctx, 256, body, "hash-object", "-w", "--stdin")
-	if err != nil {
-		return ledger{}, err
-	}
-	blob := strings.TrimSpace(string(out))
-	args := append(append([]string{}, committer...), "notes", "--ref="+VerdictRef, "add", "-f", "-C", blob, target)
-	if _, err := r.git(ctx, 64<<10, nil, args...); err != nil {
-		return ledger{}, err
-	}
-	return r.readLedger(ctx, target)
 }
 
 // verdictsMember is the read-only listing of target's verdict ledger that
