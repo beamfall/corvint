@@ -3618,6 +3618,7 @@ PGO-V0-010	docs/specs/process-group-owner-v0.md	accepted, decision 0507. POSIX d
 PGO-V0-011	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0668) The Owne	standing	2026-10-11; V1-0668
 PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); cem1-producer-har	standing	2026-10-11
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
+PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2111) Every Ow	standing	2026-10-11; V1-2111
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
