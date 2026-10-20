@@ -1485,7 +1485,8 @@ projected axis, and a document written before them decodes and projects exactly 
   innermost first. An empty array yields `sharedExampleAbsent: not-shared`; an absent or null member
   yields `not-reported`, which is what the stock RSpec JSON formatter produces, because it does not
   emit this metadata; more than four frames, a frame without a local positive-line location, or a
-  location over 512 bytes or secret-shaped yields `inclusion-unbound`.
+  location over 512 bytes, secret-shaped or carrying a control character such as NUL yields
+  `inclusion-unbound`.
 - `LPCV-V0-135`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2010)
   `testvaliditydoc` MUST decode `selection`, `selectionWithheld`, `runtime`, `sharedExample` and
   `sharedExampleAbsent` closed and refuse a document whose members break `LPCV-V0-131` to
@@ -1493,7 +1494,8 @@ projected axis, and a document written before them decodes and projects exactly 
   entries, an outcome or reason outside its closed set, a `matched` count inconsistent with its
   outcome, both `selection` and `selectionWithheld`, a runtime basis other than
   `exec-prefix-probe`, a fact with both or neither of `value` and `unknown` or with a malformed
-  value, both shared members, an origin other than the example's `id`, or an inclusion list that is
+  value, an `image` that carries a `value` (the probe basis never observes one), both shared
+  members, an origin other than the example's `id`, or an inclusion list that is
   empty, over four entries or carries a malformed location. All five members are optional: a
   document without them, including every document retained before `LPCV-V0-131`, decodes and
   projects unchanged, and carrying them leaves every projection byte-identical.

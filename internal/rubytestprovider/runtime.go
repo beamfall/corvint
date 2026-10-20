@@ -55,7 +55,7 @@ func probeRuntime(ctx context.Context, prefix []string, dir string, timeout time
 // runtimeFacts reads the probe's single identity line from a completed,
 // zero-exit probe; a repeated key is dropped so it reads as not reported.
 func runtimeFacts(observation procgroup.Observation) (map[string]string, error) {
-	if !observation.Started || observation.TimedOut || observation.Cancelled || observation.Signal != "" || !observation.ExitObserved || observation.ExitStatus != 0 || observation.StdoutOverflow {
+	if !observation.Started || observation.TimedOut || observation.Cancelled || observation.Signal != "" || !observation.ExitObserved || observation.ExitStatus != 0 || observation.StdoutOverflow || observation.StderrOverflow {
 		return nil, errors.New("runtime probe did not complete")
 	}
 	var line string
@@ -119,10 +119,8 @@ func validateRuntime(runtime *Runtime) error {
 		{runtime.Ruby, versionValue},
 		{runtime.Bundler, versionValue},
 		{runtime.ProbeContainer, func(value string) bool { return blobPattern("sha256", value) }},
-		{runtime.Image, func(value string) bool {
-			digest, ok := strings.CutPrefix(value, "sha256:")
-			return ok && blobPattern("sha256", digest)
-		}},
+		// The probe basis never observes the image: any value is a claim.
+		{runtime.Image, func(string) bool { return false }},
 	} {
 		switch {
 		case (check.fact.Value == "") == (check.fact.Unknown == ""):

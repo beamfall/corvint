@@ -261,6 +261,11 @@ func inclusionLocation(location string) bool {
 	if colon < 0 || len(location) > maxInclusionLocation || secretscreen.MatchString(location) {
 		return false
 	}
+	// fs.ValidPath admits NUL and other control characters; a retained
+	// inclusion never carries one.
+	if strings.ContainsFunc(location, func(c rune) bool { return c < 0x20 || c == 0x7f }) {
+		return false
+	}
 	_, ok := locationLine(location[colon+1:])
 	return ok && localSlashPath(location[:colon])
 }

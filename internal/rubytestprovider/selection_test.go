@@ -180,6 +180,8 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
 		"two lines": {"echo 'corvint-runtime-identity ruby=3.3.5'; echo 'corvint-runtime-identity ruby=3.2.0'; exit 0",
 			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
+		"stderr overflow": {"head -c 70000 /dev/zero | tr '\\0' x >&2; echo 'corvint-runtime-identity ruby=3.3.5 bundler=2.5.16'; exit 0",
+			Runtime{RuntimeBasis, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, RuntimeFact{Unknown: runtimeProbeFailed}, notInside}},
 	} {
 		document := run(t, Config{Dir: root, ExecPrefix: prefix(test.probe), RSpec: rspec})
 		if document.Runtime == nil || *document.Runtime != test.want {
@@ -196,7 +198,7 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		t.Fatalf("a host run records a runtime identity: %+v", document.Runtime)
 	}
 
-	reported := Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, RuntimeFact{Value: "sha256:" + container}}
+	reported := Runtime{RuntimeBasis, RuntimeFact{Value: "3.3.5"}, RuntimeFact{Value: "2.5.16"}, RuntimeFact{Value: container}, notInside}
 	if err := validateRuntime(&reported); err != nil {
 		t.Fatal(err)
 	}
@@ -207,7 +209,8 @@ func TestLPCVV0133RuntimeObservedInsidePrefix(t *testing.T) {
 		"open reason":   func(r *Runtime) { r.ProbeContainer = RuntimeFact{Unknown: "host"} },
 		"bad version":   func(r *Runtime) { r.Ruby.Value = "3.3 5" },
 		"bad container": func(r *Runtime) { r.ProbeContainer.Value = strings.ToUpper(container) },
-		"bad image":     func(r *Runtime) { r.Image.Value = container },
+		"bad image":     func(r *Runtime) { r.Image = RuntimeFact{Value: container} },
+		"image claimed": func(r *Runtime) { r.Image = RuntimeFact{Value: "sha256:" + container} },
 	} {
 		mutated := reported
 		mutate(&mutated)
@@ -269,6 +272,7 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 		"over bound":     `[` + frame(`"./spec/`+strings.Repeat("a", maxInclusionLocation)+`.rb:1"`) + `]`,
 		"too many":       `[` + strings.Repeat(frame(`"./spec/x_spec.rb:1"`)+",", maxInclusions) + frame(`"./spec/x_spec.rb:1"`) + `]`,
 		"bare dot frame": `[` + frame(`"./:1"`) + `]`,
+		"NUL in path":    `[` + frame(`"./spec/a\u0000.rb:7"`) + `]`,
 	} {
 		if shared, absent := observeShared(json.RawMessage(backtrace), ".", userSpec+":2"); shared != nil || absent != sharedInclusionUnbnd {
 			t.Fatalf("%s: %+v %q", name, shared, absent)
@@ -291,6 +295,7 @@ func TestLPCVV0134SharedExampleOrigin(t *testing.T) {
 			e.SharedExample.IncludedAt = slices.Repeat([]string{userSpec + ":9"}, maxInclusions+1)
 		},
 		"bad inclusion": func(e *Example) { e.SharedExample.IncludedAt = []string{"../x.rb:1"} },
+		"NUL inclusion": func(e *Example) { e.SharedExample.IncludedAt = []string{"spec/a\x00.rb:7"} },
 		"open absence":  func(e *Example) { e.SharedExample, e.SharedExampleAbsent = nil, "unknown" },
 	} {
 		mutated := document.Examples[0]

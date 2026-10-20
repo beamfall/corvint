@@ -156,6 +156,8 @@ func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 		"open shared absence":  strings.Replace(string(data), `"sharedExampleAbsent":"not-reported"`, `"sharedExampleAbsent":"maybe"`, 1),
 		"traversal selector":   strings.Replace(string(data), `"selector":"spec/user_spec.rb:2"`, `"selector":"../user_spec.rb:2"`, 1),
 		"image without digest": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"`+container+`"}`, 1),
+		"image digest claimed": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"sha256:`+container+`"}`, 1),
+		"NUL inclusion":        strings.Replace(string(data), `"spec/user_spec.rb:9"`, `"spec/user\u0000_spec.rb:9"`, 1),
 	} {
 		if mutated == string(data) {
 			t.Fatalf("%s: mutation did not apply", name)

@@ -81,6 +81,17 @@ Other checks:
 - `corvint affected` selected 106 units through `testvaliditydoc`'s reverse imports. Only the
   direct dependents above were run.
 
+## Review fixes (Codex, one round)
+
+- The runtime probe is `probe-failed` on a stderr overflow as well as a stdout overflow.
+- Validation refuses any `image` value under the `exec-prefix-probe` basis, not only a malformed one.
+- A shared-example inclusion with a control character such as NUL is `inclusion-unbound` at
+  collection and refused in a retained document, because `fs.ValidPath` admits it.
+
+Each new test case failed before its fix: the stderr-overflow and image-claim cases of
+`TestLPCVV0133`, the NUL case of `TestLPCVV0134`, and the image-digest and NUL cases of
+`TestLPCVV0135`.
+
 ## NOT_RUN
 
 - A real RSpec run, which needs the rspec gem. Installing it was not authorized.
