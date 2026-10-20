@@ -167,7 +167,8 @@ func (registry *Registry) project(relative string) (testvaliditydoc.Document, *T
 		// text; this unframed message stays fixed (MCPV0-016). The CLI keeps the detail.
 		return testvaliditydoc.Document{}, &ToolFailure{Code: "invalid-test-validity-receipt", Message: "receipt is not an accepted test-validity provider document"}
 	}
-	return testvaliditydoc.Project(receipt), nil
+	// The file of each declaring anchor is made repository-relative, as the CLI does (LPCV-V0-145).
+	return testvaliditydoc.Locate(testvaliditydoc.Project(receipt), receipt, registry.root), nil
 }
 
 // readConfined reads at most MaxInputBytes of one regular file whose fully
