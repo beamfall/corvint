@@ -396,6 +396,7 @@ const testValidityHelp = `Project test-level results through the shared test-val
 
 Usage:
   corvint [--root PATH] test-validity [--receipt FILE [--route-stubs] | --discover]
+      [--producer]
   corvint [--root PATH] test-validity negate --provider ABSOLUTE_FILE --spec S --test T
       [--project P] (--step TITLE | --all-steps) [--max-runs N] [--baseline-repeat N]
       [external-server provider options]
@@ -413,7 +414,9 @@ run axis is UNSUPPORTED with reason no-input-supplied. --route-stubs makes every
 JavaScript test carry routeStubs: a receipt with no route-stub producer record
 then states NOT_PRODUCED with reason route-stub-producer-absent, and a profiled
 receipt states route-stub-external-profile, instead of omitting the member. An unreadable, oversized,
-malformed or receipt-less FILE exits 2 with no stdout.
+malformed or receipt-less FILE exits 2 with no stdout. --producer appends one
+"producer" member (version, build, commit, commitState; "unknown" or
+"unstamped" when not stated) and leaves every other member unchanged.
 
 --discover instead reads the newest completed provider document retained as a
 regular *.json file directly under .corvint/test-evidence of the worktree (at
@@ -1163,7 +1166,8 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
     [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]...
-    [--language-profile non-go-syntax-v0] [--require-clean] PATH...
+    [--language-profile non-go-syntax-v0] [--require-clean] [--producer] PATH...
+  corvint [--root PATH] impact --capabilities
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -1243,6 +1247,14 @@ Options:
                              the local Git checkout at DIR (its top level). Binding
                              holds only when the declared origin is a root commit of
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
+  --capabilities             Print the corvint-impact-capabilities/0 listing and
+                             exit: suffixes with a reverse-import rule, suffixes
+                             admitted without one, and the per-call limits, derived
+                             from the admission tables. Takes no other argument.
+  --producer                 Add one "producer" member (version, build, commit,
+                             commitState) to the receipt; an unknown member reads
+                             "unknown" and an unstamped build reads "unstamped".
+                             Every other byte equals the default receipt.
   --                         Treat all remaining arguments as paths.
 
 Requirements:

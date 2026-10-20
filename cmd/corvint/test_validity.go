@@ -38,6 +38,14 @@ type testValidityOptions struct {
 	receipt    string
 	discover   bool
 	routeStubs bool
+	producer   bool
+}
+
+// testValidityWithProducer is the opt-in --producer receipt: the unchanged
+// document members followed by one additive producer member (PUB-V0-027).
+type testValidityWithProducer struct {
+	testvaliditydoc.Document
+	Producer producerIdentity `json:"producer"`
 }
 
 func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
@@ -56,6 +64,13 @@ func parseTestValidityOptions(arguments []string) (testValidityOptions, error) {
 				return testValidityOptions{}, argumentError("--route-stubs takes no value and may be given once")
 			}
 			options.routeStubs = true
+			continue
+		}
+		if name == "--producer" {
+			if inline || options.producer {
+				return testValidityOptions{}, argumentError("--producer takes no value and may be given once")
+			}
+			options.producer = true
 			continue
 		}
 		if name != "--receipt" {
@@ -119,7 +134,11 @@ func runTestValidity(root string, arguments []string, stdout, stderr io.Writer) 
 		}
 		document = discovered
 	}
-	if err := emit(stdout, document); err != nil {
+	var output any = document
+	if options.producer {
+		output = testValidityWithProducer{Document: document, Producer: currentProducer()}
+	}
+	if err := emit(stdout, output); err != nil {
 		emitError(stderr, err)
 		return 2
 	}
