@@ -452,12 +452,13 @@ func contextOf(v *Variation) Context {
 	return Context{Spec: *v.Spec, App: *v.App, Setup: *v.Setup, Screen: *v.Screen, User: *v.User, Org: *v.Org}
 }
 
-// duplicateKey encodes every TCN-V0-005 class member as one JSON array, so no separator inside a
-// fact value (TCN-V0-002 bounds only the key) can make two different variations collide.
+// duplicateKey encodes every TCN-V0-005 class member, step facts included (TCN-V0-015), as one
+// JSON array, so no separator inside a fact value (TCN-V0-002 bounds only the key) can make two
+// different variations collide.
 func duplicateKey(v *Variation) string {
 	c := contextOf(v)
 	key, _ := json.Marshal([]any{c.Spec, c.App, c.Setup, c.Screen, c.User, c.Org, v.Requires, v.Changes,
-		*v.Destructive, v.Action, v.Assertion})
+		v.StepFacts, *v.Destructive, v.Action, v.Assertion})
 	return string(key)
 }
 

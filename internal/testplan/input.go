@@ -39,7 +39,7 @@ const (
 // Variation members in the order a missing-anchor abstention names them (TCN-V0-003).
 var anchorMembers = []string{"spec", "app", "screen", "setup", "user", "org", "action", "assertion", "requires", "changes", "destructive"}
 
-var variationMembers = map[string]bool{"variation_id": true, "flow_id": true, "route": true, "witnesses": true}
+var variationMembers = map[string]bool{"variation_id": true, "flow_id": true, "route": true, "witnesses": true, "step_facts": true}
 
 func init() {
 	for _, m := range anchorMembers {
@@ -73,6 +73,7 @@ type Variation struct {
 	Assertion   []string // sorted set
 	Requires    []string // sorted facts
 	Changes     []string // sorted facts
+	StepFacts   []string // sorted step-local facts (TCN-V0-013); nil when absent or empty
 	Destructive *bool
 	Witnesses   []Witness // sorted by test_id, project; unique
 	// Missing lists the absent anchors in anchorMembers order.
@@ -225,6 +226,11 @@ func decodeVariation(raw json.RawMessage) (Variation, error) {
 			return v, err
 		}
 	}
+	if raw, ok := m["step_facts"]; ok {
+		if err := stepFactMember(raw, &v); err != nil {
+			return v, err
+		}
+	}
 	if raw, ok := m["witnesses"]; ok {
 		witnesses, err := witnessMember(raw)
 		if err != nil {
@@ -283,6 +289,33 @@ func factMember(raw json.RawMessage, name string) ([]string, error) {
 		keys[key] = true
 	}
 	return sortedCopy(items), nil
+}
+
+// stepFactMember decodes optional step-local facts with the requires syntax and bounds; a key the
+// variation also requires refuses, and null is refused so absent and null are never conflated
+// (TCN-V0-013, TCN-V0-014).
+func stepFactMember(raw json.RawMessage, v *Variation) error {
+	if isNull(raw) {
+		return errors.New("step_facts must be an array of facts")
+	}
+	facts, err := factMember(raw, "step_facts")
+	if err != nil {
+		return err
+	}
+	required := map[string]bool{}
+	for _, fact := range v.Requires {
+		key, _, _ := strings.Cut(fact, "=")
+		required[key] = true
+	}
+	for _, fact := range facts {
+		if key, _, _ := strings.Cut(fact, "="); required[key] {
+			return fmt.Errorf("key %q is in both requires and step_facts", key)
+		}
+	}
+	if len(facts) > 0 {
+		v.StepFacts = facts
+	}
+	return nil
 }
 
 func witnessMember(raw json.RawMessage) ([]Witness, error) {
@@ -474,6 +507,7 @@ type canonicalVariation struct {
 	Assertion   []string           `json:"assertion,omitempty"`
 	Requires    *[]string          `json:"requires,omitempty"`
 	Changes     *[]string          `json:"changes,omitempty"`
+	StepFacts   []string           `json:"step_facts,omitempty"`
 	Destructive *bool              `json:"destructive,omitempty"`
 	Witnesses   []canonicalWitness `json:"witnesses,omitempty"`
 }
@@ -489,7 +523,7 @@ func canonicalInput(in *Input) canonicalDocument {
 	for i := range in.Variations {
 		v := &in.Variations[i]
 		c := canonicalVariation{VariationID: v.ID, FlowID: v.FlowID, Spec: v.Spec, App: v.App, Route: v.Route, Screen: v.Screen,
-			Setup: v.Setup, User: v.User, Org: v.Org, Action: v.Action, Assertion: v.Assertion, Destructive: v.Destructive}
+			Setup: v.Setup, User: v.User, Org: v.Org, Action: v.Action, Assertion: v.Assertion, StepFacts: v.StepFacts, Destructive: v.Destructive}
 		if v.Requires != nil {
 			c.Requires = &v.Requires
 		}
