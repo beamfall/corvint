@@ -4,8 +4,10 @@ This optional command executes trusted local test code through explicit runner
 profiles and records native outcomes. It is not included in the Core release and
 is not a CEM1.0 promotion or a Tasks completion command.
 
-Build with `go build ./cmd/corvint-test-runner`. `runners` lists current profile
-IDs. Prepare a JSON request with an absolute source `root`, a **new** absolute
+Build with `go build ./cmd/corvint-test-runner`. `runners` (alias `profiles`)
+lists current profile IDs. `--help`, globally or after a command, prints usage;
+help and listing need no executable pin, while `plan` and `run` refuse and name
+any missing `--executable` / `--executable-sha256` flag. Prepare a JSON request with an absolute source `root`, a **new** absolute
 `reportDir`, runner, project/config/reporter fields required by that profile,
 `timeoutSeconds` and `inputFiles` mapping source-relative names to SHA256. An
 `expectedTests` array names the native identities whose presence must be checked;
