@@ -511,7 +511,7 @@ func TestTOLV0009_SubsetIgnoresExcludedMatchBound(t *testing.T) {
 }
 
 // TestTOLV0009_ReportAdmissionAndRetention: an unqualified version refuses
-// OBLIGATION_REPORT_VERSION_UNQUALIFIED (the shipped list is empty); a
+// OBLIGATION_REPORT_VERSION_UNQUALIFIED (1.63.0-test is never shipped); a
 // missing, non-JSON or wrong-shape report refuses OBLIGATION_REPORT: and
 // writes nothing; an admitted report is never retained, only its digest; a
 // secret in a credited title refuses SECRET_DETECTED.

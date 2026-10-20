@@ -233,3 +233,12 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		}
 	})
 }
+
+// TestLPCVV0129JoinStaysGatedOff: the retained 1.63.0 live matrix alone does
+// not promote the join; the shipped gate stays false until the owner sample
+// comparison and cost measurement are retained.
+func TestLPCVV0129JoinStaysGatedOff(t *testing.T) {
+	if stepNegationJoinQualified {
+		t.Fatal("stepNegationJoinQualified is true without the LPCV-V0-129 promotion evidence")
+	}
+}

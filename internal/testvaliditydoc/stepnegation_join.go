@@ -9,9 +9,11 @@ import (
 	"github.com/Beamfall/corvint/internal/stepnegation"
 )
 
-// stepNegationJoinQualified gates LPCV-V0-068. It stays false until the
-// LPCV-V0-070 live matrix is retained on a PWP-V0-008 qualified tuple; while
-// false JoinStepNegation reads nothing and every output byte is unchanged.
+// stepNegationJoinQualified gates LPCV-V0-068. The LPCV-V0-070 live matrix is
+// retained on the 1.63.0 PWP-V0-008 tuple (LPCV-V0-127), but it stays false
+// until the owner sample comparison and cost measurement the promotion needs
+// are retained too (LPCV-V0-129); while false JoinStepNegation reads nothing
+// and every output byte is unchanged.
 var stepNegationJoinQualified = false
 
 // stepNegationAnchorPrefix names the retained step-negation document a joined

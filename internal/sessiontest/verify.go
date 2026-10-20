@@ -24,6 +24,7 @@ func Verify(m Manifest, digest string, receipts []Receipt, unreadable []string) 
 	for _, unit := range m.Units {
 		shardOf[unit.Key()] = unit.Shard
 	}
+	registered := AdapterManifests()
 	seenShard := map[int]bool{}
 	seenUnit := map[string]bool{}
 	for index, receipt := range receipts {
@@ -54,6 +55,11 @@ func Verify(m Manifest, digest string, receipts []Receipt, unreadable []string) 
 			incomplete = append(incomplete, name+": result "+receipt.Result)
 		}
 		for _, invocation := range receipt.Invocations {
+			// STR-V0-059: an invocation counts only under the capability
+			// manifest version this binary registers for its adapter.
+			if manifest, ok := registered[invocation.Adapter]; !ok || invocation.AdapterManifest != manifest.Profile {
+				incomplete = append(incomplete, fmt.Sprintf("%s: %s ran under adapter manifest %q, not the registered one", name, invocation.Adapter, invocation.AdapterManifest))
+			}
 			if invocation.Exit != 0 {
 				failed = append(failed, fmt.Sprintf("%s: %s exited %d", name, invocation.Adapter, invocation.Exit))
 			}

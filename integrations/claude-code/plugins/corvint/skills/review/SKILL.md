@@ -14,3 +14,7 @@ dirty, say that the review covers only committed changes and ask whether to cont
 Present the advisory affected areas and any overlap with other local branches, each with its
 evidence. State that the output is inferred guidance: change evidence, test obligations and review
 by a person remain open. Show missing sources and index gaps as unknowns.
+
+Other Corvint capabilities: `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

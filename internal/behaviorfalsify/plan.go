@@ -101,7 +101,7 @@ func canonicalRequest(request Request) Request {
 	request.Repositories.Documentation = resolvePath(request.Repositories.Documentation)
 	request.DeclaredEnvKeys = append([]string(nil), request.DeclaredEnvKeys...)
 	slices.Sort(request.DeclaredEnvKeys)
-	return request
+	return canonicalProfiles(request)
 }
 
 func validateRequest(request Request) error {
@@ -117,13 +117,16 @@ func validateRequest(request Request) error {
 	if time.Duration(request.WallClockSeconds)*time.Second <= cleanupReserve {
 		return errors.New("wall clock budget does not exceed cleanup reserve")
 	}
-	if request.ExternalState != "none" {
-		return errors.New("persistent external state is outside the admitted boundary")
+	if err := validateIsolation(request); err != nil {
+		return err
 	}
 	if err := validateWorkspace(request); err != nil {
 		return err
 	}
 	if err := validateRepositoryBindings(request); err != nil {
+		return err
+	}
+	if err := validateProvider(request); err != nil {
 		return err
 	}
 	if err := validateCommand(request.Cleanup); err != nil {
@@ -163,7 +166,7 @@ func validateRunner(runner RunnerIdentity, keys []string) error {
 			return errors.New("incomplete runner identity")
 		}
 	}
-	if runner.Runner != "playwright" || !digestPattern.MatchString(runner.ConfigSHA256) || !digestPattern.MatchString(runner.EnvironmentSHA256) {
+	if !digestPattern.MatchString(runner.ConfigSHA256) || !digestPattern.MatchString(runner.EnvironmentSHA256) {
 		return errors.New("invalid runner identity")
 	}
 	if !repositoryRelative(runner.ConfigFile) {

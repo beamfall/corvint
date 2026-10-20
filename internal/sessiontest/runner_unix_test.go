@@ -3,12 +3,15 @@
 package sessiontest
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -354,5 +357,64 @@ func TestSTRV0004RunnerRefusesAdapterWithoutManifest(t *testing.T) {
 	}
 	if receipt.Result != ResultIncomplete || len(receipt.Invocations) != 0 || len(receipt.Incomplete) == 0 || receipt.Incomplete[0] != "declared: no registered capability manifest; nothing launched for it" {
 		t.Fatalf("declared without manifest: %s %v %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
+	}
+}
+
+// STR-V0-059: each receipt invocation cites the capability manifest version
+// its adapter ran under, the strict reader keeps it, and verify-shards counts
+// an invocation only under the version this binary registers.
+func TestSTRV0059ReceiptBindsAdapterManifestVersion(t *testing.T) {
+	runner, m, _, dir := runnerFixture(t, "pass")
+	sourceDigest, err := Digest(m.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.SourceDigest = sourceDigest
+	digest, err := Digest(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultPass || len(receipt.Invocations) != 1 || receipt.Invocations[0].AdapterManifest != "corvint-test-adapter/0" {
+		t.Fatalf("receipt %s %+v", receipt.Result, receipt.Invocations)
+	}
+	encoded, err := Encode(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := []byte(`"adapter":"go","adapterManifest":"corvint-test-adapter/0",`)
+	if !bytes.Contains(encoded, cited) {
+		t.Fatalf("the encoded receipt does not cite the manifest version:\n%s", encoded)
+	}
+	name := filepath.Join(dir, "test-run.json")
+	if err := WriteFile(name, encoded); err != nil {
+		t.Fatal(err)
+	}
+	read, err := ReadReceipt(name)
+	if err != nil || read.Invocations[0].AdapterManifest != AdapterManifestProfile {
+		t.Fatalf("read back %+v %v", read.Invocations, err)
+	}
+	if result, reasons := Verify(m, digest, []Receipt{read}, nil); result != ResultPass {
+		t.Fatalf("verify %s %v", result, reasons)
+	}
+	for _, test := range []struct{ adapter, version string }{
+		{AdapterGo, ""},
+		{AdapterGo, "corvint-test-adapter/1"},
+		{"rust", AdapterManifestProfile},
+	} {
+		forged := read
+		forged.Invocations = append([]Invocation{}, read.Invocations...)
+		forged.Invocations[0].Adapter, forged.Invocations[0].AdapterManifest = test.adapter, test.version
+		want := fmt.Sprintf("receipt 0 (shard 0): %s ran under adapter manifest %q, not the registered one", test.adapter, test.version)
+		if result, reasons := Verify(m, digest, []Receipt{forged}, nil); result != ResultIncomplete || !slices.Contains(reasons, want) {
+			t.Fatalf("%+v: verify %s %v, want INCOMPLETE naming %q", test, result, reasons, want)
+		}
+	}
+	// A receipt that does not cite the version is not canonical and is refused.
+	if err := WriteFile(name, bytes.Replace(encoded, cited, []byte(`"adapter":"go",`), 1)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ReadReceipt(name); err == nil || !strings.Contains(err.Error(), "is not canonical corvint-test-run/0 JSON") {
+		t.Fatalf("receipt without the version read as %v", err)
 	}
 }

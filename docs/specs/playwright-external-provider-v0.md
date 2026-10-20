@@ -15,9 +15,9 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. PWP-V0-032..034 qualify Playwright 1.64.0 for `/0` and `/3` on Node v22.23.2 with its own exact bundled headless-shell tuple, and write a typed `corvint-playwright-e2e-refusal/0` document naming the qualified runner versions on stdout when an `e2e` request is refused before running. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. PWP-V0-032..034 qualify Playwright 1.64.0 for `/0` and `/3` on Node v22.23.2 with its own exact bundled headless-shell tuple, and write a typed `corvint-playwright-e2e-refusal/0` document naming the qualified runner versions on stdout when an `e2e` request is refused before running. PWP-V0-035..038 add, each on its own live run, `/1` and `/2` on 1.64.0 Node v22.23.2, Node v24.11.1 for `/0` and `/3` on 1.64.0, the exact system Chrome 155.0.8059.85 tuple on 1.64.0, and exit status 3 plus one `refusal:` stderr line for an `e2e` admission refusal. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. `/1` and `/2` on Playwright 1.64.0, other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
+- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Linux, `/1` and `/2` on Node v24.11.1, other Playwright versions, Vitest and LPCV authority remain unqualified (`/2` never projects passing, PWP-V2-006). The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
 ## Requirements
 
@@ -389,11 +389,11 @@ carrying `runner` then fail closed through the canonical check and are neither d
   SHA-256 `77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`, headless, with no
   configured executable. A 1.64.0 run on the 1.63.0 tuple, or the reverse, abstains as an
   unqualified browser tuple. The configured system-Chrome tuple (`PWP-V0-008`) stays qualified on
-  `1.63.0` only; on `1.64.0` it is diagnostic and never passing.
+  `1.63.0` with its own version; `1.64.0` admits only the version named by `PWP-V0-037`.
 - `PWP-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) `ReceiptRuntimeTuple` classifies a
   `1.64.0` receipt as a candidate only for the base `/0` and attempt `/3` profiles on Node
-  `v22.23.2`. `/1` and `/2` on `1.64.0`, Node `v24.11.1` (`PWP-V0-009` stays `1.63.0`-only) and
-  every other Node read `unqualified`. The per-test freshness profile (`PTF-V0`) stays on `1.63.0`
+  `v22.23.2`; `PWP-V0-035` and `PWP-V0-036` add the tuples their own live runs observed, and every
+  other profile/Node pair reads `unqualified`. The per-test freshness profile (`PTF-V0`) stays on `1.63.0`
   with Node `v22.23.3`. Step negation reads the same classification, so a `/0` receipt on the
   `1.64.0` tuple is a negation candidate exactly when the per-test bundled tuple also matches.
 - `PWP-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) When the one-shot `e2e` command refuses a
@@ -405,15 +405,15 @@ carrying `runner` then fail closed through the canonical check and are neither d
   and `qualifiedRunnerVersions` (the exact versions external mode admits, in order), encoded as
   compact JSON plus LF. The version refusal message names those versions:
   `external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0`.
-  The exit status (1) and the stderr `infrastructure failure:` line are unchanged. The document is
+  The exit status and stderr line are those of `PWP-V0-038`. The document is
   not a receipt, is never retained or read as evidence, and an infrastructure failure after the run
   starts, `watch` and `qualify-keep-reporters` write nothing new to stdout. Free-text usage errors
   without a closed code (a malformed application-attestation argv or config, sensitive-policy
   additions without `--sensitive-input-redaction`, path resolution, a keep-reporters qualification
   record that cannot be read, flag parsing) keep an empty stdout, because the document's `code`
   member admits only closed codes. When writing the document fails or is short, the original
-  refusal stays on the stderr `infrastructure failure:` line, followed by
-  `; refusal-output-incomplete: <write error>`; the exit status is still 1.
+  refusal stays on the stderr `refusal:` line, followed by
+  `; refusal-output-incomplete: <write error>`; the exit status is still that of `PWP-V0-038`.
 
 Non-goals: no `/1`, `/2`, Node 24, system-browser or Linux qualification on `1.64.0`, no semver
 range admission, no change to any receipt member, profile, projection or the freshness profile, and
@@ -448,10 +448,53 @@ neither deleted nor rewritten.
 - `PWP-V2-005`: Reporter output and retained documents are untrusted. Ingestion rejects an unredacted sensitive action or noncanonical protected risk field with typed finding `sensitive-input-unredacted`, naming only its structural path and never echoing the value. Malformed retained `/2` documents return fixed typed `sensitive-input-document-invalid` diagnostics; unknown property names, values and decoder text are never echoed. Inputs whose kind cannot be decoded use that same value-free rejection because their profile is not trustworthy.
 - `PWP-V2-006`: The conformance fixture contains a deliberately leaking payload that is rejected and a redacted payload that is accepted with action-level traceability. `/2` cannot project passing evidence until the changed reporter completes the required live matrix.
 
+### Remaining Playwright 1.64.0 tuples and refusal exit status
+
+- `PWP-V0-035`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263) On runner `1.64.0`, `ReceiptRuntimeTuple` classifies the
+  application-attested `/1` and sensitive-input `/2` profiles as candidates on Node `v22.23.2` only,
+  with the `PWP-V0-032` bundled tuple. `/1` rests on the live Docker attestation run
+  (`TestApplicationAttestationDockerComposeQualification` on 1.64.0) and `/2` on the live
+  `TestPWPV0035SensitiveProfileLive` run, whose real `fill` step is retained redacted and whose
+  encoded receipt never contains the typed value. `/2` still never projects passing execution
+  (`PWP-V2-006`); its candidacy only stops it reading `unqualified` in discovery and abstention.
+  `/1` and `/2` on any other Node, including `v24.11.1`, stay `unqualified`.
+- `PWP-V0-036`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263) On runner `1.64.0`, Node `v24.11.1` (official nodejs.org
+  darwin-arm64 tarball, SHA-256 checked against the release `SHASUMS256.txt`) is a candidate for the
+  base `/0` and attempt-retaining `/3` profiles' bundled `PWP-V0-032` tuple only, on the live
+  matrix with the Node `v22.23.3` control abstaining. Neighbouring releases (`v24.11.0`, `v24.12.0`),
+  identity/browser Node drift, `/1`, `/2` and the system-browser tuple stay unqualified.
+- `PWP-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263) The configured system-Chrome tuple is keyed by exact runner
+  version and never inherited across versions: `1.63.0` keeps `Google Chrome 153.0.8010.48`, and
+  `1.64.0` admits only `Google Chrome 155.0.8059.85` at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, configured and observed at the
+  same path, headless, on `/0` under Node `v22.23.2`. `/1`, `/2`, `/3`, a headed or unstated
+  `headless` run, Node `v24.11.1`, any other Chrome version and Chrome 155 on `1.63.0` abstain. The reporter mirrors the same table; the Go predicate is the
+  authority.
+- `PWP-V0-038`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263, #1275) When the `e2e` command
+  refuses with a typed refusal code before anything runs (every `PWP-V0-034` refusal, with or
+  without `watch`; a watch request is admitted before its first status line), it exits `3` and writes exactly one stderr line, `refusal: <code>` followed by
+  `: <detail>` when there is one, with carriage returns and line feeds in the detail escaped as `\r`
+  and `\n`. Exit `0` stays an observed run (failed tests included), `1` an infrastructure,
+  retention or keep-reporters failure, and `2` a usage error; `qualify-keep-reporters` keeps its
+  status. The provider's `--help` states this exit-status contract.
+
+Non-goals: no Linux, headed-browser, `/1`/`/2`-on-Node-24 or semver-range admission; no change to
+any receipt member, profile, projection or the per-test freshness profile (`PTF-V0` stays on
+`1.63.0` with Node `v22.23.3`); no new refusal code. Failure modes addressed: `/1` and `/2` receipts
+and Node 24 receipts on 1.64.0 read `unqualified` although they ran correctly; a system-Chrome
+version qualified on 1.63.0 could have been read as qualified on 1.64.0; a wrapper could not tell
+a refused `e2e` request from a failed run without parsing stdout, and stderr called the refusal an
+infrastructure failure. Acceptance evidence: the unit tests in Traceability plus the retained live
+runs in `docs/build-log/2026-10-19-V1-2006-playwright-164-tuples.md`. Receipts that built before are
+byte-identical: no receipt struct, encoding or bundled tuple changed. Rollback removes the 1.64.0
+`/1`, `/2` and Node `v24.11.1` runtime-tuple cases, the 1.64.0 system-Chrome entry (Go and
+reporter) and the exit-status branch; receipts written on those tuples then read `unqualified` and
+are neither deleted nor rewritten, and refusals exit `1` again.
+
 ### Every-attempt revision
 
 Intent accepted by decision 0417 for `AFU-V1-012`; `--retain-attempt-details` selects the implemented
-profile. Qualification is consuming-tuple specific and retains every failed or unavailable observation. `/3` is qualified only on the bundled Darwin arm64 / Node v22.23.2 / Playwright 1.63.0 tuple below and, by `PWP-V0-032..033`, the bundled 1.64.0 tuple on the same OS and Node; it refuses the legacy 1.60 and system-browser tuples.
+profile. Qualification is consuming-tuple specific and retains every failed or unavailable observation. `/3` is qualified only on the bundled Darwin arm64 / Node v22.23.2 / Playwright 1.63.0 tuple below and, by `PWP-V0-032..033` and `PWP-V0-036`, the bundled 1.64.0 tuple on the same OS under Node v22.23.2 or v24.11.1; it refuses the legacy 1.60 and system-browser tuples.
 
 - `PWP-V3-001`: `/3` is selected explicitly by a provider option in external-server mode. `/0`, `/1` and `/2` stay readable and byte-compatible, and each still refuses `attemptDetails` with `external-profile-has-attempt-details`; only a `/3` receipt may carry it.
 - `PWP-V3-002`: A `/3` test outcome carries `attemptDetails` with one entry per Playwright attempt, in retry order starting at retry 0, using the existing `AttemptDetail` members (state, retry, duration, failure message, anchor, artifacts). The final attempt entry equals the test's existing last-attempt fields; a missing, duplicated, reordered or contradictory attempt refuses the receipt with `external-attempt-details-invalid`.
@@ -612,10 +655,12 @@ the registry identity, suffix and digest may not. Playwright `1.64.0` has its ow
 (`PWP-V0-032`): revision `1248`, manifest version `156.0.8078.4`, observed version
 `Google Chrome for Testing 156.0.8078.4`, suffix
 `chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell`, SHA-256
-`77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`, on Node v22.23.2 for `/0` and
-`/3` only. `PWP-V0-009` admits the same bundled tuple on Node
-`v24.11.1` for `/0` only. Bundled headed Chromium, Linux amd64 and every other Node tuple are
-`NOT_RUN` and remain diagnostic-only. Issue #665 reported a consumer pinning Node v24.11.x, whose
+`77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`, on Node v22.23.2 for `/0`,
+`/1`, `/2` and `/3` (`PWP-V0-033`, `PWP-V0-035`) and on Node v24.11.1 for `/0` and `/3`
+(`PWP-V0-036`). On 1.64.0 the configured system tuple is Google Chrome 155.0.8059.85 (`PWP-V0-037`).
+`PWP-V0-009` admits the 1.63.0 bundled tuple on Node `v24.11.1` for `/0` only. Bundled headed
+Chromium, Linux (amd64 and arm64) and every other Node tuple are `NOT_RUN` and remain
+diagnostic-only. Issue #665 reported a consumer pinning Node v24.11.x, whose
 discovery therefore read `source: "none"` with no tests; no consumer checkout, fixture or CI run was
 observed for this spec (`NOT_OBSERVED`), and that absence is not qualification evidence. The
 consumer-side fixture is a separate `NOT_OBSERVED` input, not a precondition of the tuple predicate.
@@ -637,7 +682,8 @@ installed or added to a global `PATH`. The Node v24.11.1 qualification command i
 
 Owner answer (decision 0448, V1-0976): further Node patch releases are admitted one exact release
 at a time, through this predicate and a Corvint change backed by a live run; a consumer-side
-qualification record is not adopted. `/1`, `/2` and `/3` on Node 24 need their own live runs first.
+qualification record is not adopted. `/1`, `/2` and `/3` on Node 24 need their own live runs first;
+`PWP-V0-036` supplied that run for `/3` on 1.64.0 only.
 
 To qualify another Playwright runner version (as `PWP-V0-032` did for 1.64.0): install the exact
 `@playwright/test` and `playwright-core` versions from a lockfile with integrity, install its
@@ -691,6 +737,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/externalorigins/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`, `TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun`, `TestPWPV0022RequestObservationsAreRequired`, `TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
 | PWP-V0-028..031 (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133) | `internal/procgroup/interrupt.go`, `internal/procgroup/process.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/receipt.go`, `internal/jstestprovider/projection.go`, `cmd/corvint-js-test-provider/runner_control.go`, `cmd/corvint-js-test-provider/runner_output_unix.go`, `cmd/corvint-js-test-provider/runner_output_other.go`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/negate.go` | `TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees` (#1131: a 5 MiB fake runner completes and the tee receives every byte), `TestPWPV0028ExternalConsoleWithoutTee`, `TestPWPV0028TeesReceiveUntruncatedStreams`, `TestPWPV0028RunnerOutputFlagWritesFile`, `TestPWPV0028BlockedTeeSinkDoesNotHoldDrains`, `TestPWPV0028RunnerOutputRefusesSymlink`, `TestPWPV0028RunnerOutputRefusesFIFO`, `TestPWPV0028RunnerOutputExistingFileBecomes0600`, `TestPWPV0028RunnerOutputReportsEarlyEnd`, `TestPWPV0029RunnerRecordShape`, `TestPWPV0029SelfExitRecordsNoStopSignal`, `TestPWPV0029StopSignalSurvivesExitDuringSend`, `TestPWPV0030ExternalTimeoutInterruptsRunnerFirst` (#1133: the fake runner writes a file on SIGINT and the receipt records `SIGINT`), `TestPWPV0030ExternalZeroGraceTerminatesFirst`, `TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop`, `TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT`, `TestPWPV0030InterruptGraceEscalatesToSIGTERM`, `TestPWPV0030NegativeInterruptGraceIsInvalid`, `TestPWPV0030InterruptGraceFlag`, `TestPWPV0031ReadinessRulesByMode`, `TestPWPV0031ServerReadyURLHelpMatchesReadiness`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1800-js-provider-output-retention-interrupt-1131.md`) |
 | PWP-V0-032..034 (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) | `internal/jstestprovider/external.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/runner_control.go` | `TestPWPV0032Playwright164BundledTupleIsExact`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestPWPV0034PreRunRefusalsAreTyped`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestPWPV0034CLIAdmissionRefusalWritesTypedDocument`, `TestPWPV0034RefusalWriteFailureKeepsDiagnostic`, `TestReceiptRuntimeTupleClassification`; live `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightLiveDevicesSpread` and `TestQualifiedPlaywrightAttemptsLiveDevicesSpread` on 1.64.0 and on 1.63.0 (`docs/build-log/2026-10-19-V1-2005-playwright-164-qualification.md`) |
+| PWP-V0-035..038 (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263, #1275) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0035Playwright164AttestedAndSensitiveTuples`, `TestPWPV0036Playwright164Node24TupleIsExact`, `TestPWPV0037Playwright164SystemChromeIsExact`, `TestPWPV0038E2ERefusalExitStatusAndStderrLine`, `TestPWPV0038WatchRefusalWritesNoStatusLine`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestReceiptRuntimeTupleClassification`; live `TestPWPV0035SensitiveProfileLive` (1.64.0 and 1.63.0), `TestApplicationAttestationDockerComposeQualification`, `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive` and the two devices-spread tests on 1.64.0 with Node v22.23.2 and v24.11.1, plus the 1.63.0 regression (`docs/build-log/2026-10-19-V1-2006-playwright-164-tuples.md`); Linux `NOT_RUN` |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -703,12 +750,12 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:249@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:252@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:268@720e6764` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:271@5ac3fd01` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:106@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:441@c7e353c5` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:444@c7e353c5` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:81@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -717,7 +764,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:99@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:268@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:271@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

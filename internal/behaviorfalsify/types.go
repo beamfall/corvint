@@ -129,6 +129,10 @@ type Request struct {
 	TimeoutSeconds   int             `json:"timeout_seconds"`
 	WallClockSeconds int             `json:"wall_clock_seconds"`
 	ExternalState    string          `json:"external_state"`
+	// Isolation and Provider are opt-in profiles (BBF-V0-019..028); omitted when absent, so a
+	// plan without them is byte-identical to its prior form.
+	Isolation *DeclaredIsolation `json:"isolation,omitempty"`
+	Provider  *ProviderSpec      `json:"provider,omitempty"`
 }
 
 type PlannedControl struct {
@@ -219,6 +223,10 @@ type AttemptResult struct {
 	WorkspaceAfter    string          `json:"workspace_after"`
 	RetainedArtifacts []Artifact      `json:"retained_artifacts"`
 	Application       string          `json:"application,omitempty"`
+	// Isolation and ProviderProcess are recorded only under the shared-server and
+	// runner-neutral profiles (BBF-V0-019..028).
+	Isolation       *IsolationObservation `json:"isolation,omitempty"`
+	ProviderProcess *ProcessEvidence      `json:"provider_process,omitempty"`
 }
 
 type ControlResult struct {
@@ -251,7 +259,11 @@ type Report struct {
 	Fallback           string          `json:"fallback"`
 	Limitations        []string        `json:"limitations"`
 	InertControls      []string        `json:"inert_controls,omitempty"`
-	Digest             string          `json:"digest"`
+	// Isolation records the plan's declared shared-server isolation and Provider the
+	// runner-neutral provider, so a reviewer can judge them from the report alone.
+	Isolation *DeclaredIsolation `json:"isolation,omitempty"`
+	Provider  string             `json:"provider,omitempty"`
+	Digest    string             `json:"digest"`
 }
 
 func cloneDefinition(in map[string]string) map[string]string {

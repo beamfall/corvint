@@ -12,7 +12,10 @@
 // PWP-V0-015) `qualify-keep-reporters` runs the
 // same external e2e configuration replace-only and then with the project's
 // reporters kept, and prints the canonical qualification record
-// (PWP-V0-015); it exits zero only when the record is qualified.
+// (PWP-V0-015); it exits zero only when the record is qualified. An e2e
+// admission or version refusal (a typed E2ERefusal, decided before anything
+// runs) exits with exitAdmissionRefused and writes one stderr line
+// "refusal: <code>..." naming the refusal code (PWP-V0-038).
 package main
 
 import (
@@ -26,6 +29,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -126,7 +130,16 @@ SIGTERM and SIGKILL (PWP-V0-030).
 --retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
 enclosing Git worktree (LPCV-V0-055); a retention that creates .corvint also writes
 .corvint/.gitignore (*), otherwise .corvint/test-evidence/.gitignore (*), so Git status stays
-clean, and never overwrites an existing one (LPCV-V0-084). The flags of each subcommand follow.
+clean; it never overwrites an existing non-empty one, repairs an existing empty one and refuses a
+non-regular entry (LPCV-V0-084).
+
+Exit status: 0 when the run was observed (a failed test is an observation); 1 when the
+infrastructure prevented an observation, retention failed or a keep-reporters record is not
+qualified; 2 for a
+usage error (and a negate or external-origins refusal); 3 when e2e refuses admission or the
+runner version before running anything, with one stderr line "refusal: <code>..." naming the
+refusal code and, without watch, the typed refusal document on stdout (PWP-V0-034, PWP-V0-038).
+The flags of each subcommand follow.
 `
 
 // usageSink, while printUsage runs, receives each subcommand's flag defaults instead of the
@@ -174,6 +187,10 @@ func main() {
 		err = runUnit(os.Args[2:])
 	case "e2e":
 		err = runE2E(os.Args[2:])
+		if line, refused := admissionRefusalLine(err); refused {
+			fmt.Fprintln(os.Stderr, line)
+			os.Exit(exitAdmissionRefused)
+		}
 	case "negate":
 		ctx, cancel := interruptContext()
 		err = runNegate(ctx, os.Args[2:], os.Stdout)
@@ -199,6 +216,23 @@ func main() {
 		fmt.Fprintln(os.Stderr, "infrastructure failure:", err)
 		os.Exit(1)
 	}
+}
+
+// exitAdmissionRefused is the e2e exit status for a typed admission or version
+// refusal: the run was refused before anything ran, so it is distinct from
+// zero (observed, including failed tests), 1 (infrastructure failure) and 2
+// (usage error) (PWP-V0-038).
+const exitAdmissionRefused = 3
+
+// admissionRefusalLine is the one stderr line for a typed e2e refusal, naming
+// its closed code first; line breaks inside a detail are escaped so the line
+// stays one line. It reports false for any other error.
+func admissionRefusalLine(err error) (string, bool) {
+	var refusal *jstestprovider.E2ERefusal
+	if !errors.As(err, &refusal) {
+		return "", false
+	}
+	return "refusal: " + strings.NewReplacer("\r", `\r`, "\n", `\n`).Replace(err.Error()), true
 }
 
 func interruptContext() (context.Context, context.CancelFunc) {
@@ -471,7 +505,8 @@ func runE2EMode(mode string, args []string) error {
 
 // writeE2ERefusal writes the typed corvint-playwright-e2e-refusal/0 document
 // for a pre-run refusal (PWP-V0-034), so stdout is never an empty document. A
-// refusal is never retained; the exit status and stderr line are unchanged.
+// refusal is never retained; e2e then exits exitAdmissionRefused with one
+// "refusal: <code>" stderr line (PWP-V0-038).
 // Any other failure writes nothing to stdout. It returns err, or, when the
 // document write fails or is short, err joined with refusal-output-incomplete
 // so stderr keeps the refusal and names the lost document.

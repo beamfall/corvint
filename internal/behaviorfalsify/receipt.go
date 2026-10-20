@@ -45,6 +45,10 @@ type RawAttempt struct {
 	NativeBytes  []byte   `json:"native_bytes"`
 	NativeSHA256 string   `json:"native_sha256"`
 	Omissions    []string `json:"omissions"`
+	// IsolationResetBytes and IsolationVerifyBytes are the shared-server profile's phase stdout;
+	// each recorded identity must re-derive from them (BBF-V0-022). Absent for other profiles.
+	IsolationResetBytes  []byte `json:"isolation_reset_bytes,omitempty"`
+	IsolationVerifyBytes []byte `json:"isolation_verify_bytes,omitempty"`
 }
 
 type EvidenceReceipt struct {
@@ -69,6 +73,10 @@ var receiptUnsupported = []string{
 func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolIdentity) (EvidenceReceipt, error) {
 	if !validToolIdentity(tool) {
 		return EvidenceReceipt{}, errors.New("receipt-tool-identity-invalid")
+	}
+	if plan.Request.Provider != nil {
+		// The runner-neutral profile retains no native report to bind yet (BBF-V0-028).
+		return EvidenceReceipt{}, errors.New("receipt-profile-unsupported")
 	}
 	preimage := plan
 	preimage.Digest = ""
@@ -126,6 +134,7 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 	if err != nil {
 		return EvidenceReceipt{}, err
 	}
+	retainIsolationBytes(&r, &retainedBytes, &unsafe)
 	if unsafe {
 		return EvidenceReceipt{}, errors.New("receipt-secret-shaped-data")
 	}
@@ -154,6 +163,65 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 		return EvidenceReceipt{}, err
 	}
 	return r, nil
+}
+
+// retainIsolationBytes moves each attempt's in-memory isolation phase stdout onto its retained
+// raw attempt, so an offline verifier can re-derive the recorded identities (BBF-V0-022).
+func retainIsolationBytes(r *EvidenceReceipt, retainedBytes *int, unsafe *bool) {
+	for i := range r.Report.Results {
+		control := &r.Report.Results[i]
+		for j := range control.Attempts {
+			a := &control.Attempts[j]
+			if a.Isolation == nil {
+				continue
+			}
+			observed := *a.Isolation
+			a.Isolation = &IsolationObservation{ResetProcess: observed.ResetProcess, Before: observed.Before, VerifyProcess: observed.VerifyProcess, After: observed.After}
+			var entry *RawAttempt
+			for k := range r.RawAttempts {
+				if r.RawAttempts[k].Ordinal == control.Ordinal && r.RawAttempts[k].Attempt == a.Attempt {
+					entry = &r.RawAttempts[k]
+				}
+			}
+			if entry == nil {
+				// No hook stdout was retained, so the attempt cannot score (BBF-V0-018).
+				continue
+			}
+			for _, phase := range []struct {
+				retained *[]byte
+				data     []byte
+			}{{&entry.IsolationResetBytes, observed.resetRaw}, {&entry.IsolationVerifyBytes, observed.verifyRaw}} {
+				switch {
+				case len(phase.data) == 0:
+				case !safeReceiptBytes(phase.data):
+					*unsafe = true
+				case *retainedBytes+len(phase.data) > maxDocumentBytes/2:
+					if !slices.Contains(entry.Omissions, "retained-byte-bound") {
+						entry.Omissions = append(entry.Omissions, "retained-byte-bound")
+					}
+				default:
+					*phase.retained = bytes.Clone(phase.data)
+					*retainedBytes += len(phase.data)
+				}
+			}
+		}
+	}
+}
+
+// rawIsolationVerifies checks that a retained attempt's isolation identities re-derive from its
+// retained phase stdout and that the stdout matches the recorded process digests (BBF-V0-022).
+func rawIsolationVerifies(plan Plan, control PlannedControl, a AttemptResult, raw RawAttempt) bool {
+	observed := a.Isolation
+	if plan.Request.Isolation == nil || observed == nil {
+		return plan.Request.Isolation == nil && observed == nil && len(raw.IsolationResetBytes) == 0 && len(raw.IsolationVerifyBytes) == 0
+	}
+	if !isolationBytesVerify(plan, control.ID, a.Attempt, isolationPhaseReset, observed.ResetProcess, raw.IsolationResetBytes, observed.Before) {
+		return false
+	}
+	if observed.VerifyProcess == nil {
+		return len(raw.IsolationVerifyBytes) == 0 && observed.After == nil
+	}
+	return isolationBytesVerify(plan, control.ID, a.Attempt, isolationPhaseVerify, *observed.VerifyProcess, raw.IsolationVerifyBytes, observed.After)
 }
 
 func readNativeArtifact(root string, a Artifact) ([]byte, error) {
@@ -233,7 +301,7 @@ func EncodeEvidence(r EvidenceReceipt) ([]byte, error) {
 		return nil, errors.New("document exceeds bound")
 	}
 	for _, a := range r.RawAttempts {
-		if !fits(a.HookBytes) || !fits(a.NativeBytes) {
+		if !fits(a.HookBytes) || !fits(a.NativeBytes) || !fits(a.IsolationResetBytes) || !fits(a.IsolationVerifyBytes) {
 			return nil, errors.New("document exceeds bound")
 		}
 	}
@@ -245,7 +313,7 @@ func EncodeEvidence(r EvidenceReceipt) ([]byte, error) {
 		return nil, errors.New("receipt-secret-shaped-data")
 	}
 	for _, a := range r.RawAttempts {
-		if !safeReceiptBytes(a.HookBytes) || !safeReceiptBytes(a.NativeBytes) {
+		if !safeReceiptBytes(a.HookBytes) || !safeReceiptBytes(a.NativeBytes) || !safeReceiptBytes(a.IsolationResetBytes) || !safeReceiptBytes(a.IsolationVerifyBytes) {
 			return nil, errors.New("receipt-secret-shaped-data")
 		}
 	}
@@ -281,6 +349,11 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 		r.Report.Schema != ReportSchema || r.Report.PlanDigest != expectedPlan || r.Report.Digest != digestJSON(r.Report) || len(r.Report.Results) != len(plan.Controls) {
 		return invalid()
 	}
+	// The report must record exactly the plan's declared isolation (BBF-V0-022); the
+	// runner-neutral profile has no evidence receipt (BBF-V0-028).
+	if plan.Request.Provider != nil || r.Report.Provider != "" || !reflect.DeepEqual(r.Report.Isolation, plan.Request.Isolation) {
+		return invalid()
+	}
 	rawIndex := 0
 	for i, control := range plan.Controls {
 		result := r.Report.Results[i]
@@ -304,6 +377,9 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 			rawIndex++
 			if raw.Ordinal != control.Ordinal || raw.ControlID != control.ID || raw.Attempt != a.Attempt || len(raw.Omissions) != 0 ||
 				raw.HookSHA256 != digestBytes(raw.HookBytes) || raw.HookSHA256 != a.HookProcess.StdoutSHA256 {
+				return invalid()
+			}
+			if !rawIsolationVerifies(plan, control, a, raw) {
 				return invalid()
 			}
 			if a.Receipt == nil {

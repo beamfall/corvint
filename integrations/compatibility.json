@@ -4,7 +4,7 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.3.1",
+      "adapterVersion": "0.3.2",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
@@ -24,7 +24,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.4",
+      "adapterVersion": "0.2.6",
       "documentedAgainstHostVersion": "0.149.0",
       "fullSupport": "external-dependent",
       "host": "codex",
@@ -44,7 +44,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.8",
+      "adapterVersion": "0.2.10",
       "documentedAgainstHostVersion": "0.55.1",
       "fullSupport": "external-dependent",
       "host": "gemini-cli",
@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.14",
+      "adapterVersion": "0.7.15",
       "documentedAgainstHostVersion": "2.0.18",
       "fullSupport": "external-dependent",
       "host": "opencode",

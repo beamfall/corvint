@@ -273,6 +273,8 @@
       "internal/cem/gitauth/",
       "internal/cem/gitrun/",
       "internal/cem/patch/",
+      "internal/cem/sim/",
+      "internal/cem/verify/",
       "internal/cem/wire/",
       "internal/groupreap/",
       "protocol/cem-1.0/stable/receipt-authentication/"
@@ -396,6 +398,15 @@
     "internal/worksource": [],
     "tools/beamfall-shadow": [
       "go.mod"
+    ],
+    "tools/capabilities-check": [
+      "AGENTS.md",
+      "README.md",
+      "cmd/",
+      "docs/",
+      "integrations/",
+      "internal/mcp/",
+      "protocol/integrations/"
     ],
     "tools/cem-stable-regen": [
       "protocol/cem-1.0/"

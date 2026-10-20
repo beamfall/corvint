@@ -122,6 +122,7 @@ make windows-vet
 ## Agent routing
 
 Use the matching row in `docs/AGENT-ROUTES.md` for a bounded route from question to original evidence.
+What Corvint can do (every command, binary and MCP tool, with maturity and refusals): `docs/CAPABILITIES.md`.
 Spec questions: read `docs/specs/INDEX.json` or the target spec's Agent digest first. Look up
 requirement IDs in `docs/specs/REQUIREMENTS.tsv`; open a full spec body only after the digest points
 to a section. Backlog questions: the local roadmap is the Corvint task store `.taskman/`, read with

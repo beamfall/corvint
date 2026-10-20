@@ -40,6 +40,10 @@ var liveBundledTuples = map[string]struct{ sha256, revision, manifest, observed,
 	"1.64.0": {"77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634", "1248", "156.0.8078.4", "Google Chrome for Testing 156.0.8078.4", "/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell"},
 }
 
+// liveSystemBrowsers is the configured system-Chrome version each runner
+// release was live-qualified with (PWP-V0-008, PWP-V0-037).
+var liveSystemBrowsers = map[string]string{"1.63.0": "Google Chrome 153.0.8010.48", "1.64.0": "Google Chrome 155.0.8059.85"}
+
 func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
 	if modules == "" {
@@ -409,10 +413,18 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 		t.Fatalf("system-browser version missing: %v", version.Err)
 	}
 	systemVersion := strings.TrimSpace(string(version.Stdout))
-	if !retainAttempts && pkg.Version == "1.63.0" && systemVersion == "Google Chrome 153.0.8010.48" && system.Identity.NodeVersion == "v22.23.2" {
+	if !retainAttempts && liveSystemBrowsers[pkg.Version] == systemVersion && system.Identity.NodeVersion == "v22.23.2" {
 		if system.Infrastructure != nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-			t.Fatal("previously qualified system-browser tuple regressed")
+			t.Fatalf("qualified system-browser tuple %s on Playwright %s did not project passing", systemVersion, pkg.Version)
 		}
+		t.Logf("PWP-V0-008/PWP-V0-037 system browser %s on Playwright %s projected passing", systemVersion, pkg.Version)
+	} else if retainAttempts && liveSystemBrowsers[pkg.Version] == systemVersion {
+		// The reporter admits the qualified system tuple; the Go predicate
+		// keeps /3 off it, so the outcome is retained but never passing.
+		if jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+			t.Fatal("system-browser tuple projected passing execution under /3")
+		}
+		t.Logf("PWP-V0-037 system browser %s on Playwright %s stays non-passing under /3", systemVersion, pkg.Version)
 	} else {
 		if system.Infrastructure == nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 			t.Fatal("unqualified system-browser update projected passing execution")
@@ -604,4 +616,118 @@ func assertExternalSurvived(t *testing.T, r jstestprovider.Receipt, address stri
 	if resp.StatusCode != 200 {
 		t.Fatalf("external server status %d", resp.StatusCode)
 	}
+}
+
+// TestPWPV0035SensitiveProfileLive runs the /2 sensitive-input reporter
+// against a real browser fill step (PWP-V0-035). It is the live observation
+// that admits /2 on a runner/Node tuple; /2 itself still never projects
+// passing execution (PWP-V2-006).
+func TestPWPV0035SensitiveProfileLive(t *testing.T) {
+	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
+	if modules == "" {
+		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for live qualification")
+	}
+	pkgData, err := os.ReadFile(filepath.Join(modules, "@playwright/test/package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pkg struct {
+		Version string `json:"version"`
+	}
+	if err = json.Unmarshal(pkgData, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	bundled, ok := liveBundledTuples[pkg.Version]
+	if !ok {
+		t.Fatalf("no live bundled tuple expectation for Playwright %s", pkg.Version)
+	}
+	node := scopeLiveNode(t, "CORVINT_PLAYWRIGHT_NODE")
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"sensitive.config.cjs", "sensitive.spec.cjs"} {
+		data, readErr := os.ReadFile(filepath.Join("testdata", "external", name))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if writeErr := os.WriteFile(filepath.Join(root, name), data, 0600); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	if err = os.Symlink(modules, filepath.Join(root, "node_modules")); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("sensitive fixture"))
+	}))
+	defer server.Close()
+	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
+	cfg := jstestprovider.E2EConfig{
+		Config: jstestprovider.Config{
+			Dir: root, ConfigFile: filepath.Join(root, "sensitive.config.cjs"), TestFiles: []string{filepath.Join(root, "sensitive.spec.cjs")},
+			RunnerName: "playwright", RunnerVersion: pkg.Version,
+			DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "PLAYWRIGHT_BROWSERS_PATH"}, Timeout: 45 * time.Second,
+		},
+		ExternalServer: true, AppIdentity: "sensitive-v1", ServerReadyURL: server.URL,
+		TestArgv:             []string{"sensitive.spec.cjs", "--project=chromium"},
+		SensitiveInputPolicy: &jstestprovider.SensitiveInputPolicy{},
+	}
+	r, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || r.Infrastructure != nil || r.Profile != jstestprovider.SensitiveExternalProfile || len(r.Tests) != 1 || r.Tests[0].State != jstestprovider.StatePassed {
+		t.Fatalf("live /2 run: %v infrastructure=%+v profile=%s tests=%+v", err, r.Infrastructure, r.Profile, r.Tests)
+	}
+	assertExternalSurvived(t, r, server.URL)
+	outcome := r.Tests[0]
+	if node != "" && r.Identity.NodeVersion != node {
+		t.Fatalf("run observed Node %q, want explicitly provided %q", r.Identity.NodeVersion, node)
+	}
+	if got := jstestprovider.ReceiptRuntimeTuple(r); got != jstestprovider.RuntimeTupleCandidate {
+		t.Fatalf("live /2 runtime tuple %s on Playwright %s Node %s, want candidate", got, pkg.Version, r.Identity.NodeVersion)
+	}
+	var use struct {
+		CorvintBrowser struct {
+			ExecutableSHA256 string `json:"executableSha256"`
+			BrowserRevision  string `json:"browserRevision"`
+			BrowserVersion   string `json:"browserVersion"`
+			ExecutablePath   string `json:"executablePath"`
+		} `json:"corvintBrowser"`
+	}
+	if outcome.Project == nil || json.Unmarshal(outcome.Project.Use, &use) != nil || use.CorvintBrowser.ExecutableSHA256 != bundled.sha256 || use.CorvintBrowser.BrowserRevision != bundled.revision || use.CorvintBrowser.BrowserVersion != bundled.observed || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, bundled.suffix) {
+		t.Fatalf("live /2 run is not on the qualified bundled tuple: %+v", outcome.Project)
+	}
+	redacted := 0
+	var walk func([]jstestprovider.BrowserStep)
+	walk = func(steps []jstestprovider.BrowserStep) {
+		for _, step := range steps {
+			if step.Redacted && strings.Contains(step.Title, jstestprovider.SensitiveInputRedactionMarker) {
+				redacted++
+			}
+			walk(step.Steps)
+		}
+	}
+	for _, attempt := range outcome.Attempts {
+		walk(attempt.Steps)
+	}
+	if redacted == 0 {
+		t.Fatalf("live fill step was not retained redacted: %+v", outcome.Attempts)
+	}
+	encoded, err := jstestprovider.EncodeQualified(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "corvint-fixture-typed-value") {
+		t.Fatal("live /2 receipt retained the typed value")
+	}
+	if jstestprovider.ReceiptTestProjection(r, outcome).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("live /2 outcome projected passing execution before PWP-V2-006 admits it")
+	}
+	if _, err = testevidence.Retain(root, "corvint-js-test-provider", encoded); err != nil {
+		t.Fatal(err)
+	}
+	doc, err := testvaliditydoc.Discover(root)
+	if err != nil || doc.Playwright == nil || len(doc.Tests) != 1 {
+		t.Fatalf("retained /2 discovery: %v %+v", err, doc)
+	}
+	t.Logf("PWP-V0-035 live /2 on Playwright %s Node %s: %d redacted step(s), candidate tuple, non-passing projection", pkg.Version, r.Identity.NodeVersion, redacted)
 }

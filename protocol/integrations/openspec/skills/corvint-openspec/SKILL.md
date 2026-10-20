@@ -42,3 +42,7 @@ corvint review --base "<full base commit>"
 clean HEAD only; with uncommitted changes it refuses. Report that refusal as printed; never commit
 to make it run. Report the selected tests with witnesses, the excluded summary, the review advice
 and every unknown. List tests the user may run; do not run them.
+
+For other Corvint capabilities, `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and MCP tool with
+its maturity and refusals.
