@@ -1481,7 +1481,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
 - `TSA-V0-396`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader
   MUST count `if`, `unless`, `case`, `begin`, `while` and `until` as a block opener in value
   position: after an assignment (`=`, `||=`, `+=` and the other operator assignments), a hash
-  `=>`, an opening `(` or `[`, a comma, `&&` or `||`, and `case` or `begin` after `return`.
+  `=>`, a label hash key (`key: if x`), an append (`<< if x`), an opening `(` or `[`, a comma,
+  `&&` or `||`, a line-start `else` (`else if x`, which nests a block of its own), and `case` or
+  `begin` after `return` (label key, append and `else` added by V1-2078).
   - A modifier (`foo if bar`, `x = 1 unless y`, `return if bar`) and a keyword argument
     (`if: true`) MUST NOT open a block, and neither may a keyword inside a string literal.
   - A value-position block that the same line closes with `end`
@@ -1509,8 +1511,9 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
     rule.
 
 Non-goals:
-- parsing Ruby beyond the line reader: other value positions (`key: if x`, `<< if x`, ternary
-  branches) and keywords inside regular expression literals are not recognized;
+- parsing Ruby beyond the line reader: other value positions (ternary branches, which a line
+  cannot tell from a modifier after a predicate method such as `empty? if x`) and keywords inside
+  regular expression literals are not recognized;
 - reading a support file that still does not read;
 - defining a shared group through metaprogramming (`define_method`, `send`, a constant naming the
   method) in an unread file. Such a definition is not seen and does not hold the inclusion back.
