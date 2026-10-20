@@ -120,7 +120,8 @@ and range impact are unchanged.
   MUST fail closed. A non-literal key at any call site of a registry's accessor adds
   `accessor-key-nonliteral` (count of such calls, with `registry` and `accessor`); an
   unresolved entry adds `registry-key-unresolved` (count, with `registry`); an unresolved export
-  adds `registry-export-unresolved` and applies to every JS/TS changed path. Each of these, and
+  adds `registry-export-unresolved` and applies to every JS/TS changed path, and to no changed
+  path of another language (Ruby included; V1-1479). Each of these, and
   a change to the registry file itself, MUST widen selection to every caller of that registry's
   accessors with `medium` call-site evidence. A source that names an accessor but cannot be
   read or lexed completely adds `registry-caller-unavailable`. These rows sit in structured
@@ -153,7 +154,8 @@ stays counted and widened under NGI-V0-010 (GitHub #945, #946, #947).
   file, to an indexed JS/TS source (directly or as a directory `index`). The `require` forms
   apply only when `require` is unbound in the registry file: the file has no identifier escape
   (`\`), and every occurrence of `require` outside a member access is a call that is not a
-  function declaration. The edge binds a changed path exactly as rule (c) binds an importer to
+  function declaration or the name of a one-line TypeScript ambient `declare const|let|var
+  require:` declaration, which binds no value (V1-1479). The edge binds a changed path exactly as rule (c) binds an importer to
   it. A bare or unresolvable specifier, an arrow with parameters or a block body, a dynamic or
   concatenated S, constructor or callback arguments, any other callback, an expression after
   the assertion, and any other body shape stay unresolved entries.
@@ -441,7 +443,7 @@ for languages not admitted by this new range capability.
 | `bare-import-unresolved` | Bare JS/TS import specifiers resolve to no repository file or declared package, so reverse importers are not closed; `count` is the repository-wide specifier count (`GPK-V0-080`, proposed). |
 | `registry-declaration-invalid` | A manifest `registries` member does not decode or validate; `count` is the number of such manifests (`NGI-V0-007`). |
 | `registry-key-unresolved` | Entries of the declared registry `registry` have no literal key or imported-binding value; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path (`NGI-V0-012`); a lazy entry counts unless `NGI-V0-013` resolves it. |
-| `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`). |
+| `registry-export-unresolved` | The declared export of `registry` is not a readable object literal, so none of its keys are known; selection is widened (`NGI-V0-008`, `NGI-V0-010`) on every JS/TS changed path only. |
 | `accessor-key-nonliteral` | `count` calls of `accessor` pass a key that is not a literal; selection is widened to every caller (`NGI-V0-010`). |
 | `registry-caller-unavailable` | Sources naming a declared accessor could not be read or lexed completely (`NGI-V0-010`). |
 | `ruby-constant-unmapped` | The changed Ruby path is below no autoload root, below an ignored directory, or its path does not camelize to a constant (`NGI-V0-016`). |
@@ -470,10 +472,10 @@ and a validated declared identifier, never source text.
 | `NGI-V0-007` | `ValidateRegistryDeclarations`, `declaredRegistries` (`internal/contextindex/registry_dialect.go`); `decodeManifest` (`internal/appmap/manifest.go`) | `TestValidateRegistryDeclarations`, `TestRegistryDialectDeclarationFailures`, `TestManifestRegistriesMember` |
 | `NGI-V0-008` | `parseRegistry`, `registryImports`, `registryEntryOf`; template body in `readTemplate` (`webimports.go`) | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
 | `NGI-V0-009` | `registryCallSites`, `registryDialect.impact`; wiring in `impact` | `TestRegistryDialectSelectsTestsPassingTheKey`, `TestRegistryDialectAliasedAccessorImport`, `TestRegistryDialectKeyCollisionAcrossRegistries` |
-| `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved` |
+| `NGI-V0-010` | `registryDialect.impact`; `extra` rows in `nonGoImpactUnknowns` | `TestRegistryDialectNonLiteralKeyWidens`, `TestRegistryDialectChangedRegistrySelectsEveryCaller`, `TestRegistryDialectUnresolvedRegistryWidens`, `TestRegistryDialectReexportedRegistryIsUnresolved`, `TestRegistryDialectExportUnresolvedIsWebOnly` |
 | `NGI-V0-011` | `internal/contextindex/registry_dialect_test.go`, `internal/appmap/registries_test.go` | tests above; real CLI output in `../build-log/2026-10-14-v1-1365-string-keyed-registry.md` |
 | `NGI-V0-012` | `registryDialect.impact` (`openEntry`) | `TestRegistryDialectLazyRequireNeverFailsOpen`, `TestRegistryDialectUnresolvedEntryAppliesToEveryPath`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
-| `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed` |
+| `NGI-V0-013` | `registryLazyBinding`, `registryThenCallback`, `registryAssertionTail`, `registryRequireFree`, `registryAmbientDeclaration`, `registryLazyTarget`, `parseRegistry`; `bound` in `registryDialect.impact` | `TestRegistryDialectLazyEntriesResolve`, `TestRegistryDialectLazyEntriesStayClosed`, `TestRegistryDialectAmbientRequireIsLoader` |
 | `NGI-V0-014` | `registryObject`, `registryExportedOtherwise` | `TestRegistryDialectNonExportedRegistry` |
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 | `NGI-V0-016` | `Mapper.Constant`, `Mapper.Camelize` (`internal/rubyautoload/rubyautoload.go`) | `TestRubyAutoloadConstantMapping` (`internal/rubyautoload`), `TestRubyAutoloadNamedConstantReverseReference` |
