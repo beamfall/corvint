@@ -20,6 +20,8 @@ const qualifiedBundledBrowsers = {
     pathSuffix: '/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell'
   }
 };
+// PWP-V0-008, PWP-V0-037: each runner version's own configured system-Chrome version.
+const qualifiedSystemBrowsers = {'1.63.0': 'Google Chrome 153.0.8010.48', '1.64.0': 'Google Chrome 155.0.8059.85'};
 const bundledBrowsers = new Map();
 const observedVersions = new Map();
 const redactionMarker = '[REDACTED]';
@@ -325,12 +327,12 @@ function bundledBrowserIdentity(headless) {
   return browser;
 }
 
-// PWP-V0-009: v24.11.1 is admitted only for the 1.63.0 bundled headless shell;
-// 1.64.0 ran live on v22.23.2 only (PWP-V0-033). The Go predicate stays the
-// authority for which profile may project it as passing.
+// PWP-V0-009: v24.11.1 is admitted for the 1.63.0 bundled headless shell;
+// 1.64.0 ran live on v22.23.2 (PWP-V0-033) and v24.11.1 (PWP-V0-036). The Go
+// predicate stays the authority for which profile may project it as passing.
 function qualifiedBundledIdentity(browser, version, freshnessProfile = false) {
   const qualified = Object.hasOwn(qualifiedBundledBrowsers, version) ? qualifiedBundledBrowsers[version] : null;
-  const nodes = version === '1.63.0' ? ['v22.23.2', 'v24.11.1'] : ['v22.23.2'];
+  const nodes = ['v22.23.2', 'v24.11.1'];
   return qualified && browser && browser.platform === 'darwin' && browser.arch === 'arm64' && (freshnessProfile ? version === '1.63.0' && browser.nodeVersion === 'v22.23.3' : nodes.includes(browser.nodeVersion)) &&
     browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
     browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
@@ -384,7 +386,7 @@ function effectiveUse(test, project, version, freshnessProfile = false) {
     const headlessShell = bundledMatch ? path.join(bundledMatch[1], `chromium_headless_shell-${bundledMatch[2]}`, 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell') : '';
     resolved.channel = resolved.channel || '';
     resolved.corvintBrowser = executablePath ? {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: executableVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)} : bundledBrowserIdentity(resolved.headless);
-    const systemQualified = version === '1.63.0' && resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true;
+    const systemQualified = Object.hasOwn(qualifiedSystemBrowsers, version) && resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === qualifiedSystemBrowsers[version] && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true;
     if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!(systemQualified && !freshnessProfile) && !qualifiedBundledIdentity(resolved.corvintBrowser, version, freshnessProfile))) return null;
   } else {
     delete resolved.headless;

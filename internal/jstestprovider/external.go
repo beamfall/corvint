@@ -72,12 +72,15 @@ var qualifiedBundledBrowsers = map[string]qualifiedBundledBrowser{
 	},
 }
 
-// The configured system-Chrome tuple is qualified for Playwright 1.63.0 only.
-const (
-	qualifiedSystemBrowserRunner     = "1.63.0"
-	qualifiedSystemBrowserVersion    = "Google Chrome 153.0.8010.48"
-	qualifiedSystemBrowserExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-)
+// qualifiedSystemBrowsers names the exact configured system-Chrome version
+// each runner release was live-qualified with (PWP-V0-008; PWP-V0-037 for
+// 1.64.0). A version is never inherited across runner releases.
+var qualifiedSystemBrowsers = map[string]string{
+	"1.63.0": "Google Chrome 153.0.8010.48",
+	"1.64.0": "Google Chrome 155.0.8059.85",
+}
+
+const qualifiedSystemBrowserExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 // qualifiedPlaywrightVersions is the closed, ordered list of exact
 // @playwright/test versions external mode admits (PWP-V0-032). Admission is
@@ -808,16 +811,17 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 		return false
 	}
 	if browser.ExecutableSource == nil {
-		if r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion || r.Identity.RunnerVersion != qualifiedSystemBrowserRunner {
+		qualified, ok := qualifiedSystemBrowsers[r.Identity.RunnerVersion]
+		if !ok || r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion {
 			return false
 		}
-		return qualifiedSystemPlaywrightBrowser(use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
+		return qualifiedSystemPlaywrightBrowser(qualified, use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
 	}
 	return qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, browser)
 }
 
-func qualifiedSystemPlaywrightBrowser(configured, version, observed *string) bool {
-	return configured != nil && *configured == *observed && *version == qualifiedSystemBrowserVersion && *observed == qualifiedSystemBrowserExecutable
+func qualifiedSystemPlaywrightBrowser(qualified string, configured, version, observed *string) bool {
+	return configured != nil && *configured == *observed && *version == qualified && *observed == qualifiedSystemBrowserExecutable
 }
 
 func qualifiedBundledPlaywrightBrowser(runnerVersion string, headless *bool, configured *string, browser playwrightBrowserIdentity) bool {

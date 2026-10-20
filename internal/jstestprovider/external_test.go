@@ -800,9 +800,13 @@ func TestReceiptRuntimeTupleClassification(t *testing.T) {
 		{AttemptExternalProfile, "1.60.0", "v22.23.2", RuntimeTupleUnqualified},
 		{ExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
 		{AttemptExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
-		{AttestedExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
-		{SensitiveExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
-		{ExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleUnqualified},
+		{AttestedExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
+		{SensitiveExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
+		{ExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleCandidate},
+		{AttemptExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleCandidate},
+		{AttestedExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleUnqualified},
+		{SensitiveExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.64.0", "v22.23.3", RuntimeTupleUnqualified},
 		{ExternalProfile, "1.65.0", "v22.23.2", RuntimeTupleUnqualified},
 	} {
 		r := Receipt{Profile: test.profile, Identity: Identity{RunnerVersion: test.runner, NodeVersion: test.node}}
@@ -829,7 +833,8 @@ func playwrightTupleReceipt(t *testing.T, profile, runner, node, use string) Rec
 
 // PWP-V0-032: 1.64.0 is admitted and its bundled headless-shell tuple is exact
 // and bound to its own runner version; the 1.63.0 tuple is not inherited in
-// either direction and the system-browser tuple stays 1.63.0-only.
+// either direction, and the 1.63.0 system-browser version is not inherited by
+// 1.64.0 (PWP-V0-037 admits only the version 1.64.0 ran live with).
 func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
 	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.64.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
 	if err := admitExternal(base); err != nil {
@@ -857,7 +862,7 @@ func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
 	for name, r := range map[string]Receipt{
 		"1.63-browser-on-1.64-runner": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", bundled163),
 		"1.64-browser-on-1.63-runner": playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", playwright164Bundled),
-		"system-browser-on-1.64":      playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system),
+		"1.63-system-browser-on-1.64": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system),
 		"revision-drift":              playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, `"browserRevision":"1248"`, `"browserRevision":"1249"`, 1)),
 		"digest-drift":                playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, "77d8278b", "87d8278b", 1)),
 		"manifest-drift":              playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, `"manifestBrowserVersion":"156.0.8078.4"`, `"manifestBrowserVersion":"156.0.8078.5"`, 1)),
@@ -872,8 +877,9 @@ func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
 	}
 }
 
-// PWP-V0-033: 1.64.0 is a candidate only for the base and attempt-retaining
-// profiles under Node v22.23.2; the other profiles and Node releases abstain.
+// PWP-V0-033: 1.64.0 is a candidate for the base and attempt-retaining
+// profiles under Node v22.23.2; PWP-V0-035 adds /1 and /2 there and PWP-V0-036
+// adds /0 and /3 under Node v24.11.1. Every other profile and Node abstains.
 func TestPWPV0033Playwright164ProfilesAndNodeAreExact(t *testing.T) {
 	for _, test := range []struct {
 		profile, node string
@@ -881,16 +887,92 @@ func TestPWPV0033Playwright164ProfilesAndNodeAreExact(t *testing.T) {
 	}{
 		{ExternalProfile, "v22.23.2", true},
 		{AttemptExternalProfile, "v22.23.2", true},
-		{AttestedExternalProfile, "v22.23.2", false},
-		{SensitiveExternalProfile, "v22.23.2", false},
-		{ExternalProfile, "v24.11.1", false},
+		{ExternalProfile, "v24.11.1", true},
+		{AttemptExternalProfile, "v24.11.1", true},
 		{ExternalProfile, "v22.23.3", false},
-		{AttemptExternalProfile, "v24.11.1", false},
+		{ExternalProfile, "v24.11.0", false},
+		{AttestedExternalProfile, "v24.11.1", false},
+		{SensitiveExternalProfile, "v24.11.1", false},
 	} {
 		r := playwrightTupleReceipt(t, test.profile, "1.64.0", test.node, playwright164Bundled)
 		if got := qualifiedPlaywrightTuple(r, r.Tests[0]); got != test.want {
 			t.Fatalf("%s on %s: qualified=%v want %v", test.profile, test.node, got, test.want)
 		}
+	}
+}
+
+// PWP-V0-035: /1 and /2 are candidates on 1.64.0 only under Node v22.23.2,
+// the release their live runs used; /2 still never projects passing.
+func TestPWPV0035Playwright164AttestedAndSensitiveTuples(t *testing.T) {
+	for _, profile := range []string{AttestedExternalProfile, SensitiveExternalProfile} {
+		for node, want := range map[string]bool{"v22.23.2": true, "v24.11.1": false, "v22.23.3": false, "v22.23": false} {
+			r := playwrightTupleReceipt(t, profile, "1.64.0", node, playwright164Bundled)
+			if got := qualifiedPlaywrightTuple(r, r.Tests[0]); got != want {
+				t.Fatalf("%s on Node %s: qualified=%v want %v", profile, node, got, want)
+			}
+		}
+	}
+	r := playwrightTupleReceipt(t, SensitiveExternalProfile, "1.64.0", "v22.23.2", playwright164Bundled)
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("/2 projected passing on 1.64.0 before PWP-V2-006 admits it")
+	}
+}
+
+// PWP-V0-036: Node v24.11.1 is admitted on 1.64.0 for the base and
+// attempt-retaining profiles' bundled tuple only; neighbouring releases and
+// identity drift keep abstaining.
+func TestPWPV0036Playwright164Node24TupleIsExact(t *testing.T) {
+	admitted := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled)
+	if ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("admitted 1.64.0 Node v24.11.1 bundled tuple abstained")
+	}
+	if attempt := playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled); !qualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
+		t.Fatal("admitted 1.64.0 Node v24.11.1 /3 tuple abstained")
+	}
+	drift := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", playwright164Bundled)
+	drift.Tests[0].Project.Use = json.RawMessage(strings.ReplaceAll(playwright164Bundled, "NODE", "v22.23.2"))
+	drift.Tests[0].ID = qualifiedTestID(drift.Identity, drift.Tests[0])
+	for name, r := range map[string]Receipt{
+		"neighbouring-patch": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.0", playwright164Bundled),
+		"later-minor":        playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.12.0", playwright164Bundled),
+		"identity-drift":     drift,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("unadmitted 1.64.0 Node tuple projected green")
+			}
+		})
+	}
+}
+
+// PWP-V0-037: the 1.64.0 system-Chrome tuple is the exact version it ran live
+// with, on /0 under Node v22.23.2 only; versions never cross runner releases.
+func TestPWPV0037Playwright164SystemChromeIsExact(t *testing.T) {
+	system := func(version string) string {
+		return strings.Replace(`{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"VERSION","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`, "VERSION", version, 1)
+	}
+	chrome155 := system("Google Chrome 155.0.8059.85")
+	admitted := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", chrome155)
+	if ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("qualified 1.64.0 system-Chrome tuple abstained")
+	}
+	if r := playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", system("Google Chrome 153.0.8010.48")); ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("1.63.0 system-Chrome tuple regressed")
+	}
+	for name, r := range map[string]Receipt{
+		"155-on-1.63":  playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", chrome155),
+		"153-on-1.64":  playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 153.0.8010.48")),
+		"other-patch":  playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 155.0.8059.86")),
+		"attempts":     playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v22.23.2", chrome155),
+		"node24":       playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", chrome155),
+		"other-binary": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.ReplaceAll(chrome155, "Google Chrome.app/Contents/MacOS/Google Chrome", "Chromium.app/Contents/MacOS/Chromium")),
+		"unconfigured": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(chrome155, `"launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}`, `"launchOptions":{}`, 1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if qualifiedPlaywrightTuple(r, r.Tests[0]) {
+				t.Fatal("unqualified system-Chrome tuple admitted")
+			}
+		})
 	}
 }
 

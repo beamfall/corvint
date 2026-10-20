@@ -21,9 +21,10 @@ const (
 const qualifiedNodeVersion = "v22.23.2"
 
 // admittedBundledNodeVersion is the one additional exact Node release admitted
-// for the base external profile's bundled headless-shell tuple on live evidence
-// (PWP-V0-009, proposed pending owner acceptance). It never admits a semver
-// range, another profile, or the system-browser tuple.
+// for the bundled headless-shell tuple on live evidence: the base profile on
+// 1.63.0 (PWP-V0-009), and the base and attempt-retaining profiles on 1.64.0
+// (PWP-V0-036). It never admits a semver range, another profile, or the
+// system-browser tuple.
 const admittedBundledNodeVersion = "v24.11.1"
 
 // ReceiptRuntimeTuple classifies an external receipt's runner/Node tuple with
@@ -46,10 +47,16 @@ func ReceiptRuntimeTuple(r Receipt) string {
 			return RuntimeTupleCandidate
 		}
 	case "1.64.0":
-		// PWP-V0-033: only the base and attempt-retaining profiles ran live on
-		// 1.64.0, and only under the one qualified Node release.
-		if r.Identity.NodeVersion == qualifiedNodeVersion && (r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile) {
+		// PWP-V0-033: the base and attempt-retaining profiles ran live on
+		// Node v22.23.2; PWP-V0-035 adds /1 and /2 on that release and
+		// PWP-V0-036 adds /0 and /3 on Node v24.11.1, each on its own live run.
+		switch r.Identity.NodeVersion {
+		case qualifiedNodeVersion:
 			return RuntimeTupleCandidate
+		case admittedBundledNodeVersion:
+			if r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile {
+				return RuntimeTupleCandidate
+			}
 		}
 	}
 	return RuntimeTupleUnqualified

@@ -412,3 +412,32 @@ func TestPWPV0034RefusalWriteFailureKeepsDiagnostic(t *testing.T) {
 		t.Fatalf("non-refusal error changed: %v", err)
 	}
 }
+
+// PWP-V0-038: an e2e admission or version refusal exits 3 with exactly one
+// stderr line naming the refusal code, distinct from an infrastructure failure
+// (1) and a usage error (2); the typed document stays on stdout.
+func TestPWPV0038E2ERefusalExitStatusAndStderrLine(t *testing.T) {
+	dir := t.TempDir()
+	code, stdout, stderr := runProviderMain(t, "e2e", "--dir", dir, "--config", filepath.Join(dir, "playwright.config.cjs"), "--runner-version", "1.62.0", "--external-server", "--app-identity", "fixture", "--server-ready-url", "http://127.0.0.1:1", "--test-file", filepath.Join(dir, "a.spec.cjs"))
+	if code != 3 {
+		t.Fatalf("version refusal exited %d", code)
+	}
+	if stderr != "refusal: external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0\n" {
+		t.Fatalf("stderr %q", stderr)
+	}
+	if !strings.HasPrefix(stdout, `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified"`) {
+		t.Fatalf("stdout %q", stdout)
+	}
+	if code, _, stderr = runProviderMain(t, "e2e", "--interrupt-grace=1s"); code != 3 || stderr != "refusal: runner-control-requires-external-server\n" {
+		t.Fatalf("admission refusal exited %d stderr %q", code, stderr)
+	}
+	if code, _, _ = runProviderMain(t, "e2e", "--no-such-flag"); code != 2 {
+		t.Fatalf("usage error exited %d", code)
+	}
+	if line, ok := admissionRefusalLine(errors.New("runner-unavailable")); ok || line != "" {
+		t.Fatalf("plain error classified as refusal: %q", line)
+	}
+	if line, _ := admissionRefusalLine(&jstestprovider.E2ERefusal{Code: "report-identity-unknown", Detail: "a\nb\rc"}); line != `refusal: report-identity-unknown: a\nb\rc` {
+		t.Fatalf("multi-line detail not escaped: %q", line)
+	}
+}
