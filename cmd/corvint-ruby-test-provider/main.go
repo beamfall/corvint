@@ -1,5 +1,6 @@
 // Command corvint-ruby-test-provider is the experimental RSpec provider
-// (docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-090..095).
+// (docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-090..095,
+// LPCV-V0-131..135).
 // `rspec` runs RSpec once with its JSON formatter, optionally through an
 // --exec-prefix such as `docker compose run --rm app`, and prints the
 // corvint-ruby-test-provider/0 document on stdout. Git identity is always
@@ -30,8 +31,10 @@ import (
 
 const usage = `usage: corvint-ruby-test-provider rspec --dir <project-directory> [flags]
 
-Experimental (LPCV-V0-090..095). Runs RSpec once with the JSON formatter and
-prints the corvint-ruby-test-provider/0 document. Git is observed on the host.
+Experimental (LPCV-V0-090..095, LPCV-V0-131..135). Runs RSpec once with the
+JSON formatter and prints the corvint-ruby-test-provider/0 document. Git is
+observed on the host; under --exec-prefix, Ruby and Bundler versions are
+observed inside the prefix by a separate probe invocation.
 `
 
 var (
@@ -99,7 +102,7 @@ func newFlags(output io.Writer) (*flag.FlagSet, options) {
 	opts.directory = flags.String("dir", ".", "project directory RSpec runs in (inside a Git worktree)")
 	flags.Var(opts.execPrefix, "exec-prefix", "one argument of a command prefix such as docker compose run --rm app (repeatable, in order)")
 	flags.Var(opts.rspec, "rspec", "one argument of the RSpec command (repeatable; default bundle exec rspec)")
-	flags.Var(opts.specs, "spec", "project-relative spec file or directory to run (repeatable)")
+	flags.Var(opts.specs, "spec", "project-relative spec file or directory, path:line[:line...] or path[id,...] to run and record as the selection (repeatable)")
 	opts.junit = flags.Bool("junit", false, "also request RspecJunitFormatter and retain its digest")
 	opts.retain = flags.Bool("retain", false, "retain the document under .corvint/test-evidence of the enclosing worktree")
 	opts.timeout = flags.Duration("timeout", rubytestprovider.DefaultTimeout, "bound on the RSpec run")
