@@ -102,10 +102,11 @@ type StableArtifactCheck struct {
 
 // structuralTuples are the exact Go releases whose go/parser, go/scanner and
 // go/format behavior is qualified for structural mechanical proof
-// (CEM-V1-050): go1.27.1 is the S0E prototype tuple, and go1.27.2 is admitted
-// by decision 0522 on the sealed protocol/cem-1.0/structural-tuples/go1.27.2
-// packet. Every other release refuses with unsupported-structural-runtime.
-var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true}
+// (CEM-V1-050): go1.27.1 is the S0E prototype tuple, go1.27.2 is admitted by
+// decision 0522 and go1.27.3 by decision 0547, each on its sealed
+// protocol/cem-1.0/structural-tuples/<version> packet. Every other release
+// refuses with unsupported-structural-runtime.
+var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.27.3": true}
 
 func structuralRuntimeAdmitted(version string) bool { return structuralTuples[version] }
 
