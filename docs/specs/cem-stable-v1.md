@@ -6,7 +6,7 @@ Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..15
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed; implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); opt-in runner receipt admission in the plain producer and an end-to-end fixture chain from a native Tasks attempt through the runner, the producer and the native and portable verdict gate (`CEM-V1-280..287`, accepted under the owner's standing auto-accept (2026-10-11), V1-0632); qualification remains bounded.
 - Blocked on: technical contract acceptance and stable promotion, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -466,7 +466,7 @@ Non-goals:
 - no new or changed `corvint cem` verb, CLI frozen surface or MCP tool
 - no change to the wire, the verifier, `CEM-V1-083` or the Tasks-bound request
 - no runner execution: the plan and receipt are opaque caller inputs, checked only by SHA-256 as
-  the verifier checks them
+  the verifier checks them, unless the request opts into the receipt admission of `CEM-V1-280`
 - no receipt signing (`FPK-V0-036`)
 - no more than one runner receipt per map
 
@@ -2346,6 +2346,87 @@ Linux route.
 | CEM-V1-182 | `TestStableLifecycleKeeperOwnerExitMidFrame`, `TestStableLifecycleKeeperOwnerExitWhileHolding`, `TestStableLifecycleKeeperOwnerExitWhileRunning`, `TestStableLifecycleKeeperRefusesForeignOwner` | Pass on Darwin and on Linux arm64 with `-race` |
 | CEM-V1-183 | `TestStableLinuxZombieOnlyGroupRetires`, `TestStableLinuxLiveMemberBehindZombieLeaderHolds`, `TestStableLinuxQuietRequiresOwnZombieLeader`, `TestStableLinuxProcStatParsesHostileCommandName`, `TestStableLifecycleRetireTwoStep`, `TestStableLifecycleRetireBoundHold`, `TestStableLifecycleRetirePostReapBoundIsInsideOuterBound` | Signal 0 still succeeds on the zombie-only group while the `/proc` proof retires it |
 | CEM-V1-184 | `TestTCBV0016GateVerdictRunsBothConsumers`; `TestStableCanonicalFullResults`, `TestStableCanonicalLedgers`, `TestCEMV1226TamperMatrixPortable` | Native and portable `verdictSha256` both `14ac383d61741ab12c6a422d086701302b230295ff97babcb443aead1cb40476` on linux/arm64 and darwin/arm64 (build log); linux/amd64 is the CI `go-product-shard` run |
+
+## Runner receipt admission and the Tasks chain (V1-0632, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11); V1-0632. The plain producer
+(`CEM-V1-240`) treats its runner plan and receipt as opaque files, so it would bind a failed,
+skipped, stale or mismatched receipt as readily as a passing one. Nothing showed the whole chain
+from a native Tasks attempt through the runner, the producer and both verifiers. This section adds
+one opt-in producer check and one end-to-end fixture chain. It changes no wire member, verifier
+rule, map byte or `corvint cem` verb.
+
+- `CEM-V1-280`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) A
+  `cem-stable-plain-assembly/1` request MAY carry one more optional member, `runnerAdmission`.
+  Its only accepted value is `corvint-test-runner/0`; any other value is refused before any read.
+  When it is absent the runner files stay opaque exactly as `CEM-V1-240` states. When it is present
+  the producer applies `CEM-V1-281..285` in that order, after the source-map check and before it
+  creates the bundle, and a refusal writes no bundle at all. An admitted receipt yields the same
+  map, artifacts and result as the opaque path; the map does not record that admission ran, and
+  the receipt record keeps `executionAuthority` `CALLER_OBSERVED`.
+- `CEM-V1-281`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The plan
+  and receipt MUST decode as closed `corvint-test-runner-plan/0` and
+  `corvint-test-runner-receipt/0` documents, and every plan input path MUST be a literal
+  repository path (checked just before the `CEM-V1-283` read); otherwise the request is refused
+  with `runner-document-invalid`.
+- `CEM-V1-282`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
+  receipt MUST bind the plan: its `planSha256` is the plan's identity, its execution
+  `inputSha256` is the identity of the plan's input files, and its execution runner is the plan's
+  runner. Otherwise the request is refused with `runner-receipt-tampered`.
+- `CEM-V1-283`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The plan
+  MUST pin 1 to 4096 input files, and each MUST be a blob of the request's `target` whose SHA-256
+  equals the pin, read by one bounded `git cat-file --batch`. An empty or oversized set, an absent
+  path, a non-blob or a different digest is refused with `runner-receipt-stale`.
+- `CEM-V1-284`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) Every
+  observed test MUST be `PASSED` or `SKIPPED`, the observation MUST be complete, and the receipt
+  MUST carry no execution error; otherwise the request is refused with `runner-receipt-failed`.
+- `CEM-V1-285`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) At least
+  one observed test MUST be `PASSED`; a receipt with only skipped tests or none is refused with
+  `runner-receipt-skipped`.
+- `CEM-V1-286`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) One
+  fixture test MUST drive, on a private disposable native Tasks store and one fixture checkout:
+  a native ticket claim; real `corvint-test-runner` plans and receipts built from repository
+  sources; the plain producer with admission; a bind and seal; and the store's `cem-verdict` gate
+  running the built `corvint cem gate-verdict` with the portable consumer built from
+  `interop/cem01-go`. The gate MUST pass with outcome `GRANT`, native `ACCEPT` with sidecar
+  `EXACT`, portable `ACCEPT`, equal native and portable `verdictSha256`, and every governed path
+  satisfied. Before that, the producer MUST refuse the runner's real failed, skipped, stale and
+  tampered receipts with `runner-receipt-failed`, `runner-receipt-skipped`,
+  `runner-receipt-stale` and `runner-receipt-tampered`, writing no bundle, and MUST accept the
+  failed receipt when admission is absent.
+- `CEM-V1-287`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) In the
+  same chain, a runner artifact edited after production MUST be refused three ways. Tasks refuses
+  the dirty worktree with `DIRTY_WORKTREE`. The gate's native and portable recomputations both
+  `REJECT` at stage `artifacts`, the native issue being `artifact-digest-mismatch`, with equal
+  verdict digests, so the gate answers `CEM_VERDICT_UNVERIFIABLE`. A committed edit fails the
+  Tasks gate with `CEM_VERDICT_PRODUCER_MISMATCH` / `sealed-tree-mismatch`.
+
+Non-goals:
+- no runner execution by the producer; admission reads the two documents and the target's blobs
+- no receipt signing or authentication (`FPK-V0-036`, V1-1264); a caller can still forge a
+  self-consistent passing receipt
+- no verifier-side admission: a portable consumer still checks the runner files by SHA-256 only
+- no new public case, capsule or dashboard (V1-0632 gap 1)
+
+Failure modes: each refusal above names its code and leaves no bundle; a Git read failure is
+refused without a code; an unknown `runnerAdmission` value is refused before any read.
+
+### Runner receipt admission and Tasks chain traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-280 | `TestCEMV1280RunnerAdmissionIsOptIn` (`internal/cemcandidate`); the opaque control in `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | `docs/build-log/2026-10-20-V1-0632-cem10-tasks-chain.md` |
+| CEM-V1-281 | `TestCEMV1281To1285RunnerAdmissionRefusals` (opaque public-case files, unknown receipt member, input path escapes) | Fails with the admission call disabled (build log) |
+| CEM-V1-282 | `TestCEMV1281To1285RunnerAdmissionRefusals` (another plan, other inputs, another runner); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |
+| CEM-V1-283 | `TestCEMV1281To1285RunnerAdmissionRefusals` (earlier source, absent path, no inputs); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |
+| CEM-V1-284 | `TestCEMV1281To1285RunnerAdmissionRefusals` (failed test, incomplete observation, execution error); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |
+| CEM-V1-285 | `TestCEMV1281To1285RunnerAdmissionRefusals` (only skipped, no tests); `TestCEMV1286TasksRunnerProducerVerifyChain` | Fails with the admission call disabled (build log) |
+| CEM-V1-286 | `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | Darwin arm64 run (build log); Linux is CI |
+| CEM-V1-287 | `TestCEMV1286TasksRunnerProducerVerifyChain` (`internal/cemchain`) | Darwin arm64 run (build log) |
+
+Rollback: remove `internal/cemcandidate/plain_runner.go`, the `runnerAdmission` member and its
+call in `internal/cemcandidate/plain.go`, `internal/cemchain/`, and their tests. Requests without
+the member are unaffected; no committed map depends on admission.
 
 ## Packet truthfulness and citation vectors (V1-1333, 2026-10-14)
 

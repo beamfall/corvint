@@ -27,6 +27,9 @@ type PlainRequest struct {
 	RunnerPlan    FileRef          `json:"runnerPlan"`
 	RunnerReceipt FileRef          `json:"runnerReceipt"`
 	Criteria      []PlainCriterion `json:"criteria"`
+	// RunnerAdmission is absent for opaque runner files (CEM-V1-240) or
+	// RunnerAdmissionProfile to admit them as runner documents (CEM-V1-280).
+	RunnerAdmission string `json:"runnerAdmission,omitempty"`
 }
 
 // PlainCriterion names the source map evidence record that holds the
@@ -53,7 +56,7 @@ func (r PlainRequest) inputs() []FileRef {
 }
 
 func (r PlainRequest) validate() error {
-	if r.Profile != PlainAssemblyProfile || !filepath.IsAbs(r.Repository) || !cw.IsGitOid(r.ExpectedBase) || !cw.IsGitOid(r.Target) || len(r.ExpectedBase) != len(r.Target) || len(r.Criteria) == 0 || len(r.Criteria) > 256 {
+	if r.Profile != PlainAssemblyProfile || !filepath.IsAbs(r.Repository) || !cw.IsGitOid(r.ExpectedBase) || !cw.IsGitOid(r.Target) || len(r.ExpectedBase) != len(r.Target) || len(r.Criteria) == 0 || len(r.Criteria) > 256 || r.RunnerAdmission != "" && r.RunnerAdmission != RunnerAdmissionProfile {
 		return fmt.Errorf("incomplete plain stable assembly request")
 	}
 	for _, pin := range r.inputs() {
@@ -97,6 +100,11 @@ func AssemblePlain(ctx context.Context, r PlainRequest, out string) (PlainAssemb
 	}
 	if len(source.Criteria) != 0 || len(source.Receipts) != 0 || len(source.Links) != 0 || len(source.Artifacts) != 0 || source.Provenance != nil {
 		return result, fmt.Errorf("plain assembly requires a cem/1.0 producer map source")
+	}
+	if r.RunnerAdmission == RunnerAdmissionProfile {
+		if e := admitRunnerReceipt(ctx, r.Repository, r.Target, raws[1], raws[2]); e != nil {
+			return result, e
+		}
 	}
 	stable, e := plainStableBytes(r, source, raws[1], raws[2])
 	if e != nil {

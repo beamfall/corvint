@@ -1,0 +1,183 @@
+package cemcandidate
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	tr "github.com/Beamfall/corvint/internal/testrunner"
+)
+
+// runnerDocs is a synthetic go-test plan pinning the neutral case's two Go
+// sources at its target, and a complete receipt binding it with one passed
+// test. Each admission case edits a copy before the documents are encoded.
+type runnerDocs struct {
+	plan    tr.PlanDocument
+	receipt tr.ReceiptDocument
+}
+
+func neutralRunnerDocs(t *testing.T, repo, target string) runnerDocs {
+	t.Helper()
+	inputs := map[string]string{}
+	for _, name := range []string{"greet.go", "greet_test.go"} {
+		raw, e := exec.Command("git", "-C", repo, "cat-file", "blob", target+":"+name).Output()
+		if e != nil {
+			t.Fatal(e)
+		}
+		inputs[name] = tr.Digest(raw)
+	}
+	request := tr.Request{Runner: "go-test", Root: repo, Project: "example.com/greet", InputFiles: inputs, ExpectedTests: []string{"example.com/greet::TestGreetEmpty"}, Selectors: []string{"example.com/greet::TestGreetEmpty"}, TimeoutSeconds: 120}
+	plan := tr.PlanDocument{Profile: runnerPlanProfile, Request: request, Invocation: tr.Invocation{Environment: map[string]string{}}}
+	receipt := tr.ReceiptDocument{Profile: runnerReceiptProfile, PlanSha256: tr.Identity(plan),
+		Execution:   tr.Execution{Runner: "go-test", InputSha256: tr.Identity(inputs)},
+		Observation: tr.Observation{Runner: "go-test", Complete: true, Tests: []tr.Test{{ID: "example.com/greet::TestGreetEmpty", Name: "TestGreetEmpty", State: tr.Passed}}}}
+	return runnerDocs{plan: plan, receipt: receipt}
+}
+
+// admit runs the plain producer with runner admission over the given runner
+// file bytes and returns the bundle directory and the producer's error.
+func admit(t *testing.T, r PlainRequest, out string, plan, receipt []byte) (string, error) {
+	t.Helper()
+	dir := realTemp(t)
+	r.RunnerAdmission = RunnerAdmissionProfile
+	r.RunnerPlan = save(t, filepath.Join(dir, "plan.json"), plan)
+	r.RunnerReceipt = save(t, filepath.Join(dir, "receipt.json"), receipt)
+	_, e := AssemblePlain(context.Background(), r, out)
+	return out, e
+}
+
+// TestCEMV1280RunnerAdmissionIsOptIn: a request naming any other admission
+// profile is refused before any bundle exists, the default request keeps the
+// opaque runner files of the public case (CEM-V1-240 tests), and an admitted
+// receipt yields the same ACCEPTed plain map shape with the runner documents
+// as its artifacts.
+func TestCEMV1280RunnerAdmissionIsOptIn(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	r, out, _ := plainFixture(t)
+	other := r
+	other.RunnerAdmission = "corvint-test-runner/1"
+	if _, e := AssemblePlain(context.Background(), other, out); e == nil {
+		t.Fatal("an unknown runner admission profile was accepted")
+	}
+	if _, e := os.Stat(out); !os.IsNotExist(e) {
+		t.Fatalf("refused request left a bundle: %v", e)
+	}
+	docs := neutralRunnerDocs(t, r.Repository, r.Target)
+	plan, receipt := mustJSON(t, docs.plan), mustJSON(t, docs.receipt)
+	if _, e := admit(t, r, out, plan, receipt); e != nil {
+		t.Fatalf("admitted receipt refused: %v", e)
+	}
+	for name, want := range map[string][]byte{"artifacts/runner-plan.json": plan, "artifacts/runner-receipt.json": receipt} {
+		if got, e := os.ReadFile(filepath.Join(out, name)); e != nil || string(got) != string(want) {
+			t.Fatalf("%s differs from the admitted runner document: %v", name, e)
+		}
+	}
+	if _, e := os.Stat(filepath.Join(out, "stable.json")); e != nil {
+		t.Fatalf("admitted receipt wrote no stable map: %v", e)
+	}
+}
+
+// TestCEMV1281To1285RunnerAdmissionRefusals: each admission check refuses its
+// own control with its registered code and writes no bundle at all.
+func TestCEMV1281To1285RunnerAdmissionRefusals(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	r, _, caseRoot := plainFixture(t)
+	opaque := func(name string) []byte {
+		b, e := os.ReadFile(filepath.Join(caseRoot, "artifacts", name))
+		if e != nil {
+			t.Fatal(e)
+		}
+		return b
+	}
+	cases := []struct {
+		name, code string
+		edit       func(*runnerDocs)
+		raw        func(plan, receipt []byte) ([]byte, []byte)
+	}{
+		{name: "opaque public-case files", code: "runner-document-invalid", raw: func([]byte, []byte) ([]byte, []byte) {
+			return opaque("runner-plan.json"), opaque("runner-receipt.json")
+		}},
+		{name: "unknown receipt member", code: "runner-document-invalid", raw: func(plan, receipt []byte) ([]byte, []byte) {
+			return plan, append(receipt[:len(receipt)-1], []byte(`,"authority":"VERIFIED"}`)...)
+		}},
+		{name: "input path escapes", code: "runner-document-invalid", edit: func(d *runnerDocs) {
+			d.plan.Request.InputFiles["../greet.go"] = d.plan.Request.InputFiles["greet.go"]
+			d.receipt.Execution.InputSha256 = tr.Identity(d.plan.Request.InputFiles)
+		}},
+		{name: "receipt of another plan", code: "runner-receipt-tampered", edit: func(d *runnerDocs) {
+			d.receipt.PlanSha256 = tr.Digest([]byte("another plan"))
+		}},
+		{name: "receipt over other inputs", code: "runner-receipt-tampered", edit: func(d *runnerDocs) {
+			d.receipt.Execution.InputSha256 = tr.Identity(map[string]string{"greet.go": tr.Digest(nil)})
+		}},
+		{name: "receipt of another runner", code: "runner-receipt-tampered", edit: func(d *runnerDocs) {
+			d.receipt.Execution.Runner = "pytest"
+		}},
+		{name: "plan pins earlier source", code: "runner-receipt-stale", edit: func(d *runnerDocs) {
+			d.plan.Request.InputFiles["greet.go"] = tr.Digest([]byte("package greet\n"))
+		}},
+		{name: "plan pins a path absent at target", code: "runner-receipt-stale", edit: func(d *runnerDocs) {
+			d.plan.Request.InputFiles["greet_extra.go"] = tr.Digest(nil)
+		}},
+		{name: "plan pins no inputs", code: "runner-receipt-stale", edit: func(d *runnerDocs) {
+			d.plan.Request.InputFiles = map[string]string{}
+		}},
+		{name: "failed test", code: "runner-receipt-failed", edit: func(d *runnerDocs) {
+			d.receipt.Observation.Tests = append(d.receipt.Observation.Tests, tr.Test{ID: "example.com/greet::TestGreetName", Name: "TestGreetName", State: tr.Failed})
+		}},
+		{name: "incomplete observation", code: "runner-receipt-failed", edit: func(d *runnerDocs) {
+			d.receipt.Observation.Complete = false
+		}},
+		{name: "execution error", code: "runner-receipt-failed", edit: func(d *runnerDocs) {
+			d.receipt.Error = "exit status 2"
+		}},
+		{name: "only skipped tests", code: "runner-receipt-skipped", edit: func(d *runnerDocs) {
+			d.receipt.Observation.Tests[0].State = tr.Skipped
+		}},
+		{name: "no tests", code: "runner-receipt-skipped", edit: func(d *runnerDocs) {
+			d.receipt.Observation.Tests = []tr.Test{}
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			docs := neutralRunnerDocs(t, r.Repository, r.Target)
+			if c.edit != nil {
+				c.edit(&docs)
+				// A plan edit re-binds the receipt so only the named check fails.
+				if c.code != "runner-receipt-tampered" {
+					docs.receipt.PlanSha256 = tr.Identity(docs.plan)
+					docs.receipt.Execution.InputSha256 = tr.Identity(docs.plan.Request.InputFiles)
+				}
+			}
+			plan, receipt := mustJSON(t, docs.plan), mustJSON(t, docs.receipt)
+			if c.raw != nil {
+				plan, receipt = c.raw(plan, receipt)
+			}
+			out, e := admit(t, r, filepath.Join(realTemp(t), "bundle"), plan, receipt)
+			if got := cemcode.CodeOf(e); got != c.code {
+				t.Fatalf("code %q (%v), want %q", got, e, c.code)
+			}
+			if _, e := os.Stat(out); !os.IsNotExist(e) {
+				t.Fatalf("refused receipt left a bundle: %v", e)
+			}
+		})
+	}
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, e := json.Marshal(v)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return b
+}
