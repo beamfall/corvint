@@ -3364,7 +3364,7 @@ Only the hunk-revert report gains a member, and only some refusal messages gain 
 
 - `CEM-V1-320`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2098) The
   `cem-hunk-revert/0` report of `cem verify --hunk-revert` MUST carry a trailing member
-  `notAttempted`. It is an array with one `{hunkId, path, reason}` row, in map order, for every map
+  `notAttempted`. It is an array with one `{hunkId, path, reason}` row, in hunk ID order as `hunks` is, for every map
   hunk that the falsifier did not attempt. `reason` is one closed value, chosen by the first test
   that matches in this order:
   - `test-only-hunk`: the hunk changes a `_test.go` file;
@@ -3418,7 +3418,7 @@ stays the same.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-320 | `TestCEMV1320NotAttemptedHunksCarryAClosedReason` (`internal/cem/verify`) | Six hunks give one candidate and five rows, one per reason, in map order. A Ruby-only map runs no `go test` and names its hunk `unsupported-language` |
+| CEM-V1-320 | `TestCEMV1320NotAttemptedHunksCarryAClosedReason` (`internal/cem/verify`) | Six hunks give one candidate and five rows, one per reason, in hunk ID order. A Ruby-only map runs no `go test` and names its hunk `unsupported-language` |
 | CEM-V1-321 | `TestCEMV1320NotAttemptedHunksCarryAClosedReason`, `TestCEMV1088CountMovesOnlyAcceptedTiers`, `TestCEMV1089ClassifyRevert` (`internal/cem/verify`); `TestCEMV1088HeldOnlyFromConsumerReexecution` (`internal/cem/workflow`) | Candidate rows and counts are unchanged. A Ruby-only report has empty `hunks` and `notRun` 0 |
 | CEM-V1-322 | `TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans` (`internal/cem/workflow`) | A span over removed lines refuses `cite-span-not-stable` with the rule and `--lines 1:2, --lines 5:6`. Both named spans then cite successfully |
 | CEM-V1-323 | `TestCEMV1323SharedCloneRefusalNamesAWorkingFix` (`internal/cem/gitauth`) | A real `git clone --shared` refuses with the fix. After `git repack -a -d` and removing the alternates file, the open succeeds. An ambient alternates variable names its own fix |
