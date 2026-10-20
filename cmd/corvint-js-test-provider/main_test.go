@@ -316,7 +316,7 @@ func TestPWPV0034E2EVersionRefusalWritesTypedDocument(t *testing.T) {
 	if err == nil || !strings.HasPrefix(err.Error(), "external-playwright-version-unqualified") {
 		t.Fatalf("err %v", err)
 	}
-	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"],"runtimeTuple":{"profile":"corvint-playwright-external/0","field":"runner","admitted":["1.60.0","1.63.0","1.64.0"]}}` + "\n"
 	if out != want {
 		t.Fatalf("stdout\n got %q\nwant %q", out, want)
 	}

@@ -297,9 +297,10 @@ func admitNegate(cfg NegateConfig) (*negation, error) {
 	if base.ApplicationAttestation != nil {
 		profile = AttestedExternalProfile
 	}
-	tuple := ReceiptRuntimeTuple(Receipt{Profile: profile, Identity: Identity{RunnerVersion: base.RunnerVersion, NodeVersion: nodeVersion()}})
+	node := nodeVersion()
+	tuple := ReceiptRuntimeTuple(Receipt{Profile: profile, Identity: Identity{RunnerVersion: base.RunnerVersion, NodeVersion: node}})
 	if tuple != RuntimeTupleCandidate && !cfg.allowUnqualifiedTuple {
-		return nil, refuse(NegateTupleUnqualified, "runner or Node version is not a qualified tuple (%s)", tuple)
+		return nil, refuse(NegateTupleUnqualified, "%s", negateTupleDetail(profile, base.RunnerVersion, node, tuple))
 	}
 	return &negation{cfg: cfg, base: base, spec: spec, origin: stepnegation.Origin(base.ServerReadyURL), budget: cfg.MaxRuns}, nil
 }
@@ -738,4 +739,13 @@ func (n *negation) allSteps(ctx context.Context, module string, baseline *stepne
 		}
 	}
 	return steps
+}
+
+// negateTupleDetail names the failing tuple field and its admitted values from
+// the shared table (PWP-V0-040); an unobserved Node keeps the earlier text.
+func negateTupleDetail(profile, runner, node, tuple string) string {
+	if m := AdmittedRuntimeTupleMismatch(profile, runner, node, ""); m != nil && node != "" {
+		return "runner or Node version is not a qualified tuple (" + tuple + "): " + m.detail()
+	}
+	return "runner or Node version is not a qualified tuple (" + tuple + ")"
 }

@@ -159,19 +159,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
-	profile := ExternalProfile
-	if cfg.RetainAttemptDetails {
-		profile = AttemptExternalProfile
-	}
-	if cfg.ApplicationAttestation != nil {
-		profile = AttestedExternalProfile
-	}
-	if cfg.SensitiveInputPolicy != nil {
-		profile = SensitiveExternalProfile
-	}
-	if cfg.Freshness != nil {
-		profile = FreshnessProfile
-	}
+	profile := externalRequestProfile(cfg)
 	lifecycle := &ExternalLifecycle{ReadyURL: cfg.ServerReadyURL, DeclaredAppIdentity: cfg.AppIdentity, Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ConfigOverride: config}
 	if cfg.KeepReporters {
 		// Entries stay unobserved (nil) until the reporter's closed list binds.
@@ -402,11 +390,29 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 	return false
 }
 
+// externalRequestProfile is the receipt profile an external request writes.
+func externalRequestProfile(cfg E2EConfig) string {
+	profile := ExternalProfile
+	if cfg.RetainAttemptDetails {
+		profile = AttemptExternalProfile
+	}
+	if cfg.ApplicationAttestation != nil {
+		profile = AttestedExternalProfile
+	}
+	if cfg.SensitiveInputPolicy != nil {
+		profile = SensitiveExternalProfile
+	}
+	if cfg.Freshness != nil {
+		profile = FreshnessProfile
+	}
+	return profile
+}
+
 // admitExternal refuses an external request before anything starts. Every
 // refusal is an *E2ERefusal so the CLI can write a typed document (PWP-V0-034).
 func admitExternal(c E2EConfig) error {
 	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
-		return &E2ERefusal{Code: "external-playwright-version-unqualified", Detail: unqualifiedVersionDetail()}
+		return &E2ERefusal{Code: "external-playwright-version-unqualified", Detail: unqualifiedVersionDetail(), Tuple: &RuntimeTupleMismatch{Profile: externalRequestProfile(c), Field: TupleFieldRunner, Admitted: QualifiedPlaywrightVersions()}}
 	}
 	if _, err := sensitivePolicy(c.SensitiveInputPolicy); err != nil {
 		return refuseE2E(err.Error())
@@ -812,7 +818,7 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 	}
 	if browser.ExecutableSource == nil {
 		qualified, ok := qualifiedSystemBrowsers[r.Identity.RunnerVersion]
-		if !ok || r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion {
+		if !ok || !runtimeTupleAdmitted(r.Profile, r.Identity.RunnerVersion, r.Identity.NodeVersion, BrowserSourceSystem) {
 			return false
 		}
 		// PWP-V0-037 qualified 1.64.0 system Chrome on headless /0 only.
@@ -820,6 +826,9 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 			return false
 		}
 		return qualifiedSystemPlaywrightBrowser(qualified, use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
+	}
+	if !runtimeTupleAdmitted(r.Profile, r.Identity.RunnerVersion, r.Identity.NodeVersion, BrowserSourceBundled) {
+		return false
 	}
 	return qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, browser)
 }
