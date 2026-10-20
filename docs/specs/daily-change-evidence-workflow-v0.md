@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -174,7 +174,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   repository root. `script/dogfood-seal.sh` stays the script
   that runs `script/dogfood-check.sh` and seals. The make targets and their `DOGFOOD_*` inputs are
   unchanged. Because the wrappers build before the subverb runs, a refusal the subverb makes now
-  follows the builds.
+  follows the builds. (Amended under the owner's standing auto-accept of lane requirements
+  (2026-10-11); V1-1639.) A current-tree or base build MAY be a verified copy of an earlier build
+  recorded under the same `DCW-V0-074` input key; it is still the build of that tree, and the
+  refusal strings are unchanged.
 - `DCW-V0-023`: `docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for any
   Git repository and the ignore entries it needs: the private `.corvint` outputs
   (`dogfood-report.json`, `change.ocm-intents`, `change.ocm-status.json`, `change.ocm.*.json`,
@@ -937,6 +940,40 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the merge's blob is `UNKNOWN`; a restoration check is line-exact, so a restored side that was
   reformatted needs a disposition; a disposition line is trusted as written and is visible in the
   merge commit.
+- `DCW-V0-074`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1639) The
+  dogfood wrappers (`script/dogfood-change.sh`, `script/dogfood-check.sh`,
+  `script/dogfood-finish.sh`, `script/dogfood-batch-check.sh`) MUST build `./cmd/corvint` through
+  `script/dogfood-build-corvint.sh`, every build with `-trimpath` and `-buildvcs=false` (appended to
+  the caller's `GOFLAGS` for that build only), and MAY reuse an earlier build recorded under the
+  same input key instead of building. The key is the Git object ID of a text naming the scheme
+  (`corvint-dogfood-bin/1`), the build arguments, `go env` `GOVERSION GOOS GOARCH CGO_ENABLED
+  GOFLAGS GOEXPERIMENT GOAMD64 GOARM64`, and the inputs: (a) for the base verifier, built from an
+  archive of the base commit, that commit's root tree, so a recorded base verifier is reused
+  without extracting the archive; (b) for a current-tree build, `HEAD`'s object at `VERSION`, at
+  the directory of every main-module package `go list -deps ./cmd/corvint` reports (each
+  directory's whole tree, so its sources, embedded files and subdirectories count), and its
+  entries at `go.mod`, `go.sum`, `go.work` and `vendor`. Those package directories are the
+  complete set of files the Go build of `./cmd/corvint` can read inside the module, and the
+  module has no external dependencies; a doc-only commit therefore keeps the key. A current-tree
+  key exists only when `git status --porcelain --ignored --untracked-files=all` over those paths
+  is empty (no modified, staged, untracked or ignored input), and a build is recorded only when
+  the key recomputed after the build is unchanged. Records live outside the repository, under
+  `CORVINT_DOGFOOD_BIN_CACHE` or `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-dogfood-bin/<key>/`, as
+  `corvint` and `corvint.oid` (its Git blob ID), each written to a temporary file and renamed. A
+  reuse copies the record to a temporary file beside the wrapper's executable, checks its blob ID
+  against `corvint.oid` and renames it into place. Any failure to compute the key (a `go env` or
+  `go list` failure, a package outside the main module, a missing `go.mod` or input object, a dirty
+  input), to read or verify a record, or to store one MUST fall back to the plain build, whose
+  failure keeps the `DCW-V0-022` refusal; reuse is never required for a wrapper to succeed.
+  `CORVINT_BIN` selection, `DCW-V0-038` cache selection and `script/dogfood-bind-range.sh` are
+  unchanged.
+  Non-goals: sharing records between users or hosts; evicting records (each is one binary; an
+  operator may delete the directory at any time); reusing a build of a dirty tree.
+  Failure modes: an input outside the module (a `GOFLAGS=-modfile` or overlay file, a toolchain
+  change that keeps `GOVERSION`) is not in the key; `-buildvcs=false` means a dogfood-built binary
+  reports its producer commit as unknown (`PUB-V0-028`) rather than a VCS stamp that a reuse
+  could make stale; a record altered after its blob ID was written is detected and rebuilt, but
+  one altered together with its `corvint.oid` is trusted, as the private cache directory is.
 
 ## Code vocabulary
 
@@ -1157,6 +1194,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-069` (accepted under the owner's standing auto-accept (2026-10-11); V1-1449) | `internal/dogfoodflow/change.go` `guardingTestsStep`, `guardingTestHunks`, `failing`; `internal/observations/observations.go` step and reason allowlists; `TestChangeDCWV0069RecordsGuardingTestsNotRun` (a map with two searched hunks reports the row after `cem-cite`, observes it, prints the `NOTE` with `hunks=2` and never lists it as a failure; a map whose Go hunks all cite a `_test.go` test-claim reports no row); `TestShellWordQuotesOnlyWhenNeeded` (a root with spaces or quotes stays one shell word) |
 | `DCW-V0-072` (superseded by the V1-1307 amendment of `DCW-V0-047`, decision 0535) | `internal/dogfoodflow/check.go` `verifyStatus`, `baseIndependence`, `record`; `TestCheckDCWV0047RefusedBaseNotProduced` (a base verifier that exits 2 with an `unsupported-spec` stderr line records `base=NOT_PRODUCED base-refusal=unsupported-spec` and `"baseStatus": "NOT_PRODUCED", "baseRefusal": "unsupported-spec"`, one that exits 3 with no code `base-refusal=exit-3`, and one that exits 1 with a status keeps its stdout digest; treating every nonzero exit as a refusal, or no exit as one, fails it); `script/dogfood-seal.sh` with `script/dogfood-change_test.sh` (the PASS line keeps the `NOT_PRODUCED` fields) | superseded; the amended behavior implemented; focused tests PASS |
 | `DCW-V0-073` (accepted under the owner's standing auto-accept (2026-10-11); V1-1786) | `internal/dogfoodflow/batch.go` `deriveMerge`, `batchRecovery`, `finish`; `internal/dogfoodflow/batch_dropped.go` `droppedSide`, `conflictHunks`, `parseConflict`, `restoredBy`, `dispositions`; `TestBatchCheckDCWV0073ReportsEachDroppedHunk` (two-sided conflict in two regions merged with `-X ours`: each hunk listed and failing, a reasoned disposition covers one, a reasonless one does not, a later sealed change restoring the other passes with the tally; fails on the pre-V1-1786 code, which passed with `merges=1`), `TestBatchCheckDCWV0073FirstParentTreeDropsSide` (`-s ours` merge is `UNKNOWN`), `TestBatchCheckDCWV0040NamesUnboundContentAndRecovery` (recovery text) | implemented; semantic correctness of a restoration or disposition NOT_OBSERVED |
+| `DCW-V0-074` (accepted under the owner's standing auto-accept (2026-10-11); V1-1639) | `script/dogfood-build-corvint.sh` `dogfood_corvint_key`, `dogfood_corvint_reuse`, `dogfood_corvint_store`, `dogfood_build_tree_corvint`, `dogfood_build_base_corvint`, called by the four wrappers; `script/dogfood-bin-reuse_test.sh` (stub toolchain: reuse on an unchanged tree, a dirty non-input and a doc-only commit; rebuild on a modified, staged, untracked or ignored input, a modified or committed `VERSION`, a committed input, another Go version, an unavailable key, a tampered record and a missing `go.mod`; the base verifier keyed by the base root tree); `script/dogfood-change_test.sh` and `script/dogfood-cache_test.sh` (every build passes `-trimpath`); V1-1639 before/after wall times of two consecutive `make dogfood-change` runs | implemented; key completeness beyond the module's package directories NOT_OBSERVED |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -1230,6 +1268,9 @@ Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform pla
 again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
 and the baseline tool disappears. No committed map carries a role before V1-1276, so nothing
 needs migrating; a later stable map with a role stays valid under `CEM-V1-095`.
+Roll back `DCW-V0-074` and the `DCW-V0-022` amendment by reverting their change: every wrapper
+builds again on each run, and the change wrapper's build loses `-trimpath`. Records under the
+cache directory become unused and may be deleted; nothing in the repository refers to them.
 Roll back `DCW-V0-073` by reverting its change: one-sided merges pass again with only the
 aggregate `conflict-side-dropped` count and the old `fix:` text returns; batch-check writes
 nothing, so no evidence needs migrating, and `Corvint-Dropped-Hunk:` lines become inert text.

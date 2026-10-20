@@ -18,6 +18,7 @@ go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
 base_arg=${1:?usage: dogfood-change.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 mkdir -p "$evidence" || exit 2
 expected_version=$(cat "$repo/VERSION")
@@ -27,8 +28,7 @@ if [[ -z $expected_version ]]; then
 fi
 if [[ -z $corvint_bin_set ]]; then
   corvint_bin="$evidence/corvint"
-  if ! GOCACHE="$go_cache" GOTOOLCHAIN=local \
-    go build -o "$corvint_bin" ./cmd/corvint 2> /dev/null; then
+  if ! dogfood_build_tree_corvint "$corvint_bin"; then
     printf 'dogfood-change: REFUSE current-tree-corvint-build-failed\n' >&2
     exit 2
   fi

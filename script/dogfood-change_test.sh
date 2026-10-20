@@ -73,7 +73,8 @@ mkdir -p "$test_root/repo/script" "$test_root/repo/docs/specs" "$test_root/bin"
 (cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
   go build -o "$test_root/driver" ./cmd/corvint)
 export DOGFOOD_TEST_DRIVER="$test_root/driver"
-cp "$source_root/script/dogfood-change.sh" "$source_root/script/dogfood-check.sh" "$test_root/repo/script/"
+cp "$source_root/script/dogfood-change.sh" "$source_root/script/dogfood-check.sh" \
+  "$source_root/script/dogfood-build-corvint.sh" "$test_root/repo/script/"
 cp "$source_root/.gitignore" "$test_root/repo/"
 printf '%s\n' '0.4.0a4' > "$test_root/repo/VERSION"
 # Literal backticks are requirement syntax, not shell interpolation.
@@ -391,8 +392,9 @@ cat > "$test_root/go-bin/go" <<'EOF'
 #!/usr/bin/env bash
 set -eu
 printf '%s\n' "$*" >> "$DOGFOOD_TEST_GO_LOG"
-[[ $1 == build && $2 == -o ]]
-[[ $# == 4 && $4 == ./cmd/corvint || $# == 5 && $4 == -trimpath && $5 == ./cmd/corvint ]]
+# Bash 3.2 does not apply errexit to [[ ]]; the key's `go env` and `go list` must fail here.
+[[ $1 == build && $2 == -o ]] || exit 1
+[[ $# == 4 && $4 == ./cmd/corvint || $# == 5 && $4 == -trimpath && $5 == ./cmd/corvint ]] || exit 1
 source=$DOGFOOD_TEST_FAKE_CORVINT
 if [[ $3 == *corvint-base && -n ${DOGFOOD_TEST_BASE_CORVINT:-} ]]; then
   source=$DOGFOOD_TEST_BASE_CORVINT
@@ -522,7 +524,8 @@ set -m
   test "$(rg -c '^build -o .*/corvint/corvint (-trimpath )?./cmd/corvint$' "$test_root/default-go.log")" = 26
   # dogfood-check builds the base verifier inside a random private extraction directory; without
   # -trimpath that absolute path is embedded and baseVerifierSha256 changes on every run.
-  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 18
+  # Every wrapper build uses -trimpath, so change and check share one keyed build (DCW-V0-074).
+  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 35
   test "$(rg -c '^build -o .*/corvint/corvint-base ' "$test_root/default-go.log")" = 9
 ) &
 phase_jobs="$phase_jobs $!"
