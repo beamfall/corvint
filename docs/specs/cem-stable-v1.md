@@ -3354,3 +3354,131 @@ stable results are unchanged either way.
 | CEM-V1-300 | `TestMetadataOnlyChangeRefusalVectors` (`internal/cem/patch`, `interop/cem01-go`), `TestPrepareRefusesMetadataOnlyChanges` (`internal/cem/workflow`) | Five shared vectors (creation, deletion, mode-only, and both mixed orders) give the identical code, kind and path natively and portably; `cem prepare` on real commits refuses each kind and the mixed case |
 | CEM-V1-301 | `TestMetadataOnlyChangeRefusalVectors` (`internal/cem/patch`, `interop/cem01-go`) | Mode-and-text, asymmetric-path, no-index, symlink-mode and unchanged-mode vectors keep `malformed-patch` natively and their legacy portable code |
 | CEM-V1-302 | `TestStablePatchRefusalKeepsFrozenVocabulary` (`internal/cem/verify`), `TestMetadataOnlyChangeRefusalVectors` (`interop/cem01-go`) | Native stable maps the refusal to `malformed-patch` with the same message; the portable stable code equals the manifest's `portableStableIssue`; `make cem-stable-regen-check` passes with no stable byte change |
+
+## External criterion (V1-2100, GitHub #1332, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2100.
+
+The plain criterion form (`CEM-V1-083`) can bind only an evidence span in the verified repository at
+the base revision. Requirements kept in a separate repository had to be copied in before they could
+be bound. These requirements add a third closed criterion form that binds a blob span in a separately
+supplied repository. The addition is strictly additive to the frozen `cem/1.0` wire: every existing
+map, schema member, criterion identity and result keeps its bytes, and the result profile
+`cem-stable-verification/1` is unchanged. The normative algorithm text is the `CEM-V1-330..336`
+section of `protocol/cem-1.0/stable/ALGORITHMS.md`.
+
+- `CEM-V1-330`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) The external
+  criterion form MUST have exactly the members `id`, `criterionIndex`, `criterionSha256`,
+  `externalRepository`, `externalBlobOid` and `externalSpan`.
+  - `externalRepository` is a consumer-side name matching `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`. It is
+    never a path or URL.
+  - `externalBlobOid` is a lowercase Git object ID of 40 or 64 hex digits.
+  - `externalSpan` is the closed object `{start, end}` of wire integers with `start < end`, a
+    zero-based, end-exclusive byte range of that blob.
+  - `criterionSha256` is the SHA-256 of those bytes.
+  - `protocol/cem-1.0/stable/stable.schema.json` gains the matching `externalCriterionBinding`
+    branch; the plain and Tasks branches are unchanged.
+- `CEM-V1-331`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) Form
+  selection MUST be by key presence before any value check, with the closed error order unchanged:
+  any Tasks member selects the Tasks form; otherwise any of `externalRepository`, `externalBlobOid`
+  or `externalSpan` selects the external form, where `evidenceId` is an unknown member; otherwise the
+  plain form applies.
+  - A plain or Tasks map parses, encodes and identifies exactly as before.
+  - A reader that predates this form selects the plain form for an external record and refuses the
+    map at stage `wire` with `missing-field` (`evidenceId`). It never accepts.
+- `CEM-V1-332`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) The
+  criterion ID MUST be `criterion:sha256:` + SHA-256 of the canonical JSON of the five non-`id`
+  members, with `externalSpan` written as `{"end":N,"start":M}`; a different ID is
+  `invalid-criterion-identity` at stage `references`.
+  - External and plain criteria share the unnamed criterion group, so `criterionIndex` is unique
+    across both.
+  - The tuple (`externalRepository`, `externalBlobOid`, `start`, `end`) occurs at most once
+    (`duplicate-reference`).
+  - An external criterion needs no evidence record and no Tasks artifact role. It is linked like any
+    other criterion.
+- `CEM-V1-333`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) The native
+  `corvint cem verify-stable` and both portable commands (`cem01-go verify-stable` and
+  `verify-stable-canonical`) MUST accept a repeatable `--external-repository NAME=PATH` option, one
+  per distinct name.
+  - `PATH` is an absolute, clean repository root.
+  - A missing value, an invalid name, a repeated name or an unclean `PATH` is `invalid-arguments` at
+    stage `arguments`.
+  - A relative `PATH` is also `invalid-arguments`, and the `CEM-V1-117` absolute-path fix line names
+    `--external-repository`; the path is refused, never resolved.
+- `CEM-V1-334`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) After the
+  declared artifacts and receipt authentication, each external criterion MUST be checked in map
+  order.
+  - A repository the consumer did not supply, or a blob it cannot read, is `UNSUPPORTED` with
+    `accept: null`, stage `artifacts`, code `artifact-unavailable` and exit 2. The criterion stays
+    NOT_OBSERVED; the verification never reaches `ACCEPT`.
+  - A span that ends past the blob, or whose digest differs from `criterionSha256`, is `REJECT` with
+    exit 1 and `issueCodes` `["artifact-digest-mismatch"]` at stage `artifacts`, and
+    `referenceIntegrity` is `FAILED`.
+  - Only when every external span is read from its supplied repository and matches can the
+    verification `ACCEPT`. The criterion is echoed in `references` as declared.
+- `CEM-V1-335`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) Each
+  supplied root MUST be admitted under the same repository envelope as the verified repository and
+  read in its own bounded object session, which is revalidated and closed before the next.
+  - Any admission or read failure is `artifact-unavailable`.
+  - Cancellation is `verification-timeout`.
+  - An unobserved process cleanup keeps its containment code (`unsupported-process-containment`
+    natively) at stage `repository`.
+- `CEM-V1-336`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) After an
+  `artifact-unavailable` abstention at stage `artifacts`, each command MUST print one stderr line that
+  names, sorted, every external repository the map binds but the caller did not supply, and the fix
+  `--external-repository NAME=/absolute/path`. The line never enters the closed result, and no line
+  is printed when every name is supplied.
+- `CEM-V1-337`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) The public
+  case `protocol/cem-1.0/stable/external-criterion/` MUST record the map, both repository recipes,
+  the exact ACCEPT result without `runtime` when the repository is supplied, and nine cases (not
+  supplied, absent blob, digest mismatch, span past the blob, four wire refusals and a stale
+  identity). Both consumers MUST return the recorded ACCEPT and the recorded exit, outcome, stage,
+  code and issue codes for every case, and the stable manifest lists every new file.
+
+Non-goals:
+- no wire-version bump, no new result member, no new result code and no change to
+  `RESULT.schema.json`;
+- no content-digest-plus-locator form: the repository-name, blob-ID and span form was chosen because
+  it is verifiable from Git objects alone;
+- no producer support: `corvint cem prepare`, `cem cite` and `corvint-cem-candidate` do not emit the
+  external form;
+- no external repository on the Core read paths (`corvint cem verify`, `status`, `report`, and the
+  console), which never supply one, so an external map abstains there;
+- no network fetch, URL or remote name: the consumer always names a local root.
+
+Failure modes:
+- The caller omits `--external-repository`. The verification is `UNSUPPORTED` `artifact-unavailable`
+  and stderr names the missing repository; it is never `ACCEPT`.
+- The caller supplies the wrong repository, or one without the blob. The result is the same
+  abstention, because the bytes were not observed.
+- The caller supplies a repository whose blob has different bytes at the span. The verification
+  rejects with `artifact-digest-mismatch`.
+- An older consumer receives an external map. It refuses `missing-field` at stage `wire`.
+- The result does not mark the individual criterion NOT_OBSERVED: the profile has no per-criterion
+  observation member, and adding one would change the frozen result profile (`CEM-V1-091`). The
+  whole verification abstains instead. A per-criterion member is recorded as an owner fork.
+- `RESULT.schema.json` describes `references.criterionBindings` with the Tasks form only, while both
+  consumers already echo plain criteria there; external criteria are echoed the same way. This
+  pre-existing schema gap is recorded, not changed.
+
+Acceptance evidence: the tests below pass on Darwin. Before the change, the base-revision portable
+reader (`cem01-go verify-stable-canonical`) and the base-revision native `wire.ParseStable` both
+refused `external-criterion/stable.json` with `REJECT` stage `wire` `missing-field` (`evidenceId`),
+recorded as manual evidence in `docs/build-log/2026-10-20-V1-2100-external-criterion.md`.
+
+Rollback: revert the change commit. The external form, option, case and schema branch disappear;
+maps that use the external form then fail closed at stage `wire` again, and no other map, identity
+or result changes.
+
+### External criterion traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-330 | `TestCEMV1330ExternalCriterionWire`, `TestCEMV1331ExternalCriterionRefusals` (`internal/cem/wire`) | The public map parses as six members with a valid span; invalid names, OIDs and spans refuse `invalid-field` |
+| CEM-V1-331 | `TestCEMV1331ExternalCriterionRefusals`, `TestCEMV1331PlainAndTasksIdentityUnchanged` (`internal/cem/wire`), `TestCEMV1083NeutralCriterionPublicCase`, `TestCEMV1083TasksFormUnchanged` | Selection order and unknown `evidenceId`; plain and Tasks results unchanged; base-revision readers refuse `missing-field` (build log) |
+| CEM-V1-332 | `TestCEMV1330ExternalCriterionWire`, `TestCEMV1331ExternalCriterionRefusals` (`duplicate-span`), `TestCEMV1334ExternalCriterionPublicCase` (`external-stale-identity`) | Identity recomputes, duplicates refuse, a stale ID is `invalid-criterion-identity` in both consumers |
+| CEM-V1-333 | `TestCEMV1333ExternalRepositoryOption` (`internal/cem/cli`), `TestCEMV1333ExternalRepositoryOptionPortable` (`interop/cem01-go`) | Six bad values refuse at `arguments` in all three commands; relative path names the fix |
+| CEM-V1-334 | `TestCEMV1334ExternalCriterionPublicCase` (`internal/cem/verify`), `TestCEMV1334ExternalCriterionPublicCasePortable` (`interop/cem01-go`) | Exact ACCEPT when supplied; not-supplied and absent blob abstain; mismatch and span past the blob reject |
+| CEM-V1-335 | `TestCEMV1334ExternalCriterionPublicCase` (non-repository root) | A supplied root that is not a repository is `artifact-unavailable`; containment and timeout mapping by code review |
+| CEM-V1-336 | `TestCEMV1336ExternalFixLine` (`internal/cem/verify`), `TestCEMV1333ExternalRepositoryOption`, `TestCEMV1333ExternalRepositoryOptionPortable` | The exact stderr line when unsupplied and none when supplied; nothing in the result |
+| CEM-V1-337 | `TestCEMV1334ExternalCriterionPublicCase`, `TestCEMV1334ExternalCriterionPublicCasePortable` (manifest check via `checkStableCaseManifest` and `stableCaseFiles`) | Both consumers match `EXPECTED.json`; every case file is in `manifest.json` |

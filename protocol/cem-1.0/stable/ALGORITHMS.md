@@ -263,7 +263,7 @@ and Git object read failures report `git-read-failed`.
 `coveredRange`, `discriminates`, `evidence`, `gitOid`, `hunk`, `path`, `range`,
 `sha256`, `span`, `survivor`. The stable schema adds the reference-record
 definitions (`criterionBinding`, `plainCriterionBinding`, `tasksCriterionBinding`,
-`criterionId`, `runnerReceipt`, `criterionLink`, `artifact`, `artifactPath`) and
+`externalCriterionBinding`, `criterionId`, `runnerReceipt`, `criterionLink`, `artifact`, `artifactPath`) and
 the CEM-V1-093/095 definitions `sha1Oid`, `provenance` and `role`; it does not
 reference the inherited schema file at runtime.
 
@@ -852,3 +852,48 @@ does not run Git has to reproduce Git's output for these options byte for byte.
 copies of it and `EXPECTED.json` (profile `cem-stable-citation-vectors/1`).
 The expected values were produced by the native verifier and are asserted by
 both consumers. The README lists the misreadings each case catches.
+
+## CEM-V1-330..336: external criterion
+
+A third closed criterion form binds a criterion kept in a separate Git
+repository. It has exactly `id`, `criterionIndex`, `criterionSha256`,
+`externalRepository`, `externalBlobOid` and `externalSpan`. Form selection is
+by key presence before any value check: any Tasks member selects the Tasks
+form; otherwise any of `externalRepository`, `externalBlobOid` or
+`externalSpan` selects the external form; otherwise the plain form applies.
+`evidenceId` is then an unknown member. Error order is unchanged.
+
+`externalRepository` is a consumer-side name matching
+`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`. It is not a path or URL; the consumer
+maps it to a local repository root. `externalBlobOid` is a Git object ID, 40
+or 64 lowercase hex digits. `externalSpan` is the closed `span` object
+`{start, end}` with `0 <= start < end`. `criterionSha256` is the SHA-256 of
+bytes `[start, end)` of that blob.
+
+The ID is `criterion:sha256:` + SHA256(canonical JSON of the five non-id
+members), with `externalSpan` written as `{"end":N,"start":M}`. External and
+plain criteria share the unnamed group, so `criterionIndex` is unique across
+both. The tuple (externalRepository, externalBlobOid, start, end) occurs at most
+once (`duplicate-reference`). An external criterion needs no evidence record and
+no Tasks artifact role. It is linked like any other criterion.
+
+Verification runs after the declared artifacts and receipt authentication, in
+map order. For each external criterion:
+
+1. If the consumer did not supply the named repository, refuse
+   `artifact-unavailable` at stage `artifacts`. The outcome is `UNSUPPORTED`
+   with `accept: null`, and the criterion stays NOT_OBSERVED.
+2. Admit the root under the same envelope as the verified repository. Read the
+   blob. Any admission or read failure is also `artifact-unavailable`.
+   Cancellation is `verification-timeout`. The native consumer reports an
+   unobserved process cleanup as `unsupported-process-containment`.
+3. If `end` exceeds the blob length, or the span digest differs from
+   `criterionSha256`, reject with `artifact-digest-mismatch`. The issue code
+   goes in `issueCodes` and `referenceIntegrity` is `FAILED`.
+
+Only when every external span matches can the verification reach `ACCEPT`.
+The result profile is unchanged. The criterion is echoed in `references` as
+declared.
+
+An older `cem/1.0` consumer selects the plain form for an external record and
+refuses `missing-field` (`evidenceId`) at stage `wire`. It never accepts.

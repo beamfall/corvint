@@ -58,39 +58,85 @@ type StableMap struct {
 	original   []byte
 }
 
-// StableCriterion has two closed forms (CEM-V1-083). The plain form is a Git
+// StableCriterion has three closed forms. The plain form (CEM-V1-083) is a Git
 // blob span criterion: id, criterionIndex, criterionSha256 and evidenceId. The
 // optional Corvint Tasks extension is the eight Tasks members, wholly present
-// (and then evidenceId is absent) or wholly absent. Empty members are omitted,
-// so the Tasks form encodes and identifies exactly as before.
+// (and then evidenceId is absent) or wholly absent. The external form
+// (CEM-V1-330) binds a blob span in a separately supplied repository:
+// externalRepository, externalBlobOid and externalSpan beside id,
+// criterionIndex and criterionSha256. Empty members are omitted, so the plain
+// and Tasks forms encode and identify exactly as before.
 type StableCriterion struct {
-	ID                         string `json:"id"`
-	TicketID                   string `json:"ticketId,omitempty"`
-	AcceptanceRevision         string `json:"acceptanceRevision,omitempty"`
-	CriterionIndex             int64  `json:"criterionIndex"`
-	AcceptanceSha256           string `json:"acceptanceSha256,omitempty"`
-	CriterionSha256            string `json:"criterionSha256"`
-	CaptureSha256              string `json:"captureSha256,omitempty"`
-	VerificationSha256         string `json:"verificationSha256,omitempty"`
-	ClaimTicketSha256          string `json:"claimTicketSha256,omitempty"`
-	SnapshotHeadReceiptSha256  string `json:"snapshotHeadReceiptSha256,omitempty"`
-	SnapshotHeadArtifactSha256 string `json:"snapshotHeadArtifactSha256,omitempty"`
-	EvidenceID                 string `json:"evidenceId,omitempty"`
+	ID                         string              `json:"id"`
+	TicketID                   string              `json:"ticketId,omitempty"`
+	AcceptanceRevision         string              `json:"acceptanceRevision,omitempty"`
+	CriterionIndex             int64               `json:"criterionIndex"`
+	AcceptanceSha256           string              `json:"acceptanceSha256,omitempty"`
+	CriterionSha256            string              `json:"criterionSha256"`
+	CaptureSha256              string              `json:"captureSha256,omitempty"`
+	VerificationSha256         string              `json:"verificationSha256,omitempty"`
+	ClaimTicketSha256          string              `json:"claimTicketSha256,omitempty"`
+	SnapshotHeadReceiptSha256  string              `json:"snapshotHeadReceiptSha256,omitempty"`
+	SnapshotHeadArtifactSha256 string              `json:"snapshotHeadArtifactSha256,omitempty"`
+	EvidenceID                 string              `json:"evidenceId,omitempty"`
+	ExternalRepository         string              `json:"externalRepository,omitempty"`
+	ExternalBlobOid            string              `json:"externalBlobOid,omitempty"`
+	ExternalSpan               *StableExternalSpan `json:"externalSpan,omitempty"`
+}
+
+// StableExternalSpan is the zero-based half-open byte range of an external
+// criterion blob (CEM-V1-330).
+type StableExternalSpan struct {
+	Start int64 `json:"start"`
+	End   int64 `json:"end"`
 }
 
 // Plain reports whether the criterion uses the provider-neutral form.
 func (c StableCriterion) Plain() bool { return c.EvidenceID != "" }
+
+// External reports whether the criterion uses the external form (CEM-V1-330).
+func (c StableCriterion) External() bool { return c.ExternalRepository != "" }
+
+// Tasks reports whether the criterion uses the Corvint Tasks extension form.
+func (c StableCriterion) Tasks() bool { return c.TicketID != "" }
+
+// StableExternalCriterionKeys selects the external criterion form (CEM-V1-330).
+var StableExternalCriterionKeys = []string{"externalRepository", "externalBlobOid", "externalSpan"}
+
+// IsStableExternalRepository reports whether name is a valid external
+// repository name: an ASCII alphanumeric first byte, then at most 63
+// alphanumeric, period, underscore or hyphen bytes (CEM-V1-330).
+func IsStableExternalRepository(name string) bool {
+	if name == "" || len(name) > 64 {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		alnum := c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+		if !alnum && (i == 0 || c != '.' && c != '_' && c != '-') {
+			return false
+		}
+	}
+	return true
+}
 
 // StableTasksCriterionKeys is the optional Tasks extension member set.
 var StableTasksCriterionKeys = []string{"ticketId", "acceptanceRevision", "acceptanceSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
 
 // stableCriterionKeys selects the closed key set: any Tasks member selects the
 // whole Tasks form, so a partial extension fails as a missing member and a
-// plain member beside it fails as an unknown member.
+// plain or external member beside it fails as an unknown member. Otherwise
+// any external member selects the whole external form (CEM-V1-330), where
+// evidenceId is unknown; otherwise the plain form applies.
 func stableCriterionKeys(o *Object) []string {
 	for _, k := range StableTasksCriterionKeys {
 		if _, ok := o.Get(k); ok {
 			return []string{"id", "ticketId", "acceptanceRevision", "criterionIndex", "acceptanceSha256", "criterionSha256", "captureSha256", "verificationSha256", "claimTicketSha256", "snapshotHeadReceiptSha256", "snapshotHeadArtifactSha256"}
+		}
+	}
+	for _, k := range StableExternalCriterionKeys {
+		if _, ok := o.Get(k); ok {
+			return []string{"id", "criterionIndex", "criterionSha256", "externalRepository", "externalBlobOid", "externalSpan"}
 		}
 	}
 	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
@@ -178,10 +224,28 @@ func ParseStable(raw []byte) (*StableMap, error) {
 				}
 				continue
 			}
+			if k == "externalSpan" {
+				span, e := validateSpan(t)
+				if e != nil {
+					return nil, e
+				}
+				if span.Start < 0 || span.Start >= span.End {
+					return nil, fieldError("external criterion span")
+				}
+				continue
+			}
 			if t.Kind != KindString {
 				return nil, fieldError("criterion string required")
 			}
 			switch k {
+			case "externalRepository":
+				if !IsStableExternalRepository(t.Str) {
+					return nil, fieldError("external criterion repository")
+				}
+			case "externalBlobOid":
+				if !IsGitOid(t.Str) {
+					return nil, fieldError("external criterion blob OID")
+				}
 			case "id":
 				if !isPrefixedDigest(t.Str, CandidateCriterionPrefix) {
 					return nil, fieldError("criterion ID")
@@ -333,10 +397,16 @@ func validateStableGraph(d *StableMap) error {
 		// Plain criteria share one unnamed group (empty ticket and revision),
 		// which no Tasks criterion can occupy.
 		tuple := c.TicketID + "\x00" + c.AcceptanceRevision + "\x00" + strconv.FormatInt(c.CriterionIndex, 10)
-		if ids[c.ID] || tuples[tuple] || c.Plain() && spans[c.EvidenceID] {
+		// External criteria share that unnamed group (CEM-V1-332); one
+		// external blob span occurs in at most one binding.
+		span := c.EvidenceID
+		if c.External() {
+			span = "external\x00" + c.ExternalRepository + "\x00" + c.ExternalBlobOid + "\x00" + strconv.FormatInt(c.ExternalSpan.Start, 10) + "\x00" + strconv.FormatInt(c.ExternalSpan.End, 10)
+		}
+		if ids[c.ID] || tuples[tuple] || !c.Tasks() && spans[span] {
 			return stableGraphError("duplicate-reference")
 		}
-		spans[c.EvidenceID] = c.Plain()
+		spans[span] = !c.Tasks()
 		ids[c.ID] = true
 		tuples[tuple] = true
 		group := c.TicketID + "\x00" + c.AcceptanceRevision
@@ -443,7 +513,7 @@ func validateStableGraph(d *StableMap) error {
 		return true
 	}
 	for _, c := range d.Criteria {
-		if c.Plain() {
+		if !c.Tasks() {
 			continue
 		}
 		for _, pair := range [][2]string{{c.CaptureSha256, "tasks-capture"}, {c.VerificationSha256, "tasks-verification"}, {c.ClaimTicketSha256, "tasks-claimed-ticket"}, {c.SnapshotHeadArtifactSha256, "tasks-snapshot-head-receipt"}} {

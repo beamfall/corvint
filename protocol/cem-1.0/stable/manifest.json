@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "5edf0930a9fcb887ebce4345cd31718f1677ca9736a1549524138465db6eb1b9",
-      "bytes": 53428
+      "sha256": "84fe4af1ddc7fb5269db024199c885ddde4163951350a44fe6c294a29d9d3cb7",
+      "bytes": 55978
     },
     {
       "path": "FIXTURES.pack.json",
@@ -185,6 +185,41 @@
       "path": "drift-resource-limit/stable.json",
       "sha256": "fecaba7e6000f6bd244d8824dacd42b66c7e111ba607b2bf8521e79fd6d25288",
       "bytes": 13679
+    },
+    {
+      "path": "external-criterion/EXPECTED.json",
+      "sha256": "04e658f5b3e45f487ad725e214058187dcff9af4ef3e304e74a09c477969b677",
+      "bytes": 13881
+    },
+    {
+      "path": "external-criterion/README.md",
+      "sha256": "4f27d0fd95ebc2ec591d8076cc59ea0cb1678b6163d03b7c02bb33bd0d6b0f8c",
+      "bytes": 2397
+    },
+    {
+      "path": "external-criterion/artifacts/runner-plan.json",
+      "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+      "bytes": 130
+    },
+    {
+      "path": "external-criterion/artifacts/runner-receipt.json",
+      "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+      "bytes": 133
+    },
+    {
+      "path": "external-criterion/external.recipe.json",
+      "sha256": "4d4ded6d4a0e44756cab0f6586db56a71d7c3c7a88b164b0aae2df827b65e02c",
+      "bytes": 868
+    },
+    {
+      "path": "external-criterion/repository.recipe.json",
+      "sha256": "7731fc2399f502f7320918baee6c24659bc27c628ad551debac482bdd91dbd27",
+      "bytes": 2203
+    },
+    {
+      "path": "external-criterion/stable.json",
+      "sha256": "71a1d8fc5c3fe4603108a3eeae55c912496b4ed916bc768be49a201a0268005e",
+      "bytes": 2695
     },
     {
       "path": "inherited/ALGORITHMS.md",
@@ -568,8 +603,8 @@
     },
     {
       "path": "stable.schema.json",
-      "sha256": "94279397fe14d0842d402cb93c54b221ec43e323da49edb734a2c5a4a8759a21",
-      "bytes": 20816
+      "sha256": "4932e04684902049ddb2a772052ccb3633bf34b284a4019d0f875ee7ac78fede",
+      "bytes": 22165
     },
     {
       "path": "tamper-matrix/EXPECTED.json",

@@ -536,13 +536,16 @@
       "pattern": "^criterion:sha256:[0-9a-f]{64}$"
     },
     "criterionBinding": {
-      "description": "CEM-V1-083: the plain Git blob span form, or the optional closed Corvint Tasks extension form. Any Tasks member selects the Tasks form.",
+      "description": "CEM-V1-083: the plain Git blob span form, or the optional closed Corvint Tasks extension form. Any Tasks member selects the Tasks form. CEM-V1-330: otherwise any external member selects the closed external form.",
       "oneOf": [
         {
           "$ref": "#/$defs/plainCriterionBinding"
         },
         {
           "$ref": "#/$defs/tasksCriterionBinding"
+        },
+        {
+          "$ref": "#/$defs/externalCriterionBinding"
         }
       ]
     },
@@ -571,6 +574,43 @@
         "evidenceId": {
           "type": "string",
           "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "externalCriterionBinding": {
+      "description": "CEM-V1-330: a criterion kept in a separate Git repository, bound by consumer-supplied repository name, blob object ID and byte span. A consumer verifies it only when that repository is supplied; otherwise the verification abstains (CEM-V1-334).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "criterionIndex",
+        "criterionSha256",
+        "externalRepository",
+        "externalBlobOid",
+        "externalSpan"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/criterionId"
+        },
+        "criterionIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "criterionSha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "Equals the SHA-256 of bytes [start, end) of the external blob."
+        },
+        "externalRepository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+        },
+        "externalBlobOid": {
+          "$ref": "#/$defs/gitOid"
+        },
+        "externalSpan": {
+          "$ref": "#/$defs/span"
         }
       }
     },

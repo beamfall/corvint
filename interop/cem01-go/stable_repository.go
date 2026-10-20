@@ -742,6 +742,12 @@ func runStableCanonical(ctx context.Context, repo string, raw []byte, base, targ
 // runStableCanonicalTrusted is runStableCanonical with the consumer
 // --trusted-keys set; nil means no file was supplied (CEM-V1-084).
 func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, base, target, artifacts string, hooks *stableHooks, trusted map[string]ed25519.PublicKey) (stableResult, int) {
+	return runStableCanonicalExternal(ctx, repo, raw, base, target, artifacts, hooks, trusted, nil)
+}
+
+// runStableCanonicalExternal is runStableCanonicalTrusted with the consumer
+// --external-repository roots by name (CEM-V1-333); nil supplies none.
+func runStableCanonicalExternal(ctx context.Context, repo string, raw []byte, base, target, artifacts string, hooks *stableHooks, trusted map[string]ed25519.PublicKey, externals map[string]string) (stableResult, int) {
 	r := newStableResult(base, target)
 	r.RepositoryEnvelope = stableCanonicalEnvelope
 	r.MapSHA256 = string03(shaHex(raw))
@@ -1120,6 +1126,12 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 		}
 		r.Axes["authentication"] = axis
 	}
+	if e := checkStableExternalCanonical(ctx, s, m.CriterionBindings, externals); e != nil {
+		if e.code == "unsupported-process-containment" {
+			return fail("repository", e, false)
+		}
+		return fail("artifacts", e, true)
+	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"
 	if len(m.Artifacts) == 0 {
@@ -1148,11 +1160,28 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 }
 
 func executeStableCanonicalCLI(ctx context.Context, argv []string) (stableResult, int) {
+	r, status, _, _ := executeStableCanonicalCLIExternal(ctx, argv)
+	return r, status
+}
+
+// executeStableCanonicalCLIExternal also returns the map bytes read and the
+// supplied external repository roots, for the CEM-V1-336 stderr fix line.
+func executeStableCanonicalCLIExternal(ctx context.Context, argv []string) (stableResult, int, []byte, map[string]string) {
 	flags := map[string]string{}
+	externals := map[string]string{}
 	allowed := map[string]bool{"--repository": true, "--map": true, "--expected-base": true, "--target": true, "--artifacts": true, "--trusted-keys": true}
 	bad := len(argv)%2 != 0
 	if !bad {
 		for i := 0; i < len(argv); i += 2 {
+			if argv[i] == "--external-repository" {
+				name, root, ok := strings.Cut(argv[i+1], "=")
+				if _, dup := externals[name]; !ok || dup || !stableExternalRepositoryName(name) || !filepath.IsAbs(root) || filepath.Clean(root) != root {
+					bad = true
+					break
+				}
+				externals[name] = root
+				continue
+			}
 			if !allowed[argv[i]] || flags[argv[i]] != "" || argv[i+1] == "" {
 				bad = true
 				break
@@ -1163,26 +1192,77 @@ func executeStableCanonicalCLI(ctx context.Context, argv []string) (stableResult
 	r := newStableResult(flags["--expected-base"], flags["--target"])
 	r.RepositoryEnvelope = stableCanonicalEnvelope
 	if bad || flags["--repository"] == "" || flags["--map"] == "" || !filepath.IsAbs(flags["--repository"]) || !filepath.IsAbs(flags["--map"]) {
-		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
+		return res, status, nil, externals
 	}
 	trusted, ok := readStableTrustedKeys(ctx, flags["--trusted-keys"])
 	if !ok {
-		return failStable(&r, "arguments", operational("invalid-arguments"), false)
+		res, status := failStable(&r, "arguments", operational("invalid-arguments"), false)
+		return res, status, nil, externals
 	}
 	raw, e := readBounded(ctx, flags["--map"], maxJSONBytes)
 	if e != nil {
-		return failStable(&r, "input", operational("map-unavailable"), false)
+		res, status := failStable(&r, "input", operational("map-unavailable"), false)
+		return res, status, nil, externals
 	}
-	return runStableCanonicalTrusted(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], nil, trusted)
+	res, status := runStableCanonicalExternal(ctx, flags["--repository"], raw, flags["--expected-base"], flags["--target"], flags["--artifacts"], nil, trusted, externals)
+	return res, status, raw, externals
 }
 
 func runStableCanonicalCLI(argv []string) {
 	ctx, cancel := context.WithTimeout(context.Background(), verificationBudget)
-	r, status := executeStableCanonicalCLI(ctx, argv)
+	r, status, raw, externals := executeStableCanonicalCLIExternal(ctx, argv)
 	cancel()
 	_ = json.NewEncoder(os.Stdout).Encode(r)
 	if fix := stableRelativePathFix(r, argv); fix != "" {
 		fmt.Fprintln(os.Stderr, "cem01-go verify-stable-canonical: "+fix)
 	}
+	if fix := stableExternalFix(r, raw, externals); fix != "" {
+		fmt.Fprintln(os.Stderr, "cem01-go verify-stable-canonical: "+fix)
+	}
 	os.Exit(status)
+}
+
+// checkStableExternalCanonical is checkStableExternal under the canonical
+// envelope (CEM-V1-334, CEM-V1-335): each supplied root is admitted like the
+// verified repository and read in its own owned session, which is
+// revalidated and closed before the next. Admission and read failures are
+// artifact-unavailable; an unobserved cleanup keeps its containment code.
+func checkStableExternalCanonical(ctx context.Context, primary *stableSession, criteria []stableCriterion, externals map[string]string) *cemError {
+	for _, c := range criteria {
+		if c.ExternalSpan == nil {
+			continue
+		}
+		root, ok := externals[c.ExternalRepository]
+		if !ok {
+			return operational("artifact-unavailable")
+		}
+		adm, e := stableAdmit(root, nil)
+		if e != nil {
+			if e.code == "unsupported-process-containment" {
+				return e
+			}
+			return operational("artifact-unavailable")
+		}
+		s := &stableSession{ctx: ctx, exe: primary.exe, git: primary.git, admin: adm.admin, env: stableGitEnv(), oidLen: len(c.ExternalBlobOID), charged: map[string]bool{}}
+		b, _, e := s.blob("external-criterion", c.ExternalBlobOID)
+		if e == nil {
+			e = stableRevalidate(adm)
+		}
+		stableClose(s)
+		switch {
+		case s.hold:
+			return operational("unsupported-process-containment")
+		case ctx.Err() != nil:
+			return operational("verification-timeout")
+		case e != nil && e.code == "unsupported-process-containment":
+			return e
+		case e != nil:
+			return operational("artifact-unavailable")
+		}
+		if c.ExternalSpan.End > uint64(len(b)) || shaHex(b[c.ExternalSpan.Start:c.ExternalSpan.End]) != c.CriterionSHA256 {
+			return invalid("artifact-digest-mismatch")
+		}
+	}
+	return nil
 }
