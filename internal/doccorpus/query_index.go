@@ -52,11 +52,31 @@ func BuildAdmitted(ctx context.Context, root string, m Manifest) (*Artifact, err
 	if err != nil {
 		return nil, err
 	}
-	var coded *Error
-	if _, err := BuildQueryIndex(ctx, a); errors.As(err, &coded) && coded.Code == CapacityCode {
+	if err := AdmitIndex(ctx, a); err != nil {
 		return nil, err
 	}
 	return a, nil
+}
+
+// AdmitIndex is BuildAdmitted's index check for a corpus built by another
+// writer (republish, flow docs): it returns the capacity refusal when the
+// artifact's query index would exceed its bounds, and nil otherwise
+// (DCP-V1-196, V1-2003).
+func AdmitIndex(ctx context.Context, a *Artifact) error {
+	var coded *Error
+	if _, err := BuildQueryIndex(ctx, a); errors.As(err, &coded) && coded.Code == CapacityCode {
+		return err
+	}
+	return nil
+}
+
+// SetIndexBoundsForTest lowers the query-index bounds so a test in another
+// package can reach the DCP-V1-196 refusal without a huge fixture; the
+// returned function restores them. Production code never calls it.
+func SetIndexBoundsForTest(postings, keyBytes int) (restore func()) {
+	oldPostings, oldKeyBytes := indexPostingBound, indexKeyByteBound
+	indexPostingBound, indexKeyByteBound = postings, keyBytes
+	return func() { indexPostingBound, indexKeyByteBound = oldPostings, oldKeyBytes }
 }
 
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
