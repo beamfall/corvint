@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestCEMV1317HelpDocumentsMapPaths proves cem help, which every cem verb's
-// --help prints, states the map-path rules: status and verify read an
+// TestCEMV1317HelpDocumentsMapPaths proves the status, verify and anchor
+// --help states the map-path rules: status and verify read an
 // absolute map outside the repository, every other action is
 // repository-relative, and anchor's committed-map limit stays explicit.
 func TestCEMV1317HelpDocumentsMapPaths(t *testing.T) {
