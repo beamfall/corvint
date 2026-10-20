@@ -48,7 +48,7 @@ func TestPWPV0054ReporterExternalNodesMatchTable(t *testing.T) {
 		}
 		rest = strings.Replace(rest, match[0], "", 1)
 	}
-	if stray := regexp.MustCompile(`'v\d+\.\d+\.\d+'`).FindAllString(rest, -1); len(stray) > 0 {
+	if stray := regexp.MustCompile(`['"\x60]v\d+\.\d+\.\d+['"\x60]`).FindAllString(rest, -1); len(stray) > 0 {
 		t.Fatalf("reporter keeps Node literals outside the table copies: %v", stray)
 	}
 }

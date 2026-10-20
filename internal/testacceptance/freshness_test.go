@@ -543,11 +543,12 @@ func TestPWPV0053FreshnessAcceptanceAdmitsTableRunner(t *testing.T) {
 	request.Runner = Command{Argv: c.Runner.Argv, ExecutableSHA256: "sha256:" + c.Runner.ExecutableDigest, EntrypointSHA256: "sha256:" + c.Runner.EntrypointDigest}
 	request.Server = Command{Argv: c.Server.Argv, ExecutableSHA256: "sha256:" + c.Server.ExecutableDigest, EntrypointSHA256: "sha256:" + c.Server.EntrypointDigest}
 	request.ReadyURL = c.DocumentURL
-	for runner, refused := range map[string]bool{"1.64.0": false, "1.63.0": false, "1.65.0": true} {
+	// The runner version is read only by the binding check; an admitted runner passes it and stops
+	// at the next check, the root commit of this empty fixture root, so the exact error is pinned.
+	for runner, want := range map[string]string{"1.64.0": "freshness-root-commit-invalid", "1.63.0": "freshness-root-commit-invalid", "1.65.0": "freshness-request-binding-invalid"} {
 		request.RunnerVersion = runner
-		err := validateFreshnessOptions(request)
-		if got := err != nil && err.Error() == "freshness-request-binding-invalid"; got != refused {
-			t.Fatalf("runner %s request binding refused=%v (%v), want %v", runner, got, err, refused)
+		if err := validateFreshnessOptions(request); err == nil || err.Error() != want {
+			t.Fatalf("runner %s request validation = %v, want %s", runner, err, want)
 		}
 	}
 	request.RunnerVersion = "1.64.0"
