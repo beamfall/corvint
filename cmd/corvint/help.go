@@ -643,6 +643,7 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 
 Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full] --path PATH [--path PATH ...]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -695,6 +696,19 @@ count: the plan mixes that commit with mutable worktree content.
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--path (experimental; repeatable, up to 4096) plans exactly the named
+repository-relative paths at HEAD instead of the worktree status or a range,
+for example a change list captured elsewhere. It walks reverse dependencies
+transitively, as the default form does, so a test two importers away is
+selected, and keeps the same scope and unknown vocabulary: a path no language
+claims leaves plan.scope UNKNOWN. A path absent at HEAD is planned as a
+deleted path. The receipt's path_list member echoes the sorted paths. A dirty
+worktree, or an ignored file HEAD does not track that the list names or the
+graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
+would not be HEAD's. Write --path=VALUE for a name that begins with -. It does
+not combine with --snapshot, --base, --provider, --playwright-config,
+--playwright-discovery or --appmap-impact.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
@@ -1198,6 +1212,10 @@ Non-Go range receipts and MCP paths name that experimental profile automatically
 The path selector cannot be combined with --base or --working-tree-untracked.
 Other indexed suffixes keep positional evidence and missing-rule uncertainty.
 MCP admits the Go/Ruby/JS/TS suffixes above for path requests only.
+Reverse-import results stop at direct importers (one hop; Ruby's advisory
+autoload rows reach two): a test reached through an intermediate importer is
+absent, and a READY receipt is evidence, not a closed test selection.
+corvint affected --path PATH... plans a transitive selection at HEAD.
 
 Options:
   --limit N                  Maximum results (default: 10; range: 1-50).
