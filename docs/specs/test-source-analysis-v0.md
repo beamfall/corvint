@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213 and V1-1972 / GitHub #1224, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291 and V1-2040 / GitHub #1292, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972)/experimental
-- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown` and `corvint tests citations` commands.
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040)/experimental
+- Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
 
@@ -2014,6 +2014,109 @@ persisted. Without the `abstentions` member, the report is the prior wire.
 | TSA-V0-310 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeJSONAnnotation` | experimental |
 | TSA-V0-311 | `internal/testvalidity/source_rules_crossfile.go` | `TestSourceValidityAbstentionsWire` | experimental |
 | TSA-V0-312 | none | NOT_PRODUCED (`cross-file-resolution-not-produced`) | gap |
+
+## Example receipt join and caller-asserted requirements (V1-2039, V1-2040)
+
+V1-2039 (GitHub #1291) joins each example of a provider receipt to the test-validity verdict of
+the same example in one record, so a consumer no longer pairs two documents by `file:line`. V1-2040
+(GitHub #1292) lets the caller name the requirement IDs each selected example witnesses and echoes
+them in that record, marked caller-asserted. Both are agent-drafted and accepted under the owner's
+standing auto-accept (2026-10-11). The provider documents and `corvint test-validity` are
+unchanged; the join is a separate read of a retained receipt and the object store.
+
+- `TSA-V0-410`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) `corvint tests
+  example-join --receipt FILE [--rev REV] [--select SELECTOR=REQ[,REQ...] ...] [--requirements
+  FILE]` MUST read one `corvint-ruby-test-provider/0` document or one JS provider receipt and the
+  committed sources at `--rev` (default `HEAD`), and print one `corvint-example-join/0` document:
+  schema, the resolved revision, the receipt's language and repository identity, and one record per
+  receipt example in receipt order. It MUST exit 0 when it prints. A receipt that cannot be read
+  refuses `tests-source-unavailable`; a provider document of another kind refuses
+  `tests-invalid-arguments`.
+- `TSA-V0-411`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) Each record MUST be
+  keyed by a stable example identity that holds no line number. A Ruby example is the
+  repository-relative spec path of its RSpec id plus its scoped id (`spec/a_spec.rb[1:2]`, kind
+  `rspec-scoped-id`). A JS example is its repository-relative file, project name and full title
+  (`file > project > full title`, kind `js-title-path`). An example with no such identity, or two
+  examples with one identity, MUST abstain (`example-identity-unbound`,
+  `example-identity-ambiguous`) instead of guessing.
+- `TSA-V0-412`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry the
+  run outcome as the receipt states it, the hygiene and strength axes the static example rules give
+  the example at the revision (`TSA-V0-068`, `TSA-V0-080`), and the source both used: the revision
+  and each file read with its Git blob ID at that revision. A located example cites its
+  `path:line` at the revision on the verdict anchors.
+- `TSA-V0-413`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST refuse
+  `tests-join-revision-unbound` when the receipt retains no repository revision before and after
+  the run, and `tests-join-revision-mismatch` when the revision before differs from the one after or
+  from the resolved `--rev`.
+- `TSA-V0-414`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST also
+  refuse `tests-join-revision-mismatch` when a file the receipt binds (a Ruby spec or helper blob
+  ID, a JS test-file SHA-256 under the repository root) is absent at the revision or differs from
+  its committed content there. An example whose own file the receipt left unbound MUST abstain
+  (`example-source-unbound`); in a dirty receipt a shared example whose including spec no retained
+  blob binds abstains with `rspec-inclusion-source-unbound`, and a helper set the receipt does not
+  bind leaves helper resolution unbound.
+- `TSA-V0-415`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The verdict MUST be
+  read at the example's location in the receipt against the content at the revision, so an example
+  whose lines shifted between two revisions keeps one identity, and a receipt from the earlier
+  revision is refused against the later one rather than read at the wrong lines. An RSpec example
+  run through a shared group MUST be read through the inclusion its scoped id names
+  (`TSA-V0-089`), keyed by the including spec, and cite both the including spec and the shared
+  file as its source.
+- `TSA-V0-416`: (standing auto-accept, 2026-10-11; V1-2039, V1-2040) The join MUST read the object
+  store only (no checkout, index or working-tree read, no write, no network) besides the named
+  receipt and mapping file. More than 2000 examples or 256 distinct source files refuses
+  `tests-bound-exceeded`; a file over 1 MiB refuses as `TSA-V0-252` does.
+- `TSA-V0-417`: (standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A caller MAY pass
+  requirement IDs per selector with repeated `--select SELECTOR=REQ[,REQ...]` or a mapping file
+  `--requirements FILE` holding one such pair per line (blank and `#` lines skipped). A selector is
+  `PATH` (every example whose identity file is PATH), `PATH:LINE` (an example at that receipt
+  location, or a Ruby example included at it) or `PATH[ID]` (one RSpec scoped id). A requirement
+  ID is 1 to 128 characters of letters, digits and `._:/-`, starting with a letter or digit; at
+  most 32 IDs per selector and 256 selectors.
+- `TSA-V0-418`: (standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A selector or pair that
+  does not parse, an empty or invalid requirement ID, a repeated selector or a bound overrun MUST
+  refuse `tests-join-selector-malformed`; a well-formed selector that matches no example in the
+  receipt MUST refuse `tests-join-selector-unknown`. Nothing is printed on either refusal.
+- `TSA-V0-419`: (standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) Each matched record
+  MUST echo its requirement IDs beside the outcome as `requirements` with basis `caller-asserted`,
+  the sorted distinct IDs and the selectors that named them in input order. A record no selector
+  names MUST carry no `requirements`. Corvint MUST NOT infer requirement IDs from titles, paths or
+  steps, and the IDs MUST NOT change the outcome or the verdict.
+
+Failure modes: a missing or edited receipt revision refuses rather than joining across revisions;
+a receipt from a dirty tree joins only through the blobs it retained; a stale caller mapping is
+refused as unknown instead of silently dropped.
+
+Non-goals: changing the provider documents or `corvint-test-validity/0` projections (the sibling
+V1-2045 structured location is separate); Go and Playwright-session receipts; checking that a
+caller-asserted requirement exists or is satisfied; an MCP surface; persisting the joined record.
+
+Acceptance evidence: synthetic Git fixtures only. `TestExampleJoinRubyShiftedLines` (one identity
+at two revisions with different lines; the earlier receipt refused against the later revision;
+blob mismatch refused), `TestExampleJoinSharedGroup` (a shared example keyed by the including spec
+and read through its inclusion), `TestExampleJoinJS`, `TestExampleJoinRevisionRefusals`,
+`TestExampleJoinRequirements` (malformed and unknown selectors, mapping file, caller-asserted echo)
+and `TestTestsExampleJoinCLI`. No live qualification on a real receipt was run (NOT_RUN).
+
+Rollback: remove `internal/testsource/example_join.go`, `example_join_select.go` and their test,
+the `readOneBlob` split in `internal/testsource/git.go`, `RubyDocument` in
+`internal/testvaliditydoc/js_receipt.go`, `cmd/corvint/tests_example_join.go` and its test, the
+`example-join` case and help in `cmd/corvint/tests.go`, and this section. Nothing is persisted.
+
+### Traceability (V1-2039, V1-2040)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-410 | `internal/testsource/example_join.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestTestsExampleJoinCLI` | experimental |
+| TSA-V0-411 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
+| TSA-V0-412 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinJS` | experimental |
+| TSA-V0-413 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals`, `TestExampleJoinRubyShiftedLines` | experimental |
+| TSA-V0-414 | `internal/testsource/example_join.go`, `internal/testsource/git.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup`, `TestExampleJoinJS` | experimental |
+| TSA-V0-415 | `internal/testsource/example_join.go` | `TestExampleJoinRubyShiftedLines`, `TestExampleJoinSharedGroup` | experimental |
+| TSA-V0-416 | `internal/testsource/example_join.go` | `TestExampleJoinRevisionRefusals` | experimental |
+| TSA-V0-417 | `internal/testsource/example_join_select.go`, `cmd/corvint/tests_example_join.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
+| TSA-V0-418 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestTestsExampleJoinCLI` | experimental |
+| TSA-V0-419 | `internal/testsource/example_join_select.go` | `TestExampleJoinRequirements`, `TestExampleJoinJS` | experimental |
 
 ## Decision file format
 

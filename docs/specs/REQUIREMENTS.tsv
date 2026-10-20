@@ -4513,6 +4513,16 @@ TSA-V0-309	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-310	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The message of an `EITHER-OR-OUTCOME	standing	2026-10-11; V1-1944
 TSA-V0-311	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) The abstention reasons and	standing	2026-10-11; V1-1944
 TSA-V0-312	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1944) Resolving a sibling module's stub ta	standing	2026-10-11; V1-1944
+TSA-V0-410	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) `corvint tests	standing	2026-10-11; V1-2039; #1291
+TSA-V0-411	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) Each record MUST be	standing	2026-10-11; V1-2039; #1291
+TSA-V0-412	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry t	standing	2026-10-11; V1-2039; #1291
+TSA-V0-413	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST refuse	standing	2026-10-11; V1-2039; #1291
+TSA-V0-414	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The join MUST also	standing	2026-10-11; V1-2039; #1291
+TSA-V0-415	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) The verdict MUST be	standing	2026-10-11; V1-2039; #1291
+TSA-V0-416	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2039, V1-2040) The join MUST read the obje	standing	2026-10-11; V1-2039; V1-2040
+TSA-V0-417	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A caller MAY pass	standing	2026-10-11; V1-2040; #1292
+TSA-V0-418	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A selector or pair th	standing	2026-10-11; V1-2040; #1292
+TSA-V0-419	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) Each matched record	standing	2026-10-11; V1-2040; #1292
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167

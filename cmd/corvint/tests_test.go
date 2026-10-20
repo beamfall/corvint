@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/rubytestprovider"
 	"github.com/Beamfall/corvint/internal/testsource"
+	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 func testsCommit(t *testing.T, root string, files map[string]string) string {
@@ -328,5 +332,94 @@ func TestTestsCitationsCLI(t *testing.T) {
 	}
 	if code, out, _ := runCLI(t, "tests", "--help"); code != 0 || !strings.Contains(out, "tests citations --docs") {
 		t.Errorf("help: code=%d", code)
+	}
+}
+
+const exampleJoinSpec = `RSpec.describe User do
+  subject(:user) { build(:user) }
+
+  it 'is valid' do
+    expect(user).to be_valid
+  end
+  xit 'is skipped' do
+    expect(user).to be_valid
+  end
+  it 'has a name' do
+    expect(user.name).to eq('u')
+  end
+end
+`
+
+// TestTestsExampleJoinCLI pins TSA-V0-410, TSA-V0-413, TSA-V0-417 and TSA-V0-418 at the CLI: one
+// corvint-example-join/0 record per receipt example with caller-asserted requirement IDs from
+// --select and --requirements, and typed refusals for a malformed or unknown selector and a receipt
+// run at another revision.
+func TestTestsExampleJoinCLI(t *testing.T) {
+	root := t.TempDir()
+	cemGit(t, root, "init", "-q")
+	earlier := testsCommit(t, root, map[string]string{"README.md": "fixture\n"})
+	helper := "RSpec.configure { }\n"
+	head := testsCommit(t, root, map[string]string{"spec/user_spec.rb": exampleJoinSpec, "spec/spec_helper.rb": helper})
+	repository := &jstestprovider.ApplicationRepositoryIdentity{RootCommit: earlier, Revision: head, Tree: cemGit(t, root, "rev-parse", head+"^{tree}"), DirtyState: "clean"}
+	helpers := []rubytestprovider.BoundFile{{Path: "spec/spec_helper.rb", Blob: rubytestprovider.BlobID("sha1", []byte(helper))}}
+	document := rubytestprovider.Document{
+		Profile: rubytestprovider.Profile, Runner: "rspec", ProjectDirectory: ".", ObjectFormat: "sha1",
+		RepositoryBefore: repository, RepositoryAfter: repository, HelperBasis: rubytestprovider.HelperBasis,
+		Helpers: helpers, HelperSet: rubytestprovider.HelperSetDigest(helpers), Examples: []rubytestprovider.Example{}, JUnit: rubytestprovider.JUnit{State: "NOT_REQUESTED"},
+	}
+	for index, e := range []struct {
+		line   int
+		status string
+	}{{4, "passed"}, {7, "pending"}, {10, "failed"}} {
+		id := "./spec/user_spec.rb[1:" + strconv.Itoa(index+1) + "]"
+		document.Examples = append(document.Examples, rubytestprovider.Example{
+			ID: "spec/user_spec.rb:" + strconv.Itoa(e.line), RSpecID: id, File: "spec/user_spec.rb", Line: e.line, Status: e.status,
+			SpecBlob: rubytestprovider.BlobID("sha1", []byte(exampleJoinSpec)), Helpers: document.HelperSet,
+		})
+	}
+	evidence, err := json.Marshal(document)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scratch := t.TempDir()
+	receipt, mapping := filepath.Join(scratch, "receipt.json"), filepath.Join(scratch, "requirements.txt")
+	if err := os.WriteFile(receipt, evidence, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mapping, []byte("# caller-asserted\nspec/user_spec.rb:10=TSA-V0-419\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := runCLI(t, "--root", root, "tests", "example-join", "--receipt", receipt, "--select", "spec/user_spec.rb[1:1]=TSA-V0-417,TSA-V0-410", "--requirements", mapping)
+	var report testsource.ExampleJoinReport
+	if code != 0 || json.Unmarshal([]byte(out), &report) != nil || report.Schema != testsource.ExampleJoinSchema || report.Revision != head || len(report.Examples) != 3 {
+		t.Fatalf("example-join: code=%d out=%s err=%s", code, out, errb)
+	}
+	first, second, third := report.Examples[0], report.Examples[1], report.Examples[2]
+	if first.Example != "spec/user_spec.rb[1:1]" || first.Outcome != "passed" || third.Outcome != "failed" || second.Requirements != nil ||
+		first.Verdict.Hygiene.State == testvalidity.HygieneAbstained || len(first.Source.Files) != 1 {
+		t.Fatalf("records = %+v", report.Examples)
+	}
+	if r := first.Requirements; r == nil || r.Basis != "caller-asserted" || strings.Join(r.IDs, ",") != "TSA-V0-410,TSA-V0-417" {
+		t.Fatalf("first requirements = %+v", r)
+	}
+	if r := third.Requirements; r == nil || strings.Join(r.IDs, ",") != "TSA-V0-419" || strings.Join(r.Selectors, ",") != "spec/user_spec.rb:10" {
+		t.Fatalf("third requirements = %+v", r)
+	}
+	for _, c := range []struct {
+		args []string
+		code string
+	}{
+		{[]string{"--select", "spec/user_spec.rb"}, "tests-join-selector-malformed"},
+		{[]string{"--select", "spec/user_spec.rb[1:9]=REQ-1"}, "tests-join-selector-unknown"},
+		{[]string{"--rev", earlier}, "tests-join-revision-mismatch"},
+		{[]string{"--requirements", filepath.Join(scratch, "missing.txt")}, "tests-source-unavailable"},
+	} {
+		code, _, errb := runCLI(t, append([]string{"--root", root, "tests", "example-join", "--receipt", receipt}, c.args...)...)
+		if code != 2 || !strings.Contains(errb, `"code":"`+c.code+`"`) {
+			t.Errorf("%v: code=%d err=%s, want %s", c.args, code, errb, c.code)
+		}
+	}
+	if code, _, errb := runCLI(t, "--root", root, "tests", "example-join"); code != 2 || !strings.Contains(errb, "tests-invalid-arguments") {
+		t.Errorf("no receipt: code=%d err=%s", code, errb)
 	}
 }
