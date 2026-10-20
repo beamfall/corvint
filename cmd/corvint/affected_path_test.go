@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -199,6 +200,67 @@ func TestAFPV0094PathListRefusesIgnoredFilesTheGraphReads(t *testing.T) {
 	}
 	if after := treeDigest(t, root); after != before {
 		t.Fatal("a refused --path run must not write")
+	}
+}
+
+// AFP-V0-094 (V1-2086): an ignored file the graph reaches through a unit's
+// testdata, a go:embed directory or a declared read scope refuses a --path
+// plan too; an ignored file no unit reads does not.
+func TestAFPV0094PathListRefusesIgnoredFilesUnitsRead(t *testing.T) {
+	t.Parallel()
+	for _, testCase := range []struct {
+		name, ignore, file string
+		committed          map[string]string
+		refuses            bool
+	}{
+		{name: "testdata", ignore: "core/testdata/generated.json", file: "core/testdata/generated.json", refuses: true},
+		{name: "embed", ignore: "core/assets/extra.txt", file: "core/assets/extra.txt", refuses: true, committed: map[string]string{
+			"core/assets/kept.txt": "kept\n",
+			"core/embed.go":        "package core\n\nimport \"embed\"\n\n//go:embed assets\nvar Assets embed.FS\n",
+		}},
+		{name: "read scope", ignore: "docs/generated.md", file: "docs/generated.md", refuses: true, committed: map[string]string{
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"core":["docs/"]}}`,
+		}},
+		{name: "unread", ignore: "build/out.bin", file: "build/out.bin", refuses: false},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			root := affectedFixtureRepository(t)
+			files := map[string]string{".gitignore": testCase.ignore + "\n"}
+			for name, body := range testCase.committed {
+				files[name] = body
+			}
+			for name, body := range files {
+				target := filepath.Join(root, filepath.FromSlash(name))
+				if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			affectedGit(t, root, "add", ".")
+			affectedGit(t, root, "commit", "-qm", "ignore "+testCase.name)
+			head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+			target := filepath.Join(root, filepath.FromSlash(testCase.file))
+			if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(target, []byte("absent from HEAD\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			receipt, stdout, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go")
+			if !testCase.refuses {
+				if code != 0 || receipt == nil {
+					t.Fatalf("an ignored file no unit reads must not refuse: exit %d stderr=%s", code, stderr)
+				}
+				return
+			}
+			if code != 2 || len(stdout) != 0 || receipt != nil || !strings.Contains(stderr, "unsupported-affected-mixed-worktree") ||
+				!strings.Contains(stderr, path.Dir(testCase.file)) || !strings.Contains(stderr, head) {
+				t.Fatalf("--path over an ignored %s file: exit %d stdout=%s stderr=%s", testCase.name, code, stdout, stderr)
+			}
+		})
 	}
 }
 

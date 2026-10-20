@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -860,7 +861,9 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 
 // affectedPathListIgnoredCheck refuses a --path plan whose disk graph reads, or
 // whose list names, an ignored file HEAD does not track: such a file is not a
-// dirty path, yet a graph built over it is not HEAD's (AFP-V0-094).
+// dirty path, yet a graph built over it is not HEAD's (AFP-V0-094). A Go
+// unit's graph also reads its testdata, its whole directory when it embeds,
+// and its declared read scope, so an ignored file there refuses too (V1-2086).
 func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revision string, graph *affected.Graph, listed []string) error {
 	ignored, err := affected.IgnoredPaths(ctx, gitExecutable, root)
 	if err != nil {
@@ -870,9 +873,11 @@ func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revi
 		return nil
 	}
 	paths := append([]string{}, listed...)
+	areas := []string{}
 	for _, id := range graph.UnitIDs() {
 		if unit, ok := graph.Unit(id); ok {
 			paths = append(append(paths, unit.Sources...), unit.Tests...)
+			areas = append(areas, ignoredCheckAreas(id, unit)...)
 		}
 	}
 	for _, path := range affected.NormalizePaths(paths) {
@@ -882,7 +887,47 @@ func affectedPathListIgnoredCheck(ctx context.Context, gitExecutable, root, revi
 			}
 		}
 	}
+	for _, entry := range ignored {
+		for _, area := range areas {
+			if ignoredEntryOverlaps(entry, area) {
+				return affectedPathListIgnoredRefusal(revision, entry)
+			}
+		}
+	}
 	return nil
+}
+
+// ignoredCheckAreas lists the paths a Go unit reads beyond its own files: its
+// directory's testdata, the directory itself when it embeds, and each declared
+// read-scope entry ("/"-suffixed for a subtree).
+func ignoredCheckAreas(id string, unit affected.Unit) []string {
+	files := append(append([]string{}, unit.Sources...), unit.Tests...)
+	if !strings.HasPrefix(id, "go:") || len(files) == 0 {
+		return nil
+	}
+	directory := path.Dir(files[0])
+	prefix := directory + "/"
+	if directory == "." {
+		prefix = ""
+	}
+	areas := []string{prefix + "testdata/"}
+	if unit.Embeds {
+		areas = append(areas, prefix)
+	}
+	return append(areas, unit.ReadScope...)
+}
+
+// ignoredEntryOverlaps reports whether an ignored entry ("/"-suffixed for a
+// directory) is, lies under, or contains area ("/"-suffixed for a subtree, ""
+// for the repository root).
+func ignoredEntryOverlaps(entry, area string) bool {
+	if area == "" || entry == area || entry == strings.TrimSuffix(area, "/") {
+		return true
+	}
+	if strings.HasSuffix(area, "/") && strings.HasPrefix(entry, area) {
+		return true
+	}
+	return strings.HasSuffix(entry, "/") && strings.HasPrefix(area, entry)
 }
 
 // compileAffectedAdvice joins the repository-declared mandatory gate, the
