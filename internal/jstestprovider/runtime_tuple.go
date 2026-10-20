@@ -45,6 +45,12 @@ func ReceiptRuntimeTuple(r Receipt) string {
 		if r.Identity.NodeVersion == qualifiedNodeVersion || (r.Profile == ExternalProfile && r.Identity.NodeVersion == admittedBundledNodeVersion) {
 			return RuntimeTupleCandidate
 		}
+	case "1.64.0":
+		// PWP-V0-033: only the base and attempt-retaining profiles ran live on
+		// 1.64.0, and only under the one qualified Node release.
+		if r.Identity.NodeVersion == qualifiedNodeVersion && (r.Profile == ExternalProfile || r.Profile == AttemptExternalProfile) {
+			return RuntimeTupleCandidate
+		}
 	}
 	return RuntimeTupleUnqualified
 }

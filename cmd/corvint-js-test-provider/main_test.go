@@ -287,3 +287,128 @@ func TestRetainedBasicReceiptCarriesStartRevision(t *testing.T) {
 		t.Fatalf("existing identity replaced: %+v", got.TestRepositoryAtStart)
 	}
 }
+
+// PWP-V0-034: a version refusal writes one typed refusal document to stdout,
+// not an empty one, and names the qualified runner versions; other failures
+// still write nothing to stdout.
+func TestPWPV0034E2EVersionRefusalWritesTypedDocument(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args []string) (string, error) {
+		t.Helper()
+		reader, writer, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved := os.Stdout
+		os.Stdout = writer
+		runErr := runE2E(args)
+		os.Stdout = saved
+		writer.Close()
+		var out bytes.Buffer
+		if _, err = out.ReadFrom(reader); err != nil {
+			t.Fatal(err)
+		}
+		reader.Close()
+		return out.String(), runErr
+	}
+	args := []string{"--dir", dir, "--config", filepath.Join(dir, "playwright.config.cjs"), "--runner-version", "1.62.0", "--external-server", "--app-identity", "fixture", "--server-ready-url", "http://127.0.0.1:1", "--test-file", filepath.Join(dir, "a.spec.cjs")}
+	out, err := run(args)
+	if err == nil || !strings.HasPrefix(err.Error(), "external-playwright-version-unqualified") {
+		t.Fatalf("err %v", err)
+	}
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	if out != want {
+		t.Fatalf("stdout\n got %q\nwant %q", out, want)
+	}
+	saved := runE2EReceipt
+	t.Cleanup(func() { runE2EReceipt = saved })
+	runE2EReceipt = func(context.Context, jstestprovider.E2EConfig) (jstestprovider.Receipt, error) {
+		return jstestprovider.Receipt{}, errors.New("runner-unavailable")
+	}
+	args[5] = "1.64.0"
+	if out, err = run(args); err == nil || out != "" {
+		t.Fatalf("non-refusal failure wrote %q (%v)", out, err)
+	}
+}
+
+// captureStdout runs fn with os.Stdout redirected to a pipe and returns what
+// it wrote.
+func captureStdout(t *testing.T, fn func() error) (string, error) {
+	t.Helper()
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := os.Stdout
+	os.Stdout = writer
+	runErr := fn()
+	os.Stdout = saved
+	writer.Close()
+	var out bytes.Buffer
+	if _, err = out.ReadFrom(reader); err != nil {
+		t.Fatal(err)
+	}
+	reader.Close()
+	return out.String(), runErr
+}
+
+func TestPWPV0034CLIAdmissionRefusalWritesTypedDocument(t *testing.T) {
+	versions := `,"qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	for _, tc := range []struct {
+		args []string
+		code string
+	}{
+		{[]string{"--external-server", "--interrupt-grace=-1s"}, "interrupt-grace-invalid"},
+		{[]string{"--interrupt-grace=1s"}, "runner-control-requires-external-server"},
+	} {
+		out, err := captureStdout(t, func() error { return runE2E(tc.args) })
+		if err == nil || err.Error() != tc.code {
+			t.Fatalf("%v: err %v", tc.args, err)
+		}
+		want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"` + tc.code + `","message":"` + tc.code + `"` + versions
+		if out != want {
+			t.Fatalf("%v: stdout\n got %q\nwant %q", tc.args, out, want)
+		}
+	}
+	missing := filepath.Join(t.TempDir(), "missing", "runner.log")
+	out, err := captureStdout(t, func() error { return runE2E([]string{"--external-server", "--runner-output", missing}) })
+	if err == nil || !strings.HasPrefix(err.Error(), "runner-output-unavailable: ") || !strings.HasPrefix(out, `{"schema":"corvint-playwright-e2e-refusal/0","code":"runner-output-unavailable","message":"runner-output-unavailable: `) || !strings.HasSuffix(out, versions) {
+		t.Fatalf("runner-output refusal: stdout %q err %v", out, err)
+	}
+	// qualify-keep-reporters keeps an empty stdout on the same refusal.
+	if out, err = captureStdout(t, func() error {
+		return runQualifyKeepReporters([]string{"--external-server", "--interrupt-grace=-1s"})
+	}); err == nil || err.Error() != "interrupt-grace-invalid" || out != "" {
+		t.Fatalf("qualify-keep-reporters wrote %q (%v)", out, err)
+	}
+}
+
+type refusalSink struct {
+	n   int
+	err error
+}
+
+func (s refusalSink) Write(p []byte) (int, error) {
+	if s.n < 0 {
+		return len(p), nil
+	}
+	return s.n, s.err
+}
+
+func TestPWPV0034RefusalWriteFailureKeepsDiagnostic(t *testing.T) {
+	refusal := &jstestprovider.E2ERefusal{Code: "interrupt-grace-invalid"}
+	if err := writeE2ERefusal(refusalSink{n: -1}, refusal); err != refusal {
+		t.Fatalf("complete write changed the error: %v", err)
+	}
+	for _, sink := range []refusalSink{{n: 0, err: errors.New("broken pipe")}, {n: 5}} {
+		err := writeE2ERefusal(sink, refusal)
+		var typed *jstestprovider.E2ERefusal
+		if !errors.As(err, &typed) || typed != refusal || !strings.HasPrefix(err.Error(), "interrupt-grace-invalid; refusal-output-incomplete: ") {
+			t.Fatalf("sink %+v: err %v", sink, err)
+		}
+	}
+	plain := errors.New("runner-unavailable")
+	if err := writeE2ERefusal(refusalSink{n: 0, err: errors.New("broken pipe")}, plain); err != plain {
+		t.Fatalf("non-refusal error changed: %v", err)
+	}
+}

@@ -7,6 +7,8 @@ import (
 	"io"
 	"sync/atomic"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
 // defaultInterruptGrace is the external runner's SIGINT grace on --timeout
@@ -24,10 +26,10 @@ func admitRunnerControl(fs *flag.FlagSet, externalServer bool, grace time.Durati
 		}
 	})
 	if explicit && !externalServer {
-		return errors.New("runner-control-requires-external-server")
+		return &jstestprovider.E2ERefusal{Code: "runner-control-requires-external-server"}
 	}
 	if grace < 0 {
-		return errors.New("interrupt-grace-invalid")
+		return &jstestprovider.E2ERefusal{Code: "interrupt-grace-invalid"}
 	}
 	return nil
 }
@@ -73,7 +75,7 @@ func openRunnerOutput(path string, stderr io.Writer) (*runnerOutput, func(), err
 	}
 	file, err := openOutputFile(path)
 	if err != nil {
-		return nil, nil, fmt.Errorf("runner-output-unavailable: %w", err)
+		return nil, nil, &jstestprovider.E2ERefusal{Code: "runner-output-unavailable", Detail: err.Error()}
 	}
 	output := &runnerOutput{w: file}
 	return output, func() { reportRunnerOutput(output, file.Close(), stderr) }, nil
