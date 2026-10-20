@@ -78,6 +78,14 @@ type Primitives struct {
 	// NewTimer starts a timer. Tests replace it to drive fixed deadlines without
 	// waiting on wall time.
 	NewTimer func(time.Duration) Timer
+	// RepeatKillWhileLive opts a caller into repeating the group SIGKILL on
+	// each RequirePreReapQuiet observation of a live member, still only while
+	// the exited leader is held unreaped and never once the reap has begun.
+	// Darwin's group signal can miss a member that a fork running alongside
+	// it adds to the group, which then survives as a live member of the
+	// pinned group (ATR-V0-153). Off by default: every other caller keeps
+	// PGO-V0-001's single group signal.
+	RepeatKillWhileLive bool
 }
 
 // RetirementBound is one original retirement allowance shared by callers,
@@ -140,8 +148,8 @@ type Result struct {
 }
 
 // Owner owns one process group through an unreaped leader. The group is
-// signalled only while the leader is unreaped, at most once, and never after
-// the reap. Absence is observed in two steps: the quiet proof is polled with
+// signalled only while the leader is unreaped, at most once unless the caller
+// set RepeatKillWhileLive, and never after the reap. Absence is observed in two steps: the quiet proof is polled with
 // the leader unreaped until no live member remains, the leader is reaped, and
 // signal 0 is polled for a bounded interval until the group is absent.
 type Owner struct {
@@ -389,6 +397,14 @@ func (o *Owner) waitPreReapQuiet(bound RetirementBound) (Result, bool) {
 			return Result{}, false
 		}
 		o.recordEvent("probe-live")
+		if o.p.RepeatKillWhileLive {
+			// The leader is still unreaped, so its PID pins the group ID
+			// and the repeated signal reaches only the owned group.
+			o.recordEvent("kill-group-repeat")
+			if err := o.p.KillGroup(o.leader); err != nil {
+				return o.hold(errors.Join(errors.New("groupreap: repeated group signal failed"), err)), true
+			}
+		}
 		o.mu.Unlock()
 		timer := o.p.NewTimer(probeInterval)
 		expired := bound.wait(timer)

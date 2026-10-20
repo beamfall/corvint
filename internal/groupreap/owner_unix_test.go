@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strconv"
@@ -325,5 +326,37 @@ func TestOwnerRetiresHostileGroups(t *testing.T) {
 			}
 			requireGone(t, member)
 		})
+	}
+}
+
+// ATR-V0-153: a group stopped while its leader forks a member is retired.
+// Darwin's group SIGKILL can miss a child forked alongside it; that child
+// then lives on in the pinned group and a single signal HOLDs at the bound
+// with a live survivor. With RepeatKillWhileLive no iteration may leave one.
+func TestOwnerRepeatKillRetiresMemberForkedDuringStop(t *testing.T) {
+	dir := t.TempDir()
+	for i := 0; i < 150; i++ {
+		started := filepath.Join(dir, strconv.Itoa(i))
+		owner, err := StartWith(exec.Command("/bin/sh", "-c", "touch "+started+"; sleep 60"), Primitives{RepeatKillWhileLive: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		deadline := time.Now().Add(10 * time.Second)
+		for _, err := os.Stat(started); err != nil; _, err = os.Stat(started) {
+			if time.Now().After(deadline) {
+				owner.Stop()
+				owner.Finish(bounded(10 * time.Second))
+				t.Fatalf("iteration %d: %s never appeared", i, started)
+			}
+			time.Sleep(50 * time.Microsecond)
+		}
+		owner.Stop()
+		result := owner.Finish(bounded(10 * time.Second))
+		if result.State == Hold && !result.PostReapObserved {
+			// The leader is still held unreaped, so the group ID is ours.
+			_ = syscall.Kill(-owner.leader, syscall.SIGKILL)
+			t.Fatalf("iteration %d: %+v, live member survived the stop", i, result)
+		}
+		requireReleasedOrQuietHold(t, owner, result)
 	}
 }
