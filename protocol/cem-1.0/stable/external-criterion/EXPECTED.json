@@ -1,0 +1,401 @@
+{
+  "accept": {
+    "exit": 0,
+    "resultExceptRuntime": {
+      "accept": true,
+      "artifactChecks": [
+        {
+          "byteLength": 130,
+          "kind": "runner-plan",
+          "path": "artifacts/runner-plan.json",
+          "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+        },
+        {
+          "byteLength": 133,
+          "kind": "runner-receipt",
+          "path": "artifacts/runner-receipt.json",
+          "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+        }
+      ],
+      "assurance": "canonical",
+      "axes": {
+        "authentication": "NOT_OBSERVED",
+        "changeIntegrity": "VERIFIED",
+        "coverageValidation": "ABSENT",
+        "criterionAdequacy": "NOT_OBSERVED",
+        "criterionDiscrimination": "NOT_OBSERVED",
+        "currentApplicability": "NOT_OBSERVED",
+        "dependencyClosure": "NOT_OBSERVED",
+        "discriminationValidation": "ABSENT",
+        "executionAtCommit": "NOT_OBSERVED",
+        "externalInteroperability": "NOT_OBSERVED",
+        "historicalValidity": "NOT_OBSERVED",
+        "nativeAuthority": "NOT_OBSERVED",
+        "referenceIntegrity": "REFERENCE_INTEGRITY_ONLY",
+        "runnerExecution": "NOT_OBSERVED",
+        "runnerReceiptSemantics": "NOT_OBSERVED",
+        "sourceGitBinding": "NOT_OBSERVED",
+        "sourceInventoryCompleteness": "NOT_OBSERVED",
+        "structuralProof": "NOT_REQUIRED"
+      },
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 2,
+        "distinctEvidence": 1,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+            2
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+            "tier": "cited"
+          },
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+            "tier": "cited"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 0,
+          "cited": 2,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": true,
+        "maxFanOut": 2,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 0
+      },
+      "code": null,
+      "drift": [
+        {
+          "baseBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+          "path": "SPEC.md",
+          "status": "stable",
+          "targetBlobOid": "6d278d004301d16170039816f28919c070a9c697",
+          "targetSpan": {
+            "end": 150,
+            "start": 92
+          }
+        }
+      ],
+      "expectedBase": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+      "hunks": [
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+          "newRange": {
+            "count": 9,
+            "start": 1
+          },
+          "oldRange": {
+            "count": 6,
+            "start": 1
+          },
+          "path": "greet.go",
+          "reason": "evidence-backed"
+        },
+        {
+          "basis": [
+            {
+              "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+              "relation": "specification"
+            }
+          ],
+          "disposition": "supported",
+          "id": "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0",
+          "newRange": {
+            "count": 9,
+            "start": 7
+          },
+          "oldRange": {
+            "count": 3,
+            "start": 7
+          },
+          "path": "greet_test.go",
+          "reason": "evidence-backed"
+        }
+      ],
+      "issueCodes": [],
+      "mapSha256": "71a1d8fc5c3fe4603108a3eeae55c912496b4ed916bc768be49a201a0268005e",
+      "outcome": "ACCEPT",
+      "patchSha256": "9466aca391d358b6fd969537fd6fcc5088526e85d6b3f9fad13ecf35431f7ff8",
+      "profile": "cem-stable-verification/1",
+      "references": {
+        "artifacts": [
+          {
+            "kind": "runner-plan",
+            "path": "artifacts/runner-plan.json",
+            "sha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc"
+          },
+          {
+            "kind": "runner-receipt",
+            "path": "artifacts/runner-receipt.json",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+          }
+        ],
+        "criterionBindings": [
+          {
+            "criterionIndex": 0,
+            "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+            "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+            "externalRepository": "requirements",
+            "externalSpan": {
+              "end": 130,
+              "start": 63
+            },
+            "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+          }
+        ],
+        "criterionLinks": [
+          {
+            "criterionId": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a",
+            "evidenceIds": [
+              "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2"
+            ],
+            "hunkIds": [
+              "hunk:sha256:16fcc32b2f5adc894792418166e51c1b26dd5b20a5a7a2123b2946391298eb1d",
+              "hunk:sha256:30a1c6811c42769127d3f4fb654d25f3f1aae0afd2ac100ac04707a13b8b57c0"
+            ],
+            "runnerReceiptSha256s": [
+              "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48"
+            ]
+          }
+        ],
+        "runnerReceipts": [
+          {
+            "authentication": "NOT_OBSERVED",
+            "dependencyClosure": "NOT_OBSERVED",
+            "executionAuthority": "CALLER_OBSERVED",
+            "planSha256": "6f26ce052b693470a72072ed7e1c2c78564a40d8fec432f11ac70cf1186e41fc",
+            "profile": "corvint-test-runner-receipt/0",
+            "sha256": "236d43b59e24adb03d23be866ccb500988830b2fa1624cfabc4b8190ff6adc48",
+            "sourceGitBinding": "NOT_OBSERVED"
+          }
+        ]
+      },
+      "repositoryEnvelope": "canonical-repository-bounded/1",
+      "sidecar": "ABSENT",
+      "spec": "cem/1.0",
+      "stage": "complete",
+      "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada",
+      "verdictSha256": "6e41edb46f6453f2e6487299eb47388f9047d6b8b33b8ec5022861e8202d3875",
+      "verificationMode": "canonical-and-reference-integrity"
+    }
+  },
+  "artifactRoot": ".",
+  "baseRevision": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+  "cases": [
+    {
+      "code": "artifact-unavailable",
+      "criterion": null,
+      "description": "the map as published, with no --external-repository",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "not-supplied",
+      "outcome": "UNSUPPORTED",
+      "rebindLink": false,
+      "stage": "artifacts",
+      "supplied": false
+    },
+    {
+      "code": "artifact-unavailable",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "0000000000000000000000000000000000000001",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 130,
+          "start": 63
+        },
+        "id": "criterion:sha256:a33f9dc16ef47ba4fef7b1e7bccec2d21ed8baf9b01cd880e747c5f8434fb32b"
+      },
+      "description": "a well-formed blob ID that the supplied repository does not hold",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "blob-absent",
+      "outcome": "UNSUPPORTED",
+      "rebindLink": true,
+      "stage": "artifacts",
+      "supplied": true
+    },
+    {
+      "code": null,
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "d9298a10d1b0735837dc4bd85dac641b0f3cef27a47e5d53a54f2f3f5b2fcffa",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 130,
+          "start": 63
+        },
+        "id": "criterion:sha256:16d353b84437aa6368b961dfcdf19dc5257db5154c4e0b6d9bf5b87c63cef978"
+      },
+      "description": "criterionSha256 of other bytes, identity recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "artifact-digest-mismatch"
+      ],
+      "name": "span-digest-mismatch",
+      "outcome": "REJECT",
+      "rebindLink": true,
+      "stage": "artifacts",
+      "supplied": true
+    },
+    {
+      "code": null,
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 131,
+          "start": 63
+        },
+        "id": "criterion:sha256:e4fb8509a7db5d08497cddd34bb4c448e3610cac7fafc9020e7da003e75ff0ee"
+      },
+      "description": "a span ending past the blob, identity recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "artifact-digest-mismatch"
+      ],
+      "name": "span-beyond-blob",
+      "outcome": "REJECT",
+      "rebindLink": true,
+      "stage": "artifacts",
+      "supplied": true
+    },
+    {
+      "code": "unknown-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "evidenceId": "evidence:sha256:428a968d95faa413c4bfeb7249b000bc4e3a70c5fce93964dfea1ed4f5d7a8e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 130,
+          "start": 63
+        },
+        "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+      },
+      "description": "an external record that also carries evidenceId",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "external-with-evidence-id",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire",
+      "supplied": true
+    },
+    {
+      "code": "missing-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+      },
+      "description": "an external record without externalSpan",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "external-missing-span",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire",
+      "supplied": true
+    },
+    {
+      "code": "invalid-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "../requirements",
+        "externalSpan": {
+          "end": 130,
+          "start": 63
+        },
+        "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+      },
+      "description": "a repository name that is a path",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "external-path-name",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire",
+      "supplied": true
+    },
+    {
+      "code": "invalid-field",
+      "criterion": {
+        "criterionIndex": 0,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 63,
+          "start": 63
+        },
+        "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+      },
+      "description": "a span with start equal to end",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "external-empty-span",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "wire",
+      "supplied": true
+    },
+    {
+      "code": "invalid-criterion-identity",
+      "criterion": {
+        "criterionIndex": 1,
+        "criterionSha256": "4b4bff8487183bb50dc62877e7bfa096234312bfd1b6c7165556471a42ab97e2",
+        "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+        "externalRepository": "requirements",
+        "externalSpan": {
+          "end": 130,
+          "start": 63
+        },
+        "id": "criterion:sha256:c3c0279c71e8a9427aebca0c474499c3308b81c58e74be57012205a4a3d2598a"
+      },
+      "description": "criterionIndex changed without recomputing id",
+      "exit": 2,
+      "issueCodes": [],
+      "name": "external-stale-identity",
+      "outcome": "REJECT",
+      "rebindLink": false,
+      "stage": "references",
+      "supplied": true
+    }
+  ],
+  "externalBlobOid": "c125c661c4db03320217aac60ab71084e2ce9b57",
+  "externalRepository": "requirements",
+  "map": "stable.json",
+  "profile": "cem-stable-external-criterion-cases/1",
+  "requirement": "CEM-V1-330..336",
+  "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada"
+}

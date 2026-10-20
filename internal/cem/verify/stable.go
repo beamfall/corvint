@@ -25,7 +25,10 @@ type StableOptions struct {
 	// TrustedKeys is the consumer-supplied keyid to Ed25519 key set of
 	// --trusted-keys; nil means no file was supplied (CEM-V1-084).
 	TrustedKeys map[string]ed25519.PublicKey
-	seam        *stableSeam
+	// ExternalRepositories maps each --external-repository name to its
+	// absolute repository root (CEM-V1-333); nil means none was supplied.
+	ExternalRepositories map[string]string
+	seam                 *stableSeam
 	// capture, set only by StableWithHunkRevert, receives the admitted
 	// mechanics of an accepted call; it never changes the result.
 	capture *stableCapture
@@ -473,6 +476,20 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 			return r, exit
 		}
 		r.Axes["authentication"] = axis
+	}
+	// CEM-V1-334: an external criterion is observed only from its supplied
+	// repository; otherwise the verification abstains and never accepts.
+	if err = checkStableExternal(ctx, repo, d.Criteria, o.ExternalRepositories, budget); err != nil {
+		switch code := cemcode.CodeOf(err); code {
+		case stableExternalMismatch:
+			r.Axes["referenceIntegrity"] = "FAILED"
+			exit = r.reject("artifacts", code)
+		case gitrun.ProcessContainment:
+			exit = r.Refuse("repository", code, true)
+		default:
+			exit = r.Refuse("artifacts", code, true)
+		}
+		return r, exit
 	}
 	r.ArtifactChecks = checks
 	r.Axes["referenceIntegrity"] = "REFERENCE_INTEGRITY_ONLY"

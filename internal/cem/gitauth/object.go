@@ -545,6 +545,18 @@ func canonicalMode(mode string) string {
 	return "100644"
 }
 
+// ChargeBlobsTo makes r charge distinct blob bytes against p's cumulative
+// budget, so a read of another admitted repository (an external criterion,
+// CEM-V1-335) cannot reset the verification-wide bound. The returned func
+// carries r's total back to p; call it after r's last read.
+func (r *Repository) ChargeBlobsTo(p *Repository) func() {
+	if p.chargedOids == nil {
+		p.chargedOids = map[string]bool{}
+	}
+	r.chargedOids, r.blobBytes = p.chargedOids, p.blobBytes
+	return func() { p.blobBytes = r.blobBytes }
+}
+
 // BlobBytes reads one blob through Git object identity with the per-blob and
 // cumulative byte bounds. The cumulative budget charges each distinct blob
 // exactly once by OID: repeated reads of an already-charged blob add nothing,
