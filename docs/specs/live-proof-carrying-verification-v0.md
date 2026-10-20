@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off, LPCV-V0-070 live qualification NOT_RUN; LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
-- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; their strength join stays gated off until the `LPCV-V0-070` live matrix is retained on a qualified tuple.
+- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstain (`LPCV-V0-128`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
 
 ## User and measurable job
@@ -618,7 +618,11 @@ availability, legal, and failure-mode review before implementation.
 | `LPCVD-V0-003` receipt age origin | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverReceiptAge`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` checks the age origin and unchanged repository. Elapsed duration and authenticated execution time are not asserted. |
 | `LPCVD-V0-004` retained revision differs from HEAD | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverRetainedRevisionDiffersFromHead` (detached, loose, packed, equal, malformed-loose, invalid-ref-name, oversized, unresolved, escaping and absent HEAD) and `TestDiscoverHeadReadRefusesSymlinksAndSpecialFiles`. |
 | `LPCVD-V0-005` basic JS receipt retains its start revision | accepted (decision 0519; V1-1156); experimental | `internal/jstestprovider`'s `TestObserveTestRepositoryAtStart`; `cmd/corvint-js-test-provider`'s `TestRetainedBasicReceiptCarriesStartRevision`; `internal/testvaliditydoc`'s `TestDiscoverBasicReceiptRetainedRevision`. Go events and watch-mode receipts are `NOT_OBSERVED`. |
-| `LPCV-V0-057..070` step-level negative controls by fault injection | accepted (decision 0458; V1-1024, GitHub #682); `LPCV-V0-057..069` implemented at experimental tier with focused tests; the `LPCV-V0-068` join is compiled but gated off (`stepNegationJoinQualified`); `LPCV-V0-070` qualification `NOT_RUN` | `internal/stepnegation`'s `TestParseTraceRecoversStepTreeAndInventory`, `TestDeriveNetworkAndDOMReasons`, `TestEvaluateSingleRule`, `TestResolveSingleOrder`, `TestJointPlanAndAttribution`, `TestDocumentCodecIsClosedAndCanonical`, `TestAggregateOverInventory`, `TestRetentionMergeLockAndConfinement` and `TestRetentionStaysOutOfGitStatus` (derivation, pass rule, codec, aggregate, retention); `internal/jstestprovider`'s `TestAdmitNegateRefusesBeforeAnyRun`, `TestSelectTestRequiresExactlyOne`, `TestNegationOverlayForcesControlledConfig` and `TestBaselineFailureClassification`; `cmd/corvint-js-test-provider`'s `TestParseNegateRefusals` and `TestRunNegateWritesDocumentOrClosedRefusal`; `cmd/corvint`'s `TestNegateExecsProviderPrintsAndRetains`, `TestNegateRefusalsAndBusyEvidence` (including the implementation refusal `negate-provider-failed` for a provider that cannot start, exits without a closed refusal document, overruns 4 MiB or names a different test identity; no numbered requirement owns it yet) and `TestNegateLocksScreenedTitle`; `internal/testvaliditydoc`'s `TestStepNegationJoinGatedOffIsByteIdentical` and `TestStepNegationJoinConditions` (join). `TestNegateLiveDiagnostic` ran the synthetic matrix with Playwright 1.63.0 on unqualified Node v22.23.3 and is diagnostic only; the `LPCV-V0-070` qualified-tuple matrix, owner sample comparison and cost measurement are `NOT_RUN`, so no result joins the strength axis. |
+| `LPCV-V0-057..070` step-level negative controls by fault injection | accepted (decision 0458; V1-1024, GitHub #682); `LPCV-V0-057..069` implemented at experimental tier with focused tests; the `LPCV-V0-068` join is compiled but gated off (`stepNegationJoinQualified`); `LPCV-V0-070` live matrix retained on the 1.63.0 tuple (`LPCV-V0-127`) | `internal/stepnegation`'s `TestParseTraceRecoversStepTreeAndInventory`, `TestDeriveNetworkAndDOMReasons`, `TestEvaluateSingleRule`, `TestResolveSingleOrder`, `TestJointPlanAndAttribution`, `TestDocumentCodecIsClosedAndCanonical`, `TestAggregateOverInventory`, `TestRetentionMergeLockAndConfinement` and `TestRetentionStaysOutOfGitStatus` (derivation, pass rule, codec, aggregate, retention); `internal/jstestprovider`'s `TestAdmitNegateRefusesBeforeAnyRun`, `TestSelectTestRequiresExactlyOne`, `TestNegationOverlayForcesControlledConfig` and `TestBaselineFailureClassification`; `cmd/corvint-js-test-provider`'s `TestParseNegateRefusals` and `TestRunNegateWritesDocumentOrClosedRefusal`; `cmd/corvint`'s `TestNegateExecsProviderPrintsAndRetains`, `TestNegateRefusalsAndBusyEvidence` (including the implementation refusal `negate-provider-failed` for a provider that cannot start, exits without a closed refusal document, overruns 4 MiB or names a different test identity; no numbered requirement owns it yet) and `TestNegateLocksScreenedTitle`; `internal/testvaliditydoc`'s `TestStepNegationJoinGatedOffIsByteIdentical` and `TestStepNegationJoinConditions` (join). `TestNegateLiveDiagnostic` first ran with Playwright 1.63.0 on unqualified Node v22.23.3, diagnostic only; its qualified mode passed on the 1.63.0 `PWP-V0-008` tuple on 2026-10-20 (`LPCV-V0-126`, `LPCV-V0-127`). The owner sample comparison and cost measurement are `NOT_RUN`, so no result joins the strength axis (`LPCV-V0-129`). |
+| `LPCV-V0-126` qualified mode of the live negate matrix | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered as a live test | `internal/jstestprovider`'s `TestNegateLiveDiagnostic` with `CORVINT_NEGATE_QUALIFIED_NODE`: passed on Node v22.23.2; with the unqualified Node v22.23.3 it refused `runtime-tuple-unqualified` and failed (control) |
+| `LPCV-V0-127` retained 1.63.0 live matrix | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); retained 2026-10-20 | `TestNegateLiveDiagnostic` qualified mode on macOS arm64, Node v22.23.2, `@playwright/test` 1.63.0, `chromium-headless-shell` 1243: 12 of 12 cases passed in 88.6 s, every runner tuple `candidate`, the interruption case asserting the observed slow request and its cancellation; with a fixture that fails before that request, the case fails (build log 2026-10-20) |
+| `LPCV-V0-128` 1.64.0 derivation abstention | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); finding, not qualification | `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248): 5 of 12 cases passed; every assertion step read `NOT_MEASURED` `step-fault-underivable` (build log 2026-10-20); cause `NOT_OBSERVED` |
+| `LPCV-V0-129` join stays gated off | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered | `internal/testvaliditydoc`'s `TestLPCVV0129JoinStaysGatedOff`; the owner sample comparison and G2 cost measurement stay `NOT_RUN` (owner-run) |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
 
@@ -887,6 +891,48 @@ Open owner questions:
    `--all-steps`.
 3. Whether `/1` attestation should be required, because under `/0` the application identity is only a
    caller label.
+
+## Step-negation live qualification (V1-1024; 2026-10-20)
+
+`LPCV-V0-070` keeps every negate result diagnostic and the `LPCV-V0-068` join off until a live
+matrix on a `PWP-V0-008` qualified tuple is retained. The checked-in live matrix,
+`TestNegateLiveDiagnostic`, could run only with a test-only allowance for an unqualified tuple, so
+no run of it could count. These requirements add a qualified mode, retain one run, record the
+1.64.0 result and keep the join decision explicit.
+
+- `LPCV-V0-126`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1024) When
+  `CORVINT_NEGATE_QUALIFIED_NODE` names an absolute `node` with a sibling `npx`,
+  `TestNegateLiveDiagnostic` MUST run every negate without the test-only unqualified-tuple
+  allowance. It puts that directory first on `PATH`, passes `PLAYWRIGHT_BROWSERS_PATH` through
+  when set, and asserts that every retained document's runner tuple is `candidate`. An
+  unqualified Node or Playwright version then refuses `runtime-tuple-unqualified` and fails the
+  test. Without the variable the test keeps its diagnostic mode, and a skipped run is never
+  qualification success.
+- `LPCV-V0-127`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The
+  `LPCV-V0-070` live matrix is retained for one `PWP-V0-008` tuple: macOS arm64, Node v22.23.2,
+  `@playwright/test` 1.63.0 and its bundled `chromium-headless-shell` revision 1243. On
+  2026-10-20 the qualified mode passed all twelve cases, and every document read runner
+  `playwright` 1.63.0, Node v22.23.2, tuple `candidate`. The interruption case MUST count only
+  when the fixture server observed the `/api/slow` request, the run was cancelled on that signal,
+  and the server observed that request end. A fixture or browser failure before the request also
+  reads `baseline-infrastructure` with complete cleanup, so without those observations the case
+  would pass without interrupting anything. The retained run asserts all three. The build log
+  `docs/build-log/2026-10-20-V1-1022-1024-playwright-live-qualification.md` retains the case
+  results and timings. It qualifies that tuple only.
+- `LPCV-V0-128`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The same
+  qualified-mode matrix on the 1.64.0 tuple (`PWP-V0-032`, revision 1248, Node v22.23.2) is
+  retained as a finding, not as qualification. Seven of twelve cases failed. Each assertion step
+  read `NOT_MEASURED` `step-fault-underivable` with the anchors
+  `derivation:network:expected-value-not-literal` and `derivation:dom:no-dom-fault`. Derivation
+  therefore abstains on 1.64.0 traces and never produces a `KILLED` or `SURVIVED` reading there.
+  The cause is unconfirmed (a suspected trace-format change) and is a residual.
+- `LPCV-V0-129`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1024)
+  `stepNegationJoinQualified` MUST stay false after `LPCV-V0-127`. Promotion also needs the owner
+  sample comparison and the owner's G2 cost measurement from this slice's acceptance evidence,
+  which are `NOT_RUN`. A later change that flips the gate must retain both and add the join tests.
+
+Rollback: remove the qualified mode from `TestNegateLiveDiagnostic` and the
+`TestLPCVV0129JoinStaysGatedOff` guard. No product behavior changes, and no retained bytes move.
 
 ## Discovery guidance rollout and rollback (V1-1140)
 

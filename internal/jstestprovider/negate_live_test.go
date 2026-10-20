@@ -41,12 +41,20 @@ fetch('/api/flaky').then(r => r.text()).then(t => { document.getElementById('fla
 
 // TestNegateLiveDiagnostic runs the LPCV-V0-070 matrix shape against the
 // checked-in synthetic fixtures. It needs installed Playwright modules and a
-// browser. On a host without a PWP-V0-008 qualified tuple it runs through the
+// browser. Without CORVINT_NEGATE_QUALIFIED_NODE it runs through the
 // unqualified-tuple seam: every document is diagnostic, never qualification.
+// With it (LPCV-V0-126), that absolute Node binary is placed first on PATH,
+// the seam is off, and every negate must observe a PWP-V0-008 candidate tuple
+// or refuse negate-tuple-unqualified.
 func TestNegateLiveDiagnostic(t *testing.T) {
 	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
 	if modules == "" {
 		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for the step-negation live matrix")
+	}
+	qualified := negateLiveNode(t, os.Getenv("CORVINT_NEGATE_QUALIFIED_NODE"))
+	envKeys := []string{"CORVINT_NEGATE_URL"}
+	if os.Getenv("PLAYWRIGHT_BROWSERS_PATH") != "" {
+		envKeys = append(envKeys, "PLAYWRIGHT_BROWSERS_PATH")
 	}
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -90,8 +98,11 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 	}))
 	defer partner.Close()
 	var flaky atomic.Int32
-	slowSeen := make(chan struct{})
-	var slowOnce sync.Once
+	// slowSeen closes when the fixture reaches /api/slow; slowCancelled closes
+	// when that request's server context ends, which is the cancellation the
+	// interruption case must observe (LPCV-V0-127).
+	slowSeen, slowCancelled := make(chan struct{}), make(chan struct{})
+	var slowOnce, slowCancelOnce sync.Once
 	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
@@ -110,6 +121,7 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 		case "/api/slow":
 			slowOnce.Do(func() { close(slowSeen) })
 			<-r.Context().Done()
+			slowCancelOnce.Do(func() { close(slowCancelled) })
 		default:
 			http.NotFound(w, r)
 		}
@@ -121,12 +133,12 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 		t.Helper()
 		cfg := NegateConfig{
 			E2E: E2EConfig{
-				Config:         Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_NEGATE_URL"}, Timeout: 90 * time.Second},
+				Config:         Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: envKeys, Timeout: 90 * time.Second},
 				ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL,
 			},
 			Root: root, Spec: "negate.spec.cjs", Test: "negate > " + title, Project: "chromium",
 			Step: step, AllSteps: step == "", MaxRuns: maxRuns, BaselineRepeat: repeat,
-			allowUnqualifiedTuple: true,
+			allowUnqualifiedTuple: !qualified,
 		}
 		if strings.HasPrefix(title, "!") {
 			cfg.Test = title[1:]
@@ -139,9 +151,13 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 			t.Fatal(err)
 		}
 		encoded, _ := json.Marshal(document.Steps)
-		t.Logf("%s: runs %+v steps %s cleanupIncomplete=%v", title, document.Runs, encoded, document.CleanupIncomplete)
+		runner, _ := json.Marshal(document.Binding.Runner)
+		t.Logf("%s: qualified=%v runner %s runs %+v steps %s cleanupIncomplete=%v", title, qualified, runner, document.Runs, encoded, document.CleanupIncomplete)
 		if document.CleanupIncomplete {
 			t.Errorf("%s: cleanup incomplete", title)
+		}
+		if qualified && document.Binding.Runner.Tuple != RuntimeTupleCandidate {
+			t.Errorf("%s: runner tuple %q, want %q on a qualified run", title, document.Binding.Runner.Tuple, RuntimeTupleCandidate)
 		}
 		return document
 	}
@@ -227,21 +243,70 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 	t.Run("interruption-cleanup", func(t *testing.T) {
 		interrupted, cancel := context.WithCancel(ctx)
 		defer cancel()
+		var cancelledOnSlow atomic.Bool
 		go func() {
 			select {
 			case <-slowSeen:
+				cancelledOnSlow.Store(true)
 				cancel()
 			case <-time.After(60 * time.Second):
 			}
 		}()
 		document := negate(t, interrupted, "slow", "slow", 0, 1)
 		expect(t, document.Steps[0], testvalidity.StrengthNotMeasured, stepnegation.ReasonBaselineInfrastructure, stepnegation.WitnessNone)
+		// A browser or fixture failure before /api/slow also yields
+		// baseline-infrastructure with clean cleanup, so the case counts only
+		// when the slow request was reached, the run was cancelled on it, and
+		// the server saw that request end.
+		requireInterruptionObserved(t, slowSeen, slowCancelled, cancelledOnSlow.Load())
 	})
 	t.Run("ambiguous-selection-refused", func(t *testing.T) {
 		_, err := RunNegate(ctx, NegateConfig{E2E: E2EConfig{Config: Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, Timeout: 90 * time.Second}, ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL},
-			Root: root, Spec: "negate.spec.cjs", Test: "negate > no such test", Step: "x", allowUnqualifiedTuple: true})
+			Root: root, Spec: "negate.spec.cjs", Test: "negate > no such test", Step: "x", allowUnqualifiedTuple: !qualified})
 		if refusal, ok := err.(*NegateRefusal); !ok || refusal.Code != NegateTestAmbiguous {
 			t.Fatalf("err = %v, want %s", err, NegateTestAmbiguous)
 		}
 	})
+}
+
+// requireInterruptionObserved fails the interruption case unless the fixture
+// reached the slow request, the negate run was cancelled on that signal, and
+// the server observed the request end (LPCV-V0-127).
+func requireInterruptionObserved(t *testing.T, seen, cancelled <-chan struct{}, cancelledOnSlow bool) {
+	t.Helper()
+	select {
+	case <-seen:
+	default:
+		t.Fatal("interruption not exercised: the fixture never reached /api/slow")
+	}
+	if !cancelledOnSlow {
+		t.Fatal("interruption not exercised: the run was not cancelled on the slow request")
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(10 * time.Second):
+		t.Fatal("interruption not observed: the /api/slow request did not end after cancellation")
+	}
+}
+
+// negateLiveNode places an explicitly named Node first on this test's PATH
+// (as PWP-V0-009 does for the provider matrix) and reports whether the run is
+// a qualified-tuple run. An empty name keeps the host PATH and the diagnostic
+// seam.
+func negateLiveNode(t *testing.T, node string) bool {
+	t.Helper()
+	if node == "" {
+		return false
+	}
+	if !filepath.IsAbs(node) || filepath.Base(node) != "node" {
+		t.Fatalf("CORVINT_NEGATE_QUALIFIED_NODE must be an absolute path to a node binary, got %q", node)
+	}
+	if _, err := os.Stat(filepath.Join(filepath.Dir(node), "npx")); err != nil {
+		t.Fatalf("CORVINT_NEGATE_QUALIFIED_NODE has no sibling npx: %v", err)
+	}
+	t.Setenv("PATH", filepath.Dir(node)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	if resolved, err := exec.LookPath("node"); err != nil || resolved != node {
+		t.Fatalf("PATH resolves node to %q, want %q: %v", resolved, node, err)
+	}
+	return true
 }

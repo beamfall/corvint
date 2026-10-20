@@ -36,10 +36,12 @@ const (
 )
 
 // qualifiedVersions is the TOL-V0-009 qualified Playwright version list. It
-// stays empty until the live fixture in the spec's Acceptance evidence passes
-// on a 1.63.x PWP-V0-008 tuple, so every report refuses
-// OBLIGATION_REPORT_VERSION_UNQUALIFIED until then.
-var qualifiedVersions = []string{}
+// holds exactly the versions whose live run of the embedded TOL-V0-060
+// fixture on a PWP-V0-008 tuple is retained (TOL-V0-126): 1.63.0 on macOS
+// arm64, Node v22.23.2. A report of any other version refuses
+// OBLIGATION_REPORT_VERSION_UNQUALIFIED unless the store-local allow-list
+// holds it (TOL-V0-063).
+var qualifiedVersions = []string{"1.63.0"}
 
 // QualifiedVersions returns a copy of the qualified version list.
 func QualifiedVersions() []string { return append([]string(nil), qualifiedVersions...) }
