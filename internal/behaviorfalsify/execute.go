@@ -160,8 +160,8 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	runControl := true
 	if plan.Request.Isolation != nil {
 		// Reset the shared server and confirm its declared identity before the control (BBF-V0-020).
-		process, identity := runIsolationPhase(ctx, plan, control, attempt, isolationPhaseReset, timeout)
-		result.Isolation = &IsolationObservation{ResetProcess: process, Before: identity}
+		process, identity, raw := runIsolationPhase(ctx, plan, control, attempt, isolationPhaseReset, timeout)
+		result.Isolation = &IsolationObservation{ResetProcess: process, Before: identity, resetRaw: raw}
 		failure := isolationFailure(plan, result)
 		runControl = failure != "isolation-reset-failed" && failure != "isolation-identity-drift"
 		if available := time.Until(deadline) - reserve; available < timeout {
@@ -186,8 +186,8 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	if runControl && plan.Request.Isolation != nil {
 		// The declared identity must still hold after the control and its cleanup (BBF-V0-021).
 		verifyTimeout := minDuration(isolationVerifyTimeout, time.Until(deadline)-processShutdownAllowance)
-		process, identity := runIsolationPhase(context.Background(), plan, control, attempt, isolationPhaseVerify, max(verifyTimeout, time.Nanosecond))
-		result.Isolation.VerifyProcess, result.Isolation.After = &process, identity
+		process, identity, raw := runIsolationPhase(context.Background(), plan, control, attempt, isolationPhaseVerify, max(verifyTimeout, time.Nanosecond))
+		result.Isolation.VerifyProcess, result.Isolation.After, result.Isolation.verifyRaw = &process, identity, raw
 	}
 	after, digestErr := workspaceDigest(plan.Request.DisposableRoot)
 	result.WorkspaceAfter = after

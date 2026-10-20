@@ -174,15 +174,20 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   records the plan's declared isolation, each attempt records its reset and verify process
   evidence and observed identities, and the limitations name the shared server as caller-declared
   and not independently sandboxed. `execute-receipt` retains them, and `verify-receipt` refuses a
-  report whose isolation differs from the plan's. It recomputes each admitted attempt's status
-  from its recorded isolation observation, so an isolation observation cannot be dropped to forge
-  a kill.
+  report whose isolation differs from the plan's. For each attempt with retained hook stdout it
+  also retains the reset and verify phases' stdout (`isolation_reset_bytes`,
+  `isolation_verify_bytes`), and `verify-receipt` requires each to match its recorded process
+  stdout digest and to re-derive exactly the recorded identity under the attempt's plan digest,
+  phase, control and attempt. It recomputes each admitted attempt's status from its recorded
+  isolation observation, so an isolation observation cannot be dropped or its identity rewritten
+  to forge a kill.
 - `BBF-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A plan,
   report or receipt that uses neither profile is byte-identical to its form before BBF-V0-019. The
   new fields are omitted when absent.
 - `BBF-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A request
   may declare `provider` with name `go-test`, a pinned Go `toolchain` command, one
-  repository-relative `package` (or `.`, never a `...` pattern) equal to the target project,
+  repository-relative `package` (or `.`; any `...`, embedded or trailing, is refused) equal to
+  the target project,
   1..256 unique top-level `Test*` `examples` that include the target assertion, and 1..64
   `perturbation_env_keys`. Its runner identity is `go-test` with browser and browser version
   `none` and config file `go.mod`. Each control's unrelated criteria and required setup must be
@@ -197,17 +202,23 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   NUL. Any other output is `invalid_control` with `perturbation-output-invalid`.
 - `BBF-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runner
   then runs the pinned toolchain in place after its digest check, as
-  `go test -json -count=1 -run '^(examples)$' ./package`, in the test repository, under process
-  containment. The environment is a scratch HOME/GOPATH/GOCACHE, the declared keys (which may
-  supply a cache), the perturbation and the forced `CGO_ENABLED=0`, `GOENV=off`,
-  `GOFLAGS=-mod=readonly`, `GOPROXY=off`, `GOSUMDB=off`, `GOTELEMETRY=off`, `GOTOOLCHAIN=local`
-  and `GOWORK=off`, so module resolution never reaches the network. A test repository that is not
-  at the bound revision or not clean before the run is `test-repository-drift`, and one changed by
-  the run is `test-repository-mutated`; both are `invalid_control`.
+  `go test -json -count=1 -run '^(examples)$' ./package`, under process containment, in a
+  disposable clone of the test repository detached at the bound revision (copied objects, no
+  hardlinks, no template hooks), so a test that writes files never modifies the protected test
+  repository; a clone that cannot be staged is `provider-staging-unavailable`. The environment is
+  a scratch HOME/GOPATH/GOCACHE, the declared keys (which may supply a cache), the perturbation
+  and the forced `CGO_ENABLED=0`, `GOENV=off`, `GOFLAGS=-mod=readonly`, `GOPROXY=off`,
+  `GOSUMDB=off`, `GOTELEMETRY=off`, `GOTOOLCHAIN=local` and `GOWORK=off`, so module resolution
+  never reaches the network. A protected test repository that is not at the bound revision or not
+  clean before the run is `test-repository-drift`, and one changed during the run is
+  `test-repository-mutated`; both are `invalid_control`.
 - `BBF-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runner
   synthesizes the hook receipt from the provider's `test2json` events: the target and each
   unrelated and setup example take their own top-level terminal action (`pass`, `fail` or `skip`),
-  a missing example is `not_run`, and the native receipt digest is the event stream's digest. A
+  a missing example is `not_run`, and the native receipt digest is the event stream's digest.
+  Outcomes are keyed by (package, test); events naming more than one package are
+  `invalid_control` with `provider-output-contradictory`, so a same-named test in another package
+  is never attributed to an example. A
   failure whose output reports a panic, attributed to that example or to no example, is a `panic`
   failure, never an assertion. The admitted receipt is classified by the unchanged BBF-V0-006
   rules into the same six statuses. A provider exit other than 0 or 1, timeout, overflow or other

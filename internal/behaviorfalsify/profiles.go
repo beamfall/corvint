@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
 // Shared-server isolation profile (BBF-V0-019..023).
@@ -80,6 +82,9 @@ type IsolationObservation struct {
 	Before        *ServerIdentity  `json:"before,omitempty"`
 	VerifyProcess *ProcessEvidence `json:"verify_process,omitempty"`
 	After         *ServerIdentity  `json:"after,omitempty"`
+	// resetRaw and verifyRaw are the phases' stdout, held in memory so an evidence receipt can
+	// retain them; they are never part of the report wire (BBF-V0-022).
+	resetRaw, verifyRaw []byte
 }
 
 // IsolationCheck is the bounded JSON request a reset/health hook receives on stdin.
@@ -199,7 +204,8 @@ func validateProvider(request Request) error {
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return errors.New("provider toolchain: " + err.Error())
 	}
-	if provider.Package != "." && (!repositoryRelative(provider.Package) || !goPackagePattern.MatchString(filepath.ToSlash(provider.Package))) {
+	// A "..." anywhere would make go test expand the one approved package into many (BBF-V0-024).
+	if strings.Contains(provider.Package, "...") || provider.Package != "." && (!repositoryRelative(provider.Package) || !goPackagePattern.MatchString(filepath.ToSlash(provider.Package))) {
 		return errors.New("provider package must be one repository-relative directory")
 	}
 	if request.Target.Project != provider.Package {
@@ -240,20 +246,42 @@ func validateProvider(request Request) error {
 	return nil
 }
 
-// runIsolationPhase runs the pinned reset/health hook for one phase and returns the identity it
-// reported, or nil when the hook failed or its report does not bind this attempt.
-func runIsolationPhase(ctx context.Context, plan Plan, control PlannedControl, attempt int, phase string, timeout time.Duration) (ProcessEvidence, *ServerIdentity) {
+// runIsolationPhase runs the pinned reset/health hook for one phase and returns its stdout and
+// the identity it reported, or a nil identity when the hook failed or its report does not bind
+// this attempt.
+func runIsolationPhase(ctx context.Context, plan Plan, control PlannedControl, attempt int, phase string, timeout time.Duration) (ProcessEvidence, *ServerIdentity, []byte) {
 	isolation := plan.Request.Isolation
 	input, _ := marshalJSON(IsolationCheck{Schema: IsolationCheckSchema, PlanDigest: plan.Digest, Phase: phase, ControlID: control.ID, Attempt: attempt, ServerURL: isolation.ServerURL, ApplicationIdentity: isolation.ApplicationIdentity})
 	raw, process := runPinned(ctx, isolation.Reset, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "isolation-"+phase, input, timeout, isolationOutputLimit)
+	return process, isolationIdentity(plan, control.ID, attempt, phase, process, raw), raw
+}
+
+// isolationIdentity derives the identity a phase's stdout reports for this attempt, or nil when
+// the hook failed or its report does not bind the attempt. The executor and the offline receipt
+// verifier share it, so a recorded identity always re-derives from retained bytes (BBF-V0-022).
+func isolationIdentity(plan Plan, controlID string, attempt int, phase string, process ProcessEvidence, raw []byte) *ServerIdentity {
 	if !processSucceeded(process) {
-		return process, nil
+		return nil
 	}
 	var report IsolationReport
-	if Decode(raw, &report) != nil || report.Schema != IsolationObservationSchema || report.PlanDigest != plan.Digest || report.Phase != phase || report.ControlID != control.ID || report.Attempt != attempt || len(report.ServerURL) > 4096 || len(report.ApplicationIdentity) > 4096 {
-		return process, nil
+	if Decode(raw, &report) != nil || report.Schema != IsolationObservationSchema || report.PlanDigest != plan.Digest || report.Phase != phase || report.ControlID != controlID || report.Attempt != attempt || len(report.ServerURL) > 4096 || len(report.ApplicationIdentity) > 4096 {
+		return nil
 	}
-	return process, &ServerIdentity{ServerURL: report.ServerURL, ApplicationIdentity: report.ApplicationIdentity}
+	return &ServerIdentity{ServerURL: report.ServerURL, ApplicationIdentity: report.ApplicationIdentity}
+}
+
+// isolationBytesVerify reports whether a retained phase stdout matches its recorded process digest
+// and re-derives exactly the recorded identity.
+func isolationBytesVerify(plan Plan, controlID string, attempt int, phase string, process ProcessEvidence, raw []byte, identity *ServerIdentity) bool {
+	if process.StdoutSHA256 == "" {
+		if len(raw) != 0 {
+			return false
+		}
+	} else if digestBytes(raw) != process.StdoutSHA256 {
+		return false
+	}
+	derived := isolationIdentity(plan, controlID, attempt, phase, process, raw)
+	return derived == nil && identity == nil || derived != nil && identity != nil && *derived == *identity
 }
 
 // isolationFailure is the infrastructure reason an attempt's isolation observation yields, or
@@ -294,13 +322,21 @@ func runProviderAttempt(ctx context.Context, plan Plan, control PlannedControl, 
 		result.Reasons = append(result.Reasons, "test-repository-drift")
 		return
 	}
+	end := time.Now().Add(timeout)
 	scratch, err := os.MkdirTemp(acceptanceTempRoot(), "corvint-behavior-provider-")
 	if err != nil {
 		result.Reasons = append(result.Reasons, "provider-staging-unavailable")
 		return
 	}
 	defer os.RemoveAll(scratch)
-	stdout, process := runProvider(ctx, plan, perturbation.Environment, scratch, timeout)
+	// The examples run in a disposable clone at the approved revision, never in the protected
+	// test repository, so a test that writes a tracked file cannot modify it (BBF-V0-026).
+	checkout := filepath.Join(scratch, "repository")
+	if stageTestRepository(ctx, plan.Request.Repositories.Test, plan.Request.Target.TestRevision, checkout, timeout) != nil {
+		result.Reasons = append(result.Reasons, "provider-staging-unavailable")
+		return
+	}
+	stdout, process := runProvider(ctx, plan, perturbation.Environment, scratch, checkout, time.Until(end))
 	result.ProviderProcess = &process
 	if !repositoryAtRevision(plan.Request.Repositories.Test, plan.Request.Target.TestRevision) {
 		result.Reasons = append(result.Reasons, "test-repository-mutated")
@@ -326,8 +362,26 @@ func validPerturbation(provider *ProviderSpec, environment map[string]string) bo
 	return true
 }
 
-func runProvider(ctx context.Context, plan Plan, perturbation map[string]string, scratch string, timeout time.Duration) ([]byte, ProcessEvidence) {
+// stageTestRepository clones the test repository's committed objects into checkout and detaches
+// it at revision; the clone copies objects without hardlinks and runs no template hooks.
+func stageTestRepository(ctx context.Context, repository, revision, checkout string, timeout time.Duration) error {
+	if timeout <= 0 {
+		return errors.New("provider staging budget exhausted")
+	}
+	budget := gitrun.NewBudget(2, timeout)
+	parent := filepath.Dir(checkout)
+	if _, err := gitrun.Run(ctx, budget, gitrun.Options{Dir: parent, Env: isolatedGitEnvironment(parent), StdoutLimit: 1 << 20}, "clone", "-q", "--no-hardlinks", "--no-checkout", "--template=", "--", repository, checkout); err != nil {
+		return err
+	}
+	_, err := gitrun.Run(ctx, budget, gitrun.Options{Dir: checkout, Env: isolatedGitEnvironment(checkout), StdoutLimit: 1 << 20}, "checkout", "-q", "--detach", revision)
+	return err
+}
+
+func runProvider(ctx context.Context, plan Plan, perturbation map[string]string, scratch, checkout string, timeout time.Duration) ([]byte, ProcessEvidence) {
 	provider := plan.Request.Provider
+	if timeout <= 0 {
+		return nil, ProcessEvidence{Error: "command budget exhausted"}
+	}
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
@@ -351,7 +405,7 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	argv := []string{provider.Toolchain.Path, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
 	// The toolchain runs in place after its digest check, since Go resolves GOROOT from its own
 	// executable path; staging it like a hook would detach it from its standard library.
-	return observeProcess(ctx, argv, plan.Request.Repositories.Test, environmentList(values), nil, timeout, providerOutputLimit)
+	return observeProcess(ctx, argv, checkout, environmentList(values), nil, timeout, providerOutputLimit)
 }
 
 // providerProcessSucceeded admits go test's documented exit statuses: 0 when every selected
@@ -374,7 +428,11 @@ type goTestEvent struct {
 // maps to its own terminal action, and a failure whose output reports a panic is not an
 // assertion failure (BBF-V0-027).
 func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []byte) (HookReceipt, string) {
-	states, panicked, packagePanic := map[string]string{}, map[string]bool{}, false
+	// Outcomes are keyed by (package, test); the approved pattern names exactly one package, so
+	// events from a second package are contradictory, never attributed to an example (BBF-V0-027).
+	type example struct{ pkg, test string }
+	states, panicked, packagePanic := map[example]string{}, map[example]bool{}, false
+	pkg, pkgSeen := "", false
 	decoder := json.NewDecoder(bytes.NewReader(stdout))
 	for {
 		var event goTestEvent
@@ -386,10 +444,16 @@ func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []by
 		if event.Action == "build-fail" || event.FailedBuild != "" {
 			return HookReceipt{}, "provider-build-failed"
 		}
+		if event.Package != "" || event.Test != "" {
+			if pkgSeen && event.Package != pkg {
+				return HookReceipt{}, "provider-output-contradictory"
+			}
+			pkg, pkgSeen = event.Package, true
+		}
 		if event.Action == "output" && strings.Contains(event.Output, "panic: ") {
 			// A panic attributed to no top-level example taints every failure in the run.
 			if name, _, _ := strings.Cut(event.Test, "/"); name != "" {
-				panicked[name] = true
+				panicked[example{event.Package, name}] = true
 			} else {
 				packagePanic = true
 			}
@@ -399,19 +463,21 @@ func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []by
 		}
 		switch event.Action {
 		case "pass", "fail", "skip":
-			if _, seen := states[event.Test]; seen {
+			key := example{event.Package, event.Test}
+			if _, seen := states[key]; seen {
 				return HookReceipt{}, "provider-output-contradictory"
 			}
-			states[event.Test] = map[string]string{"pass": "passed", "fail": "failed", "skip": "skipped"}[event.Action]
+			states[key] = map[string]string{"pass": "passed", "fail": "failed", "skip": "skipped"}[event.Action]
 		}
 	}
 	observe := func(name string) (string, string) {
-		state, ok := states[name]
+		key := example{pkg, name}
+		state, ok := states[key]
 		if !ok {
 			return "not_run", ""
 		}
 		if state == "failed" {
-			if panicked[name] || packagePanic {
+			if panicked[key] || packagePanic {
 				return state, "panic"
 			}
 			return state, "assertion"

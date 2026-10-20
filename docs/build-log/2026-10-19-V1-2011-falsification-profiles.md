@@ -43,6 +43,36 @@ accepted under the owner's standing auto-accept of lane requirements (2026-10-11
   `TestBBFV0023LegacyWireIsByteIdentical` pins plan and report digests captured at the base
   revision c27d54e9.
 
+## Independent review (Codex, one round) and repairs
+
+The Codex review of #1285 found three defects. Each repair has a test that fails without it.
+
+- P1, rewritable isolation identity. The receipt kept the parsed identities but not the hook
+  stdout they came from. A drifted-after receipt could have its `after` identity rewritten to the
+  declared one and its digests recomputed, and verification accepted it as a kill. Each retained
+  attempt now also retains the reset and verify phase stdout (`isolation_reset_bytes`,
+  `isolation_verify_bytes`, `omitempty`). `verify-receipt` requires each to match the recorded
+  stdout digest and to re-derive the recorded identity through the executor's own parser
+  (`isolationIdentity`). Test: `BBF-V0-022 rewriting a drifted identity cannot forge a kill`.
+  Process evidence itself is still unauthenticated (`independent-process-and-artifact-observation`
+  stays in the receipt's unsupported list), so a forger who rewrites the bytes and the digest
+  together is out of scope, as for hook stdout.
+- P1, provider ran in the protected checkout. A test that wrote a tracked file modified the
+  real test repository, detected only afterwards. The provider now runs in a disposable
+  `git clone --no-hardlinks --no-checkout --template=` copy detached at the bound revision, inside
+  the attempt's scratch directory and within the attempt timeout. Test: a `write` control whose
+  example overwrites its own source is killed in the clone, and the protected repository stays
+  clean at the same revision.
+- P2, package patterns and cross-package events. `example...` passed the package validator, and
+  outcomes were keyed by test name alone. Any `...` is now refused, outcomes are keyed by
+  (package, test), and events from a second package are `provider-output-contradictory`. Tests:
+  `BBF-V0-024 refuses embedded pattern` and `BBF-V0-027 other package`.
+
+Fail-without-fix: with the three production files restored to the reviewed head 17e98b009 and the
+new tests kept, exactly the four new subtests (and the existing repository-unchanged subtest)
+failed; with the repairs, the focused tests and the package, command and `testacceptance` suites
+pass.
+
 ## Measurements
 
 The ten focused tests (`-run 'TestBBFV00(19|2[0-9])'`, 63 PASS lines, no skips), including four
@@ -68,6 +98,7 @@ do not compile without the new fields. The existing package suite passes unchang
 - Ruby provider binding: depends on V1-2010 (example selectors), which is not on main.
 - Application markers under the provider profile are refused, not supported.
 - No evidence receipt (`execute-receipt`) exists for the provider profile.
+- The disposable clone adds one local `git clone` and `checkout` per provider attempt.
 - The Go toolchain is not staged (time-of-check to time-of-use window).
 - No live adopter shared server or adopter Go suite was exercised (`NOT_OBSERVED`).
 

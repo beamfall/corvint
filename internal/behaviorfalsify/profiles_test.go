@@ -222,6 +222,37 @@ func TestBBFV0022IsolationEvidenceReceipt(t *testing.T) {
 			t.Fatal("receipt without declared isolation verified")
 		}
 	})
+	t.Run("BBF-V0-022 rewriting a drifted identity cannot forge a kill", func(t *testing.T) {
+		tampered := r
+		tampered.Report.Results = slices.Clone(r.Report.Results)
+		declared := ServerIdentity{ServerURL: plan.Request.Isolation.ServerURL, ApplicationIdentity: plan.Request.Isolation.ApplicationIdentity}
+		forged := false
+		for i, control := range plan.Controls {
+			result := &tampered.Report.Results[i]
+			if result.ID != "drift-after" {
+				continue
+			}
+			result.Attempts = slices.Clone(result.Attempts)
+			attempt := &result.Attempts[0]
+			observation := *attempt.Isolation
+			observation.After = &declared
+			attempt.Isolation = &observation
+			attempt.Reasons = nil
+			attempt.Status, attempt.Reasons, attempt.Application = classifyAttempt(plan, control, *attempt)
+			result.Status, result.Reasons = aggregateAttempts(result.Attempts, plan.Request.Attempts)
+			result.Application = aggregateApplication(control, result.Attempts, result.Status)
+			forged = result.Status == StatusKilled
+		}
+		recountReport(&tampered.Report, plan)
+		tampered.Report.Digest = digestJSON(tampered.Report)
+		tampered.Digest = evidenceDigest(tampered)
+		if !forged {
+			t.Fatal("rewrite did not reclassify the drifted attempt as a kill")
+		}
+		if err := VerifyReceipt(tampered, plan.Digest, receiptTool().Executable); err == nil {
+			t.Fatal("receipt with a rewritten isolation identity verified")
+		}
+	})
 	t.Run("BBF-V0-021 dropping the drift observation cannot forge a kill", func(t *testing.T) {
 		tampered := r
 		tampered.Report.Results = slices.Clone(r.Report.Results)
@@ -281,6 +312,12 @@ import (
 func TestSetup(t *testing.T) {}
 
 func TestTotal(t *testing.T) {
+	if os.Getenv("CHECKOUT_WRITE") != "" {
+		if err := os.WriteFile("checkout_test.go", []byte("package example\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		t.Fatal("total mismatch after writing a tracked file")
+	}
 	if os.Getenv("CHECKOUT_PANIC") != "" {
 		panic("checkout exploded")
 	}
@@ -314,7 +351,7 @@ func TestUnrelated(t *testing.T) {}
 	request.Target.CriterionID, request.Target.AssertionID = "criterion:total", "TestTotal"
 	request.DeclaredEnvKeys = []string{"GOCACHE", helperEnvironment}
 	request.Runner = RunnerIdentity{Runner: ProviderGoTest, RunnerVersion: runtime.Version(), Browser: "none", BrowserVersion: "none", ConfigFile: "go.mod", ConfigSHA256: hashBytes(mustGitBytes(t, repository, "cat-file", "blob", head+":go.mod")), EnvironmentSHA256: digestJSON(declaredEnvironment(request.DeclaredEnvKeys))}
-	request.Provider = &ProviderSpec{Name: ProviderGoTest, Toolchain: goToolchain(t), Package: "example", Examples: []string{"TestUnrelated", "TestTotal", "TestSetup"}, PerturbationEnvKeys: []string{"CHECKOUT_UNUSED", "CHECKOUT_TOTAL_OFFSET", "CHECKOUT_PANIC"}}
+	request.Provider = &ProviderSpec{Name: ProviderGoTest, Toolchain: goToolchain(t), Package: "example", Examples: []string{"TestUnrelated", "TestTotal", "TestSetup"}, PerturbationEnvKeys: []string{"CHECKOUT_UNUSED", "CHECKOUT_TOTAL_OFFSET", "CHECKOUT_PANIC", "CHECKOUT_WRITE"}}
 	request.TimeoutSeconds, request.WallClockSeconds = 120, 600
 	return request
 }
@@ -364,6 +401,7 @@ func TestBBFV0024ProviderPlanIsBounded(t *testing.T) {
 		"provider name":        func(r *Request) { r.Provider.Name = "rspec" },
 		"package escape":       func(r *Request) { r.Provider.Package, r.Target.Project = "../example", "../example" },
 		"package pattern":      func(r *Request) { r.Provider.Package, r.Target.Project = pattern, pattern },
+		"embedded pattern":     func(r *Request) { r.Provider.Package, r.Target.Project = "example"+"...", "example"+"..." },
 		"project mismatch":     func(r *Request) { r.Target.Project = "other" },
 		"target not selected":  func(r *Request) { r.Provider.Examples = []string{"TestSetup", "TestUnrelated"} },
 		"example name":         func(r *Request) { r.Provider.Examples = append(slices.Clone(r.Provider.Examples), "TestX|.*") },
@@ -400,6 +438,7 @@ func TestBBFV0026GoProviderEndToEnd(t *testing.T) {
 		providerControl(t, "panic", "CHECKOUT_PANIC"),
 		providerControl(t, "survive", "CHECKOUT_UNUSED"),
 		providerControl(t, "undeclared", "CHECKOUT_OTHER"),
+		providerControl(t, "write", "CHECKOUT_WRITE"),
 	})
 	plan, err := BuildPlan(request)
 	if err != nil {
@@ -417,6 +456,7 @@ func TestBBFV0026GoProviderEndToEnd(t *testing.T) {
 		"panic":      {StatusInvalidControl, ""},
 		"survive":    {StatusSurvived, "target-criterion-survived"},
 		"undeclared": {StatusInvalidControl, "perturbation-output-invalid"},
+		"write":      {StatusKilled, "expected-assertion-failed"},
 	}
 	for _, result := range report.Results {
 		t.Run("BBF-V0-027 "+result.ID, func(t *testing.T) {
@@ -435,7 +475,7 @@ func TestBBFV0026GoProviderEndToEnd(t *testing.T) {
 			t.Fatalf("panic attempt = %+v", attempt)
 		}
 	})
-	t.Run("BBF-V0-026 provider leaves the test repository unchanged", func(t *testing.T) {
+	t.Run("BBF-V0-026 a test that writes a tracked file leaves the protected repository unchanged", func(t *testing.T) {
 		if report.Provider != ProviderGoTest || !repositoryAtRevision(plan.Request.Repositories.Test, plan.Request.Target.TestRevision) {
 			t.Fatalf("provider %q or repository drift", report.Provider)
 		}
@@ -463,6 +503,8 @@ func TestBBFV0027ProviderEventsAreClosed(t *testing.T) {
 		"build failure":   {stdout: events(`{"ImportPath":"example","Action":"build-fail"}`), reason: "provider-build-failed"},
 		"not json":        {stdout: events(`ok example 0.1s`), reason: "provider-output-invalid"},
 		"contradiction":   {stdout: events(`{"Action":"pass","Test":"TestTotal"}`, `{"Action":"fail","Test":"TestTotal"}`), reason: "provider-output-contradictory"},
+		"other package":   {stdout: events(`{"Package":"a","Action":"pass","Test":"TestSetup"}`, `{"Package":"a","Action":"pass","Test":"TestUnrelated"}`, `{"Package":"b","Action":"fail","Test":"TestTotal"}`), reason: "provider-output-contradictory"},
+		"one package":     {stdout: events(`{"Package":"a","Action":"pass","Test":"TestSetup"}`, `{"Package":"a","Action":"fail","Test":"TestTotal"}`, `{"Package":"a","Action":"fail"}`), state: "failed", kind: "assertion"},
 	}
 	for name, tc := range cases {
 		t.Run("BBF-V0-027 "+name, func(t *testing.T) {
