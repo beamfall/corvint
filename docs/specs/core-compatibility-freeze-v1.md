@@ -11,7 +11,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); experimental delivery; the Core set is taken from accepted decision 0332
-- Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
+- Exists: this contract, decision 0358, the root-help maturity groups of the `Commands:` list (`rootHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
@@ -323,21 +323,30 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
   above. A member, value or order that no fixture exercises stays unreplayed.
-- **CCF-V1-008:** Root help MUST carry a `Command maturity:` section that lists the Core verbs of
-  CCF-V1-001 and labels every other dispatched top-level verb `Experimental` with the requirement
-  prefix of its owning spec, which `docs/specs/INDEX.json` MUST index. Every dispatched verb is exactly
-  one of Core or labelled, and `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every
-  `topLevelCommands` verb in `Commands:`. The only verbs dispatched outside `topLevelCommands` are the
-  three CCF-V1-003 plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
+- **CCF-V1-008:** Root help MUST label every dispatched top-level verb with its maturity. (amended,
+  accepted by decision 0539 item 7; V1-0994, applied under V1-0945) The `Commands:` list names each
+  `topLevelCommands` verb exactly once, in one of two groups: the `Core (` group lists exactly the
+  Core verbs of CCF-V1-001, and the `Experimental, no stability promise;` group lists every other
+  verb with the requirement prefix of its owning spec in trailing parentheses, which
+  `docs/specs/INDEX.json` MUST index. No separate `Command maturity:` section repeats the verbs.
+  Every dispatched verb is exactly one of Core or labelled, and
+  `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every `topLevelCommands` verb in
+  `Commands:`. The only verbs dispatched outside `topLevelCommands` are the three CCF-V1-003
+  plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
-- **CCF-V1-009:** (proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb
-  index of at most `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines
-  (`COMMAND [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has exactly one
-  line per `topLevelCommands` verb, the verb and a short gloss; and it carries no per-verb option.
-  Per-verb usage, options and writes stay in each verb's shared help topic (GPK-V0-059). The
-  CCF-V1-008 `Command maturity:` section and the support boundary's local-only, read-only,
-  self-observation-ledger and writer disclosures stay. Help invocations still read no stdin and
-  inspect no repository. Root help bytes are not pinned by `conformance/cli-parity-v0`.
+- **CCF-V1-009:** (accepted, decision 0547; V1-0945) Root help is a compact verb index of at most
+  `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines (`COMMAND
+  [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has the two CCF-V1-008
+  group headers and exactly one line per `topLevelCommands` verb, the verb and a short gloss; and
+  it carries no per-verb option. Per-verb usage, options and writes stay in each verb's shared help
+  topic (GPK-V0-059). The support boundary's local-only, read-only, self-observation-ledger and
+  writer disclosures stay. Help invocations still read no stdin and inspect no repository. Root
+  help bytes are not pinned by `conformance/cli-parity-v0`. Limit: measured at 3,665 bytes on
+  2026-10-20 (3,967 before the CCF-V1-008 amendment, 11,710 before CCF-V1-009). The ticket's
+  ~1.5 KB target is not reached and is recorded as a limit, not a requirement: the 50 verbs with
+  their glosses and labels take 2,578 bytes and the support boundary 761, both required above.
+  The `context` and `query` default limits were reviewed against the frozen evaluations and are
+  unchanged (build log 2026-10-07-v1-0945-root-help-verb-index; 2026-10-20-v1-0945-root-help-maturity).
 - **CCF-V1-010:** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel
   blocker B6) N-1 refusal replay. `make core-n1-replay` also runs `TestCoreRefusalsKeepTheFrozenEnvelope`
   with `CORVINT_CORE_N1_BINARY`, so each of its twelve refusal cases, one per Core verb, also runs
@@ -387,7 +396,8 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   or `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` fails. Residual: readers outside
   these verbs whose Git environment still allows a transport.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
-  `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
+  `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails. A verb listed twice in root help, or a
+  separate `Command maturity:` section, fails `TestRootHelpIsACompactVerbIndex`.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` fails.
 - The owner changes the Core set of decision 0332: this contract, its test list and decision 0358
@@ -427,7 +437,7 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
 ## Rollback
 
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
-`Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
+maturity labelling (originally a `Command maturity:` section) and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
 changes, so rollback needs no migration. The CCF-V1-004 classification of 2026-09-25 rolls back
 alone by reverting its change; it writes no stored state. Its V1-0284 extension rolls back the same
 way, with its `FIX-REGISTRY.tsv` row and the diagnostic coverage count. The decision 0398 codes roll back the same
@@ -445,7 +455,9 @@ against 0.8.1 then fails on those modes again. No stored state changes.
 Reverting CCF-V1-010 (V1-0285) deletes `replayCoreRefusalN1` and `TestCoreRefusalsKeepTheFrozenEnvelope`
 from the `core-n1-replay` run pattern; no stored state changes.
 Reverting CCF-V1-009 (V1-0945) restores the previous `rootHelp` text and its tests; root help is
-stdout text only, so no stored state changes.
+stdout text only, so no stored state changes. Reverting only the CCF-V1-008 amendment restores
+`commandMaturityHelp`, the flat `Commands:` list and the previous test parsers; no stored state
+changes.
 
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
