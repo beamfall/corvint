@@ -11,13 +11,17 @@ import (
 // CEM dispatch without adding internal/gitnotes to the CEM seams' closure.
 func init() { cemcli.GitNotes = runCEMGitNotes }
 
-func runCEMGitNotes(ctx context.Context, root, action string, values map[string]string) (map[string]any, error) {
+// An anchor given --artifacts also records the native stable verdict in the
+// verdict ledger (CEM-V1-273); provenance --verdicts lists it read-only
+// (CEM-V1-277).
+func runCEMGitNotes(ctx context.Context, root, action string, values map[string]string, booleans map[string]bool) (map[string]any, error) {
 	if action == "provenance" {
-		return gitnotes.ProvenanceWithNotesTip(ctx, root, values["--commit"], values["--notes-tip"])
+		return gitnotes.ProvenanceWithVerdicts(ctx, root, values["--commit"], values["--notes-tip"], booleans["--verdicts"])
 	}
 	commit := values["--commit"]
 	if commit == "" {
 		commit = "HEAD"
 	}
-	return gitnotes.Anchor(ctx, root, values["--map"], commit)
+	artifacts, record := values["--artifacts"]
+	return gitnotes.AnchorWithVerdict(ctx, root, values["--map"], commit, artifacts, record)
 }

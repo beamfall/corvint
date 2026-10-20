@@ -991,8 +991,8 @@ Usage:
   corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
-  corvint [--root PATH] cem anchor --map MAP [--commit REV]
-  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID]
+  corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]
+  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts]
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
@@ -1026,9 +1026,14 @@ Actions:
   anchor   (experimental) Write a pointer to the map committed at HEAD as the
            refs/notes/corvint note of REV (default HEAD); refuses a dirty or
            uncommitted map, a map not describing REV's patch, a different note.
+           With --artifacts DIR, also verify the map against REV as cem verify
+           does and append its verdictSha256 to REV's append-only
+           refs/notes/corvint-verdicts ledger; a different verdict for the
+           same map and REV is refused, an identical one writes nothing.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
-           --notes-tip OID, rollback when OID is not an ancestor of the ref.
+           --notes-tip OID, rollback when OID is not an ancestor of the ref;
+           with --verdicts, list REV's verdict ledger records.
   export   (read-only) Verify the cem/1.0 map as cem verify does (with
            --artifacts) and require the target to commit it, then copy the map
            as cem.json and each declared artifact under artifacts/ into the new
