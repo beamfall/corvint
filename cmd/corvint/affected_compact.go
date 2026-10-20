@@ -42,6 +42,7 @@ type affectedCompactPlan struct {
 	Selected    []affectedCompactSelection `json:"selected"`
 	Excluded    affectedExcludedSummary    `json:"excluded"`
 	Unknown     []affected.Unknown         `json:"unknown"`
+	NonSource   []affected.NonSource       `json:"nonSource,omitempty"`
 }
 
 // affectedCompactAdvice is the affected-plan/0 advice except that the
@@ -123,6 +124,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			Selected:    selected,
 			Excluded:    excluded,
 			Unknown:     full.Plan.Unknown,
+			NonSource:   full.Plan.NonSource,
 		},
 		Profile:  affectedCompactProfile,
 		Provider: full.Provider,
