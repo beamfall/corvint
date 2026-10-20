@@ -15,6 +15,9 @@ const E2ERefusalSchema = "corvint-playwright-e2e-refusal/0"
 type E2ERefusal struct {
 	Code   string
 	Detail string
+	// Tuple names the failing runtime tuple field and its admitted values
+	// when the refusal is a tuple refusal (PWP-V0-040); nil otherwise.
+	Tuple *RuntimeTupleMismatch
 }
 
 func (e *E2ERefusal) Error() string {
@@ -28,17 +31,18 @@ func refuseE2E(code string) error { return &E2ERefusal{Code: code} }
 
 // e2eRefusalDocument is the closed refusal document shape.
 type e2eRefusalDocument struct {
-	Schema                  string   `json:"schema"`
-	Code                    string   `json:"code"`
-	Message                 string   `json:"message"`
-	QualifiedRunnerVersions []string `json:"qualifiedRunnerVersions"`
+	Schema                  string                `json:"schema"`
+	Code                    string                `json:"code"`
+	Message                 string                `json:"message"`
+	QualifiedRunnerVersions []string              `json:"qualifiedRunnerVersions"`
+	RuntimeTuple            *RuntimeTupleMismatch `json:"runtimeTuple,omitempty"`
 }
 
 // EncodeE2ERefusal returns the canonical refusal document: compact
 // encoding/json bytes in declared field order plus LF. It always names the
 // exact runner versions external mode admits.
 func EncodeE2ERefusal(r *E2ERefusal) []byte {
-	data, _ := json.Marshal(e2eRefusalDocument{Schema: E2ERefusalSchema, Code: r.Code, Message: r.Error(), QualifiedRunnerVersions: QualifiedPlaywrightVersions()})
+	data, _ := json.Marshal(e2eRefusalDocument{Schema: E2ERefusalSchema, Code: r.Code, Message: r.Error(), QualifiedRunnerVersions: QualifiedPlaywrightVersions(), RuntimeTuple: r.Tuple})
 	return append(data, '\n')
 }
 
@@ -46,4 +50,10 @@ func EncodeE2ERefusal(r *E2ERefusal) []byte {
 // version refusal message (PWP-V0-034).
 func unqualifiedVersionDetail() string {
 	return "qualified runner versions: " + strings.Join(qualifiedPlaywrightVersions, ", ")
+}
+
+// detail is the refusal text naming the failing tuple field and the exact
+// values the shared table admits for it (PWP-V0-040).
+func (m *RuntimeTupleMismatch) detail() string {
+	return m.Field + " not admitted for " + m.Profile + "; admitted " + m.Field + " values: " + strings.Join(m.Admitted, ", ")
 }

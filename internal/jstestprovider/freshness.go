@@ -300,7 +300,7 @@ func freshRowUnknown(r Receipt, t TestOutcome) bool {
 	if x == nil || x.Ownership != "external" || x.CleanupResponsibility != "external" || x.ServerDescendants != "unknown" || !x.ReadyAtStart || !x.ReadyAtPublish || !x.InputsUnchanged || !x.RunnerDescendantsGone || x.ConfigOverride == "" || x.DeclaredAppIdentity != "" || r.ServerDescendantsGone != nil || applicationAttestationUnknown(r.ApplicationAttestation) {
 		return true
 	}
-	if r.Identity.RunnerName != "playwright" || r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.3" || !rawDigestPattern.MatchString(r.Identity.PackageDigest) || !rawDigestPattern.MatchString(r.Identity.ConfigDigest) || r.Identity.ConfigInputDigests[r.Identity.ConfigFile] != r.Identity.ConfigDigest || len(r.Identity.Argv) == 0 || configInputsWithinBounds(r.Identity.ConfigInputDigests) != nil {
+	if r.Identity.RunnerName != "playwright" || !runtimeTupleAdmitted(FreshnessProfile, r.Identity.RunnerVersion, r.Identity.NodeVersion, BrowserSourceBundled) || !rawDigestPattern.MatchString(r.Identity.PackageDigest) || !rawDigestPattern.MatchString(r.Identity.ConfigDigest) || r.Identity.ConfigInputDigests[r.Identity.ConfigFile] != r.Identity.ConfigDigest || len(r.Identity.Argv) == 0 || configInputsWithinBounds(r.Identity.ConfigInputDigests) != nil {
 		return true
 	}
 	if t.Project == nil || t.Project.Name == "" || t.Project.Browser != "chromium" || t.Project.Device == "" || t.Project.ConfigDigest != r.Identity.ConfigDigest || t.Anchor == nil || t.Anchor.Line <= 0 || t.FullName == "" || !rawDigestPattern.MatchString(r.Identity.TestFileDigests[t.Anchor.File]) || t.ID != qualifiedTestID(r.Identity, t) || len(t.Attempts) != 1 || t.Retries != 0 || t.Attempts[0].Retry != 0 || t.Attempts[0].State != t.State || !knownState(t.State) || hasAttemptDetails(r) || hasSensitiveInputEvidence(r) {
@@ -311,7 +311,7 @@ func freshRowUnknown(r Receipt, t TestOutcome) bool {
 		return true
 	}
 	b := use.CorvintBrowser
-	if b.NodeVersion == nil || *b.NodeVersion != "v22.23.3" || b.Platform == nil || *b.Platform != "darwin" || b.Arch == nil || *b.Arch != "arm64" || b.BrowserType == nil || *b.BrowserType != "chromium" || b.Channel == nil || *b.Channel != "" || b.ExecutablePath == nil || b.BrowserVersion == nil || b.HeadlessShellAvailable == nil || !*b.HeadlessShellAvailable || b.ExecutableSource == nil {
+	if b.NodeVersion == nil || *b.NodeVersion != r.Identity.NodeVersion || b.Platform == nil || *b.Platform != "darwin" || b.Arch == nil || *b.Arch != "arm64" || b.BrowserType == nil || *b.BrowserType != "chromium" || b.Channel == nil || *b.Channel != "" || b.ExecutablePath == nil || b.BrowserVersion == nil || b.HeadlessShellAvailable == nil || !*b.HeadlessShellAvailable || b.ExecutableSource == nil {
 		return true
 	}
 	return !qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, b)
