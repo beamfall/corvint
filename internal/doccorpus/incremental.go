@@ -164,7 +164,7 @@ func (c *compiler) importRecordsIncremental(p Provider, r *incrementalBuild) err
 		part.Record = path
 		part.Shards = nil
 		record := c.providerRecords[p.ID+":"+inputKey(p.Revision, path)]
-		if !r.eligible[id] || record.Schema != AdoptionProviderSchema || len(record.Observations) > 0 || record.BehaviorContracts != nil {
+		if !r.eligible[id] || record.Schema != AdoptionProviderSchema || len(record.Observations) > 0 || len(record.Gaps) > 0 || record.BehaviorContracts != nil {
 			if r.eligible[id] {
 				r.stats.Fallback = append(r.stats.Fallback, id)
 				r.stats.FallbackReason = "unsupported incremental provider contribution"

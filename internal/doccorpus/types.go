@@ -18,6 +18,16 @@ type Repository struct {
 	ID       string `json:"id"`
 	Revision string `json:"revision"`
 }
+
+// AdditionalRepository is one further repository a manifest names explicitly (DCP-V1-175): its
+// root-commit identity, its one pinned revision and the local checkout holding its objects, as a
+// clean path relative to the primary repository root. The locator grants no identity; the build
+// verifies both against the checkout and never fetches or discovers a repository.
+type AdditionalRepository struct {
+	ID       string `json:"id"`
+	Revision string `json:"revision"`
+	Root     string `json:"root"`
+}
 type Profile struct {
 	ID       string   `json:"id"`
 	Revision string   `json:"revision"`
@@ -46,16 +56,19 @@ type Provider struct {
 	Record   string   `json:"record"`
 }
 type Manifest struct {
-	BehaviorRepositories []BehaviorRepository `json:"behavior_repositories,omitempty"`
-	BehaviorRevisions    *BehaviorRevisions   `json:"behavior_revisions,omitempty"`
-	Schema               string               `json:"schema"`
-	Repository           Repository           `json:"repository"`
-	BuiltAt              string               `json:"built_at"`
-	Profile              Profile              `json:"profile"`
-	Scopes               []Scope              `json:"scopes"`
-	Inputs               []Input              `json:"inputs"`
-	Providers            []Provider           `json:"providers"`
-	MergeRule            string               `json:"merge_rule"`
+	// AdditionalRepositories is absent from a single-repository manifest, whose bytes are
+	// unchanged (DCP-V1-175).
+	AdditionalRepositories []AdditionalRepository `json:"additional_repositories,omitempty"`
+	BehaviorRepositories   []BehaviorRepository   `json:"behavior_repositories,omitempty"`
+	BehaviorRevisions      *BehaviorRevisions     `json:"behavior_revisions,omitempty"`
+	Schema                 string                 `json:"schema"`
+	Repository             Repository             `json:"repository"`
+	BuiltAt                string                 `json:"built_at"`
+	Profile                Profile                `json:"profile"`
+	Scopes                 []Scope                `json:"scopes"`
+	Inputs                 []Input                `json:"inputs"`
+	Providers              []Provider             `json:"providers"`
+	MergeRule              string                 `json:"merge_rule"`
 }
 type Builder struct {
 	Version  string `json:"version"`
@@ -165,16 +178,18 @@ type ProviderRecord struct {
 	BehaviorContracts  *BehaviorRegistry        `json:"behavior_contracts,omitempty"`
 	TestKnowledge      *TestKnowledgeSet        `json:"test_knowledge,omitempty"`
 	FlowRelations      *FlowRelationSet         `json:"flow_relations,omitempty"`
-	Schema             string                   `json:"schema"`
-	ID                 string                   `json:"id"`
-	Version            string                   `json:"version"`
-	Source             Repository               `json:"source"`
-	Subjects           []Subject                `json:"subjects"`
-	Claims             []Claim                  `json:"claims"`
-	Relations          []Relation               `json:"relations"`
-	Journeys           []Journey                `json:"journeys"`
-	Observations       []ObservationLink        `json:"observations"`
-	Capabilities       []CapabilityDeclaration  `json:"capabilities"`
+	// Gaps are producer-supplied gap claims (DCP-V1-185); adoption schema only.
+	Gaps         []SuppliedGap           `json:"gaps,omitempty"`
+	Schema       string                  `json:"schema"`
+	ID           string                  `json:"id"`
+	Version      string                  `json:"version"`
+	Source       Repository              `json:"source"`
+	Subjects     []Subject               `json:"subjects"`
+	Claims       []Claim                 `json:"claims"`
+	Relations    []Relation              `json:"relations"`
+	Journeys     []Journey               `json:"journeys"`
+	Observations []ObservationLink       `json:"observations"`
+	Capabilities []CapabilityDeclaration `json:"capabilities"`
 }
 type Capability struct {
 	RecordsOmitted int      `json:"records_omitted,omitempty"`
@@ -193,6 +208,19 @@ type Gap struct {
 	Kind    string `json:"kind"`
 	Reason  string `json:"reason"`
 }
+
+// SuppliedGap is a producer's gap claim (DCP-V1-185, DCP-V1-186). It is
+// attributed provider data, never a compiler result: the compiler sets Origin
+// to "supplied" and its evidence keeps the provider trust ceiling.
+type SuppliedGap struct {
+	ID       string   `json:"id"`
+	Subject  string   `json:"subject"`
+	Kind     string   `json:"kind"`
+	Reason   string   `json:"reason"`
+	Origin   string   `json:"origin"`
+	Provider string   `json:"provider"`
+	Evidence Evidence `json:"evidence"`
+}
 type Artifact struct {
 	// RuntimeIndex is derived resident state, never evidence or serialized authority.
 	RuntimeIndex        *QueryIndex              `json:"-"`
@@ -203,6 +231,7 @@ type Artifact struct {
 	StabilityEvidence   []StabilityReport        `json:"stability_evidence,omitempty"`
 	TestKnowledge       []TestKnowledgeJoin      `json:"test_knowledge,omitempty"`
 	FlowRelations       []FlowRelationJoin       `json:"flow_relations,omitempty"`
+	SuppliedGaps        []SuppliedGap            `json:"supplied_gaps,omitempty"`
 	Schema              string                   `json:"schema"`
 	Builder             Builder                  `json:"builder"`
 	Manifest            Manifest                 `json:"manifest"`

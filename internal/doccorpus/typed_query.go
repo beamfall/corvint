@@ -337,7 +337,7 @@ func typedGaps(ctx context.Context, a *Artifact, freshness string) ([]Gap, error
 			if rel.Type == "tested_by" {
 				tests = true
 			}
-			if rel.Type == "journey_for" {
+			if rel.Type == "journey_for" || rel.Type == "manual_case_for" && rel.To == s.ID {
 				manual = true
 			}
 		}

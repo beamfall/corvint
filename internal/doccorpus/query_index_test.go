@@ -20,7 +20,7 @@ func TestCorpusQueryIndexBounds(t *testing.T) {
 			{"one over claims", &Artifact{Claims: make([]Claim, MaxCorpusRecords+1)}, "record family"},
 			{"one over relations", &Artifact{Relations: make([]Relation, MaxCorpusRecords+1)}, "record family"},
 			{"one over journeys", &Artifact{Journeys: make([]Journey, MaxCorpusJourneys+1)}, "record family"},
-			{"one over observations", &Artifact{Observations: make([]Observation, MaxRecords+1)}, "record family"},
+			{"one over observations", &Artifact{Observations: make([]Observation, MaxCorpusRecords+1)}, "record family"},
 			{"one over key", &Artifact{Subjects: []Subject{{ID: strings.Repeat("k", 65537)}}}, "key bound"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
