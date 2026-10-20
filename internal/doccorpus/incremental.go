@@ -279,11 +279,7 @@ func validateContribution(record ProviderRecord, x ShardContribution) error {
 		counts["relation/"+s.Type]++
 	}
 	for _, s := range record.Claims {
-		k := record.Details[s.ID].ClaimKind
-		if k == "" {
-			k = "unspecified"
-		}
-		counts["claim/"+k]++
+		counts["claim/"+claimParityKind(record.Details[s.ID])]++
 	}
 	if len(x.ImportParity) != len(counts) {
 		return fail("cached import parity incomplete")
