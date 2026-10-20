@@ -273,6 +273,9 @@ func isRoadmapCommand(arguments []string) bool {
 }
 
 func run(arguments []string, stdout, stderr io.Writer) int {
+	if isCEMStableCommand(arguments) {
+		return runCEMStableContext(context.Background(), arguments, stdout, stderr)
+	}
 	if isRoadmapCommand(arguments) {
 		return runRoadmapContext(context.Background(), arguments, stdout, stderr)
 	}
@@ -283,6 +286,9 @@ func runProcess(arguments []string, stdout, stderr io.Writer, compile compiler) 
 	containOutputPipeSignal()
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
+	if isCEMStableCommand(arguments) {
+		return runCEMStableContext(ctx, arguments, stdout, stderr)
+	}
 	if isRoadmapCommand(arguments) {
 		return runRoadmapContext(ctx, arguments, stdout, stderr)
 	}
