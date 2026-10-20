@@ -107,7 +107,8 @@ func TestLPCVV0092SnapshotBoundMatchesDiscoveryRead(t *testing.T) {
 
 // LPCV-V0-135: the selection, runtime and shared-example members are
 // optional and closed; a document without them decodes and projects exactly
-// as before, and carrying them does not move any projected axis.
+// as before, and carrying them does not move any projected axis: only the
+// test location reports a shared example (LPCV-V0-148).
 func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 	legacy := encodeRuby(t, rubyDocument(t, "passed", "failed"))
 	for _, member := range []string{"selection", "selectionWithheld", "runtime", "sharedExample", "sharedExampleAbsent", "formatter", "runContainer"} {
@@ -138,7 +139,12 @@ func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	after, err := json.Marshal(Project(input))
+	carriedDocument := Project(input)
+	if shared := carriedDocument.Tests[0].Location; shared.Absent["titlePath"] != LocationSharedExample || len(shared.IncludedAt) != 1 {
+		t.Fatalf("shared example location=%+v", shared)
+	}
+	carriedDocument.Tests[0].Location = rubyLocation(rubyDocument(t, "passed"), rubyDocument(t, "passed").Examples[0])
+	after, err := json.Marshal(carriedDocument)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +186,12 @@ func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 	if input, err = Decode(data); err != nil {
 		t.Fatal(err)
 	}
-	if after, err = json.Marshal(Project(input)); err != nil || string(after) != string(before) {
+	shippedDocument := Project(input)
+	if shared := shippedDocument.Tests[0].Location; shared.Absent["titlePath"] != LocationSharedExample || len(shared.IncludedAt) != 1 {
+		t.Fatalf("formatter shared example location=%+v", shared)
+	}
+	shippedDocument.Tests[0].Location = carriedDocument.Tests[0].Location // the plain location, as above (LPCV-V0-148)
+	if after, err = json.Marshal(shippedDocument); err != nil || string(after) != string(before) {
 		t.Fatalf("formatter members moved the projection: %v\n%s\n%s", err, before, after)
 	}
 	for name, mutated := range map[string]string{

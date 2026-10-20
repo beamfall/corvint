@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstain (`LPCV-V0-128`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -625,6 +625,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-127` retained 1.63.0 live matrix | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); retained 2026-10-20 | `TestNegateLiveDiagnostic` qualified mode on macOS arm64, Node v22.23.2, `@playwright/test` 1.63.0, `chromium-headless-shell` 1243: 12 of 12 cases passed in 88.6 s, every runner tuple `candidate`, the interruption case asserting the observed slow request and its cancellation; with a fixture that fails before that request, the case fails (build log 2026-10-20) |
 | `LPCV-V0-128` 1.64.0 derivation abstention | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); finding, not qualification | `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248): 5 of 12 cases passed; every assertion step read `NOT_MEASURED` `step-fault-underivable` (build log 2026-10-20); cause `NOT_OBSERVED` |
 | `LPCV-V0-129` join stays gated off | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered | `internal/testvaliditydoc`'s `TestLPCVV0129JoinStaysGatedOff`; the owner sample comparison and G2 cost measurement stay `NOT_RUN` (owner-run) |
+| `LPCV-V0-145..153` structured test location and static source projection | accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); experimental | `internal/testvaliditydoc`'s `TestLPCVV0145PlaywrightLocation`, `TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations`, `TestLPCVV0146GoLocationNotRecorded`, `TestLPCVV0148RubyLocationAndSharedGroup`, `TestLPCVV0151StaticProjection`, `TestLPCVV0147DiscoveryPlacesLocation`, `TestLPCVV0146AmbiguousLineTitlePathAbsent` and `TestLPCVV0135RubyOptionalMembersDecodeClosed`; `internal/testsource`'s `TestLPCVV0147JSTitlePath`, `TestLPCVV0147RSpecTitlePath`, `TestLPCVV0147JSAmbiguousLineHasNoTitlePath`, `TestLPCVV0147RSpecComputedTitleNotLiteral`, `TestLPCVV0152StaticExamplesReadsCommittedSource` and `TestLPCVV0152StaticSupportSharesTheCommandBudget`; `internal/mcp/testvaliditybridge`'s `TestLPCVV0149ReceiptLocationMatchesCLI`; `cmd/corvint`'s `TestLPCVV0150StaticModeProjectsSourceAndWritesNothing` and `TestLPCVV0153StaticOptionsAreExclusive`; real Playwright and RSpec runs `NOT_RUN` |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
 
@@ -1545,7 +1546,9 @@ projected axis, and a document written before them decodes and projects exactly 
   members, an origin other than the example's `id`, or an inclusion list that is
   empty, over four entries or carries a malformed location. All five members are optional: a
   document without them, including every document retained before `LPCV-V0-131`, decodes and
-  projects unchanged, and carrying them leaves every projection byte-identical.
+  projects unchanged, and carrying them leaves every projection byte-identical, except that a test's
+  `location` reports a shared example's inclusion sites (`LPCV-V0-148`, amended under the owner's
+  standing auto-accept (2026-10-11); V1-2045).
 
 Non-goals:
 - RSpec's own filtering semantics (`--only-failures`, tags, `--example`), which stay RSpec's;
@@ -1725,3 +1728,115 @@ file kept byte for byte) is the focused tests in the traceability row.
 
 Rollback: remove the `IgnoreRetained` call from `Retain`. Ignore files already written stay and are
 harmless; an owner may delete them. Retained documents keep their bytes.
+
+## Structured test location and static source projection (V1-2045, V1-2046; GitHub #1302, #1303)
+
+A `corvint-test-validity/0` test named its file and line only inside free-text anchors, so an agent
+that wanted to open or rerun one test had to parse provider-specific strings, and a test with no
+known file or line was silently indistinguishable from one whose provider never recorded it
+(GitHub #1302). Hygiene could be projected only from a retained run, so a repository with
+Playwright or RSpec tests but no retained receipt got no reading at all (GitHub #1303).
+`LPCV-V0-145` to `LPCV-V0-149` add a structured, optional `location` member to every projected
+test; `LPCV-V0-150` to `LPCV-V0-153` add a read-only `--static` mode. All were accepted under the
+owner's standing auto-accept (2026-10-11) for V1-2045 and V1-2046. The slice is experimental: no
+existing axis state, reason or anchor changes, and a consumer that ignores `location` and `static`
+reads the same document as before.
+
+- `LPCV-V0-145`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Every test
+  in a projected document MUST carry `location` with optional members `file` (repository-relative,
+  slash-separated), `line` (the declaring line, at least 1) and `titlePath` (the literal titles,
+  outermost group first, the test's own title last). A member is set only from a provider record
+  or a bound source reading that names the declaration: an RSpec example's `file_path` and
+  `line_number`; a profiled Playwright receipt's `test.location`; a stock Playwright outcome's
+  anchor only when the outcome did not fail (a failed outcome's anchor is a failure frame); a JS/TS
+  file only when the anchor binds exactly one retained `testFileDigests` key inside the repository
+  root; and a bound example reading (`LPCV-V0-147`). A Vitest anchor is a failure frame and never
+  sets `file` or `line` by itself.
+- `LPCV-V0-146`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Each of
+  `file`, `line` and `titlePath` that is not set MUST be named in `location.absent` with exactly one
+  closed reason: `not-recorded-by-provider` (the provider records no such member, as for every Go
+  test), `repository-root-unbound`, `anchor-file-unbound`, `anchor-not-declaration`,
+  `source-not-read`, `source-unplaced`, `title-not-literal`, `shared-example-definition` or
+  `declaration-line-ambiguous` (more than one test is declared on the line). A set
+  member never appears in `absent`, so an absent member is never silent.
+- `LPCV-V0-147`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) The JS/TS
+  and RSpec example readers MUST record an example's `titlePath` only when every title on it is one
+  literal string: one exact string literal for a JS/TS describe or test call with no `.each`
+  table, and a string without interpolation (or, for a group, one constant name) for RSpec. A
+  template, an interpolation, an `each`-generated title, a non-literal ancestor, an RSpec constant
+  joined with a second description, a computed description (a literal joined with an expression,
+  as `"works" + suffix`), or a declaration read from another file records none, and the test's
+  location says `title-not-literal`. A JS/TS line that declares more than one test supplies no
+  title path to any of them, and their locations say `declaration-line-ambiguous`. When discovery's bound reading
+  places a JS/TS outcome or RSpec example at its declaration, `file`, `line` and `titlePath` come
+  from that reading; a read but unplaced JS/TS outcome says `source-unplaced`.
+- `LPCV-V0-148`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) An RSpec
+  shared example's `file` and `line` MUST stay its definition, as the provider records them
+  (`LPCV-V0-134`). Its `titlePath` is absent with `shared-example-definition`, because the path
+  depends on the including group, and `location.includedAt` lists the provider's recorded inclusion
+  sites in the provider's order. This amends the projection-byte clause of `LPCV-V0-135`.
+- `LPCV-V0-149`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Every
+  surface that projects a document MUST apply the same location: `test-validity --receipt`,
+  `--discover`, `--static` and the MCP receipt and discovery tools. The MCP receipt tool binds
+  JS/TS files against its registered root exactly as the CLI binds them against `--root`.
+- `LPCV-V0-150`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046)
+  `corvint test-validity --static [PATH...]` MUST project hygiene from the committed source of every
+  RSpec (`_spec.rb`) and JS/TS test file at `HEAD` under the named repository-relative paths, or the
+  whole tree when none is named, through the same example readers and source rules discovery uses.
+  Each example the readers place is one test, keyed `path:line`, whose hygiene is `INELIGIBLE` with
+  `RSPEC-SKIPPED`, `RSPEC-FOCUSED`, `JS-SKIPPED` (including `test.fixme`) or `JS-FOCUSED` when the
+  rules find one, and `ELIGIBLE` otherwise. An assertion-free test stays visible in `sourceRules`:
+  the advisory `JS-NO-ASSERTION` finding for JS/TS and `expectations: 0` for RSpec. A file the reader
+  cannot decide is one test keyed by its path with hygiene `ABSTAINED` and the reader's reason. The
+  document's `source` is `corvint-static-test-source`, its `kind` is `static`, and `static` records
+  the resolved revision and the files read.
+- `LPCV-V0-151`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046) A static
+  test's `freshness`, `execution` and `strength` MUST be `NOT_OBSERVED` and its `association` and the
+  run's axes `UNSUPPORTED`, each with reason `static-source-only`; the test's `state` is
+  `not-observed`. The document's tier is `preview` and it is never promotable. Nothing a static
+  reading finds may be presented as an observed run.
+- `LPCV-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046) Static mode
+  MUST read committed Git objects only, through the bounded `testsource` repository reader with no
+  optional locks, and MUST write nothing: no retained evidence, no index refresh, no trace and no
+  file in the worktree or `.git`. An uncommitted edit is not read. The test files and every RSpec
+  support set draw on one command budget of file count and bytes; exceeding it anywhere, including
+  in a support read, is refused as `tests-bound-exceeded`, never read as an unbound support set.
+- `LPCV-V0-153`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046) `--static`
+  takes no value and may be given once; it excludes `--receipt`, `--discover` and `--route-stubs`; a
+  PATH operand requires `--static`. A malformed PATH (absolute, escaping, `.git`, or carrying NUL,
+  newline or backslash) is `tests-invalid-arguments`, and a PATH holding no committed test file is
+  `tests-source-unavailable`. Each misuse exits 2 with no document.
+
+Non-goals:
+- recording a structured title path inside the Playwright or RSpec providers' own receipts;
+- placing a Vitest failure-frame anchor without a bound source reading;
+- reading uncommitted worktree source, or another revision than `HEAD`, in static mode;
+- a static MCP tool;
+- projecting execution or strength from source.
+
+| Failure mode | Prevented by |
+|---|---|
+| A failure frame reads as the test's declaration. | `LPCV-V0-145` declaration-only anchors; `anchor-not-declaration` |
+| An absolute provider path leaks into the document. | `LPCV-V0-145` repository-relative binding; `repository-root-unbound` |
+| A missing member is indistinguishable from an omitted one. | `LPCV-V0-146` closed absence reasons |
+| A computed title reads as the literal title. | `LPCV-V0-147` literal-only title path |
+| A shared example reads as declared where it was included. | `LPCV-V0-148` definition file and line plus `includedAt` |
+| The CLI and MCP disagree on a test's file. | `LPCV-V0-149` one `Locate` on every surface |
+| A source reading reads as an observed run. | `LPCV-V0-151` `NOT_OBSERVED`, preview, not promotable |
+| Static mode refreshes the index or retains evidence. | `LPCV-V0-152` Git-object reads with no optional locks |
+| A worktree edit changes a static reading. | `LPCV-V0-152` committed `HEAD` only |
+| A misspelt PATH reads as a clean tree. | `LPCV-V0-153` `tests-source-unavailable` |
+| Two tests on one line share one test's title path. | `LPCV-V0-147` `declaration-line-ambiguous` |
+| Support sets read past the command bound. | `LPCV-V0-152` one shared budget; `tests-bound-exceeded` |
+
+Acceptance evidence: GitHub #1302 (file, line and title path or an explicit absence for every test,
+covering RSpec and Playwright and a shared-group example) and GitHub #1303 (static mode for
+Playwright and RSpec covering skipped, focused, fixme and assertion-free tests, with execution and
+strength `NOT_OBSERVED` and no writes) are the focused tests in the traceability row, using
+committed fixture repositories and canned receipts. A real Playwright run and a real RSpec run
+through this projection, including the Corvint formatter's inclusion frames (`LPCV-V0-136`), are
+`NOT_RUN`.
+
+Rollback: revert the V1-2045 and V1-2046 change. `location` and `static` disappear from projected
+documents, `--static` is refused as an unknown option, and every other member is unchanged; no
+retained document or receipt format changes.

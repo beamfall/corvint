@@ -38,6 +38,8 @@ type Document struct {
 	Tier         string                  `json:"tier,omitempty"`
 	Promotable   *bool                   `json:"promotable,omitempty"`
 	Discovery    *Discovery              `json:"discovery,omitempty"`
+	// Static is present only on a static source projection (LPCV-V0-150).
+	Static *Static `json:"static,omitempty"`
 }
 
 // Test is one test-level observation and its recomputed projection. Package is
@@ -50,6 +52,8 @@ type Test struct {
 	Package    string                          `json:"package,omitempty"`
 	State      string                          `json:"state"`
 	Projection testvalidity.Projection         `json:"projection"`
+	// Location is where the test is declared, each member present or named absent (LPCV-V0-145).
+	Location *Location `json:"location,omitempty"`
 	// RouteStubs is present only when the receipt carries a route-stub record (LPCV-V0-073).
 	RouteStubs *RouteStubs `json:"routeStubs,omitempty"`
 	// RejectionAnchor is present only when the receipt carries a request-outcome record (LPCV-V0-081).
@@ -242,7 +246,7 @@ func projectJavaScript(receipt jstestprovider.Receipt, routeStubsRequested bool)
 	vacuous := vacuousEqualityEvidence(receipt)
 	unstubbed := unstubbedCallEvidence(receipt)
 	for i, outcome := range receipt.Tests {
-		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)}
+		test := Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome), Location: jsLocation(receipt, outcome)}
 		if stubs != nil {
 			test.RouteStubs = stubs[i]
 		}
@@ -280,6 +284,7 @@ func projectGoSession(session goSessionDocument) Document {
 			Package:    observation.Package,
 			State:      observation.Action,
 			Projection: testvalidity.ProjectGoTest(observation.Action, session.Identity, stale, ""),
+			Location:   goLocation(),
 		})
 	}
 	promotable := false
@@ -305,7 +310,7 @@ func projectRuby(document rubytestprovider.Document) Document {
 		if name == "" {
 			name = example.ID
 		}
-		tests = append(tests, Test{ID: example.ID, Name: name, State: example.Status, Projection: rubytestprovider.ProjectExample(document, example)})
+		tests = append(tests, Test{ID: example.ID, Name: name, State: example.Status, Projection: rubytestprovider.ProjectExample(document, example), Location: rubyLocation(document, example)})
 	}
 	promotable := false
 	return Document{

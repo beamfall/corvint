@@ -36,12 +36,15 @@ type jsDecl struct {
 	members     map[string]bool
 	unsupported bool
 	title       string
-	eachTable   [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
-	eachKind    string // "call", "template" or ""
-	hasBody     bool
-	body        [2]int
-	concise     bool // the body is an arrow function's expression, which the example returns
-	noParams    bool // the callback declares no parameter, so it takes no `done` (TSA-V0-389)
+	// literalTitle marks a title that is one exact string literal on a declaration with no
+	// `.each` table, so it names the example or group as the runner does (LPCV-V0-147).
+	literalTitle bool
+	eachTable    [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
+	eachKind     string // "call", "template" or ""
+	hasBody      bool
+	body         [2]int
+	concise      bool // the body is an arrow function's expression, which the example returns
+	noParams     bool // the callback declares no parameter, so it takes no `done` (TSA-V0-389)
 }
 
 // jsAnnotation is one runtime `test.skip()` or `test.fixme()` call with no title.
@@ -107,14 +110,19 @@ func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, st
 		}
 		test := r.at(e.line)
 		if reason := r.abstention(e, perLine[e.line]); reason != "" {
-			out[e.line] = testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, EndLine: e.endLine}
+			// Two declarations on one line cannot be told apart, so neither supplies a title path.
+			var path []string
+			if reason != testvalidity.HygieneReasonJSLineAmbiguous {
+				path = r.titlePath(e)
+			}
+			out[e.line] = testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, EndLine: e.endLine, TitlePath: path}
 			continue
 		}
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)
 		facts := r.exampleFacts(e, test)
 		findings = append(findings, facts.findings...)
 		findings = append(findings, r.flowFindings(e, test)...)
-		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: facts.count, Findings: findings, ExpectationAnchors: facts.anchors, EndLine: e.endLine}
+		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: facts.count, Findings: findings, ExpectationAnchors: facts.anchors, EndLine: e.endLine, TitlePath: r.titlePath(e)}
 	}
 	return out, ""
 }
@@ -184,6 +192,7 @@ func (r *jsReader) read() {
 		titled := len(args) > 0 && s.loneString(args[0])
 		if titled {
 			d.title = s.tokens[args[0][0]].Text
+			d.literalTitle = s.tokens[args[0][0]].Literal && d.eachKind == ""
 		}
 		for k := 1; k < len(args); k++ {
 			// functionBody also takes a typed arrow, `(): void => {…}`, which callback does not.
@@ -228,6 +237,23 @@ func (r *jsReader) abstention(e jsDecl, sameLine int) string {
 		return testvalidity.HygieneReasonJSBodyNotLiteral
 	}
 	return ""
+}
+
+// titlePath returns example e's literal title path, outermost describe first and e's own title
+// last (LPCV-V0-147), or nil when any title on it is not one literal string.
+func (r *jsReader) titlePath(e jsDecl) []string {
+	if !e.literalTitle {
+		return nil
+	}
+	path := []string{e.title}
+	for _, g := range r.ancestors(e.at) {
+		if !r.decls[g].literalTitle {
+			return nil
+		}
+		path = append(path, r.decls[g].title)
+	}
+	slices.Reverse(path)
+	return path
 }
 
 // ancestors returns the indexes of the describes whose bodies hold token i, innermost first.
