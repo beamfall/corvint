@@ -244,8 +244,10 @@ type proveRow struct {
 	Detail  string                `json:"detail,omitempty"`
 	Witness *proveMutationWitness `json:"witness,omitempty"`
 	Attack  *proveAttackReport    `json:"attack,omitempty"`
-	reason  string
-	basis   []string
+	// Mutation is the per-mutant record of a Ruby `test-kills-mutant` row that reached the engine (FPK-V0-070).
+	Mutation *proveMutationRecord `json:"mutation,omitempty"`
+	reason   string
+	basis    []string
 }
 
 type proveMutationWitness struct {
@@ -598,7 +600,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 	}
 	for index, judged := range mutations {
 		rows[index].Falsified, rows[index].Detail, rows[index].Witness = judged.falsified, judged.detail, judged.witness
-		rows[index].Attack = judged.attack
+		rows[index].Attack, rows[index].Mutation = judged.attack, judged.mutation
 	}
 	summary := summarizeProof(packet, discloseUnsupportedMutations(rows, options.proveMutate))
 	if affectedSummary != nil {
@@ -731,7 +733,7 @@ func citeAffectedBlobs(rows []proveRow, cited map[string]citedBlob) {
 func rangeHunkSpans(ctx context.Context, gitExecutable, root, base string) (map[string][]mutate.LineSpan, error) {
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := hermeticGitCommand(deadline, gitExecutable, root, "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/", base, "HEAD", "--", "*.go", "*.py")
+	command := hermeticGitCommand(deadline, gitExecutable, root, "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/", base, "HEAD", "--", "*.go", "*.py", "*.rb")
 	output, err := boundedOutput(command, proveBoundsFrom(ctx).rangeDiffBytes)
 	if errors.Is(err, errOutputBound) {
 		return nil, rangeDiffBoundRefusal(base)
@@ -1149,6 +1151,7 @@ type mutationVerdict struct {
 	falsified, detail string
 	witness           *proveMutationWitness
 	attack            *proveAttackReport
+	mutation          *proveMutationRecord
 }
 
 // judgeMutations runs the mutation falsifier for every `test-kills-mutant`
@@ -1351,6 +1354,9 @@ func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRo
 		judged, err := judgePythonMutation(ctx, exported, changed, row.Path, lines)
 		judged.witness = mutationWitnessNotProduced("python-mutation-witness-not-produced")
 		return judged, err
+	}
+	if strings.HasSuffix(changed, ".rb") {
+		return judgeRubyMutation(ctx, exported, changed, row.Path, lines)
 	}
 	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines, Complete: attack})
 	if err != nil {
