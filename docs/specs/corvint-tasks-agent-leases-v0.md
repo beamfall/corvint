@@ -145,6 +145,7 @@ one.
 | V1-1526 | CAL-V0-310 | Accepted (standing auto-accept, 2026-10-16): an unknown `--fields` key is still refused `MALFORMED`, with a warning naming the key, listing the item's keys and suggesting `PARENT.KEY` one level down (`record.body`); `ticket show` usage names the `record.` prefix; focused tests |
 | V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
+| V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 
@@ -653,7 +654,7 @@ Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks ta
 - `CAL-V0-042`: A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
   corresponding immutable source, license/notices, manifest, and checksums without changing the
   Core archive or claiming workflow-bundle qualification. The initial target is native macOS arm64;
-  others remain NOT_RUN. Two isolated builds and two archive assemblies MUST agree, and the
+  others remain NOT_RUN, except the cross-built linux/amd64 of CAL-V0-320. Two isolated builds and two archive assemblies MUST agree, and the
   extracted binary MUST expose plan, claim, submit, gate and completion in a native help smoke.
   The manifest MUST retain the unverified version label, source commit/tree and pinned build count.
   This does not publish a release, authenticate an operator or qualify a task queue.
@@ -7201,6 +7202,27 @@ Failure modes: the record write can still fail (store lock held past the bound, 
 that sends SIGKILL soon after SIGTERM can end the write; the journal recovers it as any writer
 crash (CAL-V0-019).
 
+- `CAL-V0-320`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1981) The
+  `corvint-tasks-archive/0` build path (CAL-V0-042) MAY be run with `-target linux/amd64` and
+  `-tasks-only`. It builds the binary twice with `CGO_ENABLED=0` from the pinned Git export, requires
+  both builds and both archive assemblies to agree byte for byte, and retains
+  `corvint-tasks_linux_amd64.tar.gz` plus a `SHA256SUMS` line for it, as for the macOS arm64 archive.
+  A cross-built archive is never executed by its builder: no version or help smoke runs, the manifest
+  has no `version` member and its `qualification` is
+  `reproducible-cross-build-only-target-runtime-not-observed`, and its README says the target runtime
+  is `NOT_OBSERVED` until a host of that platform runs `bin/corvint-tasks version` and a read-only
+  `roadmap` against an existing `.taskman` store. The full companion bundle still admits only
+  `darwin/arm64`; every other target (including `linux/arm64`) is refused and stays `NOT_RUN`.
+
+Non-goals (CAL-V0-320): publishing, tagging or signing a release or `tasks-dev-*` asset (a workflow
+change is owner-gated); a Linux runtime, queue, locking or `flock` qualification; `linux/arm64`;
+Windows; authenticating the publisher (checksums detect byte changes only).
+
+Failure modes (CAL-V0-320): a build or reproducibility mismatch fails the run and retains nothing; a
+Linux host that cannot run the binary reports that, and the archive keeps its `NOT_OBSERVED` label.
+Rollback: remove `tasksCrossTarget` and its use in `RunTasksArchive`; the darwin/arm64 path and its
+archive bytes are unchanged.
+
 Acceptance evidence: `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`):
 the context ends two seconds into a gate that printed `partial` and sleeps 30 seconds; the run
 returns promptly, the attempt holds a `FAILED` result whose `output` evidence is `partial`, the
@@ -8157,3 +8179,4 @@ after this restore.
 | CAL-V0-317 | `TestCALV0317_UnobservedTreeIsNotKept` (`internal/tasks/dispatch`) |
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
 | CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md` |
+| CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |

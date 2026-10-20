@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -47,7 +48,7 @@ func TestTasksArchiveHelpRefusesOldRuntime(t *testing.T) {
 }
 
 func TestTasksArchiveRefusesOtherTargets(t *testing.T) {
-	for _, target := range []string{"", "darwin/amd64", "linux/amd64", "windows/amd64"} {
+	for _, target := range []string{"", "darwin/amd64", "linux/arm64", "windows/amd64"} {
 		if _, err := RunTasksArchive(context.Background(), Options{Target: target}); err == nil {
 			t.Fatalf("admitted %q", target)
 		}
@@ -69,6 +70,35 @@ func TestTasksArchiveRequiresSetupResources(t *testing.T) {
 		}
 		if missing == -1 && (err != nil || len(entries) != 4) {
 			t.Fatalf("complete resources: %v, %v", entries, err)
+		}
+	}
+}
+
+func TestTasksArchiveCrossTargetIsLinuxAmd64Only(t *testing.T) {
+	// CAL-V0-320: linux/amd64 is admitted for the Tasks archive, never for the full bundle.
+	if err := validateTasksTarget("linux/amd64"); err != nil {
+		t.Fatal(err)
+	}
+	if err := validateTarget("linux/amd64"); err == nil {
+		t.Fatal("full companion bundle admitted linux/amd64")
+	}
+	if _, err := RunTasksArchive(context.Background(), Options{Target: "linux/amd64"}); err == nil || strings.Contains(err.Error(), "unsupported target") {
+		t.Fatalf("linux/amd64 refused as unsupported: %v", err)
+	}
+}
+
+func TestTasksArchiveCrossManifestStatesTheLimit(t *testing.T) {
+	r := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: "linux/amd64", Qualification: tasksCrossQualification}
+	entries, err := tasksArchiveEntries([]ArchiveEntry{{Path: "bin/corvint-tasks", Mode: 0o755, Data: []byte("b")}}, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Path == "MANIFEST.json" && (!bytes.Contains(e.Data, []byte(tasksCrossQualification)) || bytes.Contains(e.Data, []byte(`"version"`))) {
+			t.Fatalf("manifest: %s", e.Data)
+		}
+		if e.Path == "README.md" && !bytes.Contains(e.Data, []byte("NOT_OBSERVED")) {
+			t.Fatal("README omits the runtime limit")
 		}
 	}
 }
