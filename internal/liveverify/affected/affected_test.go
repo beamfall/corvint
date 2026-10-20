@@ -740,3 +740,26 @@ func TestReachedUnitIDsIncludeDeclaredReadScopeReaders(t *testing.T) {
 		t.Fatalf("read-scoped reader missing from %v", reached)
 	}
 }
+
+// TestShortFragmentsDoNotNamePaths_V1_1818: an outer component of one or two
+// characters matches only a whole path component, so the token `s/a` (as in
+// a "%s/a" format) does not name docs/specs/affected-plan-v0.md, while a
+// longer fragment and a whole short component still do.
+func TestShortFragmentsDoNotNamePaths_V1_1818(t *testing.T) {
+	parts := strings.Split("docs/specs/affected-plan-v0.md", "/")
+	for value, want := range map[string]bool{
+		"s/a":                   false,
+		"cs/af":                 false,
+		"x/s/a":                 false,
+		"pecs/aff":              true,
+		"docs/specs":            true,
+		"specs/affected-plan-v": true,
+	} {
+		if got := namesPath(value, parts); got != want {
+			t.Errorf("namesPath(%q, %v) = %v, want %v", value, parts, got, want)
+		}
+	}
+	if !namesPath("s/a", strings.Split("x/s/a", "/")) {
+		t.Error("a short token whose components are whole path components must still name the path")
+	}
+}

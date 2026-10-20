@@ -495,6 +495,9 @@ and container qualification; full fallback remains available.
   as fragments. An anchored naming token always counts, because the graph does not record the module
   directory it is anchored at, so this is a superset of rule (c)'s sidecar readers. A non-Go unit
   and any other dirty path keep the component-run relation.
+  (amended for V1-1818) An outer component of one or two characters matches only a whole path
+  component, never by suffix or prefix: the token `s/a` (a `"%s/a"` format) does not name
+  `docs/specs/affected-plan-v0.md`, while `pecs/aff` still does.
   (proposed 2026-09-25, not accepted; V1-0290) A one-component run of a token that is not anchored
   at a module root and has no `..` in it names only a dirty path's file name, never one of its
   directory components: the `internal/` of `"internal/%03d.go"` would otherwise make its package a
@@ -1649,7 +1652,8 @@ and container qualification; full fallback remains available.
   with `t.TempDir()` is the dominant false reader: on the PR #1134 range (`70a21da5d..5c57314aa`)
   it selected 7 of 52 path-literal readers through `docs/specs/README.md` alone.
   Non-goals: anchored lone tokens (`root + "/corvint"`), shell and other non-Go readers, fragment
-  matches of multi-component runs (`"s/a"`), readers of `.corvint/changes/` sealed CEMs, the
+  matches of multi-component runs with outer fragments of three or more characters (`"ecs/aff"`; shorter ones are
+  V1-1818's AFP-V0-021 amendment), readers of `.corvint/changes/` sealed CEMs, the
   binary data-literal edges of V1-1006, and any symbol-level narrowing of a changed constant (a
   schema-ID bump keeps the package's reverse-dependency closure).
   Failure modes: a Go test that reaches a repository directory through a run-time root naming
