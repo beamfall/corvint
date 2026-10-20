@@ -6,7 +6,7 @@ Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..15
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; technical contract and stable promotion remain open.
 - Status: owner scope accepted; technical contract proposed; implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (proposed `CEM-V1-017..019`), hidden Core report/MCP preview (proposed `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (proposed `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (proposed `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (proposed `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (proposed `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (proposed `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (proposed `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (proposed `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (proposed `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (proposed `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (proposed `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (proposed `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); a positive `cem/1.0` read for the dashboard's separate `cem-stable` document and the local-authority capsule's stable closure, each with stale and incomplete binding controls (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-290..299`, V1-0632); qualification remains bounded.
 - Blocked on: technical contract acceptance and stable promotion, all supported runtime qualification and independent interoperability/outcome evidence.
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -1861,6 +1861,9 @@ relabeled. `MIGRATION.json` is digest-pinned and is not edited here.
 - `CEM-V1-167`: The protected local-authority consumer holds a Git object capsule and no
   repository, so it cannot run the stable verifier. It MUST keep refusing an enrollment whose
   `cem.json` declares `cem/1.0`, with `capsule CEM base`, before requesting any object.
+  Amended by V1-0632 (`CEM-V1-295..299`): the capsule now admits an exact `cem/1.0` map whose base
+  is the enrolled base, derives its object demand from it and leaves verification to the stable
+  verifier over the published evidence view; `capsule CEM base` remains the stale-base refusal.
 - `CEM-V1-168`: The dashboard's hash-pinned adapter registry declares no `cem/1.0` profile. So
   `corvint-dashboard-snapshot --cem-ocm-profile` naming `cem/1.0` MUST be
   `DASHBOARD_INVALID_ARGUMENT`, with no stdout, before any path opens. The `cem-ocm-bundle-v0`
@@ -1877,7 +1880,9 @@ Failure modes:
   change listing does not carry it, so a click without it refuses.
 - One console artifact root serves every sealed change. A change whose artifacts are elsewhere
   refuses.
-- The capsule verifier and the dashboard bundle stay without a stable path (`CEM-V1-167`,
+- Superseded by V1-0632 (`CEM-V1-290..299`): the dashboard has a separate `cem-stable` read and
+  the capsule a stable closure; the bundle registry stays retired. The original text follows.
+  The capsule verifier and the dashboard bundle stay without a stable path (`CEM-V1-167`,
   `CEM-V1-168`). Each needs its own accepted contract:
   - the capsule needs an enrollment format carrying the stable artifact roles and a capsule-native
     stable verifier;
@@ -1905,7 +1910,7 @@ No 0.x profile, default, packet or stored evidence changes.
 | CEM-V1-164 | `TestCEMV1164ConsoleVerifiedStableChain` | Verified chain shows the `ACCEPT` envelope, `changeIntegrity VERIFIED`, `sidecar EXACT` and keeps NOT_OBSERVED axes |
 | CEM-V1-165 | `TestCEMV1164ConsoleVerifiedStableChain` | Missing or malformed base, wrong base, missing root, tampered artifact, edited sealed bytes and a verifier timeout draw only a refusal; a followed hunk link stays verified; reference rows show the verifier value |
 | CEM-V1-166 | `TestCEMV1164ConsoleVerifiedStableChain` | Without the root the NOT_RUN envelope renders unchanged |
-| CEM-V1-167 | `TestCEMV1167CapsuleRefusesStableEnrollment` | A verified-shape `cem/1.0` enrollment refuses with `capsule CEM base`; the 0.x map reaches the object demand |
+| CEM-V1-167 | `TestCEMV1167CapsuleRefusesStableEnrollment` | As amended by `CEM-V1-295`: a matching-base `cem/1.0` enrollment reaches the object demand, which refuses an empty capsule; a 0.x map refuses `unsupported-spec` with the fix line |
 | CEM-V1-168 | `TestCEMV1168DashboardRefusesStableBundle` | Every retired bundle flag and every profile, `cem/1.0` and 0.x, refuses with `DASHBOARD_INVALID_ARGUMENT` and no stdout; no registry row is `cem-ocm-bundle-v0` or names a `cem/` profile |
 
 ## Consumers read cem/1.0 only (V1-1278 S2a, decision 0525 §1 and §6, 2026-10-12)
@@ -2944,3 +2949,108 @@ Rollback: revert the change commit; `--check` then ignores protocol pointers.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-261 | `TestCEMV1261PointerProblems`, `TestCEMV1261RepositoryPointersRecorded`, `TestCEMV1261PointerSymlinkRefused`, `TestCEMV1261CheckRunsPointerGate` (`tools/cem-stable-regen`); `pointerProblems` in `tools/cem-stable-regen/pointers.go` | Three recorded sealed pointers; build log `2026-10-15-cem-stable-consumer-residuals.md` |
+
+## Capsule and dashboard stable positive cases (V1-0632, 2026-10-20)
+
+Status: `CEM-V1-290..299` accepted under the owner's standing auto-accept (2026-10-11); V1-0632
+audit gap 1.
+
+Intent: the dashboard (C17) and the local-authority capsule (C15) each read an actual `cem/1.0`
+change map, not only refuse one. Each keeps the exact raw stable graph, leaves artifacts opaque and
+retains the verifier's whole result and its unknown authority axes. A stale or incomplete binding
+refuses without losing evidence. This amends `CEM-V1-167` and the failure mode that left both
+families without a stable path. The frozen `corvint-dashboard-snapshot/0` schema, its hash-pinned
+registry and the retired bundle flags (`CEM-V1-168`, `CEM-V1-217`) are unchanged.
+
+- `CEM-V1-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632)
+  `corvint-dashboard-snapshot cem-stable --root R --cem C --ocm O --expected-base B --target T
+  --artifact-root A` MUST admit the map through `lrfrepo.VerifyStableUniverse` and, on success,
+  write one `corvint-dashboard-cem-stable/0` document to stdout with exit 0. It carries the input
+  paths and SHA-256 digests, spec, map digest, base and target revisions, object format, patch and
+  OCM digests, intent scope, obligations, the verifier's whole `verify.StableResult` as
+  `verification`, the exact original map bytes as `map`, and `taskCompletion` and
+  `criterionSatisfaction` as `NOT_OBSERVED`. A hunk's coverage witness, present or absent, MUST
+  survive in `map` unchanged.
+- `CEM-V1-291`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
+  `cem-stable` subcommand MUST NOT change the snapshot command: its schema, adapter registry and
+  hash, error profile, and the `DASHBOARD_INVALID_ARGUMENT` refusal of every bundle flag and profile
+  stay as `CEM-V1-168` and `CEM-V1-217` state.
+- `CEM-V1-292`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) Each of
+  the six flags MUST appear exactly once; `--root` and `--artifact-root` MUST be absolute and
+  clean, and `--cem` and `--ocm` relative and clean. Any other form MUST be
+  `DASHBOARD_INVALID_ARGUMENT` with no stdout before any path opens. A map or OCM that is missing,
+  not a regular file or larger than the stable map bound MUST be `DASHBOARD_REPOSITORY_UNAVAILABLE`
+  with no stdout.
+- `CEM-V1-293`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) A refused
+  admission MUST write no stdout, exit 2, and write one `corvint-dashboard-cem-stable-refusal/0`
+  document to stderr with the refusal code, the input paths and digests, and `verification` set
+  to the verifier's whole result when the verifier ran, else `null`. A stale base, a stale target,
+  an edited map, a tampered or missing artifact, an OCM bound to another map and a retired `cem/0.x`
+  map each refuse.
+- `CEM-V1-294`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
+  subcommand MUST NOT write any repository, map, OCM or artifact byte, and MUST NOT derive task
+  completion, criterion satisfaction or any authority axis that the verifier leaves unknown.
+- `CEM-V1-295`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) Amending
+  `CEM-V1-167`, the local-authority capsule MUST parse the enrolled `cem.json` with the stable
+  decoder. A retired `cem/0.x` map keeps `unsupported-spec` with the fix line (`CEM-V1-210`). A
+  `cem/1.0` map whose base is not the enrolled base MUST refuse `capsule CEM base`. A matching map
+  proceeds to the object demand.
+- `CEM-V1-296`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
+  capsule's stable closure MUST account one artifact for each of `tasks-capture`,
+  `tasks-verification`, `tasks-claimed-ticket`, `tasks-snapshot-head-receipt`, `runner-plan` and
+  `runner-receipt`, in that order, and the SHA-256 of the exact enrolled map bytes. A missing role
+  MUST refuse `capsule stable role missing`. The capsule MUST NOT read artifact bytes.
+- `CEM-V1-297`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The object
+  demand MUST require the base and target trees. It requires each evidence path at the base with
+  the map's blob OID (`capsule CEM blob binding`), the OCM intent path at base and target, each OCM
+  claim path at the target, each check's driver at base and target and its subject at the target.
+  It requires the committed `.corvint/change.cem.json` at the target, whose blob MUST equal the
+  enrolled `cem.json` bytes (`capsule CEM sidecar binding`). An absent path refuses
+  `required capsule path missing`, and an absent blob `changed blob missing`.
+- `CEM-V1-298`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
+  capsule closure confers no authority. Acceptance comes only from the stable verifier run over the
+  published minimal evidence view, with the artifact root supplied separately. Over that view, the
+  verifier MUST return the same map digest, all six artifact checks, an `EXACT` sidecar, every
+  result key, and the unknown axes as `NOT_OBSERVED`. A tampered artifact the closure still admits
+  MUST be rejected `artifact-digest-mismatch` by that verifier.
+- `CEM-V1-299`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) Every
+  capsule refusal in `CEM-V1-295..297` MUST happen before evidence publication and leave the
+  enrolled bytes unchanged.
+
+Non-goals:
+- no new snapshot schema version or registry row, and no bundle route;
+- no capsule-native stable verifier;
+- no enrollment format that carries artifact bytes;
+- no native Tasks authority, authentication or runner execution claim;
+- no C15 stale-live-gate control: the capsule holds no live Tasks gate to go stale.
+
+Failure modes:
+- When the committed sidecar is not exact, `VerifyStableUniverse` returns a plain
+  `excluded-artifact-mismatch` without a result. The dashboard refusal then keeps the input digests
+  and code, with `verification: null`. The same holds for an OCM failure and a retired map.
+- The protected enrollment command still accepts only a codec-package target tree
+  (`onlyCodecPackage`), and it needs the root-owned authority store, so a full protected enrollment
+  of a stable change was not run.
+
+Acceptance evidence: the tests below pass, and each fails without its fix. With the dispatch
+removed, the dashboard tests see `DASHBOARD_INVALID_ARGUMENT`. With the base capsule closure and a
+stub, the capsule tests see `capsule CEM base`. Build log
+`docs/build-log/2026-10-20-V1-0632-capsule-dashboard-positive.md`.
+
+Rollback: revert the change commit. The dashboard then has no `cem-stable` subcommand, and the
+capsule refuses every `cem/1.0` enrollment with `capsule CEM base` again.
+
+### Capsule and dashboard stable positive traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-290 | `TestCEMV1290DashboardCEMStableReadsRealUniverse` (`cmd/corvint-dashboard-snapshot`) | Strict key set; map bytes equal the stable map with and without a witness; `verification` equals an independent `verify.Stable` marshal with 23 keys, 6 artifact checks, `EXACT` sidecar |
+| CEM-V1-291 | `TestCEMV1168DashboardRefusesStableBundle`, `TestCEMV1290DashboardCEMStableReadsRealUniverse` | Bundle flags still refuse; snapshot package suite and `conformance/dashboard-snapshot-v0` pass unchanged |
+| CEM-V1-292 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | Four bad-argument forms are `DASHBOARD_INVALID_ARGUMENT` with no stdout |
+| CEM-V1-293 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | Seven controls refuse with code, input digests, and the verifier result when it ran |
+| CEM-V1-294 | `TestCEMV1290DashboardCEMStableReadsRealUniverse`, `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | `NOT_OBSERVED` completion and axes; inputs byte-identical after every refusal |
+| CEM-V1-295 | `TestCEMV1167CapsuleRefusesStableEnrollment`, `TestCEMV1297CapsuleRefusesStableClosureControls` (`tools/local-authority`) | 0.x `unsupported-spec` with fix line; stale base `capsule CEM base` |
+| CEM-V1-296 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Six roles in order, map digest of exact bytes; producer map `capsule stable role missing` |
+| CEM-V1-297 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Minimal capsule admits; other sidecar, missing sidecar and missing evidence blob refuse |
+| CEM-V1-298 | `TestCEMV1295CapsuleAdmitsStableClosure` | Published view `ACCEPT` with the same keys and axes as the direct run; tampered artifact `REJECT` `artifact-digest-mismatch` |
+| CEM-V1-299 | `TestCEMV1297CapsuleRefusesStableClosureControls` | Every refusal from the closure step, which precedes publication; enrolled map unchanged |
