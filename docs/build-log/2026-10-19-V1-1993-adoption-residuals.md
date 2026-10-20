@@ -102,6 +102,17 @@ failed with `cached import parity incomplete`. The new test-run claims would hav
     evidence.
   - The dogfood terminal outcome is recorded in the PR, because it is produced after this commit.
 
+## Independent review
+
+One Codex round (read-only) found one medium defect, now fixed. `coverageMetrics` counted a supplied
+`test_run` claim toward `subjects_with_claims`, so a supplied run on a subject with no other claim raised
+that metric. That breaks DCP-V1-211's "changes no ... other coverage metric". The fix skips
+test-run claims when counting claimed subjects. `TestDCPV1210SuppliedTestRunReceipt` now adds a run to
+an unclaimed subject and compares the metric rows. The old code fails it (`subjects_with_claims` 10 to
+11 of 16). Capability record counts still rise by one, because they count emitted records and say they
+are not behavioral coverage. This fix commit follows the lane's sealed CEM, so it has no CEM binding of
+its own.
+
 ## Rollback
 
 Revert the commit. The new detail fields are `omitempty`, and corpora without them keep their

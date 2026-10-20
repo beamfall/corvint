@@ -698,7 +698,10 @@ func ReadQuery(ctx context.Context, root string, data []byte, request Request) (
 func coverageMetrics(a *Artifact) []any {
 	claimed, observed := map[string]bool{}, map[string]bool{}
 	for _, claim := range a.Claims {
-		claimed[claim.Subject] = true
+		// A supplied test-run receipt changes no other coverage metric (DCP-V1-211).
+		if a.Details[claim.ID].TestRun == nil {
+			claimed[claim.Subject] = true
+		}
 	}
 	for _, o := range a.Observations {
 		observed[o.Link.Subject] = true

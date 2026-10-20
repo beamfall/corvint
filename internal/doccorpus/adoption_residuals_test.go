@@ -77,6 +77,36 @@ func TestDCPV1210SuppliedTestRunReceipt(t *testing.T) {
 	if fmt.Sprint(before) != fmt.Sprint(after) {
 		t.Fatalf("a supplied test run changed computed gaps:\nbefore %v\nafter  %v", before, after)
 	}
+	metrics := func(a *Artifact) string {
+		rows := []string{}
+		for _, row := range queryResults(t, a, Request{Operation: "coverage"}).Results {
+			if m, ok := row.(map[string]any); ok && m["metric"] != nil && !strings.HasPrefix(fmt.Sprint(m["metric"]), "supplied_test_run:") {
+				rows = append(rows, fmt.Sprint(m["metric"], m["value"], m["denominator"]))
+			}
+		}
+		return strings.Join(rows, "\n")
+	}
+	claimed := map[string]bool{}
+	for _, c := range plain.Claims {
+		claimed[c.Subject] = true
+	}
+	unclaimed := ""
+	for _, s := range plain.Subjects {
+		if !claimed[s.ID] {
+			unclaimed = s.ID
+			break
+		}
+	}
+	if unclaimed == "" {
+		t.Fatal("fixture has no unclaimed subject")
+	}
+	b := buildAdoption(t, func(p *ProviderRecord) {
+		suppliedTestRun(p)
+		p.Claims[len(p.Claims)-1].Subject = unclaimed
+	})
+	if before, after := metrics(plain), metrics(b); before != after {
+		t.Fatalf("a supplied test run changed other coverage metrics:\nbefore %s\nafter  %s", before, after)
+	}
 	out, _ := Encode(queryResults(t, plain, Request{Operation: "coverage"}))
 	if bytes.Contains(out, []byte("supplied_test_run")) {
 		t.Fatal("coverage without supplied test runs changed")
