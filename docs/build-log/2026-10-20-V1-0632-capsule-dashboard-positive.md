@@ -50,6 +50,42 @@ hash-pinned registry and closed error profile had no place for a stable universe
 - One macOS detail: the stable boundary refuses a symlinked directory chain. The published-view
   test therefore resolves `t.TempDir()` (`/var` to `/private/var`), as `stablefixture` already does.
 
+## Codex review round 1 (PR #1287)
+
+Three P2 findings, all fixed in one follow-up commit:
+
+1. The input reader ran `Lstat` on the final path only, then a separate `Open`. A symlinked parent
+   (`root/linked -> /elsewhere`) read outside root, and a FIFO swapped in between the two calls
+   blocked the open. The reader now walks each directory through its parent's `os.Root`
+   descriptor, requiring the opened directory to be the one `Lstat` saw. It opens the file with
+   `O_NONBLOCK` (Unix; nothing on other hosts) and requires the descriptor to be the regular file
+   `Lstat` saw. New tests: `TestCEMV1292DashboardCEMStableInputStaysUnderRoot` (symlinked parent
+   for the map and the OCM, symlinked final component, FIFO) and
+   `TestCEMV1292DashboardCEMStableRefusesSwappedFIFO`, which opens a FIFO against a regular file's
+   `Lstat` result. With the first reader, the symlinked parent was admitted (exit 0) and the
+   swapped FIFO open blocked past 10 s.
+2. Encoding `map` as a `json.RawMessage` compacted it, so the emitted bytes lost the final LF and no
+   longer matched `mapSha256`. The test hid this by compacting its expected value. The document now
+   carries `mapBase64`, the exact bytes in standard base64, and the test compares the decoded bytes
+   with the on-disk map and its digest. With the first encoding, the raw comparison failed.
+3. The capsule tests set no checks, so the CEM-V1-297 driver and subject demands never ran. Every
+   check path in the fixture was also demanded by the changed-path or evidence rule, so a check
+   control alone could not tell. `stablefixture.NewChangeWithUnchanged` adds an unchanged, uncited
+   `tests/check.sh`. `NewChange` passes nil, so its repositories are unchanged. New controls:
+   - the positive test with two checks;
+   - a missing driver blob and a missing subject blob, each `changed blob missing`;
+   - an absent driver path, `required capsule path missing`;
+   - an evidence OID that names another carried blob, `capsule CEM blob binding`.
+
+   Mutations: without the check demand the driver control admits; without the subject demand the
+   subject control admits; without the OID comparison the mismatch reaches `capsule CEM sidecar
+   binding`.
+
+Rerun after the fix: the full suites for `cmd/corvint-dashboard-snapshot`, `tools/local-authority`
+and `conformance/dashboard-snapshot-v0` pass, and so do the other `stablefixture` consumers
+`internal/console`, `internal/extevidence` and `internal/mcp/bridge`. The `cmd/corvint` consumers
+were not rerun: `NewChange` builds the same repository as before.
+
 ## NOT_RUN
 
 - A full protected enrollment of a stable change through `loadEnrollment`, `publishEvidence` and

@@ -187,7 +187,7 @@ func TestCEMV1290DashboardCEMStableReadsRealUniverse(t *testing.T) {
 			Intent                cemStableIntent       `json:"intent"`
 			Obligations           []cemStableObligation `json:"obligations"`
 			Verification          json.RawMessage       `json:"verification"`
-			Map                   json.RawMessage       `json:"map"`
+			MapBase64             []byte                `json:"mapBase64"`
 			TaskCompletion        string                `json:"taskCompletion"`
 			CriterionSatisfaction string                `json:"criterionSatisfaction"`
 		}
@@ -196,7 +196,7 @@ func TestCEMV1290DashboardCEMStableReadsRealUniverse(t *testing.T) {
 		if err := decoder.Decode(&view); err != nil {
 			t.Fatal(err)
 		}
-		want := []string{"baseRevision", "criterionSatisfaction", "input", "intent", "map", "mapSha256", "objectFormat",
+		want := []string{"baseRevision", "criterionSatisfaction", "input", "intent", "mapBase64", "mapSha256", "objectFormat",
 			"obligations", "ocmSha256", "patchSha256", "profile", "spec", "targetRevision", "taskCompletion", "verification"}
 		if got := objectKeys(t, stdout); !reflect.DeepEqual(got, want) {
 			t.Fatalf("view keys = %v", got)
@@ -209,15 +209,21 @@ func TestCEMV1290DashboardCEMStableReadsRealUniverse(t *testing.T) {
 			view.TaskCompletion != "NOT_OBSERVED" || view.CriterionSatisfaction != "NOT_OBSERVED" {
 			t.Fatalf("binding = %+v", view)
 		}
-		// The raw stable graph is the exact authenticated map, witness
-		// presence or absence included.
-		if !bytes.Equal(view.Map, compactJSON(t, f.stable.Map)) {
+		// The raw stable graph is the exact authenticated map bytes, final
+		// LF and witness presence or absence included, and their digest is
+		// the emitted map digest.
+		onDisk, err := os.ReadFile(filepath.Join(f.root, filepath.FromSlash(wire.ExcludedCEMPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(view.MapBase64, f.stable.Map) || !bytes.Equal(view.MapBase64, onDisk) ||
+			!bytes.HasSuffix(view.MapBase64, []byte("}\n")) || stablefixture.Digest(view.MapBase64) != view.MapSha256 {
 			t.Fatal("projected map differs from the authenticated stable bytes")
 		}
-		if got := bytes.Contains(view.Map, []byte(`"coverage":`)); got != witness {
+		if got := bytes.Contains(view.MapBase64, []byte(`"coverage":`)); got != witness {
 			t.Fatalf("witness presence = %v, want %v", got, witness)
 		}
-		parsed, err := wire.ParseStable(view.Map)
+		parsed, err := wire.ParseStable(view.MapBase64)
 		if err != nil || len(parsed.Criteria) != 1 || len(parsed.Artifacts) != 6 || len(parsed.Receipts) != 1 || len(parsed.Links) != 1 ||
 			(parsed.Change.Hunks[0].Coverage != nil) != witness {
 			t.Fatalf("projected graph: err=%v", err)

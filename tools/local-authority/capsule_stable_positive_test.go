@@ -31,7 +31,7 @@ type stableCapsuleFixture struct {
 
 func newStableCapsuleFixture(t *testing.T) stableCapsuleFixture {
 	t.Helper()
-	change := stablefixture.NewChange(t)
+	change := stablefixture.NewChangeWithUnchanged(t, map[string]string{stableCapsuleDriver: "#!/bin/sh\nexit 0\n"})
 	return stableCapsuleFixture{
 		change: change, stable: change.Stable(t),
 		ocm: []byte(`{"intentScope":{"path":"docs/rule.txt"},"claims":[{"path":"src/app.txt"}]}` + "\n"),
@@ -65,7 +65,7 @@ func (f stableCapsuleFixture) enrolled(t *testing.T, base, target string, cemRaw
 				continue
 			}
 			changed := f.change.Git("diff", "--name-only", base, target, "--", fields[2]) != ""
-			if fields[0] == "tree" || changed || fields[2] == "docs/rule.txt" || fields[2] == wire.ExcludedCEMPath {
+			if fields[0] == "tree" || changed || fields[2] == "docs/rule.txt" || fields[2] == stableCapsuleDriver || fields[2] == wire.ExcludedCEMPath {
 				demand[fields[1]] = true
 			}
 		}
@@ -129,6 +129,12 @@ func TestCEMV1295CapsuleAdmitsStableClosure(t *testing.T) {
 	if err := objects.requireEvidencePaths(in); err != nil {
 		t.Fatalf("stable enrollment: %v", err)
 	}
+	// A check whose driver is at base and target and whose subject is at
+	// the target is admitted by the same demand.
+	in.enrollment.Checks = stableCapsuleChecks
+	if err := objects.requireEvidencePaths(in); err != nil {
+		t.Fatalf("stable enrollment with checks: %v", err)
+	}
 	_, closure, err := stableClosure(in)
 	if err != nil || closure.MapSHA256 != stablefixture.Digest(f.stable.Map) || len(closure.Roles) != 6 {
 		t.Fatalf("closure = %+v, %v", closure, err)
@@ -178,6 +184,17 @@ func TestCEMV1295CapsuleAdmitsStableClosure(t *testing.T) {
 	}
 }
 
+// stableCapsuleDriver is unchanged and cited by nothing, so only a check
+// demands its blob: the capsule's changed-path and evidence demands never do.
+const stableCapsuleDriver = "tests/check.sh"
+
+// stableCapsuleChecks drive the check demand: one check's driver and the
+// other's subject is stableCapsuleDriver.
+var stableCapsuleChecks = []localauthority.Check{
+	{ID: "check-driver", DriverPath: stableCapsuleDriver, Subject: "src/app.txt"},
+	{ID: "check-subject", DriverPath: "docs/rule.txt", Subject: stableCapsuleDriver},
+}
+
 func resultKeys(t *testing.T, result verify.StableResult) []string {
 	t.Helper()
 	raw, err := json.Marshal(result)
@@ -198,8 +215,10 @@ func resultKeys(t *testing.T, result verify.StableResult) []string {
 
 // TestCEMV1297CapsuleRefusesStaleOrIncompleteStableClosure (CEM-V1-297): a
 // stale base, a map without the six roles, a sidecar that is not the
-// enrolled bytes, a missing evidence blob and a missing sidecar all refuse
-// before publication, and the enrolled bytes stay unchanged.
+// enrolled bytes, a missing evidence blob, an evidence OID that names
+// another carried blob, a missing check driver or subject blob and a missing
+// sidecar all refuse before publication, and the enrolled bytes stay
+// unchanged.
 func TestCEMV1297CapsuleRefusesStableClosureControls(t *testing.T) {
 	f := newStableCapsuleFixture(t)
 	// A later commit re-commits the sidecar with the producer bytes, so its
@@ -211,20 +230,36 @@ func TestCEMV1297CapsuleRefusesStableClosureControls(t *testing.T) {
 	f.change.Git("commit", "-qm", "other sidecar")
 	otherTarget := f.change.Git("rev-parse", "HEAD")
 	evidenceBlob := f.change.Git("rev-parse", f.change.Base+":docs/rule.txt")
+	baseApp := f.change.Git("rev-parse", f.change.Base+":src/app.txt")
+	driverBlob := f.change.Git("rev-parse", f.change.Base+":"+stableCapsuleDriver)
+	// The evidence names another blob that the capsule does carry, so only
+	// the OID binding can refuse it.
+	rebound := []byte(strings.Replace(string(f.stable.Map), `"blobOid":"`+evidenceBlob+`"`, `"blobOid":"`+baseApp+`"`, 1))
+	if string(rebound) == string(f.stable.Map) {
+		t.Fatal("evidence blob OID not found in the stable map")
+	}
+	omitDriver := map[string]bool{driverBlob: true}
+	absent := []localauthority.Check{{ID: "check-absent", DriverPath: "tests/absent.sh", Subject: "src/app.txt"}}
 	cases := []struct {
 		name, base, target, want string
 		cem                      []byte
 		omit                     map[string]bool
+		checks                   []localauthority.Check
 	}{
-		{"stale-base", f.change.ProducerTarget, f.stable.Target, "capsule CEM base", f.stable.Map, nil},
-		{"missing-role", f.change.Base, f.stable.Target, "capsule stable role missing", f.change.Producer, nil},
-		{"sidecar-binding", f.change.Base, otherTarget, "capsule CEM sidecar binding", f.stable.Map, nil},
-		{"missing-sidecar", f.change.Base, f.change.ProducerTarget, "required capsule path missing", f.stable.Map, nil},
-		{"missing-evidence-blob", f.change.Base, f.stable.Target, "changed blob missing", f.stable.Map, map[string]bool{evidenceBlob: true}},
+		{"stale-base", f.change.ProducerTarget, f.stable.Target, "capsule CEM base", f.stable.Map, nil, nil},
+		{"missing-role", f.change.Base, f.stable.Target, "capsule stable role missing", f.change.Producer, nil, nil},
+		{"sidecar-binding", f.change.Base, otherTarget, "capsule CEM sidecar binding", f.stable.Map, nil, nil},
+		{"missing-sidecar", f.change.Base, f.change.ProducerTarget, "required capsule path missing", f.stable.Map, nil, nil},
+		{"missing-evidence-blob", f.change.Base, f.stable.Target, "changed blob missing", f.stable.Map, map[string]bool{evidenceBlob: true}, nil},
+		{"mismatched-evidence-oid", f.change.Base, f.stable.Target, "capsule CEM blob binding", rebound, nil, nil},
+		{"missing-driver-blob", f.change.Base, f.stable.Target, "changed blob missing", f.stable.Map, omitDriver, stableCapsuleChecks[:1]},
+		{"missing-subject-blob", f.change.Base, f.stable.Target, "changed blob missing", f.stable.Map, omitDriver, stableCapsuleChecks[1:]},
+		{"missing-driver-path", f.change.Base, f.stable.Target, "required capsule path missing", f.stable.Map, nil, absent},
 	}
 	for _, test := range cases {
 		cemBefore := append([]byte(nil), test.cem...)
 		in, objects, err := f.enrolled(t, test.base, test.target, test.cem, test.omit)
+		in.enrollment.Checks = test.checks
 		if err == nil {
 			err = objects.requireEvidencePaths(in)
 		}

@@ -9,7 +9,7 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -55,9 +55,10 @@ type cemStableIntent struct {
 	SpanSHA256 string `json:"spanSha256"`
 }
 
-// cemStableView is one accepted stable universe. Map is the exact
-// authenticated raw stable graph and Verification is the verifier's whole
-// result; neither is re-shaped. Task completion and criterion satisfaction
+// cemStableView is one accepted stable universe. MapBase64 is the exact
+// authenticated map bytes, standard base64, whose SHA-256 is MapSha256 (a
+// json.RawMessage would be compacted on encode); Verification is the
+// verifier's whole result. Neither is re-shaped. Task completion and criterion satisfaction
 // are never derived here, so they stay NOT_OBSERVED.
 type cemStableView struct {
 	Profile               string                `json:"profile"`
@@ -72,7 +73,7 @@ type cemStableView struct {
 	Intent                cemStableIntent       `json:"intent"`
 	Obligations           []cemStableObligation `json:"obligations"`
 	Verification          verify.StableResult   `json:"verification"`
-	Map                   json.RawMessage       `json:"map"`
+	MapBase64             []byte                `json:"mapBase64"`
 	TaskCompletion        string                `json:"taskCompletion"`
 	CriterionSatisfaction string                `json:"criterionSatisfaction"`
 }
@@ -173,7 +174,7 @@ func cemStableProjection(universe *lrfrepo.StableUniverse, input cemStableInput)
 			Path: universe.Intent.Path, BlobOID: universe.Intent.BlobOID, Start: universe.Intent.Start,
 			End: universe.Intent.End, SpanSHA256: universe.Intent.SpanSHA256,
 		},
-		Obligations: obligations, Verification: universe.Verification, Map: universe.OriginalBytes(),
+		Obligations: obligations, Verification: universe.Verification, MapBase64: universe.OriginalBytes(),
 		TaskCompletion: notObserved, CriterionSatisfaction: notObserved,
 	}
 }
@@ -192,21 +193,72 @@ func writeCEMStableDocument(output, stderr io.Writer, document any, exit int) in
 }
 
 // readCEMStableInput reads one regular, bounded, repository-relative file
-// under root without following a final symlink.
+// under root without following any symlink (CEM-V1-292). Each directory
+// component is opened through its parent's descriptor (os.Root) and must be
+// the same directory its parent's Lstat saw, so a symlinked or swapped
+// component refuses instead of leaving root. The final file opens
+// non-blocking and its descriptor must be the regular file Lstat saw, so a
+// swapped-in FIFO, device or symlink refuses without blocking.
 func readCEMStableInput(root, relative string) ([]byte, error) {
-	name := filepath.Join(root, filepath.FromSlash(relative))
-	info, err := os.Lstat(name)
+	current, err := os.OpenRoot(root)
 	if err != nil {
 		return nil, err
 	}
-	if !info.Mode().IsRegular() || info.Size() > wire.MaxMapBytes {
+	segments := strings.Split(relative, "/")
+	for _, segment := range segments[:len(segments)-1] {
+		next, err := openCEMStableDirectory(current, segment)
+		current.Close()
+		if err != nil {
+			return nil, err
+		}
+		current = next
+	}
+	defer current.Close()
+	name := segments[len(segments)-1]
+	before, err := current.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() || before.Size() > wire.MaxMapBytes {
 		return nil, os.ErrInvalid
 	}
-	file, err := os.Open(name)
+	return readCEMStableRegular(current, name, before)
+}
+
+// openCEMStableDirectory opens name under parent only when it is a real
+// directory, not a symlink, and the opened descriptor is that directory.
+func openCEMStableDirectory(parent *os.Root, name string) (*os.Root, error) {
+	before, err := parent.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !before.IsDir() {
+		return nil, os.ErrInvalid
+	}
+	child, err := parent.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	opened, err := child.Stat(".")
+	if err != nil || !opened.IsDir() || !os.SameFile(before, opened) {
+		child.Close()
+		return nil, os.ErrInvalid
+	}
+	return child, nil
+}
+
+// readCEMStableRegular opens name non-blocking, requires the descriptor to
+// be the regular file before describes, and reads at most the map bound.
+func readCEMStableRegular(directory *os.Root, name string, before os.FileInfo) ([]byte, error) {
+	file, err := directory.OpenFile(name, os.O_RDONLY|cemStableOpenFlags, 0)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !opened.Mode().IsRegular() || !os.SameFile(before, opened) {
+		return nil, os.ErrInvalid
+	}
 	data, err := io.ReadAll(io.LimitReader(file, wire.MaxMapBytes+1))
 	if err != nil || len(data) > wire.MaxMapBytes {
 		return nil, os.ErrInvalid

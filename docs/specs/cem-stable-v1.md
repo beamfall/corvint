@@ -2968,9 +2968,10 @@ registry and the retired bundle flags (`CEM-V1-168`, `CEM-V1-217`) are unchanged
   write one `corvint-dashboard-cem-stable/0` document to stdout with exit 0. It carries the input
   paths and SHA-256 digests, spec, map digest, base and target revisions, object format, patch and
   OCM digests, intent scope, obligations, the verifier's whole `verify.StableResult` as
-  `verification`, the exact original map bytes as `map`, and `taskCompletion` and
+  `verification`, the exact original map bytes as standard base64 in `mapBase64`, whose SHA-256
+  MUST equal `mapSha256` (final LF and formatting included), and `taskCompletion` and
   `criterionSatisfaction` as `NOT_OBSERVED`. A hunk's coverage witness, present or absent, MUST
-  survive in `map` unchanged.
+  survive in `mapBase64` unchanged.
 - `CEM-V1-291`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) The
   `cem-stable` subcommand MUST NOT change the snapshot command: its schema, adapter registry and
   hash, error profile, and the `DASHBOARD_INVALID_ARGUMENT` refusal of every bundle flag and profile
@@ -2980,7 +2981,11 @@ registry and the retired bundle flags (`CEM-V1-168`, `CEM-V1-217`) are unchanged
   clean, and `--cem` and `--ocm` relative and clean. Any other form MUST be
   `DASHBOARD_INVALID_ARGUMENT` with no stdout before any path opens. A map or OCM that is missing,
   not a regular file or larger than the stable map bound MUST be `DASHBOARD_REPOSITORY_UNAVAILABLE`
-  with no stdout.
+  with no stdout. The read MUST NOT follow a symlink in any path component under `--root`: each
+  directory opens through its parent's descriptor and must be the directory `Lstat` saw, and the
+  file opens non-blocking and its descriptor must be the regular file `Lstat` saw, so a symlinked
+  parent or final component, a FIFO, or a component swapped after `Lstat` refuses without
+  blocking.
 - `CEM-V1-293`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0632) A refused
   admission MUST write no stdout, exit 2, and write one `corvint-dashboard-cem-stable-refusal/0`
   document to stderr with the refusal code, the input paths and digests, and `verification` set
@@ -3034,7 +3039,11 @@ Failure modes:
 
 Acceptance evidence: the tests below pass, and each fails without its fix. With the dispatch
 removed, the dashboard tests see `DASHBOARD_INVALID_ARGUMENT`. With the base capsule closure and a
-stub, the capsule tests see `capsule CEM base`. Build log
+stub, the capsule tests see `capsule CEM base`. With the first reader, a symlinked parent is
+admitted (exit 0), a swapped-in FIFO blocks the open, and the emitted map is compacted without its
+final LF. Without the check demand the driver control admits; without the subject demand the
+subject control admits; without the OID comparison the mismatch reaches `capsule CEM sidecar
+binding`. Build log
 `docs/build-log/2026-10-20-V1-0632-capsule-dashboard-positive.md`.
 
 Rollback: revert the change commit. The dashboard then has no `cem-stable` subcommand, and the
@@ -3044,13 +3053,13 @@ capsule refuses every `cem/1.0` enrollment with `capsule CEM base` again.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-290 | `TestCEMV1290DashboardCEMStableReadsRealUniverse` (`cmd/corvint-dashboard-snapshot`) | Strict key set; map bytes equal the stable map with and without a witness; `verification` equals an independent `verify.Stable` marshal with 23 keys, 6 artifact checks, `EXACT` sidecar |
+| CEM-V1-290 | `TestCEMV1290DashboardCEMStableReadsRealUniverse` (`cmd/corvint-dashboard-snapshot`) | Strict key set; decoded `mapBase64` equals the raw on-disk stable map, final LF included, and its SHA-256 is `mapSha256`, with and without a witness; `verification` equals an independent `verify.Stable` marshal with 23 keys, 6 artifact checks, `EXACT` sidecar |
 | CEM-V1-291 | `TestCEMV1168DashboardRefusesStableBundle`, `TestCEMV1290DashboardCEMStableReadsRealUniverse` | Bundle flags still refuse; snapshot package suite and `conformance/dashboard-snapshot-v0` pass unchanged |
-| CEM-V1-292 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | Four bad-argument forms are `DASHBOARD_INVALID_ARGUMENT` with no stdout |
+| CEM-V1-292 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings`, `TestCEMV1292DashboardCEMStableInputStaysUnderRoot`, `TestCEMV1292DashboardCEMStableRefusesSwappedFIFO` | Four bad-argument forms are `DASHBOARD_INVALID_ARGUMENT` with no stdout; a symlinked parent (map or OCM), a symlinked final component and a FIFO are `DASHBOARD_REPOSITORY_UNAVAILABLE` within 10 s; a FIFO swapped in after `Lstat` refuses without blocking |
 | CEM-V1-293 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | Seven controls refuse with code, input digests, and the verifier result when it ran |
 | CEM-V1-294 | `TestCEMV1290DashboardCEMStableReadsRealUniverse`, `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` | `NOT_OBSERVED` completion and axes; inputs byte-identical after every refusal |
 | CEM-V1-295 | `TestCEMV1167CapsuleRefusesStableEnrollment`, `TestCEMV1297CapsuleRefusesStableClosureControls` (`tools/local-authority`) | 0.x `unsupported-spec` with fix line; stale base `capsule CEM base` |
 | CEM-V1-296 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Six roles in order, map digest of exact bytes; producer map `capsule stable role missing` |
-| CEM-V1-297 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Minimal capsule admits; other sidecar, missing sidecar and missing evidence blob refuse |
+| CEM-V1-297 | `TestCEMV1295CapsuleAdmitsStableClosure`, `TestCEMV1297CapsuleRefusesStableClosureControls` | Minimal capsule admits with and without two checks; other sidecar, missing sidecar and missing evidence blob refuse; an evidence OID naming another carried blob is `capsule CEM blob binding`; a missing driver blob and a missing subject blob of an unchanged, uncited path are each `changed blob missing`; an absent driver path is `required capsule path missing` |
 | CEM-V1-298 | `TestCEMV1295CapsuleAdmitsStableClosure` | Published view `ACCEPT` with the same keys and axes as the direct run; tampered artifact `REJECT` `artifact-digest-mismatch` |
 | CEM-V1-299 | `TestCEMV1297CapsuleRefusesStableClosureControls` | Every refusal from the closure step, which precedes publication; enrolled map unchanged |
