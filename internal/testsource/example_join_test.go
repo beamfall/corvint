@@ -288,8 +288,32 @@ func TestExampleJoinJS(t *testing.T) {
 	}
 	outside := jsReceipt(t, root, commit, cartA)
 	outside.Identity.TestFileDigests = map[string]string{"/elsewhere/tests/cart.spec.ts": "00"}
-	if r := joinOne(t, root, ExampleJoinOptions{JS: outside}); r.Examples[0].Verdict.Hygiene.Reason != joinReasonIdentityUnbound {
+	if r := joinOne(t, root, ExampleJoinOptions{JS: outside}); r.Examples[0].Verdict.Hygiene.Reason != joinReasonFileOutsideRepository {
 		t.Fatalf("file outside the root: %+v", r.Examples[0].Verdict)
+	}
+}
+
+// TestExampleJoinJSDigestKeys pins V1-2085: an anchor naming several absolute digest keys joins
+// through the key whose repository-relative path is the anchor itself, and abstains with a typed
+// reason when no key is, or when its one key lies outside the repository.
+func TestExampleJoinJSDigestKeys(t *testing.T) {
+	root := t.TempDir()
+	commit := commitFiles(t, root, map[string]string{"tests/cart.spec.ts": cartA, "e2e/tests/cart.spec.ts": cartA})
+	sum := sha256.Sum256([]byte(cartA))
+	digest := hex.EncodeToString(sum[:])
+	receipt := jsReceipt(t, root, commit, cartA)
+	receipt.Identity.TestFileDigests[filepath.Join(root, "e2e", "tests", "cart.spec.ts")] = digest
+	record := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]
+	if record.Example != "tests/cart.spec.ts > chromium > cart adds an item" || record.Verdict.Hygiene.State != testvalidity.HygieneEligible {
+		t.Fatalf("exact repository-relative key: %+v", record)
+	}
+	receipt.Tests[0].Anchor.File = "cart.spec.ts"
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonFileAmbiguous || r.Example != "" {
+		t.Fatalf("ambiguous anchor: %+v", r)
+	}
+	receipt.Tests[0].Anchor.File = "nowhere.spec.ts"
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonIdentityUnbound {
+		t.Fatalf("unmatched anchor: %+v", r)
 	}
 }
 

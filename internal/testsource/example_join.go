@@ -32,6 +32,12 @@ const (
 	joinReasonSourceUnbound     = "example-source-unbound"
 	joinReasonIdentityUnbound   = "example-identity-unbound"
 	joinReasonIdentityAmbiguous = "example-identity-ambiguous"
+	// joinReasonFileAmbiguous: a JS anchor file names more than one retained test-file digest and
+	// none of them is that file under the repository root (V1-2085).
+	joinReasonFileAmbiguous = "example-file-ambiguous"
+	// joinReasonFileOutsideRepository: the one retained digest a JS anchor names lies outside the
+	// repository root, so no committed file can bind it (V1-2085).
+	joinReasonFileOutsideRepository = "example-file-outside-repository"
 )
 
 // ExampleJoinOptions names the revision ("" reads HEAD), exactly one decoded receipt and the
@@ -139,6 +145,8 @@ type joined struct {
 	record   ExampleJoinRecord
 	path     string
 	included []string
+	// unbound is the typed reason a JS example whose anchor resolved no file abstains with.
+	unbound string
 }
 
 // ExampleJoin joins each receipt example to its verdict at the revision (TSA-V0-410..416) and
@@ -420,7 +428,13 @@ func (j *joiner) js(receipt jstestprovider.Receipt) ([]joined, error) {
 			Source: ExampleJoinSource{Revision: j.commit, Files: []ExampleJoinFile{}}}}
 		if test.Anchor != nil {
 			row.record.File, row.record.Line = filepath.ToSlash(test.Anchor.File), test.Anchor.Line
-			if key, ok := anchorKey(receipt.Identity.TestFileDigests, test.Anchor.File); ok && relative[key] != "" {
+			key, unbound := anchorKey(receipt.Identity.TestFileDigests, relative, test.Anchor.File)
+			switch {
+			case unbound != "":
+				row.unbound = unbound
+			case relative[key] == "":
+				row.unbound = joinReasonFileOutsideRepository
+			default:
 				project := ""
 				if test.Project != nil {
 					project = test.Project.Name
@@ -437,6 +451,9 @@ func (j *joiner) js(receipt jstestprovider.Receipt) ([]joined, error) {
 	for index := range rows {
 		record := &rows[index].record
 		switch {
+		case rows[index].unbound != "":
+			abstain(record, rows[index].unbound)
+			continue
 		case record.Example == "":
 			abstain(record, joinReasonIdentityUnbound)
 			continue
@@ -490,17 +507,31 @@ func (j *joiner) underRoot(key string) (string, bool) {
 	return "", false
 }
 
-// anchorKey is the one digest key that equals, or ends with "/" plus, the anchor file.
-func anchorKey(digests map[string]string, file string) (string, bool) {
+// anchorKey is the one digest key that equals, or ends with "/" plus, the anchor file. When
+// several keys match, the one whose repository-relative path (relative) is the anchor file itself
+// wins; otherwise the anchor is ambiguous and the reason names it (V1-2085). No match returns
+// "" and no reason, which leaves the identity unbound.
+func anchorKey(digests, relative map[string]string, file string) (string, string) {
 	file = filepath.ToSlash(file)
-	match, count := "", 0
+	match, count, exact, exacts := "", 0, "", 0
 	for key := range digests {
 		slashed := filepath.ToSlash(key)
 		if slashed == file || strings.HasSuffix(slashed, "/"+file) {
 			match, count = key, count+1
+			if relative[key] == file {
+				exact, exacts = key, exacts+1
+			}
 		}
 	}
-	return match, count == 1
+	switch {
+	case count == 0:
+		return "", joinReasonIdentityUnbound
+	case count == 1:
+		return match, ""
+	case exacts == 1:
+		return exact, ""
+	}
+	return "", joinReasonFileAmbiguous
 }
 
 // placeExample is the example declared at line, else the innermost example whose lines hold it.
