@@ -754,6 +754,8 @@ func Plan(ctx context.Context, maps []*Map, steps []string, o PlanOptions) ([]by
 	for _, ps := range plan {
 		pf := ps.res.flow
 		if pf == nil {
+			// A step that resolves to no app may have moved any session's page (V1-0973).
+			clear(current)
 			continue
 		}
 		app := pf.m.App

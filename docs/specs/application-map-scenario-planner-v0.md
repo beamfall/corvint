@@ -116,7 +116,8 @@ Every requirement below is (accepted by decision 0446; V1-0959).
     previous MAPPED step ended on, and `goto` otherwise.
   - A later action is `in-screen` when it stays on the previous action's screen, and `follow`
     otherwise.
-  - A step that is not MAPPED resets its session's position to unknown.
+  - A step that is not MAPPED resets its session's position to unknown; a step that resolves
+    to no application resets every session's position (V1-0973).
 
   Each route parameter of a `goto` screen MUST be consumed from an existing handoff, or from a
   new `setup` handoff. Each parameter first reached by a `follow` action MUST be produced by
@@ -285,7 +286,7 @@ passes no overlay. This slice implements no ledger or run.
 | AMSP-V0-003 | `TestAMSPV0005StaleAndUnknownFreshness` |
 | AMSP-V0-004 | `TestAMSPV0002MultiStepPlanOnFixture` |
 | AMSP-V0-005 | `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0005StaleAndUnknownFreshness` |
-| AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0006HandoffStaysInItsApp` |
+| AMSP-V0-006 | `TestAMSPV0002MultiStepPlanOnFixture`, `TestAMSPV0005UnmappedStepsFailClosed`, `TestAMSPV0006HandoffStaysInItsApp`, `TestAMSPV0006StepWithNoAppForgetsPosition` |
 | AMSP-V0-007 | `TestAMSPV0007VerificationSeam`, `TestAMSPV0007ReceiptVerificationOverlay`, `TestAMSPV0010PlanReceiptVerificationCLI`, `TestAMSPV0007UnverifiedSelectorBlocksRunVerified`, `TestAMSPV0007CollidingElementIDsStayUnverified`, `TestAMSPV0007FactCapOverflowDoesNotPromote` |
 | AMSP-V0-008 | `TestAMSPV0008DraftSkeleton`, `TestAMSPV0008URLHelpersEscape`, `TestAMSPV0008MethodWithArgumentsNotCalled`, `TestAMSPV0008DefaultExportNotNamedImport`, `TestAMSPV0008StaleImportEvidenceNotTrusted`, `TestAMSPV0008DraftLinesStayOneLine`, `TestAMSPV0008NonIdentifierMethodNameNotCalled` |
 | AMSP-V0-009 | `TestAMSPV0009BudgetRefusesNotTruncates`, `TestAMSPV0002MultiStepPlanOnFixture` |

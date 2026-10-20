@@ -249,6 +249,20 @@ func TestAMSPV0005UnmappedStepsFailClosed(t *testing.T) {
 	}
 }
 
+// AMSP-V0-006, V1-0973: a step that resolves to no app leaves every session's page unknown, so
+// the next step navigates with goto rather than staying where the step before the gap left it.
+func TestAMSPV0006StepWithNoAppForgetsPosition(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	o := PlanOptions{Options: Options{Root: root, Revision: rev}}
+	st := planSteps(t, planOf(t, maps, SplitRequest("book a tee time; delete the club; check the slot status"), o))
+	if st[1]["status"] != StepUnmapped || st[2]["status"] != StepMapped {
+		t.Fatalf("statuses = %v %v", st[1]["status"], st[2]["status"])
+	}
+	if a := actions(st[2]); a[0]["navigation"] != "goto" {
+		t.Fatalf("step after a step with no app navigated %v, want goto", a[0]["navigation"])
+	}
+}
+
 // AMSP-V0-005: anchors changed after the map was built make the step STALE with a rebuild
 // exploration; a git failure makes it UNKNOWN. Neither is reported as mapped.
 func TestAMSPV0005StaleAndUnknownFreshness(t *testing.T) {
