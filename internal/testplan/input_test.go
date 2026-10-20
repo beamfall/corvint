@@ -114,7 +114,7 @@ func TestInputOrderDoesNotChangeOutput(t *testing.T) {
 		variation("V2", set("changes", []any{"a=2", "c=3"}), set("witnesses", []any{
 			map[string]any{"test_id": "t2", "basis": "declared"}, map[string]any{"test_id": "t1", "project": "chromium", "basis": "reviewed"},
 			map[string]any{"test_id": "t1", "project": "chromium", "basis": "declared"}})),
-		variation("V3", set("requires", []any{"c=0"}), set("user", "member")),
+		variation("V3", set("requires", []any{"c=0"}), set("user", "member"), set("step_facts", []any{"s=2", "r=1"})),
 		variation("V4", set("destructive", true)),
 		variation("V5", drop("screen")),
 		variation("V6", set("requires", []any{"a=1", "b=2"}), set("assertion", []any{"element:x", "element:y", "element:z"}), set("action", []any{"element:V1.act"})),

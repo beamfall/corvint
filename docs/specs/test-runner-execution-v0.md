@@ -1424,3 +1424,35 @@ entry is removed, and the Vintage runner-leaf refusal is removed. This section i
 them. Swift Testing selectors would then select nothing again on SwiftPM 6.4. pgTAP timeouts
 would again leave server sessions running, and a filtered Robolectric runner would again be a
 pass.
+
+## Command-line help and listing admission (experimental)
+
+Issue beamfall/corvint#1327 (V1-2095): `corvint-test-runner --help` and an unknown verb such as
+`profiles` reached the executable identity check and were refused with exit 1, so an operator
+could not read usage without first pinning an executable. The pin protects execution, not help.
+
+- `TRE-V0-078`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095)
+  `--help`, `-h`, `-help` or `help` as the command, and `--help`, `-h` or `-help` after any
+  command, MUST print usage to stdout and exit 0 without `--executable` or
+  `--executable-sha256`. Per-command help for `plan` and `run` MUST list that command's flags.
+  Help MUST NOT read a request or plan, derive a plan or execute anything.
+- `TRE-V0-079`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The
+  read-only listing verbs `runners` and `profiles` MUST need no executable pin. `profiles` is an
+  alias of `runners` and emits the identical runner profile ID JSON. An unknown command MUST be
+  refused as unknown, with usage on stderr and exit 2, before any identity check.
+- `TRE-V0-080`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The
+  executing verbs `plan` and `run` MUST still refuse without both independent pins, exit 1, and
+  the refusal MUST name each missing flag (`--executable`, `--executable-sha256`).
+
+Failure modes: a help flag given as another flag's value (`--request --help`) is treated as a
+help request, which only prints usage; it never weakens execution admission. Help is detected
+before the repeated-flag check, so a repeated `--help` still prints usage.
+
+Rollback: revert the command dispatch in `cmd/corvint-test-runner/main.go`; plan and receipt
+documents, profiles and identities are unchanged.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-078 | `cmd/corvint-test-runner/main.go` `command`, `usage`; `TestHelpNeedsNoExecutablePin` | `go test ./cmd/corvint-test-runner`; built binary `--help` printed usage, exit 0 |
+| TRE-V0-079 | `command` listing dispatch; `TestListingVerbsNeedNoExecutablePin` | built binary `profiles` printed the runner ID JSON, exit 0 |
+| TRE-V0-080 | `missingIdentity`; `TestExecutingVerbsNameMissingPinFlags` | built binary `plan` refused naming both flags, exit 1 |

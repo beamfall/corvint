@@ -2420,6 +2420,7 @@ FPK-V0-025	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-04 for AT-06 by
 FPK-V0-026	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS	owner	2026-09-04; decision 0052
 FPK-V0-027	docs/specs/falsifiable-packet-v0.md	`proof.claims` MUST be present in every output that carries `proof`, keyed by al	unrecorded	-
 FPK-V0-028	docs/specs/falsifiable-packet-v0.md	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a	unrecorded	-
+FPK-V0-057	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20 for GitHub #1321, accepted under the owner's	owner	2026-10-20; #1321
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
@@ -4344,6 +4345,9 @@ TCN-V0-009	docs/specs/test-consolidation-planner-v0.md	`--format json` MUST prin
 TCN-V0-010	docs/specs/test-consolidation-planner-v0.md	`--format table` MUST print exactly: one header line `<!-- corvint	unrecorded	-
 TCN-V0-011	docs/specs/test-consolidation-planner-v0.md	`corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]	unrecorded	-
 TCN-V0-012	docs/specs/test-consolidation-planner-v0.md	When the owner accepts an MCP surface, it MUST be the read-only, idempotent,	unrecorded	-
+TCN-V0-013	docs/specs/test-consolidation-planner-v0.md	The TCN-V0-002 variation object MUST additionally admit the optional member	unrecorded	-
+TCN-V0-014	docs/specs/test-consolidation-planner-v0.md	A variation naming one fact key in both `requires` and `step_facts`, whatever th	unrecorded	-
+TCN-V0-015	docs/specs/test-consolidation-planner-v0.md	Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variation	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-
@@ -4397,6 +4401,9 @@ TRE-V0-063	docs/specs/test-runner-execution-v0.md	(accepted under the owner's st
 TRE-V0-075	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
 TRE-V0-076	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
 TRE-V0-077	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
+TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095)	standing	2026-10-11; V1-2095
+TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
+TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587

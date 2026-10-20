@@ -242,7 +242,7 @@
     "path": "docs/specs/test-consolidation-planner-v0.md",
     "title": "Test Consolidation Planner V0",
     "reqPrefix": "TCN-V0",
-    "intent": "accepted (decision 0457; V1-1023)",
+    "intent": "accepted (decision 0457; V1-1023); TCN-V0-013..015 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320)",
     "delivery": "experimental",
     "claim": "A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.",
     "dependsOn": [
