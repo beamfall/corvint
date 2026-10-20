@@ -30,18 +30,37 @@ func main() {
 }
 func command(ctx context.Context, args []string, out, errout io.Writer) int {
 	if len(args) == 0 {
-		fmt.Fprintln(errout, "experimental runner companion: runners | plan | run")
+		fmt.Fprintln(errout, usage)
 		return 2
 	}
-	if args[0] == "runners" {
+	switch args[0] {
+	case "-h", "-help", "--help", "help":
+		// TRE-V0-078: help needs no executable pin.
+		fmt.Fprintln(out, usage)
+		return 0
+	case "runners", "profiles":
+		// TRE-V0-079: read-only listings need no executable pin.
+		if len(args) == 2 && isHelp(args[1]) {
+			fmt.Fprintf(out, "usage: corvint-test-runner %s\n\nLists the runner profile IDs as JSON. No executable pin is needed.\n", args[0])
+			return 0
+		}
 		if len(args) != 1 {
+			fmt.Fprintln(errout, usage)
 			return 2
 		}
 		json.NewEncoder(out).Encode(registry.Runners())
 		return 0
+	case "plan", "run":
+	default:
+		fmt.Fprintf(errout, "unknown command %q\n%s\n", args[0], usage)
+		return 2
 	}
 	f := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	f.SetOutput(errout)
+	f.Usage = func() {
+		fmt.Fprintf(f.Output(), "usage: corvint-test-runner %s [flags]\n\nflags:\n", args[0])
+		f.PrintDefaults()
+	}
 	request := f.String("request", "", "bounded request JSON")
 	planPath := f.String("plan", "", "previously reviewed plan JSON")
 	executable := f.String("executable", "", "independently trusted absolute executable")
@@ -51,6 +70,14 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 	output := f.String("out", "", "NEW output JSON file; default stdout")
 	experimental := f.Bool("experimental", false, "admit experimental execution")
 	trusted := f.Bool("trusted-local", false, "admit execution of trusted local tests")
+	for _, a := range args[1:] {
+		if isHelp(a) {
+			// TRE-V0-078: per-command help prints to stdout and exits 0.
+			f.SetOutput(out)
+			f.Usage()
+			return 0
+		}
+	}
 	seen := map[string]bool{}
 	for _, a := range args[1:] {
 		if strings.HasPrefix(a, "-") {
@@ -66,8 +93,8 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		return 2
 	}
 	fail := func(e error) int { fmt.Fprintln(errout, "runner refused:", e); return 1 }
-	if *executable == "" || *sha == "" {
-		return fail(fmt.Errorf("independent executable identity required"))
+	if e := missingIdentity(*executable, *sha); e != nil {
+		return fail(e)
 	}
 	var trustedTools map[string]tr.Tool
 	if *toolsPath != "" {
@@ -171,6 +198,34 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 	default:
 		return fail(fmt.Errorf("unknown command"))
 	}
+}
+
+const usage = `usage: corvint-test-runner <command> [flags] (experimental runner companion)
+
+commands:
+  runners    list runner profile IDs as JSON (no executable pin)
+  profiles   alias of runners (no executable pin)
+  plan       derive a plan; requires --executable and --executable-sha256
+  run        execute an approved plan; requires --executable and --executable-sha256
+
+Run "corvint-test-runner <command> --help" for its flags.`
+
+func isHelp(a string) bool { return a == "-h" || a == "-help" || a == "--help" }
+
+// missingIdentity names every absent independent executable pin flag
+// (TRE-V0-080), so the refusal says exactly what the operator must supply.
+func missingIdentity(executable, sha string) error {
+	var missing []string
+	if executable == "" {
+		missing = append(missing, "--executable")
+	}
+	if sha == "" {
+		missing = append(missing, "--executable-sha256")
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return fmt.Errorf("independent executable identity required: missing %s", strings.Join(missing, " and "))
 }
 
 // admittedInvocation rebuilds the fixed profile and requires the plan to match

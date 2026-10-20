@@ -4388,6 +4388,9 @@ TRE-V0-063	docs/specs/test-runner-execution-v0.md	(accepted under the owner's st
 TRE-V0-075	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) For `swift-testing`, each selector MUST remain the	unrecorded	-
 TRE-V0-076	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) `sql-pgtap` MUST start psql with	unrecorded	-
 TRE-V0-077	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) A JUnit Vintage leaf whose unique ID ends in a	unrecorded	-
+TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095)	standing	2026-10-11; V1-2095
+TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
+TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
