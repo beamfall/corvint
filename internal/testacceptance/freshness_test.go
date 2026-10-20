@@ -7,6 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testvalidity"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -39,16 +40,26 @@ func TestPTFV0EarlyStaleWithoutRow(t *testing.T) {
 // The live tests separately retain real N2 and standalone CLI witnesses.
 func parentNativeFixture(t *testing.T) (Request, jstestprovider.Receipt) {
 	t.Helper()
+	request, native := parentNativeTupleFixture("1.63.0", "v22.23.3", "1243", "153.0.8010.12", "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282")
+	if !freshRequestBinding(native, request) || jstestprovider.FreshnessCurrency(native, native.Tests[0]) != testvalidity.FreshnessCurrent {
+		t.Fatal("synthetic baseline must satisfy the existing native contract")
+	}
+	return request, native
+}
+
+// parentNativeTupleFixture builds the synthetic native receipt and request on
+// one exact runner, Node and bundled headless-shell identity.
+func parentNativeTupleFixture(runner, node, revision, browserVersion, browserSHA256 string) (Request, jstestprovider.Receipt) {
 	rawHash := func(s string) string { return strings.TrimPrefix(Hash([]byte(s)), "sha256:") }
 	repo := jstestprovider.ApplicationRepositoryIdentity{RootCommit: strings.Repeat("1", 40), Revision: strings.Repeat("2", 40), Tree: strings.Repeat("3", 40), DirtyState: "clean"}
 	source := []byte("<button>one</button>")
 	cmd := jstestprovider.FreshCommandIdentity{Argv: []string{"/node", "/entry.cjs"}, ExecutableDigest: rawHash("node"), EntrypointDigest: rawHash("entry")}
 	binding := jstestprovider.FreshCommandBinding{Expected: cmd, Before: &cmd, After: &cmd}
 	env := map[string]string{"PATH": "/bin", "LANG": "C", "LC_ALL": "C", "TMPDIR": "/tmp"}
-	identity := jstestprovider.Identity{RunnerName: "playwright", NodeVersion: "v22.23.3", RunnerVersion: "1.63.0", ConfigFile: "/repo/config.cjs", ConfigDigest: rawHash("config"), TestFileDigests: map[string]string{"/repo/test.cjs": rawHash("test")}, Argv: cmd.Argv, Environment: env}
+	identity := jstestprovider.Identity{RunnerName: "playwright", NodeVersion: node, RunnerVersion: runner, ConfigFile: "/repo/config.cjs", ConfigDigest: rawHash("config"), TestFileDigests: map[string]string{"/repo/test.cjs": rawHash("test")}, Argv: cmd.Argv, Environment: env}
 	identity.ConfigInputDigests = map[string]string{identity.ConfigFile: identity.ConfigDigest}
 	identity.PackageDigest = rawHash("/repo/package.json=" + rawHash("package") + "\n/repo/package-lock.json=" + rawHash("lock") + "\n")
-	use := json.RawMessage(`{"baseURL":"http://127.0.0.1:4394/","browserName":"chromium","channel":"","headless":true,"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.3","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/cache/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
+	use := json.RawMessage(fmt.Sprintf(`{"baseURL":"http://127.0.0.1:4394/","browserName":"chromium","channel":"","headless":true,"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":%[1]q,"browserType":"chromium","browserVersion":"Google Chrome for Testing %[2]s","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/cache/chromium_headless_shell-%[3]s/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":%[4]q,"browserRevision":%[3]q,"manifestBrowserVersion":%[2]q,"headlessShellAvailable":true}}`, node, browserVersion, revision, browserSHA256))
 	row := jstestprovider.TestOutcome{Name: "counter one", FullName: "chromium > counter one", State: jstestprovider.StatePassed, Anchor: &jstestprovider.Anchor{File: "/repo/test.cjs", Line: 1}, Project: &jstestprovider.ProjectIdentity{Name: "chromium", Browser: "chromium", Device: "unknown", Use: use, ConfigDigest: identity.ConfigDigest}, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed, FailureKind: "none"}}}
 	manifest := &jstestprovider.FreshDependencyManifest{Roots: []string{"/cache/node_modules/playwright"}, Files: map[string]string{"/cache/node_modules/playwright/lib/impl.js": rawHash("implementation"), "/entry.cjs": cmd.EntrypointDigest, row.Anchor.File: rawHash("test"), identity.ConfigFile: identity.ConfigDigest}}
 	deps := &jstestprovider.FreshDependencyObservation{Files: manifest.Files, Failures: []string{}}
@@ -72,9 +83,6 @@ func parentNativeFixture(t *testing.T) (Request, jstestprovider.Receipt) {
 	refreshParentAttestation(&observation)
 	native := jstestprovider.Receipt{Profile: jstestprovider.FreshnessProfile, Kind: "e2e", Identity: identity, Tests: []jstestprovider.TestOutcome{row}, TestRepositoryAtStart: &repo, TestRepositoryAtPublish: &repo, External: &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ReadyAtStart: true, ReadyAtPublish: true, RunnerDescendantsGone: true, InputsUnchanged: true, ReadyURL: served.URL, ConfigOverride: "synthetic-unit"}, Freshness: fresh, DescendantObservation: absent, ApplicationAttestation: &jstestprovider.ApplicationAttestationReceipt{Provider: provider, Expectation: expectation, Before: &observation, After: &observation}}
 	request := Request{Schema: FreshRequestSchema, Repeat: 2, Tests: []Test{{ID: "counter", File: row.Anchor.File, Line: 1, Title: row.Name, Project: row.Project.Name}}, Config: identity.ConfigFile, Package: "/repo/package.json", Lockfile: "/repo/package-lock.json", RunnerVersion: identity.RunnerVersion, Inputs: []File{{identity.ConfigFile, "sha256:" + identity.ConfigDigest}, {row.Anchor.File, "sha256:" + rawHash("test")}, {"/repo/package.json", "sha256:" + rawHash("package")}, {"/repo/package-lock.json", "sha256:" + rawHash("lock")}}, Freshness: &FreshnessOptions{Provider: jstestprovider.FreshnessConfig{ProductExpected: repo, TestExpected: repo, ArtifactPath: fresh.ArtifactPath, SourceDigest: fresh.SourceDigest, DocumentURL: fresh.DocumentURL, Runner: cmd, Server: cmd, Observer: cmd, ObserverConfigDigest: fresh.ObserverConfigBefore, Dependencies: manifest, DependencyDigest: fresh.DependencyDigest}, Attestation: Command{Argv: provider.Argv, ExecutableSHA256: "sha256:" + provider.ExecutableDigest}, AttestationConfiguration: File{provider.ConfigPath, "sha256:" + provider.ConfigDigest}}}
-	if !freshRequestBinding(native, request) || jstestprovider.FreshnessCurrency(native, row) != testvalidity.FreshnessCurrent {
-		t.Fatal("synthetic baseline must satisfy the existing native contract")
-	}
 	return request, native
 }
 
@@ -515,4 +523,44 @@ func TestPTFV0ParentBodyBinding(t *testing.T) {
 			t.Fatal("duplicate row qualified")
 		}
 	})
+}
+
+// PWP-V0-053: freshness acceptance reads its admitted runners from the shared
+// runtime tuple table, so a 1.64.0 request is admitted and its 1.64.0 / Node
+// v22.23.2 receipt projects exactly like the 1.63.0 baseline, while a runner
+// or Node release outside the table stays refused or unqualified.
+func TestPWPV0053FreshnessAcceptanceAdmitsTableRunner(t *testing.T) {
+	for runner, want := range map[string]bool{"1.63.0": true, "1.64.0": true, "1.60.0": false, "1.65.0": false, "": false} {
+		if freshnessRunnerAdmitted(runner) != want {
+			t.Fatalf("freshness runner %q admitted=%v, want %v", runner, !want, want)
+		}
+	}
+	request, native := parentNativeTupleFixture("1.64.0", "v22.23.2", "1248", "156.0.8078.4", "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634")
+	c, root := &request.Freshness.Provider, t.TempDir()
+	request.Product = Repository{Root: root, Commit: c.ProductExpected.Revision, Tree: c.ProductExpected.Tree}
+	request.TestRepository = Repository{Root: root, Commit: c.TestExpected.Revision, Tree: c.TestExpected.Tree}
+	c.ProductDir = root
+	request.Runner = Command{Argv: c.Runner.Argv, ExecutableSHA256: "sha256:" + c.Runner.ExecutableDigest, EntrypointSHA256: "sha256:" + c.Runner.EntrypointDigest}
+	request.Server = Command{Argv: c.Server.Argv, ExecutableSHA256: "sha256:" + c.Server.ExecutableDigest, EntrypointSHA256: "sha256:" + c.Server.EntrypointDigest}
+	request.ReadyURL = c.DocumentURL
+	for runner, refused := range map[string]bool{"1.64.0": false, "1.63.0": false, "1.65.0": true} {
+		request.RunnerVersion = runner
+		err := validateFreshnessOptions(request)
+		if got := err != nil && err.Error() == "freshness-request-binding-invalid"; got != refused {
+			t.Fatalf("runner %s request binding refused=%v (%v), want %v", runner, got, err, refused)
+		}
+	}
+	request.RunnerVersion = "1.64.0"
+	if !freshRequestBinding(native, request) || jstestprovider.FreshnessCurrency(native, native.Tests[0]) != testvalidity.FreshnessCurrent {
+		t.Fatal("1.64.0 / v22.23.2 receipt does not bind the request")
+	}
+	_, baseline := parentNativeFixture(t)
+	got, want := jstestprovider.ReceiptTestProjection(native, native.Tests[0]), jstestprovider.ReceiptTestProjection(baseline, baseline.Tests[0])
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("1.64.0 / v22.23.2 projection %+v, want the 1.63.0 baseline %+v", got, want)
+	}
+	_, other := parentNativeTupleFixture("1.64.0", "v24.11.1", "1248", "156.0.8078.4", "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634")
+	if p := jstestprovider.ReceiptTestProjection(other, other.Tests[0]); p.Execution.State == want.Execution.State {
+		t.Fatalf("1.64.0 / v24.11.1 freshness projected like an admitted tuple: %+v", p)
+	}
 }

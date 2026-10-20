@@ -120,6 +120,9 @@ run: Darwin arm64, official Node v22.23.2, Playwright 1.64.0, bundled headless-s
 manifest 156.0.8078.4, executable SHA-256
 `77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`. No other Node v22.23.2 or
 v24.11.1 freshness tuple gains support. Reporter-specific actual tuple evidence is still required.
+Parent acceptance reads its admitted runner versions from the same table (`PWP-V0-053`), so a
+1.64.0 request is no longer refused on a copied 1.63.0 literal; the run's Node release and browser
+source are still decided by the provider's receipt predicate.
 The launcher binds PATH/LANG/LC_ALL/TMPDIR; optional OS-derived ambient fields do not silently become
 selection authority or imply whole-environment coverage. Legacy authenticated-operator,
 authenticated-hook and independent-process-and-artifact-observation unsupported claims remain

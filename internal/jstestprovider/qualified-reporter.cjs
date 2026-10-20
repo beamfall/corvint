@@ -22,6 +22,11 @@ const qualifiedBundledBrowsers = {
 };
 // PWP-V0-008, PWP-V0-037: each runner version's own configured system-Chrome version.
 const qualifiedSystemBrowsers = {'1.63.0': 'Google Chrome 153.0.8010.48', '1.64.0': 'Google Chrome 155.0.8059.85'};
+// PWP-V0-054: the external Node pre-filter, per runner and browser source, is a
+// copy of the shared Go table's external-profile rows; a Go test fails on drift.
+// These two declarations are the reporter's only Node release literals.
+const externalBundledNodes = {'1.63.0': ['v22.23.2', 'v24.11.1'], '1.64.0': ['v22.23.2', 'v24.11.1']};
+const externalSystemNodes = {'1.63.0': ['v22.23.2'], '1.64.0': ['v22.23.2']};
 const bundledBrowsers = new Map();
 const observedVersions = new Map();
 const redactionMarker = '[REDACTED]';
@@ -327,14 +332,14 @@ function bundledBrowserIdentity(headless) {
   return browser;
 }
 
-// PWP-V0-009: v24.11.1 is admitted for the 1.63.0 bundled headless shell;
-// 1.64.0 ran live on v22.23.2 (PWP-V0-033) and v24.11.1 (PWP-V0-036). The Go
-// predicate stays the authority for which profile may project it as passing.
+// PWP-V0-009, PWP-V0-033, PWP-V0-036: the external pre-filter admits a runner's
+// bundled Node releases from externalBundledNodes. The Go predicate stays the
+// authority for which profile may project it as passing.
 // PWP-V0-052: the freshness (runner, Node) rows are not repeated here; the
 // provider passes them from its one shared table as freshnessTuples.
 function qualifiedBundledIdentity(browser, version, freshnessProfile = false, freshnessTuples = []) {
   const qualified = Object.hasOwn(qualifiedBundledBrowsers, version) ? qualifiedBundledBrowsers[version] : null;
-  const nodes = ['v22.23.2', 'v24.11.1'];
+  const nodes = Object.hasOwn(externalBundledNodes, version) ? externalBundledNodes[version] : [];
   return qualified && browser && browser.platform === 'darwin' && browser.arch === 'arm64' && (freshnessProfile ? freshnessTuples.some(row => row[0] === version && row[1] === browser.nodeVersion) : nodes.includes(browser.nodeVersion)) &&
     browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
     browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
@@ -388,7 +393,7 @@ function effectiveUse(test, project, version, freshnessProfile = false, freshnes
     const headlessShell = bundledMatch ? path.join(bundledMatch[1], `chromium_headless_shell-${bundledMatch[2]}`, 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell') : '';
     resolved.channel = resolved.channel || '';
     resolved.corvintBrowser = executablePath ? {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: executableVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)} : bundledBrowserIdentity(resolved.headless);
-    const systemQualified = Object.hasOwn(qualifiedSystemBrowsers, version) && resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === qualifiedSystemBrowsers[version] && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true && (version !== '1.64.0' || resolved.headless === true);
+    const systemQualified = Object.hasOwn(qualifiedSystemBrowsers, version) && resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && Object.hasOwn(externalSystemNodes, version) && externalSystemNodes[version].includes(resolved.corvintBrowser?.nodeVersion) && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === qualifiedSystemBrowsers[version] && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true && (version !== '1.64.0' || resolved.headless === true);
     if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!(systemQualified && !freshnessProfile) && !qualifiedBundledIdentity(resolved.corvintBrowser, version, freshnessProfile, freshnessTuples))) return null;
   } else {
     delete resolved.headless;
