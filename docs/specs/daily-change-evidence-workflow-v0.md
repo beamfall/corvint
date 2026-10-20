@@ -944,10 +944,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   dogfood wrappers (`script/dogfood-change.sh`, `script/dogfood-check.sh`,
   `script/dogfood-finish.sh`, `script/dogfood-batch-check.sh`) MUST build `./cmd/corvint` through
   `script/dogfood-build-corvint.sh`, every build with `-trimpath` and `-buildvcs=false` (appended to
-  the caller's `GOFLAGS` for that build only), and MAY reuse an earlier build recorded under the
+  the `go env GOFLAGS` value, including persisted `go env -w` flags, for that build only), and MAY reuse an earlier build recorded under the
   same input key instead of building. The key is the Git object ID of a text naming the scheme
   (`corvint-dogfood-bin/1`), the build arguments, `go env` `GOVERSION GOOS GOARCH CGO_ENABLED
-  GOFLAGS GOEXPERIMENT GOAMD64 GOARM64`, and the inputs: (a) for the base verifier, built from an
+  GOFLAGS GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM
+  GOFIPS140 CC CXX AR PKG_CONFIG CGO_CFLAGS CGO_CPPFLAGS CGO_CXXFLAGS CGO_FFLAGS CGO_LDFLAGS`, and
+  the inputs: (a) for the base verifier, built from an
   archive of the base commit, that commit's root tree, so a recorded base verifier is reused
   without extracting the archive; (b) for a current-tree build, `HEAD`'s object at `VERSION`, at
   the directory of every main-module package `go list -deps ./cmd/corvint` reports (each
@@ -962,8 +964,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `corvint` and `corvint.oid` (its Git blob ID), each written to a temporary file and renamed. A
   reuse copies the record to a temporary file beside the wrapper's executable, checks its blob ID
   against `corvint.oid` and renames it into place. Any failure to compute the key (a `go env` or
-  `go list` failure, a package outside the main module, a missing `go.mod` or input object, a dirty
-  input), to read or verify a record, or to store one MUST fall back to the plain build, whose
+  `go list` or `git status` failure, a package outside the main module, a missing `go.mod` or
+  input object, a dirty input, an active `go env GOWORK` file other than the current tree's own
+  `go.work`), to read or verify a record, or to store one MUST fall back to the plain build, whose
   failure keeps the `DCW-V0-022` refusal; reuse is never required for a wrapper to succeed.
   `CORVINT_BIN` selection, `DCW-V0-038` cache selection and `script/dogfood-bind-range.sh` are
   unchanged.

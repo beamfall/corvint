@@ -31,7 +31,20 @@ cat > "$root/bin/go" <<'EOF'
 #!/usr/bin/env bash
 set -eu
 case $1 in
-  env) printf '%s\nlinux\namd64\n0\n%s\n\n\n\n' "${TEST_GOVERSION:-go1.27.2}" "$GOFLAGS" ;;
+  env)
+    shift
+    for name in "$@"; do
+      case $name in
+        GOVERSION) printf '%s\n' "${TEST_GOVERSION:-go1.27.2}" ;;
+        GOOS) printf 'linux\n' ;;
+        GOARCH) printf 'amd64\n' ;;
+        CGO_ENABLED) printf '0\n' ;;
+        GOFLAGS) printf '%s\n' "${GOFLAGS-}" ;;
+        GOWORK) printf '%s\n' "${TEST_GOWORK-}" ;;
+        CC) printf '%s\n' "${TEST_CC-}" ;;
+        *) printf '\n' ;;
+      esac
+    done ;;
   list)
     [[ ${TEST_LIST_FAIL-} != 1 ]] || exit 1
     printf 'true example.invalid/corvint example.invalid/corvint/cmd/corvint\n'
@@ -48,7 +61,7 @@ EOF
 chmod +x "$root/bin/"* "$repo/script/"*.sh
 export TEST_FAKE_CORVINT="$root/bin/corvint" TEST_BUILD_LOG="$root/build.log" TEST_FLOW_LOG="$root/flow.log"
 export PATH="$root/bin:$PATH" CORVINT_DOGFOOD_BIN_CACHE="$root/bin-cache"
-unset CORVINT_BIN TEST_GOVERSION TEST_LIST_FAIL GOFLAGS
+unset CORVINT_BIN TEST_GOVERSION TEST_LIST_FAIL TEST_GOWORK TEST_CC GOFLAGS
 cd "$repo"
 
 # expect_builds ACTION COUNT CASE runs one wrapper and checks how many builds it ran.
@@ -112,6 +125,13 @@ rg -q '^# go1.27.2$' "$tree_bin" || exit 1
 printf 'more\n' >> docs/notes.md
 git -c user.name=test -c user.email=test@example.invalid commit -qam docs
 expect_builds change 0 'doc-only commit'
+
+# The C toolchain and its flags are key inputs.
+TEST_CC=clang expect_builds change 1 'new C compiler'
+TEST_CC=clang expect_builds change 0 'new C compiler again'
+# A workspace file outside the keyed objects leaves no key, so it always builds.
+TEST_GOWORK="$root/go.work" expect_builds change 1 'outside workspace'
+TEST_GOWORK="$root/go.work" expect_builds change 1 'outside workspace again'
 
 # Any failure to compute or verify the key falls back to a build.
 TEST_LIST_FAIL=1 expect_builds change 1 'key unavailable'

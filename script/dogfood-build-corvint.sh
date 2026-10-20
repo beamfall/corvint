@@ -7,7 +7,9 @@
 # so its bytes depend on those inputs alone. Any failure while computing, reading or storing a key
 # falls back to the plain build: a reuse is never required for the wrapper to succeed.
 dogfood_bin_cache=${CORVINT_DOGFOOD_BIN_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-dogfood-bin}
-dogfood_goflags="${GOFLAGS:+$GOFLAGS }-buildvcs=false"
+# GOFLAGS comes from `go env`, so flags persisted with `go env -w` are kept like a plain build.
+dogfood_goflags=$(GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null) || dogfood_goflags=
+dogfood_goflags="${dogfood_goflags:+$dogfood_goflags }-buildvcs=false"
 
 dogfood_go() {
   GOCACHE="$go_cache" GOTOOLCHAIN=local GOFLAGS="$dogfood_goflags" go "$@"
@@ -20,9 +22,13 @@ dogfood_go() {
 # the key names REV's objects at those paths and fails unless the paths are clean in SOURCE,
 # counting staged, untracked and ignored files.
 dogfood_corvint_key() {
-  local rev=$1 source=${2-} environment listing line paths=() objects optional
+  local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace
   environment=$(cd "${source:-$repo}" && dogfood_go env GOVERSION GOOS GOARCH CGO_ENABLED GOFLAGS \
-    GOEXPERIMENT GOAMD64 GOARM64 2> /dev/null) || return 1
+    GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM GOFIPS140 \
+    CC CXX AR PKG_CONFIG CGO_CFLAGS CGO_CPPFLAGS CGO_CXXFLAGS CGO_FFLAGS CGO_LDFLAGS 2> /dev/null) || return 1
+  # A workspace file outside the keyed objects (an ancestor go.work or GOWORK) leaves no key.
+  workspace=$(cd "${source:-$repo}" && dogfood_go env GOWORK 2> /dev/null) || return 1
+  [[ -z $workspace || $workspace == off || ( -n $source && $workspace == "$source/go.work" ) ]] || return 1
   if [[ -z $source ]]; then
     objects=$(git -C "$repo" rev-parse --verify -q "$rev^{tree}") || return 1
   else
@@ -40,8 +46,9 @@ dogfood_corvint_key() {
     objects=$(git -C "$source" rev-parse "${paths[@]/#/$rev:}" 2> /dev/null) || return 1
     optional=$(git -C "$source" ls-tree "$rev" -- go.mod go.sum go.work vendor) || return 1
     [[ $optional == *$'\tgo.mod'* ]] || return 1
-    [[ -z $(git -C "$source" status --porcelain --ignored --untracked-files=all -- \
-      "${paths[@]}" go.mod go.sum go.work vendor) ]] || return 1
+    status=$(git -C "$source" status --porcelain --ignored --untracked-files=all -- \
+      "${paths[@]}" go.mod go.sum go.work vendor) || return 1
+    [[ -z $status ]] || return 1
     objects+=$'\n'"$optional"$'\n'"${paths[*]}"
   fi
   printf 'corvint-dogfood-bin/1\nbuild -trimpath ./cmd/corvint\n%s\n%s\n' "$environment" "$objects" |
