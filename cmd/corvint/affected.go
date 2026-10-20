@@ -39,6 +39,7 @@ const (
 // may copy into a Go live-test provider bundle (AFP-V0-004).
 type affectedReceipt struct {
 	Snapshot map[string]any   `json:"snapshot,omitempty"`
+	PathList []string         `json:"path_list,omitempty"`
 	Advice   affectedAdvice   `json:"advice"`
 	Mutates  bool             `json:"mutates"`
 	OK       bool             `json:"ok"`
@@ -64,6 +65,7 @@ type affectedRange struct {
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
 	Snapshot  string
+	PathList  []string // `--path` set planned at a clean HEAD (AFP-V0-094)
 	Root      string
 	Base      string
 	Providers []string
@@ -209,7 +211,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -253,6 +255,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		index++
 		var err error
 		switch name {
+		case "--path":
+			err = addAffectedPath(&invocation, value)
 		case "--snapshot":
 			if invocation.Snapshot != "" || value == "" {
 				err = argumentError("--snapshot requires exactly one nonempty value")
@@ -283,6 +287,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if len(invocation.PathList) != 0 && (invocation.Snapshot != "" || invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightConfig != "" || invocation.PlaywrightDiscovery != "" || len(invocation.AppmapImpacts) != 0) {
+		return affectedInvocation{}, argumentError("--path cannot be combined with --snapshot, --base, --provider, --playwright-config, --playwright-discovery or --appmap-impact")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -386,6 +393,23 @@ func addAffectedRepositoryBase(invocation *affectedInvocation, value string) err
 		invocation.RepositoryBases = map[string]string{}
 	}
 	invocation.RepositoryBases[id] = commit
+	return nil
+}
+
+// affectedMaxPathList bounds the `--path` set, as the planning snapshot bounds
+// its changed paths (AFP-V0-094).
+const affectedMaxPathList = 4096
+
+// addAffectedPath admits one canonical repository-relative `--path`; a
+// repeated path collapses, so the plan's dirty set stays sorted and unique.
+func addAffectedPath(invocation *affectedInvocation, value string) error {
+	if !affected.ValidRelativePath(value) {
+		return argumentError("--path must be a repository-relative canonical path, got " + pythonRepr(value))
+	}
+	invocation.PathList = affected.NormalizePaths(append(invocation.PathList, value))
+	if len(invocation.PathList) > affectedMaxPathList {
+		return argumentError(fmt.Sprintf("--path accepts at most %d paths", affectedMaxPathList))
+	}
 	return nil
 }
 
@@ -662,6 +686,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, len(dirty))
 	}
+	if len(invocation.PathList) != 0 && len(dirty) != 0 {
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, len(dirty))
+	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
 		return affectedReceipt{}, nil, err
@@ -684,6 +711,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
+	if len(invocation.PathList) != 0 {
+		changed = invocation.PathList
+	}
 	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, gitExecutable, root, invocation.Base, revision, changed))
 	plan := affected.Select(graph, changed)
 	provider := providerGoProjection(graph, plan)
@@ -704,6 +734,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		return affectedReceipt{}, nil, err
 	}
 	return affectedReceipt{
+		PathList: invocation.PathList,
 		Advice:   advice,
 		Mutates:  false,
 		OK:       true,

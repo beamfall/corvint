@@ -20,6 +20,7 @@ const affectedAdvisoryArguments = "provider.go.packages"
 // the affected-plan/0 receipt with plan replaced by its compact projection.
 type affectedCompactReceipt struct {
 	Snapshot map[string]any        `json:"snapshot,omitempty"`
+	PathList []string              `json:"path_list,omitempty"`
 	Advice   affectedCompactAdvice `json:"advice"`
 	Mutates  bool                  `json:"mutates"`
 	OK       bool                  `json:"ok"`
@@ -113,6 +114,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 	}
 	return affectedCompactReceipt{
 		Snapshot: full.Snapshot,
+		PathList: full.PathList,
 		Advice:   compactAffectedAdvice(full.Advice, full.Provider.Go.Packages),
 		Mutates:  full.Mutates,
 		OK:       full.OK,

@@ -1185,6 +1185,42 @@ and container qualification; full fallback remains available.
   the byte-identical receipt the command produces without the flag. The flag rejects a value or
   repetition, `--snapshot`, and `affected discovery`, each as `invalid-arguments`. It adds no
   repository, index or ledger write. Rollback: remove the flag and its refusal.
+- **AFP-V0-094:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  `affected` MUST accept the experimental repeatable `--path PATH` (as `--path PATH` or
+  `--path=PATH`, at most 4096 distinct paths) and plan exactly that changed-path set at the
+  captured HEAD instead of the worktree status set or a `--base` range. Each value MUST be a
+  canonical repository-relative path (`ValidRelativePath`), else `invalid-arguments`; a repeated
+  path collapses, and `plan.dirty` is the sorted unique set. A path absent at HEAD is planned as
+  a deleted or unindexed path under AFP-V0-004, never refused. The worktree status is still read
+  (AFP-V0-001): any entry, untracked included, MUST refuse with exit 2, code
+  `unsupported-affected-mixed-worktree`, a message naming the HEAD commit and dirty count, and
+  no stdout document, before the graph walk, because a dirty graph is not HEAD's. The receipt is
+  the `affected-plan/1` (or, with `--full`, `affected-plan/0`) document of the default form with
+  the same advice, provider projection, drift checks and `range` `{base: "", paths: []}`, plus
+  one optional top-level `path_list` member echoing the sorted set (CCF-V1-006: an added optional
+  member); every other form omits it and stays byte-identical. For one committed change its
+  `plan` MUST be byte-identical to the `--base` plan of that change over the same clean tree.
+  `--path` MUST NOT combine with `--snapshot`, `--base`, `--provider`, `--playwright-config`,
+  `--playwright-discovery` or `--appmap-impact` (`invalid-arguments`). Non-goals: no
+  Playwright, provider or snapshot path-list profile, no overlay of uncommitted bytes, no change
+  to `impact` output. Rollback: remove the flag, its refusal and the member.
+- **AFP-V0-095:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  A `--path` plan MUST use the same transitive reverse-dependency traversal as every other form
+  (`affected.Select`), so a test reached through an intermediate importer is selected with its
+  full witness chain even when the intermediate unit declares no test, and MUST keep the
+  existing scope vocabulary: `plan.scope` is `BOUNDED` only when no listed path raised a
+  widening reason, and an unowned, unindexed or frontier-bearing listed path leaves `UNKNOWN`
+  with its typed `plan.unknown` entry. No `--path` receipt states a selection as complete that
+  its graph did not close. Rollback: with AFP-V0-094.
+- **AFP-V0-096:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #1301)
+  The `impact` help MUST state that its reverse-import results stop at direct importers (one
+  hop; Ruby's advisory autoload rows reach two), that a test reached through an intermediate
+  importer is absent, that a `READY` impact receipt is evidence and not a closed test
+  selection, and that `affected --path` plans one; the `affected` help and
+  `docs/CAPABILITIES.md` MUST document `--path`. The `impact` receipt bytes are unchanged: they
+  are pinned by `conformance/cli-parity-v0/manifest.json` under CCF-V1-006, so a
+  machine-readable closure-depth member there remains a separate breaking-change decision.
+  Rollback: remove the sentences.
 - **AFP-V0-046:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A
   `merge_group` run of `.github/workflows/ci.yml` MAY reuse the passed pull-request run of the
   same tree instead of repeating the root Go race invocation, only when all of the following
@@ -1778,6 +1814,12 @@ Artifact listing failure forces FULL; threshold trips and a reviewer-confirmed `
 miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compatibility is
 `NOT_VERIFIED`, and net runner cost and ready-to-merge effects are `NOT_OBSERVED`.
 
+`--path` failure modes (AFP-V0-094/095): a non-canonical value or an unsupported combination is
+`invalid-arguments`; a dirty worktree is `unsupported-affected-mixed-worktree`, never a plan that
+mixes uncommitted bytes into HEAD's graph; a listed path no language claims widens to `UNKNOWN`
+rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure depth from an
+`impact` receipt; only the help says so (AFP-V0-096).
+
 ## Acceptance evidence and traceability
 
 | Requirement | Implementation | Evidence |
@@ -1827,6 +1869,9 @@ miss disable narrowing as AFP-V0-030 requires. Hosted auto-merge command compati
 | AFP-V0-043 | `run` strict per-log `observeStream` in `tools/ci-shard-costs/main.go` | `TestAFPV0043RefreshRefusesMalformedLine`, `TestAFPV0043RefreshRefusesTruncatedFinalEvent`, `TestAFPV0043RefreshRefusesUnfinishedPackage`, `TestAFPV0043RefreshRefusesEmptyShard`, `TestAFPV0043RefreshValidStreamByteParity` |
 | AFP-V0-044 | `affectedMixedWarning` in `cmd/corvint/affected_freshness.go`; `Warning` in `affectedReceipt`, `playwrightAffectedReceipt`, `affectedCompactReceipt` | `TestAffectedMixedRangeWarning` (warning on /1 and /0 with a dirty path outside the range; none for a clean worktree, the worktree-only form or a range inside the dirty set; no mutable content), `TestAffectedPlaywrightFreshness` (Playwright receipt warning; none clean or worktree-only) |
 | AFP-V0-045 | `RequireClean` parsing in `parseAffectedOptions`; `affectedMixedWorktreeRefusal` in `compileAffected` and `compilePlaywrightAffected` | `TestAffectedRequireClean` (clean byte parity; untracked entry refuses on the worktree, `--full --base` and provider forms before the provider runs, with no write; value, repetition, `--snapshot` and `discovery` refused), `TestAffectedPlaywrightFreshness` (Playwright clean byte parity and dirty refusal with no write) |
+| AFP-V0-094 | `addAffectedPath` and the `--path` combination check in `parseAffectedOptions`; `affectedPathListMixedRefusal` and the `PathList` branch in `compileAffectedGraph`; `path_list` in `affectedReceipt` and `affectedCompactReceipt` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (HEAD revision, empty range, no warning, `plan` byte-identical to the `--base` plan in compact and `--full`, repeated path collapses, no `path_list` without the flag), `TestAFPV0094PathListRefusals` (absolute, parent, empty and missing values; `--base`, `--snapshot`, `--provider`, `--playwright-config`; dirty worktree refuses with the HEAD commit and no write) |
+| AFP-V0-095 | `affected.Select` reached unchanged through `compileAffectedGraph` | `TestAFPV0094PathListSelectsTwoHopImportersAtHead` (leaf selected through an untested mid with witness core, mid, leaf), `TestAFPV0095PathListKeepsUnknownScope` (an unowned listed path keeps `UNKNOWN` with `UNOWNED_DIRTY_PATH`) |
+| AFP-V0-096 | `impactHelp` and `affectedHelp` in `cmd/corvint/help.go`; `docs/CAPABILITIES.md` `impact` and `affected` rows | `TestAFPV0096HelpStatesImpactClosureDepth` |
 | AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the record-step condition in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |
 | AFP-V0-047 | `CORVINT_TEST_SHADOW_SOURCE`, the shadow checkout and build, the selection document and the outcomes, rerun and upload steps in `.github/workflows/ci.yml`; the `forward-rows` job in `.github/workflows/ci-control-plane.yml`; `.github/forward-rows/` (`selection.jq`, `outcomes.sh`, `outcomes.jq`, `collect.sh`, `classify.sh`, `row.jq`, `bar.sh`, `bar.jq`) | `TestAFPV0047ShardOutcomes` (real flaky PR run 38476173623 shard 7 stream and its rerun; bound of 8), `TestAFPV0047SelectionDocument`, `TestAFPV0047CollectorNamesRows`, `TestAFPV0047BarCountsArtifactNames`, `TestAFPV0047WorkflowBindings`, `TestAFPV0029ForwardRowsAndShadowBar`, `TestSTRV0012CIConstantsMatchFullBranch`; `actionlint`; `make ci-least-privilege-check`; read-only replay against hosted runs in `docs/build-log/2026-10-13-ci-forward-rows.md`; hosted rows `NOT_OBSERVED` |
 | AFP-V0-048 | `planShards`, `shardLayout`, `shardUnits`, `sliceRun` and the slice loop of `execute` in `tools/corvint-pr-tests/main.go` | `TestAFPV0048DriverPlacesTheFullBranchUnits` (2 to 8 shards: each shard equals `PlanFrom`, every package or slice exactly once, narrowed selections with a split package), `TestAFPV0048ZeroSlicesKeepTheIntersect`, `TestAFPV0048MismatchedSliceFileMatchesTheFullBranch`, `TestAFPV0048CommittedSlicesArePlacedOnce`, `TestAFPV0048DriverRefusesAmbiguousPlacement`, `TestAFPV0048ShardedRunExecutesSlices` (real `go test`: FULL, narrowed and stale-name runs, each test once over the shards; a lost slice refuses with no execution record), `TestShardedPRExecution_AFPV0022`; a mutation check that drops the slice placement, in `docs/build-log/2026-10-14-v1-1361-driver-runs-slices.md`; hosted sharded driver run `NOT_OBSERVED` until V1-0812 sets the pin |
