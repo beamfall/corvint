@@ -245,7 +245,7 @@ requirements below have evidence. File existence is not parity.
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:300,312`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/main.go:306,318`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -335,7 +335,7 @@ requirements below have evidence. File existence is not parity.
   the new technical contract; original Go qualification is not non-Go qualification.
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:463`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:559`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including
@@ -1680,8 +1680,9 @@ listing profile, which this contract does not otherwise authorize, and changes n
   spelling, `suffixes.admissionCaseInsensitive` is `true`, and `suffixes.unadmitted` names the
   refusal code every other suffix receives. Each list is sorted bytewise. `limits` states
   `pathsMin` 1, `pathsMax` (default path capacity), `pathCharsMax`, `limitMin` 1, `limitMax` and
-  `limitDefault`. Beyond the existing impact root check it reads no repository content, index,
-  trace or stdin.
+  `limitDefault`. It reads no repository content, index, trace or stdin, and needs no Git root:
+  outside a checkout it still prints the listing, while any other impact there keeps the root
+  refusal (V1-2067).
 - `GPK-V0-085`: (accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived
   from the tables the admission and rule code read: every suffix is probed through
   `ImpactPathAdmitted` and `ImpactRuleNamed`, and the limits are the same constants the argument
@@ -1708,6 +1709,6 @@ receipt or trace changes.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-084` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`emitImpactCapabilities`, impact `--capabilities` parsing), `internal/contextindex/impact_capabilities.go` | `TestGPKV0084ImpactCapabilitiesListing` |
+| `GPK-V0-084` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`emitImpactCapabilities`, impact `--capabilities` parsing), `internal/contextindex/impact_capabilities.go` | `TestGPKV0084ImpactCapabilitiesListing`, `TestGPKV0084ImpactCapabilitiesOutsideGitRoot` |
 | `GPK-V0-085` (accepted 2026-10-20, V1-2047) | `internal/contextindex/impact_capabilities.go` (`ImpactCapabilities`) | `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
 | `GPK-V0-086` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`parseImpactArgumentsForPlatform`) | `TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged` |
