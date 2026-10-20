@@ -1,5 +1,5 @@
 // Package rbmutate is the Ruby arm of the test-kills-mutant falsifier
-// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-074). A packet
+// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-077). A packet
 // row claims that an RSpec file covers a changed Ruby file; this package
 // writes line-confined mutants of the changed file onto the same sandboxed
 // export the Go runner (internal/liveverify/mutate) judges on, runs the spec
@@ -49,7 +49,25 @@ type Request struct {
 	// RSpec, when set, is the argv prefix that runs RSpec, used verbatim;
 	// otherwise `bundle exec rspec` beside a Gemfile, else rspec on PATH.
 	RSpec []string
+	// Examples, when set, are the 1-based lines of TestPath whose examples
+	// or groups run (RSpec's `PATH:LINE[:LINE...]` selector, FPK-V0-075);
+	// otherwise the whole spec file runs.
+	Examples []int
+	// LineBasis names how Lines were chosen for a named source
+	// (FPK-V0-076): LineBasisCallerSpans or LineBasisWholeFile. Empty is a
+	// changed-lines claim. It is echoed on the report and words a report
+	// with no mutable site.
+	LineBasis string
 }
+
+// Line bases of a named-source claim (FPK-V0-076).
+const (
+	LineBasisCallerSpans = "caller-spans"
+	LineBasisWholeFile   = "whole-file"
+)
+
+// maxExamples bounds the example lines one claim may select (FPK-V0-075).
+const maxExamples = 16
 
 // Stage says where an Unsupported or BudgetExceeded report stopped.
 type Stage string
@@ -121,6 +139,11 @@ type Report struct {
 	Results    []Result
 	Elapsed    time.Duration
 	Detail     string
+	// Target is what each run named: the spec file, with its selected
+	// example lines when Examples is set.
+	Target string
+	// LineBasis echoes Request.LineBasis.
+	LineBasis string
 }
 
 const (
@@ -139,6 +162,11 @@ type settings struct {
 	budget      time.Duration
 	perRun      time.Duration
 	rspec       []string
+	// target is the spec file each run names, with `:LINE` selectors
+	// when the request selected examples.
+	target    string
+	examples  []int
+	lineBasis string
 }
 
 // TestFile reports whether a repository-relative path is an RSpec file by
@@ -182,13 +210,16 @@ func Run(ctx context.Context, request Request) (Report, error) {
 
 func judge(ctx context.Context, copy Copy, configuration settings, started time.Time) (Report, error) {
 	if copy.Unsandboxed() != "" {
-		return unsupportedReport(StageRunner, copy.Unsandboxed()), nil
+		report := unsupportedReport(StageRunner, copy.Unsandboxed())
+		report.Target, report.LineBasis = configuration.target, configuration.lineBasis
+		return report, nil
 	}
 	report, err := falsify(ctx, copy, configuration)
 	if err != nil {
 		return Report{}, err
 	}
 	report.Elapsed = time.Since(started)
+	report.Target, report.LineBasis = configuration.target, configuration.lineBasis
 	return report, nil
 }
 
@@ -208,6 +239,13 @@ func normalize(request Request) (settings, error) {
 		if span.Start < 1 || span.End < span.Start {
 			return settings{}, fmt.Errorf("rbmutate: Lines span %d-%d is not a 1-based inclusive range", span.Start, span.End)
 		}
+	}
+	examples, err := exampleLines(request.Examples)
+	if err != nil {
+		return settings{}, err
+	}
+	if request.LineBasis != "" && request.LineBasis != LineBasisCallerSpans && request.LineBasis != LineBasisWholeFile {
+		return settings{}, fmt.Errorf("rbmutate: LineBasis %q is not %s or %s", request.LineBasis, LineBasisCallerSpans, LineBasisWholeFile)
 	}
 	if request.MaxMutants < 0 {
 		return settings{}, fmt.Errorf("rbmutate: MaxMutants %d is negative", request.MaxMutants)
@@ -230,7 +268,40 @@ func normalize(request Request) (settings, error) {
 		budget:      budget,
 		perRun:      perRunTimeout(budget, maxMutants),
 		rspec:       append([]string(nil), request.RSpec...),
+		target:      exampleTarget(testPath, examples),
+		examples:    examples,
+		lineBasis:   request.LineBasis,
 	}, nil
+}
+
+// exampleLines sorts and deduplicates the selected example lines, at most
+// maxExamples, each 1-based.
+func exampleLines(lines []int) ([]int, error) {
+	if len(lines) > maxExamples {
+		return nil, fmt.Errorf("rbmutate: %d example lines exceed the bound of %d", len(lines), maxExamples)
+	}
+	sorted := make([]int, 0, len(lines))
+	seen := map[int]bool{}
+	for _, line := range lines {
+		if line < 1 {
+			return nil, fmt.Errorf("rbmutate: example line %d is not 1-based", line)
+		}
+		if !seen[line] {
+			seen[line] = true
+			sorted = append(sorted, line)
+		}
+	}
+	sort.Ints(sorted)
+	return sorted, nil
+}
+
+// exampleTarget is RSpec's location selector: `PATH:L1:L2`, or the bare path.
+func exampleTarget(testPath string, examples []int) string {
+	target := testPath
+	for _, line := range examples {
+		target += fmt.Sprintf(":%d", line)
+	}
+	return target
 }
 
 func relativeRubyPath(candidate, field string) (string, error) {
@@ -309,6 +380,9 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 }
 
 func noMutantsDetail(configuration settings) string {
+	if configuration.lineBasis == LineBasisCallerSpans {
+		return "no mutable sites inside the named lines of " + configuration.changedPath
+	}
 	if len(configuration.lines) != 0 {
 		return "no mutable sites inside the changed lines of " + configuration.changedPath
 	}
@@ -382,10 +456,10 @@ func finishedReport(report Report, configuration settings) Report {
 	switch {
 	case report.Killed > 0:
 		report.Verdict = mutate.Killed
-		report.Detail = fmt.Sprintf("killed %d of %d mutants; %d survived %s", report.Killed, report.Mutants, report.Survived, configuration.testPath)
+		report.Detail = fmt.Sprintf("killed %d of %d mutants; %d survived %s", report.Killed, report.Mutants, report.Survived, configuration.target)
 	case report.Survived > 0:
 		report.Verdict = mutate.Survived
-		report.Detail = fmt.Sprintf("all %d mutants survived %s", report.Survived, configuration.testPath)
+		report.Detail = fmt.Sprintf("all %d mutants survived %s", report.Survived, configuration.target)
 	default:
 		report.Verdict = mutate.NoMutants
 		report.Detail = fmt.Sprintf("none of %d mutants of %s could be asked", report.Mutants, configuration.changedPath)

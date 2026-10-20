@@ -880,6 +880,19 @@ a PASS can coexist with survivors. Only changed lines are mutated, with the
 same row and invocation deadlines, sandbox and temporary-copy cleanup. This
 flag requires --base and --mutate and never runs automatically from a hook.
 
+Named Ruby source (experimental):
+  corvint [--root PATH] prove [--base FULL_COMMIT_ID] --mutate
+    --mutate-source PATH.rb[:START-END[,START-END...]]
+    --mutate-example SPEC_spec.rb:LINE[:LINE...] [--mutate-example ...]
+
+Mutate a named .rb source, changed or not, against the cited RSpec examples
+(at most 4 spec files, 16 lines each, 16 spans). Each spec file becomes one
+named-source-test row judged like an RSpec row, but every run passes
+SPEC:LINE:LINE so only the cited examples run. Mutants stay inside the given
+spans, else the whole file under the twelve-mutant cap; the mutation record
+names the basis (line_basis caller-spans or whole-file) and the selector
+(target). In impact mode the source is added to the paths.
+
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a
 thirty-minute budget beside the ten-minute row budget; rows are judged in

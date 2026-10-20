@@ -172,7 +172,7 @@ func (runner rspecRunner) run(ctx context.Context, arguments ...string) (string,
 // source is the changed file's content the run sees, for the receipt.
 func (runner rspecRunner) runSpec(ctx context.Context, source []byte) specRun {
 	reportPath := filepath.Join(runner.copy.Scratch(), reportName)
-	output, timedOut, err := runner.run(ctx, "--options", runner.options, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.testPath)
+	output, timedOut, err := runner.run(ctx, "--options", runner.options, "--format", "json", "--out", reportPath, "--no-color", runner.configuration.target)
 	content, readErr := os.ReadFile(reportPath)
 	return classifyRun(err, timedOut, output, content, readErr == nil, digest(source))
 }
@@ -264,21 +264,21 @@ func (runner rspecRunner) environment() []string {
 func baselineDetail(run specRun, configuration settings) string {
 	switch {
 	case run.outcome == runTimedOut:
-		return "baseline examples exceed the per-run timeout: " + configuration.testPath
+		return "baseline examples exceed the per-run timeout: " + configuration.target
 	case run.outcome == runBroken:
 		return "rspec cannot run inside the sandbox"
 	case containsAny(strings.ToLower(run.output), offlineHints):
 		return "gem dependencies unavailable offline"
 	case !run.reported:
-		return "rspec wrote no report: " + configuration.testPath
+		return "rspec wrote no report: " + configuration.target
 	case run.receipt.ErrorsOutsideExamples > 0:
-		return "baseline examples do not load: " + configuration.testPath
+		return "baseline examples do not load: " + configuration.target
 	case run.receipt.Examples == 0:
-		return "spec file runs no examples: " + configuration.testPath
+		return "spec file runs no examples: " + configuration.target
 	case run.receipt.Failures > 0:
-		return "baseline examples fail before mutation: " + configuration.testPath
+		return "baseline examples fail before mutation: " + configuration.target
 	}
-	return "baseline exits non-zero with every example passing: " + configuration.testPath
+	return "baseline exits non-zero with every example passing: " + configuration.target
 }
 
 func containsAny(text string, hints []string) bool {
