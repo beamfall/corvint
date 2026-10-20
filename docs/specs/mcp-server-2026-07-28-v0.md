@@ -507,7 +507,10 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   `cem/0.1`, `cem/0.2` or `cem/0.3` map fails as `cem-map-invalid` before any other judgment
   (`CEM-V1-210`); a malformed map is `cem-map-invalid`; a `maxUnknown` ceiling on a `cem/1.0` map is
   `cem-map-stable-refused` (`MCPV0-037`); a CEM Git read that ran out of its own bound
-  (`GitTimeout`, `GitDiffTimeout`) on a live request is `repository-probe-timeout` (`MCPV0-038`), and
+  (`GitTimeout`, `GitDiffTimeout`) on a live request is `repository-probe-timeout` (`MCPV0-038`), a
+  CEM Git read that exhausted its operation budget or output bound (`GitBudgetExceeded`,
+  `GitOutputExceeded`) is `corpus-capacity-exceeded`, the capacity code `DCP-V1-158` names, because
+  the repository is present and only a bound was reached (amended 2026-10-20, V1-1992), and
   every other Git read failure is `repository-unavailable` (amended 2026-10-16, decision 0533,
   V1-1432). The repository probe brackets the
   read, and a changed probe is `REPOSITORY_STATE_UNSTABLE`. Report Markdown carries repository-authored
@@ -601,6 +604,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:742@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:721@b2fd0644` | the map fails CEM strict decoding or field validation |
 | `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1092@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:729@34f23ef3` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
