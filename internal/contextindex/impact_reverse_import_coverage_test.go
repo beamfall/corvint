@@ -67,7 +67,7 @@ func TestImpactNeverClaimsCompleteCoverageOverUncomputedReverseImports(t *testin
 	}
 	coverage := result["coverage"].(map[string]any)
 	uncertainty := anySlice(coverage["uncertainty"])
-	declared := anyContains(uncertainty, "outside the native Go impact profile")
+	declared := anyContains(uncertainty, "not computed by the impact profile")
 	if !resolved && !declared {
 		t.Fatalf("src/cli.py imports harness and no reverse-import result resolved it, yet coverage reports omitted_results=%v uncertainty=%v critical_missing=%v: complete coverage asserted over an incomplete answer (DR-0006)",
 			coverage["omitted_results"], uncertainty, coverage["critical_missing"])
@@ -158,5 +158,44 @@ func TestImpactDisclosesWorkspacePackageImporters(t *testing.T) {
 	}
 	if controlUncertainty := anySlice(control["coverage"].(map[string]any)["uncertainty"]); anyContains(controlUncertainty, "workspace package name") {
 		t.Fatalf("uncertainty = %v, want no workspace disclosure: nothing imports @fixture/leaf by name", controlUncertainty)
+	}
+}
+
+// TestImpactProfileGapWordingIsLanguageNeutral: GPK-V0-027 (V1-2072). The
+// no-named-resolution-rule disclosure is read in Swift, Kotlin, TypeScript and
+// documentation-only repositories, so it must not name the Go language there;
+// it names the impact profile, and a TypeScript path, which rule (c) names,
+// carries no disclosure at all.
+func TestImpactProfileGapWordingIsLanguageNeutral(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		files   map[string]string
+		changed string
+		gap     bool
+	}{
+		{"swift", map[string]string{"Package.swift": "// swift-tools-version:5.9\n", "Sources/App/App.swift": "struct App {}\n", "AGENTS.md": "# Agents\n\nSwift app instructions.\n"}, "Sources/App/App.swift", true},
+		{"swift-docs", map[string]string{"Package.swift": "// swift-tools-version:5.9\n", "Sources/App/App.swift": "struct App {}\n", "AGENTS.md": "# Agents\n\nSwift app instructions.\n"}, "AGENTS.md", true},
+		{"kotlin", map[string]string{"build.gradle.kts": "plugins {}\n", "app/src/main/kotlin/App.kt": "class App\n", "AGENTS.md": "# Agents\n\nKotlin app instructions.\n"}, "app/src/main/kotlin/App.kt", true},
+		{"typescript-docs", map[string]string{"package.json": "{\"name\":\"web\"}\n", "src/app.ts": "export const app = 1\n", "AGENTS.md": "# Agents\n\nWeb app instructions.\n"}, "AGENTS.md", true},
+		{"typescript", map[string]string{"package.json": "{\"name\":\"web\"}\n", "src/app.ts": "export const app = 1\n", "src/main.ts": "import { app } from './app'\n", "AGENTS.md": "# Agents\n\nWeb app instructions.\n"}, "src/app.ts", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			index, err := Build(context.Background(), impactRepositoryWithFiles(t, test.files))
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := Impact(index, []string{test.changed}, maxLimit)
+			if err != nil {
+				t.Fatal(err)
+			}
+			uncertainty := anySlice(result["coverage"].(map[string]any)["uncertainty"])
+			if anyContains(uncertainty, "native Go") {
+				t.Fatalf("uncertainty names the Go language for a %s path: %v", test.name, uncertainty)
+			}
+			const want = "reverse-import results for 1 changed paths with no named resolution rule are not computed by the impact profile"
+			if got := anyContains(uncertainty, want); got != test.gap {
+				t.Fatalf("profile gap disclosure present = %v, want %v: %v", got, test.gap, uncertainty)
+			}
+		})
 	}
 }

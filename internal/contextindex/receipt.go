@@ -397,7 +397,7 @@ func admittedResultCount(receipt map[string]any, present int) int {
 }
 
 // reverseImportProfileGap counts the requested changed paths whose
-// reverse-import universe the native Go impact profile cannot compute, so the
+// reverse-import universe the impact profile cannot compute, so the
 // coverage block can say so instead of reporting a complete answer over a
 // smaller universe.
 //
@@ -502,7 +502,7 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 	}
 	if gaps := reverseImportProfileGap(index, receipt); gaps != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf(
-			"reverse-import results for %d changed paths with no named resolution rule are outside the native Go impact profile", gaps))
+			"reverse-import results for %d changed paths with no named resolution rule are not computed by the impact profile", gaps))
 	}
 	if gaps := webWorkspaceImportGap(index, receipt); gaps != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf(
