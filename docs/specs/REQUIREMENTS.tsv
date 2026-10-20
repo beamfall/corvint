@@ -4575,6 +4575,13 @@ TSA-V0-439	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-440	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) The conditions MUST	standing	2026-10-11; V1-2108; #1340
 TSA-V0-441	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104, V1-2108) Every finding of this secti	standing	2026-10-11; V1-2104; V1-2108
 TSA-V0-442	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104, V1-2108) What the reader cannot deci	standing	2026-10-11; V1-2104; V1-2108
+TSA-V0-443	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) For each cited	standing	2026-10-11; V1-2114; #1339
+TSA-V0-444	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) The finding MUST be	standing	2026-10-11; V1-2114; #1339
+TSA-V0-445	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) The root MUST resolve	standing	2026-10-11; V1-2114; #1339
+TSA-V0-446	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) From `initialize`, th	standing	2026-10-11; V1-2114; #1339
+TSA-V0-447	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) What the reader canno	standing	2026-10-11; V1-2114; #1339
+TSA-V0-448	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) `corvint tests	standing	2026-10-11; V1-2114; #1339
+TSA-V0-449	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) When the chain define	standing	2026-10-11; V1-2114; #1339
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167

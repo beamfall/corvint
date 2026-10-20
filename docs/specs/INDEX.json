@@ -3738,7 +3738,7 @@
     "path": "docs/specs/test-source-analysis-v0.md",
     "title": "Test Source Analysis V0",
     "reqPrefix": "TSA-V0",
-    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108)",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114)",
     "delivery": "experimental",
     "claim": "Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.",
     "dependsOn": [],
