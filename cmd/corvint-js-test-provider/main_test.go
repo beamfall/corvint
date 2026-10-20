@@ -287,3 +287,46 @@ func TestRetainedBasicReceiptCarriesStartRevision(t *testing.T) {
 		t.Fatalf("existing identity replaced: %+v", got.TestRepositoryAtStart)
 	}
 }
+
+// PWP-V0-034: a version refusal writes one typed refusal document to stdout,
+// not an empty one, and names the qualified runner versions; other failures
+// still write nothing to stdout.
+func TestPWPV0034E2EVersionRefusalWritesTypedDocument(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args []string) (string, error) {
+		t.Helper()
+		reader, writer, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved := os.Stdout
+		os.Stdout = writer
+		runErr := runE2E(args)
+		os.Stdout = saved
+		writer.Close()
+		var out bytes.Buffer
+		if _, err = out.ReadFrom(reader); err != nil {
+			t.Fatal(err)
+		}
+		reader.Close()
+		return out.String(), runErr
+	}
+	args := []string{"--dir", dir, "--config", filepath.Join(dir, "playwright.config.cjs"), "--runner-version", "1.62.0", "--external-server", "--app-identity", "fixture", "--server-ready-url", "http://127.0.0.1:1", "--test-file", filepath.Join(dir, "a.spec.cjs")}
+	out, err := run(args)
+	if err == nil || !strings.HasPrefix(err.Error(), "external-playwright-version-unqualified") {
+		t.Fatalf("err %v", err)
+	}
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	if out != want {
+		t.Fatalf("stdout\n got %q\nwant %q", out, want)
+	}
+	saved := runE2EReceipt
+	t.Cleanup(func() { runE2EReceipt = saved })
+	runE2EReceipt = func(context.Context, jstestprovider.E2EConfig) (jstestprovider.Receipt, error) {
+		return jstestprovider.Receipt{}, errors.New("runner-unavailable")
+	}
+	args[5] = "1.64.0"
+	if out, err = run(args); err == nil || out != "" {
+		t.Fatalf("non-refusal failure wrote %q (%v)", out, err)
+	}
+}

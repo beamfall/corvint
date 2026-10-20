@@ -456,9 +456,21 @@ func runE2EMode(mode string, args []string) error {
 	start := observeRetainedStart(ctx, *retain, resolvedDir)
 	receipt, err := runE2EReceipt(ctx, cfg)
 	if err != nil {
+		writeE2ERefusal(os.Stdout, err)
 		return err
 	}
 	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
+}
+
+// writeE2ERefusal writes the typed corvint-playwright-e2e-refusal/0 document
+// for a pre-run refusal (PWP-V0-034), so stdout is never an empty document. A
+// refusal is never retained; the exit status and stderr line are unchanged.
+// Any other failure writes nothing to stdout.
+func writeE2ERefusal(stdout io.Writer, err error) {
+	var refusal *jstestprovider.E2ERefusal
+	if errors.As(err, &refusal) {
+		_, _ = stdout.Write(jstestprovider.EncodeE2ERefusal(refusal))
+	}
 }
 
 // readKeepReportersQualification reads and strictly decodes a qualified

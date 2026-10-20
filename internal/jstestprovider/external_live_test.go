@@ -33,6 +33,13 @@ func TestQualifiedPlaywrightAttemptsLive(t *testing.T) {
 	runQualifiedPlaywrightLive(t, true)
 }
 
+// liveBundledTuples is the bundled headless-shell identity each live-qualified
+// Playwright release must report (PWP-V0-008, PWP-V0-032).
+var liveBundledTuples = map[string]struct{ sha256, revision, manifest, observed, suffix string }{
+	"1.63.0": {"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282", "1243", "153.0.8010.12", "Google Chrome for Testing 153.0.8010.12", "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell"},
+	"1.64.0": {"77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634", "1248", "156.0.8078.4", "Google Chrome for Testing 156.0.8078.4", "/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell"},
+}
+
 func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
 	if modules == "" {
@@ -64,6 +71,10 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	}
 	if err = json.Unmarshal(data, &pkg); err != nil {
 		t.Fatal(err)
+	}
+	bundled, ok := liveBundledTuples[pkg.Version]
+	if !ok {
+		t.Fatalf("no live bundled tuple expectation for Playwright %s", pkg.Version)
 	}
 	packageJSON, err := filepath.Abs(filepath.Join("..", "..", "conformance", "interactive-alpha", "fixture", "package.json"))
 	if err != nil {
@@ -189,7 +200,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 					BrowserVersion         string `json:"browserVersion"`
 				} `json:"corvintBrowser"`
 			}
-			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || !use.Headless || use.LaunchOptions.ExecutablePath != "" || use.CorvintBrowser.ExecutableSource != "playwright-bundled" || use.CorvintBrowser.ExecutableName != "chromium-headless-shell" || use.CorvintBrowser.ExecutableSHA256 != "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282" || use.CorvintBrowser.BrowserRevision != "1243" || use.CorvintBrowser.ManifestBrowserVersion != "153.0.8010.12" || use.CorvintBrowser.BrowserVersion != "Google Chrome for Testing 153.0.8010.12" || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell") {
+			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || !use.Headless || use.LaunchOptions.ExecutablePath != "" || use.CorvintBrowser.ExecutableSource != "playwright-bundled" || use.CorvintBrowser.ExecutableName != "chromium-headless-shell" || use.CorvintBrowser.ExecutableSHA256 != bundled.sha256 || use.CorvintBrowser.BrowserRevision != bundled.revision || use.CorvintBrowser.ManifestBrowserVersion != bundled.manifest || use.CorvintBrowser.BrowserVersion != bundled.observed || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, bundled.suffix) {
 				t.Fatalf("global use/project inheritance lost %+v", test.Project)
 			}
 			ids[test.ID] = true
@@ -398,7 +409,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 		t.Fatalf("system-browser version missing: %v", version.Err)
 	}
 	systemVersion := strings.TrimSpace(string(version.Stdout))
-	if !retainAttempts && systemVersion == "Google Chrome 153.0.8010.48" && system.Identity.NodeVersion == "v22.23.2" {
+	if !retainAttempts && pkg.Version == "1.63.0" && systemVersion == "Google Chrome 153.0.8010.48" && system.Identity.NodeVersion == "v22.23.2" {
 		if system.Infrastructure != nil || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 			t.Fatal("previously qualified system-browser tuple regressed")
 		}
@@ -499,8 +510,9 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 	if err = json.Unmarshal(pkgData, &pkg); err != nil {
 		t.Fatal(err)
 	}
-	if pkg.Version != "1.63.0" {
-		t.Skipf("NOT_RUN: devices spread qualification requires Playwright 1.63.0, got %s", pkg.Version)
+	bundled, ok := liveBundledTuples[pkg.Version]
+	if !ok {
+		t.Skipf("NOT_RUN: devices spread qualification requires Playwright 1.63.0 or 1.64.0, got %s", pkg.Version)
 	}
 	node := scopeLiveNode(t, "CORVINT_PLAYWRIGHT_NODE")
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -565,7 +577,7 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 		if err = json.Unmarshal(outcome.Project.Use, &use); err != nil {
 			t.Fatal(err)
 		}
-		if use.DefaultBrowserType != "chromium" || !use.Headless || use.UserAgent == "" || use.Viewport.Width != 1280 || use.Viewport.Height != 720 || use.CorvintBrowser.BrowserVersion != "Google Chrome for Testing 153.0.8010.12" || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell") {
+		if use.DefaultBrowserType != "chromium" || !use.Headless || use.UserAgent == "" || use.Viewport.Width != 1280 || use.Viewport.Height != 720 || use.CorvintBrowser.BrowserVersion != bundled.observed || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, bundled.suffix) {
 			t.Fatalf("devices spread effective use incomplete: %s", outcome.Project.Use)
 		}
 	})

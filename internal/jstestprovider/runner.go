@@ -2,7 +2,6 @@ package jstestprovider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -249,27 +248,27 @@ type E2EConfig struct {
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if cfg.KeepReporters && (!cfg.ExternalServer || cfg.Freshness != nil) {
-		return Receipt{}, errors.New("keep-reporters-unsupported-mode")
+		return Receipt{}, refuseE2E("keep-reporters-unsupported-mode")
 	}
 	if q := cfg.KeepReportersQualification; q != nil {
 		if !cfg.KeepReporters {
-			return Receipt{}, errors.New("keep-reporters-qualification-requires-keep-reporters")
+			return Receipt{}, refuseE2E("keep-reporters-qualification-requires-keep-reporters")
 		}
 		if q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil {
-			return Receipt{}, errors.New(keepReportersQualificationInvalid)
+			return Receipt{}, refuseE2E(keepReportersQualificationInvalid)
 		}
 	}
 	if cfg.Freshness != nil {
 		return RunFreshE2E(ctx, cfg)
 	}
 	if cfg.RetainAttemptDetails && (!cfg.ExternalServer || cfg.ApplicationAttestation != nil || cfg.SensitiveInputPolicy != nil) {
-		return Receipt{}, errors.New("external-attempt-details-composition-unsupported")
+		return Receipt{}, refuseE2E("external-attempt-details-composition-unsupported")
 	}
 	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
-		return Receipt{}, errors.New("application-attestation-requires-external-server")
+		return Receipt{}, refuseE2E("application-attestation-requires-external-server")
 	}
 	if cfg.SensitiveInputPolicy != nil && !cfg.ExternalServer {
-		return Receipt{}, errors.New("sensitive-input-redaction-requires-external-server")
+		return Receipt{}, refuseE2E("sensitive-input-redaction-requires-external-server")
 	}
 	if cfg.ExternalServer {
 		return runExternal(ctx, cfg)

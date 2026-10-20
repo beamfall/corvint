@@ -15,9 +15,9 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. PWP-V0-032..034 qualify Playwright 1.64.0 for `/0` and `/3` on Node v22.23.2 with its own exact bundled headless-shell tuple, and write a typed `corvint-playwright-e2e-refusal/0` document naming the qualified runner versions on stdout when an `e2e` request is refused before running. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
+- Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. `/1` and `/2` on Playwright 1.64.0, other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
 ## Requirements
 
@@ -376,6 +376,51 @@ Acceptance evidence: the fake-runner Go tests in Traceability. Rollback removes 
 `runner` member and `Spec.InterruptGrace`/tee hooks, and restores fail-on-overflow capture; receipts
 carrying `runner` then fail closed through the canonical check and are neither deleted nor rewritten.
 
+### Playwright 1.64.0 and typed version refusal
+
+- `PWP-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) External mode admits the exact
+  runner version `1.64.0` beside `1.60.0` and `1.63.0`; any other spelling (`1.64`, `1.64.1`,
+  `v1.64.0`, `^1.64.0`, `1.65.0`) refuses `external-playwright-version-unqualified`. The bundled
+  browser tuple is keyed by the exact runner version and never inherited across versions: `1.63.0`
+  keeps registry `chromium-headless-shell` revision `1243` unchanged, and `1.64.0` admits only
+  revision `1248`, manifest version `156.0.8078.4`, observed version
+  `Google Chrome for Testing 156.0.8078.4`, path suffix
+  `chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell` and executable
+  SHA-256 `77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`, headless, with no
+  configured executable. A 1.64.0 run on the 1.63.0 tuple, or the reverse, abstains as an
+  unqualified browser tuple. The configured system-Chrome tuple (`PWP-V0-008`) stays qualified on
+  `1.63.0` only; on `1.64.0` it is diagnostic and never passing.
+- `PWP-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) `ReceiptRuntimeTuple` classifies a
+  `1.64.0` receipt as a candidate only for the base `/0` and attempt `/3` profiles on Node
+  `v22.23.2`. `/1` and `/2` on `1.64.0`, Node `v24.11.1` (`PWP-V0-009` stays `1.63.0`-only) and
+  every other Node read `unqualified`. The per-test freshness profile (`PTF-V0`) stays on `1.63.0`
+  with Node `v22.23.3`. Step negation reads the same classification, so a `/0` receipt on the
+  `1.64.0` tuple is a negation candidate exactly when the per-test bundled tuple also matches.
+- `PWP-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) When the one-shot `e2e` command refuses a
+  request before any server, runner or browser starts (an unqualified runner version, a missing
+  external-mode input, an unsupported option or an invalid option composition), the provider
+  writes one `corvint-playwright-e2e-refusal/0` document to stdout instead of an empty one: the
+  closed members `schema`, `code` (the refusal code, unchanged), `message` (the earlier error text)
+  and `qualifiedRunnerVersions` (the exact versions external mode admits, in order), encoded as
+  compact JSON plus LF. The version refusal message names those versions:
+  `external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0`.
+  The exit status (1) and the stderr `infrastructure failure:` line are unchanged. The document is
+  not a receipt, is never retained or read as evidence, and an infrastructure failure after the run
+  starts, `watch` and `qualify-keep-reporters` write nothing new to stdout.
+
+Non-goals: no `/1`, `/2`, Node 24, system-browser or Linux qualification on `1.64.0`, no semver
+range admission, no change to any receipt member, profile, projection or the freshness profile, and
+no new exit status. Failure modes addressed: a consumer pinned to `@playwright/test@1.64.0` could not
+run external mode at all; the refusal left stdout empty, so a consumer saw no document and no list of
+versions it could pin to; a version table that shared one bundled tuple would have let a 1.64.0 run
+bind on 1.63.0 browser identity. Acceptance evidence: the unit tests in Traceability, plus the
+retained live matrix on 1.64.0 and the 1.63.0 regression run
+(`docs/build-log/2026-10-19-V1-2005-playwright-164-qualification.md`). Receipts that built before
+are byte-identical: no receipt struct or encoding changed and the 1.63.0 tuple values are
+unchanged. Rollback removes `1.64.0` from the version list, its bundled tuple and its runtime-tuple
+case, and the refusal document writer; receipts written on `1.64.0` then read `unqualified` and are
+neither deleted nor rewritten.
+
 ### Application-attested revision
 
 - `PWP-V1-001`: `/1` is available only in external-server mode and requires a typed `corvint-application-attestation-command/0` provider and canonical `corvint-application-attestation-config/0`; the `/0` caller label cannot select `/1`, `/0` remains readable, and neither profile can carry the other profile's identity fields.
@@ -399,7 +444,7 @@ carrying `runner` then fail closed through the canonical check and are neither d
 ### Every-attempt revision
 
 Intent accepted by decision 0417 for `AFU-V1-012`; `--retain-attempt-details` selects the implemented
-profile. Qualification is consuming-tuple specific and retains every failed or unavailable observation. `/3` is qualified only on the bundled Darwin arm64 / Node v22.23.2 / Playwright 1.63.0 tuple below; it refuses the legacy 1.60 and system-browser tuples.
+profile. Qualification is consuming-tuple specific and retains every failed or unavailable observation. `/3` is qualified only on the bundled Darwin arm64 / Node v22.23.2 / Playwright 1.63.0 tuple below and, by `PWP-V0-032..033`, the bundled 1.64.0 tuple on the same OS and Node; it refuses the legacy 1.60 and system-browser tuples.
 
 - `PWP-V3-001`: `/3` is selected explicitly by a provider option in external-server mode. `/0`, `/1` and `/2` stay readable and byte-compatible, and each still refuses `attemptDetails` with `external-profile-has-attempt-details`; only a `/3` receipt may carry it.
 - `PWP-V3-002`: A `/3` test outcome carries `attemptDetails` with one entry per Playwright attempt, in retry order starting at retry 0, using the existing `AttemptDetail` members (state, retry, duration, failure message, anchor, artifacts). The final attempt entry equals the test's existing last-attempt fields; a missing, duplicated, reordered or contradictory attempt refuses the receipt with `external-attempt-details-invalid`.
@@ -452,9 +497,13 @@ The provider's closed refusal codes are:
 - `external-app-identity-required`
 - `external-config-version-test-files-required`
 - `external-input-bound-or-secret`
-- `external-playwright-version-unqualified`
+- `external-playwright-version-unqualified` (the message names the qualified runner versions; with
+  every other pre-run `e2e` refusal it is also written to stdout as the `corvint-playwright-e2e-refusal/0`
+  document, `PWP-V0-034`)
 - `external-readiness-url-required`
 - `external-server-command-forbidden`
+- `external-unsupported-option` (a `--test-arg` option outside the external-mode allow-list; the
+  detail names the option. Emitted before this list named it; documented by `PWP-V0-034`)
 - `input-identity-changed`
 - `interrupt-grace-invalid` (a negative `--interrupt-grace`, `PWP-V0-030`)
 - `no-tests-observed`
@@ -531,7 +580,7 @@ neither deleted nor rewritten.
 
 ## Traceability
 
-Qualification runtimes: Playwright **1.60.0** and **1.63.0**, each with its installed Chromium
+Qualification runtimes: Playwright **1.60.0**, **1.63.0** and **1.64.0** (`PWP-V0-032`), each with its installed Chromium
 browser, tested locally on Darwin. External mode refuses other runner versions until their
 effective-fixture metadata is qualified. Both in-process reporter ABIs expose literal fixture defaults and nested `test.use`
 overrides; the provider resolves those with project options and preserves the effective browser,
@@ -552,7 +601,12 @@ Node and Playwright package with its default headless executable: registry name
 `Google Chrome for Testing 153.0.8010.12`, path suffix
 `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`, and executable
 SHA-256 `a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282`. The cache root may move;
-the registry identity, suffix and digest may not. `PWP-V0-009` admits the same bundled tuple on Node
+the registry identity, suffix and digest may not. Playwright `1.64.0` has its own bundled tuple
+(`PWP-V0-032`): revision `1248`, manifest version `156.0.8078.4`, observed version
+`Google Chrome for Testing 156.0.8078.4`, suffix
+`chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell`, SHA-256
+`77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`, on Node v22.23.2 for `/0` and
+`/3` only. `PWP-V0-009` admits the same bundled tuple on Node
 `v24.11.1` for `/0` only. Bundled headed Chromium, Linux amd64 and every other Node tuple are
 `NOT_RUN` and remain diagnostic-only. Issue #665 reported a consumer pinning Node v24.11.x, whose
 discovery therefore read `source: "none"` with no tests; no consumer checkout, fixture or CI run was
@@ -577,6 +631,17 @@ installed or added to a global `PATH`. The Node v24.11.1 qualification command i
 Owner answer (decision 0448, V1-0976): further Node patch releases are admitted one exact release
 at a time, through this predicate and a Corvint change backed by a live run; a consumer-side
 qualification record is not adopted. `/1`, `/2` and `/3` on Node 24 need their own live runs first.
+
+To qualify another Playwright runner version (as `PWP-V0-032` did for 1.64.0): install the exact
+`@playwright/test` and `playwright-core` versions from a lockfile with integrity, install its
+package-selected `chromium-headless-shell`, and confirm the reporter internals the provider reads
+are unchanged in that version's sources. Add the exact version to `qualifiedPlaywrightVersions`, its
+bundled tuple to `qualifiedBundledBrowsers` (Go and reporter), and its profile/Node candidates to
+`ReceiptRuntimeTuple`; then run the four live tests with that version's modules and the 1.63.0
+regression. A consumer cannot qualify a version by configuration: the refusal document lists the
+versions to pin. The 1.64.0 qualification command was:
+
+`CORVINT_PLAYWRIGHT_MODULES=<node_modules with @playwright/test 1.64.0> CORVINT_PLAYWRIGHT_NODE=<node-v22.23.2-darwin-arm64>/bin/node CORVINT_PLAYWRIGHT_CONTROL_NODE=<node-v22.23.3-darwin-arm64>/bin/node GOTOOLCHAIN=local go test -count=1 -timeout 10m ./internal/jstestprovider -run 'TestQualifiedPlaywrightLive$|TestQualifiedPlaywrightLiveDevicesSpread$|TestQualifiedPlaywrightAttemptsLive$|TestQualifiedPlaywrightAttemptsLiveDevicesSpread$' -v`
 
 Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
 source inputs are hashed at collection and compared again before publication. Configuration loaded
@@ -618,6 +683,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-021 (accepted under the owner's standing auto-accept (2026-10-11); GitHub #844; V1-1317) | `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/keep_reporters_qualification.go` | `TestQualifiedReportConfigInputBounds`, `TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders`; live Playwright run above 256 config inputs `NOT_RUN` (`docs/build-log/2026-10-12-gh-844-845-config-inputs-state-matchers.md`) |
 | PWP-V0-022..027 (accepted under the owner's standing auto-accept (2026-10-11); V1-1762; GitHub #1106) | `internal/testvaliditydoc/externalorigins/external_origins.go`, `cmd/corvint-js-test-provider/external_origins.go`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0022NetworkEvidenceIsClosedAndOriginsAreCanonical`, `TestPWPV0023BlockingVersusIncidental`, `TestPWPV0023BeaconOnlyTrafficIsIncidental`, `TestPWPV0024CDNModuleDependenceFinding`, `TestPWPV0025AllowListedOriginRaisesNoFinding`, `TestPWPV0026PassFailCorrelationNamesDifferingRequests`, `TestPWPV0027MissingNetworkEvidenceIsUnknown`, `TestPWPV0027ReportOutputListsExternalOrigins`, `TestPWPV0027ExternalOriginsCommandPrintsReport`, `TestPWPV0027EmptyRunStaysUnknownBesideARecordedRun`, `TestPWPV0022RequestObservationsAreRequired`, `TestPWPV0025PortAndIPSpellingsMatchCanonicalOrigins`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1762-external-origins.md`) |
 | PWP-V0-028..031 (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133) | `internal/procgroup/interrupt.go`, `internal/procgroup/process.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/receipt.go`, `internal/jstestprovider/projection.go`, `cmd/corvint-js-test-provider/runner_control.go`, `cmd/corvint-js-test-provider/runner_output_unix.go`, `cmd/corvint-js-test-provider/runner_output_other.go`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/negate.go` | `TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees` (#1131: a 5 MiB fake runner completes and the tee receives every byte), `TestPWPV0028ExternalConsoleWithoutTee`, `TestPWPV0028TeesReceiveUntruncatedStreams`, `TestPWPV0028RunnerOutputFlagWritesFile`, `TestPWPV0028BlockedTeeSinkDoesNotHoldDrains`, `TestPWPV0028RunnerOutputRefusesSymlink`, `TestPWPV0028RunnerOutputRefusesFIFO`, `TestPWPV0028RunnerOutputExistingFileBecomes0600`, `TestPWPV0028RunnerOutputReportsEarlyEnd`, `TestPWPV0029RunnerRecordShape`, `TestPWPV0029SelfExitRecordsNoStopSignal`, `TestPWPV0029StopSignalSurvivesExitDuringSend`, `TestPWPV0030ExternalTimeoutInterruptsRunnerFirst` (#1133: the fake runner writes a file on SIGINT and the receipt records `SIGINT`), `TestPWPV0030ExternalZeroGraceTerminatesFirst`, `TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop`, `TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT`, `TestPWPV0030InterruptGraceEscalatesToSIGTERM`, `TestPWPV0030NegativeInterruptGraceIsInvalid`, `TestPWPV0030InterruptGraceFlag`, `TestPWPV0031ReadinessRulesByMode`, `TestPWPV0031ServerReadyURLHelpMatchesReadiness`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1800-js-provider-output-retention-interrupt-1131.md`) |
+| PWP-V0-032..034 (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) | `internal/jstestprovider/external.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0032Playwright164BundledTupleIsExact`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestPWPV0034PreRunRefusalsAreTyped`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestReceiptRuntimeTupleClassification`; live `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightLiveDevicesSpread` and `TestQualifiedPlaywrightAttemptsLiveDevicesSpread` on 1.64.0 and on 1.63.0 (`docs/build-log/2026-10-19-V1-2005-playwright-164-qualification.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -630,12 +696,12 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:208@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:249@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:269@ae7d4bc6` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:268@720e6764` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:106@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:398@2fb84e28` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:441@c7e353c5` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:81@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -644,7 +710,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:99@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:227@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:268@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

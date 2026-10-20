@@ -39,19 +39,60 @@ const (
 	externalMaxConfigInputBytes = 1 << 20
 )
 
+// qualifiedBundledBrowser is the exact Playwright-bundled headless-shell
+// identity one Playwright release pins (PWP-V0-008). Each release pins its own
+// registry revision, so the tuple is keyed by the exact runner version.
+type qualifiedBundledBrowser struct {
+	revision         string
+	observedVersion  string
+	manifestVersion  string
+	executableSHA256 string
+	executableSuffix string
+}
+
+const qualifiedBundledBrowserName = "chromium-headless-shell"
+
+// qualifiedBundledBrowsers names the bundled tuple of each runner version
+// whose live matrix passed: 1.63.0 (issue 175) and 1.64.0 (PWP-V0-032,
+// GitHub #1263). 1.60.0 predates the browser binding and has no entry.
+var qualifiedBundledBrowsers = map[string]qualifiedBundledBrowser{
+	"1.63.0": {
+		revision:         "1243",
+		observedVersion:  "Google Chrome for Testing 153.0.8010.12",
+		manifestVersion:  "153.0.8010.12",
+		executableSHA256: "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282",
+		executableSuffix: "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+	},
+	"1.64.0": {
+		revision:         "1248",
+		observedVersion:  "Google Chrome for Testing 156.0.8078.4",
+		manifestVersion:  "156.0.8078.4",
+		executableSHA256: "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634",
+		executableSuffix: "/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell",
+	},
+}
+
+// The configured system-Chrome tuple is qualified for Playwright 1.63.0 only.
 const (
-	qualifiedBundledBrowserName      = "chromium-headless-shell"
-	qualifiedBundledBrowserRevision  = "1243"
-	qualifiedBundledBrowserVersion   = "Google Chrome for Testing 153.0.8010.12"
-	qualifiedBundledManifestVersion  = "153.0.8010.12"
-	qualifiedBundledExecutableSHA256 = "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282"
-	qualifiedBundledExecutableSuffix = "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+	qualifiedSystemBrowserRunner     = "1.63.0"
 	qualifiedSystemBrowserVersion    = "Google Chrome 153.0.8010.48"
 	qualifiedSystemBrowserExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 )
 
+// qualifiedPlaywrightVersions is the closed, ordered list of exact
+// @playwright/test versions external mode admits (PWP-V0-032). Admission is
+// not qualification: the receipt-level tuple and per-test browser identity
+// still decide whether an outcome can project passing execution.
+var qualifiedPlaywrightVersions = []string{"1.60.0", "1.63.0", "1.64.0"}
+
+// QualifiedPlaywrightVersions returns a copy of the exact runner versions
+// external mode admits, for refusal documents and help text.
+func QualifiedPlaywrightVersions() []string {
+	return slices.Clone(qualifiedPlaywrightVersions)
+}
+
 func qualifiedPlaywrightVersion(version string) bool {
-	return version == "1.60.0" || version == "1.63.0"
+	return slices.Contains(qualifiedPlaywrightVersions, version)
 }
 
 //go:embed qualified-reporter.cjs
@@ -358,12 +399,14 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 	return false
 }
 
+// admitExternal refuses an external request before anything starts. Every
+// refusal is an *E2ERefusal so the CLI can write a typed document (PWP-V0-034).
 func admitExternal(c E2EConfig) error {
 	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
-		return errors.New("external-playwright-version-unqualified")
+		return &E2ERefusal{Code: "external-playwright-version-unqualified", Detail: unqualifiedVersionDetail()}
 	}
 	if _, err := sensitivePolicy(c.SensitiveInputPolicy); err != nil {
-		return err
+		return refuseE2E(err.Error())
 	}
 	var providerArgs []string
 	var providerConfig string
@@ -380,35 +423,35 @@ func admitExternal(c E2EConfig) error {
 		ProviderConfig string
 	}{c.AppIdentity, c.ServerReadyURL, c.TestArgv, declaredEnv(c.DeclaredEnvKeys), providerArgs, providerConfig})
 	if len(bound) > 64<<10 || secretscreen.MatchString(string(bound)) {
-		return errors.New("external-input-bound-or-secret")
+		return refuseE2E("external-input-bound-or-secret")
 	}
 	if len(c.ServerArgv) != 0 {
-		return errors.New("external-server-command-forbidden")
+		return refuseE2E("external-server-command-forbidden")
 	}
 	u, err := url.Parse(c.ServerReadyURL)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
-		return errors.New("external-readiness-url-required")
+		return refuseE2E("external-readiness-url-required")
 	}
 	if c.ApplicationAttestation == nil {
 		if strings.TrimSpace(c.AppIdentity) == "" {
-			return errors.New("external-app-identity-required")
+			return refuseE2E("external-app-identity-required")
 		}
 	} else {
 		if strings.TrimSpace(c.AppIdentity) != "" || c.AppBuildDir != "" {
-			return errors.New("external-attestation-conflicts-with-caller-identity")
+			return refuseE2E("external-attestation-conflicts-with-caller-identity")
 		}
 		if len(c.ApplicationAttestation.Argv) == 0 || c.ApplicationAttestation.ConfigFile == "" {
-			return errors.New("application-attestation-provider-required")
+			return refuseE2E("application-attestation-provider-required")
 		}
 	}
 	if c.ConfigFile == "" || c.RunnerVersion == "" || len(c.TestFiles) == 0 {
-		return errors.New("external-config-version-test-files-required")
+		return refuseE2E("external-config-version-test-files-required")
 	}
 	// External mode constructs the executable/config/reporter. Extra argv consists
 	// only of selectors and bounded execution controls; lifecycle overrides cannot pass.
 	for _, arg := range c.TestArgv {
 		if strings.HasPrefix(arg, "-") && !allowedExternalOption(arg) {
-			return fmt.Errorf("external-unsupported-option: %s", arg)
+			return &E2ERefusal{Code: "external-unsupported-option", Detail: arg}
 		}
 	}
 	return nil
@@ -765,20 +808,21 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 		return false
 	}
 	if browser.ExecutableSource == nil {
-		if r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion {
+		if r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion || r.Identity.RunnerVersion != qualifiedSystemBrowserRunner {
 			return false
 		}
 		return qualifiedSystemPlaywrightBrowser(use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
 	}
-	return qualifiedBundledPlaywrightBrowser(use.Headless, use.LaunchOptions.ExecutablePath, browser)
+	return qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, browser)
 }
 
 func qualifiedSystemPlaywrightBrowser(configured, version, observed *string) bool {
 	return configured != nil && *configured == *observed && *version == qualifiedSystemBrowserVersion && *observed == qualifiedSystemBrowserExecutable
 }
 
-func qualifiedBundledPlaywrightBrowser(headless *bool, configured *string, browser playwrightBrowserIdentity) bool {
-	if headless == nil || !*headless {
+func qualifiedBundledPlaywrightBrowser(runnerVersion string, headless *bool, configured *string, browser playwrightBrowserIdentity) bool {
+	qualified, ok := qualifiedBundledBrowsers[runnerVersion]
+	if !ok || headless == nil || !*headless {
 		return false
 	}
 	if configured != nil && *configured != "" {
@@ -790,13 +834,13 @@ func qualifiedBundledPlaywrightBrowser(headless *bool, configured *string, brows
 	if *browser.ExecutableSource != "playwright-bundled" || *browser.ExecutableName != qualifiedBundledBrowserName {
 		return false
 	}
-	if *browser.BrowserVersion != qualifiedBundledBrowserVersion || *browser.ManifestBrowserVersion != qualifiedBundledManifestVersion {
+	if *browser.BrowserVersion != qualified.observedVersion || *browser.ManifestBrowserVersion != qualified.manifestVersion {
 		return false
 	}
-	if *browser.BrowserRevision != qualifiedBundledBrowserRevision || *browser.ExecutableSHA256 != qualifiedBundledExecutableSHA256 {
+	if *browser.BrowserRevision != qualified.revision || *browser.ExecutableSHA256 != qualified.executableSHA256 {
 		return false
 	}
-	return filepath.IsAbs(*browser.ExecutablePath) && strings.HasSuffix(*browser.ExecutablePath, qualifiedBundledExecutableSuffix)
+	return filepath.IsAbs(*browser.ExecutablePath) && strings.HasSuffix(*browser.ExecutablePath, qualified.executableSuffix)
 }
 
 // externalBoundaryFailure classifies the external-server Playwright process
