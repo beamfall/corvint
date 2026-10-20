@@ -100,7 +100,8 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 }
 
 // ObservedUsage admits only complete integer usage counters from the qualified
-// turn-completed event. Missing dimensions remain unobserved.
+// turn-completed event. Missing or null dimensions, and any line that repeats
+// or case-aliases a member, remain unobserved (V1-0950).
 func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	var input, output uint64
@@ -110,13 +111,16 @@ func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 			Type  string                     `json:"type"`
 			Usage map[string]json.RawMessage `json:"usage"`
 		}
-		if json.Unmarshal(scanner.Bytes(), &event) != nil {
+		if checkCodexLine(scanner.Bytes()) != nil || json.Unmarshal(scanner.Bytes(), &event) != nil {
 			return 0, 0, false
 		}
 		if event.Type != "turn.completed" {
 			continue
 		}
 		var i, o uint64
+		if nullCounter(event.Usage["input_tokens"]) || nullCounter(event.Usage["output_tokens"]) {
+			return 0, 0, false
+		}
 		if json.Unmarshal(event.Usage["input_tokens"], &i) != nil || json.Unmarshal(event.Usage["output_tokens"], &o) != nil {
 			return 0, 0, false
 		}
@@ -149,4 +153,10 @@ func ObservedSession(raw []byte) string {
 		}
 	}
 	return session
+}
+
+// nullCounter reports a JSON null counter, which encoding/json would decode
+// as zero instead of refusing.
+func nullCounter(raw json.RawMessage) bool {
+	return string(bytes.TrimSpace(raw)) == "null"
 }
