@@ -332,6 +332,9 @@ func runUnitWatch(ctx context.Context, cfg jstestprovider.UnitConfig, retain boo
 }
 
 func runE2EWatch(ctx context.Context, cfg jstestprovider.E2EConfig, retain bool, opts *watchOptions, stdout, stderr io.Writer) error {
+	if err := jstestprovider.AdmitE2E(cfg); err != nil {
+		return err
+	}
 	return runProviderWatch(ctx, cfg.Config, retain, opts, stdout, stderr, func(ctx context.Context, bound jstestprovider.Config) (jstestprovider.Receipt, error) {
 		cfg.Config = bound
 		return jstestprovider.RunE2E(ctx, cfg)

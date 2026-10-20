@@ -946,12 +946,12 @@ func TestPWPV0036Playwright164Node24TupleIsExact(t *testing.T) {
 }
 
 // PWP-V0-037: the 1.64.0 system-Chrome tuple is the exact version it ran live
-// with, on /0 under Node v22.23.2 only; versions never cross runner releases.
+// with, headless on /0 under Node v22.23.2 only; versions never cross runner releases.
 func TestPWPV0037Playwright164SystemChromeIsExact(t *testing.T) {
 	system := func(version string) string {
 		return strings.Replace(`{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"VERSION","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`, "VERSION", version, 1)
 	}
-	chrome155 := system("Google Chrome 155.0.8059.85")
+	chrome155 := strings.Replace(system("Google Chrome 155.0.8059.85"), `"channel":"",`, `"channel":"","headless":true,`, 1)
 	admitted := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", chrome155)
 	if ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
 		t.Fatal("qualified 1.64.0 system-Chrome tuple abstained")
@@ -960,13 +960,16 @@ func TestPWPV0037Playwright164SystemChromeIsExact(t *testing.T) {
 		t.Fatal("1.63.0 system-Chrome tuple regressed")
 	}
 	for name, r := range map[string]Receipt{
-		"155-on-1.63":  playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", chrome155),
-		"153-on-1.64":  playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 153.0.8010.48")),
-		"other-patch":  playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 155.0.8059.86")),
-		"attempts":     playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v22.23.2", chrome155),
-		"node24":       playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", chrome155),
-		"other-binary": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.ReplaceAll(chrome155, "Google Chrome.app/Contents/MacOS/Google Chrome", "Chromium.app/Contents/MacOS/Chromium")),
-		"unconfigured": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(chrome155, `"launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}`, `"launchOptions":{}`, 1)),
+		"155-on-1.63":    playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", chrome155),
+		"153-on-1.64":    playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 153.0.8010.48")),
+		"other-patch":    playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 155.0.8059.86")),
+		"attempts":       playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v22.23.2", chrome155),
+		"attested":       playwrightTupleReceipt(t, AttestedExternalProfile, "1.64.0", "v22.23.2", chrome155),
+		"headed":         playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(chrome155, `"headless":true`, `"headless":false`, 1)),
+		"headless-unset": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system("Google Chrome 155.0.8059.85")),
+		"node24":         playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v24.11.1", chrome155),
+		"other-binary":   playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.ReplaceAll(chrome155, "Google Chrome.app/Contents/MacOS/Google Chrome", "Chromium.app/Contents/MacOS/Chromium")),
+		"unconfigured":   playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(chrome155, `"launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"}`, `"launchOptions":{}`, 1)),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if qualifiedPlaywrightTuple(r, r.Tests[0]) {

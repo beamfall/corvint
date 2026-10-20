@@ -815,6 +815,10 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 		if !ok || r.Profile == AttemptExternalProfile || r.Identity.NodeVersion != qualifiedNodeVersion {
 			return false
 		}
+		// PWP-V0-037 qualified 1.64.0 system Chrome on headless /0 only.
+		if r.Identity.RunnerVersion == "1.64.0" && (r.Profile != ExternalProfile || use.Headless == nil || !*use.Headless) {
+			return false
+		}
 		return qualifiedSystemPlaywrightBrowser(qualified, use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
 	}
 	return qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, browser)

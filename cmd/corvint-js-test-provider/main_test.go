@@ -441,3 +441,19 @@ func TestPWPV0038E2ERefusalExitStatusAndStderrLine(t *testing.T) {
 		t.Fatalf("multi-line detail not escaped: %q", line)
 	}
 }
+
+// PWP-V0-038: a watch e2e request refused before anything runs reports only
+// the refusal; no watch status line precedes it.
+func TestPWPV0038WatchRefusalWritesNoStatusLine(t *testing.T) {
+	dir := t.TempDir()
+	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: dir, ConfigFile: filepath.Join(dir, "playwright.config.cjs"), RunnerVersion: "1.62.0", TestFiles: []string{filepath.Join(dir, "a.spec.cjs")}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:1"}
+	var stdout, stderr strings.Builder
+	err := runE2EWatch(context.Background(), cfg, true, &watchOptions{paths: []string{"a.spec.cjs"}}, &stdout, &stderr)
+	var refusal *jstestprovider.E2ERefusal
+	if !errors.As(err, &refusal) || refusal.Code != "external-playwright-version-unqualified" {
+		t.Fatalf("watch refusal %v", err)
+	}
+	if stdout.Len() != 0 || stderr.Len() != 0 {
+		t.Fatalf("watch wrote before refusing: stdout %q stderr %q", stdout.String(), stderr.String())
+	}
+}
