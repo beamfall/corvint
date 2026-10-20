@@ -227,7 +227,11 @@ func (r Repo) qualifiedValidity(commit string, m []string, supports map[string]t
 	file := SourceValidityFile{Path: ref, Findings: source.Findings}
 	if source.Read != testvalidity.ExampleSourceLocated {
 		file.Uncertain, file.Reason = true, source.Read
-		return file, SourceValidityTest{Test: ref, Hygiene: testvalidity.Axis{State: testvalidity.HygieneAbstained, Reason: source.Read, Anchors: []string{ref}}}, nil
+		anchors := []string{ref}
+		if source.Cause != "" {
+			anchors = append(anchors, source.Cause)
+		}
+		return file, SourceValidityTest{Test: ref, Hygiene: testvalidity.Axis{State: testvalidity.HygieneAbstained, Reason: source.Read, Anchors: anchors}}, nil
 	}
 	return file, sourceTest(ref, source.Findings), nil
 }

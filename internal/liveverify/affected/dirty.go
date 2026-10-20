@@ -105,6 +105,40 @@ func RangePaths(ctx context.Context, gitExecutable, root, base string) ([]string
 	return DecodeNameList(raw)
 }
 
+// IgnoredPaths returns the ignored untracked paths of the worktree, an ignored
+// directory collapsed to one entry with a trailing slash. It shares the
+// DirtyPaths bounds and fail-closed rule: overflow, deadline, a Git failure or
+// an undecodable name returns an error, never a short list.
+func IgnoredPaths(ctx context.Context, gitExecutable, root string) ([]string, error) {
+	if gitExecutable == "" || root == "" {
+		return nil, fmt.Errorf("%w: empty git executable or root", ErrStatusUnavailable)
+	}
+	deadline, cancel := context.WithTimeout(ctx, StatusDeadline)
+	defer cancel()
+	raw, err := boundedGitRunner(gitExecutable)(deadline, root, MaxStatusBytes,
+		"ls-files", "-z", "--others", "--ignored", "--exclude-standard", "--directory", "--no-empty-directory")
+	if cemcode.CodeOf(err) == cemcode.GitOutputExceeded || len(raw) >= MaxStatusBytes {
+		return nil, ErrStatusOverflow
+	}
+	if err != nil {
+		return nil, errors.Join(ErrStatusUnavailable, err)
+	}
+	fields := bytes.Split(raw, []byte{0})
+	paths := []string{}
+	for _, field := range fields {
+		if len(field) == 0 {
+			continue
+		}
+		value := displayPath(field)
+		if !ValidRelativePath(strings.TrimSuffix(value, "/")) {
+			return nil, fmt.Errorf("%w: path %q", ErrStatusMalformed, value)
+		}
+		paths = append(paths, value)
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
 // DecodeNameList parses a NUL-delimited path list such as
 // `git diff --name-only -z` emits, admitting only valid relative paths.
 func DecodeNameList(raw []byte) ([]string, error) {

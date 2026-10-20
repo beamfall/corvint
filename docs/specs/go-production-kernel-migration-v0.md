@@ -335,7 +335,7 @@ requirements below have evidence. File existence is not parity.
   the new technical contract; original Go qualification is not non-Go qualification.
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:442`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:463`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including
@@ -1662,3 +1662,52 @@ schema/audit pins together; existing snapshots are derived state and require no 
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `GPK-V0-083` (accepted, decision 0516 (V1-0266)) | wider-support placement in `internal/contextindex/eval_query.go` | `TestEvalQueryPrecedenceFollowsSupport`, `TestEvalQueryWiderSymbolsAtLimitTen`, `TestEvalLeadWithSymbolsPreservesPacket`, `TestEvalLeadWithSymbolsDeduplicatesRenderedIdentity`, `TestEvalQueryDuplicateSymbolSupportPreservesOmittedRecordAbstention`, `TestEvalQueryWiderSymbolsPreserveNegativeClaimAbstention`, `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, `TestEvalQueryRelevanceFloor`, and `docs/build-log/2026-10-10-query-wider-symbol-precedence.md`, `docs/build-log/2026-10-10-query-negative-claim-placement.md`, `docs/build-log/2026-10-10-query-promoted-symbol-deduplication.md` and `docs/build-log/2026-10-10-query-promoted-symbol-support.md` |
+
+## Amendment accepted 2026-10-20 (V1-2047): machine-readable impact capability listing
+
+Source: GitHub #1304. A caller learns which suffixes path `impact` admits only from help prose
+or from an `unsupported-impact-path-suffix` refusal after the call. The owner's standing
+auto-accept of lane requirements (2026-10-11) accepts this amendment; it adds one read-only
+listing profile, which this contract does not otherwise authorize, and changes no receipt.
+
+- `GPK-V0-084`: (accepted 2026-10-20, standing auto-accept; V1-2047) `corvint impact
+  --capabilities` MUST print one canonical JSON object with `ok: true`, `mutates: false`,
+  `tool: "impact-capabilities"`, `profile: "corvint-impact-capabilities/0"`, the `PUB-V0-027`
+  `producer` member, `suffixes` and `limits`, and exit 0. `suffixes.withReverseImportRule` names
+  the admitted suffixes a `GPK-V0-027` reverse-import rule covers, `suffixes.admittedWithoutRule`
+  names the admitted suffixes that keep positional evidence and a missing-rule uncertainty,
+  `suffixes.ruleCaseSensitive` names ruled suffixes whose rule applies only to the lower-case
+  spelling, `suffixes.admissionCaseInsensitive` is `true`, and `suffixes.unadmitted` names the
+  refusal code every other suffix receives. Each list is sorted bytewise. `limits` states
+  `pathsMin` 1, `pathsMax` (default path capacity), `pathCharsMax`, `limitMin` 1, `limitMax` and
+  `limitDefault`. Beyond the existing impact root check it reads no repository content, index,
+  trace or stdin.
+- `GPK-V0-085`: (accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived
+  from the tables the admission and rule code read: every suffix is probed through
+  `ImpactPathAdmitted` and `ImpactRuleNamed`, and the limits are the same constants the argument
+  and index bounds use. A test MUST prove that every admitted suffix appears in exactly one list,
+  that every listed suffix is admitted, that the rule lists agree with `ImpactRuleNamed`, that
+  unadmitted suffixes are neither admitted nor listed, and that the limits equal the bounds.
+- `GPK-V0-086`: (accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be the
+  only impact argument and takes no value; any other combination exits 2 with
+  `invalid-arguments` and no stdout. Path admission and the `unsupported-impact-path-suffix`
+  refusal are unchanged: an unadmitted path is still refused, not reported as unanalysed.
+
+Failure modes: a listing that drifts from admission (prevented by deriving it from the
+predicates and by the agreement test); a caller treating `admittedWithoutRule` as analysed
+reverse imports (the member name and the receipt's missing-rule uncertainty say otherwise); a
+caller reading the listing as runtime or language completeness (it lists syntax admission only).
+Non-goals: changing admission, reporting unadmitted paths as unanalysed instead of refusing,
+listing range (`--base`) or `--working-tree-untracked` profiles, the expanded-256 capacity, MCP
+admission, or per-language construct support.
+Acceptance evidence: `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission`,
+`TestGPKV0084ImpactCapabilitiesListing` and
+`TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged`.
+Rollback: remove `--capabilities`, `ImpactCapabilities` and the help lines; no index, snapshot,
+receipt or trace changes.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-084` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`emitImpactCapabilities`, impact `--capabilities` parsing), `internal/contextindex/impact_capabilities.go` | `TestGPKV0084ImpactCapabilitiesListing` |
+| `GPK-V0-085` (accepted 2026-10-20, V1-2047) | `internal/contextindex/impact_capabilities.go` (`ImpactCapabilities`) | `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
+| `GPK-V0-086` (accepted 2026-10-20, V1-2047) | `cmd/corvint/main.go` (`parseImpactArgumentsForPlatform`) | `TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged` |

@@ -3,6 +3,7 @@ package testsource
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -52,15 +53,17 @@ var (
 )
 
 // rspecSupport is the support set a reader resolves helpers against: the readers of the bound
-// support files by path, the files that did not read, and the reason the set is unbound.
+// support files by path, the files that did not read with their unread readers, and the reason
+// the set is unbound.
 type rspecSupport struct {
-	readers map[string]*rspecReader
-	unread  []string
-	unbound string
+	readers  map[string]*rspecReader
+	unread   []string
+	unreadBy map[string]*rspecReader
+	unbound  string
 }
 
 func newRSpecSupport(support testvalidity.RubySupport) *rspecSupport {
-	s := &rspecSupport{readers: map[string]*rspecReader{}, unbound: support.Unbound}
+	s := &rspecSupport{readers: map[string]*rspecReader{}, unreadBy: map[string]*rspecReader{}, unbound: support.Unbound}
 	paths := make([]string, 0, len(support.Files))
 	for path := range support.Files {
 		paths = append(paths, path)
@@ -70,6 +73,7 @@ func newRSpecSupport(support testvalidity.RubySupport) *rspecSupport {
 		r := newRSpecReader(path, support.Files[path])
 		if r.read() != "" {
 			s.unread = append(s.unread, path)
+			s.unreadBy[path] = r
 			continue
 		}
 		s.readers[path] = r
@@ -146,7 +150,7 @@ func (r *rspecReader) resolveAcross(g int, name string) helperResolution {
 			switch {
 			case len(defs) > 1 || len(defs) == 1 && unsure:
 				return helperResolution{abstain: testvalidity.RuleRBHelperAmbiguous, cause: cause}
-			case len(defs) == 0 || r.supportGap() != "":
+			case len(defs) == 0 || r.support.sharedGap(inc.name) != "":
 				return helperResolution{abstain: testvalidity.RuleRBHelperUnresolved, cause: cause}
 			}
 			d := defs[0]
@@ -202,6 +206,36 @@ func (r *rspecReader) supportGap() string {
 		return r.support.unbound
 	case len(r.support.unread) > 0:
 		return r.support.unread[0]
+	}
+	return ""
+}
+
+// rspecSharedWord finds each shared group definition anywhere on a line; its arguments follow it.
+var rspecSharedWord = regexp.MustCompile(`\b(?:shared_examples_for|shared_examples|shared_context)\b`)
+
+// sharedGap names why a shared group called name could be defined where the reader did not look:
+// the reason the set is unbound or not given, or the first support file, other than the skipped
+// paths, that did not read and has a shared definition naming name or a non-literal name. A file
+// that did not read but defines no such group does not hold the inclusion back (TSA-V0-397).
+func (s *rspecSupport) sharedGap(name string, skip ...string) string {
+	switch {
+	case s == nil:
+		return "rspec-support-not-given"
+	case s.unbound != "":
+		return s.unbound
+	}
+	for _, path := range s.unread {
+		if slices.Contains(skip, path) {
+			continue
+		}
+		for _, l := range s.unreadBy[path].lines {
+			// Every definition on the line counts, not only the first.
+			for _, m := range rspecSharedWord.FindAllStringIndex(l.text, -1) {
+				if got, literal := sharedName(strings.TrimSpace(l.text[m[1]:])); !literal || got == name {
+					return path
+				}
+			}
+		}
 	}
 	return ""
 }

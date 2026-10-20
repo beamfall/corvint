@@ -67,16 +67,18 @@ type inclusionReading struct {
 	spec    *rspecReader
 	shared  *rspecReader
 	support *rspecSupport
+	// cause is the support file behind a rspec-shared-group-unbound refusal (TSA-V0-397).
+	cause string
 }
 
 // RSpecInclusionSource reads the shared example q names through its one inclusion site and returns
 // its source facts, with every finding's Test the qualified reference; Read is the refusal reason
 // when the reader cannot bind the inclusion (TSA-V0-089..092).
 func RSpecInclusionSource(q testvalidity.RSpecInclusion) (testvalidity.ExampleSource, string) {
+	x := &inclusionReading{q: q, spec: newRSpecReader(q.SpecPath, q.SpecText), support: newRSpecSupport(q.Support)}
 	refuse := func(reason string) (testvalidity.ExampleSource, string) {
-		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}}, q.Ref(q.IncludeLine)
+		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, Cause: x.cause}, q.Ref(q.IncludeLine)
 	}
-	x := inclusionReading{q: q, spec: newRSpecReader(q.SpecPath, q.SpecText), support: newRSpecSupport(q.Support)}
 	if reason := x.spec.read(); reason != "" {
 		return refuse(reason)
 	}
@@ -109,7 +111,7 @@ func RSpecInclusionSource(q testvalidity.RSpecInclusion) (testvalidity.ExampleSo
 	ref := q.Ref(include.line)
 	def, reason := x.definition(include)
 	if reason != "" {
-		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}}, ref
+		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, Cause: x.cause}, ref
 	}
 	if reason := x.exampleInGroup(def); reason != "" {
 		return testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}}, ref
@@ -142,7 +144,7 @@ func RSpecInclusionSource(q testvalidity.RSpecInclusion) (testvalidity.ExampleSo
 
 // missingInclude names why no inclusion was read at the requested line: one inside an example or
 // a hook body, which the reader does not descend into, or none at all.
-func (x inclusionReading) missingInclude() string {
+func (x *inclusionReading) missingInclude() string {
 	for _, l := range x.spec.lines {
 		if l.line == x.q.IncludeLine && rspecIncludeLine.MatchString(l.text) {
 			return testvalidity.InclusionInExampleOrHook
@@ -152,8 +154,9 @@ func (x inclusionReading) missingInclude() string {
 }
 
 // definition resolves the shared group an inclusion names to exactly one literal definition among
-// the including spec, the named shared file and the support set (TSA-V0-091).
-func (x inclusionReading) definition(include rspecInclude) (sharedDefinition, string) {
+// the including spec, the named shared file and the support set (TSA-V0-091). A support file that
+// did not read and could define the group is kept as x.cause (TSA-V0-397).
+func (x *inclusionReading) definition(include rspecInclude) (sharedDefinition, string) {
 	switch {
 	case include.loop:
 		return sharedDefinition{}, testvalidity.InclusionLoopGenerated
@@ -179,11 +182,15 @@ func (x inclusionReading) definition(include rspecInclude) (sharedDefinition, st
 		}
 		visible = append(visible, d)
 	}
+	gap := x.support.sharedGap(include.name, x.q.SpecPath, x.q.SharedPath)
 	switch {
 	case len(visible) > 1 || unsure:
 		return sharedDefinition{}, testvalidity.SharedGroupAmbiguous
-	case x.support.unbound != "" || len(x.support.unread) > 0:
-		// Another definition could sit in a support file the reader could not bind.
+	case x.support.unbound != "":
+		return sharedDefinition{}, testvalidity.SharedGroupUnbound
+	case gap != "":
+		// Another definition could sit in a support file the reader could not read.
+		x.cause = gap
 		return sharedDefinition{}, testvalidity.SharedGroupUnbound
 	case len(visible) == 0:
 		return sharedDefinition{}, testvalidity.SharedGroupNotFound
@@ -236,7 +243,7 @@ func (r *rspecReader) within(g, ancestor int) bool {
 }
 
 // exampleInGroup checks that the named example is declared in the definition, outside any loop.
-func (x inclusionReading) exampleInGroup(d sharedDefinition) string {
+func (x *inclusionReading) exampleInGroup(d sharedDefinition) string {
 	if d.reader != x.shared {
 		return testvalidity.InclusionExampleNotInGroup
 	}
@@ -264,7 +271,7 @@ func (x inclusionReading) exampleInGroup(d sharedDefinition) string {
 // evaluates it, and the [start, end) line indexes of the spliced body. it_behaves_like nests the
 // body in a group, before its customization block; include_examples and include_context place it
 // inline, before theirs.
-func (x inclusionReading) splice(include rspecInclude, d sharedDefinition) (*rspecReader, [2]int) {
+func (x *inclusionReading) splice(include rspecInclude, d sharedDefinition) (*rspecReader, [2]int) {
 	head := d.reader.groups[d.group].index
 	body := d.reader.lines[head+1 : rubyBlockEnd(d.reader.lines, head)]
 	lines := x.spec.lines
@@ -315,7 +322,7 @@ func describesInclusion(description string, include rspecInclude) bool {
 // placeScoped walks the receipt's scoped id path through the including spec, expanding inline
 // inclusions and it_behaves_like groups as RSpec numbers them, to the inclusion the example ran
 // through, and checks that the rest of the path lands on the named shared example (TSA-V0-092).
-func (x inclusionReading) placeScoped() (int, string) {
+func (x *inclusionReading) placeScoped() (int, string) {
 	ids := x.q.ScopedID
 	if len(ids) < 2 {
 		return -1, testvalidity.InclusionIDUnplaced
@@ -351,7 +358,7 @@ func (x inclusionReading) placeScoped() (int, string) {
 
 // slot picks the n-th child of a sibling list, expanding each inline inclusion to the size of its
 // shared body, and returns the offset inside that body when the slot falls in one.
-func (x inclusionReading) slot(kids []rspecItem, n int) (rspecItem, int, string) {
+func (x *inclusionReading) slot(kids []rspecItem, n int) (rspecItem, int, string) {
 	for _, kid := range kids {
 		if kid.loop {
 			return rspecItem{}, 0, testvalidity.InclusionLoopGenerated
@@ -374,7 +381,7 @@ func (x inclusionReading) slot(kids []rspecItem, n int) (rspecItem, int, string)
 
 // landShared walks the rest of the id path through the shared definition the inclusion names and
 // reports the inclusion when it lands on the named example.
-func (x inclusionReading) landShared(inc int, rest []int) (int, string) {
+func (x *inclusionReading) landShared(inc int, rest []int) (int, string) {
 	d, reason := x.definition(x.spec.includes[inc])
 	if reason != "" {
 		return -1, reason
