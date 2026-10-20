@@ -210,7 +210,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		a, err := doccorpus.Build(ctx, o.root, m)
+		a, err := doccorpus.BuildAdmitted(ctx, o.root, m)
 		if err != nil {
 			return nil, err
 		}

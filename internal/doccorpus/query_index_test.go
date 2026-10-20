@@ -40,7 +40,11 @@ func TestCorpusQueryIndexBounds(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+		// The posting and key-byte guards are exercised at the former bounds
+		// (1,000,000 postings, 16 MiB) to keep these fixtures small; the
+		// documented bounds are pinned by DCP-V1-193.
 		t.Run("unique key byte boundary", func(t *testing.T) {
+			withIndexBounds(t, 1000000, 16<<20)
 			a := &Artifact{Subjects: []Subject{}}
 			// Unique full-length anchor keys cross 16 MiB well before the
 			// posting or record-family bound. IDs and lexical terms also count.
@@ -56,6 +60,7 @@ func TestCorpusQueryIndexBounds(t *testing.T) {
 			}
 		})
 		t.Run("posting boundary", func(t *testing.T) {
+			withIndexBounds(t, 1000000, 16<<20)
 			a := &Artifact{Subjects: make([]Subject, MaxCorpusRecords)}
 			for i := range a.Subjects {
 				a.Subjects[i] = Subject{ID: fmt.Sprintf("s%06d", i)}

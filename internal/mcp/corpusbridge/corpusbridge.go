@@ -8,6 +8,7 @@ import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -48,7 +49,18 @@ type Registry struct {
 		artifact *doccorpus.Artifact
 		overlay  doccorpus.FreshnessOverlay
 	}
+	// index memoizes the query index of the memoized artifact, or its
+	// deterministic refusal, so neither is recomputed per call or per batch
+	// path (DCP-V1-195). It is guarded by load.
+	index struct {
+		artifact *doccorpus.Artifact
+		value    *doccorpus.QueryIndex
+		err      error
+	}
 }
+
+// buildIndex derives the query index; tests replace it to count derivations.
+var buildIndex = doccorpus.BuildQueryIndex
 
 type header struct {
 	Schema       string                 `json:"schema"`
@@ -296,6 +308,22 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if err != nil {
 		return prepared(err)
 	}
+	// An indexed read answers from, or is refused by, the one index derived for
+	// this artifact, before any freshness work (DCP-V1-195).
+	queried := a
+	var indexMS int64
+	if doccorpus.IndexedOperation(op) {
+		step := time.Now()
+		index, err := r.indexFor(ctx, a)
+		indexMS = time.Since(step).Milliseconds()
+		if err != nil {
+			timing.QueryMS = indexMS
+			return prepared(err)
+		}
+		indexed := *a
+		indexed.RuntimeIndex = index
+		queried = &indexed
+	}
 	step := time.Now()
 	overlay, err := r.freshness(ctx, a, &timing)
 	timing.FreshnessMS = time.Since(step).Milliseconds()
@@ -305,15 +333,15 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	step = time.Now()
 	var data []byte
 	if batch {
-		data, err = queryBatch(ctx, a, request, overlay, input.Paths)
+		data, err = queryBatch(ctx, queried, request, overlay, input.Paths)
 	} else {
-		data, err = query(ctx, a, request, overlay)
+		data, err = boundedQuery(ctx, queried, request, overlay, singleFrameBytes)
 	}
 	var result map[string]any
 	if err == nil {
 		err = json.Unmarshal(data, &result)
 	}
-	timing.QueryMS = time.Since(step).Milliseconds()
+	timing.QueryMS = indexMS + time.Since(step).Milliseconds()
 	if err != nil {
 		return failure(err, finish())
 	}
@@ -357,6 +385,45 @@ func query(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Request
 		return nil, err
 	}
 	return doccorpus.Encode(receipt)
+}
+
+// singleFrameBytes bounds what one single-call receipt costs in its MCP result
+// frame; it shares the batch reserve for the envelope, timing and _meta.
+var singleFrameBytes = MaxBatchBytes
+
+// boundedQuery answers one single call within its MCP result frame
+// (DCP-V1-200). A paged receipt over the bound is asked again with a smaller
+// limit, so the caller gets the CLI's own receipt for that limit and continues
+// at next_offset (DCP-V1-201); a receipt that cannot shrink is refused as
+// output-bound-exceeded naming the bound (DCP-V1-202), never an internal error.
+func boundedQuery(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Request, overlay doccorpus.FreshnessOverlay, budget int) ([]byte, error) {
+	for {
+		receipt, err := doccorpus.QueryLive(ctx, a, request, overlay)
+		if err != nil {
+			return nil, err
+		}
+		data, err := doccorpus.Encode(receipt)
+		if err != nil {
+			return nil, err
+		}
+		cost := singleFrameCost(data)
+		if cost <= budget {
+			return data, nil
+		}
+		shown := len(receipt.Results)
+		if a.Schema != doccorpus.SchemaV2 || shown <= 1 {
+			return nil, &doccorpus.Error{Code: "output-bound-exceeded", Message: fmt.Sprintf("receipt of %d results needs %d of the %d-byte MCP result bound; ask a narrower query", shown, cost, budget)}
+		}
+		request.Limit = max(1, min(shown-1, shown*budget/cost))
+	}
+}
+
+// singleFrameCost is what one receipt costs in its MCP result frame: its JSON
+// bytes once as structured content, and once as the JSON string of its
+// enveloped text.
+func singleFrameCost(receipt []byte) int {
+	text, _ := json.Marshal(repoenvelope.EscapeHidden(string(receipt)))
+	return len(receipt) + len(text) + len(repoenvelope.Prefix) + len(repoenvelope.Suffix)
 }
 
 // queryBatch answers each path in order. A path whose answer is a typed
@@ -449,6 +516,7 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 			return nil, ctx.Err()
 		}
 		r.artifact, r.pins = nil, nil
+		r.index.artifact, r.index.value, r.index.err = nil, nil, nil
 	}
 	step := time.Now()
 	timing.Load = "first-call"
@@ -459,6 +527,27 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 	}
 	r.artifact, r.pins = a, pinnedRevisions(a.Manifest)
 	return a, nil
+}
+
+// indexFor returns the query index of a, deriving it on the first indexed
+// call for this artifact. The index, or a corpus refusal such as the capacity
+// bound, is kept until the artifact memo is replaced; a cancellation is not.
+func (r *Registry) indexFor(ctx context.Context, a *doccorpus.Artifact) (*doccorpus.QueryIndex, error) {
+	select {
+	case r.load <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-r.load }()
+	if r.index.artifact == a {
+		return r.index.value, r.index.err
+	}
+	index, err := buildIndex(ctx, a)
+	var refused *doccorpus.Error
+	if err == nil || errors.As(err, &refused) {
+		r.index.artifact, r.index.value, r.index.err = a, index, err
+	}
+	return index, err
 }
 
 // freshness reuses the live overlay, and the symbol checks it memoizes, while
