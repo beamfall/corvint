@@ -478,6 +478,38 @@ func subjectPath(s Subject, p string) bool {
 	return false
 }
 func get(a *Artifact, id string, r *Receipt) {
+	before := len(r.Results)
+	getRecords(a, id, r)
+	if len(r.Results) == before {
+		getLegacyCase(a, id, r)
+	}
+}
+
+// getLegacyCase resolves a test-management case ID that names no corpus
+// record to the manual_case subject declaring it and that subject's
+// manual_case_for links (DCP-V1-213). When no subject declares the case, the
+// receipt carries a legacy-case-unlinked gap naming why: the external export
+// is never corpus evidence, so only a declared link joins it to a subject.
+func getLegacyCase(a *Artifact, id string, r *Receipt) {
+	if canonical, ok := legacyCaseID(id); !ok || canonical != id {
+		return
+	}
+	for _, s := range a.Subjects {
+		if d := a.Details[s.ID].LegacyCase; s.Kind != "manual_case" || d == nil || d.ID != id {
+			continue
+		}
+		addRecord(r, s)
+		for _, rel := range a.Relations {
+			if rel.Type == "manual_case_for" && rel.From == s.ID {
+				addRecord(r, rel)
+			}
+		}
+		return
+	}
+	r.Results = append(r.Results, Gap{Subject: id, Kind: "legacy-case-unlinked", Reason: "no manual_case subject in this corpus declares legacy case " + id + " in a legacy_case detail; the external case export is not corpus evidence, so the case links to no corpus subject"})
+}
+
+func getRecords(a *Artifact, id string, r *Receipt) {
 	for _, j := range a.TestKnowledge {
 		if j.ID == id {
 			addRecord(r, j)
@@ -547,6 +579,12 @@ func get(a *Artifact, id string, r *Receipt) {
 			if o.Link.ID == id {
 				r.Results = append(r.Results, o)
 			}
+		}
+	}
+	// DCP-V1-214: a supplied gap is retrievable by its ID, as through the index.
+	for _, g := range a.SuppliedGaps {
+		if g.ID == id {
+			addRecord(r, g)
 		}
 	}
 	if r.Operation != "trace" {
@@ -660,7 +698,10 @@ func ReadQuery(ctx context.Context, root string, data []byte, request Request) (
 func coverageMetrics(a *Artifact) []any {
 	claimed, observed := map[string]bool{}, map[string]bool{}
 	for _, claim := range a.Claims {
-		claimed[claim.Subject] = true
+		// A supplied test-run receipt changes no other coverage metric (DCP-V1-211).
+		if a.Details[claim.ID].TestRun == nil {
+			claimed[claim.Subject] = true
+		}
 	}
 	for _, o := range a.Observations {
 		observed[o.Link.Subject] = true
@@ -704,28 +745,48 @@ func coverageMetrics(a *Artifact) []any {
 }
 
 // suppliedStatusCoverage counts producer-supplied statuses per state
-// (DCP-V1-188). It yields no row when no status was supplied, so existing
-// coverage receipts keep their bytes.
+// (DCP-V1-188) and supplied test-run receipts per outcome (DCP-V1-211). Each
+// family yields no row when nothing was supplied, so existing coverage
+// receipts keep their bytes.
 func suppliedStatusCoverage(a *Artifact) []any {
+	rows := suppliedClaimCoverage(a, "supplied_status:", "supplied status claims in this state / all supplied status claims",
+		"producer-supplied status; not derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.Status != nil {
+				return d.Status.State
+			}
+			return ""
+		})
+	return append(rows, suppliedClaimCoverage(a, "supplied_test_run:", "supplied test-run receipts with this outcome / all supplied test-run receipts",
+		"producer-supplied test-run receipt; not executed, derived or verified by the compiler and grants no trust",
+		func(d RecordDetails) string {
+			if d.TestRun != nil {
+				return d.TestRun.Outcome
+			}
+			return ""
+		})...)
+}
+
+func suppliedClaimCoverage(a *Artifact, prefix, definition, limitation string, value func(RecordDetails) string) []any {
 	counts := map[string]int{}
 	total := 0
 	for _, claim := range a.Claims {
-		if d := a.Details[claim.ID].Status; d != nil {
-			counts[d.State]++
+		if v := value(a.Details[claim.ID]); v != "" {
+			counts[v]++
 			total++
 		}
 	}
 	if total == 0 {
 		return nil
 	}
-	states := make([]string, 0, len(counts))
-	for state := range counts {
-		states = append(states, state)
+	values := make([]string, 0, len(counts))
+	for v := range counts {
+		values = append(values, v)
 	}
-	sort.Strings(states)
+	sort.Strings(values)
 	rows := []any{}
-	for _, state := range states {
-		rows = append(rows, map[string]any{"metric": "supplied_status:" + state, "value": counts[state], "denominator": total, "defined": true, "definition": "supplied status claims in this state / all supplied status claims", "origin": "supplied", "revision": a.Manifest.Repository.Revision, "limitations": []string{"producer-supplied status; not derived or verified by the compiler and grants no trust"}})
+	for _, v := range values {
+		rows = append(rows, map[string]any{"metric": prefix + v, "value": counts[v], "denominator": total, "defined": true, "definition": definition, "origin": "supplied", "revision": a.Manifest.Repository.Revision, "limitations": []string{limitation}})
 	}
 	return rows
 }

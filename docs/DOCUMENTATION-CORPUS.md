@@ -54,7 +54,12 @@ test-link roles/confidence, explicit coverage membership, ticket history and int
 It also gives supplied records a typed home: `gaps` (producer gap claims, returned by `docs_gaps`
 with `origin: supplied`), a `status` claim detail (`blocked`, `ready` or `proven`, counted by
 `docs_coverage`), and `manual_case` subjects linked by `manual_case_for` relations, which satisfy
-the `missing-manual-cases` gap. Supplied records stay attributed and never raise trust.
+the `missing-manual-cases` gap. A `test_run` claim detail carries a supplied test-run receipt
+(`outcome`, `run`, `origin: supplied`), returned by `docs_get` and counted per outcome by
+`docs_coverage`. A `legacy_case` detail on a `manual_case` subject names its external case ID
+(`C123`), so `docs_get C123` returns that subject and its links, or a `legacy-case-unlinked` gap
+when no subject declares the case. The `gaps` capability and the query index list supplied gaps.
+Supplied records stay attributed and never raise trust.
 See [typed records](../internal/doccorpus/adoption.go) and
 [the contract](specs/documentation-corpus-v1.md) for the closed fields and bounds. Supplied-record
 parity distinguishes admitted records and restricted drops; it does not infer repository completeness.
