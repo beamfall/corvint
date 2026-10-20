@@ -3,6 +3,7 @@ package testsource
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -13,7 +14,7 @@ import (
 // TSA-V0-444 rows.
 func accessorBrief(t *testing.T, name, text string, app *testvalidity.RubyApp) map[int][]string {
 	t.Helper()
-	examples, reason := RSpecExampleSourcesWithSupport(name, text, testvalidity.RubySupport{Unbound: "rspec-support-not-given", App: app})
+	examples, reason := RSpecExampleSourcesWithSupport(name, text, testvalidity.RubySupport{App: app})
 	if reason != "" {
 		t.Fatalf("%s: uncertain %q", name, reason)
 	}
@@ -555,5 +556,258 @@ func TestSourceValidityAccessorNeverWritten(t *testing.T) {
 	// The example that exercises nothing has no finding, so the report does not list it.
 	if got, ok := tests["spec/widget_spec.rb:26"]; ok {
 		t.Errorf("default-value test %+v", got)
+	}
+}
+
+const accessorMulti = `class Multi
+  attr_accessor :flag
+
+  def ivars
+    @flag, @state = true, :active
+  end
+
+  def selfs
+    self.flag, other = true, 1
+  end
+
+  def nested
+    (@state, @flag), rest = [1, 2], 3
+  end
+
+  def noop
+    @other = 1
+  end
+end
+`
+
+const accessorBuilt = `class Built
+  attr_accessor :flag
+
+  def self.new(*args)
+    super.tap { |b| b.flag = true }
+  end
+
+  def run
+    @ran = true
+  end
+end
+`
+
+const accessorSingleton = `class Single
+  attr_accessor :flag
+
+  class << self
+    def new
+      allocate
+    end
+  end
+
+  def run
+    @ran = true
+  end
+end
+`
+
+const accessorBuiltChild = `class BuiltChild < Built
+  attr_accessor :mode
+
+  def run
+    @ran = true
+  end
+end
+`
+
+const accessorWithheldSpec = `RSpec.describe Widget do
+  let(:widget) { described_class.new }
+  def seed_flag
+    widget.flag = true
+  end
+  it 'passes a string key to new' do
+    w = Widget.new("flag" => true)
+    w.activate
+    expect(w.flag).to be(true)
+  end
+  it 'passes a quoted symbol key to new' do
+    w = Widget.new("flag": true)
+    w.activate
+    expect(w.flag).to be(true)
+  end
+  it 'passes attributes to a record' do
+    ledger = Ledger.new(attrs)
+    ledger.post
+    expect(ledger.posted).to be(true)
+  end
+  context 'with a hook that calls a helper' do
+    before { seed_flag }
+    it 'reads the seeded flag' do
+      widget.activate
+      expect(widget.flag).to be(true)
+    end
+  end
+  it 'calls a helper in the body' do
+    seed_flag
+    widget.activate
+    expect(widget.flag).to be(true)
+  end
+  context 'with a let that calls a helper' do
+    let(:seeded) { seed_flag }
+    it 'reads the seeded flag' do
+      seeded
+      widget.activate
+      expect(widget.flag).to be(true)
+    end
+  end
+  it 'assigns two targets' do
+    widget.flag, other = true, 1
+    widget.activate
+    expect(widget.flag).to be(true)
+  end
+  it 'still reads an unwritten flag' do
+    widget.activate
+    expect(widget.flag).to be_nil
+  end
+end
+
+RSpec.describe Multi do
+  it 'assigns ivars together' do
+    m = Multi.new
+    m.ivars
+    expect(m.flag).to be(true)
+  end
+  it 'assigns through self together' do
+    m = Multi.new
+    m.selfs
+    expect(m.flag).to be(true)
+  end
+  it 'assigns a nested target' do
+    m = Multi.new
+    m.nested
+    expect(m.flag).to eq(2)
+  end
+  it 'writes nothing' do
+    m = Multi.new
+    m.noop
+    expect(m.flag).to be_nil
+  end
+end
+
+RSpec.describe Built do
+  it 'builds through a custom new' do
+    b = Built.new
+    b.run
+    expect(b.flag).to be(true)
+  end
+  it 'builds through a singleton new' do
+    s = Single.new
+    s.run
+    expect(s.flag).to be_nil
+  end
+  it 'builds a subclass of a custom new' do
+    c = BuiltChild.new
+    c.run
+    expect(c.flag).to be(true)
+  end
+end
+`
+
+// TestAssertTargetWithheld traces TSA-V0-446 and TSA-V0-447: a string-literal key passed to
+// `.new`, any argument to a record's `.new`, a hook, body or let that calls a spec helper, a
+// multiple assignment of the reader in the class or the example, a class-level `new` on the class
+// or a superclass, a class another committed file reopens or patches, an application that cannot
+// be read whole, and an incomplete support set all give no finding; the control examples that
+// write nothing still do.
+func TestAssertTargetWithheld(t *testing.T) {
+	const s = "spec/withheld_spec.rb"
+	files := map[string]string{"app/models/multi.rb": accessorMulti, "app/models/built.rb": accessorBuilt,
+		"app/models/single.rb": accessorSingleton, "app/models/built_child.rb": accessorBuiltChild}
+	got := accessorBrief(t, s, accessorWithheldSpec, accessorApp(files))
+	wantExamples(t, got, map[int][]string{
+		46: {"RB-ASSERT-TARGET-NEVER-WRITTEN abstained " + s + ":48 " + s + ":47"},
+		68: {"RB-ASSERT-TARGET-NEVER-WRITTEN abstained " + s + ":71 " + s + ":70"},
+	})
+	// An incomplete support set could hold a helper that writes the receiver.
+	incomplete := testvalidity.RubySupport{Unbound: "rspec-support-not-given", App: accessorApp(files)}
+	examples, _ := RSpecExampleSourcesWithSupport(s, accessorWithheldSpec, incomplete)
+	for line, e := range examples {
+		for _, f := range e.Findings {
+			if f.Rule == testvalidity.RuleRBAssertTargetNeverWritten {
+				t.Errorf("incomplete support set: finding at example %d", line)
+			}
+		}
+	}
+	// Reopenings and patches of Widget withhold example 3; of Ledger, example 36.
+	const w = "spec/widget_spec.rb"
+	for _, c := range []struct {
+		name          string
+		extra         map[string]string
+		widget, ledgr bool
+	}{
+		{"a reopening class line", map[string]string{"lib/widget_extensions.rb": "class Widget\n  def activate\n    self.flag = true\n  end\nend\n"}, false, true},
+		{"a namespaced reopening", map[string]string{"app/models/concerns/patch.rb": "module Patches\n  class ::Widget\n  end\nend\n"}, false, true},
+		{"a class_eval initializer", map[string]string{"config/initializers/widget.rb": "Widget.class_eval do\n  attr_writer :flag\nend\n"}, false, true},
+		{"a patch after the class", map[string]string{"app/models/widget.rb": accessorWidget + "Widget.prepend(Flagging)\n"}, false, true},
+		{"a reopened record", map[string]string{"lib/ledger_patch.rb": "class Ledger\n  before_validation { self.posted = true }\nend\n"}, true, false},
+		{"a subclass elsewhere", map[string]string{"app/models/gadget.rb": "class Gadget < Widget\nend\n"}, true, true},
+		{"an application that does not read whole", nil, false, false},
+	} {
+		app := accessorApp(c.extra)
+		if c.extra == nil {
+			app.ReadAll = func() bool { return false }
+		}
+		got := accessorBrief(t, w, accessorSpec, app)
+		if len(got[3]) == 1 != c.widget || len(got[36]) == 1 != c.ledgr {
+			t.Errorf("%s: %v", c.name, got)
+		}
+	}
+}
+
+const accessorBudgetSpec = `RSpec.describe Widget do
+  let(:widget) { described_class.new }
+  it 'flags the widget' do
+    widget.activate
+    expect(widget.flag).to be_nil
+  end
+end
+`
+
+// TestSourceValidityAccessorBudget traces TSA-V0-447 and TSA-V0-448: every spec prefix of one
+// command draws on one application-read budget, so once a prefix spends it the next prefix reads
+// no application source and gives no finding; and a committed config/ file that patches the class
+// withholds the finding through the whole-application read.
+func TestSourceValidityAccessorBudget(t *testing.T) {
+	root := t.TempDir()
+	commitFiles(t, root, map[string]string{
+		"a/spec/widget_spec.rb": accessorBudgetSpec, "a/app/models/widget.rb": accessorWidget,
+		"b/spec/widget_spec.rb": accessorBudgetSpec, "b/app/models/widget.rb": accessorWidget,
+		"c/spec/widget_spec.rb": accessorBudgetSpec, "c/app/models/widget.rb": accessorWidget,
+		"c/config/initializers/widget.rb": "Widget.class_eval do\n  attr_writer :flag\nend\n"})
+	repo := OpenRepo(context.Background(), root)
+	abstained := func(budget *readBudget) map[string]bool {
+		t.Helper()
+		report, err := sourceValidity(repo, SourceValidityOptions{Files: []string{"a/spec/widget_spec.rb", "b/spec/widget_spec.rb", "c/spec/widget_spec.rb"}}, budget)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]bool{}
+		for _, test := range report.Tests {
+			if test.Hygiene.State == testvalidity.HygieneAbstained && test.Hygiene.Reason == testvalidity.RuleRBAssertTargetNeverWritten {
+				out[test.Test] = true
+			}
+		}
+		return out
+	}
+	both := map[string]bool{"a/spec/widget_spec.rb:3": true, "b/spec/widget_spec.rb:3": true}
+	if got := abstained(newReadBudget()); !maps.Equal(got, both) {
+		t.Errorf("full budget: %v, want %v", got, both)
+	}
+	// One file, or the bytes of one file, is spent by prefix a; prefix b reads nothing.
+	size := len(accessorWidget) + 128
+	for _, budget := range []*readBudget{{files: 1, bytes: maxTotalBytes}, {files: MaxFiles, bytes: size}} {
+		if got := abstained(budget); !maps.Equal(got, map[string]bool{"a/spec/widget_spec.rb:3": true}) {
+			t.Errorf("budget %+v: %v", *budget, got)
+		}
+	}
+	if got := abstained(&readBudget{}); len(got) != 0 {
+		t.Errorf("empty budget: %v", got)
 	}
 }

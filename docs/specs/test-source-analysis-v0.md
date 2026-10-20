@@ -2475,8 +2475,9 @@ refusing because the code is read statically and not run.
   attribute assignment `.reader =` on any receiver, including `self`; a symbol, hash key or string
   literal naming the reader or its setter; in a record chain, a mass assignment (`assign_attributes`,
   `attributes=`, `update`, `update!`, `update_attributes`, `update_attributes!`, `write_attribute`,
-  `update_column`, `update_columns`); an assignment of the reader in the example or its hooks; and
-  an argument of `.new` that names the reader.
+  `update_column`, `update_columns`); a multiple assignment that lists `@reader` or `.reader`
+  among its targets (`@reader, @other = ...`); an assignment of the reader in the example or its
+  hooks; and an argument of `.new` that names the reader.
 - `TSA-V0-447`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) What the reader cannot
   resolve MUST give no finding, never a finding: a class-level statement other than `attr_*`
   declarations, defs, symbol callbacks, visibility changes, constants, table settings,
@@ -2489,11 +2490,27 @@ refusing because the code is read statically and not run.
   is passed, stubbed or used other than as `root.`; an exercised call that asserts only; and a file
   with an `around` hook, a `before(:all)`, `before(:context)` or `before(:suite)` hook, or an
   `include_context`, `include_examples`, `it_behaves_like` or `it_should_behave_like` inclusion.
+  Each of these MUST also give no finding: a `.new` argument list that holds a string, quoted
+  symbol key or heredoc literal (`"reader" => v`, `"reader": v`), and any `.new` argument of a
+  record chain, since a record mass-assigns them; a call, in the chain's hooks, its `let`/`subject`
+  bodies or the example body up to the assertion, of a helper method defined in the spec file or
+  its support set, since helper bodies are not expanded; a support set that is not complete (an
+  unbound or unread `require`); a `def self.new` or `def self.allocate` (or the class-named form),
+  or a `class << self` block defining `new` or `allocate`, on any class of the chain; a declaration
+  of a chain class (`class`/`module`, plain, nested or `::`-rooted) in any other committed `.rb`
+  file under the prefix's `app/`, `lib/` or `config/`, or a patching call on it there or after its
+  declaration (`class_eval`/`exec`, `module_eval`/`exec`, `include`, `prepend`, `extend`, `send`,
+  `__send__`, `public_send`, `define_method`, `alias_method`, `attr_*`, `instance_variable_set`,
+  `singleton_class`); and an application whose listed files cannot all be read within the read
+  budget, since such a reopening cannot be ruled out.
 - `TSA-V0-448`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) `corvint tests
-  validity` MUST give the RSpec reader the committed `.rb` files under the spec prefix's `app/`
-  and `lib/` and its `db/schema.rb`, listing at most 20000 files and reading each lazily, at most
-  once and at `MaxFileBytes`, within the command's read budget; a listing that fails or exceeds the
-  bound gives no application source. Without application source (`RubySupport.App` nil) the rule
+  validity` MUST give the RSpec reader the committed `.rb` files under the spec prefix's `app/`,
+  `lib/` and `config/` and its `db/schema.rb`, listing at most 20000 files and reading each at most
+  once and at `MaxFileBytes`, lazily or all at once (`RubyApp.ReadAll`) for the reopening check
+  above. Every application read of one command, across all spec prefixes, MUST draw on one
+  shared application budget of 64 MiB and 5,000 files; a read that would exceed it fails, and a
+  failed read gives no finding. A listing that fails or exceeds the bound gives no application
+  source. Without application source (`RubySupport.App` nil) the rule
   MUST NOT be reported. The example receipt join, discovery and the static example reading do not
   supply application source, so they do not report the rule.
 - `TSA-V0-449`: (standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) When the chain defines
@@ -2502,7 +2519,8 @@ refusing because the code is read statically and not run.
   code writes or to write the accessor on that path, and MUST say the example abstains because the
   code under test is read statically and not run.
 
-Non-goals: running the code under test or a Rails autoloader; reopened classes, concerns, modules,
+Non-goals: running the code under test or a Rails autoloader; expanding spec or support helper
+methods; reopened classes, concerns, modules,
 `Struct`/`Data` classes, `define_attribute_methods` and ActiveModel attributes (they give no
 finding); receivers built through factories, `create`, `build` or any constructor other than
 `.new`; writes reached through a collaborator object, a block yielded to the receiver or a
@@ -2515,7 +2533,10 @@ real test as weak, so every unresolved form gives no finding; a schema that name
 table bails even when the column belongs to another table; a write on a branch the example never
 takes still counts as a write, so the rule misses those examples (false negatives, never false
 positives of that kind); an application listing over the bound or an unreadable file gives no
-finding rather than a partial reading.
+finding rather than a partial reading; an application larger than the shared 64 MiB / 5,000-file
+budget, or a command whose earlier prefixes spent that budget, gives no finding at all because a
+reopening of the class cannot be ruled out (a documented false-negative limit); any quoted `.new`
+argument or any record `.new` argument withholds even when it names another attribute.
 
 Acceptance evidence: inline RSpec and application fixtures in
 `internal/testsource/validity_rspec_accessor_test.go`. `TestAssertTargetNeverWritten` (the
@@ -2531,7 +2552,15 @@ database column, an overridden reader, an unresolved class, `include`, `define_m
 `public_send`, `self` passed out, an unresolved superclass, a factory, the receiver passed or
 stubbed, an unresolved method, another `let` on the receiver, an `around` hook, a schema-less record
 and an ambiguous class file give no finding) and `TestSourceValidityAccessorNeverWritten` (`corvint
-tests validity` reads the committed application and the example abstains with the rule).
+tests validity` reads the committed application and the example abstains with the rule),
+`TestAssertTargetWithheld` (quoted constructor keys, a record built with arguments, a spec helper
+call in a hook, the body and a `let`, an incomplete support set, `def self.new`, a singleton `new`
+and a subclass of a class that defines it, multiple assignment of `@reader` and `self.reader`, and
+a reopening in `lib/`, a `::`-rooted reopening, a `config/` initializer `class_eval`, a `prepend`
+after the declaration and an unreadable application give no finding; a subclass declared elsewhere
+and two control examples still do) and `TestSourceValidityAccessorBudget` (two prefixes share one
+application budget: when the first spends it by files or by bytes the second gives no finding, an
+empty budget gives none, and a committed `config/` patch withholds the finding).
 Real-suite precision and recall are NOT_MEASURED; no live qualification on a real Rails suite was
 run (NOT_RUN).
 
@@ -2549,9 +2578,9 @@ Nothing is persisted.
 | TSA-V0-443 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec_examples.go` | `TestAssertTargetNeverWritten` | experimental |
 | TSA-V0-444 | `internal/testsource/validity_rspec_accessor.go`, `internal/testvalidity/source_rules_accessor.go` | `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorNeverWritten` | experimental |
 | TSA-V0-445 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetUncertain` | experimental |
-| TSA-V0-446 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetWritten` | experimental |
-| TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetUncertain` | experimental |
-| TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten` | experimental |
+| TSA-V0-446 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten`, `TestAssertTargetWritten`, `TestAssertTargetWithheld` | experimental |
+| TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
+| TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
 
 ## Decision file format
