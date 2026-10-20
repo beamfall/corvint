@@ -942,7 +942,8 @@ and container qualification; full fallback remains available.
   Every nested module stays open when the observed side cannot be read the same way: an observed
   module path is unresolved, an observed `go.mod` or the root `go.work` is unreadable, over-size,
   or unparsable, an observed `go.mod` declares a module path other than the one the plugin read
-  (an escaped quoted path, for example), the root `go.work` use set differs from the observed
+  (the plugin reads a quoted path with Go string-literal rules and leaves one it cannot read
+  unresolved, V1-0873), the root `go.work` use set differs from the observed
   directories, or an observed directory replacement is not repository-relative or does not name
   exactly an observed module directory or a path at or below an unlisted module's directory (a
   differently cased or linked path can name a nested module, so identity is not established).

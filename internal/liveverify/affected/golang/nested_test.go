@@ -254,7 +254,6 @@ func TestUnreadableOrUnparsableNestedManifestKeepsTheFrontier_V1_0867(t *testing
 		extra map[string]string
 		want  string
 	}{
-		{"escaped root module path", map[string]string{"go.mod": "module \"example.test/ro\\x6ft\"\n"}, `observed manifest go.mod declares "example.test/root", read as "example.test/ro\\x6ft"`},
 		{"unparsable root manifest", map[string]string{"go.mod": "module example.test/root\n\ngo nonsense\n"}, "observed manifest go.mod is unparsable: line 3: malformed go directive"},
 		{"root replacement outside the repository", map[string]string{"go.mod": "module example.test/root\n\nreplace example.test/alias => ../elsewhere\n"}, "go.mod: replace target ../elsewhere lies outside the repository"},
 		// Only an exact module directory establishes identity: a differently
@@ -317,5 +316,31 @@ func TestNestedFrontierReadsTheSuppliedSource_V1_0867(t *testing.T) {
 	}
 	if !slices.Contains(open.Frontier, golang.FrontierNestedModule) {
 		t.Errorf("requiring tree frontier = %v, want %s", open.Frontier, golang.FrontierNestedModule)
+	}
+}
+
+// TestEscapedRootModulePathNamesUnitsByItsValue_V1_0873: a root go.mod whose
+// quoted module path carries an escape names units by the unquoted path, as
+// the Go toolchain does, not by the literal escaped text. It replaces the
+// V1-0867 escaped-root row of the case above: both sides now read the same
+// path, so that mismatch no longer holds the nested frontier open.
+func TestEscapedRootModulePathNamesUnitsByItsValue_V1_0873(t *testing.T) {
+	tree := fstest.MapFS{
+		"go.mod": {Data: []byte("module \"example.test/ro\\x6ft\"\n")},
+		"a/a.go": {Data: []byte("package a\n")},
+	}
+	result, err := golang.New().UnitsSource(affected.FSSource(&budgetFS{files: tree, limit: 1 << 30}))
+	if err != nil {
+		t.Fatalf("units: %v", err)
+	}
+	ids := []string{}
+	for _, unit := range result.Units {
+		ids = append(ids, unit.ID)
+	}
+	if !slices.Contains(ids, "go:example.test/root/a") {
+		t.Fatalf("unit ids = %v, want go:example.test/root/a", ids)
+	}
+	if slices.Contains(result.Frontier, golang.FrontierModulePath) {
+		t.Fatalf("frontier = %v, an escaped path that unquotes is not unresolved", result.Frontier)
 	}
 }

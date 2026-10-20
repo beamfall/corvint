@@ -618,7 +618,17 @@ func readModuleSourcePath(root *affected.Source, directory string) (string, erro
 		if len(fields) != 2 || fields[0] != "module" {
 			continue
 		}
-		value := strings.Trim(fields[1], "\"")
+		value := fields[1]
+		if strings.HasPrefix(value, "\"") || strings.HasPrefix(value, "`") {
+			// A quoted path follows Go string-literal rules, as modfile reads
+			// it; a raw string (which the go tool refuses) or an escape this
+			// cannot interpret is uncertainty (V1-0873).
+			unquoted, err := strconv.Unquote(value)
+			if err != nil || value[0] == '`' {
+				return "", fmt.Errorf("%w: go.mod module path %s is not a Go string literal", affected.ErrInvalidLanguage, value)
+			}
+			value = unquoted
+		}
 		if value == "" {
 			continue
 		}
