@@ -397,6 +397,12 @@
     "tools/beamfall-shadow": [
       "go.mod"
     ],
+    "tools/capabilities-check": [
+      "README.md",
+      "cmd/",
+      "docs/",
+      "internal/mcp/"
+    ],
     "tools/cem-stable-regen": [
       "protocol/cem-1.0/"
     ],

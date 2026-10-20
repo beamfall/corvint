@@ -24,3 +24,7 @@ Build a short status report for the user. Every command below is read-only.
 
 Write the report as at most eight short lines, one per item, with plain words for each state. Name
 the command that fixes each problem you report.
+
+Other Corvint capabilities: `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

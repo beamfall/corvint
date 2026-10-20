@@ -126,7 +126,8 @@ SIGTERM and SIGKILL (PWP-V0-030).
 --retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
 enclosing Git worktree (LPCV-V0-055); a retention that creates .corvint also writes
 .corvint/.gitignore (*), otherwise .corvint/test-evidence/.gitignore (*), so Git status stays
-clean, and never overwrites an existing one (LPCV-V0-084). The flags of each subcommand follow.
+clean; it never overwrites an existing non-empty one, repairs an existing empty one and refuses a
+non-regular entry (LPCV-V0-084). The flags of each subcommand follow.
 `
 
 // usageSink, while printUsage runs, receives each subcommand's flag defaults instead of the

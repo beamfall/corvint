@@ -33,7 +33,9 @@ completes a ticket.
 
 If a tool is absent or refuses a supported scope, report the concrete gap and use repository-owned
 routes. When the `corvint` CLI is installed, consult `corvint help COMMAND` for capabilities outside
-the MCP tool set rather than inventing a tool or flag. A `Method not found` during MCP initialization
+the MCP tool set rather than inventing a tool or flag; the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md lists every command, binary and
+MCP tool with its maturity and refusals. A `Method not found` during MCP initialization
 means this OpenCode client needs the documented `--protocol-version 2025-11-25` server selector;
 Corvint's default protocol remains `2026-07-28`. Never change configuration without the task's
 normal authorization.

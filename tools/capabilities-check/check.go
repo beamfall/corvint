@@ -1,0 +1,433 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
+)
+
+// Inventory is what the code says exists (CAP-V0-002).
+type Inventory struct {
+	Commands []string        // root help Commands: block, in help order
+	Core     map[string]bool // verbs the root help lists as Core
+	Binaries []string        // cmd/ directories holding a package main Go file
+	Tools    []string        // corvint.* MCP tool name literals
+}
+
+// Finding is one disagreement between the catalog or README and the code (CAP-V0-003, CAP-V0-004).
+type Finding struct {
+	Kind    string
+	Section string
+	Name    string
+	Detail  string
+}
+
+func (f Finding) String() string {
+	return fmt.Sprintf("%s %s %q: %s", f.Kind, f.Section, f.Name, f.Detail)
+}
+
+const (
+	sectionCommands = "commands"
+	sectionBinaries = "binaries"
+	sectionTools    = "mcp-tools"
+	sectionReadme   = "readme"
+)
+
+var (
+	packageMain = regexp.MustCompile(`(?m)^package main\s*$`)
+	toolLiteral = regexp.MustCompile(`"(corvint\.[a-z_.]+)"`)
+	backticked  = regexp.MustCompile("`([^`]+)`")
+	markdownRef = regexp.MustCompile(`\]\(([^)\s]+)\)`)
+)
+
+// Collect reads the inventory from the root help source, the cmd/ tree and the MCP
+// bridge sources. It reads only those paths (CAP-V0-006).
+func Collect(helpGo, cmdDir, mcpDir string) (Inventory, error) {
+	src, err := os.ReadFile(helpGo)
+	if err != nil {
+		return Inventory{}, err
+	}
+	commands, core, err := parseCommands(src)
+	if err != nil {
+		return Inventory{}, err
+	}
+	binaries, err := scanBinaries(cmdDir)
+	if err != nil {
+		return Inventory{}, err
+	}
+	toolDirs := []string{mcpDir}
+	for _, b := range binaries {
+		if strings.HasPrefix(b, "corvint-") && strings.HasSuffix(b, "mcp") {
+			toolDirs = append(toolDirs, filepath.Join(cmdDir, b))
+		}
+	}
+	tools, err := scanTools(toolDirs)
+	if err != nil {
+		return Inventory{}, err
+	}
+	return Inventory{Commands: commands, Core: core, Binaries: binaries, Tools: tools}, nil
+}
+
+// parseCommands reads the root help's Commands: block and its Core maturity list.
+func parseCommands(src []byte) ([]string, map[string]bool, error) {
+	text := string(src)
+	start := strings.Index(text, "const rootHelp = `")
+	if start < 0 {
+		return nil, nil, errors.New("root help constant not found")
+	}
+	text = text[start:]
+	block := strings.Index(text, "\nCommands:\n")
+	if block < 0 {
+		return nil, nil, errors.New("root help Commands: block not found")
+	}
+	var commands []string
+	for _, line := range strings.Split(text[block+len("\nCommands:\n"):], "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			break
+		}
+		name, _, ok := strings.Cut(trimmed, "  ")
+		if !ok {
+			return nil, nil, fmt.Errorf("root help command line has no description: %q", line)
+		}
+		commands = append(commands, name)
+	}
+	if len(commands) == 0 {
+		return nil, nil, errors.New("root help Commands: block is empty")
+	}
+	core := map[string]bool{}
+	whole := string(src)
+	at := strings.Index(whole, "Core (")
+	end := strings.Index(whole, "Experimental, no stability promise")
+	if at < 0 || end < at {
+		return nil, nil, errors.New("command maturity Core list not found")
+	}
+	coreText := whole[at:end]
+	coreText = coreText[strings.Index(coreText, ":\n")+2:]
+	for _, word := range strings.FieldsFunc(coreText, func(r rune) bool { return r == ',' || r == '\n' || r == ' ' }) {
+		core[word] = true
+	}
+	return commands, core, nil
+}
+
+func scanBinaries(cmdDir string) ([]string, error) {
+	entries, err := os.ReadDir(cmdDir)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		files, err := os.ReadDir(filepath.Join(cmdDir, entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		for _, file := range files {
+			name := file.Name()
+			if file.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			src, err := os.ReadFile(filepath.Join(cmdDir, entry.Name(), name))
+			if err != nil {
+				return nil, err
+			}
+			if packageMain.Match(src) {
+				out = append(out, entry.Name())
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func scanTools(dirs []string) ([]string, error) {
+	seen := map[string]bool{}
+	for _, dir := range dirs {
+		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			name := d.Name()
+			if d.IsDir() {
+				if name == "testdata" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+				return nil
+			}
+			src, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			for _, m := range toolLiteral.FindAllSubmatch(src, -1) {
+				seen[strings.TrimRight(string(m[1]), ".")] = true
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for name := range seen {
+		out = append(out, name)
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// row is one gated table row: its name, its maturity cell and every relative link in it.
+type row struct {
+	Name     string
+	Maturity string
+	Links    []string
+	Line     int
+}
+
+// parseRows returns the rows of every region between <!-- capability-gate:SECTION --> and
+// <!-- /capability-gate:SECTION -->. A row's name is the first backticked span of its first cell.
+func parseRows(doc []byte, section string) ([]row, error) {
+	open := "<!-- capability-gate:" + section + " -->"
+	closing := "<!-- /capability-gate:" + section + " -->"
+	var rows []row
+	inside := false
+	maturityCol := -1
+	regions := 0
+	scanner := bufio.NewScanner(bytes.NewReader(doc))
+	scanner.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for n := 1; scanner.Scan(); n++ {
+		line := strings.TrimSpace(scanner.Text())
+		switch {
+		case line == open:
+			if inside {
+				return nil, fmt.Errorf("line %d: nested %s", n, open)
+			}
+			inside, maturityCol = true, -1
+			regions++
+			continue
+		case line == closing:
+			if !inside {
+				return nil, fmt.Errorf("line %d: %s without an opener", n, closing)
+			}
+			inside = false
+			continue
+		}
+		if !inside || !strings.HasPrefix(line, "|") {
+			continue
+		}
+		cells := splitCells(line)
+		if maturityCol < 0 {
+			for i, c := range cells {
+				if strings.EqualFold(c, "Maturity") {
+					maturityCol = i
+				}
+			}
+			if maturityCol < 0 {
+				return nil, fmt.Errorf("line %d: %s table header has no Maturity column", n, section)
+			}
+			continue
+		}
+		if strings.Trim(line, "|-: ") == "" {
+			continue
+		}
+		m := backticked.FindStringSubmatch(cells[0])
+		if section == sectionReadme {
+			m = backticked.FindStringSubmatch(line)
+		}
+		if m == nil {
+			return nil, fmt.Errorf("line %d: %s row has no backticked name", n, section)
+		}
+		r := row{Name: m[1], Line: n}
+		if maturityCol < len(cells) {
+			r.Maturity = cells[maturityCol]
+		}
+		for _, link := range markdownRef.FindAllStringSubmatch(line, -1) {
+			target := link[1]
+			if strings.Contains(target, "://") || strings.HasPrefix(target, "#") || strings.HasPrefix(target, "mailto:") {
+				continue
+			}
+			target, _, _ = strings.Cut(target, "#")
+			r.Links = append(r.Links, target)
+		}
+		rows = append(rows, r)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if inside {
+		return nil, fmt.Errorf("%s region is not closed", open)
+	}
+	if regions == 0 {
+		return nil, fmt.Errorf("no %s region", open)
+	}
+	return rows, nil
+}
+
+// splitCells splits a Markdown table row, keeping a pipe that sits inside a code span.
+func splitCells(line string) []string {
+	line = strings.TrimSpace(line)
+	line = strings.TrimPrefix(line, "|")
+	line = strings.TrimSuffix(line, "|")
+	var cells []string
+	var cur strings.Builder
+	code := false
+	for i := 0; i < len(line); i++ {
+		c := line[i]
+		switch {
+		case c == '`':
+			code = !code
+		case c == '\\' && i+1 < len(line) && line[i+1] == '|':
+			cur.WriteByte('|')
+			i++
+			continue
+		case c == '|' && !code:
+			cells = append(cells, strings.TrimSpace(cur.String()))
+			cur.Reset()
+			continue
+		}
+		cur.WriteByte(c)
+	}
+	return append(cells, strings.TrimSpace(cur.String()))
+}
+
+func firstWord(s string) string {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if i := strings.IndexAny(s, " ;,("); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+// commandName strips the leading "corvint " from a command row's name.
+func commandName(name string) string {
+	return strings.TrimPrefix(name, "corvint ")
+}
+
+// Check compares the catalog (and, when readme is non-nil, the README capability table) with
+// the inventory. linkBase is the directory relative catalog links resolve against.
+func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
+	var findings []Finding
+	catalogRows := map[string]map[string]row{}
+	sections := []struct {
+		name  string
+		items []string
+		key   func(string) string
+	}{
+		{sectionCommands, inv.Commands, commandName},
+		{sectionBinaries, inv.Binaries, func(s string) string { return s }},
+		{sectionTools, inv.Tools, func(s string) string { return s }},
+	}
+	for _, sec := range sections {
+		rows, err := parseRows(catalog, sec.name)
+		if err != nil {
+			findings = append(findings, Finding{"malformed", sec.name, "", err.Error()})
+			continue
+		}
+		byName := map[string]row{}
+		for _, r := range rows {
+			name := sec.key(r.Name)
+			if _, dup := byName[name]; dup {
+				findings = append(findings, Finding{"duplicate", sec.name, name, fmt.Sprintf("second row at line %d", r.Line)})
+				continue
+			}
+			byName[name] = r
+			for _, link := range r.Links {
+				if _, err := os.Stat(filepath.Join(linkBase, filepath.FromSlash(path.Clean(link)))); err != nil {
+					findings = append(findings, Finding{"broken-link", sec.name, name, link})
+				}
+			}
+		}
+		want := map[string]bool{}
+		for _, item := range sec.items {
+			want[item] = true
+			if _, ok := byName[item]; !ok {
+				findings = append(findings, Finding{"missing", sec.name, item, "no catalog row"})
+			}
+		}
+		for name, r := range byName {
+			if !want[name] {
+				findings = append(findings, Finding{"stale", sec.name, name, fmt.Sprintf("row at line %d names nothing in the code", r.Line)})
+			}
+		}
+		if sec.name == sectionCommands {
+			for name, r := range byName {
+				if !want[name] {
+					continue
+				}
+				isCore := inv.Core[strings.Fields(name)[0]]
+				got := firstWord(r.Maturity)
+				if isCore != (got == "core") {
+					findings = append(findings, Finding{"maturity", sec.name, name, fmt.Sprintf("maturity %q but root help Core list says core=%t", r.Maturity, isCore)})
+				}
+			}
+		}
+		catalogRows[sec.name] = byName
+	}
+	if readme != nil {
+		findings = append(findings, checkReadme(readme, inv, catalogRows)...)
+	}
+	slices.SortFunc(findings, func(a, b Finding) int {
+		return strings.Compare(a.String(), b.String())
+	})
+	return findings
+}
+
+// checkReadme maps each README capability row to a catalog row (CAP-V0-004).
+func checkReadme(readme []byte, inv Inventory, catalogRows map[string]map[string]row) []Finding {
+	rows, err := parseRows(readme, sectionReadme)
+	if err != nil {
+		return []Finding{{"malformed", sectionReadme, "", err.Error()}}
+	}
+	var findings []Finding
+	for _, r := range rows {
+		section, name := resolveReadme(r.Name, inv)
+		target, ok := catalogRows[section][name]
+		if section == "" || !ok {
+			findings = append(findings, Finding{"readme-unmapped", sectionReadme, r.Name, "no catalog row for this command"})
+			continue
+		}
+		if firstWord(r.Maturity) != firstWord(target.Maturity) {
+			findings = append(findings, Finding{"readme-maturity", sectionReadme, r.Name, fmt.Sprintf("README says %q, catalog says %q", r.Maturity, target.Maturity)})
+		}
+	}
+	return findings
+}
+
+// resolveReadme names the catalog section and row a README command invokes.
+func resolveReadme(command string, inv Inventory) (string, string) {
+	fields := strings.Fields(command)
+	if len(fields) == 0 {
+		return "", ""
+	}
+	switch {
+	case strings.HasPrefix(fields[0], "corvint."):
+		return sectionTools, fields[0]
+	case fields[0] != "corvint":
+		return sectionBinaries, fields[0]
+	}
+	words := fields[1:]
+	best := ""
+	for _, c := range inv.Commands {
+		parts := strings.Fields(c)
+		if len(parts) <= len(words) && slices.Equal(parts, words[:len(parts)]) && len(c) > len(best) {
+			best = c
+		}
+	}
+	if best == "" {
+		return "", ""
+	}
+	return sectionCommands, best
+}

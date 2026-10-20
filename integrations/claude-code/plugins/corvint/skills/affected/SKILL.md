@@ -20,3 +20,7 @@ Summarize the plan for a person:
 4. For Go, the exact `go test` command for the selected packages from `provider.go.packages`.
 
 Do not run the tests unless the user asks.
+
+Other Corvint capabilities: `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

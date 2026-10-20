@@ -31,6 +31,9 @@ FULL support, automatic feature fanout or new execution authority.
      available. Do not use this profile for a dirty worktree or a range that does not end at `HEAD`.
    - For tracked nested `.go` file questions on macOS or Linux in a slash-qualified Go module,
      retain positional path mode: `corvint impact PATH... --limit 10` when `corvint` is available.
+     The same path and range modes admit Ruby (`.rb`), JavaScript (`.js .jsx .mjs .cjs`) and
+     TypeScript (`.ts .tsx`) under the experimental `non-go-syntax-v0` profile, which always
+     reports dynamic-dispatch unknowns; preserve them.
    - Use `corvint impact --working-tree-untracked PATH... --limit 10` only when the requested
      targets are explicitly identified as untracked `.go` files. Never use it as a substitute for
      committed-range or tracked-path impact.
@@ -38,9 +41,12 @@ FULL support, automatic feature fanout or new execution authority.
      for known ledger-only context, including repositories with non-Go sources. A larger limit
      admits Go candidate ranking; known non-Go ranking remains unsupported. Preserve unknown-ID
      OUT_OF_SCOPE results; feature inventory remains unsupported.
-   - For unsupported targets or profiles, including non-Go path impact, preserve the
-     explicit Go capability gap and use repository-owned authority/context tools. Do not approximate
-     a Corvint receipt.
+   - For unsupported targets or profiles, including path suffixes outside Go, Ruby, JavaScript and
+     TypeScript (`unsupported-impact-path-suffix`), preserve the explicit capability gap and use
+     repository-owned authority/context tools. Do not approximate a Corvint receipt.
+   - To learn which Corvint command, binary or MCP tool answers a question, run `corvint help`
+     and `corvint COMMAND --help`, or read the catalog at
+     https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md (maturity and refusals).
 2. Treat source selectors, blob identities, and authority labels as evidence. Treat uncertainty,
    omissions, stale-index state, and explicit gaps as part of the answer. In particular, non-Go
    range omissions, `impact-range-drift`, `BUDGETED`, and any reported uncertainty keep the impact
