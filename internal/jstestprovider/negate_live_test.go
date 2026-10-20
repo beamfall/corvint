@@ -98,8 +98,11 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 	}))
 	defer partner.Close()
 	var flaky atomic.Int32
-	slowSeen := make(chan struct{})
-	var slowOnce sync.Once
+	// slowSeen closes when the fixture reaches /api/slow; slowCancelled closes
+	// when that request's server context ends, which is the cancellation the
+	// interruption case must observe (LPCV-V0-127).
+	slowSeen, slowCancelled := make(chan struct{}), make(chan struct{})
+	var slowOnce, slowCancelOnce sync.Once
 	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/":
@@ -118,6 +121,7 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 		case "/api/slow":
 			slowOnce.Do(func() { close(slowSeen) })
 			<-r.Context().Done()
+			slowCancelOnce.Do(func() { close(slowCancelled) })
 		default:
 			http.NotFound(w, r)
 		}
@@ -239,15 +243,22 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 	t.Run("interruption-cleanup", func(t *testing.T) {
 		interrupted, cancel := context.WithCancel(ctx)
 		defer cancel()
+		var cancelledOnSlow atomic.Bool
 		go func() {
 			select {
 			case <-slowSeen:
+				cancelledOnSlow.Store(true)
 				cancel()
 			case <-time.After(60 * time.Second):
 			}
 		}()
 		document := negate(t, interrupted, "slow", "slow", 0, 1)
 		expect(t, document.Steps[0], testvalidity.StrengthNotMeasured, stepnegation.ReasonBaselineInfrastructure, stepnegation.WitnessNone)
+		// A browser or fixture failure before /api/slow also yields
+		// baseline-infrastructure with clean cleanup, so the case counts only
+		// when the slow request was reached, the run was cancelled on it, and
+		// the server saw that request end.
+		requireInterruptionObserved(t, slowSeen, slowCancelled, cancelledOnSlow.Load())
 	})
 	t.Run("ambiguous-selection-refused", func(t *testing.T) {
 		_, err := RunNegate(ctx, NegateConfig{E2E: E2EConfig{Config: Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), RunnerName: "playwright", RunnerVersion: pkg.Version, Timeout: 90 * time.Second}, ExternalServer: true, AppIdentity: "negate-fixture-v1", ServerReadyURL: app.URL},
@@ -256,6 +267,26 @@ func TestNegateLiveDiagnostic(t *testing.T) {
 			t.Fatalf("err = %v, want %s", err, NegateTestAmbiguous)
 		}
 	})
+}
+
+// requireInterruptionObserved fails the interruption case unless the fixture
+// reached the slow request, the negate run was cancelled on that signal, and
+// the server observed the request end (LPCV-V0-127).
+func requireInterruptionObserved(t *testing.T, seen, cancelled <-chan struct{}, cancelledOnSlow bool) {
+	t.Helper()
+	select {
+	case <-seen:
+	default:
+		t.Fatal("interruption not exercised: the fixture never reached /api/slow")
+	}
+	if !cancelledOnSlow {
+		t.Fatal("interruption not exercised: the run was not cancelled on the slow request")
+	}
+	select {
+	case <-cancelled:
+	case <-time.After(10 * time.Second):
+		t.Fatal("interruption not observed: the /api/slow request did not end after cancellation")
+	}
 }
 
 // negateLiveNode places an explicitly named Node first on this test's PATH

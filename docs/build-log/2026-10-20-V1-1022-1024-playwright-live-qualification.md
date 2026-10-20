@@ -42,6 +42,8 @@ The owner approved local browsers and toolchains on 2026-10-17. They live under
 | same, control | 1.63.0, `report.go` mutated to credit retry 1 | FAIL `OBLIGATION_QUALIFICATION_FAILED: TOLQ-7 expected failed, observed credited` |
 | `TestTOLV0126_ShippedVersionAdmitted` | n/a | PASS; with the shipped list reverted to empty it fails |
 | `TestNegateLiveDiagnostic`, qualified mode | Node v22.23.2, 1.63.0, headless shell 1243 | PASS 12/12 in 61.5 s; every document runner `playwright` 1.63.0, Node v22.23.2, tuple `candidate` |
+| same, after the interruption hit/cancel assertions (independent review, PR #1280) | Node v22.23.2, 1.63.0, headless shell 1243 | PASS 12/12 in 88.6 s; interruption case observed `/api/slow`, cancelled on it and saw the request end. The 61.5 s run above lacked those assertions |
+| same, control: `slow` given a fixture that fails before `/api/slow` | same | with the assertions FAIL `the fixture never reached /api/slow`; without them PASS (`baseline-infrastructure`, cleanup complete), which is the gap the assertions close |
 | same, control | Node v22.23.3 (unqualified) | FAIL `runtime-tuple-unqualified` |
 | same | Node v22.23.2, 1.64.0, headless shell 1248 | FAIL 7/12 (network-text, static-element, caught-assertion, soft-steps, hard-steps, collateral, third-party); every assertion step `NOT_MEASURED` `step-fault-underivable` with anchors `derivation:network:expected-value-not-literal` and `derivation:dom:no-dom-fault` |
 | `TestLPCVV0129JoinStaysGatedOff` | n/a | PASS; it fails when the gate is set true |
