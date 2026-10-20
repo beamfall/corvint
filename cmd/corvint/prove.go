@@ -240,7 +240,7 @@ type proveRow struct {
 	Refusal string `json:"refusal,omitempty"`
 	Result  string `json:"result"`
 	Trust   string `json:"trust"`
-	// Detail is the mutation runner's one-line report, present only on a `test-kills-mutant` row that ran.
+	// Detail is the mutation runner's one-line report on a `test-kills-mutant` row that ran, or why a claim has no engine (FPK-V0-057).
 	Detail  string                `json:"detail,omitempty"`
 	Witness *proveMutationWitness `json:"witness,omitempty"`
 	Attack  *proveAttackReport    `json:"attack,omitempty"`
@@ -600,7 +600,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 		rows[index].Falsified, rows[index].Detail, rows[index].Witness = judged.falsified, judged.detail, judged.witness
 		rows[index].Attack = judged.attack
 	}
-	summary := summarizeProof(packet, rows)
+	summary := summarizeProof(packet, discloseUnsupportedMutations(rows, options.proveMutate))
 	if affectedSummary != nil {
 		affectedSummary.Paths = affectedPaths(rows)
 		summary.Affected = affectedSummary
