@@ -389,7 +389,12 @@ func (d *Dispatcher) stateCommand(parent context.Context, dir string, argv []str
 	d.reader = slot
 	start := d.readerStart
 	if start == nil {
-		start = groupreap.Start
+		// A reader command may fork, and on Darwin a group SIGKILL can miss
+		// a member forked alongside it, so the owner repeats it while a
+		// live member remains before the reap (PGO-V0-017).
+		host := d.readerHost
+		host.RepeatKillWhileLive = true
+		start = func(c *exec.Cmd) (*groupreap.Owner, error) { return groupreap.StartWith(c, host) }
 	}
 	slot.owner, err = start(cmd)
 	if err != nil {

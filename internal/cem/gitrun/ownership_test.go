@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -70,6 +71,18 @@ func (r *signalLedger) with(extra func(*groupreap.Primitives)) func(int, bool) g
 			extra(&p)
 		}
 		return p
+	}
+}
+
+// requireKillsThenReap fails unless the ledger saw one or more group
+// signals, then the reap, then nothing. A signal after the first is the
+// PGO-V0-017 repeat on a pre-reap live observation; none may follow the reap.
+func (r *signalLedger) requireKillsThenReap(t *testing.T) {
+	t.Helper()
+	got, _ := r.recorded()
+	n := len(got)
+	if n < 2 || got[n-1] != "reap" || slices.ContainsFunc(got[:n-1], func(e string) bool { return e != "kill-group" }) {
+		t.Fatalf("owner primitives = %v, want kill-group (repeated only before the reap), reap", got)
 	}
 }
 
@@ -158,7 +171,7 @@ func TestPGOV0012StableDescendantRetiresWithoutPostReapSignal(t *testing.T) {
 				requireCode(t, err, c.want)
 				pid = <-interrupted
 			}
-			ledger.requireEvents(t, "kill-group", "reap")
+			ledger.requireKillsThenReap(t)
 			if l.budget.Held() || l.count("released") != 1 || l.count("hold") != 0 {
 				t.Fatalf("events = %v held=%v", l.names(), l.budget.Held())
 			}
@@ -231,5 +244,52 @@ func reapHeldLeader(t *testing.T, leader int, running bool) {
 	var status syscall.WaitStatus
 	if _, err := syscall.Wait4(leader, &status, 0, nil); err != nil {
 		t.Errorf("reap held leader %d: %v", leader, err)
+	}
+}
+
+// repeatHost is a fake host for PGO-V0-017. The first pre-reap quiet proof
+// sees a live member, as one forked alongside the group SIGKILL can be on
+// Darwin. A later proof is quiet only once the group was signalled again;
+// without the repeat it fails, which HOLDs. The leader exits on its own and
+// is reaped for real; the post-reap probe reports absence.
+func (r *signalLedger) repeatHost() groupreap.Primitives {
+	var kills, proofs atomic.Int32
+	return groupreap.Primitives{
+		KillGroup: func(leader int) error {
+			r.note("kill-group", leader)
+			kills.Add(1)
+			return nil
+		},
+		QuietProof: func(int) (groupreap.Probe, error) {
+			switch {
+			case proofs.Add(1) == 1:
+				return groupreap.ProbeLive, nil
+			case kills.Load() < 2:
+				return groupreap.ProbeLive, errors.New("live member after a single group signal")
+			}
+			return groupreap.ProbeQuiet, nil
+		},
+		ProbeGroup: func(int) (groupreap.Probe, error) { return groupreap.ProbeAbsent, nil },
+		Reap: func(command *exec.Cmd) error {
+			r.note("reap", command.Process.Pid)
+			return command.Wait()
+		},
+	}
+}
+
+// TestPGOV0017StableRepeatsGroupKillWhileMemberLive: the stable runner opts
+// its owned children into RepeatKillWhileLive, so a member still live after
+// the first group SIGKILL is signalled again before the reap. With the opt-in
+// removed the fake host's second proof fails and the runner HOLDs.
+func TestPGOV0017StableRepeatsGroupKillWhileMemberLive(t *testing.T) {
+	ledger := &signalLedger{}
+	l := newLifecycle(4, func(int, bool) groupreap.Primitives { return ledger.repeatHost() })
+	out, err := Run(context.Background(), l.budget, lifecycleShell(), "-c", "echo ok")
+	if err != nil || string(out) != "ok\n" {
+		t.Fatalf("out=%q err=%v events=%v", out, err, l.names())
+	}
+	ledger.requireEvents(t, "kill-group", "kill-group", "reap")
+	if l.budget.Held() || l.count("released") != 1 {
+		t.Fatalf("events = %v held=%v", l.names(), l.budget.Held())
 	}
 }
