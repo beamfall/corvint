@@ -2,6 +2,7 @@ package cemcandidate
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +28,12 @@ type PlainRequest struct {
 	RunnerPlan    FileRef          `json:"runnerPlan"`
 	RunnerReceipt FileRef          `json:"runnerReceipt"`
 	Criteria      []PlainCriterion `json:"criteria"`
+	// RunnerAdmission holds the runnerAdmission member's JSON bytes. It is nil
+	// only when the member is absent, which keeps the runner files opaque
+	// (CEM-V1-240); a present member must be the JSON string
+	// RunnerAdmissionProfile (CEM-V1-280), so a present "" or null is refused
+	// rather than read as absent.
+	RunnerAdmission json.RawMessage `json:"runnerAdmission,omitempty"`
 }
 
 // PlainCriterion names the source map evidence record that holds the
@@ -55,6 +62,12 @@ func (r PlainRequest) inputs() []FileRef {
 func (r PlainRequest) validate() error {
 	if r.Profile != PlainAssemblyProfile || !filepath.IsAbs(r.Repository) || !cw.IsGitOid(r.ExpectedBase) || !cw.IsGitOid(r.Target) || len(r.ExpectedBase) != len(r.Target) || len(r.Criteria) == 0 || len(r.Criteria) > 256 {
 		return fmt.Errorf("incomplete plain stable assembly request")
+	}
+	if r.RunnerAdmission != nil {
+		var profile string
+		if json.Unmarshal(r.RunnerAdmission, &profile) != nil || profile != RunnerAdmissionProfile {
+			return fmt.Errorf("incomplete plain stable assembly request")
+		}
 	}
 	for _, pin := range r.inputs() {
 		if !filepath.IsAbs(pin.Path) || filepath.Clean(pin.Path) != pin.Path || !cw.IsSha256(pin.Sha256) {
@@ -97,6 +110,11 @@ func AssemblePlain(ctx context.Context, r PlainRequest, out string) (PlainAssemb
 	}
 	if len(source.Criteria) != 0 || len(source.Receipts) != 0 || len(source.Links) != 0 || len(source.Artifacts) != 0 || source.Provenance != nil {
 		return result, fmt.Errorf("plain assembly requires a cem/1.0 producer map source")
+	}
+	if r.RunnerAdmission != nil {
+		if e := admitRunnerReceipt(ctx, r.Repository, r.Target, raws[1], raws[2]); e != nil {
+			return result, e
+		}
 	}
 	stable, e := plainStableBytes(r, source, raws[1], raws[2])
 	if e != nil {
