@@ -352,8 +352,9 @@ func TestOwnerRepeatKillRetiresMemberForkedDuringStop(t *testing.T) {
 		}
 		owner.Stop()
 		result := owner.Finish(bounded(10 * time.Second))
-		if result.State == Hold && !result.PostReapObserved {
-			// The leader is still held unreaped, so the group ID is ours.
+		if result.State == Hold && !slices.Contains(owner.Events(), "reap") {
+			// The reap never began, so the leader is still held unreaped
+			// and the group ID is ours.
 			_ = syscall.Kill(-owner.leader, syscall.SIGKILL)
 			t.Fatalf("iteration %d: %+v, live member survived the stop", i, result)
 		}
