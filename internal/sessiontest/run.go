@@ -70,8 +70,11 @@ type Outcome struct {
 }
 
 // Invocation is one adapter launch as the receipt records it.
+// AdapterManifest is the capability manifest version the adapter ran under
+// (STR-V0-059).
 type Invocation struct {
 	Adapter             string    `json:"adapter"`
+	AdapterManifest     string    `json:"adapterManifest"`
 	Argv                []string  `json:"argv"`
 	ElapsedMilliseconds int64     `json:"elapsedMilliseconds"`
 	Env                 []string  `json:"env"`
@@ -271,6 +274,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 		}
 		launched = true
 		recorded, stop := r.launch(ctx, invocation, versions[runnerKey(invocation)], budget, deadline)
+		recorded.AdapterManifest = manifests[invocation.Adapter].Profile
 		receipt.Invocations = append(receipt.Invocations, recorded)
 		if stop != "" {
 			receipt.Incomplete = append(receipt.Incomplete, stop)
