@@ -3419,6 +3419,8 @@ section of `protocol/cem-1.0/stable/ALGORITHMS.md`.
 - `CEM-V1-335`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2100) Each
   supplied root MUST be admitted under the same repository envelope as the verified repository and
   read in its own bounded object session, which is revalidated and closed before the next.
+  - Every external read charges the same verification-wide Git-operation and distinct-blob budgets
+    as the verified repository; a read that would exceed either abstains `artifact-unavailable`.
   - Any admission or read failure is `artifact-unavailable`.
   - Cancellation is `verification-timeout`.
   - An unobserved process cleanup keeps its containment code (`unsupported-process-containment`
@@ -3479,6 +3481,6 @@ or result changes.
 | CEM-V1-332 | `TestCEMV1330ExternalCriterionWire`, `TestCEMV1331ExternalCriterionRefusals` (`duplicate-span`), `TestCEMV1334ExternalCriterionPublicCase` (`external-stale-identity`) | Identity recomputes, duplicates refuse, a stale ID is `invalid-criterion-identity` in both consumers |
 | CEM-V1-333 | `TestCEMV1333ExternalRepositoryOption` (`internal/cem/cli`), `TestCEMV1333ExternalRepositoryOptionPortable` (`interop/cem01-go`) | Six bad values refuse at `arguments` in all three commands; relative path names the fix |
 | CEM-V1-334 | `TestCEMV1334ExternalCriterionPublicCase` (`internal/cem/verify`), `TestCEMV1334ExternalCriterionPublicCasePortable` (`interop/cem01-go`) | Exact ACCEPT when supplied; not-supplied and absent blob abstain; mismatch and span past the blob reject |
-| CEM-V1-335 | `TestCEMV1334ExternalCriterionPublicCase` (non-repository root) | A supplied root that is not a repository is `artifact-unavailable`; containment and timeout mapping by code review |
+| CEM-V1-335 | `TestCEMV1334ExternalCriterionPublicCase` (non-repository root), `TestCEMV1335ChargeBlobsToSharesTheBudget` (`internal/cem/gitauth`), `TestCEMV1335ExternalReadsChargePrimaryBudgets` (`interop/cem01-go`) | A supplied root that is not a repository is `artifact-unavailable`; an exhausted primary budget abstains in both portable readers and the native blob charge is carried back; containment and timeout mapping by code review |
 | CEM-V1-336 | `TestCEMV1336ExternalFixLine` (`internal/cem/verify`), `TestCEMV1333ExternalRepositoryOption`, `TestCEMV1333ExternalRepositoryOptionPortable` | The exact stderr line when unsupplied and none when supplied; nothing in the result |
 | CEM-V1-337 | `TestCEMV1334ExternalCriterionPublicCase`, `TestCEMV1334ExternalCriterionPublicCasePortable` (manifest check via `checkStableCaseManifest` and `stableCaseFiles`) | Both consumers match `EXPECTED.json`; every case file is in `manifest.json` |

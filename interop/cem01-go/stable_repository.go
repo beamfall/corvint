@@ -1226,7 +1226,8 @@ func runStableCanonicalCLI(argv []string) {
 // checkStableExternalCanonical is checkStableExternal under the canonical
 // envelope (CEM-V1-334, CEM-V1-335): each supplied root is admitted like the
 // verified repository and read in its own owned session, which is
-// revalidated and closed before the next. Admission and read failures are
+// revalidated and closed before the next, and charges the primary session's
+// operation and distinct-blob budgets. Admission and read failures are
 // artifact-unavailable; an unobserved cleanup keeps its containment code.
 func checkStableExternalCanonical(ctx context.Context, primary *stableSession, criteria []stableCriterion, externals map[string]string) *cemError {
 	for _, c := range criteria {
@@ -1244,12 +1245,13 @@ func checkStableExternalCanonical(ctx context.Context, primary *stableSession, c
 			}
 			return operational("artifact-unavailable")
 		}
-		s := &stableSession{ctx: ctx, exe: primary.exe, git: primary.git, admin: adm.admin, env: stableGitEnv(), oidLen: len(c.ExternalBlobOID), charged: map[string]bool{}}
+		s := &stableSession{ctx: ctx, exe: primary.exe, git: primary.git, admin: adm.admin, env: stableGitEnv(), oidLen: len(c.ExternalBlobOID), calls: primary.calls, charged: primary.charged, bytes: primary.bytes}
 		b, _, e := s.blob("external-criterion", c.ExternalBlobOID)
 		if e == nil {
 			e = stableRevalidate(adm)
 		}
 		stableClose(s)
+		primary.calls, primary.bytes = s.calls, s.bytes
 		switch {
 		case s.hold:
 			return operational("unsupported-process-containment")

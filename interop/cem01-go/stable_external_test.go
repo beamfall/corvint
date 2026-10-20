@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -164,5 +165,53 @@ func TestCEMV1333ExternalRepositoryOptionPortable(t *testing.T) {
 	r, exit, raw, externals = executeStableCanonicalCLIExternal(context.Background(), append(head, "--external-repository", "requirements="+requirements))
 	if exit != 0 || r.Outcome != "ACCEPT" || stableExternalFix(r, raw, externals) != "" {
 		t.Fatalf("supplied: exit=%d %s %s %s", exit, r.Outcome, r.Stage, strOf(r.Code))
+	}
+}
+
+// TestCEMV1335ExternalReadsChargePrimaryBudgets proves both portable external
+// readers charge the verification-wide Git-operation and distinct-blob
+// budgets: a primary budget already at its limit abstains instead of reading
+// the external blob for free, and a fresh budget carries the read back.
+func TestCEMV1335ExternalReadsChargePrimaryBudgets(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	_, want, raw, _, _, _, requirements := externalCase(t)
+	m, e := decodeStable(raw)
+	if e != nil {
+		t.Fatal(e.code)
+	}
+	externals := map[string]string{want.ExternalRepository: requirements}
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical := func(calls int, bytes int64) (*stableSession, *cemError) {
+		s := &stableSession{ctx: context.Background(), exe: exe, git: git, calls: calls, charged: map[string]bool{}, bytes: bytes}
+		return s, checkStableExternalCanonical(context.Background(), s, m.CriterionBindings, externals)
+	}
+	plain := func(ops int, bytes int64) (*verifier, *cemError) {
+		v := &verifier{ctx: context.Background(), gitOps: ops, blobBytes: bytes, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
+		return v, checkStableExternal(context.Background(), v, m.CriterionBindings, externals)
+	}
+	for name, e := range map[string]*cemError{
+		"canonical calls":   func() *cemError { _, e := canonical(stableCallLimit, 0); return e }(),
+		"canonical bytes":   func() *cemError { _, e := canonical(0, stableBlobAggregate); return e }(),
+		"noncanonical ops":  func() *cemError { _, e := plain(maxGitOps, 0); return e }(),
+		"noncanonical blob": func() *cemError { _, e := plain(0, maxTotalBlobs); return e }(),
+	} {
+		if e == nil || e.code != "artifact-unavailable" {
+			t.Fatalf("%s: exhausted primary budget = %v, want artifact-unavailable", name, e)
+		}
+	}
+	if s, e := canonical(0, 0); e != nil || s.calls == 0 || s.bytes == 0 {
+		t.Fatalf("canonical fresh budget: e=%v calls=%d bytes=%d", e, s.calls, s.bytes)
+	}
+	if v, e := plain(0, 0); e != nil || v.gitOps == 0 || v.blobBytes == 0 {
+		t.Fatalf("noncanonical fresh budget: e=%v ops=%d bytes=%d", e, v.gitOps, v.blobBytes)
 	}
 }

@@ -25,8 +25,9 @@ const (
 
 // checkStableExternal reads every external criterion span from the supplied
 // repository, in map order, under the shared Stable budget. It returns nil
-// when every span matches its criterionSha256.
-func checkStableExternal(ctx context.Context, criteria []wire.StableCriterion, roots map[string]string, budget *gitrun.Budget) error {
+// when every span matches its criterionSha256. Every read charges primary's
+// distinct-blob budget as well as the shared Git budget.
+func checkStableExternal(ctx context.Context, primary *gitauth.Repository, criteria []wire.StableCriterion, roots map[string]string, budget *gitrun.Budget) error {
 	for _, c := range criteria {
 		if !c.External() {
 			continue
@@ -35,7 +36,7 @@ func checkStableExternal(ctx context.Context, criteria []wire.StableCriterion, r
 		if !ok {
 			return cemcode.New(stableExternalUnavailable, "external repository %q was not supplied", c.ExternalRepository)
 		}
-		data, err := stableExternalBlob(ctx, root, c.ExternalBlobOid, budget)
+		data, err := stableExternalBlob(ctx, primary, root, c.ExternalBlobOid, budget)
 		if err != nil {
 			return err
 		}
@@ -54,12 +55,13 @@ func checkStableExternal(ctx context.Context, criteria []wire.StableCriterion, r
 // admitted, reads one blob in a checked object session and revalidates the
 // admitted boundary. Containment and cancellation keep their own codes; every
 // other failure is artifact-unavailable.
-func stableExternalBlob(ctx context.Context, root, oid string, budget *gitrun.Budget) ([]byte, error) {
+func stableExternalBlob(ctx context.Context, primary *gitauth.Repository, root, oid string, budget *gitrun.Budget) ([]byte, error) {
 	repo, boundary, err := gitauth.OpenStable(root, budget, nil)
 	if err != nil {
 		return nil, stableExternalCause(err, budget)
 	}
 	defer boundary.Close()
+	defer repo.ChargeBlobsTo(primary)()
 	release := repo.BeginCheckedObjectSession(ctx)
 	data, err := repo.BlobBytes(ctx, oid)
 	if closeErr := release(); closeErr != nil || budget.Held() {

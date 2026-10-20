@@ -479,7 +479,7 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 	}
 	// CEM-V1-334: an external criterion is observed only from its supplied
 	// repository; otherwise the verification abstains and never accepts.
-	if err = checkStableExternal(ctx, d.Criteria, o.ExternalRepositories, budget); err != nil {
+	if err = checkStableExternal(ctx, repo, d.Criteria, o.ExternalRepositories, budget); err != nil {
 		switch code := cemcode.CodeOf(err); code {
 		case stableExternalMismatch:
 			r.Axes["referenceIntegrity"] = "FAILED"

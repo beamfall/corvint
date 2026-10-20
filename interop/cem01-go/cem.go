@@ -3924,7 +3924,7 @@ func runStableExternal(ctx context.Context, repo string, raw []byte, base, targe
 		}
 		r.Axes["authentication"] = axis
 	}
-	if e := checkStableExternal(ctx, m.CriterionBindings, externals); e != nil {
+	if e := checkStableExternal(ctx, v, m.CriterionBindings, externals); e != nil {
 		return failStable(&r, "artifacts", e, true)
 	}
 	r.ArtifactChecks = checks
@@ -4032,8 +4032,10 @@ func stableRelativePathFix(r stableResult, argv []string) string {
 // checkStableExternal observes each external criterion span (CEM-V1-334) in
 // map order. An unsupplied, inadmissible or unreadable external repository is
 // artifact-unavailable, so the verification abstains and never accepts; only
-// observed bytes that differ from criterionSha256 reject.
-func checkStableExternal(ctx context.Context, criteria []stableCriterion, externals map[string]string) *cemError {
+// observed bytes that differ from criterionSha256 reject. Every external read
+// charges the primary verifier's Git-operation and distinct-blob budgets
+// (CEM-V1-335).
+func checkStableExternal(ctx context.Context, primary *verifier, criteria []stableCriterion, externals map[string]string) *cemError {
 	for _, c := range criteria {
 		if c.ExternalSpan == nil {
 			continue
@@ -4042,8 +4044,9 @@ func checkStableExternal(ctx context.Context, criteria []stableCriterion, extern
 		if !ok || repository03(root) != nil {
 			return operational("artifact-unavailable")
 		}
-		v := &verifier{ctx: ctx, repo: root, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
+		v := &verifier{ctx: ctx, repo: root, gitOps: primary.gitOps, blobBytes: primary.blobBytes, blobs: map[string][]byte{}, trees: map[string]*treeEntry{}}
 		b, e := v.blob03(c.ExternalBlobOID)
+		primary.gitOps, primary.blobBytes = v.gitOps, v.blobBytes
 		if ctx.Err() != nil {
 			return operational("verification-timeout")
 		}
