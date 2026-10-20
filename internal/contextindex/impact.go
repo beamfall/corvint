@@ -61,7 +61,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		}
 	}
 	if len(missing) != 0 {
-		return nil, nil, nil, &Error{Message: fmt.Sprintf("impact paths are not tracked at revision %s: %s", index.Revision, strings.Join(missing, ", "))}
+		return nil, nil, nil, &Error{Message: untrackedImpactMessage(index, missing)}
 	}
 	forbidden := make([]string, 0)
 	for _, value := range cleaned {
@@ -562,6 +562,26 @@ func needsGoModule(paths []string) bool {
 		}
 	}
 	return false
+}
+
+// untrackedImpactMessage keeps the `impact paths are not tracked at revision
+// <tree>: ` prefix callers key on (the MCP bridge's NOT_TRACKED_AT_REVISION),
+// and says what that revision is -- a tree, of the working-tree snapshot when
+// the worktree is dirty -- and the next step (V1-2080).
+func untrackedImpactMessage(index *Index, missing []string) string {
+	label := "tree of commit " + index.CommitRevision
+	if len(index.DirtyPaths) != 0 {
+		label = "working-tree snapshot tree over commit " + index.CommitRevision
+	}
+	if index.CommitRevision == "" {
+		label = "working-tree snapshot tree with no commit"
+	}
+	step := "stage the path with `git add` or commit it"
+	if len(missing) > 1 {
+		step = "stage the paths with `git add` or commit them"
+	}
+	return fmt.Sprintf("impact paths are not tracked at revision %s (%s): %s; %s, then rerun impact",
+		index.Revision, label, strings.Join(missing, ", "), step)
 }
 
 func cleanImpactPath(value string) (string, error) {
