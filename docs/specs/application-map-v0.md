@@ -211,15 +211,17 @@ but does not read it; only non-Go syntax impact does.
   whose class or variable name is already taken is emitted `// UNRESOLVED` with
   `binding-collision`, and its steps fall back to TODOs. It leaves locator and outcome TODOs
   otherwise. A selector of strength `unknown`, and a step with no selector (whatever a map file
-  claims as its reuse), is never offered as reuse. A reused method whose anchor is `STALE` at the
+  claims as its reuse), is never offered as reuse; a loaded map that lists reuse beside an
+  `unknown` selector gets no call, a note and a TODO, and reports `scaffold-reuse` /
+  `unknown-selector-reuse` (V1-0968). A reused method whose anchor is `STALE` at the
   evaluated revision is not called: the step keeps a commented note and a TODO, its reuse item
   reads `freshness: STALE`, and the unknown `scaffold-reuse` / `stale-reuse` is reported. A reused
   method is called only when it is a public instance method of the page object's class, directly
   in the class body, whose header literally declares no parameters (`callable`: no getter, setter,
   static, private or protected member, no module function, no object-literal method before, after
-  or inside the class); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
+  or inside the class, including one in an object literal assigned to a class field); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
   `reuse-not-callable`. Borrowed import statements are kept one per statement, each with exactly
-  the names it binds. A statement the map could not read in full (over 8 lines or 512 bytes) is
+  the names it binds, also when two statements share a line (V1-0968). A statement the map could not read in full (over 8 lines or 512 bytes) is
   never copied in part nor guessed as a side-effect import: it is emitted as a commented
   `// UNRESOLVED import { names } from '...'` line, binds nothing, and reports `scaffold-import` /
   `unread-statement`. When no borrowed, resolvable import binds `test`, the scaffold emits
@@ -1184,7 +1186,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |

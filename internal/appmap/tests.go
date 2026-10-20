@@ -170,6 +170,13 @@ func readFacts(text string) fileFacts {
 		}
 	}
 	lines := strings.Split(code, "\n")
+	// depth[n] is the brace depth at the start of line n, counted as blockEnd counts it, so a
+	// member sits in the class body only at one level below the class line (V1-0968).
+	depth := make([]int, len(lines))
+	for n, d := 0, 0; n < len(lines); n++ {
+		depth[n] = d
+		d += strings.Count(lines[n], "{") - strings.Count(lines[n], "}")
+	}
 	classStart, classEnd, lastEnd := -1, -1, -1
 	for n, l := range lines {
 		if f.class == "" {
@@ -181,8 +188,9 @@ func readFacts(text string) fileFacts {
 		for k, re := range []*regexp.Regexp{methodLine, arrowLine, funcLine} {
 			if m := re.FindStringSubmatch(l); m != nil && !notMethod[m[1]] {
 				// A member is callable on the class only when it sits directly in the class body:
-				// not before or after it, and not inside another method (an object literal's method).
-				name, member = m[1], k < 2 && n > classStart && n < classEnd && n > lastEnd
+				// not before or after it, not inside another method, and not in an object literal
+				// assigned to a class field (an object literal's method).
+				name, member = m[1], k < 2 && n > classStart && n < classEnd && n > lastEnd && depth[n] == depth[classStart]+1
 				break
 			}
 		}
@@ -336,7 +344,39 @@ func statementAt(text string, line int, specifier string) string {
 	if !found || len(s) > 512 {
 		return "" // an unfinished or oversized statement is not read
 	}
-	return s
+	return oneStatement(s, specifier)
+}
+
+var importKeyword = regexp.MustCompile(`\bimport\b`)
+
+// oneStatement cuts s to the one statement that quotes specifier: from the last import keyword
+// before the quoted specifier to the semicolon ending its line's statement, so another statement
+// sharing a line is not copied with it (V1-0968).
+func oneStatement(s, specifier string) string {
+	at, quoted := -1, ""
+	for _, q := range []string{"'", `"`, "`"} {
+		if i := strings.Index(s, q+specifier+q); i >= 0 && (at < 0 || i < at) {
+			at, quoted = i, q+specifier+q
+		}
+	}
+	if at < 0 {
+		return s
+	}
+	start := 0
+	if m := importKeyword.FindAllStringIndex(s[:at], -1); len(m) > 0 {
+		start = m[len(m)-1][0]
+	}
+	end := at + len(quoted)
+	rest := s[end:]
+	if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
+		rest = rest[:nl]
+	}
+	if semi := strings.IndexByte(rest, ';'); semi >= 0 {
+		end += semi + 1
+	} else {
+		end += len(rest)
+	}
+	return strings.TrimRight(s[start:end], " \t")
 }
 
 func fileID(p string) string          { return "file:" + p }

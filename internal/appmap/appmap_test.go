@@ -1296,6 +1296,8 @@ func TestAMAPV0013MethodOutsideClassNotCallable(t *testing.T) {
 		"export class HomePage {}\nconst helpers = {\n  async click() {\n    return 1;\n  },\n};\n",
 		"const helpers = {\n  async click() {\n    return 1;\n  },\n};\nexport class HomePage {\n}\n",
 		"export class HomePage {\n  async open() {\n    const o = {\n      async click() {\n        return 1;\n      },\n    };\n  }\n}\n",
+		// V1-0968 (1): an object literal assigned to a class field is not the class body.
+		"export class HomePage {\n  helpers = {\n    async click() {\n      return 1;\n    },\n  };\n}\n",
 	} {
 		for _, m := range readFacts(src).methods {
 			if m.name == "click" && m.callable {
@@ -1400,5 +1402,71 @@ func TestAMAPV0013ScaffoldDefaultExportNotNamedImport(t *testing.T) {
 	// The named export beside it still scaffolds its call unchanged.
 	if !strings.Contains(body, "await homePage.goToTeeSheets();") {
 		t.Fatalf("named export lost its call:\n%s", body)
+	}
+}
+
+// AMAP-V0-013, V1-0968 (2): two import statements on one line are kept one per statement, so the
+// scaffold copies each statement once instead of the whole line.
+func TestAMAPV0013TwoImportsOnOneLine(t *testing.T) {
+	line := "import { test, expect } from '@playwright/test'; import { HomePage } from '../pages/home.page';"
+	if got := statementAt(line, 1, "@playwright/test"); got != "import { test, expect } from '@playwright/test';" {
+		t.Fatalf("first statement = %q", got)
+	}
+	if got := statementAt(line, 1, "../pages/home.page"); got != "import { HomePage } from '../pages/home.page';" {
+		t.Fatalf("second statement = %q", got)
+	}
+	multi := "import {\n  HomePage,\n} from '../pages/home.page';"
+	if got := statementAt(multi, 1, "../pages/home.page"); got != multi {
+		t.Fatalf("multi-line statement = %q", got)
+	}
+	root, _ := fixtureRepo(t)
+	spec := "e2e/specs/teesheet-click.spec.ts"
+	data, _ := os.ReadFile(filepath.Join(root, spec))
+	text := strings.Replace(string(data), "import { test, expect } from '@playwright/test';\nimport { HomePage }", "import { test, expect } from '@playwright/test'; import { HomePage }", 1)
+	if text == string(data) {
+		t.Fatal("fixture edit did not apply")
+	}
+	writeFile(t, root, spec, text)
+	raw, err := ProjectScaffold(context.Background(), build(t, root, commitAll(t, root, "two imports on one line")), "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Each borrowed statement is copied alone. The index records no binding for a second import
+	// on a shared line (contextindex anchors import statements to a line start), so HomePage may
+	// still be generated beside it; that gap is outside this check.
+	imports := fmtJSON(decode(t, raw)["imports"])
+	if strings.Count(imports, "expect") != 1 || strings.Contains(imports, "'; import") {
+		t.Fatalf("a borrowed import copied a neighbouring statement: %s", imports)
+	}
+}
+
+// AMAP-V0-013, V1-0968 (3): a loaded map whose step selector is of strength unknown but carries a
+// filled reuse list does not get a method call; the scaffold declines it with a stated reason.
+func TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold(t *testing.T) {
+	root, rev := fixtureRepo(t)
+	m := build(t, root, rev)
+	forged := false
+	for i := range m.Flows {
+		if !strings.HasSuffix(m.Flows[i].ID, "book-tee-time") {
+			continue
+		}
+		for j := range m.Flows[i].Steps {
+			st := &m.Flows[i].Steps[j]
+			if st.Selector != nil && len(st.Reuse) > 0 {
+				st.Selector.Strength = strengthUnknown
+				forged = true
+			}
+		}
+	}
+	if !forged {
+		t.Fatal("fixture has no step with a selector and a reuse list")
+	}
+	raw, err := ProjectScaffold(context.Background(), m, "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if strings.Contains(body, "await teeSheetPage.") || !strings.Contains(body, `"reason":"unknown-selector-reuse"`) {
+		t.Fatalf("scaffold called a method through an unknown-strength selector: %s", body)
 	}
 }
