@@ -248,6 +248,7 @@ type rubyStub struct {
 	method      string
 	value       [2]int
 	hasValue    bool
+	end         int // the position in t after `receive(:m)`
 }
 
 func rubyStubs(lines []rubyLine) []rubyStub {
@@ -256,7 +257,7 @@ func rubyStubs(lines []rubyLine) []rubyStub {
 		t := maskRuby(l)
 		for _, loc := range rspecStubCall.FindAllStringSubmatchIndex(t.masked, -1) {
 			s := rubyStub{t: t, expect: t.masked[loc[2]:loc[3]] == "expect", anyInstance: loc[4] >= 0,
-				recv: t.masked[loc[6]:loc[7]], method: t.masked[loc[8]:loc[9]]}
+				recv: t.masked[loc[6]:loc[7]], method: t.masked[loc[8]:loc[9]], end: loc[1]}
 			if r := rspecAndReturn.FindStringIndex(t.masked[loc[1]:]); r != nil {
 				open := loc[1] + r[1] - 1
 				if close := balanced(t.masked, open); close > 0 {
@@ -489,8 +490,10 @@ func (c *flowContext) receiver(s rubyStub) receiver {
 // flowFindings returns example e's STUB-ON-PATH, STUB-NEVER-INVOKED and
 // ASSERTED-VALUE-NOT-FROM-SUBJECT findings, in that rule order and each in line order
 // (TSA-V0-120).
-func (r *rspecReader) flowFindings(name, test string, e rspecExample) []testvalidity.SourceFinding {
-	c := r.flowContext(name, e)
+// A stub of a flag lookup is a condition, not a collaborator (TSA-V0-435), so neither stub rule
+// reads it.
+func (c *flowContext) flowFindings(test string) []testvalidity.SourceFinding {
+	r, e := c.r, c.e
 	finding := func(rule string, location, cause int, message string) testvalidity.SourceFinding {
 		return testvalidity.SourceFinding{Rule: rule, Severity: testvalidity.SeverityAdvisory, Test: test, Title: e.title,
 			Location: c.at(location), Cause: c.at(cause), Message: message}
@@ -507,6 +510,9 @@ func (r *rspecReader) flowFindings(name, test string, e rspecExample) []testvali
 	onPath, never, notFrom := []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}, []testvalidity.SourceFinding{}
 	for _, s := range stubs {
 		rc := c.receiver(s)
+		if _, flag := c.flagOf(s, rc); flag {
+			continue
+		}
 		unused := !s.expect && !s.anyInstance && !constant(s.recv) && rc.fresh && rc.kind != "subject" && rc.kind != "boundary" && !c.mentioned(s.recv, rc.line)
 		if rc.kind == "first-party" && !unused {
 			if a, action, ok := c.onPath(s, asserts); ok {

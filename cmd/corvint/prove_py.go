@@ -7,13 +7,14 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/liveverify/pymutate"
+	"github.com/Beamfall/corvint/internal/liveverify/rbmutate"
 )
 
 // mutationTestPath reports whether a test path names a test the mutation
-// falsifier can run: a Go _test.go file (FPK-V0-014) or a pytest test_*.py
-// or *_test.py file (FPK-V0-019).
+// falsifier can run: a Go _test.go file (FPK-V0-014), a pytest test_*.py or
+// *_test.py file (FPK-V0-019), or an RSpec *_spec.rb file (FPK-V0-068).
 func mutationTestPath(test string) bool {
-	return strings.HasSuffix(test, "_test.go") || pymutate.TestFile(test)
+	return strings.HasSuffix(test, "_test.go") || pymutate.TestFile(test) || rbmutate.TestFile(test)
 }
 
 // mutationLanguage names the runner a path belongs to, by suffix; a path
@@ -24,6 +25,8 @@ func mutationLanguage(relative string) string {
 		return "go"
 	case ".py":
 		return "python"
+	case ".rb":
+		return "ruby"
 	}
 	return ""
 }

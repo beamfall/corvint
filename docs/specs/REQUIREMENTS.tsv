@@ -2445,6 +2445,12 @@ FPK-V0-026	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-04 for AT-06 by
 FPK-V0-027	docs/specs/falsifiable-packet-v0.md	`proof.claims` MUST be present in every output that carries `proof`, keyed by al	unrecorded	-
 FPK-V0-028	docs/specs/falsifiable-packet-v0.md	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a	unrecorded	-
 FPK-V0-057	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20 for GitHub #1321, accepted under the owner's	owner	2026-10-20; #1321
+FPK-V0-068	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20 for GitHub #1321 and V1-2094, accepted under	owner	2026-10-20; #1321; V1-2094
+FPK-V0-069	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-070	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-071	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-072	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-073	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
@@ -4602,6 +4608,19 @@ TSA-V0-416	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-417	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A caller MAY pass	standing	2026-10-11; V1-2040; #1292
 TSA-V0-418	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) A selector or pair th	standing	2026-10-11; V1-2040; #1292
 TSA-V0-419	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2040 / GitHub #1292) Each matched record	standing	2026-10-11; V1-2040; #1292
+TSA-V0-430	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) For each cited	standing	2026-10-11; V1-2104; #1339
+TSA-V0-431	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An example MUST get a	standing	2026-10-11; V1-2104; #1339
+TSA-V0-432	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) A stub that calls	standing	2026-10-11; V1-2104; #1339
+TSA-V0-433	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An example MUST get a	standing	2026-10-11; V1-2104; #1339
+TSA-V0-434	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An	standing	2026-10-11; V1-2104; #1339
+TSA-V0-435	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) A stub MUST be a flag	standing	2026-10-11; V1-2108; #1340
+TSA-V0-436	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) Each flag an example	standing	2026-10-11; V1-2108; #1340
+TSA-V0-437	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) Each forced flag MUST	standing	2026-10-11; V1-2108; #1340
+TSA-V0-438	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) When the declared	standing	2026-10-11; V1-2108; #1340
+TSA-V0-439	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) A project MAY commit	standing	2026-10-11; V1-2108; #1340
+TSA-V0-440	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) The conditions MUST	standing	2026-10-11; V1-2108; #1340
+TSA-V0-441	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104, V1-2108) Every finding of this secti	standing	2026-10-11; V1-2104; V1-2108
+TSA-V0-442	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2104, V1-2108) What the reader cannot deci	standing	2026-10-11; V1-2104; V1-2108
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167
