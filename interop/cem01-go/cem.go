@@ -3101,7 +3101,7 @@ func decodeStable(raw []byte) (stableMap, *cemError) {
 		if v.SHA256, e = stableString(o, "sha256", validDigest); e != nil {
 			return m, e
 		}
-		if v.Profile, e = stableString(o, "profile", func(s string) bool { return s == "corvint-test-runner-receipt/0" }); e != nil {
+		if v.Profile, e = stableString(o, "profile", func(s string) bool { return s == "corvint-test-runner-receipt/0" || s == "opaque/0" }); e != nil {
 			return m, e
 		}
 		if v.PlanSHA256, e = stableString(o, "planSha256", validDigest); e != nil {

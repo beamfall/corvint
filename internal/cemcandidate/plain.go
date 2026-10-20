@@ -85,9 +85,10 @@ func (r PlainRequest) validate() error {
 // AssemblePlain completes a cem/1.0 producer map (the output of cem prepare and
 // cem cite) with plain criterion bindings, one runner receipt record, their
 // links and the two runner artifacts. The map is written only after the stable
-// verifier ACCEPTs it against the bundle; the runner files are checked only by
-// SHA-256, as the verifier checks them, and no producer field raises a result
-// axis.
+// verifier ACCEPTs it against the bundle; without runner admission the runner
+// files are checked only by SHA-256, as the verifier checks them, and the
+// receipt record is labelled opaque/0 (CEM-V1-310); no producer field raises
+// a result axis.
 func AssemblePlain(ctx context.Context, r PlainRequest, out string) (PlainAssemblyResult, error) {
 	opts := verify.StableOptions{Repository: r.Repository, ExpectedBase: r.ExpectedBase, Target: r.Target, ArtifactRoot: out}
 	result := PlainAssemblyResult{Profile: "cem-stable-plain-assembly-result/1", TargetRevision: r.Target, Verification: verify.NewStableResult(opts), ReceiptAuthority: "NOT_OBSERVED", ExecutionAtCommit: "NOT_OBSERVED"}
@@ -172,6 +173,12 @@ func plainStableBytes(r PlainRequest, source *cw.StableMap, plan, receipt []byte
 	}
 	d := &cw.StableMap{Change: source.Change, Role: source.Role, Criteria: []cw.StableCriterion{}, Receipts: []cw.StableReceipt{}, Links: []cw.StableLink{}, Artifacts: []cw.StableArtifact{}}
 	planDigest, receiptDigest := tr.Digest(plan), tr.Digest(receipt)
+	// Only an admitted receipt is labelled a runner receipt; without
+	// admission the record says the bytes are opaque (CEM-V1-310).
+	receiptProfile := cw.StableOpaqueReceiptProfile
+	if r.RunnerAdmission != nil {
+		receiptProfile = cw.StableRunnerReceiptProfile
+	}
 	for i, c := range r.Criteria {
 		span, ok := spans[c.CriterionEvidenceID]
 		if !ok {
@@ -186,7 +193,7 @@ func plainStableBytes(r PlainRequest, source *cw.StableMap, plan, receipt []byte
 		d.Criteria = append(d.Criteria, criterion)
 		d.Links = append(d.Links, cw.StableLink{CriterionID: id, HunkIDs: append([]string(nil), c.HunkIDs...), EvidenceIDs: append([]string(nil), c.EvidenceIDs...), RunnerReceiptSha256s: []string{receiptDigest}})
 	}
-	d.Receipts = append(d.Receipts, cw.StableReceipt{Sha256: receiptDigest, Profile: "corvint-test-runner-receipt/0", PlanSha256: planDigest, SourceGitBinding: "NOT_OBSERVED", ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"})
+	d.Receipts = append(d.Receipts, cw.StableReceipt{Sha256: receiptDigest, Profile: receiptProfile, PlanSha256: planDigest, SourceGitBinding: "NOT_OBSERVED", ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"})
 	d.Artifacts = append(d.Artifacts, cw.StableArtifact{Kind: "runner-plan", Path: "artifacts/runner-plan.json", Sha256: planDigest}, cw.StableArtifact{Kind: "runner-receipt", Path: "artifacts/runner-receipt.json", Sha256: receiptDigest})
 	return cw.EncodeStable(d)
 }

@@ -151,7 +151,9 @@ func plainFixture(t *testing.T) (PlainRequest, string, string) {
 // producer, from the cem/1.0 producer map of a repository with no .taskman/,
 // emits a map whose only criterion is a plain binding, that the native stable
 // verifier ACCEPTs it, and that it and its artifacts equal the hand-assembled
-// public case byte for byte (CEM-V1-240).
+// public case byte for byte (CEM-V1-240), except that the unadmitted receipt
+// record is labelled opaque/0 where the public case keeps its legacy label
+// (CEM-V1-310).
 func TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
@@ -172,6 +174,9 @@ func TestCEMV1240PlainAssemblyReproducesNeutralCriterionCase(t *testing.T) {
 		want, e := os.ReadFile(filepath.Join(caseRoot, name))
 		if e != nil {
 			t.Fatal(e)
+		}
+		if name == "stable.json" {
+			want = opaqueLabelled(t, want)
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("%s differs from the public case:\n%s\nwant:\n%s", name, got, want)
@@ -271,4 +276,15 @@ func TestCEMV1240PlainAssemblyRechecksPinsAfterVerify(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
+}
+
+// opaqueLabelled returns the public case map with its one runner receipt
+// label replaced by opaque/0, the label an unadmitted producer emits.
+func opaqueLabelled(t *testing.T, raw []byte) []byte {
+	t.Helper()
+	legacy := []byte(`"profile":"` + cw.StableRunnerReceiptProfile + `"`)
+	if bytes.Count(raw, legacy) != 1 {
+		t.Fatalf("public case map carries %d runner receipt labels, want 1", bytes.Count(raw, legacy))
+	}
+	return bytes.Replace(raw, legacy, []byte(`"profile":"`+cw.StableOpaqueReceiptProfile+`"`), 1)
 }
