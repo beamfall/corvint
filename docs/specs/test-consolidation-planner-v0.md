@@ -98,8 +98,8 @@ At `2a93b5a1` (origin/main):
 
 ## Requirements
 
-TCN-V0-001..012 are accepted as written (decision 0457; V1-1023; GitHub #681); TCN-V0-013..015 are
-accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #1320).
+Requirements TCN-V0-001..012 are accepted as written (decision 0457; V1-1023; GitHub #681); and
+requirements TCN-V0-013..015 are accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #1320).
 
 - `TCN-V0-001`: The planner MUST be a read-only local projection. `corvint test-plan consolidate
   --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]
@@ -257,8 +257,8 @@ accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #
   TCN-V0-005 duplicate class unchanged, they MUST NOT change abstention, reuse, isolation reasons,
   step order or test numbering, and every other table and JSON plan byte MUST stay as it would be
   without them. Step facts can split a duplicate class (TCN-V0-015): a variation that was a
-  duplicate becomes a planned variation, so rows, counts and isolation reasons then follow
-  TCN-V0-005..012 for the new classes and this invariance does not apply. Input order MUST NOT
+  duplicate becomes a planned variation, so rows, counts and isolation reasons then follow the
+  rules of TCN-V0-005..012 for the new classes and this invariance does not apply. Input order MUST NOT
   affect any output byte.
   (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
 - `TCN-V0-014`: A variation naming one fact key in both `requires` and `step_facts`, whatever the
