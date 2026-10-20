@@ -39,9 +39,12 @@ var (
 	rspecChainStub = regexp.MustCompile(`\b(allow|expect)\s*\(\s*([A-Za-z_][\w:]*[?!]?)\s*\)\s*\.\s*to\s*\(?\s*receive_message_chain\s*\(`)
 	rspecChainSym  = regexp.MustCompile(`^:([A-Za-z_]\w*[?!]?)$`)
 	rspecChainStr  = regexp.MustCompile(`^["']([A-Za-z_]\w*[?!]?(?:\.[A-Za-z_]\w*[?!]?)*)["']$`)
-	rspecChainHash = regexp.MustCompile(`^([A-Za-z_]\w*[?!]?):\s`)
+	rspecChainHash = regexp.MustCompile(`^([A-Za-z_]\w*[?!]?):(?:[^:]|$)`)
 	rspecDoBlock   = regexp.MustCompile(`^do\b`)
 	rspecTailCall  = regexp.MustCompile(`^\s*\.\s*([A-Za-z_]\w*[?!]?)`)
+	// takesArgs are the stub calls whose arguments the reader reads or must see to be complete.
+	takesArgs = map[string]bool{"with": true, "and_return": true, "and_raise": true, "and_throw": true, "and_yield": true,
+		"and_invoke": true, "exactly": true, "at_least": true, "at_most": true}
 	// rspecRubyLiteral is one literal a flag key or forced value can be read from.
 	rspecRubyLiteral = regexp.MustCompile(`^(?:true|false|nil|-?\d+(?:\.\d+)?|:[A-Za-z_]\w*[?!]?|"[^"\\#]*"|'[^'\\]*')$`)
 	flagKey          = regexp.MustCompile(`^[\w.:/-]{1,128}$`)
@@ -94,6 +97,10 @@ func readStubTail(t rubyText, from int) stubTail {
 				return out
 			}
 			args, has, at = [2]int{open + 1, close}, true, close+1
+		} else if takesArgs[name] && rest != "" && !strings.ContainsRune(".)}", rune(rest[0])) {
+			// `and_return true`: arguments without parentheses are not read.
+			out.unread = true
+			return out
 		}
 		switch name {
 		case "with":
@@ -200,10 +207,8 @@ func (c *flowContext) stubFindings(test string) ([]testvalidity.SourceFinding, [
 	lookups := map[int]testvalidity.FlagLookup{}
 	for _, site := range sites {
 		if lookup, ok := c.flagOf(site.s, c.receiver(site.s)); ok {
-			if !site.tail.original {
-				lookups[len(flags)] = lookup
-				flags = append(flags, site)
-			}
+			lookups[len(flags)] = lookup
+			flags = append(flags, site)
 			continue
 		}
 		plain = append(plain, site)
@@ -236,11 +241,20 @@ type observed struct {
 	calls []string
 }
 
+// exampleLines is the example body after its declaring line, or the declaring line itself for a
+// one-line example (`it { ... }`).
+func (c *flowContext) exampleLines() []rubyLine {
+	if len(c.e.body) == 1 {
+		return c.e.body
+	}
+	return c.e.body[1:]
+}
+
 // noChanges returns the example body's negated change matchers whose observed value is one call
 // chain on a root (`change { R.a.b }`) or `change(R, :attr)`.
 func (c *flowContext) noChanges() []observed {
 	out := []observed{}
-	for _, l := range c.e.body[1:] {
+	for _, l := range c.exampleLines() {
 		t := maskRuby(l)
 		for _, loc := range rspecNoChange.FindAllStringSubmatchIndex(t.masked, -1) {
 			open := loc[2]
@@ -389,7 +403,7 @@ func (c *flowContext) chainPrefixes(test string) []testvalidity.SourceFinding {
 		final := s.chain[len(s.chain)-1]
 		named := regexp.MustCompile(`(?:^|[^\w])` + regexp.QuoteMeta(final) + `(?:[^\w?!]|$)`)
 		prefix, at, covered := "", 0, false
-		for _, l := range c.e.body[1:] {
+		for _, l := range c.exampleLines() {
 			if l.line == s.t.line {
 				continue
 			}
@@ -419,7 +433,8 @@ func (c *flowContext) chainPrefixes(test string) []testvalidity.SourceFinding {
 // flagConditions returns one condition per forced flag (lookup and key) and its RB-FLAG-CONDITIONAL
 // and RB-FLAG-FORCED-NON-DEFAULT findings (TSA-V0-436..438). The effective stub is the last to run:
 // the body over hooks, an inner group's hook over an outer one; stubs of one rank that force
-// different values leave the value unresolved.
+// different values leave the value unresolved. An effective stub that only calls through forces
+// nothing, so its key has no condition.
 func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[int]testvalidity.FlagLookup) ([]testvalidity.FlagCondition, []testvalidity.SourceFinding) {
 	type group struct {
 		lookup, key, keyText string
@@ -438,7 +453,10 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 				}
 			}
 		}
-		id := lookup + "\x00" + key + "\x00" + keyText
+		id := lookup + "\x00" + key
+		if key == "" {
+			id += "\x00" + keyText // distinct unread key expressions stay distinct
+		}
 		if groups[id] == nil {
 			groups[id] = &group{lookup: lookup, key: key, keyText: keyText}
 		}
@@ -448,10 +466,14 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 	for _, id := range slices.Sorted(maps.Keys(groups)) {
 		g := groups[id]
 		top := slices.MaxFunc(g.sites, func(a, b stubSite) int { return a.rank - b.rank }).rank
-		forced, location, first := "", 0, true
+		forced, location, first, atTop, through := "", 0, true, 0, 0
 		for _, site := range g.sites {
 			if site.rank != top {
 				continue
+			}
+			atTop++
+			if site.tail.original {
+				through++
 			}
 			value := forcedValue(site)
 			if first {
@@ -460,6 +482,9 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 				forced = ""
 			}
 			location = max(location, site.s.t.line)
+		}
+		if through == atTop {
+			continue // the effective stub calls through, so it forces nothing
 		}
 		condition := testvalidity.FlagCondition{Lookup: g.lookup, Key: g.key, Forced: forced, Location: c.at(location),
 			Qualifier: testvalidity.FlagQualifier(g.lookup, g.key, forced)}
@@ -496,10 +521,11 @@ func (c *flowContext) flagConditions(test string, sites []stubSite, lookups map[
 }
 
 // forcedValue is the literal a flag stub returns: "nil" without and_return, "" when it raises,
-// runs a block, returns several or non-literal values, or continues past what the reader reads.
+// calls through, runs a block, returns several or non-literal values, or continues past what the
+// reader reads.
 func forcedValue(site stubSite) string {
 	switch {
-	case site.tail.block || site.tail.unread || site.tail.raise:
+	case site.tail.block || site.tail.unread || site.tail.raise || site.tail.original:
 		return ""
 	case !site.tail.hasReturn:
 		return "nil"

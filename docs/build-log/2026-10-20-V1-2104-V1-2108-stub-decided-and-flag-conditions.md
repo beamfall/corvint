@@ -34,6 +34,14 @@ highest ID on origin/main at lane start; lanes whose PRs were not open then coul
 ## Limits
 
 Not read: `Flipper.enable` and other setters, `ENV[]`, `receive_messages`, block-form stubs,
-multi-line stubs, shared-group inclusions, and a generic stub overriding a keyed one. A dirty
+multi-line stubs, `::Const` and `@ivar` stub receivers, shared-group inclusions, and a generic stub overriding a keyed one. A dirty
 example-join receipt reads the declaration at the join revision. Real-suite precision and recall
 are NOT_MEASURED; no live Rails-suite qualification was run (NOT_RUN).
+
+## Review
+
+One Codex round raised six P2 findings. Fixed: one-line examples were not read; a compact hash
+tail (`deliver_now:true`) was dropped; a bare `and_return true` read as `nil`; a body
+call-through did not remove a hook's forced value; one key in two quote styles gave two
+conditions (all covered by `TestStubRuleEdges`). Recorded as a limit: `::Const` and `@ivar`
+receivers, which the shared stub reader does not read.

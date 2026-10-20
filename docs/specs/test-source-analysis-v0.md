@@ -2295,7 +2295,8 @@ refusing and a flag stub qualifies the verdict rather than changing it.
   order. It MUST NOT read application code, a required file or a shared-group inclusion for them.
 - `TSA-V0-431`: (standing auto-accept, 2026-10-11; V1-2104 / GitHub #1339) An example MUST get an
   abstained `RB-STUB-DECIDES-ASSERTION` finding, located at the assertion with the stub as its
-  cause, when its body holds a negated change matcher (`not_to` or `to_not change`) whose observed
+  cause, when its body (the declaring line of a one-line example) holds a negated change matcher
+  (`not_to` or `to_not change`) whose observed
   value is one call chain on a root (`change { R.a.b }`) or `change(R, :attr)`, and a stub on that
   same root (`allow` or `expect(R).to receive(:m)`, or `allow_any_instance_of(C)` when the root is
   the constant `C`) in a hook or in the body before the matcher either fixes the observed value or
@@ -2330,7 +2331,9 @@ refusing and a flag stub qualifies the verdict rather than changing it.
   `Features` and `Flipper` with `enabled?`, `FeatureToggle.active?` and `ENV.fetch`; a committed
   declaration (`TSA-V0-439`) replaces it. A flag stub MUST NOT be read as a collaborator by
   `STUB-ON-PATH`, `STUB-NEVER-INVOKED`, `ASSERTED-VALUE-NOT-FROM-SUBJECT` or
-  `RB-STUB-DECIDES-ASSERTION`; a flag stub that calls through forces nothing and is skipped.
+  `RB-STUB-DECIDES-ASSERTION`. A flag stub that calls through forces nothing: as the effective stub
+  of its lookup and key (`TSA-V0-437`) it leaves that key without a condition, and beside a forcing
+  stub of the same rank it leaves the value unresolved.
 - `TSA-V0-436`: (standing auto-accept, 2026-10-11; V1-2108 / GitHub #1340) Each flag an example
   forces MUST give one advisory `RB-FLAG-CONDITIONAL` finding at its effective stub, naming the
   lookup, the forced value, the condition's qualifier and the declared default, or stating that no
@@ -2342,7 +2345,9 @@ refusing and a flag stub qualifies the verdict rather than changing it.
   `TSA-V0-130` is unchanged). The key is the literal first `.with` argument, `*` without `.with`,
   or empty when that argument is not a literal matching `[\w.:/-]{1,128}`. The forced value is the
   literal of one `and_return` value, `nil` without `and_return`, or empty when the stub raises,
-  takes a block, returns several or non-literal values or continues past what the reader reads.
+  calls through, takes a block, returns several or non-literal values, passes arguments without
+  parentheses or continues past what the reader reads. A key read as a symbol or either string
+  quote is one key.
   The effective stub of one lookup and key is the last to run: the body over hooks and an inner
   group's hook over an outer one; stubs of one rank that force different values leave the value
   empty. The qualifier is `conditional on flag KEY=VALUE`, with `<unresolved>` for an empty key or
@@ -2376,7 +2381,8 @@ refusing and a flag stub qualifies the verdict rather than changing it.
 
 Non-goals: reading application code for a flag's default (only the project declaration supplies
 it); `Flipper.enable` and other non-stub flag setters, `ENV[]`, `receive_messages`, block-form
-stubs `receive(:m) { ... }`, and multi-line stubs; examples read through a shared-group inclusion;
+stubs `receive(:m) { ... }`, multi-line stubs, and stub receivers written `::Const` or `@ivar`
+(the shared stub reader of the intra-example rules does not read them); examples read through a shared-group inclusion;
 deciding whether the code under test reaches the stub; refusing an example on these rules.
 
 Failure modes: a flag stub misread as a collaborator would refuse or weaken a valid example, so
@@ -2398,7 +2404,9 @@ prefix assertion, another receiver and a computed chain), `TestFlagConditions` (
 unresolved key and value, inner-hook override, the built-in list, `STUB-ON-PATH` excluded for a
 flag stub and kept under a list without it, serialized `conditions`), `TestDecodeFlagLookups` (a
 valid declaration and eleven invalid ones), `TestSourceValidityFlagConditions` and
-`TestExampleJoinFlagConditions` (the declaration cited with its blob). Real-suite precision and
+`TestExampleJoinFlagConditions` (the declaration cited with its blob), and `TestStubRuleEdges` (a
+one-line example, a compact hash tail, one key in two quotes, a body call-through overriding a
+hook, and an `and_return` without parentheses left unresolved). Real-suite precision and
 recall are NOT_MEASURED; no live qualification on a real Rails suite was run (NOT_RUN).
 
 Rollback: remove `internal/testsource/validity_rspec_stubs.go` and its test,
@@ -2413,13 +2421,13 @@ persisted; a committed `.corvint/flag-lookups.json` is then ignored.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-430 | `internal/testsource/validity_rspec_stubs.go`, `internal/testsource/validity_rspec_examples.go` | `TestStubDecidesAssertion`, `TestFlagConditions` | experimental |
-| TSA-V0-431 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion` | experimental |
+| TSA-V0-431 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion`, `TestStubRuleEdges` | experimental |
 | TSA-V0-432 | `internal/testsource/validity_rspec_stubs.go` | `TestStubDecidesAssertion` | experimental |
-| TSA-V0-433 | `internal/testsource/validity_rspec_stubs.go` | `TestMessageChainPrefixOnly` | experimental |
+| TSA-V0-433 | `internal/testsource/validity_rspec_stubs.go` | `TestMessageChainPrefixOnly`, `TestStubRuleEdges` | experimental |
 | TSA-V0-434 | `internal/testsource/validity_rspec_stubs.go` | `TestMessageChainPrefixOnly` | experimental |
-| TSA-V0-435 | `internal/testvalidity/source_rules_stubs.go`, `internal/testsource/validity_rspec_flow.go` | `TestFlagConditions` | experimental |
+| TSA-V0-435 | `internal/testvalidity/source_rules_stubs.go`, `internal/testsource/validity_rspec_flow.go` | `TestFlagConditions`, `TestStubRuleEdges` | experimental |
 | TSA-V0-436 | `internal/testsource/validity_rspec_stubs.go` | `TestFlagConditions` | experimental |
-| TSA-V0-437 | `internal/testsource/validity_rspec_stubs.go`, `internal/testvalidity/source_rules_stubs.go` | `TestFlagConditions` | experimental |
+| TSA-V0-437 | `internal/testsource/validity_rspec_stubs.go`, `internal/testvalidity/source_rules_stubs.go` | `TestFlagConditions`, `TestStubRuleEdges` | experimental |
 | TSA-V0-438 | `internal/testsource/validity_rspec_stubs.go` | `TestFlagConditions` | experimental |
 | TSA-V0-439 | `internal/testsource/validity_rspec_stubs.go` | `TestDecodeFlagLookups`, `TestSourceValidityFlagConditions` | experimental |
 | TSA-V0-440 | `internal/testsource/validity_command.go`, `internal/testsource/example_join.go` | `TestSourceValidityFlagConditions`, `TestExampleJoinFlagConditions`, `TestFlagConditions` | experimental |

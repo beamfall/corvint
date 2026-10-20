@@ -413,3 +413,52 @@ func TestExampleJoinFlagConditions(t *testing.T) {
 		t.Errorf("source files %+v lack the declaration", record.Source.Files)
 	}
 }
+
+const stubEdgeSpec = `RSpec.describe CancelOrder do
+  before { allow(record).to receive(:destroy!).and_return(true) }
+  it('keeps the record') { expect { run }.not_to change { record.reload.persisted? } }
+  it 'asserts the builder' do
+    allow(Mailer).to receive_message_chain(:build, deliver_now:true)
+    subject.notify
+    expect(Mailer).to have_received(:build)
+  end
+end
+`
+
+const flagEdgeSpec = `RSpec.describe Checkout do
+  before { allow(Feature).to receive(:enabled?).with("beta").and_return(false) }
+  it 'overrides with the other quote' do
+    allow(Feature).to receive(:enabled?).with('beta').and_return(true)
+    expect(subject.flow).to eq(:new)
+  end
+  it 'calls through in the body' do
+    allow(Feature).to receive(:enabled?).with(:beta).and_call_original
+    expect(subject.flow).to eq(:old)
+  end
+  it 'returns without parentheses' do
+    allow(Flipper).to receive(:enabled?).with(:new_checkout).and_return true
+    expect(subject.flow).to eq(:new)
+  end
+end
+`
+
+// TestStubRuleEdges traces TSA-V0-431, TSA-V0-433 and TSA-V0-437 on review edges: a one-line
+// example and a compact hash tail are read; one key spelled with either quote is one condition
+// whose body override wins; a body call-through removes a hook's forced value; and an and_return
+// argument without parentheses is unresolved, never nil.
+func TestStubRuleEdges(t *testing.T) {
+	got := stubBrief(t, "spec/order_spec.rb", stubEdgeSpec, nil)
+	wantExamples(t, got, map[int][]string{
+		3: {"RB-STUB-DECIDES-ASSERTION abstained spec/order_spec.rb:3 spec/order_spec.rb:2"},
+		4: {"RB-MESSAGE-CHAIN-PREFIX-ONLY abstained spec/order_spec.rb:7 spec/order_spec.rb:5"},
+	})
+	const s = "spec/checkout_spec.rb"
+	got = stubBrief(t, s, flagEdgeSpec, checkoutFlags())
+	wantExamples(t, got, map[int][]string{
+		3: {"RB-FLAG-CONDITIONAL advisory " + s + ":4 " + s + ":4", "RB-FLAG-FORCED-NON-DEFAULT advisory " + s + ":4 " + s + ":4",
+			"COND " + s + ":4 Feature.enabled? conditional on flag beta=true default=false"},
+		11: {"RB-FLAG-CONDITIONAL advisory " + s + ":2 " + s + ":2", "RB-FLAG-CONDITIONAL advisory " + s + ":12 " + s + ":12",
+			"COND " + s + ":2 Feature.enabled? conditional on flag beta=false default=false",
+			"COND " + s + ":12 Flipper.enabled? conditional on flag new_checkout=<unresolved> default=false"},
+	})
+}
