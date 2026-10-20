@@ -438,6 +438,10 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   Journal absence yields null claimability and `NOT_OBSERVED`; invalid audited inputs retain read
   refusal. Recorded expired reservations remain until an explicit reap. Read projections MUST
   NOT mutate attempts, reservations, retry accounting or queue state.
+  `ticket show` and `ticket blockers` MUST also expose `effectiveRequiredGates`: the sorted,
+  duplicate-free union of the policy gates marked `required` and the ticket's own `requiredGates`,
+  the exact set `complete` checks for MISSING_GATE (V1-2038). The record's `requiredGates` is
+  unchanged.
 
 - `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
   and the existing policySha256 content identity from one consistent snapshot, without writing,

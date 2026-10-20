@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -336,8 +337,16 @@ func (c leaseContext) postEvidence(posts map[string][]byte, raw []byte) {
 // requiredGates is the policy's required gates and the ticket's own, sorted
 // and duplicate-free.
 func (c leaseContext) requiredGates(rec *ticket.Record) []string {
+	return RequiredGates(c.st.policy, rec)
+}
+
+// RequiredGates is the effective gate set complete enforces for rec: the
+// policy gates marked required and the ticket's own requiredGates, sorted and
+// duplicate-free. Reads report it so a closeout sees every gate complete will
+// demand (V1-2038).
+func RequiredGates(p *intent.Policy, rec *ticket.Record) []string {
 	set := map[string]bool{}
-	for _, g := range c.st.policy.Gates {
+	for _, g := range p.Gates {
 		if g.Required {
 			set[g.GateID] = true
 		}
