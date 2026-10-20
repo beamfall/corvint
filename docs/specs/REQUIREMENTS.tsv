@@ -2915,6 +2915,11 @@ LPCV-V0-092	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-093	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797)	standing	2026-10-11; V1-1797
 LPCV-V0-094	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797) Discover	standing	2026-10-11; V1-1797
 LPCV-V0-095	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1797; amended	standing	2026-10-11; V1-1797
+LPCV-V0-131	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) Each	standing	2026-10-11; V1-2010
+LPCV-V0-132	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) Each	standing	2026-10-11; V1-2010
+LPCV-V0-133	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) With	standing	2026-10-11; V1-2010
+LPCV-V0-134	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) Each	standing	2026-10-11; V1-2010
+LPCV-V0-135	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010)	standing	2026-10-11; V1-2010
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-

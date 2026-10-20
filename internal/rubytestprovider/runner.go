@@ -102,9 +102,12 @@ func Run(ctx context.Context, config Config) (Document, error) {
 	if secretscreen.MatchString(project) {
 		return Document{}, errors.New("--dir is secret-shaped")
 	}
+	if len(config.Specs) > MaxSelectors {
+		return Document{}, errors.New("more --spec selectors than the bound")
+	}
 	for _, spec := range config.Specs {
-		if !filepath.IsLocal(spec) {
-			return Document{}, errors.New("--spec must be a project-relative path")
+		if _, err := parseSelector(spec); err != nil {
+			return Document{}, err
 		}
 	}
 	rspec := config.RSpec
@@ -142,11 +145,21 @@ func Run(ctx context.Context, config Config) (Document, error) {
 	} else {
 		document.Command = argv
 	}
+	if len(config.Specs) > 0 {
+		if secretscreen.MatchArgv(config.Specs) {
+			document.SelectionWithheld = "secret-shaped"
+		} else {
+			document.Selection = selectionOutcomes(config.Specs, nil)
+		}
+	}
 	document.RepositoryBefore = observeRepository(ctx, dir)
 	if document.RepositoryBefore != nil && len(document.RepositoryBefore.Revision) == 64 {
 		document.ObjectFormat = "sha256"
 	}
 	before := takeSnapshot(ctx, root, document.ObjectFormat)
+	if len(config.ExecPrefix) > 0 {
+		document.Runtime = probeRuntime(ctx, config.ExecPrefix, dir, timeout)
+	}
 
 	observation := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: timeout, OutputLimit: maxRunnerOutputBytes, OverflowPolicy: procgroup.OverflowTruncate})
 	report, reportErr := readBounded(root, jsonReport, maxReportBytes)
@@ -187,6 +200,9 @@ func Run(ctx context.Context, config Config) (Document, error) {
 		return document, nil
 	}
 	document.RunnerVersion = parsed.version()
+	if document.Selection != nil {
+		document.Selection = selectionOutcomes(config.Specs, parsed.Examples)
+	}
 	document.Summary = &Summary{Examples: parsed.Summary.ExampleCount, Failures: parsed.Summary.FailureCount, Pending: parsed.Summary.PendingCount, ErrorsOutsideOfExample: parsed.Summary.ErrorsOutsideOfExamplesCount}
 	for index, raw := range parsed.Examples {
 		if len(document.Examples) == MaxExamples {
@@ -252,6 +268,9 @@ type rspecExample struct {
 	Status          string `json:"status"`
 	FilePath        string `json:"file_path"`
 	LineNumber      int    `json:"line_number"`
+	// SharedGroupInclusionBacktrace is present only when the project's JSON
+	// formatter copies RSpec's shared_group_inclusion_backtrace metadata.
+	SharedGroupInclusionBacktrace json.RawMessage `json:"shared_group_inclusion_backtrace"`
 }
 
 func parseReport(data []byte) (rspecReport, error) {
@@ -267,13 +286,8 @@ func parseReport(data []byte) (rspecReport, error) {
 }
 
 func (report rspecReport) version() string {
-	if report.Version == nil || len(*report.Version) > 64 {
+	if report.Version == nil || !versionValue(*report.Version) {
 		return ""
-	}
-	for _, c := range *report.Version {
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '.' || c == '+' || c == '-') {
-			return ""
-		}
 	}
 	return *report.Version
 }
@@ -294,6 +308,7 @@ func observeExample(raw rspecExample, project, helperSet string, before, after s
 		return Example{}, exampleWithheld
 	}
 	example := Example{ID: worktreeFile + ":" + strconv.Itoa(raw.LineNumber), File: worktreeFile, Line: raw.LineNumber, Status: closedStatus(raw.Status), Helpers: helperSet}
+	example.SharedExample, example.SharedExampleAbsent = observeShared(raw.SharedGroupInclusionBacktrace, project, example.ID)
 	if len(raw.ID) <= maxRSpecIDBytes && !secretscreen.MatchString(raw.ID) {
 		example.RSpecID = raw.ID
 	}

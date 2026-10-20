@@ -104,3 +104,66 @@ func TestLPCVV0092SnapshotBoundMatchesDiscoveryRead(t *testing.T) {
 		t.Fatalf("provider bound %d, discovery bound %d", rubytestprovider.MaxSpecFileBytes, MaxInputBytes)
 	}
 }
+
+// LPCV-V0-135: the selection, runtime and shared-example members are
+// optional and closed; a document without them decodes and projects exactly
+// as before, and carrying them does not move any projected axis.
+func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
+	legacy := encodeRuby(t, rubyDocument(t, "passed", "failed"))
+	for _, member := range []string{"selection", "selectionWithheld", "runtime", "sharedExample", "sharedExampleAbsent"} {
+		if strings.Contains(string(legacy), `"`+member+`"`) {
+			t.Fatalf("legacy document carries %s", member)
+		}
+	}
+	input, err := Decode(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := json.Marshal(Project(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	carried := rubyDocument(t, "passed", "failed")
+	container := strings.Repeat("ab", 32)
+	carried.Selection = []rubytestprovider.SelectorOutcome{
+		{Selector: "spec/user_spec.rb:2", Kind: rubytestprovider.SelectorLine, Outcome: rubytestprovider.SelectorMatched, Matched: 1},
+		{Selector: "spec/user_spec.rb[1:9]", Kind: rubytestprovider.SelectorID, Outcome: rubytestprovider.SelectorNoExample},
+	}
+	carried.Runtime = &rubytestprovider.Runtime{Basis: rubytestprovider.RuntimeBasis, Ruby: rubytestprovider.RuntimeFact{Value: "3.3.5"}, Bundler: rubytestprovider.RuntimeFact{Unknown: "not-reported"}, ProbeContainer: rubytestprovider.RuntimeFact{Value: container}, Image: rubytestprovider.RuntimeFact{Unknown: "not-observable-inside-prefix"}}
+	carried.Examples[0].SharedExample = &rubytestprovider.SharedExample{Origin: carried.Examples[0].ID, IncludedAt: []string{"spec/user_spec.rb:9"}}
+	carried.Examples[1].SharedExampleAbsent = "not-reported"
+	data := encodeRuby(t, carried)
+	input, err = Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := json.Marshal(Project(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Fatalf("optional members moved the projection:\n%s\n%s", before, after)
+	}
+
+	for name, mutated := range map[string]string{
+		"selection member":     strings.Replace(string(data), `"matched":1`, `"matched":1,"examples":[]`, 1),
+		"runtime member":       strings.Replace(string(data), `"basis":"exec-prefix-probe"`, `"basis":"exec-prefix-probe","host":"x"`, 1),
+		"runtime fact member":  strings.Replace(string(data), `"value":"3.3.5"`, `"value":"3.3.5","source":"host"`, 1),
+		"shared member":        strings.Replace(string(data), `"includedAt":[`, `"group":"x","includedAt":[`, 1),
+		"host basis":           strings.Replace(string(data), `"basis":"exec-prefix-probe"`, `"basis":"host"`, 1),
+		"open outcome":         strings.Replace(string(data), `"outcome":"NO_EXAMPLE"`, `"outcome":"SKIPPED"`, 1),
+		"open shared absence":  strings.Replace(string(data), `"sharedExampleAbsent":"not-reported"`, `"sharedExampleAbsent":"maybe"`, 1),
+		"traversal selector":   strings.Replace(string(data), `"selector":"spec/user_spec.rb:2"`, `"selector":"../user_spec.rb:2"`, 1),
+		"image without digest": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"`+container+`"}`, 1),
+		"image digest claimed": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"sha256:`+container+`"}`, 1),
+		"NUL inclusion":        strings.Replace(string(data), `"spec/user_spec.rb:9"`, `"spec/user\u0000_spec.rb:9"`, 1),
+	} {
+		if mutated == string(data) {
+			t.Fatalf("%s: mutation did not apply", name)
+		}
+		if _, err := Decode([]byte(mutated)); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+}

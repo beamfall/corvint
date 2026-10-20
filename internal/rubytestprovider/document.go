@@ -1,6 +1,6 @@
 // Package rubytestprovider is the experimental RSpec provider behind
 // corvint-ruby-test-provider (docs/specs/live-proof-carrying-verification-v0.md
-// LPCV-V0-090..094). It runs RSpec with its JSON formatter, binds the run to the
+// LPCV-V0-090..094, LPCV-V0-131..135). It runs RSpec with its JSON formatter, binds the run to the
 // host-observed test repository identity before and after, and records each
 // example's file:line identity, full description, status and the Git blob IDs
 // of its spec file and the conventional helper files. The document carries
@@ -63,6 +63,44 @@ type Document struct {
 	ExitStatus       *int                                          `json:"exitStatus,omitempty"`
 	JUnit            JUnit                                         `json:"junit"`
 	Infrastructure   *Infrastructure                               `json:"infrastructure,omitempty"`
+	// Selection, SelectionWithheld and Runtime are optional members added by
+	// LPCV-V0-131..135; a document without them keeps decoding unchanged.
+	Selection         []SelectorOutcome `json:"selection,omitempty"`
+	SelectionWithheld string            `json:"selectionWithheld,omitempty"`
+	Runtime           *Runtime          `json:"runtime,omitempty"`
+}
+
+// SelectorOutcome is one --spec selector as RSpec received it and what the
+// report attributes to it (LPCV-V0-131, LPCV-V0-132).
+type SelectorOutcome struct {
+	Selector string `json:"selector"`
+	Kind     string `json:"kind"`
+	Outcome  string `json:"outcome"`
+	Matched  int    `json:"matched,omitempty"`
+}
+
+// Runtime is the runtime identity observed inside --exec-prefix by a separate
+// probe invocation of the same prefix (LPCV-V0-133). It is never a host value.
+type Runtime struct {
+	Basis          string      `json:"basis"`
+	Ruby           RuntimeFact `json:"ruby"`
+	Bundler        RuntimeFact `json:"bundler"`
+	ProbeContainer RuntimeFact `json:"probeContainer"`
+	Image          RuntimeFact `json:"image"`
+}
+
+// RuntimeFact is exactly one of an observed value or a closed unknown reason.
+type RuntimeFact struct {
+	Value   string `json:"value,omitempty"`
+	Unknown string `json:"unknown,omitempty"`
+}
+
+// SharedExample is the shared-example origin of an example defined in a
+// shared group (LPCV-V0-134): Origin is its definition file:line and
+// IncludedAt the worktree file:line of each inclusion, innermost first.
+type SharedExample struct {
+	Origin     string   `json:"origin"`
+	IncludedAt []string `json:"includedAt"`
 }
 
 // BoundFile is one worktree-relative file and its Git blob object ID.
@@ -83,6 +121,10 @@ type Example struct {
 	SpecBlob            string `json:"specBlob,omitempty"`
 	SpecBlobUnbound     string `json:"specBlobUnbound,omitempty"`
 	Helpers             string `json:"helpers"`
+	// SharedExample or SharedExampleAbsent (LPCV-V0-134); a document written
+	// before LPCV-V0-134 carries neither.
+	SharedExample       *SharedExample `json:"sharedExample,omitempty"`
+	SharedExampleAbsent string         `json:"sharedExampleAbsent,omitempty"`
 }
 
 // Summary is the RSpec report summary.
@@ -142,8 +184,14 @@ func Validate(document Document) error {
 		if example.SpecBlob != "" && (!localSlashPath(example.File) || !blobPattern(document.ObjectFormat, example.SpecBlob)) {
 			return errors.New("Ruby provider example spec blob is malformed")
 		}
+		if err := validateShared(example); err != nil {
+			return err
+		}
 	}
-	return nil
+	if err := validateSelection(document); err != nil {
+		return err
+	}
+	return validateRuntime(document.Runtime)
 }
 
 func localSlashPath(name string) bool {
