@@ -9,7 +9,7 @@ import (
 
 // TestHelpNeedsNoExecutablePin covers TRE-V0-078.
 func TestHelpNeedsNoExecutablePin(t *testing.T) {
-	for _, args := range [][]string{{"--help"}, {"-h"}, {"help"}, {"plan", "--help"}, {"run", "-h"}, {"run", "--plan", "x", "--help"}, {"runners", "--help"}, {"profiles", "-help"}} {
+	for _, args := range [][]string{{"--help"}, {"-h"}, {"help"}, {"plan", "--help"}, {"run", "-h"}, {"run", "--plan", "x", "--help"}, {"runners", "--help"}, {"profiles", "-help"}, {"runners", "--help", "--help"}, {"plan", "-h", "-h"}} {
 		var out, errout bytes.Buffer
 		if rc := command(context.Background(), args, &out, &errout); rc != 0 {
 			t.Fatalf("%v: rc %d stderr %q", args, rc, errout.String())

@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -40,7 +41,7 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		return 0
 	case "runners", "profiles":
 		// TRE-V0-079: read-only listings need no executable pin.
-		if len(args) == 2 && isHelp(args[1]) {
+		if len(args) > 1 && slices.ContainsFunc(args[1:], isHelp) {
 			fmt.Fprintf(out, "usage: corvint-test-runner %s\n\nLists the runner profile IDs as JSON. No executable pin is needed.\n", args[0])
 			return 0
 		}
