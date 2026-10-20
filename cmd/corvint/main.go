@@ -55,20 +55,24 @@ type options struct {
 	impactBudget    *int
 	impactWorktree  bool
 	requireClean    bool
-	impactBase      string
-	impactBaseSet   bool
-	impactProfile   string
-	impactLanguage  string
-	featureID       string
-	featureIDSet    bool
-	featureLimit    int
-	featureBudget   *int
-	queryTask       string
-	queryLimit      int
-	queryTaskSet    bool
-	queryBudget     *int
-	queryIntent     string
-	version         bool
+	// impactCapabilities and impactProducer are the GPK-V0-084 listing and
+	// the opt-in PUB-V0-027 producer member.
+	impactCapabilities bool
+	impactProducer     bool
+	impactBase         string
+	impactBaseSet      bool
+	impactProfile      string
+	impactLanguage     string
+	featureID          string
+	featureIDSet       bool
+	featureLimit       int
+	featureBudget      *int
+	queryTask          string
+	queryLimit         int
+	queryTaskSet       bool
+	queryBudget        *int
+	queryIntent        string
+	version            bool
 }
 
 type readResult struct {
@@ -81,7 +85,7 @@ func argumentError(message string) error {
 }
 
 func parse(arguments []string) (options, error) {
-	result := options{budgetBytes: defaultHarnessBudgetBytes, impactLimit: 10, featureLimit: 10, queryLimit: 10}
+	result := options{budgetBytes: defaultHarnessBudgetBytes, impactLimit: defaultImpactLimit, featureLimit: 10, queryLimit: 10}
 	if topic, requested, err := parseHelpInvocation(arguments); requested || err != nil {
 		result.helpTopic = topic
 		return result, err
@@ -339,6 +343,23 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactBudget = &budget
 			continue
 		}
+		if !positionalOnly && name == "--capabilities" {
+			// GPK-V0-084: the listing is a separate mode that reads no repository.
+			if inline || len(arguments) != 1 {
+				return result, argumentError("argument --capabilities: accepts no value and no other impact argument")
+			}
+			result.impactCapabilities = true
+			index++
+			continue
+		}
+		if !positionalOnly && name == "--producer" {
+			if inline || result.impactProducer {
+				return result, argumentError("argument --producer: does not accept a value or repetition")
+			}
+			result.impactProducer = true
+			index++
+			continue
+		}
 		if !positionalOnly && name == "--require-clean" {
 			if inline || result.requireClean {
 				return result, argumentError("argument --require-clean: does not accept a value or repetition")
@@ -483,6 +504,9 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 		result.impactPaths = append(result.impactPaths, normalized)
 		result.impactRawPaths = append(result.impactRawPaths, argument)
 		index++
+	}
+	if result.impactCapabilities {
+		return result, nil
 	}
 	if len(result.impactCheckouts) != 0 && len(result.impactProviders) == 0 {
 		return result, argumentError("--repository requires --provider")
@@ -1199,6 +1223,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		return emitContextPayload(stdout, stderr, "query", contextReceipt)
 	}
+	if options.command == "impact" && options.impactCapabilities {
+		return emitImpactCapabilities(stdout, stderr)
+	}
 	if options.command == "impact" || options.command == "feature" {
 		buildFailed := false
 		build := func() (*contextindex.Index, error) {
@@ -1266,6 +1293,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			observeUnsupported(options.root, err, options.queryTask)
 			emitError(stderr, err)
 			return 2
+		}
+		if options.impactProducer {
+			return emitContextPayloadWithProducer(stdout, stderr, options.command, contextReceipt, currentProducer())
 		}
 		return emitContextPayload(stdout, stderr, options.command, contextReceipt)
 	}
@@ -1412,7 +1442,26 @@ func mapStandaloneQueryBuildError(err error, authorityStart bool) error {
 }
 
 func emitContextPayload(stdout, stderr io.Writer, tool string, contextReceipt map[string]any) int {
-	payload := map[string]any{"ok": true, "mutates": false, "tool": tool, "context": contextReceipt}
+	return emitPayload(stdout, stderr, tool, map[string]any{"ok": true, "mutates": false, "tool": tool, "context": contextReceipt})
+}
+
+// emitContextPayloadWithProducer adds the opt-in top-level producer member
+// (PUB-V0-027); every other member is the default envelope's.
+func emitContextPayloadWithProducer(stdout, stderr io.Writer, tool string, contextReceipt map[string]any, producer producerIdentity) int {
+	return emitPayload(stdout, stderr, tool, map[string]any{"ok": true, "mutates": false, "tool": tool, "context": contextReceipt, "producer": producer.members()})
+}
+
+// emitImpactCapabilities prints the GPK-V0-084 admission listing. Beyond the
+// impact root check it reads no repository content, index or stdin.
+func emitImpactCapabilities(stdout, stderr io.Writer) int {
+	payload := contextindex.ImpactCapabilities(defaultImpactLimit)
+	payload["ok"], payload["mutates"], payload["tool"] = true, false, "impact-capabilities"
+	payload["profile"] = contextindex.ImpactCapabilitiesProfile
+	payload["producer"] = currentProducer().members()
+	return emitPayload(stdout, stderr, "impact capabilities", payload)
+}
+
+func emitPayload(stdout, stderr io.Writer, tool string, payload map[string]any) int {
 	outputFailure := "cannot write " + tool + " output"
 	encoded, err := contextindex.CanonicalJSON(payload)
 	if err != nil {
@@ -1666,6 +1715,10 @@ func providerSource(name, value string, selected int) (string, error) {
 	}
 	return source, nil
 }
+
+// defaultImpactLimit is impact's --limit default, which the GPK-V0-084
+// listing also reports.
+const defaultImpactLimit = 10
 
 // build is the first-parent commit count of the built commit, stamped with
 // -ldflags "-X main.build=N" (PUB-V0-021). An unstamped build reports 0.
