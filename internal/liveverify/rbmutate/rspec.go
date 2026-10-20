@@ -181,20 +181,31 @@ func (runner rspecRunner) runSpec(ctx context.Context, source []byte) specRun {
 // ran, and both from a run that produced no exit status. RSpec's own report
 // decides; the exit status only confirms it.
 func classifyRun(err error, timedOut bool, output string, content []byte, haveReport bool, sourceDigest string) specRun {
+	status, started := 0, true
+	var exit *exec.ExitError
+	switch {
+	case err == nil:
+	case errors.As(err, &exit):
+		status = exit.ExitCode()
+	default:
+		started = false
+	}
+	return classifyReport(status, started, timedOut, output, content, haveReport, sourceDigest)
+}
+
+// classifyReport is classifyRun after the exit status is known; the
+// container runner (FPK-V0-079) reaches it from the runner receipt's input.
+func classifyReport(status int, started, timedOut bool, output string, content []byte, haveReport bool, sourceDigest string) specRun {
 	run := specRun{output: output, receipt: Receipt{SourceSHA256: sourceDigest}}
 	if timedOut {
 		run.outcome, run.receipt.ExitStatus, run.receipt.TimedOut = runTimedOut, -1, true
 		return run
 	}
-	var exit *exec.ExitError
-	switch {
-	case err == nil:
-	case errors.As(err, &exit):
-		run.receipt.ExitStatus = exit.ExitCode()
-	default:
+	if !started {
 		run.outcome, run.receipt.ExitStatus = runBroken, -1
 		return run
 	}
+	run.receipt.ExitStatus = status
 	var parsed summary
 	if !haveReport || json.Unmarshal(content, &parsed) != nil {
 		run.outcome = runUnloadable

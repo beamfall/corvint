@@ -1,5 +1,5 @@
 // Package rbmutate is the Ruby arm of the test-kills-mutant falsifier
-// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-077). A packet
+// (docs/specs/falsifiable-packet-v0.md, FPK-V0-068 to FPK-V0-081). A packet
 // row claims that an RSpec file covers a changed Ruby file; this package
 // writes line-confined mutants of the changed file onto the same sandboxed
 // export the Go runner (internal/liveverify/mutate) judges on, runs the spec
@@ -58,6 +58,12 @@ type Request struct {
 	// changed-lines claim. It is echoed on the report and words a report
 	// with no mutable site.
 	LineBasis string
+	// Container, when set, runs the baseline and every mutant through the
+	// declared containerised RSpec runner profile, each in its own
+	// disposable copy of the export with its own admitted runner receipt
+	// (FPK-V0-078 to FPK-V0-081); RSpec is then ignored. Unset keeps the
+	// host sandbox path unchanged.
+	Container *ContainerProfile
 }
 
 // Line bases of a named-source claim (FPK-V0-076).
@@ -105,6 +111,9 @@ type Receipt struct {
 	ErrorsOutsideExamples int      `json:"errors_outside_examples"`
 	FailedExamples        []string `json:"failed_examples,omitempty"`
 	SourceSHA256          string   `json:"source_sha256"`
+	// Runner is the admitted runner receipt of a containerised run
+	// (FPK-V0-080); a host sandbox run omits it.
+	Runner *RunnerReceipt `json:"runner_receipt,omitempty"`
 }
 
 // Result is one mutant: the rewrite and its verdict with the run's receipt.
@@ -167,6 +176,7 @@ type settings struct {
 	target    string
 	examples  []int
 	lineBasis string
+	container *ContainerProfile
 }
 
 // TestFile reports whether a repository-relative path is an RSpec file by
@@ -209,7 +219,9 @@ func Run(ctx context.Context, request Request) (Report, error) {
 }
 
 func judge(ctx context.Context, copy Copy, configuration settings, started time.Time) (Report, error) {
-	if copy.Unsandboxed() != "" {
+	// The container is a containerised run's isolation (FPK-V0-079), so only
+	// the host path needs the host sandbox.
+	if configuration.container == nil && copy.Unsandboxed() != "" {
 		report := unsupportedReport(StageRunner, copy.Unsandboxed())
 		report.Target, report.LineBasis = configuration.target, configuration.lineBasis
 		return report, nil
@@ -247,6 +259,11 @@ func normalize(request Request) (settings, error) {
 	if request.LineBasis != "" && request.LineBasis != LineBasisCallerSpans && request.LineBasis != LineBasisWholeFile {
 		return settings{}, fmt.Errorf("rbmutate: LineBasis %q is not %s or %s", request.LineBasis, LineBasisCallerSpans, LineBasisWholeFile)
 	}
+	if request.Container != nil {
+		if err := request.Container.validate(); err != nil {
+			return settings{}, err
+		}
+	}
 	if request.MaxMutants < 0 {
 		return settings{}, fmt.Errorf("rbmutate: MaxMutants %d is negative", request.MaxMutants)
 	}
@@ -271,6 +288,7 @@ func normalize(request Request) (settings, error) {
 		target:      exampleTarget(testPath, examples),
 		examples:    examples,
 		lineBasis:   request.LineBasis,
+		container:   request.Container,
 	}, nil
 }
 
@@ -349,7 +367,7 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 	if !ok {
 		return unsupportedReport(StageInput, "changed file does not lex: "+configuration.changedPath), nil
 	}
-	runner, unsupported := findRunner(ctx, copy, configuration)
+	runner, unsupported := findSpecRunner(ctx, copy, configuration)
 	if unsupported != "" {
 		report := unsupportedReport(StageRunner, unsupported)
 		report.Runner = runner.name()
@@ -358,6 +376,11 @@ func falsify(ctx context.Context, copy Copy, configuration settings) (Report, er
 	baseline := runner.runSpec(ctx, source)
 	if baseline.outcome != runPassed && ctx.Err() != nil {
 		report := budgetReport(StageBaseline, "budget exhausted during the baseline run")
+		report.Runner = runner.name()
+		return report, nil
+	}
+	if baseline.outcome == runBroken && configuration.container != nil {
+		report := unsupportedReport(StageRunner, "the declared container runner did not start")
 		report.Runner = runner.name()
 		return report, nil
 	}
@@ -396,19 +419,29 @@ func regularFile(name string) bool {
 
 // judgeMutants writes each mutant in turn, runs the spec file against it,
 // records its verdict and receipt, and restores the original afterwards.
-func judgeMutants(ctx context.Context, runner rspecRunner, configuration settings, changedFile string, source []byte, sites []site, report Report) (Report, error) {
-	defer func() { _ = os.WriteFile(changedFile, source, 0o644) }()
+func judgeMutants(ctx context.Context, runner specRunner, configuration settings, changedFile string, source []byte, sites []site, report Report) (Report, error) {
+	// The host runner reads the export, so each mutant is written there and
+	// restored; a containerised run writes its mutant into its own
+	// disposable copy and never touches the export (FPK-V0-079).
+	inPlace := configuration.container == nil
+	if inPlace {
+		defer func() { _ = os.WriteFile(changedFile, source, 0o644) }()
+	}
 	for index, candidate := range sites {
 		if ctx.Err() != nil {
 			return budgetPartial(report, index), nil
 		}
 		mutated := render(source, candidate)
-		if err := os.WriteFile(changedFile, mutated, 0o644); err != nil {
-			return Report{}, fmt.Errorf("rbmutate: write mutant: %w", err)
+		if inPlace {
+			if err := os.WriteFile(changedFile, mutated, 0o644); err != nil {
+				return Report{}, fmt.Errorf("rbmutate: write mutant: %w", err)
+			}
 		}
 		run := runner.runSpec(ctx, mutated)
-		if err := os.WriteFile(changedFile, source, 0o644); err != nil {
-			return Report{}, fmt.Errorf("rbmutate: restore %s: %w", configuration.changedPath, err)
+		if inPlace {
+			if err := os.WriteFile(changedFile, source, 0o644); err != nil {
+				return Report{}, fmt.Errorf("rbmutate: restore %s: %w", configuration.changedPath, err)
+			}
 		}
 		if run.outcome != runFailed && ctx.Err() != nil {
 			return budgetPartial(report, index), nil

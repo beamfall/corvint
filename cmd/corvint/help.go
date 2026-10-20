@@ -893,6 +893,19 @@ spans, else the whole file under the twelve-mutant cap; the mutation record
 names the basis (line_basis caller-spans or whole-file) and the selector
 (target). In impact mode the source is added to the paths.
 
+Containerised Ruby runner (experimental):
+  corvint [--root PATH] prove ... --mutate --mutate-runner FILE
+
+FILE is a corvint-rbmutate-container/0 declaration: executable and
+executableSha256 (the pinned container CLI), execPrefix (its words up to and
+including the rspec command, naming {run}), container (where {run} is
+mounted) and workspace (an existing host directory the runtime can mount).
+Every Ruby mutation run then goes through the corvint-test-runner rspec
+profile instead of the host sandbox: the baseline and each mutant get a fresh
+disposable copy of the export under the workspace, removed afterwards, and
+each receipt carries its own admitted runner_receipt. The container is the
+isolation; Corvint does not pin its image or network beyond the prefix.
+
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a
 thirty-minute budget beside the ten-minute row budget; rows are judged in

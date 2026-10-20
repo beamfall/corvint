@@ -133,6 +133,9 @@ type proveOptions struct {
 	patchGiven, attest, attestCEMV2                 bool
 	// named is the `--mutate-source` selector (FPK-V0-074), or nil.
 	named *proveNamedSource
+	// rubyRunner is the `--mutate-runner` container declaration
+	// (FPK-V0-078), or nil for the host sandbox.
+	rubyRunner *rbmutate.ContainerProfile
 }
 
 // falsifierByAuthority is the closed assignment table. Authorities that cite
@@ -259,6 +262,9 @@ type proveRow struct {
 	examples   []int
 	namedLines []mutate.LineSpan
 	lineBasis  string
+	// rubyRunner is the declared container runner of a Ruby row
+	// (FPK-V0-078), or nil.
+	rubyRunner *rbmutate.ContainerProfile
 }
 
 type proveMutationWitness struct {
@@ -321,6 +327,10 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	if namedErr != nil {
 		return options{command: "prove"}, true, namedErr
 	}
+	namedRest, rubyRunner, runnerErr := withoutMutateRunnerFlag(namedRest)
+	if runnerErr != nil {
+		return options{command: "prove"}, true, runnerErr
+	}
 	rest, mutateCount := withoutMutateFlag(namedRest)
 	rewritten := append(append([]string{}, arguments[:position]...), proveWrappedCommand(rest))
 	rewritten = append(rewritten, rest...)
@@ -330,7 +340,7 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 	}
 	parsed.proveMode, parsed.command, parsed.proveMutate = rewritten[position], "prove", mutateCount > 0
 	parsed.proveAttackTests = attackCount > 0
-	parsed.prove.named = named
+	parsed.prove.named, parsed.prove.rubyRunner = named, rubyRunner
 	if err != nil {
 		return parsed, true, err
 	}
@@ -359,6 +369,9 @@ func parseProveInvocation(arguments []string) (options, bool, error) {
 		return parsed, true, argumentError("argument --attack-tests: requires --base and --mutate")
 	}
 	if err := checkNamedSource(parsed); err != nil {
+		return parsed, true, err
+	}
+	if err := checkMutateRunner(parsed); err != nil {
 		return parsed, true, err
 	}
 	return parsed, true, nil
@@ -1239,6 +1252,7 @@ func judgeMutations(ctx context.Context, gitExecutable string, options options, 
 			}
 			continue
 		}
+		row.rubyRunner = options.prove.rubyRunner
 		judged, err := judgeMutationMode(budgeted, exported, row, checkoutRevision, cited, dirty, spans, options.proveAttackTests)
 		if err != nil {
 			return nil, &gokernel.Error{Code: "unsupported-prove-mutation", Message: "the mutation runner failed for " + row.Path}
@@ -1384,6 +1398,7 @@ func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRo
 	if strings.HasSuffix(changed, ".rb") {
 		return judgeRubyMutation(ctx, exported, rbmutate.Request{
 			ChangedPath: changed, TestPath: row.Path, Lines: lines, Examples: row.examples, LineBasis: row.lineBasis,
+			Container: row.rubyRunner,
 		})
 	}
 	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines, Complete: attack})
