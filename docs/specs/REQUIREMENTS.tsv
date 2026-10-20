@@ -4449,6 +4449,9 @@ TSA-V0-080	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-081	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) `corvint tests	standing	2026-10-11; V1-1858; #1159
 TSA-V0-082	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159)	standing	2026-10-11; V1-1858; #1159
 TSA-V0-083	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1858 / GitHub #1159) These readings MUST b	standing	2026-10-11; V1-1858; #1159
+TSA-V0-388	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293)	standing	2026-10-11; V1-2041; #1293
+TSA-V0-389	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) A located example MUS	standing	2026-10-11; V1-2041; #1293
+TSA-V0-390	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) For a Jest test file	standing	2026-10-11; V1-2041; #1293
 TSA-V0-120	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171, V1-1889 / GitHub #117	standing	2026-10-11; V1-1887; #1171; V1-1889; #1173
 TSA-V0-121	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) The reader MUST	standing	2026-10-11; V1-1887; #1171
 TSA-V0-122	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1887 / GitHub #1171) A stub on a first-par	standing	2026-10-11; V1-1887; #1171
