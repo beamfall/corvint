@@ -12,10 +12,13 @@
 # A change to any `.github/` path ran its own workflow and forward-row scripts,
 # so it could report any outcome it liked: such a run, or one whose change set
 # GitHub cannot list in full (300 files or more), is never a row either.
+# AFP-V0-099: the selection run's ci-narrowing-* records go to the classifier,
+# which names a narrowed pull-request run's row NARROWED and makes a queue
+# failure of a package that run narrowed out a MISS.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 dir="$RUNNER_TEMP/forward-row"
-mkdir -p "$dir/selection" "$dir/outcomes" "$dir/reuse"
+mkdir -p "$dir/selection" "$dir/outcomes" "$dir/reuse" "$dir/narrowing"
 collect=""
 note() {
   collect="$collect$1
@@ -125,6 +128,14 @@ if [ -n "$outcomes_run" ]; then
 fi
 if [ -n "$selection_run" ]; then
   fetch "$selection_run" 'corvint-test-shadow-*' "$dir/selection" || note "run $selection_run retained no corvint-test-shadow artifact"
+  # A run that narrowed nothing has no record; one whose listing is unreadable cannot show that.
+  if selection_names=$(names "$selection_run"); then
+    if printf '%s\n' "$selection_names" | grep -q '^ci-narrowing-'; then
+      fetch "$selection_run" 'ci-narrowing-*' "$dir/narrowing" || note "the ci-narrowing records of run $selection_run could not be downloaded"
+    fi
+  else
+    note "the artifacts of selection run $selection_run are unreadable, so its narrowing is unknown"
+  fi
 fi
 # AFP-V0-052: a go-product-shard job whose first step, "Set up job", failed never started a
 # step of its own: the hosted runner failed before the job ran. Its shard numbers go to the
@@ -142,9 +153,9 @@ if [ -n "$outcomes_run" ]; then
 fi
 class=$(ROW_KIND=$kind ROW_PR=$pr ROW_SHA=$sha ROW_HEAD=$head ROW_RUN=$RUN_ID ROW_SELECTION_RUN=$selection_run \
   ROW_OUTCOMES_RUN=$outcomes_run ROW_SHARDS=$FORWARD_SHARDS ROW_EPOCH=$FORWARD_EPOCH \
-  ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_REUSE=$reuse ROW_COLLECT=$collect ROW_INFRA=$infra \
+  ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_NARROWING_DIR="$dir/narrowing" ROW_REUSE=$reuse ROW_COLLECT=$collect ROW_INFRA=$infra \
   sh "$here/classify.sh" "$dir/row.json")
-case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA) ;; *) class=INCOMPLETE ;; esac
+case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA | NARROWED) ;; *) class=INCOMPLETE ;; esac
 row_sha=$(jq -r '.sha // empty' "$dir/row.json" 2> /dev/null) || row_sha=""
 hex40 "$row_sha" || row_sha=$HEAD_SHA
 failing=$(jq -r 'if (.counts.failed // 0) > 0 then 1 else 0 end' "$dir/row.json" 2> /dev/null) || failing=0

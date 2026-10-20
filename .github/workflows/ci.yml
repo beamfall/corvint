@@ -229,8 +229,43 @@ jobs:
           path: ${{ runner.temp }}/affected-order/plan.json
           if-no-files-found: ignore
 
+  narrowing-verdict:
+    # AFP-V0-097 (V1-0812): a same-repository pull request into main may narrow its Go shards
+    # only when the repository variable CORVINT_PR_NARROWING is `on` (unset by default) and
+    # accept.sh, run from the pull request's base commit, accepts the newest trusted
+    # afp-shadow-bar-epoch-<N> verdict of ci-forward-bar.yml. Any other outcome, a skipped job
+    # or a failure of this job leaves `verdict` other than MET, and every shard runs full.
+    # A fork pull request never runs it.
+    if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      verdict: ${{ steps.accept.outputs.verdict }}
+      reason: ${{ steps.accept.outputs.reason }}
+      verdictRun: ${{ steps.accept.outputs.verdictRun }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The pull request's base commit on main, never the tested head.
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Accept or refuse the trusted whole-epoch verdict
+        id: accept
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Must equal CORVINT_PR_FORWARD_EPOCH below and FORWARD_EPOCH in ci-forward-bar.yml.
+          FORWARD_EPOCH: "1"
+          VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml
+        run: sh trusted/.github/forward-rows/accept.sh
+
   go-product-shard:
-    needs: docs-plan
+    needs: [docs-plan, narrowing-verdict]
     # AFP-V0-027: a pull request labelled ci:batched is a constituent of a batch pull request
     # that runs this suite on the combined tree, so its own race shards never start. The
     # skipped shard job fails go-product below; the label never makes a PR mergeable.
@@ -486,6 +521,49 @@ jobs:
           path: ${{ runner.temp }}/corvint-test-shadow/
           if-no-files-found: ignore
           retention-days: 14
+      - name: Narrowing gate (AFP-V0-098, off unless CORVINT_PR_NARROWING is on)
+        # Runs the pinned tools' narrow.sh only after the trusted verdict said MET. It narrows
+        # this shard only when the deciding driver's selection (--mode plan) is a superset of the
+        # whole-universe shadow `corvint test --dry-run` selection of the same (base, head), the
+        # change touches no .github/ path and main keeps its merge queue; otherwise it records
+        # FULL and why. The tests step below runs the same argv, env and confine wrapper either
+        # way (AFP-V0-028); a narrowed shard names no tested tree, so its merge-queue entry runs
+        # full (AFP-V0-099).
+        id: narrow
+        if: github.event_name == 'pull_request' && vars.CORVINT_PR_NARROWING == 'on' && needs.narrowing-verdict.outputs.verdict == 'MET' && github.event.pull_request.head.repo.full_name == github.repository && env.CORVINT_PR_TOOL_SOURCE != '' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TESTED_MERGE: ${{ github.sha }}
+          SHARD: ${{ strategy.job-index }}
+          SHARDS: ${{ strategy.job-total }}
+          TOOL_SOURCE: ${{ env.CORVINT_PR_TOOL_SOURCE }}
+          VERDICT_RUN: ${{ needs.narrowing-verdict.outputs.verdictRun }}
+        run: |
+          test -f "$GITHUB_WORKSPACE/trusted-tools/.github/forward-rows/narrow.sh"
+          PR_BIN="$RUNNER_TEMP/corvint-pr-bin" SHADOW="$RUNNER_TEMP/corvint-shadow-bin/corvint" \
+            CI_SHARDS="$RUNNER_TEMP/ci-shards" CONFINE="$RUNNER_TEMP/test-confine" \
+            sh "$GITHUB_WORKSPACE/trusted-tools/.github/forward-rows/narrow.sh"
+      - name: Retain the narrowing record (AFP-V0-099)
+        # The record must reach the forward rows before the shard may skip a package: the tests
+        # step narrows only when this upload succeeded.
+        id: narrow-record
+        if: steps.narrow.outputs.mode == 'NARROWED' || steps.narrow.outputs.mode == 'FULL'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-narrowing-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/corvint-narrowing/narrowing.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Go tests (full until matching shadow qualification)
         id: tests
         # DOCS (DCI-V0) and REUSE (AFP-V0-024) are the only modes that omit this invocation.
@@ -497,10 +575,14 @@ jobs:
           TESTED_MERGE: ${{ github.sha }}
           SHARD: ${{ strategy.job-index }}
           SHARDS: ${{ strategy.job-total }}
+          # AFP-V0-098: set only when the narrowing gate ran; NARROWED narrows this shard only
+          # when its record was retained (AFP-V0-099).
+          NARROW_MODE: ${{ steps.narrow.outputs.mode }}
+          NARROW_RECORDED: ${{ steps.narrow-record.outcome }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.2"
           profile=$("$RUNNER_TEMP/ci-shards" --profile)
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -z "$NARROW_MODE" ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
             "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256" --shard "$SHARD" --shards "$SHARDS" --partition-digest "$profile"
           else
             echo "corvint-pr-tests: FULL (main/release or trusted tool pin unavailable), shard $SHARD of $SHARDS"
@@ -511,6 +593,24 @@ jobs:
             # AFP-V0-041 (decision 0488): this shard's test slices of split packages, one
             # "FLAG PATTERN PACKAGE" invocation per line; a split package is never whole.
             slices=$("$RUNNER_TEMP/ci-shards" --shard "$SHARD" --shards "$SHARDS" --slices < "$RUNNER_TEMP/ci-package-universe")
+            # AFP-V0-098: a narrowed shard keeps only the packages and slices its record names in
+            # `executed`, in the same order, argv, env and confine wrapper. Any disagreement
+            # between the filtered set and the record runs the whole shard.
+            narrowed=""
+            if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$NARROW_MODE" = NARROWED ] && [ "$NARROW_RECORDED" = success ]; then
+              keep="$RUNNER_TEMP/corvint-narrowing/executed"
+              # shellcheck disable=SC2086
+              kept_packages=$(printf '%s\n' $packages | sed '/^$/d' | grep -Fxf "$keep" || true)
+              kept_slices=$(printf '%s\n' "$slices" | sed '/^$/d' | awk 'NR == FNR { keep[$0] = 1; next } ($3 in keep)' "$keep" - || true)
+              if [ "$( { printf '%s\n' "$kept_packages"; awk '{ print $3 }' <<< "$kept_slices"; } | sed '/^$/d' | sort -u)" = "$(sed '/^$/d' "$keep" | sort -u)" ]; then
+                narrowed=1
+                echo "AFP-V0-098: shard $SHARD narrowed to $(sed '/^$/d' "$keep" | wc -l) package(s); the full suite runs in the merge queue"
+                packages=$kept_packages
+                slices=$kept_slices
+              else
+                echo "::warning::shard $SHARD: the narrowed set disagrees with its record; running the whole shard"
+              fi
+            fi
             if [ -z "$packages" ] && [ -z "$slices" ]; then
               echo "Complete-universe shard $SHARD has no packages."
               exit 0
@@ -583,14 +683,17 @@ jobs:
                 forward_outcomes "$status" || echo "::warning::shard $SHARD: forward-row outcomes incomplete"
               fi
               [ "$status" = 0 ] || exit "$status"
-              echo "costs=1" >> "$GITHUB_OUTPUT" || true
+              [ -n "$narrowed" ] || echo "costs=1" >> "$GITHUB_OUTPUT" || true
             else
               echo "::notice::shard $SHARD: package outcomes not captured; the cost-drift report will abstain"
               run_tests
             fi
             # AFP-V0-024: only a complete pull-request or merge-queue (V1-0760) shard that passed
-            # names the tested tree; a narrowed, DOCS or REUSE shard never reaches this line.
-            if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+            # names the tested tree; a DOCS or REUSE shard never reaches this line, and a
+            # narrowed shard (AFP-V0-099) stops here, so its merge-queue entry runs full.
+            if [ -n "$narrowed" ]; then
+              echo "AFP-V0-098: selected packages passed; the full suite runs in the merge queue"
+            elif [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then
               tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")
               mkdir -p "$RUNNER_TEMP/tested-tree"
               printf '{"profile":"corvint-ci-tested-tree/0","tree":"%s","target":"%s","shard":%s,"shards":%s,"runId":%s}\n' \

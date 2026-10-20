@@ -29,7 +29,7 @@ AFP-V0-026	docs/specs/affected-plan-v0.md	(accepted (decision 0431); amended by 
 AFP-V0-027	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
 AFP-V0-028	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
 AFP-V0-029	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
-AFP-V0-030	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537) PR runs S	owner	decision 0509; decision 0431; decision 0537
+AFP-V0-030	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
 AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
 AFP-V0-032	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
 AFP-V0-033	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
@@ -47,6 +47,9 @@ AFP-V0-045	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); Gi
 AFP-V0-094	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
 AFP-V0-095	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
 AFP-V0-096	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-097	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
+AFP-V0-098	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
+AFP-V0-099	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
 AFP-V0-046	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
 AFP-V0-047	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
 AFP-V0-048	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361

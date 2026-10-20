@@ -118,6 +118,8 @@ type fixture struct {
 	rawOut map[int]string
 	reuse  doc
 	event  string
+	// nar is the selection run's AFP-V0-099 narrowing records by shard.
+	nar map[int]doc
 }
 
 func queueFixture(t *testing.T) *fixture {
@@ -150,6 +152,9 @@ func (f *fixture) write(t *testing.T, dir string) (selDir, outDir string) {
 	for k, raw := range f.rawOut {
 		writeFile(t, filepath.Join(outDir, fmt.Sprintf("ci-outcomes-%s-%d", f.event, k), "outcomes.json"), []byte(raw))
 	}
+	for k, d := range f.nar {
+		writeDoc(t, filepath.Join(dir, "narrowing", fmt.Sprintf("ci-narrowing-%d", k), "narrowing.json"), d)
+	}
 	return selDir, outDir
 }
 
@@ -161,7 +166,7 @@ func (f *fixture) classify(t *testing.T, override map[string]string) (doc, []byt
 		"ROW_KIND": "queue", "ROW_PR": "868", "ROW_SHA": queueSHA, "ROW_HEAD": prHead,
 		"ROW_RUN": queueRun, "ROW_SELECTION_RUN": prRun, "ROW_OUTCOMES_RUN": queueRun,
 		"ROW_SHARDS": strconv.Itoa(shards), "ROW_EPOCH": "1",
-		"ROW_SELECTION_DIR": selDir, "ROW_OUTCOMES_DIR": outDir,
+		"ROW_SELECTION_DIR": selDir, "ROW_OUTCOMES_DIR": outDir, "ROW_NARROWING_DIR": filepath.Join(dir, "narrowing"),
 	}
 	if f.reuse != nil {
 		env["ROW_REUSE"] = filepath.Join(dir, "decision.json")
@@ -654,7 +659,7 @@ func fakeGH(t *testing.T, dir string) string {
 	bin := filepath.Join(dir, "bin")
 	writeFile(t, filepath.Join(bin, "gh"), []byte(`#!/bin/sh
 set -eu
-d=`+dir+`
+d='`+dir+`'
 if [ "$1" = api ]; then
   case "$2" in
   */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
@@ -662,6 +667,8 @@ if [ "$1" = api ]; then
   */actions/runs/*/jobs*) id=${2#*/actions/runs/}; id=${id%%/*}; [ "$3" = --jq ]; jq -r "$4" "$d/jobs-$id.json" ;;
   */actions/runs/*/artifacts*) id=${2#*/actions/runs/}; id=${id%%/*}; cat "$d/names-$id" ;;
   */workflows/ci.yml/runs*) cat "$d/selection-run" ;;
+  */actions/runs/*) id=${2#*/actions/runs/}; [ "$3" = --jq ]; jq -r "$4" "$d/run-$id.json" ;;
+  */actions/artifacts\?name=*) [ "$3" = --jq ]; jq -r "$4" "$d/verdict-artifacts.json" ;;
   */actions/artifacts*) [ "$3" = --jq ]; case "$2" in *page=1) jq -r "$4" "$d/all-artifacts.json" ;; *) [ ! -f "$d/every-page" ] || jq -r "$4" "$d/all-artifacts.json" ;; esac ;;
   *) exit 1 ;;
   esac
@@ -724,17 +731,24 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		entries, _ = os.ReadDir(selDir)
-		for _, e := range entries {
-			if event == "pull_request" {
-				names = append(names, e.Name())
+		// The selection run's shadow plans and AFP-V0-099 narrowing records.
+		var prNames []string
+		for _, src := range []string{selDir, filepath.Join(dir, "src", "narrowing")} {
+			entries, _ = os.ReadDir(src)
+			for _, e := range entries {
+				prNames = append(prNames, e.Name())
+				if err := os.MkdirAll(filepath.Join(dir, "runs", prRun), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Rename(filepath.Join(src, e.Name()), filepath.Join(dir, "runs", prRun, e.Name())); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if err := os.MkdirAll(filepath.Join(dir, "runs", prRun), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Rename(filepath.Join(selDir, e.Name()), filepath.Join(dir, "runs", prRun, e.Name())); err != nil {
-				t.Fatal(err)
-			}
+		}
+		if event == "pull_request" {
+			names = append(names, prNames...)
+		} else {
+			writeFile(t, filepath.Join(dir, "names-"+prRun), lines(prNames...))
 		}
 		writeFile(t, filepath.Join(dir, "names-"+runID), lines(names...))
 		if jobs != nil {

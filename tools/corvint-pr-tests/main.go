@@ -92,7 +92,7 @@ type receipt struct {
 
 func main() {
 	var o options
-	flag.StringVar(&o.mode, "mode", "run", "run, freeze, shadow, or qualify")
+	flag.StringVar(&o.mode, "mode", "run", "run, plan, freeze, shadow, or qualify")
 	flag.StringVar(&o.root, "root", ".", "tested repository")
 	flag.StringVar(&o.base, "base", "", "event base OID")
 	flag.StringVar(&o.head, "head", "", "event PR head OID")
@@ -204,6 +204,8 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 		return 0, qualify(o)
 	case "run":
 		return runPR(ctx, o)
+	case "plan":
+		return planOnly(ctx, o)
 	default:
 		return 2, errors.New("unknown mode")
 	}
@@ -703,6 +705,23 @@ func runPR(ctx context.Context, o options) (int, error) {
 		return 130, ctx.Err()
 	}
 	return execute(ctx, o, s)
+}
+// planOnly writes the deciding selection of one (base, head) to selection.json
+// and executes nothing (AFP-V0-098). It needs no qualification: the PR
+// narrowing gate compares it with the shadow selection and decides itself.
+func planOnly(ctx context.Context, o options) (int, error) {
+	id, err := toolIdentity(ctx, o)
+	s := selection{Schema: schema, Base: o.base, Head: o.head, Target: o.target, Identity: id, Packages: []string{"./..."}}
+	if err != nil {
+		s.Reason = "tool profile unavailable: " + err.Error()
+	} else {
+		s = plan(ctx, o, id, true)
+	}
+	if ctx.Err() != nil {
+		return 130, ctx.Err()
+	}
+	s.Shard, s.Shards = o.shard, o.shards
+	return 0, writeJSON(filepath.Join(o.out, "selection.json"), s)
 }
 func execute(ctx context.Context, o options, s selection) (int, error) {
 	current, identityErr := toolIdentity(ctx, o)
