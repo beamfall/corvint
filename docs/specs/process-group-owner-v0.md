@@ -29,7 +29,7 @@ CEM-V1-001/CEM-V1-007 and V1-0668 full qualification obligations remain unchange
 
 ## Requirements
 
-- `PGO-V0-001`: Own a process group through its unreaped leader; send at most one real group signal before reaping begins and never send a real numeric group signal after reaping begins. Scans and signal-0 probes confer no signal authority.
+- `PGO-V0-001`: Own a process group through its unreaped leader; send at most one real group signal before reaping begins (a caller that sets `Primitives.RepeatKillWhileLive`, which only the attempt runner does under `ATR-V0-153`, repeats it on each pre-reap observation of a live member, still while the leader is held unreaped) and never send a real numeric group signal after reaping begins. Scans and signal-0 probes confer no signal authority.
 - `PGO-V0-002`: Preserve Darwin signal-0 quiet-first retirement. The Linux platform default is also quiet-first, with the PGO-V0-006 proof; ReapAfterSuccessfulSignal remains available only when a caller selects it explicitly. Preserve Linux signal failures, including ESRCH and EPERM, as failure evidence.
 - `PGO-V0-003`: Check the original retirement allowance before new primitives and before accepting absence; intersect it with the fixed two-second post-reap cap. Retain terminal HOLD for unproved cleanup and late asynchronous reap completion.
 - `PGO-V0-004`: Serialize concurrent Finish and Stop so signalling and reaping occur once. Refuse invalid modes and unsupported platforms before process creation.

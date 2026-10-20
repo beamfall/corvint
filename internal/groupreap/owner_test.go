@@ -583,3 +583,47 @@ func TestOwnerLinuxModeNonabsence(t *testing.T) {
 		}
 	}
 }
+
+// ATR-V0-153: with RepeatKillWhileLive the group SIGKILL repeats on each
+// pre-reap live observation and never after the reap begins; the default
+// keeps the single signal (TestOwnerNormalExitRetiresProbesReapsAndObservesAbsence).
+func TestOwnerRepeatKillWhileLiveSignalsOnlyBeforeReap(t *testing.T) {
+	f := newFakeHost(ProbeLive, ProbeLive, ProbeQuiet, ProbeAbsent)
+	p := f.primitives()
+	p.RepeatKillWhileLive = true
+	o := adopt(nil, 4242, p)
+	f.exit <- nil
+	if result := o.Finish(open()); result.State != Released || result.Err != nil {
+		t.Fatalf("result = %+v", result)
+	}
+	requireCalls(t, f, "kill,probe,kill,probe,kill,probe,reap,probe")
+	want := "exit-observed,kill-group,probe-live,kill-group-repeat,probe-live,kill-group-repeat,probe-quiet,reap,probe-final,released"
+	if got := strings.Join(o.Events(), ","); got != want {
+		t.Fatalf("events = %s", got)
+	}
+}
+
+// ATR-V0-153: a failed repeated signal HOLDs before the reap, as a failed
+// first signal does.
+func TestOwnerRepeatKillFailureHoldsWithoutReaping(t *testing.T) {
+	// The trailing quiet and absent probes let a regression that skips the
+	// repeat release and fail here instead of probing a live member forever.
+	f := newFakeHost(ProbeLive, ProbeQuiet, ProbeAbsent)
+	p := f.primitives()
+	p.RepeatKillWhileLive = true
+	var kills atomic.Int32
+	p.KillGroup = func(int) error {
+		f.record("kill")
+		if kills.Add(1) > 1 {
+			return errors.New("injected repeat failure")
+		}
+		return nil
+	}
+	o := adopt(nil, 4242, p)
+	f.exit <- nil
+	result := o.Finish(open())
+	if result.State != Hold || result.Err == nil || !strings.Contains(result.Err.Error(), "repeated group signal failed") {
+		t.Fatalf("result = %+v", result)
+	}
+	requireCalls(t, f, "kill,probe,kill")
+}
