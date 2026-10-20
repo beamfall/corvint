@@ -50,6 +50,8 @@ type fileFacts struct {
 	methods   []rawMethod
 	news      []rawNew
 	secrets   []int
+	// classDefault is true when the class is declared `export default class` (V1-0974).
+	classDefault bool
 }
 
 type rawGoto struct {
@@ -75,7 +77,7 @@ var (
 	methodLine = regexp.MustCompile(`^\s*(?:(?:public|private|protected|static|readonly|override|async)\s+)*(?:get\s+)?([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\([^)]*\)\s*(?::[^{=;]*)?\{\s*$`)
 	arrowLine  = regexp.MustCompile(`^\s*(?:(?:public|private|protected|static|readonly)\s+)*([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::[^{=;]*)?=>\s*\{\s*$`)
 	funcLine   = regexp.MustCompile(`^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s*\*?\s*([A-Za-z_$][\w$]*)\s*(?:<[^>]*>)?\s*\(`)
-	classLine  = regexp.MustCompile(`^\s*(?:export\s+)?(?:default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)`)
+	classLine  = regexp.MustCompile(`^\s*(?:export\s+)?(default\s+)?(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)`)
 	notMethod  = map[string]bool{"if": true, "for": true, "while": true, "switch": true, "catch": true, "function": true, "return": true, "constructor": true, "with": true}
 )
 
@@ -172,7 +174,7 @@ func readFacts(text string) fileFacts {
 	for n, l := range lines {
 		if f.class == "" {
 			if m := classLine.FindStringSubmatch(l); m != nil {
-				f.class, classStart, classEnd = m[1], n, blockEnd(lines, n)
+				f.class, f.classDefault, classStart, classEnd = m[2], m[1] != "", n, blockEnd(lines, n)
 			}
 		}
 		name, member := "", false

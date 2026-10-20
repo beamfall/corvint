@@ -264,6 +264,13 @@ func ProjectScaffold(ctx context.Context, m *Map, query string, o Options) ([]by
 		}
 		if !imported[f.Path][f.Class] {
 			// Not bound under its own name: absent, aliased (import { X as Y }), default or namespace.
+			// A class that is only a default export cannot be imported by name (V1-0974).
+			if f.ClassExport == ClassExportDefault {
+				blocked[f.Path] = true
+				imports = append(imports, "// UNRESOLVED import { "+f.Class+" }: "+f.Path+" exports it only as its default;")
+				unknowns = append(unknowns, Unknown{Kind: "scaffold-import", Ref: f.ID, Reason: "default-export", Path: f.Path})
+				continue
+			}
 			if dir == "" {
 				imports = append(imports, "// UNRESOLVED import { "+f.Class+" } from <no proposed path>;")
 			} else {

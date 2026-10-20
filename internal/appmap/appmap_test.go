@@ -1373,3 +1373,32 @@ func TestAMAPV0002TruncatedStateCall(t *testing.T) {
 		parseRouter(blobEntry{path: "r.js"}, []byte(src), nil)
 	}
 }
+
+// AMAP-V0-013, V1-0974: a page object that is only a default export, with no FRESH named import
+// of it anywhere in the suite, is reported as an UNRESOLVED import and never called.
+func TestAMAPV0013ScaffoldDefaultExportNotNamedImport(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	for _, p := range []string{"e2e/pages/teesheet.page.ts", "e2e/specs/teesheet-click.spec.ts", "e2e/specs/alias.spec.ts", "e2e/workflows/booking.ts"} {
+		data, err := os.ReadFile(filepath.Join(root, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s := strings.Replace(string(data), "export class TeeSheetPage", "export default class TeeSheetPage", 1)
+		writeFile(t, root, p, strings.Replace(s, "import { TeeSheetPage }", "import TeeSheetPage", 1))
+	}
+	rev := commitAll(t, root, "default export")
+	raw, err := ProjectScaffold(context.Background(), build(t, root, rev), "book-tee-time", Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc := decode(t, raw)
+	imports, body := fmtJSON(doc["imports"]), fmtJSON(doc["lines"])
+	if strings.Contains(imports, "import { TeeSheetPage } from") || strings.Contains(body, "teeSheetPage.book()") ||
+		!strings.Contains(imports, "UNRESOLVED import { TeeSheetPage }") || !strings.Contains(fmtJSON(doc["unknowns"]), "default-export") {
+		t.Fatalf("default-export page object scaffolded as a named import:\n%s\n%s\n%s", imports, body, fmtJSON(doc["unknowns"]))
+	}
+	// The named export beside it still scaffolds its call unchanged.
+	if !strings.Contains(body, "await homePage.goToTeeSheets();") {
+		t.Fatalf("named export lost its call:\n%s", body)
+	}
+}
