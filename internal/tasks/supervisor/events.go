@@ -16,6 +16,24 @@ type HostResult struct {
 	NextAction string   `json:"nextAction"`
 }
 
+// codexEventMembers names every member the Codex readers take from one event
+// line. Each line must repeat no member at any depth and must not alias a
+// read name by case: encoding/json keeps the last duplicate and matches names
+// case-insensitively, so a hostile turn could otherwise hide an error event,
+// swap the session identity or the final handoff, or merge partial usage
+// counters (CAL-V0-075; V1-0799, V1-0950).
+var codexEventMembers = memberTree{names: []string{"type", "thread_id", "item", "usage"}, nested: map[string]memberTree{
+	"item":  {names: []string{"type", "text"}},
+	"usage": {names: []string{"input_tokens", "output_tokens"}},
+}}
+
+func checkCodexLine(line []byte) error {
+	if e := uniqueMembers(line); e != nil {
+		return e
+	}
+	return codexEventMembers.check(line)
+}
+
 func DecodeEvents(raw []byte) (string, HostResult, error) {
 	session := ""
 	result := HostResult{}
@@ -24,6 +42,9 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for scanner.Scan() {
+		if e := checkCodexLine(scanner.Bytes()); e != nil {
+			return session, result, e
+		}
 		var event map[string]json.RawMessage
 		if e := json.Unmarshal(scanner.Bytes(), &event); e != nil {
 			return session, result, e
@@ -65,6 +86,9 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 	}
 	if session == "" || !completed || final == "" {
 		return session, result, fmt.Errorf("incomplete host turn")
+	}
+	if e := exactMembers([]byte(final), handoffMembers); e != nil {
+		return session, result, e
 	}
 	if e := decode([]byte(final), &result); e != nil {
 		return session, result, e
@@ -114,7 +138,7 @@ func ObservedSession(raw []byte) string {
 			Type string `json:"type"`
 			ID   string `json:"thread_id"`
 		}
-		if json.Unmarshal(scanner.Bytes(), &e) != nil {
+		if checkCodexLine(scanner.Bytes()) != nil || json.Unmarshal(scanner.Bytes(), &e) != nil {
 			return ""
 		}
 		if e.Type == "thread.started" {
