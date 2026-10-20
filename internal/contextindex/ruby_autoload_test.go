@@ -425,9 +425,10 @@ func TestRubyAutoloadLocalConstantShadows(t *testing.T) {
 }
 
 // TestRubyAutoloadQualifiedAndOrAssignmentsDefine is V1-1714 (NGI-V0-018): a
-// qualified `A::B = value`, a rooted `::X = value` and `Name ||= value`
-// define the constant in its resolved namespace, never reference it; the
-// namespace a qualified target names is still a reference.
+// qualified `A::B = value` and a rooted `::X = value` define the constant in
+// its resolved namespace, never reference it; the namespace a qualified
+// target names is still a reference. `Name ||= value` reads and keeps an
+// existing ::Name, so it stays a reference and defines nothing.
 func TestRubyAutoloadQualifiedAndOrAssignmentsDefine(t *testing.T) {
 	known := func(name string) bool { return name == "Thing" || name == "Admin" || name == "Admin::Thing" }
 	for name, test := range map[string]struct {
@@ -438,11 +439,11 @@ func TestRubyAutoloadQualifiedAndOrAssignmentsDefine(t *testing.T) {
 		"qualified":        {"Admin::Thing = Struct.new(:id)\n", "Admin::Thing", []string{"Admin"}},
 		"rooted":           {"module Jobs\n  ::Thing = Struct.new(:id)\nend\n", "Thing", nil},
 		"rooted qualified": {"module Jobs\n  ::Admin::Thing = 1\nend\n", "Admin::Thing", []string{"Admin"}},
-		"or-assign":        {"module Jobs\n  Thing ||= Struct.new(:id)\nend\n", "Jobs::Thing", nil},
+		"or-assign":        {"module Jobs\n  Thing ||= Struct.new(:id)\nend\n", "", []string{"Thing"}},
 		"nested qualified": {"module Admin\n  Admin::Thing = 1\nend\n", "Admin::Thing", []string{"Admin"}},
 	} {
 		source := scanRubyConstantSource(Source{Data: []byte(test.text)}, known)
-		if !source.local[test.defined] {
+		if test.defined == "" && source.local["Jobs::Thing"] || test.defined != "" && !source.local[test.defined] {
 			t.Errorf("%s: local definitions = %v, want %s", name, source.local, test.defined)
 		}
 		refs := []string{}
@@ -462,12 +463,12 @@ func TestRubyAutoloadQualifiedAndOrAssignmentsDefine(t *testing.T) {
 		"app/jobs/plain.rb":     "module Jobs\n  def self.run\n    Thing.new\n  end\nend\n",
 	}
 	rows := rubyResultRows(registryImpact(t, files, "app/models/thing.rb"))
-	for _, absent := range []string{"app/jobs/rooted.rb", "app/jobs/or_assign.rb"} {
-		if _, wrong := rows[absent]; wrong {
-			t.Errorf("%s must not reference the autoloaded ::Thing", absent)
-		}
+	if _, wrong := rows["app/jobs/rooted.rb"]; wrong {
+		t.Error("app/jobs/rooted.rb must not reference the autoloaded ::Thing")
 	}
-	if _, ok := rows["app/jobs/plain.rb"]; !ok {
-		t.Error("an unshadowed Thing in module Jobs still resolves to ::Thing")
+	for _, present := range []string{"app/jobs/plain.rb", "app/jobs/or_assign.rb"} {
+		if _, ok := rows[present]; !ok {
+			t.Errorf("%s: Thing (read by ||= or plain use) in module Jobs still resolves to ::Thing", present)
+		}
 	}
 }

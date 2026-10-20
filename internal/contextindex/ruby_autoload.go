@@ -357,8 +357,8 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 				switch {
 				case name == "" || rubyLabelOrCall(code, end):
 				case rubyAssignsConstant(code, end):
-					// `Thing = ...` (or `||=`) defines a constant in the
-					// innermost namespace, `::Thing = ...` a top-level one and
+					// `Thing = ...` defines a constant in the innermost
+					// namespace, `::Thing = ...` a top-level one and
 					// `A::B = ...` B inside the A lexical lookup finds; none is
 					// a reference to an autoloaded constant, but the namespace
 					// a qualified target names is (V1-1714).
@@ -423,13 +423,12 @@ func rubyDefinedConstant(name string, lexical []string, known func(string) bool,
 	return name
 }
 
-// rubyAssignsConstant reports `Name = value` or `Name ||= value`, never
-// `==`, `=~` or `=>`.
+// rubyAssignsConstant reports `Name = value`, never `==`, `=~` or `=>`.
+// `Name ||= value` is not a definition: it reads Name through lexical scope
+// and ancestors and keeps an existing (autoloaded) constant, so it stays a
+// reference (V1-1714).
 func rubyAssignsConstant(code string, end int) bool {
 	cursor, _ := rubySkipSpaces(code, end)
-	if strings.HasPrefix(code[cursor:], "||=") {
-		return true
-	}
 	return cursor < len(code) && code[cursor] == '=' &&
 		(cursor+1 >= len(code) || (code[cursor+1] != '=' && code[cursor+1] != '~' && code[cursor+1] != '>'))
 }

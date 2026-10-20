@@ -220,8 +220,9 @@ path receives it by default, add a bounded second hop, and mark every such row a
   the referencing line and blob with confidence `medium` and authority `syntax`. References
   are read from the lexically masked source (no comment, string or heredoc text), fully
   qualified (`::A::B`) or relative (`B`, `A::B`), excluding labels and method calls `Name(`.
-  A single-segment unrooted `Name = value` or `Name ||= value` (not `==`, `=~` or `=>`) is a
-  local definition of Name in the innermost enclosing namespace, never a reference; a rooted
+  A single-segment unrooted `Name = value` (not `==`, `=~` or `=>`) is a local definition of
+  Name in the innermost enclosing namespace, never a reference; `Name ||= value` is not a
+  definition but a reference, since it reads and keeps an existing Name; a rooted
   `::A::Name = value` defines `A::Name` and a qualified `A::Name = value` defines Name in the A
   that lexical lookup finds (as for a qualified reopen below), and neither is a reference to
   that constant, though the namespace A it names is one (V1-1714); every `class`/`module` the
