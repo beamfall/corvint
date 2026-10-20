@@ -32,7 +32,7 @@ shape or exact equality, never order:
 require an exact expected banner; `internal/releasecandidate/install.go:109@0a2f615a` and
 `cmd/corvint/work_executable_binding.go:75@d5b9289a` check the manifest/generated-binding shape;
 `extensions/vscode/src/executable.ts:13@29803a42` and `internal/companionrelease/core_smoke.go:52@d62aa33e` match a
-`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:27@a5af256a` matches the
+`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:28@a5af256a` matches the
 expected version's exact banner. `docs/specs/vscode-extension-v0.md:164@2ced530d` already states "the build
 number is not part of the pin." `SOP-V0-003` (`docs/specs/stable-operations-v0.md:84-92@feb4322f`, amended by
 decision 0360) compares upgrade/cold-index packet bytes, never build numbers, and a real N-1

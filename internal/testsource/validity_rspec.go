@@ -102,6 +102,11 @@ type rspecReader struct {
 	support *rspecSupport
 	// flags is the flag lookup list stubs are classified against (TSA-V0-435).
 	flags testvalidity.FlagLookups
+	// app is the committed application source assertion targets resolve in, or nil (TSA-V0-448).
+	app *testvalidity.RubyApp
+	// reopened caches, per class and declaring file, whether other application source reopens
+	// or patches the class (TSA-V0-447).
+	reopened map[string]bool
 }
 
 // rspecValidity reports every `expect { NAME }` block expectation whose NAME is the subject or a

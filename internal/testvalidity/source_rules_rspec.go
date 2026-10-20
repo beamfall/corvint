@@ -94,6 +94,9 @@ type RubySupport struct {
 	// Flags is the flag lookup list stubs are classified against (TSA-V0-435); nil uses
 	// BuiltinFlagLookups.
 	Flags *FlagLookups
+	// App is the committed application source a never-written assertion target is resolved in
+	// (TSA-V0-448); nil reads none, and RB-ASSERT-TARGET-NEVER-WRITTEN is never reported.
+	App *RubyApp
 }
 
 // Hygiene and strength reasons of the RSpec example facts (TSA-V0-068..070).
