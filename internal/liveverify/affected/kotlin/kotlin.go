@@ -183,25 +183,36 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 	return layout, nil
 }
 
-// remapsProjectDirectory reports whether a Gradle manifest assigns a project
-// directory (KAT-V0-009): `projectDir = ...`, `project(":x").projectDir = ...`
-// or `setProjectDir(...)`. Reads such as `rootProject.projectDir.resolve(...)`
-// or `layout.projectDirectory` leave the conventional layout intact.
+// remapsProjectDirectory reports whether a Gradle manifest may assign a project
+// directory (KAT-V0-009): any `setProjectDir`, or a `projectDir` (also
+// backticked or quoted) followed by `=`, `(` or a Groovy command argument.
+// Reads such as `rootProject.projectDir.resolve(...)` or
+// `layout.projectDirectory` leave the conventional layout intact. Doubtful
+// forms count as remaps, which keeps the conservative unknown task.
 func remapsProjectDirectory(text string) bool {
-	return wordFollowedBy(text, "projectDir", func(rest string) bool {
-		return strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==")
-	}) || wordFollowedBy(text, "setProjectDir", func(rest string) bool {
-		return strings.HasPrefix(rest, "(")
-	})
+	if len(wordEnds(text, "setProjectDir")) > 0 {
+		return true
+	}
+	for _, end := range wordEnds(text, "projectDir") {
+		if rest := skipTrivia(text[end:]); strings.HasPrefix(rest, "(") ||
+			strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==") {
+			return true
+		}
+		if argument := strings.TrimLeft(text[end:], " \t"); len(argument) < len(text[end:]) && argument != "" &&
+			(identifierByte(argument[0]) || strings.ContainsRune("'\"`$", rune(argument[0]))) {
+			return true
+		}
+	}
+	return false
 }
 
-// wordFollowedBy reports whether word occurs as a whole identifier whose
-// following non-space text satisfies next.
-func wordFollowedBy(text, word string, next func(string) bool) bool {
+// wordEnds returns the end offset of every whole-identifier occurrence of word.
+func wordEnds(text, word string) []int {
+	var ends []int
 	for offset := 0; ; {
 		index := strings.Index(text[offset:], word)
 		if index < 0 {
-			return false
+			return ends
 		}
 		start := offset + index
 		end := start + len(word)
@@ -209,9 +220,31 @@ func wordFollowedBy(text, word string, next func(string) bool) bool {
 		if start > 0 && identifierByte(text[start-1]) || end < len(text) && identifierByte(text[end]) {
 			continue
 		}
-		if next(strings.TrimLeft(text[end:], " \t\r\n")) {
-			return true
+		ends = append(ends, end)
+	}
+}
+
+// skipTrivia drops whitespace, comments and closing quotes or backticks.
+func skipTrivia(text string) string {
+	for {
+		trimmed := strings.TrimLeft(text, " \t\r\n`'\"")
+		switch {
+		case strings.HasPrefix(trimmed, "//"):
+			newline := strings.IndexByte(trimmed, '\n')
+			if newline < 0 {
+				return ""
+			}
+			trimmed = trimmed[newline:]
+		case strings.HasPrefix(trimmed, "/*"):
+			closing := strings.Index(trimmed[2:], "*/")
+			if closing < 0 {
+				return ""
+			}
+			trimmed = trimmed[closing+4:]
+		default:
+			return trimmed
 		}
+		text = trimmed
 	}
 }
 

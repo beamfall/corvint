@@ -50,8 +50,9 @@ claim safe test omission, or amend the LPCV promotion tranche.
   its current bounded exclusion record for each unselected eligible test. That exclusion record
   does not carry separate provider and evidence-identity fields required by literal LPCV-V0-014;
   this adapter cannot close that interface-level requirement and MUST NOT claim it does.
-- `KAT-V0-009`: Only a Gradle manifest that assigns a project directory (`projectDir = ...`,
-  `project(":x").projectDir = ...`, or a `setProjectDir(...)` call) or cannot be read MUST mark the
+- `KAT-V0-009`: Only a Gradle manifest that may assign a project directory (`projectDir = ...`,
+  `project(":x").projectDir = ...`, a backticked, quoted or commented form of that assignment, a
+  `setProjectDir` call, or a Groovy `projectDir` command call) or cannot be read MUST mark the
   layout as custom-mapped and raise the `kotlin:build-target-unresolved` frontier with task
   `unknown`. Reading a project directory (`rootProject.projectDir.resolve(...)`,
   `layout.projectDirectory.file(...)`, `projectDir == rootDir`, or `"$projectDir/..."`) MUST NOT
@@ -126,11 +127,14 @@ scripts read the project directory instead, for signing, ProGuard, or generated-
 every mention of `projectDir` as a remap turned every test in such a repository into
 `kotlin:jvm:<module>:unknown:...` with build-target and test-address frontiers (V1-2048).
 
-- Detection: `projectDir` as a whole identifier followed by `=` (not `==`), or the whole identifier
-  `setProjectDir` followed by `(`, anywhere in a `build.gradle`, `build.gradle.kts`,
-  `settings.gradle`, `settings.gradle.kts` or `pom.xml` manifest. Comments and string literals are
-  not excluded, and a local variable named `projectDir` that is assigned also counts; both
-  over-report a remap, which only keeps the conservative `unknown` task.
+- Detection, anywhere in a `build.gradle`, `build.gradle.kts`, `settings.gradle`,
+  `settings.gradle.kts` or `pom.xml` manifest: any whole identifier `setProjectDir`; or a whole
+  identifier `projectDir` (bare, backticked or quoted) that is followed, after whitespace, comments
+  and closing quotes or backticks, by `=` (not `==`) or `(`, or that is followed on the same line by
+  whitespace and an argument (a Groovy command call such as `projectDir file('m')`).
+- Doubtful forms resolve toward a remap. Comments and string literals are not excluded, an assigned
+  local variable or named argument called `projectDir` counts, and `"$projectDir is ..."` reads as a
+  command call; each over-reports a remap, which only keeps the conservative `unknown` task.
 - Failure modes: a remap through another API (for example a `ProjectDescriptor` obtained under a
   different name and assigned through reflection, or a remap in an included build-logic plugin) is
   not seen, and a derived task can name the wrong project path. The runtime provider still validates

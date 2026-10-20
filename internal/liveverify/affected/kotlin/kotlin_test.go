@@ -495,11 +495,14 @@ func TestKATV0009ProjectDirectoryReadsKeepGradleTestTask(t *testing.T) {
 	if contains(result.Frontier, FrontierBuildTarget) || contains(result.Frontier, FrontierTestAddress) {
 		t.Fatalf("frontier=%v", result.Frontier)
 	}
-	want := "kotlin:jvm:app:test:example.ExampleTest"
+	var tests []string
 	for _, unit := range result.Units {
-		if len(unit.Tests) != 0 && unit.ID != want {
-			t.Fatalf("test unit=%s want %s", unit.ID, want)
+		if len(unit.Tests) != 0 {
+			tests = append(tests, unit.ID)
 		}
+	}
+	if want := "kotlin:jvm:app:test:example.ExampleTest"; len(tests) != 1 || tests[0] != want {
+		t.Fatalf("test units=%v want [%s]", tests, want)
 	}
 }
 
@@ -511,6 +514,16 @@ func TestKATV0009RemapsProjectDirectoryOnlyOnAssignment(t *testing.T) {
 		"findProject(\":app\")?.projectDir =\n  file(\"m\")":         true,
 		"project(':app') { projectDir = file('m') }":                 true,
 		"project(':app').setProjectDir(new File('m'))":               true,
+		"project(':app').setProjectDir new File('m')":                true,
+		"project(\":app\").projectDir /* override */ = file(\"m\")":  true,
+		"project(\":app\").projectDir // override\n = file(\"m\")":   true,
+		"project(\":app\").`projectDir` = file(\"m\")":               true,
+		"project(':app').'projectDir' = file('m')":                   true,
+		"project(':app').\"projectDir\" = file('m')":                 true,
+		"project(':app') { projectDir file('m') }":                   true,
+		"project(':app').projectDir(file('m'))":                      true,
+		"println(rootProject.projectDir)":                            false,
+		"def s = \"${projectDir}\"":                                  false,
 		"rootProject.projectDir.resolve(\"keystore.properties\")":    false,
 		"layout.projectDirectory.file(\"proguard-rules.pro\")":       false,
 		"val dir = project.projectDir":                               false,

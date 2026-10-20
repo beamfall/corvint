@@ -2806,7 +2806,7 @@ KAT-V0-005	docs/specs/kotlin-jvm-affected-test-v0.md	`src/test` and `src/jvmTest
 KAT-V0-006	docs/specs/kotlin-jvm-affected-test-v0.md	Static package/import edges, aliases, wildcard imports, same-package visibility,	unrecorded	-
 KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	Unparsed source, dynamic/reflection-driven discovery, custom source sets, unknow	unrecorded	-
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	Fixed inputs MUST reproduce byte-identical graph and selection bodies	unrecorded	-
-KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that assigns a project directory (`projectDir = ...`,	unrecorded	-
+KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that may assign a project directory (`projectDir = ...`,	unrecorded	-
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp	unrecorded	-
