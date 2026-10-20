@@ -53,6 +53,11 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		return out, reason
 	}
 	r.support = newRSpecSupport(support)
+	r.flags = testvalidity.BuiltinFlagLookups()
+	if support.Flags != nil {
+		r.flags = *support.Flags
+	}
+	r.app = support.App
 	byTest := map[string][]testvalidity.SourceFinding{}
 	for _, f := range base.Findings {
 		byTest[f.Test] = append(byTest[f.Test], f)
@@ -64,11 +69,20 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 		count, anchors := expectations(e.path, e.body)
 		out[e.line] = testvalidity.ExampleSource{Read: testvalidity.ExampleSourceLocated, Expectations: count, Findings: findings, ExpectationAnchors: anchors, TitlePath: r.titlePath(e)}
 	}
-	// The flow findings follow each example's other findings (TSA-V0-120..130).
+	// The flow findings follow each example's other findings (TSA-V0-120..130), the stub and flag
+	// findings follow them (TSA-V0-430), and the never-written assertion targets come last
+	// (TSA-V0-443).
 	for _, e := range r.examples {
 		test := fmt.Sprintf("%s:%d", name, e.line)
 		source := out[e.line]
-		source.Findings = append(source.Findings, r.flowFindings(name, test, e)...)
+		c := r.flowContext(name, e)
+		source.Findings = append(source.Findings, c.flowFindings(test)...)
+		stubs, conditions := c.stubFindings(test)
+		source.Findings = append(source.Findings, stubs...)
+		source.Findings = append(source.Findings, c.neverWritten(test)...)
+		if len(conditions) > 0 {
+			source.Conditions = conditions
+		}
 		out[e.line] = source
 	}
 	return out, ""
