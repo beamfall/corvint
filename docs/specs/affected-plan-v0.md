@@ -156,7 +156,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block`. The single
   `advisory` entry exists only when `provider.go.state` is `RUNNABLE`, is
   `GOTOOLCHAIN=local go test -count=1 <packages>` over `provider.go.packages` with source
-  `affected-plan`, and is otherwise replaced by one `unknown` line naming the state. `checks` MUST
+  `affected-plan`, and is otherwise replaced by one `unknown` line naming the state, except that an
+  `EMPTY_SELECTION` over a graph with no `go:` unit adds no line (amended for V1-2076: a repository
+  without Go units has no Go advice gap). `checks` MUST
   be ordered mandatory-first in source order, then the advisory entry; `unknown` MUST be the sorted,
   deduplicated projection of `plan.unknown` as `<reason>: <detail>` plus those synthetic lines. The
   advice is static: no check is executed, no entry may be derived from `plan.excluded`, and a

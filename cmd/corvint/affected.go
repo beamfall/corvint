@@ -110,6 +110,9 @@ type affectedProvider struct {
 type affectedGoProvider struct {
 	Packages []string `json:"packages"`
 	State    string   `json:"state"`
+	// noGoUnits marks a graph with no go: unit, whose empty selection is not
+	// an advice gap (V1-2076). It is not on the wire.
+	noGoUnits bool
 }
 
 // affectedAdvice is the grounded check list (AFP-V0-009). Checks is ordered
@@ -1126,8 +1129,12 @@ func declaresMandatoryCheck(checks []affectedCheck) bool {
 }
 
 // advisoryAffectedChecks proposes the Go packages the plan selected. Any state
-// other than RUNNABLE yields no command and one unknown line naming the state.
+// other than RUNNABLE yields no command and one unknown line naming the state,
+// except an empty selection over a graph with no Go unit, which yields neither.
 func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]affectedCheck, []string) {
+	if provider.State == providerStateEmpty && provider.noGoUnits {
+		return nil, nil
+	}
 	if provider.State != providerStateRunnable {
 		return nil, []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is " + provider.State}
 	}
@@ -1338,12 +1345,21 @@ func providerGoProjection(graph *affected.Graph, plan affected.Plan) affectedGoP
 	}
 	packages := providerGoPackages(plan)
 	if len(packages) == 0 {
-		return affectedGoProvider{Packages: []string{}, State: providerStateEmpty}
+		return affectedGoProvider{Packages: []string{}, State: providerStateEmpty, noGoUnits: !graphHasGoUnit(graph)}
 	}
 	if len(packages) > providerMaxPackagePatterns {
 		return affectedGoProvider{Packages: []string{}, State: providerStateBoundExceeded}
 	}
 	return affectedGoProvider{Packages: packages, State: providerStateRunnable}
+}
+
+func graphHasGoUnit(graph *affected.Graph) bool {
+	for _, id := range graph.UnitIDs() {
+		if strings.HasPrefix(id, "go:") {
+			return true
+		}
+	}
+	return false
 }
 
 func providerGoPackages(plan affected.Plan) []string {
