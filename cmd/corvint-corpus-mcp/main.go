@@ -46,10 +46,17 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
 		return 0
 	}
-	artifact, artifactErr := rootRelativeArtifact(root, artifact)
+	artifact, artifactErr := rootRelativePath(root, artifact)
 	if artifactErr != "" {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: --artifact: "+artifactErr)
 		return 2
+	}
+	for i, name := range maps { // V1-1998: --map takes the same absolute spellings
+		var mapErr string
+		if maps[i], mapErr = rootRelativePath(root, name); mapErr != "" {
+			_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: --map: "+mapErr)
+			return 2
+		}
 	}
 	registry, registryErr := corpusbridge.New(root, artifact)
 	if registryErr != nil {
@@ -119,14 +126,14 @@ func parseArguments(arguments []string) (root, artifact string, maps []string, c
 	return arguments[1], arguments[3], maps, consolidation, false, true
 }
 
-// rootRelativeArtifact rewrites an absolute --artifact inside --root to the equivalent
+// rootRelativePath rewrites an absolute --artifact or --map inside --root to the equivalent
 // root-relative path, so both spellings open the same file and report the same path
 // (DCP-V1-205). Containment is decided lexically first and then on symlink-resolved paths,
 // so a root reached through a symlinked ancestor (macOS /var -> /private/var) matches either
 // spelling (DCP-V1-206). An absolute path that is not below --root is refused with a reason naming the
 // argument instead of the generic repository-unavailable refusal (DCP-V1-207). A relative
 // value is returned unchanged; the bounded reader still applies its path rules.
-func rootRelativeArtifact(root, artifact string) (string, string) {
+func rootRelativePath(root, artifact string) (string, string) {
 	if !filepath.IsAbs(artifact) {
 		return artifact, ""
 	}
