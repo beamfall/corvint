@@ -31,6 +31,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -374,10 +375,53 @@ func pathTokens(body []byte, modulePath string, aliases map[string]string, dotIm
 		if err != nil {
 			continue
 		}
-		for _, name := range pathToken.FindAllString(printfVerb.ReplaceAllString(value, " "), -1) {
-			scan.tokens = append(scan.tokens, rootAnchored(name, modulePath))
+		value = printfVerb.ReplaceAllString(value, verbMark)
+		for _, bounds := range pathToken.FindAllStringIndex(value, -1) {
+			name := rootAnchored(value[bounds[0]:bounds[1]], modulePath)
+			scan.tokens = append(scan.tokens, wholeShortEnds(name, value, bounds[0], bounds[1]))
 		}
 	}
+}
+
+// verbMark stands in for a removed printf verb: like the literal's own ends, a
+// verb is where another value joins the literal.
+const verbMark = "\x00"
+
+// wholeShortEnds marks an outer component of one or two characters of a
+// multi-component token as whole when the literal itself delimits it with an
+// ASCII byte (V1-1818): "./" before a first one and "/" after a last one, so
+// the `s/a` of `"sed 's/a b'"` becomes `./s/a/` and names only a path with `s`
+// and `a` as whole components. A component at the literal's start or end, or
+// beside a printf verb, may join another value (`"docs/a" + "lpha.go"`), and one
+// beside a non-ASCII byte may continue the same name, so either stays a
+// fragment that matches by suffix or prefix.
+func wholeShortEnds(name, value string, start, end int) string {
+	components := strings.Split(name, "/")
+	last := len(components) - 1
+	if last < 1 {
+		return name
+	}
+	if short(components[0]) && runComponent(components[1]) && delimited(value, start-1) {
+		name = "./" + name
+	}
+	if short(components[last]) && runComponent(components[last-1]) && delimited(value, end) {
+		name += "/"
+	}
+	return name
+}
+
+// runComponent reports a component the matcher keeps in a component run.
+func runComponent(component string) bool {
+	return component != "" && component != "." && component != ".."
+}
+
+func short(component string) bool {
+	return runComponent(component) && len(component) < 3
+}
+
+// delimited reports an ASCII byte of value at index that is not a verb mark.
+func delimited(value string, index int) bool {
+	return index >= 0 && index < len(value) && value[index] < utf8.RuneSelf && value[index] != verbMark[0]
 }
 
 // FilePathTokens is the AFP-V0-021 lexicon over one Go file, as

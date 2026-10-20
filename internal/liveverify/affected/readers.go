@@ -440,21 +440,15 @@ func (token pathToken) names(parts []string) bool {
 	return false
 }
 
-// minFragmentLength is the shortest outer component that may match part of a
-// path component: `s/a` must not name `docs/specs/affected-plan-v0.md`
-// (V1-1818), so a shorter one matches only a whole component.
-const minFragmentLength = 3
-
 func (candidate run) matchesAt(parts []string) bool {
 	last := len(candidate.components) - 1
 	for position, component := range candidate.components {
-		fragment := len(component) >= minFragmentLength
 		switch {
-		case position == 0 && candidate.partialFirst && position != last && fragment:
+		case position == 0 && candidate.partialFirst && position != last:
 			if !strings.HasSuffix(parts[position], component) {
 				return false
 			}
-		case position == last && candidate.partialLast && fragment:
+		case position == last && candidate.partialLast:
 			if !strings.HasPrefix(parts[position], component) {
 				return false
 			}
