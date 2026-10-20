@@ -2,12 +2,30 @@ package doccorpus
 
 import (
 	"context"
+	"errors"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"sort"
 )
 
-const MaxIndexPostings = 1000000
-const MaxIndexKeyBytes = 16 << 20
+// MaxIndexPostings and MaxIndexKeyBytes bound the derived query index: about
+// twenty postings and 160 unique key bytes for each record the /2 family
+// bounds admit (DCP-V1-193).
+const MaxIndexPostings = 8000000
+const MaxIndexKeyBytes = 64 << 20
+
+// indexPostingBound and indexKeyByteBound are the bounds BuildQueryIndex
+// enforces; tests lower them to reach the refusal without a huge fixture.
+var indexPostingBound, indexKeyByteBound = MaxIndexPostings, MaxIndexKeyBytes
+
+// IndexedOperation reports whether op answers from the derived query index,
+// which the query builds when the artifact carries none (DCP-V1-195).
+func IndexedOperation(op string) bool {
+	switch op {
+	case "gaps", "concept", "claims", "flow", "dependencies", "recommend-tests", "navigation", "vocabulary", "intent":
+		return true
+	}
+	return false
+}
 
 type RecordRef struct {
 	Kind   string `json:"kind"`
@@ -24,12 +42,33 @@ type QueryIndex struct {
 	Edges  map[string][]int       `json:"edges"`
 }
 
+// BuildAdmitted is Build for an artifact that will be written: a corpus whose
+// query index would exceed its bounds is refused with the capacity code,
+// naming the bound and the observed count, instead of being written for the
+// typed reads to refuse (DCP-V1-196). Open keeps using Build, so an artifact
+// written before still opens for the reads that need no index.
+func BuildAdmitted(ctx context.Context, root string, m Manifest) (*Artifact, error) {
+	a, err := Build(ctx, root, m)
+	if err != nil {
+		return nil, err
+	}
+	var coded *Error
+	if _, err := BuildQueryIndex(ctx, a); errors.As(err, &coded) && coded.Code == CapacityCode {
+		return nil, err
+	}
+	return a, nil
+}
+
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords {
 		return nil, fail("indexed record family bound exceeded")
 	}
 	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}}
+	// Each posting is charged once. Past a bound the index stops storing
+	// postings but keeps counting, so the refusal names the observed totals
+	// (DCP-V1-194).
 	postings, keyBytes := 0, 0
+	over := false
 	keys := map[string]bool{}
 	charge := func(key string) error {
 		if len(key) > 65536 {
@@ -40,9 +79,7 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			keys[key] = true
 		}
 		postings++
-		if postings > MaxIndexPostings || keyBytes > MaxIndexKeyBytes {
-			return fail("indexed postings or key byte bound exceeded")
-		}
+		over = over || postings > indexPostingBound || keyBytes > indexKeyByteBound
 		return ctx.Err()
 	}
 	add := func(v any, ref RecordRef) error {
@@ -72,7 +109,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			if err := charge(key); err != nil {
 				return err
 			}
-			x.Paths[key] = append(x.Paths[key], ref)
+			if !over {
+				x.Paths[key] = append(x.Paths[key], ref)
+			}
 		}
 		return nil
 	}
@@ -85,6 +124,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 		subjectIDs[s.ID] = i
 		terms[i] = map[string]bool{}
 		for term := range contextindex.EvidenceTerms(s.ID + " " + s.Name) {
+			if err := charge(term); err != nil {
+				return nil, err
+			}
 			terms[i][term] = true
 		}
 	}
@@ -95,7 +137,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 		if err := charge(c.Subject); err != nil {
 			return nil, err
 		}
-		x.Claims[c.Subject] = append(x.Claims[c.Subject], i)
+		if !over {
+			x.Claims[c.Subject] = append(x.Claims[c.Subject], i)
+		}
 		if j, ok := subjectIDs[c.Subject]; ok {
 			for term := range contextindex.EvidenceTerms(c.Text) {
 				if !terms[j][term] {
@@ -119,7 +163,9 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			if err := charge(key); err != nil {
 				return nil, err
 			}
-			x.Edges[key] = append(x.Edges[key], i)
+			if !over {
+				x.Edges[key] = append(x.Edges[key], i)
+			}
 		}
 	}
 	for i, j := range a.Journeys {
@@ -132,11 +178,18 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			return nil, err
 		}
 	}
+	if postings > indexPostingBound {
+		return nil, capacityExceeded("indexed postings", postings, indexPostingBound)
+	}
+	if keyBytes > indexKeyByteBound {
+		return nil, capacityExceeded("indexed unique key bytes", keyBytes, indexKeyByteBound)
+	}
+	// Every term posting was charged when its subject's set first held it.
 	for i, set := range terms {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		for term := range set {
-			if err := charge(term); err != nil {
-				return nil, err
-			}
 			x.Terms[term] = append(x.Terms[term], i)
 		}
 	}

@@ -48,7 +48,18 @@ type Registry struct {
 		artifact *doccorpus.Artifact
 		overlay  doccorpus.FreshnessOverlay
 	}
+	// index memoizes the query index of the memoized artifact, or its
+	// deterministic refusal, so neither is recomputed per call or per batch
+	// path (DCP-V1-195). It is guarded by load.
+	index struct {
+		artifact *doccorpus.Artifact
+		value    *doccorpus.QueryIndex
+		err      error
+	}
 }
+
+// buildIndex derives the query index; tests replace it to count derivations.
+var buildIndex = doccorpus.BuildQueryIndex
 
 type header struct {
 	Schema       string                 `json:"schema"`
@@ -296,6 +307,22 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if err != nil {
 		return prepared(err)
 	}
+	// An indexed read answers from, or is refused by, the one index derived for
+	// this artifact, before any freshness work (DCP-V1-195).
+	queried := a
+	var indexMS int64
+	if doccorpus.IndexedOperation(op) {
+		step := time.Now()
+		index, err := r.indexFor(ctx, a)
+		indexMS = time.Since(step).Milliseconds()
+		if err != nil {
+			timing.QueryMS = indexMS
+			return prepared(err)
+		}
+		indexed := *a
+		indexed.RuntimeIndex = index
+		queried = &indexed
+	}
 	step := time.Now()
 	overlay, err := r.freshness(ctx, a, &timing)
 	timing.FreshnessMS = time.Since(step).Milliseconds()
@@ -305,15 +332,15 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	step = time.Now()
 	var data []byte
 	if batch {
-		data, err = queryBatch(ctx, a, request, overlay, input.Paths)
+		data, err = queryBatch(ctx, queried, request, overlay, input.Paths)
 	} else {
-		data, err = query(ctx, a, request, overlay)
+		data, err = query(ctx, queried, request, overlay)
 	}
 	var result map[string]any
 	if err == nil {
 		err = json.Unmarshal(data, &result)
 	}
-	timing.QueryMS = time.Since(step).Milliseconds()
+	timing.QueryMS = indexMS + time.Since(step).Milliseconds()
 	if err != nil {
 		return failure(err, finish())
 	}
@@ -449,6 +476,7 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 			return nil, ctx.Err()
 		}
 		r.artifact, r.pins = nil, nil
+		r.index.artifact, r.index.value, r.index.err = nil, nil, nil
 	}
 	step := time.Now()
 	timing.Load = "first-call"
@@ -459,6 +487,27 @@ func (r *Registry) artifactFor(ctx context.Context, raw []byte, timing *Timing) 
 	}
 	r.artifact, r.pins = a, pinnedRevisions(a.Manifest)
 	return a, nil
+}
+
+// indexFor returns the query index of a, deriving it on the first indexed
+// call for this artifact. The index, or a corpus refusal such as the capacity
+// bound, is kept until the artifact memo is replaced; a cancellation is not.
+func (r *Registry) indexFor(ctx context.Context, a *doccorpus.Artifact) (*doccorpus.QueryIndex, error) {
+	select {
+	case r.load <- struct{}{}:
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	defer func() { <-r.load }()
+	if r.index.artifact == a {
+		return r.index.value, r.index.err
+	}
+	index, err := buildIndex(ctx, a)
+	var refused *doccorpus.Error
+	if err == nil || errors.As(err, &refused) {
+		r.index.artifact, r.index.value, r.index.err = a, index, err
+	}
+	return index, err
 }
 
 // freshness reuses the live overlay, and the symbol checks it memoizes, while
