@@ -720,3 +720,35 @@ func TestAMSPV0007ReceiptVerificationOverlay(t *testing.T) {
 		t.Fatalf("unknown step bind: %v", err)
 	}
 }
+
+// AMSP-V0-008, V1-0972: a map method name that is not a JavaScript identifier is never emitted as
+// code; the draft comments the reuse out and says why, so a hand-edited or foreign map cannot
+// close the step callback.
+func TestAMSPV0008NonIdentifierMethodNameNotCalled(t *testing.T) {
+	root, rev, maps := planRepo(t)
+	crafted := "buyGiftCard(); }); globalThis.__injected = true; (async () => {"
+	for i := range maps[1].Files {
+		for k := range maps[1].Files[i].Methods {
+			if maps[1].Files[i].Methods[k].Name == "buyGiftCard" {
+				maps[1].Files[i].Methods[k].Name = crafted
+			}
+		}
+	}
+	doc := planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	src := stringOf(doc["draft"].(map[string]any)["lines"])
+	for _, l := range doc["draft"].(map[string]any)["lines"].([]any) {
+		line := l.(string)
+		if i := strings.Index(line, "__injected"); i >= 0 && !strings.Contains(line[:i], "//") {
+			t.Fatalf("crafted method name emitted as code: %q", line)
+		}
+	}
+	if !strings.Contains(src, "is not a JavaScript identifier; not called") || !strings.Contains(src, "getByTestId(") {
+		t.Fatalf("draft: %s", src)
+	}
+	// An identifier name still produces the call unchanged.
+	_, _, maps = planRepo(t)
+	doc = planOf(t, maps, []string{"buy a gift card"}, PlanOptions{Options: Options{Root: root, Revision: rev}, Draft: true})
+	if src := stringOf(doc["draft"].(map[string]any)["lines"]); !strings.Contains(src, ".buyGiftCard(); // reuse ") {
+		t.Fatalf("identifier call missing: %s", src)
+	}
+}

@@ -1150,6 +1150,8 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 			}
 			if len(av.Methods) > 0 && ps.methods[j][0] != nil && !ps.methods[j][0].Callable {
 				L("    // reuse %s is not a public method callable without arguments; not called", av.Methods[0].Ref)
+			} else if len(av.Methods) > 0 && ps.methods[j][0] != nil && !jsName.MatchString(ps.methods[j][0].Name) {
+				L("    // reuse %s: method name %s is not a JavaScript identifier; not called", av.Methods[0].Ref, quote(ps.methods[j][0].Name))
 			}
 			switch {
 			case av.Selector == nil:
@@ -1181,14 +1183,14 @@ func draft(plan []*planStep, sessions []*sessionView, handoffs []*handoffView, b
 var jsName = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
 
 // reuseTarget is the page-object or workflow class file whose first shown method performs action j,
-// when that method is FRESH and Callable; nil otherwise.
+// when that method is FRESH, Callable and named by a JavaScript identifier; nil otherwise.
 func reuseTarget(ps *planStep, j int) *TestFile {
 	if j >= len(ps.methods) || len(ps.methods[j]) == 0 || ps.methods[j][0] == nil || len(ps.Actions[j].Methods) == 0 || ps.Actions[j].Selector == nil {
 		return nil
 	}
 	f := ps.files[j][0]
 	if f == nil || f.Class == "" || (f.Role != rolePageObject && f.Role != roleWorkflow) || ps.Actions[j].Methods[0].Freshness != Fresh ||
-		!ps.methods[j][0].Callable {
+		!ps.methods[j][0].Callable || !jsName.MatchString(ps.methods[j][0].Name) {
 		return nil
 	}
 	return f
