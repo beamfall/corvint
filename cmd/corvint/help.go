@@ -1111,6 +1111,18 @@ Verification options:
                        with the caller's privileges; use it only on a target
                        you trust. status and report refuse it.
 
+Map paths:
+  status and verify read --map MAP repository-relative, or as an absolute
+  path outside the repository and its Git directories (for example an
+  assembled or exported bundle's map); an absolute path inside them is refused,
+  so name it repository-relative. The map binds the repository by object IDs;
+  the read is bounded and writes nothing, and a symlinked map is refused.
+  verify-stable reads its --map at any path; every other action takes MAP
+  repository-relative only. anchor and its
+  --artifacts verdict ledger read the map committed at HEAD under MAP, so an
+  out-of-tree map must be committed in the product repository before it can
+  be anchored; there is no out-of-tree anchor or verdict-ledger mode yet.
+
 cem/1.0 is the only wire. Verification derives the canonical
 whole-repository patch itself excluding exactly .corvint/change.cem.json. A
 retired cem/0.1, cem/0.2 or cem/0.3 map refuses with unsupported-spec and its

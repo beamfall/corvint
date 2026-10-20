@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -52,7 +53,13 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	if options.Format != "" && options.Format != "markdown" && options.Format != "json" {
 		return nil, invalidArguments("report format must be markdown or json")
 	}
-	raw, err := s.readMapBytes(options.MapPath)
+	var raw []byte
+	var err error
+	if filepath.IsAbs(options.MapPath) && (action == "status" || action == "verify") {
+		raw, options.MapPath, err = s.readExternalMap(options.MapPath)
+	} else {
+		raw, err = s.readMapBytes(options.MapPath)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +102,37 @@ func (s *Session) reportOutput(options ReadOptions) (*publish.Root, string, erro
 		return nil, "", invalidArguments("report and map paths must differ")
 	}
 	return outputRoot, outputRelative, nil
+}
+
+// readExternalMap reads the absolute --map a status or verify names outside the
+// repository (CEM-V1-315). The map binds the repository by object IDs, so its
+// location carries no authority; it is read once, bounded, and never written.
+// The parent directory is resolved and must lie outside the worktree and its
+// Git directories by file identity, so a symlinked parent cannot reach a map
+// inside them; a map there must be named repository-relative (CEM-V1-316). The
+// final component must be a regular file: a symlink is refused, never followed.
+// It returns the bytes and the resolved absolute path they were read from.
+func (s *Session) readExternalMap(mapPath string) ([]byte, string, error) {
+	cleaned := filepath.Clean(mapPath)
+	name := filepath.Base(cleaned)
+	root, err := publish.OpenRoot(filepath.Dir(cleaned))
+	if err != nil || name == string(filepath.Separator) || name == "." {
+		return nil, "", cemcode.New(cemcode.MapUnavailable, "map %q has no readable parent directory", mapPath)
+	}
+	// The verifier, not this check, judges a repository whose Git directories
+	// cannot be located; the worktree itself is always protected.
+	protected := []string{s.workRoot.Path()}
+	if s.openPublicationDirectories() == nil {
+		protected = append(protected, s.gitRoot.Path(), s.commonDir)
+	}
+	if withinAny(root.Path(), protected) {
+		return nil, "", invalidArguments("an absolute --map must lie outside the repository and its Git directory; name a map inside them repository-relative")
+	}
+	raw, err := root.ReadBounded(name, wire.MaxMapBytes, cemcode.MapUnavailable)
+	if err != nil {
+		return nil, "", err
+	}
+	return raw, filepath.Join(root.Path(), name), nil
 }
 
 // externalReportOutput admits an absolute report path whose existing parent directory lies

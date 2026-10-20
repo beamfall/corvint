@@ -151,7 +151,10 @@ func (s *Session) readStable(ctx context.Context, action string, raw []byte, opt
 	}
 	switch action {
 	case "status":
-		envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
+		envelope["map"] = options.MapPath
+		if !filepath.IsAbs(options.MapPath) {
+			envelope["map"] = filepath.Join(s.workRoot.Path(), filepath.FromSlash(options.MapPath))
+		}
 		envelope["state"] = stableStates[result.Outcome]
 		// --citation names the map's citation class beside, never inside, the
 		// verifier result, so the result stays what verify-stable reports and
