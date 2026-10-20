@@ -16,11 +16,13 @@ var (
 	// rspecFilterRunExcluding is a `filter_run_excluding` call; the rest of the line is its
 	// arguments.
 	rspecFilterRunExcluding = regexp.MustCompile(`\bfilter_run_excluding\b(.*)$`)
-	// rspecMetadataPair is a `key: VALUE` metadata pair; group 2 is VALUE, a symbol, a word or
-	// "" for anything else (a string, lambda or constant expression).
-	rspecMetadataPair = regexp.MustCompile(`(?:^|[,(\s])(\w+):\s*(:?\w*)`)
+	// rspecMetadataPair is a `key: VALUE` or `:key => VALUE` metadata pair; group 1 or 2 is the key
+	// and group 3 the raw VALUE up to the next separator.
+	rspecMetadataPair = regexp.MustCompile(`(?:^|[,({\s])(?:(\w+):|:(\w+)\s*=>)\s*([^,)}\s]*)`)
+	// rspecMetadataValue is a VALUE the reader resolves: a symbol, true, false, nil or a number.
+	rspecMetadataValue = regexp.MustCompile(`^(?::\w+|true|false|nil|\d+)$`)
 	// rspecMetadataTag is a `:tag` symbol, which RSpec reads as `tag: true`.
-	rspecMetadataTag = regexp.MustCompile(`(?:^|[,(\s]):(\w+)\b`)
+	rspecMetadataTag = regexp.MustCompile(`(?:^|[,({\s]):(\w+)\b`)
 )
 
 // rspecExclusion is one metadata filter a committed support file excludes from every run.
@@ -31,20 +33,35 @@ type rspecExclusion struct {
 
 // rspecMetadataPairs returns a declaring line's metadata as key to value, outside string
 // literals and before its block opens. A `:tag` symbol is `tag` = "true"; a value that is not a
-// symbol or a word is "".
+// symbol, true, false, nil or a number (a constant, lambda or call) is unknown, "".
 func rspecMetadataPairs(text string) map[string]string {
 	text = stripRubyStrings(text)
-	if at := rspecBlockStart.FindStringIndex(text); at != nil {
-		text = text[:at[0]]
-	}
+	text = text[:rspecMetadataEnd(text)]
 	out := map[string]string{}
 	for _, m := range rspecMetadataPair.FindAllStringSubmatch(text, -1) {
-		out[m[1]] = m[2]
+		key := m[1] + m[2]
+		out[key] = ""
+		if rspecMetadataValue.MatchString(m[3]) {
+			out[key] = m[3]
+		}
 	}
 	for _, m := range rspecMetadataTag.FindAllStringSubmatch(rspecMetadataPair.ReplaceAllString(text, " "), -1) {
 		out[m[1]] = "true"
 	}
 	return out
+}
+
+// rspecMetadataEnd is where a declaring line's block opens: a `do`, or a `{` that does not open a
+// hash argument (one after `(` or `,`), else the line's length.
+func rspecMetadataEnd(text string) int {
+	for _, at := range rspecBlockStart.FindAllStringIndex(text, -1) {
+		before := strings.TrimRight(text[:at[0]], " \t")
+		if text[at[0]] == '{' && (strings.HasSuffix(before, "(") || strings.HasSuffix(before, ",")) {
+			continue
+		}
+		return at[0]
+	}
+	return len(text)
 }
 
 // rspecExclusions reads every `filter_run_excluding` line of the bound support files, in path then

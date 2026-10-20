@@ -3,6 +3,7 @@ package testsource
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -197,6 +198,98 @@ func TestRSpecConditionalAndConfigSkips(t *testing.T) {
 				t.Errorf("%d: config exclusion without a support set: %s", line, row)
 			}
 		}
+	}
+}
+
+// TestRSpecMetadataForms pins TSA-V0-450's metadata reading: a hash-literal argument is metadata,
+// not a block; a hash-rocket pair keeps its value; and a value that is not a symbol, true, false,
+// nil or a number (a constant, lambda or call) is unknown (""), so the filter matches on its key.
+func TestRSpecMetadataForms(t *testing.T) {
+	for _, c := range []struct {
+		line string
+		want map[string]string
+	}{
+		{"it 'x', {slow: true} do", map[string]string{"slow": "true"}},
+		{"it 'x', { :type => :feature, :slow => true } do", map[string]string{"type": ":feature", "slow": "true"}},
+		{"it 'x', type: FEATURE_TYPE do", map[string]string{"type": ""}},
+		{"it('x', type: :model) { expect(1).to eq(1) }", map[string]string{"type": ":model"}},
+		{"it 'x', :slow, retries: 3 do", map[string]string{"slow": "true", "retries": "3"}},
+	} {
+		if got := rspecMetadataPairs(c.line); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("%q: pairs = %v, want %v", c.line, got, c.want)
+		}
+	}
+	helper := `RSpec.configure do |config|
+  config.filter_run_excluding({slow: true})
+  config.filter_run_excluding :type => :feature
+  config.filter_run_excluding kind: FEATURE_KIND
+  config.filter_run_excluding speed: lambda { |v| v > 2 }
+  config.filter_run_excluding tier: ->(v) { v == :gold }
+end
+`
+	got := []string{}
+	for _, x := range rspecExclusions(map[string]string{"spec/spec_helper.rb": helper}) {
+		got = append(got, fmt.Sprintf("%s=%q %s", x.key, x.value, x.cause))
+	}
+	want := []string{`slow="true" spec/spec_helper.rb:2`, `type=":feature" spec/spec_helper.rb:3`, `kind="" spec/spec_helper.rb:4`,
+		`speed="" spec/spec_helper.rb:5`, `tier="" spec/spec_helper.rb:6`}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("exclusions = %v, want %v", got, want)
+	}
+	spec := `RSpec.describe Widget do
+  it 'is slow', {slow: true} do
+    expect(1).to eq(1)
+  end
+  it 'is a feature', type: :feature do
+    expect(2).to eq(2)
+  end
+  it 'is a model', type: :model do
+    expect(3).to eq(3)
+  end
+  it 'has a computed kind', kind: :anything do
+    expect(4).to eq(4)
+  end
+end
+`
+	examples, reason := RSpecExampleSourcesWithSupport("spec/widget_spec.rb", spec, bound(map[string]string{"spec/spec_helper.rb": helper}))
+	if reason != "" {
+		t.Fatalf("uncertain %q", reason)
+	}
+	causes := map[int]string{}
+	for line, e := range examples {
+		for _, f := range e.Findings {
+			if f.Rule == testvalidity.RuleRSpecConfigExcluded {
+				causes[line] = f.Cause
+			}
+		}
+	}
+	if want := map[int]string{2: "spec/spec_helper.rb:2", 5: "spec/spec_helper.rb:3", 11: "spec/spec_helper.rb:4"}; !reflect.DeepEqual(causes, want) {
+		t.Errorf("config-excluded causes = %v, want %v", causes, want)
+	}
+}
+
+// TestRSpecInclusionConfigExcluded pins TSA-V0-450 for a shared example read through its
+// inclusion: a committed filter_run_excluding applies to it as to a direct example.
+func TestRSpecInclusionConfigExcluded(t *testing.T) {
+	spec := `RSpec.shared_examples 'a widget' do
+  it 'has a name', :slow do
+    expect(name).to eq('w')
+  end
+end
+RSpec.describe Widget do
+  it_behaves_like 'a widget'
+end
+`
+	helper := "RSpec.configure do |config|\n  config.filter_run_excluding :slow\nend\n"
+	source, _ := RSpecInclusionSource(testvalidity.RSpecInclusion{SpecPath: "spec/widget_spec.rb", SpecText: spec, IncludeLine: 7,
+		SharedPath: "spec/widget_spec.rb", SharedText: spec, ExampleLine: 2, Support: bound(map[string]string{"spec/spec_helper.rb": helper})})
+	if source.Read != testvalidity.ExampleSourceLocated {
+		t.Fatalf("source %+v, want located", source)
+	}
+	if !slices.ContainsFunc(source.Findings, func(f testvalidity.SourceFinding) bool {
+		return f.Rule == testvalidity.RuleRSpecConfigExcluded && f.Cause == "spec/spec_helper.rb:2"
+	}) {
+		t.Errorf("findings %+v, want %s from spec/spec_helper.rb:2", source.Findings, testvalidity.RuleRSpecConfigExcluded)
 	}
 }
 

@@ -2538,9 +2538,12 @@ refusing because the code is read statically and not run.
   - metadata on the example's declaring line or an ancestor group's that a bound committed support
     file (TSA-V0-414) excludes with `config.filter_run_excluding` MUST give an `abstained`
     `RSPEC-CONFIG-EXCLUDED` finding located at the example's line, with the
-    `filter_run_excluding` line as its cause. A filter matches a `:tag` symbol as `tag: true`, a
-    symbol or word value exactly, and any other value (a lambda, string or constant) by its key; a
-    filter or metadata value of `false` or `nil` excludes nothing, and commented lines are ignored.
+    `filter_run_excluding` line as its cause. Metadata is read from `key: value`, `:key => value`
+    and `:tag` arguments, including inside a hash-literal argument (`{slow: true}`). A filter
+    matches a `:tag` symbol as `tag: true`, a symbol, `true` or number value exactly, and any other
+    value (a lambda, string, constant or call) as unknown, by its key alone; a filter or metadata
+    value of `false` or `nil` excludes nothing, and commented lines are ignored. A shared example
+    read through its inclusion (TSA-V0-089) is matched the same way.
   The findings follow TSA-V0-051: the hygiene axis abstains with the rule as its reason. Without a
   bound support set nothing is config-excluded. Non-goals: evaluating the condition or the
   environment, `filter_run_when_matching`, `filter_run_including`, exclusions set in `.rspec` or
@@ -2609,7 +2612,7 @@ Nothing is persisted.
 | TSA-V0-447 | `internal/testsource/validity_rspec_accessor.go`, `internal/testsource/validity_rspec.go` | `TestAssertTargetUncertain`, `TestAssertTargetWithheld`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-448 | `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_accessor.go`, `internal/testvalidity/source_rules_rspec.go` | `TestSourceValidityAccessorNeverWritten`, `TestAssertTargetNeverWritten`, `TestSourceValidityAccessorBudget` | experimental |
 | TSA-V0-449 | `internal/testsource/validity_rspec_accessor.go` | `TestAssertTargetNeverWritten` | experimental |
-| TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused` | experimental |
+| TSA-V0-450 | `internal/testsource/validity_rspec_skip_config.go`, `internal/testsource/validity_rspec_examples.go`, `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecConditionalAndConfigSkips`, `TestRSpecExampleSkippedAndFocused`, `TestRSpecMetadataForms`, `TestRSpecInclusionConfigExcluded` | experimental |
 
 ## Decision file format
 
