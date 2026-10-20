@@ -47,7 +47,9 @@
       "go.mod",
       "internal/analyzerswift/"
     ],
-    "cmd/corvint-cem-candidate": [],
+    "cmd/corvint-cem-candidate": [
+      "protocol/cem-1.0/stable/neutral-criterion/"
+    ],
     "cmd/corvint-companion-release": [
       "script/corvint-companion-release-gate",
       "script/local-console-release-gate"
