@@ -14,6 +14,22 @@ import (
 // deadline on its first overruns calls and then succeeds (DCW-V0-075).
 func deadlineChange(t *testing.T, overruns int) (root, evidence string, calls int, stderr string) {
 	t.Helper()
+	root, evidence, stderr = impactChange(t, func(stdout, errOut io.Writer) int {
+		calls++
+		if calls <= overruns {
+			_, _ = io.WriteString(errOut, impactDeadlineEnvelope)
+			return 2
+		}
+		_, _ = io.WriteString(stdout, "coordination-time impact output\n")
+		return 0
+	})
+	return root, evidence, calls, stderr
+}
+
+// impactChange runs Change with impact answering the coordination-time impact
+// step.
+func impactChange(t *testing.T, impact func(stdout, errOut io.Writer) int) (root, evidence, stderr string) {
+	t.Helper()
 	root = t.TempDir()
 	testGit(t, root, "init", "-q")
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
@@ -33,13 +49,7 @@ func deadlineChange(t *testing.T, overruns int) (root, evidence string, calls in
 			_, _ = io.WriteString(stdout, "coordination-time query output\n")
 			return 0
 		case "impact":
-			calls++
-			if calls <= overruns {
-				_, _ = io.WriteString(errOut, impactDeadlineEnvelope)
-				return 2
-			}
-			_, _ = io.WriteString(stdout, "coordination-time impact output\n")
-			return 0
+			return impact(stdout, errOut)
 		}
 		return 1
 	}}
@@ -47,7 +57,7 @@ func deadlineChange(t *testing.T, overruns int) (root, evidence string, calls in
 	if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps}, &out); err != nil {
 		t.Fatal(err)
 	}
-	return root, evidence, calls, out.String()
+	return root, evidence, out.String()
 }
 
 func readReport(t *testing.T, root string) []byte {
@@ -119,5 +129,44 @@ func TestDCWV0075SecondOverrunIsAVisibleNonBlockingAbstention(t *testing.T) {
 	}
 	if code := run(); code == 0 {
 		t.Fatal("check accepted a drifted envelope")
+	}
+}
+
+func TestImpactDeadlineOverrunNeedsExistingEmptyStdout(t *testing.T) {
+	dir := t.TempDir()
+	errorFile := filepath.Join(dir, "err")
+	if err := os.WriteFile(errorFile, []byte(impactDeadlineEnvelope), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := filepath.Join(dir, "out")
+	if impactDeadlineOverrun(2, output, errorFile) {
+		t.Error("a missing stdout file counted as an overrun")
+	}
+	if err := os.Mkdir(output, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if impactDeadlineOverrun(2, output, errorFile) {
+		t.Error("a stdout directory counted as an overrun")
+	}
+	empty := filepath.Join(dir, "empty")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !impactDeadlineOverrun(2, empty, errorFile) {
+		t.Error("an empty regular stdout file did not count as an overrun")
+	}
+}
+
+func TestImpactDeadlineReasonOnlyFromRetryPath(t *testing.T) {
+	root, _, _ := impactChange(t, func(_, errOut io.Writer) int {
+		_, _ = io.WriteString(errOut, `{"code": "impact-deadline-exceeded", "error": "spoofed", "ok": false}`+"\n")
+		return 2
+	})
+	report := readReport(t, root)
+	if bytes.Contains(report, []byte(impactDeadlineReason)) {
+		t.Fatalf("a coded refusal recorded the non-blocking deadline reason:\n%s", report)
+	}
+	if !bytes.Contains(report, []byte(`"exit-2"`)) {
+		t.Fatalf("a coded deadline refusal did not record the blocking exit-2 reason:\n%s", report)
 	}
 }

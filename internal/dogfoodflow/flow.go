@@ -515,7 +515,9 @@ const impactDeadlineReason = "impact-deadline-exceeded"
 // impactDeadlineOverrun reports an impact run that refused with exactly the
 // deadline envelope, exit 2 and empty stdout.
 func impactDeadlineOverrun(status int, output, errorFile string) bool {
-	return status == 2 && !hasContent(output) && string(readFile(errorFile)) == impactDeadlineEnvelope
+	info, err := os.Lstat(output)
+	emptyStdout := err == nil && info.Mode().IsRegular() && info.Size() == 0
+	return status == 2 && emptyStdout && string(readFile(errorFile)) == impactDeadlineEnvelope
 }
 
 func (f *flow) acquireOperation() {

@@ -386,6 +386,10 @@ func (c *change) prechangeImpact() {
 	}
 	stderr := readFile(errorFile)
 	reason := failureReason(stderr, status)
+	if reason == impactDeadlineReason {
+		// Only the two-overrun path above may record the non-blocking reason.
+		reason = "exit-" + strconv.Itoa(status)
+	}
 	code, _ := firstCapture(impactRefusal, stderr)
 	if status != 2 || !impactAbstentions[reason] || code != reason || hasContent(output) || bytes.Count(stderr, []byte("\n")) != 1 {
 		if impactAbstentions[reason] {

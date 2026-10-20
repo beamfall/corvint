@@ -978,9 +978,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   could make stale; a record altered after its blob ID was written is detected and rebuilt, but
   one altered together with its `corvint.oid` is trusted, as the private cache directory is.
 
-- `DCW-V0-075`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) Each Git
-  phase of an index build or read command has a 30-second deadline (`gitDeadline` in
-  `internal/contextindex/git.go`) with no flag or environment override; an overrun refuses with
+- `DCW-V0-075`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) An index
+  build, and each Git-reading phase of a read command, runs its Git operations under one shared
+  30-second deadline (`gitDeadline` in `internal/contextindex/git.go`) with no flag or
+  environment override; an overrun refuses with
   exit 2, empty stdout and exactly the stderr line
   `{"error": "Git repository index exceeded its deadline", "ok": false}`. When the
   coordination-time `impact` run of `dogfood change` refuses in exactly that shape, the step MUST
