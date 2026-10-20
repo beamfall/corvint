@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -36,7 +37,18 @@ const (
 	reportDirectory      = ".corvint/rspec"
 	// DefaultTimeout bounds one RSpec run.
 	DefaultTimeout = 30 * time.Minute
+	// FormatterCorvint names the Corvint-shipped RSpec JSON formatter
+	// (LPCV-V0-136); FormatterStock is RSpec's own json formatter.
+	FormatterCorvint = "corvint-rspec-json/0"
+	FormatterStock   = "stock"
+	formatterClass   = "CorvintRSpecJsonFormatter"
 )
+
+// corvintFormatter is the Ruby source of the Corvint-shipped formatter, written
+// under .corvint/rspec for one run and removed afterwards.
+//
+//go:embed corvint_formatter.rb
+var corvintFormatter []byte
 
 // Config is one RSpec run. Dir is the absolute project directory RSpec runs
 // in; ExecPrefix, when present, runs RSpec through a wrapper such as
@@ -50,6 +62,8 @@ type Config struct {
 	Specs      []string
 	JUnit      bool
 	Timeout    time.Duration
+	// Formatter is FormatterStock ("" also means stock) or FormatterCorvint.
+	Formatter string
 }
 
 // observeRepository names the host test repository; tests may replace it.
@@ -83,6 +97,10 @@ func EnclosingWorktree(dir string) (string, error) {
 // refusal before any run; every failure after the run starts is recorded as
 // Infrastructure in the returned document instead.
 func Run(ctx context.Context, config Config) (Document, error) {
+	if config.Formatter != "" && config.Formatter != FormatterStock && config.Formatter != FormatterCorvint {
+		return Document{}, errors.New("--formatter must be stock or " + FormatterCorvint)
+	}
+	shipped := config.Formatter == FormatterCorvint
 	if !filepath.IsAbs(config.Dir) || filepath.Clean(config.Dir) != config.Dir {
 		return Document{}, errors.New("--dir must be an absolute clean path")
 	}
@@ -132,14 +150,26 @@ func Run(ctx context.Context, config Config) (Document, error) {
 	}
 	jsonReport := reportDirectory + "/" + nonce + ".json"
 	junitReport := reportDirectory + "/" + nonce + ".xml"
+	formatterFile := reportDirectory + "/" + nonce + "-formatter.rb"
 	argv := append(append([]string{}, config.ExecPrefix...), rspec...)
-	argv = append(argv, "--format", "json", "--out", jsonReport)
+	if shipped {
+		if err := root.WriteFile(formatterFile, corvintFormatter, 0o644); err != nil {
+			return Document{}, err
+		}
+		defer root.Remove(formatterFile)
+		argv = append(argv, "--require", "./"+formatterFile, "--format", formatterClass, "--out", jsonReport)
+	} else {
+		argv = append(argv, "--format", "json", "--out", jsonReport)
+	}
 	if config.JUnit {
 		argv = append(argv, "--format", "RspecJunitFormatter", "--out", junitReport)
 	}
 	argv = append(argv, config.Specs...)
 
 	document := Document{Profile: Profile, Runner: "rspec", ProjectDirectory: project, ObjectFormat: "sha1", HelperBasis: HelperBasis, Examples: []Example{}, Helpers: []BoundFile{}, JUnit: JUnit{State: "NOT_REQUESTED"}}
+	if shipped {
+		document.Formatter = FormatterCorvint
+	}
 	if secretscreen.MatchArgv(argv) {
 		document.CommandWithheld = "secret-shaped"
 	} else {
@@ -170,6 +200,17 @@ func Run(ctx context.Context, config Config) (Document, error) {
 	}
 	_ = root.Remove(jsonReport)
 	_ = root.Remove(junitReport)
+	if shipped {
+		_ = root.Remove(formatterFile)
+	}
+	if shipped && document.Runtime != nil {
+		// The run container and its image are observed only for the
+		// Corvint formatter, which reports the container from inside the
+		// run (LPCV-V0-138); the image comes from the host docker, after
+		// the run, so an --rm container is an explicit unknown.
+		document.Runtime.RunContainer = runContainer(report, reportErr)
+		document.Runtime.Image = observeRunImage(ctx, config.ExecPrefix, document.Runtime.RunContainer, dir)
+	}
 
 	after := takeSnapshot(ctx, root, document.ObjectFormat)
 	document.RepositoryAfter = observeRepository(ctx, dir)
@@ -252,9 +293,12 @@ func runFailure(observation procgroup.Observation) *Infrastructure {
 }
 
 type rspecReport struct {
-	Version  *string        `json:"version"`
-	Examples []rspecExample `json:"examples"`
-	Summary  struct {
+	Version        *string        `json:"version"`
+	Examples       []rspecExample `json:"examples"`
+	CorvintRuntime *struct {
+		Container *string `json:"container"`
+	} `json:"corvint_runtime"`
+	Summary struct {
 		ExampleCount                 int `json:"example_count"`
 		FailureCount                 int `json:"failure_count"`
 		PendingCount                 int `json:"pending_count"`
@@ -268,8 +312,9 @@ type rspecExample struct {
 	Status          string `json:"status"`
 	FilePath        string `json:"file_path"`
 	LineNumber      int    `json:"line_number"`
-	// SharedGroupInclusionBacktrace is present only when the project's JSON
-	// formatter copies RSpec's shared_group_inclusion_backtrace metadata.
+	// SharedGroupInclusionBacktrace is present only when the Corvint
+	// formatter, or a project's own JSON formatter, copies RSpec's
+	// shared_group_inclusion_backtrace metadata (LPCV-V0-136).
 	SharedGroupInclusionBacktrace json.RawMessage `json:"shared_group_inclusion_backtrace"`
 }
 
@@ -283,6 +328,21 @@ func parseReport(data []byte) (rspecReport, error) {
 		return rspecReport{}, errors.New("rspec JSON report has no examples member")
 	}
 	return report, nil
+}
+
+// runContainer is the container the Corvint formatter reported from inside
+// the run: a 64-hex ID, or not-reported for any missing, unreadable or
+// malformed value (LPCV-V0-138).
+func runContainer(data []byte, readErr error) *RuntimeFact {
+	unknown := &RuntimeFact{Unknown: runtimeNotReported}
+	if readErr != nil {
+		return unknown
+	}
+	report, err := parseReport(data)
+	if err != nil || report.CorvintRuntime == nil || report.CorvintRuntime.Container == nil || !blobPattern("sha256", *report.CorvintRuntime.Container) {
+		return unknown
+	}
+	return &RuntimeFact{Value: *report.CorvintRuntime.Container}
 }
 
 func (report rspecReport) version() string {

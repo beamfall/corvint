@@ -110,7 +110,7 @@ func TestLPCVV0092SnapshotBoundMatchesDiscoveryRead(t *testing.T) {
 // as before, and carrying them does not move any projected axis.
 func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 	legacy := encodeRuby(t, rubyDocument(t, "passed", "failed"))
-	for _, member := range []string{"selection", "selectionWithheld", "runtime", "sharedExample", "sharedExampleAbsent"} {
+	for _, member := range []string{"selection", "selectionWithheld", "runtime", "sharedExample", "sharedExampleAbsent", "formatter", "runContainer"} {
 		if strings.Contains(string(legacy), `"`+member+`"`) {
 			t.Fatalf("legacy document carries %s", member)
 		}
@@ -158,6 +158,36 @@ func TestLPCVV0135RubyOptionalMembersDecodeClosed(t *testing.T) {
 		"image without digest": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"`+container+`"}`, 1),
 		"image digest claimed": strings.Replace(string(data), `{"unknown":"not-observable-inside-prefix"}`, `{"value":"sha256:`+container+`"}`, 1),
 		"NUL inclusion":        strings.Replace(string(data), `"spec/user_spec.rb:9"`, `"spec/user\u0000_spec.rb:9"`, 1),
+	} {
+		if mutated == string(data) {
+			t.Fatalf("%s: mutation did not apply", name)
+		}
+		if _, err := Decode([]byte(mutated)); err == nil {
+			t.Fatalf("%s accepted", name)
+		}
+	}
+
+	// LPCV-V0-136, LPCV-V0-138: a Corvint formatter run carries its
+	// formatter, run container and host-observed image; they are closed and
+	// do not move the projection either.
+	shipped := carried
+	shipped.Formatter = rubytestprovider.FormatterCorvint
+	runtime := *carried.Runtime
+	runtime.RunContainer = &rubytestprovider.RuntimeFact{Value: strings.Repeat("cd", 32)}
+	runtime.Image = rubytestprovider.RuntimeFact{Value: "sha256:" + container}
+	shipped.Runtime = &runtime
+	data = encodeRuby(t, shipped)
+	if input, err = Decode(data); err != nil {
+		t.Fatal(err)
+	}
+	if after, err = json.Marshal(Project(input)); err != nil || string(after) != string(before) {
+		t.Fatalf("formatter members moved the projection: %v\n%s\n%s", err, before, after)
+	}
+	for name, mutated := range map[string]string{
+		"open formatter":       strings.Replace(string(data), `"formatter":"corvint-rspec-json/0"`, `"formatter":"progress"`, 1),
+		"stock run container":  strings.Replace(string(data), `,"formatter":"corvint-rspec-json/0"`, ``, 1),
+		"run container member": strings.Replace(string(data), `"runContainer":{"value"`, `"runContainer":{"source":"host","value"`, 1),
+		"image not a digest":   strings.Replace(string(data), `"value":"sha256:`+container+`"`, `"value":"`+container+`"`, 1),
 	} {
 		if mutated == string(data) {
 			t.Fatalf("%s: mutation did not apply", name)

@@ -134,7 +134,7 @@ func validateRequest(request Request) error {
 	}
 	seen := map[string]bool{}
 	for _, control := range request.Controls {
-		if err := validateControl(request.Target, control); err != nil {
+		if err := validateControl(request.Target, control, observationIDValid(request.Provider)); err != nil {
 			return fmt.Errorf("control %q: %w", control.ID, err)
 		}
 		if seen[control.ID] {
@@ -186,7 +186,17 @@ func validateRunner(runner RunnerIdentity, keys []string) error {
 	return nil
 }
 
-func validateControl(target TargetIdentity, control ControlSpec) error {
+// observationIDValid admits unrelated-criterion and setup identities: the closed identity form,
+// or for the RSpec provider also an RSpec example id, which validateProvider then requires to be
+// a selected example (BBF-V0-029).
+func observationIDValid(provider *ProviderSpec) func(string) bool {
+	if provider != nil && provider.Name == ProviderRSpec {
+		return func(value string) bool { return idPattern.MatchString(value) || rspecExample(value) }
+	}
+	return idPattern.MatchString
+}
+
+func validateControl(target TargetIdentity, control ControlSpec, observationValid func(string) bool) error {
 	if !idPattern.MatchString(control.ID) || !controlKinds[control.Kind] || len(control.Definition) == 0 || len(control.Definition) > 64 {
 		return errors.New("invalid control identity or definition")
 	}
@@ -195,7 +205,7 @@ func validateControl(target TargetIdentity, control ControlSpec) error {
 			return errors.New("invalid perturbation definition")
 		}
 	}
-	if !uniqueStrings(control.UnrelatedCriteria, func(value string) bool { return idPattern.MatchString(value) && value != target.CriterionID }) || !uniqueStrings(control.RequiredSetup, idPattern.MatchString) {
+	if !uniqueStrings(control.UnrelatedCriteria, func(value string) bool { return observationValid(value) && value != target.CriterionID }) || !uniqueStrings(control.RequiredSetup, observationValid) {
 		return errors.New("invalid unrelated criterion or setup identity")
 	}
 	if len(control.UnrelatedCriteria) > maxControlListLength || len(control.RequiredSetup) > maxControlListLength {

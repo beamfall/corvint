@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,6 +19,12 @@ const (
 	runtimeProbeFailed  = "probe-failed"
 	runtimeNotReported  = "not-reported"
 	runtimeNotInsidePfx = "not-observable-inside-prefix"
+	// Image unknown reasons of a Corvint formatter run (LPCV-V0-138).
+	runtimeRunContainerUnknown = "run-container-unknown"
+	runtimeHostInspectUnavail  = "host-inspect-unavailable"
+	runtimeNotInspectable      = "container-not-inspectable"
+
+	hostInspectTimeout = time.Minute
 
 	runtimeProbeTimeout = 5 * time.Minute
 	runtimeProbeOutput  = 64 << 10
@@ -105,6 +113,47 @@ func versionValue(value string) bool {
 	return true
 }
 
+// observeRunImage asks the host docker named by the prefix for the image ID of
+// the container the RSpec process reported, after the run (LPCV-V0-138). The
+// container ID is a validated 64-hex value, never prefix text; any prefix
+// argument before the docker subcommand (such as -H or --context) is kept so
+// the inspection reaches the same daemon. A container removed by --rm, or any
+// failed or malformed inspection, is an explicit unknown.
+func observeRunImage(ctx context.Context, prefix []string, container *RuntimeFact, dir string) RuntimeFact {
+	if container == nil || container.Value == "" {
+		return RuntimeFact{Unknown: runtimeRunContainerUnknown}
+	}
+	if len(prefix) == 0 || filepath.Base(prefix[0]) != "docker" {
+		return RuntimeFact{Unknown: runtimeHostInspectUnavail}
+	}
+	global := -1
+	for index, argument := range prefix[1:] {
+		if argument == "run" || argument == "compose" || argument == "exec" || argument == "container" {
+			global = index + 1
+			break
+		}
+	}
+	if global < 0 {
+		return RuntimeFact{Unknown: runtimeHostInspectUnavail}
+	}
+	argv := append(append([]string{}, prefix[:global]...), "container", "inspect", "--format", "{{.Image}}", container.Value)
+	observation := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: dir, Env: os.Environ(), Timeout: hostInspectTimeout, OutputLimit: runtimeProbeOutput, OverflowPolicy: procgroup.OverflowTruncate})
+	if !observation.Started || observation.TimedOut || observation.Cancelled || observation.Signal != "" || !observation.ExitObserved || observation.ExitStatus != 0 || observation.StdoutOverflow {
+		return RuntimeFact{Unknown: runtimeNotInspectable}
+	}
+	image := strings.TrimSpace(string(observation.Stdout))
+	if !imageDigest(image) {
+		return RuntimeFact{Unknown: runtimeNotInspectable}
+	}
+	return RuntimeFact{Value: image}
+}
+
+// imageDigest admits a docker image ID: sha256: and 64 lowercase hex digits.
+func imageDigest(value string) bool {
+	digest, ok := strings.CutPrefix(value, "sha256:")
+	return ok && blobPattern("sha256", digest)
+}
+
 func validateRuntime(runtime *Runtime) error {
 	if runtime == nil {
 		return nil
@@ -112,22 +161,43 @@ func validateRuntime(runtime *Runtime) error {
 	if runtime.Basis != RuntimeBasis {
 		return errors.New("Ruby provider runtime identity has an unknown basis")
 	}
-	for _, check := range []struct {
-		fact  RuntimeFact
-		valid func(string) bool
+	containerValue := func(value string) bool { return blobPattern("sha256", value) }
+	probeReasons := []string{runtimeProbeFailed, runtimeNotReported, runtimeNotInsidePfx}
+	// Without a run container the image is never observed: any value is a
+	// claim. With one, the image is the host inspection of it (LPCV-V0-138).
+	imageValid, imageReasons := func(string) bool { return false }, []string{runtimeNotInsidePfx}
+	checks := []struct {
+		fact    RuntimeFact
+		valid   func(string) bool
+		reasons []string
 	}{
-		{runtime.Ruby, versionValue},
-		{runtime.Bundler, versionValue},
-		{runtime.ProbeContainer, func(value string) bool { return blobPattern("sha256", value) }},
-		// The probe basis never observes the image: any value is a claim.
-		{runtime.Image, func(string) bool { return false }},
-	} {
+		{runtime.Ruby, versionValue, probeReasons},
+		{runtime.Bundler, versionValue, probeReasons},
+		{runtime.ProbeContainer, containerValue, probeReasons},
+	}
+	if runtime.RunContainer != nil {
+		checks = append(checks, struct {
+			fact    RuntimeFact
+			valid   func(string) bool
+			reasons []string
+		}{*runtime.RunContainer, containerValue, []string{runtimeNotReported}})
+		imageReasons = []string{runtimeRunContainerUnknown, runtimeHostInspectUnavail, runtimeNotInspectable}
+		if runtime.RunContainer.Value != "" {
+			imageValid = imageDigest
+		}
+	}
+	checks = append(checks, struct {
+		fact    RuntimeFact
+		valid   func(string) bool
+		reasons []string
+	}{runtime.Image, imageValid, imageReasons})
+	for _, check := range checks {
 		switch {
 		case (check.fact.Value == "") == (check.fact.Unknown == ""):
 			return errors.New("Ruby provider runtime fact must carry exactly one of value and unknown")
 		case check.fact.Value != "" && !check.valid(check.fact.Value):
 			return errors.New("Ruby provider runtime fact value is malformed")
-		case check.fact.Unknown != "" && check.fact.Unknown != runtimeProbeFailed && check.fact.Unknown != runtimeNotReported && check.fact.Unknown != runtimeNotInsidePfx:
+		case check.fact.Unknown != "" && !slices.Contains(check.reasons, check.fact.Unknown):
 			return errors.New("Ruby provider runtime fact reason is outside the closed set")
 		}
 	}
