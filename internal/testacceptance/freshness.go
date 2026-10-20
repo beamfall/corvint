@@ -15,10 +15,17 @@ import (
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
+// freshnessRunnerAdmitted reports whether the shared runtime tuple table has a
+// freshness row for runner (PWP-V0-053). Node and browser source are observed
+// only by the run, so the provider's receipt predicate still decides them.
+func freshnessRunnerAdmitted(runner string) bool {
+	return jstestprovider.AdmittedRuntimeTupleMismatch(jstestprovider.FreshnessProfile, runner, "", "") == nil
+}
+
 func validateFreshnessOptions(r Request) error {
 	f := r.Freshness
 	c := f.Provider
-	if r.AppBuildDir != "" || r.RunnerVersion != "1.63.0" || c.Mutation != nil || c.ProductDir != r.Product.Root || c.ProductExpected.Revision != r.Product.Commit || c.ProductExpected.Tree != r.Product.Tree || c.TestExpected.Revision != r.TestRepository.Commit || c.TestExpected.Tree != r.TestRepository.Tree || c.ProductExpected.DirtyState != "clean" || c.TestExpected.DirtyState != "clean" || c.ProductExpected.DirtyDigest != "" || c.TestExpected.DirtyDigest != "" || !reflect.DeepEqual(c.Runner.Argv, r.Runner.Argv) || !reflect.DeepEqual(c.Server.Argv, r.Server.Argv) || "sha256:"+c.Runner.ExecutableDigest != r.Runner.ExecutableSHA256 || "sha256:"+c.Runner.EntrypointDigest != r.Runner.EntrypointSHA256 || "sha256:"+c.Server.ExecutableDigest != r.Server.ExecutableSHA256 || "sha256:"+c.Server.EntrypointDigest != r.Server.EntrypointSHA256 || c.DocumentURL != r.ReadyURL {
+	if r.AppBuildDir != "" || !freshnessRunnerAdmitted(r.RunnerVersion) || c.Mutation != nil || c.ProductDir != r.Product.Root || c.ProductExpected.Revision != r.Product.Commit || c.ProductExpected.Tree != r.Product.Tree || c.TestExpected.Revision != r.TestRepository.Commit || c.TestExpected.Tree != r.TestRepository.Tree || c.ProductExpected.DirtyState != "clean" || c.TestExpected.DirtyState != "clean" || c.ProductExpected.DirtyDigest != "" || c.TestExpected.DirtyDigest != "" || !reflect.DeepEqual(c.Runner.Argv, r.Runner.Argv) || !reflect.DeepEqual(c.Server.Argv, r.Server.Argv) || "sha256:"+c.Runner.ExecutableDigest != r.Runner.ExecutableSHA256 || "sha256:"+c.Runner.EntrypointDigest != r.Runner.EntrypointSHA256 || "sha256:"+c.Server.ExecutableDigest != r.Server.ExecutableSHA256 || "sha256:"+c.Server.EntrypointDigest != r.Server.EntrypointSHA256 || c.DocumentURL != r.ReadyURL {
 		return errors.New("freshness-request-binding-invalid")
 	}
 	for _, root := range []struct{ root, expected string }{{r.Product.Root, c.ProductExpected.RootCommit}, {r.TestRepository.Root, c.TestExpected.RootCommit}} {
