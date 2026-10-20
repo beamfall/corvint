@@ -334,7 +334,9 @@ func TestJSExampleMocks(t *testing.T) {
 // relative barrel that exports the file stem's name is the subject whether or not its specifier
 // ends in index, so mocking it is JS-SUBJECT-MOCKED and never JS-BOUNDARY-MOCKED; an
 // `import { X as Y }` binding names the subject both when the describe title is the exported X and
-// when the local Y is spied on; an unrelated relative barrel stays unclassified.
+// when the local Y is spied on; a CommonJS `{ X: Y }` rename exports X; an identifier describe
+// argument is a local binding, never an exported name; an unrelated relative barrel stays
+// unclassified.
 func TestJSExampleBarrelAndAliasSubjects(t *testing.T) {
 	subject := func(name string, line, cause int) string {
 		return fmt.Sprintf("%s advisory %s:%d %s:%d", testvalidity.RuleJSSubjectMocked, name, line, name, cause)
@@ -354,6 +356,14 @@ func TestJSExampleBarrelAndAliasSubjects(t *testing.T) {
 			map[int][]string{4: {one, subject("src/thing.test.ts", 2, 4)}}},
 		{"src/widget.test.ts", "import { Gadget } from './components';\njest.mock('./components');\ndescribe('renders', () => {\n  it('w', () => { expect(new Gadget()).toBeTruthy(); });\n});\n",
 			map[int][]string{4: {one}}},
+		// A CommonJS destructuring rename exports Helper under the local Widget.
+		{"src/helper.test.ts", "const { Helper: Widget } = require('./lib');\njest.mock('./lib');\ndescribe('renders', () => {\n  it('w', () => { expect(new Widget()).toBeTruthy(); });\n});\n",
+			map[int][]string{4: {one, subject("src/helper.test.ts", 2, 4)}}},
+		{"src/widget.test.ts", "const { Helper: Widget } = require('./lib');\njest.mock('./lib');\ndescribe('renders', () => {\n  it('w', () => { expect(new Widget()).toBeTruthy(); });\n});\n",
+			map[int][]string{4: {one}}},
+		// An identifier describe argument names its local binding, never an exported name.
+		{"src/thing.test.ts", "import { Widget as W } from './lib';\njest.mock('./lib');\nconst Widget = class {};\ndescribe(Widget, () => {\n  it('w', () => { expect(W).toBeTruthy(); });\n});\n",
+			map[int][]string{5: {one}}},
 	} {
 		wantJS(t, jsBrief(t, c.name, c.text), c.want)
 	}

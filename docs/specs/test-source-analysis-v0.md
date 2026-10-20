@@ -933,7 +933,9 @@ model (`parseSource`); it adds no second parser.
   - The subject under test is (a) a module specifier whose base name, without extension (or
     the directory name for `index`), equals the test file's stem without `.spec` or `.test`; or
     (b) the module that the outermost describe's title or identifier argument is imported from,
-    the title matching either the local name or, for `import { X as Y }`, the exported name `X`;
+    a string title matching either the local name or, for `import { X as Y }` or
+    `const { X: Y } = require(...)`, the exported name `X` (an identifier argument names only its
+    local binding);
     or (c) a relative module (such as an `index` barrel re-exporting the subject) from which the
     file imports a name equal to that stem, compared without case and without `-`, `_` or `.`
     (V1-1862). Identifiers imported from a subject module, and that title, name the subject.

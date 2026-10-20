@@ -652,7 +652,12 @@ func (s *source) importBindings() map[string]jsBinding {
 			}
 			if s.punct(j, "=") && s.ident(j+1, "require") && s.punct(j+2, "(") && literal(j+3) && s.punct(j+4, ")") {
 				for _, n := range names {
-					out[s.tokens[n].Text] = jsBinding{spec: s.tokens[j+3].Text, line: s.tokens[i].Line, imported: s.tokens[n].Text}
+					imported := s.tokens[n].Text
+					if s.punct(n-1, ":") && s.ident(n-2, "") {
+						// `const { X: Y } = require(...)` binds Y to the exported X.
+						imported = s.tokens[n-2].Text
+					}
+					out[s.tokens[n].Text] = jsBinding{spec: s.tokens[j+3].Text, line: s.tokens[i].Line, imported: imported}
 				}
 			}
 		}
@@ -729,7 +734,8 @@ func (r *jsReader) subjects() (map[string]bool, map[string]bool) {
 			}
 		}
 		b, ok := r.bindings[name]
-		if !ok {
+		// Only a string title can name an exported X; an identifier argument is a local binding.
+		if !ok && d.title != "" {
 			var local string
 			if local, b, ok = importedAs(name); ok {
 				names[local] = true
