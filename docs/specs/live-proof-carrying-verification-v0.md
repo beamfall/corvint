@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstain (`LPCV-V0-128`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -612,7 +612,8 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-120..125` run-time assertion operands and outbound calls | accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); implemented at experimental tier; unprofiled receipts only; no automatic producer; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0120AnnotationIsClosed`, `TestLPCVV0123AnnotationIsClosed`, `TestLPCVV0120RunRecordsAreSecretScreened`, `TestLPCVV0120ParsedFromPlaywrightReport` and `TestLPCVV0120ProfiledReceiptsRefuseRunRecords`; `internal/testvaliditydoc`'s `TestLPCVV0121VacuousEqualityReading` (#1193 run-time), `TestLPCVV0124UnstubbedCallClassification` (#1192 run-time), `TestLPCVV0121ReceiptWithoutRecordsKeepsBytes`, `TestLPCVV0122ReadingsLeaveAxesUnchanged` and `TestLPCVV0120RetainedRecordsAreClosed`. |
 | `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `TestLPCVV0084RetentionIsDiscovered` and `TestEvidenceDirectoryMatchesDiscovery` (external package: `--discover` selects the document, and the leaf constant equals the discovery constant, V1-1811); `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
 | `LPCV-V0-090..095` RSpec provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); implemented at experimental tier; preview, non-promotable; no real Ruby or container run (`NOT_RUN`) | `internal/rubytestprovider`'s `TestLPCVV0090RunBindsRepositoryBeforeAndAfter`, `TestLPCVV0090InfrastructureReasons`, `TestLPCVV0090SignalledRunnerIsInfrastructure`, `TestLPCVV0091ExecPrefixObservesGitOnHost`, `TestLPCVV0092ExampleIdentityAndBlobs`, `TestLPCVV0092SymlinkedHelperIsUnbound`, `TestLPCVV0092SecretShapedPathsWithheld`, `TestLPCVV0092SnapshotWalkIsBounded`, `TestLPCVV0092BoundedReaderRefusesSymlinkAndFIFO`, `TestLPCVV0093TruncatedFailureFailsRun`, `TestLPCVV0094FreshnessFromBlobs`, `TestLPCVV0094AddedHelperIsStale`, `TestLPCVV0094EmptyRepositoryIdentityIsUnknown`, `TestLPCVV0095GitignoreCreatedOnceNeverOverwritten` and `TestLPCVV0095ExistingGitignoreStillClean`; `internal/testvaliditydoc`'s `TestLPCVV0093RubyDocumentDecodesClosedAndProjects`, `TestLPCVV0092SnapshotBoundMatchesDiscoveryRead`, `TestLPCVV0094DiscoverRubyFreshness` and `TestDiscoverProducerGuidance`; `cmd/corvint-ruby-test-provider`'s `TestLPCVV0095RetainedRunLeavesWorktreeCleanAndDiscovers` and `TestLPCVV0090RefusalsExitTwo`; all use a fake `rspec` emitting canned JSON. |
-| `LPCV-V0-131..135` RSpec example selection, runtime identity and shared-example origin | accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); implemented at experimental tier; preview, non-promotable; real RSpec run, real container prefix and a formatter emitting shared-group metadata `NOT_RUN` | `internal/rubytestprovider`'s `TestLPCVV0131SelectorsValidatedAndRecorded`, `TestLPCVV0132SelectorOutcomes`, `TestLPCVV0133RuntimeObservedInsidePrefix` and `TestLPCVV0134SharedExampleOrigin`; `internal/testvaliditydoc`'s `TestLPCVV0135RubyOptionalMembersDecodeClosed`; all use a fake `rspec` emitting canned JSON. |
+| `LPCV-V0-131..135` RSpec example selection, runtime identity and shared-example origin | accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); implemented at experimental tier; preview, non-promotable; the real RSpec run, real container prefix and shared-group formatter are `LPCV-V0-139` | `internal/rubytestprovider`'s `TestLPCVV0131SelectorsValidatedAndRecorded`, `TestLPCVV0132SelectorOutcomes`, `TestLPCVV0133RuntimeObservedInsidePrefix` and `TestLPCVV0134SharedExampleOrigin`; `internal/testvaliditydoc`'s `TestLPCVV0135RubyOptionalMembersDecodeClosed`; all use a fake `rspec` emitting canned JSON. |
+| `LPCV-V0-136..139` Corvint RSpec formatter, inclusion-line attribution, run container and host image, live qualification | accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); implemented at experimental tier; preview, non-promotable; one host (Colima, arm64) and one owner-approved image, no qualified Ruby tuple | `internal/rubytestprovider`'s `TestLPCVV0136CorvintFormatterRecordsInclusion` (formatter written, required and removed; inclusion line `MATCHED`; the stock report stays `not-reported` and `UNATTRIBUTED`), `TestLPCVV0138RunContainerAndHostImage` (fake `docker` prefix: observed, removed, malformed, not reported, not docker, stock; validation mutations), `TestLPCVV0139LiveRSpecThroughDocker` (real RSpec 3.13.6 through `docker run` of `corvint-rspec-qual:2026-10-20`; skipped without docker or the image) and `TestLPCVV0139RetainedLiveDocuments` (the three retained documents under `internal/rubytestprovider/testdata/live/` re-validated in CI); `internal/testvaliditydoc`'s `TestLPCVV0135RubyOptionalMembersDecodeClosed` (`formatter` and `runContainer` closed and projection-neutral); `cmd/corvint-ruby-test-provider`'s `TestLPCVV0090RefusalsExitTwo` (unknown `--formatter` exits 2). |
 | `LPCV-V0-056` typed discovery abstention reason | accepted by decision 0448 (V1-0976, issue #665); experimental tier | `internal/testvaliditydoc`'s `TestDiscoverAbstentionReasons` (missing location, no `*.json`, only undecodable entries, unqualified and unobserved Node tuple, qualified tuple and plain unit receipt without abstention) and `TestDiscoverAbstentionWithholdsUnboundedObservedVersion`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument` (CLI and MCP byte-equal); live control `PWP-V0-009 unqualified-node-control-abstains` in `TestQualifiedPlaywrightLive`. |
 | `LPCVD-V0-001` missing producer guidance | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverProducerGuidance`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vectors `discover-no-evidence-guidance` and `discover-unusable-guidance`. |
 | `LPCVD-V0-002` stale abstention | accepted (decision 0518; V1-1140); experimental | `internal/testvaliditydoc`'s `TestDiscoverStaleEvidenceGuidance` and `TestDiscoverRetainedRevision`; `cmd/corvint`'s `TestTestValidityDiscoveryAbstentionMatchesMCPDocument`; `TestVectorsAndReadOnly` vector `discover-stale-guidance`. |
@@ -1549,9 +1550,11 @@ projected axis, and a document written before them decodes and projects exactly 
 Non-goals:
 - RSpec's own filtering semantics (`--only-failures`, tags, `--example`), which stay RSpec's;
 - the image digest or the run container's own ID, which the provider cannot observe from inside the
-  prefix, and any host-side `docker inspect`;
+  prefix, and any host-side `docker inspect` (lifted for the opt-in Corvint formatter by
+  `LPCV-V0-138`);
 - a provider-supplied RSpec formatter or Ruby code in the project; shared-example origin therefore
-  stays `not-reported` until the project's formatter copies the metadata;
+  stays `not-reported` until the project's formatter copies the metadata (lifted for the opt-in
+  Corvint formatter by `LPCV-V0-136`; the stock path is unchanged);
 - runtime identity as a freshness input, or a qualified Ruby tuple.
 
 Failure modes, each prevented by the cited requirement:
@@ -1573,13 +1576,102 @@ Failure modes, each prevented by the cited requirement:
 Acceptance evidence: GitHub #1271 acceptance items 1 to 3 are the focused tests in the
 traceability row, using the fake `rspec` that writes canned JSON and fake prefixes that print probe
 lines. The real probe script runs under the host Ruby through a pass-through prefix when Ruby is
-installed and is skipped otherwise. A real RSpec run, a real container prefix (and so a real
-`probeContainer` value) and a project formatter emitting `shared_group_inclusion_backtrace` are
-`NOT_RUN`.
+installed and is skipped otherwise. The real RSpec run, real container prefix (and so a real
+`probeContainer` value) and a formatter emitting `shared_group_inclusion_backtrace` were first
+`NOT_RUN` here and are delivered by `LPCV-V0-136` and `LPCV-V0-139`.
 
 Rollback: revert the V1-2010 change. Documents carrying the new members are then refused by closed
 decoding and skipped by discovery, which falls back to other evidence or abstains; documents
 without them are unaffected.
+
+## Corvint RSpec formatter, run container and live qualification (V1-2010, V1-2013, V1-2014; GitHub #1271)
+
+`LPCV-V0-134` records a shared example's origin only when the report carries RSpec's inclusion
+metadata, which the stock JSON formatter never emits, and `LPCV-V0-133` cannot name the run's own
+container or its image. `LPCV-V0-136` to `LPCV-V0-139` add an opt-in Corvint-shipped formatter, use
+its inclusion frames for line selection, observe the run container and its image, and qualify the
+path live. They were accepted under the owner's standing auto-accept (2026-10-11) for V1-2013,
+V1-2014 and the V1-2010 residual. The profile is unchanged; the two new members are optional and
+projection-neutral, and a run without `--formatter` is the `LPCV-V0-131..135` run unchanged.
+
+- `LPCV-V0-136`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2013) With
+  `--formatter corvint-rspec-json/0` the provider MUST write its embedded formatter
+  (`CorvintRSpecJsonFormatter`, a subclass of RSpec's JSON formatter) to
+  `.corvint/rspec/<nonce>-formatter.rb` inside the provider-owned report directory, pass
+  `--require ./.corvint/rspec/<nonce>-formatter.rb --format CorvintRSpecJsonFormatter --out
+  <report>` in place of `--format json --out <report>`, remove the file after the run whatever its
+  outcome, and record `formatter: corvint-rspec-json/0`. The formatter adds to every example
+  `shared_group_inclusion_backtrace`, one `{"inclusion_location": "<file>:<line>"}` frame per shared
+  group the example was included through (RSpec's `formatted_inclusion_location`, innermost first,
+  `[]` for none), and adds the report member `corvint_runtime` (`LPCV-V0-138`); the rest is RSpec's
+  JSON report. `LPCV-V0-134` then yields `sharedExample` with the including file and line, or
+  `not-shared`. `--formatter stock`, or no flag, keeps the stock formatter; the document then carries
+  no `formatter` and shared origin stays `not-reported`. Any other value is refused with exit 2 and
+  no document. `testvaliditydoc` decodes `formatter` closed and optional.
+- `LPCV-V0-137`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2010) A line
+  selector MUST also attribute an example whose report-stated inclusion frame names the selector's
+  path and line, because RSpec runs a shared group's examples for its inclusion line; such a
+  selector is `MATCHED`. Without stated inclusions (the stock formatter) the `LPCV-V0-132` rule is
+  unchanged and the inclusion line stays `UNATTRIBUTED`. A backtrace recorded as
+  `inclusion-unbound` attributes nothing.
+- `LPCV-V0-138`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2014) Under
+  `--exec-prefix` with the Corvint formatter, `runtime` MUST also carry `runContainer`, exactly one
+  of `value` or `unknown`: the 64-hex ID of the container the RSpec process itself ran in, which the
+  formatter reads from the `/etc/hostname` bind mount in its own `/proc/self/mountinfo` and reports
+  as `corvint_runtime.container`. A missing or malformed value is `unknown: not-reported`; the probe
+  container is never substituted. `image` is then observed on the host after the run: when
+  `runContainer` is a value, the prefix's first argument has base name `docker` and a later argument
+  is `run`, `compose`, `exec` or `container`, the provider runs `docker <arguments before that
+  subcommand> container inspect --format {{.Image}} <runContainer>` (timeout one minute, output at
+  most 64 KiB), so global flags such as `-H` or `--context` reach the same daemon, and records the
+  trimmed output as the `image` value only when it is `sha256:` and 64 lowercase hex digits (the
+  daemon's image ID, not a registry repository digest). Otherwise `image` is `unknown` with
+  `run-container-unknown` (no run container value), `host-inspect-unavailable` (the prefix is not
+  that docker shape) or `container-not-inspectable` (the inspection failed, for instance because
+  `--rm` removed the container, or printed anything else). Without the Corvint formatter there is no
+  `runContainer` and `image` stays `not-observable-inside-prefix`. `testvaliditydoc` decodes
+  `runContainer` closed and refuses a `runContainer` without the Corvint formatter, a
+  Corvint-formatter runtime without one, an `image` value without a `runContainer` value or not in
+  digest form, and an `image` reason outside the closed set for its basis. The inspection never
+  changes the run's outcome, infrastructure state or projections.
+- `LPCV-V0-139`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2010, V1-2013,
+  V1-2014) A live test MUST run real RSpec through a real `docker run` prefix on a committed project
+  with a shared group, and three of its documents MUST be retained under
+  `internal/rubytestprovider/testdata/live/` and re-validated in CI: a Corvint-formatter `--rm` run
+  whose example-line and inclusion-line selectors are `MATCHED` and whose example-less spec file is
+  `NO_EXAMPLE`, with the shared origin and its including `file:line`, a `runContainer` value distinct
+  from `probeContainer`, and `image: container-not-inspectable`; a Corvint-formatter run without
+  `--rm` whose `path[ids]` selector is `MATCHED` and whose `image` value equals the image's ID; and a
+  stock-formatter run whose inclusion-line selector is `UNATTRIBUTED`, with origin `not-reported` and
+  `image: not-observable-inside-prefix`. Every live document carries observed `ruby`, `bundler` and
+  `probeContainer` values and validates. The live test removes only the containers the run
+  reported, by ID, and is skipped without docker or the qualification image.
+
+Non-goals: a qualified Ruby, Bundler or image tuple; registry repository digests; Podman, Compose
+service containers or remote daemons beyond passing the prefix's global docker flags; editing project
+files or a project's own formatter; runtime identity as a freshness input.
+
+Failure modes, each prevented by the cited requirement:
+
+| Failure mode | Prevented by |
+|---|---|
+| The provider formatter is left in the project or silently replaces a project's formatter. | `LPCV-V0-136` provider-owned path, removal, opt-in flag |
+| A stock run is reported as if it carried inclusion metadata. | `LPCV-V0-136` `formatter` member and unchanged stock path |
+| A selector on an inclusion line reads as unattributed when its shared example ran. | `LPCV-V0-137` |
+| The probe container is recorded as the run's container. | `LPCV-V0-138` formatter-reported `runContainer` |
+| An image is claimed for a removed or unknown container. | `LPCV-V0-138` closed `image` reasons |
+| The inspection reaches a different daemon than the run. | `LPCV-V0-138` global flags kept |
+| Live evidence is claimed without a real run. | `LPCV-V0-139` retained documents re-validated |
+
+Acceptance evidence: the focused tests and live documents in the traceability row. The live run used
+the owner-approved disposable image `corvint-rspec-qual:2026-10-20` (RSpec 3.13 gems installed from
+checksum-verified archives on `ruby:3.4-bookworm`); versions, checksums and the approval are in
+`docs/build-log/2026-10-20-ruby-rspec-live-formatter.md`. One host and one image were observed; no
+Ruby tuple is qualified.
+
+Rollback: revert the change. Documents carrying `formatter` or `runContainer` are then refused by
+closed decoding and skipped by discovery; documents without them are unaffected, and the stock
+formatter path is unchanged throughout.
 
 ## Retained evidence stays out of Git status (V1-1801; GitHub #1132)
 

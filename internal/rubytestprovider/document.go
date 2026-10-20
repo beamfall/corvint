@@ -1,6 +1,6 @@
 // Package rubytestprovider is the experimental RSpec provider behind
 // corvint-ruby-test-provider (docs/specs/live-proof-carrying-verification-v0.md
-// LPCV-V0-090..094, LPCV-V0-131..135). It runs RSpec with its JSON formatter, binds the run to the
+// LPCV-V0-090..094, LPCV-V0-131..138). It runs RSpec with its JSON formatter, binds the run to the
 // host-observed test repository identity before and after, and records each
 // example's file:line identity, full description, status and the Git blob IDs
 // of its spec file and the conventional helper files. The document carries
@@ -68,6 +68,9 @@ type Document struct {
 	Selection         []SelectorOutcome `json:"selection,omitempty"`
 	SelectionWithheld string            `json:"selectionWithheld,omitempty"`
 	Runtime           *Runtime          `json:"runtime,omitempty"`
+	// Formatter names the Corvint-shipped RSpec formatter the run used
+	// (LPCV-V0-136); a stock json formatter run carries none.
+	Formatter string `json:"formatter,omitempty"`
 }
 
 // SelectorOutcome is one --spec selector as RSpec received it and what the
@@ -80,13 +83,17 @@ type SelectorOutcome struct {
 }
 
 // Runtime is the runtime identity observed inside --exec-prefix by a separate
-// probe invocation of the same prefix (LPCV-V0-133). It is never a host value.
+// probe invocation of the same prefix (LPCV-V0-133). Under the Corvint
+// formatter RunContainer is the container the RSpec process itself reported,
+// and Image is the host docker's image ID for that container (LPCV-V0-138);
+// otherwise RunContainer is absent and Image is never a value.
 type Runtime struct {
-	Basis          string      `json:"basis"`
-	Ruby           RuntimeFact `json:"ruby"`
-	Bundler        RuntimeFact `json:"bundler"`
-	ProbeContainer RuntimeFact `json:"probeContainer"`
-	Image          RuntimeFact `json:"image"`
+	Basis          string       `json:"basis"`
+	Ruby           RuntimeFact  `json:"ruby"`
+	Bundler        RuntimeFact  `json:"bundler"`
+	ProbeContainer RuntimeFact  `json:"probeContainer"`
+	Image          RuntimeFact  `json:"image"`
+	RunContainer   *RuntimeFact `json:"runContainer,omitempty"`
 }
 
 // RuntimeFact is exactly one of an observed value or a closed unknown reason.
@@ -190,6 +197,12 @@ func Validate(document Document) error {
 	}
 	if err := validateSelection(document); err != nil {
 		return err
+	}
+	if document.Formatter != "" && document.Formatter != FormatterCorvint {
+		return errors.New("Ruby provider formatter is outside the closed set")
+	}
+	if document.Runtime != nil && (document.Runtime.RunContainer != nil) != (document.Formatter == FormatterCorvint) {
+		return errors.New("Ruby provider run container is recorded only for, and always for, a Corvint formatter run under a prefix")
 	}
 	return validateRuntime(document.Runtime)
 }

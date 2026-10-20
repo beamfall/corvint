@@ -328,7 +328,9 @@
     "internal/rubyprofile": [
       "conformance/ruby-profile-v0/"
     ],
-    "internal/rubytestprovider": [],
+    "internal/rubytestprovider": [
+      "internal/rubytestprovider/testdata/live/"
+    ],
     "internal/sessiontest": [
       ".github/cishards/",
       ".github/workflows/ci.yml"

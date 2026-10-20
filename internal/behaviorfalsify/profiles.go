@@ -32,9 +32,11 @@ const (
 	isolationReserve = isolationVerifyTimeout + processShutdownAllowance
 )
 
-// Runner-neutral provider profile (BBF-V0-024..028).
+// Runner-neutral provider profile (BBF-V0-024..028) and its RSpec binding (BBF-V0-029..033).
 const (
 	ProviderGoTest        = "go-test"
+	ProviderRSpec         = "rspec"
+	rspecReportName       = ".corvint-behavior-rspec.json"
 	PerturbationSchema    = "corvint-behavior-control-perturbation/0"
 	perturbationLimit     = 1 << 20
 	providerOutputLimit   = 16 << 20
@@ -46,7 +48,25 @@ const (
 var (
 	goTestNamePattern = regexp.MustCompile(`^Test[A-Za-z0-9_]{0,251}$`)
 	goPackagePattern  = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*$`)
+	// rspecExamplePattern is one project-relative spec file and one RSpec scoped example id, the
+	// form RSpec's JSON report gives as an example's id without its leading "./" (BBF-V0-029).
+	rspecExamplePattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*(/[A-Za-z0-9_][A-Za-z0-9._-]*)*\.rb\[[1-9][0-9]{0,8}(:[1-9][0-9]{0,8}){0,31}\]$`)
 )
+
+// rspecForcedEnvironment is the closed environment the RSpec binding always sets: Bundler never
+// rewrites the lockfile and SPEC_OPTS cannot inject formatter or filter options (BBF-V0-030).
+var rspecForcedEnvironment = map[string]string{
+	"BUNDLE_FROZEN": "true",
+	"SPEC_OPTS":     "",
+}
+
+// forcedEnvironment is the provider's forced environment.
+func forcedEnvironment(name string) map[string]string {
+	if name == ProviderRSpec {
+		return rspecForcedEnvironment
+	}
+	return providerForcedEnvironment
+}
 
 // providerForcedEnvironment is the closed Go environment the provider always sets; neither the
 // declared nor the perturbation environment may name these keys (BBF-V0-026).
@@ -198,7 +218,14 @@ func validateProvider(request Request) error {
 		return nil
 	}
 	runner := request.Runner
-	if provider.Name != ProviderGoTest || runner.Runner != ProviderGoTest || runner.Browser != providerRunnerBrowser || runner.BrowserVersion != providerRunnerBrowser || filepath.Base(runner.ConfigFile) != "go.mod" {
+	exampleValid := goTestNamePattern.MatchString
+	switch {
+	case runner.Browser != providerRunnerBrowser || runner.BrowserVersion != providerRunnerBrowser || runner.Runner != provider.Name:
+		return errors.New("runner-neutral provider identity mismatch")
+	case provider.Name == ProviderGoTest && filepath.Base(runner.ConfigFile) == "go.mod":
+	case provider.Name == ProviderRSpec && (filepath.Base(runner.ConfigFile) == ".rspec" || filepath.Base(runner.ConfigFile) == "Gemfile"):
+		exampleValid = rspecExample
+	default:
 		return errors.New("runner-neutral provider identity mismatch")
 	}
 	if err := validateCommand(provider.Toolchain); err != nil {
@@ -211,8 +238,8 @@ func validateProvider(request Request) error {
 	if request.Target.Project != provider.Package {
 		return errors.New("target project must name the provider package")
 	}
-	if len(provider.Examples) == 0 || len(provider.Examples) > maxProviderExamples || !uniqueStrings(provider.Examples, goTestNamePattern.MatchString) {
-		return errors.New("provider examples must be 1-256 unique top-level Go test names")
+	if len(provider.Examples) == 0 || len(provider.Examples) > maxProviderExamples || !uniqueStrings(provider.Examples, exampleValid) {
+		return errors.New("provider examples must be 1-256 unique top-level Go test names or RSpec example ids")
 	}
 	if !slices.Contains(provider.Examples, request.Target.AssertionID) {
 		return errors.New("target assertion must be a selected example")
@@ -231,7 +258,7 @@ func validateProvider(request Request) error {
 		return errors.New("provider perturbation environment keys invalid")
 	}
 	for _, key := range append(slices.Clone(provider.PerturbationEnvKeys), request.DeclaredEnvKeys...) {
-		if _, forced := providerForcedEnvironment[key]; forced || reservedEnvironmentKeys[key] {
+		if _, forced := forcedEnvironment(provider.Name)[key]; forced || reservedEnvironmentKeys[key] {
 			return errors.New("environment key overrides the provider boundary")
 		}
 	}
@@ -244,6 +271,12 @@ func validateProvider(request Request) error {
 		return errors.New("provider test repository has uncommitted changes")
 	}
 	return nil
+}
+
+// rspecExample admits one RSpec example selector: a local spec file path, whose components never
+// start with a dot, with one scoped id, at most 1024 bytes (BBF-V0-029).
+func rspecExample(name string) bool {
+	return len(name) <= 1024 && rspecExamplePattern.MatchString(name)
 }
 
 // runIsolationPhase runs the pinned reset/health hook for one phase and returns its stdout and
@@ -336,7 +369,7 @@ func runProviderAttempt(ctx context.Context, plan Plan, control PlannedControl, 
 		result.Reasons = append(result.Reasons, "provider-staging-unavailable")
 		return
 	}
-	stdout, process := runProvider(ctx, plan, perturbation.Environment, scratch, checkout, time.Until(end))
+	native, process := runProvider(ctx, plan, perturbation.Environment, scratch, checkout, time.Until(end))
 	result.ProviderProcess = &process
 	if !repositoryAtRevision(plan.Request.Repositories.Test, plan.Request.Target.TestRevision) {
 		result.Reasons = append(result.Reasons, "test-repository-mutated")
@@ -345,7 +378,7 @@ func runProviderAttempt(ctx context.Context, plan Plan, control PlannedControl, 
 	if !providerProcessSucceeded(process) {
 		return
 	}
-	receipt, reason := providerReceipt(plan, control, attempt, stdout)
+	receipt, reason := providerReceipt(plan, control, attempt, native)
 	if reason != "" {
 		result.Reasons = append(result.Reasons, reason)
 		return
@@ -385,6 +418,9 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
+	if provider.Name == ProviderRSpec {
+		return runRSpecProvider(ctx, plan, perturbation, scratch, filepath.Join(checkout, filepath.FromSlash(provider.Package)), timeout)
+	}
 	pattern := "."
 	if provider.Package != "." {
 		pattern = "./" + filepath.ToSlash(provider.Package)
@@ -408,8 +444,57 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	return observeProcess(ctx, argv, checkout, environmentList(values), nil, timeout, providerOutputLimit)
 }
 
-// providerProcessSucceeded admits go test's documented exit statuses: 0 when every selected
-// example passed and 1 when one failed. Every other boundary loss is infrastructure.
+// runRSpecProvider runs the pinned RSpec command in the staged project directory with RSpec's
+// stock JSON formatter writing to a fixed project-relative report, so a container wrapper that
+// shares the directory writes it where the host reads it, and returns the report bytes, which are
+// the native receipt (BBF-V0-030). A missing, irregular or over-bound report is nil.
+func runRSpecProvider(ctx context.Context, plan Plan, perturbation map[string]string, scratch, project string, timeout time.Duration) ([]byte, ProcessEvidence) {
+	provider := plan.Request.Provider
+	root, err := os.OpenRoot(project)
+	if err != nil {
+		return nil, ProcessEvidence{Error: "provider project directory unavailable"}
+	}
+	defer root.Close()
+	if _, err := root.Lstat(rspecReportName); !errors.Is(err, os.ErrNotExist) {
+		return nil, ProcessEvidence{Error: "provider report path is occupied"}
+	}
+	values := map[string]string{"HOME": scratch, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "CORVINT_BEHAVIOR_COMMAND_ROLE": "provider", "TMPDIR": scratch}
+	for key, value := range declaredEnvironment(plan.Request.DeclaredEnvKeys) {
+		values[key] = value
+	}
+	for key, value := range perturbation {
+		values[key] = value
+	}
+	for key, value := range rspecForcedEnvironment {
+		values[key] = value
+	}
+	argv := append([]string{provider.Toolchain.Path, "--format", "json", "--out", rspecReportName}, provider.Examples...)
+	_, process := observeProcess(ctx, argv, project, environmentList(values), nil, timeout, providerOutputLimit)
+	return readRSpecReport(root), process
+}
+
+func readRSpecReport(root *os.Root) []byte {
+	info, err := root.Lstat(rspecReportName)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > providerOutputLimit {
+		return nil
+	}
+	file, err := root.Open(rspecReportName)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	if opened, err := file.Stat(); err != nil || !os.SameFile(info, opened) {
+		return nil
+	}
+	data, err := io.ReadAll(io.LimitReader(file, providerOutputLimit+1))
+	if err != nil || len(data) > providerOutputLimit {
+		return nil
+	}
+	return data
+}
+
+// providerProcessSucceeded admits go test's and RSpec's documented exit statuses: 0 when every
+// selected example passed and 1 when one failed. Every other boundary loss is infrastructure.
 func providerProcessSucceeded(evidence ProcessEvidence) bool {
 	exit := evidence.Exit
 	evidence.Exit = 0
@@ -428,6 +513,9 @@ type goTestEvent struct {
 // maps to its own terminal action, and a failure whose output reports a panic is not an
 // assertion failure (BBF-V0-027).
 func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []byte) (HookReceipt, string) {
+	if plan.Request.Provider.Name == ProviderRSpec {
+		return rspecReceipt(plan, control, attempt, stdout)
+	}
 	// Outcomes are keyed by (package, test); the approved pattern names exactly one package, so
 	// events from a second package are contradictory, never attributed to an example (BBF-V0-027).
 	type example struct{ pkg, test string }
@@ -484,11 +572,16 @@ func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []by
 		}
 		return state, ""
 	}
+	return synthesizedReceipt(plan, control, attempt, stdout, observe), ""
+}
+
+// synthesizedReceipt builds the hook receipt from per-example observations of the native report.
+func synthesizedReceipt(plan Plan, control PlannedControl, attempt int, native []byte, observe func(string) (string, string)) HookReceipt {
 	target := plan.Request.Target
 	state, kind := observe(target.AssertionID)
 	receipt := HookReceipt{
 		Schema: HookSchema, PlanDigest: plan.Digest, PerturbationSHA256: control.PerturbationSHA256,
-		Target: target, Runner: plan.Request.Runner, Attempt: attempt, NativeReceiptSHA256: digestBytes(stdout),
+		Target: target, Runner: plan.Request.Runner, Attempt: attempt, NativeReceiptSHA256: digestBytes(native),
 		TestOutcome:       state,
 		TargetObservation: CriterionObservation{CriterionID: target.CriterionID, AssertionID: target.AssertionID, State: state, FailureKind: kind},
 		Unrelated:         []CriterionObservation{}, Setup: []SetupObservation{}, Artifacts: []Artifact{},
@@ -501,7 +594,73 @@ func providerReceipt(plan Plan, control PlannedControl, attempt int, stdout []by
 		state, _ := observe(name)
 		receipt.Setup = append(receipt.Setup, SetupObservation{ID: name, State: state})
 	}
-	return receipt, ""
+	return receipt
+}
+
+// rspecAssertionErrors are the exception classes RSpec raises for a failed expectation; any other
+// exception is an error outside the assertion (BBF-V0-031).
+var rspecAssertionErrors = map[string]bool{
+	"RSpec::Expectations::ExpectationNotMetError":          true,
+	"RSpec::Expectations::MultipleExpectationsNotMetError": true,
+	"RSpec::Mocks::MockExpectationError":                   true,
+}
+
+type rspecReportDocument struct {
+	Examples *[]struct {
+		ID        string `json:"id"`
+		Status    string `json:"status"`
+		Exception *struct {
+			Class string `json:"class"`
+		} `json:"exception"`
+	} `json:"examples"`
+	Summary *struct {
+		ExampleCount            *int `json:"example_count"`
+		ErrorsOutsideOfExamples *int `json:"errors_outside_of_examples_count"`
+	} `json:"summary"`
+}
+
+// rspecReceipt synthesizes the hook receipt from RSpec's JSON report: each selected example takes
+// the status of the report example whose id, without its leading "./", equals it (BBF-V0-031).
+func rspecReceipt(plan Plan, control PlannedControl, attempt int, report []byte) (HookReceipt, string) {
+	var document rspecReportDocument
+	if report == nil || json.Unmarshal(report, &document) != nil || document.Examples == nil || document.Summary == nil || document.Summary.ExampleCount == nil || document.Summary.ErrorsOutsideOfExamples == nil {
+		return HookReceipt{}, "provider-output-invalid"
+	}
+	if *document.Summary.ErrorsOutsideOfExamples != 0 {
+		return HookReceipt{}, "provider-build-failed"
+	}
+	if *document.Summary.ExampleCount != len(*document.Examples) {
+		return HookReceipt{}, "provider-output-contradictory"
+	}
+	type outcome struct{ state, kind string }
+	outcomes := map[string]outcome{}
+	for _, example := range *document.Examples {
+		id := strings.TrimPrefix(example.ID, "./")
+		if _, seen := outcomes[id]; seen || !slices.Contains(plan.Request.Provider.Examples, id) {
+			return HookReceipt{}, "provider-output-contradictory"
+		}
+		switch example.Status {
+		case "passed":
+			outcomes[id] = outcome{state: "passed"}
+		case "pending":
+			outcomes[id] = outcome{state: "skipped"}
+		case "failed":
+			kind := "panic"
+			if example.Exception != nil && rspecAssertionErrors[example.Exception.Class] {
+				kind = "assertion"
+			}
+			outcomes[id] = outcome{state: "failed", kind: kind}
+		default:
+			return HookReceipt{}, "provider-output-invalid"
+		}
+	}
+	observe := func(name string) (string, string) {
+		if observed, ok := outcomes[name]; ok {
+			return observed.state, observed.kind
+		}
+		return "not_run", ""
+	}
+	return synthesizedReceipt(plan, control, attempt, report, observe), ""
 }
 
 // providerInfrastructureFailure reports whether a runner-neutral attempt lost its provider

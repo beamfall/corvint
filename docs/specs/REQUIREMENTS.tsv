@@ -484,6 +484,11 @@ BBF-V0-025	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-026	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
 BBF-V0-027	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
 BBF-V0-028	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011)	standing	2026-10-11; V1-2011
+BBF-V0-029	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A reques	standing	2026-10-11; V1-2027
+BBF-V0-030	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runn	standing	2026-10-11; V1-2027
+BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) The runn	standing	2026-10-11; V1-2027
+BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
+BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 CAP-V0-001	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
 CAP-V0-002	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The	standing	2026-10-11; V1-2008
 CAP-V0-003	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2008)	standing	2026-10-11; V1-2008
@@ -2946,6 +2951,10 @@ LPCV-V0-132	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-133	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) With	standing	2026-10-11; V1-2010
 LPCV-V0-134	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) Each	standing	2026-10-11; V1-2010
 LPCV-V0-135	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010)	standing	2026-10-11; V1-2010
+LPCV-V0-136	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2013) With	standing	2026-10-11; V1-2013
+LPCV-V0-137	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010) A line	standing	2026-10-11; V1-2010
+LPCV-V0-138	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2014) Under	standing	2026-10-11; V1-2014
+LPCV-V0-139	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010, V1-2013,	standing	2026-10-11; V1-2010; V1-2013
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-

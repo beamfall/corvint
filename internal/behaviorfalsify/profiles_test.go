@@ -329,6 +329,20 @@ func TestTotal(t *testing.T) {
 func TestUnrelated(t *testing.T) {}
 `,
 	}
+	head := commitFixtureFiles(t, repository, files)
+	request.Target.ApplicationRevision, request.Target.TestRevision, request.Target.DocumentationRevision = head, head, head
+	request.Target.TestFile, request.Target.Project = "example/checkout_test.go", "example"
+	request.Target.CriterionID, request.Target.AssertionID = "criterion:total", "TestTotal"
+	request.DeclaredEnvKeys = []string{"GOCACHE", helperEnvironment}
+	request.Runner = RunnerIdentity{Runner: ProviderGoTest, RunnerVersion: runtime.Version(), Browser: "none", BrowserVersion: "none", ConfigFile: "go.mod", ConfigSHA256: hashBytes(mustGitBytes(t, repository, "cat-file", "blob", head+":go.mod")), EnvironmentSHA256: digestJSON(declaredEnvironment(request.DeclaredEnvKeys))}
+	request.Provider = &ProviderSpec{Name: ProviderGoTest, Toolchain: goToolchain(t), Package: "example", Examples: []string{"TestUnrelated", "TestTotal", "TestSetup"}, PerturbationEnvKeys: []string{"CHECKOUT_UNUSED", "CHECKOUT_TOTAL_OFFSET", "CHECKOUT_PANIC", "CHECKOUT_WRITE"}}
+	request.TimeoutSeconds, request.WallClockSeconds = 120, 600
+	return request
+}
+
+// commitFixtureFiles writes files into repository, commits them and returns the new HEAD.
+func commitFixtureFiles(t *testing.T, repository string, files map[string]string) string {
+	t.Helper()
 	for name, content := range files {
 		path := filepath.Join(repository, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
@@ -345,15 +359,7 @@ func TestUnrelated(t *testing.T) {}
 			t.Fatalf("git %s: %v: %s", args[0], err, output)
 		}
 	}
-	head := strings.TrimSpace(string(mustGitBytes(t, repository, "rev-parse", "HEAD")))
-	request.Target.ApplicationRevision, request.Target.TestRevision, request.Target.DocumentationRevision = head, head, head
-	request.Target.TestFile, request.Target.Project = "example/checkout_test.go", "example"
-	request.Target.CriterionID, request.Target.AssertionID = "criterion:total", "TestTotal"
-	request.DeclaredEnvKeys = []string{"GOCACHE", helperEnvironment}
-	request.Runner = RunnerIdentity{Runner: ProviderGoTest, RunnerVersion: runtime.Version(), Browser: "none", BrowserVersion: "none", ConfigFile: "go.mod", ConfigSHA256: hashBytes(mustGitBytes(t, repository, "cat-file", "blob", head+":go.mod")), EnvironmentSHA256: digestJSON(declaredEnvironment(request.DeclaredEnvKeys))}
-	request.Provider = &ProviderSpec{Name: ProviderGoTest, Toolchain: goToolchain(t), Package: "example", Examples: []string{"TestUnrelated", "TestTotal", "TestSetup"}, PerturbationEnvKeys: []string{"CHECKOUT_UNUSED", "CHECKOUT_TOTAL_OFFSET", "CHECKOUT_PANIC", "CHECKOUT_WRITE"}}
-	request.TimeoutSeconds, request.WallClockSeconds = 120, 600
-	return request
+	return strings.TrimSpace(string(mustGitBytes(t, repository, "rev-parse", "HEAD")))
 }
 
 func providerControl(t *testing.T, id, env string) ControlSpec {
