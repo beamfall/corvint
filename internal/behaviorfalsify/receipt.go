@@ -70,6 +70,10 @@ func ExecuteReceipt(ctx context.Context, plan Plan, approved string, tool ToolId
 	if !validToolIdentity(tool) {
 		return EvidenceReceipt{}, errors.New("receipt-tool-identity-invalid")
 	}
+	if plan.Request.Provider != nil {
+		// The runner-neutral profile retains no native report to bind yet (BBF-V0-028).
+		return EvidenceReceipt{}, errors.New("receipt-profile-unsupported")
+	}
 	preimage := plan
 	preimage.Digest = ""
 	planBytes, err := marshalJSON(preimage)
@@ -279,6 +283,11 @@ func VerifyReceipt(r EvidenceReceipt, expectedPlan, expectedTool string) error {
 	if len(plan.Controls) == 0 || len(plan.Controls) > 64 || plan.Request.Attempts < 1 || plan.Request.Attempts > 16 ||
 		r.Approval.Schema != ApprovalSchema || r.Approval.Method != "explicit-approve-plan" || r.Approval.PlanDigest != expectedPlan || r.Approval.Digest != approvalDigest(r.Approval) ||
 		r.Report.Schema != ReportSchema || r.Report.PlanDigest != expectedPlan || r.Report.Digest != digestJSON(r.Report) || len(r.Report.Results) != len(plan.Controls) {
+		return invalid()
+	}
+	// The report must record exactly the plan's declared isolation (BBF-V0-022); the
+	// runner-neutral profile has no evidence receipt (BBF-V0-028).
+	if plan.Request.Provider != nil || r.Report.Provider != "" || !reflect.DeepEqual(r.Report.Isolation, plan.Request.Isolation) {
 		return invalid()
 	}
 	rawIndex := 0

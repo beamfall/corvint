@@ -60,6 +60,14 @@ func execute(ctx context.Context, plan Plan, approvedDigest string, capture func
 		Fallback:    "full-relevant-suite",
 		Limitations: []string{"caller-owned hook semantics are not authenticated", "results cover only the exact approved controls and never authorize suite narrowing", "persistent external state is caller-declared absent, not independently sandboxed"},
 	}
+	if isolation := plan.Request.Isolation; isolation != nil {
+		clone := *isolation
+		report.Isolation = &clone
+		report.Limitations[2] = "persistent external state is a caller-declared shared server whose identity is checked by the caller's reset hook, not independently sandboxed"
+	}
+	if plan.Request.Provider != nil {
+		report.Provider = plan.Request.Provider.Name
+	}
 	deadline := time.Now().Add(time.Duration(plan.Request.WallClockSeconds) * time.Second)
 	workspaceReady := true
 	for _, control := range plan.Controls {
@@ -136,8 +144,12 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	result.WorkspaceBefore = before
 	invocation := Invocation{Schema: InvocationSchema, PlanDigest: plan.Digest, Attempt: attempt, Target: plan.Request.Target, Runner: plan.Request.Runner, Control: control}
 	input, _ := marshalJSON(invocation)
+	reserve := cleanupReserve
+	if plan.Request.Isolation != nil {
+		reserve += isolationReserve
+	}
 	timeout := time.Duration(plan.Request.TimeoutSeconds) * time.Second
-	if available := time.Until(deadline) - cleanupReserve; available < timeout {
+	if available := time.Until(deadline) - reserve; available < timeout {
 		timeout = available
 	}
 	if timeout <= 0 {
@@ -145,20 +157,20 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		result.Reasons = []string{"wall-clock-budget-exhausted"}
 		return result
 	}
-	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan, control))
-	result.HookProcess = hookProcess
-	var receipt HookReceipt
-	if processSucceeded(hookProcess) {
-		if err := Decode(hookRaw, &receipt); err != nil {
-			result.Reasons = append(result.Reasons, "hook-output-invalid")
-		} else {
-			result.Receipt = &receipt
-			artifacts, artifactReasons := validateArtifacts(plan.Request.DisposableRoot, receipt.Artifacts)
-			result.RetainedArtifacts = artifacts
-			result.Reasons = append(result.Reasons, artifactReasons...)
+	runControl := true
+	if plan.Request.Isolation != nil {
+		// Reset the shared server and confirm its declared identity before the control (BBF-V0-020).
+		process, identity := runIsolationPhase(ctx, plan, control, attempt, isolationPhaseReset, timeout)
+		result.Isolation = &IsolationObservation{ResetProcess: process, Before: identity}
+		failure := isolationFailure(plan, result)
+		runControl = failure != "isolation-reset-failed" && failure != "isolation-identity-drift"
+		if available := time.Until(deadline) - reserve; available < timeout {
+			timeout = available
 		}
-	} else {
-		result.Reasons = append(result.Reasons, "hook-process-failed")
+	}
+	var hookRaw []byte
+	if runControl && timeout > 0 {
+		hookRaw = runControlHook(ctx, plan, control, attempt, input, timeout, deadline.Add(-reserve), &result)
 	}
 	// Capture after admission, before cleanup removes declared native reports (BBF-V0-018).
 	if capture != nil {
@@ -171,6 +183,12 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	}
 	_, cleanupProcess := runPinned(context.Background(), plan.Request.Cleanup, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "cleanup", input, cleanupTimeout, 1<<20)
 	result.CleanupProcess = cleanupProcess
+	if runControl && plan.Request.Isolation != nil {
+		// The declared identity must still hold after the control and its cleanup (BBF-V0-021).
+		verifyTimeout := minDuration(isolationVerifyTimeout, time.Until(deadline)-processShutdownAllowance)
+		process, identity := runIsolationPhase(context.Background(), plan, control, attempt, isolationPhaseVerify, max(verifyTimeout, time.Nanosecond))
+		result.Isolation.VerifyProcess, result.Isolation.After = &process, identity
+	}
 	after, digestErr := workspaceDigest(plan.Request.DisposableRoot)
 	result.WorkspaceAfter = after
 	if digestErr != nil || after != before {
@@ -180,12 +198,47 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 	return result
 }
 
+// runControlHook runs the control's pinned hook and admits its receipt: the hook's own receipt
+// for the default profile, or one synthesized by the runner-neutral provider (BBF-V0-025).
+func runControlHook(ctx context.Context, plan Plan, control PlannedControl, attempt int, input []byte, timeout time.Duration, budgetEnd time.Time, result *AttemptResult) []byte {
+	limit := receiptOutputLimit(plan, control)
+	if plan.Request.Provider != nil {
+		limit = perturbationLimit
+	}
+	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, limit)
+	result.HookProcess = hookProcess
+	switch {
+	case !processSucceeded(hookProcess):
+		result.Reasons = append(result.Reasons, "hook-process-failed")
+	case plan.Request.Provider != nil:
+		runProviderAttempt(ctx, plan, control, attempt, hookRaw, minDuration(timeout, time.Until(budgetEnd)), result)
+	default:
+		var receipt HookReceipt
+		if err := Decode(hookRaw, &receipt); err != nil {
+			result.Reasons = append(result.Reasons, "hook-output-invalid")
+		} else {
+			result.Receipt = &receipt
+			artifacts, artifactReasons := validateArtifacts(plan.Request.DisposableRoot, receipt.Artifacts)
+			result.RetainedArtifacts = artifacts
+			result.Reasons = append(result.Reasons, artifactReasons...)
+		}
+	}
+	return hookRaw
+}
+
 // classifyAttempt returns the attempt status, its reasons and, for a control that declares an
 // application marker, its application classification (BBF-V0-015).
 func classifyAttempt(plan Plan, control PlannedControl, result AttemptResult) (Status, []string, string) {
 	reasons := slices.Clone(result.Reasons)
+	// Shared-server identity drift or a failed reset is never evidence about the test (BBF-V0-021).
+	if reason := isolationFailure(plan, result); reason != "" {
+		return StatusInfrastructureFailed, uniqueReasons(append(reasons, reason)), ""
+	}
 	if !processSucceeded(result.HookProcess) {
 		return StatusInfrastructureFailed, uniqueReasons(append(reasons, "execution-boundary-failed")), ""
+	}
+	if providerInfrastructureFailure(plan, result) {
+		return StatusInfrastructureFailed, uniqueReasons(append(reasons, "provider-process-failed")), ""
 	}
 	if !processSucceeded(result.CleanupProcess) || result.WorkspaceAfter == "" || result.WorkspaceAfter != result.WorkspaceBefore {
 		return StatusInvalidControl, uniqueReasons(append(reasons, "cleanup-invalid")), ""
@@ -374,7 +427,12 @@ func runPinned(ctx context.Context, command Command, dir string, keys []string, 
 	if err := os.WriteFile(staged, executable, 0700); err != nil {
 		return nil, ProcessEvidence{Error: "command staging failed"}
 	}
-	observation := procgroup.Run(ctx, procgroup.Spec{Argv: []string{staged}, Dir: dir, Env: commandEnvironment(dir, keys, role), Stdin: input, Timeout: timeout, ShutdownTimeout: processShutdownAllowance, InputLimit: maxDocumentBytes, OutputLimit: outputLimit, StderrLimit: 1 << 20, ObserveDescendants: true})
+	return observeProcess(ctx, []string{staged}, dir, commandEnvironment(dir, keys, role), input, timeout, outputLimit)
+}
+
+// observeProcess runs one contained process group and returns its stdout and bounded evidence.
+func observeProcess(ctx context.Context, argv []string, dir string, env []string, input []byte, timeout time.Duration, outputLimit int) ([]byte, ProcessEvidence) {
+	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: env, Stdin: input, Timeout: timeout, ShutdownTimeout: processShutdownAllowance, InputLimit: maxDocumentBytes, OutputLimit: outputLimit, StderrLimit: 1 << 20, ObserveDescendants: true})
 	evidence := ProcessEvidence{
 		Exit: observation.ExitStatus, Started: observation.Started,
 		Completed: observation.WaitCompleted && observation.ExitObserved,
@@ -400,6 +458,10 @@ func commandEnvironment(root string, keys []string, role string) []string {
 	for key, value := range declaredEnvironment(keys) {
 		values[key] = value
 	}
+	return environmentList(values)
+}
+
+func environmentList(values map[string]string) []string {
 	names := make([]string, 0, len(values))
 	for name := range values {
 		names = append(names, name)

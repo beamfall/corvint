@@ -474,6 +474,16 @@ BBF-V0-015	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-016	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) The	standing	2026-10-11; V1-1366
 BBF-V0-017	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1366) An	standing	2026-10-11; V1-1366
 BBF-V0-018	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1367) An	standing	2026-10-11; V1-1367
+BBF-V0-019	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A reques	standing	2026-10-11; V1-2011
+BBF-V0-020	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) Before	standing	2026-10-11; V1-2011
+BBF-V0-021	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A failed	standing	2026-10-11; V1-2011
+BBF-V0-022	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The repo	standing	2026-10-11; V1-2011
+BBF-V0-023	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A plan,	standing	2026-10-11; V1-2011
+BBF-V0-024	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A reques	standing	2026-10-11; V1-2011
+BBF-V0-025	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) Under th	standing	2026-10-11; V1-2011
+BBF-V0-026	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
+BBF-V0-027	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runn	standing	2026-10-11; V1-2011
+BBF-V0-028	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2011)	standing	2026-10-11; V1-2011
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-

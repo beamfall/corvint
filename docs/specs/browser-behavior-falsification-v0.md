@@ -2,7 +2,7 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)
+- Intent status: proposed; BBF-V0-015..018 and BBF-V0-019..028 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011)
 - Delivery status: experimental
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
@@ -10,8 +10,8 @@
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-015..018 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
-- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018).
+- Status: proposed; BBF-V0-015..018 and BBF-V0-019..028 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018); an opt-in declared shared-server isolation profile resets and checks a caller-declared loopback server identity around every control (BBF-V0-019..023), and an opt-in runner-neutral profile reruns selected Go test examples under a pinned caller perturbation hook (BBF-V0-024..028).
 - Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
@@ -147,6 +147,79 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `killed`, as `survived`, or with a status outside the vocabulary. A retained-byte-bound omission
   still refuses verification.
 
+- `BBF-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A request
+  may declare `isolation` with profile `shared-server`, a credential-free `http`/`https` loopback
+  `server_url` (no query or fragment), an `application_identity` that is a `sha256:` digest or Git
+  object ID, and a pinned `reset` command, and must then declare `external_state`
+  `declared-shared-server`. Without `isolation`, `external_state` must stay `none` and the
+  BBF-V0-004 disposable-workspace boundary is unchanged. The wall-clock budget must exceed the
+  cleanup reserve plus the isolation reserve. The isolation is part of the approved plan digest.
+- `BBF-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) Before
+  every attempt of every run control, the runner invokes the staged reset hook with role
+  `isolation-reset` and a bounded `corvint-browser-behavior-isolation-check/0` request (plan
+  digest, phase, control, attempt, declared URL and identity). After the control's cleanup it
+  invokes the same hook with phase `verify`. The hook prints one closed
+  `corvint-browser-behavior-isolation-observation/0` document bound to the same plan digest,
+  phase, control and attempt that reports the server identity it observed. The runner itself never
+  contacts the server.
+- `BBF-V0-021`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A failed or
+  unbound reset yields `infrastructure_failed` with `isolation-reset-failed` and the control hook
+  is not run. A reported identity different from the declared one before or after the control
+  yields `infrastructure_failed` with `isolation-identity-drift`. A failed or unbound verify phase
+  yields `infrastructure_failed` with `isolation-health-failed`. These checks precede every other
+  classification, so an isolation failure is never `killed` or `survived`. An attempt that records
+  an isolation observation under a plan without isolation is `infrastructure_failed` with
+  `isolation-observation-unexpected`.
+- `BBF-V0-022`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The report
+  records the plan's declared isolation, each attempt records its reset and verify process
+  evidence and observed identities, and the limitations name the shared server as caller-declared
+  and not independently sandboxed. `execute-receipt` retains them, and `verify-receipt` refuses a
+  report whose isolation differs from the plan's. It recomputes each admitted attempt's status
+  from its recorded isolation observation, so an isolation observation cannot be dropped to forge
+  a kill.
+- `BBF-V0-023`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A plan,
+  report or receipt that uses neither profile is byte-identical to its form before BBF-V0-019. The
+  new fields are omitted when absent.
+- `BBF-V0-024`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) A request
+  may declare `provider` with name `go-test`, a pinned Go `toolchain` command, one
+  repository-relative `package` (or `.`, never a `...` pattern) equal to the target project,
+  1..256 unique top-level `Test*` `examples` that include the target assertion, and 1..64
+  `perturbation_env_keys`. Its runner identity is `go-test` with browser and browser version
+  `none` and config file `go.mod`. Each control's unrelated criteria and required setup must be
+  other selected examples, and controls may not declare application markers. Perturbation keys
+  may not overlap the declared, reserved or provider-forced environment. The test repository must
+  have no uncommitted or untracked changes.
+- `BBF-V0-025`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) Under the
+  provider profile, each control's pinned hook runs under the same approval, staging, containment,
+  timeout and cleanup rules and prints one closed `corvint-behavior-control-perturbation/0`
+  document bound to the plan digest, the control's perturbation digest and the attempt. Its
+  environment may name only declared perturbation keys, with values of at most 4096 bytes and no
+  NUL. Any other output is `invalid_control` with `perturbation-output-invalid`.
+- `BBF-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runner
+  then runs the pinned toolchain in place after its digest check, as
+  `go test -json -count=1 -run '^(examples)$' ./package`, in the test repository, under process
+  containment. The environment is a scratch HOME/GOPATH/GOCACHE, the declared keys (which may
+  supply a cache), the perturbation and the forced `CGO_ENABLED=0`, `GOENV=off`,
+  `GOFLAGS=-mod=readonly`, `GOPROXY=off`, `GOSUMDB=off`, `GOTELEMETRY=off`, `GOTOOLCHAIN=local`
+  and `GOWORK=off`, so module resolution never reaches the network. A test repository that is not
+  at the bound revision or not clean before the run is `test-repository-drift`, and one changed by
+  the run is `test-repository-mutated`; both are `invalid_control`.
+- `BBF-V0-027`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runner
+  synthesizes the hook receipt from the provider's `test2json` events: the target and each
+  unrelated and setup example take their own top-level terminal action (`pass`, `fail` or `skip`),
+  a missing example is `not_run`, and the native receipt digest is the event stream's digest. A
+  failure whose output reports a panic, attributed to that example or to no example, is a `panic`
+  failure, never an assertion. The admitted receipt is classified by the unchanged BBF-V0-006
+  rules into the same six statuses. A provider exit other than 0 or 1, timeout, overflow or other
+  boundary loss, or a `build-fail` event, is `infrastructure_failed` with
+  `provider-process-failed`. A non-JSON line is `invalid_control` with `provider-output-invalid`,
+  and two terminal actions for one example are `invalid_control` with
+  `provider-output-contradictory`.
+- `BBF-V0-028`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011)
+  `execute-receipt` refuses a provider-profile plan with `receipt-profile-unsupported`, and
+  `verify-receipt` refuses any receipt whose plan declares a provider or whose report names one,
+  until the provider's native event stream has its own retained-evidence binding.
+
 ### Approval-bound evidence wire
 
 The closed envelope fields are `schema`, `plan_preimage`, `approval`, `tool`, `raw_attempts`,
@@ -194,7 +267,9 @@ bounded JSON request; it runs in the explicitly marked disposable workspace with
 environment. The runner reads and hashes the workspace, hook output and artifacts, then invokes the
 separate cleanup hook and requires the original digest. A hook capable of reaching undeclared
 external state remains outside the trust boundary; the plan must declare no persistent external
-state, and the result retains that limitation.
+state, or declare the BBF-V0-019 shared-server isolation, and the result retains that limitation.
+Under that isolation the server identity is reported by the caller's pinned reset hook, not
+observed by the runner.
 
 Malformed identities, stale bytes, unknown statuses, missing expected observations and boundary
 violations fail closed. Infrastructure failures remain distinct from failed assertions. Cleanup is
@@ -214,6 +289,13 @@ always attempted with its own bounded context even after execution failure or ca
 | `receipt-tool-identity-invalid` | The executing companion's name, version, revision or executable digest is missing or malformed. |
 | `history-receipt-invalid` | An inert-control history receipt fails offline verification against its pinned digests. |
 | `history-bound-exceeded` | An inert-control history is empty or holds more than 64 receipts. |
+| `receipt-profile-unsupported` | `execute-receipt` was asked to retain evidence for a runner-neutral provider plan, which has no retained-evidence binding yet (BBF-V0-028). |
+
+Attempt reasons added by the opt-in profiles (BBF-V0-021, BBF-V0-025..027): `isolation-reset-failed`,
+`isolation-identity-drift`, `isolation-health-failed`, `isolation-observation-unexpected`,
+`perturbation-output-invalid`, `test-repository-drift`, `test-repository-mutated`,
+`provider-staging-unavailable`, `provider-process-failed`, `provider-build-failed`,
+`provider-output-invalid` and `provider-output-contradictory`.
 
 ## Acceptance matrix
 
@@ -230,6 +312,8 @@ always attempted with its own bounded context even after execution failure or ca
 | cross-revision inert defect | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | approval-bound retained evidence | `TestBBFV0013OfflineReceipt`, `TestBBFV0013ReceiptTampering`, `TestBBFV0013ReceiptFailuresNeverKill`, `TestBBFV0013SecretOutputRefused`, `TestBBFV0013ReceiptApprovalAndBounds`; actual CLI export/verify smoke |
 | attempt without an admitted hook receipt | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
+| declared shared-server isolation | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical` |
+| runner-neutral Go provider | `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 
 Focused package and command tests run first. Repository completion additionally requires the
 canonical Go test/vet and interoperability gates, independent review, and the dogfood CEM/OCM
@@ -257,6 +341,7 @@ default commands remain unchanged.
 | BBF-V0-015..016 | `internal/behaviorfalsify` classifier, receipt verifier; `internal/testacceptance` consumer | `TestBBFV0015ApplicationClassification`, `TestBBFV0015PlanMarkerValidation`, `TestBBFV0016InertControlsListedSeparately`, `TestBBFV0016LegacyWireUnchanged`, `TestBBFV0016InertControlAbstainsOnStrength` |
 | BBF-V0-017 | `internal/behaviorfalsify/history.go` | `TestBBFV0017RepeatedNotAppliedAcrossRevisions` |
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
+| BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 
 ## Unresolved decisions and promotion criteria
 
