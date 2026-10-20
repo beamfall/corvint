@@ -246,29 +246,45 @@ type E2EConfig struct {
 // The app build identity is captured once before the readiness check passes
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
-func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+// AdmitE2E returns the refusal RunE2E would give before anything starts, so
+// watch can refuse before it reports a run (PWP-V0-038). Freshness runs keep
+// their own admission inside RunFreshE2E.
+func AdmitE2E(cfg E2EConfig) error {
 	if cfg.KeepReporters && (!cfg.ExternalServer || cfg.Freshness != nil) {
-		return Receipt{}, refuseE2E("keep-reporters-unsupported-mode")
+		return refuseE2E("keep-reporters-unsupported-mode")
 	}
 	if q := cfg.KeepReportersQualification; q != nil {
 		if !cfg.KeepReporters {
-			return Receipt{}, refuseE2E("keep-reporters-qualification-requires-keep-reporters")
+			return refuseE2E("keep-reporters-qualification-requires-keep-reporters")
 		}
 		if q.Verdict != KeepReportersQualified || keepReportersQualificationError(*q) != nil {
-			return Receipt{}, refuseE2E(keepReportersQualificationInvalid)
+			return refuseE2E(keepReportersQualificationInvalid)
 		}
 	}
 	if cfg.Freshness != nil {
-		return RunFreshE2E(ctx, cfg)
+		return nil
 	}
 	if cfg.RetainAttemptDetails && (!cfg.ExternalServer || cfg.ApplicationAttestation != nil || cfg.SensitiveInputPolicy != nil) {
-		return Receipt{}, refuseE2E("external-attempt-details-composition-unsupported")
+		return refuseE2E("external-attempt-details-composition-unsupported")
 	}
 	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
-		return Receipt{}, refuseE2E("application-attestation-requires-external-server")
+		return refuseE2E("application-attestation-requires-external-server")
 	}
 	if cfg.SensitiveInputPolicy != nil && !cfg.ExternalServer {
-		return Receipt{}, refuseE2E("sensitive-input-redaction-requires-external-server")
+		return refuseE2E("sensitive-input-redaction-requires-external-server")
+	}
+	if cfg.ExternalServer {
+		return admitExternal(cfg)
+	}
+	return nil
+}
+
+func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if err := AdmitE2E(cfg); err != nil {
+		return Receipt{}, err
+	}
+	if cfg.Freshness != nil {
+		return RunFreshE2E(ctx, cfg)
 	}
 	if cfg.ExternalServer {
 		return runExternal(ctx, cfg)
