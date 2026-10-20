@@ -4335,6 +4335,9 @@ TCN-V0-009	docs/specs/test-consolidation-planner-v0.md	`--format json` MUST prin
 TCN-V0-010	docs/specs/test-consolidation-planner-v0.md	`--format table` MUST print exactly: one header line `<!-- corvint	unrecorded	-
 TCN-V0-011	docs/specs/test-consolidation-planner-v0.md	`corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]	unrecorded	-
 TCN-V0-012	docs/specs/test-consolidation-planner-v0.md	When the owner accepts an MCP surface, it MUST be the read-only, idempotent,	unrecorded	-
+TCN-V0-013	docs/specs/test-consolidation-planner-v0.md	The TCN-V0-002 variation object MUST additionally admit the optional member	unrecorded	-
+TCN-V0-014	docs/specs/test-consolidation-planner-v0.md	A variation naming one fact key in both `requires` and `step_facts`, whatever th	unrecorded	-
+TCN-V0-015	docs/specs/test-consolidation-planner-v0.md	Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variation	unrecorded	-
 TRE-V0-001	docs/specs/test-runner-execution-v0.md	Adapters MUST declare explicit runner/runtime/report profiles. Fixed invocation	unrecorded	-
 TRE-V0-002	docs/specs/test-runner-execution-v0.md	Inputs MUST identify the source snapshot, selectors, configuration, executable/t	unrecorded	-
 TRE-V0-003	docs/specs/test-runner-execution-v0.md	A bounded invocation MAY declare BUILD, DISCOVER, TEST and DECODE phases, each u	unrecorded	-
