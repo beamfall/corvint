@@ -220,8 +220,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   the referencing line and blob with confidence `medium` and authority `syntax`. References
   are read from the lexically masked source (no comment, string or heredoc text), fully
   qualified (`::A::B`) or relative (`B`, `A::B`), excluding labels and method calls `Name(`.
-  A single-segment unrooted `Name = value` (not `==`, `=~` or `=>`) is a local definition of
-  Name in the innermost enclosing namespace, never a reference; every `class`/`module` the
+  A single-segment unrooted `Name = value` or `Name ||= value` (not `==`, `=~` or `=>`) is a
+  local definition of Name in the innermost enclosing namespace, never a reference; a rooted
+  `::A::Name = value` defines `A::Name` and a qualified `A::Name = value` defines Name in the A
+  that lexical lookup finds (as for a qualified reopen below), and neither is a reference to
+  that constant, though the namespace A it names is one (V1-1714); every `class`/`module` the
   file opens is also a local definition, and each local definition's namespace prefixes exist.
   A relative reference resolves to the innermost enclosing `module`/`class` namespace N for
   which N::first-segment is a mapped constant, a local definition, or a namespace prefix of
@@ -235,7 +238,11 @@ path receives it by default, add a bounded second hop, and mark every such row a
   and `do`) counts toward a nesting bound of 256 open blocks; scanning stays linear in the
   source size. A file whose block openers and `end`s do not balance, or that nests past the
   bound, resolves each relative reference to itself and under every namespace it opens, never
-  fewer.
+  fewer. Failure mode (V1-1714, recorded): a qualified reopen or qualified assignment resolves
+  its first segment against local definitions made earlier in the file only, so a later local
+  definition of that namespace does not redirect it. This matches Ruby's own lookup when the
+  file is loaded top to bottom; code that runs the reopen later (from a method or block) is not
+  modelled.
 - `NGI-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1674)
   Metaprogrammed names MUST stay unknown, never become a reference: other Ruby sources'
   `constantize`, `safe_constantize`, `const_get`, `send`, `public_send` and `__send__` words
@@ -480,7 +487,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-015` | `registryCallSites`, `registryConstants`, `registryMember` | `TestRegistryDialectConstAccessorKey`, `TestRegistryDialectConstAccessorKeyStaysNonLiteral`, `TestRegistryDialectNonLiteralKeyWidens`; real CLI output in `../build-log/2026-10-15-registry-dialect-lazy-const.md` |
 | `NGI-V0-016` | `Mapper.Constant`, `Mapper.Camelize` (`internal/rubyautoload/rubyautoload.go`) | `TestRubyAutoloadConstantMapping` (`internal/rubyautoload`), `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-017` | `loadRubyAutoload`, `rubyAutoloadDeclaration` (`internal/contextindex/ruby_autoload.go`); `New`, `DefaultRoots`, declaration decoding and `readConfiguredInflections` (`internal/rubyautoload`) | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration` (`internal/rubyautoload`), `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration` |
-| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows` |
+| `NGI-V0-018` | `scanRubyConstantSource`, `rubyDefinedConstant`, `rubyAssignsConstant`, `resolutions`, `rubyAutoload.impact`; wiring in `impact` | `TestRubyAutoloadNamedConstantReverseReference`, `TestRubyAutoloadNamespacedConstant`, `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNestingBound`, `TestRubyAutoloadQualifiedClassInNamespace`, `TestRubyAutoloadLocalConstantShadows`, `TestRubyAutoloadQualifiedAndOrAssignmentsDefine` |
 | `NGI-V0-019` | `rubyAutoload.impact` unknown rows | `TestRubyAutoloadMetaprogrammingStaysUnknown`, `TestRubyAutoloadNamedConstantReverseReference` |
 | `NGI-V0-020` | syntax-frontier guard in `impact`; `attachNonGoImpactUnknowns` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadNamedConstantReverseReference`; `TestNonGoImpactCLIProfile`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-021` | `rubyAutoload.report` over `Mapper.Report`, `attachNonGoImpactUnknowns` | `TestRubyAutoloadInflections`, `TestRubyAutoloadDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1674-ruby-autoload-reverse-refs.md` |

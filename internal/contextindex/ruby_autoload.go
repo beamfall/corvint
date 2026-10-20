@@ -356,14 +356,20 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 				name, end := rubyReferenceAt(code, i)
 				switch {
 				case name == "" || rubyLabelOrCall(code, end):
-				case !rooted && !strings.Contains(name, "::") && rubyAssignsConstant(code, end):
-					// `Thing = ...` defines a constant in the innermost
-					// namespace; it is not a reference to an autoloaded one.
-					if outer := rubyInnermost(lexical); outer != "" {
-						result.define(outer + "::" + name)
-					} else {
-						result.define(name)
+				case rubyAssignsConstant(code, end):
+					// `Thing = ...` (or `||=`) defines a constant in the
+					// innermost namespace, `::Thing = ...` a top-level one and
+					// `A::B = ...` B inside the A lexical lookup finds; none is
+					// a reference to an autoloaded constant, but the namespace
+					// a qualified target names is (V1-1714).
+					full := name
+					if !rooted {
+						full = rubyDefinedConstant(name, lexical, known, result.local)
 					}
+					if cut := strings.LastIndex(name, "::"); cut >= 0 {
+						result.references = append(result.references, rubyReference{line: line, name: name[:cut], stack: namespaces(), rooted: rooted})
+					}
+					result.define(full)
 				default:
 					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(), rooted: rooted})
 				}
@@ -417,9 +423,13 @@ func rubyDefinedConstant(name string, lexical []string, known func(string) bool,
 	return name
 }
 
-// rubyAssignsConstant reports `Name = value`, never `==`, `=~` or `=>`.
+// rubyAssignsConstant reports `Name = value` or `Name ||= value`, never
+// `==`, `=~` or `=>`.
 func rubyAssignsConstant(code string, end int) bool {
 	cursor, _ := rubySkipSpaces(code, end)
+	if strings.HasPrefix(code[cursor:], "||=") {
+		return true
+	}
 	return cursor < len(code) && code[cursor] == '=' &&
 		(cursor+1 >= len(code) || (code[cursor+1] != '=' && code[cursor+1] != '~' && code[cursor+1] != '>'))
 }
