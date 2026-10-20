@@ -77,10 +77,29 @@ var (
 	// rubyEndlessDef is an endless method, `def name = expr` or `def name(args) = expr`; it opens
 	// no block. A setter (`def name=(v)`) and a comparison (`==`) are not one.
 	rubyEndlessDef = regexp.MustCompile(`^def\s+[A-Za-z_]\w*[?!]?(?:\s+|\([^()]*\)\s*)=(?:[^=~]|$)`)
+	// rubyValueOpener is if, unless, case, begin, while or until in value position, where it
+	// opens a block its own `end` closes: after an assignment (`=`, `||=`, `+=`), a hash `=>`, an
+	// opening bracket, a comma, `&&` or `||`, and case or begin after `return`. A modifier
+	// (`foo if bar`, `return if bar`) follows an expression or `return` and opens nothing, and a
+	// keyword argument (`if: x`) is not the keyword (TSA-V0-396).
+	rubyValueOpener = regexp.MustCompile(`(?:(?:=>?|[(\[,]|&&|\|\|)\s*(?:if|unless|case|begin|while|until)|\breturn\s+(?:case|begin))(?:\s|[(;]|$)`)
+	// rubyLineEnd is an `end` keyword; after a value opener it closes the block on the same line.
+	rubyLineEnd = regexp.MustCompile(`\bend\b`)
 )
 
 func rubyOpens(text string) bool {
-	return (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text) && !rubyEndlessDef.MatchString(text)
+	if (rubyOpener.MatchString(text) || rubyDo.MatchString(text)) && !rubyOneLine.MatchString(text) && !rubyEndlessDef.MatchString(text) {
+		return true
+	}
+	return rubyValueOpens(text)
+}
+
+// rubyValueOpens reports whether a line opens a block with a value-position keyword that the line
+// does not also close (`x = if a then 1 else 2 end`); string literals are ignored (TSA-V0-396).
+func rubyValueOpens(text string) bool {
+	text = stripRubyStrings(text)
+	at := rubyValueOpener.FindStringIndex(text)
+	return at != nil && !rubyLineEnd.MatchString(text[at[1]-1:])
 }
 
 // rubyBlockEnd returns the index of the `end` closing the block opened at lines[i], or len(lines).

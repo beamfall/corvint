@@ -4456,6 +4456,8 @@ TSA-V0-089	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-090	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Two inclusions of one	standing	2026-10-11; V1-1867; #1164
 TSA-V0-091	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) A qualified read that	standing	2026-10-11; V1-1867; #1164
 TSA-V0-092	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUS	standing	2026-10-11; V1-1867; #1164
+TSA-V0-396	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader	standing	2026-10-11; V1-2063; #1312
+TSA-V0-397	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) A support file that d	standing	2026-10-11; V1-2063; #1312
 TSA-V0-160	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) `EITHER-OR-OUTCOME`	standing	2026-10-11; V1-1930; #1191
 TSA-V0-161	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) The JS/TS forms MUST	standing	2026-10-11; V1-1930; #1191
 TSA-V0-162	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or	standing	2026-10-11; V1-1930; #1191

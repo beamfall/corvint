@@ -1395,6 +1395,71 @@ section; the callers go back to `DiscoverWithSources`. Nothing is persisted.
 | TSA-V0-091 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionRefusals`, `TestSourceValidityQualifiedReference` | experimental |
 | TSA-V0-092 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testvaliditydoc/ruby_source.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionReceiptJoin`, `TestDiscoverRubyInclusionJoin` | experimental |
 
+## Value-position Ruby blocks and support-file parse isolation (V1-2063)
+
+V1-2063 (GitHub #1312) fixes inclusion-qualified reads that abstained repo-wide with
+`rspec-shared-group-unbound` when any support file assigned the result of a block expression
+(`b = if e ... end`). The line reader did not count the value-position keyword as a block opener,
+so the closing `end` unbalanced the file, and one unread support file then held back every
+inclusion. It is agent-drafted and accepted under the owner's standing auto-accept (2026-10-11).
+
+- `TSA-V0-396`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) The Ruby line reader
+  MUST count `if`, `unless`, `case`, `begin`, `while` and `until` as a block opener in value
+  position: after an assignment (`=`, `||=`, `+=` and the other operator assignments), a hash
+  `=>`, an opening `(` or `[`, a comma, `&&` or `||`, and `case` or `begin` after `return`.
+  - A modifier (`foo if bar`, `x = 1 unless y`, `return if bar`) and a keyword argument
+    (`if: true`) MUST NOT open a block, and neither may a keyword inside a string literal.
+  - A value-position block that the same line closes with `end`
+    (`b = if e then 1 else 2 end`) opens nothing.
+  - Line-start openers keep their TSA-V0-084 handling. The rule applies wherever the reader
+    balances blocks: RSpec examples, support files and the teardown and seed-parity readers.
+- `TSA-V0-397`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) A support file that does
+  not read MUST hold back only the inclusions whose shared group it could define. A file could
+  define a group when one of its lines has `shared_examples`, `shared_examples_for` or
+  `shared_context` naming that group literally or by a non-literal.
+  - Such an inclusion abstains `rspec-shared-group-unbound`, and its hygiene anchors MUST be the
+    qualified reference followed by that support file's path. This holds for the CLI read and for
+    receipt discovery through `ApplyExampleSource`.
+  - Every other inclusion binds as if the file were absent. That includes a group defined in the
+    including spec, or one no unread file names.
+  - A support set that is unbound as a whole (TSA-V0-088) still abstains every inclusion. The
+    TSA-V0-088 helper resolution through an included shared context applies the same per-group
+    rule.
+
+Non-goals:
+- parsing Ruby beyond the line reader: other value positions (`key: if x`, `<< if x`, ternary
+  branches) and keywords inside regular expression literals are not recognized;
+- reading a support file that still does not read;
+- defining a shared group through metaprogramming (`define_method`, `send`, a constant naming the
+  method) in an unread file. Such a definition is not seen and does not hold the inclusion back.
+
+Failure modes:
+- An unrecognized value-position opener still unbalances its file. Its inclusions are held back
+  only when the file names their group, and the abstention names the file.
+- A group defined in an unread file through a construct the line scan does not see can let an
+  inclusion bind to another visible definition of the same name instead of abstaining as ambiguous.
+
+Acceptance evidence: synthetic fixtures and the GitHub #1312 reproduction.
+- Each row of the #1312 table and the other value positions, modifiers, keyword arguments, string
+  contents and one-line value blocks (`TestRSpecValueOpenersBalance`).
+- An unread support file defining another group, no group, the included group or a non-literal
+  group (`TestRSpecInclusionUnreadSupportIsolated`), and the command read of both
+  (`TestSourceValidityQualifiedSupportParse`).
+- The built binary on the #1312 scratch repositories: every table row moved from `ABSTAINED` to
+  `ELIGIBLE`. A deliberately unbalanced support file defining another group went from `ABSTAINED`
+  to `ELIGIBLE`; one defining the included group stays `ABSTAINED` with the file among the anchors.
+
+No live qualification on a real suite was run (NOT_RUN). Rollback removes `rubyValueOpener`,
+`rubyValueOpens`, `rspecSupport.sharedGap`, `ExampleSource.Cause`, the test file
+`internal/testsource/validity_rspec_support_parse_test.go` and this section. Nothing is persisted.
+
+### Traceability (V1-2063)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-396 | `internal/testsource/actor_auth_rails.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse` | experimental |
+| TSA-V0-397 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionUnreadSupportIsolated`, `TestSourceValidityQualifiedSupportParse` | experimental |
+
 ## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)
 
 V1-1930 (GitHub #1191), V1-1919 (GitHub #1185), V1-1931 (GitHub #1192) and V1-1932 (GitHub #1193)
