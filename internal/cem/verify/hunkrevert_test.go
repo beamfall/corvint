@@ -402,3 +402,55 @@ func TestCEMV1088CountMovesOnlyAcceptedTiers(t *testing.T) {
 		t.Fatalf("report = %+v", report)
 	}
 }
+
+// TestCEMV1320NotAttemptedHunksCarryAClosedReason pins CEM-V1-320 and
+// CEM-V1-321: every mapped hunk the falsifier does not attempt is listed with
+// one closed reason, in hunk ID order, and only a test-cited Go source hunk is
+// a candidate. A map whose only hunk is a Ruby spec reports why, not nothing.
+func TestCEMV1320NotAttemptedHunksCarryAClosedReason(t *testing.T) {
+	t.Parallel()
+	testFile := "package p\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\n"
+	evidence := wire.Evidence{ID: "e1", BlobOid: "blob", Path: "p/a_test.go", Span: wire.Span{Start: 0, End: int64(len(testFile))}}
+	claim := []wire.Basis{{EvidenceID: "e1", Relation: "test-claim"}}
+	mapped := []wire.Hunk{
+		{ID: "h6", Path: "p/cited.go", Disposition: "supported", Basis: claim},
+		{ID: "h1", Path: "spec/models/user_spec.rb", Disposition: "supported", Basis: claim},
+		{ID: "h2", Path: "p/a_test.go", Disposition: "supported", Basis: claim},
+		{ID: "h3", Path: "p/unknown.go", Disposition: "unknown"},
+		{ID: "h4", Path: "p/uncited.go", Disposition: "supported", Basis: []wire.Basis{{EvidenceID: "e1", Relation: "implementation"}}},
+		{ID: "h5", Path: "p/missing.go", Disposition: "supported", Basis: claim},
+	}
+	group := &patch.Group{Kind: patch.KindModify}
+	for _, hunk := range mapped {
+		if hunk.ID != "h5" {
+			group.Hunks = append(group.Hunks, revertTestHunk(hunk.Path, 1, 1, "+x"))
+			group.Hunks[len(group.Hunks)-1].ID = hunk.ID
+		}
+	}
+	capture := &stableCapture{change: &wire.Map{Hunks: mapped, Evidence: []wire.Evidence{evidence}}, parsed: &patch.Patch{Groups: []*patch.Group{group}}}
+	candidates, notAttempted := revertCandidates(capture, func(string) ([]byte, error) { return []byte(testFile), nil })
+	if len(candidates) != 1 || candidates[0].hunk.ID != "h6" || !reflect.DeepEqual(candidates[0].tests, []string{"p::TestA"}) {
+		t.Fatalf("candidates = %+v, want only h6 naming p::TestA", candidates)
+	}
+	want := []HunkNotAttempted{
+		{HunkID: "h1", Path: "spec/models/user_spec.rb", Reason: NotAttemptedLanguage},
+		{HunkID: "h2", Path: "p/a_test.go", Reason: NotAttemptedTestOnly},
+		{HunkID: "h3", Path: "p/unknown.go", Reason: NotAttemptedDisposition},
+		{HunkID: "h4", Path: "p/uncited.go", Reason: NotAttemptedNoTestClaim},
+		{HunkID: "h5", Path: "p/missing.go", Reason: NotAttemptedNotInPatch},
+	}
+	if !reflect.DeepEqual(notAttempted, want) {
+		t.Fatalf("notAttempted = %+v, want %+v", notAttempted, want)
+	}
+
+	// A Ruby-only map: no candidate runs, no copy is exported, and the report
+	// names the hunk instead of an empty list alone.
+	ruby := &stableCapture{change: &wire.Map{Hunks: mapped[1:2]}, parsed: &patch.Patch{Groups: []*patch.Group{{Kind: patch.KindModify, Hunks: []*patch.Hunk{group.Hunks[1]}}}}}
+	report := runHunkRevert(context.Background(), t.TempDir(), ruby, &Citation{}, DefaultHunkRevertLimits, func(context.Context, string, string, []string) runOutcome {
+		t.Fatal("a Ruby-only map ran go test")
+		return runOutcome{}
+	})
+	if len(report.Hunks) != 0 || report.NotRun != 0 || !reflect.DeepEqual(report.NotAttempted, want[:1]) {
+		t.Fatalf("Ruby-only report = %+v", report)
+	}
+}

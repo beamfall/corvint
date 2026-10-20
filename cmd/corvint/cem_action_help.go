@@ -1,0 +1,96 @@
+package main
+
+import "strings"
+
+// cemActionHelpPrefix marks the help topic of one cem action: `corvint cem
+// ACTION --help` prints only that action's usage, description and options,
+// projected from cemHelp so the two cannot drift (CEM-V1-340).
+const cemActionHelpPrefix = "cem-"
+
+// cemActionHelp projects cemHelp onto one action: its usage lines, its Actions
+// paragraph, the Verification options when it is a verifying action, and the
+// closing wire note. status, verify and report share one Actions paragraph.
+// It returns "" for an action cemHelp does not document.
+func cemActionHelp(action string) string {
+	usage := cemHelpUsage(action)
+	paragraphAction := action
+	if action == "verify" || action == "report" {
+		paragraphAction = "status"
+	}
+	paragraph := cemHelpSection("\nActions:\n", "  "+paragraphAction, "           ")
+	if usage == "" || paragraph == "" {
+		return ""
+	}
+	var text strings.Builder
+	text.WriteString("Change Evidence Map " + action + " action.\n\nUsage:\n" + usage + "\nAction:\n" + paragraph)
+	if action == "status" || action == "verify" || action == "report" {
+		if options, ok := cemHelpBlock("\nVerification options:\n"); ok {
+			text.WriteString("\nVerification options:\n" + options)
+		}
+	}
+	if note, ok := cemHelpBlock("\ncem/1.0 is the only wire."); ok {
+		text.WriteString("\ncem/1.0 is the only wire." + note)
+	}
+	text.WriteString("\nFull command help: corvint cem --help\n")
+	return text.String()
+}
+
+// cemHelpUsage returns the Usage lines of one action with their continuation
+// lines.
+func cemHelpUsage(action string) string {
+	block, ok := cemHelpBlock("\nUsage:\n")
+	if !ok {
+		return ""
+	}
+	var usage strings.Builder
+	taking := false
+	for _, line := range strings.SplitAfter(block, "\n") {
+		switch {
+		case strings.HasPrefix(line, "  corvint "):
+			taking = strings.HasPrefix(line, "  corvint [--root PATH] cem "+action+" ") ||
+				strings.TrimRight(line, "\n") == "  corvint [--root PATH] cem "+action
+		case !strings.HasPrefix(line, "    "):
+			taking = false
+		}
+		if taking {
+			usage.WriteString(line)
+		}
+	}
+	return usage.String()
+}
+
+// cemHelpSection returns the paragraph inside the block after heading whose
+// first line starts with lead followed by a space or a line end, through its
+// continuation lines (indented by indent).
+func cemHelpSection(heading, lead, indent string) string {
+	block, ok := cemHelpBlock(heading)
+	if !ok {
+		return ""
+	}
+	var paragraph strings.Builder
+	taking := false
+	for _, line := range strings.SplitAfter(block, "\n") {
+		trimmed := strings.TrimRight(line, "\n")
+		switch {
+		case trimmed == lead || strings.HasPrefix(trimmed, lead+" "):
+			taking = true
+		case !strings.HasPrefix(line, indent):
+			taking = false
+		}
+		if taking {
+			paragraph.WriteString(line)
+		}
+	}
+	return paragraph.String()
+}
+
+// cemHelpBlock returns the text of cemHelp after marker through the next blank
+// line.
+func cemHelpBlock(marker string) (string, bool) {
+	_, after, found := strings.Cut(cemHelp, marker)
+	if !found {
+		return "", false
+	}
+	block, _, _ := strings.Cut(after, "\n\n")
+	return block + "\n", true
+}

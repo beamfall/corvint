@@ -11,6 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
+	"cover": true, "discriminate": true,
 	"anchor": true, "provenance": true, "export": true,
 }
 
@@ -118,6 +119,9 @@ func commandHelpTopic(rest []string) string {
 		return corpusHelpTopic(rest[2:])
 	case nested && len(rest) > 1 && rest[1] != "--help" && rest[1] != "-h" && !choices[rest[1]]:
 		return ""
+	case rest[0] == "cem" && len(rest) > 1 && choices[rest[1]]:
+		// One cem action's help, not the whole family's (CEM-V1-340).
+		return cemActionHelpPrefix + rest[1]
 	}
 	return topic
 }
@@ -163,6 +167,9 @@ func publicHelpTopic(command string) (string, bool) {
 }
 
 func helpText(topic string) string {
+	if action, ok := strings.CutPrefix(topic, cemActionHelpPrefix); ok {
+		return cemActionHelp(action)
+	}
 	if operation, ok := strings.CutPrefix(topic, "docs-corpus-"); ok {
 		return docsCorpusOperationHelp(operation)
 	}
@@ -1093,7 +1100,8 @@ Verification options:
                        test-cited Go source hunk in a disposable export of the
                        target and re-run its named tests; adds the hunkRevert
                        report (cem-hunk-revert/0), and only a consumer-observed
-                       failure counts as held. Bounds: 300 s per go test run,
+                       failure counts as held; every hunk it did not attempt
+                       is listed in notAttempted with its reason. Bounds: 300 s per go test run,
                        1200 s in total (reasons timeout, total-limit). It
                        executes the target's own tests UNCONFINED: no sandbox,
                        with the caller's privileges; use it only on a target

@@ -32,8 +32,8 @@ func stableMapBytes(t *testing.T) []byte {
 // stable bytes at relative are unchanged.
 func requireStableRefusal(t *testing.T, err error, tool, root, relative string, want []byte) {
 	t.Helper()
-	if cemcode.CodeOf(err) != cemcode.UnsupportedSpec {
-		t.Fatalf("%s: got %v, want %s", tool, err, cemcode.UnsupportedSpec)
+	if cemcode.CodeOf(err) != cemcode.NotAProducerMap {
+		t.Fatalf("%s: got %v, want %s", tool, err, cemcode.NotAProducerMap)
 	}
 	message := cemcode.MessageOf(err)
 	for _, fragment := range []string{"cem/1.0", "cem " + tool, "Core mutates only a producer map", "cem status or cem verify"} {
