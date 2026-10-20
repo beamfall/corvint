@@ -39,6 +39,9 @@ const (
 	LocationTitleNotLiteral = "title-not-literal"
 	// LocationSharedExample: the test is a shared example; its title path depends on the inclusion.
 	LocationSharedExample = "shared-example-definition"
+	// LocationLineAmbiguous: more than one test is declared on the line, so the reading cannot say
+	// which title path is this test's.
+	LocationLineAmbiguous = "declaration-line-ambiguous"
 )
 
 // The location member names an Absent key may take.
@@ -72,14 +75,20 @@ func (l *Location) setTitlePath(path []string) {
 }
 
 // placeSource records a bound source reading's declaration of one test: the file, the declaring
-// line and, unless the test is a shared example, its title path.
+// line and, unless the test is a shared example or shares its line with another test, its title
+// path.
 func (l *Location) placeSource(file string, line int, source testvalidity.ExampleSource) {
 	if l == nil {
 		return
 	}
 	l.setFile(file)
 	l.setLine(line)
-	if l.Absent[locationTitlePath] != LocationSharedExample {
+	switch {
+	case l.Absent[locationTitlePath] == LocationSharedExample:
+	case source.Read == testvalidity.HygieneReasonJSLineAmbiguous:
+		l.TitlePath = nil
+		l.Absent[locationTitlePath] = LocationLineAmbiguous
+	default:
 		l.setTitlePath(source.TitlePath)
 	}
 }

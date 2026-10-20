@@ -203,3 +203,19 @@ func TestLPCVV0151StaticProjection(t *testing.T) {
 		t.Fatalf("static document=%+v", document)
 	}
 }
+
+// LPCV-V0-146, LPCV-V0-147: a test placed on a line that declares more than one test takes the
+// file and line but no title path, which is absent with declaration-line-ambiguous, even when the
+// reading carries one; the static projection reports the same.
+func TestLPCVV0146AmbiguousLineTitlePathAbsent(t *testing.T) {
+	ambiguous := testvalidity.ExampleSource{Read: testvalidity.HygieneReasonJSLineAmbiguous, Findings: []testvalidity.SourceFinding{}, TitlePath: []string{"b"}}
+	location := newLocation()
+	location.placeSource("e2e/two.spec.ts", 2, ambiguous)
+	if want := (&Location{File: "e2e/two.spec.ts", Line: 2, Absent: map[string]string{"titlePath": LocationLineAmbiguous}}); !reflect.DeepEqual(location, want) {
+		t.Fatalf("location=%+v want %+v", location, want)
+	}
+	document := ProjectStatic("rev", []StaticFile{{Path: "e2e/two.spec.ts", Examples: map[int]testvalidity.ExampleSource{2: ambiguous}}})
+	if got := document.Tests[0].Location; got.TitlePath != nil || got.Absent["titlePath"] != LocationLineAmbiguous {
+		t.Fatalf("static location=%+v", got)
+	}
+}

@@ -110,7 +110,12 @@ func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, st
 		}
 		test := r.at(e.line)
 		if reason := r.abstention(e, perLine[e.line]); reason != "" {
-			out[e.line] = testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, EndLine: e.endLine, TitlePath: r.titlePath(e)}
+			// Two declarations on one line cannot be told apart, so neither supplies a title path.
+			var path []string
+			if reason != testvalidity.HygieneReasonJSLineAmbiguous {
+				path = r.titlePath(e)
+			}
+			out[e.line] = testvalidity.ExampleSource{Read: reason, Findings: []testvalidity.SourceFinding{}, EndLine: e.endLine, TitlePath: path}
 			continue
 		}
 		findings := append([]testvalidity.SourceFinding{}, byTest[test]...)

@@ -625,7 +625,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-127` retained 1.63.0 live matrix | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); retained 2026-10-20 | `TestNegateLiveDiagnostic` qualified mode on macOS arm64, Node v22.23.2, `@playwright/test` 1.63.0, `chromium-headless-shell` 1243: 12 of 12 cases passed in 88.6 s, every runner tuple `candidate`, the interruption case asserting the observed slow request and its cancellation; with a fixture that fails before that request, the case fails (build log 2026-10-20) |
 | `LPCV-V0-128` 1.64.0 derivation abstention | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); finding, not qualification | `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248): 5 of 12 cases passed; every assertion step read `NOT_MEASURED` `step-fault-underivable` (build log 2026-10-20); cause `NOT_OBSERVED` |
 | `LPCV-V0-129` join stays gated off | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered | `internal/testvaliditydoc`'s `TestLPCVV0129JoinStaysGatedOff`; the owner sample comparison and G2 cost measurement stay `NOT_RUN` (owner-run) |
-| `LPCV-V0-145..153` structured test location and static source projection | accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); experimental | `internal/testvaliditydoc`'s `TestLPCVV0145PlaywrightLocation`, `TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations`, `TestLPCVV0146GoLocationNotRecorded`, `TestLPCVV0148RubyLocationAndSharedGroup`, `TestLPCVV0151StaticProjection`, `TestLPCVV0147DiscoveryPlacesLocation` and `TestLPCVV0135RubyOptionalMembersDecodeClosed`; `internal/testsource`'s `TestLPCVV0147JSTitlePath`, `TestLPCVV0147RSpecTitlePath` and `TestLPCVV0152StaticExamplesReadsCommittedSource`; `internal/mcp/testvaliditybridge`'s `TestLPCVV0149ReceiptLocationMatchesCLI`; `cmd/corvint`'s `TestLPCVV0150StaticModeProjectsSourceAndWritesNothing` and `TestLPCVV0153StaticOptionsAreExclusive`; real Playwright and RSpec runs `NOT_RUN` |
+| `LPCV-V0-145..153` structured test location and static source projection | accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); experimental | `internal/testvaliditydoc`'s `TestLPCVV0145PlaywrightLocation`, `TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations`, `TestLPCVV0146GoLocationNotRecorded`, `TestLPCVV0148RubyLocationAndSharedGroup`, `TestLPCVV0151StaticProjection`, `TestLPCVV0147DiscoveryPlacesLocation`, `TestLPCVV0146AmbiguousLineTitlePathAbsent` and `TestLPCVV0135RubyOptionalMembersDecodeClosed`; `internal/testsource`'s `TestLPCVV0147JSTitlePath`, `TestLPCVV0147RSpecTitlePath`, `TestLPCVV0147JSAmbiguousLineHasNoTitlePath`, `TestLPCVV0147RSpecComputedTitleNotLiteral`, `TestLPCVV0152StaticExamplesReadsCommittedSource` and `TestLPCVV0152StaticSupportSharesTheCommandBudget`; `internal/mcp/testvaliditybridge`'s `TestLPCVV0149ReceiptLocationMatchesCLI`; `cmd/corvint`'s `TestLPCVV0150StaticModeProjectsSourceAndWritesNothing` and `TestLPCVV0153StaticOptionsAreExclusive`; real Playwright and RSpec runs `NOT_RUN` |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
 
@@ -1756,15 +1756,18 @@ reads the same document as before.
   `file`, `line` and `titlePath` that is not set MUST be named in `location.absent` with exactly one
   closed reason: `not-recorded-by-provider` (the provider records no such member, as for every Go
   test), `repository-root-unbound`, `anchor-file-unbound`, `anchor-not-declaration`,
-  `source-not-read`, `source-unplaced`, `title-not-literal` or `shared-example-definition`. A set
+  `source-not-read`, `source-unplaced`, `title-not-literal`, `shared-example-definition` or
+  `declaration-line-ambiguous` (more than one test is declared on the line). A set
   member never appears in `absent`, so an absent member is never silent.
 - `LPCV-V0-147`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) The JS/TS
   and RSpec example readers MUST record an example's `titlePath` only when every title on it is one
   literal string: one exact string literal for a JS/TS describe or test call with no `.each`
   table, and a string without interpolation (or, for a group, one constant name) for RSpec. A
   template, an interpolation, an `each`-generated title, a non-literal ancestor, an RSpec constant
-  joined with a second description, or a declaration read from another file records none, and the
-  test's location says `title-not-literal`. When discovery's bound reading
+  joined with a second description, a computed description (a literal joined with an expression,
+  as `"works" + suffix`), or a declaration read from another file records none, and the test's
+  location says `title-not-literal`. A JS/TS line that declares more than one test supplies no
+  title path to any of them, and their locations say `declaration-line-ambiguous`. When discovery's bound reading
   places a JS/TS outcome or RSpec example at its declaration, `file`, `line` and `titlePath` come
   from that reading; a read but unplaced JS/TS outcome says `source-unplaced`.
 - `LPCV-V0-148`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) An RSpec
@@ -1795,8 +1798,9 @@ reads the same document as before.
 - `LPCV-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046) Static mode
   MUST read committed Git objects only, through the bounded `testsource` repository reader with no
   optional locks, and MUST write nothing: no retained evidence, no index refresh, no trace and no
-  file in the worktree or `.git`. An uncommitted edit is not read. The shared file-count and byte
-  bounds apply and are refused as `tests-bound-exceeded`.
+  file in the worktree or `.git`. An uncommitted edit is not read. The test files and every RSpec
+  support set draw on one command budget of file count and bytes; exceeding it anywhere, including
+  in a support read, is refused as `tests-bound-exceeded`, never read as an unbound support set.
 - `LPCV-V0-153`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2046) `--static`
   takes no value and may be given once; it excludes `--receipt`, `--discover` and `--route-stubs`; a
   PATH operand requires `--static`. A malformed PATH (absolute, escaping, `.git`, or carrying NUL,
@@ -1822,6 +1826,8 @@ Non-goals:
 | Static mode refreshes the index or retains evidence. | `LPCV-V0-152` Git-object reads with no optional locks |
 | A worktree edit changes a static reading. | `LPCV-V0-152` committed `HEAD` only |
 | A misspelt PATH reads as a clean tree. | `LPCV-V0-153` `tests-source-unavailable` |
+| Two tests on one line share one test's title path. | `LPCV-V0-147` `declaration-line-ambiguous` |
+| Support sets read past the command bound. | `LPCV-V0-152` one shared budget; `tests-bound-exceeded` |
 
 Acceptance evidence: GitHub #1302 (file, line and title path or an explicit absence for every test,
 covering RSpec and Playwright and a shared-group example) and GitHub #1303 (static mode for

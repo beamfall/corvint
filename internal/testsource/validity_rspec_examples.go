@@ -75,8 +75,13 @@ func RSpecExampleSourcesWithSupport(name, text string, support testvalidity.Ruby
 }
 
 // rspecGroupTitle reads an example group's description from its declaring line: one string
-// literal or one constant, followed by metadata, the block or the end of the call.
-var rspecGroupTitle = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?context|feature)\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)"|((?:::)?[A-Z]\w*(?:::[A-Z]\w*)*))\s*(?:,\s*([^\s]))?`)
+// literal or one constant that ends the argument, followed by metadata, the block or the end of
+// the call. A computed description (`"group" + suffix`, `User.name`) does not match.
+var rspecGroupTitle = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?context|feature)\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)"|((?:::)?[A-Z]\w*(?:::[A-Z]\w*)*))\s*(?:,\s*(\S)?|\)|do\b|\{|$)`)
+
+// rspecLiteralTitle reads an example's description from its declaring line only when one string
+// literal is the whole argument; a computed description (`"works" + suffix`) does not match.
+var rspecLiteralTitle = regexp.MustCompile(`^\w+\s*\(?\s*(?:'([^'\\]*)'|"([^"\\]*)")\s*(?:,|\)|do\b|\{|$)`)
 
 // titlePath returns example e's literal title path, outermost group first and e's own title last
 // (LPCV-V0-147), or nil when a title on it is not one literal string or constant: an interpolated
@@ -84,7 +89,7 @@ var rspecGroupTitle = regexp.MustCompile(`^(?:RSpec\.)?(?:[xf]?describe|[xf]?con
 // a declaration read from another file.
 func (r *rspecReader) titlePath(e rspecExample) []string {
 	literal := func(text string) bool { return text != "" && !strings.Contains(text, "#{") }
-	if e.path != r.path || !literal(e.title) {
+	if e.path != r.path || !literal(e.title) || !rspecLiteralTitle.MatchString(r.lines[e.index].text) {
 		return nil
 	}
 	path := []string{e.title}

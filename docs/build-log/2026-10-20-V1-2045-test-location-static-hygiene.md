@@ -55,6 +55,21 @@ After merging origin/main (23c9dd5c5), static mode selects JS/TS files with
 `IsJSValidityTestFile`, the predicate the example readers now use, so Jest `__tests__` files are
 read as discovery reads them.
 
+## Review repairs
+
+One independent review round on #1319 reported three defects, now repaired with one regression test
+each:
+
+- Static RSpec support reads took a fresh budget per prefix. They now share the command budget with
+  the test files, and a bound refusal propagates as `tests-bound-exceeded` (`LPCV-V0-152`;
+  `TestLPCVV0152StaticSupportSharesTheCommandBudget`).
+- A JS/TS line declaring two tests gave both the last title path. Such a line now supplies none, and
+  the location names the new closed reason `declaration-line-ambiguous` (`LPCV-V0-146`, `LPCV-V0-147`;
+  `TestLPCVV0147JSAmbiguousLineHasNoTitlePath`, `TestLPCVV0146AmbiguousLineTitlePathAbsent`).
+- An RSpec description built as a literal joined with an expression (`"works" + suffix`) read as
+  literal. A literal must now end the argument (`LPCV-V0-147`;
+  `TestLPCVV0147RSpecComputedTitleNotLiteral`).
+
 ## Residuals
 
 - The Playwright reporter and the RSpec formatter keep only joined names, not structured title
