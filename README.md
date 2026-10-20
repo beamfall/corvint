@@ -20,6 +20,7 @@
 
 <p align="center">
   <a href="docs/INSTALL.md">Install</a> ·
+  <a href="#what-corvint-can-do">Capabilities</a> ·
   <a href="#the-workflow">Workflow</a> ·
   <a href="#status-stated-plainly">Status</a> ·
   <a href="docs/README.md">Documentation</a>
@@ -67,6 +68,34 @@ Corvint makes that evidence inspectable through context receipts and a map besid
   network call. `query`, `context`, `impact`, `affected`, and non-executing `prove` modes report
   `mutates: false`, subject to the private-ledger exceptions above. `record` explicitly retains
   task outcomes; learning stays local, bounded, secret-screened, and evaluation-gated.
+
+## What Corvint can do
+
+Each row is one capability, with what it gives you and the smallest command that shows it.
+**core** means a Core verb from `corvint help` (only the modes the
+[Core compatibility freeze](docs/specs/core-compatibility-freeze-v1.md) lists are frozen);
+**experimental** means it works today with no stability promise. The full catalog of every
+command, binary and MCP tool, with when to use each one and how it refuses, is
+[docs/CAPABILITIES.md](docs/CAPABILITIES.md). A Go test keeps that catalog and this table in step
+with the code.
+
+<!-- capability-gate:readme -->
+| Capability | What you get | Try it | Maturity |
+|---|---|---|---|
+| Governing context first | The instruction file that governs the task, then the minimum context, as one canonical receipt | `corvint query --task "add a retry to the uploader"` | core |
+| Context compilation with pinned evidence | The files to read, each pinned to a Git blob with the relation and reason that admitted it | `corvint context --task "fix the date parser" --subject internal/date/parse.go` | core |
+| Impact of a change | What a path or a committed range reaches, with uncertainty where a rule is missing | `corvint impact internal/date/parse.go` | core |
+| Affected test selection | The tests to run for a branch, the mandatory checks, and an explicit unknown frontier instead of a silent full run | `corvint affected --base FULL_SHA` | core |
+| Falsifiable evidence | Every claimed row of a packet gets a falsifier verdict, so a wrong citation is caught, not trusted | `corvint prove --task "fix the date parser"` | core |
+| Change Evidence Map | Every diff hunk bound to cited evidence, an explicit unknown or a checked exception; CI verifies it with no LLM | `corvint cem prepare --base BASE_SHA --target HEAD_SHA` | core |
+| Obligation closure and review order | Declared obligations linked to test claims, then a deterministic review queue | `corvint ocm prepare --target HEAD_SHA --intent docs/specs/my-spec.md` | core |
+| Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
+| Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint-mcp --root /abs/repo --tool-profile task-review` | experimental |
+| Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
+| Tasks | A local ticket store with roadmap, claims, gates and audited completion | `corvint-tasks queue status` | experimental |
+| Gated learning | Learned ranking weights reach ranking only after a frozen held-out evaluation admits them | `corvint eval --learn-slot-weights` | experimental |
+| Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
+<!-- /capability-gate:readme -->
 
 ## Sixty seconds on this repository
 

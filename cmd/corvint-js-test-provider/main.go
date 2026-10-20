@@ -130,7 +130,8 @@ SIGTERM and SIGKILL (PWP-V0-030).
 --retain also writes the printed document, byte for byte, under .corvint/test-evidence of the
 enclosing Git worktree (LPCV-V0-055); a retention that creates .corvint also writes
 .corvint/.gitignore (*), otherwise .corvint/test-evidence/.gitignore (*), so Git status stays
-clean, and never overwrites an existing one (LPCV-V0-084).
+clean; it never overwrites an existing non-empty one, repairs an existing empty one and refuses a
+non-regular entry (LPCV-V0-084).
 
 Exit status: 0 when the run was observed (a failed test is an observation); 1 when the
 infrastructure prevented an observation, retention failed or a keep-reporters record is not
