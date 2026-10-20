@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	cw "github.com/Beamfall/corvint/internal/cem/wire"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -221,4 +222,46 @@ func mustJSON(t *testing.T, v any) []byte {
 		t.Fatal(e)
 	}
 	return b
+}
+
+// TestCEMV1310UnadmittedReceiptIsLabelledOpaque proves that the only runner
+// receipt record of a map assembled without runner admission is labelled
+// opaque/0, that an admitted receipt keeps the corvint-test-runner-receipt/0
+// label, and that unrelated JSON pinned as plan and receipt can no longer be
+// read as a runner receipt by any reader of the map (CEM-V1-310, CEM-V1-312).
+func TestCEMV1310UnadmittedReceiptIsLabelledOpaque(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("stable process containment is only supported on Darwin/Linux")
+	}
+	label := func(t *testing.T, out string) string {
+		t.Helper()
+		raw, e := os.ReadFile(filepath.Join(out, "stable.json"))
+		if e != nil {
+			t.Fatal(e)
+		}
+		d, e := cw.ParseStable(raw)
+		if e != nil || len(d.Receipts) != 1 {
+			t.Fatalf("stable map: %v", e)
+		}
+		return d.Receipts[0].Profile
+	}
+	r, out, _ := plainFixture(t)
+	dir := realTemp(t)
+	// A framework report and an unrelated provenance document, as in #1328.
+	r.RunnerPlan = save(t, filepath.Join(dir, "provenance.json"), []byte(`{"_type":"https://in-toto.io/Statement/v1","subject":[]}`))
+	r.RunnerReceipt = save(t, filepath.Join(dir, "report.json"), []byte(`{"numPassedTests":1,"success":true}`))
+	if result, e := AssemblePlain(context.Background(), r, out); e != nil || result.Verification.Outcome != "ACCEPT" || result.ReceiptAuthority != "NOT_OBSERVED" {
+		t.Fatalf("unadmitted assembly: %+v %v", result, e)
+	}
+	if got := label(t, out); got != cw.StableOpaqueReceiptProfile {
+		t.Fatalf("unadmitted receipt label %q, want %q", got, cw.StableOpaqueReceiptProfile)
+	}
+	admitted, admittedOut, _ := plainFixture(t)
+	docs := neutralRunnerDocs(t, admitted.Repository, admitted.Target)
+	if _, e := admit(t, admitted, admittedOut, mustJSON(t, docs.plan), mustJSON(t, docs.receipt)); e != nil {
+		t.Fatalf("admitted receipt refused: %v", e)
+	}
+	if got := label(t, admittedOut); got != cw.StableRunnerReceiptProfile {
+		t.Fatalf("admitted receipt label %q, want %q", got, cw.StableRunnerReceiptProfile)
+	}
 }

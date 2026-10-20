@@ -96,6 +96,16 @@ func stableCriterionKeys(o *Object) []string {
 	return []string{"id", "criterionIndex", "criterionSha256", "evidenceId"}
 }
 
+// StableRunnerReceiptProfile labels a runner record whose receipt a producer
+// decoded and admitted as a corvint-test-runner receipt (CEM-V1-280).
+// StableOpaqueReceiptProfile labels one whose receipt bytes no producer
+// admitted, so a reader cannot mistake an opaque file for a runner receipt
+// (CEM-V1-310). A reader accepts both; neither raises a result axis.
+const (
+	StableRunnerReceiptProfile = "corvint-test-runner-receipt/0"
+	StableOpaqueReceiptProfile = "opaque/0"
+)
+
 type StableReceipt struct {
 	Sha256             string               `json:"sha256"`
 	Profile            string               `json:"profile"`
@@ -219,7 +229,7 @@ func ParseStable(raw []byte) (*StableMap, error) {
 		if e = candidateObject(x, keys...); e != nil {
 			return nil, e
 		}
-		fixed := map[string]string{"profile": "corvint-test-runner-receipt/0", "sourceGitBinding": "NOT_OBSERVED", "executionAuthority": "CALLER_OBSERVED", "dependencyClosure": "NOT_OBSERVED"}
+		fixed := map[string]string{"sourceGitBinding": "NOT_OBSERVED", "executionAuthority": "CALLER_OBSERVED", "dependencyClosure": "NOT_OBSERVED"}
 		for _, k := range keys {
 			t, _ := x.Obj.Get(k)
 			if k == "authentication" {
@@ -231,7 +241,11 @@ func ParseStable(raw []byte) (*StableMap, error) {
 			if t.Kind != KindString {
 				return nil, fieldError("runner string required")
 			}
-			if want, ok := fixed[k]; ok {
+			if k == "profile" {
+				if t.Str != StableRunnerReceiptProfile && t.Str != StableOpaqueReceiptProfile {
+					return nil, fieldError("runner limitation")
+				}
+			} else if want, ok := fixed[k]; ok {
 				if t.Str != want {
 					return nil, fieldError("runner limitation")
 				}

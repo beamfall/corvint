@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "5edf0930a9fcb887ebce4345cd31718f1677ca9736a1549524138465db6eb1b9",
-      "bytes": 53428
+      "sha256": "65dbc3172ff3cd6a290326ddc30d460f0d588cb685bb4c961101a60f5132117d",
+      "bytes": 53914
     },
     {
       "path": "FIXTURES.pack.json",
@@ -568,8 +568,8 @@
     },
     {
       "path": "stable.schema.json",
-      "sha256": "94279397fe14d0842d402cb93c54b221ec43e323da49edb734a2c5a4a8759a21",
-      "bytes": 20816
+      "sha256": "37c07bb9fa4e2c171958fecc12abf94c126d99e972dff9115894b4ecaa0ac3d4",
+      "bytes": 20865
     },
     {
       "path": "tamper-matrix/EXPECTED.json",

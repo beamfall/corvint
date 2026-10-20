@@ -331,12 +331,19 @@ for one ticket/revision share acceptance, capture, verification, claim, native s
 digests. Omitted criteria remain unreferenced.
 
 Runner records retain the exact reference fields and fixed limits from the public
-candidate shape: raw receipt SHA256, exact `corvint-test-runner-receipt/0` profile,
-raw plan-byte SHA256, sourceGitBinding=NOT_OBSERVED,
+candidate shape: raw receipt SHA256, a profile of exactly `corvint-test-runner-receipt/0`
+or `opaque/0` (receipt labels below), raw plan-byte SHA256, sourceGitBinding=NOT_OBSERVED,
 executionAuthority=CALLER_OBSERVED, dependencyClosure=NOT_OBSERVED and an
 authentication member (CEM-V1-084 below). Receipt digests are unique. The raw plan SHA256 is
 not the native plan struct-serialization identity; neither can substitute for the
 other. CALLER_OBSERVED is a declared reference limitation, not proof of execution.
+
+Receipt labels (CEM-V1-310): a producer labels a runner record `corvint-test-runner-receipt/0`
+only when it decoded and admitted the receipt bytes as that runner document, and
+`opaque/0` when it checked them only by SHA256. A reader accepts both labels with
+the same fixed limits and checks; neither label is verified by the reader, and
+neither raises any result axis. Maps written before `opaque/0` existed keep their
+label and stay valid.
 
 Each link names one unique criterion ID and nonempty unique hunk/evidence/runner
 arrays. All resolve within this exact document. Each linked evidence ID occurs in
