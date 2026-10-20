@@ -1498,3 +1498,21 @@ func TestAMAPV0013ParseMapRefusesUnknownClassExport(t *testing.T) {
 		}
 	}
 }
+
+// AMAP-V0-013: statement boundaries are read lexically, so an import keyword, a semicolon or a
+// specifier inside a comment or string never starts or ends a copied statement; a statement with
+// a comment inside is refused (UNRESOLVED) rather than copied.
+func TestAMAPV0013ImportStatementBoundariesAreLexical(t *testing.T) {
+	for _, c := range []struct{ text, specifier, want string }{
+		{"import { test, expect } /* import 'node:fs'; globalThis.injected = true; // */ from '@playwright/test';", "@playwright/test", ""},
+		{"import { test, expect } /* import 'node:fs'; globalThis.injected = true; // */ from '@playwright/test';", "node:fs", ""},
+		{"import { a } from './a'; const s = \"import y from 'z';\";", "z", ""},
+		{"import { a } from './a'; // import { z } from 'z';", "z", ""},
+		{"import { a } from './a'\nimport { b } from './b'", "./b", "import { b } from './b'"},
+		{"import { a } from \"./a\"; import { b } from './b';", "./b", "import { b } from './b';"},
+	} {
+		if got := statementAt(c.text, 1, c.specifier); got != c.want {
+			t.Errorf("statementAt(%q, %q) = %q, want %q", c.text, c.specifier, got, c.want)
+		}
+	}
+}

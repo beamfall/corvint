@@ -221,7 +221,9 @@ but does not read it; only non-Go syntax impact does.
   static, private or protected member, no module function, no object-literal method before, after
   or inside the class, including one in an object literal assigned to a class field); otherwise the step keeps a note and a TODO and reports `scaffold-reuse` /
   `reuse-not-callable`. Borrowed import statements are kept one per statement, each with exactly
-  the names it binds, also when two statements share a line (V1-0968). A statement the map could not read in full (over 8 lines or 512 bytes) is
+  the names it binds, also when two statements share a line; statement boundaries are read
+  lexically, so an `import`, `;` or specifier inside a string or comment never bounds or matches
+  a statement, and a statement with a comment inside is treated as unread (V1-0968). A statement the map could not read in full (over 8 lines or 512 bytes) is
   never copied in part nor guessed as a side-effect import: it is emitted as a commented
   `// UNRESOLVED import { names } from '...'` line, binds nothing, and reports `scaffold-import` /
   `unread-statement`. When no borrowed, resolvable import binds `test`, the scaffold emits
@@ -1186,7 +1188,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-010 | `TestAMAPV0010StaleAnchors`, `TestAMAPV0010SameRevisionVerified`, `TestAMAPV0010AncestorLineageStale`, `TestAMAPV0010ChainFreshness`, `TestAMAPV0010ManifestBindingFreshness` |
 | AMAP-V0-011 | `TestAMAPV0011ProjectionBudgets`, `TestAMAPV0011EveryBudgetFits`, `TestAMAPV0011FlowReportsScreenUnknowns`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-012 | `TestAMAPV0012Find`, `TestAMAPV0012FindByID` |
-| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold`, `TestAMAPV0013ParseMapRefusesUnknownClassExport` |
+| AMAP-V0-013 | `TestAMAPV0013Scaffold`, `TestAMAPV0013AliasedImportRebound`, `TestAMAPV0013UnknownSelectorNotReused`, `TestAMAPV0013ReuseWithoutSelector`, `TestAMAPV0013GeneratedBindingCollision`, `TestAMAPV0013StaleReuseNotCalled`, `TestAMAPV0013MethodWithArgumentsNotCalled`, `TestAMAPV0013TestUnbound`, `TestAMAPV0013MethodOutsideClassNotCallable`, `TestAMAPV0013UnreadImportStatement`, `TestAMAPV0013ScaffoldDefaultExportNotNamedImport`, `TestAMAPV0013TwoImportsOnOneLine`, `TestAMAPV0013UnknownSelectorReuseDeclinedInScaffold`, `TestAMAPV0013ParseMapRefusesUnknownClassExport`, `TestAMAPV0013ImportStatementBoundariesAreLexical` |
 | AMAP-V0-014 | `TestAMAPV0014OverlaySeam`, `TestAMAPV0014FactsFollowTrimmedElements` |
 | AMAP-V0-015 | `TestAMAPV0015ReadOnlyAndRefusals`, `TestAMAPV0FlowsAppmapCLI` |
 | AMAP-V0-016 | `TestAMAPV0016ConstantStateNames`, `TestAMAPV0016UnprovableConstantsStayUnknown` |

@@ -347,36 +347,74 @@ func statementAt(text string, line int, specifier string) string {
 	return oneStatement(s, specifier)
 }
 
-var importKeyword = regexp.MustCompile(`\bimport\b`)
-
-// oneStatement cuts s to the one statement that quotes specifier: from the last import keyword
-// before the quoted specifier to the semicolon ending its line's statement, so another statement
-// sharing a line is not copied with it (V1-0968).
+// oneStatement cuts s to the one import statement whose module string is specifier, reading s
+// lexically: an import keyword, semicolon or specifier inside a string or comment never starts,
+// ends or matches a statement, and another statement sharing a line is not copied with it. A
+// statement with a comment inside, or one whose boundaries cannot be read (an unterminated string
+// or comment, a stray comment end), is refused as "" so the caller emits it UNRESOLVED (V1-0968).
 func oneStatement(s, specifier string) string {
-	at, quoted := -1, ""
-	for _, q := range []string{"'", `"`, "`"} {
-		if i := strings.Index(s, q+specifier+q); i >= 0 && (at < 0 || i < at) {
-			at, quoted = i, q+specifier+q
+	start, commented := -1, false
+	for i := 0; i < len(s); {
+		switch c := s[i]; {
+		case strings.HasPrefix(s[i:], "//"):
+			commented = commented || start >= 0
+			if nl := strings.IndexByte(s[i:], '\n'); nl >= 0 {
+				i += nl
+			} else {
+				i = len(s)
+			}
+		case strings.HasPrefix(s[i:], "/*"):
+			e := strings.Index(s[i+2:], "*/")
+			if e < 0 {
+				return ""
+			}
+			commented = commented || start >= 0
+			i += e + 4
+		case strings.HasPrefix(s[i:], "*/"):
+			return "" // s may begin inside a block comment
+		case c == '\'' || c == '"' || c == '`':
+			j := i + 1
+			for ; j < len(s) && s[j] != c; j++ {
+				if s[j] == '\\' {
+					j++
+				} else if s[j] == '\n' && c != '`' {
+					return ""
+				}
+			}
+			if j >= len(s) {
+				return ""
+			}
+			if start >= 0 && s[i+1:j] == specifier {
+				if commented {
+					return ""
+				}
+				end := j + 1
+				if rest := strings.TrimLeft(s[end:], " \t"); strings.HasPrefix(rest, ";") {
+					end = len(s) - len(rest) + 1
+				}
+				return s[start:end]
+			}
+			i = j + 1
+		case c == ';':
+			start, commented = -1, false
+			i++
+		case strings.HasPrefix(s[i:], "import") && !identByte(s, i-1) && !identByte(s, i+len("import")):
+			start, commented = i, false
+			i += len("import")
+		default:
+			i++
 		}
 	}
-	if at < 0 {
-		return s
+	return ""
+}
+
+// identByte reports whether s[i] exists and can be part of a JavaScript identifier.
+func identByte(s string, i int) bool {
+	if i < 0 || i >= len(s) {
+		return false
 	}
-	start := 0
-	if m := importKeyword.FindAllStringIndex(s[:at], -1); len(m) > 0 {
-		start = m[len(m)-1][0]
-	}
-	end := at + len(quoted)
-	rest := s[end:]
-	if nl := strings.IndexByte(rest, '\n'); nl >= 0 {
-		rest = rest[:nl]
-	}
-	if semi := strings.IndexByte(rest, ';'); semi >= 0 {
-		end += semi + 1
-	} else {
-		end += len(rest)
-	}
-	return strings.TrimRight(s[start:end], " \t")
+	c := s[i]
+	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
 }
 
 func fileID(p string) string          { return "file:" + p }
