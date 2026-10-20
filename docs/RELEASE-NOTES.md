@@ -21,9 +21,9 @@ rc.3 notes must carry. It is not a claim that rc.3 qualifies them.
     for `internal/...`, is not found.
   - It skips tests that the change itself adds.
   - Its bounds are 300 s per run and 1200 s in total.
-- K1 is open. The goal is that held hunks are at least 25% of non-mechanical Go code hunks across 30
-  dogfood changes. The tally starts at
-  `docs/build-log/2026-10-15-v1-1266-guarding-tests-k1.md`.
+- K1 fired. 0 of 95 non-mechanical Go code hunks were `held` in the first 30 dogfood changes after
+  the step landed, and 0 of 3,790 in all 350 to 2026-10-20. The record is
+  `docs/build-log/2026-10-20-V1-1266-hunk-revert-falsifier.md`.
 
 ### Ruby test provider in the workflow bundle (V1-1809)
 
@@ -105,11 +105,11 @@ P1 narrows the last two. Nothing in rc.3 removes the first three.
 
 ### Kill criteria (decision 0523 §5)
 
-These are the criteria rc.3 is evaluated against. None is recorded as met at this writing, and
+These are the criteria rc.3 is evaluated against. Only K1 is recorded as met at this writing, and
 several are not yet measured:
 - K1: under 25% of non-mechanical Go code hunks `held` across 30 dogfood changes after P2. The
-  hunk-revert headline is then dropped from rc.3 text, and P0 ships alone. The tally is open, as
-  noted above.
+  hunk-revert headline is then dropped from rc.3 text, and P0 ships alone. Met: the share is 0%,
+  as noted above, so no rc.3 text carries the headline.
 - K2: rubber-stamp and careful maps of one patch give the same `citation` block or the same tiers.
   P0 is then not done.
 - K3: over 5% of 50 audited `held` witnesses are not behavioural test failures.
