@@ -412,7 +412,8 @@ command calls it yet.
   one test.
   - Any `invalid` finding makes the hygiene axis `INELIGIBLE`, with reason
     `memoized-block-expectation` for this rule, or the rule ID for any other invalid rule.
-  - Each invalid finding's location and cause are appended to the hygiene anchors.
+  - Each invalid finding's location and cause are appended to the hygiene anchors; an anchor
+    already present is not repeated, so each anchor appears once at its first position (V1-1865).
   - When hygiene was already `INELIGIBLE`, its reason is kept.
   - The other four axes and advisory findings are left unchanged.
   A proof binding that requires `ELIGIBLE` hygiene, such as the test-consolidation witness check
@@ -3056,7 +3057,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-048 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides`, `TestMemoizedBlockExpectationPercentStrings` | experimental |
 | TSA-V0-049 | `internal/testsource/validity_rspec.go` | `TestMemoizedBlockExpectationFindings`, `TestMemoizedBlockExpectationNegatives`, `TestMemoizedBlockExpectationOverrides` | experimental |
 | TSA-V0-050 | `internal/testsource/validity_rspec.go`, `internal/testsource/validity.go` | `TestMemoizedBlockExpectationAbstains`, `TestMemoizedBlockExpectationDepthInsideExample` | experimental |
-| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
+| TSA-V0-051 | `internal/testvalidity/source_rules.go` | `TestApplySourceFindingsInvalidMakesIneligible`, `TestApplySourceFindingsAdvisoryAndExisting`, `TestApplySourceFindingsAnchorsDeduplicated`, `TestValidityFindingsDispatchAndVerdict`, `TestWitnessRefusesMemoizedBlockExpectation` | experimental |
 | TSA-V0-052 | `internal/testsource/validity.go` | `TestValidityFindingsDispatchAndVerdict` | experimental |
 | TSA-V0-053 | `internal/testsource/validity_rspec_block.go`, `internal/testsource/validity_rspec.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
 | TSA-V0-054 | `internal/testsource/validity_rspec_block.go` | `TestBlockNotCalledIssueExample`, `TestBlockNotCalledForms` | experimental |
