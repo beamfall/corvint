@@ -313,6 +313,14 @@ func runE2EMode(mode string, args []string) error {
 		return err
 	}
 	args = filtered
+	// A one-shot e2e refusal with a closed code also writes the typed refusal
+	// document to stdout (PWP-V0-034); watch and qualify-keep-reporters do not.
+	refuse := func(err error) error {
+		if mode == "e2e" && watch == nil {
+			return writeE2ERefusal(os.Stdout, err)
+		}
+		return err
+	}
 	fs := newSubcommandFlags(mode, flag.ExitOnError)
 	configureWatchHelp(fs)
 	dir := fs.String("dir", ".", "working directory to run server and test commands in (resolved to an absolute path)")
@@ -352,7 +360,7 @@ func runE2EMode(mode string, args []string) error {
 		return err
 	}
 	if err := admitRunnerControl(fs, *externalServer, *interruptGrace); err != nil {
-		return err
+		return refuse(err)
 	}
 
 	resolvedDir, err := resolvePath(*dir)
@@ -403,7 +411,7 @@ func runE2EMode(mode string, args []string) error {
 
 	runnerOutput, closeRunnerOutput, err := openRunnerOutput(*runnerOutputPath, os.Stderr)
 	if err != nil {
-		return err
+		return refuse(err)
 	}
 	defer closeRunnerOutput()
 
@@ -456,9 +464,31 @@ func runE2EMode(mode string, args []string) error {
 	start := observeRetainedStart(ctx, *retain, resolvedDir)
 	receipt, err := runE2EReceipt(ctx, cfg)
 	if err != nil {
-		return err
+		return refuse(err)
 	}
 	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(*retain, resolvedDir))
+}
+
+// writeE2ERefusal writes the typed corvint-playwright-e2e-refusal/0 document
+// for a pre-run refusal (PWP-V0-034), so stdout is never an empty document. A
+// refusal is never retained; the exit status and stderr line are unchanged.
+// Any other failure writes nothing to stdout. It returns err, or, when the
+// document write fails or is short, err joined with refusal-output-incomplete
+// so stderr keeps the refusal and names the lost document.
+func writeE2ERefusal(stdout io.Writer, err error) error {
+	var refusal *jstestprovider.E2ERefusal
+	if !errors.As(err, &refusal) {
+		return err
+	}
+	data := jstestprovider.EncodeE2ERefusal(refusal)
+	n, writeErr := stdout.Write(data)
+	if writeErr == nil && n != len(data) {
+		writeErr = io.ErrShortWrite
+	}
+	if writeErr != nil {
+		return fmt.Errorf("%w; refusal-output-incomplete: %v", err, writeErr)
+	}
+	return err
 }
 
 // readKeepReportersQualification reads and strictly decodes a qualified

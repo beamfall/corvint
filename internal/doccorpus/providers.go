@@ -610,6 +610,10 @@ func (c *compiler) capabilities() {
 			for i := range a.Gaps {
 				cap.Records = append(cap.Records, fmt.Sprint(i))
 			}
+			// DCP-V1-214: supplied gaps are reported by ID beside computed gap offsets.
+			for _, g := range a.SuppliedGaps {
+				cap.Records = append(cap.Records, g.ID)
+			}
 		}
 		if c.manifest.Schema == ManifestSchemaV2 && name == "info" {
 			cap.Tools = append(cap.Tools, "inventory")

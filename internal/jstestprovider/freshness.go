@@ -314,7 +314,7 @@ func freshRowUnknown(r Receipt, t TestOutcome) bool {
 	if b.NodeVersion == nil || *b.NodeVersion != "v22.23.3" || b.Platform == nil || *b.Platform != "darwin" || b.Arch == nil || *b.Arch != "arm64" || b.BrowserType == nil || *b.BrowserType != "chromium" || b.Channel == nil || *b.Channel != "" || b.ExecutablePath == nil || b.BrowserVersion == nil || b.HeadlessShellAvailable == nil || !*b.HeadlessShellAvailable || b.ExecutableSource == nil {
 		return true
 	}
-	return !qualifiedBundledPlaywrightBrowser(use.Headless, use.LaunchOptions.ExecutablePath, b)
+	return !qualifiedBundledPlaywrightBrowser(r.Identity.RunnerVersion, use.Headless, use.LaunchOptions.ExecutablePath, b)
 }
 
 func freshTestProjection(r Receipt, t TestOutcome) testvalidity.Projection {

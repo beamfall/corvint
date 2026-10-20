@@ -19,6 +19,8 @@ type RecordDetails struct {
 	Ticket           *TicketDetails           `json:"ticket,omitempty"`
 	IntentComparison *IntentComparisonDetails `json:"intent_comparison,omitempty"`
 	Status           *SuppliedStatusDetails   `json:"status,omitempty"`
+	TestRun          *SuppliedTestRunDetails  `json:"test_run,omitempty"`
+	LegacyCase       *LegacyCaseLinkDetails   `json:"legacy_case,omitempty"`
 }
 type FlowDetails struct {
 	Sections    []FlowSection `json:"sections"`
@@ -75,6 +77,25 @@ type SuppliedStatusDetails struct {
 	Supporting []string `json:"supporting"`
 }
 
+// SuppliedTestRunDetails is a producer's typed receipt of one test run of the
+// claim's subject (DCP-V1-210). It is supplied, not derived: Origin must be
+// "supplied", and a "passed" outcome grants no trust and changes no
+// compiler-computed result.
+type SuppliedTestRunDetails struct {
+	Outcome  string `json:"outcome"`
+	Run      string `json:"run"`
+	Origin   string `json:"origin"`
+	Revision string `json:"revision,omitempty"`
+	At       string `json:"at,omitempty"`
+}
+
+// LegacyCaseLinkDetails names the external test-management case a
+// manual_case subject stands for, as a case export prints its ID (DCP-V1-212).
+// The corpus never reads the export, so the link is supplied, not verified.
+type LegacyCaseLinkDetails struct {
+	ID string `json:"id"`
+}
+
 // RestrictedFinding exists only in the local input. Its identity, original
 // detail path and body are never admitted to an artifact or diagnostic.
 type RestrictedFinding struct {
@@ -104,6 +125,23 @@ var adoptionRelationKinds = words("asserts navigates retired_to manual_case_for"
 // suppliedStatusStates is the closed producer status vocabulary (DCP-V1-187).
 var suppliedStatusStates = words("blocked ready proven")
 
+// suppliedTestRunOutcomes is the closed test-run outcome vocabulary (DCP-V1-210).
+var suppliedTestRunOutcomes = words("passed failed skipped errored")
+
+// claimParityKind is the import_parity claim kind of a claim's typed detail,
+// shared by cold import and warm reuse so both count the same kinds.
+func claimParityKind(d RecordDetails) string {
+	switch {
+	case d.Status != nil:
+		return "status"
+	case d.TestRun != nil:
+		return "test_run"
+	case d.ClaimKind != "":
+		return d.ClaimKind
+	}
+	return "unspecified"
+}
+
 func (c *compiler) importAdoption(p ProviderRecord) error {
 	if c.adoptionProviders == nil {
 		c.adoptionProviders = map[string]bool{}
@@ -120,14 +158,7 @@ func (c *compiler) importAdoption(p ProviderRecord) error {
 		counts["subject/"+s.Kind]++
 	}
 	for _, r := range p.Claims {
-		kind := p.Details[r.ID].ClaimKind
-		if p.Details[r.ID].Status != nil {
-			kind = "status"
-		}
-		if kind == "" {
-			kind = "unspecified"
-		}
-		counts["claim/"+kind]++
+		counts["claim/"+claimParityKind(p.Details[r.ID])]++
 	}
 	for _, r := range p.Relations {
 		counts["relation/"+r.Type]++
@@ -278,6 +309,22 @@ func validateRecordDetails(kind string, d RecordDetails, rel Relation) error {
 			return fail("invalid supplied status")
 		}
 	}
+	if d.TestRun != nil {
+		count++
+		x := d.TestRun
+		if kind != "claim" || !suppliedTestRunOutcomes[x.Outcome] || !textOK(x.Run) || len(x.Run) > 1024 || x.Origin != "supplied" || x.Revision != "" && !wire.IsGitOid(x.Revision) {
+			return fail("invalid supplied test run")
+		}
+		if _, err := time.Parse(time.RFC3339, x.At); x.At != "" && err != nil {
+			return fail("invalid supplied test run time")
+		}
+	}
+	if d.LegacyCase != nil {
+		count++
+		if id, ok := legacyCaseID(d.LegacyCase.ID); kind != "manual_case" || !ok || id != d.LegacyCase.ID {
+			return fail("invalid legacy case link")
+		}
+	}
 	if count != 1 {
 		return fail("typed detail must name exactly one record family")
 	}
@@ -380,6 +427,16 @@ func (c *compiler) validateAdoptionJoins() error {
 			if !require(x.ReportedIntent, "") || !require(x.ObservedClaims, "claim") || !require(x.Missing, "") || !require(x.Conflicts, "") {
 				return fail("intent comparison join missing")
 			}
+		}
+	}
+	// A legacy case ID names at most one manual case subject (DCP-V1-212).
+	cases := map[string]bool{}
+	for _, d := range c.artifact.Details {
+		if x := d.LegacyCase; x != nil {
+			if cases[x.ID] {
+				return fail("legacy case linked by more than one manual case")
+			}
+			cases[x.ID] = true
 		}
 	}
 	// A manual case link joins an imported case subject to any subject (DCP-V1-189).

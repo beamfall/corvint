@@ -60,7 +60,7 @@ func BuildAdmitted(ctx context.Context, root string, m Manifest) (*Artifact, err
 }
 
 func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
-	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords {
+	if len(a.Subjects) > MaxCorpusRecords || len(a.Claims) > MaxCorpusRecords || len(a.Relations) > MaxCorpusRecords || len(a.Journeys) > MaxCorpusJourneys || len(a.Observations) > MaxCorpusRecords || len(a.SuppliedGaps) > MaxCorpusRecords {
 		return nil, fail("indexed record family bound exceeded")
 	}
 	x := &QueryIndex{IDs: map[string]RecordRef{}, Paths: map[string][]RecordRef{}, Terms: map[string][]int{}, Claims: map[string][]int{}, Edges: map[string][]int{}}
@@ -178,6 +178,13 @@ func BuildQueryIndex(ctx context.Context, a *Artifact) (*QueryIndex, error) {
 			return nil, err
 		}
 	}
+	// DCP-V1-214: supplied gaps are indexed by ID and anchor; a corpus without
+	// them derives the same index.
+	for i, g := range a.SuppliedGaps {
+		if err := add(g, RecordRef{"supplied_gap", i}); err != nil {
+			return nil, err
+		}
+	}
 	if postings > indexPostingBound {
 		return nil, capacityExceeded("indexed postings", postings, indexPostingBound)
 	}
@@ -216,6 +223,8 @@ func (a *Artifact) indexedRecord(ref RecordRef) any {
 		return a.Journeys[ref.Offset]
 	case "observation":
 		return a.Observations[ref.Offset]
+	case "supplied_gap":
+		return a.SuppliedGaps[ref.Offset]
 	}
 	return nil
 }

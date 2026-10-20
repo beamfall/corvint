@@ -498,6 +498,10 @@ func TestExternalAdmission(t *testing.T) {
 	if err := admitExternal(base); err != nil {
 		t.Fatal(err)
 	}
+	base.RunnerVersion = "1.64.0"
+	if err := admitExternal(base); err != nil {
+		t.Fatal(err)
+	}
 	base.RunnerVersion = "1.62.0"
 	if admitExternal(base) == nil {
 		t.Fatal("unqualified Playwright version admitted")
@@ -794,11 +798,131 @@ func TestReceiptRuntimeTupleClassification(t *testing.T) {
 		{ExternalProfile, "1.60.0", "", RuntimeTupleUnobserved},
 		{ExternalProfile, "1.60.0", "v24.11.1", RuntimeTupleCandidate},
 		{AttemptExternalProfile, "1.60.0", "v22.23.2", RuntimeTupleUnqualified},
-		{ExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
+		{AttemptExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleCandidate},
+		{AttestedExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
+		{SensitiveExternalProfile, "1.64.0", "v22.23.2", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.64.0", "v24.11.1", RuntimeTupleUnqualified},
+		{ExternalProfile, "1.65.0", "v22.23.2", RuntimeTupleUnqualified},
 	} {
 		r := Receipt{Profile: test.profile, Identity: Identity{RunnerVersion: test.runner, NodeVersion: test.node}}
 		if got := ReceiptRuntimeTuple(r); got != test.want {
 			t.Fatalf("%+v: got %q want %q", test, got, test.want)
+		}
+	}
+}
+
+// playwright164Bundled is the bundled headless-shell identity the Playwright
+// 1.64.0 live matrix observed (PWP-V0-032).
+const playwright164Bundled = `{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome for Testing 156.0.8078.4","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634","browserRevision":"1248","manifestBrowserVersion":"156.0.8078.4","headlessShellAvailable":true}}`
+
+func playwrightTupleReceipt(t *testing.T, profile, runner, node, use string) Receipt {
+	t.Helper()
+	r := qualifiedFixture(t)
+	r.Profile = profile
+	r.Identity.RunnerVersion = runner
+	r.Identity.NodeVersion = node
+	r.Tests[0].Project.Use = json.RawMessage(strings.ReplaceAll(use, "NODE", node))
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	return r
+}
+
+// PWP-V0-032: 1.64.0 is admitted and its bundled headless-shell tuple is exact
+// and bound to its own runner version; the 1.63.0 tuple is not inherited in
+// either direction and the system-browser tuple stays 1.63.0-only.
+func TestPWPV0032Playwright164BundledTupleIsExact(t *testing.T) {
+	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.64.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
+	if err := admitExternal(base); err != nil {
+		t.Fatalf("1.64.0 refused: %v", err)
+	}
+	for _, version := range []string{"1.64", "1.64.1", "1.65.0", "v1.64.0", "^1.64.0"} {
+		base.RunnerVersion = version
+		if admitExternal(base) == nil {
+			t.Fatalf("%s admitted", version)
+		}
+	}
+	admitted := playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", playwright164Bundled)
+	if ReceiptTestProjection(admitted, admitted.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("qualified bundled Playwright 1.64 browser tuple abstained")
+	}
+	attempt := playwrightTupleReceipt(t, AttemptExternalProfile, "1.64.0", "v22.23.2", playwright164Bundled)
+	if !qualifiedPlaywrightTuple(attempt, attempt.Tests[0]) {
+		t.Fatal("qualified /3 Playwright 1.64 browser tuple abstained")
+	}
+	bundled163 := strings.NewReplacer("156.0.8078.4", "153.0.8010.12", "1248", "1243", "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634", "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282").Replace(playwright164Bundled)
+	system := `{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"NODE","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`
+	if r := playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", bundled163); ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("1.63.0 bundled tuple regressed")
+	}
+	for name, r := range map[string]Receipt{
+		"1.63-browser-on-1.64-runner": playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", bundled163),
+		"1.64-browser-on-1.63-runner": playwrightTupleReceipt(t, ExternalProfile, "1.63.0", "v22.23.2", playwright164Bundled),
+		"system-browser-on-1.64":      playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", system),
+		"revision-drift":              playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, `"browserRevision":"1248"`, `"browserRevision":"1249"`, 1)),
+		"digest-drift":                playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, "77d8278b", "87d8278b", 1)),
+		"manifest-drift":              playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, `"manifestBrowserVersion":"156.0.8078.4"`, `"manifestBrowserVersion":"156.0.8078.5"`, 1)),
+		"path-drift":                  playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, "chromium_headless_shell-1248", "chromium_headless_shell-1247", 1)),
+		"headed":                      playwrightTupleReceipt(t, ExternalProfile, "1.64.0", "v22.23.2", strings.Replace(playwright164Bundled, `"headless":true`, `"headless":false`, 1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("unqualified Playwright 1.64 tuple projected green")
+			}
+		})
+	}
+}
+
+// PWP-V0-033: 1.64.0 is a candidate only for the base and attempt-retaining
+// profiles under Node v22.23.2; the other profiles and Node releases abstain.
+func TestPWPV0033Playwright164ProfilesAndNodeAreExact(t *testing.T) {
+	for _, test := range []struct {
+		profile, node string
+		want          bool
+	}{
+		{ExternalProfile, "v22.23.2", true},
+		{AttemptExternalProfile, "v22.23.2", true},
+		{AttestedExternalProfile, "v22.23.2", false},
+		{SensitiveExternalProfile, "v22.23.2", false},
+		{ExternalProfile, "v24.11.1", false},
+		{ExternalProfile, "v22.23.3", false},
+		{AttemptExternalProfile, "v24.11.1", false},
+	} {
+		r := playwrightTupleReceipt(t, test.profile, "1.64.0", test.node, playwright164Bundled)
+		if got := qualifiedPlaywrightTuple(r, r.Tests[0]); got != test.want {
+			t.Fatalf("%s on %s: qualified=%v want %v", test.profile, test.node, got, test.want)
+		}
+	}
+}
+
+// PWP-V0-034: every pre-run e2e refusal is typed, keeps its earlier error
+// text, and encodes one canonical document naming the qualified versions.
+func TestPWPV0034PreRunRefusalsAreTyped(t *testing.T) {
+	base := E2EConfig{Config: Config{ConfigFile: "config.cjs", RunnerVersion: "1.62.0", TestFiles: []string{"test.cjs"}}, ExternalServer: true, AppIdentity: "fixture", ServerReadyURL: "http://127.0.0.1:3002"}
+	_, err := RunE2E(context.Background(), base)
+	var refusal *E2ERefusal
+	if !errors.As(err, &refusal) || refusal.Code != "external-playwright-version-unqualified" {
+		t.Fatalf("version refusal untyped: %v", err)
+	}
+	if err.Error() != "external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0" {
+		t.Fatalf("message %q", err.Error())
+	}
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	if got := string(EncodeE2ERefusal(refusal)); got != want {
+		t.Fatalf("document\n got %s\nwant %s", got, want)
+	}
+	for code, mutate := range map[string]func(*E2EConfig){
+		"external-server-command-forbidden":                  func(c *E2EConfig) { c.RunnerVersion = "1.64.0"; c.ServerArgv = []string{"server"} },
+		"external-readiness-url-required":                    func(c *E2EConfig) { c.RunnerVersion = "1.64.0"; c.ServerReadyURL = "" },
+		"external-app-identity-required":                     func(c *E2EConfig) { c.RunnerVersion = "1.64.0"; c.AppIdentity = "" },
+		"external-unsupported-option":                        func(c *E2EConfig) { c.RunnerVersion = "1.64.0"; c.TestArgv = []string{"--ui"} },
+		"keep-reporters-unsupported-mode":                    func(c *E2EConfig) { c.ExternalServer = false; c.KeepReporters = true },
+		"sensitive-input-redaction-requires-external-server": func(c *E2EConfig) { c.ExternalServer = false; c.SensitiveInputPolicy = &SensitiveInputPolicy{} },
+	} {
+		c := base
+		mutate(&c)
+		_, err := RunE2E(context.Background(), c)
+		if !errors.As(err, &refusal) || refusal.Code != code || !strings.HasPrefix(err.Error(), code) {
+			t.Fatalf("%s: %v", code, err)
 		}
 	}
 }

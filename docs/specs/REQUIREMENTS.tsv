@@ -2147,6 +2147,12 @@ DCP-V1-194	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-195	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1254;	standing	2026-10-11; #1254
 DCP-V1-196	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1254;	standing	2026-10-11; #1254
 DCP-V1-197	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1254;	standing	2026-10-11; #1254
+DCP-V1-210	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
+DCP-V1-211	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
+DCP-V1-212	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
+DCP-V1-213	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
+DCP-V1-214	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
+DCP-V1-215	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1244;	standing	2026-10-11; #1244
 DCP-V1-175	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1243;	standing	2026-10-11; #1243
 DCP-V1-176	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1243;	standing	2026-10-11; #1243
 DCP-V1-177	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1243;	standing	2026-10-11; #1243
@@ -3329,6 +3335,9 @@ PWP-V0-028	docs/specs/playwright-external-provider-v0.md	(accepted under the own
 PWP-V0-029	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802;	standing	2026-10-11; V1-1800; V1-1802; #1131; #1133
 PWP-V0-030	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
 PWP-V0-031	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1802; GitHub #	standing	2026-10-11; V1-1802; #1133
+PWP-V0-032	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #	standing	2026-10-11; V1-2005; #1263
+PWP-V0-033	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #	standing	2026-10-11; V1-2005; #1263
+PWP-V0-034	docs/specs/playwright-external-provider-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #	standing	2026-10-11; V1-2005; #1263
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	`/1` is available only in external-server mode and requires a typed `corvint-app	unrecorded	-
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	The closed provider configuration binds the expected application root commit, re	unrecorded	-
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	Each closed canonical `corvint-application-attestation/0` observation binds the	unrecorded	-
