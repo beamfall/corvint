@@ -44,8 +44,27 @@ else {const body=await get(url),serverImports=JSON.parse(await get(new URL('/imp
 }catch(e){process.stderr.write('observer failed\n');process.exitCode=1;}});
 `
 
+// freshLivePath puts the directory of the optional CORVINT_PTF_NODE binary
+// first, so a live run can select one exact Node release of the shared tuple
+// table (PWP-V0-050).
+func freshLivePath() string {
+	if node := os.Getenv("CORVINT_PTF_NODE"); node != "" {
+		return filepath.Dir(node) + ":/opt/homebrew/bin:/usr/bin:/bin"
+	}
+	return "/opt/homebrew/bin:/usr/bin:/bin"
+}
+
 func freshLiveEnvironment() []string {
-	return []string{"PATH=/opt/homebrew/bin:/usr/bin:/bin", "LANG=C", "LC_ALL=C", "TMPDIR=/tmp"}
+	return []string{"PATH=" + freshLivePath(), "LANG=C", "LC_ALL=C", "TMPDIR=/tmp"}
+}
+
+// freshLiveRunnerVersion is the Playwright release the live fixture pins,
+// 1.63.0 unless CORVINT_PTF_RUNNER_VERSION names another (PWP-V0-050).
+func freshLiveRunnerVersion() string {
+	if v := os.Getenv("CORVINT_PTF_RUNNER_VERSION"); v != "" {
+		return v
+	}
+	return "1.63.0"
 }
 
 // PTF-V0-002/003/004/009/010: this is a separately opt-in actual consuming-path
@@ -62,6 +81,16 @@ func TestPTFV0ActualLive(t *testing.T) {
 		t.Fatal("PTF tuple unavailable")
 	}
 	ptfLivePort(t)
+	runnerVersion := freshLiveRunnerVersion()
+	if node := os.Getenv("CORVINT_PTF_NODE"); node != "" {
+		if !filepath.IsAbs(node) || filepath.Base(node) != "node" {
+			t.Fatalf("CORVINT_PTF_NODE must be an absolute path to a node binary, got %q", node)
+		}
+		t.Setenv("PATH", filepath.Dir(node)+string(os.PathListSeparator)+os.Getenv("PATH"))
+		if resolved, err := exec.LookPath("node"); err != nil || resolved != node {
+			t.Fatalf("PATH resolves node to %q, want %q: %v", resolved, node, err)
+		}
+	}
 	for _, mode := range []string{"stable", "source-drift", "test-source-drift", "dependency-drift", "mutant", "foreign-port", "old-artifact", "cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			root, err := filepath.EvalSymlinks(t.TempDir())
@@ -121,7 +150,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				drift = `require('node:fs').writeFileSync(` + string(marker) + `,'started');await new Promise(resolve=>setTimeout(resolve,30000));`
 			}
 			write("counter.spec.cjs", `const {test,expect}=require('@playwright/test');test('counter one',async({page})=>{await page.goto('/');`+drift+`await page.locator('#inc').click();const imports={};for(const file of Object.keys(require.cache))imports[file]=require('node:crypto').createHash('sha256').update(require('node:fs').readFileSync(file)).digest('hex');process.stdout.write('CORVINT-PTF-IMPORTS '+JSON.stringify(imports)+'\n');await expect(page.locator('#count'),'PTF-ASSERTION:counter-one').toHaveText('1');});`)
-			write("package.json", `{"private":true,"devDependencies":{"@playwright/test":"1.63.0"}}`)
+			write("package.json", `{"private":true,"devDependencies":{"@playwright/test":"`+runnerVersion+`"}}`)
 			write("package-lock.json", `{"lockfileVersion":3,"packages":{}}`)
 			if err := os.Symlink(fixtureModules, filepath.Join(root, "node_modules")); err != nil {
 				t.Fatal(err)
@@ -159,7 +188,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 			expectation := ApplicationAttestationExpectation{Repository: ApplicationRepositoryExpectation{RootCommit: repo.RootCommit, Revision: repo.Revision, Tree: repo.Tree, DirtyPolicy: "require-clean"}, Build: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "app.html"))}, Configuration: ApplicationArtifactIdentity{Kind: "source", Digest: "sha256:" + digest(filepath.Join(root, "playwright.config.cjs"))}, InstanceKind: "process"}
 			attestationConfig := filepath.Join(out, "attestation.json")
 			writeCanonicalFixture(t, attestationConfig, applicationAttestationConfig{Profile: applicationAttestationConfigProfile, Expectation: expectation})
-			cfg := E2EConfig{Config: Config{Dir: root, TestFiles: []string{filepath.Join(root, "counter.spec.cjs")}, ConfigFile: filepath.Join(root, "playwright.config.cjs"), PackageJSON: filepath.Join(root, "package.json"), Lockfile: filepath.Join(root, "package-lock.json"), RunnerName: "playwright", RunnerVersion: "1.63.0", DeclaredEnvKeys: []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}, Timeout: 30 * time.Second}, ServerArgv: []string{node, filepath.Join(root, "server.cjs")}, ServerReadyURL: "http://127.0.0.1:4394/", TestArgv: []string{"--workers=1", "--retries=0", "--forbid-only"}, ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{os.Args[0], "-test.run=^TestPTFV0AttestationHelper$"}, ConfigFile: attestationConfig}, Freshness: &FreshnessConfig{ProductDir: root, ProductExpected: *repo, TestExpected: *repo, ArtifactPath: "app.html", SourceDigest: strings.TrimPrefix(expectation.Build.Digest, "sha256:"), DocumentURL: "http://127.0.0.1:4394/", Runner: command(node, filepath.Join(fixtureModules, "playwright", "cli.js")), Server: command(node, filepath.Join(root, "server.cjs")), Observer: command(node, filepath.Join(root, "observer.cjs"), "fresh"), ObserverConfigFile: observerConfig, ObserverConfigDigest: digest(observerConfig)}}
+			cfg := E2EConfig{Config: Config{Dir: root, TestFiles: []string{filepath.Join(root, "counter.spec.cjs")}, ConfigFile: filepath.Join(root, "playwright.config.cjs"), PackageJSON: filepath.Join(root, "package.json"), Lockfile: filepath.Join(root, "package-lock.json"), RunnerName: "playwright", RunnerVersion: runnerVersion, DeclaredEnvKeys: []string{"PATH", "LANG", "LC_ALL", "TMPDIR"}, Timeout: 30 * time.Second}, ServerArgv: []string{node, filepath.Join(root, "server.cjs")}, ServerReadyURL: "http://127.0.0.1:4394/", TestArgv: []string{"--workers=1", "--retries=0", "--forbid-only"}, ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{os.Args[0], "-test.run=^TestPTFV0AttestationHelper$"}, ConfigFile: attestationConfig}, Freshness: &FreshnessConfig{ProductDir: root, ProductExpected: *repo, TestExpected: *repo, ArtifactPath: "app.html", SourceDigest: strings.TrimPrefix(expectation.Build.Digest, "sha256:"), DocumentURL: "http://127.0.0.1:4394/", Runner: command(node, filepath.Join(fixtureModules, "playwright", "cli.js")), Server: command(node, filepath.Join(root, "server.cjs")), Observer: command(node, filepath.Join(root, "observer.cjs"), "fresh"), ObserverConfigFile: observerConfig, ObserverConfigDigest: digest(observerConfig)}}
 			cfg.Freshness.Dependencies = freshLiveDependencies(t, fixtureModules, []string{filepath.Join(root, "app.html"), filepath.Join(root, "server.cjs"), filepath.Join(root, "observer.cjs"), filepath.Join(root, "counter.spec.cjs"), filepath.Join(root, "playwright.config.cjs"), filepath.Join(root, "package.json"), filepath.Join(root, "package-lock.json"), observerConfig, attestationConfig})
 			cfg.Freshness.DependencyDigest = FreshDependencyDigest(cfg.Freshness.Dependencies)
 			if mode == "mutant" {
@@ -246,7 +275,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 			if mode == "dependency-drift" {
 				f := r.Freshness
 				path := filepath.Join(fixtureModules, "playwright", "lib", "program.js")
-				if f.DependenciesBefore.Files[path] == f.DependenciesAfter.Files[path] || f.Runner.Before.ExecutableDigest != f.Runner.After.ExecutableDigest || f.Runner.Before.EntrypointDigest != f.Runner.After.EntrypointDigest || r.Identity.RunnerVersion != "1.63.0" || !reflect.DeepEqual(r.TestRepositoryAtStart, r.TestRepositoryAtPublish) {
+				if f.DependenciesBefore.Files[path] == f.DependenciesAfter.Files[path] || f.Runner.Before.ExecutableDigest != f.Runner.After.ExecutableDigest || f.Runner.Before.EntrypointDigest != f.Runner.After.EntrypointDigest || r.Identity.RunnerVersion != runnerVersion || !reflect.DeepEqual(r.TestRepositoryAtStart, r.TestRepositoryAtPublish) {
 					t.Fatal("drift did not isolate imported implementation with stable entry/Git/version pins")
 				}
 				after, e := cfg.identity(r.Identity.Argv)
@@ -272,6 +301,7 @@ func TestPTFV0ActualLive(t *testing.T) {
 				if got.Execution.State != testvalidity.ExecutionPassed {
 					t.Fatalf("execution %+v", got)
 				}
+				t.Logf("PTF live tuple: runner=%s node=%s", r.Identity.RunnerVersion, r.Identity.NodeVersion)
 			}
 		})
 	}

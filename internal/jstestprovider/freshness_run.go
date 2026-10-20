@@ -2,8 +2,11 @@ package jstestprovider
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -37,11 +40,17 @@ type FreshnessConfig struct {
 	ObserverConfigDigest string                        `json:"observerConfigDigest"`
 }
 
+// freshCommandExecutableLimit bounds the streamed digest of a freshness
+// command executable. An official Node release binary for darwin-arm64 is
+// about 113 MB, above the 64 MiB attestation read bound, so the command
+// executable is hashed in a stream under its own bound (PWP-V0-051).
+const freshCommandExecutableLimit = 256 << 20
+
 func freshCommandObserve(expected FreshCommandIdentity) *FreshCommandIdentity {
 	if len(expected.Argv) < 2 || !filepath.IsAbs(expected.Argv[0]) || !filepath.IsAbs(expected.Argv[1]) {
 		return nil
 	}
-	executable, err := readBoundedRegularFile(expected.Argv[0], applicationAttestationExecutableLimit)
+	executable, err := digestBoundedRegularFile(expected.Argv[0], freshCommandExecutableLimit)
 	if err != nil {
 		return nil
 	}
@@ -49,7 +58,32 @@ func freshCommandObserve(expected FreshCommandIdentity) *FreshCommandIdentity {
 	if err != nil {
 		return nil
 	}
-	return &FreshCommandIdentity{Argv: append([]string{}, expected.Argv...), ExecutableDigest: sha256Hex(executable), EntrypointDigest: sha256Hex(entry)}
+	return &FreshCommandIdentity{Argv: append([]string{}, expected.Argv...), ExecutableDigest: executable, EntrypointDigest: sha256Hex(entry)}
+}
+
+// digestBoundedRegularFile is readBoundedRegularFile's streaming twin: it
+// returns the lowercase hex SHA-256 of a regular file of at most limit bytes
+// without holding the bytes, refusing a replaced or oversized file.
+func digestBoundedRegularFile(path string, limit int64) (string, error) {
+	before, err := os.Lstat(path)
+	if err != nil || !before.Mode().IsRegular() {
+		return "", errors.New("not-regular")
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	after, err := file.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return "", errors.New("file-replaced")
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(file, limit+1))
+	if err != nil || n > limit {
+		return "", errors.New("file-bound-exceeded")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func freshProcessObserve(ctx context.Context, pid int) (*FreshProcessIdentity, error) {

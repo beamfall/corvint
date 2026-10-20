@@ -15,7 +15,7 @@ external-ownership boundary. Decision 0417 approves the every-attempt `/3` revis
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
 - Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` implemented; qualification evidence recorded with issue 175.
-- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. PWP-V0-032..034 qualify Playwright 1.64.0 for `/0` and `/3` on Node v22.23.2 with its own exact bundled headless-shell tuple, and write a typed `corvint-playwright-e2e-refusal/0` document naming the qualified runner versions on stdout when an `e2e` request is refused before running. PWP-V0-035..038 add, each on its own live run, `/1` and `/2` on 1.64.0 Node v22.23.2, Node v24.11.1 for `/0` and `/3` on 1.64.0, the exact system Chrome 155.0.8059.85 tuple on 1.64.0, and exit status 3 plus one `refusal:` stderr line for an `e2e` admission refusal. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
+- Exists: PWP-V3-007 admits exact unnamed projects only in `/3`; no attestation composition is added. PWP-V0-019 names each unbound reported anchor file (for example a setup-project file) in the `test-file-unbound` detail and never binds it implicitly. PWP-V0-022..027 report a run's dependence on undeclared external origins from producer-stated network evidence (`corvint-js-test-provider external-origins`; no producer yet). PWP-V0-021 admits up to 4096 config inputs and 1 MiB of their paths and digests, and refuses beyond either as `config-inputs-overflow` stating the observed value and the limit. PWP-V0-028..031 truncate (never fail on) external console output past 4 MiB with an optional `--runner-output` tee, record `external.runner` (exit status, signal, stop signal), stop a timed-out external runner SIGINT-first with `--interrupt-grace`, and state both readiness rules in the `--server-ready-url` help. PWP-V0-032..034 qualify Playwright 1.64.0 for `/0` and `/3` on Node v22.23.2 with its own exact bundled headless-shell tuple, and write a typed `corvint-playwright-e2e-refusal/0` document naming the qualified runner versions on stdout when an `e2e` request is refused before running. PWP-V0-035..038 add, each on its own live run, `/1` and `/2` on 1.64.0 Node v22.23.2, Node v24.11.1 for `/0` and `/3` on 1.64.0, the exact system Chrome 155.0.8059.85 tuple on 1.64.0, and exit status 3 plus one `refusal:` stderr line for an `e2e` admission refusal. PWP-V0-039..040 admit receipts and freshness from one exact-tuple table and name the failing tuple field; PWP-V0-050..052 add freshness on 1.64.0 / Node v22.23.2 (bundled) after its own live run, so that one tuple satisfies both receipts, stream-digest a freshness command executable up to 256 MiB, and pass the reporter its freshness rows from the table. `internal/jstestprovider`, `internal/procgroup`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Proposed PWP-V0-009 (Node v24.11.1, `/0` bundled tuple) awaits owner acceptance. Proposed PWP-V0-010..013 (keep-reporters option, V1-0986) await owner acceptance and a live run. PWP-V0-014..018 (provider-first order and the `qualify-keep-reporters` command) are accepted (decision 0461; V1-1028); their live qualification is `NOT_RUN`. Linux, `/1` and `/2` on Node v24.11.1, other Playwright versions, Vitest and LPCV authority remain unqualified (`/2` never projects passing, PWP-V2-006). The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
 
@@ -394,7 +394,7 @@ carrying `runner` then fail closed through the canonical check and are neither d
   `1.64.0` receipt as a candidate only for the base `/0` and attempt `/3` profiles on Node
   `v22.23.2`; `PWP-V0-035` and `PWP-V0-036` add the tuples their own live runs observed, and every
   other profile/Node pair reads `unqualified`. The per-test freshness profile (`PTF-V0`) stays on `1.63.0`
-  with Node `v22.23.3`. Step negation reads the same classification, so a `/0` receipt on the
+  with Node `v22.23.3` (and, since `PWP-V0-050`, `1.64.0` with Node `v22.23.2`). Step negation reads the same classification, so a `/0` receipt on the
   `1.64.0` tuple is a negation candidate exactly when the per-test bundled tuple also matches.
 - `PWP-V0-034`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) When the one-shot `e2e` command refuses a
   request with a closed refusal code before any server, runner or browser starts (an unqualified
@@ -508,10 +508,9 @@ receipt/freshness clash with one shared exact-tuple table.
   Every value is an exact release; a range, a prefix or a neighbouring patch is never a row.
   `1.60.0` predates the Node and browser binding and stays outside the table unchanged. The
   per-test browser identity (bundled revision and digest, system Chrome version, the 1.64.0
-  system headless condition) still decides each test. Freshness on `1.64.0`, and freshness on Node
-  `v22.23.2` or `v24.11.1`, have no live freshness run and are not rows, so no single Node release
-  yet satisfies both an external receipt and a freshness receipt; a row is added only with its own
-  live run.
+  system headless condition) still decides each test. When this was accepted, freshness on `1.64.0`,
+  and freshness on Node `v22.23.2` or `v24.11.1`, had no live freshness run and were not rows; a
+  row is added only with its own live run, and `PWP-V0-050` adds the first such row.
 - `PWP-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) A tuple refusal names the
   first failing field, checked in the order runner, Node, browser source, and the exact values the
   shared table admits for that field given the fields before it, sorted. The
@@ -521,7 +520,7 @@ receipt/freshness clash with one shared exact-tuple table.
   `runner` and the admitted external versions; a per-test freshness request whose runner is not a
   freshness row refuses `freshness-runtime-tuple-unqualified` before anything starts, with the same
   member and the detail `runner not admitted for corvint-playwright-freshness/0; admitted runner
-  values: 1.63.0`; the step-negation `runtime-tuple-unqualified` refusal appends the same field and
+  values: 1.63.0, 1.64.0` (`1.64.0` since `PWP-V0-050`); the step-negation `runtime-tuple-unqualified` refusal appends the same field and
   admitted-values text. The browser source is observed only after a run, so it is named by
   `AdmittedRuntimeTupleMismatch` for consumers that hold a receipt, not by a pre-run refusal.
 
@@ -537,6 +536,51 @@ plus the updated `PWP-V0-034` document bytes; no live run, because no tuple was 
 are byte-identical and classify as before. Rollback restores the per-consumer literals and removes
 the `runtimeTuple` member and the freshness pre-run refusal (freshness then fails
 `freshness-config-unsupported` again); no retained receipt is deleted or rewritten.
+
+### Freshness on Playwright 1.64.0 from the shared tuple
+
+Human intent: GitHub #1270 and V1-2009, as amended by the owner on 2026-10-20: keep decision 0448's
+one-exact-release rule, and let one Node tuple with Playwright 1.64.0 satisfy both the external
+receipt and the per-test freshness receipt, admitting freshness on 1.64.0 only with a retained live
+run on this host.
+
+- `PWP-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) The shared table gains exactly
+  one row, `corvint-playwright-freshness/0` on runner `1.64.0`, Node `v22.23.2`, browser source
+  `playwright-bundled`, because a live per-test freshness run passed on that exact tuple on this
+  host (official nodejs.org darwin-arm64 build, `@playwright/test@1.64.0`, headless-shell revision
+  `1248` with the `PWP-V0-032` digest). Runner `1.64.0` on Node `v22.23.2` with the bundled browser
+  is then admitted by the external profiles and by freshness from the same row set, so one tuple
+  satisfies both receipts. The per-test bundled browser identity still decides each test. Freshness
+  on `1.64.0` with Node `v24.11.1`, `v22.23.3` or any other release, with the system browser, or on
+  `1.63.0` with Node `v22.23.2` stays unadmitted; each needs its own live run. No range is admitted.
+- `PWP-V0-051`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) The freshness command
+  identity digests its executable (`argv[0]`) as a streamed SHA-256 of a regular, non-symlink file of
+  at most 256 MiB, rechecked as the same file after opening, instead of reading it whole under the
+  64 MiB application-attestation bound. An official Node release binary (about 113 MB on
+  darwin-arm64) therefore binds; a larger, replaced, missing or non-regular executable yields no
+  observation, and the run fails closed as before. The entrypoint keeps its 4 MiB read bound.
+- `PWP-V0-052`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) For a freshness run the
+  provider passes the reporter the table's bundled freshness `(runner, Node)` rows as the reporter
+  option `freshnessTuples`, and the reporter's freshness pre-filter admits a test's bundled browser
+  identity only when its runner and Node release match one of those rows. The reporter keeps no
+  freshness runner or Node literal. Non-freshness controlled configs are byte-identical; the
+  reporter's external Node pre-filter is unchanged, and Go remains the authority for every receipt.
+
+Non-goals: no Node major or minor range, no freshness on Node `v24.11.1` or `v22.23.3` with
+`1.64.0`, no new receipt member, profile or projection, no Linux tuple, and no change to the
+freshness environment (still exactly PATH, LANG, LC_ALL and TMPDIR, so the browser comes from the
+default Playwright cache). Failure modes addressed: freshness refused every 1.64.0 run, so no tuple
+satisfied both receipts; an official Node binary exceeded the 64 MiB read bound and the freshness
+command reported `command unavailable`; the reporter kept its own copy of the freshness tuple and
+returned no identity for an admitted row. Acceptance evidence: `TestPWPV0050OneTupleAdmitsExternalAndFreshness`,
+`TestPWPV0051FreshCommandExecutableStreamDigest` and `TestPWPV0052ReporterFreshnessTuplesFromTable`
+each fail with the base production code restored; the updated `PWP-V0-039` and `PWP-V0-040` tests;
+and the retained live run `TestPTFV0ActualLive` on `1.64.0`/`v22.23.2` (all eight cases pass), with
+a control run on Node `v22.23.3` that reads freshness `UNKNOWN`, plus `TestQualifiedPlaywrightLive`
+on the same tuple and toolchain (`docs/build-log/2026-10-20-V1-2009-freshness-164-live.md`). Linux,
+freshness on `v24.11.1` and a fresh 1.63.0 freshness regression are `NOT_RUN`. Rollback removes the
+row, the reporter option and the streamed digest; freshness on 1.64.0 then refuses
+`freshness-runtime-tuple-unqualified` again, and no retained receipt is deleted or rewritten.
 
 ### Every-attempt revision
 
@@ -789,6 +833,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-032..034 (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) | `internal/jstestprovider/external.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/runner_control.go` | `TestPWPV0032Playwright164BundledTupleIsExact`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestPWPV0034PreRunRefusalsAreTyped`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestPWPV0034CLIAdmissionRefusalWritesTypedDocument`, `TestPWPV0034RefusalWriteFailureKeepsDiagnostic`, `TestReceiptRuntimeTupleClassification`; live `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightLiveDevicesSpread` and `TestQualifiedPlaywrightAttemptsLiveDevicesSpread` on 1.64.0 and on 1.63.0 (`docs/build-log/2026-10-19-V1-2005-playwright-164-qualification.md`) |
 | PWP-V0-035..038 (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263, #1275) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0035Playwright164AttestedAndSensitiveTuples`, `TestPWPV0036Playwright164Node24TupleIsExact`, `TestPWPV0037Playwright164SystemChromeIsExact`, `TestPWPV0038E2ERefusalExitStatusAndStderrLine`, `TestPWPV0038WatchRefusalWritesNoStatusLine`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestReceiptRuntimeTupleClassification`; live `TestPWPV0035SensitiveProfileLive` (1.64.0 and 1.63.0), `TestApplicationAttestationDockerComposeQualification`, `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive` and the two devices-spread tests on 1.64.0 with Node v22.23.2 and v24.11.1, plus the 1.63.0 regression (`docs/build-log/2026-10-19-V1-2006-playwright-164-tuples.md`); Linux `NOT_RUN` |
 | PWP-V0-039..040 (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/freshness_run.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/negate.go` | `TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable`, `TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestReceiptRuntimeTupleClassification`; live run `NOT_RUN` (no tuple admitted; `docs/build-log/2026-10-20-V1-2009-shared-runtime-tuple-table.md`) |
+| PWP-V0-050..052 (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/freshness_run.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs` | `TestPWPV0050OneTupleAdmitsExternalAndFreshness`, `TestPWPV0051FreshCommandExecutableStreamDigest`, `TestPWPV0052ReporterFreshnessTuplesFromTable`, `TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable`, `TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues`; live `TestPTFV0ActualLive` and `TestQualifiedPlaywrightLive` on 1.64.0 / Node v22.23.2 (`docs/build-log/2026-10-20-V1-2009-freshness-164-live.md`); Linux and Node v24.11.1 freshness `NOT_RUN` |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
