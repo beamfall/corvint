@@ -28,6 +28,13 @@ type Change struct {
 // cem/1.0 producer map cites docs/rule.txt line 1 as the specification of that hunk.
 func NewChange(t testing.TB) Change {
 	t.Helper()
+	return NewChangeWithUnchanged(t, nil)
+}
+
+// NewChangeWithUnchanged is NewChange whose base also holds each path in
+// unchanged with its content; the target leaves those files unchanged.
+func NewChangeWithUnchanged(t testing.TB, unchanged map[string]string) Change {
+	t.Helper()
 	RequireStableHost(t)
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -52,6 +59,9 @@ func NewChange(t testing.TB) Change {
 	run("init", "-q", "-b", "main")
 	write(t, root, "docs/rule.txt", []byte("widget renderer authority\n"))
 	write(t, root, "src/app.txt", []byte("alpha\n"))
+	for path, content := range unchanged {
+		write(t, root, path, []byte(content))
+	}
 	run("add", ".")
 	run("commit", "-qm", "base")
 	base := run("rev-parse", "HEAD")

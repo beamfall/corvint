@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -214,17 +215,129 @@ func evidenceFormat(c capsule) string {
 	return "sha1"
 }
 
-// requireEvidencePaths admits no enrolled map. The capsule derived its object
-// demand from a cem/0.x map, which is retired: such a map refuses with the
-// closed code unsupported-spec and its fix line (CEM-V1-210). A cem/1.0 map
-// still has no capsule-native stable path and refuses with the capsule CEM
-// base refusal before any object is requested (CEM-V1-167).
-func (objects objectSet) requireEvidencePaths(in enrolledInput) error {
+// stableCapsuleRoles are the six artifact roles a stable capsule closure
+// accounts (C15). The capsule never reads their bytes: they stay opaque and
+// are checked only by the stable verifier over the published view.
+var stableCapsuleRoles = []string{
+	"tasks-capture", "tasks-verification", "tasks-claimed-ticket",
+	"tasks-snapshot-head-receipt", "runner-plan", "runner-receipt",
+}
+
+// stableCapsuleClosure is the exact raw cem/1.0 map's closure: its digest,
+// and one artifact per role in stableCapsuleRoles order (CEM-V1-295).
+type stableCapsuleClosure struct {
+	MapSHA256 string
+	Roles     []wire.StableArtifact
+}
+
+// stableClosure parses the exact enrolled map and accounts the six artifact
+// roles. A cem/0.x map keeps the decoder's unsupported-spec refusal and fix
+// line (CEM-V1-210); a map whose base is not the enrolled base is stale.
+func stableClosure(in enrolledInput) (*wire.StableMap, stableCapsuleClosure, error) {
 	raw := in.raw["cem.json"]
-	if !wire.DeclaresStable(raw) {
-		if _, err := wire.ParseStable(raw); err != nil {
+	document, err := wire.ParseStable(raw)
+	if err != nil {
+		return nil, stableCapsuleClosure{}, err
+	}
+	if document.Change.BaseRevision != in.enrollment.Binding.Base {
+		return nil, stableCapsuleClosure{}, errors.New("capsule CEM base")
+	}
+	closure := stableCapsuleClosure{MapSHA256: digest(raw)}
+	for _, role := range stableCapsuleRoles {
+		found := false
+		for _, artifact := range document.Artifacts {
+			if artifact.Kind == role && !found {
+				closure.Roles = append(closure.Roles, artifact)
+				found = true
+			}
+		}
+		if !found {
+			return nil, stableCapsuleClosure{}, errors.New("capsule stable role missing")
+		}
+	}
+	return document, closure, nil
+}
+
+// requireEvidencePaths derives the capsule's object demand from the exact
+// enrolled cem/1.0 map (CEM-V1-295..297): every evidence blob at the base
+// with its bound OID, the OCM intent and claim paths, the check driver and
+// subject, and the committed sidecar at the target, whose blob must be the
+// enrolled cem.json bytes exactly. The capsule does not verify the map; the
+// stable verifier over the published view does, with the artifact bytes.
+func (objects objectSet) requireEvidencePaths(in enrolledInput) error {
+	document, _, err := stableClosure(in)
+	if err != nil {
+		return err
+	}
+	b := in.enrollment.Binding
+	before, err := objects.completeTree(b.Base)
+	if err != nil {
+		return err
+	}
+	after, err := objects.completeTree(b.Target)
+	if err != nil {
+		return err
+	}
+	require := func(rows map[string]capsuleEntry, p string, optional bool) error {
+		entry, ok := rows[p]
+		if !ok {
+			if optional {
+				return nil
+			}
+			return errors.New("required capsule path missing")
+		}
+		if entry.mode != "100644" && entry.mode != "100755" {
+			return errors.New("required capsule path mode")
+		}
+		return objects.requireChangedBlob(entry)
+	}
+	for _, e := range document.Change.Evidence {
+		if err := require(before, e.Path, false); err != nil {
+			return err
+		}
+		if before[e.Path].oid != e.BlobOid {
+			return errors.New("capsule CEM blob binding")
+		}
+		if err := require(after, e.Path, true); err != nil {
 			return err
 		}
 	}
-	return errors.New("capsule CEM base")
+	var ocm struct {
+		Intent struct {
+			Path string `json:"path"`
+		} `json:"intentScope"`
+		Claims []struct {
+			Path string `json:"path"`
+		} `json:"claims"`
+	}
+	if err := json.Unmarshal(in.raw["ocm.json"], &ocm); err != nil {
+		return err
+	}
+	for _, rows := range []map[string]capsuleEntry{before, after} {
+		if err := require(rows, ocm.Intent.Path, false); err != nil {
+			return err
+		}
+	}
+	for _, claim := range ocm.Claims {
+		if err := require(after, claim.Path, false); err != nil {
+			return err
+		}
+	}
+	for _, check := range in.enrollment.Checks {
+		for _, demand := range []struct {
+			rows map[string]capsuleEntry
+			path string
+		}{{before, check.DriverPath}, {after, check.DriverPath}, {after, check.Subject}} {
+			if err := require(demand.rows, demand.path, false); err != nil {
+				return err
+			}
+		}
+	}
+	if err := require(after, wire.ExcludedCEMPath, false); err != nil {
+		return err
+	}
+	if sidecar := objects[after[wire.ExcludedCEMPath].oid]; !bytes.Equal(sidecar.body, in.raw["cem.json"]) {
+		return errors.New("capsule CEM sidecar binding")
+	}
+	return nil
 }
