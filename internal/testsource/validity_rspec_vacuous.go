@@ -210,8 +210,8 @@ func (r *rspecReader) supportGap() string {
 	return ""
 }
 
-// rspecSharedWord finds a shared group definition anywhere on a line; group 2 is what follows it.
-var rspecSharedWord = regexp.MustCompile(`\b(shared_examples_for|shared_examples|shared_context)\b(.*)`)
+// rspecSharedWord finds each shared group definition anywhere on a line; its arguments follow it.
+var rspecSharedWord = regexp.MustCompile(`\b(?:shared_examples_for|shared_examples|shared_context)\b`)
 
 // sharedGap names why a shared group called name could be defined where the reader did not look:
 // the reason the set is unbound or not given, or the first support file, other than the skipped
@@ -229,12 +229,11 @@ func (s *rspecSupport) sharedGap(name string, skip ...string) string {
 			continue
 		}
 		for _, l := range s.unreadBy[path].lines {
-			m := rspecSharedWord.FindStringSubmatch(l.text)
-			if m == nil {
-				continue
-			}
-			if got, literal := sharedName(strings.TrimSpace(m[2])); !literal || got == name {
-				return path
+			// Every definition on the line counts, not only the first.
+			for _, m := range rspecSharedWord.FindAllStringIndex(l.text, -1) {
+				if got, literal := sharedName(strings.TrimSpace(l.text[m[1]:])); !literal || got == name {
+					return path
+				}
 			}
 		}
 	}

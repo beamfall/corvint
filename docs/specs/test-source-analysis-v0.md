@@ -1410,13 +1410,20 @@ inclusion. It is agent-drafted and accepted under the owner's standing auto-acce
   - A modifier (`foo if bar`, `x = 1 unless y`, `return if bar`) and a keyword argument
     (`if: true`) MUST NOT open a block, and neither may a keyword inside a string literal.
   - A value-position block that the same line closes with `end`
-    (`b = if e then 1 else 2 end`) opens nothing.
+    (`b = if e then 1 else 2 end`) opens nothing. Only the `end` keyword closes it: a method call
+    (`.end`, `end?`, `end!`), a symbol (`:end`), a hash key (`end:`) or a variable (`@end`) does
+    not.
+  - Heredoc bodies (`<<~ID`, `<<-ID`, a quoted `<<'ID'`, a bare upper-case `<<ID`) are string
+    text up to their terminator; their lines open and close nothing.
+  - In the teardown reader a value-position `begin` (`cleanup = begin`) runs its body
+    unconditionally, as a statement `begin` does.
   - Line-start openers keep their TSA-V0-084 handling. The rule applies wherever the reader
     balances blocks: RSpec examples, support files and the teardown and seed-parity readers.
 - `TSA-V0-397`: (standing auto-accept, 2026-10-11; V1-2063 / GitHub #1312) A support file that does
   not read MUST hold back only the inclusions whose shared group it could define. A file could
   define a group when one of its lines has `shared_examples`, `shared_examples_for` or
-  `shared_context` naming that group literally or by a non-literal.
+  `shared_context` naming that group literally or by a non-literal. Every definition on the line
+  counts, not only the first.
   - Such an inclusion abstains `rspec-shared-group-unbound`, and its hygiene anchors MUST be the
     qualified reference followed by that support file's path. This holds for the CLI read and for
     receipt discovery through `ApplyExampleSource`.
@@ -1441,9 +1448,11 @@ Failure modes:
 
 Acceptance evidence: synthetic fixtures and the GitHub #1312 reproduction.
 - Each row of the #1312 table and the other value positions, modifiers, keyword arguments, string
-  contents and one-line value blocks (`TestRSpecValueOpenersBalance`).
+  contents, one-line value blocks, heredoc bodies and `end` method or symbol forms
+  (`TestRSpecValueOpenersBalance`), and a teardown delete inside a value `begin`
+  (`TestTeardownConditionalCleanup`).
 - An unread support file defining another group, no group, the included group or a non-literal
-  group (`TestRSpecInclusionUnreadSupportIsolated`), and the command read of both
+  group, including a second definition on one line (`TestRSpecInclusionUnreadSupportIsolated`), and the command read of both
   (`TestSourceValidityQualifiedSupportParse`).
 - The built binary on the #1312 scratch repositories: every table row moved from `ABSTAINED` to
   `ELIGIBLE`. A deliberately unbalanced support file defining another group went from `ABSTAINED`
@@ -1457,7 +1466,7 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes `rubyV
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-396 | `internal/testsource/actor_auth_rails.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse` | experimental |
+| TSA-V0-396 | `internal/testsource/actor_auth_rails.go`, `internal/testsource/teardown_reading.go` | `TestRSpecValueOpenersBalance`, `TestSourceValidityQualifiedSupportParse`, `TestTeardownConditionalCleanup` | experimental |
 | TSA-V0-397 | `internal/testsource/validity_rspec_inclusion.go`, `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_command.go`, `internal/testvalidity/source_rules_rspec.go` | `TestRSpecInclusionUnreadSupportIsolated`, `TestSourceValidityQualifiedSupportParse` | experimental |
 
 ## Outcome, cleanup, input and vacuity rules (V1-1919, V1-1930, V1-1931, V1-1932)

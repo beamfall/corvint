@@ -14,3 +14,10 @@ gap of five.
 
 Evidence: the #1312 reproduction table on the built binary moved from four `ABSTAINED` rows to all
 seven `ELIGIBLE`; focused tests in `internal/testsource`. Real-suite qualification is NOT_RUN.
+
+## Independent review (Codex, one round)
+
+Four findings, all fixed with a regression test each: the support-file definition scan read only
+the first shared definition on a line; heredoc bodies were read as code; `.end`, `:end` and `end?`
+closed a value opener on its own line; and a value-position `begin` made teardown deletes
+conditional. Each new test failed on the previous head and passes after the fix.

@@ -63,6 +63,10 @@ func TestRSpecValueOpenersBalance(t *testing.T) {
 		{"modifier after return", "    return if e\n    return unless e\n    return while e\n"},
 		{"keyword argument", "    f(e, if: true, unless: false)\n"},
 		{"string contents", "    s = \"a = if b\"\n    t = '(begin'\n"},
+		{"heredoc body", "    text = <<~TEXT\n      x = if y\n    TEXT\n    u = <<-'A'\n      v = begin\n      A\n"},
+		{"value if with end method", "    b = if (1..2).end == 2\n      1\n    end\n"},
+		{"value if with end symbol", "    b = if options[:end]\n      1\n    end\n"},
+		{"value if with end predicate", "    b = if r.end? || o.end!\n      1\n    end\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -93,6 +97,8 @@ func TestRSpecInclusionUnreadSupportIsolated(t *testing.T) {
 		{"defines no group", "def a\nend\nend\n", testvalidity.ExampleSourceLocated, ""},
 		{"defines the included group", broken(`"sends nothing"`), testvalidity.SharedGroupUnbound, "spec/support/broken.rb"},
 		{"defines a non-literal group", broken(`NAME`), testvalidity.SharedGroupUnbound, "spec/support/broken.rb"},
+		{"defines the included group second on a line", "RSpec.shared_examples('other') {}; RSpec.shared_examples('sends nothing') {}\nend\n",
+			testvalidity.SharedGroupUnbound, "spec/support/broken.rb"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
