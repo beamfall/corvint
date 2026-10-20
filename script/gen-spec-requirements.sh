@@ -11,33 +11,43 @@ set -eu
 # With no argument the script prints docs/specs/REQUIREMENTS.tsv. `--index` prints
 # docs/specs/INDEX.json and `--readme` prints docs/specs/README.md, each projected from the
 # staged spec headers onto the staged file (SRG-V0-012). `--lines` prints the uncommitted locator
-# view: the same rows with each definition's line number, ordered by id (SRG-V0-015). Every mode
-# writes stdout only.
+# view: the same rows with each definition's line number, ordered by id (SRG-V0-015). Those modes
+# write stdout only. `--all DIR` writes REQUIREMENTS.tsv, INDEX.json and README.md into the existing
+# directory DIR from one read of the staged specs, each byte for byte what its own mode prints
+# (SRG-V0-018); `make spec-requirements` and `spec-requirements-check` use it.
 
+usage() { printf 'usage: %s [--index | --readme | --lines | --all DIR]\n' "$0" >&2; exit 2; }
+out_dir=
 case ${1:-} in
   '') mode=tsv ;;
   --index) mode=index ;;
   --readme) mode=readme ;;
   --lines) mode=lines ;;
-  *) printf 'usage: %s [--index | --readme | --lines]\n' "$0" >&2; exit 2 ;;
+  --all)
+    test $# = 2 && test -n "$2" || usage
+    mode=all
+    out_dir=$(CDPATH= cd -- "$2" && pwd) || { printf '%s: --all DIR must be an existing directory\n' "$0" >&2; exit 2; }
+    ;;
+  *) usage ;;
 esac
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-perl - "$mode" <<'PERL'
+perl - "$mode" "$out_dir" <<'PERL'
 use strict;
 use warnings;
 use IPC::Open2 qw(open2);
+use POSIX ();
 use JSON::PP ();
 
-my $mode = shift @ARGV;
+my ($mode, $out_dir) = @ARGV;
 
-# Every index read goes through one `git cat-file --batch` co-process, so a scan forks git once
-# instead of once per file. A path the batch cannot serve (a newline breaks its request framing;
-# a missing or non-blob entry) is read by a one-shot `git cat-file blob`, which reports and exits
-# exactly as the per-file read always did.
-my ($batch_out, $batch_in, $batch_pid);
+# SRG-V0-018: every index read of one invocation goes through one `git cat-file --batch --buffer`
+# co-process, pipelined: a forked writer sends every request while this process reads the replies,
+# so neither side waits on a round trip and neither can fill the other's pipe. A path the batch
+# cannot serve (a newline breaks its request framing; a missing or non-blob entry) is read by a
+# one-shot `git cat-file blob`, which reports and exits exactly as the per-file read always did.
 sub index_blob_once {
     my ($path) = @_;
     open my $fh, '-|', 'git', 'cat-file', 'blob', ":$path" or die "$path: $!\n";
@@ -47,37 +57,42 @@ sub index_blob_once {
     return $blob;
 }
 
-sub index_blob {
-    my ($path) = @_;
-    local $/ = "\n";
-    return index_blob_once($path) if $path =~ /\n/;
-    local $SIG{PIPE} = 'IGNORE';    # a dead co-process surfaces as a short read, not a signal
-    $batch_pid //= open2($batch_out, $batch_in, 'git', 'cat-file', '--batch');
-    print {$batch_in} ":$path\n";
-    $batch_in->flush;
-    my $header = <$batch_out> // batch_failed();
-    my ($type, $size) = $header =~ /\A[0-9a-f]+ (\S+) (\d+)\n\z/ or return index_blob_once($path);
-    my $read = read($batch_out, my $blob, $size + 1) // die "git cat-file --batch: $!\n";
-    batch_failed() unless $read == $size + 1 && substr($blob, -1, 1, '') eq "\n";
-    return $type eq 'blob' ? $blob : index_blob_once($path);
-}
-
-# Reaps the batch co-process and fails on its nonzero exit, reporting the status the way a closed
-# `-|` pipe does; $! is cleared so `die` exits with that status rather than a stale errno.
-sub close_index {
-    return unless defined $batch_pid;
-    close $batch_in;
-    waitpid $batch_pid, 0;
-    undef $batch_pid;
-    return unless $?;
-    $! = 0;
-    die 'git cat-file --batch failed: exit ' . ($? >> 8) . "\n";
-}
-
-# A batch stream that ends before a header or a full body means the co-process died mid-scan.
-sub batch_failed {
-    close_index();
-    die "git cat-file --batch failed: short read\n";
+sub index_blobs {
+    my @paths = @_;
+    my %blob;
+    my @batch = grep { !/\n/ } @paths;
+    my %fallback = map { $_ => 1 } grep { /\n/ } @paths;
+    if (@batch) {
+        local $SIG{PIPE} = 'IGNORE';    # a dead co-process surfaces as a short read, not a signal
+        local $/ = "\n";
+        my $pid = open2(my $out, my $in, 'git', 'cat-file', '--batch', '--buffer');
+        my $writer = fork // die "fork: $!\n";
+        if ($writer == 0) {
+            close $out;
+            print {$in} map { ":$_\n" } @batch;
+            POSIX::_exit(close $in ? 0 : 1);
+        }
+        close $in;
+        my $short = 0;
+        for my $path (@batch) {
+            my $header = <$out>;
+            $short = 1, last unless defined $header;
+            my ($type, $size) = $header =~ /\A[0-9a-f]+ (\S+) (\d+)\n\z/ or ($fallback{$path} = 1, next);
+            my $read = read($out, my $body, $size + 1) // die "git cat-file --batch: $!\n";
+            $short = 1, last unless $read == $size + 1 && substr($body, -1, 1, '') eq "\n";
+            $type eq 'blob' ? ($blob{$path} = $body) : ($fallback{$path} = 1);
+        }
+        close $out;
+        waitpid $writer, 0;
+        waitpid $pid, 0;
+        # Reports the co-process status the way a closed `-|` pipe does; $! is cleared so `die`
+        # exits with that status rather than a stale errno.
+        $! = 0;
+        die 'git cat-file --batch failed: exit ' . ($? >> 8) . "\n" if $?;
+        die "git cat-file --batch failed: short read\n" if $short;
+    }
+    $blob{$_} = index_blob_once($_) for grep { $fallback{$_} } @paths;
+    return \%blob;
 }
 
 my @specs;
@@ -165,9 +180,16 @@ sub digest_claim {
     return $values{Claim};
 }
 
+my @reads = sort @specs;
+push @reads, 'docs/specs/INDEX.json'
+    if ($mode eq 'index' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
+push @reads, 'docs/specs/README.md'
+    if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
+my $blobs = index_blobs(@reads);
+
 my (%best, %header);
 for my $file (sort @specs) {
-    my $blob = index_blob($file);
+    my $blob = $blobs->{$file};
     if ($mode ne 'tsv') {
         my ($title) = $blob =~ /^# ([^\n]+)/m;
         $title = trim($title) if defined $title;
@@ -235,19 +257,18 @@ for my $file (sort @specs) {
 # definition position, so an edit that shifts a spec's lines rewrites no row and two changes that
 # add requirements to different sections of one spec insert their rows at different places.
 # `--lines` is the derived locator view with the line column, ordered by id; it is never committed.
-if ($mode eq 'tsv') {
-    close_index();
-    print "id\tfile\ttitle\tacceptance\tacceptedBy\n";
+sub tsv_text {
     my @ids = sort {
         $best{$a}{file} cmp $best{$b}{file} || $best{$a}{line} <=> $best{$b}{line} || $a cmp $b
     } keys %best;
-    for my $id (@ids) {
-        print join("\t", $id, @{$best{$id}}{qw(file title acceptance accepted_by)}), "\n";
-    }
+    return join '', "id\tfile\ttitle\tacceptance\tacceptedBy\n",
+        map { join("\t", $_, @{$best{$_}}{qw(file title acceptance accepted_by)}) . "\n" } @ids;
+}
+if ($mode eq 'tsv') {
+    print tsv_text();
     exit 0;
 }
 if ($mode eq 'lines') {
-    close_index();
     print "id\tfile\tline\ttitle\tacceptance\tacceptedBy\n";
     for my $id (sort keys %best) {
         my $row = $best{$id};
@@ -292,10 +313,9 @@ sub new_spec_title {
     return $title;
 }
 
-if ($mode eq 'index') {
+sub index_text {
     my @keys = qw(path title reqPrefix intent delivery claim dependsOn supersededBy closableToday implementation);
-    my $raw = $tracked{'docs/specs/INDEX.json'} ? index_blob('docs/specs/INDEX.json') : "[]\n";
-    close_index();
+    my $raw = $tracked{'docs/specs/INDEX.json'} ? $blobs->{'docs/specs/INDEX.json'} : "[]\n";
     my $entries = eval { JSON::PP->new->utf8->decode($raw) };
     ref $entries eq 'ARRAY' or die "docs/specs/INDEX.json: not a JSON array\n";
     my %listed;
@@ -348,58 +368,72 @@ if ($mode eq 'index') {
     } @$entries;
     my $out = "[\n" . join(",\n", @objects) . "\n]\n";
     utf8::encode($out);
-    print $out;
-    exit 0;
+    return $out;
 }
 
 # README mode: rewrite the Intent and Delivery cells and the leading claim of the description in
 # every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
 # internal/specindex reads.
-$tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
-my @rows = split /^/, index_blob('docs/specs/README.md');
-close_index();
-my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
-defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";
-my $end = $table;
-++$end while $end + 1 <= $#rows && $rows[$end + 1] =~ /\A\|/;
-my %rowed;
-my $cell = sub {
-    my ($column, $value) = @_;
-    $column =~ /\A(\s*)(.*?)(\s*)\z/s;
-    return "$1$value$3";
-};
-for my $i ($table + 2 .. $end) {
-    my $row = $rows[$i];
-    utf8::decode($row) or die "docs/specs/README.md:" . ($i + 1) . ": not valid UTF-8\n";
-    my $newline = $row =~ s/\n\z// ? "\n" : '';
-    my @columns = split /\|/, $row, -1;
-    next if @columns < 7;
-    my ($link, $anchor) = $columns[2] =~ /\]\(([^)#]+\.md)(#[^)]*)?\)/ or next;
-    next if defined $anchor;
-    my $path = $link =~ m{\A\.\./} ? $link : "docs/specs/$link";
-    my $spec = $header{$path} or next;
-    $rowed{$path} = 1;
-    $columns[3] = $cell->($columns[3], $spec->{intent});
-    $columns[4] = $cell->($columns[4], $spec->{delivery});
-    if (defined $spec->{claim}) {
-        my $description = trim($columns[5]);
-        $description =~ s/\A.*?[.?!](?=\s|\z)//s
-            or die "$path: its README row description does not start with a one-sentence claim\n";
-        $columns[5] = $cell->($columns[5], $spec->{claim} . $description);
+sub readme_text {
+    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
+    my @rows = split /^/, $blobs->{'docs/specs/README.md'};
+    my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
+    defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";
+    my $end = $table;
+    ++$end while $end + 1 <= $#rows && $rows[$end + 1] =~ /\A\|/;
+    my %rowed;
+    my $cell = sub {
+        my ($column, $value) = @_;
+        $column =~ /\A(\s*)(.*?)(\s*)\z/s;
+        return "$1$value$3";
+    };
+    for my $i ($table + 2 .. $end) {
+        my $row = $rows[$i];
+        utf8::decode($row) or die "docs/specs/README.md:" . ($i + 1) . ": not valid UTF-8\n";
+        my $newline = $row =~ s/\n\z// ? "\n" : '';
+        my @columns = split /\|/, $row, -1;
+        next if @columns < 7;
+        my ($link, $anchor) = $columns[2] =~ /\]\(([^)#]+\.md)(#[^)]*)?\)/ or next;
+        next if defined $anchor;
+        my $path = $link =~ m{\A\.\./} ? $link : "docs/specs/$link";
+        my $spec = $header{$path} or next;
+        $rowed{$path} = 1;
+        $columns[3] = $cell->($columns[3], $spec->{intent});
+        $columns[4] = $cell->($columns[4], $spec->{delivery});
+        if (defined $spec->{claim}) {
+            my $description = trim($columns[5]);
+            $description =~ s/\A.*?[.?!](?=\s|\z)//s
+                or die "$path: its README row description does not start with a one-sentence claim\n";
+            $columns[5] = $cell->($columns[5], $spec->{claim} . $description);
+        }
+        $row = join('|', @columns) . $newline;
+        utf8::encode($row);
+        $rows[$i] = $row;
     }
-    $row = join('|', @columns) . $newline;
-    utf8::encode($row);
-    $rows[$i] = $row;
+    my @added;
+    for my $file (grep { !$rowed{$_} } sort @specs) {
+        my $name = $file =~ s{\Adocs/specs/}{}r;
+        my $row = sprintf("| %s | [`%s`](%s) | %s | %s | %s |\n",
+            new_spec_title($file), $name, $name, @{$header{$file}}{qw(intent delivery claim)});
+        utf8::encode($row);
+        push @added, $row;
+    }
+    $rows[$end] .= "\n" if @added && $rows[$end] !~ /\n\z/;
+    splice @rows, $end + 1, 0, @added;
+    return join '', @rows;
 }
-my @added;
-for my $file (grep { !$rowed{$_} } sort @specs) {
-    my $name = $file =~ s{\Adocs/specs/}{}r;
-    my $row = sprintf("| %s | [`%s`](%s) | %s | %s | %s |\n",
-        new_spec_title($file), $name, $name, @{$header{$file}}{qw(intent delivery claim)});
-    utf8::encode($row);
-    push @added, $row;
+
+if ($mode eq 'index') {
+    print index_text();
+} elsif ($mode eq 'readme') {
+    print readme_text();
+} else {
+    # Every output is built before any is written, so a refused projection leaves DIR untouched.
+    my %out = ('REQUIREMENTS.tsv' => tsv_text(), 'INDEX.json' => index_text(), 'README.md' => readme_text());
+    for my $name (sort keys %out) {
+        open my $fh, '>', "$out_dir/$name" or die "$out_dir/$name: $!\n";
+        print {$fh} $out{$name} or die "$out_dir/$name: $!\n";
+        close $fh or die "$out_dir/$name: $!\n";
+    }
 }
-$rows[$end] .= "\n" if @added && $rows[$end] !~ /\n\z/;
-splice @rows, $end + 1, 0, @added;
-print @rows;
 PERL

@@ -3,6 +3,8 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -59,11 +61,17 @@ func (r *batchRepo) commit(message string) string {
 // loop does, and returns the bind and seal commits.
 func (r *batchRepo) lane(name, path, data, cem string) (string, string) {
 	r.t.Helper()
-	testGit(r.t, r.root, "checkout", "-q", "-b", name, r.base)
+	return r.laneFrom(name, r.base, path, data, cem)
+}
+
+// laneFrom is lane on a branch from, and bound against, the commit from.
+func (r *batchRepo) laneFrom(name, from, path, data, cem string) (string, string) {
+	r.t.Helper()
+	testGit(r.t, r.root, "checkout", "-q", "-b", name, from)
 	r.write(path, data)
 	r.commit("work " + name)
 	if cem == "" {
-		cem = `{"spec": "cem/1.0", "baseRevision": "` + r.base + `", "hunks": []}` + "\n"
+		cem = `{"spec": "cem/1.0", "baseRevision": "` + from + `", "hunks": []}` + "\n"
 	}
 	r.write(".corvint/change.cem.json", cem)
 	bind := r.commit("chore: bind change evidence")
@@ -241,21 +249,78 @@ func TestBatchCheckDCWV0039PassesSealedConstituents(t *testing.T) {
 	}
 }
 
-// DCW-V0-039: a one-sided conflict resolution is derivable from the parents,
-// and the dropped side is printed rather than hidden.
-func TestBatchCheckDCWV0039DerivesOneSidedResolution(t *testing.T) {
+// DCW-V0-039 and DCW-V0-073: a one-sided conflict resolution is derivable
+// from the parents, but each hunk it drops is reported per file and hunk and
+// fails until restored or dispositioned. V1-1786: the old check passed this
+// merge with an aggregate count only.
+func TestBatchCheckDCWV0073ReportsEachDroppedHunk(t *testing.T) {
 	repo := newBatchRepo(t)
-	_, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
-	_, sealB := repo.lane("lane-b", "a.txt", "a1\nB2\na3\n", "")
+	repo.write("c.txt", "c1\nc2\nc3\nc4\nc5\nc6\nc7\nc8\nc9\nc10\nc11\n")
+	repo.base = repo.commit("third file")
+	_, sealA := repo.lane("lane-a", "c.txt", "c1\nA2\nc3\nc4\nc5\nc6\nc7\nc8\nc9\nA10\nc11\n", "")
+	_, sealB := repo.lane("lane-b", "c.txt", "c1\nB2\nB2b\nc3\nc4\nc5\nc6\nc7\nc8\nc9\nB10\nc11\n", "")
 	repo.batch(sealA)
 	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "-X", "ours", sealB)
+	merge := testGit(t, repo.root, "rev-parse", "HEAD")
 	before := repo.objects()
 	code, stdout, stderr := repo.check()
-	if code != 0 || !strings.Contains(stdout, "derivation=ort-ours\n") || !strings.Contains(stdout, "dogfood-batch-check: NOTE conflict-side-dropped merges=1\n") {
-		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	first := "path=c.txt hunk=1 kept=L2+1 dropped=2 side=" + sealB + " id=" + wantHunkID("c.txt", "A2\n", "B2\nB2b\n")
+	second := "path=c.txt hunk=2 kept=L10+1 dropped=1 side=" + sealB + " id=" + wantHunkID("c.txt", "A10\n", "B10\n")
+	if want := "dogfood-batch-check: MERGE " + merge + " derivation=ort-ours\n  dropped-hunk " + first + " coverage=none\n  dropped-hunk " +
+		second + " coverage=none\n"; !strings.Contains(stdout, want) {
+		t.Fatalf("exit=%d missing %q in %s", code, want, stdout)
+	}
+	if want := "dogfood-batch-check: FAIL merge-side-dropped count=2\n  " + merge + " " + first + "\n  " + merge + " " + second +
+		"\n  fix: restore each listed hunk's dropped side"; code != 1 || !strings.Contains(stderr, want) {
+		t.Fatalf("exit=%d missing %q in %s", code, want, stderr)
 	}
 	if after := repo.objects(); after != before {
 		t.Fatalf("merge-tree wrote into the repository:\n%s", after)
+	}
+
+	// A disposition with a reason in the merge's message covers its hunk; one
+	// without a reason does not.
+	testGit(t, repo.root, "commit", "-q", "--amend", "-m", "merge lane-b\n\nCorvint-Dropped-Hunk: "+wantHunkID("c.txt", "A2\n", "B2\nB2b\n")+
+		" lane A's line supersedes it\nCorvint-Dropped-Hunk: "+wantHunkID("c.txt", "A10\n", "B10\n")+"\n")
+	merge = testGit(t, repo.root, "rev-parse", "HEAD")
+	code, stdout, stderr = repo.check()
+	if !strings.Contains(stdout, "  dropped-hunk "+first+" coverage=disposition\n") ||
+		!strings.Contains(stderr, "FAIL merge-side-dropped count=1\n  "+merge+" "+second+"\n") || code != 1 {
+		t.Fatalf("disposition: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+
+	// A sealed change based on the merge that restores the other dropped side
+	// at HEAD covers it, and the batch passes with the tally.
+	_, sealC := repo.laneFrom("lane-c", merge, "c.txt", "c1\nA2\nc3\nc4\nc5\nc6\nc7\nc8\nc9\nA10\nB10\nc11\n", "")
+	testGit(t, repo.root, "checkout", "-q", "batch")
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", sealC)
+	code, stdout, stderr = repo.check()
+	if code != 0 || !strings.Contains(stdout, "  dropped-hunk "+second+" coverage=restored:") ||
+		!strings.Contains(stdout, "dogfood-batch-check: NOTE conflict-side-dropped merges=1 hunks=2 restored=1 dispositioned=1\n") {
+		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}
+
+// wantHunkID is the DCW-V0-073 hunk id: the sha256 of the path, the kept lines
+// and the dropped lines, NUL-separated.
+func wantHunkID(path, kept, dropped string) string {
+	sum := sha256.Sum256([]byte(path + "\x00" + kept + "\x00" + dropped))
+	return hex.EncodeToString(sum[:])
+}
+
+// DCW-V0-073: a merge that keeps its first parent's tree over a second side
+// Git would merge drops that whole side; it is UNKNOWN and fails.
+func TestBatchCheckDCWV0073FirstParentTreeDropsSide(t *testing.T) {
+	repo := newBatchRepo(t)
+	_, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	_, sealB := repo.lane("lane-b", "b.txt", "b1\nB2\nb3\n", "")
+	repo.batch(sealA)
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "-s", "ours", sealB)
+	merge := testGit(t, repo.root, "rev-parse", "HEAD")
+	code, stdout, stderr := repo.check()
+	if want := "FAIL merge-side-dropped count=1\n  " + merge + " side=" + sealB + " hunk=UNKNOWN reason=second-side-discarded paths="; code != 1 ||
+		!strings.Contains(stdout, "MERGE "+merge+" derivation=first-parent-tree\n") || !strings.Contains(stderr, want) {
+		t.Fatalf("exit=%d missing %q stdout=%s stderr=%s", code, want, stdout, stderr)
 	}
 }
 
@@ -275,7 +340,7 @@ func TestBatchCheckDCWV0040NamesUnboundContentAndRecovery(t *testing.T) {
 	fixup := repo.commit("orchestrator fix-up")
 	code, _, stderr := repo.check()
 	for _, want := range []string{
-		"dogfood-batch-check: FAIL merge-resolution-unbound count=1\n  " + merge + " paths=a.txt\n  fix: redo the merge with git merge -X ours (or -X theirs)",
+		"dogfood-batch-check: FAIL merge-resolution-unbound count=1\n  " + merge + " paths=a.txt\n  fix: a hand-resolved merge is unbound: drop it, rebase the conflicting change's own work commits",
 		"dogfood-batch-check: FAIL unbound-commits count=1\n  " + fixup + "\n  fix: bind each listed commit through a sealed change",
 	} {
 		if !strings.Contains(stderr, want) {

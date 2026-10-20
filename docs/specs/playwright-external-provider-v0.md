@@ -402,8 +402,8 @@ carrying `runner` then fail closed through the canonical check and are neither d
   `interrupt-grace-invalid`, `runner-control-requires-external-server` or
   `runner-output-unavailable`), the provider writes one `corvint-playwright-e2e-refusal/0` document to stdout instead of an empty one: the
   closed members `schema`, `code` (the refusal code, unchanged), `message` (the earlier error text)
-  and `qualifiedRunnerVersions` (the exact versions external mode admits, in order), encoded as
-  compact JSON plus LF. The version refusal message names those versions:
+  and `qualifiedRunnerVersions` (the exact versions external mode admits, in order), plus the
+  `runtimeTuple` member for a tuple refusal (`PWP-V0-040`), encoded as compact JSON plus LF. The version refusal message names those versions:
   `external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0`.
   The exit status and stderr line are those of `PWP-V0-038`. The document is
   not a receipt, is never retained or read as evidence, and an infrastructure failure after the run
@@ -491,6 +491,53 @@ byte-identical: no receipt struct, encoding or bundled tuple changed. Rollback r
 reporter) and the exit-status branch; receipts written on those tuples then read `unqualified` and
 are neither deleted nor rewritten, and refusals exit `1` again.
 
+### Shared exact runtime tuple table
+
+Human intent: GitHub #1270 and V1-2009; the owner's 2026-10-20 decision keeps decision 0448 (Node
+patch releases are admitted one exact release at a time, never a major or minor range) and fixes the
+receipt/freshness clash with one shared exact-tuple table.
+
+- `PWP-V0-039`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) Receipts and per-test
+  freshness admit from one table of exact `(profile, runner version, Node release, browser source)`
+  rows, where browser source is `playwright-bundled` or `system`. `ReceiptRuntimeTuple`, the per-test
+  bundled and system-browser predicates and the freshness row check all read that table; no consumer
+  keeps its own runner or Node literal. The rows are exactly the tuples live runs observed:
+  `1.63.0`/`v22.23.2` bundled for `/0`..`/3` and system for `/0`..`/2`; `1.63.0`/`v24.11.1` bundled
+  for `/0`; `1.64.0`/`v22.23.2` bundled for `/0`..`/3` and system for `/0`; `1.64.0`/`v24.11.1`
+  bundled for `/0` and `/3`; and `corvint-playwright-freshness/0` on `1.63.0`/`v22.23.3` bundled.
+  Every value is an exact release; a range, a prefix or a neighbouring patch is never a row.
+  `1.60.0` predates the Node and browser binding and stays outside the table unchanged. The
+  per-test browser identity (bundled revision and digest, system Chrome version, the 1.64.0
+  system headless condition) still decides each test. Freshness on `1.64.0`, and freshness on Node
+  `v22.23.2` or `v24.11.1`, have no live freshness run and are not rows, so no single Node release
+  yet satisfies both an external receipt and a freshness receipt; a row is added only with its own
+  live run.
+- `PWP-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) A tuple refusal names the
+  first failing field, checked in the order runner, Node, browser source, and the exact values the
+  shared table admits for that field given the fields before it, sorted. The
+  `corvint-playwright-e2e-refusal/0` document carries it as the optional member
+  `runtimeTuple` `{"profile","field","admitted"}` (field `runner`, `node` or `browser-source`),
+  never echoing the observed value. The external runner-version refusal carries it with field
+  `runner` and the admitted external versions; a per-test freshness request whose runner is not a
+  freshness row refuses `freshness-runtime-tuple-unqualified` before anything starts, with the same
+  member and the detail `runner not admitted for corvint-playwright-freshness/0; admitted runner
+  values: 1.63.0`; the step-negation `runtime-tuple-unqualified` refusal appends the same field and
+  admitted-values text. The browser source is observed only after a run, so it is named by
+  `AdmittedRuntimeTupleMismatch` for consumers that hold a receipt, not by a pre-run refusal.
+
+Non-goals: no Node major or minor range, no new admitted tuple, no freshness on `1.64.0` or on Node
+`v22.23.2`/`v24.11.1`, no change to any receipt member, profile, projection or the reporter's mirror
+table, and no discovery-document shape change. Failure modes addressed: receipts pinned Node
+`v22.23.2` and freshness pinned `v22.23.3` in two separate literals, so the clash was invisible and
+one could move without the other; a refusal did not say which tuple field failed or what would be
+admitted. Acceptance evidence: `TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable` (a table row
+change moves receipts and freshness together; it fails with freshness's base literal restored) and
+`TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues` (it fails with the base admission restored),
+plus the updated `PWP-V0-034` document bytes; no live run, because no tuple was admitted. Receipts
+are byte-identical and classify as before. Rollback restores the per-consumer literals and removes
+the `runtimeTuple` member and the freshness pre-run refusal (freshness then fails
+`freshness-config-unsupported` again); no retained receipt is deleted or rewritten.
+
 ### Every-attempt revision
 
 Intent accepted by decision 0417 for `AFU-V1-012`; `--retain-attempt-details` selects the implemented
@@ -552,6 +599,9 @@ The provider's closed refusal codes are:
   document, `PWP-V0-034`)
 - `external-readiness-url-required`
 - `external-server-command-forbidden`
+- `freshness-runtime-tuple-unqualified` (a per-test freshness request whose runner version is not a
+  freshness row of the shared runtime tuple table; the detail and the refusal document's
+  `runtimeTuple` member name the field and the admitted values, `PWP-V0-040`)
 - `external-unsupported-option` (a `--test-arg` option outside the external-mode allow-list; the
   detail names the option. Emitted before this list named it; documented by `PWP-V0-034`)
 - `input-identity-changed`
@@ -738,6 +788,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-028..031 (accepted under the owner's standing auto-accept (2026-10-11); V1-1800, V1-1802; GitHub #1131, #1133) | `internal/procgroup/interrupt.go`, `internal/procgroup/process.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/receipt.go`, `internal/jstestprovider/projection.go`, `cmd/corvint-js-test-provider/runner_control.go`, `cmd/corvint-js-test-provider/runner_output_unix.go`, `cmd/corvint-js-test-provider/runner_output_other.go`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/negate.go` | `TestPWPV0028ExternalConsoleOverBoundTruncatesAndTees` (#1131: a 5 MiB fake runner completes and the tee receives every byte), `TestPWPV0028ExternalConsoleWithoutTee`, `TestPWPV0028TeesReceiveUntruncatedStreams`, `TestPWPV0028RunnerOutputFlagWritesFile`, `TestPWPV0028BlockedTeeSinkDoesNotHoldDrains`, `TestPWPV0028RunnerOutputRefusesSymlink`, `TestPWPV0028RunnerOutputRefusesFIFO`, `TestPWPV0028RunnerOutputExistingFileBecomes0600`, `TestPWPV0028RunnerOutputReportsEarlyEnd`, `TestPWPV0029RunnerRecordShape`, `TestPWPV0029SelfExitRecordsNoStopSignal`, `TestPWPV0029StopSignalSurvivesExitDuringSend`, `TestPWPV0030ExternalTimeoutInterruptsRunnerFirst` (#1133: the fake runner writes a file on SIGINT and the receipt records `SIGINT`), `TestPWPV0030ExternalZeroGraceTerminatesFirst`, `TestPWPV0030ZeroInterruptGraceKeepsTerminateFirstStop`, `TestPWPV0030InterruptFirstStopLetsRunnerExitOnSIGINT`, `TestPWPV0030InterruptGraceEscalatesToSIGTERM`, `TestPWPV0030NegativeInterruptGraceIsInvalid`, `TestPWPV0030InterruptGraceFlag`, `TestPWPV0031ReadinessRulesByMode`, `TestPWPV0031ServerReadyURLHelpMatchesReadiness`; live Playwright run `NOT_RUN` (`docs/build-log/2026-10-18-V1-1800-js-provider-output-retention-interrupt-1131.md`) |
 | PWP-V0-032..034 (accepted under the owner's standing auto-accept (2026-10-11); V1-2005; GitHub #1263) | `internal/jstestprovider/external.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `cmd/corvint-js-test-provider/runner_control.go` | `TestPWPV0032Playwright164BundledTupleIsExact`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestPWPV0034PreRunRefusalsAreTyped`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestPWPV0034CLIAdmissionRefusalWritesTypedDocument`, `TestPWPV0034RefusalWriteFailureKeepsDiagnostic`, `TestReceiptRuntimeTupleClassification`; live `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightLiveDevicesSpread` and `TestQualifiedPlaywrightAttemptsLiveDevicesSpread` on 1.64.0 and on 1.63.0 (`docs/build-log/2026-10-19-V1-2005-playwright-164-qualification.md`) |
 | PWP-V0-035..038 (accepted under the owner's standing auto-accept (2026-10-11); V1-2006; GitHub #1263, #1275) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go` | `TestPWPV0035Playwright164AttestedAndSensitiveTuples`, `TestPWPV0036Playwright164Node24TupleIsExact`, `TestPWPV0037Playwright164SystemChromeIsExact`, `TestPWPV0038E2ERefusalExitStatusAndStderrLine`, `TestPWPV0038WatchRefusalWritesNoStatusLine`, `TestPWPV0033Playwright164ProfilesAndNodeAreExact`, `TestReceiptRuntimeTupleClassification`; live `TestPWPV0035SensitiveProfileLive` (1.64.0 and 1.63.0), `TestApplicationAttestationDockerComposeQualification`, `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightAttemptsLive` and the two devices-spread tests on 1.64.0 with Node v22.23.2 and v24.11.1, plus the 1.63.0 regression (`docs/build-log/2026-10-19-V1-2006-playwright-164-tuples.md`); Linux `NOT_RUN` |
+| PWP-V0-039..040 (accepted under the owner's standing auto-accept (2026-10-11); V1-2009; GitHub #1270) | `internal/jstestprovider/runtime_tuple.go`, `internal/jstestprovider/external.go`, `internal/jstestprovider/freshness.go`, `internal/jstestprovider/freshness_run.go`, `internal/jstestprovider/runner.go`, `internal/jstestprovider/e2e_refusal.go`, `internal/jstestprovider/negate.go` | `TestPWPV0039ReceiptsAndFreshnessAdmitFromOneTable`, `TestPWPV0040TupleRefusalNamesFieldAndAdmittedValues`, `TestPWPV0034E2EVersionRefusalWritesTypedDocument`, `TestReceiptRuntimeTupleClassification`; live run `NOT_RUN` (no tuple admitted; `docs/build-log/2026-10-20-V1-2009-shared-runtime-tuple-table.md`) |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
 | PWP-V3-001..006 | `internal/jstestprovider/attempt_details.go`, `external.go`, `qualified-reporter.cjs`, `internal/appflows/runingest.go`, strict consumer and provider CLI | `TestPWPV3AttemptInventory`, `TestPWPV3ProfileBoundaries`, `TestAFUV1012QualifiedReceiptIngest`, `TestAFUV1012QualifiedReceiptRefusals`, `TestQualifiedPlaywrightAttemptsLive`, `TestQualifiedPlaywrightAttemptsLiveDevicesSpread`; local live log `evidence/issues-167-175/pwp3-live-passed.log` |
@@ -750,12 +801,12 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:252@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:240@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:271@5ac3fd01` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:275@5ac3fd01` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:106@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:444@c7e353c5` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:450@c7e353c5` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:81@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -764,7 +815,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:99@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:271@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:259@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 

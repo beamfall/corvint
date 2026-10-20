@@ -991,7 +991,7 @@ func TestPWPV0034PreRunRefusalsAreTyped(t *testing.T) {
 	if err.Error() != "external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0" {
 		t.Fatalf("message %q", err.Error())
 	}
-	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"]}` + "\n"
+	want := `{"schema":"corvint-playwright-e2e-refusal/0","code":"external-playwright-version-unqualified","message":"external-playwright-version-unqualified: qualified runner versions: 1.60.0, 1.63.0, 1.64.0","qualifiedRunnerVersions":["1.60.0","1.63.0","1.64.0"],"runtimeTuple":{"profile":"corvint-playwright-external/0","field":"runner","admitted":["1.60.0","1.63.0","1.64.0"]}}` + "\n"
 	if got := string(EncodeE2ERefusal(refusal)); got != want {
 		t.Fatalf("document\n got %s\nwant %s", got, want)
 	}
