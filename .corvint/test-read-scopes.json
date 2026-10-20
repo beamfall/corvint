@@ -398,10 +398,13 @@
       "go.mod"
     ],
     "tools/capabilities-check": [
+      "AGENTS.md",
       "README.md",
       "cmd/",
       "docs/",
-      "internal/mcp/"
+      "integrations/",
+      "internal/mcp/",
+      "protocol/integrations/"
     ],
     "tools/cem-stable-regen": [
       "protocol/cem-1.0/"

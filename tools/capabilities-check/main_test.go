@@ -3,7 +3,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"go/parser"
+	"go/token"
+	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,6 +19,7 @@ const (
 	catalogPath = "../../docs/CAPABILITIES.md"
 	readmePath  = "../../README.md"
 	helpPath    = "../../cmd/corvint/help.go"
+	mainPath    = "../../cmd/corvint/main.go"
 	cmdPath     = "../../cmd"
 	mcpPath     = "../../internal/mcp"
 	linkBase    = "../../docs"
@@ -19,7 +27,7 @@ const (
 
 func load(t *testing.T) (Inventory, []byte, []byte) {
 	t.Helper()
-	inv, err := Collect(helpPath, cmdPath, mcpPath)
+	inv, err := Collect(helpPath, mainPath, cmdPath, mcpPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +79,11 @@ func TestCAPV0002InventoryCountsMatchCode(t *testing.T) {
 	if inv.Core["feature"] || inv.Core["Experimental"] {
 		t.Errorf("Core list reads past its section: %v", inv.Core)
 	}
+	for _, c := range []string{"init", "harness", "delta", "tests"} {
+		if !contains(inv.Dispatched, c) {
+			t.Errorf("dispatched verb %q not collected", c)
+		}
+	}
 	for _, b := range []string{"corvint", "corvint-mcp", "corvint-lsp", "corvint-tasks", "corvint-analyzer-go"} {
 		if !contains(inv.Binaries, b) {
 			t.Errorf("binary %q not collected", b)
@@ -115,6 +128,51 @@ func TestCAPV0003SyntheticOmissionAndStaleRowFail(t *testing.T) {
 	inv.Binaries = append(append([]string(nil), inv.Binaries...), "corvint-new-companion")
 	if got := kinds(Check(catalog, nil, inv, linkBase)); !contains(got["missing"], "corvint-new-companion") {
 		t.Fatalf("new binary not reported missing: %v", got)
+	}
+}
+
+// TestCAPV0002ToolNamesWithDigitsAndHyphens proves a tool name with a digit or a hyphen is
+// collected, so a catalog that omits it fails.
+func TestCAPV0002ToolNamesWithDigitsAndHyphens(t *testing.T) {
+	src := []byte(`package mcp
+var names = []string{"corvint.docs_trace_v2", "corvint.docs-trace", "corvint.flows.navigate"}
+`)
+	got := toolNames(src)
+	for _, want := range []string{"corvint.docs_trace_v2", "corvint.docs-trace", "corvint.flows.navigate"} {
+		if !contains(got, want) {
+			t.Fatalf("toolNames missed %q: %v", want, got)
+		}
+	}
+	inv, catalog, _ := load(t)
+	inv.Tools = append(append([]string(nil), inv.Tools...), "corvint.docs_trace_v2", "corvint.docs-trace")
+	missing := kinds(Check(catalog, nil, inv, linkBase))["missing"]
+	if !contains(missing, "corvint.docs_trace_v2") || !contains(missing, "corvint.docs-trace") {
+		t.Fatalf("uncatalogued digit/hyphen tools not reported missing: %v", missing)
+	}
+}
+
+// TestCAPV0002DispatchDriftFails proves a verb runContext dispatches without a root help line,
+// or a help line nothing dispatches, fails the gate.
+func TestCAPV0002DispatchDriftFails(t *testing.T) {
+	inv, catalog, _ := load(t)
+	added := inv
+	added.Dispatched = append(append([]string(nil), inv.Dispatched...), "teleport")
+	got := kinds(Check(catalog, nil, added, linkBase))
+	if !contains(got["dispatch-undocumented"], "teleport") || !contains(got["missing"], "teleport") {
+		t.Fatalf("dispatched but undocumented verb not reported: %v", got)
+	}
+	removed := inv
+	removed.Dispatched = nil
+	for _, verb := range inv.Dispatched {
+		if verb != "delta" {
+			removed.Dispatched = append(removed.Dispatched, verb)
+		}
+	}
+	if got := kinds(Check(catalog, nil, removed, linkBase)); !contains(got["dispatch-absent"], "delta") {
+		t.Fatalf("documented but undispatched verb not reported: %v", got)
+	}
+	if _, err := parseDispatched([]byte("package main\nvar other = []string{\"init\"}\n")); err == nil {
+		t.Fatal("a main.go without topLevelCommands was accepted")
 	}
 }
 
@@ -203,4 +261,146 @@ func insertAfterCommandHeader(t *testing.T, doc []byte, add string) []byte {
 	out := append([]byte(nil), doc[:at+idx]...)
 	out = append(out, add...)
 	return append(out, doc[at+idx:]...)
+}
+
+// TestCAPV0005RoutingPointersNameTheCatalog checks that every routing surface and every
+// shipped skill points agents to docs/CAPABILITIES.md.
+func TestCAPV0005RoutingPointersNameTheCatalog(t *testing.T) {
+	for _, file := range []string{"../../AGENTS.md", "../../docs/README.md", "../../README.md"} {
+		src, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Contains(src, []byte("CAPABILITIES.md")) {
+			t.Errorf("%s does not route to docs/CAPABILITIES.md", file)
+		}
+	}
+	routes, err := os.ReadFile("../../docs/AGENT-ROUTES.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(lineWith(t, routes, "| What capability exists?"), "CAPABILITIES.md") {
+		t.Error(`docs/AGENT-ROUTES.md "What capability exists?" row does not route to docs/CAPABILITIES.md`)
+	}
+	skills := 0
+	for _, dir := range []string{"../../integrations", "../../protocol/integrations"} {
+		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				if d.Name() == "node_modules" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if d.Name() != "SKILL.md" && d.Name() != "GEMINI.md" {
+				return nil
+			}
+			skills++
+			src, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			if !bytes.Contains(src, []byte("docs/CAPABILITIES.md")) {
+				t.Errorf("%s does not route to docs/CAPABILITIES.md", p)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if skills < 10 {
+		t.Fatalf("found %d shipped skill files, want at least 10", skills)
+	}
+}
+
+// TestCAPV0006CheckIsReadOnly runs the whole check over a small synthetic repository and
+// asserts that no file or directory was created, removed or changed.
+func TestCAPV0006CheckIsReadOnly(t *testing.T) {
+	root := t.TempDir()
+	files := map[string]string{
+		"cmd/corvint/help.go": "package main\n\nconst rootHelp = `Usage:\n\nCommands:\n  init  first inventory\n\n" +
+			"  Core (decision 0332):\n    init\n  Experimental, no stability promise:\n    none\n`\n",
+		"cmd/corvint/main.go":     "package main\n\nvar topLevelCommands = []string{\"init\"}\n",
+		"cmd/corvint-mcp/main.go": "package main\n\nconst tool = \"corvint.query\"\n",
+		"internal/mcp/tools.go":   "package mcp\n",
+		"docs/CAPABILITIES.md": "<!-- capability-gate:commands -->\n| Command | Maturity |\n|---|---|\n| `corvint init` | core |\n<!-- /capability-gate:commands -->\n" +
+			"<!-- capability-gate:binaries -->\n| Binary | Maturity |\n|---|---|\n| `corvint` | core |\n| `corvint-mcp` | experimental |\n<!-- /capability-gate:binaries -->\n" +
+			"<!-- capability-gate:mcp-tools -->\n| Tool | Maturity |\n|---|---|\n| `corvint.query` | experimental |\n<!-- /capability-gate:mcp-tools -->\n",
+		"README.md": "<!-- capability-gate:readme -->\n| Capability | Try it | Maturity |\n|---|---|---|\n| Init | `corvint init` | core |\n<!-- /capability-gate:readme -->\n",
+	}
+	for name, body := range files {
+		p := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before := snapshotTree(t, root)
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 {
+		t.Fatalf("synthetic repository: exit %d, stderr %q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "ok (1 commands, 2 binaries, 1 MCP tools)") {
+		t.Fatalf("synthetic repository: stdout %q", stdout.String())
+	}
+	if after := snapshotTree(t, root); after != before {
+		t.Fatalf("check changed the tree:\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+}
+
+// TestCAPV0006CheckImportsNoProcessOrNetwork pins the no-command, no-network half of CAP-V0-006:
+// the check's non-test sources import no package that can start a process or open a socket.
+func TestCAPV0006CheckImportsNoProcessOrNetwork(t *testing.T) {
+	for _, file := range []string{"check.go", "main.go"} {
+		parsed, err := parser.ParseFile(token.NewFileSet(), file, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, spec := range parsed.Imports {
+			name := strings.Trim(spec.Path.Value, `"`)
+			if name == "os/exec" || name == "syscall" || name == "net" || strings.HasPrefix(name, "net/") {
+				t.Errorf("%s imports %s", file, name)
+			}
+		}
+	}
+}
+
+// snapshotTree describes every entry under root by path, mode, modification time and content digest.
+func snapshotTree(t *testing.T, root string) string {
+	t.Helper()
+	var out strings.Builder
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		digest := ""
+		if info.Mode().IsRegular() {
+			f, err := os.Open(p)
+			if err != nil {
+				return err
+			}
+			h := sha256.New()
+			_, err = io.Copy(h, f)
+			f.Close()
+			if err != nil {
+				return err
+			}
+			digest = fmt.Sprintf("%x", h.Sum(nil))
+		}
+		fmt.Fprintf(&out, "%s %v %d %s\n", p, info.Mode(), info.ModTime().UnixNano(), digest)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out.String()
 }

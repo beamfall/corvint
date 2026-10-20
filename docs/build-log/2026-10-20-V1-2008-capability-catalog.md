@@ -107,3 +107,31 @@ checks names, maturity and links, not refusal prose, so refusal text is still a 
   - only two of the four `corvint-mcp` profiles have goldens
   - the speckit command texts are not routed
   - the OpenSpec skill metadata version stays 0.1.0
+
+## Codex review round (PR #1283)
+
+The single Codex round found six issues. All six are fixed:
+
+1. The MCP tool-name pattern now admits letters, digits, `_`, `.` and `-`.
+   `TestCAPV0002ToolNamesWithDigitsAndHyphens` fails against the old `[a-z_.]+` pattern
+   (it misses `corvint.docs_trace_v2`) and passes with the new one.
+2. Commands also come from the `topLevelCommands` dispatch list in `cmd/corvint/main.go`.
+   A dispatched verb with no root help line is reported as `dispatch-undocumented` (and as
+   `missing` when no row exists). A help verb that is not dispatched is reported as
+   `dispatch-absent`. `TestCAPV0002DispatchDriftFails` covers both.
+3. Three catalog invocations are now runnable as written:
+   - `corvint-dashboard-snapshot snapshot`
+   - `corvint-release-gate` with its required `--commit`, `--git`, `--git-sha256` and
+     `--policy-sha256` pins
+   - `corvint-postmerge-metrics report` with all four flags
+4. The Gemini and Codex skills match the catalog's impact admission. Suffixes the index admits,
+   such as `.py` and `.md`, get positional evidence with missing-rule uncertainty. Only
+   suffixes the index does not admit refuse. The Codex adapter moves to 0.2.6 and the Gemini
+   adapter to 0.2.10.
+5. CAP-V0-005 now cites `TestCAPV0005RoutingPointersNameTheCatalog`. It checks the AGENTS.md,
+   README, docs README and AGENT-ROUTES pointers, and every shipped `SKILL.md` and `GEMINI.md`.
+6. CAP-V0-006 now cites two tests:
+   - `TestCAPV0006CheckIsReadOnly` runs the whole check over a synthetic tree. It asserts that
+     every path, mode, mtime and content digest is unchanged.
+   - `TestCAPV0006CheckImportsNoProcessOrNetwork` asserts that the check imports no package
+     for processes or sockets.

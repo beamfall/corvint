@@ -41,8 +41,10 @@ FULL support, automatic feature fanout or new execution authority.
      for known ledger-only context, including repositories with non-Go sources. A larger limit
      admits Go candidate ranking; known non-Go ranking remains unsupported. Preserve unknown-ID
      OUT_OF_SCOPE results; feature inventory remains unsupported.
-   - For unsupported targets or profiles, including path suffixes outside Go, Ruby, JavaScript and
-     TypeScript (`unsupported-impact-path-suffix`), preserve the explicit capability gap and use
+   - Other suffixes the repository index admits (for example `.py`, `.md`) get positional
+     evidence with missing-rule uncertainty, not reverse-import evidence; preserve that uncertainty.
+   - For unsupported targets or profiles, including path suffixes the index does not admit
+     (`unsupported-impact-path-suffix`), preserve the explicit capability gap and use
      repository-owned authority/context tools. Do not approximate a Corvint receipt.
    - To learn which Corvint command, binary or MCP tool answers a question, run `corvint help`
      and `corvint COMMAND --help`, or read the catalog at

@@ -37,8 +37,10 @@ cannot silently go missing or outlive its command.
   delivered or stable.
 - `CAP-V0-002`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The
   catalog MUST hold exactly one gated row for each top-level command listed in the root help's
-  `Commands:` block of `cmd/corvint/help.go`, each directory under `cmd/` holding a `package main`
-  Go file, and each `corvint.*` MCP tool name literal in non-test Go source under `internal/mcp/`
+  `Commands:` block of `cmd/corvint/help.go` or the `topLevelCommands` dispatch list in
+  `cmd/corvint/main.go`, each directory under `cmd/` holding a `package main` Go file, and each
+  `corvint.*` MCP tool name literal (letters, digits, `_`, `.` and `-`) in non-test Go source
+  under `internal/mcp/`
   and `cmd/corvint-*mcp/`. Gated rows live between `<!-- capability-gate:commands -->`,
   `<!-- capability-gate:binaries -->` and `<!-- capability-gate:mcp-tools -->` markers and their
   `<!-- /capability-gate:... -->` closers; a row's name is the first backticked span in its first
@@ -47,7 +49,8 @@ cannot silently go missing or outlive its command.
   `tools/capabilities-check` MUST report a `missing` finding for an inventory item without a row,
   a `stale` finding for a row naming nothing in the inventory, a `duplicate` finding for a second
   row of the same name, a `maturity` finding when a command row's maturity disagrees with the
-  root help's Core list, and a `broken-link` finding for a relative link in a gated region whose
+  root help's Core list, a `dispatch-undocumented` finding for a dispatched verb without a root
+  help line, a `dispatch-absent` finding for a root help verb that is not dispatched, and a `broken-link` finding for a relative link in a gated region whose
   target does not exist. Its test MUST run under plain `go test ./...` and MUST prove failure on a
   synthetic omission and a synthetic stale row. `make capabilities-check` runs the same check.
 - `CAP-V0-004`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The root
@@ -62,9 +65,9 @@ cannot silently go missing or outlive its command.
   to `docs/CAPABILITIES.md`. A shipped package whose bytes change MUST carry its version bump and
   mirrors so the host-package version gate (AHI-020) stays green.
 - `CAP-V0-006`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2008) The check
-  MUST read only the paths it is given (the catalog, the README, `cmd/corvint/help.go`, the `cmd/`
-  tree and `internal/mcp/`, plus `os.Stat` of linked targets), run no command, use no network and
-  write nothing.
+  MUST read only the paths it is given (the catalog, the README, `cmd/corvint/help.go`,
+  `cmd/corvint/main.go`, the `cmd/` tree and `internal/mcp/`, plus `os.Stat` of linked targets),
+  run no command, use no network and write nothing.
 
 ## Boundaries and failure modes
 
@@ -93,8 +96,8 @@ version gate refuses a content change at an unchanged version.
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
 | CAP-V0-001 | `docs/CAPABILITIES.md` | `TestCAPV0002RepositoryCatalogMatchesInventory` (structure via gated regions); build log self-check of five rows |
-| CAP-V0-002 | `Collect`, `parseCommands`, `scanBinaries`, `scanTools`, `parseRows` | `TestCAPV0002RepositoryCatalogMatchesInventory`, `TestCAPV0002InventoryCountsMatchCode` |
-| CAP-V0-003 | `Check`, `tools/capabilities-check/main.go` | `TestCAPV0003SyntheticOmissionAndStaleRowFail`, `TestCAPV0003MaturityAndLinkDriftFail` |
+| CAP-V0-002 | `Collect`, `parseCommands`, `parseDispatched`, `scanBinaries`, `scanTools`, `toolNames`, `parseRows` | `TestCAPV0002RepositoryCatalogMatchesInventory`, `TestCAPV0002InventoryCountsMatchCode`, `TestCAPV0002ToolNamesWithDigitsAndHyphens` |
+| CAP-V0-003 | `Check`, `checkDispatch`, `tools/capabilities-check/main.go` | `TestCAPV0003SyntheticOmissionAndStaleRowFail`, `TestCAPV0003MaturityAndLinkDriftFail`, `TestCAPV0002DispatchDriftFails` |
 | CAP-V0-004 | `checkReadme` | `TestCAPV0004ReadmeRowsMapToCatalog` |
-| CAP-V0-005 | routing lines and skill edits | `make host-package-versions-check`; `cmd/corvint`'s `TestHostAdapterJavaScriptHosts` (runs `integrations/host-adapters.test.mjs`) |
-| CAP-V0-006 | `Collect`, `Check` | `TestCAPV0002RepositoryCatalogMatchesInventory` (reads only named inputs) |
+| CAP-V0-005 | routing lines and skill edits | `TestCAPV0005RoutingPointersNameTheCatalog`; `make host-package-versions-check`; `cmd/corvint`'s `TestHostAdapterJavaScriptHosts` (runs `integrations/host-adapters.test.mjs`) |
+| CAP-V0-006 | `run`, `Collect`, `Check` | `TestCAPV0006CheckIsReadOnly` (synthetic tree unchanged by path, mode, mtime and digest), `TestCAPV0006CheckImportsNoProcessOrNetwork` |

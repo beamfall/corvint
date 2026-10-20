@@ -17,10 +17,11 @@ import (
 
 // Inventory is what the code says exists (CAP-V0-002).
 type Inventory struct {
-	Commands []string        // root help Commands: block, in help order
-	Core     map[string]bool // verbs the root help lists as Core
-	Binaries []string        // cmd/ directories holding a package main Go file
-	Tools    []string        // corvint.* MCP tool name literals
+	Commands   []string        // root help Commands: block, in help order
+	Core       map[string]bool // verbs the root help lists as Core
+	Dispatched []string        // cmd/corvint/main.go topLevelCommands: the verbs runContext dispatches
+	Binaries   []string        // cmd/ directories holding a package main Go file
+	Tools      []string        // corvint.* MCP tool name literals
 }
 
 // Finding is one disagreement between the catalog or README and the code (CAP-V0-003, CAP-V0-004).
@@ -44,19 +45,30 @@ const (
 
 var (
 	packageMain = regexp.MustCompile(`(?m)^package main\s*$`)
-	toolLiteral = regexp.MustCompile(`"(corvint\.[a-z_.]+)"`)
+	toolLiteral = regexp.MustCompile(`"(corvint\.[A-Za-z0-9_.-]+)"`)
+	dispatchSet = regexp.MustCompile(`(?s)\btopLevelCommands\s*=\s*\[\]string\{(.*?)\}`)
+	quotedWord  = regexp.MustCompile(`"([^"]+)"`)
 	backticked  = regexp.MustCompile("`([^`]+)`")
 	markdownRef = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 )
 
-// Collect reads the inventory from the root help source, the cmd/ tree and the MCP
-// bridge sources. It reads only those paths (CAP-V0-006).
-func Collect(helpGo, cmdDir, mcpDir string) (Inventory, error) {
+// Collect reads the inventory from the root help source, the dispatch list in the corvint
+// main package, the cmd/ tree and the MCP bridge sources. It reads only those paths and
+// writes nothing (CAP-V0-006).
+func Collect(helpGo, mainGo, cmdDir, mcpDir string) (Inventory, error) {
 	src, err := os.ReadFile(helpGo)
 	if err != nil {
 		return Inventory{}, err
 	}
 	commands, core, err := parseCommands(src)
+	if err != nil {
+		return Inventory{}, err
+	}
+	mainSrc, err := os.ReadFile(mainGo)
+	if err != nil {
+		return Inventory{}, err
+	}
+	dispatched, err := parseDispatched(mainSrc)
 	if err != nil {
 		return Inventory{}, err
 	}
@@ -74,7 +86,24 @@ func Collect(helpGo, cmdDir, mcpDir string) (Inventory, error) {
 	if err != nil {
 		return Inventory{}, err
 	}
-	return Inventory{Commands: commands, Core: core, Binaries: binaries, Tools: tools}, nil
+	return Inventory{Commands: commands, Core: core, Dispatched: dispatched, Binaries: binaries, Tools: tools}, nil
+}
+
+// parseDispatched reads the topLevelCommands literal, which names every top-level verb
+// runContext dispatches (cmd/corvint core_freeze_test pins that correspondence).
+func parseDispatched(src []byte) ([]string, error) {
+	m := dispatchSet.FindSubmatch(src)
+	if m == nil {
+		return nil, errors.New("topLevelCommands literal not found")
+	}
+	var out []string
+	for _, w := range quotedWord.FindAllSubmatch(m[1], -1) {
+		out = append(out, string(w[1]))
+	}
+	if len(out) == 0 {
+		return nil, errors.New("topLevelCommands literal is empty")
+	}
+	return out, nil
 }
 
 // parseCommands reads the root help's Commands: block and its Core maturity list.
@@ -172,8 +201,8 @@ func scanTools(dirs []string) ([]string, error) {
 			if err != nil {
 				return err
 			}
-			for _, m := range toolLiteral.FindAllSubmatch(src, -1) {
-				seen[strings.TrimRight(string(m[1]), ".")] = true
+			for _, name := range toolNames(src) {
+				seen[name] = true
 			}
 			return nil
 		})
@@ -187,6 +216,15 @@ func scanTools(dirs []string) ([]string, error) {
 	}
 	slices.Sort(out)
 	return out, nil
+}
+
+// toolNames returns the corvint.* string literals in one Go source file.
+func toolNames(src []byte) []string {
+	var out []string
+	for _, m := range toolLiteral.FindAllSubmatch(src, -1) {
+		out = append(out, strings.TrimRight(string(m[1]), ".-"))
+	}
+	return out
 }
 
 // row is one gated table row: its name, its maturity cell and every relative link in it.
@@ -319,14 +357,14 @@ func commandName(name string) string {
 // Check compares the catalog (and, when readme is non-nil, the README capability table) with
 // the inventory. linkBase is the directory relative catalog links resolve against.
 func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
-	var findings []Finding
+	findings, commands := checkDispatch(inv)
 	catalogRows := map[string]map[string]row{}
 	sections := []struct {
 		name  string
 		items []string
 		key   func(string) string
 	}{
-		{sectionCommands, inv.Commands, commandName},
+		{sectionCommands, commands, commandName},
 		{sectionBinaries, inv.Binaries, func(s string) string { return s }},
 		{sectionTools, inv.Tools, func(s string) string { return s }},
 	}
@@ -383,6 +421,32 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 		return strings.Compare(a.String(), b.String())
 	})
 	return findings
+}
+
+// checkDispatch compares the root help's verbs with the dispatched verbs. A dispatched verb
+// the help omits is reported and still needs a catalog row; a help verb nothing dispatches is
+// reported too. It returns the findings and the command names the catalog must cover.
+func checkDispatch(inv Inventory) ([]Finding, []string) {
+	var findings []Finding
+	commands := slices.Clone(inv.Commands)
+	documented := map[string]bool{}
+	for _, c := range inv.Commands {
+		documented[strings.Fields(c)[0]] = true
+	}
+	dispatched := map[string]bool{}
+	for _, verb := range inv.Dispatched {
+		dispatched[verb] = true
+		if !documented[verb] {
+			findings = append(findings, Finding{"dispatch-undocumented", sectionCommands, verb, "runContext dispatches it but the root help Commands: block does not list it"})
+			commands = append(commands, verb)
+		}
+	}
+	for verb := range documented {
+		if !dispatched[verb] {
+			findings = append(findings, Finding{"dispatch-absent", sectionCommands, verb, "the root help lists it but topLevelCommands does not dispatch it"})
+		}
+	}
+	return findings, commands
 }
 
 // checkReadme maps each README capability row to a catalog row (CAP-V0-004).
