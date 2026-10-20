@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -90,12 +88,7 @@ func ReadDeclaredFile(name string) Declared {
 }
 
 func readDeclaration(name string) (Declared, error) {
-	file, err := os.Open(name)
-	if err != nil {
-		return Declared{}, err
-	}
-	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, MaxDocumentBytes+1))
+	raw, err := readRegular(name, MaxDocumentBytes)
 	if err != nil {
 		return Declared{}, err
 	}
