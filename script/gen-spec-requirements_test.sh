@@ -2,9 +2,9 @@
 set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
-# SRG-V0-012 (case 7) and SRG-V0-010 (case 8). SRG-V0-001: the generated index must be
-# the one a fresh clone reproduces, so the enumeration is the Git index and nothing the worktree
-# alone says can change the output. The three cases are the drift directions reproduced in
+# SRG-V0-012 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9) and SRG-V0-018 (case 10).
+# SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
+# the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
 # deleted from the worktree alone, and an unstaged edit to a tracked spec.
 
@@ -345,10 +345,39 @@ test "$(run)" = "$before" || fail "a line shift rewrote the committed index"
 test "$(lines | grep '^ORD-V0-002' | cut -f3)" = 7 || fail "--lines did not follow the shift"
 lines | tail -n +2 | cut -f1 | LC_ALL=C sort -c || fail "--lines is not ordered by id"
 
+# 10. SRG-V0-018: one pipelined batch read serves every staged spec; a path the batch cannot frame
+# (a newline) or serve as a blob (a gitlink) falls back to the one-shot read, which still reports
+# and fails as the per-file read did.
+nl_path="docs/specs/$(printf 'new\nline').md"
+printf '# NL\n\n- `NL-V0-001`: Read by the one-shot path.\n' > "$test_root/$nl_path"
+stage "$nl_path"
+run | grep -q '^NL-V0-001	' || fail "a spec path holding a newline was not read"
+run | grep -q '^ORD-V0-002	docs/specs/order.md	Defined first\.' || fail "the batch lost a spec beside the fallback"
+git -C "$test_root" rm -q --cached -- "$nl_path"
+rm -f "$test_root/$nl_path"
+git -C "$test_root" update-index --add --cacheinfo 160000,0123456789012345678901234567890123456789,docs/specs/gitlink.md
+if run > /dev/null 2>&1; then fail "a non-blob spec entry was read"; fi
+git -C "$test_root" rm -q --cached -- docs/specs/gitlink.md
+
+# SRG-V0-018: `--all DIR` writes the three committed files from one pass, each byte for byte what
+# its own mode prints, and refuses a missing or absent directory with exit 2.
+all_dir="$test_root/all"
+mkdir "$all_dir"
+gen --all "$all_dir" || fail "--all failed"
+gen | cmp - "$all_dir/REQUIREMENTS.tsv" || fail "--all REQUIREMENTS.tsv differs from the default mode"
+gen --index | cmp - "$all_dir/INDEX.json" || fail "--all INDEX.json differs from --index"
+gen --readme | cmp - "$all_dir/README.md" || fail "--all README.md differs from --readme"
+if gen --all > /dev/null 2>&1; then fail "--all without DIR was accepted"; else test $? = 2 || fail "--all without DIR did not exit 2"; fi
+if gen --all "$test_root/absent" > /dev/null 2>&1; then fail "--all with an absent DIR was accepted"; else test $? = 2 || fail "--all with an absent DIR did not exit 2"; fi
+
 # A claim that is not one sentence cannot be cut out of a README description, so it is refused.
 sed -i.bak 's/^- Claim: Two does the second thing\.$/- Claim: Two does. The second thing./' "$project/docs/specs/two.md"
 git -C "$project" add -- docs/specs/two.md
 if gen --index > /dev/null 2>&1; then fail "a two-sentence claim was accepted"; fi
+refused_dir="$test_root/refused"
+mkdir "$refused_dir"
+if gen --all "$refused_dir" > /dev/null 2>&1; then fail "--all accepted a two-sentence claim"; fi
+test -z "$(ls -A "$refused_dir")" || fail "a refused --all wrote into DIR"
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
 
 printf 'ok\n'

@@ -14,8 +14,8 @@ scripts still without an owning spec).
 ## Agent digest
 - Claim: One generator derives, from the staged specs, the requirement index with each requirement's acceptance mode and the INDEX.json and README.md status rows.
 - Status: accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) / implemented
-- Exists: `script/gen-spec-requirements.sh` (the index, `--index`, `--readme`, and the uncommitted `--lines` locator view), `script/spec-acceptance-audit.sh`, `make` targets `spec-requirements`, `spec-requirements-check` and `spec-requirements-test` (the last two in `make gate`) and `spec-acceptance-audit` (a report).
-- Blocked on: nothing for this gate. Decision 0105 withheld acceptance on `SRG-V0-005`; its amendment (2026-09-12) accepted the spec once character truncation landed with evidence. SRG-V0-009..017 are `standing` until the owner reads them back.
+- Exists: `script/gen-spec-requirements.sh` (the index, `--index`, `--readme`, `--all DIR` for all three in one pass, and the uncommitted `--lines` locator view), `script/spec-acceptance-audit.sh`, `make` targets `spec-requirements`, `spec-requirements-check` and `spec-requirements-test` (the last two in `make gate`) and `spec-acceptance-audit` (a report).
+- Blocked on: nothing for this gate. Decision 0105 withheld acceptance on `SRG-V0-005`; its amendment (2026-09-12) accepted the spec once character truncation landed with evidence. SRG-V0-009..018 are `standing` until the owner reads them back.
 - Read next: Verified current state; Requirements; Trust boundary, limits, and failure modes.
 
 ## Human intent and scope
@@ -57,8 +57,8 @@ target passes: the committed `docs/specs/REQUIREMENTS.tsv` is byte-identical to 
 regeneration.
 
 SRG-V0-001 is met as of this commit. The generator derives its input set from
-`git ls-files -z -- docs/specs` and reads each file's bytes as `:<path>` through one `git cat-file --batch`
-(`script/gen-spec-requirements.sh:83`), so neither an untracked spec, a tracked spec deleted from
+`git ls-files -z -- docs/specs` and reads each file's bytes as `:<path>` through one pipelined
+`git cat-file --batch` (`index_blobs` in `script/gen-spec-requirements.sh`, SRG-V0-018), so neither an untracked spec, a tracked spec deleted from
 the worktree alone, nor an unstaged edit can change the index a fresh clone reproduces. Before
 this commit the enumeration was the worktree glob `sort glob('docs/specs/*.md')`, the same class
 of defect that `decision-number-gate-v0.md` pins in its drift rule and that
@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: accepted, decision 0506. The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:189`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:214`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: accepted, decision 0506. The generator MUST classify each occurrence of an id into exactly one of three
@@ -122,7 +122,8 @@ No requirement below diverges from the implementation.
   line column.
 - `SRG-V0-007`: The generator MUST write no file, mutate no repository state, and produce
   identical output regardless of the working directory it is invoked from, resolving its own
-  location to find the repository root first.
+  location to find the repository root first. Amended by SRG-V0-018: `--all DIR` writes its three
+  named files into the directory its caller names, and nothing else.
 - `SRG-V0-008`: `spec-requirements-check` MUST regenerate the index and byte-compare it against
   the committed `docs/specs/REQUIREMENTS.tsv`, failing on any difference, and MUST remove its
   temporary file on normal exit and on interrupt. `docs/specs/REQUIREMENTS.tsv` MUST be
@@ -228,6 +229,17 @@ No requirement below diverges from the implementation.
   an invented line. These readers are the console clause lookup, the compaction kernel (from the
   pinned spec blob), the roadmap evidence links, `script/spec-coverage-audit` and
   `script/spec-acceptance-audit.sh`.
+- `SRG-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1641) `--all DIR`
+  MUST write `REQUIREMENTS.tsv`, `INDEX.json` and `README.md` into the existing directory DIR from
+  one enumeration and one read of the staged specs, each byte-identical to what the default,
+  `--index` and `--readme` modes print for the same Git index. It MUST build all three before
+  writing any, so a refused projection writes nothing, and MUST exit 2 when DIR is not given or
+  does not exist. `spec-requirements` and `spec-requirements-check` MUST generate through one
+  `--all` invocation. Every mode MUST read its index blobs through one `git cat-file --batch`
+  co-process with the requests pipelined, written by a separate writer while the replies are read,
+  never one synchronous request per file. A path the batch cannot frame or serve as a blob falls
+  back to the one-shot `git cat-file blob` read, which fails as the per-file read did. SRG-V0-001
+  is unchanged: the input is still the Git index alone.
 
 ## Non-goals and simpler baseline
 
@@ -250,7 +262,8 @@ declare no `Requirement prefix:`, so a generated prefix would be a guess from th
 
 The spec corpus is the only input and it is trusted repository content; the generator never reads
 anything outside `docs/specs/*.md` and never executes content it reads. It spawns one `perl`
-interpreter and performs no write.
+interpreter and performs no write, except that `--all DIR` writes its three outputs into the
+directory its caller names (SRG-V0-018).
 
 Enumeration is the boundary that matters here, and the answer to the fresh-clone question is yes:
 the generator measures the Git index, so a dirty worktree cannot change its output in either
@@ -321,6 +334,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-015 | `TestSRGV0015IndexOrderedByDefinitionPosition` over the committed index; `script/gen-spec-requirements_test.sh` case 9: the committed header, definition order within a spec, file order, the id-ordered `--lines` view, and a line shift that leaves the committed index byte for byte. At the V1-1525 base the regenerated `--lines` view was byte-identical to the previous committed index |
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv`. A title-changing reflow against a row inserted after it conflicts in `REQUIREMENTS.tsv` only, in both orders, and regenerates to both rows (the recorded limit) |
 | SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
+| SRG-V0-018 | `script/gen-spec-requirements_test.sh` case 10: `--all` output equals each mode's output byte for byte, a refused projection leaves DIR empty, a missing or absent DIR exits 2, and a newline path and a gitlink entry take the one-shot fallback beside the batch. On the live corpus at `f3ca7224` the `--all` files were byte-identical to the three-pass output and the committed files; the V1-1641 build-log entry holds the before and after timings |
 
 ## Traceability
 
@@ -343,6 +357,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-015 | the `tsv` and `lines` emission blocks in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `TestSRGV0015IndexOrderedByDefinitionPosition` |
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 | SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
+| SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
 
 ## Rollout, rollback, and drift
 
@@ -363,6 +378,10 @@ Requirements SRG-V0-015..017 roll back as one revert of their commit (decision 0
 then prints the line column in id order again, `make spec-requirements` regenerates it, and the
 readers return to reading that column. No state outside the repository changes. The revert
 restores the line-number conflicts that decision 0543 records.
+
+SRG-V0-018 rolls back as one revert of its commit: `SPEC_GENERATE` returns to three generator
+invocations and the reader to one synchronous batch request per file. Every mode's output is
+unchanged by the revert, so no generated file moves.
 
 Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
 `decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,
