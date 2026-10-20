@@ -2195,9 +2195,9 @@ unchanged; the join is a separate read of a retained receipt and the object stor
   (`file > project > full title`, kind `js-title-path`). An example with no such identity, or two
   examples with one identity, MUST abstain (`example-identity-unbound`,
   `example-identity-ambiguous`) instead of guessing. A JS anchor file binds the retained
-  test-file digest key that equals or ends with it; when several keys do, the key whose
-  repository-relative path is the anchor file itself binds, and otherwise the example abstains
-  `example-file-ambiguous`. An anchor whose one key lies outside the repository root abstains
+  test-file digest key that equals or ends with it; when several keys do, only a key equal to the
+  anchor file binds, and otherwise the example abstains `example-file-ambiguous` (a relative
+  anchor is relative to the reporter root, which the receipt does not retain). An anchor whose one key lies outside the repository root abstains
   `example-file-outside-repository` (V1-2085).
 - `TSA-V0-412`: (standing auto-accept, 2026-10-11; V1-2039 / GitHub #1291) A record MUST carry the
   run outcome as the receipt states it, the hygiene and strength axes the static example rules give

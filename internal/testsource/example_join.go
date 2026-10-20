@@ -33,7 +33,7 @@ const (
 	joinReasonIdentityUnbound   = "example-identity-unbound"
 	joinReasonIdentityAmbiguous = "example-identity-ambiguous"
 	// joinReasonFileAmbiguous: a JS anchor file names more than one retained test-file digest and
-	// none of them is that file under the repository root (V1-2085).
+	// none of them is the anchor file itself (V1-2085).
 	joinReasonFileAmbiguous = "example-file-ambiguous"
 	// joinReasonFileOutsideRepository: the one retained digest a JS anchor names lies outside the
 	// repository root, so no committed file can bind it (V1-2085).
@@ -428,7 +428,7 @@ func (j *joiner) js(receipt jstestprovider.Receipt) ([]joined, error) {
 			Source: ExampleJoinSource{Revision: j.commit, Files: []ExampleJoinFile{}}}}
 		if test.Anchor != nil {
 			row.record.File, row.record.Line = filepath.ToSlash(test.Anchor.File), test.Anchor.Line
-			key, unbound := anchorKey(receipt.Identity.TestFileDigests, relative, test.Anchor.File)
+			key, unbound := anchorKey(receipt.Identity.TestFileDigests, test.Anchor.File)
 			switch {
 			case unbound != "":
 				row.unbound = unbound
@@ -508,28 +508,27 @@ func (j *joiner) underRoot(key string) (string, bool) {
 }
 
 // anchorKey is the one digest key that equals, or ends with "/" plus, the anchor file. When
-// several keys match, the one whose repository-relative path (relative) is the anchor file itself
-// wins; otherwise the anchor is ambiguous and the reason names it (V1-2085). No match returns
-// "" and no reason, which leaves the identity unbound.
-func anchorKey(digests, relative map[string]string, file string) (string, string) {
+// several keys match, only a key equal to the anchor file itself binds: a relative anchor is
+// relative to the reporter's root, which the receipt does not retain, so a key whose
+// repository-relative path equals it is no better a match than any other and the example
+// abstains `example-file-ambiguous` (V1-2085). No match returns joinReasonIdentityUnbound.
+func anchorKey(digests map[string]string, file string) (string, string) {
 	file = filepath.ToSlash(file)
-	match, count, exact, exacts := "", 0, "", 0
+	match, count := "", 0
 	for key := range digests {
 		slashed := filepath.ToSlash(key)
-		if slashed == file || strings.HasSuffix(slashed, "/"+file) {
+		if slashed == file {
+			return key, ""
+		}
+		if strings.HasSuffix(slashed, "/"+file) {
 			match, count = key, count+1
-			if relative[key] == file {
-				exact, exacts = key, exacts+1
-			}
 		}
 	}
-	switch {
-	case count == 0:
+	switch count {
+	case 0:
 		return "", joinReasonIdentityUnbound
-	case count == 1:
+	case 1:
 		return match, ""
-	case exacts == 1:
-		return exact, ""
 	}
 	return "", joinReasonFileAmbiguous
 }

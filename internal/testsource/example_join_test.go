@@ -294,18 +294,22 @@ func TestExampleJoinJS(t *testing.T) {
 }
 
 // TestExampleJoinJSDigestKeys pins V1-2085: an anchor naming several absolute digest keys joins
-// through the key whose repository-relative path is the anchor itself, and abstains with a typed
-// reason when no key is, or when its one key lies outside the repository.
+// only through a key that is the anchor itself, and abstains with a typed reason when no key is,
+// or when its one key lies outside the repository. A reporter-relative anchor is not repository
+// relative (the receipt retains no reporter root), so a repository-relative match does not win.
 func TestExampleJoinJSDigestKeys(t *testing.T) {
 	root := t.TempDir()
-	commit := commitFiles(t, root, map[string]string{"tests/cart.spec.ts": cartA, "e2e/tests/cart.spec.ts": cartA})
-	sum := sha256.Sum256([]byte(cartA))
-	digest := hex.EncodeToString(sum[:])
+	commit := commitFiles(t, root, map[string]string{"tests/cart.spec.ts": cartA, "e2e/tests/cart.spec.ts": cartB})
+	sum := sha256.Sum256([]byte(cartB))
+	nested := filepath.Join(root, "e2e", "tests", "cart.spec.ts")
 	receipt := jsReceipt(t, root, commit, cartA)
-	receipt.Identity.TestFileDigests[filepath.Join(root, "e2e", "tests", "cart.spec.ts")] = digest
-	record := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]
-	if record.Example != "tests/cart.spec.ts > chromium > cart adds an item" || record.Verdict.Hygiene.State != testvalidity.HygieneEligible {
-		t.Fatalf("exact repository-relative key: %+v", record)
+	receipt.Identity.TestFileDigests[nested] = hex.EncodeToString(sum[:])
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonFileAmbiguous || r.Example != "" {
+		t.Fatalf("reporter-relative anchor under two keys: %+v", r)
+	}
+	receipt.Tests[0].Anchor = &jstestprovider.Anchor{File: nested, Line: 1}
+	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Example != "e2e/tests/cart.spec.ts > chromium > cart adds an item" || r.Source.Files[0].Path != "e2e/tests/cart.spec.ts" {
+		t.Fatalf("anchor equal to one key: %+v", r)
 	}
 	receipt.Tests[0].Anchor.File = "cart.spec.ts"
 	if r := joinOne(t, root, ExampleJoinOptions{JS: receipt}).Examples[0]; r.Verdict.Hygiene.Reason != joinReasonFileAmbiguous || r.Example != "" {
