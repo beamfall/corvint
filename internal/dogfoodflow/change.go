@@ -370,12 +370,26 @@ func (c *change) prechangeImpact() {
 		return
 	}
 	status := c.exec(argv[3:], output, errorFile)
+	// DCW-V0-075: a Git deadline overrun under host load gets one bounded
+	// retry; a second overrun is a visible, non-blocking abstention.
+	if impactDeadlineOverrun(status, output, errorFile) {
+		c.say("dogfood-change: NOTE coordination-time-impact deadline overrun; retrying once\n")
+		status = c.exec(argv[3:], output, errorFile)
+		if impactDeadlineOverrun(status, output, errorFile) {
+			c.addStep("coordination-time-impact", "NOT_PRODUCED", impactDeadlineReason)
+			return
+		}
+	}
 	if status == 0 {
 		c.addStep("coordination-time-impact", "PRODUCED", "none")
 		return
 	}
 	stderr := readFile(errorFile)
 	reason := failureReason(stderr, status)
+	if reason == impactDeadlineReason {
+		// Only the two-overrun path above may record the non-blocking reason.
+		reason = "exit-" + strconv.Itoa(status)
+	}
 	code, _ := firstCapture(impactRefusal, stderr)
 	if status != 2 || !impactAbstentions[reason] || code != reason || hasContent(output) || bytes.Count(stderr, []byte("\n")) != 1 {
 		if impactAbstentions[reason] {
@@ -1348,6 +1362,8 @@ func failing(row step) bool {
 		return false
 	case row.name == "coordination-time-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
 		return false
+	case row == step{"coordination-time-impact", "NOT_PRODUCED", impactDeadlineReason}:
+		return false
 	case row.reason == "no-intent-declared":
 		return false
 	case row == step{guardingTestsStepName, "NOT_PRODUCED", guardingTestsNotRun}:
@@ -1597,7 +1613,7 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
 	for _, row := range c.rows {
-		if row.name == "coordination-time-impact" && impactAbstentions[row.reason] {
+		if row.name == "coordination-time-impact" && (impactAbstentions[row.reason] || row.reason == impactDeadlineReason) {
 			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
