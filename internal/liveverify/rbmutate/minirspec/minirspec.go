@@ -91,7 +91,7 @@ if errors.zero?
 end
 failures = results.count { |result| result['status'] == 'failed' }
 summary = { 'example_count' => results.size, 'failure_count' => failures, 'pending_count' => 0, 'errors_outside_of_examples_count' => errors }
-File.write(out, JSON.generate('examples' => results, 'summary' => summary)) if out
+File.write(out, JSON.generate('version' => '3.13.0', 'examples' => results, 'summary' => summary)) if out
 exit(errors > 0 || failures > 0 ? 1 : 0)
 `
 

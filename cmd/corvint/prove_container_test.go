@@ -126,22 +126,7 @@ func TestFPKV0079ProveRunsRubyRowsThroughTheDeclaredContainer(t *testing.T) {
 	t.Parallel()
 	requireNestableSandbox(t)
 	declaration, log := writeFakeContainerDeclaration(t)
-	root := t.TempDir()
-	for name, body := range map[string]string{"app/models/scoring.rb": proveScoringBase, "spec/models/scoring_spec.rb": proveScoringWeakSpec} {
-		target := filepath.Join(root, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	for _, arguments := range [][]string{
-		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
-		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"}, {"add", "."}, {"commit", "-qm", "base"},
-	} {
-		affectedGit(t, root, arguments...)
-	}
+	root := proveContainerRepository(t)
 	before := treeDigest(t, root)
 	// No rspec on PATH: only the declared container can run the rows.
 	environment := []string{"PATH=/usr/bin:/bin"}
@@ -169,7 +154,8 @@ func TestFPKV0079ProveRunsRubyRowsThroughTheDeclaredContainer(t *testing.T) {
 	for _, entry := range receipts {
 		receiptOf, _ := entry.(map[string]any)
 		runner, _ := receiptOf["runner_receipt"].(map[string]any)
-		if runner["profile"] != "corvint-test-runner-receipt/0" || len(stringAt(runner, "plan_sha256")) != 64 || len(stringAt(runner, "receipt_sha256")) != 64 {
+		if runner["profile"] != "corvint-test-runner-receipt/0" || len(stringAt(runner, "plan_sha256")) != 64 || len(stringAt(runner, "receipt_sha256")) != 64 ||
+			runner["complete"] != true || runner["report_error"] != nil {
 			t.Fatalf("receipt without its runner receipt: %v", receiptOf)
 		}
 	}
@@ -188,5 +174,77 @@ func TestFPKV0079ProveRunsRubyRowsThroughTheDeclaredContainer(t *testing.T) {
 	}
 	if after := treeDigest(t, root); after != before {
 		t.Fatal("prove --mutate-runner wrote the repository")
+	}
+}
+
+// proveContainerRepository commits the weak-spec Ruby fixture to a fresh
+// repository and returns its root.
+func proveContainerRepository(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, body := range map[string]string{"app/models/scoring.rb": proveScoringBase, "spec/models/scoring_spec.rb": proveScoringWeakSpec} {
+		target := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
+		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"}, {"add", "."}, {"commit", "-qm", "base"},
+	} {
+		affectedGit(t, root, arguments...)
+	}
+	return root
+}
+
+// TestFPKV0078ProveRefusesAWorkspaceInsideTheRepository: prove passes the
+// checkout root to the engine, so a declared workspace under it leaves the
+// row NOT_RUN with the fixed detail and no run is started.
+func TestFPKV0078ProveRefusesAWorkspaceInsideTheRepository(t *testing.T) {
+	t.Parallel()
+	requireNestableSandbox(t)
+	declaration, log := writeFakeContainerDeclaration(t)
+	root := proveContainerRepository(t)
+	content, err := os.ReadFile(declaration)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var profile rbmutate.ContainerProfile
+	if err := json.Unmarshal(content, &profile); err != nil {
+		t.Fatal(err)
+	}
+	// An empty directory leaves the worktree clean.
+	profile.Workspace = filepath.Join(root, "tmp")
+	if err := os.Mkdir(profile.Workspace, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if content, err = json.Marshal(profile); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(declaration, content, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runProveCLIEnvironment(t, []string{"PATH=/usr/bin:/bin"}, root, "--mutate", "--mutate-runner", declaration,
+		"--mutate-source", "app/models/scoring.rb:3-6", "--mutate-example", "spec/models/scoring_spec.rb:4:7:10")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	var row map[string]any
+	for _, candidate := range proofRows(t, receipt) {
+		if stringAt(candidate, "kind") == kindNamedSource {
+			row = candidate
+		}
+	}
+	if row["falsified"] != falsifiedNotRun || stringAt(row, "detail") != "the container workspace is inside or contains the repository" {
+		t.Fatalf("row: %v", row)
+	}
+	if runs, err := os.ReadFile(log); err == nil && len(runs) != 0 {
+		t.Fatalf("a run started in a workspace inside the repository: %s", runs)
+	}
+	if entries, err := os.ReadDir(profile.Workspace); err != nil || len(entries) != 0 {
+		t.Fatalf("workspace inside the repository was written: %v %v", entries, err)
 	}
 }

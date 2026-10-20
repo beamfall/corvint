@@ -265,6 +265,9 @@ type proveRow struct {
 	// rubyRunner is the declared container runner of a Ruby row
 	// (FPK-V0-078), or nil.
 	rubyRunner *rbmutate.ContainerProfile
+	// repository is the checkout root a declared container workspace may
+	// not overlap (FPK-V0-078).
+	repository string
 }
 
 type proveMutationWitness struct {
@@ -1252,7 +1255,7 @@ func judgeMutations(ctx context.Context, gitExecutable string, options options, 
 			}
 			continue
 		}
-		row.rubyRunner = options.prove.rubyRunner
+		row.rubyRunner, row.repository = options.prove.rubyRunner, options.root
 		judged, err := judgeMutationMode(budgeted, exported, row, checkoutRevision, cited, dirty, spans, options.proveAttackTests)
 		if err != nil {
 			return nil, &gokernel.Error{Code: "unsupported-prove-mutation", Message: "the mutation runner failed for " + row.Path}
@@ -1398,7 +1401,7 @@ func judgeMutationMode(ctx context.Context, exported *mutate.Export, row proveRo
 	if strings.HasSuffix(changed, ".rb") {
 		return judgeRubyMutation(ctx, exported, rbmutate.Request{
 			ChangedPath: changed, TestPath: row.Path, Lines: lines, Examples: row.examples, LineBasis: row.lineBasis,
-			Container: row.rubyRunner,
+			Container: row.rubyRunner, Root: row.repository,
 		})
 	}
 	report, err := exported.Judge(ctx, mutate.Request{ChangedPath: changed, TestPath: row.Path, Lines: lines, Complete: attack})

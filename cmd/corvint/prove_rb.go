@@ -21,14 +21,17 @@ const (
 // receipt, and the baseline receipt. It is deterministic: no timings, no
 // temporary paths.
 type proveMutationRecord struct {
-	Engine     string            `json:"engine"`
-	Runner     string            `json:"runner,omitempty"`
-	Stage      string            `json:"stage"`
-	Planned    int               `json:"planned"`
-	Selected   int               `json:"selected"`
-	Killed     int               `json:"killed"`
-	Survived   int               `json:"survived"`
-	Unloadable int               `json:"unloadable"`
+	Engine     string `json:"engine"`
+	Runner     string `json:"runner,omitempty"`
+	Stage      string `json:"stage"`
+	Planned    int    `json:"planned"`
+	Selected   int    `json:"selected"`
+	Killed     int    `json:"killed"`
+	Survived   int    `json:"survived"`
+	Unloadable int    `json:"unloadable"`
+	// Unadmitted counts containerised runs whose report the runner did
+	// not admit (FPK-V0-080); host rows omit it.
+	Unadmitted int               `json:"unadmitted,omitempty"`
 	TimedOut   int               `json:"timed_out"`
 	Skipped    int               `json:"skipped"`
 	Baseline   *rbmutate.Receipt `json:"baseline,omitempty"`
@@ -65,7 +68,7 @@ func rubyVerdict(report rbmutate.Report) mutationVerdict {
 		mutation: &proveMutationRecord{
 			Engine: "rbmutate", Runner: report.Runner, Stage: string(report.Stage),
 			Planned: report.Planned, Selected: report.Mutants, Killed: report.Killed, Survived: report.Survived,
-			Unloadable: report.Unloadable, TimedOut: report.TimedOut, Skipped: report.Skipped,
+			Unloadable: report.Unloadable, Unadmitted: report.Unadmitted, TimedOut: report.TimedOut, Skipped: report.Skipped,
 			Baseline: report.Baseline, Mutants: results,
 			Target: namedRecordTarget(report), LineBasis: report.LineBasis,
 		},

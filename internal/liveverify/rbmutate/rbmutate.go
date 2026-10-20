@@ -34,7 +34,9 @@ type Copy interface {
 }
 
 // Request names one claim to falsify on an export. Root, Git, and Revision
-// are read by Run only, which opens its own export.
+// are read by Run, which opens its own export; Judge reads Root only to
+// refuse a container workspace inside or containing the repository
+// (FPK-V0-078).
 type Request struct {
 	Root        string
 	Git         string
@@ -97,6 +99,9 @@ const (
 	OutcomeSurvived   Outcome = "survived"
 	OutcomeUnloadable Outcome = "unloadable"
 	OutcomeTimedOut   Outcome = "timed-out"
+	// OutcomeUnadmitted is a containerised run whose report the runner did
+	// not admit (FPK-V0-080): never killed or survived.
+	OutcomeUnadmitted Outcome = "unadmitted"
 )
 
 // Receipt is the deterministic record of one RSpec run: the counts RSpec
@@ -141,6 +146,9 @@ type Report struct {
 	Killed     int
 	Survived   int
 	Unloadable int
+	// Unadmitted counts containerised runs whose report the runner did
+	// not admit (FPK-V0-080).
+	Unadmitted int
 	TimedOut   int
 	Skipped    int
 	Operators  []string
@@ -177,6 +185,9 @@ type settings struct {
 	examples  []int
 	lineBasis string
 	container *ContainerProfile
+	// root is the repository a container workspace may not overlap
+	// (FPK-V0-078); empty when the caller judged a bare copy.
+	root string
 }
 
 // TestFile reports whether a repository-relative path is an RSpec file by
@@ -289,6 +300,7 @@ func normalize(request Request) (settings, error) {
 		examples:    examples,
 		lineBasis:   request.LineBasis,
 		container:   request.Container,
+		root:        request.Root,
 	}, nil
 }
 
@@ -467,6 +479,8 @@ func mutantOutcome(outcome runOutcome) Outcome {
 		return OutcomeSurvived
 	case runTimedOut:
 		return OutcomeTimedOut
+	case runUnadmitted:
+		return OutcomeUnadmitted
 	}
 	return OutcomeUnloadable
 }
@@ -479,6 +493,8 @@ func tally(report Report, outcome Outcome) Report {
 		report.Survived++
 	case OutcomeTimedOut:
 		report.TimedOut++
+	case OutcomeUnadmitted:
+		report.Unadmitted++
 	default:
 		report.Unloadable++
 	}
@@ -505,6 +521,9 @@ func notAskedSuffix(report Report) string {
 	suffix := ""
 	if report.Unloadable != 0 {
 		suffix += fmt.Sprintf("; %d did not load", report.Unloadable)
+	}
+	if report.Unadmitted != 0 {
+		suffix += fmt.Sprintf("; %d reports not admitted", report.Unadmitted)
 	}
 	if report.TimedOut != 0 {
 		suffix += fmt.Sprintf("; %d timed out", report.TimedOut)

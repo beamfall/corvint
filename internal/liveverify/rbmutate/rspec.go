@@ -45,6 +45,10 @@ const (
 	// runBroken is a run with no exit status at all: a sandbox that did
 	// not launch.
 	runBroken
+	// runUnadmitted is a containerised run that would have passed or
+	// failed, but whose report the runner's own parser rejected or
+	// observed as incomplete (FPK-V0-080); it earns no verdict.
+	runUnadmitted
 )
 
 // summary is the part of RSpec's JSON formatter output the receipt keeps.
@@ -274,6 +278,8 @@ func (runner rspecRunner) environment() []string {
 // baseline.
 func baselineDetail(run specRun, configuration settings) string {
 	switch {
+	case run.outcome == runUnadmitted:
+		return "the runner did not admit the baseline RSpec report: " + configuration.target
 	case run.outcome == runTimedOut:
 		return "baseline examples exceed the per-run timeout: " + configuration.target
 	case run.outcome == runBroken:

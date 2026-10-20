@@ -3,6 +3,7 @@ package rbmutate
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -97,7 +98,7 @@ func TestFPKV0079ContainerRunsEachMutantInADisposableCopy(t *testing.T) {
 	before := treeDigest(t, export)
 	request := Request{
 		ChangedPath: "app/models/scoring.rb", TestPath: "spec/models/scoring_spec.rb",
-		Lines: bandLines, MaxMutants: 14, Budget: 4 * time.Minute, Container: profile,
+		Lines: bandLines, MaxMutants: 14, Budget: 4 * time.Minute, Container: profile, Root: t.TempDir(),
 	}
 	// fakeCopy has no sandbox and cannot run anything itself.
 	report, err := Judge(context.Background(), fakeCopy{dir: export, unsandboxed: "no sandbox"}, request)
@@ -145,6 +146,11 @@ func TestFPKV0079ContainerRunsEachMutantInADisposableCopy(t *testing.T) {
 		if runner == nil || runner.Profile != "corvint-test-runner-receipt/0" || !sha256Pattern.MatchString(runner.PlanSHA256) ||
 			!sha256Pattern.MatchString(runner.ReceiptSHA256) || plans[runner.PlanSHA256] {
 			t.Fatalf("run without its own runner receipt: %+v", receipt)
+		}
+		// The fake writes a report the runner's parser admits, so every
+		// verdict rests on a complete observation.
+		if !runner.Complete || runner.ReportError != "" {
+			t.Fatalf("run whose report the runner did not admit: %+v", runner)
 		}
 		plans[runner.PlanSHA256] = true
 	}
@@ -234,6 +240,15 @@ func TestFPKV0078UnusableContainerIsUnsupportedAtTheRunnerStage(t *testing.T) {
 	if err := os.WriteFile(unexecutable, script, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	// A sparse file one byte over the test runner's pinned-executable
+	// bound: refused from its size, never read whole.
+	oversized := filepath.Join(t.TempDir(), "docker")
+	if err := os.WriteFile(oversized, script, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(oversized, tr.MaxPinnedArtifactBytes+1); err != nil {
+		t.Fatal(err)
+	}
 	for _, check := range []struct {
 		name, detail string
 		change       func(*ContainerProfile)
@@ -245,6 +260,7 @@ func TestFPKV0078UnusableContainerIsUnsupportedAtTheRunnerStage(t *testing.T) {
 			p.ExecPrefix = append([]string{"--password=hunter2hunter2"}, p.ExecPrefix...)
 		}},
 		{"cannot start", "the declared container runner did not start", func(p *ContainerProfile) { p.Executable = unexecutable }},
+		{"oversized", "the container executable exceeds the runner's 256 MiB bound", func(p *ContainerProfile) { p.Executable = oversized }},
 	} {
 		changed := *profile
 		changed.ExecPrefix = append([]string(nil), profile.ExecPrefix...)
@@ -253,6 +269,142 @@ func TestFPKV0078UnusableContainerIsUnsupportedAtTheRunnerStage(t *testing.T) {
 		report, err := Judge(context.Background(), fakeCopy{dir: export}, request)
 		if err != nil || report.Verdict != mutate.Unsupported || report.Stage != StageRunner || report.Detail != check.detail {
 			t.Errorf("%s: %+v %v", check.name, report, err)
+		}
+	}
+}
+
+// TestFPKV0078WorkspaceOverlappingTheRepositoryIsUnusable: a workspace that
+// resolves to the repository root, to a directory under it (directly or
+// through a link), or to a directory containing it is Unsupported at the
+// runner stage with a fixed detail, and no run directory is created.
+func TestFPKV0078WorkspaceOverlappingTheRepositoryIsUnusable(t *testing.T) {
+	profile, log := fakeContainer(t)
+	export := writeExport(t, map[string]string{"app/models/scoring.rb": fixtureScoring, "spec/models/scoring_spec.rb": fixtureWeakSpec})
+	parent := t.TempDir()
+	repository := filepath.Join(parent, "repo")
+	inside := filepath.Join(repository, "tmp", "runs")
+	if err := os.MkdirAll(inside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "runs")
+	if err := os.Symlink(inside, link); err != nil {
+		t.Fatal(err)
+	}
+	for _, check := range []struct{ name, workspace string }{
+		{"root", repository}, {"under the root", inside}, {"link into the root", link}, {"containing the root", parent},
+	} {
+		changed := *profile
+		changed.Workspace = check.workspace
+		request := Request{ChangedPath: "app/models/scoring.rb", TestPath: "spec/models/scoring_spec.rb", Budget: time.Minute, Container: &changed, Root: repository}
+		report, err := Judge(context.Background(), fakeCopy{dir: export}, request)
+		if err != nil || report.Verdict != mutate.Unsupported || report.Stage != StageRunner || report.Detail != "the container workspace is inside or contains the repository" {
+			t.Errorf("%s: %+v %v", check.name, report, err)
+		}
+	}
+	if content, err := os.ReadFile(log); err == nil && len(content) != 0 {
+		t.Fatalf("a run started in an overlapping workspace: %s", content)
+	}
+	for _, dir := range []string{repository, inside, parent} {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, entry := range entries {
+			if strings.HasPrefix(entry.Name(), "corvint-rbmutate-") {
+				t.Fatalf("run directory %s created in %s", entry.Name(), dir)
+			}
+		}
+	}
+}
+
+// scriptedContainerScript is a container CLI that runs no RSpec: its first
+// @GOOD@ runs write @PASS@ as the report and exit 0, every later run writes
+// @LATER@ and exits @STATUS@. It uses shell builtins only, as the runner
+// gives the CLI only its own directory on PATH.
+const scriptedContainerScript = `#!/bin/sh
+count=0
+[ -f "@COUNT@" ] && read count < "@COUNT@"
+count=$((count + 1))
+echo "$count" > "@COUNT@"
+host=""
+out=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -v) host="${2%%:/work}"; shift 2 ;;
+    --out) out="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+out="$host${out#/work}"
+if [ "$count" -le @GOOD@ ]; then
+  printf '%s' '@PASS@' > "$out"
+  exit 0
+fi
+printf '%s' '@LATER@' > "$out"
+exit @STATUS@
+`
+
+// scriptedContainer installs scriptedContainerScript under the same prefix
+// as fakeContainer.
+func scriptedContainer(t *testing.T, good int, pass, later string, status int) *ContainerProfile {
+	t.Helper()
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("the test runner executes on darwin and linux only")
+	}
+	bin := t.TempDir()
+	script := strings.NewReplacer("@COUNT@", filepath.Join(t.TempDir(), "count"), "@GOOD@", fmt.Sprint(good),
+		"@PASS@", pass, "@LATER@", later, "@STATUS@", fmt.Sprint(status)).Replace(scriptedContainerScript)
+	executable := filepath.Join(bin, "docker")
+	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return &ContainerProfile{
+		Profile: ContainerProfileName, Executable: executable, ExecutableSha256: tr.Digest([]byte(script)),
+		ExecPrefix: []string{"run", "--rm", "-v", RunPlaceholder + ":/work", "-w", "/work/tree", "fake-image", "rspec"},
+		Container:  "/work", Workspace: t.TempDir(),
+	}
+}
+
+// Reports for the scripted CLI: one passing example, the same with no
+// version (the runner's parser rejects it), and an inconsistent one that
+// lists only a passing example yet claims a failure.
+const (
+	passingReport      = `{"version":"3.13.0","examples":[{"id":"./spec/models/scoring_spec.rb[1:1]","status":"passed"}],"summary":{"example_count":1,"failure_count":0,"pending_count":0,"errors_outside_of_examples_count":0}}`
+	unversionedReport  = `{"examples":[{"id":"./spec/models/scoring_spec.rb[1:1]","status":"passed"}],"summary":{"example_count":1,"failure_count":0,"pending_count":0,"errors_outside_of_examples_count":0}}`
+	inconsistentReport = `{"version":"3.13.0","examples":[{"id":"./spec/models/scoring_spec.rb[1:1]","status":"passed"}],"summary":{"example_count":1,"failure_count":1,"pending_count":0,"errors_outside_of_examples_count":0}}`
+)
+
+// TestFPKV0080UnadmittedReportEarnsNoVerdict pins FPK-V0-080: a report the
+// runner's own parser rejects, or whose observation is incomplete, is never
+// killed or survived. At the baseline the claim is Unsupported with a fixed
+// detail; at a mutant the result is unadmitted with the typed reason on its
+// runner receipt.
+func TestFPKV0080UnadmittedReportEarnsNoVerdict(t *testing.T) {
+	export := writeExport(t, map[string]string{"app/models/scoring.rb": fixtureScoring, "spec/models/scoring_spec.rb": fixtureWeakSpec})
+	request := func(profile *ContainerProfile) Request {
+		return Request{ChangedPath: "app/models/scoring.rb", TestPath: "spec/models/scoring_spec.rb", Lines: bandLines, MaxMutants: 3, Budget: 2 * time.Minute, Container: profile}
+	}
+	report, err := Judge(context.Background(), fakeCopy{dir: export}, request(scriptedContainer(t, 0, passingReport, unversionedReport, 0)))
+	if err != nil || report.Verdict != mutate.Unsupported || report.Stage != StageBaseline ||
+		report.Detail != "the runner did not admit the baseline RSpec report: spec/models/scoring_spec.rb" ||
+		report.Baseline == nil || report.Baseline.Runner == nil || report.Baseline.Runner.ReportError != ReportUnparsed {
+		t.Fatalf("unparsed baseline: %+v %+v %v", report, report.Baseline, err)
+	}
+	report, err = Judge(context.Background(), fakeCopy{dir: export}, request(scriptedContainer(t, 1, passingReport, inconsistentReport, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Stage != StageMutants || report.Mutants != 3 || report.Killed != 0 || report.Survived != 0 || report.Unadmitted != 3 ||
+		report.Verdict != mutate.NoMutants || !strings.Contains(report.Detail, "; 3 reports not admitted") {
+		t.Fatalf("inconsistent mutant reports: %+v", report)
+	}
+	if runner := report.Baseline.Runner; runner == nil || !runner.Complete || runner.ReportError != "" {
+		t.Fatalf("baseline receipt: %+v", report.Baseline)
+	}
+	for _, result := range report.Results {
+		runner := result.Receipt.Runner
+		if result.Outcome != OutcomeUnadmitted || runner == nil || runner.Complete || runner.ReportError != ObservationIncomplete {
+			t.Fatalf("mutant credited from an incomplete observation: %+v %+v", result, runner)
 		}
 	}
 }

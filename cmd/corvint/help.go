@@ -899,12 +899,14 @@ Containerised Ruby runner (experimental):
 FILE is a corvint-rbmutate-container/0 declaration: executable and
 executableSha256 (the pinned container CLI), execPrefix (its words up to and
 including the rspec command, naming {run}), container (where {run} is
-mounted) and workspace (an existing host directory the runtime can mount).
+mounted) and workspace (an existing host directory the runtime can mount,
+neither inside nor containing the repository).
 Every Ruby mutation run then goes through the corvint-test-runner rspec
 profile instead of the host sandbox: the baseline and each mutant get a fresh
 disposable copy of the export under the workspace, removed afterwards, and
-each receipt carries its own admitted runner_receipt. The container is the
-isolation; Corvint does not pin its image or network beyond the prefix.
+each receipt carries its own admitted runner_receipt. A run whose report that
+runner does not admit earns no verdict (report_error names why). The container
+is the isolation; Corvint does not pin its image or network beyond the prefix.
 
 test-kills-mutant rows stay NOT_RUN unless --mutate is given (impact and
 change modes only). Every mutation row of one invocation shares a

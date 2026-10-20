@@ -3,6 +3,8 @@ package rbmutate
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,7 +83,21 @@ type RunnerReceipt struct {
 	PlanSHA256    string `json:"plan_sha256"`
 	ReceiptSHA256 string `json:"receipt_sha256"`
 	Complete      bool   `json:"complete"`
+	// ReportError is why the runner did not admit the run's report
+	// (FPK-V0-080): ReportUnparsed or ObservationIncomplete. A run with
+	// one is never killed or survived.
+	ReportError string `json:"report_error,omitempty"`
 }
+
+// Why the runner did not admit a containerised run's report (FPK-V0-080).
+const (
+	// ReportUnparsed is a report the runner's RSpec parser rejects.
+	ReportUnparsed = "report-unparsed"
+	// ObservationIncomplete is a parsed report whose observation is
+	// incomplete: its counts disagree with its examples, or its exit
+	// status with its outcomes.
+	ObservationIncomplete = "observation-incomplete"
+)
 
 // ParseContainerProfile decodes one declaration strictly: bounded, one
 // object, no unknown or duplicate-shaped trailing content, and valid.
@@ -173,6 +189,9 @@ func findContainerRunner(copy Copy, configuration settings) (specRunner, string)
 	if information, err := os.Stat(workspace); err != nil || !information.IsDir() {
 		return runner, "the container workspace is not a directory"
 	}
+	if overlapsRepository(workspace, configuration.root) {
+		return runner, "the container workspace is inside or contains the repository"
+	}
 	runner.workspace = workspace
 	// The runner opens the CLI without following a link, so a declared
 	// link is refused here rather than on every run.
@@ -180,8 +199,11 @@ func findContainerRunner(copy Copy, configuration settings) (specRunner, string)
 	if err != nil || !information.Mode().IsRegular() {
 		return runner, "the container executable is not a regular file"
 	}
-	executable, err := os.ReadFile(runner.profile.Executable)
-	if err != nil || tr.Digest(executable) != runner.profile.ExecutableSha256 {
+	sum, err := boundedDigest(runner.profile.Executable, tr.MaxPinnedArtifactBytes)
+	if errors.Is(err, errExecutableBound) {
+		return runner, "the container executable exceeds the runner's 256 MiB bound"
+	}
+	if err != nil || sum != runner.profile.ExecutableSha256 {
 		return runner, "the container executable does not match its declared sha256"
 	}
 	if err := walkExport(copy.Dir(), nil); err != nil {
@@ -196,6 +218,74 @@ func findContainerRunner(copy Copy, configuration settings) (specRunner, string)
 		return runner, "the rspec runner profile refuses the declared container profile"
 	}
 	return runner, ""
+}
+
+// errExecutableBound is a container CLI larger than the test runner's
+// pinned-executable bound, which the runner would refuse on every run.
+var errExecutableBound = errors.New("container executable exceeds the pinned-executable bound")
+
+// boundedDigest hashes the file at name with a streaming read of at most
+// bound bytes; a larger file is errExecutableBound and is never read whole.
+func boundedDigest(name string, bound int64) (string, error) {
+	file, err := os.Open(name)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if information, err := file.Stat(); err != nil || !information.Mode().IsRegular() {
+		return "", errors.New("not a regular file")
+	} else if information.Size() > bound {
+		return "", errExecutableBound
+	}
+	hash := sha256.New()
+	read, err := io.Copy(hash, io.LimitReader(file, bound+1))
+	if err != nil {
+		return "", err
+	}
+	if read > bound {
+		return "", errExecutableBound
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+// overlapsRepository reports whether the resolved workspace is the
+// repository root, lies under it, or contains it. Runs create directories
+// in the workspace, so either would write into, or expose, the checkout.
+// Directories are compared by identity, so a case-insensitive file system
+// or a second path to the same directory cannot hide an overlap. An unset
+// root (a caller judging a bare copy) has no repository to protect; a root
+// that does not resolve is treated as overlapping.
+func overlapsRepository(workspace, root string) bool {
+	if root == "" {
+		return false
+	}
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return true
+	}
+	rootInformation, err := os.Stat(resolved)
+	if err != nil {
+		return true
+	}
+	workspaceInformation, err := os.Stat(workspace)
+	if err != nil {
+		return true
+	}
+	return hasAncestor(workspace, rootInformation) || hasAncestor(resolved, workspaceInformation)
+}
+
+// hasAncestor reports whether dir, or any directory above it, is target.
+func hasAncestor(dir string, target os.FileInfo) bool {
+	for {
+		if information, err := os.Stat(dir); err == nil && os.SameFile(information, target) {
+			return true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return false
+		}
+		dir = parent
+	}
 }
 
 // request is the corvint-test-runner rspec request of one run directory.
@@ -285,7 +375,19 @@ func (runner containerRunner) execute(ctx context.Context, source []byte) (specR
 		// never credited either way.
 		run.outcome = runUnloadable
 	}
-	run.receipt.Runner = &RunnerReceipt{Profile: runnerReceiptProfile, PlanSHA256: receipt.PlanSha256, ReceiptSHA256: tr.Identity(receipt), Complete: observation.Complete}
+	reportError := ""
+	switch {
+	case parseErr != nil:
+		reportError = ReportUnparsed
+	case !observation.Complete:
+		reportError = ObservationIncomplete
+	}
+	if reportError != "" && (run.outcome == runPassed || run.outcome == runFailed) {
+		// The receipt's own parser did not admit the report this
+		// classification read, so neither verdict is earned from it.
+		run.outcome = runUnadmitted
+	}
+	run.receipt.Runner = &RunnerReceipt{Profile: runnerReceiptProfile, PlanSHA256: receipt.PlanSha256, ReceiptSHA256: tr.Identity(receipt), Complete: observation.Complete, ReportError: reportError}
 	return run, nil
 }
 
