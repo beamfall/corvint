@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -226,6 +227,17 @@ func TestExampleJoinSupportFiles(t *testing.T) {
 	}
 	if r := joinOne(t, root, ExampleJoinOptions{Ruby: reportDocument(t, root, crowded, "helper-not-regular-file")}); r.Examples[0].Verdict.Hygiene.State != testvalidity.HygieneAbstained {
 		t.Fatalf("unbound helper set read the support files: %+v", r.Examples[0])
+	}
+
+	listed := map[string]string{}
+	for i := range MaxFiles + 1 {
+		listed[fmt.Sprintf("spec/support/helper_%04d.rb", i)] = "module H; end\n"
+	}
+	overListed := commitFiles(t, root, listed)
+	_, err := ExampleJoin(repo, ExampleJoinOptions{Ruby: reportDocument(t, root, overListed, "")})
+	var refusal *Error
+	if !errors.As(err, &refusal) || refusal.Code != "tests-bound-exceeded" || refusal.Message != fmt.Sprintf("more than %d source files", MaxJoinFiles) {
+		t.Fatalf("support files past the tree listing budget: %v, want the join's tests-bound-exceeded refusal (V1-2088)", err)
 	}
 
 	other := t.TempDir()

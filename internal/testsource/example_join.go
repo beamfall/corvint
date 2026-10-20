@@ -1,6 +1,7 @@
 package testsource
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -359,6 +360,12 @@ func (j *joiner) readSupport(prefix string, helpers map[string]bool, dirty bool,
 		return joinSupport{support: testvalidity.RubySupport{Unbound: helpersUnbound}}, nil
 	}
 	entries, err := j.r.tree(j.commit, RubySupportPaths(prefix), MaxFiles)
+	var refusal *Error
+	if errors.As(err, &refusal) && refusal.Code == "tests-bound-exceeded" {
+		// A support set past the listing budget is past the join's own file bound too, so it
+		// refuses with the join's message (V1-2088).
+		return joinSupport{}, refuse("tests-bound-exceeded", "more than %d source files", MaxJoinFiles)
+	}
 	if err != nil {
 		return joinSupport{}, err
 	}
