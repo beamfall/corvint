@@ -33,6 +33,9 @@ func runTestHelper() {
 	if err != nil {
 		os.Exit(2)
 	}
+	if runProfileHelper(data) {
+		return
+	}
 	var invocation Invocation
 	if json.Unmarshal(data, &invocation) != nil {
 		os.Exit(2)
