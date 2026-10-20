@@ -2420,6 +2420,7 @@ FPK-V0-025	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-04 for AT-06 by
 FPK-V0-026	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-04 for AT-06 by decision 0052) Before promotion this slice MUS	owner	2026-09-04; decision 0052
 FPK-V0-027	docs/specs/falsifiable-packet-v0.md	`proof.claims` MUST be present in every output that carries `proof`, keyed by al	unrecorded	-
 FPK-V0-028	docs/specs/falsifiable-packet-v0.md	(experimental prototype, decision 0063 item 5) When `--mutate` attempts a	unrecorded	-
+FPK-V0-057	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20 for GitHub #1321, accepted under the owner's	owner	2026-10-20; #1321
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
