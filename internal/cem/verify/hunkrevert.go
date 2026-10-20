@@ -49,6 +49,16 @@ const (
 	RevertInfrastructure     = "infrastructure"
 )
 
+// Closed not-attempted reasons (CEM-V1-320): why a mapped hunk is not a
+// falsifier candidate at all, so "not attempted" differs from "nothing to do".
+const (
+	NotAttemptedTestOnly    = "test-only-hunk"
+	NotAttemptedLanguage    = "unsupported-language"
+	NotAttemptedDisposition = "not-supported-disposition"
+	NotAttemptedNoTestClaim = "no-test-claim"
+	NotAttemptedNotInPatch  = "not-in-patch"
+)
+
 // HunkRevertLimits bound one falsifier run: PerRun bounds each go test
 // invocation and Total bounds the whole run, export included.
 type HunkRevertLimits struct {
@@ -71,6 +81,17 @@ type HunkRevert struct {
 	NotRun         int             `json:"notRun"`
 	HunksByClass   CitationClasses `json:"hunksByClass"`
 	ElapsedSeconds float64         `json:"elapsedSeconds"`
+	// NotAttempted lists, in hunk ID order, every mapped hunk that is not a
+	// candidate, with its closed reason (CEM-V1-320, CEM-V1-321). It is
+	// additive: Hunks and the counts keep their candidate-only meaning.
+	NotAttempted []HunkNotAttempted `json:"notAttempted"`
+}
+
+// HunkNotAttempted is one mapped hunk the falsifier never attempted.
+type HunkNotAttempted struct {
+	HunkID string `json:"hunkId"`
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
 }
 
 // HunkRevertRow is one candidate hunk: a supported Go source hunk whose basis
@@ -129,12 +150,13 @@ func runHunkRevert(ctx context.Context, repository string, c *stableCapture, cit
 	report := &HunkRevert{
 		Profile: HunkRevertProfile, Runner: HunkRevertRunner,
 		PerRunSeconds: int64(limits.PerRun / time.Second), TotalSeconds: int64(limits.Total / time.Second),
-		Hunks: []HunkRevertRow{}, HunksByClass: citation.HunksByClass,
+		Hunks: []HunkRevertRow{}, HunksByClass: citation.HunksByClass, NotAttempted: []HunkNotAttempted{},
 	}
 	defer func() { report.ElapsedSeconds = time.Since(started).Round(time.Millisecond).Seconds() }()
-	candidates := revertCandidates(c, func(blobOID string) ([]byte, error) {
+	candidates, notAttempted := revertCandidates(c, func(blobOID string) ([]byte, error) {
 		return gitOutput(ctx, repository, nil, "cat-file", "blob", blobOID)
 	})
+	report.NotAttempted = notAttempted
 	if len(candidates) == 0 {
 		return report
 	}
@@ -405,7 +427,8 @@ func classifyRevert(outcome runOutcome, eligible []string) unitVerdict {
 // revertCandidates selects, in hunk ID order, every supported hunk on Go
 // source (not _test.go) whose basis cites a _test.go span as test-claim. load
 // returns a cited test file's base blob; a blob it cannot load names no test.
-func revertCandidates(c *stableCapture, load func(blobOID string) ([]byte, error)) []revertCandidate {
+// Every other mapped hunk is returned as not attempted with its closed reason.
+func revertCandidates(c *stableCapture, load func(blobOID string) ([]byte, error)) ([]revertCandidate, []HunkNotAttempted) {
 	derived := map[string]*patch.Hunk{}
 	kinds := map[string]patch.GroupKind{}
 	for _, group := range c.parsed.Groups {
@@ -422,9 +445,24 @@ func revertCandidates(c *stableCapture, load func(blobOID string) ([]byte, error
 	hunks := append([]wire.Hunk(nil), c.change.Hunks...)
 	sort.Slice(hunks, func(i, j int) bool { return hunks[i].ID < hunks[j].ID })
 	var candidates []revertCandidate
+	notAttempted := []HunkNotAttempted{}
+	skip := func(mapped wire.Hunk, reason string) {
+		notAttempted = append(notAttempted, HunkNotAttempted{HunkID: mapped.ID, Path: mapped.Path, Reason: reason})
+	}
 	for _, mapped := range hunks {
 		hunk := derived[mapped.ID]
-		if mapped.Disposition != "supported" || hunk == nil || !goSource(mapped.Path) {
+		switch {
+		case strings.HasSuffix(mapped.Path, "_test.go"):
+			skip(mapped, NotAttemptedTestOnly)
+			continue
+		case !goSource(mapped.Path):
+			skip(mapped, NotAttemptedLanguage)
+			continue
+		case mapped.Disposition != "supported":
+			skip(mapped, NotAttemptedDisposition)
+			continue
+		case hunk == nil:
+			skip(mapped, NotAttemptedNotInPatch)
 			continue
 		}
 		named := map[string]map[string]bool{}
@@ -448,6 +486,7 @@ func revertCandidates(c *stableCapture, load func(blobOID string) ([]byte, error
 			}
 		}
 		if !cites {
+			skip(mapped, NotAttemptedNoTestClaim)
 			continue
 		}
 		candidate := revertCandidate{hunk: hunk, kind: kinds[mapped.ID], tests: []string{}}
@@ -467,7 +506,7 @@ func revertCandidates(c *stableCapture, load func(blobOID string) ([]byte, error
 		sort.Strings(candidate.tests)
 		candidates = append(candidates, candidate)
 	}
-	return candidates
+	return candidates, notAttempted
 }
 
 func goSource(p string) bool {

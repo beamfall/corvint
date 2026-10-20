@@ -645,3 +645,32 @@ func TestResolveProbeOnlyExitOneIsAbsent(t *testing.T) {
 		t.Fatalf("absent sha256 object: %v", err)
 	}
 }
+
+// TestCEMV1323SharedCloneRefusalNamesAWorkingFix pins CEM-V1-323: a
+// git clone --shared repository keeps the unsupported-object-alternates code,
+// its message names the fix, and applying that fix makes the clone open.
+func TestCEMV1323SharedCloneRefusalNamesAWorkingFix(t *testing.T) {
+	root, _, _ := makeRepo(t)
+	clone := filepath.Join(t.TempDir(), "clone")
+	gitCmd(t, root, "clone", "-q", "--shared", root, clone)
+	_, err := Open(clone, gitrun.NewDefaultBudget())
+	if cemcode.CodeOf(err) != cemcode.UnsupportedObjectAlternates {
+		t.Fatalf("shared clone: got %v, want unsupported-object-alternates", err)
+	}
+	for _, want := range []string{"git repack -a -d", "remove objects/info/alternates", "without --shared"} {
+		if !strings.Contains(cemcode.MessageOf(err), want) {
+			t.Fatalf("refusal %q lacks %q", cemcode.MessageOf(err), want)
+		}
+	}
+	gitCmd(t, clone, "repack", "-q", "-a", "-d")
+	if err := os.Remove(filepath.Join(clone, ".git", "objects", "info", "alternates")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(clone, gitrun.NewDefaultBudget()); err != nil {
+		t.Fatalf("clone after the named fix: %v", err)
+	}
+	t.Setenv("GIT_ALTERNATE_OBJECT_DIRECTORIES", t.TempDir())
+	if _, err := Open(clone, gitrun.NewDefaultBudget()); !strings.Contains(cemcode.MessageOf(err), ambientAlternatesFix) {
+		t.Fatalf("ambient alternates: %v", err)
+	}
+}

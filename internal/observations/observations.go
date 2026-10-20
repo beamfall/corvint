@@ -164,7 +164,7 @@ var admittedDogfoodErrorCodes = codeSet(
 	"malformed-patch", "map-locked", "map-outdated", "map-too-large", "map-type", "map-unavailable",
 	"metadata-only-change-unsupported",
 	"missing-claim", "missing-evidence", "missing-field", "missing-hunk", "missing-intent-scope",
-	"missing-requirements", "noncanonical-map", "not-an-object", "obligation-order-mismatch",
+	"missing-requirements", "noncanonical-map", "not-a-producer-map", "not-an-object", "obligation-order-mismatch",
 	"obligation-selector-out-of-range", "obligation-set-mismatch", "ocm-cli-error",
 	"orphan-evidence", "output-failed", "output-path-conflict", "patch-digest-mismatch",
 	"patch-unavailable", "path-traversal", "publish-failed", "record-failed", "record-index-failed",

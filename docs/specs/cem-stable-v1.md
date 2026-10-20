@@ -1204,7 +1204,7 @@ integration may renumber them.
 Amended by V1-1276 (`CEM-V1-140..148`): `CEM-V1-030` and `CEM-V1-031` now bind the `cem/0.x` producers (`cem prepare --spec cem/0.2`, `cem begin` without `--spec cem/1.0`, and a mutation of a `cem/0.x` input); a `cem/1.0` producer map is written and mutated by `CEM-V1-141..144`, and `CEM-V1-032` is superseded by `CEM-V1-147` and `CEM-V1-148`.
 
 - `CEM-V1-030`: (accepted by decision 0546, 2026-10-20) A `cem/0.x` Core `cem prepare` MUST refuse an existing map at the fixed sidecar path whose bytes declare exactly `cem/1.0` with `unsupported-spec`, with or without `--replace`. It MUST leave the map, the patch cache and any backup unchanged, and MUST NOT resume, downgrade or overwrite a stable sidecar. It MUST refuse in the same way, before it takes the sidecar lock or recovers a backup, when a recognized interrupted-publication backup (`<map>.bak-` plus sixteen lowercase hex digits) declares `cem/1.0`, and MUST refuse a recognized regular backup it cannot read with `map-unavailable`, because unread bytes may be stable; it re-checks backups under the lock, and neither recovery nor resume cleanup restores or removes a refused backup. With `--replace`, it MUST refuse an existing regular sidecar it cannot read with `map-unavailable` instead of regenerating it, because unread bytes may be stable.
-- `CEM-V1-031`: (accepted by decision 0546, 2026-10-20) Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `cem/1.0` input map that is not a producer map (`CEM-V1-143`) with `unsupported-spec` naming the command and the stable read, in place or with `--output`, and write nothing. Every Core map writer (`begin`, `cite`, `mark`, `cover`, `discriminate`) writing `cem/0.x` MUST refuse an output destination whose existing bytes declare exactly `cem/1.0`, leaving it unchanged; a writer writing `cem/1.0` refuses such a destination unless it is a producer map. Each writer first runs a non-mutating preflight that refuses a readable `cem/1.0` input or destination before any lock file, directory or backup recovery touches the file system. It then holds the output lock across a strict probe and publication. Only an absent destination, one that is not a regular file (publication replaces the directory entry, never a link target), or one over the map bound (which `wire.DeclaresStable` never selects) proceeds unread. A regular destination whose bytes cannot be read, or that changes while it is read, MUST be refused with `map-unavailable` naming the command and `cem/1.0`, leaving it unchanged.
+- `CEM-V1-031`: (accepted by decision 0546, 2026-10-20) Core `cem cite`, `cem mark`, `cem cover` and `cem discriminate` MUST refuse a `cem/1.0` input map that is not a producer map (`CEM-V1-143`) with `not-a-producer-map` (amended from `unsupported-spec` by `CEM-V1-342`) naming the command and the stable read, in place or with `--output`, and write nothing. Every Core map writer (`begin`, `cite`, `mark`, `cover`, `discriminate`) writing `cem/0.x` MUST refuse an output destination whose existing bytes declare exactly `cem/1.0`, leaving it unchanged; a writer writing `cem/1.0` refuses such a destination unless it is a producer map. Each writer first runs a non-mutating preflight that refuses a readable `cem/1.0` input or destination before any lock file, directory or backup recovery touches the file system. It then holds the output lock across a strict probe and publication. Only an absent destination, one that is not a regular file (publication replaces the directory entry, never a link target), or one over the map bound (which `wire.DeclaresStable` never selects) proceeds unread. A regular destination whose bytes cannot be read, or that changes while it is read, MUST be refused with `map-unavailable` naming the command and `cem/1.0`, leaving it unchanged.
 - `CEM-V1-032`: (accepted by decision 0546, 2026-10-20) (superseded by `CEM-V1-147` and `CEM-V1-148`, V1-1276) The daily bind loop MUST read no hunks from a map declaring `cem/1.0`, so such a map never counts as cited and never binds a citation plan. Its cite step MUST refuse such a map as `cem-cite` `NOT_PRODUCED` `cem-map-stable-unsupported` before it reads the plan, writing no plan binding, cite log or map, and never treat it as a map that owes no hunk. `dogfood batch-check` MUST refuse a sealed `cem/1.0` constituent with `constituent-cem-stable-unsupported` before any verifier run, never as `constituent-cem-invalid`.
 - `CEM-V1-033`: (accepted by decision 0546, 2026-10-20) Selection is by the exact declared spec only (`wire.DeclaresStable`). Every `cem/0.x` input, the experimental candidate and every other spec MUST keep the earlier arguments, precedence, output bytes, refusal codes and messages, including the `prepare` `map-unavailable` refusal and an explicit `--replace` regeneration of a non-stable existing map.
 
@@ -1582,7 +1582,8 @@ receipts, links, artifacts or provenance; it may carry a `role` (`CEM-V1-095`).
 - `CEM-V1-143`: (accepted by decision 0546, 2026-10-20) `cem cite`, `cem mark`, `cem cover` and `cem discriminate` over a stable producer
   map MUST write a canonical `cem/1.0` producer map, in place or at `--output`, keeping its `role`;
   they MUST NOT upgrade it to `cem/0.3`. A stable map that is not a producer map stays refused
-  with `unsupported-spec` naming the command, as `CEM-V1-031` requires.
+  with `not-a-producer-map` (amended from `unsupported-spec` by `CEM-V1-342`) naming the
+  command, as `CEM-V1-031` requires.
 - `CEM-V1-144`: (accepted by decision 0546, 2026-10-20) A structural `cem mark` on a stable producer map writes the claimed reason; the
   stable verifier, not the producer, proves it, so an import reorder verifies `ACCEPT` and a
   wrong-class claim on the same hunk is `REJECT` `unproven-mechanical` from `cem status`.
@@ -3487,3 +3488,127 @@ and no stored state changes.
 | CEM-V1-315 | `TestCEMV1315StatusVerifyReadOutOfTreeMap` (`internal/cem/cli`) | status and verify over an outside copy of the sealed map equal `verify-stable` over the same path; status names the path; the repository and map directory listings are unchanged |
 | CEM-V1-316 | `TestCEMV1316OutOfTreeMapRefusals` (`internal/cem/cli`) | absolute maps in the worktree, in `.git` and through a symlinked parent refuse `invalid-arguments`; a symlinked or missing map refuses `map-unavailable`; report keeps its repository-relative refusal |
 | CEM-V1-317 | `TestCEMV1317HelpDocumentsMapPaths` (`cmd/corvint`) | `cem status --help`, `cem verify --help` and `cem anchor --help` print the map-path rules and the anchor limit |
+
+## Refusal and report reasons for agents (V1-2098, V1-2099, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2098
+(beamfall/corvint#1330) and V1-2099 (beamfall/corvint#1331). Every refusal code below is unchanged.
+Only the hunk-revert report gains a member, and only some refusal messages gain recovery text.
+
+- `CEM-V1-320`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2098) The
+  `cem-hunk-revert/0` report of `cem verify --hunk-revert` MUST carry a trailing member
+  `notAttempted`. It is an array with one `{hunkId, path, reason}` row, in hunk ID order as `hunks` is, for every map
+  hunk that the falsifier did not attempt. `reason` is one closed value, chosen by the first test
+  that matches in this order:
+  - `test-only-hunk`: the hunk changes a `_test.go` file;
+  - `unsupported-language`: the hunk changes a file that is not Go source, so no runner re-executes it;
+  - `not-supported-disposition`: the hunk's disposition is not `supported`;
+  - `not-in-patch`: the hunk is not in the derived canonical patch;
+  - `no-test-claim`: no `test-claim` basis cites a `_test.go` span.
+  The member is present, possibly empty, whenever the report is. A map that has no candidate (for
+  example a Ruby-only change) therefore names each hunk with its reason, instead of reporting only
+  an empty `hunks` array.
+- `CEM-V1-321`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2098) The change
+  is additive. `hunks`, `held`, `survived`, `notRun`, the bounds, `elapsedSeconds`, their member
+  order and the `CEM-V1-088`/`CEM-V1-089` row semantics stay unchanged. A hunk is in either `hunks` or
+  `notAttempted`, never both. Every map hunk is in one of the two. The stable result, its
+  `verdictSha256` and the envelope without the flag are byte-identical.
+- `CEM-V1-322`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2099) The
+  `cite-span-not-stable` refusal of `cem cite --bytes` or `--lines` MUST keep its code and its
+  existing message as a prefix. It MUST add the rule: a cited base span must survive the change,
+  so its exact text must occur exactly once in the changed file, and the citation should use base
+  lines that no hunk removes. When it can do so cheaply, it MUST also name the nearest stable spans:
+  - It looks for at most one maximal unedited base-line run above the span and one below it, each
+    clipped to the citation byte bound.
+  - It names only the runs that the stable classifier admits, as `--lines A:B` arguments.
+  - When no such run is stable, it says so.
+  - For a deleted or renamed file, it says that no base line of the file is citable.
+- `CEM-V1-323`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2099) The
+  `unsupported-object-alternates` refusal MUST keep its code and MUST name a working fix.
+  - For a repository `objects/info/alternates` (a `git clone --shared` or `--reference` clone),
+    the fix is: run `git repack -a -d`, then remove the alternates files under the Git common
+    directory, and rewrite or remove commit-graph chains. The alternative is to clone again
+    without `--shared` or `--reference`.
+  - For an ambient `GIT_ALTERNATE_OBJECT_DIRECTORIES`, the fix is to unset it and rerun.
+
+Non-goals: no new refusal code for these cases; no change to which hunks are falsifier candidates;
+no automatic repack, re-clone or citation; no change to the stable wire or the portable consumer.
+
+Failure modes:
+- A consumer that rejects unknown members of `cem-hunk-revert/0` sees the new `notAttempted`
+  member. The profile is opt-in and experimental, and no golden, seal or public case pins it.
+- The nearest-span guidance is advisory. It covers only the two runs next to the span, so a
+  stable span further away is not named. It never claims a span is stable without classifying it.
+- The repack fix makes the clone self-contained only after the alternates file is removed.
+  Running the repack step alone still refuses.
+
+Acceptance evidence: the tests below pass, and each fails without its code change.
+
+Rollback: revert the change commit. The member and the added message text go away, and every code
+stays the same.
+
+### Refusal and report reasons traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-320 | `TestCEMV1320NotAttemptedHunksCarryAClosedReason` (`internal/cem/verify`) | Six hunks give one candidate and five rows, one per reason, in hunk ID order. A Ruby-only map runs no `go test` and names its hunk `unsupported-language` |
+| CEM-V1-321 | `TestCEMV1320NotAttemptedHunksCarryAClosedReason`, `TestCEMV1088CountMovesOnlyAcceptedTiers`, `TestCEMV1089ClassifyRevert` (`internal/cem/verify`); `TestCEMV1088HeldOnlyFromConsumerReexecution` (`internal/cem/workflow`) | Candidate rows and counts are unchanged. A Ruby-only report has empty `hunks` and `notRun` 0 |
+| CEM-V1-322 | `TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans` (`internal/cem/workflow`) | A span over removed lines refuses `cite-span-not-stable` with the rule and `--lines 1:2, --lines 5:6`. Both named spans then cite successfully |
+| CEM-V1-323 | `TestCEMV1323SharedCloneRefusalNamesAWorkingFix` (`internal/cem/gitauth`) | A real `git clone --shared` refuses with the fix. After `git repack -a -d` and removing the alternates file, the open succeeds. An ambient alternates variable names its own fix |
+
+## Per-action help, assembly `ok` and the producer-map refusal (V1-2102, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2102
+(beamfall/corvint#1335).
+
+- `CEM-V1-340`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2102)
+  `corvint cem ACTION --help` (and `-h`) for a registered action MUST print help for that action
+  only. The help is projected from `corvint cem --help` so that the two cannot drift:
+  - the action's usage lines;
+  - its Actions paragraph (`status`, `verify` and `report` share one);
+  - the Verification options, for `status`, `verify` and `report` only;
+  - the closing wire note;
+  - a pointer to the full `corvint cem --help`.
+  The registered actions now include `cover` and `discriminate`. This amends `GPK-V0-062` for
+  `cem` actions only: their help is no longer byte-identical to `corvint cem --help`, which is
+  unchanged. `ocm`, `harness` and `corvint help cem` are unchanged.
+- `CEM-V1-341`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2102)
+  `corvint-cem-candidate assemble-stable` MUST print its assembly result (`StableAssemblyResult` or
+  `PlainAssemblyResult`) with one leading top-level member `"ok": true`. Every other byte is the
+  result's unchanged encoding, including its member order and trailing newline. Refusals keep
+  exit 1, the stderr line and empty stdout.
+- `CEM-V1-342`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2102) Core
+  mutators MUST refuse a `cem/1.0` map that is not a producer map with `not-a-producer-map`, not
+  `unsupported-spec`, because `cem/1.0` is supported. The mutators are the `cite`, `mark`, `cover`
+  and `discriminate` inputs, the destination guards of every writer, and the backup guards of
+  `prepare`. An assembled stable map is the usual case. The message is unchanged: it names the
+  command and the stable read. This amends the refusal code of `CEM-V1-030`, `CEM-V1-031`
+  and `CEM-V1-143`. Retired `cem/0.x` maps and unknown specs still refuse `unsupported-spec`.
+- `CEM-V1-343`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2102) The code
+  `not-a-producer-map` MUST be registered in `internal/cem/cemcode` and named here, so that the
+  error-code ownership check owns it. It MUST also be admitted as a dogfood `NOT_PRODUCED` reason
+  (`internal/observations`).
+
+Non-goals: no per-action help for `verify-stable` or `gate-verdict`, which parse their own argv
+before the help router; no `corvint help cem ACTION` topic; no change to the assembly result
+structs, the request decoders or receipt labelling; no change to the map write guards themselves.
+
+Failure modes:
+- A script that compared `cem ACTION --help` to `cem --help` byte for byte now differs. The full
+  text is still `corvint cem --help`.
+- A consumer that matched `unsupported-spec` for an assembled map now sees `not-a-producer-map`.
+- A strict decoder of the assembly result that refuses unknown members must admit `ok`.
+
+Acceptance evidence: the tests below pass. The help and `ok` tests fail without their code change.
+
+Rollback: revert the change commit. Action help returns to the full cem help, the `ok` member goes
+away and the mutators refuse `unsupported-spec` again.
+
+### Per-action help, assembly `ok` and producer-map refusal traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-340 | `TestCEMV1340CEMActionHelpNamesOnlyThatAction`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin`, `TestHelpFlagAnywhereFollowsArgparse`, `TestHFlagAliasesHelpFlag` (`cmd/corvint`) | Each registered action's help has its usage, no other action's usage, and Verification options only for the verifying actions. `cem prepare --help` and `cem begin --patch p -h` print that action's help, and `cem --help` is unchanged |
+| CEM-V1-341 | `TestCEMV1341AssemblyResultCarriesTopLevelOK` (`cmd/corvint-cem-candidate`) | For both result profiles, the output is `{"ok":true,` followed by the `json.Encoder` bytes after the opening brace |
+| CEM-V1-342 | `TestMutatorsRefuseStableInput`, `TestMutatorsRefuseStableDestination` and the other `requireStableRefusal` callers (`internal/cem/workflow`) | Every stable-map mutator refusal carries `not-a-producer-map` and writes nothing |
+| CEM-V1-343 | `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` (`internal/observations`); `script/check-error-code-ownership.sh` | The code is admitted as a dogfood reason and owned by this spec |
