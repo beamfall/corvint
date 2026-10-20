@@ -201,6 +201,9 @@ func (p *parser) parseBareGroup() (*Group, error) {
 func (p *parser) parseStateMachineGroup() (*Group, error) {
 	diffLine := lineText(p.peek())
 	p.pos++
+	if err := p.metadataOnlyRefusal(diffLine); err != nil {
+		return nil, err
+	}
 	meta, err := p.parseMetadata()
 	if err != nil {
 		return nil, err
@@ -220,6 +223,79 @@ func (p *parser) parseStateMachineGroup() (*Group, error) {
 		return nil, err
 	}
 	return group, p.parseHunks(group)
+}
+
+// Metadata-only change kinds named by a metadata-only-change-unsupported
+// refusal (CEM-V1-300).
+const (
+	metadataOnlyEmptyFileCreation = "empty-file-creation"
+	metadataOnlyEmptyFileDeletion = "empty-file-deletion"
+	metadataOnlyModeOnly          = "mode-only"
+)
+
+// metadataOnlyRefusal recognizes the exact headerless group Git emits for an
+// empty-file creation, an empty-file deletion or a mode-only change: metadata
+// lines that end at EOF or at the next diff --git line, with no file header
+// and no hunk. cem/1.0 has no representation for such a group, so it refuses
+// with metadata-only-change-unsupported naming the path and change kind
+// (CEM-V1-300). Any other shape returns nil and keeps the legacy grammar's
+// error unchanged (CEM-V1-301).
+func (p *parser) metadataOnlyRefusal(diffLine string) error {
+	end := p.pos
+	for end < len(p.lines) && !hasPrefixLine(p.lines[end], "diff --git ") {
+		end++
+	}
+	group := p.lines[p.pos:end]
+	if len(group) != 2 {
+		return nil
+	}
+	path, ok := symmetricDiffPath(diffLine)
+	if !ok {
+		return nil
+	}
+	kind := metadataOnlyKind(lineText(group[0]), lineText(group[1]))
+	if kind == "" {
+		return nil
+	}
+	return cemcode.New(cemcode.MetadataOnlyChangeUnsupported,
+		"metadata-only change %s %q has no textual hunk; cem/1.0 cannot represent it", kind, path)
+}
+
+func metadataOnlyKind(first, second string) string {
+	treeMode := func(mode string) bool { _, err := requireTreeMode(mode); return err == nil }
+	indexMode := func(text, fileMode string) bool {
+		if !strings.HasPrefix(text, "index ") {
+			return false
+		}
+		mode, err := parseIndexLine(text)
+		return err == nil && (mode == "" || mode == fileMode)
+	}
+	if mode, ok := strings.CutPrefix(first, "new file mode "); ok && treeMode(mode) && indexMode(second, mode) {
+		return metadataOnlyEmptyFileCreation
+	}
+	if mode, ok := strings.CutPrefix(first, "deleted file mode "); ok && treeMode(mode) && indexMode(second, mode) {
+		return metadataOnlyEmptyFileDeletion
+	}
+	oldMode, okOld := strings.CutPrefix(first, "old mode ")
+	newMode, okNew := strings.CutPrefix(second, "new mode ")
+	if okOld && okNew && treeMode(oldMode) && treeMode(newMode) && oldMode != newMode {
+		return metadataOnlyModeOnly
+	}
+	return ""
+}
+
+// symmetricDiffPath returns PATH from an unquoted `diff --git a/PATH b/PATH`
+// line whose two sides name the same valid repository path.
+func symmetricDiffPath(diffLine string) (string, bool) {
+	rest := strings.TrimPrefix(diffLine, "diff --git ")
+	if (len(rest)-5)%2 != 0 || len(rest) < 7 {
+		return "", false
+	}
+	path := rest[2 : 2+(len(rest)-5)/2]
+	if rest != "a/"+path+" b/"+path || wire.ValidatePath(path) != nil {
+		return "", false
+	}
+	return path, true
 }
 
 func (p *parser) parseMetadata() (*metadata, error) {

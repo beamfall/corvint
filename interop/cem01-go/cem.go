@@ -44,8 +44,8 @@ const (
 )
 
 type cemError struct {
-	code        string
-	operational bool
+	code, detail, stableCode string // detail and stableCode: see metadataOnlyRefusal
+	operational              bool
 }
 
 func (e *cemError) Error() string { return e.code }
@@ -3631,7 +3631,7 @@ func runStableTrusted(ctx context.Context, repo string, raw []byte, base, target
 	}
 	parsed, e := parsePatch(patch)
 	if e != nil {
-		return failStable(&r, "verification", e, true)
+		return failStable(&r, "verification", e.stable(), true)
 	}
 	ph := map[string]*patchHunk{}
 	groups := map[string]*filePatch{}

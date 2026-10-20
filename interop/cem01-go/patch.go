@@ -176,6 +176,9 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 		return nil, invalid("diff-header")
 	}
 
+	if e := metadataOnlyRefusal(in, diffHeader); e != nil {
+		return nil, e
+	}
 	var indexMode, createMode, deleteMode, renameFrom, renameTo *string
 	var similaritySeen bool
 	for in.pos < len(in.lines) && !hasPrefixLine(in.peek(), "--- ") {
@@ -315,6 +318,69 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// metadataOnlyRefusal recognizes the exact headerless group Git emits for an
+// empty-file creation, an empty-file deletion or a mode-only change: two
+// metadata lines ending at EOF or at the next diff --git line, with no file
+// header and no hunk. cem/1.0 cannot represent it, so it is refused as the
+// operational metadata-only-change-unsupported whose detail names the change
+// kind and path (CEM-V1-300). Any other shape returns nil and keeps the legacy error
+// (CEM-V1-301). stableCode carries the legacy code for the frozen stable
+// vocabulary (CEM-V1-302).
+func metadataOnlyRefusal(in *patchLines, diffHeader string) *cemError {
+	end := in.pos
+	for end < len(in.lines) && !hasPrefixLine(in.lines[end], "diff --git ") {
+		end++
+	}
+	if end-in.pos != 2 {
+		return nil
+	}
+	first, ok1 := exactText(in.lines[in.pos], "")
+	second, ok2 := exactText(in.lines[in.pos+1], "")
+	n := len(diffHeader) - 5
+	if !ok1 || !ok2 || n < 2 || n%2 != 0 {
+		return nil
+	}
+	path := diffHeader[2 : 2+n/2]
+	if diffHeader != "a/"+path+" b/"+path || !validPath(path) {
+		return nil
+	}
+	legacy := "metadata"
+	if end == len(in.lines) {
+		legacy = "file-header"
+	}
+	kind := ""
+	indexMatches := func(mode string) bool {
+		if !strings.HasPrefix(second, "index ") {
+			return false
+		}
+		indexMode, e := parseIndex(second)
+		return e == nil && (indexMode == "" || indexMode == mode)
+	}
+	if mode, ok := strings.CutPrefix(first, "new file mode "); ok && validMode(mode) && indexMatches(mode) {
+		kind = "empty-file-creation"
+	} else if mode, ok := strings.CutPrefix(first, "deleted file mode "); ok && validMode(mode) && indexMatches(mode) {
+		kind = "empty-file-deletion"
+	} else {
+		oldMode, okOld := strings.CutPrefix(first, "old mode ")
+		newMode, okNew := strings.CutPrefix(second, "new mode ")
+		if !okOld || !okNew || !validMode(oldMode) || !validMode(newMode) || oldMode == newMode {
+			return nil
+		}
+		kind, legacy = "mode-only", errModeChange.code
+	}
+	return &cemError{code: "metadata-only-change-unsupported", operational: true,
+		detail: kind + " " + strconv.Quote(path), stableCode: legacy}
+}
+
+// stable returns the error a stable-profile result reports: the legacy code
+// for a refusal whose code the frozen stable vocabulary lacks (CEM-V1-302).
+func (e *cemError) stable() *cemError {
+	if e.stableCode != "" {
+		return invalid(e.stableCode)
+	}
+	return e
 }
 
 func parseIndex(s string) (string, *cemError) {
