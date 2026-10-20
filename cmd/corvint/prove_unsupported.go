@@ -42,7 +42,9 @@ func discloseUnsupportedMutations(rows []proveRow, mutateRequested bool) []prove
 // path is not itself a selected test, and whose two paths the same
 // affected-selection provider owns, that provider being neither Go nor
 // Python. Every other row gets "", so a Go or Python row, and a claim across
-// languages, keeps its earlier output.
+// languages, keeps its earlier output. An RSpec claim never reaches here with
+// falsifier none: the claim gate gives it the Ruby engine (FPK-V0-068), so
+// only a minitest claim is marked ruby.
 func unsupportedMutationLanguage(row proveRow, changed string, tests map[string]struct{}, providers []affected.Language) string {
 	if row.Kind != kindAffectedTest || row.Falsifier != falsifierNone || changed == "" || changed == row.Path {
 		return ""

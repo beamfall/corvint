@@ -61,6 +61,15 @@ func maskRuby(src []byte) ([]byte, string) {
 	return m.out, ""
 }
 
+// MaskSource is maskRuby for other packages: the offset-preserving code view
+// of src, in which comments, strings, heredocs, percent literals, regexes and
+// the data section are blanked to spaces. ok is false when the source does not
+// lex (an unterminated literal, or more pending heredocs than the bound).
+func MaskSource(src []byte) (masked []byte, ok bool) {
+	masked, why := maskRuby(src)
+	return masked, why == ""
+}
+
 // blank erases a byte range from the code view, preserving line structure.
 func (m *masker) blank(from, to int) {
 	for i := from; i < to; i++ {
