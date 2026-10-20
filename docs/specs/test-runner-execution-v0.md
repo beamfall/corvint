@@ -298,8 +298,8 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:347@e3eaf1ea` |
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
-| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:350@c89d4e2d`; `internal/testrunner/dynamic/parse.go:377@5e2333a0`; `internal/testrunner/dynamic/parse.go:401@a3fc5178` |
-| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:372@3ad339db` |
+| `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:348@c89d4e2d`; `internal/testrunner/dynamic/parse.go:375@5e2333a0`; `internal/testrunner/dynamic/parse.go:399@a3fc5178` |
+| `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:370@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
 | `hook-or-unmatched-result` | The Cypress/Mocha result-status identity count differs from the collected test-row count. | `internal/testrunner/dynamic/browser.go:105@7ff4ce18` |
@@ -332,7 +332,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-run-unsuccessful` | The final Node summary reports success=false without an observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:241@5e6d82cd` |
 | `node-runtime-error` | A Node test error has a failureType other than testCodeFailure, testTimeoutFailure or cancelledByParent. | `internal/testrunner/dynamic/native.go:205@40fd52ec` |
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
-| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:353@503ba44e` |
+| `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:351@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
 | `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:239@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
@@ -1044,8 +1044,8 @@ different binding semantics to the CEM admission surface.
   two container paths, may nest. The report directory MUST lie under one
   mapping. Every runner-visible path the profile writes into argv (the report,
   the formatter, an absolute `--options` file and absolute selectors) MUST be
-  rewritten through the mapping, and an absolute path outside every mapping
-  MUST be refused. Relative selectors and configuration pass unchanged and
+  rewritten through the mapping, and an absolute path that is not clean or
+  lies outside every mapping MUST be refused, so `..` cannot escape a mount. Relative selectors and configuration pass unchanged and
   resolve in the prefix's working directory. Report files are still read only
   from the fresh host report directory.
 - `TRE-V0-083`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) The prefix,
@@ -1069,7 +1069,7 @@ different binding semantics to the CEM admission surface.
   missing or null backtrace, more than 64 frames, or a frame whose location
   is missing, empty, over 4096 bytes or multi-line. An example with an empty
   backtrace carries no member. The stock `rspec.json` report keeps its
-  historical parse.
+  historical parse and never decodes that member.
 - `TRE-V0-086`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2101) With
   `execPrefix`, `pathMap` and `formatter` all absent, the `rspec` argv, report
   inventory and parse, and every other profile, MUST stay byte-identical. The

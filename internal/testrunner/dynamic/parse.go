@@ -329,9 +329,7 @@ func parseRSpec(b []byte, o *tr.Observation, corvint bool) error {
 			ID, Description, Status string
 			File                    string `json:"file_path"`
 			Exception               *struct{ Class, Message string }
-			Inclusions              *[]struct {
-				Location *string `json:"inclusion_location"`
-			} `json:"shared_group_inclusion_backtrace"`
+			Inclusions              json.RawMessage `json:"shared_group_inclusion_backtrace"`
 		}
 		Summary *struct {
 			Count    int `json:"example_count"`

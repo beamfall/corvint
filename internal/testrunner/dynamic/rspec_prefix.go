@@ -1,6 +1,7 @@
 package dynamic
 
 import (
+	"encoding/json"
 	"fmt"
 	"path"
 	"path/filepath"
@@ -74,6 +75,9 @@ func rspecPathMapper(r tr.Request) (func(string) (string, error), error) {
 		}
 	}
 	mapPath := func(p string) (string, error) {
+		if filepath.Clean(p) != p {
+			return "", fmt.Errorf("host path %q is not clean", p)
+		}
 		for _, m := range r.PathMap {
 			if rest, ok := under(m.Host, p, filepath.Separator); ok {
 				return path.Join(m.Container, filepath.ToSlash(rest)), nil
@@ -152,10 +156,17 @@ func buildRSpec(r tr.Request, v *tr.Invocation) error {
 
 // inclusionLocations admits one example's shared_group_inclusion_backtrace
 // under the Corvint formatter (TRE-V0-085): present, bounded, and every frame
-// a non-empty single-line inclusion location.
-func inclusionLocations(id string, frames *[]struct {
-	Location *string `json:"inclusion_location"`
-}) ([]string, error) {
+// a non-empty single-line inclusion location. The member is decoded only
+// here, so the stock report's parse never depends on it (TRE-V0-086).
+func inclusionLocations(id string, raw json.RawMessage) ([]string, error) {
+	var frames *[]struct {
+		Location *string `json:"inclusion_location"`
+	}
+	if len(raw) != 0 {
+		if err := json.Unmarshal(raw, &frames); err != nil {
+			return nil, fmt.Errorf("RSpec example %q has an invalid shared_group_inclusion_backtrace", id)
+		}
+	}
 	if frames == nil {
 		return nil, fmt.Errorf("RSpec example %q lacks shared_group_inclusion_backtrace", id)
 	}

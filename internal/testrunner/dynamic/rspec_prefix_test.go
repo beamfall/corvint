@@ -131,6 +131,8 @@ func TestRSpecExecPrefixRefusals(t *testing.T) {
 		"report dir sibling prefix":   func(q *tr.Request) { q.ReportDir = "/host/reports-other/run1" },
 		"absolute config outside map": func(q *tr.Request) { q.Config = "/etc/rspec" },
 		"absolute selector outside":   func(q *tr.Request) { q.Selectors = []string{"/src/spec/a_spec.rb"} },
+		"selector traversal":          func(q *tr.Request) { q.Selectors = []string{"/host/reports/../../etc/a_spec.rb"} },
+		"config traversal":            func(q *tr.Request) { q.Config = "/host/reports/../secrets" },
 	} {
 		t.Run(name, func(t *testing.T) {
 			q := ok
@@ -174,7 +176,12 @@ func TestRSpecCorvintInclusionLocations(t *testing.T) {
 			t.Fatalf("stock report retained inclusions: %+v", test)
 		}
 	}
+	opaque := strings.Replace(corvintRSpecReport, `"shared_group_inclusion_backtrace":[]`, `"shared_group_inclusion_backtrace":"opaque"`, 1)
+	if _, e := Parse(tr.Input{Runner: "rspec", ExitCode: 0, Reports: map[string][]byte{"rspec.json": []byte(opaque)}}); e != nil {
+		t.Fatalf("stock report now depends on the inclusion member: %v", e)
+	}
 	for name, edit := range map[string][2]string{
+		"string backtrace":  {`"shared_group_inclusion_backtrace":[]`, `"shared_group_inclusion_backtrace":"opaque"`},
 		"missing backtrace": {`,"shared_group_inclusion_backtrace":[]}`, `}`},
 		"null backtrace":    {`"shared_group_inclusion_backtrace":[]`, `"shared_group_inclusion_backtrace":null`},
 		"missing location":  {`{"inclusion_location":"./spec/widget_spec.rb:7"}`, `{}`},
