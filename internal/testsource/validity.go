@@ -45,7 +45,7 @@ func ValidityFindings(name, text string) ValidityReport {
 	switch {
 	case strings.HasSuffix(name, "_spec.rb"):
 		return rspecValidity(name, text)
-	case IsTestFile(name):
+	case IsJSValidityTestFile(name):
 		s := parseSource(name, text)
 		report = s.isolatedInSerial()
 		report.Findings = append(report.Findings, s.outcomeFindings()...)

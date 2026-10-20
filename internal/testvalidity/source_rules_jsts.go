@@ -25,6 +25,9 @@ const (
 	RuleJSSubjectMocked = "JS-SUBJECT-MOCKED"
 	// RuleJSBoundaryMocked: an HTTP client, fetch or timer boundary is mocked (TSA-V0-079).
 	RuleJSBoundaryMocked = "JS-BOUNDARY-MOCKED"
+	// RuleJSAssertionNotAwaited: an assertion sits in a promise callback the example neither
+	// awaits nor returns, so it can run after the example finished (TSA-V0-389).
+	RuleJSAssertionNotAwaited = "JS-ASSERTION-NOT-AWAITED"
 )
 
 // Hygiene and strength reasons of the JS/TS example facts (TSA-V0-073, TSA-V0-080, TSA-V0-082).

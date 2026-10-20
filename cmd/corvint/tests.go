@@ -72,10 +72,11 @@ corvint-test-duplicate-decisions/0) resolves a pair with distinct-from and a
 reason, or covered-by and an obligation.
 
 validity applies the static test-validity rules to at most 256 named
-committed files (each at most 1 MiB). To a JS/TS test file: ISOLATED-IN-SERIAL,
+committed files (each at most 1 MiB). To a JS/TS test file (a .spec. or .test.
+name, or any JS/TS file under a Jest __tests__ directory): ISOLATED-IN-SERIAL,
 JS-SKIPPED, JS-TODO, JS-FOCUSED and the advisory JS-EACH-ROW-BINDING,
 JS-NO-ASSERTION, JS-CONSTANT-EXPECTATION, JS-SUBJECT-MOCKED,
-JS-BOUNDARY-MOCKED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
+JS-BOUNDARY-MOCKED, JS-ASSERTION-NOT-AWAITED and WRITE-RESPONSE-UNASSERTED (WRITE-RESPONSE-UNRESOLVED
 when the waited method is unknown); with a committed .corvint/seed-rules.json
 (corvint-seed-rules/0) also the advisory SEED-VALIDATION-REJECTED,
 SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
