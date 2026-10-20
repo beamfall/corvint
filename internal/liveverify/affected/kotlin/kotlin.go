@@ -177,10 +177,79 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 			continue
 		}
 		text := string(body)
-		layout.projectMapped = layout.projectMapped || strings.Contains(text, "projectDir")
+		layout.projectMapped = layout.projectMapped || remapsProjectDirectory(text)
 		layout.composite = layout.composite || strings.Contains(text, "includeBuild(") || strings.Contains(text, "includeBuild ")
 	}
 	return layout, nil
+}
+
+// remapsProjectDirectory reports whether a Gradle manifest may assign a project
+// directory (KAT-V0-009): any `setProjectDir`, or a `projectDir` (also
+// backticked or quoted) followed by `=`, `(` or a Groovy command argument.
+// Reads such as `rootProject.projectDir.resolve(...)` or
+// `layout.projectDirectory` leave the conventional layout intact. Doubtful
+// forms count as remaps, which keeps the conservative unknown task.
+func remapsProjectDirectory(text string) bool {
+	if len(wordEnds(text, "setProjectDir")) > 0 {
+		return true
+	}
+	for _, end := range wordEnds(text, "projectDir") {
+		if rest := skipTrivia(text[end:]); strings.HasPrefix(rest, "(") ||
+			strings.HasPrefix(rest, "=") && !strings.HasPrefix(rest, "==") {
+			return true
+		}
+		if argument := strings.TrimLeft(text[end:], " \t"); len(argument) < len(text[end:]) && argument != "" &&
+			(identifierByte(argument[0]) || strings.ContainsRune("'\"`$", rune(argument[0]))) {
+			return true
+		}
+	}
+	return false
+}
+
+// wordEnds returns the end offset of every whole-identifier occurrence of word.
+func wordEnds(text, word string) []int {
+	var ends []int
+	for offset := 0; ; {
+		index := strings.Index(text[offset:], word)
+		if index < 0 {
+			return ends
+		}
+		start := offset + index
+		end := start + len(word)
+		offset = end
+		if start > 0 && identifierByte(text[start-1]) || end < len(text) && identifierByte(text[end]) {
+			continue
+		}
+		ends = append(ends, end)
+	}
+}
+
+// skipTrivia drops whitespace, comments and closing quotes or backticks.
+func skipTrivia(text string) string {
+	for {
+		trimmed := strings.TrimLeft(text, " \t\r\n`'\"")
+		switch {
+		case strings.HasPrefix(trimmed, "//"):
+			newline := strings.IndexByte(trimmed, '\n')
+			if newline < 0 {
+				return ""
+			}
+			trimmed = trimmed[newline:]
+		case strings.HasPrefix(trimmed, "/*"):
+			closing := strings.Index(trimmed[2:], "*/")
+			if closing < 0 {
+				return ""
+			}
+			trimmed = trimmed[closing+4:]
+		default:
+			return trimmed
+		}
+		text = trimmed
+	}
+}
+
+func identifierByte(value byte) bool {
+	return value == '_' || value >= '0' && value <= '9' || value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z'
 }
 
 func makeObservation(relative string, scan sourceScan, layout buildLayout, frontier map[string]bool) sourceObservation {

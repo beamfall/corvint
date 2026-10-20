@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519)
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -341,6 +341,69 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   every project is absent from the listing, so it cannot be checked; under the caller-declared
   listing it is excluded for that project too. A case the reported parts keep is refused under (c)
   even though hidden tag text could exclude it, because refusal is the conservative outcome. The per-test listing producer and a top-level `grep` are unchanged.
+- `TJAA-V0-030`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2042; GitHub #1294) When the `playwright-affected/0` plan's final fallback is
+  `FULL_RELEVANT_SUITE`, the plan MUST carry a `narrowed` member. It is advisory evidence beside the
+  fallback and has these members: `basis` `STATIC_IMPORT_GRAPH`, `state` `NARROWED` or
+  `NOT_NARROWED`, `reason` and `detail` only when the state is `NOT_NARROWED`, and sorted
+  `candidates`, `projects` and `symbols`. It MUST NOT change `scope`, `fallback`, `selected`,
+  `excluded` or `unknown`, and it is never a reason to run less than the fallback. A plan whose
+  fallback is not `FULL_RELEVANT_SUITE` MUST omit the member, so its bytes are unchanged.
+  `candidates` are formed in three steps. Start from the Playwright units that the static base
+  selection reaches from the dirty paths, plus any units added under `TJAA-V0-032`. Expand them over
+  project dependency and teardown edges. Then remove the units of every `UNRESOLVED` project.
+  `projects` lists each statically declared project with its `argv`, its `membership` and, when the
+  membership is `UNRESOLVED`, a `detail`.
+- `TJAA-V0-031`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2042) The state MUST be `NARROWED` only when every dirty path is a
+  test-side module. A module is test-side when it is owned and when every root of its reverse static
+  import closure, the module included, is a test unit of any runner. The closure is taken before
+  Playwright membership binding and after global-hook binding, so the config, its global
+  setup/teardown hooks and every module they import are not test-side. Otherwise the state MUST be
+  `NOT_NARROWED`, with the first reason in this order:
+  - `NO_DIRTY_PATH`: there are no dirty paths.
+  - `CONFIG_UNRESOLVED`: any config unknown is not attributed to exactly one project under the
+    per-project rule of `TJAA-V0-032`. Examples are global `testDir` or membership, the project
+    set, a dependency cycle, hooks, and the matcher model.
+  - `GRAPH_FRONTIER`: any observer frontier other than config, E2E runtime dependency or dynamic
+    import, or any other language frontier.
+  - `NOT_TEST_SIDE`: an unowned or unindexed dirty path, the dirty config, or a dirty module that a
+    non-test root reaches.
+  - `GRAPH_FRONTIER`: a dynamic import in a module that is not test-side, or a module that cannot be
+    read or parsed for the dynamic-import check.
+- `TJAA-V0-032`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2042) Narrowing MUST be kept per project.
+  (a) An unknown raised by one project's own entry makes only that project `UNRESOLVED`. Such
+  unknowns include its `testDir`, `testMatch`, `testIgnore`, `dependencies`, `teardown`, `grep`,
+  `grepInvert`, `metadata` or `use` browser identity, and a reference to a project the config does
+  not declare. The detail
+  names those unknowns. The project contributes no candidates and keeps its `argv`, so it can still
+  be run in full. Every statically resolved project keeps its candidates.
+  (b) A test-side module that contains a dynamic import or a computed require is a runtime load
+  frontier. Every Playwright unit that statically reaches such a module MUST be added as a candidate
+  with witness kind `DYNAMIC_IMPORT_FRONTIER`.
+  (c) A discovery receipt counts as bound when its state is `STATIC_UNRESOLVED`, `UNIVERSE_MISMATCH`
+  or `MATCHED`. With a bound receipt, a listed project that the static config does not declare
+  makes the narrowing `NOT_NARROWED` with reason `DISCOVERY_PROJECT_SET`. Otherwise each
+  `STATIC_CONFIG` project becomes `DISCOVERY_MATCHED` when its sorted static test files equal the
+  files listed for it, and `UNRESOLVED` (with candidates removed) when they differ. A `MISSING`,
+  `MALFORMED` or `BINDING_MISMATCH` receipt leaves memberships `STATIC_CONFIG`.
+- `TJAA-V0-033`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2042) `symbols` MUST hold one entry for each owned dirty path, for at most 64
+  paths. Each entry has `path`, `state` (`RESOLVED` or `UNRESOLVED`), the sorted named exports
+  `added`, `removed` and `modified`, `otherChanged` and `additiveOnly`.
+  - How modules are compared: comments are stripped, and each module is split into top-level
+    statements at line starts that begin with a declaration, import or export keyword. Code
+    whitespace collapses; string and template content is kept exactly.
+  - How exports are keyed: a named export statement is keyed by the names it binds (`default`, `*`,
+    `* as ns`, export lists, and declarations). Any other statement, including an unmodelled export
+    form, counts toward `otherChanged`.
+  - `additiveOnly`: true only when the base statement sequence equals the current sequence after
+    removing the statements whose names are all newly added.
+  - When the state MUST be `UNRESOLVED`, with a `detail`: a JSX file, content over 1 MiB, content
+    that does not tokenize, an unreadable base or current content, no comparison base, or a path
+    past the bound.
+  - Comparison base and reads: the CLI comparison base is the `--base` commit when one is given,
+    otherwise `HEAD`. Base content is read in one bounded `git cat-file --batch`. A path absent at
+    the base is a new file, and a non-blob or oversize object stays unread.
+  - Limits: symbols are syntactic evidence only. They MUST NOT narrow, widen or remove a candidate,
+    because an added export can still run code at load time.
 
 ## Opt-in Playwright project profile
 
@@ -471,6 +534,37 @@ provider units, cross-provider identities, deterministic collision/digest rules,
 exclusion semantics, and how config-only assets invalidate discovery. V0 leaves these paths unowned
 and does not widen the interface or choose a language precedence.
 
+## Advisory fixture narrowing boundary (V1-2042)
+
+Intent: GitHub #1294 reports that a change to a shared test-support module produced zero selected
+units and `FULL_RELEVANT_SUITE`, because unrelated per-project config made discovery
+`STATIC_UNRESOLVED`. `TJAA-V0-030..033` keep that fallback. They add, beside it, the statically
+importing tests as an advisory candidate set, the projects that must still run in full, and the
+changed symbols. The owner's standing auto-accept of lane requirements (2026-10-11) covers these
+requirements; see the 2026-10-20 V1-2042 build-log entry.
+
+Failure modes, each one fail-closed:
+
+- Any unattributed config unknown, unexpected graph frontier, non-test-side or unowned dirty path,
+  dirty config, or undeclared discovery project gives `NOT_NARROWED` with a reason. The fallback is
+  unchanged.
+- One project's unresolved membership gives `UNRESOLVED` for that project only. It is listed with
+  its `argv` to run in full, and it is never silently dropped.
+- An unreadable base, an unparsable module, an oversize file, JSX or too many paths gives
+  `UNRESOLVED` symbols. It never gives an additive claim.
+
+Non-goals and named gaps:
+
+- Only the opt-in `playwright-affected/0` profile is covered. `affected-plan/0`, other runners and
+  other languages get no `narrowed` member.
+- Runtime loading outside JavaScript module syntax is not modelled. This includes bundler globs and
+  `import.meta.glob`, HTML script tags, file reads, worker-shared state, and a test-support module
+  that changes application state through a server.
+- An observer frontier other than a dynamic import keeps the whole narrowing `NOT_NARROWED`.
+- A multi-binding declaration is keyed by its first name.
+- The narrowed set has no live recall measurement. Its recall stays `NOT_RUN`, and callers that run
+  only the candidates plus the `UNRESOLVED` projects accept that risk themselves.
+
 ## Acceptance evidence and rollback
 
 - Focused unit tests cover all named runners, coexistence, import resolution, config edges, dynamic
@@ -492,6 +586,9 @@ The GitHub #790 extension (`TJAA-V0-021`, accepted in decision 0519) reverts ind
 listing omission again, treat a dynamic project grep as unresolved membership, and drop the optional
 `unverifiedUnits` member and the `playwright:discovery-omission-unverified` unknown; receipts that
 never carried the member are unchanged.
+The GitHub #1294 extension (`TJAA-V0-030..033`) reverts independently. Revert it by removing the
+optional `narrowed` plan member, the per-project unknown attribution and the comparison-base read.
+The fallback, selection and every bounded plan are unchanged, and no store or receipt is written.
 
 ## Traceability
 
@@ -508,5 +605,7 @@ never carried the member are unchanged.
 | `TJAA-V0-019` (accepted, decision 0483) | `TestPlaywrightDiscoveryFromListMultiProject_V1_1066`, `TestPlaywrightDiscoveryFromListRefusals_V1_1066`, `TestPlaywrightDiscoveryFromListMembership_V1_1066` in `playwright_discovery_list_test.go`; `TestPlaywrightStringGlobsArePrefixedAndCaseInsensitive`, `TestPlaywrightComputedStringsAndUnsupportedGlobsWiden`, `TestPlaywrightLineTerminatorPathWidensMembership`, `TestPlaywrightRegexBodyAllowlist`, `TestPlaywrightGlobAgreesWithBundledMinimatch` in `playwright_test.go` over a real Playwright 1.61.1 `--list --reporter=json` report (`testdata/playwright-list/multi-project.json`); `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go`; `TestAffectedPlaywrightDiscoveryStaleListing_GH709`, `TestAffectedPlaywrightDiscoveryHeadDriftAfterSources_GH709` in `cmd/corvint/affected_playwright_discovery_test.go` | experimental; one real listing shape |
 | `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
+| `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
+| `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

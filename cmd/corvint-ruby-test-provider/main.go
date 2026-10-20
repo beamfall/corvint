@@ -1,7 +1,8 @@
 // Command corvint-ruby-test-provider is the experimental RSpec provider
 // (docs/specs/live-proof-carrying-verification-v0.md LPCV-V0-090..095,
-// LPCV-V0-131..135).
-// `rspec` runs RSpec once with its JSON formatter, optionally through an
+// LPCV-V0-131..138).
+// `rspec` runs RSpec once with its JSON formatter (or, with --formatter
+// corvint-rspec-json/0, the Corvint-shipped one), optionally through an
 // --exec-prefix such as `docker compose run --rm app`, and prints the
 // corvint-ruby-test-provider/0 document on stdout. Git identity is always
 // observed on the host before and after the run. Exit is nonzero only for a
@@ -31,10 +32,13 @@ import (
 
 const usage = `usage: corvint-ruby-test-provider rspec --dir <project-directory> [flags]
 
-Experimental (LPCV-V0-090..095, LPCV-V0-131..135). Runs RSpec once with the
+Experimental (LPCV-V0-090..095, LPCV-V0-131..138). Runs RSpec once with the
 JSON formatter and prints the corvint-ruby-test-provider/0 document. Git is
 observed on the host; under --exec-prefix, Ruby and Bundler versions are
-observed inside the prefix by a separate probe invocation.
+observed inside the prefix by a separate probe invocation. --formatter
+corvint-rspec-json/0 runs the Corvint-shipped formatter, which records
+shared-example inclusion lines and, under a docker prefix, the run container
+whose image the host docker then inspects.
 `
 
 var (
@@ -90,7 +94,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 type options struct {
 	rspec, execPrefix, specs *stringList
-	directory                *string
+	directory, formatter     *string
 	junit, retain            *bool
 	timeout                  *time.Duration
 }
@@ -103,6 +107,7 @@ func newFlags(output io.Writer) (*flag.FlagSet, options) {
 	flags.Var(opts.execPrefix, "exec-prefix", "one argument of a command prefix such as docker compose run --rm app (repeatable, in order)")
 	flags.Var(opts.rspec, "rspec", "one argument of the RSpec command (repeatable; default bundle exec rspec)")
 	flags.Var(opts.specs, "spec", "project-relative spec file or directory, path:line[:line...] or path[id,...] to run and record as the selection (repeatable)")
+	opts.formatter = flags.String("formatter", rubytestprovider.FormatterStock, "stock (RSpec's json formatter) or "+rubytestprovider.FormatterCorvint+" (the Corvint-shipped formatter)")
 	opts.junit = flags.Bool("junit", false, "also request RspecJunitFormatter and retain its digest")
 	opts.retain = flags.Bool("retain", false, "retain the document under .corvint/test-evidence of the enclosing worktree")
 	opts.timeout = flags.Duration("timeout", rubytestprovider.DefaultTimeout, "bound on the RSpec run")
@@ -126,7 +131,7 @@ func runRSpec(ctx context.Context, args []string, stdout, stderr io.Writer) erro
 		fmt.Fprintln(stderr, "refused:", err)
 		return errRefused
 	}
-	document, err := rubytestprovider.Run(ctx, rubytestprovider.Config{Dir: dir, ExecPrefix: *opts.execPrefix, RSpec: *opts.rspec, Specs: *opts.specs, JUnit: *opts.junit, Timeout: *opts.timeout})
+	document, err := rubytestprovider.Run(ctx, rubytestprovider.Config{Dir: dir, ExecPrefix: *opts.execPrefix, RSpec: *opts.rspec, Specs: *opts.specs, JUnit: *opts.junit, Timeout: *opts.timeout, Formatter: *opts.formatter})
 	if err != nil {
 		fmt.Fprintln(stderr, "refused:", err)
 		return errRefused

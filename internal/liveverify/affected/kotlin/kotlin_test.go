@@ -455,6 +455,7 @@ func TestCustomTestSourceSetHasNoInventedTask(t *testing.T) {
 	}
 }
 
+// KAT-V0-009: a real remapping keeps the unresolved build-target frontier.
 func TestCustomGradleProjectDirectoryDoesNotInventATarget(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "settings.gradle.kts", "include(\":app\")\nproject(\":app\").projectDir = file(\"modules/mobile\")\n")
@@ -469,6 +470,72 @@ func TestCustomGradleProjectDirectoryDoesNotInventATarget(t *testing.T) {
 	for _, unit := range result.Units {
 		if len(unit.Tests) != 0 && !strings.Contains(unit.ID, ":unknown:") {
 			t.Fatalf("custom mapping produced exact id %s", unit.ID)
+		}
+	}
+}
+
+// KAT-V0-009: reading a project directory in a Gradle script keeps the
+// conventional module layout, so the test task stays runnable.
+func TestKATV0009ProjectDirectoryReadsKeepGradleTestTask(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "settings.gradle.kts", "rootProject.name = \"fixture\"\ninclude(\":app\")\n")
+	write(t, root, "app/build.gradle.kts", strings.Join([]string{
+		"plugins { id(\"com.android.application\") }",
+		"val keystore = rootProject.projectDir.resolve(\"keystore.properties\")",
+		"val rules = layout.projectDirectory.file(\"proguard-rules.pro\")",
+		"val sameDir = projectDir == rootDir",
+		"println(\"$projectDir/${project.projectDir}\")",
+		"",
+	}, "\n"))
+	write(t, root, "app/src/test/kotlin/example/ExampleTest.kt", junit("example", "ExampleTest", "example.Subject"))
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contains(result.Frontier, FrontierBuildTarget) || contains(result.Frontier, FrontierTestAddress) {
+		t.Fatalf("frontier=%v", result.Frontier)
+	}
+	var tests []string
+	for _, unit := range result.Units {
+		if len(unit.Tests) != 0 {
+			tests = append(tests, unit.ID)
+		}
+	}
+	if want := "kotlin:jvm:app:test:example.ExampleTest"; len(tests) != 1 || tests[0] != want {
+		t.Fatalf("test units=%v want [%s]", tests, want)
+	}
+}
+
+// KAT-V0-009: only an assignment or setter call remaps a project directory.
+func TestKATV0009RemapsProjectDirectoryOnlyOnAssignment(t *testing.T) {
+	cases := map[string]bool{
+		"project(\":app\").projectDir = file(\"modules/mobile\")":    true,
+		"project(':app').projectDir=new File(settingsDir, 'mobile')": true,
+		"findProject(\":app\")?.projectDir =\n  file(\"m\")":         true,
+		"project(':app') { projectDir = file('m') }":                 true,
+		"project(':app').setProjectDir(new File('m'))":               true,
+		"project(':app').setProjectDir new File('m')":                true,
+		"project(\":app\").projectDir /* override */ = file(\"m\")":  true,
+		"project(\":app\").projectDir // override\n = file(\"m\")":   true,
+		"project(\":app\").`projectDir` = file(\"m\")":               true,
+		"project(':app').'projectDir' = file('m')":                   true,
+		"project(':app').\"projectDir\" = file('m')":                 true,
+		"project(':app') { projectDir file('m') }":                   true,
+		"project(':app').projectDir(file('m'))":                      true,
+		"println(rootProject.projectDir)":                            false,
+		"def s = \"${projectDir}\"":                                  false,
+		"rootProject.projectDir.resolve(\"keystore.properties\")":    false,
+		"layout.projectDirectory.file(\"proguard-rules.pro\")":       false,
+		"val dir = project.projectDir":                               false,
+		"if (projectDir == rootDir) {}":                              false,
+		"def out = \"$projectDir/out\"":                              false,
+		"myprojectDir = file('m')":                                   false,
+		"projectDirectory = file('m')":                               false,
+		"resetProjectDir(file('m'))":                                 false,
+	}
+	for text, want := range cases {
+		if got := remapsProjectDirectory(text); got != want {
+			t.Errorf("remapsProjectDirectory(%q)=%v want %v", text, got, want)
 		}
 	}
 }

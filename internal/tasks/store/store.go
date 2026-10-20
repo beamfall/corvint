@@ -81,6 +81,10 @@ type Report struct {
 	// GateReusedFrom names the earlier result a committed gate run reused
 	// instead of executing the gate, nil otherwise (CAL-V0-240).
 	GateReusedFrom *GateReuse
+	// GateInterrupted reports that the gate run's context ended while or
+	// after its program ran; that run's result is still recorded
+	// (CAL-V0-319).
+	GateInterrupted bool
 	// Ticket is the ticket a committed mutation wrote, read back from the
 	// receipt rather than from the request: a CREATE that allocated a serial
 	// learns its own id here and nowhere else.

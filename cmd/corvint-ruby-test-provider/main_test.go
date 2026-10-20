@@ -111,14 +111,14 @@ func TestLPCVV0095RetainedRunLeavesWorktreeCleanAndDiscovers(t *testing.T) {
 // LPCV-V0-090: refusals exit 2 and print no document.
 func TestLPCVV0090RefusalsExitTwo(t *testing.T) {
 	outside := t.TempDir()
-	for _, args := range [][]string{{}, {"unknown"}, {"rspec", "--dir", outside, "--rspec", "true"}, {"rspec", "extra"}, {"rspec", "--dir", outside, "--spec", "../x_spec.rb"}} {
+	for _, args := range [][]string{{}, {"unknown"}, {"rspec", "--dir", outside, "--rspec", "true"}, {"rspec", "extra"}, {"rspec", "--dir", outside, "--spec", "../x_spec.rb"}, {"rspec", "--formatter", "progress"}} {
 		var stdout, stderr bytes.Buffer
 		if code := run(context.Background(), args, &stdout, &stderr); code != 2 || stdout.Len() != 0 {
 			t.Fatalf("%v: exit %d stdout=%q", args, code, stdout.String())
 		}
 	}
 	var stdout bytes.Buffer
-	if code := run(context.Background(), []string{"--help"}, &stdout, &stdout); code != 0 || !strings.Contains(stdout.String(), "-exec-prefix") {
+	if code := run(context.Background(), []string{"--help"}, &stdout, &stdout); code != 0 || !strings.Contains(stdout.String(), "-exec-prefix") || !strings.Contains(stdout.String(), rubytestprovider.FormatterCorvint) {
 		t.Fatalf("help exit %d: %s", code, stdout.String())
 	}
 }

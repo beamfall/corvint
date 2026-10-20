@@ -198,6 +198,10 @@ const (
 	PatchUnavailable                = "patch-unavailable"                 // bounded patch read failed
 	PublishFailed                   = "publish-failed"                    // transactional output publication failed
 	MapLocked                       = "map-locked"                        // update-lock wait expired behind another map update
+	// MetadataOnlyChangeUnsupported refuses a headerless Git file group
+	// (empty-file creation or deletion, mode-only change) that cem/1.0
+	// cannot represent (CEM-V1-300, V1-0609).
+	MetadataOnlyChangeUnsupported = "metadata-only-change-unsupported"
 )
 
 // Receipt-bundle export refusals (docs/specs/receipt-bundle-v0.md).

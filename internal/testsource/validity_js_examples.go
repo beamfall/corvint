@@ -36,13 +36,12 @@ type jsDecl struct {
 	members     map[string]bool
 	unsupported bool
 	title       string
-	// literalTitle marks a title that is one exact string literal on a declaration with no
-	// `.each` table, so it names the example or group as the runner does (LPCV-V0-147).
-	literalTitle bool
-	eachTable    [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
-	eachKind     string // "call", "template" or ""
-	hasBody      bool
-	body         [2]int
+	eachTable   [2]int // the `.each(...)` argument range, or the template token as [i, i+1]
+	eachKind    string // "call", "template" or ""
+	hasBody     bool
+	body        [2]int
+	concise     bool // the body is an arrow function's expression, which the example returns
+	noParams    bool // the callback declares no parameter, so it takes no `done` (TSA-V0-389)
 }
 
 // jsAnnotation is one runtime `test.skip()` or `test.fixme()` call with no title.
@@ -83,7 +82,7 @@ type jsReader struct {
 // TSA-V0-074..079 in rule order.
 func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, string) {
 	out := map[int]testvalidity.ExampleSource{}
-	if !IsTestFile(name) {
+	if !IsJSValidityTestFile(name) {
 		return out, testvalidity.ExampleSourceNotJSTestFile
 	}
 	base := ValidityFindings(name, text)
@@ -189,13 +188,13 @@ func (r *jsReader) read() {
 		}
 		for k := 1; k < len(args); k++ {
 			// functionBody also takes a typed arrow, `(): void => {…}`, which callback does not.
-			body, _, ok := s.functionBody(args[k][0])
+			body, concise, ok := s.functionBody(args[k][0])
 			ok = ok && body[1] <= args[k][1]
 			if !ok && !s.callback(args[k]) {
 				continue
 			}
 			if ok {
-				d.body, d.hasBody = body, true
+				d.body, d.hasBody, d.concise, d.noParams = body, true, concise, s.noParams(args[k][0])
 			}
 			break
 		}
@@ -370,6 +369,10 @@ func (r *jsReader) exampleFacts(e jsDecl, test string) jsFacts {
 			rule, message = testvalidity.RuleJSSubjectMocked, "the module or class under test ("+m.what+") is mocked or spied on, so an expectation can observe the mock instead of the code"
 		}
 		out.findings = append(out.findings, finding(rule, testvalidity.SeverityAdvisory, r.at(m.line), r.at(e.line), message))
+	}
+	for _, line := range r.unawaitedAssertions(e) {
+		out.findings = append(out.findings, finding(testvalidity.RuleJSAssertionNotAwaited, testvalidity.SeverityAdvisory, r.at(line), r.at(e.line),
+			"an assertion sits in a then, catch or finally callback of a promise the example neither awaits nor returns, so the example can finish before the assertion runs; await or return the promise"))
 	}
 	out.findings = append(out.findings, r.writeResponseFindings(e, finding)...)
 	// Subject mocks before boundary mocks, each in source order.

@@ -162,6 +162,7 @@ var admittedDogfoodErrorCodes = codeSet(
 	"invalid-requirements-section", "invalid-selector", "invalid-span", "invalid-span-digest",
 	"invalid-target-revision", "invalid-unknown", "invalid-unknown-reason", "line-range-out-of-range",
 	"malformed-patch", "map-locked", "map-outdated", "map-too-large", "map-type", "map-unavailable",
+	"metadata-only-change-unsupported",
 	"missing-claim", "missing-evidence", "missing-field", "missing-hunk", "missing-intent-scope",
 	"missing-requirements", "noncanonical-map", "not-an-object", "obligation-order-mismatch",
 	"obligation-selector-out-of-range", "obligation-set-mismatch", "ocm-cli-error",

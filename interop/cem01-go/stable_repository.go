@@ -881,7 +881,7 @@ func runStableCanonicalTrusted(ctx context.Context, repo string, raw []byte, bas
 	}
 	parsed, e := parsePatch(canon.patch)
 	if e != nil {
-		return fail("verification", e, true)
+		return fail("verification", e.stable(), true)
 	}
 	ph := map[string]*patchHunk{}
 	groups := map[string]*filePatch{}

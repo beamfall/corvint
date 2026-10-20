@@ -50,6 +50,13 @@ claim safe test omission, or amend the LPCV promotion tranche.
   its current bounded exclusion record for each unselected eligible test. That exclusion record
   does not carry separate provider and evidence-identity fields required by literal LPCV-V0-014;
   this adapter cannot close that interface-level requirement and MUST NOT claim it does.
+- `KAT-V0-009`: Only a Gradle manifest that may assign a project directory (`projectDir = ...`,
+  `project(":x").projectDir = ...`, a backticked, quoted or commented form of that assignment, a
+  `setProjectDir` call, or a Groovy `projectDir` command call) or cannot be read MUST mark the
+  layout as custom-mapped and raise the `kotlin:build-target-unresolved` frontier with task
+  `unknown`. Reading a project directory (`rootProject.projectDir.resolve(...)`,
+  `layout.projectDirectory.file(...)`, `projectDir == rootDir`, or `"$projectDir/..."`) MUST NOT
+  mark it, so a conventional module keeps its exact Gradle test task.
 
 ## Unit identity and invocation
 
@@ -112,6 +119,35 @@ actual compiler/runtime provider; the adapter does not claim syntax-valid source
 Appium Kotlin tests are discoverable only through their host JUnit/Kotest runner; Appium is not a
 separate Kotlin runner. Server lifecycle and the application-under-test remain outside this graph.
 
+## Project-directory remapping (`KAT-V0-009`)
+
+A Gradle settings script can remap where a project lives, after which the module directory no
+longer names the Gradle project path and no exact task can be derived. Ordinary Android build
+scripts read the project directory instead, for signing, ProGuard, or generated-file paths. Treating
+every mention of `projectDir` as a remap turned every test in such a repository into
+`kotlin:jvm:<module>:unknown:...` with build-target and test-address frontiers (V1-2048).
+
+- Detection, anywhere in a `build.gradle`, `build.gradle.kts`, `settings.gradle`,
+  `settings.gradle.kts` or `pom.xml` manifest: any whole identifier `setProjectDir`; or a whole
+  identifier `projectDir` (bare, backticked or quoted) that is followed, after whitespace, comments
+  and closing quotes or backticks, by `=` (not `==`) or `(`, or that is followed on the same line by
+  whitespace and an argument (a Groovy command call such as `projectDir file('m')`).
+- Doubtful forms resolve toward a remap. Comments and string literals are not excluded, an assigned
+  local variable or named argument called `projectDir` counts, and `"$projectDir is ..."` reads as a
+  command call; each over-reports a remap, which only keeps the conservative `unknown` task.
+- Failure modes: a remap through another API (for example a `ProjectDescriptor` obtained under a
+  different name and assigned through reflection, or a remap in an included build-logic plugin) is
+  not seen, and a derived task can name the wrong project path. The runtime provider still validates
+  the command against the repository configuration before execution, as stated above.
+- Non-goals: evaluating settings scripts, resolving the remapped directory to a Gradle path, or
+  parsing Gradle DSL beyond this bounded token test.
+- Evidence: `TestKATV0009ProjectDirectoryReadsKeepGradleTestTask`,
+  `TestKATV0009RemapsProjectDirectoryOnlyOnAssignment`, and
+  `TestCustomGradleProjectDirectoryDoesNotInventATarget` in
+  `internal/liveverify/affected/kotlin/kotlin_test.go`.
+- Rollback: restore the substring test in `observeBuildLayout`; every Gradle test whose manifests
+  mention `projectDir` then returns to task `unknown`, which is conservative but not runnable.
+
 ## Cross-language ownership decision required
 
 Maestro flows (`.yaml`/`.yml`) and Gherkin scenarios (`.feature`) are language-neutral artifacts.
@@ -134,7 +170,7 @@ remain unowned and a dirty one correctly widens with `UNOWNED_DIRTY_PATH`.
 
 | Requirement | Evidence |
 |---|---|
-| `KAT-V0-001..007` | `internal/liveverify/affected/kotlin/kotlin_test.go` |
+| `KAT-V0-001..007`, `KAT-V0-009` | `internal/liveverify/affected/kotlin/kotlin_test.go` |
 | `KAT-V0-008` | `internal/liveverify/affected/conformance_test.go` |
 | real-repository recall | pinned AndroidX Media ground-truth run described in `docs/BUILD-LOG.md` |
 
