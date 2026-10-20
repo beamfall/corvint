@@ -44,8 +44,12 @@ func applyJSSources(tests []Test, receipt jstestprovider.Receipt, worktree *os.R
 		if file.reason == "" {
 			if placed, found := placeJSExample(file.examples, line); found {
 				source, line = file.examples[placed], placed
+				tests[index].Location.placeSource(file.relative, placed, source)
 			} else {
 				source.Read = testvalidity.HygieneReasonJSExampleUnplaced
+				if tests[index].Location != nil {
+					tests[index].Location.Absent[locationTitlePath] = LocationSourceUnplaced
+				}
 			}
 		}
 		anchor := fmt.Sprintf("%s:%d", file.relative, line)

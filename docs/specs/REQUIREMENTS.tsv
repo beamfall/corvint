@@ -2969,6 +2969,15 @@ LPCV-V0-137	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-138	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2014) Under	standing	2026-10-11; V1-2014
 LPCV-V0-139	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2010, V1-2013,	standing	2026-10-11; V1-2010; V1-2013
 LPCV-V0-084	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1801) Before i	standing	2026-10-11; V1-1801
+LPCV-V0-145	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Every te	standing	2026-10-11; V1-2045
+LPCV-V0-146	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Each of	standing	2026-10-11; V1-2045
+LPCV-V0-147	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2045) The JS/T	standing	2026-10-11; V1-2045
+LPCV-V0-148	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2045) An RSpec	standing	2026-10-11; V1-2045
+LPCV-V0-149	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2045) Every	standing	2026-10-11; V1-2045
+LPCV-V0-150	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2046)	standing	2026-10-11; V1-2046
+LPCV-V0-151	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2046) A static	standing	2026-10-11; V1-2046
+LPCV-V0-152	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2046) Static m	standing	2026-10-11; V1-2046
+LPCV-V0-153	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2046) `--stati	standing	2026-10-11; V1-2046
 LAC-V0-001	docs/specs/local-admin-console-v0.md	The console MUST ship as its own opt-in executable and MUST NOT be linked into	unrecorded	-
 LAC-V0-002	docs/specs/local-admin-console-v0.md	The console MUST bind a loopback address only, MUST require no account or	unrecorded	-
 LAC-V0-003	docs/specs/local-admin-console-v0.md	The console MUST run only for the lifetime of an explicit foreground invocation	unrecorded	-

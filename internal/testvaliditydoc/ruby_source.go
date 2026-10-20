@@ -61,6 +61,7 @@ func applyRubySources(tests []Test, document rubytestprovider.Document, worktree
 			if file.reason == "" {
 				if located, found := file.examples[example.Line]; found {
 					source = located
+					tests[index].Location.placeSource(example.File, example.Line, source)
 				} else {
 					source.Read = testvalidity.HygieneReasonRSpecExampleUnplaced
 				}
