@@ -1610,9 +1610,11 @@ caller's build tree.
 - `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
   `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
   report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
-  (`subdirs("<Root>")`). After a run the build tree has no new or changed files, and CTest's own
-  log stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run from
-  their own build directories. A `Root` that is not absolute or holds a character CMake would
+  (`subdirs("<Root>")`). CTest's own bookkeeping (`Testing/`, including `Testing/Temporary/`
+  `LastTest.log`, `LastTestsFailed.log` and `CTestCostData.txt`) is not written into the build
+  tree and stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run
+  from their own build directories, so files a test itself writes there are outside this
+  requirement. A `Root` that is not absolute or holds a character CMake would
   re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
 
 - `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
@@ -1634,7 +1636,7 @@ Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the gen
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test give a complete run, the build tree digest set is unchanged and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
+| TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test that write nothing give a complete run, the build tree digest set is unchanged (no `Testing/` entry) and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
 | TRE-V0-113 | `native/native.go` `ctestRunFiles`; `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestCarriesDartConfiguration`, `TestCTestWindowsRootUsesForwardSlashes` (Windows only), `TestCTestRunKeepsBuildTreeConfiguration` | Live CTest 4.4.4 (macOS arm64): a `CTestCustom.cmake` pre-test hook that exits 3 makes the run incomplete, and a `DartConfiguration.tcl` `TimeOut: 1` fails a 5 s test; both subtests fail against the wrapper without the carried files (the hook was skipped and the run passed). Copying `DartConfiguration.tcl` unchanged sent `Testing/` back into the build tree, which is why `BuildDirectory` is relocated. The Windows test is type-checked by `make windows-vet` and NOT_RUN on Windows |
 
 ## swift-testing reserved package identity (experimental)
