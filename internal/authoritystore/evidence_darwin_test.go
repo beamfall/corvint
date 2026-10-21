@@ -12,11 +12,24 @@ import (
 	"github.com/Beamfall/corvint/internal/localauthority"
 )
 
-func filesystemEvidenceFixture(t *testing.T) (string, *evidenceView, string) {
+// readerGroupTempDir returns a test directory whose group is the process group. Darwin gives a
+// new file its parent directory's group (BSD semantics), so under a root-owned TMPDIR such as
+// /private/tmp every fixture file would otherwise inherit wheel, and the audit correctly refuses
+// it as not the manifest's reader group (V1-0778).
+func readerGroupTempDir(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
+	if err := os.Chown(root, -1, os.Getegid()); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func filesystemEvidenceFixture(t *testing.T) (string, *evidenceView, string) {
+	t.Helper()
+	root := readerGroupTempDir(t)
 	m := manifestFixture()
-	m.ReaderGID = strconv.Itoa(os.Getgid())
+	m.ReaderGID = strconv.Itoa(os.Getegid())
 	for i := range m.Files {
 		f := &m.Files[i]
 		raw := []byte(f.Path)
@@ -65,7 +78,7 @@ func filesystemEvidenceFixture(t *testing.T) (string, *evidenceView, string) {
 			return nil
 		})
 	})
-	return root, &evidenceView{owner: uint32(os.Getuid()), gid: uint32(os.Getgid()), manifest: m}, localauthority.BytesDigest(raw)
+	return root, &evidenceView{owner: uint32(os.Getuid()), gid: uint32(os.Getegid()), manifest: m}, localauthority.BytesDigest(raw)
 }
 func auditTestEvidence(t *testing.T, root string, v *evidenceView, digest string) ([]evidenceNode, error) {
 	t.Helper()
@@ -194,5 +207,37 @@ func TestEvidenceDescriptorBudgetUsesCurrentProcess(t *testing.T) {
 	}
 	if baseline < 3 || limit < baseline+48 {
 		t.Fatalf("baseline=%d limit=%d", baseline, limit)
+	}
+}
+
+// V1-0778: the audit refuses a file whose group differs from the manifest reader group, which is
+// what an inherited TMPDIR group produced; the fixture, not the product, was at fault. The
+// fixture's files carry the process group under every TMPDIR, and moving one file to another
+// group the process belongs to turns the valid audit into a refusal.
+func TestEvidenceAuditRefusesForeignInheritedGroup(t *testing.T) {
+	root, v, digest := filesystemEvidenceFixture(t)
+	if _, err := auditTestEvidence(t, root, v, digest); err != nil {
+		t.Fatalf("reader-group fixture under TMPDIR %s: %v", os.TempDir(), err)
+	}
+	groups, err := os.Getgroups()
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign := -1
+	for _, g := range groups {
+		if g != 0 && g != os.Getegid() {
+			foreign = g
+			break
+		}
+	}
+	if foreign < 0 {
+		t.Skip("process has no supplementary non-wheel group to model an inherited foreign group")
+	}
+	p := filepath.Join(root, "repo", v.manifest.Files[2].Path)
+	if err := os.Chown(p, -1, foreign); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := auditTestEvidence(t, root, v, digest); err == nil {
+		t.Fatalf("audit accepted %s with group %d, want refusal for reader group %d", p, foreign, os.Getegid())
 	}
 }
