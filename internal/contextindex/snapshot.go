@@ -995,22 +995,14 @@ func LoadSnapshotObserved(root string, observation Observation) (*Index, bool, e
 	if err != nil {
 		return nil, false, nil
 	}
-	index.AdoptObservation(root, observation)
-	return index, true, nil
-}
-
-// AdoptObservation applies an observation to a snapshot hit of the tree it names: the root, the
-// sorted dirty set and status digest, and the observed HEAD, since the file is keyed by tree, as
-// LoadSnapshot reports it. LoadSnapshotObserved applies it to every hit; a caller that read the
-// tree's snapshot from the identity alone, before the status read finished, applies the complete
-// observation here (proposed LCP-V0-033).
-func (index *Index) AdoptObservation(root string, observation Observation) {
 	dirty := make(map[string]struct{}, len(observation.DirtyPaths))
 	for _, item := range observation.DirtyPaths {
 		dirty[item] = struct{}{}
 	}
 	index.Root, index.DirtyPaths, index.StatusSHA256 = root, keys(dirty), observation.StatusSHA256
-	index.CommitRevision = observation.CommitRevision
+	// The file is keyed by tree; the hit reports the observed HEAD, as LoadSnapshot does.
+	index.CommitRevision = identity.commitRevision
+	return index, true, nil
 }
 
 // decodeSnapshotValue decodes the header and the index message into value

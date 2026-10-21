@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -178,5 +179,34 @@ func TestSnapshotPrefetchServesOnlyItsOwnTree(t *testing.T) {
 	close(missed.done)
 	if index, hit, err, ok := missed.take("root", observation); !ok || hit || index != nil || err != nil {
 		t.Fatalf("a prefetched miss: index %v hit %v err %v ok %v, want a taken miss", index, hit, err, ok)
+	}
+}
+
+// TestAdoptObservationMatchesTheObservedLoader pins the LCP-V0-033 adoption against
+// contextindex.LoadSnapshotObserved: an identity-only hit that then adopts the complete
+// observation carries the same root, sorted unique dirty set, status digest and HEAD as the
+// loader's own hit for that observation.
+func TestAdoptObservationMatchesTheObservedLoader(t *testing.T) {
+	t.Parallel()
+	root := ledgerRepository(t)
+	sharedObservationStates["dirty-snapshot-present"](t, root)
+	output, err := exec.Command("git", "-C", root, "rev-parse", "--show-object-format", "HEAD", "HEAD^{tree}").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := strings.Fields(string(output))
+	observation := contextindex.Observation{ObjectFormat: identity[0], CommitRevision: identity[1], Revision: identity[2],
+		DirtyPaths: []string{"notes.txt", "internal/auth/session.go", "notes.txt"}, StatusSHA256: strings.Repeat("d", 64)}
+	want, hit, err := loadSnapshotObserved(root, observation)
+	if err != nil || !hit {
+		t.Fatalf("observed loader: hit %v err %v", hit, err)
+	}
+	got, hit, err := loadSnapshotObserved(root, contextindex.Observation{ObjectFormat: identity[0], CommitRevision: identity[1], Revision: identity[2]})
+	if err != nil || !hit {
+		t.Fatalf("identity-only loader: hit %v err %v", hit, err)
+	}
+	adoptObservation(got, root, observation)
+	if got.Root != want.Root || got.StatusSHA256 != want.StatusSHA256 || got.CommitRevision != want.CommitRevision || !slices.Equal(got.DirtyPaths, want.DirtyPaths) {
+		t.Fatalf("LCP-V0-033 adoption differs: got %q %q %q %q, want %q %q %q %q", got.Root, got.StatusSHA256, got.CommitRevision, got.DirtyPaths, want.Root, want.StatusSHA256, want.CommitRevision, want.DirtyPaths)
 	}
 }

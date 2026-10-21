@@ -44,8 +44,11 @@ unchanged), and remove the largest serial step: `LCP-V0-033` starts the snapshot
 opening observation's identity read returns, overlapping that observation's status read. The bracket
 hands the identity it already read to the prefetch (`gokernel.ProbeRepositoryAroundPrefetching`), so
 `LCP-V0-016` still holds: four Git spawns, and the loader takes no identity or status read of its own.
-The decoded index takes the complete opening observation afterwards (`Index.AdoptObservation`, the
-same assignment `LoadSnapshotObserved` makes), so the answer bytes are unchanged. A prefetch for
+The decoded index takes the complete opening observation afterwards (`adoptObservation` in
+`cmd/corvint`, the same assignment `LoadSnapshotObserved` makes, pinned equal by a test), so the answer
+bytes are unchanged. It stays out of `internal/contextindex` because every non-test file there is an
+analyzer-schema input (IDX-SNAP-V0-017): a first draft added the helper there, failed
+`TestAnalyzerSchemaInputs`, and would have needed a schema bump that invalidates every snapshot. A prefetch for
 another object format or tree is not used. A separate rev-parse for the prefetch was rejected because
 it would add a fifth spawn and break `LCP-V0-016`.
 
@@ -59,6 +62,10 @@ each iteration:
 | `pre-compact` | 100 | 31-41 | 0.879 / 0.996 / 1.444 / 0.889 | 0.676 / 0.787 / 1.469 / 0.704 | 0 / 0 |
 | `user-prompt` | 50 | 31-41 | 0.728 / 0.892 / 1.206 / 0.752 | 0.607 / 0.774 / 1.038 / 0.627 | 0 / 0 |
 
+After the adoption helper moved to `cmd/corvint`, the final build was re-checked: 20 interleaved
+`pre-compact` runs each at load 30-33 gave base p50 0.514 s / mean 0.522 s and fix p50 0.414 s /
+mean 0.425 s, with byte-identical output.
+
 Every run emitted a non-degraded answer; the base and fix outputs are byte-identical (shasum) for
 both events. The median `pre-compact` cost fell 23% (about 200 ms of headroom under the deadline).
 V1-2144's acceptance bar holds in this reproduction: 100 of 100 fixed `pre-compact` runs on a worktree
@@ -70,6 +77,7 @@ Tests: `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (gokernel; faile
 callback moved after the status wait: "the opening status read finished before prefetch started"),
 `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity` (failed with the prefetch key removed:
 one load against the complete observation instead of the identity), `TestSnapshotPrefetchServesOnlyItsOwnTree`,
+`TestAdoptObservationMatchesTheObservedLoader`,
 and the unchanged `TestDogfoodEventSpawnsOneBracket` (four spawns), the drift refusal and the
 checkpoint snapshot-seam guards; the cmd tests also pass under `-race`.
 
@@ -91,6 +99,6 @@ reports the timeout cause after four probes and the degradation after exactly 41
 ## Rollback
 
 `LCP-V0-033`: call `gokernel.ProbeRepositoryAround` from `localEventRead` again and drop
-`dogfoodSnapshotPrefetchKey`/`snapshotPrefetch`; `ProbeRepositoryAroundPrefetching` and
-`AdoptObservation` can stay as unused helpers or be removed. `AHI-058`: restore the single probe in
+`dogfoodSnapshotPrefetchKey`, `snapshotPrefetch` and `adoptObservation`; `ProbeRepositoryAroundPrefetching`
+can stay as an unused helper or be removed. `AHI-058`: restore the single probe in
 `cleanupConfirmed` and remove the V1-1122 test.

@@ -10,6 +10,7 @@ import (
 	"io"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -317,8 +318,20 @@ func (prefetch *snapshotPrefetch) take(root string, observation contextindex.Obs
 	if prefetch.err != nil || !prefetch.hit {
 		return nil, false, prefetch.err, true
 	}
-	prefetch.index.AdoptObservation(root, observation)
+	adoptObservation(prefetch.index, root, observation)
 	return prefetch.index, true, nil, true
+}
+
+// adoptObservation applies the opening observation to a snapshot hit of the tree it names,
+// exactly as contextindex.LoadSnapshotObserved applies it to its own hits: the root, the sorted
+// unique dirty set, the status digest and the observed HEAD (the file is keyed by tree). It lives
+// here rather than in contextindex so the analyzer-schema inputs (IDX-SNAP-V0-017) stay unchanged;
+// TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity pins byte equality with that loader.
+func adoptObservation(index *contextindex.Index, root string, observation contextindex.Observation) {
+	dirty := append(make([]string, 0, len(observation.DirtyPaths)), observation.DirtyPaths...)
+	slices.Sort(dirty)
+	index.Root, index.DirtyPaths, index.StatusSHA256 = root, slices.Compact(dirty), observation.StatusSHA256
+	index.CommitRevision = observation.CommitRevision
 }
 
 func localEventRead(ctx context.Context, options options, input map[string]any,
