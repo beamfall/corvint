@@ -165,9 +165,9 @@ func declaredBears(directory string, scopes, prior map[string][]string, dirtyPat
 }
 
 // The base declaration (AFP-V0-050) is read from Git objects with the git
-// executable, because this package stays on the standard library: the
-// tools/gate-ledger fixture compiles these files into a module with no other
-// dependency. Its checks mirror CommittedReadScopes in
+// executable, because this package stays on the standard library and the
+// stdlib-only internal/taskprojection leaf: the tools/gate-ledger fixture
+// compiles these files into a module with no other dependency. Its checks mirror CommittedReadScopes in
 // internal/liveverify/affected/golang/readscopes.go.
 
 const (

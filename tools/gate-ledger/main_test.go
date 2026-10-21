@@ -399,12 +399,14 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // repository and returns its root.
 func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	for _, name := range []string{"select.go", "readers.go", "readscopes.go"} {
-		data, err := os.ReadFile(filepath.Join("..", "..", "internal", "gateselect", name))
+	// The selector's sources and its one in-module import, the stdlib-only
+	// internal/taskprojection leaf, rebased onto the fixture module.
+	for _, name := range []string{"gateselect/select.go", "gateselect/readers.go", "gateselect/readscopes.go", "taskprojection/taskprojection.go"} {
+		data, err := os.ReadFile(filepath.Join("..", "..", "internal", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)
 		}
-		files["internal/gateselect/"+name] = string(data)
+		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
 	}
 	wrapper, err := os.ReadFile(filepath.Join("..", "gate-affected-select", "main.go"))
 	if err != nil {
@@ -520,6 +522,7 @@ func testGoTestPartialPassRerun(t *testing.T, bad string) {
 	packageRepository(t, map[string]string{
 		"tools/gate-affected-select/main_test.go": "package main\nimport \"testing\"\nfunc TestSelector(t *testing.T) {}\n",
 		"internal/gateselect/select_test.go":      "package gateselect\nimport \"testing\"\nfunc TestSelect(t *testing.T) {}\n",
+		"internal/taskprojection/leaf_test.go":    "package taskprojection\nimport \"testing\"\nfunc TestLeaf(t *testing.T) {}\n",
 		"go.mod":                                  "module example.com/fixture\n\ngo 1.27\n",
 		"main_test.go":                            "package main\nimport \"testing\"\nfunc TestRoot(t *testing.T) {}\n",
 		"good/good_test.go":                       "package good\nimport \"testing\"\nfunc TestGood(t *testing.T) {}\n",
