@@ -38,6 +38,8 @@ AFP-V0-028	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decis
 AFP-V0-029	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
 AFP-V0-030	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
 AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
+AFP-V0-190	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go	standing	2026-10-11; V1-0874
+AFP-V0-191	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0922)) A langua	standing	2026-10-11; V1-0922
 AFP-V0-032	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
 AFP-V0-033	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
 AFP-V0-034	docs/specs/affected-plan-v0.md	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
@@ -93,6 +95,9 @@ AFP-V0-183	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-184	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) A relati	standing	2026-10-11; V1-2050
 AFP-V0-185	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) What sou	standing	2026-10-11; V1-2050
 AFP-V0-186	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) On the	standing	2026-10-11; V1-2050
+AFP-V0-187	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2297)) An	standing	2026-10-11; V1-2297
+AFP-V0-188	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) A	standing	2026-10-11; V1-2296
+AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) Each tes	standing	2026-10-11; V1-2296
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-

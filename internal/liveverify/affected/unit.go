@@ -95,9 +95,17 @@ type Unit struct {
 // Frontier carries the reason codes for everything the plugin could not resolve
 // exactly. A non-empty frontier widens the scope of every plan the plugin takes
 // part in to UNKNOWN rather than silently narrowing selection.
+//
+// Unobserved names, sorted and unique, the repository-relative directories
+// whose source files the plugin owns but deliberately builds no unit for, such
+// as a nested Go module outside the observed module set. A dirty path the
+// plugin claims at or below one of them, which no unit declares, is reported
+// as that directory's frontier rather than as an unindexed source path
+// (AFP-V0-191).
 type Result struct {
-	Units    []Unit
-	Frontier []string
+	Units      []Unit
+	Frontier   []string
+	Unobserved []string
 }
 
 // Language is the seam a second language plugs into.
