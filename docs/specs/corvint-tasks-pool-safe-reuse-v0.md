@@ -312,15 +312,20 @@ applies at release; pools without `allowedSources` behave as before.
   Claims (V1-2138): the same deferral covers a `CLAIM` or `CLAIM_NEXT`'s Git observations (the
   base commit and tree, a prepared pool observation's command source, each member's pinned config)
   and its CAL-V0-022 scope deriver. Observations that do not depend on audited state run before
-  the route; on the route the lock-held observer serves only results memoized for the identical
-  Git argument list, or for the identical root, tree, title and body, and otherwise declines
-  (`fast.declined: ... claim Git observation deferred ...`) without running anything. The rest of
-  the observation then runs unlocked for the recorded state and the route is tried once more; a
-  ticket edited meanwhile misses the derivation key and the complete route decides. A served
-  observation clears the memo, so a later round observes Git afresh. Base resolution has the
-  complete route's freshness: both observe Git before the lock. A claim with no deriver resolves
-  no base tree. Rollback: drop the claim's writer observer in `leaseOnce`; the route then
-  observes under the lock as before.
+  the route; on the route the lock-held observer serves only memoized results and otherwise
+  declines (`fast.declined: ... claim Git observation deferred ...`) without running anything. A
+  query naming an exact object (`rev-parse` or `ls-tree` of a full OID) is immutable and memoized
+  for its argument list; a derivation is memoized for the identical root, tree, title and body.
+  Every other Git query (a symbolic revision such as `HEAD`, worktree status) is bound to the
+  head.json and intent tree digests read before it ran (the snapshot `bindObservation` checks),
+  and the lock-held observer serves it only while the audited state carries that snapshot. The
+  rest of the observation then runs unlocked for the recorded state and the route is tried once
+  more. A journal or intent change meanwhile (for example a workflow that integrated a commit and
+  then wrote) misses the bound observations, so the retry declines again and the complete route
+  observes Git afresh, reusing the derivation; a ticket edited meanwhile misses the derivation
+  key. The reprobe is bounded by that single retry. A served observation clears the memo. A claim
+  with no deriver resolves no base tree. Rollback: drop the claim's writer observer in
+  `leaseOnce`; the route then observes under the lock as before.
 
   Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
   timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
@@ -887,7 +892,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
-| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
+| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_UnmovedClaimServedOnWriterRoute`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
 
 ## Traceability (PSR-V0-110..116)
 

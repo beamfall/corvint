@@ -14,17 +14,31 @@ import (
 // claimProbe is the claim observer the writer route calls under the writer
 // lock (V1-2138). It is the PSR-V0-168 deferral applied to a claim's Git
 // observations and scope derivation: the locked observer runs no Git command
-// and no deriver. It serves only results memoized for the identical argument
-// list, or for the identical root, tree, title and body; on a miss it records
-// the audited state and declines with errClaimDeferred. settle then reruns the
+// and no deriver. It serves only memoized results; on a miss it records the
+// audited state and declines with errClaimDeferred. settle then reruns the
 // observer for that state with no lock or preparation gate held, and the
 // retried route serves the memoized results. The complete route keeps the
 // direct observer, which already runs before the preparation gate.
+//
+// A query naming an exact object (rev-parse or ls-tree of a full OID) is
+// immutable and memoized for its argument list. Every other Git query (a
+// symbolic revision, worktree status) is mutable: its result is bound to the
+// head.json and intent tree digests read before it ran, and the locked
+// observer serves it only while its audited state still carries that
+// snapshot. Drift is a miss, so the route reprobes once and then falls back
+// to the complete route.
 type claimProbe struct {
-	outputs  map[string][]byte
+	outputs  map[string]gitMemo
 	scopes   map[string]derivedScope
+	at       *journal.Identity
 	deferred bool
 	pending  *claimPending
+}
+
+// gitMemo is one memoized Git output. A nil bound marks an immutable query.
+type gitMemo struct {
+	out   []byte
+	bound *journal.Identity
 }
 
 type derivedScope struct {
@@ -43,10 +57,19 @@ var errClaimDeferred = errWriterRoute("claim", "claim Git observation deferred u
 
 // newClaimProbe observes what a claim needs from Git independently of the
 // audited state, before any lock: the base commit, its tree when a deriver
-// may run, and a prepared pool observation's command source. A failed
-// observation memoizes nothing; the locked observer then defers it.
+// may run, and a prepared pool observation's command source, bound to the
+// snapshot read first. Without that snapshot, or on a failed observation,
+// nothing mutable is memoized; the locked observer then defers it.
 func newClaimProbe(ctx context.Context, repo *intent.Repository, choice LeaseChoice) *claimProbe {
-	p := &claimProbe{outputs: map[string][]byte{}, scopes: map[string]derivedScope{}}
+	p := &claimProbe{outputs: map[string]gitMemo{}, scopes: map[string]derivedScope{}}
+	if repo == nil {
+		return p
+	}
+	at, err := observedSnapshot(repo)
+	if err != nil {
+		return p
+	}
+	p.at = &at
 	git := p.git(false)
 	root := leaseRoot(repo, choice)
 	rev := choice.Lease.Base
@@ -62,19 +85,41 @@ func newClaimProbe(ctx context.Context, repo *intent.Repository, choice LeaseCho
 	return p
 }
 
+// immutableQuery reports whether a Git query names only an exact object, so
+// its output cannot change while the object exists.
+func immutableQuery(args []string) bool {
+	full := func(s string) bool { _, err := wire.ParseOID("oid", s); return err == nil }
+	switch {
+	case len(args) == 4 && args[0] == "rev-parse" && args[1] == "--verify" && args[2] == "--end-of-options":
+		oid, kind, ok := strings.Cut(args[3], "^{")
+		return ok && full(oid) && (kind == "commit}" || kind == "tree}")
+	case len(args) == 5 && args[0] == "ls-tree" && args[1] == "-z" && args[3] == "--":
+		return full(args[2])
+	}
+	return false
+}
+
+// git serves a memoized output while it is immutable or bound to p.at. The
+// locked runner defers any other query; the unlocked one runs it and binds a
+// mutable output to p.at, or memoizes nothing without one.
 func (p *claimProbe) git(locked bool) gitRunner {
 	return func(root string, args ...string) ([]byte, error) {
 		key := strings.Join(append([]string{root}, args...), "\x00")
-		if out, ok := p.outputs[key]; ok {
-			return out, nil
+		if m, ok := p.outputs[key]; ok && (m.bound == nil || (p.at != nil && sameSnapshot(*m.bound, *p.at))) {
+			return m.out, nil
 		}
 		if locked {
 			p.deferred = true
 			return nil, errClaimDeferred
 		}
 		out, err := gitOutput(root, args...)
-		if err == nil {
-			p.outputs[key] = out
+		switch {
+		case err != nil:
+		case immutableQuery(args):
+			p.outputs[key] = gitMemo{out: out}
+		case p.at != nil:
+			at := *p.at
+			p.outputs[key] = gitMemo{out: out, bound: &at}
 		}
 		return out, err
 	}
@@ -106,12 +151,13 @@ func (p *claimProbe) observer(ctx context.Context, repo *intent.Repository, choi
 	locked := claimFactsWith(ctx, repo, choice, p.git(true), p.scope(true, choice.Derive))
 	return func(proof *journal.Result, input *transaction.Input) (transaction.LeaseFacts, error) {
 		p.deferred = false
+		p.at = &proof.Identity
 		facts, err := locked(proof, input)
 		if p.deferred {
 			p.pending = &claimPending{proof: proof, input: *input}
 			return transaction.LeaseFacts{}, errClaimDeferred
 		}
-		p.outputs = map[string][]byte{}
+		p.outputs = map[string]gitMemo{}
 		p.scopes = map[string]derivedScope{}
 		return facts, err
 	}
@@ -127,6 +173,10 @@ func (p *claimProbe) settle(ctx context.Context, repo *intent.Repository, choice
 		return false
 	}
 	input := pending.input
+	// The pending state was audited before this observation runs, so a
+	// mutable output bound to it is stale exactly when the retried route
+	// audits a moved snapshot.
+	p.at = &pending.proof.Identity
 	_, err := claimFactsWith(ctx, repo, choice, p.git(false), p.scope(false, choice.Derive))(pending.proof, &input)
 	return err == nil
 }

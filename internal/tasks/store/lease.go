@@ -125,10 +125,12 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		}
 	}
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
-		facts = claimFacts(ctx, repo, choice)
 		// V1-2138: the writer route observes a claim under the writer lock,
 		// so it gets an observer that runs no Git command and no deriver.
+		// The complete route observes Git afresh; a derivation depends only
+		// on the exact tree, title and body, so it reuses the probe's.
 		probe := newClaimProbe(ctx, repo, choice)
+		facts = claimFactsWith(ctx, repo, choice, gitOutput, probe.scope(false, choice.Derive))
 		settleCtx := ctx
 		ctx = withWriterFacts(ctx, &writerFacts{
 			observe: probe.observer(settleCtx, repo, choice),
@@ -372,13 +374,6 @@ func leaseRoot(repo *intent.Repository, choice LeaseChoice) string {
 		return repo.PrimaryWorktree
 	}
 	return choice.Root
-}
-
-func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
-	return claimFactsWith(ctx, repo, choice, gitOutput, func(ctx context.Context, root, tree string, rec *ticket.Record) ([]string, wire.Digest, error) {
-		paths, digest := derive(ctx, choice.Derive, root, tree, rec)
-		return paths, digest, nil
-	})
 }
 
 // scopeRunner is the claim observer's scope derivation; a writer-locked one

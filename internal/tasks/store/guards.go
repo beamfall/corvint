@@ -148,19 +148,34 @@ func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
 // Recheck observations immediately before effects. This is cooperative-editor
 // protection; it does not qualify atomic CAS against hostile concurrent editors.
 func bindObservation(repo *intent.Repository, identity journal.Identity, operation string) error {
-	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), 4096)
+	now, err := observedSnapshot(repo)
 	if err != nil {
 		return err
 	}
-	tree, err := intent.TreeDigest(repo.IntentRoot())
-	if err != nil {
-		return err
-	}
-	if wire.Sum(raw) != identity.HeadSha256 || tree.Sha256 != identity.IntentTreeSha256 {
+	if !sameSnapshot(now, identity) {
 		return wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head or intent changed")
 	}
 	_, err = writerGuards(repo, operation)
 	return err
+}
+
+// observedSnapshot is the part of a journal identity bindObservation checks:
+// the head.json digest and the intent tree digest.
+func observedSnapshot(repo *intent.Repository) (journal.Identity, error) {
+	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), 4096)
+	if err != nil {
+		return journal.Identity{}, err
+	}
+	tree, err := intent.TreeDigest(repo.IntentRoot())
+	if err != nil {
+		return journal.Identity{}, err
+	}
+	return journal.Identity{HeadSha256: wire.Sum(raw), IntentTreeSha256: tree.Sha256}, nil
+}
+
+// sameSnapshot compares the members observedSnapshot reads.
+func sameSnapshot(a, b journal.Identity) bool {
+	return a.HeadSha256 == b.HeadSha256 && a.IntentTreeSha256 == b.IntentTreeSha256
 }
 
 func guardFailure(report *Report, requestID string, err error) (*Report, error) {
