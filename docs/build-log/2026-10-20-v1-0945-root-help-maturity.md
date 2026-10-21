@@ -1,6 +1,6 @@
 ## 2026-10-20 V1-0945: root help names each verb once with its maturity; CCF-V1-009 accepted
 
-Decision 0547 (V1-0945 row) accepts CCF-V1-009 (4,096-byte bound) and records the ticket's ~1.5 KB
+Decision 0548 (V1-0945 row) accepts CCF-V1-009 (4,096-byte bound) and records the ticket's ~1.5 KB
 target as a limit, and applies the CCF-V1-008 amendment that decision 0539 item 7 accepted (V1-0994):
 the `Commands:` list carries the maturity label, so each verb is named once.
 
@@ -30,7 +30,7 @@ group headers, 38 owner labels), global options 182, support boundary 761.
 Limit: ~1.5 KB is not reached. The ticket review (V1-0994) estimated about 1.8 KB, which assumed
 the label fold alone; the glosses CCF-V1-009 requires take most of the 2,578 `Commands:` bytes, and
 the support-boundary disclosures (761 bytes) are also required. Reaching ~1.5 KB would need dropping
-glosses or disclosures, an owner amendment of CCF-V1-009 that decision 0547 did not take.
+glosses or disclosures, an owner amendment of CCF-V1-009 that decision 0548 did not take.
 
 ### Default limits
 
