@@ -3002,8 +3002,9 @@ from `known-divergences=30` to `known-divergences=31`.
 
 **Divergence.** The oracle's static named-import pattern matches `import` only at the start of a
 line, so in `import { a } from './a'; import { b } from './b'` it binds `a` and drops `b` without
-an unknown. Under `GPK-V0-087` the candidate also starts a statement after `;` and binds both, so a
-call through `b` can add a dependency link the oracle does not.
+an unknown. Under `GPK-V0-087` the candidate also starts a statement after a code `;` (never one
+inside a string, template literal or comment) and binds both, without rebinding a local the
+line-start reading bound, so a call through `b` can add a dependency link the oracle does not.
 
 **Adjudication: python-defect (known-divergent, no repair).** The oracle contradicts
 `GPK-V0-087` and product invariant 2; the candidate satisfies them. No committed `conformance/`

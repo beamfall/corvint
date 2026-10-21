@@ -1722,20 +1722,28 @@ only at the start of a line, so the second statement of `import { a } from './a'
 of lane requirements (2026-10-11) accepts this amendment.
 
 - `GPK-V0-087`: (accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST be
-  read where a statement can start: at the start of a line or after a `;`. Every such statement on
-  one line MUST bind its names with that line's number. The oracle's first-only reading is
+  read where a statement can start: at the start of a line or after a `;` the web lexer reads as
+  code, never one inside a string, template literal, regex or comment. Every such statement on one
+  line MUST bind its names with that line's number. A statement found after a `;` MUST only add a
+  local the line-start reading left unbound, never rebind one. The oracle's first-only reading is
   `python-defect` / known-divergent `DR-0044`.
 
-Failure modes: a `;` followed by `import ... from '...'` inside a string or comment binds a name
-the file does not import, the same exposure the oracle's line-start pattern already has inside
-template literals; it can only add a dependency link, never remove one. Non-goals: comma-joined
+Failure modes: a `;` inside a string, template literal or comment is not code, so a fake import
+there neither rebinds a real binding nor swallows the real statement that follows it (an
+independent review found both against the first, pattern-only reading). The line-start reading
+keeps the oracle's own exposure inside multi-line template literals unchanged (parity). Because a
+later statement never rebinds a local, a false match after a code `;` can only add a dependency
+link, never remove one; a file the lexer ends inside an unterminated construct reads no `;` past
+it, which can only withhold a binding the oracle also never read. Non-goals: comma-joined
 or multi-line clauses beyond the existing pattern, default and namespace imports, `require()`, and
 type-only imports (still skipped). Acceptance evidence:
 `TestWebImportBindingsReadsEveryStatementOnALine` failed before the change (it bound `a` and `d`
-but not `c`). A `cli-parity-v0` discriminating row is NOT_YET_AUTHORED and the frozen `zod`/`execa`
-evaluations were NOT_RUN for this change. Rollback: restore the `^` anchor in `webImportStatement`
-(`internal/contextindex/eval_dependency.go`), remove the test, `DR-0044` and this section.
+but not `c`); `TestWebImportBindingsIgnoresSemicolonsOutsideCode` failed against the pattern-only
+reading in every case (string, partial fake import, template, line and block comment, rebinding). A `cli-parity-v0` discriminating row is NOT_YET_AUTHORED and the frozen `zod`/`execa`
+evaluations were NOT_RUN for this change. Rollback: remove `webImportAfterSemicolon`,
+`webCodeSemicolons` and the second pass of `webImportBindings`
+(`internal/contextindex/eval_dependency.go`), the two tests, `DR-0044` and this section.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `GPK-V0-087` (accepted 2026-10-20, V1-2128) | `webImportStatement` in `internal/contextindex/eval_dependency.go` | `TestWebImportBindingsReadsEveryStatementOnALine` |
+| `GPK-V0-087` (accepted 2026-10-20, V1-2128) | `webImportBindings`, `webImportAfterSemicolon` and `webCodeSemicolons` in `internal/contextindex/eval_dependency.go` | `TestWebImportBindingsReadsEveryStatementOnALine`, `TestWebImportBindingsIgnoresSemicolonsOutsideCode` |
