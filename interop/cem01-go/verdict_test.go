@@ -106,7 +106,7 @@ func TestCEMV1066PortableSealedVerdictDigests(t *testing.T) {
 // environment member, which keeps the digest, and each verdict member, which
 // changes it.
 func TestCEMV1066PortableVerdictDigestCoversOnlyTheVerdict(t *testing.T) {
-	r := newStableResult(strings.Repeat("1", 40), strings.Repeat("2", 40))
+	r := newStableResult(strings.Repeat("1", 40), strings.Repeat("2", 40), stableLegacyEnvelope)
 	before := emittedVerdict(t, "refusal", r)
 	moved := r
 	moved.Runtime.GoVersion = "go1.27.1"
@@ -183,5 +183,27 @@ func TestCEMV1066PortableEveryOutcomeCarriesVerdictDigest(t *testing.T) {
 			t.Errorf("%s and %s share verdict digest %s", c.name, other, digest)
 		}
 		seen[digest] = c.name
+	}
+}
+
+// TestStableResultEnvelopeFollowsThePath proves that each portable stable path
+// labels its result with its own repository envelope rather than a default:
+// the legacy verify-stable (R1) path with primary-clean-config-bounded/1 and
+// the canonical path with canonical-repository-bounded/1, on refusals too
+// (V1-2142).
+func TestStableResultEnvelopeFollowsThePath(t *testing.T) {
+	ctx := context.Background()
+	repo, base, target := t.TempDir(), strings.Repeat("1", 40), strings.Repeat("2", 40)
+	legacy, _ := runStable(ctx, repo, []byte("{"), base, target, t.TempDir())
+	canonical, _ := runStableCanonical(ctx, repo, []byte("{"), base, target, t.TempDir(), nil)
+	if legacy.RepositoryEnvelope != "primary-clean-config-bounded/1" {
+		t.Fatalf("legacy envelope %q", legacy.RepositoryEnvelope)
+	}
+	if canonical.RepositoryEnvelope != "canonical-repository-bounded/1" {
+		t.Fatalf("canonical envelope %q", canonical.RepositoryEnvelope)
+	}
+	legacyCLI, _ := executeStableCLI(ctx, []string{"--bogus"})
+	if legacyCLI.RepositoryEnvelope != stableLegacyEnvelope {
+		t.Fatalf("legacy CLI refusal envelope %q", legacyCLI.RepositoryEnvelope)
 	}
 }

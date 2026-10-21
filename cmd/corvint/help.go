@@ -12,7 +12,7 @@ var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
 	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true,
+	"anchor": true, "provenance": true, "export": true, "verify-stable": true, "gate-verdict": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -52,7 +52,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = nestedHelpTopic(rest[1], rest[2])
+		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
@@ -1069,7 +1069,7 @@ Usage:
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]
-  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts]
+  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
@@ -1109,8 +1109,8 @@ Actions:
            same map and REV is refused, an identical one writes nothing.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
-           --notes-tip OID, rollback when OID is not an ancestor of the ref;
-           with --verdicts, list REV's verdict ledger records.
+           --notes-tip OID (or --verdicts-tip OID), rollback when OID is not an
+           ancestor of its ref; --verdicts lists REV's verdict ledger records.
   export   (read-only) Verify the cem/1.0 map as cem verify does (with
            --artifacts) and require the target to commit it, then copy the map
            as cem.json and each declared artifact under artifacts/ into the new

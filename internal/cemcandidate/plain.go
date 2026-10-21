@@ -243,6 +243,10 @@ func newBundle(repository, out string) (*os.Root, error) {
 // input between verification and the final pin check.
 var afterPlainVerify func()
 
+// syncNew is (*os.File).Sync in production. Tests replace it to inject a
+// sync failure into writeNew (V1-1471).
+var syncNew = (*os.File).Sync
+
 // writeNew creates name exclusively and removes it again if the write, sync or
 // close fails, so a failed write leaves no partial map behind.
 func writeNew(root *os.Root, name string, raw []byte) error {
@@ -252,7 +256,7 @@ func writeNew(root *os.Root, name string, raw []byte) error {
 	}
 	_, e = f.Write(raw)
 	if e == nil {
-		e = f.Sync()
+		e = syncNew(f)
 	}
 	if closed := f.Close(); e == nil {
 		e = closed

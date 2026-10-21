@@ -347,3 +347,20 @@ func TestRootHelpMutationBoundary(t *testing.T) {
 		t.Fatal("support boundary reverted to the blanket non-mutation claim")
 	}
 }
+
+// TestCEMCiteSpanNotStableExitStatusV11436 is V1-1436: a cite whose evidence
+// span the change edits exits 2 with the typed cite-span-not-stable code.
+func TestCEMCiteSpanNotStableExitStatusV11436(t *testing.T) {
+	t.Parallel()
+	root, base, target := cemRepo(t)
+	code, _, stderr := runCLI(t, "--root", root, "cem", "prepare", "--base", base, "--target", target)
+	if code != 0 {
+		t.Fatalf("prepare: %s", stderr)
+	}
+	code, out, stderr := runCLI(t, "--root", root, "cem", "cite",
+		"--map", ".corvint/change.cem.json", "--hunk", "1",
+		"--evidence-path", "src/app.txt", "--lines", "2:2", "--relation", "implementation")
+	if code != 2 || out != "" || !strings.HasPrefix(stderr, "{\"code\": \"cite-span-not-stable\", ") {
+		t.Fatalf("unstable span: exit %d stdout %q stderr %q", code, out, stderr)
+	}
+}
