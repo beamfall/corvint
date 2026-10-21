@@ -176,7 +176,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 // caller-owned local policy, never the protected harness or Frontier authority.
 func dogfoodEventHostAdmitted(options options) bool {
 	if options.host == "pi" {
-		return options.hostVersion == "0.99.1" && options.surface == "extension" && options.adapterVersion == "0.3.2"
+		return options.hostVersion == piHostVersion && options.surface == "extension" && options.adapterVersion == piAdapterVersion
 	}
 	hostVersion, admitted := dogfoodHostVersions[options.host]
 	return admitted && options.surface == "plugin" && options.adapterVersion == adapterWireVersion && options.hostVersion == hostVersion

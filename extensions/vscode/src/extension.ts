@@ -26,7 +26,6 @@ import {
   type Operation,
   type TransportAuthority,
 } from "./model.js";
-import { decodeObservation, readStableObservation } from "./observations.js";
 import { LiveTestController, type LiveTestSnapshot } from "./liveTests.js";
 import { CorvintPresentation } from "./presentation.js";
 import { ProcessFailure, runBoundedProcess } from "./process.js";
@@ -91,7 +90,6 @@ class CorvintRuntime implements vscode.Disposable {
       vscode.commands.registerCommand("corvint.query", () => this.tasks.track(this.query())),
       vscode.commands.registerCommand("corvint.impact", () => this.tasks.track(this.impact())),
       vscode.commands.registerCommand("corvint.refresh", () => this.tasks.track(this.refresh())),
-      vscode.commands.registerCommand("corvint.importTestObservation", () => this.tasks.track(this.importObservation())),
       vscode.commands.registerCommand("corvint.clearResults", () => this.clearResults()),
     );
     this.resetInitialState();
@@ -549,46 +547,6 @@ class CorvintRuntime implements vscode.Disposable {
       decodeContextReceipt(source.context, operation, settings.maxOutputBytes, "corvint", value, source.snapshotBytes),
       authority,
     );
-  }
-
-  private async importObservation(): Promise<void> {
-    if (!this.guardTrusted()) {
-      return;
-    }
-    const root = await this.selectRoot();
-    if (root === undefined || this.disposed || !vscode.workspace.isTrusted) {
-      return;
-    }
-    this.invalidateOperations();
-    const generation = this.operationGeneration;
-    let configured: string;
-    try {
-      configured = configurationValue("testObservationPath", "", vscode.Uri.file(root));
-    } catch (error) {
-      this.fail("Incompatible", error);
-      return;
-    }
-    const relativePath = configured.length > 0 ? configured : await vscode.window.showInputBox({
-      title: "Import Corvint test observation",
-      prompt: "Workspace-relative path to a complete go-live-event/0 JSONL sequence and go-live-run/0 terminal.",
-      ignoreFocusOut: true,
-    });
-    if (relativePath === undefined || !this.uiCurrent(generation)) {
-      return;
-    }
-    try {
-      const bytes = await readStableObservation(root, relativePath);
-      if (!this.uiCurrent(generation)) return;
-      const observation = decodeObservation(bytes);
-      if (!this.uiCurrent(generation)) return;
-      this.testing.import(observation);
-      this.presentation.setStatus("Degraded", `UNVERIFIED_IMPORT ${observation.runId}; observation only, not current`);
-    } catch (error) {
-      if (this.uiCurrent(generation)) {
-        this.testing.clear();
-        this.fail("Degraded", error);
-      }
-    }
   }
 
   private clearResults(): void {
