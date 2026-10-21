@@ -55,6 +55,12 @@ type change struct {
 	// (V1-1147).
 	citationFailedValues string
 	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
+	// mergedSeals are the sealed CEM paths BASE..HEAD adds that re-verified
+	// (DCW-V0-042); an aggregate bound refusal names them (DCW-V0-113).
+	mergedSeals []string
+	// citationRefusals is every refused cite row of the plan, found in one
+	// pass after the first refusal (DCW-V0-114).
+	citationRefusals     []string
 	linkObservedRows     int
 	citedOver            bool
 	guardHunks           int // hunks the guarding-test search would select (DCW-V0-069)
@@ -240,6 +246,7 @@ func (c *change) admitSealedCEMs(inherited inheritedCEM) {
 				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
 				continue
 			}
+			c.mergedSeals = append(c.mergedSeals, path)
 			notes = append(notes, fmt.Sprintf("sealed-cem-merged bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
 		}
 	}
@@ -839,7 +846,11 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 			}
 			stderr := readFile(errorFile)
 			c.citeSpanUnaligned = bytes.Contains(stderr, []byte(citeSpanUnedited))
-			return "NOT_PRODUCED", failureReason(stderr, status)
+			reason := failureReason(stderr, status)
+			if planRowCodes[reason] && !unknownRow(fields) {
+				c.probeCitationRows(readLines(plan), index, citeMap, reason)
+			}
+			return "NOT_PRODUCED", reason
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
 		// publishes the original map. Keep their raw stdout as private evidence.
@@ -848,6 +859,47 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 	}
 	return "PRODUCED", "none"
 }
+
+// planRowCodes are the cem cite refusals a plan row itself causes, which
+// another row of the same plan can repeat (DCW-V0-114).
+var planRowCodes = map[string]bool{"cite-span-not-stable": true, "cite-self-modified-authority": true, "missing-evidence": true, "invalid-arguments": true}
+
+// probeCitationRows reports every refused cite row in one pass: after the
+// first refusal at row failed, each later cite row is cited against the same
+// unchanged map into a private probe output that is removed at once, so no
+// staged or tracked map changes. The checks a row can fail read only its own
+// evidence and the map's patch, never another row's citation, so the probe
+// sees what a corrected rerun would. Unknown rows are not probed (DCW-V0-114).
+func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason string) {
+	c.citationRefusals = []string{citationRefusal(failed, lines[failed], reason)}
+	probe := ".corvint/.cem-citations-probe." + filepath.Base(c.runTmp) + ".json"
+	defer func() { _ = removeFile(c.path(probe)) }()
+	for index := failed + 1; index < len(lines); index++ {
+		fields := strings.SplitN(lines[index], "\t", 4)
+		if len(fields) != 4 || unknownRow(fields) {
+			continue
+		}
+		errorFile := c.runTmp + "/cem-cite-probe.stderr"
+		status := c.exec([]string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3], "--output", probe},
+			c.runTmp+"/cem-cite-probe.json", errorFile)
+		_ = removeFile(c.path(probe))
+		if status != 0 {
+			c.citationRefusals = append(c.citationRefusals, citationRefusal(index, lines[index], failureReason(readFile(errorFile), status)))
+		}
+	}
+}
+
+// citationRefusal names one refused plan row by number, hunk, path and span.
+func citationRefusal(index int, line, reason string) string {
+	fields := strings.SplitN(line, "\t", 4)
+	for len(fields) < 3 {
+		fields = append(fields, "")
+	}
+	return fmt.Sprintf("row %d hunk=%s path=%s lines=%s %s", index+1, fields[0], strconv.Quote(fields[1]), fields[2], reason)
+}
+
+// maxNamedRefusals bounds how many refused plan rows the report names.
+const maxNamedRefusals = 32
 
 // keepMapEncoding restores the map bytes read before a cite pass that changed
 // only their encoding: the CEM contract fixes strict JSON, not a byte layout,
@@ -1591,6 +1643,37 @@ func (c *change) untrackedPaths() []string {
 	return paths
 }
 
+// aggregateBoundReasons are the multi-intent aggregate bound refusals
+// (OCM-V0-013, OCM-V0-021).
+var aggregateBoundReasons = map[string]bool{"map-too-large": true, "too-many-claims": true, "too-many-obligations": true}
+
+// maxNamedSeals bounds how many merged sealed changes the stacked hint names.
+const maxNamedSeals = 4
+
+// stackedPredecessorHint names the stacked-predecessor cause of an aggregate
+// bound refusal: BASE..HEAD also carries merged sealed changes, whose hunks
+// and governing specs count toward this change's obligations. The route is to
+// bind against the sealed predecessor's seal commit, so only this lane's hunks
+// bind and batch-check verifies both (DCW-V0-113).
+func (c *change) stackedPredecessorHint() string {
+	named := []string{}
+	for _, path := range c.mergedSeals[:min(len(c.mergedSeals), maxNamedSeals)] {
+		bind := sealedCEMPath.FindStringSubmatch(path)[1]
+		seal := c.gitValue("log", "-1", "--format=%H", "--diff-filter=A", c.target, "--", path)
+		if seal == "" {
+			seal = "UNKNOWN"
+		}
+		named = append(named, "bind="+bind+" seal="+seal)
+	}
+	if len(c.mergedSeals) > maxNamedSeals {
+		named = append(named, fmt.Sprintf("(+%d more)", len(c.mergedSeals)-maxNamedSeals))
+	}
+	return fmt.Sprintf("stacked-predecessor: BASE %s..HEAD also merges %d sealed change(s) (%s), whose hunks and specs count toward this change's bound; "+
+		"a lane stacked on one sealed predecessor binds against that predecessor's seal commit instead: rerun dogfood-change, dogfood-check and dogfood-seal with BASE=<seal>, list only this lane's specs in DOGFOOD_INTENTS_FILE, "+
+		"and check the merge batch with corvint dogfood batch-check, which verifies each sealed change against its own base; otherwise narrow the intents (docs/DOGFOOD.md \"Stacking on a sealed predecessor\", DCW-V0-113)",
+		c.base, len(c.mergedSeals), strings.Join(named, ", "))
+}
+
 // citeSpanUnedited is the cem cite refusal phrase for a span whose base
 // lines no hunk edits but whose text recurs in the changed file.
 const citeSpanUnedited = "are edited by no hunk"
@@ -1633,6 +1716,9 @@ func (c *change) fixHint(row step) string {
 			}
 			return strings.NewReplacer("{paths}", named, "{base}", c.base).Replace(untrackedHint)
 		}
+	}
+	if row.name == "ocm-aggregate" && aggregateBoundReasons[row.reason] && len(c.mergedSeals) > 0 {
+		return c.stackedPredecessorHint()
 	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
@@ -1719,6 +1805,15 @@ func (c *change) reportFailures() int {
 		c.say("  %s: %s\n", row.name, row.reason)
 		if hint := c.fixHint(row); hint != "" {
 			c.say("    fix: %s\n", hint)
+		}
+		if row.name == "cem-cite" && len(c.citationRefusals) > 0 {
+			c.say("    refused plan rows=%d (every cite row checked in this pass; fix them all before rerunning, DCW-V0-114):\n", len(c.citationRefusals))
+			for _, refusal := range c.citationRefusals[:min(len(c.citationRefusals), maxNamedRefusals)] {
+				c.say("      %s\n", refusal)
+			}
+			if len(c.citationRefusals) > maxNamedRefusals {
+				c.say("      (+%d more)\n", len(c.citationRefusals)-maxNamedRefusals)
+			}
 		}
 	}
 	// cem cite only adds evidence and prepare resumes a matching map, so a

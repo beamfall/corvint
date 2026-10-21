@@ -240,6 +240,16 @@ each cited path still exists at that revision, and what was omitted or could not
   tooling configuration. Cancellation must retire the owned descendant group and remove the
   private gopls cache. A required live check may not silently skip an absent server.
 
+- `EEP-V0-028`: (accepted under the owner's standing auto-accept, 2026-10-11; V1-1757) Before
+  answering EEP-V0-009 freshness by ancestry, the checkout's ancestry MUST be trusted by the
+  shared `internal/gitancestry` guard: no `info/grafts` file under the Git common directory and
+  `rev-parse --is-shallow-repository` answering `false`. Otherwise, or when either probe is
+  unreadable, freshness is `revision-unavailable`, never `repository-ahead`, `provider-ahead` or
+  `unrelated-history`, because Git honours grafts even with replace objects disabled and a
+  shallow boundary cuts parents. `equal` needs no ancestry and is unchanged. Falsifier: a grafted
+  or shallow checkout whose freshness is an ancestry verdict. Rollback: drop the guard call from
+  `Freshness`.
+
 ## Non-goals and simpler baseline
 
 - New transports or analyzer authority. The kit reuses the separately owned contained command
@@ -352,6 +362,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
 
 | `EEP-V0-027` | `rootCommit`, `environment`, `run` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`, `TestContextLSPEnvironmentDropsRelativePATH` |
+| `EEP-V0-028` | `Freshness` in `internal/extevidence/freshness.go`; `Rewritten` in `internal/gitancestry/gitancestry.go` | `TestFreshnessDistrustsRewrittenAncestry_EEPV0028`, `TestRewrittenNamesGraftsShallowAndUnreadable_EEPV0028` |
 
 ## Unresolved decisions and promotion or kill criteria
 
