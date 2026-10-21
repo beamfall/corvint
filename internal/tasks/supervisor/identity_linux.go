@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 )
 
@@ -36,7 +37,39 @@ func ProcessIdentity(pid int) (string, error) {
 	if len(f) < 20 {
 		return "", fmt.Errorf("short process stat")
 	}
-	stat, e := os.ReadFile("/proc/stat")
+	if n, e := strconv.ParseUint(f[19], 10, 64); e != nil || n == 0 {
+		return "", fmt.Errorf("invalid process start identity")
+	}
+	boot, e := bootIdentity()
+	if e != nil {
+		return "", e
+	}
+	return "linux:" + boot + ":" + f[19], nil
+}
+
+// readBootStat reads /proc/stat; tests replace it to make btime jitter.
+var readBootStat = os.ReadFile
+
+// bootTime is the first valid btime this process read (V1-1091). The kernel
+// derives btime on every read as the boot instant in realtime seconds,
+// truncated, so a realtime adjustment that straddles a second boundary makes
+// reads differ by one (1,076 and 1,924 of 3,000 reads in one VM). The boot
+// itself cannot change while this process runs, so every identity it
+// computes reuses that first value and two reads of one live process always
+// match. An identity another process recorded can still differ by that one
+// second; see docs/build-log/2026-10-20-v1-1091-btime-jitter.md.
+var bootTime struct {
+	sync.Mutex
+	value string
+}
+
+func bootIdentity() (string, error) {
+	bootTime.Lock()
+	defer bootTime.Unlock()
+	if bootTime.value != "" {
+		return bootTime.value, nil
+	}
+	stat, e := readBootStat("/proc/stat")
 	if e != nil {
 		return "", e
 	}
@@ -46,13 +79,11 @@ func ProcessIdentity(pid int) (string, error) {
 			boot = strings.TrimPrefix(line, "btime ")
 		}
 	}
-	if n, e := strconv.ParseUint(f[19], 10, 64); e != nil || n == 0 {
-		return "", fmt.Errorf("invalid process start identity")
-	}
 	if n, e := strconv.ParseUint(boot, 10, 64); e != nil || n == 0 {
 		return "", fmt.Errorf("boot identity unavailable")
 	}
-	return "linux:" + boot + ":" + f[19], nil
+	bootTime.value = boot
+	return boot, nil
 }
 
 // processGone reports a /proc read failure that proves the process ended.
