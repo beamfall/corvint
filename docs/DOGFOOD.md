@@ -194,7 +194,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 
 | Class | Trigger | `dogfood-change` | `dogfood-check` |
 |---|---|---|---|
-| Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
+| Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed`. Untracked files count even when `git status` hides them: the recorder ignores `core.excludesFile`, so the `fix:` line names each untracked path outside `.corvint/`; move it out of the worktree or list it in the repository `.gitignore` (`DCW-V0-091`) | `REFUSE dirty-worktree` (exit 2) with the required-order line |
 | Unsupported | repository-configured clean or process filter | NOT_OBSERVED | `REFUSE worktree-status-unavailable` (exit 2) with the reason and a `fix:` line; the filter never runs (`DCW-V0-045`) |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
 | Unknown | hunk neither cited nor kept unknown with a reason by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |

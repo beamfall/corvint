@@ -1533,6 +1533,32 @@ var fixHints = []struct{ pattern, hint string }{
 
 const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
+// untrackedHint names the untracked paths the recorder counts as dirty
+// (DCW-V0-091). The recorder ignores core.excludesFile, so git status can
+// hide a path a personal excludes file covers.
+const untrackedHint = "the recorder requires a clean tree and counts these untracked paths as dirty: {paths}; it ignores core.excludesFile, so git status may not show them; move them out of the worktree or list them in the repository .gitignore, then rerun corvint dogfood change {base} (DCW-V0-091)"
+
+// maxNamedUntracked bounds how many untracked paths untrackedHint names.
+const maxNamedUntracked = 8
+
+// untrackedPaths is the sorted untracked paths, outside .corvint/ and the
+// recorder's private artifacts, that the recorder's clean-tree check sees.
+// A failed or over-bound read names none, so the generic hint applies.
+func (c *change) untrackedPaths() []string {
+	output, status, bounded := c.boundedGit("-c", "core.excludesFile=", "ls-files", "--others", "--exclude-standard", "-z")
+	if status != 0 || !bounded {
+		return nil
+	}
+	paths := []string{}
+	for _, path := range strings.Split(output, "\x00") {
+		if path != "" && !strings.HasPrefix(path, ".corvint/") && !trace.IsRecordArtifactPath(path, len(c.base)) {
+			paths = append(paths, path)
+		}
+	}
+	slices.Sort(paths)
+	return paths
+}
+
 // citeSpanUnedited is the cem cite refusal phrase for a span whose base
 // lines no hunk edits but whose text recurs in the changed file.
 const citeSpanUnedited = "are edited by no hunk"
@@ -1566,6 +1592,15 @@ func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
 	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding != "" {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
+	}
+	if value == "local-outcome:record-index-failed" {
+		if paths := c.untrackedPaths(); len(paths) > 0 {
+			named := strings.Join(paths[:min(len(paths), maxNamedUntracked)], ", ")
+			if len(paths) > maxNamedUntracked {
+				named += fmt.Sprintf(" (+%d more)", len(paths)-maxNamedUntracked)
+			}
+			return strings.NewReplacer("{paths}", named, "{base}", c.base).Replace(untrackedHint)
+		}
 	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
