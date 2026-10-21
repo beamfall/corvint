@@ -1055,6 +1055,30 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   names the repack-and-remove or `git clone --no-local` recovery. Non-goals: admitting an
   unsupported constituent, or a fix line for a code the change itself causes. Failure modes: a
   verifier that omits the code leaves only `state=`.
+- `DCW-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1616)
+  `finish-lane` MUST run only the steps each pass's decision reads: the prepare pass stops after
+  `cem prepare` (on an unprepared map it still writes the report and prints the failure rows),
+  and the bind pass runs neither the coordination-time query and impact nor the local-outcome
+  recorder, whose rows the rebind, a full `dogfood change` pass, recomputes and the check
+  decides. It MUST write, on stderr, `dogfood-finish-lane: TIMING <step> seconds=<s>
+  commands=<n>` for each step it runs (`prepare`, `bind`, `commit`, `rebind`, `check-seal`) and
+  a final `TIMING total seconds=<s> commands=<n> detail=<path>` line, also after a stop or an
+  interruption, where `<path>` is `<git-dir>/corvint/dogfood-finish-lane.timings.tsv` with one
+  `step, command, exit, seconds` row per command its runners executed (the command's leading
+  words only, never its arguments). Non-goals: changing the evidence the rebind and check
+  produce, a progress stream, or a time budget. Failure modes: a TSV that cannot be written
+  names `detail=not-written`; a run refused before its first step prints no TIMING line.
+- `DCW-V0-116`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1488)
+  An interrupted `finish-lane` MUST print, on stderr after the `<step> INTERRUPTED` block,
+  `dogfood-finish-lane: INTERRUPTED <step>` and a `fix:` line naming the exact recovery: before
+  the bind commit, the rerun with the same inputs, which prepares again; at `rebind` or `check`,
+  restoring the bind commit's sidecar and then the rerun, which resumes from the named bind
+  commit; at `seal`, also restoring the seal's staged `.corvint/changes/<bind>.cem.json`. An
+  `ocm-prepare-N` row refused with `verification-timeout` MUST print a `fix:` line naming the
+  stopped intent (line N of the intents file), its kept stderr, that nothing was committed, and
+  the rerun that prepares it again. Non-goals: resuming inside a pass, or raising the verifier's
+  deadline. Failure modes: a stopped pass's `.corvint/dogfood-report.json` is not the checked
+  report until the rerun's rebind rewrites it.
 
 ## Code vocabulary
 
@@ -1285,6 +1309,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-075` (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) | `internal/contextindex/git.go` `gitDeadline` (unchanged); `internal/dogfoodflow/flow.go` `impactDeadlineOverrun`, `internal/dogfoodflow/change.go` `prechangeImpact`, `failing`, `reportFailures`, `internal/dogfoodflow/check.go` `checkContextAbstention`; `TestDCWV0075GitDeadlineIsThirtySeconds`, `TestDCWV0075SlowGitOverrunsTheDeadline` (an injected slow Git wrapper overruns a shorter caller deadline with the exact uncoded refusal and `context.DeadlineExceeded` cause); `TestDCWV0075OneOverrunIsRetriedOnce` (impact runs twice, the retry's output is produced); `TestDCWV0075SecondOverrunIsAVisibleNonBlockingAbstention` (exactly two runs, the admitted row, null digest, no artifact, NOTE lines, `exit-2` still blocks, check accepts the retained envelope and fails a drifted one) | implemented; a live overrun under host load NOT_OBSERVED |
 | `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
 | `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
+| `DCW-V0-115` (accepted under the owner's standing auto-accept (2026-10-11); V1-1664) | `internal/dogfoodflow/change.go` `passScope`, `run`; `internal/dogfoodflow/finishlane.go` `passScopes`, `timed`; `internal/dogfoodflow/finishlane_timing.go` `laneClock`, `writeTimings`; `TestFinishLaneDCWV0115PreparePassRunsOnlyCEMPrepare` (the prepare pass runs `cem prepare` first and no query, impact, OCM or recorder command; the total line and TSV agree on the command count); `TestDogfoodFinishLaneDCWV0060MatchesManualRecipe` (built binary: the seal tree still equals the manual recipe's, `NOT_PRODUCED rows=2`, every step's TIMING line, and only the rebind runs query, impact and `dogfood-record`); 72-hunk docs-only finish 132.9 s to 73.4 s wall on the same host (build-log 2026-10-21-dogfood-perf-1021g-finish-lane-passes) | implemented; focused tests PASS |
+| `DCW-V0-116` (accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1488) | `internal/dogfoodflow/finishlane.go` `interrupted`, `recovery`; `internal/dogfoodflow/change.go` `fixHints`; `TestFinishLaneDCWV0067NamesTheInterruptedStep` (the prepare fix names the rerun); `TestFinishLaneDCWV0067NamesAnInterruptedSeal` (check and seal name the restore and the bind commit); live: a finish interrupted by SIGINT during rebind printed the restore and rerun, and the rerun resumed from the bind commit and sealed | implemented; the OCM timeout hint NOT_OBSERVED live (no timeout reproduced) |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -1367,6 +1393,10 @@ the `spec-requirements-check` doc gate; no artifact needs migrating.
 Roll back `DCW-V0-110` and `DCW-V0-111` by reverting their change: `unbound-commits` and refused
 constituents lose the extra `fix:` lines and ` code=` suffixes; verdicts are unchanged, so nothing
 needs migrating.
+Roll back `DCW-V0-115` and `DCW-V0-116` by reverting their change: the prepare and bind passes
+again run every step, the TIMING lines and recovery `fix:` lines disappear, and
+`dogfood-finish-lane.timings.tsv` becomes an unused private file that may be deleted; the rebind,
+check and seal evidence is unchanged, so nothing needs migrating.
 Roll back `DCW-V0-075` by reverting its change: a deadline overrun again records the blocking
 `exit-2` row with no retry, and an earlier checker treats a report carrying
 `impact-deadline-exceeded` as incomplete; no artifact or format needs migrating.

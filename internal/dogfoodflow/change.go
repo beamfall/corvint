@@ -89,18 +89,6 @@ type change struct {
 	scope passScope
 }
 
-// passScope names the steps one change pass runs. finish-lane's prepare pass
-// reads only the prepared map and its bind pass only the cite, guarding-test,
-// OCM and status rows; the rebind is the full pass whose report is checked, so
-// the narrowed passes never decide the delivered evidence (DCW-V0-115).
-type passScope int
-
-const (
-	passFull passScope = iota
-	passPrepare
-	passBind
-)
-
 // Change runs the pre-change context, binding and status steps and writes
 // .corvint/dogfood-report.json, exactly as script/dogfood-change.sh did.
 func Change(ctx context.Context, options ChangeOptions, stderr io.Writer) (int, error) {
@@ -2144,3 +2132,15 @@ func (c *change) recordWithClosedStages(args []string, output, errorFile string)
 	c.checkpoint()
 	return status, nil
 }
+
+// passScope names the steps one change pass runs. finish-lane's prepare pass
+// reads only the prepared map and its bind pass only the cite, guarding-test,
+// OCM and status rows; the rebind is the full pass whose report is checked, so
+// the narrowed passes never decide the delivered evidence (DCW-V0-115).
+type passScope int
+
+const (
+	passFull passScope = iota
+	passPrepare
+	passBind
+)
