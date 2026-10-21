@@ -16,7 +16,7 @@ func init() { cemcli.GitNotes = runCEMGitNotes }
 // (CEM-V1-277).
 func runCEMGitNotes(ctx context.Context, root, action string, values map[string]string, booleans map[string]bool) (map[string]any, error) {
 	if action == "provenance" {
-		return gitnotes.ProvenanceWithVerdicts(ctx, root, values["--commit"], values["--notes-tip"], booleans["--verdicts"])
+		return gitnotes.ProvenanceWithVerdictsTip(ctx, root, values["--commit"], values["--notes-tip"], booleans["--verdicts"], values["--verdicts-tip"])
 	}
 	commit := values["--commit"]
 	if commit == "" {

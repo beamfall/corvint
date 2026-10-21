@@ -3832,3 +3832,44 @@ actions refuse `--help` as an invalid argument.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-344 | `TestCEMV1340HelpCEMActionAndOwnedArgvActions`, `TestCEMV1340CEMActionHelpNamesOnlyThatAction` (`cmd/corvint`) | Every registered action's `help cem ACTION` output equals its action help; `verify-stable` and `gate-verdict` print theirs on `--help`/`-h` with and without `--root`; `verify-stable --map --help` still refuses with exit 2 |
+
+## Verdict ledger rollback read and two-process anchor race (V1-2024, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2024.
+
+- `CEM-V1-345`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2024)
+  `cem provenance --commit REV --verdicts --verdicts-tip OID` MUST compare the pinned
+  `refs/notes/corvint-verdicts` commit OID, which the caller recorded earlier, with the live ledger
+  tip exactly as `--notes-tip` does for `refs/notes/corvint` (`CEM-V1-067`). The `verdicts` member
+  gains `tip` (`ref`, `pinned`, `live`, `state`). The state is `current` when OID is the live tip
+  or one of its ancestors and `rollback` otherwise, including when the live ref is absent. Under
+  `rollback` the member's `state` MUST be `rollback` and `records` MUST be empty, whatever the live
+  note holds. A ledger ref that moves during the read MUST be refused with
+  `provenance-notes-moved`. `--verdicts-tip` without `--verdicts`, or an OID that is not a full
+  lowercase hexadecimal commit object ID, MUST be refused with `invalid-arguments`. The read
+  writes nothing (`CEM-V1-277`). This amends `CEM-V1-279`: the provenance usage becomes
+  `cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]`.
+- `CEM-V1-346`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2024) Two
+  separate processes anchoring the same map with `--artifacts` against the same ledger MUST leave
+  exactly one writer's record. A writer whose validated ledger tip moved before its publish MUST
+  be refused with `verdict-ledger-conflict`, MUST overwrite nothing and MUST leave no staging ref
+  (`CEM-V1-275`, across processes).
+
+Non-goals: no rollback witness kept by Corvint (the pinned OID is the caller's record); reflog
+inspection; any change to anchor writes, the ledger record or the `--notes-tip` read.
+
+Failure modes:
+- A caller that pins no tip still cannot detect a rewound ledger; a rewind to a valid earlier
+  prefix reads `verified` without `--verdicts-tip`.
+
+Acceptance evidence: `TestCEMV1345RewoundVerdictTipReadsRollback` and
+`TestCEMV1346TwoProcessAnchorsOneWins` (`internal/gitnotes`) pass. Dropping the rollback override
+makes the first fail, and dropping the `update-ref` old value makes the second fail.
+
+Rollback: revert the change commit. `--verdicts-tip` becomes an unrecognized argument again, and no
+stored ledger, note or map depends on it.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-345 | `TestCEMV1345RewoundVerdictTipReadsRollback` (`internal/gitnotes`); `TestCEMV1345VerdictsTipThroughTheCLI` (`cmd/corvint`); `ProvenanceWithVerdictsTip`, `refTipState` in `internal/gitnotes/provenance.go` | Equal and ancestor pins read `current` with the verified record; a ref reset to an older commit and a deleted ref read `rollback` with no records; the two argument refusals; repository state unchanged across every read |
+| CEM-V1-346 | `TestCEMV1346TwoProcessAnchorsOneWins` (`internal/gitnotes`), which re-executes the test binary as two anchor processes; `publishNotes` in `internal/gitnotes/anchor.go` | The held process validates and stages, the free process wins, the held process is refused `verdict-ledger-conflict`, and the ledger holds only the winner's line with no staging ref |
