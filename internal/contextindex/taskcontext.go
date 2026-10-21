@@ -2594,9 +2594,6 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	if compiler.index.CommitRevision != "" { // TCP-V0-150: the HEAD commit beside the tree `revision`
 		packet["commit"] = compiler.index.CommitRevision
 	}
-	if worktree := taskContextWorktree(compiler.index); worktree != nil {
-		packet["worktree"] = worktree
-	}
 	if exclusions := taskContextExclusions(compiler.index); exclusions != nil {
 		packet["exclusions"] = exclusions
 	}
@@ -2604,22 +2601,6 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	return packet
-}
-
-// taskContextWorktree is TCP-V0-151: a source-dirty worktree is disclosed, never
-// silently answered from the commit tree. Dirty paths are sorted already.
-func taskContextWorktree(index *Index) map[string]any {
-	if !index.SourceDirty() {
-		return nil
-	}
-	paths := index.DirtyPaths
-	if len(paths) > maxExclusionSamples {
-		paths = paths[:maxExclusionSamples]
-	}
-	return map[string]any{
-		"state": "MIXED", "dirty_path_count": len(index.DirtyPaths), "dirty_paths": append([]string{}, paths...),
-		"binding": "evidence is the tree at `revision`; uncommitted content of the dirty paths is not read",
-	}
 }
 
 // taskStoreProjectionReason marks a Tasks store projection file, which is task
