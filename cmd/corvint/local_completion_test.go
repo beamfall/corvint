@@ -482,33 +482,6 @@ func TestLocalCompletionUnavailableEvaluationReason(t *testing.T) {
 	}
 }
 
-// TestDogfoodBeginPriorCompletionStaleNamesTheRoute pins the V1-0953 remedy
-// (LCP-V0-030): the refusal keeps its stable code and names the staged route.
-func TestDogfoodBeginPriorCompletionStaleNamesTheRoute(t *testing.T) {
-	t.Parallel()
-	var stderr strings.Builder
-	if code := emitLocalCompletionFailure(&stderr, "prior-completion-stale"); code != 2 {
-		t.Fatalf("exit %d", code)
-	}
-	var envelope struct {
-		Code  string `json:"code"`
-		Error struct {
-			Code, Message string
-		} `json:"error"`
-	}
-	if err := json.Unmarshal([]byte(stderr.String()), &envelope); err != nil {
-		t.Fatal(err)
-	}
-	if envelope.Code != "prior-completion-stale" || envelope.Error.Code != "prior-completion-stale" {
-		t.Fatalf("code drifted: %s", stderr.String())
-	}
-	for _, want := range []string{"LCP-V0-030", "seal commit", "fresh worktree or clone"} {
-		if !strings.Contains(envelope.Error.Message, want) {
-			t.Fatalf("message %q lacks %q", envelope.Error.Message, want)
-		}
-	}
-}
-
 // TestDogfoodBeginCheckBoundNamesTheLimit covers V1-1011 (LCP-V0-032): the
 // invalid-check-bound refusal keeps its code and names the per-check bounds and
 // the requested values.

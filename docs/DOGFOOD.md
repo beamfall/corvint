@@ -1028,14 +1028,9 @@ it. After the seal, `status` can offer `verify` again, because the seal moved th
 the shared path. Do not run that `verify`: it clears the satisfied record, and a `finish` cannot
 succeed while `HEAD` is the seal commit. Completion can then be rerun only from the bind commit
 (`git checkout --detach HEAD^`), and `cancel` would record non-success over a completion that
-succeeded. Leave the sealed worktree as it is and begin the next enrollment with `corvint dogfood
-begin`. In the same clone, `begin` archives the satisfied enrollment as a completed generation when
-its final check passed over a reviewed report set and the target that set bound is an ancestor of,
-or equal to, the new plan's `base` (LCP-V0-030). This is the staged route for an over-cap batch
-(see Staged binding of one oversized commit): bind, finish and seal `BASE..M1`, then begin the plan
-whose `base` is the M1 seal commit and bind `M1-seal..M2`. Any other stale satisfied enrollment
-refuses with `prior-completion-stale`; use a fresh worktree or clone for unrelated work. Adding a
-sealed-terminal state would amend LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
+succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
+`corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
+LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
 
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is
