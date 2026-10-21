@@ -32,6 +32,7 @@ type tamperMatrixCase struct {
 // outcome, stage, closed code and issue codes, and for an ACCEPT the whole
 // citation block (CEM-V1-226..229). interop/cem01-go asserts the same file.
 func TestCEMV1226TamperMatrixNative(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

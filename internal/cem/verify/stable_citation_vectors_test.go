@@ -47,6 +47,7 @@ type citationVectors struct {
 // for the ACCEPT, the exact bytes of the citation block (CEM-V1-108..112).
 // interop/cem01-go asserts the same file.
 func TestCEMV1111CitationVectorsNative(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

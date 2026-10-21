@@ -112,6 +112,7 @@ func TestCanonicalDiffNamesAMissingPromisedBlobAmongManySharedOnes(t *testing.T)
 // TestDiffExitClassificationKeepsCancellation: V1-0349. A cancellation during the missing-object
 // walk is returned as such, not hidden behind the diff's git-diff-failed.
 func TestDiffExitClassificationKeepsCancellation(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	markPromisor(t, root)
 	repository := open(t, root)
@@ -141,6 +142,7 @@ func markPromisor(t *testing.T, root string) {
 // git-diff-failed, the sealed stable packet's cause provenance; the same repository marked as a
 // promisor store answers repository-object-unavailable.
 func TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	blob := strings.TrimSpace(gitCmd(t, root, "rev-parse", target+":f.go"))
 	if err := os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])); err != nil {

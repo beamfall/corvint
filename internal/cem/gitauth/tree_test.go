@@ -56,6 +56,7 @@ func rawTreePaths(t *testing.T, root, commit, dir string) []string {
 // The verified listing must equal ls-tree's, in ls-tree's order, for every
 // directory shape and both object formats.
 func TestTreePathsMatchesLsTreeOrder(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
 			root, commit := pathsRepo(t, format)
@@ -79,6 +80,7 @@ func TestTreePathsMatchesLsTreeOrder(t *testing.T) {
 // Git lists a tree body that does not hash to its name; the verified walk
 // refuses it instead of listing a forged path or hiding a dropped one.
 func TestTreePathsRefusesMislabeledSubtree(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
 			root, commit := pathsRepo(t, format)
@@ -100,6 +102,7 @@ func TestTreePathsRefusesMislabeledSubtree(t *testing.T) {
 // refuses one more, and refuses tree bodies totalling more than MaxTreeBytes
 // even when every level fits its own batch.
 func TestTreePathsBoundsDepthAndBytes(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repo := open(t, root)
 	within := deepTarget(t, root, base, MaxTreeDepth-1)
