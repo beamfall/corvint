@@ -63,6 +63,19 @@ directory and slot count. Rules: one package per command, a narrow `-run` for `.
 `go test ./...` and no `make gate` in a lane (AGENTS.md "Verify"), and `make dogfood-finish` /
 `make dogfood-batch-check` (which build two verifiers) also run through the wrapper.
 
+A package slower than the 600 s foreground limit runs as shards (ASD-V0-026):
+
+```sh
+make test-shard PKG=./internal/tasks/store SHARDS=8 SHARD=0   # then SHARD=1..7
+make test-shard PKG=./internal/tasks/cli SHARDS=4 SHARD=0     # then SHARD=1..3
+```
+
+`tools/test-shards` lists the package's top-level tests and places each by a hash of its name;
+the last shard `-skip`s the others' names, so together the shards run every test exactly once,
+including one added after the listing. Run one shard per command. Placement is not cost-balanced:
+on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
+shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
+
 The light-weight prototype this replaces (`mkdir` slots with a PID file and dead-owner reclaim)
 could remove a live owner's slot when two waiters reclaimed the same dead slot at once; the
 `flock` form has no reclaim step. Cut over all lanes of a host together, because the two forms do
