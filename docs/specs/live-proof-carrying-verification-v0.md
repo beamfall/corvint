@@ -595,6 +595,61 @@ Rollback: revert the V1-2191 change. The `bun` subcommand becomes an unknown sub
 the `bun` receipt member and refusal document disappear, and every other receipt, refusal and exit
 status is unchanged; no retained document format changes.
 
+### Playwright 1.64 frame link and JS declaration placement (V1-2015, V1-2090, V1-2091)
+
+Three gaps remained in the slices above. On Playwright 1.64.0 every assertion step read
+`step-fault-underivable` (`LPCV-V0-128`, V1-2015). A retained 1.64.0 trace shows the cause: the
+library's `Frame.expect` event no longer carries `stepId`, and its `callId` reuses the runner's
+expect step id. A Vitest test and an unprofiled Playwright test had no declaration, only a failure
+frame (`anchor-not-declaration`) or nothing, so their `file` and `line` stayed absent even when a
+bound source reading could place them (V1-2090). Playwright spec paths relative to a non-root
+`testDir` had no pinned binding rule (V1-2091). `LPCV-V0-290` to `LPCV-V0-292` were accepted under
+the owner's standing auto-accept (2026-10-11). The slice is experimental and changes no axis state,
+reason or anchor other than the ones named here.
+
+- `LPCV-V0-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step
+  negation MUST link a library `Frame` event to its runner expect step by `stepId`, or by `callId`
+  when `stepId` is absent (the 1.64.0 shape). A present `stepId` always wins. A link that names no
+  runner expect step attaches no frame, so derivation abstains as before rather than borrowing an
+  unrelated frame. This resolves the `LPCV-V0-128` abstention. It does not qualify the 1.64.0 tuple
+  for the strength join, which stays gated by `LPCV-V0-129`.
+- `LPCV-V0-291`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After the
+  anchor and discovery placements of `LPCV-V0-145` and `LPCV-V0-147`, a JS/TS outcome with no
+  `file` and no `line`, whose `file` absence is `anchor-not-declaration` or
+  `not-recorded-by-provider` and whose provider full name is not empty, MUST be placed from the
+  bound example readings of the retained `testFileDigests` keys inside the repository root. A
+  reading matches when its literal `titlePath` joined by a space (Vitest) or by ` > ` (bun) equals
+  the full name exactly. Exactly one match sets `file`, `line` and `titlePath` from that reading.
+  More than one sets `file` and `line` absent with `declaration-ambiguous`. No match leaves the
+  location unchanged. A failure frame never sets a member, and the projection's axes, reasons and
+  hygiene do not change.
+- `LPCV-V0-292`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A
+  Playwright spec anchor relative to a non-root `testDir` or `rootDir` MUST bind to the one
+  retained `testFileDigests` key inside the repository root whose path ends with the anchor at a
+  path boundary. With no repository root it stays `repository-root-unbound`, and when more than one
+  key shares the tail it stays `anchor-file-unbound`; it is never guessed.
+
+Non-goals:
+- qualifying the 1.64.0 tuple or flipping `stepNegationJoinQualified`;
+- matching a computed, template or `each`-generated title against a full name;
+- reading Playwright configuration to learn `testDir`.
+
+| Failure mode | Prevented by |
+|---|---|
+| A 1.64.0 assertion step abstains although its frame was retained. | `LPCV-V0-290` callId fallback |
+| A stray callId attaches an unrelated frame. | `LPCV-V0-290` link must name a runner expect step |
+| A failure frame reads as the declaration. | `LPCV-V0-291` placement from a bound reading only |
+| Two declarations with one full name pick one silently. | `LPCV-V0-291` `declaration-ambiguous` |
+| A rootDir-relative anchor binds to the wrong spec. | `LPCV-V0-292` unique suffix or `anchor-file-unbound` |
+
+Acceptance evidence: the focused tests in the traceability rows, and the live 1.64.0 qualified-mode
+diagnostic recorded in `docs/build-log/2026-10-21-1021p-test-validity-js.md` (12 of 12 with the
+fix, 7 of 12 failing without it). Real Vitest and non-root `testDir` Playwright runs are `NOT_RUN`.
+
+Rollback: revert the V1-2015, V1-2090 and V1-2091 change. 1.64.0 traces abstain again, Vitest and
+unprofiled locations return to their earlier absences, and no retained document or receipt format
+changes.
+
 ## Promotion experiments
 
 All promotion corpora, changes, defects, splits, metrics, exclusions, and stopping rules MUST be
@@ -1976,58 +2031,3 @@ through this projection, including the Corvint formatter's inclusion frames (`LP
 Rollback: revert the V1-2045 and V1-2046 change. `location` and `static` disappear from projected
 documents, `--static` is refused as an unknown option, and every other member is unchanged; no
 retained document or receipt format changes.
-
-## Playwright 1.64 frame link and JS declaration placement (V1-2015, V1-2090, V1-2091)
-
-Three gaps remained in the slices above. On Playwright 1.64.0 every assertion step read
-`step-fault-underivable` (`LPCV-V0-128`, V1-2015). A retained 1.64.0 trace shows the cause: the
-library's `Frame.expect` event no longer carries `stepId`, and its `callId` reuses the runner's
-expect step id. A Vitest test and an unprofiled Playwright test had no declaration, only a failure
-frame (`anchor-not-declaration`) or nothing, so their `file` and `line` stayed absent even when a
-bound source reading could place them (V1-2090). Playwright spec paths relative to a non-root
-`testDir` had no pinned binding rule (V1-2091). `LPCV-V0-290` to `LPCV-V0-292` were accepted under
-the owner's standing auto-accept (2026-10-11). The slice is experimental and changes no axis state,
-reason or anchor other than the ones named here.
-
-- `LPCV-V0-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step
-  negation MUST link a library `Frame` event to its runner expect step by `stepId`, or by `callId`
-  when `stepId` is absent (the 1.64.0 shape). A present `stepId` always wins. A link that names no
-  runner expect step attaches no frame, so derivation abstains as before rather than borrowing an
-  unrelated frame. This resolves the `LPCV-V0-128` abstention. It does not qualify the 1.64.0 tuple
-  for the strength join, which stays gated by `LPCV-V0-129`.
-- `LPCV-V0-291`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After the
-  anchor and discovery placements of `LPCV-V0-145` and `LPCV-V0-147`, a JS/TS outcome with no
-  `file` and no `line`, whose `file` absence is `anchor-not-declaration` or
-  `not-recorded-by-provider` and whose provider full name is not empty, MUST be placed from the
-  bound example readings of the retained `testFileDigests` keys inside the repository root. A
-  reading matches when its literal `titlePath` joined by a space (Vitest) or by ` > ` (bun) equals
-  the full name exactly. Exactly one match sets `file`, `line` and `titlePath` from that reading.
-  More than one sets `file` and `line` absent with `declaration-ambiguous`. No match leaves the
-  location unchanged. A failure frame never sets a member, and the projection's axes, reasons and
-  hygiene do not change.
-- `LPCV-V0-292`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A
-  Playwright spec anchor relative to a non-root `testDir` or `rootDir` MUST bind to the one
-  retained `testFileDigests` key inside the repository root whose path ends with the anchor at a
-  path boundary. With no repository root it stays `repository-root-unbound`, and when more than one
-  key shares the tail it stays `anchor-file-unbound`; it is never guessed.
-
-Non-goals:
-- qualifying the 1.64.0 tuple or flipping `stepNegationJoinQualified`;
-- matching a computed, template or `each`-generated title against a full name;
-- reading Playwright configuration to learn `testDir`.
-
-| Failure mode | Prevented by |
-|---|---|
-| A 1.64.0 assertion step abstains although its frame was retained. | `LPCV-V0-290` callId fallback |
-| A stray callId attaches an unrelated frame. | `LPCV-V0-290` link must name a runner expect step |
-| A failure frame reads as the declaration. | `LPCV-V0-291` placement from a bound reading only |
-| Two declarations with one full name pick one silently. | `LPCV-V0-291` `declaration-ambiguous` |
-| A rootDir-relative anchor binds to the wrong spec. | `LPCV-V0-292` unique suffix or `anchor-file-unbound` |
-
-Acceptance evidence: the focused tests in the traceability rows, and the live 1.64.0 qualified-mode
-diagnostic recorded in `docs/build-log/2026-10-21-1021p-test-validity-js.md` (12 of 12 with the
-fix, 7 of 12 failing without it). Real Vitest and non-root `testDir` Playwright runs are `NOT_RUN`.
-
-Rollback: revert the V1-2015, V1-2090 and V1-2091 change. 1.64.0 traces abstain again, Vitest and
-unprofiled locations return to their earlier absences, and no retained document or receipt format
-changes.
