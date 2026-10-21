@@ -1639,6 +1639,8 @@ ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name 
 ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
 ERG-V0-022	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role w	unrecorded	-
 ERG-V0-023	docs/specs/corvint-tasks-external-reviews-v0.md	`gate record|resubmit` MUST compose repeated `--reason CODE:TEXT` and	unrecorded	-
+ERG-V0-026	docs/specs/corvint-tasks-external-reviews-v0.md	A hand-off note that names the commit its checkpoint was taken at MUST bind the	unrecorded	-
+ERG-V0-027	docs/specs/corvint-tasks-external-reviews-v0.md	When a gate's review history is longer than the packet reads, the packet MUST na	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1789,6 +1791,7 @@ TOL-V0-075	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-076	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
 TOL-V0-077	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170); rev	standing	2026-10-11; #1170; 2026-10-19; #1189
 TOL-V0-078	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Eac	standing	2026-10-11; #1170
+TOL-V0-131	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1922)	standing	2026-10-11; V1-1922
 TOL-V0-079	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An	standing	2026-10-11; #1180
 TOL-V0-080	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A c	standing	2026-10-11; #1180
 TOL-V0-081	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) `PR	standing	2026-10-11; #1180
@@ -3783,6 +3786,7 @@ PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) `Owner.S	standing	2026-10-11; V1-1387
 PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
+PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
@@ -4421,6 +4425,8 @@ TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCP-V0-121	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks	unrecorded	-
 TCP-V0-141	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The pack	unrecorded	-
+TCP-V0-150	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The	unrecorded	-
+TCP-V0-152	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	unrecorded	-
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-
