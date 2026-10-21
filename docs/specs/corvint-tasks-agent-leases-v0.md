@@ -1071,6 +1071,11 @@ how much of it a read must replay, never what a read may conclude.
   NOT fail or change the transaction. Read commands MUST NOT create, replace or remove the
   checkpoint (product invariant 4). The retained checkpoint therefore names the head the writer
   observed before its own receipt, and a later read replays at least that receipt.
+  Administrative writes do not retain one: compaction (`CAL-V0-302`), `receipt retire` and
+  `receipt unretire` (JRT-V0) and segment sealing rewrite or remove receipts, so they delete the
+  derived checkpoints (`internal/tasks/store/compact.go`, `retire.go`, `segment_seal.go`) and the next
+  read or write pays one complete audit. The retention rule above applies to ordinary mutation and
+  lease writers only.
 - `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
   projection it prints from that one observation. Where a checkpoint is present, a read MAY
   resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation

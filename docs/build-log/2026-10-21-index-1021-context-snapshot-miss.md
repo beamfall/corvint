@@ -74,7 +74,7 @@ Before the sidecar `.corvint/change.cem.json` is committed, that is the expected
 (`DCW-V0-091`) or the uncommitted-sidecar recovery (`internal/dogfoodflow/change.go`). Eight
 earlier build-log entries record the same pre-commit row clearing after the commit, for example
 `2026-10-12-v1-1276-dogfood-producer-cem-1-0.md`. This lane's own dogfood run is the
-same-change evidence: see the outcome below.
+same-change evidence: see "Batch 1021e integration disposition" below.
 
 ## V1-1758: spec index conflicts on adjacent appends
 
