@@ -30,6 +30,14 @@ func Identify(root, head, tree string, dirty []string) (SourceIdentity, error) {
 	return identity, nil
 }
 
+// errPathChanged is the typed refusal for a dirty path replaced between its
+// Lstat and its open (STR-V0-060).
+var errPathChanged = errors.New("it changed while it was digested")
+
+// pathDigestSwapHook, when set by a test, runs between the Lstat and the open
+// so a swap in that window can be exercised deterministically.
+var pathDigestSwapHook func(name string)
+
 func pathDigest(name string) (string, error) {
 	info, err := os.Lstat(name)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -54,11 +62,23 @@ func pathDigest(name string) (string, error) {
 	case !info.Mode().IsRegular():
 		return "special:" + info.Mode().Type().String(), nil
 	}
-	file, err := os.Open(name)
+	if pathDigestSwapHook != nil {
+		pathDigestSwapHook(name)
+	}
+	// Open without following a final symlink or blocking on a FIFO, then
+	// digest only the regular file the handle proves is the one the Lstat saw
+	// (STR-V0-060; V1-2129).
+	file, err := openInput(name)
 	if err != nil {
+		if now, lerr := os.Lstat(name); lerr != nil || !os.SameFile(info, now) {
+			return "", fmt.Errorf("%w: %v", errPathChanged, err)
+		}
 		return "", err
 	}
 	defer file.Close()
+	if opened, err := file.Stat(); err != nil || !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		return "", errPathChanged
+	}
 	hash := sha256.New()
 	if _, err := io.Copy(hash, file); err != nil {
 		return "", err

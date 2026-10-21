@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-11
 Requirement prefix: `STR-V0`
-Intent status: accepted (decision 0524; V1-0040); STR-V0-050..059 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583, V1-1257)
+Intent status: accepted (decision 0524; V1-0040); STR-V0-050..060 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583, V1-1257, V1-2129)
 Delivery status: implemented for the runner, `corvint test` (V1-1257 under decision 0544 item 6: promotion measurements in `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, executable STR-V0-004, STR-V0-011, STR-V0-058 and STR-V0-059 evidence in `docs/build-log/2026-10-19-V1-1257-str-v0-runner-promotion.md`); the CI call site stays experimental and shadow-only, and balanced and measured placement stay experimental and unpromoted
 Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 2026-10-11);
 `docs/specs/affected-plan-v0.md` (AFP-V0-011..013, 022, 023, 028..030, 041);
@@ -12,7 +12,7 @@ Authoritative inputs: V1-0040 owner request (2026-09-19 recommendation, widened 
 
 ## Agent digest
 - Claim: `corvint test` plans from the diff, runs only selected tests through runner adapters, shards deterministically, and falls back alike locally and in CI.
-- Status: accepted (decision 0524; V1-0040); STR-V0-050..059 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583, V1-1257)/implemented for the runner, `corvint test` (V1-1257 under decision 0544 item 6: promotion measurements in `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, executable STR-V0-004, STR-V0-011, STR-V0-058 and STR-V0-059 evidence in `docs/build-log/2026-10-19-V1-1257-str-v0-runner-promotion.md`); the CI call site stays experimental and shadow-only, and balanced and measured placement stay experimental and unpromoted
+- Status: accepted (decision 0524; V1-0040); STR-V0-050..060 accepted under the owner's standing auto-accept (2026-10-11; V1-1579; GitHub #1022; V1-1613, V1-1584, V1-1583, V1-1257, V1-2129)/implemented for the runner, `corvint test` (V1-1257 under decision 0544 item 6: promotion measurements in `docs/build-log/2026-10-16-v1-1257-str-v0-promotion-evidence.md`, executable STR-V0-004, STR-V0-011, STR-V0-058 and STR-V0-059 evidence in `docs/build-log/2026-10-19-V1-1257-str-v0-runner-promotion.md`); the CI call site stays experimental and shadow-only, and balanced and measured placement stay experimental and unpromoted
 - Exists: `corvint test` (`cmd/corvint/test.go`, `internal/sessiontest`), behind `make gate-affected` through `script/gate-affected-corvint.sh` (slice 3; `script/gate-affected.sh` stays as the rollback); in CI a shadow `--profile ci --dry-run` step beside the deciding driver `tools/corvint-pr-tests` with `tools/gate-affected-select`, built from its own pin `CORVINT_TEST_SHADOW_SOURCE` (AFP-V0-047) while the driver pins stay empty, so it plans and retains each PR shard's selection without deciding; `.github/cishards` (complete-universe partition and test slices), `cmd/corvint-go-test-provider` (experimental Go execute provider); `corvint test shards` and `--placement measured` (STR-V0-050..057, experimental: a duration-balanced shard plan from retained full-run cost tables, optionally carrying AFP-V0-041 test slices, executed locally only); `tools/ci-shard-costs refresh --history` retains each refreshed table as a dated, count-bounded file (STR-V0-056).
 - Blocked on: nothing for the runner, which is implemented (STR-V0-004's versioned capability manifest: TestSTRV0004AdapterCapabilityManifest, TestSTRV0058AdapterManifestVersionPinned, TestSTRV0059ReceiptBindsAdapterManifestVersion; STR-V0-011: TestSTRV0011ReceiptsHaveNoOtherReader); CI narrowing waits for the AFP-V0-029 shadow bar (met at 2026-10-14T17:59:52Z, NOT MET again at 1/5 failing rows on 2026-10-16) and V1-0812 before `corvint test` decides or narrows anything in CI; balanced placement stays unpromoted until the local 20% bar is measured or an accepted AFP-V0-028 amendment defines the CI comparison; the AFP-V0-011 list stays `NOT_OBSERVED`; the full-suite commands are declared in `.github/cishards/test-commands.json`, kept equal to `make go-test` by `make test-commands-check`.
 - Read next: Requirements; Boundaries and failure modes; Rollout and rollback.
@@ -372,6 +372,12 @@ two requirements make its version name its content and make each receipt carry i
   version is absent, or is not the version the verifying binary registers for that adapter, as
   `INCOMPLETE`. A receipt without the member is not canonical and is refused by the strict reader,
   which is also `INCOMPLETE`.
+- `STR-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2129) The
+  STR-V0-017 digest of a dirty regular file SHALL open it without following a final symlink and
+  without blocking on a FIFO (on platforms without those open flags, through the checked open),
+  and SHALL digest it only when the opened handle is a regular file that is the same file the
+  path's Lstat reported. A path replaced between that Lstat and the open, by a symlink, a FIFO or
+  another file, SHALL be refused as changed, never followed, blocked on or digested.
 
 ## Non-goals
 
@@ -567,6 +573,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-057 | `PlanShardsSliced`, `sliceUnits`, `placeUnits`, `checkPlannedSlices` in `DecodeShardPlan`, `ShardPartitionDigest` in `internal/sessiontest/shards.go`; `placeMeasured` slice units; `--test-slices`, `--split-allow` in `runTestShards` | `internal/sessiontest/shards_test.go` TestSTRV0057SlicedPlan (weights, distinct shards, digest binds slices, round trip, no-slice plans byte-identical, fallback and unusable inputs split nothing), TestSTRV0057ReadShardPlanSliceRefusals (flags, patterns, weights, siblings, missing, duplicate, whole and sliced, order, count, empty member, each under a recomputed digest), TestSTRV0057MeasuredPlacementRunsSlices (each slice on its planned shard with its flag and pattern); `cmd/corvint/session_test_shards_unix_test.go` TestSTRV0057CLIShardsSlices |
 | STR-V0-058 | `AdapterManifestProfile` and `adapterOperations` in `internal/sessiontest/adapter.go`; the pin table `adapterManifestVersionPins` in `internal/sessiontest/adapter_test.go` | `internal/sessiontest/adapter_test.go` TestSTRV0058AdapterManifestVersionPinned (every registered manifest matches its version's pin; an added or dropped operation under `corvint-test-adapter/0` and an unpinned `corvint-test-adapter/1` refused; a pinned bump passes beside the old pin) |
 | STR-V0-059 | `Invocation.AdapterManifest` set in `Runner.Execute`; the per-invocation check in `Verify` (`internal/sessiontest/verify.go`) | `internal/sessiontest/runner_unix_test.go` TestSTRV0059ReceiptBindsAdapterManifestVersion (the receipt cites `corvint-test-adapter/0`, survives the strict read and verifies `PASS`; an empty, other or unregistered-adapter citation is `INCOMPLETE`; a receipt without the member is refused as non-canonical); `internal/sessiontest/run_test.go` TestSTRV0009VerifyShardsMatrix; `cmd/corvint/session_test_command_unix_test.go` TestSTRV0010CLIRunWritesReceipt |
+| STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 
 ## Open decisions
 
