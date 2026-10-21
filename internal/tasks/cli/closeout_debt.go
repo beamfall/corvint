@@ -300,13 +300,9 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil && len(pos) != 0 {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket closeout-debt takes no positional argument")
 	}
-	limit := defaultCloseoutScanLimit
-	if v, ok := fl["limit"]; ok && err == nil {
-		n, e := strconv.Atoi(v)
-		if e != nil || n < 1 || n > maxCloseoutScanLimit {
-			err = wire.Errorf(wire.CodeMalformed, "--limit", "limit must be 1..%d", maxCloseoutScanLimit)
-		}
-		limit = n
+	limit := 0
+	if err == nil {
+		limit, err = parseScanLimit(fl)
 	}
 	if err != nil {
 		return failure(cmd, nil, err), 0
@@ -341,21 +337,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		return failure(cmd, rc, err), 0
 	}
 	root := rc.repo.PrimaryWorktree
-	ref := fl["ref"]
-	if _, given := fl["ref"]; !given {
-		ref = "refs/heads/" + branch
-		switch _, e := store.CloseoutRevision(root, "refs/remotes/origin/"+branch); {
-		case e == nil:
-			ref = "refs/remotes/origin/" + branch
-		case wire.CodeOf(e) != wire.CodeMalformed:
-			return failure(cmd, rc, e), 0
-		}
-	}
-	refCommit, err := store.CloseoutRevision(root, ref)
-	since := ""
-	if v, given := fl["since"]; given && err == nil {
-		since, err = store.CloseoutRevision(root, v)
-	}
+	ref, refCommit, since, err := closeoutRef(root, branch, fl)
 	var scan store.CommitScan
 	if err == nil {
 		scan, err = store.ScanCommits(root, refCommit, since, limit)

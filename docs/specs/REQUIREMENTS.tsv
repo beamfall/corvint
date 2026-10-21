@@ -1539,6 +1539,12 @@ TCD-V0-155	docs/specs/corvint-tasks-closeout-debt-v0.md	`gate run --attempt A --
 TCD-V0-156	docs/specs/corvint-tasks-closeout-debt-v0.md	The model refuses a CI-backed result without writing and without executing the	unrecorded	-
 TCD-V0-157	docs/specs/corvint-tasks-closeout-debt-v0.md	The receipt audit (`GateReuseReceiptAudit`) verifies each recorded CI-backed res	unrecorded	-
 TCD-V0-158	docs/specs/corvint-tasks-closeout-debt-v0.md	For a gate declared `reusable: true`, the `environmentSha256` that a run records	unrecorded	-
+TCD-V0-159	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE] [--ref RE	unrecorded	-
+TCD-V0-160	docs/specs/corvint-tasks-closeout-debt-v0.md	A PR title or body line references a ticket as delivered when it names the ticke	unrecorded	-
+TCD-V0-161	docs/specs/corvint-tasks-closeout-debt-v0.md	The result is one `taskman-delivery-screen/0` item, marked untrusted, with	unrecorded	-
+TCD-V0-162	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket delivery-screen` exits 0 when every ticket is `CLEAR`, 1 when any is not	unrecorded	-
+TCD-V0-163	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]` takes no	unrecorded	-
+TCD-V0-164	docs/specs/corvint-tasks-closeout-debt-v0.md	A ticket the batch or a lane only mentions, and that none delivers, is listed un	unrecorded	-
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-

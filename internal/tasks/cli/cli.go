@@ -76,7 +76,7 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket export",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
 	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "cutover",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
@@ -191,6 +191,10 @@ func Run(env Env) int {
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "closeout-debt":
 			return emitCloseoutDebt(env, args[2:])
+		case "delivery-screen":
+			return emitDeliveryScreen(env, args[2:])
+		case "batch-delivered":
+			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
 		}
