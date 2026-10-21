@@ -55,6 +55,9 @@ type change struct {
 	// (V1-1147).
 	citationFailedValues string
 	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
+	// mergedSeals are the sealed CEM paths BASE..HEAD adds that re-verified
+	// (DCW-V0-042); an aggregate bound refusal names them (DCW-V0-113).
+	mergedSeals []string
 	linkObservedRows     int
 	citedOver            bool
 	guardHunks           int // hunks the guarding-test search would select (DCW-V0-069)
@@ -240,6 +243,7 @@ func (c *change) admitSealedCEMs(inherited inheritedCEM) {
 				refusals = append(refusals, path+": "+result.failure+" "+result.detail)
 				continue
 			}
+			c.mergedSeals = append(c.mergedSeals, path)
 			notes = append(notes, fmt.Sprintf("sealed-cem-merged bind=%s base=%s bootstrapUnknown=%d", match[1], result.base, len(result.bootstrap)))
 		}
 	}
@@ -1579,6 +1583,37 @@ func (c *change) untrackedPaths() []string {
 	return paths
 }
 
+// aggregateBoundReasons are the multi-intent aggregate bound refusals
+// (OCM-V0-013, OCM-V0-021).
+var aggregateBoundReasons = map[string]bool{"map-too-large": true, "too-many-claims": true, "too-many-obligations": true}
+
+// maxNamedSeals bounds how many merged sealed changes the stacked hint names.
+const maxNamedSeals = 4
+
+// stackedPredecessorHint names the stacked-predecessor cause of an aggregate
+// bound refusal: BASE..HEAD also carries merged sealed changes, whose hunks
+// and governing specs count toward this change's obligations. The route is to
+// bind against the sealed predecessor's seal commit, so only this lane's hunks
+// bind and batch-check verifies both (DCW-V0-113).
+func (c *change) stackedPredecessorHint() string {
+	named := []string{}
+	for _, path := range c.mergedSeals[:min(len(c.mergedSeals), maxNamedSeals)] {
+		bind := sealedCEMPath.FindStringSubmatch(path)[1]
+		seal := c.gitValue("log", "-1", "--format=%H", "--diff-filter=A", c.target, "--", path)
+		if seal == "" {
+			seal = "UNKNOWN"
+		}
+		named = append(named, "bind="+bind+" seal="+seal)
+	}
+	if len(c.mergedSeals) > maxNamedSeals {
+		named = append(named, fmt.Sprintf("(+%d more)", len(c.mergedSeals)-maxNamedSeals))
+	}
+	return fmt.Sprintf("stacked-predecessor: BASE %s..HEAD also merges %d sealed change(s) (%s), whose hunks and specs count toward this change's bound; "+
+		"a lane stacked on one sealed predecessor binds against that predecessor's seal commit instead: rerun dogfood-change, dogfood-check and dogfood-seal with BASE=<seal>, list only this lane's specs in DOGFOOD_INTENTS_FILE, "+
+		"and check the merge batch with corvint dogfood batch-check, which verifies each sealed change against its own base; otherwise narrow the intents (docs/DOGFOOD.md \"Stacking on a sealed predecessor\", DCW-V0-113)",
+		c.base, len(c.mergedSeals), strings.Join(named, ", "))
+}
+
 // citeSpanUnedited is the cem cite refusal phrase for a span whose base
 // lines no hunk edits but whose text recurs in the changed file.
 const citeSpanUnedited = "are edited by no hunk"
@@ -1621,6 +1656,9 @@ func (c *change) fixHint(row step) string {
 			}
 			return strings.NewReplacer("{paths}", named, "{base}", c.base).Replace(untrackedHint)
 		}
+	}
+	if row.name == "ocm-aggregate" && aggregateBoundReasons[row.reason] && len(c.mergedSeals) > 0 {
+		return c.stackedPredecessorHint()
 	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))

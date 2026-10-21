@@ -1055,6 +1055,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   names the repack-and-remove or `git clone --no-local` recovery. Non-goals: admitting an
   unsupported constituent, or a fix line for a code the change itself causes. Failure modes: a
   verifier that omits the code leaves only `state=`.
+- `DCW-V0-113`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a
+  sealed predecessor (a branch from the shared base that merged the predecessor's seal commit) MAY
+  bind, check and seal against that seal commit as `BASE`: the range then holds only the lane's own
+  hunks and no sealed CEM, and `batch-check` verifies each sealed change against its own base. When
+  `dogfood change` reports an `ocm-aggregate` bound refusal (`map-too-large`, `too-many-claims`,
+  `too-many-obligations`) and `BASE..HEAD` adds re-verified sealed CEMs (`DCW-V0-042`), its fix line
+  MUST name the stacked-predecessor cause, at most four merged sealed changes by bind and seal
+  commit, and this route. Non-goals: excluding merged sealed hunks from a shared-base bind, widening
+  any aggregate bound. Failure modes: a lane that merged newer mainline commits after the
+  predecessor still binds them from the seal commit, so it merges mainline into the predecessor
+  first or binds from the shared base and narrows its intents; a seal commit that cannot be found
+  is named `UNKNOWN`.
 
 ## Code vocabulary
 
@@ -1285,6 +1297,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-075` (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) | `internal/contextindex/git.go` `gitDeadline` (unchanged); `internal/dogfoodflow/flow.go` `impactDeadlineOverrun`, `internal/dogfoodflow/change.go` `prechangeImpact`, `failing`, `reportFailures`, `internal/dogfoodflow/check.go` `checkContextAbstention`; `TestDCWV0075GitDeadlineIsThirtySeconds`, `TestDCWV0075SlowGitOverrunsTheDeadline` (an injected slow Git wrapper overruns a shorter caller deadline with the exact uncoded refusal and `context.DeadlineExceeded` cause); `TestDCWV0075OneOverrunIsRetriedOnce` (impact runs twice, the retry's output is produced); `TestDCWV0075SecondOverrunIsAVisibleNonBlockingAbstention` (exactly two runs, the admitted row, null digest, no artifact, NOTE lines, `exit-2` still blocks, check accepts the retained envelope and fails a drifted one) | implemented; a live overrun under host load NOT_OBSERVED |
 | `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
 | `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
+| `DCW-V0-113` (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `fixHint`, `stackedPredecessorHint`; `TestChangeDCWV0113StackedPredecessorBindsAgainstItsSeal` (bound at the shared base, each aggregate bound refusal names the merged seal's bind and seal commits and the route, another reason does not; bound at the seal commit, no sealed CEM is admitted and only the lane's path changes; the sealed stacked lane's merge batch passes with each change verified against its own base) | implemented; the #1442 lane reproduced in a fixture only |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
