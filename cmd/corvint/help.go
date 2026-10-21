@@ -1367,13 +1367,14 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
-// cpuProfileHelpNote documents the CPUPROFILE env knob (V1-0051): it is
+// cpuProfileHelpNote documents the CORVINT_CPUPROFILE env knob (V1-0051,
+// V1-1643: runtimeenv.Value("CPUPROFILE") resolves the CORVINT_ prefix): it is
 // off by default, operator-set only, and applies to this command and to
 // `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
 // local pprof file and never widens what the command reads, returns, or
 // mutates (AGENTS.md invariant 4).
 const cpuProfileHelpNote = `
-CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
+CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
 profile for this invocation to PATH. Diagnostic only; it does not change
 what is read, returned, or mutated.
 `

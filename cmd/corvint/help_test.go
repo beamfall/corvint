@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/frontier"
+	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 type forbiddenHelpReader struct{ reads int }
@@ -542,5 +543,21 @@ func TestCEMV1340CEMActionHelpNamesOnlyThatAction(t *testing.T) {
 	}
 	if cemActionHelp("no-such-action") != "" {
 		t.Error("an undocumented action has help")
+	}
+}
+
+// V1-1643: the CPU-profile help note names the variable runtimeenv resolves
+// for the "CPUPROFILE" suffix that main.go and taskcontext.go read.
+func TestCPUProfileHelpNamesResolvedVariable(t *testing.T) {
+	var asked []string
+	runtimeenv.Resolve(func(name string) (string, bool) {
+		asked = append(asked, name)
+		return "", false
+	}, "CPUPROFILE")
+	if len(asked) != 1 {
+		t.Fatalf("runtimeenv looked up %q", asked)
+	}
+	if !strings.Contains(cpuProfileHelpNote, "\n"+asked[0]+"=PATH") {
+		t.Fatalf("cpuProfileHelpNote does not name %s: %q", asked[0], cpuProfileHelpNote)
 	}
 }

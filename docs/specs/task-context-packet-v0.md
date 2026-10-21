@@ -1168,7 +1168,8 @@ lexical rows is decision 0367's to reopen with a new evaluation, not this slice'
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
-operator sets `CPUPROFILE=PATH` in the process environment. It is off by default, diagnostic only,
+operator sets `CORVINT_CPUPROFILE=PATH` in the process environment (V1-1643: the code resolves the
+`CORVINT_` prefix through `internal/runtimeenv`; a bare `CPUPROFILE` is ignored). It is off by default, diagnostic only,
 and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
 
 The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
