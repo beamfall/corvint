@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // fixtureCalc is the tiny package under test: an arithmetic function, a
@@ -131,19 +132,7 @@ func newFixture(t *testing.T, git string, files map[string]string) (string, stri
 	return root, strings.TrimSpace(runGit(t, git, root, "rev-parse", "HEAD"))
 }
 
-func runGit(t *testing.T, git, root string, arguments ...string) string {
-	t.Helper()
-	// GIT_CONFIG_GLOBAL hides the host's maintenance settings, so disable auto
-	// maintenance here: a detached `git maintenance` outliving a commit races the
-	// TempDir cleanup (V1-0662).
-	command := exec.Command(git, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
-	command.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("git %s: %v: %s", strings.Join(arguments, " "), err, output)
-	}
-	return string(output)
-}
+var runGit = testsupport.RunGit
 
 func treeDigest(t *testing.T, root string) string {
 	t.Helper()

@@ -165,6 +165,28 @@ func TestLTAV0014TextWithoutCandidatesSkipsThePattern(t *testing.T) {
 	}
 }
 
+// V1-1689: a field named only ...key (an e2e inventory's test_key) is no
+// assignment candidate, while every key name of writerAssignmentNames is,
+// whatever its separator, case or field suffix.
+func TestLTAV0014BareKeyFieldIsNoCandidate(t *testing.T) {
+	inventory := `{"path":"e2e/g000.spec.ts","project":"chromium","test_key":"g000.spec.ts > k000"}`
+	if livePattern(inventory) != nil || MatchString(inventory) {
+		t.Fatalf("an inventory element with test_key kept a live branch")
+	}
+	for _, text := range []string{
+		`{"api_key": "abcdefgh12345678"}`, `apiKey=abcdefgh12345678`, `"API-KEY": "abcdefgh12345678"`,
+		`access_key: abcdefgh12345678`, `"accesskeyid": "abcdefgh12345678"`, `ACCOUNT-KEY=abcdefgh12345678`,
+		`"private_key": "abcdefgh12345678"`, `--account_key abcdefgh12345678`,
+	} {
+		if !MatchString(text) {
+			t.Errorf("%q is no longer screened", text)
+		}
+		if d := prefilterDisagreement(text, livePattern(text).FindAllStringIndex(text, -1)); d != "" {
+			t.Error(d)
+		}
+	}
+}
+
 func FuzzLTAV0014PrefilterReturnsPatternMatches(f *testing.F) {
 	for i, text := range differentialCorpus(f) {
 		if i < 600 {

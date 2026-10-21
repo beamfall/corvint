@@ -31,16 +31,25 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
 // Receipt is the part of an affected-plan receipt the selection reads.
 type Receipt struct {
 	Plan struct {
 		Dirty   []string `json:"dirty"`
+		Scope   string   `json:"scope"`
 		Unknown []struct {
 			Reason string `json:"reason"`
 			Detail string `json:"detail"`
 		} `json:"unknown"`
+		// NonSource is the planner's task-state classification
+		// (AFP-V0-088); taskStateOnly reads it (AFP-V0-153).
+		NonSource []struct {
+			Class string   `json:"class"`
+			Paths []string `json:"paths"`
+		} `json:"nonSource"`
 	} `json:"plan"`
 	Provider struct {
 		Go struct {
@@ -76,6 +85,19 @@ var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.
 // package's directory; a `.corvint` or `change.cem.json` token joined to a
 // fixture root does not select its holder (AFP-V0-012 (c)).
 const changeEvidence = ".corvint/change.cem.json"
+
+// sealedChanges holds the sealed CEMs a dogfood seal moves the sidecar to.
+const sealedChanges = ".corvint/changes/"
+
+// resolvedEvidence reports whether p is the sidecar or a sealed CEM directly
+// under sealedChanges; both narrow rule (c) to resolvingReaders (AFP-V0-152).
+func resolvedEvidence(p string) bool {
+	if p == changeEvidence {
+		return true
+	}
+	name, sealed := strings.CutPrefix(p, sealedChanges)
+	return sealed && strings.HasSuffix(name, ".cem.json") && len(name) > len(".cem.json") && !strings.Contains(name, "/")
+}
 
 var plainImportPath = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
 
@@ -214,12 +236,43 @@ func selectPackages(plan Receipt, module, root string) []string {
 		}
 	}
 	if len(selected) == 0 && len(plan.Plan.Dirty) > 0 {
+		if taskStateOnly(plan) {
+			return append(lines, fmt.Sprintf("NOTHING %d dirty path(s) are Tasks store projection task state; no Go package names or reads them", len(plan.Plan.Dirty)))
+		}
 		return fallback(fmt.Sprintf("the selection is empty while %d path(s) are dirty", len(plan.Plan.Dirty)))
 	}
 	if len(selected) == 0 {
 		return append(lines, "NOTHING no dirty or committed path; no Go package to test")
 	}
 	return append(lines, "run "+strings.Join(selected, " "))
+}
+
+// taskStateOnly reports whether an empty selection over a non-empty diff is
+// the AFP-V0-088 task-state case (AFP-V0-153): the plan is BOUNDED and every
+// dirty path is in the recognised Tasks store projection layout and listed in
+// the plan's TASK_STORE_PROJECTION group. The caller has already applied rules
+// (a) to (d) and the declared scopes to those paths and selected nothing, so
+// the gate's own attribution agrees with the planner; any other empty
+// selection keeps the full-suite fallback.
+func taskStateOnly(plan Receipt) bool {
+	if plan.Plan.Scope != "BOUNDED" {
+		return false
+	}
+	classified := map[string]bool{}
+	for _, group := range plan.Plan.NonSource {
+		if group.Class != taskprojection.Class {
+			continue
+		}
+		for _, p := range group.Paths {
+			classified[p] = true
+		}
+	}
+	for _, dirty := range plan.Plan.Dirty {
+		if !classified[dirty] || !taskprojection.IsPath(dirty) {
+			return false
+		}
+	}
+	return len(plan.Plan.Dirty) > 0
 }
 
 // attribution is one AFP-V0-012 rule applied to one path: the kind
@@ -239,7 +292,7 @@ type attribution struct {
 // it, given as readers (index.readers(dirty), or pathReaders for many paths).
 // Rule (d), the unresolved packages, is index.unresolved().
 func (index *repositoryIndex) attribute(dirty string, readers []string) []attribution {
-	if dirty == changeEvidence {
+	if resolvedEvidence(dirty) {
 		readers = index.resolvingReaders(dirty)
 	}
 	return append(index.attributeStructure(dirty), attribution{"reader", readers})
@@ -252,6 +305,15 @@ func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
 		directory := parentDirectory(dirty)
 		if index.packages[directory] != nil {
 			rules = append(rules, attribution{"frontier", []string{directory}})
+			// Go compiles a _test.go file only into its own package's test
+			// binary, so no importer can see it, added, changed or deleted
+			// (AFP-V0-154, the AFP-V0-036 rule; V1-0996). A package whose
+			// non-test files embed anything may embed the test file as
+			// production data its importers' tests consume, so it keeps the
+			// widening (fail closed: any //go:embed, not a pattern match).
+			if strings.HasSuffix(dirty, "_test.go") && !index.packages[directory].embeds {
+				return rules
+			}
 		}
 		rules = append(rules, attribution{"frontier", index.dependents(directory)})
 	} else {
@@ -274,16 +336,21 @@ func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
 // `unresolved <pkg>: "<reason>"` line of unresolvedPackages or one
 // `bound <pkg> <rule> <path>` line per path of paths that rules (a) to (c)
 // attribute to the package, in import-path then path order, tagged with the
-// first rule that selects it. The bound of a resolved package is therefore
-// every worktree path whose change would select it: the complete set of paths
-// its tests can read (GL-V0-009). A path carrying a control character cannot
+// first rule that selects it; a package the read-scope declaration bounds is
+// resolved, and its declaration, subtree and declared entries are `declared`
+// paths (GL-V0-050). The bound of a resolved package is therefore every
+// worktree path whose change would select it: the complete set of paths its
+// tests can read (GL-V0-009). A path carrying a control character cannot
 // be printed on one line and is an error.
 func packageBounds(module, root string, paths []string) ([]string, error) {
 	index, err := indexRepository(root, module)
 	if err != nil {
 		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
 	}
-	reasons := index.unresolved()
+	reasons, scopes, err := index.undeclaredUnresolved(root)
+	if err != nil {
+		return nil, err
+	}
 	bounds := map[string]map[string]string{}
 	bind := func(directories []string, kind, p string) {
 		for _, directory := range directories {
@@ -302,8 +369,18 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		for _, rule := range index.attributeStructure(p) {
 			bind(rule.directories, rule.kind, p)
 		}
-		if p == changeEvidence {
+		if resolvedEvidence(p) {
 			bind(index.resolvingReaders(p), "reader", p)
+		}
+	}
+	// A declared package (AFP-V0-023, GL-V0-050) is bound by what its
+	// declaration admits: the declaration, its subtree and its declared
+	// entries, exactly the paths that select it in selectPackages.
+	for _, directory := range sortedKeys(scopes) {
+		for _, p := range paths {
+			if inReadScope(directory, scopes[directory], p) {
+				bind([]string{directory}, "declared", p)
+			}
 		}
 	}
 	// Rule (c) over every path at once: the same namesPath relation readers()
@@ -311,7 +388,7 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 	matcher := newPathMatcher(paths)
 	for value, directories := range index.holders {
 		for _, i := range matcher.named(value) {
-			if paths[i] != changeEvidence {
+			if !resolvedEvidence(paths[i]) {
 				bind(directories, "reader", paths[i])
 			}
 		}
@@ -333,19 +410,38 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 // packageSource reports whether dirtyPath is a `.go` file outside testdata, `.`,
 // and `_` directories, the only path a frontier may attribute to one package.
 // unresolvedPackages indexes ROOT and returns one `unresolved <pkg>: "<reason>"`
-// line per package whose reads no literal bounds, in import-path order, in the
-// same shape selectPackages prints them.
+// line per package whose reads no literal and no read-scope declaration
+// bounds, in import-path order, in the same shape selectPackages prints them.
 func unresolvedPackages(module, root string) ([]string, error) {
 	index, err := indexRepository(root, module)
 	if err != nil {
 		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
 	}
-	reasons := index.unresolved()
+	reasons, _, err := index.undeclaredUnresolved(root)
+	if err != nil {
+		return nil, err
+	}
 	var lines []string
 	for _, directory := range sortedKeys(reasons) {
 		lines = append(lines, fmt.Sprintf("unresolved %s: %q\n", importPath(module, directory), reasons[directory]))
 	}
 	return lines, nil
+}
+
+// undeclaredUnresolved is index.unresolved() less the packages the read-scope
+// declaration bounds (AFP-V0-023), as selectPackages applies rule (d), with
+// the declared scopes. An invalid declaration is an error, so the caller keys
+// nothing on it (GL-V0-050).
+func (index *repositoryIndex) undeclaredUnresolved(root string) (map[string]string, map[string][]string, error) {
+	scopes, err := index.readScopes(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("the read-scope declaration is invalid: %w", err)
+	}
+	reasons := index.unresolved()
+	for directory := range scopes {
+		delete(reasons, directory)
+	}
+	return reasons, scopes, nil
 }
 
 func packageSource(dirtyPath string) bool {

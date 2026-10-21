@@ -71,6 +71,12 @@ AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
 AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
 AFP-V0-088	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2049); no GitHu	standing	2026-10-11; V1-2049
+AFP-V0-150	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1087))	standing	2026-10-11; V1-1087
+AFP-V0-151	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0875))	standing	2026-10-11; V1-0875
+AFP-V0-152	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1820))	standing	2026-10-11; V1-1820
+AFP-V0-153	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2070))	standing	2026-10-11; V1-2070
+AFP-V0-154	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0996))	standing	2026-10-11; V1-0996
+AFP-V0-155	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1005))	standing	2026-10-11; V1-1005
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -2558,6 +2564,7 @@ GL-V0-006	docs/specs/gate-ledger-v0.md	Records MUST live in a per-user directory
 GL-V0-007	docs/specs/gate-ledger-v0.md	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make	unrecorded	-
 GL-V0-008	docs/specs/gate-ledger-v0.md	Two runs of one key at once MUST execute the step once: the second MUST wait on	unrecorded	-
 GL-V0-009	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A resolved package MUST run under its own key, step `g	owner	decision 0511
+GL-V0-050	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package	standing	2026-10-11; V1-0634
 GENESIS-001	docs/specs/genesis-backfill.md	`corvint init` and `corvint adopt` MUST accept one or more local Git repositorie	unrecorded	-
 GENESIS-002	docs/specs/genesis-backfill.md	zero-execution inventory MUST classify every tracked path as included, excluded,	unrecorded	-
 GENESIS-003	docs/specs/genesis-backfill.md	Git history enrichment MUST recover cited change, ownership, ticket/PR reference	unrecorded	-
@@ -3869,6 +3876,7 @@ RGV-V0-012	docs/specs/repository-guidance-v0.md	Real committed fixtures MUST ver
 RGV-V0-013	docs/specs/repository-guidance-v0.md	Review MUST NOT plan affected advice over an incomplete guidance inventory. When	unrecorded	-
 RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the	unrecorded	-
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
+RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th	unrecorded	-
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because	unrecorded	-
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp	unrecorded	-

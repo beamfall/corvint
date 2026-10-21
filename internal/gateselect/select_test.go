@@ -45,6 +45,8 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 		"solo/solo_test.go":       "package solo\n\nvar source = \"../core/core.go\"\n",
 		"spec/spec_test.go":       "package spec\n\nvar specs = \"../docs/specs\"\n",
 		"walker/walker_test.go":   "package walker\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"emb/emb.go":              "package emb\n\nimport _ \"embed\"\n\n//go:embed emb_test.go\nvar Source string\n",
+		"user/user.go":            "package user\n\nimport _ \"example.com/fixture/emb\"\n",
 		"nested/go.mod":           "module example.com/nested\n",
 		"nested/reader/reader.go": "package reader\n\nvar all = \"../../../..\"\n",
 	})
@@ -55,6 +57,10 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 		verdict  string
 	}{
 		{"a deleted package source widens to its importers", nil, "core/gone.go", "run example.com/fixture/core example.com/fixture/leaf example.com/fixture/mid example.com/fixture/walker"},
+		{"a changed test file selects only its own package (AFP-V0-154)", nil, "core/core_test.go", "run example.com/fixture/core example.com/fixture/walker"},
+		{"a deleted test file selects only its own package (AFP-V0-154)", nil, "core/gone_test.go", "run example.com/fixture/core example.com/fixture/walker"},
+		{"a test file in an embedding package still widens to its importers (AFP-V0-154)", nil, "emb/emb_test.go", "run example.com/fixture/emb example.com/fixture/user example.com/fixture/walker"},
+		{"a test file outside any indexed package still widens", nil, "fresh/fresh_test.go", "run example.com/fixture/walker"},
 		{"a Go file read as data selects its reader", []string{"example.com/fixture/core", "example.com/fixture/leaf", "example.com/fixture/mid"}, "core/core.go", "run example.com/fixture/core example.com/fixture/leaf example.com/fixture/mid example.com/fixture/solo example.com/fixture/walker"},
 		{"a document selects the packages that name it", nil, "docs/specs/x.md", "run example.com/fixture/spec example.com/fixture/walker"},
 		{"a testdata fixture selects its enclosing package", nil, "core/testdata/x.txt", "run example.com/fixture/core example.com/fixture/walker"},
@@ -100,6 +106,87 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{tc.dirty}
 			if got := verdict(plan, root); got != tc.verdict {
+				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
+			}
+		})
+	}
+}
+
+// TestSelectPackagesNarrowsSealedChangeEvidenceReaders covers AFP-V0-152: a
+// sealed CEM directly under .corvint/changes/ selects only the readers whose
+// literal resolves to it or an ancestor, as the sidecar does, and the
+// -bounds attribution agrees; another path there keeps the component-run rule.
+func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"fixture/fixture_test.go": "package fixture\n\nvar a, b = \".corvint/changes\", \".corvint/changes/\"\n",
+		"exact/exact_test.go":     "package exact\n\nvar sealed = \"../.corvint/changes\"\n",
+		"anchored/anchored.go":    "package anchored\n\nfunc Sealed(root string) string { return root + \"/.corvint/changes/\" }\n",
+		"deep/dir/dir_test.go":    "package dir\n\nvar evidence = \"../../.corvint\"\n",
+	})
+	sealed := ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
+	cases := []struct{ name, dirty, verdict string }{
+		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
+		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan Receipt
+			plan.Provider.Go.State = "RUNNABLE"
+			plan.Plan.Dirty = []string{tc.dirty}
+			if got := verdict(plan, root); got != tc.verdict {
+				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
+			}
+		})
+	}
+	lines, err := packageBounds("example.com/fixture", root, []string{sealed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(lines, ""); strings.Contains(got, "example.com/fixture/fixture ") || !strings.Contains(got, "bound example.com/fixture/exact reader "+sealed) {
+		t.Fatalf("bounds disagree with selection:\n%s", got)
+	}
+}
+
+// TestSelectPackagesTaskStateOnlyDiffSelectsNothing covers AFP-V0-153
+// (V1-2070): a BOUNDED plan whose every dirty path is a classified Tasks store
+// projection record selects nothing in the fast tier; an unclassified, unknown
+// or out-of-layout case keeps the fallback, and a package whose literal names
+// a projection record is still selected.
+func TestSelectPackagesTaskStateOnlyDiffSelectsNothing(t *testing.T) {
+	plain := writeFixture(t, map[string]string{"core/core.go": "package core\n"})
+	reading := writeFixture(t, map[string]string{
+		"core/core.go":        "package core\n",
+		"store/store_test.go": "package store\n\nvar queue = \"../.taskman/queue.json\"\n",
+	})
+	queue, ticket := ".taskman/queue.json", ".taskman/tickets/V1-0001.json"
+	plan := func(scope string, classified []string, dirty ...string) Receipt {
+		var receipt Receipt
+		receipt.Provider.Go.State = "EMPTY_SELECTION"
+		receipt.Plan.Scope = scope
+		receipt.Plan.Dirty = dirty
+		if classified != nil {
+			receipt.Plan.NonSource = append(receipt.Plan.NonSource, struct {
+				Class string   `json:"class"`
+				Paths []string `json:"paths"`
+			}{Class: "TASK_STORE_PROJECTION", Paths: classified})
+		}
+		return receipt
+	}
+	cases := []struct {
+		name, root string
+		plan       Receipt
+		verdict    string
+	}{
+		{"classified task state selects nothing", plain, plan("BOUNDED", []string{queue, ticket}, queue, ticket), "NOTHING 2 dirty path(s) are Tasks store projection task state; no Go package names or reads them"},
+		{"unclassified path keeps the fallback", plain, plan("BOUNDED", []string{queue}, queue, ticket), "FALLBACK the selection is empty while 2 path(s) are dirty"},
+		{"no nonSource member keeps the fallback", plain, plan("BOUNDED", nil, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"unknown plan keeps the fallback", plain, plan("UNKNOWN", []string{queue}, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"out-of-layout path keeps the fallback", plain, plan("BOUNDED", []string{".taskman/notes.txt"}, ".taskman/notes.txt"), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"a reader of the record is still selected", reading, plan("BOUNDED", []string{queue}, queue), "run example.com/fixture/store"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := verdict(tc.plan, tc.root); got != tc.verdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
 			}
 		})
@@ -318,6 +405,48 @@ func TestPackageBoundsAttributesResolvedPackages(t *testing.T) {
 	}
 	if _, err := packageBounds(fixtureModule, root, []string{"docs/\x01.md"}); err == nil {
 		t.Error("a path with a control character was bounded")
+	}
+}
+
+// TestDeclaredPackagesAreBoundByTheirScope covers GL-V0-050 (V1-0634): the
+// -unresolved and -bounds listings treat a declared root locator as the
+// selector does, bound by its declaration, subtree and declared entries; an
+// undeclared locator stays unresolved and an invalid declaration is an error.
+func TestDeclaredPackagesAreBoundByTheirScope(t *testing.T) {
+	files := map[string]string{
+		"walker/walker.go":               "package walker\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"roamer/roamer.go":               "package roamer\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"docs/guide.md":                  "guide\n",
+		"notes/other.md":                 "other\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/"]}}` + "\n",
+	}
+	root := writeFixture(t, files)
+	unresolved, err := unresolvedPackages(fixtureModule, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(unresolved, ""), "unresolved example.com/fixture/roamer: \"roamer/roamer.go calls runtime.Caller\"\n"; got != want {
+		t.Errorf("unresolved:\n%s\nwant:\n%s", got, want)
+	}
+	paths := []string{".corvint/test-read-scopes.json", "docs/guide.md", "notes/other.md", "roamer/roamer.go", "walker/walker.go"}
+	lines, err := packageBounds(fixtureModule, root, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "unresolved example.com/fixture/roamer: \"roamer/roamer.go calls runtime.Caller\"\n" +
+		"bound example.com/fixture/walker declared .corvint/test-read-scopes.json\n" +
+		"bound example.com/fixture/walker declared docs/guide.md\n" +
+		"bound example.com/fixture/walker frontier walker/walker.go\n"
+	if got := strings.Join(lines, ""); got != want {
+		t.Errorf("bounds:\n%s\nwant:\n%s", got, want)
+	}
+	files[".corvint/test-read-scopes.json"] = "{}\n"
+	invalid := writeFixture(t, files)
+	if _, err := unresolvedPackages(fixtureModule, invalid); err == nil {
+		t.Error("an invalid declaration listed the unresolved packages")
+	}
+	if _, err := packageBounds(fixtureModule, invalid, paths); err == nil {
+		t.Error("an invalid declaration bounded the packages")
 	}
 }
 

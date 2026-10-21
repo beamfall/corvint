@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -130,9 +131,47 @@ func (s *GuidanceSnapshot) Check(ctx context.Context) error {
 		return err
 	}
 	if len(raw) != 0 {
-		return fmt.Errorf("dirty worktree or status drift")
+		return dirtyWorktreeError(raw)
 	}
 	return nil
+}
+
+// dirtyStatusPathsShown bounds the paths a dirty-worktree refusal names.
+const dirtyStatusPathsShown = 8
+
+// dirtyWorktreeError names, from `git status --porcelain=v1 -z` output, the
+// first dirtyStatusPathsShown entries and the total, so the refusal says which
+// paths are dirty (RGV-V0-016, V1-2053). When any entry is untracked it also
+// states that Git runs without global configuration (sanitizedGitEnvironment,
+// decision 0158), so a path ignored only by a global excludes file counts as
+// untracked, and names the fix.
+func dirtyWorktreeError(raw []byte) error {
+	fields := strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00")
+	shown := make([]string, 0, dirtyStatusPathsShown)
+	total, untracked := 0, false
+	for i := 0; i < len(fields); i++ {
+		entry := fields[i]
+		if len(entry) < 4 {
+			continue
+		}
+		status := entry[:2]
+		if status[0] == 'R' || status[0] == 'C' {
+			i++ // a rename or copy carries its origin path in the next field
+		}
+		untracked = untracked || status == "??"
+		total++
+		if len(shown) < dirtyStatusPathsShown {
+			shown = append(shown, strings.TrimSpace(status)+" "+strconv.Quote(entry[3:]))
+		}
+	}
+	detail := fmt.Sprintf("dirty worktree or status drift: %d path(s): %s", total, strings.Join(shown, ", "))
+	if total > len(shown) {
+		detail += fmt.Sprintf(" (+%d more)", total-len(shown))
+	}
+	if untracked {
+		detail += "; Corvint runs Git without global configuration, so a path ignored only by a global excludes file (core.excludesFile or ~/.config/git/ignore) is untracked here: ignore it in a tracked .gitignore or in .git/info/exclude"
+	}
+	return errors.New(detail)
 }
 
 func (s *GuidanceSnapshot) RefTips(ctx context.Context) (string, error) {
