@@ -65,7 +65,7 @@ func (res *Result) Checkpoint() *Checkpoint {
 		return nil
 	}
 	full := res.Mode == ModeFull && res.StructuralConsistency == "CONSISTENT"
-	writer := res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil && res.ProjectionAgreement == "AGREES"
+	writer := res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil && (res.ProjectionAgreement == "AGREES" || res.ProjectionAgreement == IntentRecordsNotCompared)
 	if !full && !writer {
 		return nil
 	}

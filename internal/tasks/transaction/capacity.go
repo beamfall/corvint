@@ -56,6 +56,23 @@ type Elided struct {
 	Requests           uint64
 	HasRequest         func(string) bool
 	Cost               archive.FileSetCost
+	// Intent, when set, also elides every live ticket and release record:
+	// a liveness write charges their count and cost without listing them
+	// (JSG-V0-001). Only a heartbeat or renew models such an inventory.
+	Intent *ElidedIntent
+}
+
+// ElidedIntent summarizes the live intent/tickets/ and intent/releases/
+// records: their counts, their archive cost, and their paths by lookup.
+type ElidedIntent struct {
+	Tickets, Releases int
+	Cost              archive.FileSetCost
+	Has               func(string) bool
+}
+
+// intentRecord reports a path an ElidedIntent covers.
+func intentRecord(p string) bool {
+	return strings.HasPrefix(p, "intent/tickets/") || strings.HasPrefix(p, "intent/releases/")
 }
 
 // NewSummarizedInventory is NewInventory with an elided prefix. files must not
@@ -80,6 +97,26 @@ func NewSummarizedInventory(files []archive.FileEntry, stateDirectories []string
 	}
 	if !inv.dirs["receipts"] || (elided.Requests > 0 && !inv.dirs["requests"]) {
 		return nil, malformed("elided inventory directory")
+	}
+	if in := elided.Intent; in != nil {
+		if in.Has == nil || in.Tickets < 0 || in.Releases < 0 || in.Tickets > wire.MaxTicketsPerQueue || in.Releases > wire.MaxReleasesPerQueue || in.Cost.Files != in.Tickets+in.Releases {
+			return nil, malformed("elided intent summary")
+		}
+		if uint64(in.Cost.Files) > wire.MaxArchiveFiles-n-uint64(len(files)) {
+			return nil, limit("inventory entries")
+		}
+		explicit := uint64(0)
+		for p, f := range inv.files {
+			if intentRecord(p) {
+				return nil, malformed("explicit intent record beside an elided intent summary")
+			}
+			if strings.HasPrefix(p, "intent/") {
+				explicit += f.Bytes.Uint64()
+			}
+		}
+		if total, e := add(explicit, in.Cost.PayloadBytes); e != nil || total > wire.MaxIntentTreeBytes {
+			return nil, limit("inventory scan/intent bounds")
+		}
 	}
 	scanned := uint64(len(inv.dirs)) + n
 	for p := range inv.files {
@@ -143,6 +180,9 @@ func (i *Inventory) isElided(p string) bool {
 	}
 	if seq, ok := receiptNumber(p); ok {
 		return seq <= i.elided.Receipts
+	}
+	if i.elided.Intent != nil && intentRecord(p) {
+		return i.elided.Intent.Has(p)
 	}
 	return strings.HasPrefix(p, "requests/") && i.elided.HasRequest(p)
 }
@@ -299,6 +339,7 @@ func (i *Inventory) FilesUnder(prefix string) []archive.FileEntry {
 	if i.elided != nil && (strings.HasPrefix(prefix, "receipts/") || strings.HasPrefix(prefix, "requests/") || strings.HasPrefix("receipts/", prefix) || strings.HasPrefix("requests/", prefix)) {
 		i.markMiss()
 	}
+	i.missElidedIntent(prefix)
 	out := []archive.FileEntry{}
 	for p, f := range i.files {
 		if strings.HasPrefix(p, prefix) {
@@ -307,6 +348,14 @@ func (i *Inventory) FilesUnder(prefix string) []archive.FileEntry {
 	}
 	archive.SortFiles(out)
 	return out
+}
+
+// missElidedIntent marks the inventory incomplete when a listing under
+// prefix would include an elided intent record (JSG-V0-001).
+func (i *Inventory) missElidedIntent(prefix string) {
+	if i.elided != nil && i.elided.Intent != nil && (intentRecord(prefix) || strings.HasPrefix("intent/tickets/", prefix) || strings.HasPrefix("intent/releases/", prefix)) {
+		i.markMiss()
+	}
 }
 
 func (i *Inventory) explicitFiles() []archive.FileEntry {
@@ -504,6 +553,14 @@ func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uin
 		c.ScannedEntries += uint64(prefix.Files)
 		c.JournalCount = i.elided.Receipts
 		c.JournalBytes = i.elided.ReceiptBytes
+		if in := i.elided.Intent; in != nil {
+			// Elided intent records are archived and count toward the
+			// intent bytes, but are not scanned state entries (JSG-V0-001).
+			if prefix, e = prefix.Add(in.Cost); e != nil {
+				return c, e
+			}
+			c.IntentBytes = in.Cost.PayloadBytes
+		}
 	}
 	intentHash := sha256.New()
 	files := i.explicitFiles()

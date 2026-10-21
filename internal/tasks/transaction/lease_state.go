@@ -99,6 +99,7 @@ func countPrefix(inv *Inventory, prefix string) int {
 	if inv.Summarized() && (strings.HasPrefix(prefix, "receipts/") || strings.HasPrefix(prefix, "requests/")) {
 		inv.markMiss()
 	}
+	inv.missElidedIntent(prefix)
 	n := 0
 	for path := range inv.files {
 		if strings.HasPrefix(path, prefix) {

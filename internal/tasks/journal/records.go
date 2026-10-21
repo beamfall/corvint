@@ -16,6 +16,10 @@ type latest struct {
 	seq                wire.Size
 	digest, pendingPre *wire.Digest
 	pending            bool
+	// bytes is the afterimage size (0 for a deletion), or -1 where the
+	// walk resumed from a read checkpoint or a retired prefix, which carry
+	// no sizes. Only a writer checkpoint derivation consumes it.
+	bytes int64
 }
 
 // chain is the state one receipt hands to the next. A complete audit builds
@@ -42,6 +46,10 @@ type chain struct {
 	// seal is the retired prefix a sealed complete walk started from
 	// (JRT-V0-004); checkpoint routes decline a chain that carries one.
 	seal *RetiredPrefix
+	// posted names every path a ModeWriter walk's tail posted; the writer
+	// checkpoint and the liveness intent summary adjust only these
+	// (JSG-V0-001). Nil on every other walk.
+	posted map[string]bool
 }
 
 // decode decodes one receipt of the walk and returns it with its original
@@ -317,7 +325,10 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 				}
 			}
 		}
-		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
+		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq, bytes: int64(len(post))}
+		if st.posted != nil {
+			st.posted[p.Path] = true
+		}
 		if result.selectErr == nil && r.selects(p.Path, selected) {
 			old := result.Records[p.Path]
 			st.selectedBytes -= len(old.Raw)
@@ -836,7 +847,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	}
 	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from}
 	for _, e := range cp.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}
 	result.SemanticCoverage = cp.SemanticCoverage
 	result.LastSeq, result.LastReceiptSha256 = cp.Seq, cp.ReceiptSha256

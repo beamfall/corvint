@@ -1581,7 +1581,7 @@ JRT-V0-011	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the 
 JRT-V0-012	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
 JRT-V0-013	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
 JRT-V0-014	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
-JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT read, stat-dige	owner	decision 0549
+JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT list, read, sta	owner	decision 0549
 JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
 JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
 JSG-V0-004	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R4) The writer checkpoint is two derived files: a seale	owner	decision 0549

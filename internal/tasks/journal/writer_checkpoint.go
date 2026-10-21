@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -21,7 +22,11 @@ import (
 // proposed). Like the read checkpoint it is not journal state: no receipt
 // posts it, no archive carries it, and a missing, stale, torn or foreign file
 // only sends the next writer through the complete audit.
-const ProfileWriterCheckpoint = "taskman-writer-checkpoint/1"
+//
+// Version 2 adds the per-entry afterimage sizes and the live intent record
+// aggregate a liveness write charges instead of listing the intent tree
+// (JSG-V0-001); a version 1 file is refused as another version.
+const ProfileWriterCheckpoint = "taskman-writer-checkpoint/2"
 
 // ModeWriter is Result.Mode for a writer audit that resumed at a writer
 // checkpoint and walked only the receipts after it (CAL-V0-116, proposed).
@@ -44,7 +49,14 @@ const (
 const writerMagic = ProfileWriterCheckpoint + "\n"
 
 // MaxWriterCheckpointBytes bounds the file a writer is willing to consume.
-const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
+const MaxWriterCheckpointBytes = len(writerMagic) + 8 + MaxCheckpointBytes + 7*8 + writerIntentFields*8 + 8*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + 8 + writerNoteBytes*wire.MaxTicketsPerQueue + 2*sha256.Size
+
+// writerIntentFields is the encoded IntentAggregate: tickets, releases, and
+// the payload, entry and tar bytes of their archive cost.
+const writerIntentFields = 5
+
+// maxWriterEntries is maxCheckpointEntries as a constant: one size each.
+const maxWriterEntries = wire.MaxArchiveScanEntries + intent.MaxIntentRootEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue
 
 // writerRequestBytes is one encoded request: the SHA-256 of its path, then
 // the SHA-256 of its afterimage (CAL-V0-190, proposed).
@@ -81,8 +93,35 @@ type WriterCheckpoint struct {
 	// uses the checkpoint only while the token still has this digest
 	// (CAL-V0-117, proposed).
 	Invalidation [sha256.Size]byte
-	requests     []byte // writerRequestBytes records, strictly ordered by path digest
-	notes        []writerNote
+	// Intent is the count and archive cost of the live canonical ticket and
+	// release records at Seq (JSG-V0-001).
+	Intent   IntentAggregate
+	sizes    []uint64 // afterimage size of Entries[i]; 0 for a deletion
+	requests []byte   // writerRequestBytes records, strictly ordered by path digest
+	notes    []writerNote
+}
+
+// IntentAggregate is the count and archive cost of the live canonical
+// ticket and release records at a sequence. A liveness write charges it in
+// place of listing intent/tickets/ and intent/releases/ (JSG-V0-001).
+type IntentAggregate struct {
+	Tickets, Releases int
+	Cost              archive.FileSetCost
+}
+
+// intentRecord reports a path the IntentAggregate covers.
+func intentRecord(p string) bool {
+	return strings.HasPrefix(p, "intent/tickets/") || strings.HasPrefix(p, "intent/releases/")
+}
+
+// entrySize returns the afterimage size Entries carried for p at Seq and
+// whether p is a live entry.
+func (w *WriterCheckpoint) entrySize(p string) (uint64, bool) {
+	e := sort.Search(len(w.Entries), func(i int) bool { return w.Entries[i].Path >= p })
+	if e == len(w.Entries) || w.Entries[e].Path != p || w.Entries[e].Sha256 == nil {
+		return 0, false
+	}
+	return w.sizes[e], true
 }
 
 // writerNote is the SHA-256 of the encoded operator-note reference of the
@@ -165,11 +204,17 @@ func requestDigest(p string) ([]byte, bool) {
 // invalidation digest, and a SHA-256 trailer over all of it.
 func (w *WriterCheckpoint) Encode() []byte {
 	cp := w.Checkpoint.Encode()
-	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+len(w.requests)+8+writerNoteBytes*len(w.notes)+2*sha256.Size)
+	buf := make([]byte, 0, len(writerMagic)+8+len(cp)+7*8+writerIntentFields*8+8*len(w.sizes)+len(w.requests)+8+writerNoteBytes*len(w.notes)+2*sha256.Size)
 	buf = append(buf, writerMagic...)
 	buf = binary.BigEndian.AppendUint64(buf, uint64(len(cp)))
 	buf = append(buf, cp...)
 	for _, v := range []uint64{w.FullSeq, w.ReceiptBytes, uint64(w.Cost.Files), w.Cost.PayloadBytes, w.Cost.EntryBytes, w.Cost.TarBytes, w.Requests()} {
+		buf = binary.BigEndian.AppendUint64(buf, v)
+	}
+	for _, v := range []uint64{uint64(w.Intent.Tickets), uint64(w.Intent.Releases), w.Intent.Cost.PayloadBytes, w.Intent.Cost.EntryBytes, w.Intent.Cost.TarBytes} {
+		buf = binary.BigEndian.AppendUint64(buf, v)
+	}
+	for _, v := range w.sizes {
 		buf = binary.BigEndian.AppendUint64(buf, v)
 	}
 	buf = append(buf, w.requests...)
@@ -195,7 +240,7 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 	if name, _, _ := strings.Cut(ProfileWriterCheckpoint, "/"); bytes.HasPrefix(raw, []byte(name+"/")) && !bytes.HasPrefix(raw, []byte(writerMagic)) {
 		return nil, wire.Errorf(wire.CodeUnsupportedVersion, "writer checkpoint", "another %s version", name)
 	}
-	if len(raw) < len(writerMagic)+8+7*8+8+2*sha256.Size {
+	if len(raw) < len(writerMagic)+8+7*8+writerIntentFields*8+8+2*sha256.Size {
 		return nil, bad("truncated")
 	}
 	body, trailer := raw[:len(raw)-sha256.Size], raw[len(raw)-sha256.Size:]
@@ -224,12 +269,48 @@ func DecodeWriterCheckpoint(raw []byte) (*WriterCheckpoint, error) {
 		v[i] = binary.BigEndian.Uint64(rest[i*8:])
 	}
 	rest = rest[7*8:]
+	if uint64(len(rest)) < writerIntentFields*8+8*uint64(len(cp.Entries)) {
+		return nil, bad("truncated intent aggregate or sizes")
+	}
+	iv := make([]uint64, writerIntentFields)
+	for i := range iv {
+		iv[i] = binary.BigEndian.Uint64(rest[i*8:])
+	}
+	rest = rest[writerIntentFields*8:]
+	if iv[0] > uint64(wire.MaxTicketsPerQueue) || iv[1] > uint64(wire.MaxReleasesPerQueue) || iv[2] > uint64(wire.MaxIntentTreeBytes) {
+		return nil, bad("intent aggregate bounds")
+	}
+	sizes := make([]uint64, len(cp.Entries))
+	var tickets, releases, payload uint64
+	for i := range sizes {
+		e := cp.Entries[i]
+		sizes[i] = binary.BigEndian.Uint64(rest[i*8:])
+		if bound, err := snapshot.PostBound(e.Path); (e.Sha256 == nil && sizes[i] != 0) || (err == nil && sizes[i] > uint64(bound)) {
+			return nil, bad("entry size")
+		}
+		if e.Sha256 != nil && intentRecord(e.Path) {
+			if strings.HasPrefix(e.Path, "intent/tickets/") {
+				tickets++
+			} else {
+				releases++
+			}
+			payload += sizes[i]
+		}
+	}
+	// The intent aggregate is the live intent records the sizes describe
+	// (JSG-V0-001): a count or payload that differs is refused.
+	if tickets != iv[0] || releases != iv[1] || payload != iv[2] {
+		return nil, bad("intent aggregate differs from the entries")
+	}
+	rest = rest[8*len(sizes):]
 	w := &WriterCheckpoint{Checkpoint: *cp, FullSeq: v[0], ReceiptBytes: v[1], Cost: archive.FileSetCost{PayloadBytes: v[3], EntryBytes: v[4], TarBytes: v[5]}}
 	requests, seq := v[6], cp.Seq.Uint64()
 	if v[2] > math.MaxInt || requests > uint64(wire.MaxArchiveFiles) || uint64(len(rest)) < requests*writerRequestBytes+8+sha256.Size {
 		return nil, bad("request digest count")
 	}
 	w.Cost.Files = int(v[2])
+	w.sizes = sizes
+	w.Intent = IntentAggregate{Tickets: int(iv[0]), Releases: int(iv[1]), Cost: archive.FileSetCost{Files: int(iv[0] + iv[1]), PayloadBytes: iv[2], EntryBytes: iv[3], TarBytes: iv[4]}}
 	if seq > uint64(wire.MaxArchiveFiles) || v[2] != seq+requests {
 		return nil, bad("file count differs from receipts plus requests")
 	}
@@ -293,6 +374,18 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 		return nil, errCheckpoint("writer checkpoint", "observation is not a complete or writer audit")
 	}
 	w.Checkpoint = res.chainCheckpoint()
+	w.sizes = make([]uint64, len(w.Entries))
+	for i, e := range w.Entries {
+		l := res.chain.canonical[e.Path]
+		if l.bytes < 0 {
+			return nil, errCheckpoint(e.Path, "afterimage size was not walked")
+		}
+		w.sizes[i] = uint64(l.bytes)
+	}
+	var err error
+	if w.Intent, err = res.intentAggregate(); err != nil {
+		return nil, err
+	}
 	if err := w.deriveNotes(res); err != nil {
 		return nil, err
 	}
@@ -427,6 +520,128 @@ func (w *WriterCheckpoint) charge(physical map[string]PhysicalFile, p string, wa
 	return nil
 }
 
+// intentAggregate is the IntentAggregate at this result's head. A complete
+// or prefix walk sums every live ticket and release afterimage it walked; a
+// writer walk adjusts its base checkpoint's aggregate by only the paths its
+// tail posted, so the work is bounded by the tail (JSG-V0-001).
+func (res *Result) intentAggregate() (IntentAggregate, error) {
+	st := res.chain
+	var agg IntentAggregate
+	charge := func(p string, size uint64, sign int) error {
+		one, err := archive.EntryCost(p, size)
+		if err != nil {
+			return err
+		}
+		n := sign
+		if sign > 0 {
+			agg.Cost, err = agg.Cost.Add(one)
+		} else {
+			agg.Cost, err = subCost(agg.Cost, one)
+		}
+		if err != nil {
+			return errCheckpoint(p, "intent aggregate out of range")
+		}
+		if strings.HasPrefix(p, "intent/tickets/") {
+			agg.Tickets += n
+		} else {
+			agg.Releases += n
+		}
+		return nil
+	}
+	live := func(p string) (uint64, bool, error) {
+		l := st.canonical[p]
+		if l.digest == nil {
+			return 0, false, nil
+		}
+		if l.bytes < 0 {
+			return 0, false, errCheckpoint(p, "afterimage size was not walked")
+		}
+		return uint64(l.bytes), true, nil
+	}
+	if res.Mode == ModeWriter {
+		base := res.writerBase
+		if base == nil || st.posted == nil || len(base.sizes) != len(base.Entries) {
+			return agg, errCheckpoint("writer checkpoint", "no sized base")
+		}
+		agg = base.Intent
+		for p := range st.posted {
+			if size, ok := base.entrySize(p); ok && intentRecord(p) {
+				if err := charge(p, size, -1); err != nil {
+					return agg, err
+				}
+			}
+		}
+		for p := range st.posted {
+			if !intentRecord(p) {
+				continue
+			}
+			size, ok, err := live(p)
+			if err != nil {
+				return agg, err
+			}
+			if ok {
+				if err := charge(p, size, 1); err != nil {
+					return agg, err
+				}
+			}
+		}
+	} else {
+		for p := range st.canonical {
+			if !intentRecord(p) {
+				continue
+			}
+			size, ok, err := live(p)
+			if err != nil {
+				return agg, err
+			}
+			if ok {
+				if err := charge(p, size, 1); err != nil {
+					return agg, err
+				}
+			}
+		}
+	}
+	if agg.Tickets < 0 || agg.Releases < 0 || agg.Tickets > wire.MaxTicketsPerQueue || agg.Releases > wire.MaxReleasesPerQueue || agg.Cost.Files != agg.Tickets+agg.Releases || agg.Cost.PayloadBytes > wire.MaxIntentTreeBytes {
+		return agg, errCheckpoint("intent", "intent aggregate out of range")
+	}
+	return agg, nil
+}
+
+// subCost is a - b, refusing any field that would go negative.
+func subCost(a, b archive.FileSetCost) (archive.FileSetCost, error) {
+	if b.Files > a.Files || b.PayloadBytes > a.PayloadBytes || b.EntryBytes > a.EntryBytes || b.TarBytes > a.TarBytes {
+		return a, errCheckpoint("intent", "aggregate underflow")
+	}
+	return archive.FileSetCost{Files: a.Files - b.Files, PayloadBytes: a.PayloadBytes - b.PayloadBytes, EntryBytes: a.EntryBytes - b.EntryBytes, TarBytes: a.TarBytes - b.TarBytes}, nil
+}
+
+// IntentSummary is what a liveness write knows about the live canonical
+// ticket and release records without listing or reading them
+// (JSG-V0-001): their count and archive cost, and their paths by lookup.
+type IntentSummary struct {
+	IntentAggregate
+	// Has reports whether p is a live canonical ticket or release record.
+	Has func(p string) bool
+}
+
+// LivenessIntent is the IntentSummary of a liveness writer audit's head:
+// its base checkpoint's aggregate adjusted by the tail it walked. Every
+// other result returns an error, and the caller declines the route.
+func (res *Result) LivenessIntent() (IntentSummary, error) {
+	if res == nil || !res.livenessWrite || res.Mode != ModeWriter || res.chain == nil {
+		return IntentSummary{}, errCheckpoint("intent", "not a liveness writer audit")
+	}
+	agg, err := res.intentAggregate()
+	if err != nil {
+		return IntentSummary{}, err
+	}
+	canonical := res.chain.canonical
+	return IntentSummary{IntentAggregate: agg, Has: func(p string) bool {
+		l, ok := canonical[p]
+		return ok && l.digest != nil && intentRecord(p)
+	}}, nil
+}
+
 // chainCheckpoint is the read checkpoint body for this result's chain.
 func (res *Result) chainCheckpoint() Checkpoint {
 	cp := Checkpoint{QueueID: res.Head.QueueID, PrimaryWorktree: res.Head.PrimaryWorktree, Seq: res.LastSeq, ReceiptSha256: res.LastReceiptSha256, Generation: res.Head.Generation, InitSha256: res.Head.InitSha256, SemanticCoverage: res.SemanticCoverage}
@@ -510,8 +725,14 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 // unchanged, and the walk probes that no receipt follows head, so the work
 // no longer grows with the number of receipts. A platform without a change
 // time lists exactly, as AuditForWriter does.
+//
+// It also lists no intent directory and reads no ticket or release
+// (JSG-V0-001): only queue.json and policy.json, by name, whose digests the
+// inventory binds. The result reports no intent tree digest (JSG-V0-002),
+// its ProjectionAgreement is IntentRecordsNotCompared, and LivenessIntent
+// summarizes the live ticket and release records from the checkpoint.
 func (r Reader) AuditForLiveness(wc *WriterCheckpoint, requestID string) (*Result, PhysicalObservation, error) {
-	r.probeReceipts = haveChangeTime
+	r.probeReceipts, r.liveness = haveChangeTime, true
 	return r.AuditForWriter(wc, requestID, false)
 }
 
@@ -743,9 +964,12 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if from == headSeq && (*head.LastReceiptSha256 != wc.ReceiptSha256 || head.Generation != wc.Generation) {
 		return result, errCheckpoint("head.json", "head digest/generation differs")
 	}
-	st := &chain{canonical: make(map[string]latest, len(wc.Entries)), prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from}
-	for _, e := range wc.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+	if len(wc.sizes) != len(wc.Entries) {
+		return result, errCheckpoint("writer checkpoint", "entry sizes absent")
+	}
+	st := &chain{canonical: make(map[string]latest, len(wc.Entries)), prev: &wc.ReceiptSha256, generation: wc.Generation.Uint64(), elided: wc, resumed: from, posted: map[string]bool{}}
+	for i, e := range wc.Entries {
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: int64(wc.sizes[i])}
 	}
 	result.SemanticCoverage = wc.SemanticCoverage
 	result.LastSeq, result.LastReceiptSha256 = wc.Seq, wc.ReceiptSha256
@@ -767,6 +991,10 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 			if present != (record.digest != nil) || (present && !info.Mode().IsRegular()) {
 				return result, errCheckpoint(p, "blob presence differs from latest canonical afterimage")
 			}
+			continue
+		}
+		if r.liveness && strings.HasPrefix(p, "intent/") && p != "intent/queue.json" && p != "intent/policy.json" {
+			// Not observed by a liveness write (JSG-V0-001).
 			continue
 		}
 		_, have := result.Records[p]
@@ -801,8 +1029,16 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	}
 	result.chain, result.writerBase = st, wc
 	result.ProjectionAgreement = "AGREES"
+	if r.liveness {
+		result.ProjectionAgreement, result.livenessWrite = IntentRecordsNotCompared, true
+	}
 	return result, nil
 }
+
+// IntentRecordsNotCompared is the ProjectionAgreement of a liveness writer
+// audit: private state, queue.json and policy.json agree, and no ticket or
+// release projection was observed (JSG-V0-001).
+const IntentRecordsNotCompared = "INTENT_RECORDS_NOT_COMPARED"
 
 // ListedFile is one path a writer audit listed: a directory, or a regular
 // file and its listed size.

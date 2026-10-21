@@ -362,14 +362,34 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 			files = append(files, entry)
 		}
 	}
-	intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
-	if err != nil {
-		return nil, err
+	var elidedIntent *transaction.ElidedIntent
+	if proof.ProjectionAgreement == journal.IntentRecordsNotCompared {
+		// A liveness write lists no intent directory and reads no ticket or
+		// release: the checkpoint's canonical sizes stand for them
+		// (JSG-V0-001, decision 0549).
+		for _, p := range []string{"intent/queue.json", "intent/policy.json"} {
+			entry, err := observedEntry(p, phys)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, entry)
+		}
+		summary, err := proof.LivenessIntent()
+		if err != nil {
+			return nil, errWriterRoute("intent", err.Error())
+		}
+		elidedIntent = &transaction.ElidedIntent{Tickets: summary.Tickets, Releases: summary.Releases, Cost: summary.Cost, Has: summary.Has}
+	} else {
+		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, intentFiles...)
 	}
-	files = append(files, intentFiles...)
 	sort.Strings(dirs)
 	archive.SortFiles(files)
 	return transaction.NewSummarizedInventory(files, dirs, transaction.Elided{
+		Intent:             elidedIntent,
 		Receipts:           wc.Seq.Uint64(),
 		FirstReceiptSha256: proof.Head.InitSha256,
 		LastReceiptSha256:  wc.ReceiptSha256,

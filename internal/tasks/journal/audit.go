@@ -94,6 +94,9 @@ type Result struct {
 	writerBase *WriterCheckpoint
 	// listing is what a ModeWriter audit listed but did not read.
 	listing map[string]ListedFile
+	// liveness marks an AuditForLiveness result: the intent tree was not
+	// listed and only queue.json and policy.json were read (JSG-V0-001).
+	livenessWrite bool
 	// resumeRead is what an AuditForResume walk consumed, by path; the
 	// resume recheck rereads the tail against it (PSR-V0-116, proposed).
 	resumeRead map[string]PhysicalFile
@@ -167,6 +170,7 @@ type Reader struct {
 	writer          *WriterCheckpoint // AuditForWriter only
 	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
 	probeReceipts   bool              // AuditForLiveness: stat receipts/ and probe the next name instead of listing it
+	liveness        bool              // AuditForLiveness: list no intent directory; read only queue.json and policy.json (JSG-V0-001)
 	prefix          bool              // AuditWriterRefresh's prefix walk only
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
@@ -557,8 +561,13 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	}
 	sort.Strings(o.receipts)
 	intentRemaining := intent.MaxIntentRootEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue
-	if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
-		return nil, err
+	// A liveness write lists no intent directory and reads no ticket or
+	// release (JSG-V0-001): only the queue and policy its model decodes,
+	// by name, below.
+	if !r.liveness {
+		if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
+			return nil, err
+		}
 	}
 	if _, ok := o.files["RESTORE_INCOMPLETE"]; ok {
 		return nil, wire.Errorf(wire.CodeRestoreIncomplete, "RESTORE_INCOMPLETE", "interrupted restore")
@@ -648,6 +657,24 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
 		}
 	}
+	if r.liveness {
+		for _, p := range []string{"intent/queue.json", "intent/policy.json"} {
+			max, err := snapshot.PostBound(p)
+			if err != nil {
+				return nil, err
+			}
+			raw, err := requiredRead(r.Source, p, max)
+			if err != nil {
+				return nil, err
+			}
+			if len(raw) == 0 {
+				return nil, wire.Errorf(wire.CodeMalformed, p, "empty intent file")
+			}
+			sum := wire.Sum(raw)
+			o.intentDigests[p], o.intentRaw[p] = sum, raw
+			fmt.Fprintf(inventory, "intent-digest\x00%s\x00%s\n", p, sum)
+		}
+	}
 	stageFiles, stageErr, err := r.readStage(o)
 	o.stageErr = stageErr
 	if err != nil {
@@ -662,6 +689,11 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 		fmt.Fprintf(inventory, "staging/%s\x00%s\n", f.Name, sum)
 	}
 	o.identity = Identity{HeadSha256: wire.Sum(raw), InventorySha256: wire.Digest(hex.EncodeToString(inventory.Sum(nil))), IntentTreeSha256: intent.DigestOfFiles(intents)}
+	if r.liveness {
+		// The intent tree was not observed, so no digest of it is reported
+		// (JSG-V0-002).
+		o.identity.IntentTreeSha256 = ""
+	}
 	return o, nil
 }
 

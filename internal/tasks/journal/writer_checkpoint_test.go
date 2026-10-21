@@ -43,13 +43,27 @@ func requestPathOf(d []byte) string {
 func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	repo, r := setup(t)
 	appendReceipt(t, repo, "MUTATION", map[string][]byte{ticketPath("A"): fixture.Ticket("A").Encode()}, "", true, true, false)
-	cp := checkpointed(t, repo, r)
+	full, observed, err := r.AuditForWriteObserved()
+	if err != nil {
+		t.Fatal(err)
+	}
+	derived, err := full.WriterCheckpoint(observed.Files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cp := &derived.Checkpoint
 	a, b := sha256.Sum256([]byte("a")), sha256.Sum256([]byte("b"))
 	afterA, afterB := sha256.Sum256([]byte("request a")), sha256.Sum256([]byte("request b"))
 	digests := [][]byte{append(append([]byte(nil), a[:]...), afterA[:]...), append(append([]byte(nil), b[:]...), afterB[:]...)}
 	sort.Slice(digests, func(i, j int) bool { return bytes.Compare(digests[i], digests[j]) < 0 })
 	wc := &WriterCheckpoint{Checkpoint: *cp, FullSeq: 2, ReceiptBytes: 900, Cost: archive.FileSetCost{Files: 4, PayloadBytes: 1200, EntryBytes: 300, TarBytes: 4096}}
 	wc.requests = append(append([]byte(nil), digests[0]...), digests[1]...)
+	// JSG-V0-001: the canonical size of each entry and the live intent
+	// aggregate they sum to.
+	wc.sizes, wc.Intent = derived.sizes, derived.Intent
+	if wc.Intent.Tickets != 1 || wc.Intent.Cost.PayloadBytes != uint64(len(fixture.Ticket("A").Encode())) {
+		t.Fatalf("intent aggregate %+v", wc.Intent)
+	}
 	ref := &ticket.OperatorNoteReference{Revision: "1", Head: wire.Sum([]byte("note"))}
 	noted, other := -1, -1
 	for i, e := range cp.Entries {
@@ -70,7 +84,7 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(got.Encode(), raw) || got.Requests() != 2 || got.FullSeq != 2 || got.Cost != wc.Cost || got.ReceiptBytes != 900 || got.Invalidation != wc.Invalidation {
+	if !bytes.Equal(got.Encode(), raw) || got.Requests() != 2 || got.FullSeq != 2 || got.Cost != wc.Cost || got.ReceiptBytes != 900 || got.Invalidation != wc.Invalidation || got.Intent != wc.Intent {
 		t.Fatalf("writer checkpoint codec is not a round trip: %+v", got)
 	}
 	if !got.HasRequest(requestPathOf(a[:])) || !got.HasRequest(requestPathOf(b[:])) {
@@ -120,7 +134,20 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		binary.BigEndian.PutUint64(out[aggregates+8*i:], v)
 		return sealWriter(out)
 	}
-	requestsAt := aggregates + 7*8
+	intentAt := aggregates + 7*8
+	sizesAt := intentAt + writerIntentFields*8
+	requestsAt := sizesAt + 8*len(cp.Entries)
+	sized := func(at int, v uint64) []byte {
+		out := append([]byte(nil), body...)
+		binary.BigEndian.PutUint64(out[at:], v)
+		return sealWriter(out)
+	}
+	ticketEntry := -1
+	for i, e := range cp.Entries {
+		if e.Path == ticketPath("A") {
+			ticketEntry = i
+		}
+	}
 	swapped := append([]byte(nil), body...)
 	copy(swapped[requestsAt:], digests[1])
 	copy(swapped[requestsAt+writerRequestBytes:], digests[0])
@@ -130,9 +157,9 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	repeatedPath := append([]byte(nil), body...)
 	copy(repeatedPath[requestsAt+writerRequestBytes:], digests[0][:sha256.Size])
 	foreign := append([]byte(nil), body...)
-	copy(foreign, strings.Replace(writerMagic, "/1", "/2", 1))
+	copy(foreign, strings.Replace(writerMagic, "/2", "/3", 1))
 	previous := append([]byte(nil), body...)
-	copy(previous, strings.Replace(writerMagic, "/1", "/0", 1))
+	copy(previous, strings.Replace(writerMagic, "/2", "/1", 1))
 	longCP := append([]byte(nil), body...)
 	binary.BigEndian.PutUint64(longCP[len(writerMagic):], uint64(len(body)))
 	notesAt := requestsAt + 2*writerRequestBytes
@@ -166,6 +193,13 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 			return append(append(append([]byte(nil), out[:end]...), out[notesAt+8:end]...), out[end:]...)
 		}),
 		"layout without invalidation": sealWriter(body[:len(body)-sha256.Size]),
+		"intent ticket count":         sized(intentAt, 2),
+		"intent release count":        sized(intentAt+8, 1),
+		"intent payload":              sized(intentAt+16, wc.Intent.Cost.PayloadBytes+1),
+		"intent payload over bound":   sized(intentAt+16, uint64(wire.MaxIntentTreeBytes)+1),
+		"ticket size":                 sized(sizesAt+8*ticketEntry, uint64(len(fixture.Ticket("A").Encode()))+1),
+		"ticket size over bound":      sized(sizesAt+8*ticketEntry, uint64(wire.MaxIntentTreeBytes)+1),
+		"truncated sizes":             sealWriter(body[:sizesAt+8]),
 		"over the bound":              make([]byte, MaxWriterCheckpointBytes+1),
 	} {
 		if _, err := DecodeWriterCheckpoint(bad); err == nil {

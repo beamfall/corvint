@@ -44,8 +44,8 @@ is added (invariant 7): every seal runs in the writer whose commit makes it due.
 
 ## Requirements
 
-- `JSG-V0-001`: (accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT read, stat-digest or hash the intent tree or any ticket file on the writer route. Its pre-effect recheck binds `head.json`, the primary branch and the SHA-256 of each private file its model read (the attempt, the lease and its reservation); a change to any of them declines the route before effects. CAL-V0-189 keeps the intent-tree binding for every other verb. The liveness model reads no ticket (CAL-V0-233), so no liveness outcome depends on intent.
-- `JSG-V0-002`: (accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snapshot.intentTreeSha256` as `null`, which the wire schema allows. No liveness result reports an intent digest that the write did not observe. A consumer that needs the intent digest runs an audit.
+- `JSG-V0-001`: (accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT list, read, stat-digest or hash any intent ticket or release on the writer route. It reads only `intent/queue.json` and `intent/policy.json`, by name. Its pre-effect recheck binds `head.json`, the primary branch, those two files, `reservations.json`, `pools.json`, `programs.json` and each attempt its plan rewrites to the bytes the model read; a change to any of them declines the route before effects. The authority session still pins the intent directories it may publish into, an O(1) open that lists and reads nothing. CAL-V0-189 keeps the intent-tree binding for every other verb. The liveness model reads no ticket (CAL-V0-233), so no liveness outcome depends on intent; a model access to an elided intent path declines the route.
+- `JSG-V0-002`: (accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snapshot.intentTreeSha256` as `null`, which the wire schema allows; a lease mutation result's `snapshot` is `null` whole. No liveness result reports an intent digest that the write did not observe. A consumer that needs the intent digest runs an audit.
 - `JSG-V0-003`: (accepted; decision 0549 R3) The writer checkpoint carries the measured manifest encoding size and the per-entry sizes the capacity model needs. A write that changes k manifest entries measures only those k. The complete route and `receipt audit` measure every entry and refuse a checkpoint whose carried size differs from the measured one; the refusal removes the checkpoint as any other writer-checkpoint refusal does (CAL-V0-117).
 - `JSG-V0-004`: (accepted; decision 0549 R4) The writer checkpoint is two derived files: a sealed base, rewritten only when the active set seals (or, before a store is segmented, when the active tail reaches 512 receipts), holding the ticket inventory, the request index of every receipt it covers and the sealed segment digests; and an active delta, bounded by the active set, holding the requests and counts after the base (at most 512 receipts once segmented). The delta binds the base by SHA-256; a delta whose base is absent or differs is unusable and the write declines to the complete route. A write decodes the inventory only for the entries its model reads, and looks a request up in the base without decoding it.
 - `JSG-V0-005`: (accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed segment files `segments/<first>-<last>.seg`, each holding exactly 512 consecutive receipts, where F is the store's first live receipt (1, or the retired-prefix anchor of JRT-V0) and S−F+1 is a multiple of 512; receipts S+1..head stay in `receipts/`. A segment (profile `taskman-segment/0`) holds, in canonical framing, the exact on-disk bytes of its receipts and of the request afterimages they posted, each with its path. Receipt digests, the hash chain and decision 0538 elision stubs are unchanged by sealing.
@@ -104,6 +104,10 @@ count is recorded and does not qualify.
 
 ## Compatibility and rollback
 
+The writer checkpoint profile is `taskman-writer-checkpoint/2` from slice S1: it adds the per-entry
+canonical sizes and an intent aggregate (ticket and release counts and payload bytes) that the
+decoder checks against the live intent entries. The file is derived: a reader refuses any other
+profile as unsupported and the write declines to the complete route, which retains a new one.
 An unsegmented store keeps `taskman-journal-head/0` and is audited as before, except that its
 writers list `receipts/` exactly (JSG-V0-007). A segmented store is refused by older binaries
 through the newer head profile. Rollback of a store: `corvint-tasks journal unseal`, which restores
@@ -115,8 +119,8 @@ revert by commit.
 
 | Requirement | Evidence |
 | --- | --- |
-| JSG-V0-001 | pending (slice S1) |
-| JSG-V0-002 | pending (slice S1) |
+| JSG-V0-001 | S1: `TestJSGV0001_LivenessReadsNoIntentRecords`, `TestJSGV0001_LivenessBindDeclinesMovedInputs` (store); `TestJSGV0001_ElidedIntentMeasureParity` (transaction); `TestCALV0115_WriterCheckpointCodecIsClosed` (journal, profile /2 and intent aggregate); `TestCALV0116_WriterRouteParity` (liveness parity) |
+| JSG-V0-002 | S1: `TestJSGV0002_LivenessResultReportsNoIntentDigest` (cli) |
 | JSG-V0-003 | pending (slice S2) |
 | JSG-V0-004 | pending (slice S2) |
 | JSG-V0-005 | pending (slice S3) |
@@ -128,4 +132,4 @@ revert by commit.
 | JSG-V0-011 | pending (slice S6) |
 | JSG-V0-012 | pending (slice S4) |
 | JSG-V0-013 | pending (slice S4) |
-| JSG-V0-014 | pending (slices S1 to S7) |
+| JSG-V0-014 | S1 (no intent read at 70 and 210 tickets, 0 and 30 prior heartbeats): `TestJSGV0001_LivenessReadsNoIntentRecords`; slices S2 to S7 pending |

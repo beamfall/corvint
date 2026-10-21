@@ -306,7 +306,7 @@ func (r Reader) walkSealed(o *observation, result *Result, selected map[string]b
 	st := &chain{canonical: make(map[string]latest, len(a.Entries)), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s,
 		notes: &noteState{refs: map[string]*ticket.OperatorNoteReference{}, policyWalked: true}}
 	for _, e := range a.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}
 	// Requests receipts 1..S posted stay on disk but are not reinstated as
 	// canonical paths: their names must be exactly the ones the anchor

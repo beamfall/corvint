@@ -359,15 +359,40 @@ func storeFiles(t *testing.T, root, wcPath string) map[string]string {
 // route's result.
 func writerParity(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) *Report {
 	t.Helper()
+	return writerParityRoute(t, repo, write, false)
+}
+
+// writerLivenessParity is writerParity for a heartbeat or renew below the
+// writer advance tail: the fast route leaves the read checkpoint as it was
+// instead of rewriting it (decision 0549, JSG-V0-001), and every other file
+// matches the complete route.
+func writerLivenessParity(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) *Report {
+	t.Helper()
+	return writerParityRoute(t, repo, write, true)
+}
+
+func writerParityRoute(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error), liveness bool) *Report {
+	t.Helper()
 	parent := filepath.Dir(repo.PrimaryWorktree)
 	wcPath := journal.WriterCheckpointPath(repo.StateDir)
+	readCheckpoint, err := filepath.Rel(parent, journal.CheckpointPath(repo.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
 	backup := filepath.Join(t.TempDir(), "store")
 	copyTree(t, parent, backup)
+	before := storeFiles(t, parent, wcPath)[readCheckpoint]
 	fast := stagedWrite(write, nil)
 	if !fast.completed() || !fast.fast() {
 		t.Fatalf("fast route: %+v %v %v", fast.rep, fast.err, fast.stages)
 	}
 	fastFiles := storeFiles(t, parent, wcPath)
+	if liveness {
+		if fastFiles[readCheckpoint] != before {
+			t.Errorf("liveness fast route rewrote the read checkpoint")
+		}
+		delete(fastFiles, readCheckpoint)
+	}
 	if err := os.RemoveAll(parent); err != nil {
 		t.Fatal(err)
 	}
@@ -380,6 +405,9 @@ func writerParity(t *testing.T, repo *intent.Repository, write func(context.Cont
 		t.Fatalf("complete route: %+v %v %v", complete.rep, complete.err, complete.stages)
 	}
 	completeFiles := storeFiles(t, parent, wcPath)
+	if liveness {
+		delete(completeFiles, readCheckpoint)
+	}
 	for p, d := range completeFiles {
 		if fastFiles[p] != d {
 			t.Errorf("%s: fast %q, complete %q", p, fastFiles[p], d)
@@ -401,7 +429,8 @@ func writerParity(t *testing.T, repo *intent.Repository, write func(context.Cont
 
 // CAL-V0-116 and CAL-V0-119 (proposed): a create, a first and a superseding
 // note, and the claim, renew, heartbeat and release writes the route serves
-// commit the same bytes, retain the same read checkpoint and report the same
+// commit the same bytes, retain the same read checkpoint (a heartbeat or
+// renew below the advance tail retains none; decision 0549) and report the same
 // outcome as the complete route.
 func TestCALV0116_WriterRouteParity(t *testing.T) {
 	repo := writerStore(t, 70)
@@ -454,11 +483,11 @@ func TestCALV0116_WriterRouteParity(t *testing.T) {
 		}
 	}
 	claim := writerParity(t, repo, lease("parity-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-1", LeaseMinutes: "60"}))
-	writerParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
+	writerLivenessParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
 	// The heartbeat's tail holds a note on its own claimed ticket.
 	writerParity(t, repo, writerEnvelope(repo, note("parity-note-3", "2", "Third."), now))
 	now = WallClock()
-	writerParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
+	writerLivenessParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 	writerParity(t, repo, lease("parity-release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 }
 

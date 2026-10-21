@@ -932,6 +932,16 @@ func validateInput(r Request, in Input) (inputState, error) {
 	} else if _, ok := in.Inventory.files["barrier.json"]; ok {
 		return st, malformed("barrier observation missing")
 	}
+	if in.Inventory.elided != nil && in.Inventory.elided.Intent != nil {
+		// JSG-V0-001: a heartbeat or renew lists and reads no ticket or
+		// release, so the summarized inventory carries them by count and
+		// cost; every other request needs them listed.
+		if !LivenessLease(r) || len(in.CanonicalTickets) > 0 || in.CanonicalTicketPaths != nil || len(in.CanonicalReleases) > 0 {
+			return st, malformed("elided intent records outside a liveness lease")
+		}
+		st.releases = map[string]*release.Record{}
+		return st, loadModelState(r, in, &st)
+	}
 	if LivenessLease(r) && in.CanonicalTicketPaths != nil {
 		// CAL-V0-233: a heartbeat or renew reads no ticket, so the canonical
 		// set is bound to its named projections by digest and length without
@@ -979,13 +989,20 @@ func validateInput(r Request, in Input) (inputState, error) {
 	if e = release.ValidateGraph(all); e != nil {
 		return st, e
 	}
-	if (r.Operation == Lease || openRetryRecovery(r, st) || reviewMutation(r) || knowHowAttemptMutation(r)) && st.head != nil {
+	return st, loadModelState(r, in, &st)
+}
+
+// loadModelState loads the attempts and pools the request's model
+// reads; it is the tail of validateInput every route shares.
+func loadModelState(r Request, in Input, st *inputState) error {
+	var e error
+	if (r.Operation == Lease || openRetryRecovery(r, *st) || reviewMutation(r) || knowHowAttemptMutation(r)) && st.head != nil {
 		st.attempts, e = loadAttempts(in, st.reservations)
 	}
 	if e == nil && (r.Operation == Lease || r.Operation == PolicyUpdate) {
-		st.pools, e = loadPools(r, in, st)
+		st.pools, e = loadPools(r, in, *st)
 	}
-	return st, e
+	return e
 }
 
 // LivenessLease reports a heartbeat or renew: the closed set of lease verbs
