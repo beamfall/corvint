@@ -1,8 +1,6 @@
 package main
 
 import (
-	"io"
-	"os"
 	"path/filepath"
 	"regexp"
 )
@@ -45,18 +43,12 @@ func adviceDeclaresRSpecGem(root string) bool {
 	return false
 }
 
+// adviceReadGemManifest reads through readBoundedFile: an Lstat, then a
+// no-follow, non-blocking open whose descriptor must still be the same regular
+// file, so a manifest swapped for a symlink or FIFO declares nothing.
 func adviceReadGemManifest(path string) (string, bool) {
-	info, err := os.Lstat(path)
-	if err != nil || !info.Mode().IsRegular() || info.Size() > adviceMaxGemManifestBytes {
-		return "", false
-	}
-	file, err := os.Open(path)
+	body, err := readBoundedFile(path, adviceMaxGemManifestBytes)
 	if err != nil {
-		return "", false
-	}
-	defer file.Close()
-	body, err := io.ReadAll(io.LimitReader(file, adviceMaxGemManifestBytes+1))
-	if err != nil || len(body) > adviceMaxGemManifestBytes {
 		return "", false
 	}
 	return string(body), true

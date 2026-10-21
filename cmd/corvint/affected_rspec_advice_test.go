@@ -216,6 +216,26 @@ func TestAFPV0066RSpecAdviceNeedsDeclaredRSpecGem(t *testing.T) {
 	}
 }
 
+// TestAFPV0066SymlinkedGemManifestDeclaresNothing: a Gemfile.lock that is a
+// symlink, even to a manifest declaring rspec, is never read (AFP-V0-066).
+func TestAFPV0066SymlinkedGemManifestDeclaresNothing(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	target := filepath.Join(t.TempDir(), "Gemfile.lock")
+	if err := os.WriteFile(target, []byte("GEM\n  specs:\n    rspec-core (3.13.0)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "Gemfile"), []byte("gemspec\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(root, "Gemfile.lock")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	if adviceDeclaresRSpecGem(root) {
+		t.Fatal("a symlinked Gemfile.lock must declare nothing")
+	}
+}
+
 // TestAFPV0009NoGoAdviceGapWithoutGoUnits: AFP-V0-009 (V1-2076). A repository
 // whose graph has no Go unit reports no NO_ADVISORY_GO_COMMAND line for its
 // empty Go selection; a Go repository keeps the line (the consequence use case
