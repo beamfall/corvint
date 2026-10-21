@@ -40,7 +40,7 @@ code, the tests, and the execution, and no second party is left to witness any o
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
 **a new specification language** are both listed at `docs/PRODUCT.md:378-380@27e81383`, and
-`docs/specs/live-proof-carrying-verification-v0.md:577-578@38b12d34` forbids "generating tests, weakening
+`docs/specs/live-proof-carrying-verification-v0.md:699-700@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.
@@ -83,7 +83,7 @@ An adapter must map native identifiers and definition lines into that complete g
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:299-302@2d724bbb`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:300-303@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins

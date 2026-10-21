@@ -128,13 +128,8 @@ func prefixNoteStore(t *testing.T) (*intent.Repository, string, uint64) {
 	}
 	path := "intent/tickets/" + entries[0].Name()
 	wc := readWriterCheckpoint(repo)
-	var prior uint64
-	for _, e := range wc.Entries {
-		if e.Path == path {
-			prior = e.Seq.Uint64()
-		}
-	}
-	if prior == 0 || prior > wc.Seq.Uint64() {
+	prior, err := wc.LastPosted(path)
+	if err != nil || prior == 0 || prior > wc.Seq.Uint64() {
 		t.Fatalf("%s last posted at %d, checkpoint %s", path, prior, wc.Seq)
 	}
 	target := fixture.TicketID(strings.TrimSuffix(entries[0].Name(), ".json"))
@@ -295,15 +290,39 @@ func TestONV0014_UnboundNotePreStateDeclinesTheWriter(t *testing.T) {
 		if run := stagedWrite(writerEnvelope(repo, writerNoteEnvelope("prefix-note-2", target, "1", "Again."), WallClock()), nil); !run.completed() || !run.fast() {
 			t.Fatalf("second note: %+v %v %v", run.rep, run.err, run.stages)
 		}
-		// The one carried note is the last 36 bytes before the invalidation
-		// digest and the trailer.
+		// The complete route derived the checkpoint with a fresh base, which
+		// carries the one note last: its digest ends where the header begins.
+		// The delta binds the base by digest, so it is rebound and resealed.
 		wcPath := journal.WriterCheckpointPath(repo.StateDir)
-		rewriteFile(t, wcPath, func(raw []byte) []byte {
-			end := len(raw) - 2*sha256.Size
-			if binary.BigEndian.Uint64(raw[end-36-8:end-36]) != 1 {
-				t.Fatalf("writer checkpoint does not carry exactly one note")
+		var forged [sha256.Size]byte
+		rewriteFile(t, journal.WriterBasePath(repo.StateDir), func(raw []byte) []byte {
+			at := len(journal.ProfileWriterBase) + 1 + 3*8
+			if binary.BigEndian.Uint64(raw[at:]) != 1 {
+				t.Fatalf("writer checkpoint base does not carry exactly one note: %d", binary.BigEndian.Uint64(raw[at:]))
 			}
-			raw[end-1] ^= 0xff
+			// Version 1 trails the notes with the checkpoint header
+			// (length-prefixed), ten aggregates and the segment digests;
+			// this store is unsegmented, so the trailer ends in a zero count.
+			if binary.BigEndian.Uint64(raw[len(raw)-8:]) != 0 {
+				t.Fatal("writer checkpoint base carries segments")
+			}
+			end := len(raw) - 8 - 10*8
+			note := -1
+			for n := 0; n <= 16<<10 && end-n-8 >= 0; n++ {
+				if binary.BigEndian.Uint64(raw[end-n-8:]) == uint64(n) {
+					note = end - n - 8
+					break
+				}
+			}
+			if note < 0 {
+				t.Fatal("writer checkpoint base header not found")
+			}
+			raw[note-1] ^= 0xff
+			forged = sha256.Sum256(raw)
+			return raw
+		})
+		rewriteFile(t, wcPath, func(raw []byte) []byte {
+			copy(raw[len(journal.ProfileWriterCheckpoint)+1:], forged[:])
 			sum := sha256.Sum256(raw[:len(raw)-sha256.Size])
 			copy(raw[len(raw)-sha256.Size:], sum[:])
 			return raw

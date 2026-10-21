@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 )
 
 // TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift pins proposed
@@ -34,7 +35,7 @@ func TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift(t *testing.T) {
 	t.Run("one-bracket", func(t *testing.T) {
 		run, observed := recordingRunner(stable)
 		reads := 0
-		repository, err := probeRepositoryAround(context.Background(), ".", run, func(_ context.Context, observation Observation) error {
+		repository, err := probeRepositoryAround(context.Background(), ".", run, nil, func(_ context.Context, observation Observation) error {
 			reads++
 			if observation.TreeRevision != testTreeRevision || observation.CommitRevision != testCommitRevision || len(observation.DirtyPaths) != 0 {
 				t.Fatalf("read observation = %+v", observation)
@@ -68,7 +69,7 @@ func TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift(t *testing.T) {
 			return stable(command)
 		})
 		reads := 0
-		_, err := probeRepositoryAround(context.Background(), ".", run, func(context.Context, Observation) error {
+		_, err := probeRepositoryAround(context.Background(), ".", run, nil, func(context.Context, Observation) error {
 			reads++
 			return nil
 		})
@@ -83,7 +84,7 @@ func TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift(t *testing.T) {
 	t.Run("read-error-precedes-closing", func(t *testing.T) {
 		run, observed := recordingRunner(stable)
 		refused := newError("read-refused", "the read refused")
-		_, err := probeRepositoryAround(context.Background(), ".", run, func(context.Context, Observation) error {
+		_, err := probeRepositoryAround(context.Background(), ".", run, nil, func(context.Context, Observation) error {
 			return refused
 		})
 		if !errors.Is(err, refused) {
@@ -91,6 +92,63 @@ func TestProbeAroundSpawnsFourGitProcessesAndRefusesDrift(t *testing.T) {
 		}
 		if calls := observed(); len(calls) != 2 {
 			t.Fatalf("a failed read took the closing observation: %v", calls)
+		}
+	})
+}
+
+// TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead pins proposed LCP-V0-033: the
+// prefetching bracket hands the opening identity to prefetch while the opening status read is
+// still running (the status reply below waits for it), exactly once, never for the closing
+// observation and never after a failed identity read, and spawns the same four Git processes.
+func TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead(t *testing.T) {
+	t.Run("identity-before-status", func(t *testing.T) {
+		prefetched := make(chan [3]string, 2)
+		statuses := 0
+		run, observed := recordingRunner(func(command string) ([]byte, error) {
+			switch command {
+			case "rev-parse":
+				return testIdentityOutput(), nil
+			case "status":
+				statuses++
+				if statuses == 1 {
+					select {
+					case <-time.After(5 * time.Second):
+						return nil, newError("test-command", "the opening status read finished before prefetch started")
+					case identity := <-prefetched:
+						prefetched <- identity
+					}
+				}
+				return []byte{}, nil
+			}
+			return nil, newError("test-command", "unexpected Git command")
+		})
+		_, err := probeRepositoryAround(context.Background(), ".", run, func(objectFormat, commit, tree string) {
+			prefetched <- [3]string{objectFormat, commit, tree}
+		}, func(context.Context, Observation) error { return nil })
+		if err != nil {
+			t.Fatal(err)
+		}
+		if calls := observed(); len(calls) != 4 {
+			t.Fatalf("LCP-V0-033: Git processes = %v, want the bracket's four", calls)
+		}
+		if got := <-prefetched; got != [3]string{"sha1", testCommitRevision, testTreeRevision} {
+			t.Fatalf("prefetch identity = %v", got)
+		}
+		if len(prefetched) != 0 {
+			t.Fatal("prefetch ran for the closing observation too")
+		}
+	})
+	t.Run("failed-identity-never-prefetches", func(t *testing.T) {
+		run, _ := recordingRunner(func(command string) ([]byte, error) {
+			if command == "rev-parse" {
+				return []byte("sha1\nnot-an-object\n"), nil
+			}
+			return []byte{}, nil
+		})
+		calls := 0
+		_, err := probeRepositoryAround(context.Background(), ".", run, func(string, string, string) { calls++ }, func(context.Context, Observation) error { return nil })
+		if err == nil || calls != 0 {
+			t.Fatalf("malformed identity: err = %v, prefetch calls = %d", err, calls)
 		}
 	})
 }

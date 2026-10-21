@@ -19,7 +19,7 @@ solution that is a perfect additional and use case for corvint".
 
 ## Agent digest
 - Claim: Reviewed E2E blocks compile into change-specific scenarios that must discriminate the change; hosted tests retire only after a shadow evaluation.
-- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012; none of that is implemented except the CCE-V0-021 environment block (V1-1681 serve part); the rest is V1-1677..V1-1682, V1-1687. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
+- Status: proposed; experimental. First slice V1-1665 implements CCE-V0-001, 002, 004..009 and 015 in `internal/changee2e` behind `corvint-test e2e` with focused tests and a live Playwright qualification (Node v22.23.2); CCE-V0-003 is partial (one hand-written declarations file) and CCE-V0-010..014 are not started. The 2026-10-17 panel amendment adds CCE-V0-016..025 and amends 003, 004, 009, 011 and 012; none of that is implemented except the CCE-V0-021 environment block (V1-1681 serve part) and the obligations soundness of CCE-V0-019/020 with the amended 004 base join (V1-1678); the rest is V1-1677, V1-1679..V1-1682, V1-1687. CCE-V0-086 (V1-1711) resolves a relative `--root`. Everything ships as the `e2e` group of one experimental companion, `corvint-test`; V0 adds nothing to core `corvint`.
 - Exists: `cmd/corvint-test` (`e2e catalog|obligations|compile|prove`) over `internal/changee2e`. It composes the existing AMAP-V0 map and scaffold, AMSP-V0 planner, AFU-V1 declared outcomes, ANL-V0 proven edges, RVN-V0 run verification, PWR-V0 run comparison and NEA-V0/BBF-V0 negative controls.
 - Blocked on: owner acceptance of this intent; first slice V1-1665; falsification spike V1-1677 before more V0 build (umbrella V1-1666).
 - Read next: User and measurable job; Definitions; Requirements (016..025); Shadow evaluation and retirement; Beyond V0; Owner questions.
@@ -338,7 +338,16 @@ slice or the draft; the build-log entry gives the evidence.
   `removed-at-head`, `fan-out-over-limit` and `blocks-not-declared`; an unlisted reason is a
   defect. The optional `reach_exempt` member of `e2e-blocks.json` is a list of `{glob, reason}`
   entries read at base, so a diff cannot exempt itself; each exemption the report applies MUST cite
-  its glob.
+  its glob. A glob is a Go `path.Match` pattern over the repository-relative path (`*` does not
+  cross `/`); an invalid or absolute pattern or an empty reason refuses `e2e-blocks-invalid`. The
+  report lists each applied exemption under `exempt` as `{path, glob, reason}`, gives each unknown
+  span an optional `detail` naming its cause (the impact reason, the map unknown, the removed
+  entity, the screen or the dropped obligation), and when one span has several causes keeps the
+  first of `removed-at-head`, `impact-truncated`, `fan-out-over-limit`, `map-unknown`,
+  `screen-without-outcome`, `unplaced-path`. A map unknown counts for a reached screen when it
+  names that screen, lies in a changed file, or names a step of a flow through that screen; when
+  the report would otherwise read `NONE`, every map unknown counts. Any impact omission makes every
+  changed path `impact-truncated`, and exemptions are not applied over a truncated impact set.
 - `CCE-V0-021`: The optional `environment` member of `e2e-blocks.json` MUST hold only `serve` (an
   argv array, run without a shell), `base_url` (a loopback URL), `ready` (a path polled until it
   answers, with a bounded timeout) and `env` (variable names to pass through, never values). `prove`
@@ -367,6 +376,14 @@ slice or the draft; the build-log entry gives the evidence.
   lines) MUST appear in a report only inside a bounded `untrusted_text` field, and never in a
   reason, code, summary or block. Failure mode: page-controlled text reaches an agent as
   instructions or forges a verdict explanation.
+
+The 2026-10-21 fix lane (V1-1711) adds CCE-V0-086; IDs 026..085 are left free for parallel lanes.
+
+- `CCE-V0-086`: A relative `--root`, including the default `.`, MUST resolve against the working
+  directory to its absolute, symlink-resolved path before any Git or map read, for `catalog`,
+  `obligations` and the commands built on them. Failure mode: the map reads run Git with the
+  relative root applied twice and the command refuses `e2e-map-unavailable: evaluated revision is
+  not a commit`, blaming the revision.
 
 ## Shadow evaluation and retirement
 
@@ -429,7 +446,7 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 - Limits: at most 64 obligations per compile, 16 scenarios proven per run, 100 repeats per side,
   one worker; each limit refuses with a named code when exceeded rather than sampling, except the
   obligation limit, which under CCE-V0-019 reads `UNKNOWN` with `fan-out-over-limit` instead. The
-  first slice's `e2e-obligations-over-limit` refusal is superseded once V1-1678 lands.
+  first slice's `e2e-obligations-over-limit` refusal is superseded (V1-1678) and no longer emitted.
 - Fail-closed choices: unknown reach reads `UNKNOWN` (never `NONE`); a missing block reads
   `INCOMPLETE`; a missing receipt reads `INCONCLUSIVE`; none of these narrows hosted selection.
 - Secrets: `input` and `outcome` values pass the existing secret screen per block; a matching block
@@ -439,7 +456,7 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   (CCE-V0-022); page-derived text stays in `untrusted_text` (CCE-V0-025).
 - First-slice codes (V1-1665), each fail-closed:
   - Refusals: `e2e-root-required`, `e2e-revision-invalid`, `e2e-map-unavailable`,
-    `e2e-impact-unavailable`, `e2e-obligations-over-limit`, `e2e-repeats-over-limit`,
+    `e2e-impact-unavailable`, `e2e-repeats-over-limit`,
     `e2e-scenarios-required`, `e2e-scenarios-over-limit`, `e2e-scenario-invalid`,
     `e2e-toolchain-unavailable`, `e2e-tree-unavailable` and `e2e-out-unsafe` (a destination below
     `--out` is a link, leaves it, or repeats a placement).
@@ -448,8 +465,8 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
   - Unadmitted-block reasons: `edge-unproven`, `method-not-callable`, `outcome-not-compilable` and
     `screen-unresolved`.
   - `INCOMPLETE` reasons: `no-admitted-fixture` and `no-flow-step-expects-outcome`.
-  - Unknown-span reason: `unplaced-path` (a changed path that impact neither places on a screen nor
-    reports unknown).
+  - Unknown-span reasons: the closed CCE-V0-020 set (V1-1678); the first slice emitted only
+    `unplaced-path` (a changed path that impact neither places on a screen nor reports unknown).
   - Control `not_run` reasons: `verdict-decided-before-controls`, `control-workspace-unavailable`,
     `proof-repository-unavailable`, `plan-refused` and `execute-refused`.
 
@@ -458,7 +475,7 @@ A failed shadow evaluation stays recorded as failed; it is not renamed developme
 | Requirement | Planned evidence | Status |
 |---|---|---|
 | CCE-V0-001..003 | catalog golden over the AMAP-V0 fixture plus a declared `e2e-blocks.json` | PASS (first slice, one hand-written declarations file): `TestCCEV0001CatalogDeterministicAndBound`, `TestCCEV0002DeclarationsFailClosed`, `TestCCEV0001OutInsideRootRefuses`, `TestCCEV0001OutNestedSymlinkRefused`, `TestCCEV0001OutFileSymlinkRefused` |
-| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS against the pre-amendment text; the amended base-and-head map join and consulted-relations list are NOT_STARTED (V1-1678): `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome` |
+| CCE-V0-004 | obligations golden for a one-screen diff, an unknown-reach diff and a no-UI diff | PASS: `TestCCEV0004OneScreenDiffReachesOneOutcome`, `TestCCEV0004UnboundedUnknownAndUnplacedPathUnknown`, `TestCCEV0004EarlierScreenReachesLaterStepOutcome`; the amended base-and-head map join (V1-1678) by `TestCCEV0019RemovedAtHeadUnknown`, and the report's `relations` member names the consulted relations (AMAP impact, the base and head maps, the base `reach_exempt`) and those not consulted (affected plan, ANL edge ledger) |
 | CCE-V0-005..007 | compile golden, byte-identical rerun, `INCOMPLETE` cases per missing block kind | PASS (first slice; a missing fixture and unknown reach exercised): `TestCCEV0005CompileFromAdmittedBlocks`, `TestCCEV0006MissingBlocksIncomplete`, `TestCCEV0007PlacementsInjective` |
 | CCE-V0-008..010 | live local Playwright run on the fixture app: head pass, base fail, two BBF controls | 008 and the pre-amendment 009 ladder PASS (the amended ladder, `REGRESSION_DETECTED`/`SCENARIO_BROKEN`/`NEW_REACH` and error-location matching are NOT_STARTED, V1-1679): `TestCCEV0008ProveLimitsRefuse`, `TestCCEV0008UntarSkipsLinks`, `TestCCEV0009VerdictOrder`, `TestCCEV0009AssertionDetector`, `TestCCEV0009HeadIntermittency`, `TestCCEV0009ControlPerturbation`; live (Playwright 1.63.0, Node v22.23.2, 5 repeats) `TestCCEV0009LiveDiscriminates` (head 5/5 pass, base 5/5 fail at the outcome assertion, both controls killed, qualified PWP receipts) and `TestCCEV0009LivePreserves`; the live tests skip without `CORVINT_PLAYWRIGHT_MODULES`. 010 NOT_STARTED |
 | CCE-V0-011..013 | shadow report over a synthetic window; adopter window `NOT_RUN` | NOT_STARTED |
@@ -471,11 +488,12 @@ of the named ticket.
 | Requirement | Planned evidence | Ticket | Status |
 |---|---|---|---|
 | CCE-V0-003 (`environment`) and 021 | declarations with the member; unknown members refuse; `serve` without a shell; failed `ready` reads `INCONCLUSIVE` | V1-1681 | PASS: `TestCCEV0021EnvironmentShape` (the closed shape; non-loopback, portless, `https` or path-carrying `base_url`, empty argv, relative `ready`, `NAME=value`, reserved names (`PATH`, `HOME`, the prove toolchain names, `CORVINT_BEHAVIOR_*`), a `serve[0]` escaping the tree and unknown members refuse `e2e-blocks-invalid`), `TestCCEV0021ServeTree` (argv run without a shell inside the tree, only `PATH`, `HOME` and declared names reach it, an already answering port refuses `port-in-use`, missing tool, a serve exiting before or after `ready` reads `serve-exited`, `ready` needs a 2xx answer within 120 s, the leader stays unreaped until its process group is killed and the port is released on stop, `environment-unavailable:*` reads `INCONCLUSIVE`); live (Playwright 1.63.0, Node v22.23.2) `TestCCEV0021LiveEnvironmentDiscriminates` (both sides and both BBF controls run against the declared serve; the proof records the environment digest) and the static tests now assert `environment: static`. `TestCCEV0021ServeCommandResolution` (a relative `serve[0]` resolves inside the tree, a symlink out refuses `serve-outside-tree`, a bare name is the executable Prove resolved once on its PATH), `TestCCEV0021ReadyRequires2xx`, `TestCCEV0021ControlRequestEnvironment` (the BBF hook receives only set declared names plus the resolved serve executable and PATH, so its serve matches the sides). Not detected (recorded as a proof limitation): a serve that binds another port, a detached child outliving the group |
-| CCE-V0-003 (`reach_exempt`), 020 | declarations golden with the member | V1-1678 | NOT_STARTED |
+| CCE-V0-003 (`reach_exempt`), 020 | declarations golden with the member | V1-1678 | PASS: `TestCCEV0020ReachExemptAndNone` (an exempt-only diff over a clean map reads `NONE` citing the base glob; map unknowns keep it `UNKNOWN`; a diff adding its own glob stays `UNKNOWN`), `TestCCEV0020ReachExemptInvalidRefuses` |
 | CCE-V0-009 (amended), 017, 018 | offline fake-runner tests per ladder verdict; identical test-tree digest across sides; overlap reads `INCONCLUSIVE`; each structure control killed on the fixture | V1-1679, V1-1687 | NOT_STARTED |
 | CCE-V0-011, 012 (amended) | synthetic window with each entry type: registration refusal, a mutant caught by one eligible scenario beside a broken one counts once as caught, an uncaught target counts once as a miss, bounds and Holm correction against a reference computation | V1-1682 | NOT_STARTED |
 | CCE-V0-016 | fixture per `oracle_origin` value; non-`ADMITTED_AT_BASE` never counts as a catch | V1-1680 | NOT_STARTED |
-| CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | NOT_STARTED |
+| CCE-V0-019, 020 | one fixture per `UNKNOWN` reason; `NONE` only under exemptions or no-screen placement; closed-enum test | V1-1678 | PASS: `TestCCEV0019ReachedScreenWithoutOutcomeUnknown` (F1), `TestCCEV0019MapUnknownOnReachedScreenUnknown` (F2), `TestCCEV0019ImpactTruncationUnknown` (F3, screens and edge-only omissions), `TestCCEV0019RemovedAtHeadUnknown` (F4, flow and outcome), `TestCCEV0019FanOutOverLimitUnknown` (F7), `TestCCEV0020ClosedUnknownReasonSet`; every fixture checks its reasons against the closed set. `blocks-not-declared` stays a catalog unknown and is never an obligations span; `NONE` arises only from exemptions (a non-UI path impact merely ignores stays `unplaced-path`) |
+| CCE-V0-086 | relative-root catalog and obligations | V1-1711 | PASS: `TestCCEV0086RelativeRootResolves` |
 | CCE-V0-022, 023 | environment allowlist test; non-loopback request aborted and recorded; report digest changes with each bound input; one test per exit code, including a `prove` report with passing verdicts over `UNKNOWN` obligations exiting 3 | V1-1681 | NOT_STARTED |
 | CCE-V0-024, 025 | golden bytes tied to the compiler version; `outcome-vacuous`; per-block `secret-suspected`; page text only in `untrusted_text` | V1-1679, V1-1681 | NOT_STARTED |
 

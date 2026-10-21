@@ -85,7 +85,9 @@ SEED-SIBLING-COLLISION, SEED-HOOK-BLAST-RADIUS and SEED-VALIDATION-UNRESOLVED.
 To a _spec.rb file: MEMOIZED-BLOCK-EXPECTATION,
 BLOCK-NOT-CALLED, RSPEC-SKIPPED, RSPEC-FOCUSED, SHARED-EXAMPLE-ONLY,
 RB-BLOCK-NEVER-YIELDED, RB-ASSIGNMENT-IN-PREDICATE and the advisory
-DESCRIBED-CLASS-STUBBED, RB-CHANGE-ON-IDENTITY and RB-RAISE-ERROR-ONLY; an
+DESCRIBED-CLASS-STUBBED, RB-CHANGE-ON-IDENTITY, RB-RAISE-ERROR-ONLY and
+RB-DENIAL-WITHOUT-NO-EFFECT (RB-DENIAL-VERB-UNRESOLVED or RB-DENIAL-MATCHER-CUSTOM
+when the refused request or its matcher is unknown); an
 example that skips conditionally or that a committed filter_run_excluding
 removes abstains with RSPEC-CONDITIONAL-SKIP or RSPEC-CONFIG-EXCLUDED; a helper the reader cannot
 resolve through spec/spec_helper.rb, spec/rails_helper.rb and spec/support

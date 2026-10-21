@@ -86,7 +86,12 @@ func commitFiles(t *testing.T, root string, files map[string]*string, message st
 
 func overlayText(t *testing.T, p string) *string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join("testdata/overlay", filepath.FromSlash(p)))
+	return overlayTextFrom(t, "testdata/overlay", p)
+}
+
+func overlayTextFrom(t *testing.T, dir, p string) *string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(p)))
 	if err != nil {
 		t.Fatal(err)
 	}

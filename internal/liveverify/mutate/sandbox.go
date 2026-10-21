@@ -1,11 +1,15 @@
 package mutate
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
 // sandbox confines one go test run to the paths the runner owns and cuts it
@@ -97,4 +101,31 @@ func bubblewrap(executable string) func([]string) ([]string, error) {
 		}
 		return append(argv, "--unshare-net", "--unshare-pid", "--die-with-parent", "--"), nil
 	}
+}
+
+// nestingRefusal is the fixed supported-limit reason an export reports when
+// its sandbox launcher refuses to apply the profile at all (FPK-V0-142).
+const nestingRefusal = "the host refused to apply the sandbox profile (an enclosing sandbox forbids nesting)"
+
+// preflightDeadline bounds the one nesting preflight of an export.
+const preflightDeadline = 30 * time.Second
+
+// nestingRefused runs go version once through the workspace's sandbox
+// launcher. Only an output that is nothing but the launcher's own refusal
+// line (launcherRefused, TCQ-V0-059) reports a refusal, so an enclosing
+// sandbox that forbids nesting is found once per export instead of as one
+// broken run per claim. Any other result leaves the per-run classification
+// in charge; the preflight never runs anything outside the sandbox.
+func nestingRefused(ctx context.Context, space workspace) bool {
+	preflightCtx, cancel := context.WithTimeout(ctx, preflightDeadline)
+	defer cancel()
+	argv := append(append([]string{}, space.prefix...), "go", "version")
+	command := exec.CommandContext(preflightCtx, argv[0], argv[1:]...)
+	command.Dir = space.export
+	command.Env = goEnvironment(space)
+	output := &boundedBuffer{limit: outputLimit}
+	command.Stdout, command.Stderr = output, output
+	configureProcess(command)
+	_ = groupreap.Run(command)
+	return launcherRefused(output.String())
 }

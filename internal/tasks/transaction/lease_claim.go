@@ -105,10 +105,11 @@ func entryCoverage(sc *snapshot.Scope) string {
 }
 
 // collision names the first other live attempt whose resources collide with
-// rs under TCP-00 §4.2 (CAL-V0-023), or "".
+// rs under TCP-00 §4.2 (CAL-V0-023), or "". PATH keys the policy declares
+// shared on both sides do not collide (NTP-V0-026).
 func (c leaseContext) collision(rs []ticket.Resource, self string) string {
 	for _, en := range c.st.reservations.Entries {
-		if en.AttemptID != self && ticket.Collide(rs, en.Resources) {
+		if en.AttemptID != self && ticket.CollideShared(rs, en.Resources, c.st.policy.SharedReservationPaths()) {
 			return en.AttemptID
 		}
 	}
@@ -125,7 +126,7 @@ func (c leaseContext) expiredBlocking(ticketID string, rs []ticket.Resource) []E
 		if !expired(c.st.attempts[en.AttemptID], c.in.RecordedAt) {
 			continue
 		}
-		if full || en.TicketID.Raw == ticketID || ticket.Collide(rs, en.Resources) {
+		if full || en.TicketID.Raw == ticketID || ticket.CollideShared(rs, en.Resources, c.st.policy.SharedReservationPaths()) {
 			out = append(out, ExpiredLease{AttemptID: en.AttemptID, Generation: en.Generation})
 		}
 	}

@@ -67,6 +67,13 @@ so the allowlist stayed empty.
 - `ECO-V0-007`: A passing run MUST print nothing and exit zero; the gate MUST be read-only and a
   member of the `gate` target, as MUST its fixture test. `--list` MUST print the unowned set as
   `code<TAB>path:line` and exit zero.
+- `ECO-V0-008`: The `position` search MAY run over a private scratch tree that holds, at its own path
+  and line number, every index line under the scanned sources that contains a quoted kebab-case
+  literal, with every other line empty. It MUST then find exactly the sites and line numbers that the
+  same search over the index finds, because every site ends in such a literal on one line. The
+  scratch tree MUST be built only from index content, and the exit status of its `git grep` falls
+  under the `ECO-V0-005` rule. (V1-2210, accepted under the owner's standing auto-accept of
+  2026-10-11.)
 
 ## Non-goals and simpler baseline
 
@@ -105,6 +112,7 @@ by `make error-code-ownership-check`.
 | ECO-V0-005 | test case 5, a failing fake `git grep` refused by name |
 | ECO-V0-006 | review of each owning row; the rows added with this gate cite their emitting line |
 | ECO-V0-007 | test case 1, a passing run printing nothing; `gate` membership |
+| ECO-V0-008 | test case 2, whose site line number fails when the scratch tree drops the empty lines; on 2026-10-21 the live tree gave the same 3,163 sites and 1,506 first sites both ways |
 
 ## Traceability
 
@@ -117,6 +125,7 @@ by `make error-code-ownership-check`.
 | ECO-V0-005 | the `search` wrapper's exit-status check | case 5 |
 | ECO-V0-006 | owning spec rows | review |
 | ECO-V0-007 | the exit paths, `--list`, and `error-code-ownership-check`/`error-code-ownership-test` in `gate` | case 1; `make gate` membership |
+| ECO-V0-008 | the candidate-line search, the scratch tree, and `search_tree` in the same script | case 2; the 2026-10-21 live-tree comparison |
 
 ## Rollout, rollback, and drift
 

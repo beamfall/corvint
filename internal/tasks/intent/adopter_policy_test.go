@@ -95,3 +95,28 @@ func TestTDRV0001_PolicyDefects(t *testing.T) {
 		}
 	}
 }
+
+// TestNTPV0026_PolicyReservationsSharedPaths: reservations.sharedPaths is
+// optional, a sorted unique non-empty list of repository paths, and refuses
+// an empty, unsorted or unknown declaration.
+func TestNTPV0026_PolicyReservationsSharedPaths(t *testing.T) {
+	p, err := intent.DecodePolicy(wire.EncodeFile(fixture.PolicyValue()))
+	if err != nil || p.SharedReservationPaths() != nil {
+		t.Fatalf("absent: %v %v", err, p.SharedReservationPaths())
+	}
+	p, err = policyWith(t, "reservations", `{"sharedPaths":["docs/specs/INDEX.json","docs/specs/README.md","docs/specs/REQUIREMENTS.tsv"]}`)
+	if err != nil || len(p.SharedReservationPaths()) != 3 {
+		t.Fatalf("declared: %v %+v", err, p)
+	}
+	for _, raw := range []string{
+		`{"sharedPaths":[]}`,
+		`{"sharedPaths":["docs/specs/README.md","docs/specs/INDEX.json"]}`,
+		`{"sharedPaths":["/abs"]}`,
+		`{"sharedPaths":["a"],"extra":true}`,
+		`{}`,
+	} {
+		if _, err := policyWith(t, "reservations", raw); err == nil {
+			t.Errorf("%s accepted", raw)
+		}
+	}
+}

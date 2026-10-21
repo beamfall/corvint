@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 30 (FPK-V0-078 refuses a container workspace that resolves to, under, or above the repository root and a container CLI over the runner's 256 MiB executable bound, hashing the CLI with a bounded streaming read; FPK-V0-080 gives a containerised run whose report the runner's parser rejects or observes as incomplete no verdict, with a typed `report_error`, Codex review of V1-2116, standing lane auto-accept of 2026-10-11; revision 29 FPK-V0-078 to FPK-V0-081 let Ruby mutation rows run through a declared containerised RSpec runner (`--mutate-runner`, the corvint-test-runner rspec request with an exec prefix and path map, TRE-V0-081 to TRE-V0-086), one disposable copy and one admitted runner receipt per run, the host path unchanged without a declaration, GitHub #1354 and V1-2116, standing lane auto-accept of 2026-10-11; revision 28 FPK-V0-074 to FPK-V0-077 let `--mutate` judge a named, possibly unchanged, `.rb` source against cited RSpec examples (`--mutate-source`, `--mutate-example`), running only those examples and naming the line basis, GitHub #1354 and V1-2115, standing lane auto-accept of 2026-10-11; revision 27 FPK-V0-068 to FPK-V0-073 add a Ruby/RSpec mutation engine under `--mutate`, with per-mutant verdicts, retained receipts and typed witnesses, GitHub #1321 and V1-2094, standing lane auto-accept of 2026-10-11, and narrow FPK-V0-057 to minitest and TypeScript claims; revision 26 FPK-V0-057 gives a `--mutate` claim in a language without a mutation engine, such as an RSpec example claiming a changed `.rb` source, an explicit `UNSUPPORTED` witness, GitHub #1321, standing lane auto-accept of 2026-10-11; revision 25 decision 0393 accepts FPK-V0-052 and sets its discovery ceiling only for a root that holds its own `.git` entry; revision 24 FPK-V0-052 makes every `cmd/corvint` Git read ignore repository-configured programs and replace refs; revision 23 FPK-V0-050 adds `prove --cem ... --attest-cem-v1`, the only command that emits the `cem/v1` predicate, and FPK-V0-051 replaces the UNCONFIRMED field-name alignment with a comparison against the fetched OpenFab `openfab/generation` v0.1 draft and agentattest predicate v1, adopting none of their fields; revision 22 FPK-V0-041 to FPK-V0-049 add an explicit, bounded, secret-screened `prove --export-bundle` failure-reproduction bundle for query and checkpoint results, a `prove --replay-bundle` that recomputes it on a second checkout or refuses with a named reason, and a `historical` marker that `prove-observe` refuses; revision 21 FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 31 (FPK-V0-142 keeps the Go mutation runner's cold baseline build out of the per-run kill, reports a warm per-run kill as `BUDGET_EXCEEDED` naming the limit, finds an enclosing sandbox's refusal once by a preflight, and makes the test budget overridable, V1-1483/1484/1485/1577, standing lane auto-accept of 2026-10-11; revision 30 FPK-V0-078 refuses a container workspace that resolves to, under, or above the repository root and a container CLI over the runner's 256 MiB executable bound, hashing the CLI with a bounded streaming read; FPK-V0-080 gives a containerised run whose report the runner's parser rejects or observes as incomplete no verdict, with a typed `report_error`, Codex review of V1-2116, standing lane auto-accept of 2026-10-11; revision 29 FPK-V0-078 to FPK-V0-081 let Ruby mutation rows run through a declared containerised RSpec runner (`--mutate-runner`, the corvint-test-runner rspec request with an exec prefix and path map, TRE-V0-081 to TRE-V0-086), one disposable copy and one admitted runner receipt per run, the host path unchanged without a declaration, GitHub #1354 and V1-2116, standing lane auto-accept of 2026-10-11; revision 28 FPK-V0-074 to FPK-V0-077 let `--mutate` judge a named, possibly unchanged, `.rb` source against cited RSpec examples (`--mutate-source`, `--mutate-example`), running only those examples and naming the line basis, GitHub #1354 and V1-2115, standing lane auto-accept of 2026-10-11; revision 27 FPK-V0-068 to FPK-V0-073 add a Ruby/RSpec mutation engine under `--mutate`, with per-mutant verdicts, retained receipts and typed witnesses, GitHub #1321 and V1-2094, standing lane auto-accept of 2026-10-11, and narrow FPK-V0-057 to minitest and TypeScript claims; revision 26 FPK-V0-057 gives a `--mutate` claim in a language without a mutation engine, such as an RSpec example claiming a changed `.rb` source, an explicit `UNSUPPORTED` witness, GitHub #1321, standing lane auto-accept of 2026-10-11; revision 25 decision 0393 accepts FPK-V0-052 and sets its discovery ceiling only for a root that holds its own `.git` entry; revision 24 FPK-V0-052 makes every `cmd/corvint` Git read ignore repository-configured programs and replace refs; revision 23 FPK-V0-050 adds `prove --cem ... --attest-cem-v1`, the only command that emits the `cem/v1` predicate, and FPK-V0-051 replaces the UNCONFIRMED field-name alignment with a comparison against the fetched OpenFab `openfab/generation` v0.1 draft and agentattest predicate v1, adopting none of their fields; revision 22 FPK-V0-041 to FPK-V0-049 add an explicit, bounded, secret-screened `prove --export-bundle` failure-reproduction bundle for query and checkpoint results, a `prove --replay-bundle` that recomputes it on a second checkout or refuses with a named reason, and a `historical` marker that `prove-observe` refuses; revision 21 FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -136,7 +136,7 @@ above stands with that substitution.
   both exit 2 with `output-failed` (`cmd/corvint/prove.go:542-546@4c0799f8`, `cmd/corvint/prove.go:554-556@ea3220b5`). A failed write
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
-  gives for its own write failure (`cmd/corvint/main.go:1352-1354@f3b5fd7c`), which the adapter contract
+  gives for its own write failure (`cmd/corvint/main.go:1362-1364@f3b5fd7c`), which the adapter contract
   converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:68-69`).
   This clause's code list is also extended, under `--checkpoint` only, by the six codes FPK-V0-024
   enumerates: `unreadable-checkpoint-document`, `invalid-checkpoint-document`,
@@ -442,8 +442,8 @@ above stands with that substitution.
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:229@a543bfa1` via `NormalizePaths`,
-  `internal/liveverify/affected/select.go:514-527@eadff8fe`), by the same construction
-  `internal/gokernel/repository.go:405-406@425ed3ff` and `internal/gokernel/repository.go:416@54fe2926` already take — cited as a construction
+  `internal/liveverify/affected/select.go:521-534@eadff8fe`), by the same construction
+  `internal/gokernel/repository.go:415-416@425ed3ff` and `internal/gokernel/repository.go:426@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:570-572@6b81d3a5`). It hashes
   path names, never
@@ -582,7 +582,7 @@ above stands with that substitution.
   `dirty-set-moved` (FPK-V0-020's digest, recomputed by that one construction over the current
   dirty path list, differs from the checkpoint's `dirty_paths_sha256`; both hash names only,
   never content, the digest being taken over the path list alone
-  (`internal/gokernel/repository.go:405-406@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:237@e2af9ea7`), so
+  (`internal/gokernel/repository.go:415-416@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:237@e2af9ea7`), so
   equal dirty sets yield equal digests and the flag is not set);
   `authority-changed` (the current blob of a `critical` handle differs from `blob_hash` AND
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
@@ -726,22 +726,22 @@ above stands with that substitution.
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:463-464@bf504d51`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1560-1562@a109d3d7`); because this clause requires every checkpoint
+  a `code` member (`cmd/corvint/main.go:1570-1572@a109d3d7`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1564-1568@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1574-1578@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1545-1556@a9930fba`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1555-1566@a9930fba`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:657@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:874@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:565@6d433de3`, `cmd/corvint/prove.go:574-576@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:670-680@5563dd2e`, `cmd/corvint/prove.go:525-533@73e66e84`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1554-1556@4f554a82`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1564-1566@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -794,10 +794,10 @@ above stands with that substitution.
   (`internal/contextindex/index.go:288@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1078@a1c6494d`, `cmd/corvint/index_snapshot.go:105@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1064-1066@d473eb95`, `cmd/corvint/main.go:1400-1411@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1429-1430@c39315fe` and
+  (`cmd/corvint/prove.go:1064-1066@d473eb95`, `cmd/corvint/main.go:1410-1421@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1439-1440@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:412-414@9faff3e7`, called at
-  `cmd/corvint/main.go:1425@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
+  `cmd/corvint/main.go:1435@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
@@ -862,7 +862,7 @@ above stands with that substitution.
   partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1138-1149@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
-  (`internal/gokernel/repository.go:406@8febb932`).
+  (`internal/gokernel/repository.go:416@8febb932`).
 - **FPK-V0-025:** (accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSION-V0 lifecycle: SESSION-V0-001 through SESSION-V0-016
   stay deferred and unimplemented (`docs/specs/session-context-dividend-v0.md:6`, `:29`), and
   `prove --checkpoint` MUST NOT persist, cache, or index a checkpoint document server-side. The
@@ -877,7 +877,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1564-1568@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1574-1578@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being
@@ -1172,6 +1172,31 @@ above stands with that substitution.
   and their tests, the `withoutMutateRunnerFlag` and `checkMutateRunner` calls, the `rubyRunner`
   option and row fields, `Request.Container` and `Receipt.Runner`, and the container branches of
   `judge`, `falsify` and `judgeMutants`; Ruby rows then run only on the host.
+- **FPK-V0-142:** (proposed 2026-10-21, V1-1483, V1-1484, V1-1485 and V1-1577; accepted under the
+  2026-10-11 standing auto-accept; IDs FPK-V0-082 to FPK-V0-141 are left free) Go mutation
+  runner limits, amending the FPK-V0-014 runner (`internal/liveverify/mutate`). (1) A package's
+  first run of a request, its baseline, also builds its dependencies into the copy's fresh build
+  cache; the runner MUST NOT kill that cold run at the per-run share plus grace. Only the request
+  budget bounds its build, and go test's own `-timeout` (the per-run share) still bounds its test
+  binary. Every later (warm) run keeps the per-run kill. `Report.Baseline` retains the baseline
+  run's wall time; `Elapsed` minus `Baseline` is the warm runs; neither enters `detail`. (2) A warm
+  run the runner kills at its limit while the request still has budget is `BUDGET_EXCEEDED`, never
+  a runner failure, with `detail` `per-run limit of T reached after K of N mutants` or
+  `per-run limit of T reached during the baseline run`, where `T` is the run's `-timeout` (the
+  per-run share, or a package run's share times its claims, capped at the budget). (3) Each
+  export runs one preflight, `go version` through the sandbox launcher, before any test. An output
+  that is nothing but the launcher's refusal line (TCQ-V0-059) makes every claim on that export
+  `UNSUPPORTED` with `detail` `cited tests cannot be sandboxed: the host refused to apply the
+  sandbox profile (an enclosing sandbox forbids nesting)`, and no `go test` starts. Any other
+  preflight result leaves the per-run TCQ-V0-059 classification in charge. Nothing ever runs
+  outside the sandbox. (4) The default request budget (ten minutes) and the per-run floor (ten
+  seconds) are package variables that only tests change. The package tests' request budget is
+  four minutes, or `CORVINT_MUTATE_TEST_BUDGET` (a Go duration) on a loaded host. A load-sensitive
+  test accepts `BUDGET_EXCEEDED` as a distinct outcome (it skips with the detail) and never
+  accepts "run ended without a verdict". Non-goals: no change to the mutant plan, the sandbox
+  profiles, or the Python and Ruby runners. Rollback: revert the `cold` parameter of
+  `runGoTest`, `runTimedOut`, `perRunDetail`/`perRunPartial`, `nestingRefused`, `Report.Baseline`
+  and the tests; the cold build then shares the per-run limit again.
 
 - **FPK-V0-029:** (accepted 2026-09-07 by decision 0080) A document's `status`, which decides every
   authority label in FPK-V0-011 and the `authority-changed` flag above, MUST be read as a labelled
@@ -1930,6 +1955,7 @@ which is the whole of what the row asserts.
 | FPK-V0-079 | `containerRunner.execute`, `copyExport`, `walkExport`, `request`; the `inPlace` branch of `judgeMutants` and the sandbox skip in `judge` (`internal/liveverify/rbmutate`) | `TestFPKV0079ContainerRunsEachMutantInADisposableCopy` (fake CLI, unsandboxed copy: 15 distinct removed run directories, the host verdicts 6 killed and 8 survived, export digest unchanged), `TestFPKV0079ContainerRunsTheCitedExamples`, `TestFPKV0079ProveRunsRubyRowsThroughTheDeclaredContainer` (CLI end to end, repository digest unchanged); live: `TestFPKV0079LiveContainerQualification` (opt-in, `CORVINT_TEST_RSPEC_IMAGE`; passed locally 2026-10-20 with Docker 29.9.1 on colima and the local `corvint-rspec-qual:2026-10-20` RSpec 3.13 image: 6 killed, 8 survived, workspace empty afterwards) |
 | FPK-V0-080 | `admitRunnerReceipt`, `RunnerReceipt` (`ReportError`), `Receipt.Runner`, `classifyReport`, the `runUnadmitted` override in `containerRunner.execute` | `TestFPKV0079ContainerRunsEachMutantInADisposableCopy` (every receipt carries a distinct admitted plan digest and a complete observation), `TestFPKV0079ProveRunsRubyRowsThroughTheDeclaredContainer` (`runner_receipt` with `complete` true on every record receipt), `TestFPKV0080UnadmittedReportEarnsNoVerdict` (unversioned baseline report; inconsistent mutant reports never killed) |
 | FPK-V0-081 | `findSpecRunner` host branch; `Receipt.Runner` `omitempty` | `TestFPKV0081HostReceiptCarriesNoRunnerReceipt`; every FPK-V0-068 to FPK-V0-077 test unchanged |
+| FPK-V0-142 | `runContext`, `runGoTest` (`cold`, `runTimedOut`), `perRunDetail`, `perRunPartial`, `falsify`, `judgeMutants`, `baselineGroup`, `baselineAlone`, `judgeMutantAcrossPackages`, `creditGroup`, `nestingRefused`, `open`, `Report.Baseline` (`internal/liveverify/mutate`) | `TestFPKV0142ColdBuildIsOutsideThePerRunLimit` (a 3 s cold run under a 2 s limit still judges; `Baseline` retained), `TestFPKV0142WarmRunKilledAtThePerRunLimitNamesTheLimit`, `TestFPKV0142GroupedWarmRunKilledAtThePerRunLimitNamesTheLimit`, `TestFPKV0142NestingPreflightReportsOneSupportedLimit` (no `go test` starts), `TestRunReportsASandboxLauncherRefusalAsUnavailable` (per-run path behind a passing preflight); `skipOnBudget` in `TestRunKillsAMutantAndLeavesTheRootUntouched` and `TestRunReportsNoMutantsForADeclarationOnlyFile`; each fails under its mutation (2026-10-21) |
 | FPK-V0-077 | rollback statement; `treeDigest` checks | the absent-spec `FAIL` row and both tree digests in `TestFPKV0075NamedUnchangedSourceGetsKillsMutantRows`; `TestFPKV0075NamedSourceRunsOnlyTheCitedExamples` tree digest |
 | FPK-V0-037 | experimental prototype: `gitnotes.Anchor`, `requireCleanMap`, `committedPointer`, `writeNote` (`internal/gitnotes/anchor.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (stored note equals the pointer with an independently computed SHA-256, receipt `mutates: true`, re-anchor `written: false`), `TestAnchorRefusesAnUncommittedDirtyOrMissingMap` (untracked, modified, staged, absent, loose blob deleted, and different-note cases each refused by code with the notes ref unmoved) |
 | FPK-V0-038 | experimental prototype: `gitnotes.Provenance`, `anchorRow`, `pointerState` (`internal/gitnotes/provenance.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (read back `verified`, every ref unchanged by provenance, a forged digest `digest-mismatch`), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`mutates: false`, `for-each-ref` unchanged) |

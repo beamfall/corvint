@@ -123,6 +123,7 @@ func unitIndex(t *testing.T, path string) int {
 // patch, a rubber-stamp map citing one AGENTS.md span for every hunk and a
 // careful per-hunk map; both accept and their citation integers differ.
 func TestCEMV1080RubberStampAndCarefulMapsDiffer(t *testing.T) {
+	t.Parallel()
 	rubberRoot, base, target := citationRepo(t, 24)
 	rubber, rubberJSON := acceptedCitation(t, statusWithCitations(t, rubberRoot, base, target, func(wire.Hunk) (string, string) {
 		return "AGENTS.md", "1:1"
@@ -195,6 +196,7 @@ func hunkForPath(t *testing.T, root string, index int) string {
 // AGENTS.md split into 20 disjoint spans, one per hunk, naming no hunk path
 // and defining no hunk ID. Diverse evidence alone must not look specific.
 func TestCEMV1082DisjointUmbrellaSpansHaveNoSpecificity(t *testing.T) {
+	t.Parallel()
 	root, base, target := citationRepo(t, 20)
 	citation, encoded := acceptedCitation(t, statusWithCitations(t, root, base, target, func(hunk wire.Hunk) (string, string) {
 		line := unitIndex(t, hunk.Path) + 2 // line 1 is the heading
@@ -210,6 +212,7 @@ func TestCEMV1082DisjointUmbrellaSpansHaveNoSpecificity(t *testing.T) {
 // only mentions CEM-SM-0070 never anchors a hunk adding CEM-SM-007; comment
 // and ID-only lines are annotation, a real identifier line is not.
 func TestCEMV1081IDBoundaryAndAnnotation(t *testing.T) {
+	t.Parallel()
 	root, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -255,6 +258,7 @@ func TestCEMV1081IDBoundaryAndAnnotation(t *testing.T) {
 // two status reads of one map are byte-identical, and the block keeps its
 // pinned key order.
 func TestCEMV1082CitationIsDeterministic(t *testing.T) {
+	t.Parallel()
 	root, base, target := citationRepo(t, 6)
 	first := statusWithCitations(t, root, base, target, func(hunk wire.Hunk) (string, string) {
 		line := unitIndex(t, hunk.Path) + 1

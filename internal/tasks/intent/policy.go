@@ -153,7 +153,10 @@ type Policy struct {
 	// Defects is the optional TDR-V0-001 defect-register declaration; nil
 	// (the key absent) keeps the default prefix and the private register.
 	Defects *DefectPolicy
-	Raw     []byte
+	// Reservations is the optional NTP-V0-026 reservation declaration; nil
+	// (the key absent) keeps every PATH key exclusive.
+	Reservations *ReservationPolicy
+	Raw          []byte
 }
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
@@ -405,7 +408,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -633,6 +636,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "defects") {
 		p.Defects = readDefects(r.Field("defects"))
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "reservations") {
+		p.Reservations = readReservations(r.Field("reservations"))
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

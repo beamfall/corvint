@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -379,7 +379,7 @@ separate exact extension tuple remains governed by AHI-024.
   `AHI-022` routes off the terminal for the two JavaScript hosts.
 
 - `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapter
-  `0.3.2`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
+  `0.3.3` (superseding `0.3.2` under `AHI-071`, decision 0550), host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
   translator argv is exactly `adapter pi EVENT`, where EVENT is one of `session-start`,
   `user-prompt`, `file-change`, `post-tool`, `stop`, or `session-end`. Its UTF-8 stdin is bounded
   to 131072 bytes and contains exactly `hostVersion` and event-normalized `input`. Unknown,
@@ -428,12 +428,12 @@ separate exact extension tuple remains governed by AHI-024.
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact
   tuple completes the separate protected authority and full host qualification requirements.
   The wildcard Pi peer dependency only selects host-owned modules; it MUST NOT broaden exact
-  runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.2.
+  runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.3.
   Protected Pi runtime/image contracts retain their separately pinned tuple. The exact ordinary-tuple bridge amendment is accepted by decision 0452 (V1-0506); its FALLBACK support and qualification limits are unchanged.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
-  `corvint-pi-adapter/0`, `pi`, `extension`, `0.3.2`, `FALLBACK`, and false respectively.
+  `corvint-pi-adapter/0`, `pi`, `extension`, `0.3.3`, `FALLBACK`, and false respectively.
   Event is the admitted selector, or null only for an unsupported-event fault. Success has
   hostVersion `0.99.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
   hexadecimal digits, string context (empty or native framed data), recognized degradation
@@ -492,6 +492,18 @@ separate exact extension tuple remains governed by AHI-024.
   context-unavailable, stale-context, source-unavailable, record-unavailable,
   invalid-core-response or output-too-large. Host version is null only before validation.
   Runtime-local AHI-024 faults retain their meaning. No tool can request authority or FULL.
+- `AHI-071`: (accepted under the owner's standing auto-accept (2026-10-11), decision 0550; V1-2150)
+  Amendment to `AHI-025`. Pi 0.99.1 converts a null integer argument to 0 before validation, so a
+  `corvint_expand` call with a null or missing `result` or `evidence` index MUST refuse with the
+  adapter-local typed fault `invalid-expansion-index` before host conversion (through the tool's
+  `prepareArguments`) and again in the handler, and MUST NOT dispatch `adapter pi-tool expand` or
+  expand row 0. The refusal is a visible Pi tool error; it never echoes caller text. This schema
+  change bumps the adapter to `0.3.3` together, superseding the accepted 0.99.1 / 0.3.2 tuple
+  (decision 0452) in AHI-024, LCP-V0-008/009 and the PWV-V0 inventory; 0.3.2 now refuses visibly.
+  Evidence: `AHI-071` in `integrations/pi/tools.test.mjs`; `TestPiLocalCompletionTuple`. Failure
+  mode: a host that strips null before `prepareArguments` still reaches schema validation, which
+  rejects the missing required index. Rollback: revert the refusal and restore 0.3.2 everywhere
+  together; the binary and package must be replaced as a pair.
 - `AHI-026`: The Claude Code plugin MUST register the compaction hook events the installed host's
   hook API documents, `PreCompact` and `PostCompact` (read from the installed Claude Code 2.1.267
   hook runner, decision 0340), as matcherless command groups running
@@ -728,6 +740,28 @@ separate exact extension tuple remains governed by AHI-024.
   intermittent regression that clears on the re-sample can pass once; repeated campaigns retain each
   attempt for review. Evidence: `TestAHI056LatencyResample` in `internal/opencodequalification`.
   Rollback: revert the re-sample so the first timing campaign decides alone.
+- `AHI-171`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #1406)
+  Amendment to `AHI-056`. Each OpenCode native timing window (the first campaign and its re-sample)
+  MUST record host contention at its start and end under `metrics.latencyAttempts[].contention`:
+  1-, 5- and 15-minute load averages, the logical CPU count, the run-queue length where the host
+  exposes it (`/proc/loadavg` runnable count on Linux) and the reading's source. A value the host
+  does not expose MUST be recorded as `NOT_OBSERVED`, never zero. Each attempt and
+  `metrics.latencyOutcome` (for the decisive attempt) MUST carry one of `PASS`,
+  `LATENCY_HOST_CONTENDED` (a complete, delivered sample that missed only a p95 limit in a window
+  whose highest observed 1-minute load average per logical CPU exceeds the declared threshold of
+  0.5, recorded as `metrics.contentionThresholdLoadPerCPU`) or `LATENCY_REGRESSION` (any other
+  miss, including one whose contention was not observed). When the decisive outcome is
+  `LATENCY_HOST_CONTENDED` and every other check passed, the report `result` MUST be `RETRY_LATER`
+  with a `retryHint` naming the load below which to retry, the campaign error MUST say the miss was
+  under host contention and not a regression, and `tools/qualify-opencode` MUST exit 75 instead of
+  1. `RETRY_LATER` does not qualify the host: the consumer record still requires `PASS`, and the
+  absolute AHI-012 limits are unchanged. Non-goals: a same-window baseline sample of a previously
+  qualified binary or no-op probe, CPU steal time, and widening limits. Failure modes: a host that
+  stays loaded keeps returning `RETRY_LATER`; a genuine regression measured on a loaded host is
+  reported as retry-later until it is retried on a quiet one, where it fails as a regression; load
+  averages lag a short burst. Evidence: `TestAHI171LatencyHostContention` in
+  `internal/opencodequalification`. Rollback: revert `internal/opencodequalification/contention.go`
+  and its call sites so a latency miss is a plain `FAIL` again.
 - `AHI-070`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The generic
   `corvint harness event --event user-prompt` keeps refusing a task whose raw input, counted before
   surrounding whitespace is trimmed, exceeds either query bound (2,000 characters or 16,384 bytes)
@@ -1233,6 +1267,22 @@ separate exact extension tuple remains governed by AHI-024.
   Rollback: restore the single `groupGone` probe in `integrations/opencode/src/runtime.js` in place of
   `confirmCleanup`, `probeGroup` and `groupProbe`, and remove the two tests. OpenCode again completes
   100 ms after the request and reads a zombie-only group as unconfirmed.
+- `AHI-058`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1122; amends `AHI-050`
+  for Gemini, as `AHI-052` does for OpenCode) When the Gemini hook's cleanup probe `kill(-pid, 0)`
+  answers `EPERM`, the hook MUST repeat that signal-0 probe, each repeat a timer at least 5 ms after the
+  last, until it answers anything other than `EPERM` or 40 repeats have run, and MUST NOT send any other
+  signal to the group meanwhile. Only `ESRCH` confirms cleanup; an `EPERM` on the last repeat, or any
+  other answer, completes as `corvint-process-cleanup-unconfirmed`, as in `AHI-050`. The Gemini
+  termination grace (10 ms) and its completion bound are unchanged; a confirmed cleanup now reports after
+  the repeats (about 200 ms at most on an unloaded host), inside the hook's 400 ms process reserve; a stalled event loop stretches them.
+  Acceptance: `V1-1122 Gemini EPERM re-probe confirms only on ESRCH and is bounded` delivers the group
+  SIGKILL through a preload and answers it as Darwin's `EPERM`, then injects the probe answers: three
+  `EPERM`s then `ESRCH` report the timeout cause after four probes, a persistent `EPERM` reports the
+  degradation after exactly 41 probes, and no non-zero group signal follows the SIGKILL. On the base
+  the single probe reported the degradation for the first case. Non-goals: no change to which answers
+  confirm or to the group signals. Failure modes: as `AHI-052` (a live member of another user, or a
+  zombie not reaped within the repeats, stays unconfirmed). Rollback: restore the single probe in
+  `cleanupConfirmed` in `integrations/gemini-cli/hooks/corvint-hook.mjs` and remove the test.
 
 - `AHI-054`: (accepted, decision 0519 (V1-1157); GitHub #785) The
   `corvint-harness-event/0` `stop` receipt's `frontier` object gains an optional member, `cause`,
@@ -1500,6 +1550,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
 | `AHI-049` (accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) | `internal/procgroup/process_posix.go` (`startProcessCommand`, `releaseProcessCommand`), the release before the reap in `internal/procgroup/process.go` `run`, `internal/groupreap/live.go` `ReleaseLive`; V1-1055 pre-reap `proveProcessGroupQuiescent`, the `groupOwnership` lock of `internal/procgroup/process.go` and `internal/groupreap/owner_waitid.go` `HeldGroupQuiet` | `cmd/corvint/host_exit_unix_test.go::TestAHI049ExitProcessKillsProcgroupGroup`; `internal/procgroup/process_posix_test.go` (`TestAHI049RunReleasesGroupBeforeReap`, `TestAHI049FailedExitObservationSendsNoGroupSignal`, `TestV11055NoNumericGroupProbeAfterReap`, `TestV11055QuiescenceProvedWhileLeaderHeld`, `TestV11055NoGroupOperationAfterConcurrentRelease`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup` |
 | `AHI-050` (accepted by decision 0474; V1-0371) | `requestGroupTermination`, `terminatePendingGroups`, `signalGroup`, `holdUnreaped`, `cleanupConfirmed` and `groupGone` in `integrations/opencode/src/runtime.js`; `terminateGroup`, `signalGroup`, `holdUnreaped` and `cleanupConfirmed` and the bounded `settle` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `integrations/host-adapters.test.mjs` under `TestHostAdapterJavaScriptHosts`: `V1-0371 <host> timeout and cancellation kill a TERM-ignoring descendant before the leader is reaped`, `V1-0371 <host> normal exit with a surviving descendant reports unconfirmed cleanup, never success`, `V1-0371 <host> timeout names a failed group kill instead of the timeout`, for `opencode` and `gemini`; `V1-0371 OpenCode never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini never signals a leader reaped in the same batch as a sibling exit`, `V1-0371 Gemini completes with unconfirmed cleanup when a descendant keeps the leader's stdout open`, `V1-0371 Gemini exits after reporting a leader whose group kill failed`, `V1-0371 OpenCode concurrent cancellations share one SIGTERM grace` |
+| `AHI-058` (accepted under the owner's standing auto-accept (2026-10-11); V1-1122) | `confirmCleanup` and `probeGroup` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `V1-1122 Gemini EPERM re-probe confirms only on ESRCH and is bounded` (`integrations/host-adapters.test.mjs`, run by `TestHostAdapterJavaScriptHosts`); failed on the base hook, passes after |
 | `AHI-051` (proposed; V1-1070, V1-1071) | `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json`, `hooks/hooks.json`, `skills/*/SKILL.md`, `integrations/claude-code/.claude-plugin/marketplace.json` | `integrations/host-adapters.test.mjs` (`AHI-051 Claude Code plugin presents complete metadata, plain status messages and read-only skills`); `claude plugin validate`; `conformance/host-lifecycle-v1` discovery case |
 | `AHI-036`–`AHI-041` | `integrations/opencode/src/workbench.js`, `workbench-tui.tsx`, `session-metrics.js`, `task-metrics.js`, `qualification.js`, and inspector RPC | `integrations/opencode/workbench.test.mjs`, focused AHI-036 task-detail receipt test in `task-metrics.test.mjs`, and stock OpenCode 2 terminal witness; exact-package AHI-032 qualification remains separate |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
@@ -1512,6 +1563,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
+| `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-054` (accepted, decision 0519; V1-1157) | `internal/gokernel/harness.go` `HandleEvent` stop frontier, `FrontierCauseNoClosingAuthority`; `conformance/cli-parity-v0` `validFrontierCauseDivergence`, `outOfPacketKnownDivergence`; `integrations/testfixture/main.go` | `TestAHI054StopFrontierCarriesFixedCause`, `TestAHI054FrontierCauseDivergenceIsPinnedAndOutOfPacket`, `TestGPKV0002ManifestReplay` (`DR-0043`), Gemini CLI and OpenCode stop cases and the `AHI-054` with-and-without-cause case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |

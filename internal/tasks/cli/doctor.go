@@ -320,7 +320,7 @@ func doctorStoreFindings(rc *readCtx, scan *doctorScan, th doctorThresholds) ([]
 			scan.warnings = append(scan.warnings, prose("doctor journal read session close: "+err.Error()))
 		}
 	}()
-	doctorScanReceipts(src, rc.snap.Head.LastSeq.Uint64(), scan)
+	doctorScanReceipts(journal.Logical(src), rc.snap.Head.LastSeq.Uint64(), scan)
 	var out []doctorFinding
 	out = append(out, doctorJournalGrowth(scan)...)
 	out = append(out, doctorNoProgress(scan, doctorHandoffCandidate(rc), rc.store.Policy.ProgressSignal)...)

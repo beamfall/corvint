@@ -14,9 +14,8 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 )
 
-// listingHarness is a settled writer checkpoint with a short tail, a
-// receipts/ directory whose modification time is an hour old (quiescent),
-// and a counter of receipts/ listings.
+// listingHarness is a settled writer checkpoint with a short tail and a
+// counter of receipts/ listings.
 type listingHarness struct {
 	repo     *fixture.Repo
 	r        Reader
@@ -69,32 +68,7 @@ func newListingHarness(t *testing.T) *listingHarness {
 			*h.listings++
 		}
 	}
-	h.quiesce(t)
 	return h
-}
-
-// quiesce sets the receipts/ modification time an hour into the past and
-// waits until the change time that setting it stamped is also old enough,
-// so the next listing finds the directory quiescent.
-func (h *listingHarness) quiesce(t *testing.T) {
-	t.Helper()
-	past := time.Now().Add(-time.Hour)
-	if err := os.Chtimes(h.receipts, past, past); err != nil {
-		t.Fatal(err)
-	}
-	awaitQuiescent(t, h.receipts)
-}
-
-// freshen sets the receipts/ modification time an hour into the future, as
-// a foreign change during the walk would leave a fresh stamp, so the
-// retried attempt's listing is never quiescent however long the retry
-// takes and the listing count is deterministic.
-func (h *listingHarness) freshen(t *testing.T) {
-	t.Helper()
-	future := time.Now().Add(time.Hour)
-	if err := os.Chtimes(h.receipts, future, future); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func (h *listingHarness) audit(t *testing.T) error {
@@ -113,26 +87,21 @@ func (h *listingHarness) audit(t *testing.T) error {
 }
 
 // TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing covers the
-// concurrent-writer side of the CAL-V0-224 listing reuse: a settled-looking
-// receipt that a foreign process adds after a quiescent first listing, with
-// head.json untouched, changes the directory's stamps, so the second
-// capture lists again and the attempt moves instead of reusing the stale
-// listing; the retried attempt lists the fresh directory twice and declines
-// on the extra name. The foreign write leaves a future modification time so
-// the retry's listing is fresh however late it runs (the count is 4 in 2
-// attempts, never 3). Mutation: a reuse that ignores the stamps and keeps the
-// first capture's directory metadata accepts the first attempt with the
-// foreign receipt unseen; one that ignores only the comparison is still
-// caught by the inventory digest's directory stamp, with one listing fewer.
+// concurrent-writer side of CAL-V0-224 as JSG-V0-007 amends it: a
+// settled-looking receipt that a foreign process adds after the first
+// listing, with head.json untouched, is in the second capture's exact
+// listing, so the attempt moves instead of accepting it unseen; the retried
+// attempt lists the directory twice and declines on the extra name (4
+// listings in 2 attempts). Mutation: a second capture that reuses the first
+// listing accepts the first attempt with the foreign receipt unseen.
 func TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing(t *testing.T) {
 	h := newListingHarness(t)
-	if err := h.audit(t); err != nil || *h.listings != 1 || *h.attempts != 1 {
-		t.Fatalf("settled quiescent audit: %v with %d listings in %d attempts, want one and one", err, *h.listings, *h.attempts)
+	if err := h.audit(t); err != nil || *h.listings != 2 || *h.attempts != 1 {
+		t.Fatalf("settled audit: %v with %d listings in %d attempts, want two and one", err, *h.listings, *h.attempts)
 	}
 	h.during = func() {
 		if *h.attempts == 1 {
 			fixture.Write(t, filepath.Join(h.receipts, h.next), []byte("x"))
-			h.freshen(t)
 		}
 	}
 	err := h.audit(t)
@@ -145,26 +114,27 @@ func TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing(t *testing.T) {
 }
 
 // TestCALV0224_ListingNeverOutlivesItsAttempt covers the crash-recovery
-// side of the CAL-V0-224 listing reuse: a listing is held by one attempt
-// only, so every later attempt's first capture lists exactly even when
-// nothing changed, and the temporary name a killed writer left behind under
-// restored directory stamps is found by that exact listing and declines the
-// fast route. Mutation: a listing retained across attempts makes the second
-// audit's first capture list zero times.
+// side: every capture lists exactly even when nothing changed, and the
+// temporary name a killed writer left behind under restored directory
+// stamps is found by that listing and declines the fast route. Mutation: a
+// listing retained across attempts makes the second audit list once.
 func TestCALV0224_ListingNeverOutlivesItsAttempt(t *testing.T) {
 	h := newListingHarness(t)
 	for i := 0; i < 2; i++ {
-		if err := h.audit(t); err != nil || *h.listings != 1 {
-			t.Fatalf("audit %d: %v with %d listings, want exactly one", i+1, err, *h.listings)
+		if err := h.audit(t); err != nil || *h.listings != 2 {
+			t.Fatalf("audit %d: %v with %d listings, want exactly two", i+1, err, *h.listings)
 		}
 	}
 	fixture.Write(t, filepath.Join(h.receipts, h.next+".tmp-1-x"), []byte("x"))
-	h.quiesce(t)
+	past := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(h.receipts, past, past); err != nil {
+		t.Fatal(err)
+	}
 	err := h.audit(t)
 	if err == nil || !strings.Contains(err.Error(), "not plainly settled") {
 		t.Fatalf("orphaned temporary name under restored stamps: %v, want a decline", err)
 	}
-	if *h.listings != 1 {
-		t.Fatalf("%d listings with an orphaned temporary name, want exactly one", *h.listings)
+	if *h.listings != 2 {
+		t.Fatalf("%d listings with an orphaned temporary name, want exactly two", *h.listings)
 	}
 }

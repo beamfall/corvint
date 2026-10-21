@@ -10,6 +10,7 @@ import (
 	"io"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -176,7 +177,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 // caller-owned local policy, never the protected harness or Frontier authority.
 func dogfoodEventHostAdmitted(options options) bool {
 	if options.host == "pi" {
-		return options.hostVersion == "0.99.1" && options.surface == "extension" && options.adapterVersion == "0.3.2"
+		return options.hostVersion == piHostVersion && options.surface == "extension" && options.adapterVersion == piAdapterVersion
 	}
 	hostVersion, admitted := dogfoodHostVersions[options.host]
 	return admitted && options.surface == "plugin" && options.adapterVersion == adapterWireVersion && options.hostVersion == hostVersion
@@ -267,7 +268,70 @@ func dogfoodEventField(kind string, value any) bool {
 }
 
 func dogfoodEvent(ctx context.Context, options options, input map[string]any) (map[string]any, error) {
+	if options.event == "user-prompt" || options.event == "session-start" {
+		ctx = context.WithValue(ctx, dogfoodSnapshotPrefetchKey{}, &snapshotPrefetch{root: options.root, done: make(chan struct{})})
+	}
 	return localEventRead(ctx, options, input, dogfoodEventEnvelope, dogfoodEventContext, "")
+}
+
+// dogfoodSnapshotPrefetchKey carries the snapshot read a context-reading dogfood event starts
+// from its opening observation's identity, overlapping that observation's status read
+// (proposed LCP-V0-033; V1-1524, V1-2144). Measured on a 708-tracked/759-untracked dirty
+// worktree under host load 40-150, the opening status read and the snapshot decode each took
+// about a third of the event; sequentially they were the event's two largest costs.
+type dogfoodSnapshotPrefetchKey struct{}
+
+// snapshotPrefetch is one snapshot read issued against the opening identity alone. It names
+// the same file the loader would (object format and tree) and applies no dirty set; the
+// event's context read takes it only for that tree and then applies the complete observation.
+type snapshotPrefetch struct {
+	root               string
+	done               chan struct{}
+	objectFormat, tree string
+	index              *contextindex.Index
+	hit                bool
+	err                error
+}
+
+// start is the bracket's prefetch callback: it runs on the observing goroutine, so it only
+// starts the read. A decode the event abandons writes nothing and ends with its process.
+func (prefetch *snapshotPrefetch) start(objectFormat, commitRevision, treeRevision string) {
+	prefetch.objectFormat, prefetch.tree = objectFormat, treeRevision
+	go func() {
+		defer close(prefetch.done)
+		prefetch.index, prefetch.hit, prefetch.err = loadSnapshotObserved(prefetch.root, contextindex.Observation{ObjectFormat: objectFormat, CommitRevision: commitRevision, Revision: treeRevision})
+	}()
+}
+
+// started reports whether the bracket handed this prefetch an identity.
+func (prefetch *snapshotPrefetch) started() bool {
+	return prefetch.tree != ""
+}
+
+// take returns the prefetched read for the opening observation, with that observation applied
+// exactly as loadSnapshotObserved applies it, or ok false when no prefetch read that tree.
+func (prefetch *snapshotPrefetch) take(root string, observation contextindex.Observation) (*contextindex.Index, bool, error, bool) {
+	if !prefetch.started() || prefetch.objectFormat != observation.ObjectFormat || prefetch.tree != observation.Revision {
+		return nil, false, nil, false
+	}
+	<-prefetch.done
+	if prefetch.err != nil || !prefetch.hit {
+		return nil, false, prefetch.err, true
+	}
+	adoptObservation(prefetch.index, root, observation)
+	return prefetch.index, true, nil, true
+}
+
+// adoptObservation applies the opening observation to a snapshot hit of the tree it names,
+// exactly as contextindex.LoadSnapshotObserved applies it to its own hits: the root, the sorted
+// unique dirty set, the status digest and the observed HEAD (the file is keyed by tree). It lives
+// here rather than in contextindex so the analyzer-schema inputs (IDX-SNAP-V0-017) stay unchanged;
+// TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity pins byte equality with that loader.
+func adoptObservation(index *contextindex.Index, root string, observation contextindex.Observation) {
+	dirty := append(make([]string, 0, len(observation.DirtyPaths)), observation.DirtyPaths...)
+	slices.Sort(dirty)
+	index.Root, index.DirtyPaths, index.StatusSHA256 = root, slices.Compact(dirty), observation.StatusSHA256
+	index.CommitRevision = observation.CommitRevision
 }
 
 func localEventRead(ctx context.Context, options options, input map[string]any,
@@ -284,7 +348,11 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	var evaluation localcompletion.Evaluation
 	var observed localcompletion.Observed
 	var result map[string]any
-	after, err := gokernel.ProbeRepositoryAround(ctx, options.root, func(ctx context.Context, observation gokernel.Observation) error {
+	var prefetch func(objectFormat, commitRevision, treeRevision string)
+	if pending, ok := ctx.Value(dogfoodSnapshotPrefetchKey{}).(*snapshotPrefetch); ok {
+		prefetch = pending.start
+	}
+	after, err := gokernel.ProbeRepositoryAroundPrefetching(ctx, options.root, prefetch, func(ctx context.Context, observation gokernel.Observation) error {
 		var err error
 		if before, err = observation.Repository(); err != nil {
 			return err
@@ -411,10 +479,19 @@ func localEventContext(ctx context.Context, options options, input map[string]an
 	compact := rehydrate && options.event == "session-start" && input["startSource"] == "compact" && repo.DirtyPathCount > 0
 	// The hit is read against the event's own opening observation, so it spawns
 	// nothing; a miss still builds under the build's own bracket.
-	index, hit, err := loadSnapshotObserved(options.root, contextindex.Observation{
+	observed := contextindex.Observation{
 		ObjectFormat: observation.ObjectFormat, CommitRevision: observation.CommitRevision,
 		Revision: observation.TreeRevision, DirtyPaths: observation.DirtyPaths, StatusSHA256: observation.StatusSHA256,
-	})
+	}
+	var index *contextindex.Index
+	var hit, prefetched bool
+	var err error
+	if pending, ok := ctx.Value(dogfoodSnapshotPrefetchKey{}).(*snapshotPrefetch); ok {
+		index, hit, err, prefetched = pending.take(options.root, observed)
+	}
+	if !prefetched {
+		index, hit, err = loadSnapshotObserved(options.root, observed)
+	}
 	if missed, ok := ctx.Value(dogfoodEventMissKey{}).(*atomic.Bool); ok && err == nil && !hit {
 		missed.Store(true)
 	}

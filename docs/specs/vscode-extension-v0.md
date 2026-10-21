@@ -310,9 +310,9 @@ as the result of the failed request. Unrelated editing stays available.
 ### 4.5 Native presentation semantics
 
 - **VSC-V0-021.** The command IDs are exactly `corvint.selectExecutable`, `corvint.clearExecutable`,
-`corvint.query`, `corvint.impact`, `corvint.refresh`, `corvint.importTestObservation`, and
-`corvint.clearResults`. `corvint.refresh` repeats only the last explicit query/impact after trust and pin
-revalidation; it never runs on activation or file change. It MUST NOT edit, fix, apply, run tests,
+`corvint.query`, `corvint.impact`, `corvint.refresh`, and `corvint.clearResults`
+(`corvint.importTestObservation` is not offered, as amended by VSC-V0-079). `corvint.refresh`
+repeats only the last explicit query/impact after trust and pin revalidation; it never runs on activation or file change. It MUST NOT edit, fix, apply, run tests,
 install/update a binary, request trust, or merge.
 
 - **VSC-V0-022.** The status bar has exactly one of `Restricted`, `No CLI`, `Incompatible`, `Ready`,
@@ -356,8 +356,9 @@ alter files, selections, editor options, or save state.
 ### 4.6 Testing API observation bridge
 
 - **VSC-V0-028.** Until Corvint publishes and promotes a live-test CLI operation, V0 MUST NOT execute
-tests and MUST NOT register a `TestRunProfile`. It may create one `TestController` solely to import
-an explicit `corvint.testObservationPath` when the user invokes `corvint.importTestObservation`.
+tests and MUST NOT register a `TestRunProfile`. Observation import is not offered as a command or
+setting until a shared Corvint verifier is linked (VSC-V0-079); VSC-V0-029..033 govern only the
+internal importer path and any future accepted import surface.
 No current generic Corvint capability command exists; unsupported query, impact, why, and test
 features remain explicit rather than being inferred from a version string.
 
@@ -373,6 +374,14 @@ an accepted amendment. It validates framing, bounds, sequence, shared identities
 uniqueness, and event-root consistency through a shared Corvint verifier when one exists. Without
 that verifier, structural projection is labelled `UNVERIFIED_IMPORT` and cannot become policy or
 current evidence. The extension MUST NOT reimplement Corvint identity or test semantics.
+
+- **VSC-V0-079.** (accepted under the owner's standing auto-accept of 2026-10-11, decision 0550;
+V1-0438) Until a shared Corvint go-live verifier is linked (post-1.0), the extension MUST NOT
+contribute, activate on, or register `corvint.importTestObservation`, and MUST NOT contribute the
+`corvint.testObservationPath` setting. Any internal importer path keeps the fail-closed
+VSC-V0-030 semantics: an observation without the shared verifier is refused with
+`UNVERIFIED_IMPORT` and creates no test projection. Restoring the command requires an accepted
+amendment that links the verifier and a test that imports a verified observation file.
 
 - **VSC-V0-031.** Test items use the immutable Corvint test ID as `TestItem.id`; package and test IDs
 form the only hierarchy unless the observation supplies a verified parent. A missing friendly name
@@ -427,7 +436,8 @@ Failures are closed for Corvint evidence and open for unrelated VS Code editing.
 classes are `RESTRICTED`, `ROOT_UNSUPPORTED`, `CLI_MISSING`, `CLI_INCOMPATIBLE`, `PIN_DRIFT`,
 `SPAWN_DENIED`, `CANCELLED`, `TIMEOUT`, `OUTPUT_LIMIT`, `CLI_FAILED`, `INVALID_UTF8`,
 `INVALID_JSON`, `UNSUPPORTED_PROFILE`, `PATH_REJECTED`, `OBSERVATION_CHANGED`, and
-`UNVERIFIED_IMPORT`, plus the VSC-V0-056 MCP codes and `PROCESS_RESIDUE` when observed. Raw OS/CLI
+`UNVERIFIED_IMPORT` (internal importer path only while VSC-V0-079 withholds the command), plus the
+VSC-V0-056 MCP codes and `PROCESS_RESIDUE` when observed. Raw OS/CLI
 text may accompany a class
 only after inert truncation and redaction; it never becomes a command, URI, Markdown trust grant,
 or diagnostic range.
@@ -983,6 +993,7 @@ retain CLI/MCP.
 | `VSC-V0-071..076` | `liveTests.ts`, provider process lifecycle, save routing and restricted settings | Controller regressions cover retained JS results, invalid framing, save races, scope/trust/toolchain refusal and cleanup; real EOF-aware and normal-exit descendant checks pass. Installed VSIX/real-host qualification remains pending under PUB-V0-016. |
 | `VSC-V0-077` | `extensions/vscode/src/extension.ts` inert error projection | `extensions/vscode/test/error-presentation.test.ts`: first non-empty line, malformed UTF-8, sanitization, scalar bound, stable code and empty fallback |
 | `VSC-V0-078` | `extensions/vscode/src/presentation.ts` diagnostic ranges | `extensions/vscode/test/presentation.test.ts`: unopened evidence diagnostics, zero document-open calls, out-of-file and invalid lines |
+| `VSC-V0-079` | `extensions/vscode/package.json`, `src/extension.ts` (no import command or setting), `src/observations.ts` internal refusal | `extensions/vscode/test/manifest.test.ts`: no import command, activation event or setting; `test/model-json.test.ts`: `UNVERIFIED_IMPORT` refusal; `conformance/vscode-extension-v0` exact command surface |
 
 Focused local evidence on 2026-08-23:
 

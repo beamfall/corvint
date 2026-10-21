@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -287,4 +288,41 @@ func TestNTPV0001NativeJSON(t *testing.T) {
 			t.Fatal(string(raw), e)
 		}
 	})
+}
+
+// TestNTPV0246TicketBound pins the scaled ticket bound on both sides: a plan of
+// maxTickets entries decodes and one more refuses, and the capture counts
+// admit maxTickets and refuse one more (NTP-V0-246, V1-0912).
+func TestNTPV0246TicketBound(t *testing.T) {
+	if maxTickets != 16384 {
+		t.Fatalf("maxTickets = %d", maxTickets)
+	}
+	c := testCapture(t)
+	p := testPlan(t, c)
+	base := p.Entries[0]
+	base.Blockers = []string{}
+	queue := p.QueueID
+	prefix := "ticket:" + strings.TrimPrefix(queue, "queue:") + ":"
+	build := func(n int) wire.Value {
+		q := p
+		q.Entries = make([]Entry, n)
+		for i := range q.Entries {
+			e := base
+			e.TicketID = prefix + "BT-" + strconv.Itoa(i)
+			q.Entries[i] = e
+		}
+		return testValue(t, q)
+	}
+	if _, err := decodePlan(build(maxTickets)); err != nil {
+		t.Fatalf("a plan of %d entries refused: %v", maxTickets, err)
+	}
+	if _, err := decodePlan(build(maxTickets + 1)); err == nil {
+		t.Fatalf("a plan of %d entries decoded", maxTickets+1)
+	}
+	if _, err := number(wire.Value{Kind: wire.KindString, Str: strconv.Itoa(maxTickets)}, maxTickets); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := number(wire.Value{Kind: wire.KindString, Str: strconv.Itoa(maxTickets + 1)}, maxTickets); err == nil {
+		t.Fatal("a count above the bound was admitted")
+	}
 }

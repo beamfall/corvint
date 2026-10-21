@@ -21,18 +21,27 @@ import (
 
 func gitCmd(t *testing.T, dir string, args ...string) string {
 	t.Helper()
+	out, err := gitRun(dir, t.TempDir(), args...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// gitRun runs git in dir with a hermetic identity, clock and empty home.
+func gitRun(dir, home string, args ...string) (string, error) {
 	command := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	command.Dir = dir
 	command.Env = append(os.Environ(),
-		"GIT_CONFIG_NOSYSTEM=1", "HOME="+t.TempDir(), "XDG_CONFIG_HOME="+t.TempDir(),
+		"GIT_CONFIG_NOSYSTEM=1", "HOME="+home, "XDG_CONFIG_HOME="+home,
 		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
 		"GIT_AUTHOR_DATE=2000-01-01T00:00:00+0000", "GIT_COMMITTER_DATE=2000-01-01T00:00:00+0000")
 	out, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("git %v: %v\n%s", args, err, out)
+		return "", fmt.Errorf("git %v: %v\n%s", args, err, out)
 	}
-	return strings.TrimSpace(string(out))
+	return strings.TrimSpace(string(out)), nil
 }
 
 func writeFile(t *testing.T, root, path, content string) {
@@ -46,27 +55,124 @@ func writeFile(t *testing.T, root, path, content string) {
 	}
 }
 
-// makeRepo builds base and target commits: the target modifies one file and
-// creates another.
+// makeRepo returns a private copy of the base/target fixture repository: the
+// target modifies one file and creates another. The repository is built once
+// per package (makeRepoTemplate) and copied, so each caller skips the seven git
+// subprocesses; the fixed identity and clock keep base and target identical.
 func makeRepo(t *testing.T) (string, string, string) {
 	t.Helper()
+	repoTemplate.once.Do(func() {
+		repoTemplate.root, repoTemplate.base, repoTemplate.target, repoTemplate.err = makeRepoTemplate()
+	})
+	if repoTemplate.err != nil {
+		t.Fatal(repoTemplate.err)
+	}
 	root := t.TempDir()
 	root, err := filepath.EvalSymlinks(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	gitCmd(t, root, "init", "-q", "-b", "main")
-	writeFile(t, root, "docs/rule.txt", "the frozen rule\nsecond line\nthird line\n")
-	writeFile(t, root, "src/app.txt", "alpha\nbeta\ngamma\n")
-	gitCmd(t, root, "add", ".")
-	gitCmd(t, root, "commit", "-qm", "base")
-	base := gitCmd(t, root, "rev-parse", "HEAD")
-	writeFile(t, root, "src/app.txt", "alpha\nBETA\ngamma\n")
-	writeFile(t, root, "src/new.txt", "created\n")
-	gitCmd(t, root, "add", ".")
-	gitCmd(t, root, "commit", "-qm", "target")
-	target := gitCmd(t, root, "rev-parse", "HEAD")
-	return root, base, target
+	if err := copyTree(repoTemplate.root, root); err != nil {
+		t.Fatal(err)
+	}
+	return root, repoTemplate.base, repoTemplate.target
+}
+
+var repoTemplate struct {
+	once               sync.Once
+	root, base, target string
+	err                error
+	parent             string
+}
+
+// makeRepoTemplate builds the makeRepo fixture under a package-lifetime
+// directory that TestMain removes.
+func makeRepoTemplate() (string, string, string, error) {
+	parent, err := os.MkdirTemp(fixtureTempBase, "workflow-fixture-")
+	if err != nil {
+		return "", "", "", err
+	}
+	repoTemplate.parent = parent
+	parent, err = filepath.EvalSymlinks(parent)
+	if err != nil {
+		return "", "", "", err
+	}
+	root, home := filepath.Join(parent, "repo"), filepath.Join(parent, "home")
+	for _, dir := range []string{root, home} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			return "", "", "", err
+		}
+	}
+	write := func(path, content string) error {
+		full := filepath.Join(root, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(full, []byte(content), 0o644)
+	}
+	steps := []func() error{
+		func() error { _, err := gitRun(root, home, "init", "-q", "-b", "main"); return err },
+		func() error { return write("docs/rule.txt", "the frozen rule\nsecond line\nthird line\n") },
+		func() error { return write("src/app.txt", "alpha\nbeta\ngamma\n") },
+		func() error { _, err := gitRun(root, home, "add", "."); return err },
+		func() error { _, err := gitRun(root, home, "commit", "-qm", "base"); return err },
+	}
+	for _, step := range steps {
+		if err := step(); err != nil {
+			return "", "", "", err
+		}
+	}
+	base, err := gitRun(root, home, "rev-parse", "HEAD")
+	if err != nil {
+		return "", "", "", err
+	}
+	steps = []func() error{
+		func() error { return write("src/app.txt", "alpha\nBETA\ngamma\n") },
+		func() error { return write("src/new.txt", "created\n") },
+		func() error { _, err := gitRun(root, home, "add", "."); return err },
+		func() error { _, err := gitRun(root, home, "commit", "-qm", "target"); return err },
+	}
+	for _, step := range steps {
+		if err := step(); err != nil {
+			return "", "", "", err
+		}
+	}
+	target, err := gitRun(root, home, "rev-parse", "HEAD")
+	if err != nil {
+		return "", "", "", err
+	}
+	return root, base, target, nil
+}
+
+// copyTree copies the regular files and directories under from into the
+// existing directory to, preserving permission bits.
+func copyTree(from, to string) error {
+	return filepath.WalkDir(from, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(from, path)
+		if err != nil || relative == "." {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		destination := filepath.Join(to, relative)
+		switch {
+		case entry.IsDir():
+			return os.Mkdir(destination, info.Mode().Perm())
+		case info.Mode().IsRegular():
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			return os.WriteFile(destination, data, info.Mode().Perm())
+		default:
+			return fmt.Errorf("fixture template holds non-regular file %s", path)
+		}
+	})
 }
 
 // readProducerMap reads the raw bytes and mechanics view of a cem/1.0 producer
@@ -124,6 +230,7 @@ func citeAll(t *testing.T, root string) {
 // the candidate, then verify the committed revision through the stable status
 // with the exact next action argv (CEM-V1-215).
 func TestTwoPhaseCanonicalFlow(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	prepared, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target})
@@ -180,6 +287,7 @@ func TestTwoPhaseCanonicalFlow(t *testing.T) {
 // TestHiddenTargetChangeRejected is CEM-CB-AT-002: a target containing an
 // extra hunk is rejected by the stable status.
 func TestHiddenTargetChangeRejected(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -206,6 +314,7 @@ func TestHiddenTargetChangeRejected(t *testing.T) {
 // semantically equivalent reserialization of the read map fails
 // excluded-artifact-mismatch.
 func TestTargetSidecarRawBinding(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -243,6 +352,7 @@ func TestTargetSidecarRawBinding(t *testing.T) {
 // stable status, which never carries a --patch selection whether the cache was
 // omitted or named, and non-default prepare maps are refused.
 func TestResumeRules(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	prepared, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target})
@@ -299,6 +409,7 @@ func TestResumeRules(t *testing.T) {
 // TestUnsafeExistingMapNotOverwritten: an unparseable existing candidate is
 // refused without --replace and regenerated with it.
 func TestUnsafeExistingMapNotOverwritten(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	writeFile(t, root, ".corvint/change.cem.json", "not json")
 	_, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target})
@@ -319,6 +430,7 @@ func TestUnsafeExistingMapNotOverwritten(t *testing.T) {
 // whose parent directory is a symlink refuses with the read's own
 // `map-unavailable`, never the write-side `publish-failed`.
 func TestMapReadThroughSymlinkedParentIsUnavailable(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -334,6 +446,7 @@ func TestMapReadThroughSymlinkedParentIsUnavailable(t *testing.T) {
 
 // TestMutationPreservesProfile is CEM-CB-CO-003.
 func TestMutationPreservesProfile(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -360,6 +473,7 @@ func TestMutationPreservesProfile(t *testing.T) {
 // TestConcurrentMarksAllSurvive is CEM-PILOT-013: concurrent in-place marks
 // serialize their read-modify-write, so every successful mark survives.
 func TestConcurrentMarksAllSurvive(t *testing.T) {
+	t.Parallel()
 	const hunks = 12
 	root := t.TempDir()
 	root, err := filepath.EvalSymlinks(root)
@@ -494,6 +608,7 @@ func TestMutationsLockTheirEffectiveOutput(t *testing.T) {
 // happens to occupy the effective output's lock path is refused intact, never
 // taken as the lock file and removed on release.
 func TestMutationLockNeverRemovesAnInputMap(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -522,6 +637,7 @@ func TestMutationLockNeverRemovesAnInputMap(t *testing.T) {
 // mutation entry point rejects an explicit output inside a case-folded .git
 // segment before repository metadata can be replaced.
 func TestCEMOutputsRefuseGitMetadata(t *testing.T) {
+	t.Parallel()
 	operations := map[string]struct {
 		output string
 		run    func(*testing.T, string, string, string, map[string]any) error
@@ -599,6 +715,7 @@ func TestCEMOutputsRefuseGitMetadata(t *testing.T) {
 // TestCEMOutputsRefuseMapSidecars is CEM-PILOT-013: a report or derived map
 // cannot occupy its input map's lock or interrupted-publication backup name.
 func TestCEMOutputsRefuseMapSidecars(t *testing.T) {
+	t.Parallel()
 	lock := wire.ExcludedCEMPath + ".lock"
 	backup := wire.ExcludedCEMPath + ".bak-0011223344556677"
 	operations := map[string]struct {
@@ -658,6 +775,7 @@ func TestCEMOutputsRefuseMapSidecars(t *testing.T) {
 // interrupted after setting the prior map aside is restored, never treated as
 // a missing map; more than one candidate backup is refused.
 func TestPrepareRecoversInterruptedPairBackup(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -708,6 +826,7 @@ func TestPrepareRecoversInterruptedPairBackup(t *testing.T) {
 // Once prepare validates that final map, it removes that single stale backup
 // so a later interrupted update cannot create an ambiguous pair.
 func TestPrepareRemovesValidatedStalePairBackup(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -732,6 +851,7 @@ func TestPrepareRemovesValidatedStalePairBackup(t *testing.T) {
 
 // TestCiteLinesBound proves --lines applies the frozen LF record bound.
 func TestCiteLinesBound(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	root, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -763,6 +883,7 @@ func TestCiteLinesBound(t *testing.T) {
 
 // TestCiteNoLongerRefusesChangedEvidencePath is CEM-CB-005.
 func TestCiteNoLongerRefusesChangedEvidencePath(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target, Cache: "custom.patch"}); err != nil {
@@ -806,6 +927,7 @@ func makeCiteSpanRepoFrom(t *testing.T, baseContent, targetContent string) (stri
 
 // TestCiteAcceptsRelocatedEvidenceSpan is CEM-CB-005.
 func TestCiteAcceptsRelocatedEvidenceSpan(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCiteSpanRepo(t, "prefix\nalpha\nbeta\ngamma\n")
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -821,6 +943,7 @@ func TestCiteAcceptsRelocatedEvidenceSpan(t *testing.T) {
 
 // TestCiteRefusesStaleEvidenceSpan is CEM-CB-005.
 func TestCiteRefusesStaleEvidenceSpan(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCiteSpanRepo(t, "alpha\nBETA\ngamma\n")
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -841,6 +964,7 @@ func TestCiteRefusesStaleEvidenceSpan(t *testing.T) {
 // TestCiteRemovedIntentRefusalNamesBasePin is CEM-CB-005 (decision 0165): a
 // span the change removes is refused with its base blob pin as a detail token.
 func TestCiteRemovedIntentRefusalNamesBasePin(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCiteSpanRepo(t, "alpha\ngamma\n")
 	baseBlob := gitCmd(t, root, "rev-parse", base+":src/app.txt")
 	session := openSession(t, root)
@@ -861,6 +985,7 @@ func TestCiteRemovedIntentRefusalNamesBasePin(t *testing.T) {
 
 // TestCiteRefusesAmbiguousEvidenceSpan is CEM-CB-005.
 func TestCiteRefusesAmbiguousEvidenceSpan(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCiteSpanRepo(t, "alpha\nbeta\nalpha\ngamma\n")
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -883,6 +1008,7 @@ func TestCiteRefusesAmbiguousEvidenceSpan(t *testing.T) {
 // leaves unchanged are still refused, because stability matches text and the
 // change adds another copy; the refusal names that alignment and the cause.
 func TestCiteAmbiguousRefusalNamesTextAlignmentV11418(t *testing.T) {
+	t.Parallel()
 	block := func(name string) string {
 		return "if " + name + "; then\n  run " + name + "\nelse\n  skip\nfi\n"
 	}
@@ -919,6 +1045,7 @@ func TestCiteAmbiguousRefusalNamesTextAlignmentV11418(t *testing.T) {
 // leave a base line unchanged; a removed line or an insertion inside the span
 // does not.
 func TestSpanUneditedByHunksFollowsGitAlignmentV11418(t *testing.T) {
+	t.Parallel()
 	// Old lines: 1 context, 2 removed, insertion before 3, 3 context,
 	// insertion before 4, 4 context.
 	group := &patch.Group{Hunks: []*patch.Hunk{{
@@ -939,6 +1066,7 @@ func TestSpanUneditedByHunksFollowsGitAlignmentV11418(t *testing.T) {
 
 // TestCiteRefusesDeletedEvidenceSpanWithVerifierClassification is CEM-CB-005.
 func TestCiteRefusesDeletedEvidenceSpanWithVerifierClassification(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeCiteSpanRepo(t, "prefix\nalpha\nbeta\ngamma\n")
 	if err := os.Remove(filepath.Join(root, "src", "app.txt")); err != nil {
 		t.Fatal(err)
@@ -964,6 +1092,7 @@ func TestCiteRefusesDeletedEvidenceSpanWithVerifierClassification(t *testing.T) 
 
 // TestCiteRefusesRenamedSourceEvidenceWithVerifierClassification is CEM-CB-005.
 func TestCiteRefusesRenamedSourceEvidenceWithVerifierClassification(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeCiteSpanRepo(t, "prefix\nalpha\nbeta\ngamma\n")
 	gitCmd(t, root, "mv", "src/app.txt", "src/renamed.txt")
 	writeFile(t, root, "src/renamed.txt", "prefix\nalpha\nBETA\ngamma\n")
@@ -987,6 +1116,7 @@ func TestCiteRefusesRenamedSourceEvidenceWithVerifierClassification(t *testing.T
 }
 
 func TestCiteAcceptsUnchangedEvidencePath(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -1007,6 +1137,7 @@ func TestCiteAcceptsUnchangedEvidencePath(t *testing.T) {
 // TestDeterministicEnvelopes is CEM-CB-DE-002: fresh sessions emit
 // byte-identical JSON.
 func TestDeterministicEnvelopes(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -1035,6 +1166,7 @@ func TestDeterministicEnvelopes(t *testing.T) {
 
 // TestReportDefaultsUnderGitDir keeps report artifacts per-worktree.
 func TestReportDefaultsUnderGitDir(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -1065,6 +1197,7 @@ func TestReportDefaultsUnderGitDir(t *testing.T) {
 // TestReportAbsoluteOutput (V1-0141): an absolute --output outside the repository is written there;
 // one inside the worktree or the Git directory is refused with invalid-arguments before any write.
 func TestReportAbsoluteOutput(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -1098,6 +1231,7 @@ func TestReportAbsoluteOutput(t *testing.T) {
 // nor take the map's lock or interrupted-publication backup name, which a
 // later prepare would restore as the map.
 func TestPrepareCacheAliasingRefused(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	siblings := []string{wire.ExcludedCEMPath + ".lock", wire.ExcludedCEMPath + ".bak-0011223344556677"}
 	for _, cache := range append([]string{wire.ExcludedCEMPath, "./" + wire.ExcludedCEMPath, ".corvint"}, siblings...) {
@@ -1128,6 +1262,7 @@ func TestPrepareCacheAliasingRefused(t *testing.T) {
 // volume, a case-variant spelling of the map path is the same physical file
 // and must be refused exactly like the exact spelling.
 func TestPrepareCacheAliasingCaseVariants(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if err := os.WriteFile(filepath.Join(root, "probe-case"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -1149,6 +1284,7 @@ func TestPrepareCacheAliasingCaseVariants(t *testing.T) {
 // TestCiteRefusesNegativeByteSpan: a library caller's negative --bytes start
 // fails invalid-span instead of slicing the evidence blob out of range.
 func TestCiteRefusesNegativeByteSpan(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -1166,6 +1302,7 @@ func TestCiteRefusesNegativeByteSpan(t *testing.T) {
 // TestMarkRejectsNonCanonicalOrdinal is CEM-PILOT-003: a decimal selector that
 // is not canonical and one-based fails rather than resolving to a hunk.
 func TestMarkRejectsNonCanonicalOrdinal(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -1184,6 +1321,7 @@ func TestMarkRejectsNonCanonicalOrdinal(t *testing.T) {
 // unreadable existing map is refused without --replace even when the
 // repository path happens to contain the word "missing".
 func TestPrepareRefusesOversizeMapUnderMissingNamedRoot(t *testing.T) {
+	t.Parallel()
 	original, base, target := makeRepo(t)
 	root := filepath.Join(filepath.Dir(original), "missing")
 	if err := os.Rename(original, root); err != nil {
@@ -1203,6 +1341,7 @@ func TestPrepareRefusesOversizeMapUnderMissingNamedRoot(t *testing.T) {
 // TestReportRefusesCaseVariantOfMapPath: on a case-insensitive volume a report
 // output that differs from the map path only in case would overwrite the map.
 func TestReportRefusesCaseVariantOfMapPath(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if err := os.WriteFile(filepath.Join(root, "probe-case"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
@@ -1234,6 +1373,7 @@ func TestReportRefusesCaseVariantOfMapPath(t *testing.T) {
 // volume an NFD spelling of an NFC map path names the same file, which case
 // folding does not see; the report must refuse rather than overwrite the map.
 func TestReportRefusesNormalizationVariantOfMapPath(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	composed, decomposed := "caf\u00e9.cem.json", "cafe\u0301.cem.json"
 	if err := os.WriteFile(filepath.Join(root, composed), []byte("x"), 0o644); err != nil {
@@ -1289,6 +1429,7 @@ const importReorderTarget = "package pkg\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n
 // TestMarkRefusesARetiredMapBeforeMutation pins that a retired 0.1 map is
 // refused before any mutation, with the migration fix (CEM-V1-216).
 func TestMarkRefusesARetiredMapBeforeMutation(t *testing.T) {
+	t.Parallel()
 	root, _, _ := makeRepo(t)
 	writeFile(t, root, "staged.cem.json", `{"spec":"cem/0.1","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",`+
 		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",`+
@@ -1308,6 +1449,7 @@ func TestMarkRefusesARetiredMapBeforeMutation(t *testing.T) {
 // cite-span-not-stable, states the stability rule, and names the nearest
 // stable base spans above and below, each of which then cites.
 func TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans(t *testing.T) {
+	t.Parallel()
 	baseContent := "one\ntwo\nthree\nfour\nfive\nsix\n"
 	root, base, target := makeCiteSpanRepoFrom(t, baseContent, "one\ntwo\nfive\nsix\n")
 	session := openSession(t, root)
@@ -1341,6 +1483,7 @@ func TestCEMV1322RemovedSpanRefusalNamesRuleAndNearestStableSpans(t *testing.T) 
 // one-based inclusive base lines at the first line, the last line, a span
 // ending on a newline, and a last line with no trailing newline.
 func TestSpanLinesBoundariesV11436(t *testing.T) {
+	t.Parallel()
 	blob := []byte("a\nbb\nccc\n")
 	unterminated := []byte("a\nb")
 	for _, test := range []struct {
@@ -1368,6 +1511,7 @@ func TestSpanLinesBoundariesV11436(t *testing.T) {
 // range names the line before the insertion, so the inserted lines split only
 // spans that straddle that point; a pure deletion edits exactly its lines.
 func TestSpanUneditedByHunksZeroCountHunksV11436(t *testing.T) {
+	t.Parallel()
 	insertion := &patch.Group{Hunks: []*patch.Hunk{{
 		OldRange: wire.Range{Start: 2, Count: 0},
 		Body:     []patch.BodyLine{{Prefix: '+'}, {Prefix: '+'}},
@@ -1407,6 +1551,7 @@ func TestSpanUneditedByHunksZeroCountHunksV11436(t *testing.T) {
 // base line; the parsed hunk of a real canonical diff edits only the
 // unterminated last line.
 func TestSpanUneditedByHunksNoNewlineHunkV11436(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCiteSpanRepoFrom(t, "alpha\nbeta\ngamma", "alpha\nbeta\ngamma\ndelta\n")
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {

@@ -32,3 +32,33 @@ func TestCALV0023_CollisionNormalization(t *testing.T) {
 		t.Error("an empty set collided")
 	}
 }
+
+// TestNTPV0026_SharedPathsDoNotCollide: overlapping PATH keys do not collide
+// when the declared shared paths cover both; any uncovered side, a
+// WHOLE_REPOSITORY resource and non-PATH classes keep exclusive semantics.
+func TestNTPV0026_SharedPathsDoNotCollide(t *testing.T) {
+	p := func(k string) Resource { return Resource{Class: "PATH", Key: k} }
+	whole := Resource{Class: "WHOLE_REPOSITORY", Key: "repo"}
+	shared := []string{"docs/specs/INDEX.json", "docs/specs/README.md", "docs/specs/REQUIREMENTS.tsv", "gen/"}
+	for _, c := range []struct {
+		a, b Resource
+		want bool
+	}{
+		{p("docs/specs/REQUIREMENTS.tsv"), p("docs/specs/REQUIREMENTS.tsv"), false},
+		{p("docs/specs/INDEX.json"), p("docs/specs/INDEX.json"), false},
+		{p("gen/"), p("gen/a.go"), false},
+		{p("docs/specs/a-v0.md"), p("docs/specs/a-v0.md"), true},
+		{p("docs/specs/"), p("docs/specs/REQUIREMENTS.tsv"), true},
+		{p("docs/specs/REQUIREMENTS.tsv"), p("docs/specs/"), true},
+		{p("docs/specs/a-v0.md"), p("docs/specs/REQUIREMENTS.tsv"), false},
+		{whole, p("docs/specs/README.md"), true},
+		{Resource{Class: "PORT", Key: "8080"}, Resource{Class: "PORT", Key: "8080"}, true},
+	} {
+		if got := CollideShared([]Resource{c.a}, []Resource{c.b}, shared); got != c.want {
+			t.Errorf("CollideShared(%v, %v) = %v", c.a, c.b, got)
+		}
+	}
+	if !Collide([]Resource{p("docs/specs/REQUIREMENTS.tsv")}, []Resource{p("docs/specs/REQUIREMENTS.tsv")}) {
+		t.Error("without a declaration a generated path stopped colliding")
+	}
+}

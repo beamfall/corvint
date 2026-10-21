@@ -397,7 +397,7 @@ func TestBuildsAreDeterministicAndSourceOnly_NSAV0013_NSAV0014(t *testing.T) {
 	if first.Digest() != second.Digest() {
 		t.Fatalf("digest drift %s vs %s", first.Digest(), second.Digest())
 	}
-	fromFS, err := affected.BuildFS(os.DirFS(root), New())
+	fromFS, err := affected.BuildFS(boundedDirFS{os.DirFS(root)}, New())
 	if err != nil {
 		t.Fatal(err)
 	}

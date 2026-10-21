@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
 - Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstain (`LPCV-V0-128`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
@@ -473,6 +473,128 @@ The Go projector `internal/testvalidity` sets axis reasons from the kebab-case c
 | `unsupported-report-state` | `internal/testvalidity/projection.go:274` | the claim report state is none of the known `tcq` report states; the execution axis is `UNSUPPORTED` |
 | `workspace-execution-identity-mismatch` | `internal/testvalidity/projection.go:222` | the execution currency is `STALE`; the freshness axis is `STALE` (`LPCV-V0-054`; pinned by the `stale-execution` vector in `TestProjectMatchesSharedVectors`) |
 
+### Request-stub unroute marking (V1-1474)
+
+- `LPCV-V0-214`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a
+  test's `unroute(url, handler)` or `unroute(url)` removes a `route` stub the producer recorded on
+  the same instance, or `unrouteAll` removes every route stub of that instance, the producer MUST
+  mark that stub `"unrouted": true`. It matches the way Playwright removes a route: the same URL
+  argument (a string or predicate by identity, a RegExp by source and flags) and, when given, the
+  same handler. An `unroute` on a page never marks a stub of its context, and the reverse holds.
+  A stub never removed omits the member. The closed decoding of `LPCV-V0-072` accepts the member
+  only as `true`; `false`, `null`, any other value or a case variant is refused. A stub with zero
+  hits that is marked unrouted MUST NOT produce a `stub-never-matched` finding. A stub that is
+  never removed keeps its `LPCV-V0-073` finding, and so does a stub removed by any other means.
+  The stub stays in the record either way. Rollback: revert the producer marking, the decoded
+  member and the finding guard together; a retained receipt carrying the member is then refused
+  by the closed decoding and reads as `NOT_PRODUCED`, never as zero hits.
+
+### Bun test provider (V1-2191; GitHub #1405)
+
+Bun repositories that run `bun:test` could be selected by affected (`bun-test` units) but not run
+or admitted: the JS provider ran only Vitest and Playwright, so a Bun suite produced no receipt and
+no test-validity verdict (GitHub #1405). `LPCV-V0-254` to `LPCV-V0-262` add a `bun` profile to
+`corvint-js-test-provider`. All were accepted under the owner's standing auto-accept (2026-10-11)
+for V1-2191. The slice is experimental: no existing receipt member, refusal or exit status changes,
+and a receipt without the `bun` member decodes and projects exactly as before.
+
+- `LPCV-V0-254`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191)
+  `corvint-js-test-provider bun` MUST run `bun test --reporter=junit --reporter-outfile=<temp>` in
+  `--dir` under the same process-group containment, timeout and output bounds as `unit`, and print
+  the same receipt document (`kind` `unit`, with test and run projections); `--retain` retains it as
+  for `unit`. At least one `--test-file` is required; every test file is bound by digest and passed
+  to `bun test` as a path selector, so what runs is what is bound.
+- `LPCV-V0-255`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The
+  receipt's `identity.argv` MUST be the exact command executed: the bun executable, `test`, the
+  reporter flags, each `--preload` script in the order given, `--max-concurrency=N` when a positive
+  concurrency is given, `--test-name-pattern=P` when a pattern is given (example-level selection),
+  and the test files last.
+- `LPCV-V0-256`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The receipt
+  MUST carry a `bun` member naming the producer build (name, module, the embedded `vcs.revision`
+  and `vcs.modified`, `unrecorded` when the binary embeds none, and the Go version), the resolved
+  bun executable and its SHA-256, the observed bun version, the lockfile path, SHA-256 and
+  `lockfileVersion`, the preload scripts and their SHA-256 digests, the concurrency and name pattern,
+  the declared isolation (`LPCV-V0-259`), the observed exit, and whether the test repository's
+  identity was the same after the run as before it. `testRepositoryAtStart` and
+  `testRepositoryAtPublish` are recorded for every run in a Git worktree, `identity.runnerName` is
+  `bun` and `identity.runnerVersion` the observed version. The member is valid only on an
+  unprofiled `unit` receipt; any other receipt carrying it is refused
+  `bun-member-requires-unit-default-profile`.
+- `LPCV-V0-257`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The profile
+  MUST admit only exact bun releases a live run of this profile observed, one release at a time and
+  never a range; the qualified set is `1.3.11`. The version is observed with `<bun> --version`
+  before any test runs. A missing executable, an unobservable version, a version outside the set,
+  or a `--runner-version` pin that differs from the observed version is refused.
+- `LPCV-V0-258`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A bun
+  refusal MUST be decided before `bun test` starts and carry exactly one closed code:
+  `bun-isolation-concurrency-undeclared` (`LPCV-V0-259`), then `bun-lockfile-unqualified` (no
+  `--lockfile`, a file not named `bun.lock` including the binary `bun.lockb`, no `lockfileVersion`
+  in its first 4 KiB, or a version other than `1`), then `bun-version-unqualified`
+  (`LPCV-V0-257`). The CLI writes the `corvint-bun-test-refusal/0` document (`schema`, `code`,
+  `message`, `qualifiedBunVersions`, `qualifiedLockfileVersions`) to stdout and one stderr line
+  `refusal: <code>...`, and exits 3, as an e2e admission refusal does.
+- `LPCV-V0-259`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A suite
+  that depends on a caller-started external service MUST declare it with `--service NAME=IDENTITY`
+  and run with `--max-concurrency=1`; a declaration without it is refused
+  `bun-isolation-concurrency-undeclared`. The receipt records isolation `declared-shared-service`,
+  the declarations, and a boundary statement that the services were declared, not observed. The
+  provider never starts, resets or observes a service, and the run proves nothing about its state.
+- `LPCV-V0-260`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The JUnit
+  report MUST be parsed into one outcome per test case: the full name is the describe chain and the
+  test name joined by ` > ` (the file-level suite is not part of it), the anchor is the case's file
+  and declaring line, `failure` is `failed`, `error` is `infrastructure` and `skipped` is `skipped`
+  (bun 1.3.11 reports a test excluded by `--test-name-pattern` as skipped). An unnamed case with no
+  line that failed is a failing `beforeAll`/`afterAll` hook and becomes one `infrastructure` outcome
+  named `(hook)`, never a test result. A suite whose declared `tests` count differs from its cases
+  is `report-count-mismatch`, a report with no case is `no-suites-collected`, a nonzero exit the
+  report does not explain is `exit-status-unexplained`, and a timeout, cancellation or output
+  overflow is the same boundary failure as `unit`.
+- `LPCV-V0-261`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A bun
+  receipt MUST join to test-validity verdicts through the same example join as a Vitest receipt
+  (title-path example keys, digest-bound committed files, revision bound by the recorded start and
+  publish identities), and the JS source reading MUST treat `bun:test` as a test-framework module
+  like `vitest`. Affected selection's existing `bun-test` runner detection is the selection input.
+- `LPCV-V0-262`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2191) Admitting
+  another bun release or lockfile version MUST retain a live run of this profile against it and
+  amend `LPCV-V0-257` or `LPCV-V0-258`. The live test runs only when `CORVINT_BUN_EXECUTABLE` names
+  a bun executable and is otherwise `NOT_RUN`.
+
+Non-goals:
+- `file:line` example selection (bun 1.3.11 reports no match for it); selection is by file and
+  `--test-name-pattern`;
+- checking that `bun.lock` matches `package.json` or the installed `node_modules`;
+- reading the binary `bun.lockb`;
+- starting, sandboxing or resetting external services, or isolating the suite's network;
+- coverage, watch mode and installing bun.
+
+| Failure mode | Prevented by |
+|---|---|
+| A receipt omits a flag that changed what ran. | `LPCV-V0-255` exact argv, compared with what bun received |
+| A different bun or lockfile reads as the qualified one. | `LPCV-V0-256` digests; `LPCV-V0-257`, `LPCV-V0-258` typed refusals |
+| An unqualified bun runs and reports anyway. | `LPCV-V0-258` refusal before `bun test` starts |
+| A shared-service suite runs concurrently against one service. | `LPCV-V0-259` `bun-isolation-concurrency-undeclared` |
+| A declared service reads as observed. | `LPCV-V0-259` boundary statement |
+| A failing hook reads as a failed or passing test. | `LPCV-V0-260` `(hook)` infrastructure outcome |
+| A truncated or partial report reads as complete. | `LPCV-V0-260` `report-count-mismatch`, `no-suites-collected` |
+| The run edits the repository unnoticed. | `LPCV-V0-256` start and publish identities and `repositoryUnchanged` |
+| A bun receipt joins differently from a Vitest one. | `LPCV-V0-261` one example join |
+
+Acceptance evidence: V1-2191 acceptance 1 is `internal/testsource`'s
+`TestLPCVV0261_BunFixtureSelectedRunAndJoined` (a committed fixture with `bun:test` unit and
+preloaded integration suites selected as `bun-test` units, run by the profile through a fake bun
+that replays a bun 1.3.11 report, and joined to `ELIGIBLE` verdicts); acceptance 2 is
+`internal/jstestprovider`'s `TestLPCVV0255_RunBunBindsCommandIdentityAndTree` and
+`TestLPCVV0260_ParseBunJUnitLiveReport` (a report bun 1.3.11 wrote) and
+`TestLPCVV0260_ParseBunJUnitHookAndShape`; acceptance 3 is
+`TestLPCVV0258_BunRefusalsAreTypedAndPreRun` and `cmd/corvint-js-test-provider`'s
+`TestProviderBunRefusalExitsAdmissionRefused`. The live run `TestLPCVV0262_LiveBunQualification`
+passed with `CORVINT_BUN_EXECUTABLE` set to a pre-installed bun 1.3.11 (darwin arm64) on
+2026-10-21; it is `NOT_RUN` in CI, which installs no bun.
+
+Rollback: revert the V1-2191 change. The `bun` subcommand becomes an unknown subcommand (exit 2),
+the `bun` receipt member and refusal document disappear, and every other receipt, refusal and exit
+status is unchanged; no retained document format changes.
+
 ## Promotion experiments
 
 All promotion corpora, changes, defects, splits, metrics, exclusions, and stopping rules MUST be
@@ -608,6 +730,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-071` provider CLI help | accepted (decision 0519; V1-1196; GitHub #794); implemented | `cmd/corvint-js-test-provider`'s `TestProviderHelpPrintsEverySubcommandUsage` (`--help`, `-h` and `help` exit 0 with each subcommand's usage and flags; an unknown subcommand exits 2) and `TestDocsHelpProducerExampleUsesE2EFlags`; `negate` and `external-origins` `-h`/`--help` print that subcommand's flags and exit 0 instead of refusing (`TestSubcommandHelpPrintsUsage`, V1-1221). |
 | `LPCV-V0-072..075` request-stub hit evidence | accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); implemented at experimental tier; unprofiled receipts only | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (runs `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed`, `TestLPCVV0072RecordIsSecretScreened`, `TestLPCVV0072MalformedAnnotationKeepsReport`, `TestLPCVV0072ProfiledReceiptsRefuseRouteStubs` and `TestLPCVV0072LiveRecordParses` (the retained Playwright 1.61.1 run, `LPCV-V0-075`); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`conformance/test-validity-v0/route-stubs.json`), `TestLPCVV0073ReceiptWithoutProducerKeepsBytes`, `TestLPCVV0073RetainedRecordIsClosed` and `TestLPCVV0073FindingLeavesAxesUnchanged`. |
 | `LPCV-V0-076..079` request-stub residuals | accepted under the owner's standing auto-accept (2026-10-11) (V1-1475); no external profile revision for 1.0 (decision 0534); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `newContext`/`newPage`, outside-a-test, `routeWebSocket`, `routeFromHAR` call-site and `async` frame cases of `route-stubs_test.cjs`), `TestLPCVV0072AnnotationIsClosed` (`api` cases), `TestLPCVV0076AnnotationNamesAPI` and `TestLPCVV0079LiveResidualsParse` (the retained residual run); `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`websocket-and-har`, `api-invalid`, `producer-absent-requested`, `recorded-requested`), `TestLPCVV0077RequestedMemberKeepsDefaultBytes` and `TestLPCVV0078ProfiledReceiptRequestedIsExternalProfile`; `cmd/corvint`'s `TestTestValidityRouteStubsStatesProducerAbsent`. |
+| `LPCV-V0-214` unrouted request stubs | accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); implemented at experimental tier | `internal/jstestprovider`'s `TestLPCVV0072ProducerNodeUnit` (the `unroute and unrouteAll mark the stubs they remove` case of `route-stubs_test.cjs`) and `TestLPCVV0214AnnotationMarksUnrouted`; `internal/testvaliditydoc`'s `TestLPCVV0074RouteStubVectors` (`unrouted-before-hit`). |
 | `LPCV-V0-080..083` rejection-only witness anchors | accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); implemented at experimental tier; unprofiled receipts only; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0080AnnotationIsClosed`, `TestLPCVV0080RecordIsSecretScreened`, `TestLPCVV0080ParsedFromPlaywrightReport`, `TestLPCVV0080ProfiledReceiptsRefuseRequestOutcomes`, `TestLPCVV0080InvalidUTF8IsRefused` and `TestLPCVV0080ScreeningCollapsesDistinctActors`; `internal/testvaliditydoc`'s `TestLPCVV0080RetainedRecordIsClosed`, `TestLPCVV0081MissingEvidenceIsNeverAnchored`, `TestLPCVV0081ReceiptWithoutRecordKeepsBytes`, `TestLPCVV0082PositiveSiblingFailedBlocksCredit` (#1099 acceptance 1), `TestLPCVV0082PositiveSiblingPassedAnchors` (acceptance 2), `TestLPCVV0082UnanchoredClearedByDeclaredSibling` (acceptance 3), `TestLPCVV0082DeclaredSiblingNeedsPositiveEvidence`, `TestLPCVV0082AmbiguousDeclaredSiblingIsUnknown`, `TestLPCVV0081ScreenedEvidenceNeverJoins` and `TestLPCVV0083AnchorLeavesAxesUnchanged`. |
 | `LPCV-V0-120..125` run-time assertion operands and outbound calls | accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); implemented at experimental tier; unprofiled receipts only; no automatic producer; live run `NOT_RUN` | `internal/jstestprovider`'s `TestLPCVV0120AnnotationIsClosed`, `TestLPCVV0123AnnotationIsClosed`, `TestLPCVV0120RunRecordsAreSecretScreened`, `TestLPCVV0120ParsedFromPlaywrightReport` and `TestLPCVV0120ProfiledReceiptsRefuseRunRecords`; `internal/testvaliditydoc`'s `TestLPCVV0121VacuousEqualityReading` (#1193 run-time), `TestLPCVV0124UnstubbedCallClassification` (#1192 run-time), `TestLPCVV0121ReceiptWithoutRecordsKeepsBytes`, `TestLPCVV0122ReadingsLeaveAxesUnchanged` and `TestLPCVV0120RetainedRecordsAreClosed`. |
 | `LPCV-V0-084` retained evidence stays out of `git status` | accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); implemented at experimental tier | `internal/testevidence`'s `TestLPCVV0084FirstRetentionKeepsGitStatusClean` (#1132 acceptance: real Git repository, empty porcelain, `--discover` still selects the document), `TestLPCVV0084ExistingCorvintAndIgnoreAreKept` (an existing `.gitignore` is never overwritten), `TestLPCVV0084IgnoreFailureFailsRetention`, `TestLPCVV0084NonRegularIgnoreIsRefused` and `TestLPCVV0084FailedIgnoreWriteIsRemovedAndEmptyIsRepaired`; `TestLPCVV0084RetentionIsDiscovered` and `TestEvidenceDirectoryMatchesDiscovery` (external package: `--discover` selects the document, and the leaf constant equals the discovery constant, V1-1811); `cmd/corvint-js-test-provider`'s `TestPWPV0031ServerReadyURLHelpMatchesReadiness` (help names the file). |
@@ -626,6 +749,7 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-128` 1.64.0 derivation abstention | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); finding, not qualification | `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248): 5 of 12 cases passed; every assertion step read `NOT_MEASURED` `step-fault-underivable` (build log 2026-10-20); cause `NOT_OBSERVED` |
 | `LPCV-V0-129` join stays gated off | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered | `internal/testvaliditydoc`'s `TestLPCVV0129JoinStaysGatedOff`; the owner sample comparison and G2 cost measurement stay `NOT_RUN` (owner-run) |
 | `LPCV-V0-145..153` structured test location and static source projection | accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); experimental | `internal/testvaliditydoc`'s `TestLPCVV0145PlaywrightLocation`, `TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations`, `TestLPCVV0146GoLocationNotRecorded`, `TestLPCVV0148RubyLocationAndSharedGroup`, `TestLPCVV0151StaticProjection`, `TestLPCVV0147DiscoveryPlacesLocation`, `TestLPCVV0146AmbiguousLineTitlePathAbsent` and `TestLPCVV0135RubyOptionalMembersDecodeClosed`; `internal/testsource`'s `TestLPCVV0147JSTitlePath`, `TestLPCVV0147RSpecTitlePath`, `TestLPCVV0147JSAmbiguousLineHasNoTitlePath`, `TestLPCVV0147RSpecComputedTitleNotLiteral`, `TestLPCVV0152StaticExamplesReadsCommittedSource` and `TestLPCVV0152StaticSupportSharesTheCommandBudget`; `internal/mcp/testvaliditybridge`'s `TestLPCVV0149ReceiptLocationMatchesCLI`; `cmd/corvint`'s `TestLPCVV0150StaticModeProjectsSourceAndWritesNothing` and `TestLPCVV0153StaticOptionsAreExclusive`; real Playwright and RSpec runs `NOT_RUN` |
+| `LPCV-V0-254..262` bun test provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); experimental | `internal/jstestprovider`'s `TestLPCVV0255_RunBunBindsCommandIdentityAndTree`, `TestLPCVV0258_BunRefusalsAreTypedAndPreRun`, `TestLPCVV0260_ParseBunJUnitLiveReport`, `TestLPCVV0260_ParseBunJUnitHookAndShape` and `TestLPCVV0262_LiveBunQualification` (live, bun 1.3.11 on 2026-10-21; `NOT_RUN` without `CORVINT_BUN_EXECUTABLE`); `internal/testsource`'s `TestLPCVV0261_BunFixtureSelectedRunAndJoined`; `cmd/corvint-js-test-provider`'s `TestProviderBunRefusalExitsAdmissionRefused` |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
 
@@ -1082,6 +1206,11 @@ standing auto-accept (2026-10-11). The external-profile question was decided by 
   The run is `internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/`, on the same
   tuple as `LPCV-V0-075`.
 
+A stub the test itself removes before any request reaches it was withdrawn on purpose, not
+silently missed, so V1-1474 states the unroute rule as `LPCV-V0-214`, accepted under the owner's
+standing auto-accept (2026-10-11), defined under `## Requirements` (Request-stub unroute marking).
+IDs `LPCV-V0-154..213` stay free.
+
 Non-goals:
 - stubs registered only on a negative-control path (GitHub #872);
 - contexts created outside a running test (`beforeAll`, worker fixtures), by
@@ -1108,6 +1237,7 @@ Failure modes, each prevented by the cited requirement:
 | A legacy document changes bytes. | `LPCV-V0-073` omission; `LPCV-V0-077` is opt-in |
 | A stub on a context the test creates is silently missing. | `LPCV-V0-076` `newContext`/`newPage` adoption |
 | A WebSocket or HAR stub is read as a plain route. | `LPCV-V0-076` closed `api` |
+| A stub the test removed with `unroute` before any request is flagged as never matched. | `LPCV-V0-214` unrouted marking |
 | A case-variant member overwrites a refused one. | `LPCV-V0-076` exact member names |
 | A context created late in one test is credited to the next. | `LPCV-V0-076` session taken at creation |
 | An absent producer is indistinguishable from a legacy document. | `LPCV-V0-077` explicit reason |

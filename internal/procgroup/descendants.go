@@ -28,7 +28,11 @@ const (
 	descendantSettle          = 5 * time.Second
 	// Lost periodic snapshots are tolerated only while consecutive successful
 	// snapshots stay this close; a longer blind interval observed nothing.
-	descendantMaxGap = descendantSettle
+	// Each periodic snapshot can spend its whole timeout before it is lost, so
+	// the bound admits three consecutive lost snapshots and a slow fourth that
+	// succeeds; a fourth lost snapshot exceeds it (PGO-V0-020, V1-1651). At one
+	// settle window, two lost snapshots always exceeded it on a loaded host.
+	descendantMaxGap = 4 * descendantSnapshotTimeout
 )
 
 type ObservedProcess struct {

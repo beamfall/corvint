@@ -134,7 +134,7 @@ test('OpenCode boundedTask trims Go strings.TrimSpace whitespace before the boun
 })
 test('CRB-V0-012 Gemini exact transport and only normalized task/path fields',async t=>{
  const f=fixture(t);const start=await f.gemini('session-start');assert.equal(start.output.continue,true);assert.equal(start.output.hookSpecificOutput?.hookEventName,'SessionStart',start.output.systemMessage ?? JSON.stringify(start.output));const [row]=f.captured();noSecret(row)
- assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.10','--event','session-start','--input','-','--budget-bytes','8000'])
+ assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.11','--event','session-start','--input','-','--budget-bytes','8000'])
  assert.deepEqual(row.input,{sessionIdSha256:sha('raw-session-secret')})
  await f.gemini('user-prompt',{messages:[{secret:'hidden'}]});const prompt=f.captured().at(-1);assert.deepEqual(prompt.input,{sessionIdSha256:sha('raw-session-secret'),task:'repair the parser'})
  await f.gemini('after-tool',{tool_name:'write_file',tool_input:{file_path:join(f.root,'src/../src/parser.py'),content:'hidden'},tool_response:{success:true}})
@@ -535,6 +535,38 @@ test('V1-1116 OpenCode EPERM re-probe confirms only on ESRCH and is bounded',{ti
  assert.equal(cleared.result.code,'host-aborted',JSON.stringify(cleared.result));assert.equal(cleared.probes,4)
  const stuck=await run(Infinity)
  assert.equal(stuck.result.code,'corvint-process-cleanup-unconfirmed',JSON.stringify(stuck.result));assert.equal(stuck.probes,41)
+})
+// V1-1122 (AHI-058): the Gemini hook's cleanup probe repeats an EPERM answer as AHI-052 does for OpenCode.
+// A preload delivers the group SIGKILL and then answers it as Darwin's EPERM for a zombie-only group, and
+// injects the signal-0 answers, so the test depends neither on the platform nor on when the leader is
+// reaped. On the base the single probe read the first EPERM as unconfirmed cleanup.
+function installProbeInjection(appendFileSync) {
+ const kill=process.kill,eperms=Number(process.env.CORVINT_TEST_PROBE_EPERMS),log=process.env.CORVINT_TEST_PROBE_LOG
+ const refuse=code=>Object.assign(new Error(code),{code})
+ let probes=0
+ process.kill=function(pid,signal){
+  if(pid>=0)return kill.call(process,pid,signal)
+  appendFileSync(log,`${signal}\n`)
+  if(signal==='SIGKILL'){try{kill.call(process,pid,signal)}catch{};throw refuse('EPERM')}
+  if(signal===0)throw refuse(probes++<eperms?'EPERM':'ESRCH')
+  return kill.call(process,pid,signal)
+ }
+}
+test('V1-1122 Gemini EPERM re-probe confirms only on ESRCH and is bounded',{timeout:60000},async t=>{
+ const run=async eperms=>{
+  const dir=mkdtempSync(join(tmpdir(),'corvint-probe-')),preload=join(dir,'probe.cjs'),log=join(dir,'signals');t.after(()=>rmSync(dir,{recursive:true,force:true}))
+  writeFileSync(preload,`(${installProbeInjection})(require('node:fs').appendFileSync)\n`)
+  const f=fixture(t,'orphan-hang',undefined,{NODE_OPTIONS:`--require=${preload}`,CORVINT_TEST_PROBE_EPERMS:String(eperms),CORVINT_TEST_PROBE_LOG:log})
+  const {output}=await f.gemini('user-prompt')
+  await descendantGone(f.childPID)
+  const signals=readFileSync(log,'utf8').split('\n').filter(Boolean)
+  assert.deepEqual(signals.filter(s=>s!=='0'),['SIGTERM','SIGKILL'],'the re-probe sent a non-zero group signal')
+  return {message:output.systemMessage,probes:signals.filter(s=>s==='0').length}
+ }
+ const cleared=await run(3)
+ assert.match(cleared.message,/FALLBACK degraded \(corvint-timeout\)/);assert.equal(cleared.probes,4)
+ const stuck=await run(1e9)
+ assert.match(stuck.message,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/);assert.equal(stuck.probes,41)
 })
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)

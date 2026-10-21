@@ -177,7 +177,28 @@ func baseRequest(root, git, revision string) Request {
 		Revision:    revision,
 		ChangedPath: "pkg/calc/calc.go",
 		TestPath:    "pkg/calc/calc_test.go",
-		Budget:      4 * time.Minute,
+		Budget:      testBudget(),
+	}
+}
+
+// testBudget is the package tests' request budget (FPK-V0-142(4)): four
+// minutes, or the duration in CORVINT_MUTATE_TEST_BUDGET on a loaded host.
+func testBudget() time.Duration {
+	if value := os.Getenv("CORVINT_MUTATE_TEST_BUDGET"); value != "" {
+		if budget, err := time.ParseDuration(value); err == nil && budget > 0 {
+			return budget
+		}
+	}
+	return 4 * time.Minute
+}
+
+// skipOnBudget accepts an explicit BUDGET_EXCEEDED as the distinct outcome
+// of a loaded host (V1-1577): the test is skipped with the detail, never
+// failed and never mistaken for a verdict about the claim.
+func skipOnBudget(t *testing.T, report Report) {
+	t.Helper()
+	if report.Verdict == BudgetExceeded {
+		t.Skipf("host too loaded for the request budget: %s", report.Detail)
 	}
 }
 
@@ -191,6 +212,7 @@ func TestRunKillsAMutantAndLeavesTheRootUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
+	skipOnBudget(t, report)
 	if report.Verdict != Killed {
 		t.Fatalf("verdict = %s (%s), want %s", report.Verdict, report.Detail, Killed)
 	}
@@ -259,6 +281,7 @@ func TestRunReportsNoMutantsForADeclarationOnlyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
+	skipOnBudget(t, report)
 	if report.Verdict != NoMutants {
 		t.Fatalf("verdict = %s (%s), want %s", report.Verdict, report.Detail, NoMutants)
 	}

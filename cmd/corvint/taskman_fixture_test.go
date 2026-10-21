@@ -40,3 +40,15 @@ func TestTaskmanFixtureWriteFailureReportsDiagnostic(t *testing.T) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), err.String())
 	}
 }
+
+// TestNTPV0246PlanFixtureHelpStatesBound pins that plan-fixture --help states
+// the ticket bound and answers without launching an executor (NTP-V0-246).
+func TestNTPV0246PlanFixtureHelpStatesBound(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := runTaskmanFixture(context.Background(), t.TempDir(), []string{"--help"}, &stdout, &stderr); code != 0 || stderr.Len() != 0 {
+		t.Fatalf("code=%d stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "at most 16384 tickets") || !strings.Contains(stdout.String(), "16384 plan entries") {
+		t.Fatalf("help lacks the bound:\n%s", stdout.String())
+	}
+}

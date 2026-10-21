@@ -251,7 +251,8 @@ func TestRunRefusesToJudgeARunWithoutAVerdict(t *testing.T) {
 // starts, as sandbox-exec does inside an enclosing sandbox that forbids
 // nesting, is a distinct sandbox-unavailable error, never a kill. The fake
 // launcher prints sandbox-exec's own refusal line and exit status, so the test
-// does not depend on running inside a real outer sandbox.
+// does not depend on running inside a real outer sandbox. It lets the
+// FPK-V0-142 preflight (go version) through so the per-run path is reached.
 func TestRunReportsASandboxLauncherRefusalAsUnavailable(t *testing.T) {
 	git := gitExecutable(t)
 	shell, err := exec.LookPath("sh")
@@ -262,7 +263,7 @@ func TestRunReportsASandboxLauncherRefusalAsUnavailable(t *testing.T) {
 	previous := findSandbox
 	findSandbox = func() (sandbox, error) {
 		return sandbox{name: "refusing", confine: func([]string) ([]string, error) {
-			return []string{shell, "-c", "echo 'sandbox-exec: sandbox_apply: Operation not permitted' >&2; exit 71", "sandbox-exec"}, nil
+			return []string{shell, "-c", `[ "$2" = version ] && exit 0; echo 'sandbox-exec: sandbox_apply: Operation not permitted' >&2; exit 71`, "sandbox-exec"}, nil
 		}}, nil
 	}
 	t.Cleanup(func() { findSandbox = previous })
