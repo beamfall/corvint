@@ -95,6 +95,32 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   verifier only for repositories whose snapshots fit its envelope; for a larger repository, such
   as this one, its `UNSUPPORTED` answer is a bound, not a disagreement with the canonical
   route's verdict.
+- `CEM-V1-242`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2136) The native
+  names of the sealed repository-envelope recipe MUST exist in `internal/cem/verify`:
+  `TestStableRepositoryEnvelopeOrdinary` runs the case array named by
+  `CEM_STABLE_REPOSITORY_CASES` (closed fields `ID`, `Repository`, `Map`, `ExpectedBase`, `Target`,
+  `ArtifactRoot`, `Expected`, `Exit`, `Env`; absolute paths; unique IDs) and compares each complete
+  result and exit with the frozen expectation through an admitted runtime tuple. Unset, it
+  materializes the packet's ordinary, origin, linked and relative cells itself.
+  `TestStableRepositoryEnvelopeCancelled`, `...DescendantCleanup` and `...RootIdentity` run the
+  matching public cases (at least 11, 3 and 1). The sealed document is not rewritten.
+- `CEM-V1-243`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1329) The native
+  and the portable tamper-matrix tests MUST carry the same table of one pinned `verdictSha256` per
+  sealed `CEM-V1-226` case, MUST fail when the table and the sealed case list differ in size, and
+  MUST fail when either consumer's recomputed digest differs from the pin. The sealed
+  `EXPECTED.json` is unchanged.
+- `CEM-V1-244`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After the
+  outside-repository check, an out-of-tree map read and an absolute-path report publish MUST open
+  the checked parent directory as a held handle whose identity equals the one observed at the
+  check, and MUST perform every member operation through that handle: the map read refuses a
+  non-regular or oversized member and opens without following a final symlink; the report is
+  written to an exclusive temporary member, synced, renamed and the directory synced. A changed
+  parent identity MUST refuse (`map-unavailable` for the map, `publish-failed` for the report)
+  with nothing read from or written to the swapped target.
+- `CEM-V1-245`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The
+  portable op-timeout descendant test MUST retry with longer timeouts (500 ms, 2 s, 8 s, 30 s)
+  while the timeout fires before the shim records its descendant, MUST still require
+  `git-timeout` and no hold on every attempt, and MUST fail when no attempt records a descendant.
 
 ## Non-goals and failure modes
 
@@ -4106,3 +4132,56 @@ Rollback: revert the change commit; it adds a test and this record only.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-352 | `TestCEMV1352LegacySnapshotTreeEntryBound` (`interop/cem01-go`); `snapshot03` in `interop/cem01-go/cem.go` | 4096 entries read; 4097 refuse `unsupported-resource-limit` |
+
+## Lane cem sweep (V1-2136, V1-1329, V1-2106, V1-1470, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2136,
+V1-1329, V1-2106, V1-1470.
+
+Four independent gaps:
+- The sealed `REPOSITORY-ENVELOPE.md` recipe names `CEM_STABLE_REPOSITORY_CASES` and four native
+  tests in `internal/cem/verify` that did not exist, so the recipe could not be run (V1-2136).
+- The `CEM-V1-226` tamper matrix compared each case's verdict, stage and citation in both consumers,
+  but not its `verdictSha256`, so a divergent verdict digest between the native and the portable
+  consumer passed (V1-1329).
+- `cem status`/`cem verify` with an out-of-tree map (`CEM-V1-315`) and `cem verify-stable` with an
+  absolute `--output` checked the parent directory by path and then read or wrote by path again. A
+  parent swapped for a symlink in that window redirected the read, or the report write, into the
+  repository's Git directory (V1-2106).
+- `TestStableLifecycleOpTimeoutRetiresDescendants` armed a 500 ms operation timer before the shim
+  launched. Under host load the timer fired before the shim recorded its descendant, and the test
+  failed with "descendant pid not recorded" (V1-1470).
+
+The requirements `CEM-V1-242..245` are defined in the Requirements section above.
+
+Non-goals:
+- no change to any sealed member, committed map, the stable verifier's verdicts or the map wire;
+- `CEM-V1-244` closes the external map and report window of `CEM-V1-315..316` only. The
+  plain-assembly bundle-parent window stays the named open limit `CEM-V1-348`;
+- no full `interop/cem01-go` runtime bound under load (V1-1470 criterion 2 stays open);
+- no rerun of V1-1329's original reproduction target, which is not in this clone.
+
+Failure modes:
+- The retry spends up to about 40 s on a host so loaded that every short timeout fires first; the
+  final 30 s attempt fails the test rather than passing silently.
+- On a platform without `O_NOFOLLOW`/`os.Root` support the held read refuses rather than falling
+  back to a path read.
+- A legitimate replacement of the output directory between the check and the publish is refused;
+  the caller reruns.
+
+Acceptance evidence: the tests below pass on Darwin. Without the `CEM-V1-244` change the map test
+reads the redirected file and the report test writes into `.git`. A mutated pinned digest fails both
+tamper-matrix tests. With a simulated delayed shim the previous op-timeout test fails and the new
+one passes on its 2 s retry.
+
+Rollback: revert the lane commits. Out-of-tree maps and absolute reports return to path reads and
+writes, the digest pins and envelope names disappear, and no stored state changes.
+
+### Lane cem sweep traceability
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-242 | `TestStableRepositoryEnvelopeOrdinary`, `TestStableRepositoryEnvelopeCancelled`, `TestStableRepositoryEnvelopeDescendantCleanup`, `TestStableRepositoryEnvelopeRootIdentity` (`internal/cem/verify`) | The materialized array runs through the env contract; the public cancellation, cleanup and root-identity cases pass |
+| CEM-V1-243 | `TestCEMV1226TamperMatrixNative` (`internal/cem/verify`), `TestCEMV1226TamperMatrixPortable` (`interop/cem01-go`) | All 23 sealed cases match the shared pinned digests; a mutated pin fails |
+| CEM-V1-244 | `TestCEMV1244ExternalMapParentSwapRefused`, `TestCEMV1244ExternalReportParentSwapRefused`, `TestCEMV1244ExternalReportPublishes` (`internal/cem/workflow`) | A swapped map parent refuses `map-unavailable`; a swapped report parent refuses `publish-failed` with nothing written in `.git`; an unswapped report publishes at 0600 with no residue |
+| CEM-V1-245 | `TestStableLifecycleOpTimeoutRetiresDescendants` (`interop/cem01-go`) | Passes in 0.56 s; with a delayed shim it passes on the 2 s retry where the previous test failed |

@@ -11,3 +11,7 @@ import (
 func openBoundedInput(string) (*os.File, error) {
 	return nil, errors.New("bounded input acquisition is unsupported on this platform")
 }
+
+func openBoundedMember(*os.Root, string) (*os.File, error) {
+	return nil, errors.New("bounded input acquisition is unsupported on this platform")
+}

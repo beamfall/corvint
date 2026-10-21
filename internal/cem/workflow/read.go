@@ -128,7 +128,12 @@ func (s *Session) readExternalMap(mapPath string) ([]byte, string, error) {
 	if withinAny(root.Path(), protected) {
 		return nil, "", invalidArguments("an absolute --map must lie outside the repository and its Git directory; name a map inside them repository-relative")
 	}
-	raw, err := root.ReadBounded(name, wire.MaxMapBytes, cemcode.MapUnavailable)
+	if afterExternalCheck != nil {
+		afterExternalCheck(root.Path())
+	}
+	// Read through a held handle of the checked directory, never by pathname
+	// again: a parent swapped after the check cannot redirect it (CEM-V1-244).
+	raw, err := root.ReadBoundedMember(name, wire.MaxMapBytes, cemcode.MapUnavailable)
 	if err != nil {
 		return nil, "", err
 	}
@@ -137,7 +142,9 @@ func (s *Session) readExternalMap(mapPath string) ([]byte, string, error) {
 
 // externalReportOutput admits an absolute report path whose existing parent directory lies
 // outside the worktree and the Git directories. A location inside them must be named
-// repository-relative, so the metadata and map-aliasing checks apply to it.
+// repository-relative, so the metadata and map-aliasing checks apply to it. The caller
+// publishes the returned member with publish.PublishMember, through a held handle of the
+// checked directory (CEM-V1-244).
 func (s *Session) externalReportOutput(output string) (*publish.Root, string, error) {
 	cleaned := filepath.Clean(output)
 	root, err := publish.OpenRoot(filepath.Dir(cleaned))
@@ -148,8 +155,16 @@ func (s *Session) externalReportOutput(output string) (*publish.Root, string, er
 	if withinAny(root.Path(), protected) {
 		return nil, "", invalidArguments("an absolute --output must lie outside the repository and its Git directory; name a location inside them repository-relative")
 	}
+	if afterExternalCheck != nil {
+		afterExternalCheck(root.Path())
+	}
 	return root, filepath.Base(cleaned), nil
 }
+
+// afterExternalCheck is a test seam run after an absolute map's or report's
+// directory passed the location check and before it is read or written, so a
+// regression can swap a parent directory in that window. Nil in production.
+var afterExternalCheck func(dir string)
 
 // withinAny reports whether dir or one of its ancestors is the same directory as any protected
 // one. Comparing file identity, not spelling, also catches case and normalization aliases.

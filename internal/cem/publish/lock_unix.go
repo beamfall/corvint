@@ -37,3 +37,14 @@ func syncDirectory(path string) error {
 	closeErr := directory.Close()
 	return errors.Join(syncErr, closeErr)
 }
+
+// syncHeldDirectory syncs the directory a held root names.
+func syncHeldDirectory(root *os.Root) error {
+	directory, err := root.Open(".")
+	if err != nil {
+		return err
+	}
+	syncErr := directory.Sync()
+	closeErr := directory.Close()
+	return errors.Join(syncErr, closeErr)
+}
