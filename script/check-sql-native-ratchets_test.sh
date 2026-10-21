@@ -29,16 +29,30 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-# Requirements SNR-V0-003/SNR-V0-004 pin toolchain identity by content: the source-byte check
-# (SNR-V0-005) is reached only after that pin matches, so this harness needs the exact pinned
-# go1.27.0 install, not whatever default `go` is first on PATH.
-PATH=/opt/homebrew/Cellar/go/1.27.0/bin:$PATH
-export PATH
+# SNR-V0-003/SNR-V0-004 pin toolchain identity by content, and the source-byte check (SNR-V0-005)
+# is reached only after the pin matches. The fixture copy of the script therefore carries one pin
+# row for whatever toolchain this host discovers (SNR-V0-030), so the control-flow cases below do
+# not depend on which admitted installation the host has; case 7 proves that an unpinned toolchain
+# refuses with its typed reason, and case 8 that every real pin names a version the Makefile admits.
+host_go_root=$(GOTOOLCHAIN=local go env GOROOT)
+host_go_version=$(GOTOOLCHAIN=local "$host_go_root/bin/go" env GOVERSION)
+host_go_sha=$(shasum -a 256 "$host_go_root/bin/go" | awk '{print $1}')
 
 repo="$test_root/repo"
 mkdir -p "$repo/script" "$repo/experimental/analyzers/sqlnative" "$repo/cmd/corvint-analyzer-sql-native"
-cp "$source_root/script/check-sql-native-ratchets.sh" "$repo/script/"
-chmod +x "$repo/script/check-sql-native-ratchets.sh"
+# set_pins replaces the fixture script's pin table with the single row $1.
+set_pins() {
+	awk -v row="$1" '
+		skip && /^'"'"'$/ { skip = 0; print row; print; next }
+		skip { next }
+		/^toolchain_pins='"'"'$/ { skip = 1 }
+		{ print }
+	' "$source_root/script/check-sql-native-ratchets.sh" >"$repo/script/check-sql-native-ratchets.sh"
+	grep -qx "$1" "$repo/script/check-sql-native-ratchets.sh" || fail "the pin table moved or changed; update this test"
+	chmod +x "$repo/script/check-sql-native-ratchets.sh"
+}
+zero=0000000000000000000000000000000000000000000000000000000000000000
+set_pins "$host_go_version $host_go_sha $zero 0 $zero"
 git -C "$repo" init -q -b main
 mkdir -p "$repo/cmd/corvint"
 : >"$repo/cmd/corvint/main.go"
@@ -129,5 +143,26 @@ archive_args=${archive_args% > *}
 listing=$(cd "$repo" && eval "git archive HEAD $archive_args" | tar -t)
 printf '%s\n' "$listing" | grep -qx 'cmd/corvint/main.go' || fail "the Core base omitted Core source: $listing"
 printf '%s\n' "$listing" | grep -q 'sqlnative\|corvint-analyzer-sql-native' && fail "the Core base kept candidate source: $listing"
+
+# 7. SNR-V0-030: a toolchain that matches no pin row (same version, other go binary digest)
+# refuses with exactly one typed reason line and exit 78, before the source-byte check or any build.
+set_pins "$host_go_version $zero $zero 0 $zero"
+status=0
+out=$(run) || status=$?
+[ "$status" -eq 78 ] || fail "an unpinned go binary exited $status, want 78: $out"
+[ "$(printf '%s\n' "$out" | grep -c 'status=REJECTED reason=TOOLCHAIN_MISMATCH')" -eq 1 ] \
+	|| fail "an unpinned go binary did not report one TOOLCHAIN_MISMATCH line: $out"
+printf '%s\n' "$out" | grep -q "detail=unpinned-$host_go_version-$host_go_sha" \
+	|| fail "the TOOLCHAIN_MISMATCH line did not name the discovered toolchain: $out"
+[ -d "$git_dir/sql-native-ratchets.lock" ] && fail "a toolchain refusal left the lock held"
+
+# 8. SNR-V0-030: every real pin row names a Go version the Makefile go-version target admits.
+admitted=$(sed -n '/^go-version:/,/^$/p' "$source_root/Makefile" | grep -o 'go1\.[0-9]*\.[0-9]*' | sort -u)
+[ -n "$admitted" ] || fail "the Makefile go-version target moved or changed; update this test"
+pinned=$(awk '/^toolchain_pins='"'"'$/{p=1;next} p&&/^'"'"'$/{exit} p&&NF{print $1}' "$source_root/script/check-sql-native-ratchets.sh")
+[ -n "$pinned" ] || fail "the real pin table is empty or moved"
+for version in $pinned; do
+	printf '%s\n' "$admitted" | grep -qx "$version" || fail "pin $version is not admitted by the Makefile go-version target"
+done
 
 echo "check-sql-native-ratchets_test.sh: ok"

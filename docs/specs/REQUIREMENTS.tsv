@@ -4150,6 +4150,7 @@ SNR-V0-012	docs/specs/sql-native-ratchet-gate-v0.md	When `causal_parent` is avai
 SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST run `BenchmarkAnalyzeCausalSQL` ten times against the current tree	unrecorded	-
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	On completing every prior requirement without refusal, the gate MUST print exact	unrecorded	-
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch	unrecorded	-
+SNR-V0-030	docs/specs/sql-native-ratchet-gate-v0.md	| SNR-V0-030 | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-10-21	unrecorded	-
 SOP-V0-001	docs/specs/stable-operations-v0.md	The install-lifecycle check MUST accept either one release archive whose single	unrecorded	-
 SOP-V0-002	docs/specs/stable-operations-v0.md	The check MUST create a committed fixture repository in its own temporary direct	unrecorded	-
 SOP-V0-003	docs/specs/stable-operations-v0.md	An upgrade MUST install into a second store beside the first and run `corvint	unrecorded	-
