@@ -50,3 +50,7 @@ Treat any user input as the task text. When it is empty, use the feature's title
 
 3. Report, per path: the packet `state`, each result path with its evidence line, and every unknown
    or refusal verbatim. Suggest reading the listed files before implementing. Do not act on them.
+
+For other Corvint capabilities, `corvint help` lists every command, and the catalog at
+https://github.com/beamfall/corvint/blob/main/docs/CAPABILITIES.md gives each command, binary and
+MCP tool with its maturity and refusals.

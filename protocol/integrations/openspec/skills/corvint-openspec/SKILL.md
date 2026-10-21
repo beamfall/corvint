@@ -6,7 +6,7 @@ license: Apache-2.0
 compatibility: Requires the corvint binary on PATH. OpenSpec versions listed in interop/spec-toolchains/versions.json.
 metadata:
   author: beamfall
-  version: "0.1.0"
+  version: "0.1.1"
 ---
 
 <!-- SPDX-License-Identifier: Apache-2.0 -->
