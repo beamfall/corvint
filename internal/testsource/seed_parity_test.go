@@ -513,7 +513,7 @@ const seedConditionalSpec = `RSpec.describe User do
 
   it 'after a block' do
     if enabled
-      log
+      puts 'x'
     end
     create(:user)
     expect(User.count).to eq(1)
@@ -537,7 +537,7 @@ test('short-circuit', async () => {
 });
 
 test('after a block', async () => {
-  if (enabled) { log(); }
+  if (enabled) { console.log(); }
   const user = await create('user');
   expect(user).toBeTruthy();
 });
@@ -680,5 +680,89 @@ func TestTSAV0106SeedShouldAggregate(t *testing.T) {
 	}
 	if strings.Join(got, ",") != "test/legacy.test.js:3,test/new.test.js:3" {
 		t.Fatalf("aggregate locations %v in %+v", got, p.Findings)
+	}
+}
+
+const seedHelperLegacySpec = `RSpec.describe Order do
+  def make_order
+    create(:order, total: 5)
+  end
+
+  it 'totals' do
+    create(:customer)
+    make_order
+    expect(Order.count).to eq(1)
+  end
+end
+`
+
+const seedHelperNewSpec = `RSpec.describe Order do
+  def make_order(total)
+    create(:order, total: 7)
+  end
+
+  let(:order) { make_order(7) }
+
+  it 'totals' do
+    create(:customer)
+    order
+    expect(Order.count).to eq(1)
+  end
+
+  it 'calls twice' do
+    create(:customer)
+    make_order(1)
+    make_order(2)
+    expect(Order.count).to eq(2)
+  end
+
+  it 'calls a support helper' do
+    create(:customer)
+    prepare_orders
+    expect(Order.count).to eq(1)
+  end
+end
+`
+
+const seedHelperJS = `test('totals', async () => {
+  await create('customer');
+  await makeOrder();
+  expect(1).toBe(1);
+});
+`
+
+// TestTSAV0644SeedHelpers: a first-party helper the setup calls is followed into its factory
+// calls when it runs once unconditionally, so two tests with identical visible factory calls but
+// different helper-seeded records no longer report parity; a helper called twice, a helper the
+// file does not define and a JS/TS helper call abstain with seed-helper-unresolved naming the
+// helper and line (TSA-V0-644; V1-1908).
+func TestTSAV0644SeedHelpers(t *testing.T) {
+	repo := seedRepoWith(t, map[string]string{
+		"spec/legacy_spec.rb": seedHelperLegacySpec, "spec/new_spec.rb": seedHelperNewSpec, "test/helper.test.ts": seedHelperJS,
+	})
+	followed := seedRun(t, repo, SeedLink{New: "spec/new_spec.rb:8", Legacy: "spec/legacy_spec.rb:6"})[0]
+	if followed.Status != testvalidity.SeedParityStatusDiverges {
+		t.Fatalf("helper-seeded records must be compared, got %s %+v", followed.Status, followed.Sides)
+	}
+	if len(followed.Findings) == 0 || !strings.Contains(followed.Findings[0].Message, "order.total differs: legacy 5, new 7") {
+		t.Errorf("findings %+v, want the helper-seeded total divergence", followed.Findings)
+	}
+	for _, c := range []struct {
+		link         SeedLink
+		helper, line string
+	}{
+		{SeedLink{New: "spec/new_spec.rb:14", Legacy: "spec/legacy_spec.rb:6"}, "make_order", "spec/new_spec.rb:16"},
+		{SeedLink{New: "spec/new_spec.rb:21", Legacy: "spec/legacy_spec.rb:6"}, "prepare_orders", "spec/new_spec.rb:23"},
+		{SeedLink{New: "test/helper.test.ts:1", Legacy: "spec/legacy_spec.rb:6"}, "makeOrder", "test/helper.test.ts:3"},
+	} {
+		p := seedRun(t, repo, c.link)[0]
+		s := p.Sides[1]
+		if p.Status != testvalidity.SeedParityStatusNotAnalysed || s.Reason != "seed-helper-unresolved" || s.Helper != c.helper || s.Location != c.line {
+			t.Errorf("%v: status %s side %+v, want seed-helper-unresolved %s at %s", c.link, p.Status, s, c.helper, c.line)
+			continue
+		}
+		if len(p.Findings) != 1 || !strings.Contains(p.Findings[0].Message, "calling "+c.helper+" at "+c.line) {
+			t.Errorf("%v: findings %+v, want the helper named", c.link, p.Findings)
+		}
 	}
 }

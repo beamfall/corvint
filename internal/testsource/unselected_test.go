@@ -137,7 +137,8 @@ func TestUnselectedPlaywrightAndMochaTSAV0141(t *testing.T) {
 }
 
 // TestUnselectedAbstainsTSAV0142 shows a configuration the reader cannot read making the runner
-// uncertain, so its files abstain rather than being reported (TSA-V0-142, TSA-V0-144).
+// uncertain, so its files abstain rather than being reported (TSA-V0-142, TSA-V0-144); an export
+// that is not a literal object abstains as runner-config-export-dynamic (TSA-V0-645).
 func TestUnselectedAbstainsTSAV0142(t *testing.T) {
 	cases := map[string]struct {
 		files  map[string]string
@@ -158,6 +159,10 @@ func TestUnselectedAbstainsTSAV0142(t *testing.T) {
 			"runner-config-key-dynamic"},
 		"member assignment": {map[string]string{"jest.config.js": "module.exports = {};\nmodule.exports.testMatch = ['**/*.tests.js'];\n"},
 			"runner-config-key-dynamic"},
+		"required export": {map[string]string{"jest.config.js": "module.exports = require('./base');\n"},
+			"runner-config-export-dynamic"},
+		"function export": {map[string]string{"jest.config.js": "module.exports = makeConfig({ testMatch: ['**/*.tests.js'] });\n"},
+			"runner-config-export-dynamic"},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -184,7 +189,8 @@ func TestUnselectedAbstainsTSAV0142(t *testing.T) {
 // TestUnselectedRunnerSemanticsTSAV0141 pins runner-specific matching: Playwright matches the
 // absolute path case-insensitively, Mocha skips hidden files and selects an explicitly named file
 // whatever its extension, brace ranges expand, and a Vitest workspace makes explicit Vitest files
-// abstain (TSA-V0-141, TSA-V0-142, TSA-V0-144).
+// abstain (TSA-V0-141, TSA-V0-142, TSA-V0-144); a named const export is read and a Mocha dot
+// segment matches only a pattern segment that names its dot (TSA-V0-645).
 func TestUnselectedRunnerSemanticsTSAV0141(t *testing.T) {
 	pw := "import { test } from '@playwright/test';\ntest('x', async () => {});\n"
 	mocha := "describe('d', () => { it('works', () => {}); });\n"
@@ -218,6 +224,18 @@ func TestUnselectedRunnerSemanticsTSAV0141(t *testing.T) {
 			"test/.hidden.spec.js": mocha,
 			"test/shown.spec.js":   mocha,
 		}, map[string]string{"test/.hidden.spec.js": SelectionUnselected, "test/shown.spec.js": SelectionSelected}},
+		"named const export is read": {map[string]string{
+			"package.json":   `{"devDependencies":{"jest":"29.7.0"}}`,
+			"jest.config.ts": "import type { Config } from 'jest';\nconst config: Config = { testMatch: ['**/a.test.ts'] };\nexport default config;\n",
+			"src/a.test.ts":  globalTest,
+			"src/b.test.ts":  globalTest,
+		}, map[string]string{"src/a.test.ts": SelectionSelected, "src/b.test.ts": SelectionUnselected}},
+		"mocha hidden segment needs its own dot pattern": {map[string]string{
+			"package.json":                   `{"devDependencies":{"mocha":"11.0.0"}}`,
+			".mocharc.json":                  `{"spec":"test/.fixtures/**/*.spec.js"}`,
+			"test/.fixtures/x.spec.js":       mocha,
+			"test/.fixtures/.deep/y.spec.js": mocha,
+		}, map[string]string{"test/.fixtures/x.spec.js": SelectionSelected, "test/.fixtures/.deep/y.spec.js": SelectionUnselected}},
 		"mocha explicit file outside extension": {map[string]string{
 			"package.json":    `{"devDependencies":{"mocha":"11.0.0"}}`,
 			".mocharc.json":   `{"spec":"test/a.test.cjs","extension":["js"]}`,
