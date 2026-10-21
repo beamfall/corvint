@@ -1,4 +1,11 @@
 id	file	title	acceptance	acceptedBy
+ADS-V0-001	docs/specs/adoption-setup-report-v0.md	`corvint [--root PATH] adopt --setup` MUST print one canonical JSON object	unrecorded	-
+ADS-V0-002	docs/specs/adoption-setup-report-v0.md	`--setup` MUST NOT combine with any other `adopt` option or with `init`; such a	unrecorded	-
+ADS-V0-003	docs/specs/adoption-setup-report-v0.md	the `index-snapshot` check MUST use the read-only snapshot probe and report	unrecorded	-
+ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check MUST report `gap` unless a root `AGENTS.md`,	unrecorded	-
+ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
+ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
+ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -94,6 +101,7 @@ AHI-027	docs/specs/agent-harness-integration-v0.md	`pre-compact` MUST emit, as p
 AHI-028	docs/specs/agent-harness-integration-v0.md	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv	unrecorded	-
 AHI-029	docs/specs/agent-harness-integration-v0.md	Neither compaction event writes repository, index, trace, or store state; the on	unrecorded	-
 AHI-030	docs/specs/agent-harness-integration-v0.md	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure	unrecorded	-
+AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendmen	standing	2026-10-11; V1-1974
 AHI-053	docs/specs/agent-harness-integration-v0.md	accepted, decision 0517 (V1-1128). Amendment to `AHI-031`	unrecorded	-
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
@@ -888,6 +896,14 @@ CEM-V1-336	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-337	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2100) The publ	standing	2026-10-11; V1-2100
 CEM-V1-350	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2105) A succes	standing	2026-10-11; V1-2105
 CEM-V1-351	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2105) Run unch	standing	2026-10-11; V1-2105
+CEM-V1-360	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The nati	standing	2026-10-11; V1-0595
+CEM-V1-361	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The nati	standing	2026-10-11; V1-0595
+CEM-V1-362	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) Every ot	standing	2026-10-11; V1-0595
+CEM-V1-363	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The enve	standing	2026-10-11; V1-0595
+CEM-V1-364	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A `commo	standing	2026-10-11; V1-0595
+CEM-V1-365	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) Configur	standing	2026-10-11; V1-0595
+CEM-V1-366	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A config	standing	2026-10-11; V1-0595
+CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The	standing	2026-10-11; V1-0595
 CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
 CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
 CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-
@@ -1044,8 +1060,8 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	A Core refusal MUST exit 2
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	The admission, freshness, omission and abstention members MUST keep their names,	unrecorded	-
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j	unrecorded	-
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
-CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST label every dispatched top-level verb with its maturity. (amended	unrecorded	-
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; V1-0945) Root help is a compact verb index of at most	owner	decision 0548; V1-0945
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
@@ -1083,9 +1099,9 @@ PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	Any new shipped verb
 PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate	unrecorded	-
 PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	This spec has no authority until a numbered decision records the owner's	unrecorded	-
 PRS-V1-013	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST include qualified Flows, safe application navigation,	unrecorded	-
-PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Tasks MUST replace Beamfall's active roadmap workflow through native ticket	unrecorded	-
+PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion	unrecorded	-
 PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	Automatic developer and user-facing flow documentation MUST use revision-pinned	unrecorded	-
-PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Before Beamfall production activation, the migration MUST reconcile active work,	unrecorded	-
+PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion	unrecorded	-
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabilities MUST retain exact-candidate acceptance evidence and	unrecorded	-
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
@@ -1377,6 +1393,7 @@ CAL-V0-316	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The	standing	2026-10-11; V1-1548
 CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
 CAL-V0-319	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the	standing	2026-10-11; V1-2012
+CAL-V0-320	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1981) The	standing	2026-10-11; V1-1981
 CAL-V0-350	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0925) A full t	standing	2026-10-11; V1-0925
 CAL-V0-351	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0924) Amends	standing	2026-10-11; V1-0924
 CAL-V0-352	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0934) Amends t	standing	2026-10-11; V1-0934
@@ -1532,6 +1549,7 @@ TQD-V0-041	docs/specs/corvint-tasks-doctor-v0.md	Under the same declaration REPE
 TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	SETUP_ONLY_PROOF MUST ignore the progress signal: its judgment is witnessed core	unrecorded	-
 TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observa	unrecorded	-
 TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	From the same observation, a role whose queue (running plus waiting sessions) st	unrecorded	-
+TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
 ESC-V0-003	docs/specs/corvint-tasks-escalations-v0.md	Applicability MUST derive from the source acceptance revision versus the current	unrecorded	-
@@ -1793,6 +1811,7 @@ PSR-V0-083	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-084	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A guarde	standing	2026-10-11; V1-1586
 PSR-V0-085	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) The guar	standing	2026-10-11; V1-1586
 PSR-V0-086	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1586) A pool	standing	2026-10-11; V1-1586
+PSR-V0-168	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1656) The	standing	2026-10-11; V1-1656
 PSR-V0-110	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) No tail	standing	2026-10-11; V1-1617
 PSR-V0-111	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) Progress	standing	2026-10-11; V1-1617
 PSR-V0-112	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) The `PEN	standing	2026-10-11; V1-1617
@@ -2462,6 +2481,14 @@ FPK-V0-070	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-2
 FPK-V0-071	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
 FPK-V0-072	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
 FPK-V0-073	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2094; accepted under the 2026-10-11 stand	standing	2026-10-20; V1-2094; 2026-10-11
+FPK-V0-074	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-075	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-076	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-077	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2115 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2115; #1354; 2026-10-11
+FPK-V0-078	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-079	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-080	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-081	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
@@ -2694,6 +2721,7 @@ GPK-V0-083	docs/specs/go-production-kernel-migration-v0.md	(accepted, decision 0
 GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `corvint impact	standing	2026-10-20; V1-2047
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
+GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
@@ -2824,6 +2852,7 @@ IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	(proposed 2026-09-13, accepted 2
 IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact	owner	2026-09-13; decision 0182
 IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot	unrecorded	-
 IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile	unrecorded	-
+IDX-SNAP-V0-037	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); 2026-10-20; V1-03	standing	2026-10-11; 2026-10-20; V1-0328
 IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi	owner	2026-09-25; decision 0394
 IDX-SNAP-V0-026	docs/specs/index-snapshot-v0.md	(accepted by decision 0439; V1-0416; no GitHub issue) on a fresh opening observa	owner	decision 0439; V1-0416
 IDX-SNAP-V0-025	docs/specs/index-snapshot-v0.md	(accepted by decision 0438; V1-0870) the `index` receipt MUST name the store	owner	decision 0438; V1-0870
@@ -3217,20 +3246,21 @@ MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	Legacy calls MUST reuse each ex
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.context` MUST compile the same packet as `corvint context` in process,	unrecorded	-
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.cem.report` MUST render the `corvint cem report` Markdown and the stabl	unrecorded	-
-MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
-MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
+MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) A `cem/1.0` map refused before its stable verifier runs (a	unrecorded	-
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
 MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
 MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) When a successful tool result carries	unrecorded	-
 MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
+MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -3854,6 +3884,7 @@ DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	the native disk s
 DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decision 0518 (V1-1141)**. A normal	unrecorded	-
 DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decision 0518 (V1-1141)**. Path impact	unrecorded	-
 DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decision 0519; V1-1174)**. Every verb	unrecorded	-
+DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
@@ -4458,6 +4489,7 @@ TRE-V0-077	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) A JUnit Vi
 TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095)	standing	2026-10-11; V1-2095
 TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
+TRE-V0-087	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A	standing	2026-10-11; V1-1553
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
@@ -4643,6 +4675,7 @@ TSA-V0-446	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-447	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) What the reader canno	standing	2026-10-11; V1-2114; #1339
 TSA-V0-448	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) `corvint tests	standing	2026-10-11; V1-2114; #1339
 TSA-V0-449	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2114 / GitHub #1339) When the chain define	standing	2026-10-11; V1-2114; #1339
+TSA-V0-450	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1837) An example no TSA-V0-063	standing	2026-10-11; V1-1837
 TSA-V0-100	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) `corvint tests	standing	2026-10-11; V1-1883; #1167
 TSA-V0-101	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each side's setup MUS	standing	2026-10-11; V1-1883; #1167
 TSA-V0-102	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1883 / GitHub #1167) Each analysed side MU	standing	2026-10-11; V1-1883; #1167
@@ -4692,6 +4725,10 @@ TSA-V0-360	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-361	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its	standing	2026-10-11; V1-1948
 TSA-V0-362	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked again	standing	2026-10-11; V1-1948
 TSA-V0-363	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests	standing	2026-10-11; V1-1947; #1199
+TSA-V0-460	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) Every analyzer bound that can stop	standing	2026-10-11; V1-1720
+TSA-V0-461	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared	standing	2026-10-11; V1-1720
+TSA-V0-462	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted boun	standing	2026-10-11; V1-1720
+TSA-V0-463	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) One table-driven test MUST drive eac	standing	2026-10-11; V1-1720
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-
