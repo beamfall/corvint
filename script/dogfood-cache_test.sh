@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # DCW-V0-038: observe every wrapper build environment without invoking Go or writing caches.
 # DCW-V0-038 / V1-1893: a failed build shows the compiler error tail and keeps the full log.
+# ASD-V0-019 / V1-1755: dogfood make targets refuse a defaulted BASE.
 # Bash 3.2 does not apply errexit to [[ ]] in loops; assertions need explicit exits.
 set -euo pipefail
 source_root=$(cd "$(dirname "$0")/.." && pwd)
@@ -13,7 +14,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint}.sh "$root/repo/script/"
+/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint,finish}.sh "$root/repo/script/"
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -135,6 +136,23 @@ for action in change check; do
     /bin/rm -f "$build_log"
   done
 done
+: > "$TEST_BUILD_LOG"
+# ASD-V0-019 (V1-1755): dogfood make targets refuse a BASE taken from the Makefile default
+# (local main) before running any script; an explicit or environment BASE still reaches it.
+for target in dogfood-change dogfood-check dogfood-seal dogfood-batch-check; do
+  status=0
+  env -u BASE make -s "$target" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || exit 1
+  rg -q '^BASE is required: pass BASE=<full origin/main sha>' "$root/output" || exit 1
+  [[ $(make -s -n "$target" BASE=feedface | grep -c 'script/dogfood-[a-z-]*\.sh "feedface"') == 1 ]] || exit 1
+done
+status=0
+env -u BASE make -s dogfood-bind-range TARGET=x > "$root/output" 2>&1 || status=$?
+[[ $status == 2 ]] && rg -q '^BASE is required' "$root/output" || exit 1
+[[ $(BASE=feedface make -s -n dogfood-change | grep -c 'script/dogfood-change\.sh "feedface"') == 1 ]] || exit 1
+status=0
+env -u BASE make -s dogfood-finish LANE=1 > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q 'REFUSE missing-inputs BASE ' "$root/output" || exit 1
 # The stub never creates even the selected caches, and no real Go build runs in this test.
 [[ ! -e "$root/caller cache" && ! -e "$root/corvint cache" && ! -e "$root/private cache" && ! -e "$root/argument cache" ]] || exit 1
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'

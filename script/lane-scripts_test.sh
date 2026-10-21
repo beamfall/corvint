@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Tests for the lane procedure scripts (docs/LANE-ORCHESTRATION.md): heavy.sh (ASD-V0-014),
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017) and
-# lane-clean.sh (ASD-V0-018), and the dogfood make-target BASE refusal (ASD-V0-019). No Go build
-# runs.
+# lane-clean.sh (ASD-V0-018). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 
@@ -166,24 +165,6 @@ clean --apply > "$tmp/out" || fail "lane-clean apply failed"
 for n in unmerged dirty active stash host; do [[ -d $tmp/lanes2/$n ]] || fail "lane-clean removed $n"; done
 [[ -z $(git -C "$tmp/seed" worktree list --porcelain | grep "lanes2/wt") ]] || fail "lane-clean left a worktree entry"
 [[ -d $tmp/elsewhere/hostwt ]] || fail "lane-clean removed a clone's linked worktree"
-ok
-
-# ASD-V0-019 (V1-1755): dogfood make targets refuse a BASE taken from the Makefile default
-# (local main) before running any script; an explicit or environment BASE still reaches it.
-repo=$(cd "$script/.." && pwd)
-for target in dogfood-change dogfood-check dogfood-seal dogfood-batch-check; do
-  env -u BASE make -s -C "$repo" "$target" > "$tmp/out" 2>&1
-  [[ $? == 2 ]] && grep -q '^BASE is required: pass BASE=<full origin/main sha>' "$tmp/out" ||
-    fail "make $target without BASE: $(cat "$tmp/out")"
-  got=$(make -s -n -C "$repo" "$target" BASE=feedface 2>&1 | grep -c 'script/dogfood-[a-z-]*\.sh "feedface"')
-  [[ $got == 1 ]] || fail "make $target BASE=feedface did not pass BASE on"
-done
-env -u BASE make -s -C "$repo" dogfood-bind-range TARGET=x > "$tmp/out" 2>&1
-[[ $? == 2 ]] && grep -q '^BASE is required' "$tmp/out" || fail "dogfood-bind-range without BASE: $(cat "$tmp/out")"
-[[ $(BASE=feedface make -s -n -C "$repo" dogfood-change 2>&1 | grep -c 'script/dogfood-[a-z-]*\.sh "feedface"') == 1 ]] ||
-  fail "dogfood-change ignored an environment BASE"
-env -u BASE make -s -C "$repo" dogfood-finish LANE=1 > "$tmp/out" 2>&1
-[[ $? == 2 ]] && grep -q 'REFUSE missing-inputs BASE ' "$tmp/out" || fail "dogfood-finish without BASE: $(cat "$tmp/out")"
 ok
 
 printf 'lane-scripts_test: %d groups passed\n' "$passed"
