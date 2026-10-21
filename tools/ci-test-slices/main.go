@@ -408,16 +408,15 @@ var (
 func goList(ctx context.Context, root, pkg string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	cmd := child(ctx, "go", "test", "-race", "-count=1", "-list", ".", pkg)
+	cmd := child("go", "test", "-race", "-count=1", "-list", ".", pkg)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "GOWORK=off", "GOFLAGS=", "GOTOOLCHAIN=local", "CGO_ENABLED=1")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	raw, err := cmd.Output()
-	if err != nil {
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := runOwned(ctx, cmd); err != nil {
 		return nil, fmt.Errorf("go test -list %s: %v: %s", pkg, err, strings.TrimSpace(stderr.String()))
 	}
-	return parseList(raw, pkg)
+	return parseList(stdout.Bytes(), pkg)
 }
 
 func parseList(raw []byte, pkg string) ([]string, error) {
@@ -558,12 +557,11 @@ var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 // stop after the interrupt before killing them; tests shorten it.
 var stopGrace = 10 * time.Second
 
-// child runs a subprocess in its own process group where the platform has
-// them, so that cancellation stops every descendant and not only the immediate
-// process (see inGroup).
-func child(ctx context.Context, name string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, name, args...)
-	inGroup(cmd)
+// child makes a subprocess for runOwned, which starts it in its own process group
+// where the platform has them, so that cancellation stops every descendant and
+// not only the immediate process.
+func child(name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
 	cmd.WaitDelay = stopGrace
 	return cmd
 }
@@ -576,8 +574,10 @@ func checkout(ctx context.Context, root, revision string) (string, error) {
 	if !fullCommit.MatchString(revision) {
 		return "", fmt.Errorf("refused: --revision %q is not a full commit id", revision)
 	}
-	got, err := child(ctx, "git", "-C", root, "rev-parse", "--verify", "--quiet", revision+"^{commit}").Output()
-	if err != nil || strings.TrimSpace(string(got)) != revision {
+	var got bytes.Buffer
+	verify := child("git", "-C", root, "rev-parse", "--verify", "--quiet", revision+"^{commit}")
+	verify.Stdout = &got
+	if err := runOwned(ctx, verify); err != nil || strings.TrimSpace(got.String()) != revision {
 		return "", fmt.Errorf("refused: --revision %s is not a commit of %s", revision, root)
 	}
 	dir, err := os.MkdirTemp("", "ci-test-slices-")
@@ -590,11 +590,13 @@ func checkout(ctx context.Context, root, revision string) (string, error) {
 		return "", err
 	}
 	for _, args := range [][]string{{"read-tree", revision}, {"--work-tree=" + tree, "checkout-index", "--all"}} {
-		cmd := child(ctx, "git", append([]string{"-C", root}, args...)...)
+		cmd := child("git", append([]string{"-C", root}, args...)...)
 		cmd.Env = append(os.Environ(), "GIT_INDEX_FILE="+filepath.Join(dir, "index"))
-		if out, err := cmd.CombinedOutput(); err != nil {
+		var out bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &out, &out
+		if err := runOwned(ctx, cmd); err != nil {
 			os.RemoveAll(dir)
-			return "", fmt.Errorf("checkout of %s: %v: %s", revision, err, strings.TrimSpace(string(out)))
+			return "", fmt.Errorf("checkout of %s: %v: %s", revision, err, strings.TrimSpace(out.String()))
 		}
 	}
 	return dir, nil
