@@ -26,6 +26,12 @@ Sixteen concrete profiles exist:
 | espresso | Espresso 3.5.1 using AndroidJUnitRunner | TV emulator pass/native view assertion/skip; separate phone SystemUI ANR witness |
 | uiautomator | UIAutomator 2.3.0 using AndroidJUnitRunner | Phone emulator native UI query pass/assertion/skip |
 
+SwiftPM package identity comes from the package directory name. A swift-testing
+fixture package in a directory named `swift-testing` gets `-package-name swift_testing`,
+which collides with the toolchain swift-testing package, and Swift 6.4 fails the build
+(`error: fatalError`). `Build` refuses that directory name (TRE-V0-112, V1-1535); name
+fixture packages after their content instead. `Testing` and other names build normally.
+
 Full negative, retry, platform/version and lifecycle qualification remains open.
 Fixtures and parser tests are not substitutes for those required live witnesses.
 Appium and domain-specific SQL/shader/HTML/data runner

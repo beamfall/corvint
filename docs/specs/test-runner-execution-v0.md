@@ -1624,3 +1624,26 @@ Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the gen
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test give a complete run, the build tree digest set is unchanged and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
+
+## swift-testing reserved package identity (experimental)
+
+V1-1535: SwiftPM derives a package's identity from its directory name. A fixture package in a
+directory named `swift-testing` is compiled with `-package-name swift_testing`, which collides with
+the toolchain swift-testing package; Swift 6.4 then fails the build with `error: fatalError` and the
+run reports a build failure that is the fixture's fault, not the code under test.
+
+- `TRE-V0-112`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The
+  `swift-testing` profile MUST refuse, before execution, a package directory (`Root`, or `Root`
+  joined with `Project`) whose base name is case-insensitively a reserved toolchain package
+  identity. The reserved set holds only the observed collision, `swift-testing`. Other names,
+  including `Testing`, are admitted.
+
+Decision: reserve only the identity a live run showed to fail; a directory named `Testing` built and
+passed on the same toolchain, so it is not reserved. A newly observed collision is added to the set
+with its own live witness.
+
+Rollback: remove the reserved-identity check; the profile's argv is unchanged.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-112 | `platform/platform.go` `Build` (`swift-testing`), `reservedSwiftPackageIdentity`; `TestSwiftTestingRefusesReservedPackageIdentity`; `platform/README.md` | Live Swift 6.4 (Xcode toolchain, macOS arm64) on 2026-10-20: identical one-library, one-test packages in directories `okpkg` and `Testing` pass; in `swift-testing` the build fails with `error: fatalError` (`-package-name swift_testing`) |

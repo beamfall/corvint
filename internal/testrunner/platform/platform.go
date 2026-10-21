@@ -80,6 +80,9 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		if r.Project != "" {
 			pkg = filepath.Join(pkg, r.Project)
 		}
+		if reservedSwiftPackageIdentity(pkg) {
+			return i, fmt.Errorf("Swift package directory %q has a reserved toolchain package identity; SwiftPM names the package swift_testing and its tests cannot import the toolchain Testing module", filepath.Base(pkg))
+		}
 		i.Argv = []string{"test", "--package-path", pkg, "--disable-xctest", "--enable-swift-testing", "--no-parallel", "--event-stream-version", "0", "--event-stream-output-path", filepath.Join(r.ReportDir, "swift-events.jsonl")}
 		for _, s := range r.Selectors {
 			// SwiftPM 6.4 matches --filter against the full test ID, which
@@ -248,4 +251,15 @@ func problem(o *tr.Observation, code, detail string) {
 
 func test(id, name, file, suite, state, kind, message string) tr.Test {
 	return tr.Test{ID: id, Name: name, File: file, Suite: suite, State: state, FailureKind: kind, Message: message}
+}
+
+// reservedSwiftPackageIdentities are SwiftPM package identities (the
+// lower-cased package directory name) that collide with a toolchain package.
+// Swift 6.4 builds a package in a directory named swift-testing with
+// -package-name swift_testing, and its test target then fails to build
+// against the toolchain Testing module (V1-1535, live 2026-10-20).
+var reservedSwiftPackageIdentities = map[string]bool{"swift-testing": true}
+
+func reservedSwiftPackageIdentity(pkg string) bool {
+	return reservedSwiftPackageIdentities[strings.ToLower(filepath.Base(filepath.Clean(pkg)))]
 }

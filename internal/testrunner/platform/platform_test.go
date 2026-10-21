@@ -291,3 +291,26 @@ func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
 		t.Fatal("source-suffixed selector admitted")
 	}
 }
+
+// TRE-V0-112 / V1-1535: a package directory whose SwiftPM identity collides
+// with the toolchain swift-testing package is refused before execution.
+func TestSwiftTestingRefusesReservedPackageIdentity(t *testing.T) {
+	base := tr.Request{Runner: "swift-testing", Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh"}
+	for _, c := range []struct {
+		root, project string
+		refused       bool
+	}{
+		{"/src/swift-testing", "", true},
+		{"/src", "Fixtures/Swift-Testing", true},
+		{"/src", "Testing", false},
+		{"/src", "okpkg", false},
+		{"/src/swift-testing-fixture", "", false},
+	} {
+		r := base
+		r.Root, r.Project = c.root, c.project
+		_, err := Build(r)
+		if c.refused != (err != nil && strings.Contains(err.Error(), "reserved toolchain package identity")) {
+			t.Fatalf("%s/%s: refused=%v err=%v", c.root, c.project, c.refused, err)
+		}
+	}
+}
