@@ -22,6 +22,10 @@ type ExportOptions struct {
 	Repo    *intent.Repository
 	Staging string    // "" selects the OS temp dir
 	Stdout  io.Writer // receives the verified stream; delivery errors may leave a prefix
+	// FailureSnapshot, when set, receives the partial snapshot the failing
+	// probe observed (nil when none), so a CLI can still report the head it
+	// saw. It is per call, so concurrent exports do not share it.
+	FailureSnapshot **snapshot.Snapshot
 	// afterProbe is a test hook run inside the snapshot after the head and
 	// slot checks and before any file is copied (AS-36 N4d).
 	afterCapture  func()       // finite inventory/body movement seam
@@ -32,8 +36,7 @@ type ExportOptions struct {
 	streamLimit   uint64         // tests may lower the encoded-stream budget; never above the profile cap
 }
 
-// ExportResult describes a successful export. On failure Export may return one
-// carrying only the partial Snapshot it observed.
+// ExportResult describes a successful export.
 type ExportResult struct {
 	Manifest *Manifest
 	Snapshot *snapshot.Snapshot
@@ -348,13 +351,13 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 		return nil
 	})
 	if err != nil {
-		// The partial snapshot the failing probe observed (nil when none) lets
-		// a CLI still report the head it saw; only Snapshot is set.
-		failed := &ExportResult{Snapshot: snap}
-		if streamExceeded {
-			return failed, streamLimitError(limit)
+		if opts.FailureSnapshot != nil {
+			*opts.FailureSnapshot = snap
 		}
-		return failed, err
+		if streamExceeded {
+			return nil, streamLimitError(limit)
+		}
+		return nil, err
 	}
 	if streamExceeded {
 		return nil, streamLimitError(limit)
