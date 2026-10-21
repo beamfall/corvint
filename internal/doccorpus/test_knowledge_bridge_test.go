@@ -14,6 +14,7 @@ import (
 // DCP-V1-091 (V1-1873): test-knowledge rows and their trust labels cross the
 // corpus MCP bridge byte-identical to the ReadQuery receipt for the same query.
 func TestDCPV1091TestKnowledgeAcrossCorpusBridge(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, m, _ := doccorpus.TestKnowledgeFixtureForTest(t, nil, nil)
 	a, err := doccorpus.Build(ctx, root, m)

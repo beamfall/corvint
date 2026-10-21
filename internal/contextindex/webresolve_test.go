@@ -255,6 +255,7 @@ func TestWebImportResolverFixture(t *testing.T) {
 // TestWebImportResolverFailsClosed is GPK-V0-078 (proposed): a config the
 // resolver cannot read in full never yields a guessed target.
 func TestWebImportResolverFailsClosed(t *testing.T) {
+	t.Parallel()
 	page := "export const Page = 1;\n"
 	deep := map[string]string{"src/lib/page.ts": page, "app/a.ts": "", "tsconfig.json": `{"extends": "./c1.json"}`}
 	for depth := 1; depth <= webConfigDepthBound.limit+1; depth++ {

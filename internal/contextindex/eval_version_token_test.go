@@ -45,6 +45,7 @@ func evalVersionTokenPaths(t *testing.T, root, text string) []string {
 // a `vN` token in the task narrows the symbol universe only when some path in
 // it carries a version term, and is ignored where none does.
 func TestEvalRankSymbolsVersionTokenNarrowsOnlyVersionedPaths(t *testing.T) {
+	t.Parallel()
 	const text = "enforce session revocation v2"
 	unversioned := evalVersionTokenPaths(t, evalVersionTokenRepository(t, false), text)
 	if len(unversioned) != 1 || unversioned[0] != "internal/auth/session.go" {

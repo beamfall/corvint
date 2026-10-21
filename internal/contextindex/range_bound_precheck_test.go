@@ -13,6 +13,7 @@ import (
 // truncated to nothing, so no snapshot byte was decoded; every case it cannot
 // prove answers nil and leaves the loaded path to decide.
 func TestERIV0261RangeBoundRefusesWithoutDecodingTheSnapshot(t *testing.T) {
+	t.Parallel()
 	commitAdded := func(t *testing.T, root string, count int, prefix string) {
 		t.Helper()
 		for item := 0; item < count; item++ {

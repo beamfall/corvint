@@ -193,6 +193,7 @@ func buildBehaviorAdapter(t *testing.T, request BehaviorAdapterRequest, previous
 }
 
 func TestBehaviorAdapterBuildOpen(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	result := buildBehaviorAdapter(t, fixture.request, nil)
 	if result.Fallback != "full-relevant-suite" || len(result.Coverage) != 5 || result.Provider.BehaviorContracts.ContractSHA256 != fixture.original.BehaviorContracts.ContractSHA256 {
@@ -285,6 +286,7 @@ func TestBehaviorAdapterMappingParity(t *testing.T) {
 }
 
 func TestBehaviorAdapterConformance(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, kind string
 		edit       func(*testing.T, *BehaviorAdapterRequest)
@@ -431,6 +433,7 @@ func TestBehaviorAdapterConformance(t *testing.T) {
 // same result back as --previous and must also succeed, which is the DCP-V1-032
 // delta case that was unusable before this fix.
 func TestBehaviorAdapterPreviousToleratesDanglingCriterion(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterEditRow(t, &fixture.request, "tests", func(row map[string]any) {
 		// Append rather than replace: the test keeps its documented criteria
@@ -462,6 +465,7 @@ func TestBehaviorAdapterPreviousToleratesDanglingCriterion(t *testing.T) {
 }
 
 func TestBehaviorAdapterReviewedAbsenceAndBounds(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterEditRow(t, &fixture.request, "variations", func(row map[string]any) { row["testKeys"] = []any{} })
 	behaviorAdapterEditRow(t, &fixture.request, "tests", func(row map[string]any) {
@@ -571,6 +575,7 @@ func TestBehaviorAdapterReviewedAbsenceAndBounds(t *testing.T) {
 }
 
 func TestBehaviorAdapterUnreviewedNormativeInput(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterRequestInput(&fixture.request, "variations").Anchor.Kind = "declared"
 	result := buildBehaviorAdapter(t, fixture.request, nil)
@@ -580,6 +585,7 @@ func TestBehaviorAdapterUnreviewedNormativeInput(t *testing.T) {
 }
 
 func TestBehaviorAdapterObservationAndPriorIntegrity(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	for _, subject := range []string{"", "behavior:test:wrong"} {
 		request := fixture.request
@@ -637,6 +643,7 @@ func TestBehaviorAdapterObservationAndPriorIntegrity(t *testing.T) {
 }
 
 func TestBehaviorAdapterDelta(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterEditRow(t, &fixture.request, "variations", func(row map[string]any) {
 		row["variationKey"] = "first"
@@ -841,6 +848,7 @@ func behaviorAdapterReplaceRevision(value any, old, revision string) {
 }
 
 func TestBehaviorAdapterReverseLinkKeysDoNotCollide(t *testing.T) {
+	t.Parallel()
 	registry := &BehaviorRegistry{}
 	previous := BehaviorAdapterResult{Provider: ProviderRecord{BehaviorContracts: registry}, Variations: []BehaviorAdapterVariation{{ID: "a", Tests: []string{"b:c"}}}}
 	current := BehaviorAdapterResult{Provider: ProviderRecord{BehaviorContracts: registry}, Variations: []BehaviorAdapterVariation{{ID: "a:b", Tests: []string{"c"}}}}
@@ -854,6 +862,7 @@ func TestBehaviorAdapterReverseLinkKeysDoNotCollide(t *testing.T) {
 }
 
 func TestBehaviorAdapterMissingReverseLinkNamesEachTest(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterEditRow(t, &fixture.request, "variations", func(row map[string]any) { row["testKeys"] = []any{} })
 	behaviorAdapterAppendRow(t, &fixture.request, "tests", func(row map[string]any) {
@@ -875,6 +884,7 @@ func TestBehaviorAdapterMissingReverseLinkNamesEachTest(t *testing.T) {
 }
 
 func TestBehaviorAdapterArtifactsMatchPreviousValidator(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	previous := buildBehaviorAdapter(t, fixture.request, nil)
 	if !slices.ContainsFunc(previous.Artifacts, func(artifact BehaviorAdapterArtifact) bool { return artifact.Role == "receipt" }) {

@@ -85,6 +85,7 @@ func TestIndexWriteSweepsTheSupersededWorktreeStore(t *testing.T) {
 // a fresh temporary or a directory, is left and named, with the ignore file
 // and the directory kept; a linked store is never followed.
 func TestIndexWriteLeavesUnrecognisedLegacyEntries(t *testing.T) {
+	t.Parallel()
 	t.Run("unexpected entries", func(t *testing.T) {
 		index := taskContextFixture(t)
 		legacy := filepath.Join(index.Root, ".corvint", "index")

@@ -38,6 +38,7 @@ func behaviorAdapterCheckStates(report BehaviorAdapterCheck) map[string]Behavior
 // when Build succeeds, its first refusal is Build's error, and the report is
 // deterministic.
 func TestBehaviorAdapterCheckParity(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	other := strings.Repeat("e", 40)
 	previousResult := buildBehaviorAdapter(t, fixture.request, nil)
@@ -136,6 +137,7 @@ func TestBehaviorAdapterCheckParity(t *testing.T) {
 // TestBehaviorAdapterCheckReportsEveryRefusal proves DCP-V1-044 lists refusals
 // from independent stages at once and marks dependent stages not-evaluated.
 func TestBehaviorAdapterCheckReportsEveryRefusal(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	request := fixture.request
 	request.Inputs = append([]BehaviorAdapterInput(nil), fixture.request.Inputs...)
@@ -225,6 +227,7 @@ func TestBehaviorAdapterCheckReportsEveryRefusal(t *testing.T) {
 // item independently of the other items in its stage: Build's first refusal is
 // unchanged, and the check also reports another item's refusal.
 func TestBehaviorAdapterCheckIndependentRefusals(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	for _, tc := range []struct {
 		name   string
@@ -281,6 +284,7 @@ func TestBehaviorAdapterCheckIndependentRefusals(t *testing.T) {
 // TestBehaviorAdapterCheckListsDependentChecks proves DCP-V1-044 lists the
 // checks that depend on a refusal in the same stage as not-evaluated.
 func TestBehaviorAdapterCheckListsDependentChecks(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	for _, tc := range []struct {
 		name, stage, detail string
@@ -315,6 +319,7 @@ func TestBehaviorAdapterCheckListsDependentChecks(t *testing.T) {
 // item, evaluation stops at the item's first refusal and exactly one
 // not-evaluated entry names the item's remaining checks.
 func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	for _, tc := range []struct {
 		name, stage, want, absent string
@@ -411,6 +416,7 @@ func TestBehaviorAdapterCheckStopsAtFirstItemRefusal(t *testing.T) {
 // TestBehaviorAdapterBuildBoundMessage pins Build's bound refusal bytes to the
 // message released before DCP-V1-044 split the bound checks.
 func TestBehaviorAdapterBuildBoundMessage(t *testing.T) {
+	t.Parallel()
 	fixture := behaviorAdapterFixture(t)
 	for _, tc := range []struct {
 		name string
@@ -442,6 +448,7 @@ func TestBehaviorAdapterBuildBoundMessage(t *testing.T) {
 // bound stops evaluation of the items it bounds, and the report's entries are
 // capped with a terminal omission entry, so the report stays encodable.
 func TestBehaviorAdapterCheckBoundsReport(t *testing.T) {
+	t.Parallel()
 	raw := []byte(`{"mappings":[` + strings.TrimSuffix(strings.Repeat("{},", 10000), ",") + `]}`)
 	report := CheckBehaviorAdapter(raw, nil)
 	encoded, err := Encode(report)
@@ -505,6 +512,7 @@ func behaviorAdapterLongRevisionRequest(t *testing.T) []byte {
 // message, including Build's first refusal, is capped at 4 KiB on a UTF-8
 // boundary, so a request at the read bound still gets an encodable report.
 func TestBehaviorAdapterCheckCapsMessages(t *testing.T) {
+	t.Parallel()
 	raw := behaviorAdapterLongRevisionRequest(t)
 	_, buildErr := BuildBehaviorAdapter(raw, nil)
 	var refused *Error
@@ -715,6 +723,7 @@ func TestBehaviorAdapterCheckRetainsNoFrontier(t *testing.T) {
 // counts the rest, so the reviewed round-6 repro encodes within the CLI
 // output bound and the CLI build agrees with --check, which accepts it.
 func TestDCPV1240BuildBoundsTheFrontier(t *testing.T) {
+	t.Parallel()
 	const outcomes, tests = 4096, 200
 	raw := behaviorAdapterOutcomeFrontierRequest(t, outcomes, tests)
 	result, err := BuildBehaviorAdapter(raw, nil)
