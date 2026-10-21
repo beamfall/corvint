@@ -572,7 +572,8 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 }
 
 // assertDeadlineRemediation checks the AHI-055 text: the unchanged frame as the first line, the
-// plain-words cause and consequence, the unmeasured usual causes and the exact read-only argv.
+// plain-words cause and consequence, the reproduction's measured cause (V1-1524), the exact
+// read-only argv and a remediation that leaves the task store's .taskman/ files alone.
 func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 	t.Helper()
 	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
@@ -580,10 +581,11 @@ func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 	for _, want := range []string{
 		"did not finish within the hook time limit",
 		"this event got no Corvint context; coding continues",
-		"very large set of uncommitted or staged changes",
-		"heavy machine load; this notice did not measure either",
+		// V1-1524: the measured cause is load; store-owned .taskman/ churn is not, and the
+		// remediation never asks the operator to touch it.
+		"A measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause.",
 		"read-only command outside the hook:\n" + string(status) + "\n",
-		"If that list is very long, committing, stashing or unstaging unrelated changes may clear it; otherwise, waiting for load to drop may.",
+		"Waiting for load to drop clears it. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging.",
 	} {
 		if first != frame || !strings.Contains(text, want) {
 			t.Fatalf("deadline notice lacks %q after frame %q: %q", want, frame, text)

@@ -841,13 +841,15 @@ func withCodexSnapshotRemediation(ctx context.Context, root, reason string, outp
 const claudeDeadlineReason = "corvint-event-rejected:dogfood-event-deadline"
 
 // deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). The hook
-// has no time left to measure the cause, so it names the usual causes as unmeasured.
+// has no time left to measure this event's cause, so it names the cause a measured reproduction
+// found (V1-1524: machine load, while 1,266 dirty task-store projection paths under .taskman/
+// added no measurable time) and a remediation that never touches the store's own files.
 func deadlineRemediation(root string) string {
 	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
 	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
-		"\nThe usual causes are a very large set of uncommitted or staged changes in the project checkout, or heavy machine load; this notice did not measure either." +
+		"\nA measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause." +
 		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
-		"\nIf that list is very long, committing, stashing or unstaging unrelated changes may clear it; otherwise, waiting for load to drop may."
+		"\nWaiting for load to drop clears it. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging."
 }
 
 // withDeadlineRemediation appends deadlineRemediation to every channel a Claude Code or Codex
