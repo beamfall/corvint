@@ -84,16 +84,19 @@ func TestCALV0052_DispatchCLIClaimHandoffAndStatus(t *testing.T) {
 	if field(first.res.Items[0], "workersRunning").Str != "1" || !strings.Contains(string(first.stderr), "launched impl slot 1") {
 		t.Fatalf("first tick: %s %s", first.stdout, first.stderr)
 	}
-	before := fixture.TreeSnapshot(t, repo.StateDir)
-	status := ok(append([]string{"dispatch", "status"}, base...)...)
-	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
-		t.Fatal("dispatch status touched the native store")
+	// The launched worker claims through the store, so the store is
+	// compared around a status read only after the worker exited
+	// (V1-1955): a claim landing mid-read is not the read's write.
+	workerStatus := func() run {
+		t.Helper()
+		status := ok(append([]string{"dispatch", "status"}, base...)...)
+		workers := field(status.res.Items[0], "workers").Arr
+		if len(workers) != 1 || field(status.res.Items[0], "dispatcherRunning").Str != "NOT_RUNNING" {
+			t.Fatalf("status: %s", status.stdout)
+		}
+		return status
 	}
-	workers := field(status.res.Items[0], "workers").Arr
-	if len(workers) != 1 || field(status.res.Items[0], "dispatcherRunning").Str != "NOT_RUNNING" {
-		t.Fatalf("status: %s", status.stdout)
-	}
-	pid, _ := strconv.Atoi(field(workers[0], "pid").Str)
+	pid, _ := strconv.Atoi(field(field(workerStatus().res.Items[0], "workers").Arr[0], "pid").Str)
 	for i := 0; ; i++ {
 		if live, _ := supervisor.ProcessIdentity(pid); live == "" {
 			break
@@ -102,6 +105,11 @@ func TestCALV0052_DispatchCLIClaimHandoffAndStatus(t *testing.T) {
 			t.Fatal("worker did not exit")
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+	before := fixture.TreeSnapshot(t, repo.StateDir)
+	workerStatus()
+	if !fixture.SameTree(before, fixture.TreeSnapshot(t, repo.StateDir)) {
+		t.Fatal("dispatch status touched the native store")
 	}
 	if plan := ok("plan", "preview"); field(field(plan.res.Items[0], "entries").Arr[0], "state").Str == "SELECTED" {
 		t.Fatalf("worker did not claim: %s", plan.stdout)

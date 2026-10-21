@@ -93,9 +93,24 @@ func transitionOK(r *Report, e error) error {
 		return e
 	}
 	if r == nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
-		return fmt.Errorf("native transition refused: %+v", r)
+		return transitionRefusal("native transition", r)
 	}
 	return nil
+}
+
+// transitionRefusal is the coded error for a program or supervisor transition
+// the writer did not complete: the report's first code, so wire.CodeOf keeps
+// the typed refusal, or MALFORMED for a report without one, which is what
+// wire.CodeOf gives an uncoded error (V1-0829).
+func transitionRefusal(where string, r *Report) error {
+	if r == nil {
+		return wire.Errorf(wire.CodeMalformed, where, "refused without a report")
+	}
+	code := wire.CodeMalformed
+	if len(r.Outcome.Codes) > 0 {
+		code = r.Outcome.Codes[0]
+	}
+	return wire.Errorf(code, where, "refused: %s %s %v", r.Kind, r.Detail, r.Outcome.Codes)
 }
 func (w *Workflow) refresh(ctx context.Context) error {
 	a, p, e := unlockedAttempt(ctx, w.repo, w.attempt.AttemptID)

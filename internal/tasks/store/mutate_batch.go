@@ -73,7 +73,7 @@ func MutateBatch(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	for i, raw := range envelopes {
 		env, err := mutation.Decode(raw)
 		if err != nil {
-			return out, wire.Errorf(wire.CodeOf(err), fmt.Sprintf("entries[%d]", i), "%v", err)
+			return out, wire.Annotatef(err, fmt.Sprintf("entries[%d]", i), "%v", err)
 		}
 		request := transaction.Request{Operation: transaction.Mutate, QueueID: env.QueueID.Raw, RequestID: env.RequestID, Actor: actor, Envelope: raw}
 		decoded[i], requests[i] = env, request

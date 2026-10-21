@@ -65,9 +65,7 @@ func stagedWrite(write func(context.Context) (*Report, error), hook func(string)
 			hook(stage)
 		}
 	})
-	leaseAudits.Lock()
-	leaseAudits.proof = nil
-	leaseAudits.Unlock()
+	forgetLeaseAudits()
 	run.rep, run.err = write(ctx)
 	return run
 }

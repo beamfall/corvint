@@ -231,7 +231,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 					if bodyErr == nil {
 						bodyErr = e
 					} else {
-						bodyErr = wire.Errorf(wire.CodeOf(bodyErr), "body", "%v", errors.Join(bodyErr, e))
+						bodyErr = wire.Annotatef(bodyErr, "body", "%v", errors.Join(bodyErr, e))
 					}
 				}
 			}
@@ -452,5 +452,5 @@ func stagingCleanup(primary, cleanup error) error {
 	if primary == nil {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, "staging", "cleanup failed: %v", cleanup)
 	}
-	return wire.Errorf(wire.CodeOf(primary), "staging", "%v; cleanup failed: %v", primary, cleanup)
+	return wire.Annotatef(primary, "staging", "%v; cleanup failed: %v", primary, cleanup)
 }

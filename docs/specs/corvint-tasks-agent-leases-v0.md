@@ -783,7 +783,14 @@ containment. Frozen native qualification is recorded in docs/build-log/2026-09-2
   proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
   worker and pool resources; proved stage shutdown releases workers and quarantines its physical
   pool allocation. A subsequent role obtains a fresh allocation. Reused PGIDs and escaped anchors
-  MUST NOT authorize adoption or signaling of unknown processes.
+  MUST NOT authorize adoption or signaling of unknown processes. A program transition, supervisor
+  transition or program control that refuses MUST return a §11-coded error so `wire.CodeOf` keeps
+  the refusal: `ATTEMPT_LIVE` for a live owner, `QUIESCENCE_UNPROVED` for an unproved recovery
+  (missing, invalid or mismatched recovery boot evidence) or an owner that has not retired, the
+  cause's own code when reading the recovery boot failed for a retryable operational reason such as
+  descriptor exhaustion (`RESOURCE_EXHAUSTED`), `SUPERVISOR_LOST` for a heartbeat whose owner or leader is not live,
+  `FENCED` for an absent attempt, lane or superseded control target, and the writer's first refusal
+  code for a transition it did not complete (V1-0829; `TestV10829_*`).
 - `CAL-V0-038`: WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
   Questions and answers MUST bind attempt generation and acceptance revision. Read-only pending
   state MUST expose questions and integration waits. Explicit resume/retry MUST retain feedback;
@@ -2973,7 +2980,8 @@ Source, classification table, limits and evidence: the V1-0780 retryable result 
   command that commits a first step it may then fail to finish MUST also report false, because a
   same-request retry replays that step without finishing it: `health` and `pool cleanup` once
   their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
-  owner. `OK` and uncoded results MUST NOT carry
+  owner. An error that restates another with its own location and message (`wire.Annotatef`)
+  MUST keep that error's code and not-retryable mark (V1-0908). `OK` and uncoded results MUST NOT carry
   the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
   `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
   that is not retryable.

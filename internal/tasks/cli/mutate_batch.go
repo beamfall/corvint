@@ -152,7 +152,7 @@ func batchEnvelopes(env Env, flags mutateFlags, st *intent.Store, actor mutation
 		seen[id.Raw] = i
 		payload, err := mutation.CanonicalPayload(mutation.OpRefine, entry.Obj.Vals["payload"])
 		if err != nil {
-			return nil, nil, wire.Errorf(wire.CodeOf(err), where+"/payload", "%v", err)
+			return nil, nil, wire.Annotatef(err, where+"/payload", "%v", err)
 		}
 		f := flags
 		f.requestID, f.target, f.expected = batchEntryRequestID(flags.requestID, i), id.Raw, string(expected)
@@ -161,7 +161,7 @@ func batchEnvelopes(env Env, flags mutateFlags, st *intent.Store, actor mutation
 			_, err = mutation.Decode(envelope)
 		}
 		if err != nil {
-			return nil, nil, wire.Errorf(wire.CodeOf(err), where, "%v", err)
+			return nil, nil, wire.Annotatef(err, where, "%v", err)
 		}
 		envelopes[i], targets[i] = envelope, id.Raw
 	}

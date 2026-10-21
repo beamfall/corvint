@@ -366,9 +366,7 @@ func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 				s.Declines = append(s.Declines, stage)
 			}
 		})
-		leaseAudits.Lock()
-		leaseAudits.proof = nil
-		leaseAudits.Unlock()
+		forgetLeaseAudits()
 		started := time.Now()
 		report, err := run(ctx, fmt.Sprintf("acquire-load-%d-%d-%d", w.Index, calls, started.UnixNano()))
 		s.WallMS, s.StartMS = ms(time.Since(started)), ms(started.Sub(epoch))
