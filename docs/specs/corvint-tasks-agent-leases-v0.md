@@ -782,7 +782,12 @@ containment. Frozen native qualification is recorded in docs/build-log/2026-09-2
   proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
   worker and pool resources; proved stage shutdown releases workers and quarantines its physical
   pool allocation. A subsequent role obtains a fresh allocation. Reused PGIDs and escaped anchors
-  MUST NOT authorize adoption or signaling of unknown processes.
+  MUST NOT authorize adoption or signaling of unknown processes. A program transition, supervisor
+  transition or program control that refuses MUST return a §11-coded error so `wire.CodeOf` keeps
+  the refusal: `ATTEMPT_LIVE` for a live owner, `QUIESCENCE_UNPROVED` for an unproved recovery or an
+  owner that has not retired, `SUPERVISOR_LOST` for a heartbeat whose owner or leader is not live,
+  `FENCED` for an absent attempt, lane or superseded control target, and the writer's first refusal
+  code for a transition it did not complete (V1-0829; `TestV10829_*`).
 - `CAL-V0-038`: WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
   Questions and answers MUST bind attempt generation and acceptance revision. Read-only pending
   state MUST expose questions and integration waits. Explicit resume/retry MUST retain feedback;

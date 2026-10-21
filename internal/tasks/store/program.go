@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -60,7 +59,7 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 					return nil, e
 				}
 				if identity == old.OwnerStarted && !old.OwnerReleased {
-					return nil, fmt.Errorf("program still has a live owner")
+					return nil, wire.Errorf(wire.CodeAttemptLive, "program", "program still has a live owner")
 				}
 				for path, record := range proof.Records {
 					_ = path
@@ -70,10 +69,10 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 					if a, e := snapshot.DecodeAttempt(record.Raw); e == nil && a.Supervision != nil && a.Supervision.ProgramID == old.ID && a.Supervision.Worker {
 						boot, err := supervisor.RecoveryBoot(old.EffectDirectory, old.Effect, supervisor.Boot{PID: old.LeaderPID, Started: old.LeaderStarted})
 						if err != nil {
-							return nil, fmt.Errorf("recovery boot unavailable: %w", err)
+							return nil, wire.Errorf(wire.CodeQuiescenceUnproved, "program", "recovery boot unavailable: %v", err)
 						}
 						if !supervisor.RecoverHost(old.EffectDirectory, boot) {
-							return nil, fmt.Errorf("prior program worker quiescence remains uncertain")
+							return nil, wire.Errorf(wire.CodeQuiescenceUnproved, "program", "prior program worker quiescence remains uncertain")
 						}
 						change.PreviousWorkerClean = true
 						change.Next.Phase = "FINISHED"
@@ -137,15 +136,15 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 	if change.Action == "HEARTBEAT" {
 		a, ok := lockedAttempt(proof, attempt)
 		if !ok || a.Lane == nil || a.Supervision == nil {
-			return nil, fmt.Errorf("heartbeat lane absent")
+			return nil, wire.Errorf(wire.CodeFenced, "supervisor transition", "heartbeat lane absent")
 		}
 		owner, e := supervisor.ProcessIdentity(change.OwnerPID)
 		if e != nil || owner != change.OwnerStarted {
-			return nil, fmt.Errorf("heartbeat owner not live")
+			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat owner not live")
 		}
 		leader, e := supervisor.ProcessIdentity(int(a.Lane.LeaderPid.Uint64()))
 		if e != nil || leader != a.Supervision.LeaderStarted {
-			return nil, fmt.Errorf("heartbeat leader not live")
+			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat leader not live")
 		}
 	}
 	raw, e := snapshot.EncodeProgramJSON(change)
@@ -157,7 +156,7 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 		choice.Root = change.Worktree
 		a, ok := lockedAttempt(proof, attempt)
 		if !ok {
-			return nil, fmt.Errorf("dispatch attempt missing")
+			return nil, wire.Errorf(wire.CodeFenced, "supervisor transition", "dispatch attempt missing")
 		}
 		rec := claimedRecord(proof, a.TicketID.Raw)
 		pool := change.Pool
@@ -199,7 +198,7 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 					return f, e
 				}
 				if rev != o.Revision || tree != o.Tree {
-					return f, fmt.Errorf("stage health source changed before allocation")
+					return f, wire.Errorf(wire.CodeSnapshotMoved, "supervisor transition", "stage health source changed before allocation")
 				}
 			}
 			return f, nil
