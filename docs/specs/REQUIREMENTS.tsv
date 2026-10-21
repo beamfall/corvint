@@ -1910,6 +1910,7 @@ CTS-V0-008	docs/specs/corvint-tasks-store-init-v0.md	(accepted, decision 0490; V
 CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	(accepted, decision 0513) The initial journal-backed	owner	decision 0513
 CTS-V0-010	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1379) When a	standing	2026-10-11; V1-1379
 CTS-V0-011	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0758) `ADOPT_F	standing	2026-10-11; V1-0758
+CTS-V0-012	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2143) `ticket	standing	2026-10-11; V1-2143
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
@@ -2385,6 +2386,7 @@ ESV-V0-007	docs/specs/experimental-source-views-v0.md	The opt-in development wra
 ESV-V0-008	docs/specs/experimental-source-views-v0.md	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,	unrecorded	-
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	`context --expand HANDLE` returns only the handle's line range, read from Git	unrecorded	-
 ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion views stay experimental until the matched complete-tas	unrecorded	-
+ESV-V0-011	docs/specs/experimental-source-views-v0.md	A failed `git cat-file` read of the selected blob refuses as `git-failed` in bot	unrecorded	-
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-
