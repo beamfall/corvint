@@ -239,7 +239,7 @@ Failure modes:
   half-open byte offsets plus inclusive line bounds. The packet must carry its request object,
   coverage object and subject member. Verify HEAD again before emitting success.
 - `ESV-V0-002`: Return one exact contiguous immutable source range as JSON `text` whose UTF-8
-  re-encoding reproduces those bytes. Requirement mode returns only a complete plain block under
+  re-encoding reproduces those bytes, except for the secret lines `ESV-V0-011` replaces. Requirement mode returns only a complete plain block under
   the declared grammar. `selector_complete=true` never means task evidence complete; the latter
   remains `UNKNOWN`. Never summarize, project JSON, infer a source or use task-specific facts.
 - `ESV-V0-003`: Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
@@ -265,9 +265,10 @@ Failure modes:
   (`ESV-V0-008`, `ESV-V0-009`). Without those flags the `context` bytes are unchanged, and a golden
   test captured from the base binary proves it. Rollback removes these consumers and their
   registration without migration. The source digests of the native producer files
-  (`cmd/corvint/source_handoff.go`, `cmd/corvint/context_summary.go`) are frozen in
+  (`cmd/corvint/source_handoff.go`, `cmd/corvint/context_summary.go`, and since V1-0426
+  `cmd/corvint/source_screen.go`) are frozen in
   `benchmarks/selfuse-batch/source-views-manifest.json` `currentState.nativeSourceDigests`. A test
-  fails when either file changes without re-freezing its digest (amended by decision 0364; the two
+  fails when any of them changes without re-freezing its digest (amended by decision 0364; the two
   Python supervisor files were deleted in `54735d98`).
 - `ESV-V0-006`: Treat focused synthetic correctness checks as development evidence only. The
   coordinator owns the preregistered matched task, blind R1–R5 quality gate, complete lifecycle
@@ -296,12 +297,23 @@ Failure modes:
   `unsupported-text` or `expand-budget`, with nothing on stdout; an empty HANDLE is
   `invalid-handle`, and a repeated `--expand` is an argument error. An empty blob's `all`
   selection has `line_start` 1 and `line_end` 0. It never substitutes HEAD, worktree or index
-  content, and it writes no repository or `.corvint/` state.
+  content, and it writes no repository or `.corvint/` state. Its `text` is screened by
+  `ESV-V0-011`.
 - `ESV-V0-010`: The summary and expansion views stay experimental until the matched complete-task
   trial preregistered in `benchmarks/evidence-summary-trial-v0.json` runs and the owner accepts
   it. The trial compares current packets against summary plus expansion with model, effort,
   framing and cache policy fixed. Until then its outcome is NOT_OBSERVED, and no token, cost,
   latency or quality claim is made. These views do not satisfy the V1-0023 release delivery claim.
+- `ESV-V0-011`: accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). Before
+  `context --expand` (`selection.text`) or the adapter source view (`claude-source-handoff`,
+  `source-view`; view `text`) prints source text, `internal/secretscreen` runs over the whole
+  pinned blob. Every selected line that a match overlaps, including the body of a multi-line key
+  block, is replaced by `[REDACTED]` followed by that line's own ending, and the sorted 1-based
+  line numbers are disclosed in a `redacted_lines` member. The member is absent when nothing is
+  replaced, so clean output is byte-unchanged. `bytes`, `sha256`, the blob digest and the offsets
+  still describe the exact pinned selection, so a caller can tell the text was screened. The
+  screen's assignment grammar also matches code such as `token := value`; such false positives
+  are accepted and disclosed, never silently passed.
 
 ### Source handoff error codes
 
@@ -323,8 +335,8 @@ by implementation or amendment.
 
 The ESV-V0-005 gap is resolved by decision 0364 (V1-0023, 2026-09-23). The manifest's historical
 Python digests stay `STALE_HISTORICAL`. `currentState.nativeSourceDigests` now freezes the sha256 of
-`cmd/corvint/source_handoff.go` and `cmd/corvint/context_summary.go`.
-`TestSourceViewNativeSourceDigestsAreFrozen` recomputes both digests. `cmd/corvint/host_adapter.go`
+`cmd/corvint/source_handoff.go`, `cmd/corvint/context_summary.go` and `cmd/corvint/source_screen.go`.
+`TestSourceViewNativeSourceDigestsAreFrozen` recomputes each digest. `cmd/corvint/host_adapter.go`
 is excluded because it also carries unrelated adapter surfaces; the `SourceHandoff` tests cover its
 dispatch.
 
@@ -342,6 +354,7 @@ dispatch.
 | ESV-V0-008 | `summarizeContextPacket` in `cmd/corvint/context_summary.go` | `TestContextSummaryKeepsIdentityCoverageAndCriticalRows` budget sweep, verbatim members, row identities and handles; `TestContextSummaryTruncationReportsTotalsAndRefusesToDropCriticalRows` totals, continuation and critical-row refusal; `TestContextSummaryAndExpandAreReadOnly` |
 | ESV-V0-009 | `expandContextHandle`/`parseContextHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandReturnsExactPinnedBytes` exact bytes with a dirty worktree; `TestContextExpandRefusesWithoutSubstitutingContent` invalid, hostile, missing, non-UTF-8 and budget cases; `TestContextExpandRefusesAStaleHandleAfterHeadMoves`; `TestContextExpandRefusesAnAmbiguousAbbreviatedBlob`; `TestParseContextViewArguments` repeated `--expand`; `TestContextSummaryAndExpandAreReadOnly` no `.corvint/` write |
 | ESV-V0-010 | preregistration `benchmarks/evidence-summary-trial-v0.json` | NOT_OBSERVED; no trial run; no owner acceptance |
+| ESV-V0-011 | `screenSourceLines` in `cmd/corvint/source_screen.go`, called by `contextHandleSelection` and `extractSourceView` | `TestESVV0011ScreenSourceLinesRedactsSecretLines`; `TestESVV0011SourceViewRedactsSecretLines`; `TestESVV0011ContextExpandAndPacketScreenSecretLines` (expand redacts with disclosure and the exact sha256; the `context` packet carries no secret) |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only
 consumer/tests; focused identity/extraction/refusal/lifecycle checks; fresh independent review;

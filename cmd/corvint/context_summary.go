@@ -322,11 +322,16 @@ func contextHandleSelection(handle contextHandle, source []byte, maxBytes int) (
 		return nil, contextHandleError("unsupported-text", "the selected bytes are not UTF-8 and cannot be returned exactly as JSON text")
 	}
 	sum := sha256.Sum256(selected)
-	return map[string]any{
+	text, redacted := screenSourceLines(source, lines, first, last)
+	selection := map[string]any{
 		"range": handle.rangeText, "complete": byteStart == 0 && len(selected) == len(source),
 		"line_start": first, "line_end": last, "byte_start": byteStart, "byte_end": byteStart + len(selected),
-		"bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "text": string(selected),
-	}, nil
+		"bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "text": text,
+	}
+	if redacted != nil {
+		selection["redacted_lines"] = redacted
+	}
+	return selection, nil
 }
 
 // runContextExpand prints one expansion or refuses on stderr with nothing on stdout.

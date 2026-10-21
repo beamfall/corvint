@@ -5,6 +5,8 @@ import (
 	"math"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // lookup.go is the structural query surface of the `context` verb
@@ -396,11 +398,17 @@ func grepResult(index *Index, path string, tokens []string, hit grepHit) map[str
 
 // matchingLines quotes the first lookupMatchingLinesCap lines whose tokens
 // (countTerms' rule, the one the body postings were built with) include a
-// grep token.
+// grep token. A line that a secret-screen match over the whole text overlaps
+// is quoted as secretscreen.Placeholder with "redacted": true (TCP-V0-160);
+// its number and matched terms stay.
 func matchingLines(text string, tokens []string) []map[string]any {
 	wanted := stringSetOf(tokens)
+	spans := secretscreen.MatchIndexes(text)
 	lines := make([]map[string]any, 0, lookupMatchingLinesCap)
+	offset := 0
 	for number, line := range strings.SplitAfter(text, "\n") {
+		start := offset
+		offset += len(line)
 		if len(lines) == lookupMatchingLinesCap {
 			break
 		}
@@ -408,13 +416,28 @@ func matchingLines(text string, tokens []string) []map[string]any {
 		if len(matched) == 0 {
 			continue
 		}
-		quoted := strings.TrimRight(line, "\r\n")
-		if len(quoted) > lookupLineBytesCap {
-			quoted = quoted[:lookupLineBytesCap]
+		row := map[string]any{"line": number + 1, "terms": stringsAny(matched)}
+		if spansOverlap(spans, start, offset) {
+			row["text"], row["redacted"] = secretscreen.Placeholder, true
+		} else {
+			quoted := strings.TrimRight(line, "\r\n")
+			if len(quoted) > lookupLineBytesCap {
+				quoted = quoted[:lookupLineBytesCap]
+			}
+			row["text"] = quoted
 		}
-		lines = append(lines, map[string]any{"line": number + 1, "text": quoted, "terms": stringsAny(matched)})
+		lines = append(lines, row)
 	}
 	return lines
+}
+
+func spansOverlap(spans [][]int, start, end int) bool {
+	for _, span := range spans {
+		if span[0] < end && span[1] > start {
+			return true
+		}
+	}
+	return false
 }
 
 func lineTokens(line string, wanted map[string]struct{}) []string {
