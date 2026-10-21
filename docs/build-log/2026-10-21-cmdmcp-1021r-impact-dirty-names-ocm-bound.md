@@ -34,6 +34,9 @@ standing auto-accept (2026-10-11).
 - V1-2020 not started: it needs new sources of truth (per-command subcommand lists, declared
   maturity, and a registry for every refusal code a row names) and a CAP-V0 non-goal amendment;
   that did not fit the lane budget after the two fixes.
+- The warning change edits analyzer inputs (`impact_freshness.go`, `receipt.go`), so
+  IDX-SNAP-V0-017 requires a schema bump. This lane pins `corvint-analyzer/141` (140 is reserved
+  for V1-2285); the orchestrator renumbers at batch time with `script/analyzer-schema.sh bump`.
 
 ## Evidence
 
@@ -54,4 +57,5 @@ standing auto-accept (2026-10-11).
 
 Revert the two fix commits: restore the count-only warning and drop `fitImpactWarningNames`;
 drop `LimitCause`, `limitSuffix`/`stableOCMRefusal` and the bound values in the gitrun messages.
-No stored state or wire bytes depend on either change.
+Reverting also restores the base analyzer schema pins, so snapshots built under 141 are rebuilt
+once; no other stored state or wire bytes depend on either change.
