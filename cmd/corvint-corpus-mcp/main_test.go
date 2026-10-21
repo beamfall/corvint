@@ -125,11 +125,12 @@ func corpusMCPTransport(t *testing.T, version string) {
 		if !ok || payload["isError"] != false {
 			t.Fatalf("call: %#v", called)
 		}
-		fresh, limits, e := doccorpus.Freshness(context.Background(), root, a)
+		// The native reference is the CLI's live reader (DCP-V1-282 anchor states).
+		overlay, e := doccorpus.LiveFreshness(context.Background(), root, a)
 		if e != nil {
 			t.Fatal(e)
 		}
-		native, e := doccorpus.Query(a, doccorpus.Request{Operation: "search", Query: "Original"}, fresh, limits)
+		native, e := doccorpus.QueryLive(context.Background(), a, doccorpus.Request{Operation: "search", Query: "Original"}, overlay)
 		if e != nil {
 			t.Fatal(e)
 		}
