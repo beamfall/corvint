@@ -111,6 +111,7 @@ AHI-022	docs/specs/agent-harness-integration-v0.md	The Gemini CLI and OpenCode a
 AHI-023	docs/specs/agent-harness-integration-v0.md	An adapter MUST report the host version its host actually provides, and MUST NOT	unrecorded	-
 AHI-024	docs/specs/agent-harness-integration-v0.md	The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapte	unrecorded	-
 AHI-025	docs/specs/agent-harness-integration-v0.md	The owner-requested complete Pi integration MUST expose native model-callable	unrecorded	-
+AHI-071	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), decision 0550; V1	standing	2026-10-11; decision 0550; V1-2150
 AHI-026	docs/specs/agent-harness-integration-v0.md	The Claude Code plugin MUST register the compaction hook events the installed ho	unrecorded	-
 AHI-027	docs/specs/agent-harness-integration-v0.md	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac	unrecorded	-
 AHI-028	docs/specs/agent-harness-integration-v0.md	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv	unrecorded	-
@@ -5049,6 +5050,7 @@ VSC-V0-027	docs/specs/vscode-extension-v0.md	Decorations are display-only projec
 VSC-V0-028	docs/specs/vscode-extension-v0.md	Until Corvint publishes and promotes a live-test CLI operation, V0 MUST NOT exec	unrecorded	-
 VSC-V0-029	docs/specs/vscode-extension-v0.md	The observation path MUST be a normalized workspace-relative path whose lexical	unrecorded	-
 VSC-V0-030	docs/specs/vscode-extension-v0.md	The importer accepts only a complete Corvint `go-live-event/0` sequence followed	unrecorded	-
+VSC-V0-079	docs/specs/vscode-extension-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11, decision 0550;	standing	2026-10-11; decision 0550
 VSC-V0-031	docs/specs/vscode-extension-v0.md	Test items use the immutable Corvint test ID as `TestItem.id`; package and test	unrecorded	-
 VSC-V0-032	docs/specs/vscode-extension-v0.md	One imported observation creates one finite `TestRun` labelled with its Corvint	unrecorded	-
 VSC-V0-033	docs/specs/vscode-extension-v0.md	Test output is inert and bounded to 256 KiB per imported run and 8 KiB per test.	unrecorded	-

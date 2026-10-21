@@ -1,6 +1,6 @@
 # Corvint for Pi — experimental FALLBACK
 
-Pi **0.99.1**, Corvint Pi adapter **0.3.2**, macOS arm64: tested with the real host and an
+Pi **0.99.1**, Corvint Pi adapter **0.3.3**, macOS arm64: tested with the real host and an
 offline fixture provider in print, RPC and interactive TUI modes. Other Pi versions refuse visibly; Linux has not been qualified and
 Windows is unsupported because descendant cleanup requires POSIX process groups.
 
@@ -27,7 +27,8 @@ CORVINT_BIN=/absolute/path/corvint pi -e /absolute/path/integrations/pi/index.ts
 
 The package declares the Pi host as a wildcard peer so Pi supplies its own modules; this is
 packaging policy, not runtime compatibility. The closed native/runtime guards admit only 0.99.1.
-The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.2.
+The older 0.85.1 adapter remains historical qualification and is not admitted by adapter 0.3.3; adapter 0.3.2 is superseded
+by 0.3.3 (decision 0550) and refuses visibly.
 The package uses `pi.extensions` discovery and the host's runtime `VERSION`. Untrusted projects
 refuse native reads. Startup, reload, new/resumed/forked sessions and tree navigation refresh
 context. Successful compaction supplies recovery to the next model request, including an automatic
@@ -127,13 +128,13 @@ requested-ticket-revision CAS and may bind a newer acceptance revision. Inspect 
 native attempt receipt before further work; this qualification gap remains open.
 An old ledger entry without terminal status stays `native-outcome-unknown`.
 
-Adapter 0.3.2 owns the bounded Git identity subprocess and joins cancellation before
+Since adapter 0.3.2, the adapter owns the bounded Git identity subprocess and joins cancellation before
 session recovery or shutdown. Reads support detached HEAD; operator writes require
 an attached branch. Durable replay binds the canonical repository, filesystem identity,
 branch and original session, while transient lifecycle generations fence in-flight work.
 An identical pending request can recover in its original session after fork, reload and
 resume. Forks cannot take over that request. Existing 0.3.1 ledger bindings are not
-migrated, rewritten or deleted: they refuse under 0.3.2. Preserve the old package for
+migrated, rewritten or deleted: they refuse under 0.3.2 and later. Preserve the old package for
 rollback and inspect native audit/attempt receipts before explicit reconciliation.
 
 `/corvint-workflow begin PLAN_FILE` explicitly enrolls a caller-owned native dogfood
