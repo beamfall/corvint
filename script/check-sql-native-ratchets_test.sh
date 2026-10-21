@@ -29,11 +29,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
-# Requirements SNR-V0-003/SNR-V0-004 pin toolchain identity by content: the source-byte check
-# (SNR-V0-005) is reached only after that pin matches, so this harness needs the exact pinned
-# go1.27.0 install, not whatever default `go` is first on PATH.
-PATH=/opt/homebrew/Cellar/go/1.27.0/bin:$PATH
-export PATH
+# SNR-V0-005's source-byte check runs before the SNR-V0-003 toolchain identity check, so this
+# harness runs under whatever `go` is first on PATH: an admitted installation proceeds to the
+# receipt build, any other refuses with reason=TOOLCHAIN_MISMATCH (exit 78).
 
 repo="$test_root/repo"
 mkdir -p "$repo/script" "$repo/experimental/analyzers/sqlnative" "$repo/cmd/corvint-analyzer-sql-native"
@@ -99,14 +97,33 @@ fill() { head -c "$1" /dev/zero >"$2"; }
 fill 32768 "$analyzer_go"
 fill 32768 "$command_go"
 out=$(run) && fail "a fixture with no go.mod produced success"
-printf '%s\n' "$out" | grep -q 'cannot find main module' || fail "at-ceiling source did not proceed to the receipt build: $out"
+printf '%s\n' "$out" | grep -q 'cannot find main module\|status=REJECTED reason=TOOLCHAIN_MISMATCH' \
+	|| fail "at-ceiling source did not proceed past the ceiling to the toolchain checks: $out"
 
 fill 32769 "$analyzer_go"
 out=$(run) && fail "over-ceiling source produced success"
 [ -z "$out" ] || fail "over-ceiling source proceeded past its own check: $out"
 fill 32768 "$analyzer_go"
 
-# 5. SNR-V0-013: the abstention branch is gated by `git cat-file -e "$causal_parent^{commit}"`.
+# 5. SNR-V0-003: a go binary that matches no admitted row (here: every row's digest replaced)
+# refuses with one typed reason line and exit 78, before any archive or build.
+script="$repo/script/check-sql-native-ratchets.sh"
+grep -q '^admitted_toolchains=.go1\.27\.2 ' "$script" || fail "the admitted toolchain table moved or changed; update this test"
+sed -E "s/^((admitted_toolchains=')?go1\.27\.[0-9]+) [0-9a-f]{64}/\1 $(printf '0%.0s' $(seq 64))/" \
+	"$script" >"$test_root/mismatch.sh"
+grep -c ' 0000000000000000000000000000000000000000000000000000000000000000 ' "$test_root/mismatch.sh" | grep -qx 2 \
+	|| fail "the mismatch fixture did not replace both admitted digests"
+cp "$test_root/mismatch.sh" "$script"
+set +e
+out=$( (cd "$repo" && sh script/check-sql-native-ratchets.sh) 2>&1)
+rc=$?
+set -e
+cp "$source_root/script/check-sql-native-ratchets.sh" "$script"
+[ "$rc" -eq 78 ] || fail "a toolchain mismatch exited $rc, want 78: $out"
+[ "$out" = 'sql-native-ratchets status=REJECTED reason=TOOLCHAIN_MISMATCH check=go-binary-digest' ] \
+	|| fail "a toolchain mismatch did not print exactly one typed reason line: $out"
+
+# 6. SNR-V0-013: the abstention branch is gated by `git cat-file -e "$causal_parent^{commit}"`.
 # Prove the predicate is false for the pinned causal_parent (confirmed absent from this
 # repository) and true for a commit that exists, so a future edit that breaks the guard, or a
 # future rebase that makes the pin resolve, is caught here.
@@ -120,7 +137,7 @@ present=$(git -C "$repo" rev-parse HEAD)
 git -C "$repo" cat-file -e "$present^{commit}" 2>/dev/null \
 	|| fail "a real commit was not detected as present by the same guard"
 
-# 6. SNR-V0-007: the Core base is HEAD with exactly the candidate's two source trees excluded.
+# 7. SNR-V0-007: the Core base is HEAD with exactly the candidate's two source trees excluded.
 # shellcheck disable=SC2016
 archive_line=$(grep '^git archive "\$core_base" -- ' "$repo/script/check-sql-native-ratchets.sh") \
 	|| fail "the Core-base export moved or changed; update this test"

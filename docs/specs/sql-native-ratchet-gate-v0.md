@@ -134,9 +134,14 @@ read-only.
   `CONCURRENT_RUN` path, and any other non-empty value MUST exit 64 with `reason=INVALID_LOCK_TEST`.
 - `SNR-V0-003`: The gate MUST discover the toolchain root as `GOTOOLCHAIN=local go env GOROOT` and
   MUST refuse to proceed unless that root is non-empty, its `bin/go` is executable, that binary's
-  SHA-256 digest matches a pinned value, and its reported `GOVERSION` under `GOTOOLCHAIN=local` is
-  exactly `go1.27.0`. Identity is pinned by content, not by path: any byte-identical installation
-  passes wherever it lives, and no toolchain passes on its version string alone (decision 0104).
+  SHA-256 digest and reported `GOVERSION` under `GOTOOLCHAIN=local` together match one row of the
+  script's `admitted_toolchains` table. Each row pins one admitted Go version (the repository pin
+  plus the versions decision 0547 admits) with its go-binary, receipt-tool and toolchain-root
+  digests, and the selected row supplies the `SNR-V0-004` pins. Identity is pinned by content, not
+  by path: any byte-identical installation passes wherever it lives, and no toolchain passes on its
+  version string alone (decision 0104). Every `SNR-V0-003`/`SNR-V0-004` refusal MUST print
+  `sql-native-ratchets status=REJECTED reason=TOOLCHAIN_MISMATCH check=<goroot|go-binary|go-binary-digest|receipt-digest|toolchain-root>`
+  to standard error and exit 78 (V1-2120).
 - `SNR-V0-004`: The gate MUST verify that the discovered Go toolchain root's content matches its pin
   by building a dedicated receipt tool from the current tree, verifying that tool's own SHA-256
   against a pinned value, then using it to hash the toolchain root (entry count plus a combined
@@ -211,7 +216,8 @@ It does not enforce that its own numeric thresholds only tighten over time: the 
 here mechanically prevents a future edit from raising them; monotonic tightening is a review-time
 convention borrowed from `ACP-009`'s per-candidate ceiling table, not a property this gate checks
 for itself. It does not run on any host whose discovered `GOROOT` is not byte-identical to
-the pinned installation (a darwin/arm64 Homebrew `go1.27.0`); the pins are platform-specific
+an admitted row (on 2026-10-21: the darwin/arm64 official module `go1.27.2` and Homebrew
+`go1.27.3`; Linux digests `NOT_OBSERVED`); the pins are platform-specific
 content digests, which is the most plausible reason it was never added to the Linux-hosted CI
 workflow. It does not measure or ratchet wall-clock latency (its own report says
 `latency=NOT_RUN`), and for the causal comparison it does not ratchet bytes/op, only allocs/op, even
@@ -224,7 +230,7 @@ historical commit from the local object database; it treats none of them as adve
 must match pinned identities before any measurement is trusted. It writes only under `.git` (the
 lock) and a `mktemp -d` scratch root (everything else), both removed by its exit trap. Failure is
 almost entirely silent about *which* check failed: only the two lock-related failures
-(`SNR-V0-001`, `SNR-V0-002`) print a structured `reason=`; every other refusal is a bare shell `test`
+(`SNR-V0-001`, `SNR-V0-002`) and the toolchain checks (`SNR-V0-003`, `SNR-V0-004`) print a structured `reason=`; every other refusal is a bare shell `test`
 or `cmp` failing under `set -eu`, which stops the script with no `sql-native-ratchets ...` line and
 no named reason, distinguishable from success only by its non-zero exit and whatever the failing
 command itself wrote to standard error.
@@ -233,8 +239,8 @@ command itself wrote to standard error.
 |---|---|
 | Concurrent invocation | fail, exit 75, `reason=CONCURRENT_RUN` |
 | `SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` set to an unrecognized value | fail, exit 64, `reason=INVALID_LOCK_TEST` |
-| `go env GOROOT` fails or is empty; discovered go binary missing, wrong SHA-256, or wrong `GOVERSION` | fail, no structured reason |
-| Toolchain-root identity mismatch at any `check_toolchain` call | fail, no structured reason |
+| `go env GOROOT` fails or is empty; discovered go binary missing, or its `GOVERSION` and SHA-256 match no admitted row | fail, exit 78, `reason=TOOLCHAIN_MISMATCH check=goroot\|go-binary\|go-binary-digest` |
+| Receipt-tool digest or toolchain-root identity mismatch at any `check_toolchain` call | fail, exit 78, `reason=TOOLCHAIN_MISMATCH check=receipt-digest\|toolchain-root` |
 | Source or binary byte total over ceiling | fail, no structured reason |
 | Core imports the candidate, so the Core-base build or `go list` fails | fail, whatever `go build` or `go list` wrote to standard error |
 | Core binary or dependency list differs from the Core base (including uncommitted or untracked Core changes in the working tree) | fail, no structured reason (a `cmp` diagnostic only); run on a committed tree |
@@ -259,7 +265,7 @@ decision 0226 the run completed with exit 0 and an `SNR-V0-014` line whose paren
 | Requirement | Evidence |
 |---|---|
 | SNR-V0-001, SNR-V0-002 | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 (fixture repositories; held lock, `INVALID_LOCK_TEST`, `spin`-mode `CONCURRENT_RUN`, TERM-triggered lock release) |
-| SNR-V0-003, SNR-V0-004 | real 2026-09-13 post-shrink run: go binary digest, `GOVERSION=go1.27.0`, receipt digest, and every `check_toolchain` through both core builds matched |
+| SNR-V0-003, SNR-V0-004 | real 2026-09-13 post-shrink run: go binary digest, `GOVERSION=go1.27.0`, receipt digest, and every `check_toolchain` through both core builds matched; 2026-10-21 (V1-2120): real run under Homebrew `go1.27.3` exit 0 (`goroot_entries=17299`), `sh script/check-sql-native-ratchets_test.sh` exit 0 under `go1.27.2` and `go1.27.3` including the zeroed-digest `TOOLCHAIN_MISMATCH check=go-binary-digest` exit-78 fixture, and `go1.27.1` refused with exit 78 |
 | SNR-V0-005 | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling boundary fixture); real 2026-09-13 runs: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink |
 | SNR-V0-006 | real 2026-09-13 post-shrink run: `binary_bytes=2832594`, under 6,291,456 |
 | SNR-V0-007, SNR-V0-008 | real 2026-09-13 decision-0226 run (`core_base=469c2478`): `core_binary=identical core_deps=identical`; `sh script/check-sql-native-ratchets_test.sh`, exit 0 (Core-base export keeps Core source, excludes both candidate trees); scratch commit wiring the candidate into `cmd/corvint` refused (see Verified current state). The earlier stale-pin refusal is superseded |
@@ -276,7 +282,7 @@ decision 0226 the run completed with exit 0 and an `SNR-V0-014` line whose paren
 |---|---|---|
 | SNR-V0-001 | `script/check-sql-native-ratchets.sh:16@c6e1dd0e` (lock `mkdir`) and `:21-23@682a66e3` (cleanup trap) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
 | SNR-V0-002 | `script/check-sql-native-ratchets.sh:26-30@97a0bf90` (`SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` case block) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
-| SNR-V0-003, SNR-V0-004 | `check_toolchain` and the receipt build in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run passed both (see Verified current state) |
+| SNR-V0-003, SNR-V0-004 | `admitted_toolchains`, `toolchain_mismatch`, `check_toolchain` and the receipt build in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run passed both (see Verified current state); 2026-10-21 `go1.27.3` real run and test 5 of `script/check-sql-native-ratchets_test.sh` (V1-2120) |
 | SNR-V0-005 | `script/check-sql-native-ratchets.sh:36-37@9aea4cd3` (`source_bytes` `find`/`wc -c` pipeline and ceiling test) | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling-boundary fixture), plus the real 2026-09-13 invocations: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink (see `../BUILD-LOG.md` 2026-09-13) |
 | SNR-V0-006 | the `build` function and `binary_bytes` check in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run: `binary_bytes=2832594` |
 | SNR-V0-007, SNR-V0-008 | the `core_base` export and the `core-a`/`core-b` build and `deps` comparison block in `script/check-sql-native-ratchets.sh` | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (Core-base export fixture); real 2026-09-13 decision-0226 run (`core_base=469c2478`): `core_binary=identical core_deps=identical`; scratch candidate-wiring commit refused |
