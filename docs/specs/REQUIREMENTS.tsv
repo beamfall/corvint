@@ -1862,6 +1862,7 @@ CTS-V0-007	docs/specs/corvint-tasks-store-init-v0.md	(proposed (V1-0759)) A re-i
 CTS-V0-008	docs/specs/corvint-tasks-store-init-v0.md	(accepted, decision 0490; V1-0825) A native writer holds staging slots `staging/	owner	decision 0490; V1-0825
 CTS-V0-009	docs/specs/corvint-tasks-store-init-v0.md	(accepted, decision 0513) The initial journal-backed	owner	decision 0513
 CTS-V0-010	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1379) When a	standing	2026-10-11; V1-1379
+CTS-V0-011	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0758) `ADOPT_F	standing	2026-10-11; V1-0758
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
