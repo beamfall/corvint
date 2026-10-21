@@ -131,3 +131,68 @@ func TestDocsMaintainWatchGrammar(t *testing.T) {
 		}
 	}
 }
+
+// TestSDDV0012PreviewBlockAppliedMeansIncluded pins the receipt meaning of the per-block
+// `applied` member (SDD-V0-012, V1-2135): it says the block's refresh is included in the
+// session's proposed page, in a preview as in an apply. Whether bytes were written is the
+// page-level pair: a preview reports applied:false and preview_only:true with an unchanged digest.
+func TestSDDV0012PreviewBlockAppliedMeansIncluded(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	pagePath := filepath.Join(root, "docs", "page.md")
+	if err := os.MkdirAll(filepath.Dir(pagePath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	original := []byte("# Page\n\n<!-- corvint:docmaintain:insertion-point -->\n")
+	if err := os.WriteFile(pagePath, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	session := func(mode string) map[string]any {
+		t.Helper()
+		options, isMaintain, err := parseDocsMaintainInvocation([]string{"--root", root, "docs", "maintain", "--page", "docs/page.md", "--source", "owner.md", "--package", "cache", "--enable", mode})
+		if !isMaintain || err != nil {
+			t.Fatalf("parse %s: isMaintain=%v err=%v", mode, isMaintain, err)
+		}
+		var stdout, stderr bytes.Buffer
+		if code := runDocsMaintain(context.Background(), options, &stdout, &stderr); code != 0 {
+			t.Fatalf("%s exit=%d stderr=%s", mode, code, stderr.String())
+		}
+		var receipt map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
+			t.Fatalf("%s receipt not JSON: %v", mode, err)
+		}
+		return receipt
+	}
+	block := func(receipt map[string]any) map[string]any {
+		t.Helper()
+		blocks, _ := receipt["blocks"].([]any)
+		if len(blocks) != 1 {
+			t.Fatalf("blocks = %v, want one", receipt["blocks"])
+		}
+		return blocks[0].(map[string]any)
+	}
+
+	preview := session("--preview")
+	if got := block(preview); got["applied"] != true || got["skipped"] != "" {
+		t.Fatalf("preview block = %v, want applied:true (included in the proposal)", got)
+	}
+	if preview["applied"] != false || preview["preview_only"] != true || preview["page_digest_after"] != preview["page_digest_before"] {
+		t.Fatalf("preview page = applied %v preview_only %v digests %v -> %v, want no write", preview["applied"], preview["preview_only"], preview["page_digest_before"], preview["page_digest_after"])
+	}
+	if onDisk, err := os.ReadFile(pagePath); err != nil || !bytes.Equal(onDisk, original) {
+		t.Fatalf("preview changed the page: %v", err)
+	}
+
+	applied := session("--apply")
+	if got := block(applied); got["applied"] != true {
+		t.Fatalf("apply block = %v, want applied:true", got)
+	}
+	if applied["applied"] != true || applied["preview_only"] != false || applied["page_digest_after"] == applied["page_digest_before"] {
+		t.Fatalf("apply page = %v, want a write", applied)
+	}
+
+	current := session("--preview")
+	if got := block(current); got["applied"] != false || got["skipped"] != "unchanged" {
+		t.Fatalf("current-page preview block = %v, want applied:false skipped unchanged", got)
+	}
+}
