@@ -3949,3 +3949,39 @@ Rollback: revert the change commit; the two fields are additive on a draft (`/0`
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-349 | `TestCEMV1293DashboardCEMStableRefusesStaleOrIncompleteBindings` (`cmd/corvint-dashboard-snapshot`); `StableAdmissionRefusal` in `internal/lrfrepo/adapter.go` | Stage, reason and result agree for every control |
+
+## Portable legacy verify-stable tree-entry bound (V1-1472, 2026-10-20)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1472.
+
+- `CEM-V1-352`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1472) The
+  portable legacy `cem01-go verify-stable` route keeps its declared narrower operational envelope
+  on purpose: each base or target snapshot reads at most 4096 tree entries, 4 MiB of tree bytes,
+  depth 128, a 1 MiB commit, and the whole
+  verification at most 1024 Git operations; it refuses `repository` /
+  `unsupported-resource-limit` above any of them, never a partial read. The two portable routes
+  do not share one bound: repository-scale stable verification uses `verify-stable-canonical`
+  under `canonical-repository-bounded/1`. The legacy route may be cited as an independent
+  verifier only for repositories whose snapshots fit its envelope; for a larger repository, such
+  as this one, its `UNSUPPORTED` answer is a bound, not a disagreement with the canonical
+  route's verdict.
+
+Decision (conservative fork): record the existing bound as intentional instead of raising it, so
+no verifier reads more than it has declared and the canonical route stays the only
+repository-scale portable verifier.
+
+Non-goals: no change to either route's bounds, codes or results.
+
+Failure modes:
+- A reader that treats the legacy `UNSUPPORTED` as a REJECT misreads it; the outcome is
+  `UNSUPPORTED`, not `REJECT`.
+
+Acceptance evidence: `TestCEMV1352LegacySnapshotTreeEntryBound` (`interop/cem01-go`) builds
+flat trees of 4096 and 4097 entries: 4096 reads every entry, 4097 refuses
+`unsupported-resource-limit`. Raising the bound to 4097 makes the test fail.
+
+Rollback: revert the change commit; it adds a test and this record only.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-352 | `TestCEMV1352LegacySnapshotTreeEntryBound` (`interop/cem01-go`); `snapshot03` in `interop/cem01-go/cem.go` | 4096 entries read; 4097 refuse `unsupported-resource-limit` |
