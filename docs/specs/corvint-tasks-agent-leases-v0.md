@@ -443,7 +443,8 @@ No new public verb, flag, schema profile or journal/attempt member is added.
   `ticket show` and `ticket blockers` MUST also expose `effectiveRequiredGates`: the sorted,
   duplicate-free union of the policy gates marked `required` and the ticket's own `requiredGates`,
   the exact set `complete` checks for MISSING_GATE (V1-2038). The record's `requiredGates` is
-  unchanged.
+  unchanged. Tests: `TestV12038_ShowAndBlockersReportPolicyRequiredGates` and
+  `TestV12038_CompleteRefusesTheGateShowAndBlockersReport` (complete's MISSING_GATE for that gate).
 
 - `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
   and the existing policySha256 content identity from one consistent snapshot, without writing,

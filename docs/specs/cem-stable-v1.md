@@ -121,6 +121,14 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   portable op-timeout descendant test MUST retry with longer timeouts (500 ms, 2 s, 8 s, 30 s)
   while the timeout fires before the shim records its descendant, MUST still require
   `git-timeout` and no hold on every attempt, and MUST fail when no attempt records a descendant.
+- `CEM-V1-568`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git
+  exits unsuccessfully deriving the canonical patch, the native reader MUST walk the change set for
+  a missing object, and answer `repository-object-unavailable`, only in a promisor (partial-clone)
+  repository, identified without running Git by a `*.promisor` pack marker in the common object
+  store. In any other repository the failure MUST keep `git-diff-failed`, the sealed packet's cause
+  provenance, so `verify.Stable` returns the packet's code and `verdictSha256` on
+  `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
+  fetching (V1-0349, CEM-CB-019).
 
 ## Non-goals and failure modes
 
@@ -3923,8 +3931,8 @@ positive cell, with the identical full result, or a typed refusal at stage `repo
   public cell MUST give the native verifier its complete published result over the same real-Git
   recipe the portable consumer runs: attributes, alternates, no-follow links, a symlinked root,
   shallow clones, missing or corrupt base objects, hostile configuration and environment (with no
-  helper executed), ambient alternates, a promisor configuration and a missing target tree. The only
-  exception is `CEM-V1-367`.
+  helper executed), ambient alternates, a promisor configuration and a missing target tree. Since
+  V1-2133 there is no exception (`CEM-V1-367`, resolved).
 - `CEM-V1-363`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The envelope
   does not require the administrative directory to sit inside the repository: the packet excludes
   root containment. A worktree whose marker names an administrative directory outside the common
@@ -3956,12 +3964,12 @@ positive cell, with the identical full result, or a typed refusal at stage `repo
   - an unknown extension in a version 1 repository;
   - a SHA-1 object store whose configuration claims `objectFormat = sha256`;
   - a SHA-256 object store whose configuration drops the extension.
-- `CEM-V1-367`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The
-  divergence on `missing-target-blob` and `corrupt-target-blob` MUST stay visible until follow-up
-  V1-2133 lands. On 2026-10-20 the owner decided to keep the sealed packet. Under V1-2133 the native
-  verifier will answer `git-diff-failed` in ordinary repositories and will keep
-  `repository-object-unavailable` only for promisor and partial-clone repositories; until then the
-  resolution is pending. On these cells today:
+- `CEM-V1-367`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0595; closed as
+  resolved by V1-2133 on 2026-10-21, see `CEM-V1-568`) The divergence on `missing-target-blob` and
+  `corrupt-target-blob` MUST stay visible until follow-up V1-2133 lands. On 2026-10-20 the owner
+  decided to keep the sealed packet. Under V1-2133 the native verifier answers `git-diff-failed` in
+  ordinary repositories and keeps `repository-object-unavailable` only for promisor and
+  partial-clone repositories. Before V1-2133, on these cells:
   - the packet (`PROPOSED-RULES.md` section 4: cause provenance, a changed blob missing during Git
     diff is `git-diff-failed`) and the portable consumer answer `git-diff-failed`;
   - the native verifier walks the change set after the failed diff and answers
@@ -3976,7 +3984,7 @@ positive cell, with the identical full result, or a typed refusal at stage `repo
 Non-goals:
 - no change to the admission order, the stable profile, the packet, the cells or any file under
   `protocol/cem-1.0/stable/`;
-- no resolution of `CEM-V1-367` here; the native change is V1-2133;
+- no resolution of `CEM-V1-367` here; the native change is V1-2133 (`CEM-V1-568`);
 - no change to `primary-clean-config-bounded/1` or the candidate profile's case-sensitive config
   grammar in `interop/cem01-go/cem.go`;
 - no Windows qualification; both tests run on Darwin and Linux only.
@@ -4013,7 +4021,7 @@ Rollback: delete the two test files. No product code, wire byte or packet byte c
 | CEM-V1-364 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `commondir-symlink-loop`, `commondir-symlink` and `commondir-file-symlink` refuse with `repository-object-unavailable` in both consumers |
 | CEM-V1-365 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `sha256-extensions-first-mixed-case` and `unknown-extension-v0` give the full result of `ordinary-sha256` and `ordinary-sha1` |
 | CEM-V1-366 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `unknown-extension-v1`, `sha1-store-claims-sha256` and `sha256-store-claims-sha1` refuse with `git-read-failed` in both consumers |
-| CEM-V1-367 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | Native gives `repository-object-unavailable` and portable gives `git-diff-failed` on the two blob cells; every other key, and the hand-recomputed digest of the native expectation, is equal. A native switch to cause provenance for stable only was tried and reverted because it broke the V1-0349 test; the scoped fix is V1-2133 |
+| CEM-V1-367 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | Resolved by V1-2133 (`CEM-V1-568`): both consumers give `git-diff-failed` and the packet's `verdictSha256` on the two blob cells; the native test asserts 29/29 exact cells |
 ## Per-action help for `help cem`, `verify-stable` and `gate-verdict` (V1-2109, 2026-10-20)
 
 Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2109.
@@ -4185,3 +4193,28 @@ writes, the digest pins and envelope names disappear, and no stored state change
 | CEM-V1-243 | `TestCEMV1226TamperMatrixNative` (`internal/cem/verify`), `TestCEMV1226TamperMatrixPortable` (`interop/cem01-go`) | All 23 sealed cases match the shared pinned digests; a mutated pin fails |
 | CEM-V1-244 | `TestCEMV1244ExternalMapParentSwapRefused`, `TestCEMV1244ExternalReportParentSwapRefused`, `TestCEMV1244ExternalReportPublishes` (`internal/cem/workflow`) | A swapped map parent refuses `map-unavailable`; a swapped report parent refuses `publish-failed` with nothing written in `.git`; an unswapped report publishes at 0600 with no residue |
 | CEM-V1-245 | `TestStableLifecycleOpTimeoutRetiresDescendants` (`interop/cem01-go`) | Passes in 0.56 s; with a delayed shim it passes on the 2 s retry where the previous test failed |
+
+## Ordinary-repository diff failure keeps cause provenance (V1-2133, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2133.
+Resolves `CEM-V1-367`.
+
+The requirement is `CEM-V1-568` in `## Requirements`.
+
+Non-goals: no packet, cell, portable-consumer or wire change; no change to cancellation, timeout or
+budget classification during the walk.
+
+Failure modes: a partial clone whose promisor packs were all removed is treated as ordinary and a
+missing promised blob answers `git-diff-failed`, still a refusal at stage `repository` with exit 2.
+
+Acceptance evidence: `TestStableCanonicalEnvelopeCellsNative` logs `exact=29 notRun=0 of 29` and
+fails unless every cell is exact or `NOT_RUN`; `TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed`
+pins both answers over one repository; `TestPromisorObjectNeverFetchedByAGitThatDropsTheLazyFetchGuard`
+and `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` still pass.
+
+Rollback: revert the `isPromisor` guard in `internal/cem/gitauth/diff.go` and restore the two-entry
+divergence table in the native envelope test; `CEM-V1-367` then reopens.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-568 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed` (`internal/cem/gitauth`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | 29/29 exact native cells; ordinary repository `git-diff-failed`, promisor-marked repository `repository-object-unavailable` |

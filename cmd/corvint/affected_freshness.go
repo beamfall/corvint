@@ -2,9 +2,32 @@ package main
 
 import (
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
+
+// affectedDirtyPathsShown bounds the dirty paths a MIXED warning or refusal names.
+const affectedDirtyPathsShown = 8
+
+// affectedDirtyDetail names, in sorted order, the first affectedDirtyPathsShown
+// dirty paths and the count of the rest, and states that Corvint runs Git
+// without global configuration (decision 0158), so a path ignored only by a
+// global excludes file is dirty here, with the fix (AFP-V0-356, V1-2053).
+func affectedDirtyDetail(paths []string) string {
+	sorted := slices.Sorted(slices.Values(paths))
+	shown := make([]string, 0, affectedDirtyPathsShown)
+	for _, path := range sorted[:min(len(sorted), affectedDirtyPathsShown)] {
+		shown = append(shown, strconv.Quote(path))
+	}
+	detail := "dirty: " + strings.Join(shown, ", ")
+	if len(sorted) > len(shown) {
+		detail += fmt.Sprintf(" (+%d more)", len(sorted)-len(shown))
+	}
+	return detail + "; Corvint runs Git without global configuration, so a path ignored only by a global excludes file (core.excludesFile or ~/.config/git/ignore) is dirty here: ignore it in a tracked .gitignore or in .git/info/exclude"
+}
 
 // affectedMixedWarning is the AFP-V0-044 warning: a --base range path outside
 // the worktree dirty set is planned together with uncommitted worktree content
@@ -21,23 +44,25 @@ func affectedMixedWarning(revision string, dirty, committed []string) string {
 	}
 	for _, path := range committed {
 		if _, ok := dirtySet[path]; !ok {
-			return fmt.Sprintf("MIXED worktree: the --base range is planned at commit %s together with %d dirty worktree paths whose mutable content no commit pins.", revision, len(dirty))
+			return fmt.Sprintf("MIXED worktree: the --base range is planned at commit %s together with %d dirty worktree paths whose mutable content no commit pins; %s.", revision, len(dirty), affectedDirtyDetail(dirty))
 		}
 	}
 	return ""
 }
 
 // affectedMixedWorktreeRefusal is the AFP-V0-045 --require-clean refusal,
-// returned before the range diff, the graph walk or any provider runs.
-func affectedMixedWorktreeRefusal(revision string, dirty int) error {
-	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --require-clean refuses to plan; HEAD is commit %s with %d dirty worktree paths", revision, dirty)}
+// returned before the range diff, the graph walk or any provider runs. It
+// names the bounded dirty set and the global-excludes cause (AFP-V0-356).
+func affectedMixedWorktreeRefusal(revision string, dirty []string) error {
+	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --require-clean refuses to plan; HEAD is commit %s with %d dirty worktree paths; %s", revision, len(dirty), affectedDirtyDetail(dirty))}
 }
 
 // affectedPathListMixedRefusal is the AFP-V0-094 refusal: `--path` plans at
 // HEAD, and a worktree with any status entry would let uncommitted bytes into
-// a graph the receipt binds to that commit.
-func affectedPathListMixedRefusal(revision string, dirty int) error {
-	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths", revision, dirty)}
+// a graph the receipt binds to that commit. It names the bounded dirty set and
+// the global-excludes cause (AFP-V0-356).
+func affectedPathListMixedRefusal(revision string, dirty []string) error {
+	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths; %s", revision, len(dirty), affectedDirtyDetail(dirty))}
 }
 
 // affectedPathListIgnoredRefusal names an ignored file HEAD does not track that

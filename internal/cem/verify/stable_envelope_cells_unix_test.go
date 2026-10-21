@@ -399,59 +399,37 @@ func (f *envelopeFixture) shallow(depth string) [][2]string {
 	return nil
 }
 
-// envelopeNativeDivergence names the public cells whose native code differs
-// from the packet's, and the native code. The packet codes a changed blob that
-// is missing or corrupt when Git diffs by cause provenance, git-diff-failed
-// (PROPOSED-RULES section 4), and the portable consumer agrees; the native
-// verifier walks the change set after the failed diff and answers
-// repository-object-unavailable, the V1-0349 / CCF-V1-004 partial-clone
-// contract that TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching pins.
-// Both refuse at stage repository with exit 2; only code and verdictSha256
-// differ. The owner kept the sealed packet (CEM-V1-367): follow-up V1-2133
-// makes native answer git-diff-failed in ordinary repositories and keeps
-// repository-object-unavailable only for promisor/partial-clone repositories,
-// and removes these entries when it lands.
-var envelopeNativeDivergence = map[string]string{
-	"missing-target-blob": "repository-object-unavailable",
-	"corrupt-target-blob": "repository-object-unavailable",
-}
-
-// envelopeDivergentExpectation is the cell's expectation with the retained
-// native code. Its verdictSha256 is recomputed by handVerdictDigest over that
-// expectation, never read from the result, so the result's digest is still
-// checked against every other expected key.
-func envelopeDivergentExpectation(t *testing.T, c s0eCase, code string) s0eCase {
-	t.Helper()
-	if packetCode, _ := c.ExpectedResult["code"].(string); packetCode != "git-diff-failed" {
-		t.Fatalf("divergent cell %s: packet code is %q, want git-diff-failed", c.ID, packetCode)
-	}
-	expected := make(map[string]any, len(c.ExpectedResult))
-	for key, value := range c.ExpectedResult {
-		expected[key] = value
-	}
-	expected["code"] = code
-	encoded, err := json.Marshal(expected)
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected["verdictSha256"] = handVerdictDigest(t, encoded)
-	c.ExpectedResult = expected
-	t.Logf("ENVELOPE-CELL %s native code %s retained against packet git-diff-failed (CEM-V1-367)", c.ID, code)
-	return c
-}
-
 // TestStableCanonicalEnvelopeCellsNative runs every public envelope cell
 // against the native verifier over fresh real repositories and compares the
-// complete 23-key result and the exit code (CEM-V1-360..362, CEM-V1-367).
+// complete 23-key result and the exit code (CEM-V1-360..362). Every one of the
+// 29 cells must match the packet exactly, code and verdictSha256 included; a
+// cell is skipped only as NOT_RUN on a host that cannot build it (CEM-V1-367
+// resolved by V1-2133).
 func TestStableCanonicalEnvelopeCellsNative(t *testing.T) {
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
-	for _, c := range loadEnvelopeCells(t, packet) {
+	cells := loadEnvelopeCells(t, packet)
+	if len(cells) != 29 {
+		t.Fatalf("envelope cells: got %d, want 29", len(cells))
+	}
+	exact, notRun := 0, 0
+	defer func() {
+		t.Logf("ENVELOPE-CELLS native exact=%d notRun=%d of %d", exact, notRun, len(cells))
+		if !t.Failed() && exact+notRun != len(cells) {
+			t.Errorf("envelope cells: %d exact and %d NOT_RUN of %d", exact, notRun, len(cells))
+		}
+	}()
+	for _, c := range cells {
 		recipe, known := envelopeCellRecipes[c.ID]
 		if !known {
 			t.Fatalf("no native recipe for cell %s", c.ID)
 		}
 		t.Run(c.ID, func(t *testing.T) {
+			t.Cleanup(func() {
+				if t.Skipped() {
+					notRun++
+				}
+			})
 			bound := s0eBindRuntime(t, packet, s0eCase{ID: c.ID, ExpectedExit: c.ExpectedExit, ExpectedResult: c.ExpectedResult})
 			f := newEnvelopeFixture(t, packet, c)
 			if recipe != nil {
@@ -461,11 +439,10 @@ func TestStableCanonicalEnvelopeCellsNative(t *testing.T) {
 			}
 			result, exit := f.run()
 			status := "PASS"
-			if code, divergent := envelopeNativeDivergence[c.ID]; divergent {
-				bound, status = envelopeDivergentExpectation(t, bound, code), "DIVERGENT"
-			}
 			if !requireS0EResult(t, bound, result, exit) {
 				status = "FAIL"
+			} else {
+				exact++
 			}
 			t.Logf("ENVELOPE-CELL %s %s exit=%d stage=%s", c.ID, status, exit, result.Stage)
 		})

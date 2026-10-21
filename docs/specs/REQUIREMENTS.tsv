@@ -81,6 +81,7 @@ AFP-V0-316	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-296	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2194))	standing	2026-10-11; V1-2194
 AFP-V0-160	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0923); no	standing	2026-10-11; V1-0923
 AFP-V0-161	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1766, V1-2069);	standing	2026-10-11; V1-1766; V1-2069
+AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2053))	standing	2026-10-11; V1-2053
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -692,6 +693,7 @@ CEM-V1-242	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-243	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1329) The nati	standing	2026-10-11; V1-1329
 CEM-V1-244	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After th	standing	2026-10-11; V1-2106
 CEM-V1-245	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The	standing	2026-10-11; V1-1470
+CEM-V1-568	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git	standing	2026-10-11; V1-2133
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -928,7 +930,7 @@ CEM-V1-363	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-364	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A `commo	standing	2026-10-11; V1-0595
 CEM-V1-365	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) Configur	standing	2026-10-11; V1-0595
 CEM-V1-366	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A config	standing	2026-10-11; V1-0595
-CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) The	standing	2026-10-11; V1-0595
+CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595; closed a	standing	2026-10-11; V1-0595
 CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
 CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
 CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-
@@ -2394,6 +2396,7 @@ ERI-V0-004	docs/specs/expanded-range-impact-v0.md	Without the new option, the ex
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	The experimental compiler MUST retain one immutable clean base/head snapshot and	unrecorded	-
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	The prototype repository coordinator MUST select the experimental profile by an	unrecorded	-
 ERI-V0-060	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) Both	standing	2026-10-21; V1-1881; 2026-10-11
+ERI-V0-261	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) `impact	standing	2026-10-21; V1-1881; 2026-10-11
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	Bind the bounded canonical packet and exact caller selector to object format,	unrecorded	-
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	Return one exact contiguous immutable source range as JSON `text` whose UTF-8	unrecorded	-
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git	unrecorded	-
@@ -4941,6 +4944,7 @@ UCV0-013	docs/specs/use-case-conformance-v0.md	The canonical ledger profile MUST
 UCV0-014	docs/specs/use-case-conformance-v0.md	(accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified	owner	2026-09-26; decision 0424; decision 0398; V1-0341
 UCV0-015	docs/specs/use-case-conformance-v0.md	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be	unrecorded	-
 UCV0-016	docs/specs/use-case-conformance-v0.md	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the	unrecorded	-
+UCV0-217	docs/specs/use-case-conformance-v0.md	(accepted 2026-10-21 under the owner's standing auto-accept of 2026-10-11; V1-03	standing	2026-10-21; 2026-10-11; V1-0303
 VPO-V0-001	docs/specs/verification-planner-observer-v0.md	Every V0 JSON document MUST be one Change Frontier canonical JSON body followed	unrecorded	-
 VPO-V0-002	docs/specs/verification-planner-observer-v0.md	Every document MUST contain exactly its named `profile`. Unknown profiles fail	unrecorded	-
 VPO-V0-003	docs/specs/verification-planner-observer-v0.md	Content identities use	unrecorded	-
