@@ -26,4 +26,10 @@ invent dirty-path counts the index did not produce); reading the transcript in `
 (excluded by the AHI-026..030 non-goals). Not addressed here: making `pre-compact` finish within
 its kill, which remains the cause of the missing pins.
 
-Rollback: revert the commit; a degraded `pre-compact` then prints its frame text alone.
+Independent review (Codex, one round) found that the unavailable line was ordered only against
+pins that matched the full pattern, so a newer pin truncated before `elided=` after an older
+unavailable line reported not-emitted. Fixed: the last pin-shaped line (the profile followed by
+`revision=` or `unavailable`) is found first and then validated, so a truncated last pin reports
+not-preserved and an earlier whole pin no longer stands in for it.
+
+Rollback: revert the commits; a degraded `pre-compact` then prints its frame text alone.

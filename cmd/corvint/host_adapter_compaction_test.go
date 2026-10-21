@@ -334,6 +334,11 @@ func TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin(t *testing.T
 		recordedCompactSummary(unavailable + "\n" + pin + "\n"): report,
 		// A mangled pin after the unavailable line is a pin the summary failed to preserve.
 		recordedCompactSummary(unavailable + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1 untracked=1 paths=../x elided=0\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+		// A newer pin the summary truncated before elided= is still the last pin-shaped line: the
+		// loss is the summary's, not a never-emitted pin hidden behind the older unavailable line.
+		recordedCompactSummary(unavailable + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1 untracked=1 paths=pkg/sample.go\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
+		// Nor does an older whole pin stand in for a newer truncated one.
+		recordedCompactSummary(pin + "\n" + compactionPinProfile + " revision=" + tree + " tracked=1\n"): "Corvint FALLBACK degraded: compaction-pin-not-preserved; coding continues\n",
 	}
 	for summary, want := range cases {
 		if got := compactionHookStdout(t, ctx, root, "post-compact", map[string]any{"hook_event_name": "PostCompact", "compact_summary": summary}); got != want {
