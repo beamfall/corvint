@@ -86,6 +86,15 @@ func reviewAuthors(env Env, ticketID string, explicit []string) ([]string, error
 	}); err != nil {
 		return nil, err
 	}
+	return reviewAuthorSet(attempts, ticketID, explicit)
+}
+
+// reviewAuthorSet is the pure part of reviewAuthors: the sorted union of the
+// explicit exclusions and every member label DeriveAuthors (mode ALL, any
+// pool) records for ticketID's implement generations. A label is a member
+// ID, so an explicit alias equal to a derived member, or one member that
+// implemented in two pools, appears once.
+func reviewAuthorSet(attempts map[string]*snapshot.Attempt, ticketID string, explicit []string) ([]string, error) {
 	x, why := transaction.DeriveAuthors(attempts, ticketID, transaction.ExcludeAuthorsAll, "", explicit)
 	if why != "" {
 		return nil, wire.Errorf(wire.CodeIndependenceUnverified, "--exclude-author", "reviewer independence cannot be derived: %s; name the authors with --exclude-author", why)

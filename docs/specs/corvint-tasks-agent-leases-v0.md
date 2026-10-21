@@ -8005,7 +8005,7 @@ journal or wire state depends on it.
 | --- | --- |
 | CAL-V0-079 | `TestCALV0079_CriticalPathChainsAndNodeFacts`, `TestCALV0079_CriticalPathLiveAttemptFacts` (`internal/tasks/cli`) |
 | CAL-V0-080 | `TestCALV0080_CriticalPathBoundsAndCycles`, `TestCALV0080_CriticalPathLargeCycleIsBounded` (10,000-ticket ring) (`internal/tasks/cli`) |
-| CAL-V0-081 | `TestCALV0081_CriticalPathBlockersMatchPlanner` (pool, coverage, gate observation, archived completion, budget; `plan preview` parity), `TestCALV0081_CriticalPathRetryAndPauseMatchPlanner`, `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
+| CAL-V0-081 | `TestCALV0081_CriticalPathBlockersMatchPlanner` (pool, coverage, gate observation, archived completion, budget; `plan preview` parity), `TestCALV0081_CriticalPathRetryAndPauseMatchPlanner`, `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0081_CriticalPathPrerequisiteNodeBlocker`, `TestCALV0081_CriticalPathEscalationNodeBlocker`, `TestCALV0081_CriticalPathLoopNodeBlocker` (V1-0802: one node first-blocker regression each for PREREQUISITE_UNSATISFIED, ESCALATION_PENDING and LOOP_DETECTED, each with a control lacking the condition and a purity check), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
 
 ## V1-0781 preparation admission pressure amendment
 
