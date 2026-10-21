@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/flowcoverage/testfixture"
 )
 
 var flowsArguments = []string{"--tool-profile", "flows"}
@@ -98,4 +100,38 @@ func TestAFUV1034FlowsOfficialSchema(t *testing.T) {
 	}
 	exchanges = append(exchanges, schemaExchange{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", flowCall("map", map[string]any{"flows": "../escape"})})
 	checkOfficialExchanges(t, schema, client, 1400, exchanges)
+}
+
+// V1-0280: corvint.flows.coverage, the fifth flows tool, needs a committed denominator and run
+// receipts, so it runs against the flowcoverage fixture: compiled stdio traffic returns its page
+// only inside the untrusted envelope, writes nothing, and (with the pinned schema) matches the
+// official CallToolResult definition.
+func TestAFUV1034FlowsCoverageCompiledConformance(t *testing.T) {
+	root := testfixture.Repository(t)
+	before := treeDigest(t, root)
+	coverage := flowCall("coverage", map[string]any{"denominator": "denominator.json", "receipts": "runs.json", "offset": 0, "limit": 1})
+	client := startServerWithArguments(t, root, flowsArguments)
+	defer client.close(t)
+	if got := listedToolNames(t, client, requestMeta()); !reflect.DeepEqual(got, flowsToolNames) {
+		t.Fatalf("catalogue %v", got)
+	}
+	result := successResult(t, client.call(t, 1, "tools/call", coverage))
+	if result["isError"] == true || result["structuredContent"] != nil {
+		t.Fatalf("invalid coverage envelope: %s", canonicalJSON(result))
+	}
+	if text := object(t, result["content"].([]any)[0])["text"].(string); !strings.Contains(text, "BEGIN CORVINT REPOSITORY DATA") {
+		t.Fatalf("unframed coverage: %s", text)
+	}
+	assertErrorCode(t, client.call(t, 2, "tools/call", flowCall("coverage", map[string]any{"denominator": "../escape", "receipts": "runs.json"})), -32602)
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("coverage read wrote under repository or .git")
+	}
+	if os.Getenv(officialSchemaEnv) == "" {
+		return
+	}
+	schema := loadOfficialSchema(t)
+	checkOfficialExchanges(t, schema, client, 10, []schemaExchange{
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", coverage},
+		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", flowCall("coverage", map[string]any{"denominator": "../escape", "receipts": "runs.json"})},
+	})
 }
