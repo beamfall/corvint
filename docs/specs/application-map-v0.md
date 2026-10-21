@@ -444,7 +444,10 @@ but does not read it; only non-Go syntax impact does.
   or loop keyword, it is not returned after a condition, and every enclosing bracket is a
   `return (`, `= (`, arrow-body or JSX-child group or a function block body. A call argument,
   array element, attribute or object value, class or control-flow block, or any unrecognised
-  enclosure keeps the file-wide `dynamic-route-context` rule. A JSX expression child `{...}`
+  enclosure keeps the file-wide `dynamic-route-context` rule. So does any enclosing block that
+  could exit before the tree: a `throw`, a `return` inside a nested control-flow block, an earlier
+  `return` at the block's own level, with or without a semicolon; exits inside nested function
+  bodies do not count. A JSX expression child `{...}`
   inside the tree MUST record `non-literal-react-children` at its own line and is never harvested,
   while its literal siblings are still read; a comment-only `{}` child is ignored.
   `createBrowserRouter` and `createRoutesFromElements` keep the file-wide rule. Status: accepted

@@ -564,7 +564,7 @@ func reactGated(ts []token, start, end int) bool {
 		if level == 0 {
 			return false
 		}
-		if reactOpenerGated(ts, open) {
+		if reactOpenerGated(ts, open) || reactBodyExitsEarly(ts, open, lo) {
 			return true
 		}
 		lo, hi = open, close
@@ -636,6 +636,73 @@ back:
 		}
 	}
 	return false
+}
+
+// reactBodyExitsEarly reports whether the block opened at ts[open] could leave before reaching
+// ts[lo] (AMAP-V0-190): a `throw`, a `return` inside a nested control-flow block, more than one
+// `return` at the block's own level, or a `return` whose statement has already ended. Nested
+// function bodies are skipped, because their exits do not leave this block. A JSX expression
+// child brace holds no statements and is left to reactLevelGated.
+func reactBodyExitsEarly(ts []token, open, lo int) bool {
+	if ts[open].text != "{" || next(ts, open-1, ">") && !(open >= 2 && next(ts, open-2, "=")) {
+		return false
+	}
+	returns, depth, ended := 0, 0, false
+	for j := open + 1; j < lo; j++ {
+		t := ts[j]
+		if t.kind == tokPunct {
+			switch t.text {
+			case "{":
+				if reactFunctionBody(ts, j) {
+					j = closeParen(ts, j)
+					continue
+				}
+				depth++
+			case "(", "[":
+				depth++
+			case ")", "]", "}":
+				depth--
+			case ";":
+				if depth == 0 && returns > 0 {
+					ended = true
+				}
+			}
+			continue
+		}
+		if t.kind != tokIdent {
+			continue
+		}
+		switch t.text {
+		case "throw":
+			return true
+		case "return":
+			if depth != 0 || returns > 0 {
+				return true
+			}
+			returns++
+		}
+	}
+	return ended
+}
+
+// reactFunctionBody reports whether the brace at ts[open] opens an arrow, function or method
+// body. A brace after a control-flow head, or anything unrecognised, is not one, so its exits count.
+func reactFunctionBody(ts []token, open int) bool {
+	if open >= 2 && next(ts, open-1, ">") && next(ts, open-2, "=") {
+		return true
+	}
+	if open < 1 || !next(ts, open-1, ")") {
+		return false
+	}
+	o := reactOpenOf(ts, open-1)
+	if o <= 0 || ts[o-1].kind != tokIdent {
+		return false
+	}
+	switch ts[o-1].text {
+	case "if", "for", "while", "switch", "catch", "with", "return":
+		return false
+	}
+	return true
 }
 
 // reactOpenerGated reports whether the bracket at ts[open] could decide its content renders.

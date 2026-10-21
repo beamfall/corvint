@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -515,8 +516,16 @@ func TestAMAPV0190ReactRoutesInHooksComponent(t *testing.T) {
 		"array element":     `function A() { return [<Routes key="a"><Route path="/a" /></Routes>][on ? 0 : 1]; }`,
 		"conditional block": `function A() { if (on) { return (<Routes><Route path="/a" /></Routes>); } return null; }`,
 		"trailing operator": `function A() { const r = <Routes><Route path="/a" /></Routes> || null; return r; } const b = on ? 1 : 2;`,
+		"early return":      `function A() { if (!enabled) return null; return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+		"early return asi":  "function A() {\n  if (!enabled) return null\n  return (<Routes><Route path=\"/a\" /></Routes>)\n}\nconst b = on ? 1 : 2",
+		"early block exit":  `const A = () => { if (!enabled) { return null; } return (<Routes><Route path="/a" /></Routes>); }; const b = on ? 1 : 2;`,
+		"switch exit":       `function A() { switch (mode) { case 1: return null; } return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+		"throw":             `function A() { if (!enabled) throw new Error("x"); return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
 	} {
-		states, _ := parseReactRouter(blobEntry{path: "a.tsx"}, []byte(src))
+		states, unknowns := parseReactRouter(blobEntry{path: "a.tsx"}, []byte(src))
+		if !slices.ContainsFunc(unknowns, func(u Unknown) bool { return u.Reason == "dynamic-route-context" }) {
+			t.Errorf("%s: unknowns %+v must keep dynamic-route-context", name, unknowns)
+		}
 		screens, _ := resolveScreens("test", states)
 		for _, s := range screens {
 			if s.Status == StatusResolved {
