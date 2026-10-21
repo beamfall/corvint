@@ -49,6 +49,10 @@ Evidence (program_* subset, `-p 4 -count=1 -json`):
 |---|---|---|---|---|---|---|
 | base | process-global mutex | 53, 31 | 485.2 s | 226.0 s | 258.9 s | 1,991 s |
 | a1 | per-store mutex | 33, 139 | 458.1 s | 231.0 s | 226.7 s | 1,542 s |
+| a2 | per-store mutex | 84, 80 | 515.6 s | 324.4 s | 190.8 s | 1,442 s |
+
+At load 80 or more, run a2's parallel phase came within 9 s of the 182 s floor named below. Its
+serial phase, which the change does not touch, grew with the load.
 
 Per-test walls of the slowest parallel tests (seconds, base then a1):
 
