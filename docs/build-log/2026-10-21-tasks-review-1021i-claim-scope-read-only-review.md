@@ -42,6 +42,13 @@ owner's standing auto-accept (2026-10-11).
   `TestATRV0211_ClaimResultListsEffectiveScope`, `TestATRV0212_ReadOnlySessionRefusesMutations`
   (`internal/tasks/cli`). Each fails with its fix disabled: the refusal (store and cli tests),
   `report.Scope` (store and cli), and the `readOnlyRefusal` hook (cli).
+- `TestCALV0022_CLIUsesOptInPack/.../declared` asserted the old silent drop (declared `declared/`,
+  requested `manual/`, scope `DECLARED`); its request is now the covered `declared/sub/`.
+- Package runs (Darwin, loaded host): `internal/tasks/{authority,intent,mutation,scale,ticket,
+  transaction,service}` pass; `internal/tasks/cli` full package passes but for that case, which
+  passes after the change; `internal/tasks/store` full package hit the 30-minute timeout under host
+  load average 34 with unrelated tests running, and its 102 lease, claim and scope test functions
+  pass; traps `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` and `TestImportDirection` pass.
 - Harness: `py_compile`, and a scratch exercise of `refusal`, `status_issues` and `expect` on
   synthetic output; `NOT_DISCRIMINATING` is exactly L1 and L2 (it held L3, L5 and L6 before).
 
@@ -51,7 +58,8 @@ owner's standing auto-accept (2026-10-11).
   inferred from Codex's default `shell_environment_policy`.
 - A live daily-loop rehearsal: the L3/L5/L6 expectations are derived from
   `internal/dogfoodflow/change.go`; a mismatch shows up as `refusedAsExpected: false`.
-- Linux; `make gate`.
+- Linux; `make gate`; the full `internal/tasks/store` package (timeout under load) and the other
+  `corvint affected` selections outside `internal/tasks` (76 packages, left to batch CI).
 - V1-1441 criterion 3, the owner's review of the V1-1375 operator note, stays with the owner.
 
 ## Rollback
