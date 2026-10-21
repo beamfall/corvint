@@ -101,6 +101,7 @@ func TestMarkReplacementAtFirstRead(t *testing.T) {
 // TestMarkHostileInputPrecedence is CEM-PILOT-013: acquiring a lock before
 // reading cannot turn an unsafe input refusal into a publication error.
 func TestMarkHostileInputPrecedence(t *testing.T) {
+	t.Parallel()
 	t.Run("symlinked parent", func(t *testing.T) {
 		root, base, target := makeRepo(t)
 		session := openSession(t, root)

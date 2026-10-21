@@ -62,11 +62,13 @@ func openRoot(ctx context.Context, primary, alias, root string) (repo, string, e
 		return repo{}, "", rootUnavailable(alias, "is the --root repository")
 	}
 	r := repo{ctx: ctx, root: resolved, alias: alias}
-	top, err := r.git(4096, nil, "rev-parse", "--show-toplevel")
-	if err != nil {
+	// Git walks up to an enclosing repository; an empty prefix inside a worktree proves the root
+	// is its top without naming the top as a path (AFP-V0-156).
+	where, err := r.git(4096, nil, "rev-parse", "--is-inside-work-tree", "--show-prefix")
+	if err != nil || !strings.HasPrefix(string(where), "true\n") {
 		return repo{}, "", rootUnavailable(alias, "is not a Git worktree")
 	}
-	if t, err := os.Stat(strings.TrimSuffix(string(top), "\n")); err != nil || !os.SameFile(info, t) {
+	if string(where) != "true\n\n" {
 		return repo{}, "", rootUnavailable(alias, "is not the top of a Git worktree")
 	}
 	rev, err := r.resolve("HEAD")

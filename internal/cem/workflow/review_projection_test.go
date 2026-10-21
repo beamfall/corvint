@@ -13,6 +13,7 @@ import (
 // same retained records, a JSON review writes nothing, and absent witnesses
 // cannot become passing tests.
 func TestReviewProjectionParityAndReadOnly(t *testing.T) {
+	t.Parallel()
 	t.Run("CEM-PILOT-028 CEM-PILOT-030 CEM-PILOT-031 immutable projection parity and witness gaps", func(t *testing.T) {
 		root, base, target := makeRepo(t)
 		if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {

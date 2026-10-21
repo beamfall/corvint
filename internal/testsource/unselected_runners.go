@@ -47,10 +47,11 @@ type SelectionRunner struct {
 	extensions []string
 	include    []*regexp.Regexp
 	exclude    []*regexp.Regexp
-	// hidden, per include and exclude pattern, reports whether it may match a path with a hidden
-	// segment; only Mocha leaves hidden files out (glob dot:false and its directory scan).
-	includeHidden []bool
-	excludeHidden []bool
+	// hidden, per include and exclude pattern, matches a path with a hidden segment, or is nil
+	// when the pattern's own matcher decides; only Mocha leaves hidden files out (glob dot:false
+	// and its directory scan), segment by segment (TSA-V0-645).
+	includeHidden []func(string) bool
+	excludeHidden []func(string) bool
 }
 
 var (
@@ -309,6 +310,9 @@ func readModuleConfig(runner, text string) (map[string]configValue, string) {
 			return nil, "runner-config-merged"
 		}
 	}
+	if !s.literalExport() {
+		return nil, "runner-config-export-dynamic"
+	}
 	keys := selectionKeys[runner]
 	for _, k := range keys[1] {
 		if _, found := configKeysIn(s, k); found {
@@ -363,6 +367,59 @@ func readModuleConfig(runner, text string) (map[string]configValue, string) {
 		}
 	}
 	return values, ""
+}
+
+// literalExport reports that every whole export of a configuration module (`module.exports =`,
+// `export default`) is an object literal, a `defineConfig({…})` call, or a name the module
+// declares as one. Any other export, such as `require('./base')`, a factory call or a function,
+// is not runner defaults, and a module with no whole export is not read either (TSA-V0-645).
+func (s *source) literalExport() bool {
+	found := false
+	for i := range s.tokens {
+		value := -1
+		switch {
+		case s.ident(i, "module") && !s.memberAccess(i) && s.punct(i+1, ".") && s.ident(i+2, "exports") && s.punct(i+3, "=") && !s.punct(i+4, "=") && !s.punct(i+4, ">"):
+			value = i + 4
+		case s.ident(i, "export") && s.ident(i+1, "default"):
+			value = i + 2
+		default:
+			continue
+		}
+		found = true
+		if !s.literalConfigValue(value, true) {
+			return false
+		}
+	}
+	return found
+}
+
+// literalConfigValue reports an object literal or a `defineConfig({…})` call at token i, or, when
+// named is true, a bare name the module declares with one (`const config: Config = {…}`).
+func (s *source) literalConfigValue(i int, named bool) bool {
+	switch {
+	case s.punct(i, "{"):
+		return true
+	case s.ident(i, "defineConfig") && s.punct(i+1, "(") && s.punct(i+2, "{"):
+		return true
+	case !named || !s.ident(i, "") || s.punct(i+1, "(") || s.punct(i+1, "."):
+		return false
+	}
+	name := s.tokens[i].Text
+	for j := range s.tokens {
+		if !(s.ident(j, "const") || s.ident(j, "let") || s.ident(j, "var")) || !s.ident(j+1, name) {
+			continue
+		}
+		// Skip a type annotation up to the declaration's `=`.
+		for k := j + 2; k < len(s.tokens) && k < j+64; k++ {
+			if s.punct(k, ";") {
+				break
+			}
+			if s.punct(k, "=") && !s.punct(k+1, "=") && !s.punct(k+1, ">") && !s.punct(k-1, "=") {
+				return s.literalConfigValue(k+1, false)
+			}
+		}
+	}
+	return false
 }
 
 // configKeys lexes text and returns the token indexes of every `key:` property.
@@ -573,27 +630,122 @@ func (r *SelectionRunner) compile() string {
 		if !ok {
 			return "runner-pattern-unsupported"
 		}
-		r.include, r.includeHidden = append(r.include, re), append(r.includeHidden, r.matchesHidden(pattern))
+		hidden, ok := r.hiddenMatcher(pattern, true)
+		if !ok {
+			return "runner-pattern-unsupported"
+		}
+		r.include, r.includeHidden = append(r.include, re), append(r.includeHidden, hidden)
 	}
 	for _, pattern := range r.Exclude {
 		re, ok := r.excludeMatcher(pattern)
 		if !ok {
 			return "runner-pattern-unsupported"
 		}
-		r.exclude, r.excludeHidden = append(r.exclude, re), append(r.excludeHidden, r.matchesHidden(pattern))
+		hidden, ok := r.hiddenMatcher(pattern, false)
+		if !ok {
+			return "runner-pattern-unsupported"
+		}
+		r.exclude, r.excludeHidden = append(r.exclude, re), append(r.excludeHidden, hidden)
 	}
 	return ""
 }
 
-// matchesHidden reports whether pattern may match a path with a hidden segment: always, except
-// for Mocha, whose glob and directory scan skip hidden entries unless the pattern names a segment
-// starting with a literal `.`.
-func (r *SelectionRunner) matchesHidden(pattern string) bool {
+// hiddenMatcher returns how pattern treats a path with a hidden segment: nil for every runner
+// but Mocha, whose glob (dot:false) matches a hidden segment only with a pattern segment that
+// itself starts with a literal `.`, at that segment, so neither `*` nor `**` reaches into a
+// hidden directory or file (TSA-V0-645).
+func (r *SelectionRunner) hiddenMatcher(pattern string, include bool) (func(string) bool, bool) {
 	if r.Runner != RunnerMocha {
-		return true
+		return nil, true
 	}
+	globs := []string{strings.TrimPrefix(pattern, "./")}
+	if include {
+		globs = r.mochaGlobs(pattern)
+	}
+	return dotFalseMatcher(globs)
+}
+
+// mochaGlobs are the globs one Mocha spec stands for. A spec without glob characters is an
+// existing file, that path plus a configured extension, or a directory whose files with a
+// configured extension it selects (recursively when set). Mocha checks the file first; the
+// committed tree alone does not tell them apart here, so any of them selects.
+func (r *SelectionRunner) mochaGlobs(pattern string) []string {
 	pattern = strings.TrimPrefix(pattern, "./")
-	return strings.HasPrefix(pattern, ".") || strings.Contains(pattern, "/.")
+	if strings.ContainsAny(pattern, "*?[{") {
+		return []string{pattern}
+	}
+	exts := ".{" + strings.Join(r.extensions, ",") + "}"
+	if len(r.extensions) == 1 {
+		exts = "." + r.extensions[0]
+	}
+	files := "/*"
+	if r.recursive {
+		files = "/**/*"
+	}
+	dir := strings.TrimSuffix(pattern, "/")
+	return []string{pattern, pattern + exts, dir + files + exts}
+}
+
+// dotFalseMatcher compiles globs segment by segment under minimatch dot:false: `**` matches zero
+// or more segments that do not start with `.`, and any other pattern segment matches a segment
+// starting with `.` only when the pattern segment starts with a literal `.` (TSA-V0-645).
+func dotFalseMatcher(globs []string) (func(string) bool, bool) {
+	type segment struct {
+		any    bool // a whole-segment `**`
+		dot    bool // starts with a literal `.`
+		regexp *regexp.Regexp
+	}
+	patterns := [][]segment{}
+	for _, glob := range globs {
+		expanded, ok := expandBraces(glob)
+		if !ok {
+			return nil, false
+		}
+		for _, one := range expanded {
+			segments := []segment{}
+			for _, part := range strings.Split(one, "/") {
+				if part == "**" {
+					segments = append(segments, segment{any: true})
+					continue
+				}
+				re, ok := globRegexp(part)
+				if !ok {
+					return nil, false
+				}
+				segments = append(segments, segment{dot: strings.HasPrefix(part, "."), regexp: re})
+			}
+			patterns = append(patterns, segments)
+		}
+	}
+	var match func(p []segment, names []string) bool
+	match = func(p []segment, names []string) bool {
+		if len(p) == 0 {
+			return len(names) == 0
+		}
+		if p[0].any {
+			for k := 0; ; k++ {
+				if match(p[1:], names[k:]) {
+					return true
+				}
+				if k == len(names) || strings.HasPrefix(names[k], ".") {
+					return false
+				}
+			}
+		}
+		if len(names) == 0 || strings.HasPrefix(names[0], ".") && !p[0].dot || !p[0].regexp.MatchString(names[0]) {
+			return false
+		}
+		return match(p[1:], names[1:])
+	}
+	return func(name string) bool {
+		names := strings.Split(name, "/")
+		for _, p := range patterns {
+			if match(p, names) {
+				return true
+			}
+		}
+		return false
+	}, true
 }
 
 func (r *SelectionRunner) includeMatcher(pattern string) (*regexp.Regexp, bool) {
@@ -603,24 +755,7 @@ func (r *SelectionRunner) includeMatcher(pattern string) (*regexp.Regexp, bool) 
 	case RunnerPlaywright:
 		return playwrightMatcher(pattern)
 	case RunnerMocha:
-		pattern = strings.TrimPrefix(pattern, "./")
-		if !strings.ContainsAny(pattern, "*?[{") {
-			// A spec without glob characters is an existing file, that path plus a configured
-			// extension, or a directory whose files with a configured extension it selects
-			// (recursively when set). Mocha checks the file first; the committed tree alone does
-			// not tell them apart here, so any of them selects.
-			exts := ".{" + strings.Join(r.extensions, ",") + "}"
-			if len(r.extensions) == 1 {
-				exts = "." + r.extensions[0]
-			}
-			files := "/*"
-			if r.recursive {
-				files = "/**/*"
-			}
-			dir := strings.TrimSuffix(pattern, "/")
-			return globsRegexp([]string{pattern, pattern + exts, dir + files + exts}, false)
-		}
-		return globRegexp(pattern)
+		return globsRegexp(r.mochaGlobs(pattern), false)
 	}
 	return globRegexp(strings.TrimPrefix(pattern, "./"))
 }
@@ -671,7 +806,7 @@ func (r *SelectionRunner) verdict(name string) (bool, string, string) {
 	}
 	subject, hidden := r.selectionSubject(relative), hiddenPath(relative)
 	for i, re := range r.exclude {
-		if re.MatchString(subject) && (!hidden || r.excludeHidden[i]) {
+		if re.MatchString(subject) && (!hidden || r.excludeHidden[i] == nil || r.excludeHidden[i](subject)) {
 			return false, ReasonExcluded, r.Exclude[i]
 		}
 	}
@@ -696,7 +831,7 @@ func (r *SelectionRunner) verdict(name string) (bool, string, string) {
 
 func (r *SelectionRunner) included(subject string, hidden bool) bool {
 	for i, re := range r.include {
-		if re.MatchString(subject) && (!hidden || r.includeHidden[i]) {
+		if re.MatchString(subject) && (!hidden || r.includeHidden[i] == nil || r.includeHidden[i](subject)) {
 			return true
 		}
 	}

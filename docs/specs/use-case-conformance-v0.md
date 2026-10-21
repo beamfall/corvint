@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424)
+Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
-- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); experimental
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); experimental
 - Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION` is `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` returned to `experimental`/`UNPROVEN` (V1-0341); the other nineteen jobs stay `specified`/`UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
@@ -169,6 +169,14 @@ cannot be interpreted as success.
   `clause-definitions-N`. When a receipt binds any extract, the extracts MUST cover exactly its
   attested `requirementIds`, else `clause-coverage-mismatch`. An edit elsewhere in the spec leaves
   the receipt valid; the extract itself remains a whole-file subject under `UCV0-005`.
+- `UCV0-217`: (accepted 2026-10-21 under the owner's standing auto-accept of 2026-10-11; V1-0303)
+  The Agent digest `Exists:` line MUST state the job status the ledger holds: each row that is
+  not `specified`/`UNPROVEN` is named in a `;`-separated clause carrying its own
+  `` `status`/`CLAIM` ``, and the clause `the other N jobs stay `specified`/`UNPROVEN`` spells out
+  the count of the remaining rows. `docs/specs/INDEX.json` carries that line through the generated
+  digest, and the README states no per-job status. Non-goals: generating prose from the ledger, and
+  any change to the ledger or a row's claim. Falsifier: a ledger status or claim change without
+  the matching digest change passes. Rollback: remove `TestUCV0217DigestStatusMatchesLedger`.
 
 ## Trust boundary and failure behavior
 
@@ -214,6 +222,7 @@ evidence; never rewrite a failed receipt.
 | `UCV0-014` (proposed) | `conformance/use-cases-v0/main.go` | `TestUCV0DerivedDogfoodOutcome` |
 | `UCV0-015` (proposed) | `conformance/use-cases-v0/ledger.json` | owner review; not mechanically checked |
 | `UCV0-016` (proposed) | `conformance/use-cases-v0/main.go`, `receipts/*/contract/clauses.json` | `TestUCV0ClausePins` |
+| `UCV0-217` | Agent digest of this spec, `conformance/use-cases-v0/ledger.json` | `TestUCV0217DigestStatusMatchesLedger` |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 
 ## Unresolved decisions and kill criteria

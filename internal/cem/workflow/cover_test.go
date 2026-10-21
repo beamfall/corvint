@@ -60,6 +60,7 @@ func reportTextAt(t *testing.T, root, base, target, mapPath string) string {
 // projection names each hunk's coverage state. The tcq/0 report downgrade
 // is retired with the 0.x report (CEM-V1-217).
 func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeGoRepo(t, importReorderTarget, whisperTarget)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -121,6 +122,7 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 // modes: two profile paths matching one hunk path, a malformed profile, an
 // empty test-run identity; a refusal leaves the map untouched.
 func TestCoverRefusesAmbiguousAndInvalidInputs(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeGoRepo(t, importReorderTarget, whisperTarget)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)

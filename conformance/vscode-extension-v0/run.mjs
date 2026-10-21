@@ -143,7 +143,7 @@ export function validateManifest(manifest) {
     if (!Array.isArray(testCase.requirements) || testCase.requirements.length === 0) failures.push(`${testCase.id}: missing requirements`);
     for (const requirement of testCase.requirements ?? []) {
       requirements.add(requirement);
-      if (!/^VSC-V0-(?:00[1-9]|0[1-6][0-9]|07[0-6])$/u.test(requirement)) failures.push(`unknown requirement ${requirement}`);
+      if (!/^VSC-V0-(?:00[1-9]|0[1-6][0-9]|07[0-69])$/u.test(requirement)) failures.push(`unknown requirement ${requirement}`);
     }
     if (!testCase.setup || !testCase.action || !testCase.expect) failures.push(`${testCase.id}: incomplete vector`);
     if (testCase.action?.kind === 'import-observation' && testCase.expect?.result === 'ready' && testCase.setup?.sharedCorvintVerifier !== 'available') failures.push(`${testCase.id}: positive observation projection lacks an explicit shared Corvint verifier`);
@@ -623,7 +623,7 @@ export function checkObservation(testCase, observation, limits) {
   if (expect.testRunEnded) assertCondition(failures, observation?.ui?.testRun?.ended === true && typeof observation?.ui?.testRun?.corvintRunId === 'string', `${prefix}: imported observation did not create one finite ended Corvint TestRun`);
   if (expect.noRunProfile) assertCondition(failures, observation?.ui?.testRunProfiles === 0, `${prefix}: Testing API RunProfile was registered`);
   if (expect.exactCommands) {
-    const expected = ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.importTestObservation', 'corvint.clearResults'].sort();
+    const expected = ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'].sort();
     assertCondition(failures, JSON.stringify([...(observation?.ui?.registeredCommands ?? [])].sort()) === JSON.stringify(expected), `${prefix}: command surface differs from contract`);
   }
   if (expect.statusAccessible) assertCondition(failures, typeof observation?.ui?.statusAccessibleName === 'string' && /Corvint/u.test(observation.ui.statusAccessibleName) && /Ready/u.test(observation.ui.statusAccessibleName), `${prefix}: status accessible name omits Corvint or state`);

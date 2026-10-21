@@ -92,7 +92,9 @@ func testRouteStubs(outcome jstestprovider.TestOutcome) *RouteStubs {
 	record := jstestprovider.ScreenRouteStubRecord(*last.RouteStubs)
 	var findings []RouteStubFinding
 	for _, stub := range record.Stubs {
-		if stub.Hits == 0 {
+		// A stub the test removed with unroute before any hit was withdrawn on purpose, not
+		// silently missed: it has no finding (LPCV-V0-214).
+		if stub.Hits == 0 && !stub.Unrouted {
 			findings = append(findings, RouteStubFinding{Code: StubNeverMatched, Target: stub.Target, API: stub.API, Kind: stub.Kind, Pattern: stub.Pattern, File: stub.File, Line: stub.Line})
 		}
 	}

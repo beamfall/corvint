@@ -198,12 +198,19 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 // token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
 // its module's directory, which this graph does not record, so narrowing it
 // could drop a real reader. For any other path see namesFileOnlyWithin.
+// A unit with a declared read scope (AFP-V0-023) reads no dirty path outside
+// that scope, whatever its tokens name (AFP-V0-161): the declaration states
+// it, and full CI confines the package's tests to it.
 func (graph *Graph) resolves(id, dirtyPath string) bool {
+	unit := graph.units[id]
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if unit.ReadScoped && len(files) != 0 && !InReadScope(relativeDirectory(files[0]), unit.ReadScope, dirtyPath) {
+		return false
+	}
 	if !strings.HasPrefix(id, "go:") {
 		return true
 	}
-	unit := graph.units[id]
-	directory := relativeDirectory(append(append([]string(nil), unit.Sources...), unit.Tests...)[0])
+	directory := relativeDirectory(files[0])
 	if !resolvedEvidence(dirtyPath) {
 		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath)
 	}

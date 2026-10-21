@@ -3,6 +3,8 @@ package changee2e
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -28,10 +30,41 @@ type Obligation struct {
 	Chain   []string `json:"chain"`
 }
 
-// UnknownSpan is a changed span whose reach could not be bounded.
+// UnknownSpan is a changed span whose reach could not be bounded. Reason is one of
+// UnknownReasons; Detail names what made it unknown (the impact reason, the map unknown, the
+// removed entity, the screen or the dropped obligation) when there is one.
 type UnknownSpan struct {
 	Span   Span   `json:"span"`
 	Reason string `json:"reason"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// Unknown-span reasons, the closed CCE-V0-020 set.
+const (
+	ReasonUnplacedPath         = "unplaced-path"
+	ReasonScreenWithoutOutcome = "screen-without-outcome"
+	ReasonMapUnknown           = "map-unknown"
+	ReasonImpactTruncated      = "impact-truncated"
+	ReasonRemovedAtHead        = "removed-at-head"
+	ReasonFanOutOverLimit      = "fan-out-over-limit"
+	ReasonBlocksNotDeclared    = "blocks-not-declared"
+)
+
+// UnknownReasons is the closed CCE-V0-020 set; any other reason is a defect.
+var UnknownReasons = []string{ReasonUnplacedPath, ReasonScreenWithoutOutcome, ReasonMapUnknown, ReasonImpactTruncated,
+	ReasonRemovedAtHead, ReasonFanOutOverLimit, ReasonBlocksNotDeclared}
+
+// Exemption is a changed path a base `reach_exempt` glob exempted, citing that glob (CCE-V0-020).
+type Exemption struct {
+	Path   string `json:"path"`
+	Glob   string `json:"glob"`
+	Reason string `json:"reason"`
+}
+
+// Relations names the relations an obligations report consulted and those it did not (CCE-V0-004).
+type Relations struct {
+	Consulted    []string `json:"consulted"`
+	NotConsulted []string `json:"not_consulted"`
 }
 
 // Obligations is the e2e-obligations/0 document.
@@ -41,9 +74,11 @@ type Obligations struct {
 	Head          string        `json:"head"`
 	CatalogDigest string        `json:"catalog_digest"`
 	ImpactDigest  string        `json:"impact_digest"`
+	Relations     Relations     `json:"relations"`
 	State         string        `json:"state"`
 	Obligations   []Obligation  `json:"obligations"`
 	Unknown       []UnknownSpan `json:"unknown"`
+	Exempt        []Exemption   `json:"exempt"`
 	Digest        string        `json:"digest"`
 
 	catalog *Catalog
@@ -62,15 +97,41 @@ type DiffOptions struct {
 	Manifest         string
 }
 
+// maxObligations is MaxObligations; tests lower it to reach the fan-out case.
+var maxObligations = MaxObligations
+
+// impactBudget is the impact relation's byte budget; zero reads it in full. Tests lower it to
+// reach the truncation case.
+var impactBudget = 0
+
+// reasonRank orders the reasons when one span carries several: the report keeps the first, so
+// every span has exactly one reason (CCE-V0-020).
+var reasonRank = map[string]int{ReasonRemovedAtHead: 0, ReasonImpactTruncated: 1, ReasonFanOutOverLimit: 2, ReasonMapUnknown: 3,
+	ReasonScreenWithoutOutcome: 4, ReasonUnplacedPath: 5, ReasonBlocksNotDeclared: 6}
+
 // BuildObligations joins the base..head diff to outcomes through the AMAP/ANL impact relation and
 // the head map's flows (CCE-V0-004). A changed screen reaches each declared outcome that a flow
 // step on that screen, or any later step of the same flow, expects; the chain is the changed paths,
 // the screen and its basis, the nearest step on that screen, the expecting step when it differs,
-// and the outcome. Any changed path impact neither places on a screen nor lists as unknown (impact
-// counts unplaced non-UI paths as ignored without per-path evidence) is unknown with the reason
-// `unplaced-path`. Any unknown path reads UNKNOWN overall with its head-side spans, and never NONE.
-// A diff that reaches no screen and leaves nothing unknown reads NONE.
+// and the outcome. Reach that cannot be bounded is UNKNOWN with one CCE-V0-020 reason per span
+// (CCE-V0-019): a changed path impact neither places on a screen nor exempts (`unplaced-path`,
+// the impact reason as detail when impact listed it unknown); a reached screen no flow step
+// expecting an outcome follows (`screen-without-outcome`); a map unknown on a reached screen, in
+// a changed file or in a flow through a reached screen, and every map unknown when the report
+// would otherwise read NONE (`map-unknown`); any impact omission, which makes every changed path
+// unbounded (`impact-truncated`); a screen, flow or outcome of the base map absent from the head
+// map (`removed-at-head`); and the obligations past the limit (`fan-out-over-limit`). A changed
+// path impact places on no screen is exempt only by a `reach_exempt` glob read at base, and the
+// report cites it. NONE is read only when nothing is reached and nothing is unknown.
 func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) {
+	if o.Root == "" {
+		return nil, errNoRoot
+	}
+	root, err := resolveExisting(o.Root)
+	if err != nil {
+		return nil, err
+	}
+	o.Root = root
 	cat, err := BuildCatalog(ctx, CatalogOptions{Root: o.Root, Rev: o.Head, Manifest: o.Manifest})
 	if err != nil {
 		return nil, err
@@ -79,7 +140,8 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err != nil {
 		return nil, err
 	}
-	raw, err := appmap.Impact(ctx, cat.m, nil, base, appmap.Options{Root: o.Root, Revision: cat.Revision, Full: true})
+	opts := appmap.Options{Root: o.Root, Revision: cat.Revision, Full: impactBudget == 0, Budget: impactBudget}
+	raw, err := appmap.Impact(ctx, cat.m, nil, base, opts)
 	if err != nil {
 		return nil, refuse("e2e-impact-unavailable", "%v", err)
 	}
@@ -87,38 +149,80 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err := json.Unmarshal(raw, &impact); err != nil {
 		return nil, refuse("e2e-impact-unavailable", "%v", err)
 	}
-	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
-		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, catalog: cat}
-	unknown := append([]appmap.ImpactUnknown(nil), impact.Unknown...)
-	accounted := map[string]bool{}
-	for _, u := range impact.Unknown {
-		accounted[u.Path] = true
-	}
-	for _, hit := range impact.Screens {
-		for _, p := range hit.Paths {
-			accounted[p] = true
-		}
-	}
-	changed, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
+	exemptions, err := readReachExempt(ctx, o.Root, base)
 	if err != nil {
 		return nil, err
 	}
-	for _, p := range strings.Split(string(changed), "\x00") {
-		if p != "" && !accounted[p] {
-			unknown = append(unknown, appmap.ImpactUnknown{Path: p, Reason: "unplaced-path"})
+	removed, err := removedAtHead(ctx, o.Root, base, o.Manifest, cat.m)
+	if err != nil {
+		return nil, err
+	}
+	r := &Obligations{Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
+		Relations: Relations{Consulted: []string{"amap-impact", "amap-map:base", "amap-map:head", "e2e-blocks:reach_exempt@base"},
+			NotConsulted: []string{"affected-plan", "anl-edge-ledger"}},
+		Obligations: []Obligation{}, Unknown: []UnknownSpan{}, Exempt: []Exemption{}, catalog: cat}
+	changedRaw, err := git(ctx, o.Root, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", base, cat.Revision, "--")
+	if err != nil {
+		return nil, err
+	}
+	var changed []string
+	changedSet := map[string]bool{}
+	for _, p := range strings.Split(string(changedRaw), "\x00") {
+		if p != "" {
+			changed = append(changed, p)
+			changedSet[p] = true
 		}
 	}
-	for _, u := range unknown {
-		spans, err := headSpans(ctx, o.Root, base, cat.Revision, u.Path)
-		if err != nil {
-			return nil, err
-		}
-		for _, s := range spans {
-			r.Unknown = append(r.Unknown, UnknownSpan{Span: s, Reason: u.Reason})
+	var pending []pathUnknown // path-level unknowns, expanded to head-side spans below
+	var lined []UnknownSpan   // unknowns already located by line
+	omitted := 0
+	for _, n := range impact.Omitted {
+		omitted += n
+	}
+	placed := map[string]bool{}
+	for _, hit := range impact.Screens {
+		for _, p := range hit.Paths {
+			placed[p] = true
 		}
 	}
+	removedPaths := map[string]bool{}
+	for _, rm := range removed {
+		pending = append(pending, pathUnknown{rm.path, ReasonRemovedAtHead, rm.entity})
+		removedPaths[rm.path] = true
+	}
+	if omitted != 0 {
+		keys := make([]string, 0, len(impact.Omitted))
+		for k, n := range impact.Omitted {
+			if n != 0 {
+				keys = append(keys, k+"="+strconv.Itoa(n))
+			}
+		}
+		sort.Strings(keys)
+		for _, p := range changed {
+			pending = append(pending, pathUnknown{p, ReasonImpactTruncated, "impact omitted " + strings.Join(keys, ",")})
+		}
+	}
+	impactWhy := map[string]string{}
+	for _, u := range impact.Unknown {
+		impactWhy[u.Path] = u.Reason
+	}
+	for _, p := range changed {
+		if placed[p] || omitted != 0 {
+			continue
+		}
+		if g, ok := exemptGlob(exemptions, p); ok {
+			r.Exempt = append(r.Exempt, Exemption{Path: p, Glob: g.Glob, Reason: g.Reason})
+			continue
+		}
+		if removedPaths[p] && impactWhy[p] == "" {
+			continue
+		}
+		pending = append(pending, pathUnknown{p, ReasonUnplacedPath, impactWhy[p]})
+	}
+	reached := map[string]bool{}
 	byID := map[string]int{}
 	for _, hit := range impact.Screens {
+		reached[hit.ID] = true
 		var spans []Span
 		for _, p := range hit.Paths {
 			ss, err := headSpans(ctx, o.Root, base, cat.Revision, p)
@@ -127,6 +231,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 			}
 			spans = append(spans, ss...)
 		}
+		reaches := false
 		for _, f := range cat.m.Flows {
 			onScreen := "" // the nearest step so far on the changed screen; later steps' outcomes are at risk too
 			for _, st := range f.Steps {
@@ -141,6 +246,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 					chain = append(chain, st.ID)
 				}
 				for _, oc := range cat.expects[st.ID] {
+					reaches = true
 					id := "obligation:" + f.FlowID + "/" + oc
 					if i, ok := byID[id]; ok {
 						r.Obligations[i].Spans = append(r.Obligations[i].Spans, spans...)
@@ -153,11 +259,52 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 				}
 			}
 		}
+		if !reaches {
+			for _, s := range spans {
+				lined = append(lined, UnknownSpan{Span: s, Reason: ReasonScreenWithoutOutcome, Detail: hit.ID})
+			}
+		}
 	}
 	for i := range r.Obligations {
 		r.Obligations[i].Spans = uniqueSpans(r.Obligations[i].Spans)
 	}
 	sort.Slice(r.Obligations, func(i, j int) bool { return r.Obligations[i].ID < r.Obligations[j].ID })
+	if len(r.Obligations) > maxObligations {
+		for _, ob := range r.Obligations[maxObligations:] {
+			for _, s := range ob.Spans {
+				lined = append(lined, UnknownSpan{Span: s, Reason: ReasonFanOutOverLimit, Detail: ob.ID})
+			}
+		}
+		r.Obligations = r.Obligations[:maxObligations]
+	}
+	for _, p := range pending {
+		spans, err := headSpans(ctx, o.Root, base, cat.Revision, p.path)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range spans {
+			lined = append(lined, UnknownSpan{Span: s, Reason: p.reason, Detail: p.detail})
+		}
+	}
+	otherwiseNone := len(r.Obligations) == 0 && len(lined) == 0
+	through := flowsThrough(cat.m, reached)
+	manifest := cat.m.Manifest.Path
+	for _, u := range cat.m.Unknowns {
+		if !otherwiseNone && !reached[u.Ref] && !changedSet[u.Path] && !through[stepFlow(u)] {
+			continue
+		}
+		s := Span{Path: u.Path, Start: u.Line, End: u.Line}
+		if u.Path == "" {
+			s = Span{Path: manifest}
+		}
+		lined = append(lined, UnknownSpan{Span: s, Reason: ReasonMapUnknown, Detail: u.Kind + " " + u.Ref + ": " + u.Reason})
+	}
+	r.Unknown = oneReasonPerSpan(lined)
+	for _, u := range r.Unknown {
+		if _, ok := reasonRank[u.Reason]; !ok {
+			return nil, fmt.Errorf("changee2e: unlisted unknown reason %q", u.Reason)
+		}
+	}
 	switch {
 	case len(r.Unknown) != 0:
 		r.State = Unknown
@@ -166,11 +313,122 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	default:
 		r.State = None
 	}
-	if len(r.Obligations) > MaxObligations {
-		return nil, refuse("e2e-obligations-over-limit", "%d obligations exceed %d", len(r.Obligations), MaxObligations)
-	}
 	r.encoded, err = seal(r, &r.Digest)
 	return r, err
+}
+
+type pathUnknown struct{ path, reason, detail string }
+
+type removal struct{ path, entity string }
+
+// removedAtHead joins the base map: each screen, flow and outcome present at base and absent at head
+// is a removal located at its base anchor path (CCE-V0-019). A manifest absent at base has nothing
+// to remove; a base map that does not build refuses `e2e-map-unavailable`.
+func removedAtHead(ctx context.Context, root, base, manifest string, head *appmap.Map) ([]removal, error) {
+	if manifest == "" {
+		manifest = "appmap.json"
+	}
+	if _, _, ok, err := blobAt(ctx, root, base, manifest); err != nil || !ok {
+		return nil, err
+	}
+	bm, err := appmap.Build(ctx, root, manifest, base)
+	if err != nil {
+		return nil, refuse("e2e-map-unavailable", "base: %v", err)
+	}
+	have := map[string]bool{}
+	for _, s := range head.Screens {
+		have[s.ID] = true
+	}
+	for _, f := range head.Flows {
+		have["flow:"+f.FlowID] = true
+		for _, oc := range f.Outcomes {
+			have["outcome:"+f.FlowID+"/"+oc.ID] = true
+		}
+	}
+	var out []removal
+	for _, s := range bm.Screens {
+		if !have[s.ID] {
+			out = append(out, removal{s.Anchor.Path, s.ID})
+		}
+	}
+	for _, f := range bm.Flows {
+		if !have["flow:"+f.FlowID] {
+			out = append(out, removal{f.Anchor.Path, "flow:" + f.FlowID})
+			continue
+		}
+		for _, oc := range f.Outcomes {
+			if id := "outcome:" + f.FlowID + "/" + oc.ID; !have[id] {
+				out = append(out, removal{f.Anchor.Path, id})
+			}
+		}
+	}
+	return out, nil
+}
+
+// readReachExempt reads the `reach_exempt` member of the declarations file at base, so a diff
+// cannot exempt itself (CCE-V0-020). A missing file exempts nothing.
+func readReachExempt(ctx context.Context, root, base string) ([]ReachExemption, error) {
+	data, _, ok, err := blobAt(ctx, root, base, DeclarationsPath)
+	if err != nil || !ok {
+		return nil, err
+	}
+	d, err := decodeDeclarations(data)
+	if err != nil {
+		return nil, err
+	}
+	return d.ReachExempt, nil
+}
+
+func exemptGlob(list []ReachExemption, p string) (ReachExemption, bool) {
+	for _, e := range list {
+		if ok, _ := path.Match(e.Glob, p); ok {
+			return e, true
+		}
+	}
+	return ReachExemption{}, false
+}
+
+// flowsThrough names each flow with a step on a reached screen.
+func flowsThrough(m *appmap.Map, reached map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, f := range m.Flows {
+		for _, st := range f.Steps {
+			if reached[st.Screen] {
+				out[f.FlowID] = true
+			}
+		}
+	}
+	return out
+}
+
+// stepFlow returns the flow ID of a step unknown (`step:<flow>/<step>`), or "".
+func stepFlow(u appmap.Unknown) string {
+	if u.Kind != "step" || !strings.HasPrefix(u.Ref, "step:") {
+		return ""
+	}
+	flow, _, _ := strings.Cut(strings.TrimPrefix(u.Ref, "step:"), "/")
+	return flow
+}
+
+// oneReasonPerSpan sorts the unknown spans and keeps, for each span, the highest-ranked reason.
+func oneReasonPerSpan(in []UnknownSpan) []UnknownSpan {
+	sort.SliceStable(in, func(i, j int) bool {
+		a, b := in[i].Span, in[j].Span
+		if a != b {
+			return a.Path < b.Path || (a.Path == b.Path && (a.Start < b.Start || (a.Start == b.Start && a.End < b.End)))
+		}
+		if ra, rb := reasonRank[in[i].Reason], reasonRank[in[j].Reason]; ra != rb {
+			return ra < rb
+		}
+		return in[i].Detail < in[j].Detail
+	})
+	out := []UnknownSpan{}
+	for i, u := range in {
+		if i == 0 || u.Span != in[i-1].Span {
+			out = append(out, u)
+		}
+	}
+	return out
 }
 
 var hunkHeader = regexp.MustCompile(`^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@`)

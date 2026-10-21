@@ -335,6 +335,13 @@ type repositoryObservation struct {
 // still reported in the oracle's order — identity first — so a failing probe
 // reports the same typed error it always did.
 func observeRepository(ctx context.Context, run gitRunner, root string) (repositoryObservation, error) {
+	return observeRepositoryNotifying(ctx, run, root, nil)
+}
+
+// observeRepositoryNotifying is observeRepository that hands a valid identity to
+// onIdentity as soon as the identity read returns, while the status read may still
+// be running. onIdentity runs on the observing goroutine and must not block.
+func observeRepositoryNotifying(ctx context.Context, run gitRunner, root string, onIdentity func(objectFormat, commitRevision, treeRevision string)) (repositoryObservation, error) {
 	var dirty []string
 	var statusRaw []byte
 	var dirtyErr error
@@ -345,6 +352,9 @@ func observeRepository(ctx context.Context, run gitRunner, root string) (reposit
 		dirty, statusRaw, dirtyErr = dirtyPaths(ctx, run, root)
 	}()
 	identity, identityErr := repositoryIdentity(ctx, run, root)
+	if identityErr == nil && onIdentity != nil {
+		onIdentity(identity[0], identity[1], identity[2])
+	}
 	pending.Wait()
 	if identityErr != nil {
 		return repositoryObservation{}, identityErr
@@ -467,13 +477,26 @@ var ErrRepositoryDrift = newError("repository-state-drift", "repository state ch
 // probe, so error precedence is unchanged; the drift comparison is identity
 // plus the dirty-path set, the comparison ProbeRepositoryContext makes.
 func ProbeRepositoryAround(parent context.Context, root string, read func(context.Context, Observation) error) (Repository, error) {
-	return probeRepositoryAround(parent, root, git, read)
+	return probeRepositoryAround(parent, root, git, nil, read)
 }
 
-func probeRepositoryAround(parent context.Context, root string, run gitRunner, read func(context.Context, Observation) error) (Repository, error) {
+// ProbeRepositoryAroundPrefetching is ProbeRepositoryAround that also hands the
+// opening observation's identity to prefetch the moment its identity read returns,
+// while that observation's status read is still running (proposed LCP-V0-033;
+// V1-1524, V1-2144). The bracket spawns exactly the Git processes
+// ProbeRepositoryAround spawns: prefetch receives the identity the bracket already
+// read and nothing else, the closing observation never calls it, and a failed
+// identity read never does. prefetch runs on the observing goroutine and must not
+// block; a caller starts its own goroutine and consumes the result in its read,
+// against the complete opening observation.
+func ProbeRepositoryAroundPrefetching(parent context.Context, root string, prefetch func(objectFormat, commitRevision, treeRevision string), read func(context.Context, Observation) error) (Repository, error) {
+	return probeRepositoryAround(parent, root, git, prefetch, read)
+}
+
+func probeRepositoryAround(parent context.Context, root string, run gitRunner, prefetch func(objectFormat, commitRevision, treeRevision string), read func(context.Context, Observation) error) (Repository, error) {
 	ctx, cancel := context.WithTimeout(parent, probeBound(parent))
 	defer cancel()
-	before, err := observeRepository(ctx, run, root)
+	before, err := observeRepositoryNotifying(ctx, run, root, prefetch)
 	if err != nil {
 		return Repository{}, err
 	}

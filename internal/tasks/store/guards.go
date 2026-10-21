@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
 	"os"
@@ -70,6 +71,11 @@ func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, er
 		if _, err := os.Lstat(marker); !errors.Is(err, fs.ErrNotExist) {
 			return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "interrupted retire marker present or unobservable; run `receipt retire` or `receipt unretire` to finish it")
 		}
+	}
+	// A seal a stop interrupted is finished or undone before anything else
+	// reads the journal (JSG-V0-008).
+	if err := settleSegmentSeal(repo); err != nil {
+		return nil, err
 	}
 	version, err := intent.ReadFile(filepath.Join(repo.StateDir, "VERSION"), 4096)
 	if err != nil {
@@ -176,6 +182,73 @@ func observedSnapshot(repo *intent.Repository) (journal.Identity, error) {
 // sameSnapshot compares the members observedSnapshot reads.
 func sameSnapshot(a, b journal.Identity) bool {
 	return a.HeadSha256 == b.HeadSha256 && a.IntentTreeSha256 == b.IntentTreeSha256
+}
+
+// bindLiveness is bindObservation for a HEARTBEAT or RENEW (JSG-V0-001):
+// head.json, the queue and policy files the model decoded, reservations.json
+// and every private file a plan replaces must be the bytes the audit
+// observed; a refusal plans nothing and binds the rest. No ticket, release or intent tree digest is read or bound.
+func bindLiveness(repo *intent.Repository, w *writerObservation, plan *transaction.Plan, operation string) error {
+	moved := func(p string) error {
+		return wire.Errorf(wire.CodeSnapshotMoved, p, "validated liveness input changed")
+	}
+	head, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), 4096)
+	if err != nil {
+		return err
+	}
+	if wire.Sum(head) != w.proof.Identity.HeadSha256 {
+		return moved("head.json")
+	}
+	for _, name := range []string{intent.QueueFile, intent.PolicyFile} {
+		bound, _ := intent.BoundFor(name)
+		raw, err := intent.ReadFile(filepath.Join(repo.IntentRoot(), intent.Dir, name), bound)
+		if err != nil {
+			return err
+		}
+		record, ok := w.proof.Records["intent/"+name]
+		if !ok || record.Sha256 == nil || wire.Sum(raw) != *record.Sha256 {
+			return moved("intent/" + name)
+		}
+	}
+	reservations, err := optional(filepath.Join(repo.StateDir, "reservations.json"), wire.MaxReservationSetBytes)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(reservations, w.reservations) || (reservations == nil) != (w.reservations == nil) {
+		return moved("reservations.json")
+	}
+	// The model read pools.json and programs.json whole and the attempts
+	// its plan rewrites; each is bound to the bytes the model read.
+	private := []string{"pools.json", "programs.json"}
+	if plan != nil {
+		for _, artifact := range plan.Artifacts() {
+			if strings.HasPrefix(artifact.Target, "attempts/") {
+				private = append(private, artifact.Target)
+			}
+		}
+	}
+	for _, p := range private {
+		bound, err := snapshot.PostBound(p)
+		if err != nil {
+			return err
+		}
+		raw, err := optional(filepath.Join(repo.StateDir, filepath.FromSlash(p)), bound)
+		if err != nil {
+			return err
+		}
+		record, observed := w.proof.Records[p]
+		if !observed || record.Sha256 == nil {
+			if raw != nil {
+				return moved(p)
+			}
+			continue
+		}
+		if raw == nil || wire.Sum(raw) != *record.Sha256 {
+			return moved(p)
+		}
+	}
+	_, err = writerGuards(repo, operation)
+	return err
 }
 
 func guardFailure(report *Report, requestID string, err error) (*Report, error) {

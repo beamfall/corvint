@@ -701,6 +701,18 @@ func (c *change) guardingTestsStep() {
 	}
 }
 
+// GuardingTestHunksFile counts, with the same read bound and rule as the
+// dogfood change row, the hunks of the map at path that the guarding-test
+// search would select, so the staged bind path reports the same NOTE
+// (DOGFOOD-BIND-008). A map that cannot be decoded counts 0.
+func GuardingTestHunksFile(path string) (int, error) {
+	data, err := readPrefix(path, maxPlanBytes)
+	if err != nil {
+		return 0, err
+	}
+	return guardingTestHunks(data), nil
+}
+
 const (
 	guardingTestsStepName = "guarding-tests"
 	guardingTestsNotRun   = "guarding-tests-not-run"

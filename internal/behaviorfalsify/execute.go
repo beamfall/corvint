@@ -414,20 +414,33 @@ func runPinned(ctx context.Context, command Command, dir string, keys []string, 
 	if err := validateCommand(command); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
+	staged, cleanup, err := stageVerified(command)
+	if err != nil {
+		return nil, ProcessEvidence{Error: err.Error()}
+	}
+	defer cleanup()
+	return observeProcess(ctx, []string{staged}, dir, commandEnvironment(dir, keys, role), input, timeout, outputLimit)
+}
+
+// stageVerified reads the command once, checks those bytes against its pinned digest and writes
+// exactly them to a private directory, so a replacement of the original after the check cannot
+// run (BBF-V0-214). The caller runs the staged path and then calls cleanup.
+func stageVerified(command Command) (string, func(), error) {
 	executable, err := os.ReadFile(command.Path)
 	if err != nil || digestBytes(executable) != command.ExecutableSHA256 {
-		return nil, ProcessEvidence{Error: "command changed before staging"}
+		return "", nil, errors.New("command changed before staging")
 	}
 	scratch, err := os.MkdirTemp("", "corvint-behavior-control-")
 	if err != nil {
-		return nil, ProcessEvidence{Error: "command staging unavailable"}
+		return "", nil, errors.New("command staging unavailable")
 	}
-	defer os.RemoveAll(scratch)
-	staged := filepath.Join(scratch, "command")
+	cleanup := func() { os.RemoveAll(scratch) }
+	staged := filepath.Join(scratch, filepath.Base(command.Path))
 	if err := os.WriteFile(staged, executable, 0700); err != nil {
-		return nil, ProcessEvidence{Error: "command staging failed"}
+		cleanup()
+		return "", nil, errors.New("command staging failed")
 	}
-	return observeProcess(ctx, []string{staged}, dir, commandEnvironment(dir, keys, role), input, timeout, outputLimit)
+	return staged, cleanup, nil
 }
 
 // observeProcess runs one contained process group and returns its stdout and bounded evidence.

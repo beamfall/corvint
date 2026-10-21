@@ -1127,6 +1127,13 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   Projection files never rank as results because the index never reads them. Rollback: restore
   the single path-then-reason order. Test:
   `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
+- `TCP-V0-141`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The packet
+  `revision` is the tree of the captured commit, so a worktree with uncommitted tracked or
+  untracked paths answers from committed bytes. When the index records a non-empty dirty set,
+  `coverage.uncertainty` gains one line giving the dirty-path count, the captured commit and its
+  tree, and stating that uncommitted edits are not evidence. A clean worktree's packet bytes are
+  unchanged. The line changes no ranking, result, state or schema version. Rollback: remove the
+  line. Test: `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree`.
 
 ## Non-goals and authority
 
@@ -1611,3 +1618,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
 | TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
 | TCP-V0-121 (accepted, standing auto-accept, V1-2131) | `taskContextExclusions` | `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps` |
+| TCP-V0-141 (accepted, standing auto-accept, V1-1285) | `worktreeCoverage` | `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree` |

@@ -173,6 +173,8 @@ type Receipt struct {
 	Infrastructure          *InfrastructureFailure           `json:"infrastructure,omitempty"`
 	Cancelled               bool                             `json:"cancelled"`
 	ServerDescendantsGone   *bool                            `json:"serverDescendantsGone,omitempty"`
+	// Bun is the bun runner profile member (LPCV-V0-256); absent for every other runner.
+	Bun *BunRun `json:"bun,omitempty"`
 }
 
 // ExecutionSchedule records reporter-observed starts, not the requested order.

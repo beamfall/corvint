@@ -24,6 +24,11 @@ export function toolObservations(metadata) {
  return input;
 }
 
+// AHI-071 (V1-2150): the host's schema conversion turns a null integer into 0, so a null or
+// missing result/evidence index is refused here, before conversion, instead of expanding row 0.
+const EXPANSION_INDEXES=['result','evidence'];
+export const missingExpansionIndex=args=>!args||typeof args!=='object'||Array.isArray(args)||EXPANSION_INDEXES.some(key=>args[key]===undefined||args[key]===null);
+
 export function registerTools(pi,{runner,version,notice,identity=workflowIdentity}) {
  const packets=new Map();let next=0,generation=0;
  const clear=()=>{generation++;packets.clear()};
@@ -61,6 +66,7 @@ export function registerTools(pi,{runner,version,notice,identity=workflowIdentit
   return {content:[{type:'text',text:`Expansion handle: ${handle}\nEvidence handle: ${result.packet.evidenceHandle}\n${result.context}`}],details:{handle,corvint:{observedEvidenceHandles:[result.packet.evidenceHandle]}}};
  }
  async function expand(args,signal,ctx) {
+  if(missingExpansionIndex(args))return failure('invalid-expansion-index');
   const {handle,...selection}=args;
   const packet=packets.get(handle);
   if(!packet)return failure('stale-context');
@@ -79,7 +85,8 @@ export function registerTools(pi,{runner,version,notice,identity=workflowIdentit
   ['corvint_record_outcome','Record explicit outcome','Explicitly persist a caller-reported local outcome at a clean revision through Corvint record. Requires user-directed learning; task and verification text are secret-screened by the core. This does not verify correctness or grant authority.',object({task:{...string,minLength:1,maxLength:2000},openedPaths:strings,changedPaths:{...strings,minItems:1},verification:{...strings,minItems:1},outcome:{type:'string',enum:['passed','failed','blocked']}},['task','changedPaths','verification','outcome']),record],
  ];
  for(const [name,label,description,parameters,handler] of definitions) {
-  pi.registerTool({name,label,description,parameters,promptSnippet:description,execute:async(_id,args,signal,_update,ctx)=>{const result=await handler(args,signal,ctx);if(result.isError)throw Error(result.content[0].text);return result;}});
+  const prepareArguments=name==='corvint_expand'?args=>{if(missingExpansionIndex(args))throw Error(failure('invalid-expansion-index').content[0].text);return args;}:undefined;
+  pi.registerTool({name,label,description,parameters,promptSnippet:description,...(prepareArguments&&{prepareArguments}),execute:async(_id,args,signal,_update,ctx)=>{const result=await handler(args,signal,ctx);if(result.isError)throw Error(result.content[0].text);return result;}});
  }
  pi.registerCommand('corvint-record',{description:'Explicitly persist an outcome JSON through Corvint record',handler:async(text,ctx)=>{
   let input;try{if(Buffer.byteLength(text)>131072)throw Error('bound');input=decodeObject(text)}catch{notice(ctx,'invalid-input');return;}

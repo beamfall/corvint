@@ -35,15 +35,17 @@ type RouteStubRecord struct {
 
 // RouteStub is one registered route pattern, how often its handler ran in the attempt and where
 // it was registered. API is omitted for a plain route registration. File and Line are both omitted
-// when the producer could not resolve the call.
+// when the producer could not resolve the call. Unrouted is set when the test removed the stub with
+// unroute or unrouteAll, and is otherwise omitted (LPCV-V0-214).
 type RouteStub struct {
-	Target  string `json:"target"`
-	API     string `json:"api,omitempty"`
-	Kind    string `json:"kind"`
-	Pattern string `json:"pattern"`
-	Hits    int    `json:"hits"`
-	File    string `json:"file,omitempty"`
-	Line    int    `json:"line,omitempty"`
+	Target   string `json:"target"`
+	API      string `json:"api,omitempty"`
+	Kind     string `json:"kind"`
+	Pattern  string `json:"pattern"`
+	Hits     int    `json:"hits"`
+	File     string `json:"file,omitempty"`
+	Line     int    `json:"line,omitempty"`
+	Unrouted bool   `json:"unrouted,omitempty"`
 }
 
 var (
@@ -109,13 +111,14 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 	}
 	var wire struct {
 		Stubs []struct {
-			Target  string          `json:"target"`
-			API     json.RawMessage `json:"api"`
-			Kind    string          `json:"kind"`
-			Pattern string          `json:"pattern"`
-			Hits    *int            `json:"hits"`
-			File    string          `json:"file"`
-			Line    int             `json:"line"`
+			Target   string          `json:"target"`
+			API      json.RawMessage `json:"api"`
+			Kind     string          `json:"kind"`
+			Pattern  string          `json:"pattern"`
+			Hits     *int            `json:"hits"`
+			File     string          `json:"file"`
+			Line     int             `json:"line"`
+			Unrouted json.RawMessage `json:"unrouted"`
 		} `json:"stubs"`
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -139,7 +142,12 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 				return errors.New("route stub names no api")
 			}
 		}
-		record.Stubs[i] = RouteStub{Target: stub.Target, API: api, Kind: stub.Kind, Pattern: stub.Pattern, Hits: *stub.Hits, File: stub.File, Line: stub.Line}
+		// A present unrouted member is exactly true: false, null or any other value is refused, so
+		// the member has one spelling (LPCV-V0-214).
+		if stub.Unrouted != nil && string(stub.Unrouted) != "true" {
+			return errors.New("route stub unrouted member is not true")
+		}
+		record.Stubs[i] = RouteStub{Target: stub.Target, API: api, Kind: stub.Kind, Pattern: stub.Pattern, Hits: *stub.Hits, File: stub.File, Line: stub.Line, Unrouted: stub.Unrouted != nil}
 	}
 	*r = record
 	return nil
@@ -147,7 +155,7 @@ func (r *RouteStubRecord) UnmarshalJSON(data []byte) error {
 
 // routeStubMembers are the exact member names of a record. encoding/json matches names without
 // regard to case, so a case variant such as "API" would otherwise overwrite a refused "api".
-var routeStubMembers = map[string]bool{"stubs": true, "target": true, "api": true, "kind": true, "pattern": true, "hits": true, "file": true, "line": true}
+var routeStubMembers = map[string]bool{"stubs": true, "target": true, "api": true, "kind": true, "pattern": true, "hits": true, "file": true, "line": true, "unrouted": true}
 
 // irregularJSONMember reports whether any object in data names a member twice or by a name that is
 // not exactly a route-stub record member, or data is not one well-formed JSON value.

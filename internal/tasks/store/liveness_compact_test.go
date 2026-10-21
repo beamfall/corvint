@@ -494,7 +494,7 @@ func TestCALV0300_UnsupersededTombstoneRefused(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(s.repo.StateDir, "receipts", latestName), tomb, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []string{journal.CheckpointPath(s.repo.StateDir), journal.WriterCheckpointPath(s.repo.StateDir)} {
+	for _, p := range []string{journal.CheckpointPath(s.repo.StateDir), journal.WriterCheckpointPath(s.repo.StateDir), journal.WriterBasePath(s.repo.StateDir)} {
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
 		}
