@@ -536,7 +536,7 @@ func (c leaseContext) completed(a *snapshot.Attempt, rec *ticket.Record, passed 
 	for _, d := range passed {
 		evidence = append(evidence, wire.Digest(d))
 	}
-	ctx := mutation.Context{Binding: c.r.Actor, Queue: c.st.queue, Policy: c.st.policy, Inventory: c.st.tickets, Attempts: entryOracle{c.st.reservations}, Requests: absentIndex{}, Now: c.in.RecordedAt}
+	ctx := mutation.Context{Binding: c.r.Actor, Queue: c.st.queue, Policy: c.st.policy, Inventory: c.st.tickets, Attempts: c.oracle(), Requests: absentIndex{}, Now: c.in.RecordedAt}
 	post, e := mutation.CompleteVerified(ctx, rec, evidence, digest)
 	if e != nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeOf(e), e.Error())

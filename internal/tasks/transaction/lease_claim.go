@@ -146,7 +146,7 @@ func (c leaseContext) liveOn(ticketID string) string {
 // live-attempt blocker, which the claim decides after reaping.
 func (c leaseContext) eligibility(id string) *leaseOutcome {
 	rec, _ := c.st.tickets.Get(id)
-	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{c.st.reservations}, Stage: c.l.Stage, Loop: LoopHoldOf(c.st.attempts, rec, c.st.policy)})
+	v, _ := c.st.tickets.View(id, ticket.Context{CanonicalWriter: c.st.queue.CanonicalWriter, SerialFallback: c.st.policy.SerialFallback, Attempts: entryOracle{set: c.st.reservations}, Stage: c.l.Stage, Loop: LoopHoldOf(c.st.attempts, rec, c.st.policy)})
 	skip := map[string]bool{wire.CodeCoverageUnknown: true, wire.CodeAttemptLive: true}
 	for _, b := range append(v.Blockers, v.Unknowns...) {
 		if !skip[b.Code] {
@@ -418,7 +418,7 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 		}
 	}
 	if other := c.collision(sc.Resources, ""); other != "" {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live attempt "+other)
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live "+c.collisionDetail(other, sc.Resources))
 	}
 	if int64(len(c.st.reservations.Entries)) >= c.st.policy.MaxActiveAttempts.Int() {
 		return c.refuse(mutation.OutcomeCapacityExhausted, wire.CodeLimitExceeded, "maxActiveAttempts "+string(c.st.policy.MaxActiveAttempts)+" attempts are live")
@@ -504,7 +504,7 @@ func planWiden(c leaseContext) leaseOutcome {
 		return c.fail(limit("widened scope exceeds " + string(wire.CountOf(snapshot.MaxScopeResources)) + " resources"))
 	}
 	if other := c.collision(pathResources(added), a.AttemptID); other != "" {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "added paths collide with live attempt "+other)
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "added paths collide with live "+c.collisionDetail(other, pathResources(added)))
 	}
 	resources := append(append([]ticket.Resource{}, a.Scope.Resources...), pathResources(added)...)
 	return c.rescope(a, &snapshot.Scope{Source: a.Scope.Source, Resources: resources, DerivationSha256: a.Scope.DerivationSha256})
@@ -513,7 +513,7 @@ func planWiden(c leaseContext) leaseOutcome {
 func (c leaseContext) widenWhole(a *snapshot.Attempt) leaseOutcome {
 	for _, en := range c.st.reservations.Entries {
 		if en.AttemptID != a.AttemptID {
-			return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "WHOLE_REPOSITORY collides with live attempt "+en.AttemptID)
+			return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "WHOLE_REPOSITORY collides with live "+c.collisionDetail(en.AttemptID, wholeRepository))
 		}
 	}
 	return c.rescope(a, &snapshot.Scope{Source: "WHOLE_REPOSITORY", Resources: wholeRepository})

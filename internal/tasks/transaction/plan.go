@@ -351,7 +351,7 @@ func ClaimBlockerObservations(in PlanInput, rec *ticket.Record) []ObservedBlocke
 	}
 	ctx := ticket.Context{CanonicalWriter: in.Queue.CanonicalWriter, SerialFallback: in.Policy.SerialFallback, Stage: in.Stage, Loop: LoopHoldOf(in.Attempts, rec, in.Policy)}
 	if in.Reservations != nil {
-		ctx.Attempts = entryOracle{in.Reservations}
+		ctx.Attempts = entryOracle{set: in.Reservations}
 	}
 	v, _ := in.Tickets.View(rec.TicketID.Raw, ctx)
 	for _, b := range v.Blockers {
