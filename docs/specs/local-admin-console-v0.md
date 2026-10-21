@@ -257,18 +257,19 @@ the Agent digest states the current experimental S1/S2/S3 scope.
 - `LAC-V0-035`: An edge the artifacts do not establish MUST render as a gap row with its class and
   reason, never as a link and never omitted:
   - `missing`: no bound OCM map, an identifier with no target, or an unreadable object, commit or file;
-  - `stale`: a map naming the change with another digest, a span whose bytes no longer match its
-    digest, an intent scope that no longer defines the obligation, a trace row naming another
-    revision, or a sealed name its bind commit does not confirm;
+  - `stale`: a map naming the change with another digest, a map whose `cem.mapSha256` is the sealed
+    map's digest but whose `targetRevision` names another revision, a span whose bytes no longer
+    match its digest, an intent scope that no longer defines the obligation, a trace row naming
+    another revision, or a sealed name its bind commit does not confirm;
   - `ambiguous`: two or more evidence entries, claims, obligations or trace rows answering one
     identifier or revision, all shown and none chosen;
   - `unverified`: no recorded verification result names the change;
   - `unsupported`: a hunk the map marks `unknown` or `mechanical`, an obligation that lists no hunk or
-    claim, an unknown CEM or OCM profile, or a trace row that is not `schema_version` 1.
-  - (proposed 2026-09-25, not accepted; V1-0151) two cases the classes above do not name: a map
-    whose `cem.mapSha256` is the sealed map's digest but whose `targetRevision` names another
-    revision is `stale`, and a hunk edge of an obligation whose disposition is not `linked` is
-    `unsupported`.
+    claim, a hunk edge of an obligation whose disposition is not `linked`, an unknown CEM or OCM
+    profile, or a trace row that is not `schema_version` 1. (The digest-match/revision-mismatch
+    `stale` case and the non-linked disposition case were folded in 2026-10-20 under the lane
+    auto-accept, V1-0151, matching `ocmBinding` and `obligationHunkGap` in
+    `internal/console/chain.go`.)
 - `LAC-V0-036`: The pane MUST be reachable from the primary navigation and operable by keyboard with
   plain links only (LAC-V0-029's matrix). Change and hunk links MUST carry the page's commit and render
   nothing when it moved (LAC-V0-030's pin rule). Hunk detail MUST show the hunk's lines read at the

@@ -107,6 +107,7 @@ AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decisio
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
+AHI-070	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The gene	standing	2026-10-11; V1-2062
 AHI-033	docs/specs/agent-harness-integration-v0.md	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”	unrecorded	-
 AHI-034	docs/specs/agent-harness-integration-v0.md	The owner-approved change cockpit (2026-09-28, “do it” after the change	unrecorded	-
 AHI-035	docs/specs/agent-harness-integration-v0.md	At the owner's request (2026-09-29), the OpenCode 2 terminal integration MUST	unrecorded	-
@@ -3964,6 +3965,7 @@ SOL-V0-010	docs/specs/self-observation-ledger-v0.md	The `codex` and `claude-code
 SOL-V0-011	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A `user-prompt` row whose receipt coverage carried a	unrecorded	-
 SOL-V0-012	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A degradation that an accepted decision fixes on eve	unrecorded	-
 SOL-V0-013	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) When retained adapter rows carry	unrecorded	-
+SOL-V0-030	docs/specs/self-observation-ledger-v0.md	(added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`	unrecorded	-
 SEG-001	docs/specs/semantic-escalation-gate-v0.md	Corvint MUST complete deterministic inventory, syntax extraction, exact joins,	unrecorded	-
 SEG-002	docs/specs/semantic-escalation-gate-v0.md	Every residual semantic gap MUST have a deterministic identity over repository	unrecorded	-
 SEG-003	docs/specs/semantic-escalation-gate-v0.md	Corvint MUST emit a route result for every eligible gap, including `NO_CALL`. St	unrecorded	-

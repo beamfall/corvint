@@ -106,7 +106,7 @@ independent verdict axes. Those are shipped and running in CI.
 still labels its delivery experimental and candidate-only
 (`docs/specs/change-frontier-v0.md:10-22@8addad40`). The missing integration is a qualified
 host closing decision: the harness `stop` event reports `frontier.state: UNAVAILABLE` and
-cannot continue or block the host (`docs/specs/agent-harness-integration-v0.md:69-71@3208c7de`).
+cannot continue or block the host (`docs/specs/agent-harness-integration-v0.md:70-72@3208c7de`).
 The implemented advisory queue does not supply that host authority.
 
 ## Staged adoption

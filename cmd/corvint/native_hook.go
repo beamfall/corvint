@@ -164,10 +164,14 @@ func normalizeNativeHook(raw []byte, qualified bool, handle string) (map[string]
 	switch event {
 	case "session-start":
 		if source, exists := value["source"]; exists {
-			if source != "startup" && source != "resume" && source != "clear" && source != "compact" {
+			// The qualified native-hook path shares the host adapters' source map, so a host
+			// "fork" (a resumed transcript under a new session id) is a resume (V1-0445).
+			text, ok := source.(string)
+			mapped, known := adapterStartSources[text]
+			if !ok || !known {
 				return nil, invalid
 			}
-			input["startSource"] = source
+			input["startSource"] = mapped
 		}
 	case "user-prompt":
 		task, ok := value["prompt"].(string)
