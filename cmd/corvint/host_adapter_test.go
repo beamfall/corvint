@@ -585,7 +585,7 @@ func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 		// remediation never asks the operator to touch it.
 		"A measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause.",
 		"read-only command outside the hook:\n" + string(status) + "\n",
-		"Waiting for load to drop clears it. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging.",
+		"If machine load caused the timeout, waiting for it to drop may help. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging.",
 	} {
 		if first != frame || !strings.Contains(text, want) {
 			t.Fatalf("deadline notice lacks %q after frame %q: %q", want, frame, text)

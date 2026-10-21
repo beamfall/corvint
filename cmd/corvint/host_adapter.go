@@ -849,7 +849,7 @@ func deadlineRemediation(root string) string {
 	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
 		"\nA measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause." +
 		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
-		"\nWaiting for load to drop clears it. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging."
+		"\nIf machine load caused the timeout, waiting for it to drop may help. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging."
 }
 
 // withDeadlineRemediation appends deadlineRemediation to every channel a Claude Code or Codex

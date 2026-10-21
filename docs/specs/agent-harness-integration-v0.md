@@ -607,7 +607,7 @@ separate exact extension tuple remains governed by AHI-024.
   replaces the earlier unmeasured "very large set of uncommitted or staged changes, or heavy machine
   load" wording), and give the read-only next step as the exact JSON argv
   `["git","-C",ROOT,"status","--short"]` for the adapter-resolved root, then say that waiting for
-  load to drop clears it, that files under `.taskman/` are written by the task store and must not be
+  load to drop may help if machine load caused the timeout, without promising recovery, that files under `.taskman/` are written by the task store and must not be
   committed, stashed or discarded for this, and that only a very long list of other changes is worth
   committing or unstaging. The hook MUST NOT run that command or claim a cause it did not observe;
   the reproduction's cause is named as a reproduction finding, not as this event's measurement. A root long enough that the encoded output

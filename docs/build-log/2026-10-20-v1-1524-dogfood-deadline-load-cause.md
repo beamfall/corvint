@@ -39,7 +39,8 @@ Keep failing open (`LCP-V0-008`, `AHI-021`). No change to the deadline, the prob
 AHI-055 notice no longer guesses "a very large set of uncommitted or staged changes, or heavy machine
 load" and no longer suggests committing or stashing: it names this reproduction's measured cause
 (load), says the store's `.taskman/` files were measured not to matter, and gives an operator
-remediation (wait for load to drop; do not commit, stash or discard `.taskman/` files) that never
+remediation (waiting for load to drop may help if load caused the timeout, with no promised recovery
+because this event was not measured; do not commit, stash or discard `.taskman/` files) that never
 touches store-owned files. It still says the notice did not measure the current event, as AHI-055
 forbids claiming an unobserved cause.
 
