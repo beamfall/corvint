@@ -137,9 +137,9 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   bounds, while their output stays unchanged (V1-0746). A Codex hook event the adapter does not
   handle stays `{}` and, once its absolute `cwd` lies inside a Git repository, is recorded as event
   `unrecognised` with code `unsupported-hook-event`; the host's event name is never recorded. A
-  Claude Code `post-tool` Edit, Write or NotebookEdit target outside the project stays silent
-  (`AHI-019`) and is recorded as `post-tool-path-not-project-relative`, without the path, unless
-  its `harness event` call failed, which records that degradation instead. OpenCode's
+  Claude Code `post-tool` Edit, Write or NotebookEdit target that is not project-relative stays
+  silent (`AHI-019`) and is recorded, without the path, as `SOL-V0-030` classifies it, unless its
+  `harness event` call failed, which records that degradation instead. OpenCode's
   `adapterCodes` is a sorted, duplicate-free list of one or both of `changed-paths-truncated` and
   `post-tool-path-not-project-relative`; any other value, host or event refuses the whole event as
   `invalid-harness-input` before anything is written. Core removes the field before input
@@ -181,6 +181,17 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   after the cut and unmeasured lines, where `rows` sums the retained adapter rows with that code
   across hosts and events and `latest` is their latest hour window. The line is a setup diagnosis
   read from rows already written; triage still writes nothing and never indexes.
+- `SOL-V0-030`: (added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`
+  Edit, Write or NotebookEdit target that `projectpath.Relative` does not admit: a target whose
+  cleaned path lies lexically outside both the project root and its resolved form is the exclusion
+  code `post-tool-path-outside-project`; a target lexically inside the root that still does not
+  resolve below it (for example through a symlink that escapes the root) keeps the degradation code
+  `post-tool-path-not-project-relative`. An in-project absolute target is relativized and accepted,
+  with no row. Triage MUST print each retained `adapter-degradation` key whose code is in the closed
+  exclusion set (`post-tool-path-outside-project`) as `ADAPTER-EXCLUSION windows=<n> key=<key>
+  latest=<window>` instead of `ADAPTER-DEGRADATION`: an out-of-project target is not a project
+  change, so its count is a correct exclusion and not a fault. The row shape and writer contract are
+  unchanged.
 
 ## Non-goals and authority
 
@@ -230,6 +241,7 @@ that OCM enumerates all thirteen clauses from this document; it does not validat
 | SOL-V0-011 | `TestAuthorityRateCountsOnlyMeasuredUserPromptRows`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` (V1-1977 external-adopter qualification: a Go module with `AGENTS.md` and accepted `docs/adr` decisions returns accepted-decision authority from a user-prompt hook event, records the measured count, and reports `zero-authoritative-rate=0/1`) |
 | SOL-V0-012 | `TestFixedFrontierDegradationIsReportedByDesign`; `TestRenderGoldenAndReadOnly`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` |
 | SOL-V0-013 | `TestSetupLineNamesSnapshotRefresh` |
+| SOL-V0-030 | `TestSOL030PostToolTargetAbstentionClasses` (outside absolute and relative targets are exclusions, in-project absolute and relative targets are accepted, a symlink-escaping in-project target stays a degradation); `TestSOL030OutOfProjectPostToolIsExclusion` (triage prints `ADAPTER-EXCLUSION` for the exclusion code and `ADAPTER-DEGRADATION` for the unresolvable code); `TestAdapterSilentAbstentionsAreLedgered` (the out-of-project Write records `post-tool-path-outside-project`) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's
@@ -239,4 +251,6 @@ repository evidence or authority depends on it. `SOL-V0-010` rolls back by remov
 since Core without it refuses the field as unknown input); retained `adapter-degradation` rows then age out under the cap,
 and triage ignores them once the reader is removed. `SOL-V0-011..013` roll back by reverting the
 `authorityCounted` marker and its reader, the by-design map, and `setupLines`; retained marked
-rows stay readable as plain rows.
+rows stay readable as plain rows. `SOL-V0-030` rolls back by recording
+`post-tool-path-not-project-relative` for every non-relative target again and removing the
+exclusion set; retained exclusion rows remain admitted and age out under the cap.

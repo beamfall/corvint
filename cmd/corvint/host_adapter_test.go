@@ -461,8 +461,40 @@ func TestAdapterSilentAbstentionsAreLedgered(t *testing.T) {
 		t.Fatalf("out-of-project post-tool output = %+v, want {}", output)
 	}
 	data, err = os.ReadFile(ledger)
-	if err != nil || bytes.Count(data, []byte("\n")) != 2 || !bytes.Contains(data, []byte(`"host":"claude-code","adapterCodes":["post-tool-path-not-project-relative"]`)) || !bytes.Contains(data, []byte(`"event":"post-tool"`)) || bytes.Contains(data, []byte("outside-secret")) {
+	if err != nil || bytes.Count(data, []byte("\n")) != 2 || !bytes.Contains(data, []byte(`"host":"claude-code","adapterCodes":["post-tool-path-outside-project"]`)) || !bytes.Contains(data, []byte(`"event":"post-tool"`)) || bytes.Contains(data, []byte("outside-secret")) {
 		t.Fatalf("out-of-project post-tool ledger=%s err=%v", data, err)
+	}
+}
+
+// SOL-V0-030 (V1-1975): a post-tool target outside the project is an exclusion, an in-project
+// absolute target is relativized and accepted, and a lexically in-project target that does not
+// resolve below the root stays a degradation.
+func TestSOL030PostToolTargetAbstentionClasses(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	outsideDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "src"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outsideDir, filepath.Join(root, "escape")); err != nil {
+		t.Fatal(err)
+	}
+	payload := func(path string) map[string]any {
+		return map[string]any{"tool_name": "Edit", "tool_input": map[string]any{"file_path": path}}
+	}
+	for _, test := range []struct{ name, path, want string }{
+		{"outside absolute", filepath.Join(outsideDir, "x.go"), "post-tool-path-outside-project"},
+		{"outside relative", "../elsewhere/x.go", "post-tool-path-outside-project"},
+		{"in-project absolute", filepath.Join(root, "src", "main.go"), ""},
+		{"in-project relative", "src/main.go", ""},
+		{"in-project unresolvable", filepath.Join(root, "escape", "x.go"), "post-tool-path-not-project-relative"},
+	} {
+		if got := postToolTargetAbstention(root, payload(test.path)); got != test.want {
+			t.Errorf("%s: abstention(%q) = %q, want %q", test.name, test.path, got, test.want)
+		}
+	}
+	if got, ok := projectRelativePath(root, filepath.Join(root, "src", "main.go")); !ok || got != "src/main.go" {
+		t.Fatalf("in-project absolute path relativized to %q, %v", got, ok)
 	}
 }
 

@@ -352,12 +352,16 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		unplannedread.HookPostToolSession(root, normalized["sessionIdSha256"].(string), payload)
 	}
 	if event == "file-change" || event == "post-tool" {
-		silent := event == "post-tool" && postToolChangeOutOfRoot(root, payload)
-		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, silent)
-		if silent && len(output) == 0 {
-			// The out-of-root target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746);
-			// a failed receipt is already recorded as its own degradation.
-			recordAdapterReason(ctx, root, "claude-code", event, "post-tool-path-not-project-relative")
+		abstention := ""
+		if event == "post-tool" {
+			abstention = postToolTargetAbstention(root, payload)
+		}
+		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, abstention != "")
+		if abstention != "" && len(output) == 0 {
+			// The abstaining target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746):
+			// outside the project as an exclusion, unresolvable inside it as a degradation
+			// (SOL-V0-030, V1-1975). A failed receipt is already recorded as its own degradation.
+			recordAdapterReason(ctx, root, "claude-code", event, abstention)
 		}
 		return output
 	}
@@ -876,31 +880,63 @@ func withDeadlineRemediation(root, reason string, output map[string]any) map[str
 	return remediated
 }
 
-// postToolChangeOutOfRoot reports whether a PostToolUse payload names a
+// postToolTargetAbstention classifies a PostToolUse payload naming a
 // file-mutating tool (the hooks.json PostToolUse matcher: Edit|Write|
-// NotebookEdit) whose target path resolves outside the project root. It reads
-// only the raw host payload already trusted by the caller and never widens
-// the corvint-harness-event/0 wire input.
-func postToolChangeOutOfRoot(root string, payload map[string]any) bool {
+// NotebookEdit) whose target is not project-relative: a target lexically
+// outside the project root (or its resolved form) is the exclusion
+// `post-tool-path-outside-project`, and one lexically inside that still does
+// not resolve below the root is the degradation
+// `post-tool-path-not-project-relative` (SOL-V0-030). A project-relative or
+// in-project absolute target returns "". It reads only the raw host payload
+// already trusted by the caller and never widens the corvint-harness-event/0
+// wire input.
+func postToolTargetAbstention(root string, payload map[string]any) string {
 	input, ok := payload["tool_input"].(map[string]any)
 	if !ok {
-		return false
+		return ""
 	}
 	name, ok := payload["tool_name"].(string)
 	if !ok {
-		return false
+		return ""
 	}
 	fields := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}
 	field, known := fields[name]
 	if !known {
-		return false
+		return ""
 	}
 	path, ok := input[field].(string)
 	if !ok || path == "" {
-		return false
+		return ""
 	}
-	_, relative := projectRelativePath(root, path)
-	return !relative
+	if _, relative := projectRelativePath(root, path); relative {
+		return ""
+	}
+	if lexicallyOutsideProject(root, path) {
+		return "post-tool-path-outside-project"
+	}
+	return "post-tool-path-not-project-relative"
+}
+
+// lexicallyOutsideProject reports whether path, cleaned without touching the
+// filesystem, lies neither below root nor below root's resolved form. A path
+// that is lexically inside but fails resolution is not "outside": it is an
+// unresolvable in-project target.
+func lexicallyOutsideProject(root, path string) bool {
+	roots := []string{filepath.Clean(root)}
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		roots = append(roots, filepath.Clean(resolved))
+	}
+	for _, base := range roots {
+		candidate := path
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(base, candidate)
+		}
+		relative, err := filepath.Rel(base, filepath.Clean(candidate))
+		if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return false
+		}
+	}
+	return true
 }
 
 // adapterMaxErrorCodeTail bounds how much of a failing invocation's stderr is
