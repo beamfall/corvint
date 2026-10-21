@@ -83,6 +83,7 @@ func TestAHI171LatencyHostContention(t *testing.T) {
 	})
 	t.Run("AHI-171 live host reading", func(t *testing.T) {
 		c := observeContention()
+		t.Logf("live %s reading: %v", runtime.GOOS, c.evidence())
 		if c.cpus != runtime.NumCPU() {
 			t.Fatalf("cpus = %d", c.cpus)
 		}
