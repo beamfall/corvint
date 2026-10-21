@@ -369,7 +369,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   argv elements and a `timeoutSeconds` of 1-3600. The `invalid-check-bound` refusal from `dogfood
   begin` MUST keep that stable code and its message MUST name both bounds, the offending check id
   and the requested argv count and timeout, so a caller can split an over-long run into several
-  checks. The message carries no path or command text. Rollback: drop the message detail.
+  checks. The message carries no path or command text, and an id that matches the secret screen is
+  shown as `[REDACTED]`. Rollback: drop the message detail.
 
 ## Non-goals and simpler baseline
 
@@ -552,7 +553,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-019 | `EvaluateObserved`, `EvaluateAgainst` and drift-only snapshots in `internal/localcompletion/lifecycle.go` and `internal/localcompletion/storage.go`; matched closing observation in `localEventRead` | `TestEnrolledStopSpawnsBoundedGit`, `TestDogfoodEventObservedMismatchFallsBack`, `TestEvaluateAgainstMatchesFullEvaluation`, `TestEvaluateAgainstReReadsPrivateInputs`, `TestEvaluateAgainstDirtyAndDrift`, `TestEvaluateAgainstChangedBase`; trace and same-host measurement record in `docs/build-log/2026-10-10-v1-1124-stop-git-calls.md` |
 | LCP-V0-030 | `supersededByNextStage` in `internal/localcompletion/lifecycle.go`; `TestBeginNextStageAfterSealedStage` (`internal/localcompletion/lifecycle_test.go`: stage-2 begin archives the stage-1 generation; a non-ancestor target, a failed final check, an unreviewed report set and a missing terminal record still refuse without a write); `TestDogfoodBeginPriorCompletionStaleNamesTheRoute` (`cmd/corvint/local_completion_test.go`) |
 | LCP-V0-031 | `screenedLog` and `failedTestNames` in `internal/localcompletion/screened_log.go`, applied in `Verify`; `TestScreenedCheckLogKeepsFailureLines` (screened FAIL line kept with the token redacted and named in `failedTests`; an unscreened failure names its subtests; a passing check names none; truncated and complete PEM and PGP private-key blocks keep only the marker; the over-bound and name bounds); `TestActualVerificationAndSecretRefusal` (no secret persists) |
-| LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements) |
+| LCP-V0-032 | `CheckBoundError` in `internal/localcompletion/types.go`, raised by `validatePlan`; `emitLocalCompletionFailureDetail` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginCheckBoundNamesTheLimit` (`cmd/corvint/local_completion_test.go`: a 4000 s timeout and 65 argv elements; a secret-shaped check id is shown as `[REDACTED]`) |
 
 ## Rollout, rollback and remaining gates
 

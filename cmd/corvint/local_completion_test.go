@@ -525,12 +525,15 @@ func TestDogfoodBeginCheckBoundNamesTheLimit(t *testing.T) {
 	base := cemGit(t, root, "rev-parse", "HEAD")
 	for _, tc := range []struct {
 		name    string
+		id      string
 		argv    []string
 		timeout int
 		want    string
 	}{
-		{"timeout over the cap", []string{"true"}, 4000, "check slow requested 1 argv elements and timeoutSeconds 4000"},
-		{"too many argv elements", make([]string, 65), 30, "check slow requested 65 argv elements and timeoutSeconds 30"},
+		{"timeout over the cap", "slow", []string{"true"}, 4000, "check slow requested 1 argv elements and timeoutSeconds 4000"},
+		{"too many argv elements", "slow", make([]string, 65), 30, "check slow requested 65 argv elements and timeoutSeconds 30"},
+		// A secret-shaped id passes the id grammar but is never echoed.
+		{"secret-shaped check id", "gh" + "p_" + strings.Repeat("a1B2", 9), []string{"true"}, 4000, "check [REDACTED] requested 1 argv elements"},
 	} {
 		argv := tc.argv
 		for index := range argv {
@@ -538,7 +541,7 @@ func TestDogfoodBeginCheckBoundNamesTheLimit(t *testing.T) {
 				argv[index] = "x"
 			}
 		}
-		plan := localcompletion.Plan{Base: base, Intents: []string{"a.md"}, Checks: []localcompletion.Check{{ID: "slow", Argv: argv, TimeoutSeconds: tc.timeout}}}
+		plan := localcompletion.Plan{Base: base, Intents: []string{"a.md"}, Checks: []localcompletion.Check{{ID: tc.id, Argv: argv, TimeoutSeconds: tc.timeout}}}
 		raw, _ := json.Marshal(plan)
 		planPath := filepath.Join(t.TempDir(), "plan.json")
 		if err = os.WriteFile(planPath, raw, 0600); err != nil {
@@ -557,6 +560,9 @@ func TestDogfoodBeginCheckBoundNamesTheLimit(t *testing.T) {
 		}
 		if envelope.Code != "invalid-check-bound" || envelope.Error.Code != "invalid-check-bound" {
 			t.Fatalf("%s: code drifted: %s", tc.name, stderr.String())
+		}
+		if tc.id != "slow" && strings.Contains(stderr.String(), tc.id) {
+			t.Fatalf("%s: refusal echoed the check id: %s", tc.name, stderr.String())
 		}
 		for _, want := range []string{"1-64 argv elements", "timeoutSeconds 1-3600", tc.want} {
 			if !strings.Contains(envelope.Error.Message, want) {

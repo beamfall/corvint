@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 const (
@@ -268,7 +270,8 @@ const (
 // CheckBoundError is the invalid-check-bound refusal. Its Error is the stable
 // code; Detail names the bounds and the requested values (LCP-V0-032, V1-1011).
 // CheckID has already matched the check id pattern, so Detail carries no path
-// or command text.
+// or command text; an id that matches the secret screen is shown as
+// secretscreen.Placeholder.
 type CheckBoundError struct {
 	CheckID        string
 	Argv           int
@@ -279,5 +282,9 @@ func (e *CheckBoundError) Error() string { return "invalid-check-bound" }
 
 // Detail names the per-check bounds and the values the plan requested.
 func (e *CheckBoundError) Detail() string {
-	return fmt.Sprintf("check %s requested %d argv elements and timeoutSeconds %d (bounds 1-%d and 1-%d)", e.CheckID, e.Argv, e.TimeoutSeconds, maxCheckArgv, maxCheckTimeoutSeconds)
+	id := e.CheckID
+	if secretscreen.MatchString(id) {
+		id = secretscreen.Placeholder
+	}
+	return fmt.Sprintf("check %s requested %d argv elements and timeoutSeconds %d (bounds 1-%d and 1-%d)", id, e.Argv, e.TimeoutSeconds, maxCheckArgv, maxCheckTimeoutSeconds)
 }
