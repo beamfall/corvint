@@ -48,19 +48,47 @@ type railsAutoload struct {
 // mapping cannot stand in for Rails: a nested or absent root application, an
 // invalid declaration, or autoload configuration the mapper does not model.
 func newRailsAutoload(root *affected.Source, observed []observation, files []string) *railsAutoload {
-	autoload := &railsAutoload{byConstant: map[string][]string{}, ids: map[string]string{}}
-	rootApplication := false
+	rootApplication, nested := false, false
 	for _, relative := range files {
 		if relative == "config/application.rb" {
 			rootApplication = true
 		} else if strings.HasSuffix(relative, "/config/application.rb") {
-			autoload.unresolved = true
+			nested = true
 		}
 	}
 	if !rootApplication {
-		autoload.unresolved = true
+		return &railsAutoload{byConstant: map[string][]string{}, ids: map[string]string{}, unresolved: true}
+	}
+	autoload := mapAutoload(root, observed, files)
+	autoload.unresolved = autoload.unresolved || nested
+	return autoload
+}
+
+// newConventionAutoload is the constant-edge view of a repository with no
+// Rails application whose Ruby sources still follow the autoload convention
+// impact maps: a committed declaration, or a default `app/<dir>` root
+// (RUBY-AFFECTED-V0-045). It returns nil when neither is present, so a plain
+// library keeps its require edges alone.
+func newConventionAutoload(root *affected.Source, observed []observation, files []string) *railsAutoload {
+	autoload := mapAutoload(root, observed, files)
+	report := autoload.mapper.Report()
+	if report.Declaration != "" {
 		return autoload
 	}
+	for _, mapped := range report.Roots {
+		if strings.HasPrefix(mapped, "app/") {
+			return autoload
+		}
+	}
+	return nil
+}
+
+// mapAutoload maps every observed Ruby file through the declaration or the
+// default roots, the same mapper impact reports under ruby_autoload, and
+// reports unresolved for an invalid declaration or autoload configuration the
+// mapper does not model.
+func mapAutoload(root *affected.Source, observed []observation, files []string) *railsAutoload {
+	autoload := &railsAutoload{byConstant: map[string][]string{}, ids: map[string]string{}}
 	sources := make(map[string]observation, len(observed))
 	for _, item := range observed {
 		sources[item.relative] = item

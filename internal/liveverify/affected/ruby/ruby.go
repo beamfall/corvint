@@ -187,12 +187,17 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	// constant references become advisory edges; the coarse frontier remains
 	// only where the mapping cannot bound them (RUBY-AFFECTED-V0-009,
 	// RUBY-AFFECTED-V0-010).
+	// A repository with no Rails application but autoload-convention
+	// sources gets the same constant edges impact reports, without the Rails
+	// boot and route edges (RUBY-AFFECTED-V0-045).
 	var autoload *railsAutoload
 	if rails {
 		autoload = newRailsAutoload(root, observed, files)
+	} else {
+		autoload = newConventionAutoload(root, observed, files)
 	}
 	tests := hasTests(observed)
-	railsUnbounded := railsObserved && tests && (autoload == nil || autoload.unresolved)
+	railsUnbounded := tests && (railsObserved && !rails || autoload != nil && autoload.unresolved)
 	aliases := indexAliases(observed, loadRoots)
 	paths := indexPaths(observed)
 	advisory := make(map[string]map[string]bool, len(observed))
@@ -202,7 +207,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			edges, bounded := autoload.edges(item)
 			railsUnbounded = railsUnbounded || !bounded && tests
 			constants[item.id] = len(edges)
-			if item.kind != frameworkSource {
+			if rails && item.kind != frameworkSource {
 				for id := range autoload.bootEdges(item) {
 					edges[id] = true
 				}
