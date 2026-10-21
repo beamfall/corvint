@@ -41,4 +41,4 @@ owner approval. Live Android/Appium cleanup witnesses (V1-1553).
 
 ## Rollback
 
-Revert the `Parse` check and `testCafeHelperFailure`; no plan, invocation or wire bytes change.
+Remove `internal/testrunner/dynamic/testcafe.go` and call `reconcileMochaSelection` from `Parse` again; no plan, invocation or wire bytes change.

@@ -108,11 +108,6 @@ func Parse(in tr.Input) (tr.Observation, error) {
 			}
 		}
 	}
-	if in.Runner == "testcafe" {
-		if line := testCafeHelperFailure(in.Stdout, in.Stderr); line != "" {
-			problem(&o, "browser-helper-failed", line)
-		}
-	}
 	seen := map[string]bool{}
 	failed := false
 	for _, t := range o.Tests {
@@ -163,7 +158,7 @@ func Parse(in tr.Input) (tr.Observation, error) {
 	if in.Overflow {
 		problem(&o, "output-overflow", "process output exceeded bound")
 	}
-	reconcileMochaSelection(in, &o)
+	reconcileNativeOutput(in, &o)
 	o.Complete = len(o.Problems) == 0
 	return o, nil
 }
