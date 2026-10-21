@@ -18,6 +18,7 @@ type activationOptions struct {
 	revision         string
 	excludedPrefixes []string
 	fullReceipt      bool
+	setup            bool
 }
 
 func parseActivationInvocation(arguments []string) (string, string, []string, bool, error) {
@@ -72,6 +73,14 @@ func parseActivationFlags(arguments []string) (activationOptions, error) {
 			index++
 			continue
 		}
+		if name == "--setup" {
+			if inline {
+				return options, argumentError("argument --setup: ignored explicit argument " + pythonRepr(value))
+			}
+			options.setup = true
+			index++
+			continue
+		}
 		if name != "--authority-id" && name != "--revision" && name != "--exclude-prefix" {
 			return options, argumentError("unrecognized arguments: " + argument)
 		}
@@ -106,9 +115,16 @@ func runActivationForPlatform(ctx context.Context, root, activation string, argu
 		emitError(stderr, err)
 		return 2
 	}
+	if options.setup && (activation != "adopt" || len(arguments) != 1) {
+		emitError(stderr, argumentError("argument --setup: allowed only as `adopt --setup`, with no other option"))
+		return 2
+	}
 	if !nativePlatformQualified(platform) {
 		emitError(stderr, genesisPlatformRefusal(platform))
 		return 2
+	}
+	if options.setup {
+		return runSetupReport(ctx, root, stdout, stderr)
 	}
 	receipt := genesis.CompileRepositoryInventory(ctx, root, activation, options.authorityID, options.revision, options.excludedPrefixes)
 	inventory := any(receipt)

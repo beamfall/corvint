@@ -555,10 +555,15 @@ const activationHelp = `Compile one bounded mechanical repository inventory.
 Usage:
   corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
     [--exclude-prefix PATH] [--full-receipt]
+  corvint [--root PATH] adopt --setup
 
 --revision defaults to HEAD. --exclude-prefix is repeatable. The default output
 is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
 Both activations are read-only and local-only.
+
+Experimental (ADS-V0): adopt --setup takes no other option and reports the
+repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
+ignored paths), each with its evidence and a suggested fix. It writes nothing.
 `
 
 const recordHelp = `Record one explicit local task outcome.

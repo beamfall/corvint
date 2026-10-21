@@ -3840,5 +3840,17 @@
       "docs/CAPABILITIES.md",
       "tools/capabilities-check"
     ]
+  },
+  {
+    "path": "docs/specs/adoption-setup-report-v0.md",
+    "title": "Adoption setup report V0",
+    "reqPrefix": "ADS-V0",
+    "intent": "proposed (V1-2052)",
+    "delivery": "experimental",
+    "claim": "`corvint adopt --setup` reports index, instruction, hook and ignore setup gaps with evidence and fixes, writing nothing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

@@ -1,4 +1,11 @@
 id	file	title	acceptance	acceptedBy
+ADS-V0-001	docs/specs/adoption-setup-report-v0.md	`corvint [--root PATH] adopt --setup` MUST print one canonical JSON object	unrecorded	-
+ADS-V0-002	docs/specs/adoption-setup-report-v0.md	`--setup` MUST NOT combine with any other `adopt` option or with `init`; such a	unrecorded	-
+ADS-V0-003	docs/specs/adoption-setup-report-v0.md	the `index-snapshot` check MUST use the read-only snapshot probe and report	unrecorded	-
+ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check MUST report `gap` unless a root `AGENTS.md`,	unrecorded	-
+ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
+ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
+ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
