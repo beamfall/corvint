@@ -83,7 +83,7 @@ func TestAFPV0170ReuseStepRefusesForgedArtifacts(t *testing.T) {
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t", "HOME=" + ws}
 	git := func(args ...string) string {
 		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", repo}, args...)...)
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", repo}, args...)...)
 		cmd.Env = append(os.Environ(), gitEnv...)
 		out, err := cmd.CombinedOutput()
 		if err != nil {

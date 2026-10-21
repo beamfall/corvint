@@ -71,7 +71,22 @@ step's output. A record key after other text is still refused.
 
 **Evidence.** `TestAFPV0171ControlPlaneKeepsAUserPostedSuccess` fails against the base workflow.
 
+## Tests and gates
+
+- Whole packages: `tools/ci-reuse-plan` and `tools/ci-test-slices`.
+- Affected siblings: `tools/ci-forward-row`, `corvint-pr-tests`, `docs-ci-plan`,
+  `test-read-scopes-check`, `fixture-maintenance-check`, `capabilities-check`,
+  `cem-citation-baseline` and `cem-trial`.
+  - `fixture-maintenance-check` first caught the new Git fixture committing without
+    `maintenance.auto=false`; that is fixed.
+- `go vet`, `gofmt -l` and `make windows-vet`.
+- The doc gates, `ci-least-privilege-check` and its test, `host-package-versions-*`,
+  `test-read-scopes-check`, `test-commands-check` and `analyzer-schema.sh check`.
+
 ## NOT_RUN
+
+- `corvint affected` also selected `cmd/corvint`, `internal/**`, `conformance/**` and the script
+  tests. They import no changed package, so they are left to batch CI.
 
 - Hosted runs of the record job and of REUSE.
 - A hosted control-plane rerun after an admin post.
