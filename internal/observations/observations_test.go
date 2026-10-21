@@ -1115,6 +1115,14 @@ func TestAdapterDegradationAdmitsWorktreeChurn(t *testing.T) {
 	}
 }
 
+// SOL-V0-010 (V1-1976, LCP-V0-034): the prompt-bounds rejection keeps its code in the ledger.
+func TestAdapterDegradationAdmitsPromptBounds(t *testing.T) {
+	row := AdapterDegradationEvent("claude-code", "user-prompt", "corvint-event-rejected:dogfood-event-prompt-bounds", "1.0.0", time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC))
+	if len(row.AdapterCodes) != 1 || row.AdapterCodes[0] != "corvint-event-rejected:dogfood-event-prompt-bounds" {
+		t.Fatalf("adapter codes %v", row.AdapterCodes)
+	}
+}
+
 // SOL-V0-011 (V1-1977): the zero-authoritative rate counts only user-prompt rows
 // whose writer measured the count; a legacy row without the marker is reported
 // as unmeasured instead of as zero authority, and only a user-prompt row may

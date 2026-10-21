@@ -70,7 +70,10 @@ test('PWV-V0-012 named task -> governing clause -> immutable source -> impact ->
  const affected=ok(await core.read('affected',{base},ctx));
  assert.equal(affected.mutates,false);
  assert.equal(affected.revision,head);
- assert.deepEqual(affected.plan.selected.map(s=>[s.unitId,s.tests,s.witness.kind]),[['go:example.com/chain/calc',['calc/round_test.go'],'DIRECT_SOURCE_CHANGE']]);
+ // The default affected document is the compact affected-plan/1 (AFP-V0-035):
+ // each selection carries its test count; impact above names the test file.
+ assert.equal(affected.profile,'affected-plan/1');
+ assert.deepEqual(affected.plan.selected.map(s=>[s.unitId,s.testCount,s.witness.kind]),[['go:example.com/chain/calc',1,'DIRECT_SOURCE_CHANGE']]);
  assert.equal(affected.advice.status,'PLAN_ONLY','no selected test is executed');
  assert.ok(affected.advice.unknown.some(u=>u.startsWith('NO_REPOSITORY_GATE_DECLARED')),'missing gate evidence stays an explicit unknown');
 
