@@ -2248,7 +2248,7 @@
     "path": "docs/specs/native-taskman-planning-v0.md",
     "title": "Native taskman fixture planning V0",
     "reqPrefix": "NTP-V0",
-    "intent": "accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548)",
+    "intent": "accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548); NTP-V0-026 accepted under the owner's standing auto-accept (2026-10-11, V1-2119)",
     "delivery": "experimental",
     "claim": "Read-only native fixture priority-first planning with explicit incomplete coverage.",
     "dependsOn": [
@@ -3524,7 +3524,7 @@
     "path": "docs/specs/process-group-owner-v0.md",
     "title": "Process-group Owner V0",
     "reqPrefix": "PGO-V0",
-    "intent": "proposed extraction of existing owner-authorized repair semantics; PGO-V0-011 and PGO-V0-012 accepted under the owner's standing auto-accept (2026-10-11) (V1-0668; cem1-producer-harness-cleanup-20261001); PGO-V0-016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1244); PGO-V0-017 accepted under the owner's standing auto-accept (2026-10-11) (V1-2111); PGO-V0-018 and PGO-V0-019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1387)",
+    "intent": "proposed extraction of existing owner-authorized repair semantics; PGO-V0-011 and PGO-V0-012 accepted under the owner's standing auto-accept (2026-10-11) (V1-0668; cem1-producer-harness-cleanup-20261001); PGO-V0-016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1244); PGO-V0-017 accepted under the owner's standing auto-accept (2026-10-11) (V1-2111); PGO-V0-018 and PGO-V0-019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1387); PGO-V0-020 accepted under the owner's standing auto-accept (2026-10-11) (V1-1651)",
     "delivery": "experimental",
     "claim": "An optional process-group Owner preserves leader identity through retirement and reports unproved cleanup as HOLD.",
     "dependsOn": [],
