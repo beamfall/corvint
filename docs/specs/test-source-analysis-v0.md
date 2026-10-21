@@ -1423,7 +1423,8 @@ owner's standing auto-accept (2026-10-11). The reader stays the TSA-V0-062 line 
   - `rspec-shared-group-not-found`, `rspec-shared-group-ambiguous` (two or more visible
     definitions, or a support set that could hold another), `rspec-shared-group-nested` (a shared
     group defined in, or including, another shared group) and `rspec-shared-group-unbound` (the
-    support set is unbound);
+    support set is unbound as a whole, or, per TSA-V0-397, one unread support file could define
+    this inclusion's group);
   - `rspec-inclusion-example-not-in-group`: `EXAMPLE_LINE` is not an example of that group;
   - `rspec-example-loop-generated`: the example is generated in a loop.
 - `TSA-V0-092`: (standing auto-accept, 2026-10-11; V1-1867 / GitHub #1164) Receipt discovery MUST

@@ -3940,7 +3940,10 @@ time. The coordinator assigned CAL-V0-127..129. All three requirements are accep
   adds `configFile` (`state` `INVALID`, the file's `sha256`, `reason`); the escalation view is
   omitted, pressure caps are not shown and the infrastructure-retry `policy` is `UNKNOWN`. Without a
   recoverable `stateDir` status refuses as usage, and `dispatch unpark` always requires a valid
-  file.
+  file. Note (V1-1856, no new requirement): the exit code and outcome of `dispatch status` on an
+  invalid on-disk config are recorded by `ATR-V0-134` in
+  `corvint-tasks-attempt-runner-v0.md` (exit 1 with ERROR/MALFORMED); this text states only what
+  status still reports.
 - `CAL-V0-128`: accepted by decision 0439 (V1-0890; GitHub #645). A role `cap` MAY be 0. A role with cap 0 MUST
   launch nothing; its running workers are unaffected, and every other CAL-V0-052 bound is unchanged.
   A disabled role MUST take no part in planning: its pool is not among the pools the plan may select
