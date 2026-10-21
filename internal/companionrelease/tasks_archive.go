@@ -27,12 +27,9 @@ type TasksArchiveReport struct {
 // RunTasksArchive reuses the companion pipeline for a standalone native Tasks
 // download. The closed target retains the existing macOS arm64 qualification boundary.
 func RunTasksArchive(ctx context.Context, opts Options) (*TasksArchiveReport, error) {
-	if err := validateTasksTarget(opts.Target); err != nil {
+	native, err := admitTasksTarget(opts.Target, runtime.GOOS+"/"+runtime.GOARCH)
+	if err != nil {
 		return nil, err
-	}
-	native := opts.Target == runtime.GOOS+"/"+runtime.GOARCH
-	if !native && opts.Target != tasksCrossTarget {
-		return nil, fmt.Errorf("Tasks archive smoke requires its native target host")
 	}
 	if err := validateOutputParent(ctx, opts.OutputParent, opts.CorvintRoot); err != nil {
 		return nil, err
@@ -92,24 +89,9 @@ func RunTasksArchive(ctx context.Context, opts Options) (*TasksArchiveReport, er
 	if err := writeTree(extract, files); err != nil {
 		return nil, err
 	}
-	var version []byte
-	qualification := tasksCrossQualification
-	if native {
-		qualification = "reproducible-build-and-native-version-help-smoke-only"
-		version, _, err = runCaptured(ctx, extract, closedGitEnv(toolDir), subprocessTimeout, filepath.Join(extract, "bin/corvint-tasks"), "version")
-		if err != nil {
-			return nil, err
-		}
-		if !json.Valid(version) {
-			return nil, fmt.Errorf("Tasks version response is not JSON")
-		}
-		help, _, err := runCaptured(ctx, extract, closedGitEnv(toolDir), subprocessTimeout, filepath.Join(extract, "bin/corvint-tasks"), "help")
-		if err != nil {
-			return nil, err
-		}
-		if err := verifyTasksArchiveHelp(help); err != nil {
-			return nil, err
-		}
+	version, qualification, err := tasksArchiveSmoke(ctx, native, extract, closedGitEnv(toolDir))
+	if err != nil {
+		return nil, err
 	}
 	report := TasksArchiveReport{Profile: "corvint-tasks-archive/0", Target: opts.Target, Build: build, Component: component, Toolchain: tc, Version: version, Qualification: qualification}
 	entries, err := tasksArchiveEntries(files, report)
@@ -134,6 +116,45 @@ func RunTasksArchive(ctx context.Context, opts Options) (*TasksArchiveReport, er
 	}
 	report.ArchivePath = filepath.Join(retained, name)
 	return &report, nil
+}
+
+// admitTasksTarget reports whether target is the build host (native: smoke runs) or the
+// cross-built target, and refuses everything else (CAL-V0-320).
+func admitTasksTarget(target, host string) (native bool, err error) {
+	if err := validateTasksTarget(target); err != nil {
+		return false, err
+	}
+	if target == host {
+		return true, nil
+	}
+	if target != tasksCrossTarget {
+		return false, fmt.Errorf("Tasks archive smoke requires its native target host")
+	}
+	return false, nil
+}
+
+// tasksArchiveSmoke runs the extracted binary's version and help only for a native target. A
+// cross-built target is never executed and its qualification says so.
+func tasksArchiveSmoke(ctx context.Context, native bool, extract string, env []string) ([]byte, string, error) {
+	if !native {
+		return nil, tasksCrossQualification, nil
+	}
+	bin := filepath.Join(extract, "bin/corvint-tasks")
+	version, _, err := runCaptured(ctx, extract, env, subprocessTimeout, bin, "version")
+	if err != nil {
+		return nil, "", err
+	}
+	if !json.Valid(version) {
+		return nil, "", fmt.Errorf("Tasks version response is not JSON")
+	}
+	help, _, err := runCaptured(ctx, extract, env, subprocessTimeout, bin, "help")
+	if err != nil {
+		return nil, "", err
+	}
+	if err := verifyTasksArchiveHelp(help); err != nil {
+		return nil, "", err
+	}
+	return version, "reproducible-build-and-native-version-help-smoke-only", nil
 }
 
 // tasksCrossQualification is recorded in the manifest of a cross-built archive: the Linux

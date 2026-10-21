@@ -36,11 +36,11 @@ Continue only if the command succeeds and reports `OK`. Extract into a new direc
 the binary against the checksum inside the archive:
 
 ```sh
-mkdir corvint-<version>
-tar -xzf corvint_darwin_arm64.tar.gz -C corvint-<version>
-cd corvint-<version>/corvint_darwin_arm64
-shasum -a 256 -c SHA256SUMS
-./corvint --version
+mkdir corvint-<version> &&
+  tar -xzf corvint_darwin_arm64.tar.gz -C corvint-<version> &&
+  cd corvint-<version>/corvint_darwin_arm64 &&
+  shasum -a 256 -c SHA256SUMS &&
+  ./corvint --version
 ```
 
 Expect `Corvint <version> (build N)`, matching the release manifest's exact version and build
@@ -162,10 +162,11 @@ a Linux host does the following with a downloaded archive and an existing `.task
 (CAL-V0-320):
 
 ```sh
-sha256sum -c SHA256SUMS --ignore-missing
-mkdir tasks && tar -xzf corvint-tasks_linux_amd64.tar.gz -C tasks
-tasks/bin/corvint-tasks version
-(cd /path/to/repo-with-.taskman && /abs/tasks/bin/corvint-tasks roadmap)
+# One && chain: a failed checksum stops before anything is extracted or run.
+sha256sum -c SHA256SUMS --ignore-missing &&
+  mkdir tasks && tar -xzf corvint-tasks_linux_amd64.tar.gz -C tasks &&
+  tasks/bin/corvint-tasks version &&
+  (cd /path/to/repo-with-.taskman && /abs/tasks/bin/corvint-tasks roadmap)
 ```
 
 Run `roadmap` read-only on a copy or a clean checkout. Other Tasks archive targets, including
