@@ -109,6 +109,7 @@ func insertLines(text string, count int, line string) string {
 // TestSymbolAnchorReresolution covers the issue 1223 acceptance for Ruby and
 // TypeScript: insertion above, a one-token edit, deletion and a reformat.
 func TestSymbolAnchorReresolution(t *testing.T) {
+	t.Parallel()
 	languages := []struct {
 		name, path, source, padding string
 		start, end                  int
@@ -214,6 +215,7 @@ func TestSymbolAnchorReresolution(t *testing.T) {
 }
 
 func TestSymbolAnchorUncertainty(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-142 unsupported language is unresolved", func(t *testing.T) {
 		root, rev := symbolRepo(t, map[string]string{"app/report.py": "def report():\n    return 1\n"})
 		a := pinnedSymbolAnchor(t, root, rev, "app/report.py", 1, 2, "report")
@@ -253,6 +255,7 @@ func TestSymbolAnchorUncertainty(t *testing.T) {
 // re-resolution of each cited symbol anchor beside the unchanged overall
 // freshness (DCP-V1-141).
 func TestSymbolAnchorReaderReceipt(t *testing.T) {
+	t.Parallel()
 	root, m := fixture(t)
 	a, err := Build(context.Background(), root, m)
 	if err != nil {
@@ -305,6 +308,7 @@ func symbolCheck(r Receipt, path, symbol string) *SymbolAnchorCheck {
 // returns, and a reused parsed file is charged to the request's budget as if
 // it had been read.
 func TestDCPV1144SharedOverlayMatchesAFreshReader(t *testing.T) {
+	t.Parallel()
 	root, m := fixture(t)
 	a, err := Build(context.Background(), root, m)
 	if err != nil {

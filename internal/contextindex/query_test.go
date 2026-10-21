@@ -168,6 +168,7 @@ func TestAuthorityStartQueryReturnsCriticalInstructionClosure(t *testing.T) {
 }
 
 func TestAuthorityStartQueryRejectsUnsupportedAuthorityAndTraceState(t *testing.T) {
+	t.Parallel()
 	t.Run("tie", func(t *testing.T) {
 		root := authorityRepository(t)
 		agents, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
@@ -467,6 +468,7 @@ func TestValidateQueryCommandRunsBeforeRepositoryAccess(t *testing.T) {
 }
 
 func TestBuildQueryMatchesEagerAuthorityReceiptAndLoadsOnlyClosure(t *testing.T) {
+	t.Parallel()
 	root := authorityRepository(t)
 	for index := 0; index < 24; index++ {
 		writeTestFile(t, root, fmt.Sprintf("internal/corpus/file%02d.go", index), "package corpus\n\nvar Payload = \""+strings.Repeat("x", 4096)+"\"\n")
@@ -519,6 +521,7 @@ func TestBuildQueryMatchesEagerAuthorityReceiptAndLoadsOnlyClosure(t *testing.T)
 }
 
 func TestBuildQueryMatchesEagerSHA256AuthorityReceipt(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	command := exec.Command("git", "init", "--object-format=sha256", "-q", root)
 	if output, err := command.CombinedOutput(); err != nil {
@@ -567,6 +570,7 @@ func TestBuildQueryMatchesEagerSHA256AuthorityReceipt(t *testing.T) {
 }
 
 func TestBuildQueryPreservesAuthorityFailuresAndPinnedBytes(t *testing.T) {
+	t.Parallel()
 	t.Run("generated inventory and reference", func(t *testing.T) {
 		root := authorityRepository(t)
 		agents, err := os.ReadFile(filepath.Join(root, "AGENTS.md"))
@@ -979,6 +983,7 @@ func TestAuthorityStartQueryAddsAdvisoryLearnedPathsUpToThree(t *testing.T) {
 }
 
 func TestAuthorityStartHistorySkipsTheShallowBoundaryCommit(t *testing.T) {
+	t.Parallel()
 	source := authorityRepository(t)
 	writeTestFile(t, source, "internal/history/boundary.go", "package history\n\nfunc Boundary() {}\n")
 	testGit(t, source, "add", ".")
@@ -1015,6 +1020,7 @@ func TestAuthorityStartHistorySkipsTheShallowBoundaryCommit(t *testing.T) {
 // the oracle admits two instruction documents for project operations, then
 // the advisory learned paths.
 func TestAuthorityStartQueryRanksASecondInstructionDocumentBeforeLearnedPaths(t *testing.T) {
+	t.Parallel()
 	root := authorityRepository(t)
 	writeTestFile(t, root, "CLAUDE.md", "# Claude notes\n\nTake the next roadmap ticket only after the workflow gates pass.\n")
 	testGit(t, root, "add", "CLAUDE.md")
@@ -1050,6 +1056,7 @@ func TestAuthorityStartQueryRanksASecondInstructionDocumentBeforeLearnedPaths(t 
 // pins decision 0014: AGENTS.md shares one word with the task, but the task's
 // project-operations words classify it, so the floor does not withdraw.
 func TestEvalQueryKeepsAProjectOperationsInstructionResultOnItsClassifyingWords(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")
@@ -1080,6 +1087,7 @@ func TestEvalQueryKeepsAProjectOperationsInstructionResultOnItsClassifyingWords(
 }
 
 func TestEvalQueryCreditsProjectOperationsClassifyingWordsAsInstructionSupport(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")

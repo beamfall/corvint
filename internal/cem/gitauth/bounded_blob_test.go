@@ -45,6 +45,7 @@ func testBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
 	}
 }
 func TestBoundedBlobCumulativeBudgetBeforeBody(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 cumulative budget before allocation", testBoundedBlobCumulativeBudgetBeforeBody)
 }
 
@@ -159,6 +160,7 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 }
 
 func TestBlobBytesWithinReportsOverBoundHeader(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 V1-0747 consumer-owned refusal before body", func(t *testing.T) {
 		root, _, head := makeRepo(t)
 		r := open(t, root)

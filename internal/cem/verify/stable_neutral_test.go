@@ -193,6 +193,7 @@ func neutralResult(t *testing.T, result StableResult) map[string]any {
 // fields, with the exact public expected result, and that each public
 // refusal mutation fails at its recorded stage and code (CEM-V1-083).
 func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}
@@ -246,6 +247,7 @@ func TestCEMV1083NeutralCriterionPublicCase(t *testing.T) {
 // frozen S0E maps still decodes as the Tasks form and re-encodes to exactly
 // its original eleven keys and values (CEM-V1-083: Tasks form unchanged).
 func TestCEMV1083TasksFormUnchanged(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	seen := 0
 	for digest, raw := range packet.maps {

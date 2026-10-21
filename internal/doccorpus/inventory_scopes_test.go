@@ -7,6 +7,7 @@ import (
 )
 
 func TestDCPV1162BoundRefusalNamesBoundScopeAndCount(t *testing.T) {
+	t.Parallel()
 	// DCP-V1-162: a /2 inventory above 100,000 records names the schema bound, scopes and count.
 	scopes := []string{"a", "b"}
 	err := checkInventoryBound(Manifest{Schema: ManifestSchemaV2}, scopes, map[string]int{"a": 60000, "b": 40001}, 100001)

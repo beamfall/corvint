@@ -152,6 +152,7 @@ func behaviorEvents(assertion string) []BehaviorEvent {
 }
 
 func TestBehaviorContractCorpusRoundTrip(t *testing.T) {
+	t.Parallel()
 	root, m := behaviorFixture(t, nil)
 	a, err := Build(context.Background(), root, m)
 	if err != nil {
@@ -182,6 +183,7 @@ func TestBehaviorContractCorpusRoundTrip(t *testing.T) {
 }
 
 func TestBehaviorQualifiedReceiptEndToEnd(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-007 retained project identity", func(t *testing.T) {
 		root, m := behaviorFixtureWithRun(t, nil, true)
 		a, err := Build(context.Background(), root, m)
@@ -205,6 +207,7 @@ func TestBehaviorQualifiedReceiptEndToEnd(t *testing.T) {
 }
 
 func TestBehaviorContractGaps(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name, kind string
 		edit       func(*BehaviorRegistry)
@@ -243,6 +246,7 @@ func TestBehaviorContractGaps(t *testing.T) {
 }
 
 func TestBehaviorOrderedRuntime(t *testing.T) {
+	t.Parallel()
 	// Synthetic already-projected native observation exercises only the join boundary.
 	// The round-trip test separately exercises immutable provider admission.
 	for _, change := range []string{"valid", "wrong-project", "retry", "cleanup", "stale-docs", "wrong-contract", "order", "page", "negative", "assertion", "wrong-run", "unreadable-source", "other-unknown", "incomplete", "unqualified-test", "stale"} {
@@ -314,6 +318,7 @@ func TestBehaviorOrderedRuntime(t *testing.T) {
 }
 
 func TestBehaviorExactProjectObservation(t *testing.T) {
+	t.Parallel()
 	link := ObservationLink{Test: "same title", TestID: "test-a", Project: "chromium"}
 	test := testvaliditydoc.Test{Name: "same title", ID: "test-a", Project: &jstestprovider.ProjectIdentity{Name: "chromium"}}
 	if !observationMatches(test, link) {
@@ -326,6 +331,7 @@ func TestBehaviorExactProjectObservation(t *testing.T) {
 }
 
 func TestBehaviorAcceptanceAmendment(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-008 runtime assertion requires reverse declaration", func(t *testing.T) {
 		extra := behaviorEvents("unknown-criterion")[1]
 		extra.ID = "undeclared-assertion"
@@ -500,6 +506,7 @@ func v1BehaviorProviderLiteral() ProviderRecord {
 // The digest was taken from this literal before the /2 profile existed, so
 // the /1 encoding is proven byte-identical across the change (AFU-V1-006).
 func TestAFUV1BehaviorProviderV1BytesUnchanged(t *testing.T) {
+	t.Parallel()
 	data, err := Encode(v1BehaviorProviderLiteral())
 	if err != nil {
 		t.Fatal(err)
@@ -527,6 +534,7 @@ func TestAFUV1BehaviorProviderV1BytesUnchanged(t *testing.T) {
 }
 
 func TestAFUV1BehaviorProviderV2MultiRepository(t *testing.T) {
+	t.Parallel()
 	oid := func(c string) string { return strings.Repeat(c, 40) }
 	p := v1BehaviorProviderLiteral()
 	r := *p.BehaviorContracts

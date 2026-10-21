@@ -30,7 +30,13 @@ type resumeFixture struct {
 
 func newResumeFixture(t *testing.T) resumeFixture {
 	t.Helper()
-	repo := writerStore(t, 70)
+	return resumeFixtureOn(t, writerStore(t, 70))
+}
+
+// resumeFixtureOn is newResumeFixture over repo, a store whose writer
+// checkpoint the route already serves.
+func resumeFixtureOn(t *testing.T, repo *intent.Repository) resumeFixture {
+	t.Helper()
 	entropy := attemptEntropy
 	attemptEntropy = fixedEntropy(11)
 	t.Cleanup(func() { attemptEntropy = entropy })

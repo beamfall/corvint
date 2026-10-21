@@ -10,6 +10,7 @@ import (
 )
 
 func TestPlaywrightStabilityAttestedProfile(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"valid", "cross-repository", "revision-mismatch", "test-revision-mismatch", "invalid-attestation"} {
 		t.Run(mode, func(t *testing.T) {
 			root, manifest := stabilityFixture(t, func(_ int, receipt *jstestprovider.Receipt) {

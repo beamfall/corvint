@@ -18,6 +18,7 @@ import (
 // pinned per-record drift charge completes. interop/cem01-go asserts the same
 // files.
 func TestCEMV1260DriftResourceLimitNative(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

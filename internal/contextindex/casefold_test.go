@@ -61,6 +61,7 @@ func porcelainDirtyPaths(t *testing.T, root string) []string {
 // second build must agree byte for byte, and range impact must refuse by name
 // over the dirty worktree instead of combining the two files.
 func TestBuildPinsCaseFoldCollidingPathsToTheirOwnBlobs(t *testing.T) {
+	t.Parallel()
 	root, base := caseFoldRepository(t)
 	dirty := porcelainDirtyPaths(t, root)
 	index, err := Build(context.Background(), root)

@@ -14,10 +14,12 @@ import (
 )
 
 func TestRevisionFSImmutableAndBounds(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-002 immutable revision source", testRevisionFSImmutableAndBounds)
 }
 
 func TestRevisionFSReadBoundedBeforeBody_DLT_V0_003(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 one MiB admission survives session and memo reuse", func(t *testing.T) {
 		const limit = 1 << 20
 		root, _, _ := makeRepo(t)
@@ -130,6 +132,7 @@ func testRevisionFSImmutableAndBounds(t *testing.T) {
 	}
 }
 func TestBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 identity without memo bypass", testBoundedBlobIdentityAndNoMemoBypass)
 }
 func testBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
@@ -155,6 +158,7 @@ func testBoundedBlobIdentityAndNoMemoBypass(t *testing.T) {
 	}
 }
 func TestBoundedBlobFourMiBBoundary(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 four MiB source bound", testBoundedBlobFourMiBBoundary)
 }
 func testBoundedBlobFourMiBBoundary(t *testing.T) {
@@ -177,6 +181,7 @@ func testBoundedBlobFourMiBBoundary(t *testing.T) {
 }
 
 func TestRevisionFSListingCostScalesWithDirectories_DLT_V0_003(t *testing.T) {
+	t.Parallel()
 	t.Run("DLT-V0-003 repeated stat above the default operation ceiling", func(t *testing.T) {
 		// Per-path lookups cost two operations per stat (2,400 > 1,024); verified
 		// listings cost one per directory plus one blob read per file (606).

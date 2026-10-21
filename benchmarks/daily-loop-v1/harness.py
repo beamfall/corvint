@@ -13,8 +13,8 @@ V1 revises the daily-loop-v0 harness, which stays frozen with its runs. The
 committed preregistration.sha256 pins the preregistration (V1-0162); no host Git
 configuration or inherited DOGFOOD_* or CORVINT_* input reaches a step, and a
 bind or mutation that did not happen is HARNESS-FAILURE (V1-0382); L3c re-encodes
-the CEM to different bytes and each designated case must carry its expected
-refusal (V1-0161); a savings claim needs matched cases with no treatment human
+the CEM to different bytes and each designated case must carry its own expected
+refusal, a case sharing it being recorded as not discriminating (V1-0161); a savings claim needs matched cases with no treatment human
 failure (V1-0369); docs/build-log/ is excluded like docs/BUILD-LOG.md (decision
 0423). The directory is unsealed until preregistration.json and
 preregistration.sha256 are committed; until then `run` refuses.
@@ -59,20 +59,26 @@ RUN_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
 SEALED_LINE = re.compile(r"[0-9a-f]{64}\n")
 ARMS = ("baseline", "treatment")
 HARNESS_FAILURE = "HARNESS-FAILURE"
-# dogfood-report-drift has two causes; each is told apart by the fix line that follows it.
-NOT_COMPLETE = "dogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete"
-# The refusal each designated case must carry: a cem status reason code at the CEM level, a
-# dogfood check refusal line at the loop level.
+# The refusal each designated case must carry: a cem status reason code at the CEM level; at the
+# loop level a dogfood check refusal line, a failing dogfood change row ("dogfood-change row
+# STEP:REASON"), or a cem status issue code the loop's change step recorded ("cem-status CODE").
+# dogfood check reports every incomplete report as the same dogfood-report-drift line, so L3, L5 and
+# L6 each assert the cause beneath it instead (V1-0161).
 EXPECTED_REFUSAL = {"M1-stale-target": "patch-digest-mismatch", "M2-hunk-removed": "uncited-hunk",
                     "M3-basis-removed": "unsupported-without-basis",
                     "M4-evidence-digest-staled": "fabricated-evidence-id", "M5-wrong-base": "base-revision-mismatch",
                     "M6-supported-to-unknown": "max-unknown-exceeded",
                     "loop-L1-stale-after-bind": "dogfood-check: REFUSE dirty-worktree",
                     "loop-L2-cem-removed": "dogfood-check: REFUSE dirty-worktree",
-                    "loop-L3-cem-tampered": NOT_COMPLETE,
+                    "loop-L3-cem-tampered": "cem-status unsupported-without-basis",
                     "loop-L4-local-outcome-removed": "dogfood-check: FAIL local-outcome-evidence-drift",
-                    "loop-L5-verify-missing": NOT_COMPLETE,
-                    "loop-L6-citations-missing": NOT_COMPLETE}
+                    "loop-L5-verify-missing": "dogfood-change row local-outcome:outcome-input-not-provided",
+                    "loop-L6-citations-missing": "dogfood-change row cem-cite:citation-plan-not-provided"}
+# A designated case whose expected refusal another case shares cannot tell its cause apart, so its
+# result records it as not discriminating (V1-0161): L1 and L2 both re-prepare the map, and dogfood
+# check refuses each as a dirty worktree.
+NOT_DISCRIMINATING = {name for name, want in EXPECTED_REFUSAL.items()
+                      if list(EXPECTED_REFUSAL.values()).count(want) > 1}
 # No host Git configuration or identity reaches a Git or Corvint subprocess.
 ENV = dict({k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
            GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_SYSTEM=os.devnull,
@@ -377,6 +383,7 @@ def reasons(r):
 # REFUSED with its expected refusal among those found; HARNESS-FAILURE is neither.
 def expect(case, name, found, gate):
     case["expectedRefusal"] = EXPECTED_REFUSAL[name]
+    case["discriminating"] = name not in NOT_DISCRIMINATING
     case["refusedAsExpected"] = case["verdict"] == "REFUSED" and EXPECTED_REFUSAL[name] in found
     case["informative"] = gate and (case["verdict"] == "COMPLETE" or case["refusedAsExpected"])
     return case
@@ -467,13 +474,13 @@ class Loop:
         bind_exit = (git_status(d, "add", "-f", ".corvint/change.cem.json")
                      or git_status(d, "commit", "-q", "-m", "chore: bind change evidence"))
         bound = bind_exit == 0
-        self.step(d, "dogfood-change", env, log)
+        rerun = self.step(d, "dogfood-change", env, log)
         check = self.step(d, "dogfood-check", env, log)
         return d, env, {"variant": name, "omittedInputs": sorted(omit), "hunks": hunks, "steps": log,
                         "invocations": len(log), "failedInvocations": sum(1 for s in log if s["exit"] != 0),
                         "unexpectedFailures": sum(1 for s in log[2:] if s["exit"] != 0), "bindExit": bind_exit,
                         "wallMs": sum(s["wallMs"] for s in log), "verdict": verdict(check) if bound else HARNESS_FAILURE,
-                        "refusal": refusal(check)}
+                        "refusal": refusal(rerun) + refusal(check) + status_issues(d)}
 
     # A variant that commits past the bind reruns dogfood-change before check, as the adopter loop
     # does (docs/DOGFOOD.md section 4); the change exit is data, and the verdict comes from check.
@@ -486,7 +493,7 @@ class Loop:
         targets = ("dogfood-change", "dogfood-check") if rebind else ("dogfood-check",)
         results = [self.step(d, target, env, log) for target in targets]
         return {"variant": name, "rebind": rebind, "steps": log, "verdict": verdict(results[-1]),
-                "refusal": [line for r in results for line in refusal(r)]}
+                "refusal": [line for r in results for line in refusal(r)] + status_issues(d)}
 
 
 def verdict(r):
@@ -495,7 +502,24 @@ def verdict(r):
 
 def refusal(r):
     text = (r["stdout"] + r["stderr"]).decode(errors="replace")
-    return re.findall(r"^dogfood-(?:change|check): (?:FAIL|REFUSE) \S+(?:\n  fix: the report (?:binds another BASE or HEAD|is not complete))?", text, re.M)
+    found = re.findall(r"^dogfood-(?:change|check): (?:FAIL|REFUSE) \S+(?:\n  fix: the report (?:binds another BASE or HEAD|is not complete))?", text, re.M)
+    # dogfood change lists each failing row as "  STEP: REASON" beneath its not-complete line.
+    rows = text.split("dogfood-change: FAIL not-complete\n", 1)[1:]
+    for line in (rows[0].splitlines() if rows else []):
+        m = re.fullmatch(r"  ([a-z0-9-]+): ([a-z0-9-]+)", line)
+        if m:
+            found.append(f"dogfood-change row {m[1]}:{m[2]}")
+    return found
+
+
+# The issue codes in the cem status record the clone's last dogfood change wrote, if any.
+def status_issues(d):
+    path = os.path.join(d, ".git", "corvint", "cem-status.json")
+    if not os.path.isfile(path):
+        return []
+    with open(path, "rb") as f:
+        raw = f.read()
+    return [f"cem-status {code}" for code in reasons({"stdout": raw, "stderr": b""}) if code]
 
 
 def commit_all(d, message):
@@ -549,6 +573,10 @@ def loop_rehearsal(b, base, target, spec):
                ("loop-L3-cem-tampered", cem_tampered, True), ("loop-L4-local-outcome-removed", outcome_removed, False)]]
     fresh = [loop.run("loop-L5-verify-missing", omit=("DOGFOOD_VERIFY_FILE",))[2],
              loop.run("loop-L6-citations-missing", omit=("DOGFOOD_CITATIONS",))[2]]
+    # L3c re-encodes the map that L3 tampers with, so it is informative only while L3 asserts its own
+    # cause rather than a refusal another case shares (V1-0161).
+    controls[1].update(controls="loop-L3-cem-tampered", expectedVerdict="COMPLETE",
+                       discriminating="loop-L3-cem-tampered" not in NOT_DISCRIMINATING)
     copy_ok = controls[0]["verdict"] == "COMPLETE"
     past_bind_ok = copy_ok and controls[1]["verdict"] == "COMPLETE"
     # L3c controls for a commit past the bind and the change rerun, which L1-L3 make and L4 does not.

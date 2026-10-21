@@ -130,3 +130,79 @@ func acquireRunning(t *testing.T, dir string) *os.File {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// TestATRV0095_StaleStartingChildAfterRelaunchKeepsOneResult rules out the
+// suspected V1-1716 race: a child started by a launcher that died before
+// recording it (ATR-V0-021) takes the running lock after a repeat --detach
+// moved a kept LOCK_TIMEOUT and started a new child. The new child cannot
+// take running and exits 1 without a result, but the record stays PENDING
+// while the stale child holds running, and attach returns the stale child's
+// single kept result, never SUPERVISOR_LOST, with one claim in the store.
+func TestATRV0095_StaleStartingChildAfterRelaunchKeepsOneResult(t *testing.T) {
+	root, repo, id := detachClaimStore(t)
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_CEILING_MS", "1500")
+	held := holdPreparation(t, repo)
+	claim := []string{"claim", id, "--holder", "agent", "--request-id", "claim-stale"}
+	first := cliRun(t, root, append(append([]string{}, claim...), "--detach", "--wait", "30")...)
+	if first.code == 0 || first.code == 75 || !slices.Contains(first.res.Codes, wire.CodeLockTimeout) {
+		t.Fatalf("ceiling: code %d %s", first.code, first.stdout)
+	}
+	dir := cli.LeaseDetachDir(repo, "claim-stale")
+	// Wait until the child that kept the LOCK_TIMEOUT has released running.
+	if err := syscall.Flock(int(acquireRunning(t, dir).Fd()), syscall.LOCK_UN); err != nil {
+		t.Fatal(err)
+	}
+	// The relaunched child is slow to start, so the stale child wins running.
+	t.Setenv("CORVINT_TEST_LEASE_DETACH_START_MS", "1500")
+	relaunch := cliRun(t, root, append(append([]string{}, claim...), "--detach", "--wait", "0")...)
+	if relaunch.code != 75 || field(relaunch.res.Items[0], "state").Str != "PENDING" {
+		t.Fatalf("relaunch: code %d %s", relaunch.code, relaunch.stdout)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "result.1.json")); err != nil {
+		t.Fatalf("the kept LOCK_TIMEOUT was not moved: %v", err)
+	}
+	newChild := detachedChildPid(t, dir)
+	// The stale starting child: the unrecorded internal child of the same
+	// request, here in process. It takes running at once and then waits on
+	// the store's preparation lock, which the test still holds.
+	staleDone := make(chan int, 1)
+	go func() {
+		var out, errb bytes.Buffer
+		staleDone <- cli.Run(cli.Env{Cwd: root, Args: append(append([]string{}, claim...), "--detached-child"), Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+	}()
+	for deadline := time.Now().Add(10 * time.Second); !cli.LeaseDetachRunningHeld(dir); {
+		if !time.Now().Before(deadline) {
+			t.Fatal("the stale child never took running")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	// The recorded new child finds running held and exits without a result.
+	for deadline := time.Now().Add(15 * time.Second); syscall.Kill(newChild, 0) == nil; {
+		if !time.Now().Before(deadline) {
+			t.Fatal("the relaunched child did not exit")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if _, err := os.Lstat(filepath.Join(dir, "result.json")); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("the relaunched child kept a result: %v", err)
+	}
+	pending := cliRun(t, root, "claim", "--attach", "--request-id", "claim-stale")
+	if pending.code != 75 || field(pending.res.Items[0], "state").Str != "PENDING" || hasCode(pending.res, wire.CodeSupervisorLost) {
+		t.Fatalf("attach while the stale child runs: code %d %s", pending.code, pending.stdout)
+	}
+	if err := held.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if code := <-staleDone; code != 0 {
+		t.Fatalf("stale child exit %d", code)
+	}
+	done := cliRun(t, root, "claim", "--attach", "--request-id", "claim-stale", "--wait", "30")
+	attempt := field(done.res.Items[0], "attemptId").Str
+	if done.code != 0 || done.res.Outcome != wire.OutcomeOK || attempt == "" {
+		t.Fatalf("attach after the stale child: code %d %s", done.code, done.stdout)
+	}
+	// Exactly one mutation: a repeat --detach answers from the kept result.
+	if again := cliRun(t, root, append(append([]string{}, claim...), "--detach", "--wait", "30")...); !bytes.Equal(again.stdout, done.stdout) {
+		t.Fatalf("repeat --detach: %s, want %s", again.stdout, done.stdout)
+	}
+}

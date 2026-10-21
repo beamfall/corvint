@@ -85,6 +85,7 @@ func TestTaskContextDocumentationCompetesByStrength(t *testing.T) {
 // documentation rows the share (not their strength, the head or the limit)
 // omitted are stated as uncertainty.
 func TestTaskContextDocumentationShareStatesTheOmittedClass(t *testing.T) {
+	t.Parallel()
 	t.Run("TCP-V0-059 TCP-V0-061", func(t *testing.T) {
 		// Six code rows and eight stronger documentation rows at limit 12: the
 		// head is five, the share six, and the twelfth position goes to the
@@ -162,6 +163,7 @@ func TestTaskContextDocumentationShareStatesTheOmittedClass(t *testing.T) {
 // order and the score agree on strength and no lexical row reaches a
 // relation tier.
 func TestTaskContextLexicalScoreCarriesStrength(t *testing.T) {
+	t.Parallel()
 	t.Run("TCP-V0-060", func(t *testing.T) {
 		packet, err := TaskContext(context.Background(), documentationFixture(t, 3, 2), "needle signal", "", 20)
 		if err != nil {
@@ -194,6 +196,7 @@ func TestTaskContextLexicalScoreCarriesStrength(t *testing.T) {
 // fill can spend; and TCP-V0-061 under TCP-V0-016: hits the verdict withheld
 // are stated as withheld, not as omitted by the limit.
 func TestTaskContextLexicalFillCountsOnlyOpenPositions(t *testing.T) {
+	t.Parallel()
 	t.Run("TCP-V0-059 an earlier documentation relation does not spend the share", func(t *testing.T) {
 		// docs/a.md is a mentioned row before the fill: the fill of five holds
 		// a share of three for docs/b.md to docs/d.md and a head of two, so the

@@ -50,6 +50,7 @@ func legacyRefused(t *testing.T, q LegacyCaseQuery) {
 // DCP-V1-165: an id lookup (C12345 or 12345) returns exactly that case; an
 // unknown id is none-found; id with a query or a match mode is refused.
 func TestDCPV1165LegacyCaseIDLookup(t *testing.T) {
+	t.Parallel()
 	for _, id := range []string{"C12345", "12345"} {
 		r := searchLegacyModes(t, LegacyCaseQuery{ID: id, Limit: 10})
 		if r.State != "found" || r.Total != 1 || len(r.Results) != 1 || r.Results[0].ID != "C12345" || r.Results[0].Title != "Cancel a paid booking" || r.Mode != "id" || r.ID != id || strings.Join(r.Fields, ",") != "id" || strings.Join(r.Results[0].Matched, ",") != "id" || r.Results[0].Score != 0 {
@@ -76,6 +77,7 @@ func TestDCPV1165LegacyCaseIDLookup(t *testing.T) {
 // words, reports per-hit scores and breaks ties by export order; the issue's
 // natural-language query ranks the target first while match all finds none.
 func TestDCPV1166LegacyCaseAnyMatchRanks(t *testing.T) {
+	t.Parallel()
 	query := "how do I cancel a paid booking"
 	if r := searchLegacyModes(t, LegacyCaseQuery{Query: query, Limit: 10}); r.State != "none-found" {
 		t.Fatalf("match all should find none: %+v", r)
@@ -108,6 +110,7 @@ func TestDCPV1166LegacyCaseAnyMatchRanks(t *testing.T) {
 // DCP-V1-167: a query that is exactly one C<digits> word naming a case is an
 // id lookup; when no case has that id, the query searches as before.
 func TestDCPV1167LegacyCaseQueryIDRule(t *testing.T) {
+	t.Parallel()
 	r := searchLegacyModes(t, LegacyCaseQuery{Query: "C12345", Limit: 10})
 	if r.Mode != "id" || r.Query != "C12345" || r.ID != "" || r.Total != 1 || r.Results[0].ID != "C12345" {
 		t.Fatalf("query id: %+v", r)
@@ -124,6 +127,7 @@ func TestDCPV1167LegacyCaseQueryIDRule(t *testing.T) {
 // change), carry no mode or score, and an absent exact-id query falls back to
 // those bytes.
 func TestDCPV1168LegacyCaseAllModeBytesUnchanged(t *testing.T) {
+	t.Parallel()
 	golden := map[string]string{
 		"testrail-json|Refund":             "35429caaf9828abf4a0651c90c161859fc20d9692c646f5253c2b7fa6afded38",
 		"testrail-json|approve queue":      "f19067d817832823e8dfe6a41f38755735582f3d8af651db3188f0569fbb8743",

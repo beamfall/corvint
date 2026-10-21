@@ -462,6 +462,12 @@ func LeaseDetachDir(repo *intent.Repository, requestID string) string {
 	return leaseDetachDir(repo, requestID)
 }
 
+// LeaseDetachRunningHeld reports whether a child holds the record's running
+// lock (ATR-V0-021).
+func LeaseDetachRunningHeld(dir string) bool {
+	return leaseDetachLockHeld(filepath.Join(dir, leaseDetachRunName))
+}
+
 // SetLeaseDetachCeiling shortens a detached child's ceiling (ATR-V0-023).
 func SetLeaseDetachCeiling(d time.Duration) func() {
 	was := leaseDetachCeiling

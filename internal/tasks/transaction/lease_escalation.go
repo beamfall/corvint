@@ -81,7 +81,7 @@ func planEscalation(c leaseContext) leaseOutcome {
 	if e != nil {
 		return c.escalationRefused(e)
 	}
-	ctx := mutation.Context{Binding: c.r.Actor, Queue: c.st.queue, Policy: c.st.policy, Inventory: c.st.tickets, Attempts: entryOracle{c.st.reservations}, Requests: absentIndex{}, Now: c.in.RecordedAt}
+	ctx := mutation.Context{Binding: c.r.Actor, Queue: c.st.queue, Policy: c.st.policy, Inventory: c.st.tickets, Attempts: c.oracle(), Requests: absentIndex{}, Now: c.in.RecordedAt}
 	post, e := mutation.SetEscalations(ctx, rec, prop.Refs)
 	if e != nil {
 		if wire.CodeOf(e) == wire.CodeLimitExceeded {

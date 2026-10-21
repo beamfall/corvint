@@ -48,6 +48,7 @@ const guardTests = "package p\n\nimport \"testing\"\n\n" + // 1-4
 // be cited, so it is never a candidate; a change outside every declaration
 // names none.
 func TestTCQV0062CandidatesFollowThePackageClosure(t *testing.T) {
+	t.Parallel()
 	tree := writeGuardTree(t, map[string]string{"p/p.go": guardSource, "p/p_test.go": guardTests})
 	base := func(string) []byte { return []byte(guardTests) }
 	pkg := loadGoPackage(tree, "p", base)
@@ -70,6 +71,7 @@ func TestTCQV0062CandidatesFollowThePackageClosure(t *testing.T) {
 // cited header are located by physical line, so a //line directive in either
 // file moves neither away from the patch lines and the base span.
 func TestTCQV0062LineDirectivesKeepPhysicalLines(t *testing.T) {
+	t.Parallel()
 	source := "package p\n\n//line gen.go:100\nfunc Gen() int {\n\treturn 1\n}\n"                                        // Gen: 4-6
 	tests := "package p\n\nimport \"testing\"\n\n//line gen_test.go:500\nfunc TestGen(t *testing.T) {\n\t_ = Gen()\n}\n" // TestGen: 6-8
 	tree := writeGuardTree(t, map[string]string{"p/g.go": source, "p/g_test.go": tests})
@@ -87,6 +89,7 @@ func TestTCQV0062LineDirectivesKeepPhysicalLines(t *testing.T) {
 // base lines of the guard's header, cited only when the frozen drift
 // classifier keeps them stable or relocated at the target, as cem cite does.
 func TestTCQV0062CitationNeedsAStableBaseHeader(t *testing.T) {
+	t.Parallel()
 	tree := writeGuardTree(t, map[string]string{"p/p.go": guardSource, "p/p_test.go": guardTests})
 	pkg := loadGoPackage(tree, "p", func(string) []byte { return []byte(guardTests) })
 	want := &GuardCitation{Path: "p/p_test.go", Lines: "11:11", Test: "TestOther"}
@@ -114,6 +117,7 @@ func TestTCQV0062CitationNeedsAStableBaseHeader(t *testing.T) {
 // printed, the next guard by name is cited instead, and a header exactly at
 // the bound is still cited.
 func TestTCQV0063PlanRowRespectsTheCiteSpanBound(t *testing.T) {
+	t.Parallel()
 	header := func(size int) string {
 		prefix, suffix := "func TestBig(t *testing.T /*", "*/) {\n"
 		return prefix + strings.Repeat("x", size-len(prefix)-len(suffix)) + suffix + "\t_ = Other()\n}\n"
@@ -138,6 +142,7 @@ func TestTCQV0063PlanRowRespectsTheCiteSpanBound(t *testing.T) {
 // its own target line, a pure deletion marks the lines on either side, and a
 // replacement marks only its added lines, never the untouched line before it.
 func TestTCQV0062ChangedLinesFindTheEditedDeclaration(t *testing.T) {
+	t.Parallel()
 	added := &patch.Hunk{NewRange: wire.Range{Start: 3, Count: 3}, Body: []patch.BodyLine{{Prefix: ' '}, {Prefix: '+'}, {Prefix: ' '}}}
 	if got := changedLines(added); !reflect.DeepEqual(got, map[int64]bool{4: true}) {
 		t.Fatalf("added = %v", got)
@@ -158,6 +163,7 @@ func TestTCQV0062ChangedLinesFindTheEditedDeclaration(t *testing.T) {
 // no-candidate-test. Spent before naming finished, an absent test may be a
 // base read the bound cut short, so every row is total-limit.
 func TestTCQV0062SpentBudgetKeepsNoCandidateReason(t *testing.T) {
+	t.Parallel()
 	tree := writeGuardTree(t, map[string]string{"p/p.go": guardSource, "p/p_test.go": guardTests})
 	name := "p/p.go"
 	at := func(line int64) guardHunk {
