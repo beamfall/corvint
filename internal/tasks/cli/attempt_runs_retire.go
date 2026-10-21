@@ -176,10 +176,11 @@ type runRetireCursor struct {
 }
 
 // runRetireWindow lists at most maxRunAttemptNames names of root and returns
-// the carried attempts plus, in name order, the names after the cursor, at
-// most maxRunAttemptScan in all. A window that reaches the last name starts
-// the next one over. A cursor that does not read back as attempt names is
-// ignored, and the sweep starts over.
+// the carried attempts plus, in name order, the window names (runWindowName)
+// after the cursor, at most maxRunAttemptScan in all. Other names are passed
+// over, so the cursor always ends on a name it can read back. A window that
+// reaches the last name starts the next one over. A cursor that does not
+// read back is ignored, and the sweep starts over.
 func runRetireWindow(root string) (window []string, next runRetireCursor, ok bool) {
 	f, err := os.Open(root)
 	if err != nil {
@@ -202,12 +203,13 @@ func runRetireWindow(root string) (window []string, next runRetireCursor, ok boo
 		i++
 	}
 	for ; i < len(names) && len(window) < maxRunAttemptScan; i++ {
-		if names[i] != runRetireCursorName && names[i] != runRetireCursorName+".tmp" && !carried[names[i]] {
+		if runWindowName(names[i]) && !carried[names[i]] {
 			window = append(window, names[i])
+			next.After = names[i]
 		}
 	}
-	if i < len(names) {
-		next.After = names[i-1]
+	if i == len(names) {
+		next.After = ""
 	}
 	return window, next, true
 }
@@ -215,28 +217,49 @@ func runRetireWindow(root string) (window []string, next runRetireCursor, ok boo
 func readRunRetireCursor(root string) runRetireCursor {
 	var cur runRetireCursor
 	raw, err := readBounded(filepath.Join(root, runRetireCursorName), 64<<10)
-	if err != nil || json.Unmarshal(raw, &cur) != nil || (cur.After != "" && !runAttemptName(cur.After)) || len(cur.Carry) > maxRetainedEndedRuns {
+	if err != nil || json.Unmarshal(raw, &cur) != nil || (cur.After != "" && !runWindowName(cur.After)) || len(cur.Carry) > maxRetainedEndedRuns {
 		return runRetireCursor{}
 	}
+	seen := map[string]bool{}
 	for _, name := range cur.Carry {
-		if !runAttemptName(name) {
+		// A repeated attempt would count its runs again and could push a
+		// distinct retained run out of the newest set.
+		if !runAttemptName(name) || seen[name] {
 			return runRetireCursor{}
 		}
+		seen[name] = true
 	}
 	return cur
 }
 
-// writeRunRetireCursor replaces the cursor in one rename; a failed write
-// leaves the old one, and the next pass repeats its window.
+// writeRunRetireCursor replaces the cursor in one rename of a temporary
+// file of its own, so concurrent writers never share an inode and the last
+// rename wins whole; a failed write leaves the old one, and the next pass
+// repeats its window.
 func writeRunRetireCursor(root string, cur runRetireCursor) {
 	raw, err := json.Marshal(cur)
 	if err != nil {
 		return
 	}
-	tmp := filepath.Join(root, runRetireCursorName+".tmp")
-	if os.WriteFile(tmp, append(raw, '\n'), 0o600) != nil || os.Rename(tmp, filepath.Join(root, runRetireCursorName)) != nil {
+	f, err := os.CreateTemp(root, runRetireCursorName+"-*.tmp")
+	if err != nil {
+		return
+	}
+	tmp := f.Name()
+	_, err = f.Write(append(raw, '\n'))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil || os.Rename(tmp, filepath.Join(root, runRetireCursorName)) != nil {
 		_ = os.Remove(tmp)
 	}
+}
+
+// runWindowName reports a root entry a retirement window examines, and so a
+// name the cursor may resume after: an attempt directory name, or a retired
+// run an earlier pass did not finish removing.
+func runWindowName(s string) bool {
+	return runAttemptName(s) || (strings.HasPrefix(s, retiredRunPrefix) && len(s) <= 255 && !strings.ContainsAny(s, "/\x00"))
 }
 
 // runAttemptName reports a name attemptRunsName can produce.

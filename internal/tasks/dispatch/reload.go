@@ -108,20 +108,14 @@ func sameConfigStat(a, b fs.FileInfo) bool {
 // idle skip (CAL-V0-139) cannot delay a CAL-V0-127 reload: the file differs
 // from the applied bytes and is not the refusal already recorded, or it
 // matches them again after a refusal. An unchanged stat reuses the digest
-// of the bytes last read and reads nothing; a changed stat reads the file.
-// A stat or read error is pending, so the full tick reports it.
+// of the bytes last read within idleFullEvery and reads nothing; a changed
+// stat or an older read reads the file (CAL-V0-350). A read error is
+// pending, so the full tick reports it.
 func (d *Dispatcher) configPending() bool {
 	if d.configRead == nil {
 		return false
 	}
-	sum, same := d.configSeenSha256, false
-	if d.configStat != nil && d.configSeen != nil {
-		now, err := d.configStat()
-		if err != nil {
-			return true
-		}
-		same = sameConfigStat(d.configSeen, now)
-	}
+	sum, same := d.cachedConfigSum(d.Now().UTC())
 	if !same {
 		var err error
 		if _, sum, err = d.readConfig(); err != nil {

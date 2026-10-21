@@ -509,7 +509,6 @@ func TestCALV0056_IdentityOutageAndUnknownState(t *testing.T) {
 		t.Fatalf("tick: %v running %d", err, d.Running())
 	}
 	w := d.ledger.Workers[0]
-	t.Cleanup(func() { syscall.Kill(w.PID, syscall.SIGKILL) })
 	if !regexp.MustCompile(`^prog-a\.impl-x\.1\.`+d.nonce+`-1$`).MatchString(w.ID) || len(d.nonce) != 8 {
 		t.Fatalf("worker ID %q (nonce %q)", w.ID, d.nonce)
 	}

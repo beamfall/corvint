@@ -7231,7 +7231,9 @@ backlog behind entries it could not retire was never reached (V1-0934).
   than the CAL-V0-139 safety-net interval (15 minutes) old by a clock that has not gone backwards.
   Otherwise it MUST read the bytes, as before. A reused digest that equals a refused configuration
   is not reported again; one that equals the applied configuration keeps it. Any identity change
-  reads the bytes, so a replacement or restoration is handled exactly as CAL-V0-127 says.
+  reads the bytes, so a replacement or restoration is handled exactly as CAL-V0-127 says. The same
+  cache age bounds a pending reload check, which reuses the digest under the same conditions, and
+  the idle gate's next full tick, which is due no later than 15 minutes after that read.
 - `CAL-V0-351`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0924) Amends
   CAL-V0-139 and CAL-V0-068. A pressure configuration MUST NOT by itself disable the idle gate.
   While the dispatcher supervises no worker and its recorded pressure state is calm (level 0, no
@@ -7242,9 +7244,11 @@ backlog behind entries it could not retire was never reached (V1-0934).
   idle gate can arm. A consulted plan MUST sample the host, step the hysteresis and plan again
   against the real budget, so no launch ever precedes a sample. Any other recorded state, or a
   running worker, samples every tick as before. The first sample after a deferred tick has no CPU
-  baseline, as after `Open`. Its budget uses the pending level when that is higher than the
-  recorded level, because the deferred ticks never advanced the dwell. The recorded state keeps
-  the ordinary hysteresis.
+  baseline, as after `Open`. From that sample until the pending transition resolves, admission
+  uses the pending level whenever it is higher than the recorded level, because the deferred
+  ticks never advanced the dwell. When CPU is a selected signal and that first sample has no CPU
+  interval, it admits no launch that the budget would cap, and the next tick samples a fresh
+  interval; an UNKNOWN CPU reading never admits. The recorded state keeps the ordinary hysteresis.
 - `CAL-V0-352`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0934) Amends the
   retirement scan of CAL-V0-144. A retirement pass MUST examine one window of names: the directories retained by
   earlier windows, at most 32, carried forward, plus at most 4,096 less those read from the
@@ -7275,10 +7279,18 @@ Acceptance evidence (`internal/tasks/dispatch`):
   reads where every tick would otherwise read: one on the first tick, none over five unchanged
   ticks, one after the safety-net interval, one for an invalid replacement (refused and not
   reported again), one for a valid change, then reuse again, and one after a stat error.
+  `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires` rewrites the file with the same size and
+  preserved timestamps while idle: minute 14 reuses the digest, and by minute 16 the bytes are read
+  and the new prompt applies. With both the idle bound and the pending-check age removed it fails.
 - `TestCALV0351_IdlePressureConfigSkipsTheSample` takes one sample in 24 idle ticks and makes no
   store observation in the last 20; the idle gate is armed. Eligible work under a critical first
   sample (dwell 2) is held at the pending level. The next calm sample launches the worker after
   its sample. A mutation that removes the pending-level budget fails the test.
+  `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles` uses dwell 3 and critical cap 0:
+  two critical samples after idle still hold, and the hold clears once calm settles.
+  `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval` selects CPU only: the first sample after
+  idle has no interval and launches nothing, the next is critical and holds, a calm one launches.
+  A mutation that holds for one gap sample only, or drops the CPU baseline hold, fails these.
   `TestCALV0351_DeferredBudgetRefuses` covers the budget itself. The CAL-V0-068, CAL-V0-125 and
   CAL-V0-139 tests pass; `TestCALV0125_UnselectedCPULeavesLedgerUnchanged` now counts one sample
   in its two idle ticks.
@@ -7300,9 +7312,11 @@ Orphaned worker trees from dispatch tests (`host.sh` from `TestCALV0143_*`, `Tes
 - `CAL-V0-353`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0948) Every
   worker process group a dispatch test launches MUST be stopped with SIGKILL to its process group
   and found empty, within a bounded wait, by a cleanup the test registers before it launches, so
-  the cleanup also runs after `t.Fatal`. A group is signalled only while its leader's pid is free or
-  still carries the recorded start identity. After all tests, the package MUST fail when any
-  launched group is still alive. The production hook is a nil function variable that `launch`
+  the cleanup also runs after `t.Fatal`. A group is signalled only when its leader still carries
+  the recorded start identity; an absent leader or an identity read error is not ownership. A
+  group that is still present without that match is reported as a possible leak that cannot be
+  verified, and is not signalled. After all tests, the package MUST fail when any launched group
+  that it could verify was still alive. The production hook is a nil function variable that `launch`
   calls with each started leader; it has no effect outside tests.
 
 Non-goals: processes a worker moves out of its process group, and processes started by other test
@@ -7313,6 +7327,8 @@ launches a shell with two `sleep` descendants and proves the reap empties the gr
 check sees it before and not after. With the `testConfig` cleanup removed, a run of the
 `TestCALV0127_Reload*`, `TestCALV0143_*` and `TestCALV0272_*` tests fails with four leaked groups;
 with it, the full package passes and no test-launched `host.sh` remains.
+`TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` lets a leader exit while its child keeps the
+group: the group is reported unverified and the child is not signalled.
 
 Rollback: revert the commit; tests again leave worker trees to the caller.
 
@@ -8266,7 +8282,7 @@ after this restore.
 | CAL-V0-317 | `TestCALV0317_UnobservedTreeIsNotKept` (`internal/tasks/dispatch`) |
 | CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
 | CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`); `docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md` |
-| CAL-V0-350 | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
-| CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
+| CAL-V0-350 | `TestCALV0350_FullTickReusesAnUnchangedConfigRead`, `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`, `TestCALV0127_ConfigReloadAppliesAndRefuses` (`internal/tasks/dispatch`) |
+| CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles`, `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
 | CAL-V0-352 | `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` and the `TestCALV0144_*` tests (`internal/tasks/dispatch`) |
-| CAL-V0-353 | `TestCALV0353_CleanupReapsTheWholeWorkerGroup` and the package `TestMain` leak check (`internal/tasks/dispatch`) |
+| CAL-V0-353 | `TestCALV0353_CleanupReapsTheWholeWorkerGroup`, `TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` and the package `TestMain` leak check (`internal/tasks/dispatch`) |

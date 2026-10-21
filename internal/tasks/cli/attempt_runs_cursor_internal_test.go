@@ -114,3 +114,125 @@ func TestATRV0154_RetirementSweepsABacklogBeyondOneWindow(t *testing.T) {
 		t.Fatalf("malformed cursor read as %+v", cur)
 	}
 }
+
+// plantEndedRun writes one FINISHED run of attempt id whose files last
+// changed at.
+func plantEndedRun(t *testing.T, root, id string, seq int, at time.Time) {
+	t.Helper()
+	sum, status, pid := strings.Repeat("0", 64), 0, os.Getpid()
+	ended := "2026-10-20T00:00:01Z"
+	runID := fmt.Sprintf("%016x", seq)
+	dir := filepath.Join(root, attemptRunsName(id), runID)
+	raw, err := encodeRunRecord(&runRecord{Profile: "taskman-attempt-run-record/0", RunID: runID, AttemptID: id, Generation: "1",
+		ArgvSha256: sum, TimeoutSeconds: 60, State: runFinished, LaunchedAt: "2026-10-20T00:00:00Z", SupervisorPid: pid,
+		SupervisorIdentity: "gone", CommandPid: &pid, EndedAt: &ended, ExitStatus: &status, ResultSha256: &sum})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, runRecordName), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range []string{filepath.Join(dir, runRecordName), dir} {
+		if err := os.Chtimes(p, at, at); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// ATR-V0-154: a cursor that carries one attempt twice is malformed, so its
+// runs cannot be counted twice into the retained set.
+func TestATRV0154_DuplicateCarryIsMalformed(t *testing.T) {
+	root := t.TempDir()
+	name := attemptRunsName("attempt-a")
+	raw := fmt.Sprintf(`{"after":"","carry":[%q,%q]}`, name, name)
+	if err := os.WriteFile(filepath.Join(root, runRetireCursorName), []byte(raw), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if cur := readRunRetireCursor(root); cur.After != "" || cur.Carry != nil {
+		t.Fatalf("duplicate carry read as %+v", cur)
+	}
+	window, _, ok := runRetireWindow(root)
+	if !ok || len(window) != 0 {
+		t.Fatalf("window %v (ok %v) from a malformed cursor", window, ok)
+	}
+}
+
+// ATR-V0-154: each cursor write uses a temporary file of its own, so a
+// writer holding another temporary file cannot change the published cursor.
+func TestATRV0154_CursorWriteUsesItsOwnTemporaryFile(t *testing.T) {
+	root := t.TempDir()
+	stale, err := os.OpenFile(filepath.Join(root, runRetireCursorName+".tmp"), os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stale.Close()
+	want := runRetireCursor{After: attemptRunsName("b"), Carry: []string{attemptRunsName("a")}}
+	writeRunRetireCursor(root, want)
+	if _, err := stale.WriteString("garbage"); err != nil {
+		t.Fatal(err)
+	}
+	if got := readRunRetireCursor(root); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("cursor %+v, want %+v", got, want)
+	}
+	tmps, err := filepath.Glob(filepath.Join(root, runRetireCursorName+"-*.tmp"))
+	if err != nil || len(tmps) != 0 {
+		t.Fatalf("temporary files left: %v %v", tmps, err)
+	}
+}
+
+// ATR-V0-154: the window ends only on names the cursor reads back. A full
+// window of undeletable retired runs, which sort before every attempt,
+// still advances the sweep to the attempts after it.
+func TestATRV0154_RetiredBacklogAdvancesTheCursor(t *testing.T) {
+	retain := maxRetainedEndedRuns
+	maxRetainedEndedRuns = 1
+	t.Cleanup(func() { maxRetainedEndedRuns = retain })
+	root := filepath.Join(t.TempDir(), "taskman-runs")
+	for i := 0; i < maxRunAttemptScan; i++ {
+		locked := filepath.Join(root, fmt.Sprintf("%s%04d", retiredRunPrefix, i), "locked")
+		if err := os.MkdirAll(locked, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(locked, "f"), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(locked, 0o500); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	ids := []string{"attempt-0", "attempt-1", "attempt-2"}
+	terminal := map[string]*snapshot.Attempt{}
+	for i, id := range ids {
+		plantEndedRun(t, root, id, i+1, old.Add(-time.Duration(i)*time.Minute))
+		terminal[id] = &snapshot.Attempt{Phase: "COMPLETED", Generation: wire.SizeOf(1)}
+	}
+	records := func(context.Context, []string) (map[string]*snapshot.Attempt, error) { return terminal, nil }
+	present := func() (n int) {
+		for _, id := range ids {
+			if _, err := os.Stat(filepath.Join(root, attemptRunsName(id))); err == nil {
+				n++
+			}
+		}
+		return n
+	}
+	const bound = 3
+	passes := 0
+	for ; passes < bound && present() != 1; passes++ {
+		retireEndedRunsIn(root, records)
+		if cur := readRunRetireCursor(root); passes == 0 && !strings.HasPrefix(cur.After, retiredRunPrefix) {
+			t.Fatalf("first pass cursor %+v, want one after the retired backlog", cur)
+		}
+	}
+	if present() != 1 {
+		t.Fatalf("after %d passes (bound %d) %d attempts remain, want 1", passes, bound, present())
+	}
+	if _, err := os.Stat(filepath.Join(root, attemptRunsName("attempt-0"))); err != nil {
+		t.Fatalf("the newest run was retired: %v", err)
+	}
+	t.Logf("%d undeletable retired runs then %d attempts swept in %d passes (bound %d)", maxRunAttemptScan, len(ids), passes, bound)
+}

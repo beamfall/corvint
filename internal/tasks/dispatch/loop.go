@@ -104,6 +104,14 @@ type Dispatcher struct {
 	// launched nothing (CAL-V0-351): the next sample has no CPU baseline,
 	// as after Open, so utilization is never averaged across the gap.
 	pressureGap bool
+	// pressureHold keeps the budget at a raised pending level from the
+	// first sample after a gap until that transition resolves, because the
+	// skipped ticks never advanced the dwell (CAL-V0-351).
+	pressureHold bool
+	// pressureBaseline is set when the first sample after a gap had no CPU
+	// interval with cpu selected: that tick admits no non-exempt launch and
+	// the next tick samples rather than deferring (CAL-V0-351).
+	pressureBaseline bool
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
 	poolWaitEmitted map[string]string
@@ -1576,7 +1584,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 	// again after the sample. While a worker runs, every tick samples, so
 	// the hysteresis keeps tracking a host that is doing work.
 	deferred := false
-	if d.Config.Pressure != nil && d.ledger.Pressure != nil && len(d.ledger.Workers) == 0 && d.pressureLabel() == AdmissionPressureCalm {
+	if d.Config.Pressure != nil && d.ledger.Pressure != nil && len(d.ledger.Workers) == 0 && !d.pressureBaseline && d.pressureLabel() == AdmissionPressureCalm {
 		budget = &PressureBudget{deferred: true}
 		plan()
 		deferred = !budget.consulted
@@ -2182,17 +2190,33 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 		running = append(running, a)
 	}
 	// CAL-V0-351: the samples skipped during a gap never advanced the
-	// dwell, so the first sample after one budgets at a raised pending
-	// level at once rather than launching while it dwells. The recorded
-	// state keeps the ordinary hysteresis.
-	admit := next
-	if gap && next.PendingLevel > next.Level {
-		admit.Level = next.PendingLevel
+	// dwell, so from the first sample after one until the pending
+	// transition resolves the budget uses a raised pending level rather
+	// than launching while it dwells. The recorded state keeps the ordinary
+	// hysteresis.
+	if gap {
+		d.pressureHold = true
 	}
+	admit := next
+	if d.pressureHold {
+		if next.PendingLevel > next.Level {
+			admit.Level = next.PendingLevel
+		} else {
+			d.pressureHold = false
+		}
+	}
+	// With cpu selected, the first sample after a gap has no interval, so
+	// its utilization is UNKNOWN: it admits nothing that pressure governs,
+	// and the next tick samples a fresh interval instead of deferring.
+	baseline := want.cpu && gap && !sample.CPUUtilizationKnown
+	d.pressureBaseline = baseline
 	b, err := NewPressureBudget(c, admit, running, d.Config.Pinned)
 	if err != nil {
 		d.emit(Event{Kind: "alert", Message: "pressure budget unavailable; launches withheld: " + err.Error()})
 		return nil, false
+	}
+	if baseline {
+		b.enabled, b.cap = true, 0
 	}
 	return b, true
 }

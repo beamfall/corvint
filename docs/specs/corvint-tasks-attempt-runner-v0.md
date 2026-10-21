@@ -1288,8 +1288,11 @@ ended), every pass read them again and the backlog behind them was never reached
   the newest 16 ended runs it kept, which are carried into the next window. A run is retained only
   when it is among the newest 16 of its window and the carried attempts. The newest 16 of all are
   in every window's newest 16, so they are never removed. One sweep leaves at most 16 ended runs of
-  terminal attempts among the names it reached. A cursor that does not read back as attempt
-  directory names is ignored, and the sweep starts over.
+  terminal attempts among the names it reached. The window and the cursor check share one name
+  rule: an attempt directory name, or a `.retired-` name, which the window passes over but may
+  record as its last name. A cursor that does not read back under that rule, or that carries a
+  name twice, is ignored, and the sweep starts over. Each writer writes the cursor through its
+  own temporary file in `taskman-runs/` before the rename.
 
 Bound: a pass examines at most 1,024 attempt directories and makes one terminal-record read, as
 before. Listing up to 65,536 names reads directory entries only and stats none of them. A backlog
@@ -1310,6 +1313,12 @@ lowers the window to 6 and the retention to 2. It plants 30 attempts with one qu
 each, and 10 empty attempt directories. Every pass examines at most 6 attempts and makes at most one
 terminal lookup. Within 11 passes, which is ceil(40 / (6 - 2)) + 1, only the newest 2 runs of all
 remain, and the empty directories are kept. A malformed cursor reads as a fresh start.
+`TestATRV0154_DuplicateCarryIsMalformed` refuses a cursor that carries a name twice.
+`TestATRV0154_CursorWriteUsesItsOwnTemporaryFile` shows a writer holding the old fixed temporary
+path cannot alter the cursor, and no temporary file remains.
+`TestATRV0154_RetiredBacklogAdvancesTheCursor` plants 1,024 undeletable `.retired-` directories
+ahead of three attempts: the first pass records a `.retired-` name, and within 3 passes only the
+newest attempt's run remains.
 `TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts` passes unchanged.
 
 Rollback: revert the commit. A left cursor file is an ordinary non-directory entry that the
@@ -1580,4 +1589,4 @@ receipt or wire shape changes.
 | ATR-V0-151 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/roster.go` (`roster`, `outsideFocusOnly`, `relaunchRole`) | `TestATRV0151_RunOnlyBypassFocus`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
 | ATR-V0-152 | `internal/tasks/dispatch/config.go` (`Role`, `validate`), `internal/tasks/dispatch/admission.go` (`effectiveCap`, `depths`) | `TestATRV0152_CapMaxScalesAtCalmPressure`, `TestATRV0151_ConfigValidation` (`internal/tasks/dispatch`) |
 | ATR-V0-153 | `internal/tasks/cli/attempt_run.go` (`execute`), `internal/groupreap/owner.go` (`Primitives.RepeatKillWhileLive`, `waitPreReapQuiet`) | `TestOwnerRepeatKillWhileLiveSignalsOnlyBeforeReap`, `TestOwnerRepeatKillFailureHoldsWithoutReaping`, `TestOwnerRepeatKillRetiresMemberForkedDuringStop` (`internal/groupreap`), `TestATRV0004_InterruptStopsTheRun` (`internal/tasks/cli`) |
-| ATR-V0-154 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRunsIn`, `runRetireWindow`, `readRunRetireCursor`, `writeRunRetireCursor`) | `TestATRV0154_RetirementSweepsABacklogBeyondOneWindow`, `TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts` (`internal/tasks/cli`) |
+| ATR-V0-154 | `internal/tasks/cli/attempt_runs_retire.go` (`retireEndedRunsIn`, `runRetireWindow`, `readRunRetireCursor`, `writeRunRetireCursor`, `runWindowName`) | `TestATRV0154_RetirementSweepsABacklogBeyondOneWindow`, `TestATRV0154_DuplicateCarryIsMalformed`, `TestATRV0154_CursorWriteUsesItsOwnTemporaryFile`, `TestATRV0154_RetiredBacklogAdvancesTheCursor`, `TestATRV0015_SupervisorRetiresEndedRunsOfTerminalAttempts` (`internal/tasks/cli`) |

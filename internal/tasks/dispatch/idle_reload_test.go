@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -242,4 +243,78 @@ func TestCALV0350_FullTickReusesAnUnchangedConfigRead(t *testing.T) {
 	// A failing stat reads the file rather than trusting the cache.
 	d.configStat = func() (fs.FileInfo, error) { return nil, os.ErrPermission }
 	tick(5, "a stat error reads the file")
+}
+
+// CAL-V0-350: a cached configuration digest is trusted only within
+// idleFullEvery of its read, and the idle skip ends there too. A same-size
+// rewrite that preserves the compared timestamps is invisible to the stat;
+// a full tick at minute 14 still reuses the digest, but the file is read
+// and the change applied once the read is 15 minutes old.
+func TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match = &Match{Labels: []string{"no-such-label"}}
+	start := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	clock := start
+	q := &witnessQueue{witness: "w1"}
+	q.obs.Tickets = []Ticket{ticket("T-1", "P1", 1)}
+	path := filepath.Join(t.TempDir(), "dispatch.json")
+	applied, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, applied, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	d.Now = func() time.Time { return clock }
+	reads := 0
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) { reads++; return readWithInfo(path) }, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
+	tick := func(at time.Duration) {
+		t.Helper()
+		clock = start.Add(at)
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tick(0)
+	tick(time.Second)
+	if reads != 1 || d.idle == nil {
+		t.Fatalf("first ticks: %d reads, idle gate %v", reads, d.idle != nil)
+	}
+	before, err := os.Lstat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := cloneConfig(t, c)
+	next.Roles[0].Prompt = strings.ToUpper(c.Roles[0].Prompt[:4]) + c.Roles[0].Prompt[4:]
+	raw, err := json.Marshal(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) != len(applied) {
+		t.Fatalf("rewrite is %d bytes, want %d", len(raw), len(applied))
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, before.ModTime(), before.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := os.Lstat(path); err != nil || !sameConfigStat(before, after) {
+		t.Fatalf("the rewrite changed the compared stat: %v", err)
+	}
+	// A store change forces a full tick at minute 14: the digest is reused.
+	q.witness = "w2"
+	tick(14 * time.Minute)
+	if reads != 1 || d.Config.Roles[0].Prompt != c.Roles[0].Prompt {
+		t.Fatalf("minute 14: %d reads, prompt %q", reads, d.Config.Roles[0].Prompt)
+	}
+	tick(16 * time.Minute)
+	if reads < 2 || d.Config.Roles[0].Prompt != next.Roles[0].Prompt {
+		t.Fatalf("minute 16: %d reads, prompt %q: the cached digest outlived idleFullEvery", reads, d.Config.Roles[0].Prompt)
+	}
 }

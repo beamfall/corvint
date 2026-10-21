@@ -43,43 +43,53 @@ func launchedCount() int {
 	return len(launchedGroups.all)
 }
 
-// groupOwned reports whether pid can still name the group a test started:
-// either the leader runs with its recorded identity, or no process holds
-// the pid. A pid is not reused while its process group exists, so a
-// different identity means the recorded group is already gone.
+// groupOwned reports whether the recorded leader still runs with its
+// recorded start identity. Only that positive match proves the process
+// group is the one the test started: an absent leader or an unreadable
+// identity proves nothing, because the pid may since name another group.
 func groupOwned(g launchedGroup) bool {
-	id, _ := identityOf(g.pid)
-	return id == "" || id == g.id
+	id, err := identityOf(g.pid)
+	return err == nil && id != "" && id == g.id
 }
 
-func groupAlive(g launchedGroup) bool {
-	return groupOwned(g) && syscall.Kill(-g.pid, 0) == nil
-}
+func groupPresent(pid int) bool { return syscall.Kill(-pid, 0) == nil }
 
 // reapLaunched stops every worker group recorded at or after index from
-// with SIGKILL and waits, bounded, until each group is empty (V1-0948,
-// CAL-V0-353). It returns the groups that were alive before the kill and
-// those still alive after the wait.
-func reapLaunched(from int) (alive, survivors []int) {
-	groups := launchedSince(from)
-	for _, g := range groups {
-		if groupAlive(g) {
-			alive = append(alive, g.pid)
+// whose leader is positively matched, with SIGKILL to the group, and waits,
+// bounded, until each is empty (V1-0948, CAL-V0-353). It returns the groups
+// it killed, those still present after the wait, and the unverified ones:
+// a group still present after the same wait under a recorded pid whose
+// leader no longer matches, which may be a leak or an unrelated group and
+// is never signalled.
+func reapLaunched(from int) (killed, survivors, unverified []int) {
+	for _, g := range launchedSince(from) {
+		switch {
+		case groupOwned(g):
+			killed = append(killed, g.pid)
 			_ = syscall.Kill(-g.pid, syscall.SIGKILL)
+		case groupPresent(g.pid):
+			unverified = append(unverified, g.pid)
 		}
 	}
-	for _, g := range groups {
+	return killed, drained(killed), drained(unverified)
+}
+
+// drained waits, bounded, for each group to empty and returns those still
+// present. A group a test's own cleanup has just signalled can take a
+// moment to empty, so only one that outlasts the wait is reported.
+func drained(pids []int) (present []int) {
+	for _, pid := range pids {
 		gone := false
 		for i := 0; i < 250 && !gone; i++ {
-			if gone = !groupAlive(g); !gone {
+			if gone = !groupPresent(pid); !gone {
 				time.Sleep(20 * time.Millisecond)
 			}
 		}
 		if !gone {
-			survivors = append(survivors, g.pid)
+			present = append(present, pid)
 		}
 	}
-	return alive, survivors
+	return present
 }
 
 // reapOnCleanup registers a cleanup that stops and reaps every worker group
@@ -89,21 +99,30 @@ func reapOnCleanup(t *testing.T) {
 	t.Helper()
 	from := launchedCount()
 	t.Cleanup(func() {
-		if _, left := reapLaunched(from); len(left) > 0 {
+		_, left, unverified := reapLaunched(from)
+		if len(left) > 0 {
 			t.Errorf("V1-0948: worker process groups %v survived SIGKILL", left)
+		}
+		if len(unverified) > 0 {
+			t.Errorf("V1-0948: worker process groups %v outlived their leaders; possible leak, not signalled", unverified)
 		}
 	})
 }
 
 // TestMain is the maintained leak check (CAL-V0-353): after every test has
-// run its cleanups, no worker group any test launched may still be alive.
-// A leaked group is killed and fails the package.
+// run its cleanups, no worker group any test launched may still run under
+// its matched leader; such a group is killed and fails the package. A group
+// present under a recorded pid whose leader no longer matches cannot be
+// attributed, so it is reported as a possible leak and never signalled.
 func TestMain(m *testing.M) {
 	code := m.Run()
-	alive, left := reapLaunched(0)
-	if len(alive) > 0 {
-		fmt.Fprintf(os.Stderr, "FAIL: V1-0948: dispatch tests left worker process groups alive: %v (killed; still alive: %v)\n", alive, left)
+	killed, left, unverified := reapLaunched(0)
+	if len(killed) > 0 {
+		fmt.Fprintf(os.Stderr, "FAIL: V1-0948: dispatch tests left worker process groups alive: %v (killed; still present: %v)\n", killed, left)
 		code = 1
+	}
+	if len(unverified) > 0 {
+		fmt.Fprintf(os.Stderr, "V1-0948: process groups %v remain under recorded leader pids whose identity no longer matches; possible leak, cannot verify, not signalled\n", unverified)
 	}
 	os.Exit(code)
 }
@@ -134,9 +153,9 @@ func TestCALV0353_CleanupReapsTheWholeWorkerGroup(t *testing.T) {
 	if n := members(); n < 2 {
 		t.Fatalf("worker group has %d descendants, want 2 sleeps", n)
 	}
-	alive, left := reapLaunched(from)
-	if len(alive) != 1 || alive[0] != pid {
-		t.Fatalf("leak check saw %v alive, want [%d]: the TestMain check would miss this leak", alive, pid)
+	alive, left, unverified := reapLaunched(from)
+	if len(alive) != 1 || alive[0] != pid || len(unverified) != 0 {
+		t.Fatalf("leak check killed %v (unverified %v), want [%d]: the TestMain check would miss this leak", alive, unverified, pid)
 	}
 	if len(left) > 0 || members() != 0 {
 		t.Fatalf("group %d not reaped: survivors %v, %d descendants left", pid, left, members())
@@ -146,7 +165,54 @@ func TestCALV0353_CleanupReapsTheWholeWorkerGroup(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("killed leader was not reaped")
 	}
-	if alive, _ := reapLaunched(from); len(alive) != 0 {
-		t.Fatalf("leak check still sees %v after the reap", alive)
+	if alive, _, unverified := reapLaunched(from); len(alive)+len(unverified) != 0 {
+		t.Fatalf("leak check still sees %v (unverified %v) after the reap", alive, unverified)
+	}
+}
+
+// CAL-V0-353: once the leader is gone, a group under its pid cannot be
+// attributed, so the reaper reports it and never signals it.
+func TestCALV0353_UnmatchedLeaderIsReportedNotSignalled(t *testing.T) {
+	from := launchedCount()
+	dir := t.TempDir()
+	pid, _, exit, err := launch([]string{"/bin/sh", "-c", "/bin/sleep 300 & echo $! > child; exit 0"}, nil, dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-exit:
+	case <-time.After(10 * time.Second):
+		t.Fatal("leader did not exit")
+	}
+	raw, err := os.ReadFile(dir + "/child")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var child int
+	if _, err := fmt.Sscan(string(raw), &child); err != nil || child <= 0 {
+		t.Fatalf("child pid %q: %v", raw, err)
+	}
+	childID, err := identityOf(child)
+	if err != nil || childID == "" {
+		t.Fatalf("child identity: %q %v", childID, err)
+	}
+	t.Cleanup(func() {
+		if id, _ := identityOf(child); id == childID {
+			_ = syscall.Kill(child, syscall.SIGKILL)
+		}
+	})
+	killed, left, unverified := reapLaunched(from)
+	if len(killed)+len(left) != 0 || len(unverified) != 1 || unverified[0] != pid {
+		t.Fatalf("killed %v, survivors %v, unverified %v; want only %d unverified", killed, left, unverified, pid)
+	}
+	if id, _ := identityOf(child); id != childID {
+		t.Fatal("the reaper signalled a group it could not attribute")
+	}
+	_ = syscall.Kill(child, syscall.SIGKILL)
+	if !gone(child) {
+		t.Fatal("child not reaped")
+	}
+	if _, _, unverified := reapLaunched(from); len(unverified) != 0 {
+		t.Fatalf("unverified %v after the child exited", unverified)
 	}
 }

@@ -173,6 +173,11 @@ func (d *Dispatcher) idleSettle(m idleMark, err error) {
 		}
 	}
 	early(d.idleLease)
+	// CAL-V0-350: the cached configuration digest is trusted only within
+	// idleFullEvery of its read, so the skip window ends there too.
+	if d.configRead != nil && !d.configSeenAt.IsZero() {
+		early(d.configSeenAt.Add(idleFullEvery))
+	}
 	if r := d.ledger.Budget; r != nil {
 		for _, h := range r.Held {
 			early(h.ResetsAt) // CAL-V0-158: a budget hold releases on the clock

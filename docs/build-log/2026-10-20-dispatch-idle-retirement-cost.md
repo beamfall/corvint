@@ -73,3 +73,25 @@ fails with 4 leaked groups. The full package passes in 181.7 s with no test-laun
 left. Friction: two foreign orphans were present before the run (a `TestTOLV0021_*` `host.sh` 4 days
 old and a `TestCALV0143_*` one from a peer lane's run on old code). They were left for the
 orchestrator.
+
+## Review fixes (one Codex round on 860331f71)
+
+Seven findings, all fixed in one commit:
+
+1. CAL-V0-353: ownership needs a positive start-identity match. An absent leader or an identity
+   read error no longer counts; such a present group is reported as unverified and not signalled,
+   in the per-test cleanup and in `TestMain`. The leader-only `SIGKILL` cleanups in the reload and
+   dispatch tests, which orphaned `sleep` children, were removed in favour of the group reap.
+2. CAL-V0-351: the post-idle hold stays until the pending transition resolves, not for one sample.
+3. CAL-V0-351: with CPU selected, the first post-gap sample has no interval; it admits no capped
+   launch and the next tick samples a fresh interval. The old CPU assertion was vacuous (the
+   signal was never selected); the new test asserts CPU is selected.
+4. CAL-V0-350: the idle gate's next full tick is due by the config read time plus 15 minutes, and
+   a pending reload check honours the cache age.
+5. to 7. ATR-V0-154: duplicate carried names make the cursor malformed; each writer uses its own
+   `CreateTemp` file before the rename; the window and the cursor check share `runWindowName`, so
+   a window of 1,024 `.retired-` names advances the cursor instead of resetting it.
+
+Mutation evidence: holding for one gap sample only, with no CPU baseline hold, fails the three
+CAL-V0-351 launch tests. Removing the idle bound alone passes because the pending-check age
+covers it; removing both fails `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`.
