@@ -126,6 +126,11 @@ known to approach or exceed it and are bounded as listed:
 | `corvint cem verify --guarding-tests` | runs the change's tests for up to 1200 s | not run in lanes |
 | CI and merge-queue waits | minutes to hours | orchestrator only |
 
+The rule is enforced by `script/lane-guard.sh` (ASD-V0-024, V1-1953), a PreToolUse(Bash) hook the
+operator installs in Claude Code settings with `LANE_GUARD_ROOTS=<lanes-root>` (and, once lanes use
+the repository semaphore, `LANE_GUARD_HEAVY=script/heavy.sh`). It denies polling loops and `go test`
+without `heavy.sh`, and ignores heredoc bodies, so writing a file that contains a loop is allowed.
+
 ## 5. Idle-lane watchdog (ASD-V0-017)
 
 At every heartbeat (at most 10 minutes apart) the orchestrator runs
@@ -177,6 +182,11 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   for 24 hours; unfinished Git work is archived (patch, untracked tarball, status, bundle) before
   removal and kept when no archive directory is given. Owner-approved toolchain directories go on
   the `--keep` list.
+- Local binaries (ASD-V0-025, V1-1979): install a rebuilt tool with
+  `script/install-local-bin.sh <built> ~/.local/bin/<tool>` instead of an ad-hoc sibling copy. It
+  renames a sibling copy over the target, keeps one `<tool>.corvint-prev-<n>` rollback (more with
+  `--keep N`), prunes older ones, and `--rollback` restores it. It never removes other backup names;
+  existing ad-hoc `.bak*` files are the operator's to review and delete.
 
 ## 7. Measuring the procedure
 
