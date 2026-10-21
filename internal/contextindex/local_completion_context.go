@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"path"
 	"regexp"
 	"slices"
@@ -102,6 +103,10 @@ type localPromptCompiler struct {
 	anchors, missing, ambiguous, unread, dirty int
 	scopeStale, scopeUnavailable               int
 	requirementsCapped                         bool
+	// dropped counts, by kind, the anchors past localPromptMaxAnchors that
+	// the partial packet does not resolve (LCP-V0-035).
+	dropped      map[string]any
+	droppedTotal int
 }
 
 func (compiler *localPromptCompiler) addGovernance() {
@@ -147,10 +152,7 @@ func (compiler *localPromptCompiler) addAnchors() {
 		remaining = strings.ReplaceAll(remaining, token, " ")
 	}
 	identifiers := localPromptIdentifiers(remaining)
-	if len(ids)+len(mentions)+len(paths)+len(identifiers) > localPromptMaxAnchors {
-		compiler.failBounds()
-		return
-	}
+	ids, mentions, paths, identifiers = compiler.keepAnchors(ids, mentions, paths, identifiers)
 	if len(ids) != 0 {
 		definitions := compiler.definitions(ids)
 		for _, id := range ids {
@@ -182,6 +184,31 @@ func (compiler *localPromptCompiler) addAnchors() {
 			compiler.resolveIdentifier(identifier.name)
 		}
 	}
+}
+
+// keepAnchors keeps at most localPromptMaxAnchors anchors, in the fixed order
+// requirement IDs, mentions, paths, identifiers, each already sorted, and counts
+// what it drops by kind. The dropped anchors are raw task terms, so the packet
+// names them by kind and count only (LCP-V0-011, LCP-V0-035).
+func (compiler *localPromptCompiler) keepAnchors(ids []string, mentions []taskMention, paths []string, identifiers []taskIdentifier) ([]string, []taskMention, []string, []taskIdentifier) {
+	room := localPromptMaxAnchors
+	keep := func(kind string, total int) int {
+		kept := min(total, room)
+		room -= kept
+		if dropped := total - kept; dropped > 0 {
+			if compiler.dropped == nil {
+				compiler.dropped = map[string]any{}
+			}
+			compiler.dropped[kind] = dropped
+			compiler.droppedTotal += dropped
+		}
+		return kept
+	}
+	ids = ids[:keep("requirement_ids", len(ids))]
+	mentions = mentions[:keep("mentions", len(mentions))]
+	paths = paths[:keep("paths", len(paths))]
+	identifiers = identifiers[:keep("identifiers", len(identifiers))]
+	return ids, mentions, paths, identifiers
 }
 
 // Reuse the clause grammar one bounded source at a time, allowing cancellation
@@ -586,16 +613,24 @@ func (compiler *localPromptCompiler) resolution() map[string]any {
 		reason = "anchor-worktree-changed"
 	case compiler.qualified > 0:
 		reason = "qualification-unverified"
+	case compiler.droppedTotal > 0:
+		reason = "anchor-bound-exceeded"
 	}
 	state := "resolved"
 	if reason != "none" {
 		state = "unresolved"
 	}
-	return map[string]any{
+	resolution := map[string]any{
 		"state": state, "reason": reason, "anchors": compiler.anchors,
 		"missing_anchors": compiler.missing, "ambiguous_anchors": compiler.ambiguous,
 		"unavailable_evidence": compiler.unread, "unverified_qualifications": compiler.qualified,
 	}
+	// Present only when anchors were dropped, so every packet within the
+	// bound keeps its bytes (LCP-V0-035).
+	if compiler.droppedTotal > 0 {
+		resolution["dropped_anchors"], resolution["dropped_anchor_kinds"] = compiler.droppedTotal, maps.Clone(compiler.dropped)
+	}
+	return resolution
 }
 
 func localSelector(section, candidate string) map[string]any {

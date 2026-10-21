@@ -196,6 +196,7 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 	}
 	report.Ticket = a.TicketID.Raw
 	report.PoolAllocation, report.SharedAllocation = a.PoolAllocation, a.SharedAllocation
+	report.Scope = a.Scope
 	report.Delivery = claimDelivery(repo, a)
 	report.Delivery.KnowHow = claimKnowHow(repo, root, repos, a.TicketID.Raw)
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {

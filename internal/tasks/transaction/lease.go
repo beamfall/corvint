@@ -880,7 +880,33 @@ func sameResources(a, b []ticket.Resource) bool {
 
 // entryOracle answers attempt liveness from the reservation set: an entry
 // exists exactly for each live attempt (validateInput).
-type entryOracle struct{ set *snapshot.ReservationSet }
+type entryOracle struct {
+	set *snapshot.ReservationSet
+	// describe, when set, names a live attempt for a refusal (ATR-V0-190).
+	describe func(snapshot.ReservationEntry) string
+}
+
+// DescribeLiveAttempt names the ticket's live attempt, its holder, holder
+// status and recovery command, or "" when none or no describer is set.
+func (o entryOracle) DescribeLiveAttempt(id string) string {
+	if o.set == nil || o.describe == nil {
+		return ""
+	}
+	for _, e := range o.set.Entries {
+		if e.TicketID.Raw == id {
+			return o.describe(e)
+		}
+	}
+	return ""
+}
+
+// oracle is the lease context's attempt oracle with an ATR-V0-190 describer.
+func (c leaseContext) oracle() entryOracle {
+	ttl := c.st.policy.HeartbeatTTLSeconds()
+	return entryOracle{set: c.st.reservations, describe: func(en snapshot.ReservationEntry) string {
+		return SummarizeAttempt(en, c.st.attempts[en.AttemptID], c.in.RecordedAt, ttl).Detail()
+	}}
+}
 
 func (o entryOracle) LiveAttempt(id string) ticket.Observation {
 	if o.set == nil {

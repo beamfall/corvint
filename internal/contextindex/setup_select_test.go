@@ -58,6 +58,7 @@ func reasonCodes(selection SetupSelection) []string {
 // registry key's data context, or through require(), that a hub listing every seed is not
 // followed, and that comment-only mentions are ignored (TSA-V0-001, TSA-V0-002, TSA-V0-004).
 func TestSelectSetupClosure(t *testing.T) {
+	t.Parallel()
 	index := setupSelectIndex(t)
 	cases := []struct {
 		specs []string
@@ -88,6 +89,7 @@ func TestSelectSetupClosure(t *testing.T) {
 // TestSelectSetupAll proves a computed lookup, unknown key, missing path, non-literal import() or
 // empty spec list returns the whole universe with a typed reason (TSA-V0-003).
 func TestSelectSetupAll(t *testing.T) {
+	t.Parallel()
 	index := setupSelectIndex(t)
 	all := []string{"setup/alpha.setup.ts", "setup/beta.setup.ts", "setup/gamma.setup.ts", "setup/users.seed.ts"}
 	cases := []struct {
@@ -113,6 +115,7 @@ func TestSelectSetupAll(t *testing.T) {
 // TestSelectSetupDigest proves the result names the revision and a digest of the inputs read that
 // is stable across calls and changes with the spec list (TSA-V0-005).
 func TestSelectSetupDigest(t *testing.T) {
+	t.Parallel()
 	index := setupSelectIndex(t)
 	first := SelectSetup(index, []string{"tests/alpha.spec.ts"})
 	again := SelectSetup(index, []string{"tests/alpha.spec.ts"})
@@ -129,6 +132,7 @@ func TestSelectSetupDigest(t *testing.T) {
 // itself traversed: a setup it imports is selected, and an unresolved import there returns ALL
 // (TSA-V0-001, TSA-V0-003).
 func TestSelectSetupTraversesRegistrySeeders(t *testing.T) {
+	t.Parallel()
 	files := setupSelectFiles()
 	files["setup/alpha.setup.ts"] = "import { AlphaContext } from '../src/contexts/alpha';\nimport './base.setup';\nexport default new AlphaContext();\n"
 	files["setup/base.setup.ts"] = "export const base = 1;\n"
@@ -155,6 +159,7 @@ func TestSelectSetupTraversesRegistrySeeders(t *testing.T) {
 // TestSelectSetupUniverseIncludesUnindexedFiles proves ALL names every tracked setup file,
 // including a generated one the index does not read (TSA-V0-003).
 func TestSelectSetupUniverseIncludesUnindexedFiles(t *testing.T) {
+	t.Parallel()
 	files := setupSelectFiles()
 	files["setup/gen/omega.setup.ts"] = "export const omega = 1;\n"
 	root := impactRepositoryWithFiles(t, files)
@@ -211,6 +216,7 @@ func sharedConstantFiles() map[string]string {
 // alias, a re-export, `export *`, a namespace member, destructuring and a template substitution,
 // and that a spec reaching no shared constant still selects nothing (TSA-V0-006).
 func TestSelectSetupSharedConstantKeys(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, sharedConstantFiles())
 	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
 	if err != nil {
@@ -242,6 +248,7 @@ func TestSelectSetupSharedConstantKeys(t *testing.T) {
 // namespace used other than as NAMESPACE.EXPORT return ALL with shared-constant-key-unresolved
 // when an unselected setup file reads the same constant (TSA-V0-007).
 func TestSelectSetupSharedConstantFailsClosed(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, sharedConstantFiles())
 	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
 	if err != nil {
@@ -261,6 +268,7 @@ func TestSelectSetupSharedConstantFailsClosed(t *testing.T) {
 // TSA-V0-006 names: a default-exported object, a local object exported under an alias, `!.` and
 // `?.["key"]`.
 func TestSelectSetupSharedConstantExportForms(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"lib/defaults.ts":        "export default { one: 1, two: 2 };\n",
 		"lib/local.ts":           "const LOCAL: Record<string, number> = { one: 1, two: 2 };\nexport { LOCAL as ALIASED };\n",
@@ -309,6 +317,7 @@ func sharedTemplate(read string, depth int) string {
 // chain of exactly 8 hops, reads inside the declaring module, `require("m").NAME`, literal
 // require() and import() bindings, templates nested past the bound, and shadowing parameters.
 func TestSelectSetupSharedConstantReviewForms(t *testing.T) {
+	t.Parallel()
 	setup := func(from, read string) string {
 		return "import { SHARED } from '" + from + "';\nexport default async () => db.insert(" + read + ");\n"
 	}
@@ -374,6 +383,7 @@ func TestSelectSetupSharedConstantReviewForms(t *testing.T) {
 // nothing for a spec that reads none (TSA-V0-007). No other setup resolves SHARED first, so the
 // 9-hop chain meets the bound rather than a cached resolution.
 func TestSelectSetupSharedConstantOpenSetups(t *testing.T) {
+	t.Parallel()
 	files := map[string]string{
 		"lib/shared.ts":       "export const SHARED = { scenario_a: 1, scenario_b: 2 };\n",
 		"setup/far.setup.ts":  "import { SHARED } from '../lib/hop0';\nexport default async () => db.insert(SHARED.scenario_a);\n",

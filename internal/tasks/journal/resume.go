@@ -97,17 +97,23 @@ const abortEvery = 512
 // (receipts 1..H and every afterimage latest at H among them), the stat
 // stamps the audit's capture observed and the digest of the bytes it read.
 // It is held only by that command, never written, and
-// never shared with another command or process.
+// never shared with another command or process. On a segmented journal the
+// sealed receipts 1..through and the requests they posted have no files of
+// their own: the base holds the bound manifest and every segment it names
+// instead, with the digests the manifest and the head record (JSG-V0-011).
 type ResumeBase struct {
 	wc       *WriterCheckpoint
 	seq      uint64
 	files    map[string]resumeFile
 	requests int
+	through  uint64
+	segments []string
 }
 
 type resumeFile struct {
 	info  os.FileInfo
 	sum   wire.Digest
+	bytes int64
 	quiet bool
 }
 
@@ -129,11 +135,6 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 	if res == nil || (res.Mode != ModeFull && res.Mode != ModePrefix) || res.StructuralConsistency != "CONSISTENT" || obs.Cleanup != nil || obs.Files == nil || obs.capture == nil || obs.capture.identity != res.Identity {
 		return nil, errCheckpoint("resume", "not a settled audit from receipt 1")
 	}
-	if res.Head != nil && res.Head.Segments != nil {
-		// Sealed receipts have no stat stamps of their own; S6 re-hashes
-		// the bound segments instead (JSG-V0-011).
-		return nil, errCheckpoint(snapshot.SegmentsDir, "resume base of a segmented journal")
-	}
 	wc, err := res.WriterCheckpoint(obs.Files)
 	if err != nil {
 		return nil, err
@@ -141,29 +142,61 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 	o := obs.capture
 	bound := o.at.Add(-resumeQuiescence)
 	b := &ResumeBase{wc: wc, seq: res.LastSeq.Uint64(), files: map[string]resumeFile{}}
-	add := func(p string) error {
+	stamp := func(p string, sum wire.Digest, size int64) error {
 		info := o.files[p]
-		f, read := obs.Files[p]
-		if info == nil || !info.Mode().IsRegular() || !read {
+		if info == nil || !info.Mode().IsRegular() || info.Size() != size {
 			return errCheckpoint(p, "base file was not read by the audit")
 		}
 		change, ok := changeTime(info)
 		if !ok {
 			return errCheckpoint(p, "no change time")
 		}
-		b.files[p] = resumeFile{info: info, sum: f.Sha256, quiet: !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)}
+		b.files[p] = resumeFile{info: info, sum: sum, bytes: size, quiet: !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)}
 		return nil
 	}
+	if m := res.manifest; res.Head != nil && res.Head.Segments != nil {
+		// The audit read every sealed receipt and request from a segment
+		// whose digest the manifest binds, and the manifest whose digest
+		// the head binds (JSG-V0-011).
+		if m == nil || m.Through != res.Head.Segments.Through.Uint64() || m.Through > b.seq {
+			return nil, errCheckpoint(snapshot.SegmentsDir, "the audit read no bound manifest")
+		}
+		b.through = m.Through
+		name := snapshot.SegmentManifestName(m.Through)
+		info := o.files[name]
+		if info == nil {
+			return nil, errCheckpoint(name, "base file was not read by the audit")
+		}
+		if err := stamp(name, res.Head.Segments.ManifestSha256, info.Size()); err != nil {
+			return nil, err
+		}
+		for _, e := range m.Segments {
+			p := snapshot.SegmentName(e.First, e.Last)
+			if err := stamp(p, e.Sha256, int64(e.Bytes)); err != nil {
+				return nil, err
+			}
+			b.segments = append(b.segments, p)
+		}
+		b.segments = append(b.segments, name)
+	}
+	add := func(p string) error {
+		f, read := obs.Files[p]
+		if !read {
+			return errCheckpoint(p, "base file was not read by the audit")
+		}
+		return stamp(p, f.Sha256, int64(f.Bytes))
+	}
 	// Every receipt, request, evidence and pinned file the audit read is a
-	// base file, including blobs a prefix receipt's posts name.
+	// base file, including blobs a prefix receipt's posts name. A sealed
+	// receipt or request was read from its segment instead.
 	for _, p := range sortedPaths(obs.Files) {
-		if resumeFamily(p) {
+		if resumeFamily(p) && !b.sealed(p, o, res) {
 			if err := add(p); err != nil {
 				return nil, err
 			}
 		}
 	}
-	for seq := uint64(1); seq <= b.seq; seq++ {
+	for seq := b.through + 1; seq <= b.seq; seq++ {
 		name, err := snapshot.ReceiptName(seq)
 		if err != nil {
 			return nil, err
@@ -174,7 +207,7 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 	}
 	for _, p := range sortedPaths(res.chain.canonical) {
 		l := res.chain.canonical[p]
-		if l.digest == nil || !resumeFamily(p) {
+		if l.digest == nil || !resumeFamily(p) || b.sealed(p, o, res) {
 			continue
 		}
 		if f, ok := b.files[p]; !ok || f.sum != *l.digest {
@@ -190,6 +223,27 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 		}
 	}
 	return b, nil
+}
+
+// sealed says p is a receipt or request a segment of the base holds: a
+// receipt at or below through, or a request without a file of its own that
+// a sealed receipt posted.
+func (b *ResumeBase) sealed(p string, o *observation, res *Result) bool {
+	if b.through == 0 {
+		return false
+	}
+	if name, ok := strings.CutPrefix(p, "receipts/"); ok {
+		seq, ok := receiptNameSeq(name)
+		return ok && seq <= b.through
+	}
+	if !strings.HasPrefix(p, "requests/") {
+		return false
+	}
+	if o.files[p] != nil {
+		return false
+	}
+	l, ok := res.chain.canonical[p]
+	return ok && l.seq.Uint64() <= b.through
 }
 
 func resumeFamily(p string) bool {
@@ -234,7 +288,7 @@ func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanu
 		return errCheckpoint("resume", "recheck needs a base and a native source"), nil
 	}
 	s := newNativeRead(n)
-	decline = base.held(s, result, profileLimits)
+	decline = base.held(s, result, profileLimits, false)
 	if decline == nil {
 		decline = base.tailHeld(s, result)
 	}
@@ -247,10 +301,23 @@ func (r Reader) RecheckResume(base *ResumeBase, result *Result) (decline, cleanu
 // held is the base check after a successful walkWriter, and RecheckResume's.
 // Its listings and reads go through s, a read lifetime of its own that the
 // caller closes: they are not physical reads of the audit, but a failed close
-// is the caller's cleanup failure (PSR-V0-057, proposed).
-func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits) error {
+// is the caller's cleanup failure (PSR-V0-057, proposed). On a segmented
+// base, rehash (the resumed audit's check) re-reads every bound segment and
+// the manifest and compares their size and SHA-256 with the digests the base
+// recorded; RecheckResume's gated check stats them only (JSG-V0-011).
+func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits, rehash bool) error {
 	if result == nil || result.chain == nil || result.LastSeq.Uint64() < b.seq {
 		return errCheckpoint("resume", "head precedes the base")
+	}
+	if b.through != 0 && (result.Head == nil || result.Head.Segments == nil || result.Head.Segments.Through.Uint64() != b.through) {
+		// A seal after the base removed base receipts; the next round's
+		// audit is a new base.
+		return errCheckpoint(snapshot.SegmentsDir, "the sealed prefix changed since the base audit")
+	}
+	for _, p := range b.segments {
+		if err := b.segmentSame(s, p, rehash); err != nil {
+			return err
+		}
 	}
 	listing, err := s.List("receipts", lim.scan)
 	if err != nil {
@@ -260,7 +327,7 @@ func (b *ResumeBase) held(s *nativeRead, result *Result, lim limits) error {
 	for _, e := range listing.Entries {
 		now[e.Name] = e.Info
 	}
-	for seq := uint64(1); seq <= b.seq; seq++ {
+	for seq := b.through + 1; seq <= b.seq; seq++ {
 		name, err := snapshot.ReceiptName(seq)
 		if err != nil {
 			return err
@@ -384,10 +451,39 @@ func tailSame(s *nativeRead, consumed map[string]PhysicalFile, p string, bound i
 	return nil
 }
 
-// same says base file p is still the file the base audit read; see
-// AuditForResume.
-func (b *ResumeBase) same(s *nativeRead, p string, info os.FileInfo) error {
+// segmentSame says bound segment or manifest p is still the file the base
+// audit read, by its stamps and, when rehash is set or its stamps had not
+// settled at the base capture, by its size and SHA-256.
+func (b *ResumeBase) segmentSame(s *nativeRead, p string, rehash bool) error {
+	full, err := s.native.path(p)
+	if err != nil {
+		return errCheckpoint(p, err.Error())
+	}
+	info, err := os.Lstat(full)
+	if err != nil {
+		info = nil
+	}
 	f := b.files[p]
+	if err := f.stamped(p, info); err != nil {
+		return err
+	}
+	if f.quiet && !rehash {
+		return nil
+	}
+	bound := snapshot.MaxSegmentBytes
+	if p == snapshot.SegmentManifestName(b.through) {
+		bound = snapshot.MaxSegmentManifestBytes
+	}
+	raw, err := s.Read(p, bound)
+	if err != nil || int64(len(raw)) != f.bytes || wire.Sum(raw) != f.sum {
+		return errCheckpoint(p, "sealed segment bytes differ from the digest the base recorded")
+	}
+	return nil
+}
+
+// stamped says info is the file f recorded, with the same mode, size,
+// modification time and change time.
+func (f resumeFile) stamped(p string, info os.FileInfo) error {
 	if info == nil || !sameStat(f.info, info) {
 		return errCheckpoint(p, "base file changed since the base audit")
 	}
@@ -395,6 +491,16 @@ func (b *ResumeBase) same(s *nativeRead, p string, info os.FileInfo) error {
 	is, ok2 := changeTime(info)
 	if !ok || !ok2 || was != is {
 		return errCheckpoint(p, "base file changed since the base audit")
+	}
+	return nil
+}
+
+// same says base file p is still the file the base audit read; see
+// AuditForResume.
+func (b *ResumeBase) same(s *nativeRead, p string, info os.FileInfo) error {
+	f := b.files[p]
+	if err := f.stamped(p, info); err != nil {
+		return err
 	}
 	if f.quiet {
 		return nil

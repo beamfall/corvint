@@ -16,6 +16,7 @@ import (
 )
 
 func TestStableMetadataLineGrammar(t *testing.T) {
+	t.Parallel()
 	cells := []struct {
 		name, data string
 		ok         bool
@@ -93,6 +94,7 @@ func openStableForTest(t *testing.T, root string, fault StableFault) (*Repositor
 }
 
 func TestOpenStableAdmitsPrimaryAndLinked(t *testing.T) {
+	t.Parallel()
 	l := newStableLayout(t)
 	primary, boundary, err := openStableForTest(t, l.repo, nil)
 	if err != nil {
@@ -117,6 +119,7 @@ func TestOpenStableAdmitsPrimaryAndLinked(t *testing.T) {
 }
 
 func TestOpenStableRefusals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		linked bool
@@ -205,6 +208,7 @@ func faultOn(path string, errno syscall.Errno) StableFault {
 // Validate re-observes the whole admitted boundary: a replaced directory, a
 // replaced metadata file and a newly appearing optional leaf each refuse.
 func TestStableBoundaryValidateDetectsChange(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		change func(t *testing.T, l stableLayout)
@@ -251,6 +255,7 @@ func TestStableBoundaryValidateDetectsChange(t *testing.T) {
 // The legacy grammar is unchanged: Open still admits a root that Stable
 // admission refuses, so no legacy command moves from working to refused.
 func TestLegacyOpenUnchangedByStableAdmission(t *testing.T) {
+	t.Parallel()
 	l := newStableLayout(t)
 	if err := os.MkdirAll(filepath.Join(l.git, "objects", "info"), 0o755); err != nil {
 		t.Fatal(err)

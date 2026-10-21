@@ -567,6 +567,7 @@ var envelopeAdversarialCases = []envelopeAdversarial{
 // public cells do not name (CEM-V1-363..366): every one is either the same
 // repository as a public positive cell or a typed refusal at stage repository.
 func TestStableEnvelopeAdversarialShapes(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
 	cells := loadEnvelopeCells(t, packet)

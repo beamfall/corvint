@@ -16,6 +16,7 @@ import (
 )
 
 func TestStandaloneBuildRejectsExecutableGitFilters(t *testing.T) {
+	t.Parallel()
 	t.Run("EAF-V0-007", func(t *testing.T) {
 		for _, driver := range []string{"clean", "process"} {
 			t.Run(driver, func(t *testing.T) {
@@ -86,6 +87,7 @@ func TestStandaloneStatusKeepsAnIndependentFailureCancelledDuringCleanup(t *test
 }
 
 func TestStandaloneStatusPreservesOrdinaryGitErrors(t *testing.T) {
+	t.Parallel()
 	root := authorityRepository(t)
 	for _, test := range []struct {
 		name, script, message string

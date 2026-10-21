@@ -27,6 +27,7 @@ func fixture(t *testing.T, class, name string) []byte {
 // TestStructuralTruePositives proves each fixture class from its base and
 // positive files (CEM-SM-007..010).
 func TestStructuralTruePositives(t *testing.T) {
+	t.Parallel()
 	for _, class := range structuralClasses {
 		if !structuralPredicates[class](fixture(t, class, "base"), fixture(t, class, "positive")) {
 			t.Errorf("%s: positive fixture not proven", class)
@@ -39,6 +40,7 @@ func TestStructuralTruePositives(t *testing.T) {
 // The one admitted overlap is gofmt's own import sorting: the import-reorder
 // positive is also formatter-only.
 func TestStructuralNearMisses(t *testing.T) {
+	t.Parallel()
 	overlap := map[string]bool{"import-reorder/formatter-only": true}
 	for _, class := range structuralClasses {
 		base := fixture(t, class, "base")
@@ -59,6 +61,7 @@ func TestStructuralNearMisses(t *testing.T) {
 // TestStructuralRefusesUnprovableInputs covers the CEM-SM-005 refusals and
 // the rename and move rules that the fixtures do not exercise.
 func TestStructuralRefusesUnprovableInputs(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ name, class, old, new string }{
 		{"non-go", "formatter-only", "not go\n", "not  go\n"},
 		{"unparsable-new", "rename", "package p\n\nvar a = 1\n", "package p\n\nvar b = \n"},
@@ -132,6 +135,7 @@ func parseSingle(t *testing.T, raw []byte, source sim.BlobSource) (*patch.Group,
 // blob and the hunk alone (CEM-SM-002..004) and refuses a missing blob and a
 // wrong class.
 func TestStructuralProvenFromBaseBlobAndPatch(t *testing.T) {
+	t.Parallel()
 	for _, class := range structuralClasses {
 		base, positive := fixture(t, class, "base"), fixture(t, class, "positive")
 		source := blobMap{"x.go": base}
@@ -162,6 +166,7 @@ func indexOf(class string) int {
 // isolation so a semantic sibling hunk does not taint it, and requires the
 // whole group for move.
 func TestStructuralProvenIsolatesHunksExceptMove(t *testing.T) {
+	t.Parallel()
 	base := []byte("package p\n\nimport (\n\t\"strings\"\n\t\"fmt\"\n)\n\nvar _ = fmt.Sprint(strings.ToUpper(\"\"))\n" +
 		strings.Repeat("\n", 5) + "func z() int { return 1 }\n")
 	raw := []byte("diff --git a/x.go b/x.go\n--- a/x.go\n+++ b/x.go\n" +
@@ -190,6 +195,7 @@ func TestStructuralProvenIsolatesHunksExceptMove(t *testing.T) {
 // TestStructuralProvenRefusesCreateAndDelete pins that structural reasons
 // need a base blob and an image that differs from it.
 func TestStructuralProvenRefusesCreateAndDelete(t *testing.T) {
+	t.Parallel()
 	path := "x.go"
 	hunk := &patch.Hunk{}
 	for _, kind := range []patch.GroupKind{patch.KindCreate, patch.KindDelete} {
@@ -207,6 +213,7 @@ func TestStructuralProvenRefusesCreateAndDelete(t *testing.T) {
 // rule (decision 0521): every non-directive comment must equal its whole-word
 // substitution image, and every occurrence of the source must be renamed.
 func TestCEMSM007RenameIsStrict(t *testing.T) {
+	t.Parallel()
 	base := "package p\n\n// a counts calls.\nvar a = 1\n\nfunc f() int { return a + a }\n"
 	refused := map[string]string{
 		"unchanged-comment": "package p\n\n// a counts calls.\nvar b = 1\n\nfunc f() int { return b + b }\n",

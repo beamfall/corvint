@@ -68,6 +68,7 @@ func contextIntValue(value any) int {
 // vocabulary, so a task sharing no term with the instruction file's body or
 // path still reserves it, by the literal precedence and not by relevance.
 func TestTaskContextReservesInstructionsForUnrelatedVocabulary(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":                    "module example.test/gov\n\ngo 1.27.0\n",
 		"AGENTS.md":                 "Zorbulator wibfrast policy.\n",

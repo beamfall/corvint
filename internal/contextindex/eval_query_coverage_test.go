@@ -69,6 +69,7 @@ func evalQueryUncertainty(t *testing.T, coverage map[string]any) []string {
 // is unchanged, which is why the limit-1 packet is still the limit-50 packet's
 // first result byte for byte.
 func TestQueryCoverageCountsAdmittedCandidatesPastLimit(t *testing.T) {
+	t.Parallel()
 	root := evalQueryCoverageRepository(t)
 	index, err := Build(context.Background(), root)
 	if err != nil {
@@ -344,6 +345,7 @@ func evalQueryIdentifierRepository(t *testing.T) string {
 // relevance terms the ranker runs on are stemmed and split, and matching there
 // let `maximum` disclose a `max` helper the task never named.
 func TestQueryDisclosesOnlyTaskNamedTestDeclarations(t *testing.T) {
+	t.Parallel()
 	index, err := Build(context.Background(), evalQueryIdentifierRepository(t))
 	if err != nil {
 		t.Fatal(err)

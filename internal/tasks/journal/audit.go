@@ -479,7 +479,7 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 		// Its own read lifetime closes into this attempt's cleanup, so a
 		// failed close terminates as the audit's would (PSR-V0-057).
 		check := newNativeRead(native.native)
-		bodyErr = r.resume.held(check, result, lim)
+		bodyErr = r.resume.held(check, result, lim, true)
 		native.closeErr = errors.Join(native.closeErr, check.close())
 		if native.physical != nil {
 			result.resumeRead = native.physical.files

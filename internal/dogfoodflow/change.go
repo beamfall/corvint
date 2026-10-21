@@ -90,6 +90,9 @@ type change struct {
 	// citationFailedMap is the map the failing cite command read: the staged
 	// citation map after the first row (DCW-V0-068).
 	citationFailedMap string
+	// scope narrows a finish-lane pass to the steps its decision reads
+	// (DCW-V0-115); a standalone change run is always passFull.
+	scope passScope
 }
 
 // Change runs the pre-change context, binding and status steps and writes
@@ -149,12 +152,21 @@ func (c *change) run() int {
 	c.resolveAnchor()
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
-	c.coordinationQuery(task)
-	c.prechangeImpact()
+	if c.scope == passFull {
+		c.coordinationQuery(task)
+		c.prechangeImpact()
+	}
 	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
 	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	c.markStableChoreMap()
+	if c.scope == passPrepare {
+		if c.cemPrepared {
+			return 0
+		}
+		c.renderReport()
+		return c.reportFailures()
+	}
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
 	c.manifestReason = c.validateIntentManifest()
@@ -181,7 +193,9 @@ func (c *change) run() int {
 	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
 	// this pass prepared and cited: an untracked or modified sidecar reports
 	// record-index-failed and the pass is never complete (DCW-V0-015).
-	c.rows = append(c.rows, c.localOutcome(task))
+	if c.scope != passBind {
+		c.rows = append(c.rows, c.localOutcome(task))
+	}
 	c.renderReport()
 	return c.reportFailures()
 }
@@ -1595,6 +1609,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-aggregate:intent-manifest-over-bound", "DOGFOOD_INTENTS_FILE is larger than 16 paths of 512 bytes can be; list 1-16 repository-relative spec paths, or the one line #no-intent-declared"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
+	{"ocm-prepare-*:verification-timeout", "OCM prepare for the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, stopped at its verification deadline (often host load); {evidence}/{step}.stderr keeps its refusal, the maps of the intents before it are kept and nothing was committed; rerun the same corvint dogfood change {base} (or finish-lane) command, which prepares that intent again (DCW-V0-116)"},
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
 	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"},
@@ -2224,3 +2239,15 @@ func (c *change) recordWithClosedStages(args []string, output, errorFile string)
 	c.checkpoint()
 	return status, nil
 }
+
+// passScope names the steps one change pass runs. finish-lane's prepare pass
+// reads only the prepared map and its bind pass only the cite, guarding-test,
+// OCM and status rows; the rebind is the full pass whose report is checked, so
+// the narrowed passes never decide the delivered evidence (DCW-V0-115).
+type passScope int
+
+const (
+	passFull passScope = iota
+	passPrepare
+	passBind
+)

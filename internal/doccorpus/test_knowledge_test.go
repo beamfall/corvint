@@ -92,6 +92,7 @@ func tkRefused(t *testing.T, err error, want string) {
 }
 
 func TestDCPV1086TestKnowledgeSchemaIsClosed(t *testing.T) {
+	t.Parallel()
 	a, err := tkBuild(t, nil, nil)
 	if err != nil || len(a.TestKnowledge) != 1 || a.TestKnowledge[0].Status != "joined" {
 		t.Fatalf("valid record not joined: %+v %v", a, err)
@@ -159,6 +160,7 @@ func TestDCPV1086TestKnowledgeSchemaIsClosed(t *testing.T) {
 }
 
 func TestDCPV1087TestKnowledgeFieldRules(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		edit func(*TestKnowledgeRecord)
 		want string
@@ -199,6 +201,7 @@ func TestDCPV1087TestKnowledgeFieldRules(t *testing.T) {
 }
 
 func TestDCPV1088TestKnowledgeAnchorsArePinned(t *testing.T) {
+	t.Parallel()
 	cases := map[string]struct {
 		edit func(*TestKnowledgeRecord)
 		want string
@@ -228,6 +231,7 @@ func TestDCPV1088TestKnowledgeAnchorsArePinned(t *testing.T) {
 }
 
 func TestDCPV1089TestKnowledgeJoin(t *testing.T) {
+	t.Parallel()
 	t.Run("joined to claims, flows and sources without rewriting records", func(t *testing.T) {
 		root, m, base := testKnowledgeFixture(t, tkRecord(func(r *TestKnowledgeRecord) {
 			r.Flows = []string{"adapter:flow", "adapter:missing"}
@@ -320,6 +324,7 @@ func TestDCPV1089TestKnowledgeJoin(t *testing.T) {
 }
 
 func TestDCPV1090TestKnowledgeTrustRules(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		trust, verdict, selection string
 		counts                    bool
@@ -375,6 +380,7 @@ func TestDCPV1090TestKnowledgeTrustRules(t *testing.T) {
 }
 
 func TestDCPV1091TestKnowledgeQueryExposure(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	open := func(t *testing.T, edit func(string, Manifest, *ProviderRecord)) (string, []byte) {
 		t.Helper()
@@ -535,6 +541,7 @@ func TestDCPV1091TestKnowledgeQueryExposure(t *testing.T) {
 // TestDCPV1091TestKnowledgeOnlyCorpus pins that a corpus whose only provider is a
 // test-knowledge record still answers the operations its joins serve.
 func TestDCPV1091TestKnowledgeOnlyCorpus(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, m, _ := testKnowledgeFixture(t, func(_ string, _ Manifest, p *ProviderRecord) {
 		p.TestKnowledge.Records[0].Flows = []string{}
@@ -585,6 +592,7 @@ func TestDCPV1091TestKnowledgeOnlyCorpus(t *testing.T) {
 }
 
 func TestDCPV1092TestKnowledgeDeterministicAndBounded(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	root, m, _ := testKnowledgeFixture(t, nil, nil)
 	a, err := Build(ctx, root, m)

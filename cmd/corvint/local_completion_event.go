@@ -667,9 +667,17 @@ func dogfoodInputFailureCode(ctx context.Context, missed *atomic.Bool) string {
 
 // dogfoodReadFailureCode is the fixed code a failed event read reports (LCP-V0-008, LCP-V0-016,
 // decision 0533): a worktree that moved under the read is dogfood-event-worktree-churn, an
-// observed policy change keeps dogfood-event-policy-drift, and every other failure stays the
-// fixed dogfood-event-unavailable. Only the typed code is read, never message text.
+// observed policy change keeps dogfood-event-policy-drift, a prompt the bounded prompt-context
+// contract refuses is dogfood-event-prompt-bounds (LCP-V0-034), and every other failure stays
+// the fixed dogfood-event-unavailable. Only the typed code is read, never message text.
 func dogfoodReadFailureCode(err error) string {
+	var bounds *contextindex.Error
+	if errors.As(err, &bounds) {
+		switch bounds.Code {
+		case "unsupported-dogfood-context-bounds", "unsupported-dogfood-context-budget", "invalid-dogfood-context":
+			return "dogfood-event-prompt-bounds"
+		}
+	}
 	var failure *gokernel.Error
 	if !errors.As(err, &failure) {
 		return "dogfood-event-unavailable"

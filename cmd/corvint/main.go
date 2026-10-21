@@ -1223,7 +1223,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return 0
 	}
 	if options.command == "query" {
-		contextReceipt, err := standaloneQueryContext(ctx, options)
+		contextReceipt, err := standaloneQueryContext(withSnapshotMissNotice(ctx, stderr, "query", options.root), options)
 		if err != nil {
 			emitError(stderr, err)
 			return 2
@@ -1431,8 +1431,11 @@ func authorityStartQueryContext(ctx context.Context, options options, loaded ...
 	if index := preloadedIndex(loaded); index != nil {
 		return compute(index)
 	}
+	query := func() (*contextindex.Index, error) {
+		return contextindex.BuildQuery(ctx, options.root, options.queryTask)
+	}
 	build := func() (*contextindex.Index, error) {
-		built, err := contextindex.BuildQuery(ctx, options.root, options.queryTask)
+		built, err := timedMissBuild(ctx, query)
 		return built, mapStandaloneQueryBuildError(err, true)
 	}
 	return overSnapshot(

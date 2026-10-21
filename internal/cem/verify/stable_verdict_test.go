@@ -63,6 +63,7 @@ func requireVerdictDigest(t *testing.T, name string, r StableResult) string {
 // TestCEMV1066SealedVerdictDigests recomputes verdictSha256 by hand for every
 // sealed case, every envelope cell and both public no-Tasks cases.
 func TestCEMV1066SealedVerdictDigests(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	check := func(name string, result map[string]any) {
 		t.Helper()
@@ -106,6 +107,7 @@ func TestCEMV1066SealedVerdictDigests(t *testing.T) {
 // TestCEMV1066VerdictDigestCoversOnlyTheVerdict changes each environment
 // member, which keeps the digest, and each verdict member, which changes it.
 func TestCEMV1066VerdictDigestCoversOnlyTheVerdict(t *testing.T) {
+	t.Parallel()
 	r := NewStableResult(StableOptions{ExpectedBase: "1111111111111111111111111111111111111111", Target: "2222222222222222222222222222222222222222"})
 	r.Refuse("binding", "verification-timeout", true)
 	before := requireVerdictDigest(t, "refusal", r)
@@ -163,6 +165,7 @@ func TestCEMV1066VerdictDigestCoversOnlyTheVerdict(t *testing.T) {
 // cases and their public mutations: ACCEPT and every refusal carry the digest,
 // and the ACCEPT digests equal the public expectations.
 func TestCEMV1066EveryOutcomeCarriesVerdictDigest(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

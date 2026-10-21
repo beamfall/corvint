@@ -107,6 +107,23 @@ membership and must retain whole-change authority, marker selection and result a
   `prove` range route and MCP keep loading the index. Falsifier: a proved refusal whose bytes or
   exit differ from the loaded path, or a refusal where the loaded path would answer differently.
   Rollback: remove the `RangeBoundRefusalBeforeLoad` call from the impact route.
+- `ERI-V0-262`: (accepted 2026-10-21, V1-2221, standing lane auto-accept of 2026-10-11) Range
+  impact, and the ERI-V0-261 pre-load route, MUST return the exact diff's path refusal (`Git range
+  contains an unsupported path` or `... a path unsafe for verification planning`) without running
+  the copy-detecting diff when the rename-free diff proves it, with the same bytes and exit code.
+  It is proved only when every rename-free record is well formed as the exact parse requires with
+  a one-letter status and a UTF-8 path, at least one changed path fails the range path validator,
+  every failing path fails with the same code and message, the repository is not a partial clone,
+  and, when the range adds any path, every base-tree path (each a possible copy source) is UTF-8
+  and either validates or fails the same way, and the exact diff's output stays within the status
+  bound even if every addition gains its longest possible source. The path refusal is tried before
+  the ERI-V0-060 bound, since the exact parse refuses before it counts. Otherwise, or on any Git
+  failure, the exact diff decides as before. Human intent: `impact --base HEAD~300` on this
+  repository spent 11 s in copy detection over 6,921 paths only to refuse on `café.txt`
+  fixtures. Failure mode: as for ERI-V0-060, a range whose exact diff would itself exceed the Git
+  deadline now refuses on the path instead of reporting the deadline. Falsifier: a proved refusal
+  whose bytes differ from the exact diff's. Rollback: call `rangeCertainlyExceeds` alone from
+  `rangeCertainRefusal`.
 
 ## Resource and trust boundaries
 
@@ -133,6 +150,7 @@ bounded enumeration does not close those critical misses or the non-Go semantic 
 | `ERI-V0-006` | `script/dogfood-change.sh` explicit prototype argv | actual final coordinator receipt and independent strict checker; final integrated evidence pending |
 | `ERI-V0-060` | `rangeCertainlyExceeds`, `mayLackObjects` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection`, `TestRangeImpactOverBoundKeepsMissingObjectRefusalForPromisorRemotes`; measured in `../build-log/2026-10-21-range-bound-before-copy-detection.md` |
 | `ERI-V0-261` | `RangeBoundRefusalBeforeLoad` (`internal/contextindex/range_bound_precheck.go`) before `overSnapshot` in the `impact` route of `cmd/corvint/main.go` | `TestERIV0261RangeBoundRefusesWithoutDecodingTheSnapshot` (SHA-1/SHA-256 and expanded over-bound refusals equal to the loaded path's with the snapshot file emptied; in-bound, missing snapshot, dirty worktree, unqualified module, non-ancestor and invalid limit answer nil); measured in `../build-log/2026-10-21-partial-1021-ticket-completions.md` |
+| `ERI-V0-262` | `rangeCertainRefusal`, `rangeCertainPathRefusal` in `compileRangeImpact` and `RangeBoundRefusalBeforeLoad` | `TestRangeImpactRefusesUnsafePathBeforeCopyDetection` (modified, added and copy-source unsafe paths refuse with the exact bytes and no exact diff; mixed messages among changed or base-tree paths reach the exact diff); measured in `../build-log/2026-10-21-index-perf-1021i-hot-read-paths.md` |
 
 Boundary evidence includes 0, 1, 100, 101, 140, 256 and 257 members; mixed 102-Go/38-non-Go
 coverage; SHA-1/SHA-256 semantic parity; same-change ADR/ledger withholding; unsupported members

@@ -12,6 +12,7 @@ import (
 )
 
 func TestExpandedRangeImpactPreservesDefaultSemantics(t *testing.T) {
+	t.Parallel()
 	t.Run("ERI-V0-004 default-semantic-bytes", func(t *testing.T) {
 		for _, objectFormat := range []string{"sha1", "sha256"} {
 			t.Run(objectFormat, func(t *testing.T) {
@@ -50,6 +51,7 @@ func TestExpandedRangeImpactPreservesDefaultSemantics(t *testing.T) {
 }
 
 func TestExpandedRangeImpactBoundaries(t *testing.T) {
+	t.Parallel()
 	for _, count := range []int{0, 1, 100, 101, 140, 256, 257} {
 		t.Run(fmt.Sprintf("ERI-V0-001 %d-paths", count), func(t *testing.T) {
 			root := impactRepository(t, "")
@@ -93,6 +95,7 @@ func TestExpandedRangeImpactBoundaries(t *testing.T) {
 }
 
 func TestExpandedRangeImpactGlobalCoverage(t *testing.T) {
+	t.Parallel()
 	t.Run("ERI-V0-002 complete-membership-before-limit", func(t *testing.T) {
 		root := impactRepository(t, "")
 		base := testGit(t, root, "rev-parse", "HEAD")
@@ -130,6 +133,7 @@ func TestExpandedRangeImpactGlobalCoverage(t *testing.T) {
 }
 
 func TestExpandedRangeImpactGlobalAuthority(t *testing.T) {
+	t.Parallel()
 	t.Run("ERI-V0-002 whole-change-authority", func(t *testing.T) {
 		root := impactRepository(t, "")
 		base := testGit(t, root, "rev-parse", "HEAD")
@@ -172,6 +176,7 @@ func TestExpandedRangeImpactGlobalAuthority(t *testing.T) {
 }
 
 func TestExpandedRangeImpactRejectsUnsupportedMembers(t *testing.T) {
+	t.Parallel()
 	t.Run("ERI-V0-003 unsupported-members-beyond-default-cap", func(t *testing.T) {
 		for _, name := range []string{"binary", "delete", "mode", "unsafe", "excluded-go", "invalid-go"} {
 			t.Run("ERI-V0-003 "+name, func(t *testing.T) {
@@ -213,6 +218,7 @@ func TestExpandedRangeImpactRejectsUnsupportedMembers(t *testing.T) {
 }
 
 func TestExpandedRangeImpactPreservesSnapshotRefusal(t *testing.T) {
+	t.Parallel()
 	t.Run("ERI-V0-005 snapshot-drift", func(t *testing.T) {
 		root := impactRepository(t, "")
 		base := commitRangeFixture(t, root)
