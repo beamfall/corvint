@@ -2390,6 +2390,7 @@ ECO-V0-004	docs/specs/error-code-ownership-gate-v0.md	Sources, specs, and the al
 ECO-V0-005	docs/specs/error-code-ownership-gate-v0.md	A `git grep` exit status other than 0 or 1 MUST fail the gate naming `git grep`,	unrecorded	-
 ECO-V0-006	docs/specs/error-code-ownership-gate-v0.md	A spec row that owns a code MUST describe only what the emitting code path check	unrecorded	-
 ECO-V0-007	docs/specs/error-code-ownership-gate-v0.md	A passing run MUST print nothing and exit zero; the gate MUST be read-only and a	unrecorded	-
+ECO-V0-008	docs/specs/error-code-ownership-gate-v0.md	The `position` search MAY run over a private scratch tree that holds, at its own	unrecorded	-
 ERI-V0-001	docs/specs/expanded-range-impact-v0.md	`corvint impact --base FULL_COMMIT_ID --range-profile expanded-256` MUST explici	unrecorded	-
 ERI-V0-002	docs/specs/expanded-range-impact-v0.md	The experimental profile MUST use the complete original base-to-captured-HEAD	unrecorded	-
 ERI-V0-003	docs/specs/expanded-range-impact-v0.md	Only this profile's path capacity changes. The cumulative 10,000-admitted-hunk a	unrecorded	-
