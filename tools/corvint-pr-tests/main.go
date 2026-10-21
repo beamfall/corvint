@@ -28,6 +28,11 @@ import (
 
 const schema = "corvint-pr-tests/0"
 
+// pinnedGoVersion is the one Go version a frozen identity admits: toolIdentity refuses any other
+// host toolchain, and containerRunResult refuses a container result that recorded any other
+// (V1-1520).
+const pinnedGoVersion = "go1.27.2"
+
 var testArgs = []string{"test", "-json", "-p", "1", "-count=1", "-race", "-timeout", "50m"}
 var oid = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 var packageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~/-]*$`)
@@ -552,7 +557,7 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if id.Container != nil && (id.Container.Source != id.Source || id.Container.Tools["corvint"] != id.Planner || id.Container.Tools["gate-affected-select"] != id.Selector || id.Container.Tools["corvint-pr-tests"] != id.Driver || runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
 		return id, errors.New("container trusted tool identity mismatch")
 	}
-	if id.GoVersion != "go1.27.2" {
+	if id.GoVersion != pinnedGoVersion {
 		return id, errors.New("unsupported Go version")
 	}
 	return id, nil
