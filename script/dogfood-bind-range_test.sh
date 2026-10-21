@@ -18,6 +18,7 @@ trap 'rm -rf "$test_root"' EXIT
 repo="$test_root/repo"
 mkdir -p "$repo/script" "$test_root/bin"
 cp "$source_root/script/dogfood-bind-range.sh" "$repo/script/"
+cp "$source_root/script/dogfood-build-corvint.sh" "$repo/script/"
 # The check notes come from the binary itself (DCW-V0-020); the fixture has no cmd/corvint to build.
 (cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$test_root/driver" ./cmd/corvint)
 printf '0.4.0a4\n' > "$repo/VERSION"
