@@ -1261,8 +1261,16 @@ func promptSafeHost(h Host, allowed map[string]bool) error {
 		}
 		// The literal text alone is checked here: a placeholder name such as
 		// {ticketLocal} is not option text, and what it renders to is
-		// checked at launch by renderedArgvSafe.
-		if err := argvCodeRisk(i, placeholder.ReplaceAllString(a, "")); err != nil {
+		// checked at launch by renderedArgvSafe. The interpreter name is
+		// matched only when the element's last path segment is all literal
+		// (ATR-V0-163): in {ticketLocal}sh the literal sh is not the program
+		// name, and the launch recheck sees the rendered one.
+		literal := placeholder.ReplaceAllString(a, "")
+		if placeholder.MatchString(a[strings.LastIndex(a, "/")+1:]) {
+			if i > 0 && codeOption(literal) {
+				return fmt.Errorf("takes the code-string option %s", literal)
+			}
+		} else if err := argvCodeRisk(i, literal); err != nil {
 			return err
 		}
 	}

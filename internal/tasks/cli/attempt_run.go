@@ -402,6 +402,8 @@ func (r *attemptRunner) execute(argv []string, interrupts <-chan os.Signal) tran
 		defer gate.shut()
 		output = gate
 	}
+	// A non-file stdin is copied by an os/exec goroutine that only the reap
+	// joins; after a HOLD the caller must not reuse it (ATR-V0-166).
 	command.Stdin, command.Stdout, command.Stderr = r.env.Stdin, output, output
 	command.WaitDelay = time.Second
 	// A group SIGKILL can miss a member forked alongside it on Darwin, so

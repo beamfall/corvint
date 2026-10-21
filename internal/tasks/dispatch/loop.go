@@ -152,6 +152,11 @@ type Dispatcher struct {
 	// not be removed after progress; carryForeign the newer-version records
 	// already alerted. Neither is persisted.
 	carryStale, carryForeign map[string]bool
+	// carryUnsafe names the tickets already alerted for an unsafe rendered
+	// argv under the applied configuration carryUnsafeConfig (ATR-V0-165);
+	// a configuration change clears it. It is not persisted.
+	carryUnsafe       map[string]bool
+	carryUnsafeConfig string
 	// idle is armed by a full tick that changed nothing, and idleLease is
 	// the earliest future lease expiry the current tick observed
 	// (CAL-V0-139).
@@ -1718,7 +1723,13 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 			// ATR-V0-133: a store-derived argv value must not turn the
 			// launched argv into one that runs the block as code.
 			if err := renderedArgvSafe(host.Argv, values); carryText != "" && err != nil {
-				d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("carry-over not offered: host %q %v", role.Host, err)})
+				if d.carryUnsafe == nil || d.carryUnsafeConfig != d.configSha256 {
+					d.carryUnsafe, d.carryUnsafeConfig = map[string]bool{}, d.configSha256
+				}
+				if !d.carryUnsafe[a.Ticket] {
+					d.carryUnsafe[a.Ticket] = true
+					d.emit(Event{Kind: "alert", Ticket: a.Ticket, Worker: id, Message: fmt.Sprintf("carry-over not offered: host %q %v", role.Host, err)})
+				}
 				carryText, carried = "", nil
 			}
 			if carryText != "" {
