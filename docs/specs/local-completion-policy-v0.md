@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976).
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -399,6 +399,18 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `invalid-dogfood-context`. Non-goals: raising the 32-anchor profile or ranking anchors by
   relevance. Failure modes: a long prompt whose most useful anchors sort late loses them; the
   counts say so. Rollback: restore the `failBounds` call in `addAnchors` and drop the two fields.
+- `LCP-V0-037`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0680)
+  `dogfood begin` MUST read each intent blob at the enrollment target and refuse it with the
+  code finish's default-form `ocm prepare` would report for its numbered Requirements section
+  (`invalid-intent`, `invalid-requirements-section`, `missing-requirements`,
+  `duplicate-requirement` or `too-many-obligations`), and refuse a non-blob or over-4 MiB intent
+  with `repository-object-unavailable`, before `plan.json` creates a generation directory, so a
+  refused enrollment consumes no generation and leaves the session inactive. The check reuses
+  the `ocm prepare` parser (`lrfrepo.IntentRequirementsRefusal`), so begin and finish cannot
+  disagree on the same bytes. Non-goals: declared intent forms (finish prepares only the default
+  form) and re-checking an intent edited after enrollment, which finish still refuses. Failure
+  modes: a plan that enrolled a decision document or instructions file now stops at begin
+  instead of after selected checks. Rollback: drop the requirements read in `Begin`.
 
 ## Non-goals and simpler baseline
 
@@ -465,6 +477,8 @@ elsewhere are not repeated.
 | `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go` (`Begin`) | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
 | `input-bound-exceeded` | `internal/localcompletion/storage.go` (`strictJSON`) | strict JSON input is empty or larger than its bound |
 | `intent-path-not-found` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path is absent from the tree of the current target commit |
+| `invalid-intent`, `invalid-requirements-section`, `missing-requirements`, `duplicate-requirement`, `too-many-obligations` | `internal/localcompletion/lifecycle.go` (`Begin`, via `lrfrepo.IntentRequirementsRefusal`) | an intent's numbered Requirements section would be refused by finish's `ocm prepare` (`LCP-V0-037`, V1-0680) |
+| `repository-object-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | an intent path names a tree or a blob over 4 MiB (`LCP-V0-037`) |
 | `invalid-check-argv` | `internal/localcompletion/storage.go` (`validatePlan`) | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
 | `invalid-check-bound` | `internal/localcompletion/storage.go` (`validatePlan`) | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds; the message names the bounds and the requested values (`LCP-V0-032`) |
 | `invalid-check-id` | `internal/localcompletion/storage.go` (`validatePlan`) | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
@@ -585,6 +599,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-033 | `snapshotPrefetch` and `dogfoodEvent` in `cmd/corvint/local_completion_event.go`, consumed by `localEventContext`; `gokernel.ProbeRepositoryAroundPrefetching` (`internal/gokernel/repository.go`); `adoptObservation` (cmd, so the analyzer-schema inputs are unchanged) | `TestDogfoodEventPrefetchesTheSnapshotFromTheOpeningIdentity`, `TestSnapshotPrefetchServesOnlyItsOwnTree` and `TestAdoptObservationMatchesTheObservedLoader` (`cmd/corvint/dogfood_event_bracket_test.go`: one identity-only load, answer bytes equal to the sequential read, other-tree and unstarted fallback, adoption equal to `contextindex.LoadSnapshotObserved`'s); `TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead` (`internal/gokernel/repository_around_test.go`: the status reply blocks until prefetch receives the identity, four Git calls, no closing prefetch, none after a failed identity read); `TestDogfoodEventSpawnsOneBracket` still counts four spawns; the A/B timings in `docs/build-log/2026-10-21-hooks-1021-snapshot-prefetch.md` |
 | LCP-V0-034 | `dogfoodReadFailureCode` in `cmd/corvint/local_completion_event.go`; `admittedAdapterRejections` in `internal/observations/observations.go` | `TestV11976PromptContractRefusalHasNamedCode` (`cmd/corvint/worktree_churn_test.go`: bounds, wrapped budget and invalid-context refusals report `dogfood-event-prompt-bounds`, another `contextindex` code stays `dogfood-event-unavailable`); `TestAdapterDegradationAdmitsPromptBounds` (`internal/observations/observations_test.go`); both fail without the change |
 | LCP-V0-035 | `keepAnchors` and `resolution` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` (`internal/contextindex/local_completion_context_test.go`: 2 paths and 35 identifiers keep 32 anchors and drop 5 identifiers, the packet holds no dropped term, a reversed prompt gives the same packet, 33 paths drop one path); `TestDogfoodPromptEarlyResourceBounds` keeps the 128-candidate refusal |
+| LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
 
 ## Rollout, rollback and remaining gates
 
