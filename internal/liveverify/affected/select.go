@@ -107,8 +107,10 @@ type Plan struct {
 	Selected    []Selection `json:"selected"`
 	Excluded    []Exclusion `json:"excluded"`
 	Unknown     []Unknown   `json:"unknown"`
-	// NonSource names the dirty paths classified as task state, not source
-	// (AFP-V0-088). It is omitted when empty.
+	// NonSource names the dirty paths classified as task state (AFP-V0-088)
+	// or declared documentation (AFP-V0-160), not source: the
+	// TASK_STORE_PROJECTION group first, then the DECLARED_DOCUMENTATION
+	// group. It is omitted when empty.
 	NonSource []NonSource `json:"nonSource,omitempty"`
 }
 
@@ -129,7 +131,9 @@ type Plan struct {
 // Every dirty path also selects the units whose path literals name it
 // (AFP-V0-021); an unowned path stays unknown all the same, except a Tasks
 // store projection path no unit names, which is classified as task state in
-// plan.NonSource instead (AFP-V0-088).
+// plan.NonSource instead (AFP-V0-088), and a path the repository declares as
+// documentation, whose readers are selected and which is listed there too
+// (AFP-V0-160).
 //
 // Selected units are emitted in the AFP-V0-007 order: witness chain length
 // ascending, shared directory prefix with the witness's dirty path descending,
@@ -146,6 +150,8 @@ func Select(graph *Graph, dirty []string) Plan {
 	}
 	reached, seeds, unknown, narrowed := graph.reach(normalized)
 	plan.NonSource, unknown = graph.taskState(unknown)
+	documentation, unknown := graph.documentationPaths(unknown)
+	plan.NonSource = append(plan.NonSource, documentation...)
 	plan.Unknown = append(graph.frontierUnknowns(reached, narrowed, normalized, plan.NonSource), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
@@ -347,7 +353,8 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[st
 // that owns a dirty path or a reached unit, one whose units read any path, and
 // every plugin once a dirty path is owned by none, since a path no plugin
 // claims may be an edge any of them could not resolve. A path classified as
-// task state is no such edge, so it involves no plugin (AFP-V0-088). An empty
+// task state or declared documentation is no such edge, so it involves no
+// plugin (AFP-V0-088, AFP-V0-160). An empty
 // dirty set shows no plugin's absence, so every plugin takes part in it.
 func (graph *Graph) participants(reached map[string]Witness, dirty []string, nonSource []NonSource) []string {
 	if len(dirty) == 0 {
