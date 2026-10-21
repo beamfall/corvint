@@ -22,7 +22,7 @@ func streamRecord(kind string, body []byte, width int) (string, []byte) {
 }
 
 func TestCommitStreamSplitFramesAndBoundedMemory(t *testing.T) {
-	t.Parallel()
+	// Not parallel: the bound reads process-wide runtime.MemStats.TotalAlloc.
 	t.Run("CEM-CB-023 streamed commit identity preserves tree bytes", func(t *testing.T) {
 		for _, width := range []int{40, 64} {
 			tree, treeRecord := streamRecord("tree", []byte("tree body"), width)
