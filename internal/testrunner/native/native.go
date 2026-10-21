@@ -9,6 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -79,14 +81,16 @@ func Build(r tr.Request) (tr.Invocation, error) {
 		v.Argv = append(v.Argv, r.Project)
 	case "ctest":
 		// CTest writes Testing/Temporary (LastTest.log, cost data) into the
-		// directory it runs from. A run-owned test directory that only
-		// includes the caller's build tree keeps that residue in the report
+		// directory it runs from. A run-owned test directory that includes
+		// the caller's build tree keeps that bookkeeping in the report
 		// directory; tests still run from their own build directories
-		// (V1-1537, TRE-V0-111).
-		if !filepath.IsAbs(r.Root) || strings.ContainsAny(r.Root, "\"\\$;\x00\r\n") {
-			return v, errors.New("ctest build directory must be an absolute path without CMake-quoted metacharacters")
+		// (V1-1537, TRE-V0-111). The top-level configuration CTest reads
+		// from its test directory is carried over (TRE-V0-113).
+		files, err := ctestRunFiles(r.Root, filepath.Join(r.ReportDir, ctestRunDir))
+		if err != nil {
+			return v, err
 		}
-		v.Files = map[string][]byte{ctestRunDir + "/CTestTestfile.cmake": []byte("subdirs(\"" + r.Root + "\")\n")}
+		v.Files = files
 		v.Argv = []string{"--test-dir", filepath.Join(r.ReportDir, ctestRunDir), "--output-junit", report("ctest.xml"), "--no-tests=error"}
 		if len(r.Selectors) > 0 {
 			v.Argv = append(v.Argv, "-R", exactRegex(r.Selectors))
@@ -978,4 +982,47 @@ func parseCargo(b []byte, o *tr.Observation) error {
 		o.Problems = append(o.Problems, tr.Problem{Code: "CARGO_SUITE_INCOMPLETE", Detail: "build/collection failure or incomplete stable libtest output"})
 	}
 	return nil
+}
+
+// ctestRunFiles builds the run-owned CTest test directory for build tree
+// root, to be created at runDir. CTestTestfile.cmake includes the build tree;
+// CTestCustom.cmake includes the build tree's own CTestCustom file (pre- and
+// post-test hooks, output limits), with CTest's .cmake-before-.ctest
+// precedence; and DartConfiguration.tcl (the default test TimeOut and other
+// test settings) is copied with BuildDirectory pointed at runDir, so CTest
+// keeps its bookkeeping out of the build tree. Paths go into CMake as forward
+// slashes; a path holding a character CMake would re-parse in a quoted
+// argument is refused, never quoted. Configuration that cannot be read or
+// rewritten exactly is refused rather than dropped (TRE-V0-113).
+func ctestRunFiles(root, runDir string) (map[string][]byte, error) {
+	cmakeRoot, cmakeRun := filepath.ToSlash(root), filepath.ToSlash(runDir)
+	if !filepath.IsAbs(root) || strings.ContainsAny(cmakeRoot, "\"\\$;\x00\r\n") || strings.ContainsAny(cmakeRun, "\x00\r\n") {
+		return nil, errors.New("ctest build directory must be an absolute path without CMake-quoted metacharacters")
+	}
+	custom := cmakeRoot + "/CTestCustom"
+	files := map[string][]byte{
+		ctestRunDir + "/CTestTestfile.cmake": []byte("subdirs(\"" + cmakeRoot + "\")\n"),
+		ctestRunDir + "/CTestCustom.cmake": []byte("if(EXISTS \"" + custom + ".cmake\")\n  include(\"" + custom + ".cmake\")\n" +
+			"elseif(EXISTS \"" + custom + ".ctest\")\n  include(\"" + custom + ".ctest\")\nendif()\n"),
+	}
+	dart, err := os.ReadFile(filepath.Join(root, "DartConfiguration.tcl"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return files, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("ctest DartConfiguration.tcl cannot be read: %w", err)
+	}
+	lines, found := strings.SplitAfter(string(dart), "\n"), 0
+	for n, line := range lines {
+		if strings.HasPrefix(line, "BuildDirectory:") {
+			found++
+			end := line[len(strings.TrimRight(line, "\r\n")):]
+			lines[n] = "BuildDirectory: " + cmakeRun + end
+		}
+	}
+	if found != 1 {
+		return nil, fmt.Errorf("ctest DartConfiguration.tcl has %d BuildDirectory entries; exactly one is required to relocate it", found)
+	}
+	files[ctestRunDir+"/DartConfiguration.tcl"] = []byte(strings.Join(lines, ""))
+	return files, nil
 }

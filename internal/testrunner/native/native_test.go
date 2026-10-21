@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -61,7 +62,7 @@ func TestRejectsIncompleteAndContradictoryReports(t *testing.T) {
 }
 func TestBuildExactSelectorsAndFixedProfiles(t *testing.T) {
 	for _, r := range Runners() {
-		q := tr.Request{Runner: r, Executable: "/tool", Root: "/build", ReportDir: "/out", Project: "fixture", Selectors: nil, Target: "fixture"}
+		q := tr.Request{Runner: r, Executable: "/tool", Root: t.TempDir(), ReportDir: "/out", Project: "fixture", Selectors: nil, Target: "fixture"}
 		if q.Runner == cmockaRunner {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
@@ -298,7 +299,7 @@ func TestReviewGoDuplicateFieldsAndTerminals(t *testing.T) {
 
 func TestReviewBuildUsesArgsOnlyAndNativeExitCodes(t *testing.T) {
 	for _, runner := range Runners() {
-		q := tr.Request{Runner: runner, Executable: "/tools/runner", Root: "/build", ReportDir: "/report", Project: "project", Target: "target"}
+		q := tr.Request{Runner: runner, Executable: "/tools/runner", Root: t.TempDir(), ReportDir: "/report", Project: "project", Target: "target"}
 		if q.Runner == cmockaRunner {
 			q.Project = ""
 			q.ExpectedTests = []string{q.Target + "::test_pass"}
@@ -448,19 +449,84 @@ func TestGoActualBuildFailureStream(t *testing.T) {
 // includes the caller's build tree; a build path CMake would re-parse is
 // refused rather than quoted.
 func TestCTestRunsFromRunOwnedTestDirectory(t *testing.T) {
-	v, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: "/build/tree", ReportDir: "/out"})
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "out")
+	v, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: root, ReportDir: out})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := string(v.Files[ctestRunDir+"/CTestTestfile.cmake"]); got != "subdirs(\"/build/tree\")\n" {
+	slashed := filepath.ToSlash(root)
+	if got := string(v.Files[ctestRunDir+"/CTestTestfile.cmake"]); got != "subdirs(\""+slashed+"\")\n" {
 		t.Fatalf("run-owned CTestTestfile %q", got)
 	}
-	if len(v.Argv) < 2 || v.Argv[0] != "--test-dir" || v.Argv[1] != filepath.Join("/out", ctestRunDir) {
+	// TRE-V0-113: the build tree's CTestCustom file is included with CTest's
+	// .cmake-before-.ctest precedence.
+	custom := string(v.Files[ctestRunDir+"/CTestCustom.cmake"])
+	if !strings.Contains(custom, "include(\""+slashed+"/CTestCustom.cmake\")") || strings.Index(custom, ".cmake\")") > strings.Index(custom, ".ctest\")") {
+		t.Fatalf("run-owned CTestCustom %q", custom)
+	}
+	if _, ok := v.Files[ctestRunDir+"/DartConfiguration.tcl"]; ok {
+		t.Fatal("DartConfiguration.tcl invented for a build tree without one")
+	}
+	if len(v.Argv) < 2 || v.Argv[0] != "--test-dir" || v.Argv[1] != filepath.Join(out, ctestRunDir) {
 		t.Fatalf("argv %q", v.Argv)
 	}
-	for _, root := range []string{"", "build", `/a"b`, `/a\\b`, "/a$b", "/a;b", "/a\nb"} {
-		if _, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: root, ReportDir: "/out"}); err == nil {
-			t.Fatalf("root %q admitted", root)
+	refused := []string{"", "build", filepath.Join(root, `a"b`), filepath.Join(root, "a$b"), filepath.Join(root, "a;b"), filepath.Join(root, "a\nb")}
+	if runtime.GOOS != "windows" {
+		refused = append(refused, filepath.Join(root, `a\b`))
+	}
+	for _, bad := range refused {
+		if _, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: bad, ReportDir: out}); err == nil {
+			t.Fatalf("root %q admitted", bad)
 		}
+	}
+}
+
+// TRE-V0-113: a Windows build directory reaches CMake with forward slashes.
+func TestCTestWindowsRootUsesForwardSlashes(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows path separators")
+	}
+	root := t.TempDir()
+	v, err := Build(tr.Request{Runner: "ctest", Executable: `C:\tool`, Root: root, ReportDir: filepath.Join(root, "out")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(v.Files[ctestRunDir+"/CTestTestfile.cmake"]); strings.Contains(got, `\`) || !strings.Contains(got, filepath.ToSlash(root)) {
+		t.Fatalf("run-owned CTestTestfile %q", got)
+	}
+}
+
+// TRE-V0-113: DartConfiguration.tcl is carried with only BuildDirectory
+// relocated; a copy that cannot be relocated exactly is refused.
+func TestCTestCarriesDartConfiguration(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "out")
+	dart := "SourceDirectory: /src\r\nBuildDirectory: " + filepath.ToSlash(root) + "\r\nTimeOut: 7\r\n"
+	if err := os.WriteFile(filepath.Join(root, "DartConfiguration.tcl"), []byte(dart), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	v, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: root, ReportDir: out})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "SourceDirectory: /src\r\nBuildDirectory: " + filepath.ToSlash(filepath.Join(out, ctestRunDir)) + "\r\nTimeOut: 7\r\n"
+	if got := string(v.Files[ctestRunDir+"/DartConfiguration.tcl"]); got != want {
+		t.Fatalf("relocated DartConfiguration %q, want %q", got, want)
+	}
+	for _, bad := range []string{"TimeOut: 7\n", "BuildDirectory: /a\nBuildDirectory: /b\n"} {
+		if err := os.WriteFile(filepath.Join(root, "DartConfiguration.tcl"), []byte(bad), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: root, ReportDir: out}); err == nil {
+			t.Fatalf("DartConfiguration %q admitted", bad)
+		}
+	}
+	unreadable := t.TempDir()
+	if err := os.Mkdir(filepath.Join(unreadable, "DartConfiguration.tcl"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Build(tr.Request{Runner: "ctest", Executable: "/tool", Root: unreadable, ReportDir: out}); err == nil {
+		t.Fatal("unreadable DartConfiguration admitted")
 	}
 }

@@ -1615,6 +1615,17 @@ caller's build tree.
   their own build directories. A `Root` that is not absolute or holds a character CMake would
   re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
 
+- `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
+  The run-owned test directory MUST keep the top-level configuration CTest reads from its test
+  directory. Its `CTestCustom.cmake` includes the build tree's `CTestCustom.cmake`, or else its
+  `CTestCustom.ctest` (CTest's precedence), so pre- and post-test hooks still run and a failing hook
+  still fails the run. The build tree's `DartConfiguration.tcl` (default test `TimeOut` and other
+  test settings) is copied with only its `BuildDirectory` entry pointed at the run directory, which
+  keeps CTest's bookkeeping out of the build tree. A `DartConfiguration.tcl` that cannot be read, or
+  that has other than exactly one `BuildDirectory` entry, is refused rather than dropped. Paths reach
+  CMake with forward slashes, so a Windows `Root` such as `C:\build` is admitted, and the
+  metacharacter refusal applies to the converted path.
+
 Decision: the log is retained as report-directory evidence but is not a parsed report, so a large
 test log cannot exceed the report byte bound and turn a complete run incomplete; the JUnit report
 stays the only parsed input.
@@ -1624,6 +1635,7 @@ Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the gen
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test give a complete run, the build tree digest set is unchanged and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
+| TRE-V0-113 | `native/native.go` `ctestRunFiles`; `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestCarriesDartConfiguration`, `TestCTestWindowsRootUsesForwardSlashes` (Windows only), `TestCTestRunKeepsBuildTreeConfiguration` | Live CTest 4.4.4 (macOS arm64): a `CTestCustom.cmake` pre-test hook that exits 3 makes the run incomplete, and a `DartConfiguration.tcl` `TimeOut: 1` fails a 5 s test; both subtests fail against the wrapper without the carried files (the hook was skipped and the run passed). Copying `DartConfiguration.tcl` unchanged sent `Testing/` back into the build tree, which is why `BuildDirectory` is relocated. The Windows test is type-checked by `make windows-vet` and NOT_RUN on Windows |
 
 ## swift-testing reserved package identity (experimental)
 
