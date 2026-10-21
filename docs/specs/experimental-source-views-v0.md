@@ -204,9 +204,9 @@ Every refusal exits 2, prints nothing on stdout, and prints one typed error on s
 | `ambiguous-handle` | an abbreviated BLOB names more than one object |
 | `source-digest-mismatch` | the read bytes do not recompute the blob object ID |
 | `unsupported-text` | the selected bytes are not UTF-8 |
-| `expand-budget` | `--max-bytes` is outside 1..1048576, the blob is over 1048576 bytes, or the selection exceeds `--max-bytes` |
+| `expand-budget` | `--max-bytes` is outside 1..1048576, the blob read exceeds 1048576 bytes, or the selection exceeds `--max-bytes` |
 | `repository-root` | the root is not its Git toplevel |
-| `git-failed` | Git cannot read HEAD's tree or resolve the blob identity |
+| `git-failed` | Git cannot read HEAD's tree, resolve the blob identity, or read the blob for a reason other than its size (`ESV-V0-011`) |
 
 Non-goals:
 
@@ -250,7 +250,7 @@ Failure modes:
   path, ambiguous/duplicate/incomplete requirement, unsupported text, capture/time/count/byte
   overflow with typed errors and no partial view. The Go handoff's requirement and text codes are
   `ambiguous-requirement`, `unsupported-requirement`, `incomplete-boundary` and `unsupported-text`
-  (`cmd/corvint/source_handoff.go:441,450,477,481`). Preserve available packet metadata including
+  (`cmd/corvint/source_handoff.go:466,479,497,457@b810edfe`). Preserve available packet metadata including
   shortages, omissions, coverage and unknown fields. After a packet-size/parse refusal no decoded packet is available; disclose this
   instead of claiming metadata preservation. Supply a raw immutable Git recovery argv
   when a syntactically safe commit/path exists; otherwise declare fallback unavailable and why.
@@ -302,6 +302,11 @@ Failure modes:
   it. The trial compares current packets against summary plus expansion with model, effort,
   framing and cache policy fixed. Until then its outcome is NOT_OBSERVED, and no token, cost,
   latency or quality claim is made. These views do not satisfy the V1-0023 release delivery claim.
+- `ESV-V0-011`: A failed `git cat-file` read of the selected blob refuses as `git-failed` in both
+  `adapter source-view` and `context --expand`. Only a read whose bytes exceed the 1048576-byte
+  blob limit refuses as `blob-budget` (source view) or `expand-budget` (`--expand`), so a missing
+  object, a Git process error or a timeout no longer poses as a budget refusal (V1-2258, accepted
+  under the owner's standing auto-accept of 2026-10-11).
 
 ### Source handoff error codes
 
@@ -342,6 +347,7 @@ dispatch.
 | ESV-V0-008 | `summarizeContextPacket` in `cmd/corvint/context_summary.go` | `TestContextSummaryKeepsIdentityCoverageAndCriticalRows` budget sweep, verbatim members, row identities and handles; `TestContextSummaryTruncationReportsTotalsAndRefusesToDropCriticalRows` totals, continuation and critical-row refusal; `TestContextSummaryAndExpandAreReadOnly` |
 | ESV-V0-009 | `expandContextHandle`/`parseContextHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandReturnsExactPinnedBytes` exact bytes with a dirty worktree; `TestContextExpandRefusesWithoutSubstitutingContent` invalid, hostile, missing, non-UTF-8 and budget cases; `TestContextExpandRefusesAStaleHandleAfterHeadMoves`; `TestContextExpandRefusesAnAmbiguousAbbreviatedBlob`; `TestParseContextViewArguments` repeated `--expand`; `TestContextSummaryAndExpandAreReadOnly` no `.corvint/` write |
 | ESV-V0-010 | preregistration `benchmarks/evidence-summary-trial-v0.json` | NOT_OBSERVED; no trial run; no owner acceptance |
+| ESV-V0-011 | `sourceGit` output-overflow sentinel; cat-file sites in `executeSourceView` and `expandContextHandle` | `TestSourceBlobReadFailureIsDistinctFromBudget` scripted failing and oversized cat-file reads |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only
 consumer/tests; focused identity/extraction/refusal/lifecycle checks; fresh independent review;

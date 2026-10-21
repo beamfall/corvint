@@ -294,7 +294,6 @@ docs/specs/eol-policy-gate-v0.md	script/check-eol-policy_test.sh:69-78
 docs/specs/eol-policy-gate-v0.md	script/check-eol-policy_test.sh:69-78
 docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:275
 docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:315
-docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:441,450,477,481
 docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:62
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove.go:1232
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove.go:1374
