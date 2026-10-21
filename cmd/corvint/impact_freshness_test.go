@@ -147,3 +147,25 @@ func TestImpactTaskStoreProjectionDirtIsSourceCleanCLI(t *testing.T) {
 		t.Fatalf("source dirt hidden: %s", raw)
 	}
 }
+
+// DIRTY-CACHE-017: a committed projection file is never indexed evidence, so a
+// modified tracked `.taskman/queue.json` cannot be served as fresh evidence.
+func TestImpactTrackedTaskStoreProjectionIsNotEvidence(t *testing.T) {
+	root := impactCLIRepository(t)
+	queue := filepath.Join(root, ".taskman", "queue.json")
+	if err := os.MkdirAll(filepath.Dir(queue), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(queue, []byte("{\"committed\":true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".taskman/queue.json")
+	affectedGit(t, root, "commit", "-qm", "track queue projection")
+	if err := os.WriteFile(queue, []byte("{\"committed\":false}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, raw := runFreshnessImpact(t, root, "--require-clean", ".taskman/queue.json")
+	if got["state"] == "READY" || strings.Contains(string(raw), "committed") {
+		t.Fatalf("tracked projection served as evidence: %s", raw)
+	}
+}

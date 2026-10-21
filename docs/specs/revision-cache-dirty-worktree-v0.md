@@ -1,13 +1,13 @@
 # Revision Cache on Dirty Worktrees V0
 
 Owner: Russell Lewis
-Intent status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 proposed (V1-2068)
+Intent status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Dirty checkouts may reuse the immutable HEAD index only with explicit worktree exclusion and freshness uncertainty.
-- Status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 proposed (V1-2068)/experimental
+- Status: proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)/experimental
 - Exists: immutable-HEAD cache reuse with explicit dirty-worktree freshness and uncertainty.
 - Blocked on: promotion evidence and kill-criteria measurements; mutable content remains outside authority.
 - Read next: User and measurable job; Requirements; Evidence and kill criteria.
@@ -138,7 +138,7 @@ snapshot the worktree, or claim that revision-only context is complete.
   did. The test runs each verb in a valid form with and without the flag and requires the flag to
   cause the refusal; a dispatched verb missing from its form table fails the test until a form is
   added. Rollback: revert the `adapter codex` argument check and remove the test.
-- `DIRTY-CACHE-017`: **proposed (V1-2068)**. When the captured dirty set is non-empty and every
+- `DIRTY-CACHE-017`: **accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)**. When the captured dirty set is non-empty and every
   dirty path is a recognised Corvint Tasks store projection file (the AFP-V0-088 layout:
   `.taskman/policy.json`, `.taskman/queue.json`, `.taskman/tickets/<name>.json`,
   `.taskman/releases/<name>.json`; `internal/taskprojection`), the worktree is source-clean: the
@@ -150,14 +150,15 @@ snapshot the worktree, or claim that revision-only context is complete.
   top-level `task_state`, which the hook projection carries as `{class, path_count}`. Any other
   dirty path, including an unrecognised `.taskman/` path, keeps the full MIXED contract with every
   dirty path listed and no `task_state`. Projection files are never indexed, read, or treated as
-  evidence; the rule adds no writes (invariant 4). Non-goals: trace-learning eligibility
+  evidence, even when committed: the index path screen excludes them as `task store projection`; the rule adds no writes (invariant 4). Non-goals: trace-learning eligibility
   (`authorityTraceState`), batch fallback (SBQ-V0-010), `impact --working-tree-untracked`, the
   repository `worktreeState` identity and dogfood/handoff dirty digests keep counting projection
   files; `corvint context` task packets carry no freshness member and are unchanged. Failure mode:
   a source edit hidden as projection dirt; guarded by the exact-layout match and the mixed-set
   regression. Compatibility: CCF-V1-005 member names and types are unchanged and `task_state` is
-  additive, but `fresh` now means source-clean, so the requirement needs owner acceptance before
-  promotion. Rollback: make `SourceDirty` equal `len(DirtyPaths) != 0` and drop `task_state`.
+  additive, but `fresh` now means source-clean (the CCF-V1-005 narrowing accepted with this requirement).
+  Rollback: make `SourceDirty` equal `len(DirtyPaths) != 0`, drop `task_state`, and remove the
+  path-screen exclusion with an analyzer schema bump.
 
 ## V1-1141 scope and acceptance
 
@@ -243,4 +244,4 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-014` | `internal/contextindex/receipt.go`, `internal/contextindex/impact_freshness.go` | `TestImpactMixedWarning`, `TestImpactMixedWarningBudget`, `TestImpactMixedCLIReadOnly` |
 | `DIRTY-CACHE-015` | `cmd/corvint/main.go`, `internal/contextindex/impact_freshness.go` | `TestImpactRequireCleanCLI`, `TestImpactRequireCleanArguments`, `TestImpactRequireCleanBudget`, `TestImpactRequireCleanValidatesRequest` |
 | `DIRTY-CACHE-016` | `cmd/corvint/prove_options.go`, `hostAdapterOutput` in `cmd/corvint/host_adapter.go`, `topLevelCommands` in `cmd/corvint/main.go` | `TestRequireCleanHonouredOrRefusedByEveryCommand`, `TestProveRefusesRequireClean` |
-| `DIRTY-CACHE-017` | `internal/taskprojection/taskprojection.go`, `internal/contextindex/task_state.go`, `internal/contextindex/receipt.go`, `internal/contextindex/local_completion_context.go`, `cmd/corvint/host_adapter_projection.go`, `cmd/corvint/main.go` | `TestOnlyProjection`, `TestTaskStoreProjectionDirtIsSourceClean`, `TestDogfoodPromptTaskStoreProjectionDirtIsClean`, `TestImpactTaskStoreProjectionDirtIsSourceCleanCLI`, `TestHookProjectionCarriesTaskState` |
+| `DIRTY-CACHE-017` | `internal/taskprojection/taskprojection.go`, `internal/contextindex/index.go`, `internal/contextindex/task_state.go`, `internal/contextindex/receipt.go`, `internal/contextindex/local_completion_context.go`, `cmd/corvint/host_adapter_projection.go`, `cmd/corvint/main.go` | `TestOnlyProjection`, `TestTaskStoreProjectionDirtIsSourceClean`, `TestDogfoodPromptTaskStoreProjectionDirtIsClean`, `TestImpactTaskStoreProjectionDirtIsSourceCleanCLI`, `TestHookProjectionCarriesTaskState`, `TestImpactTrackedTaskStoreProjectionIsNotEvidence` |
