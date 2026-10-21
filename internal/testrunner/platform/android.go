@@ -35,7 +35,25 @@ func buildAndroid(r tr.Request, i *tr.Invocation) error {
 	i.SuccessExitCodes = nil
 	i.FailureExitCodes = nil
 	i.OutcomeNeutralExitCodes = []int{0}
+	i.DeviceCleanup = androidCleanup(r.Target, r.Project)
 	return nil
+}
+
+// androidCleanup stops a timed-out or interrupted instrumentation on the
+// device (TRE-V0-087). Killing the host adb client leaves it running, and
+// only force-stopping the instrumentation's target package ends it, so the
+// target is resolved from the installed instrumentation. A second step
+// verifies that the instrumentation finished and the target process is gone.
+// The component and serial are regex-bounded, so the scripts need no quoting.
+func androidCleanup(serial, component string) []tr.CleanupStep {
+	testPackage, _, _ := strings.Cut(component, "/")
+	resolve := `c=` + component + `; l=$(pm list instrumentation | grep -F "instrumentation:$c "); t=${l##*target=}; t=${t%?}; if [ -z "$l" ] || [ -z "$t" ]; then echo instrumentation-target-unresolved; exit 3; fi; `
+	stop := resolve + `am force-stop "$t" || { echo target-force-stop-failed; exit 4; }; am force-stop ` + testPackage + ` || { echo test-package-force-stop-failed; exit 5; }; echo stopped`
+	verify := resolve + `if dumpsys activity processes | grep -qF "{$c} mFinished=false"; then echo instrumentation-still-active; exit 6; fi; if pidof "$t" >/dev/null; then echo target-process-alive; exit 7; fi; echo verified`
+	return []tr.CleanupStep{
+		{Name: "force-stop", Tool: "primary", Argv: []string{"-s", serial, "shell", stop}, Expect: "stopped"},
+		{Name: "verify-stopped", Tool: "primary", Argv: []string{"-s", serial, "shell", verify}, Expect: "verified"},
+	}
 }
 
 func parseAndroid(in tr.Input, o *tr.Observation) error {

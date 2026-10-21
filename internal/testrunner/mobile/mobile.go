@@ -17,6 +17,7 @@ import (
 
 const Runner = "appium-uiautomator2-wdio"
 const reportName = "appium-wdio.json"
+const sessionFile = ".appium-session"
 
 var digest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var emulatorID = regexp.MustCompile(`^emulator-[1-9][0-9]{3,4}$`)
@@ -61,7 +62,8 @@ func Build(r tr.Request) (tr.Invocation, error) {
 	if filepath.Clean(config) != config || !digest.MatchString(r.ConfigSha256) || !filepath.IsAbs(r.Reporter) || filepath.Clean(r.Reporter) != r.Reporter || !digest.MatchString(r.ReporterSha256) || len(r.ReportFiles) != 0 {
 		return v, fmt.Errorf("Appium requires pinned configuration and native WDIO JSON reporter; report path is fixed")
 	}
-	wrapper := `import * as imported from ` + js(fileURL(config)) + `;
+	wrapper := `import {writeFileSync} from "node:fs";
+import * as imported from ` + js(fileURL(config)) + `;
 import JSONReporter from ` + js(fileURL(r.Reporter)) + `;
 const supplied=imported.config??imported.default?.config;
 if(!supplied||!Array.isArray(supplied.capabilities)||supplied.capabilities.length!==1)throw new Error("one explicit Appium capability required");
@@ -74,11 +76,15 @@ for(const key of ["appium:appPackage","appium:appActivity"]){const value=input[k
 for(const key of ["appium:noReset","appium:skipUnlock","appium:skipDeviceInitialization","appium:disableWindowAnimation"]){if(key in input){if(typeof input[key]!=="boolean")throw new Error("invalid Appium boolean");capability[key]=input[key];}}
 for(const key of ["appium:newCommandTimeout","appium:uiautomator2ServerLaunchTimeout"]){if(key in input){if(!Number.isSafeInteger(input[key])||input[key]<1||input[key]>120000)throw new Error("invalid Appium timeout");capability[key]=input[key];}}
 const timeout=supplied.mochaOpts?.timeout??15000;if(!Number.isSafeInteger(timeout)||timeout<1||timeout>120000)throw new Error("invalid Mocha timeout");
-export const config={runner:"local",protocol:"http",hostname:"127.0.0.1",port:` + strconv.Itoa(port) + `,path:"/",maxInstances:1,logLevel:"error",framework:"mocha",services:[],specFileRetries:0,connectionRetryCount:0,mochaOpts:{timeout,retries:0},capabilities:[capability],specs:[` + js(filepath.Join(r.Root, r.Selectors[0])) + `],reporters:[[JSONReporter,{outputDir:` + js(r.ReportDir) + `,outputFileFormat:()=>` + js(reportName) + `}]]};
+export const config={runner:"local",protocol:"http",hostname:"127.0.0.1",port:` + strconv.Itoa(port) + `,path:"/",maxInstances:1,logLevel:"error",framework:"mocha",services:[],specFileRetries:0,connectionRetryCount:0,mochaOpts:{timeout,retries:0},capabilities:[capability],specs:[` + js(filepath.Join(r.Root, r.Selectors[0])) + `],reporters:[[JSONReporter,{outputDir:` + js(r.ReportDir) + `,outputFileFormat:()=>` + js(reportName) + `}]],
+before:(_capabilities,_specs,session)=>{writeFileSync(` + js(filepath.Join(r.ReportDir, sessionFile)) + `,String(session.sessionId),{flag:"wx",mode:0o600});}};
 `
 	v.Files["appium.config.mjs"] = []byte(wrapper)
 	v.Argv = []string{"run", filepath.Join(r.ReportDir, "appium.config.mjs"), "--spec", filepath.Join(r.Root, r.Selectors[0])}
 	v.ReportPaths = []string{reportName}
+	// The fixed hook above records the session identity, so a timed-out or
+	// interrupted run can delete the session it left open (TRE-V0-087).
+	v.DeviceCleanup = []tr.CleanupStep{{Name: "delete-session", WebDriver: r.Project, SessionFile: sessionFile}}
 	return v, nil
 }
 

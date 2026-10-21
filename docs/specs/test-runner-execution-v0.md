@@ -299,6 +299,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `conflicting-outcomes` | A TestCafe skipped case also has errors, or an XML skipped case also has failure/error elements. | `internal/testrunner/dynamic/native.go:85@4df23ffc`; `internal/testrunner/dynamic/browser.go:51@02fd57db` |
 | `contradictory-exit` | A shared-boundary success exit accompanies an observed FAILED test. | `internal/testrunner/validate.go:122@8df4cef9` |
 | `count-mismatch` | A parsed native report total or category count disagrees with its observed rows, outcomes or attempts; the compared denominator is format-specific; or Node reports a negative skipped/todo count. | `internal/testrunner/dynamic/native.go:111@9a0a1c7f`; `internal/testrunner/dynamic/native.go:115@74f3bece`; `internal/testrunner/dynamic/native.go:230@b6957ba2`; `internal/testrunner/dynamic/native.go:259@ad1ded29`; `internal/testrunner/dynamic/native.go:473@0546fe58`; `internal/testrunner/dynamic/browser.go:57@312cf3e9`; `internal/testrunner/dynamic/browser.go:102@de598de5`; `internal/testrunner/dynamic/browser.go:159@6329112d`; `internal/testrunner/dynamic/browser.go:255@d7afa062`; `internal/testrunner/dynamic/parse.go:283@6144e481`; `internal/testrunner/dynamic/parse.go:290@9b100a65`; `internal/testrunner/dynamic/parse.go:348@c89d4e2d`; `internal/testrunner/dynamic/parse.go:375@5e2333a0`; `internal/testrunner/dynamic/parse.go:399@a3fc5178` |
+| `device-cleanup` | Device cleanup after a timed-out or interrupted TEST phase was not clean: a step failed, timed out, or its session identity was unobserved (TRE-V0-087). | `internal/testrunner/execute_unix.go:211@ab878870` |
 | `exception-conflict` | An RSpec example maps to PASSED while retaining an exception object. | `internal/testrunner/dynamic/parse.go:370@3ad339db` |
 | `exit-report-conflict` | A dynamic runner exits zero while a parsed test is FAILED, TIMED_OUT or INTERRUPTED. | `internal/testrunner/dynamic/parse.go:150@a9d4d7aa` |
 | `hook-error` | A WDIO hook has a native error or literal failed state. | `internal/testrunner/dynamic/browser.go:153@9b21db50` |
@@ -334,7 +335,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `node-suite-error` | A Node suite fail/error is not explained by subtestsFailed plus an already observed failed, timed-out or interrupted test. | `internal/testrunner/dynamic/native.go:166@7e3f3a32` |
 | `outside-example-errors` | RSpec reports a nonzero errors_outside_of_examples_count. | `internal/testrunner/dynamic/parse.go:351@503ba44e` |
 | `playwright-global-error` | The Playwright report contains a top-level error entry. | `internal/testrunner/dynamic/native.go:383@7d964fc3` |
-| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:239@aafefb4d` |
+| `process-containment` | Escaped-descendant containment of an executor phase was incomplete: a retained escaped identity survived the bounded observation, or the structural proof could not be completed. | `internal/testrunner/execute_unix.go:259@aafefb4d` |
 | `retry-history-missing` | Nightwatch declares positive retries without the same number of retained prior attempts; or Jest/Vitest indicates multiple invocations or passing-with-failure-messages without reconstructable attempt history. | `internal/testrunner/dynamic/browser.go:224@f37527eb`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94`; `internal/testrunner/dynamic/parse.go:262@7bb3fc94` |
 | `runner-exit` | The shared boundary receives a negative exit code or one outside all admitted success/failure/outcome-neutral lists. | `internal/testrunner/validate.go:119@a90e3e46` |
 | `runner-unsuccessful` | Jest/Vitest reports success=false with assertion rows but no observed FAILED test. | `internal/testrunner/dynamic/parse.go:304@4b70a549` |
@@ -1514,7 +1515,8 @@ Open residuals, retained and not fixed in this slice:
   device-side process, and the runner has no device cleanup phase. Only
   `am force-stop <target package>` ended it; `force-stop` of the test package did not. Every
   T case did that by hand (`runs/{android-junit,espresso,uiautomator}/timeout/cleanup-check.txt`).
-  This is a device-cleanup blocker for those three profiles.
+  This is a device-cleanup blocker for those three profiles. Addressed by `TRE-V0-087`
+  (V1-1553, section "Device cleanup after timeout or interrupt"); its live re-run is NOT_RUN.
 - The installed-APK identity is checked by the qualification harness, not bound by the receipt.
 - Failure kinds stay UNKNOWN for Android assertion errors, pgTAP, sqllogictest, WebdriverIO
   and Gradle exceptions.
@@ -1567,3 +1569,66 @@ documents, profiles and identities are unchanged.
 | TRE-V0-078 | `cmd/corvint-test-runner/main.go` `command`, `usage`; `TestHelpNeedsNoExecutablePin` | `go test ./cmd/corvint-test-runner`; built binary `--help` printed usage, exit 0 |
 | TRE-V0-079 | `command` listing dispatch; `TestListingVerbsNeedNoExecutablePin` | built binary `profiles` printed the runner ID JSON, exit 0 |
 | TRE-V0-080 | `missingIdentity`; `TestExecutingVerbsNameMissingPinFlags` | built binary `plan` refused naming both flags, exit 1 |
+
+## Device cleanup after timeout or interrupt (experimental)
+
+V1-1553: a timed-out or interrupted `android-junit`, `espresso`, `uiautomator` or
+`appium-uiautomator2-wdio` run retired the host process group, but the device kept running.
+Killing the adb client does not end a device-side process. The 2026-10-17 platform matrix
+retained the instrumentation (`mFinished=false`) and the target app alive after every Android
+timeout; only `am force-stop <target package>` ended them, and `force-stop` of the test package
+did not (`runs/{android-junit,espresso,uiautomator}/timeout/cleanup-check.txt`). The Appium
+timeout left its WebDriver session open until `newCommandTimeout`, and Appium 3.8.0 refuses
+session enumeration without the `session_discovery` feature
+(`runs/appium-uiautomator2-wdio/timeout/cleanup-check.txt`), so the runner must know the session
+identity itself.
+
+- `TRE-V0-087`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A
+  device-bound profile MUST declare fixed, bounded device-cleanup steps in its invocation, and
+  the executor MUST run them, and only them, after the TEST phase timed out or was interrupted.
+  (1) The Android instrumentation profiles MUST resolve the instrumentation's target package on
+  the device from `pm list instrumentation`, force-stop it and then the test package, and then
+  verify that the instrumentation is no longer active and the target process is gone. Each step
+  MUST print a fixed last line (`stopped`, `verified`), so an adb build that drops the remote
+  exit status cannot pass a step silently. (2) The Appium profile's fixed configuration hook
+  MUST record the WebDriver session id beneath the fresh report directory, and cleanup MUST
+  send `DELETE /session/<id>` to the plan's canonical loopback endpoint. A 404 `invalid session
+  id` counts as already absent. (3) Every step MUST run under its own bound (10 s, process
+  group contained) even when the run's context was cancelled, and later steps MUST still run
+  after an earlier failure. (4) The execution MUST record `deviceCleanup` with outcome
+  `not-required`, `clean` or `incomplete` and each step's status (`ok`, `failed`, `timed-out`,
+  `unobserved`) with bounded detail. A cleanup that is not clean MUST add the
+  `device-cleanup` execution problem, so the observation is incomplete; it MUST NOT be
+  reported as a clean stop. (5) Admission MUST refuse a cleanup step that names an undeclared
+  tool, holds more than 32 arguments or a NUL, combines a tool with a WebDriver endpoint, names
+  a non-canonical endpoint or a non-local session file, or exceeds four steps, before any phase
+  runs. (6) `deviceCleanup` MUST be omitted from plan JSON when empty, so historical plan bytes
+  and identities do not change; `corvint-test-runner run` MUST refuse a device-bound plan
+  written before cleanup existed rather than run it without cleanup. An Android plan, which
+  differs only by its steps, gets the re-plan diagnosis; an Appium plan also differs in its
+  wrapper and gets the generic profile-mismatch refusal.
+
+Failure modes. An instrumentation not listed by `pm` (uninstalled, or a mistyped component) is
+reported `failed` with `instrumentation-target-unresolved`, never as stopped. A force-stop that
+does not take effect fails the verify step. A transport that swallows the remote exit status
+fails on the missing fixed line. A session id that was never recorded (the run timed out before
+the WebDriver session started) is `unobserved`, so cleanup is incomplete even when no session
+existed. A refused or unreachable delete is `failed`.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-087 | `testrunner/types.go` `CleanupStep`; `execution.go` `DeviceCleanup`; `device_cleanup_unix.go` `checkDeviceCleanup`, `cleanDevice`; `platform/android.go` `androidCleanup`; `mobile/mobile.go` `Build`; `cmd/corvint-test-runner/main.go` `admittedInvocation`; `TestDeviceCleanupAdmission`, `TestDeviceCleanupIsBoundedAndRecorded`, `TestDeviceCleanupOnlyAfterTimeoutOrInterrupt`, `TestHistoricalPlanByteIdentity`, `platform` `TestAndroidTimeoutStopsDeviceProcesses`, `mobile` `TestTimeoutDeletesAppiumSession`, `TestNativeConfigIsolation`, `cmd/corvint-test-runner` `TestPreCleanupDevicePlanRefusedForExecution` | A recording fake `adb` with a stateful fake device shell, and an `httptest` WebDriver endpoint; the installed WDIO 9.32 ConfigParser loaded the wrapper and Node 22.23.3 ran its hook, which recorded the session id; focused unit tests, 2026-10-20 |
+
+Recorded limits.
+- Live qualification is NOT_RUN: no device, emulator or Appium server ran. The ticket's live
+  witnesses for the four profiles remain outstanding.
+- `pidof` checks only the target's main process; `:remote` process names are not verified.
+- Whether `dumpsys activity processes` lists the active instrumentation on every API level is
+  inferred from the 2026-10-17 API 35 evidence, not observed across versions.
+- Cleanup runs only after timeout or interrupt. A run that completes but leaves a process is
+  out of scope.
+
+Rollback removes `DeviceCleanup` from the invocation and execution, `device_cleanup_unix.go`,
+the Android steps, the Appium session hook and delete step, the runner's pre-cleanup plan
+refusal, these tests and this section. Device-bound plans written with cleanup would then fail
+closed decoding; historical plans and receipts are unaffected.

@@ -55,6 +55,12 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 		}
 		out.Retirement = &groupreap.Retirement{Retired: []groupreap.RetiredProcess{}, Unretired: []groupreap.RetiredProcess{}, Problems: []string{}}
 	}
+	if len(inv.DeviceCleanup) > 0 {
+		if err := checkDeviceCleanup(r, inv.DeviceCleanup); err != nil {
+			return out, err
+		}
+		out.DeviceCleanup = &DeviceCleanup{Outcome: CleanupNotRequired, Steps: []CleanupStepResult{}}
+	}
 	if !filepath.IsAbs(r.Root) || !filepath.IsAbs(r.ReportDir) || r.TimeoutSeconds < 1 || r.TimeoutSeconds > 1800 || len(r.InputFiles) == 0 || len(r.InputFiles) > 4096 {
 		return out, fmt.Errorf("incomplete execution admission")
 	}
@@ -191,6 +197,20 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 	}()
 	limited, cancel := context.WithTimeout(ctx, time.Duration(r.TimeoutSeconds)*time.Second)
 	defer cancel()
+	// A timed-out or interrupted phase leaves device-side processes that the
+	// host group kill cannot reach. Stop them on every later return path and
+	// record the outcome; anything short of clean is an execution problem
+	// (TRE-V0-087).
+	stopDevice := false
+	defer func() {
+		if !stopDevice || out.DeviceCleanup == nil {
+			return
+		}
+		out.DeviceCleanup = cleanDevice(ctx, r, inv.DeviceCleanup, reportRoot)
+		if out.DeviceCleanup.Outcome != CleanupClean {
+			out.Input.ExecutionProblems = append(out.Input.ExecutionProblems, Problem{"device-cleanup", cleanupDetail(out.DeviceCleanup)})
+		}
+	}()
 	for i, p := range phases {
 		t, _ := tool(r, p.Tool)
 		if err = checkBindings(); err != nil {
@@ -255,6 +275,9 @@ func Execute(ctx context.Context, r Request, inv Invocation) (out Execution, ret
 			code = cmd.ProcessState.ExitCode()
 		}
 		result := PhaseResult{p.Kind, t.Sha256, Identity(p.Argv), Digest(a), Digest(b), code, limited.Err() == context.DeadlineExceeded, ctx.Err() != nil, ovA || ovB}
+		if result.TimedOut || result.Interrupted {
+			stopDevice = true
+		}
 		phaseCancel()
 		out.Phases = append(out.Phases, result)
 		for suffix, data := range map[string][]byte{"stdout": a, "stderr": b} {
