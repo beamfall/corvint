@@ -2846,7 +2846,7 @@
     "path": "docs/specs/revision-cache-dirty-worktree-v0.md",
     "title": "Revision Cache on Dirty Worktrees V0",
     "reqPrefix": "DIRTY-CACHE",
-    "intent": "proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)",
+    "intent": "proposed; DIRTY-CACHE-014..015 accepted (decision 0518; V1-1141); DIRTY-CACHE-016 accepted (decision 0519; V1-1174); DIRTY-CACHE-017 accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068); DIRTY-CACHE-018 accepted under the owner's standing auto-accept (2026-10-11; V1-2218)",
     "delivery": "experimental",
     "claim": "Dirty checkouts may reuse the immutable HEAD index only with explicit worktree exclusion and freshness uncertainty.",
     "dependsOn": [],
