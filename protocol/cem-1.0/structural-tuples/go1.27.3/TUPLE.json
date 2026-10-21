@@ -33,7 +33,7 @@
       "closureListSha256": "f2fe3f7e03754ea3b235c773be044c3884cd7a25f1f0b4d4dbf80700f79b32a6",
       "packages": 70,
       "files": 2323,
-      "fileListing": "one line per regular file directly in each closure package directory: <importpath>/<name> <sha256>",
+      "fileListingFormat": "one line per regular file directly in each closure package directory: <importpath>/<name> <sha256>",
       "fileListingSha256": "9a2c330b7d101a7304efccda96f82b54cd2c315c9012a7ecf53cbe4e8b55a4d8",
       "identicalToGo1.27.2": true,
       "identicalPackagesToGo1.27.2": 70,
