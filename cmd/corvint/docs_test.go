@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -406,26 +407,48 @@ func TestDocsCLICarriageReturnCannotEscapeSourceExcerpt(t *testing.T) {
 	}
 }
 
-// V1-2134: docs help lists every dispatched docs subcommand with its maturity, and every listed
-// subcommand dispatches (its own help exits 0) while an unlisted one is refused.
+// V1-2134: docs help lists every dispatched docs subcommand with its maturity. Each listed
+// subcommand is driven through real dispatch with an argument no parser accepts: it must reach its
+// own parser (an invalid-arguments refusal that is not the catch-all's), never the catch-all, whose
+// refusal is built from docsSubcommands and which refuses every unlisted name, so the table both
+// covers and bounds what dispatches.
 func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
 	t.Parallel()
 	usage, _, _ := strings.Cut(docsHelp, "\n\nNavigation")
 	_, maturity, _ := strings.Cut(usage, "\nMaturity: ")
+	catchAll := "docs requires one of " + strings.Join(docsSubcommands, ", ")
+	invoke := func(arguments ...string) (int, string) {
+		var stdout, stderr bytes.Buffer
+		code := run(append([]string{"--root", "/definitely/not/a/repository", "docs"}, arguments...), &forbiddenHelpReader{}, &stdout, &stderr)
+		return code, stderr.String()
+	}
 	for _, name := range docsSubcommands {
 		if !strings.Contains(usage, "corvint [--root PATH] docs "+name+" ") || !strings.Contains(maturity, name+",") && !strings.Contains(maturity, name+")") {
 			t.Errorf("docs usage omits %q or its maturity:\n%s", name, usage)
 		}
-		var stdout, stderr bytes.Buffer
-		if code := run([]string{"--root", "/definitely/not/a/repository", "docs", name, "--help"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.Len() == 0 {
-			t.Errorf("docs %s --help exit=%d stderr=%q", name, code, &stderr)
+		code, stderr := invoke(name, "--zz-not-a-flag")
+		if code != 2 || !strings.Contains(stderr, `"code": "invalid-arguments"`) || strings.Contains(stderr, catchAll) || strings.Contains(stderr, "has no parser") {
+			t.Errorf("docs %s did not reach its own parser: exit=%d stderr=%q", name, code, stderr)
 		}
 	}
-	if got := strings.Count(usage, "\n  corvint [--root PATH] docs "); got < len(docsSubcommands) {
-		t.Errorf("usage lines=%d, dispatch table=%d", got, len(docsSubcommands))
+	// Every usage line names a table entry and every entry has one, and each usage-listed name
+	// dispatches above, so a subcommand cannot be documented without dispatching or vice versa.
+	usageNames := map[string]bool{}
+	for _, line := range strings.Split(usage, "\n") {
+		if rest, ok := strings.CutPrefix(line, "  corvint [--root PATH] docs "); ok {
+			name, _, _ := strings.Cut(rest, " ")
+			usageNames[name] = true
+			if !slices.Contains(docsSubcommands, name) {
+				t.Errorf("docs usage names %q, which the dispatch table does not list", name)
+			}
+		}
 	}
-	var stdout, stderr bytes.Buffer
-	if code := run([]string{"--root", "/definitely/not/a/repository", "docs", "bogus"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 2 {
-		t.Errorf("unlisted docs subcommand exit=%d", code)
+	if len(usageNames) != len(docsSubcommands) {
+		t.Errorf("usage names=%v, dispatch table=%v", usageNames, docsSubcommands)
+	}
+	for _, unlisted := range [][]string{{"bogus"}, {}, {"Draft"}} {
+		if code, stderr := invoke(unlisted...); code != 2 || !strings.Contains(stderr, catchAll) {
+			t.Errorf("unlisted docs subcommand %q exit=%d stderr=%q", unlisted, code, stderr)
+		}
 	}
 }

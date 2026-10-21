@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -30,8 +31,8 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 		}
 		options.root = strings.TrimPrefix(arguments[index], "--root=")
 	}
-	if position+1 >= len(arguments) {
-		return options, true, argumentError("docs requires draft or consume")
+	if position+1 >= len(arguments) || !slices.Contains(docsSubcommands, arguments[position+1]) {
+		return options, true, argumentError("docs requires one of " + strings.Join(docsSubcommands, ", "))
 	}
 	options.mode = arguments[position+1]
 	if options.mode == "nav" {
@@ -40,7 +41,8 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 		return options, true, err
 	}
 	if options.mode != "draft" && options.mode != "consume" {
-		return options, true, argumentError("docs requires draft or consume")
+		// A listed subcommand whose own parser did not claim it is a dispatch defect.
+		return options, true, errors.New("docs " + options.mode + " is listed but has no parser")
 	}
 	seen := map[string]bool{}
 	for index := position + 2; index < len(arguments); index++ {
@@ -152,8 +154,10 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 
 // docsSubcommands is the `docs` dispatch table: nav, draft and consume dispatch through
 // parseDocsInvocation, corpus through parseCorpusInvocation, maintain through
-// docs_maintain.go and flows through docs_flows.go. docsHelp lists every entry with its
-// maturity, and TestDocsHelpListsEveryDispatchedSubcommand pins the two together (V1-2134).
+// docs_maintain.go and flows through docs_flows.go. parseDocsInvocation, the catch-all that
+// runs after those parsers, refuses any name outside this table with a refusal built from it,
+// so a name dispatches only if listed. docsHelp lists every entry with its maturity, and
+// TestDocsHelpListsEveryDispatchedSubcommand drives each entry into its own parser (V1-2134).
 var docsSubcommands = []string{"nav", "draft", "consume", "corpus", "maintain", "flows"}
 
 const docsHelp = `Experimental source documentation orientation
