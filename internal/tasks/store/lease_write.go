@@ -395,6 +395,25 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 	return p, g.Check()
 }
 
+// writerFacts is the lease observer the writer route calls under the writer
+// lock, with settle to run what it deferred once the lock is released
+// (PSR-V0-168). settle reports whether a deferred observation was made.
+type writerFacts struct {
+	observe claimObserver
+	settle  func() bool
+}
+
+type writerFactsKey struct{}
+
+func withWriterFacts(ctx context.Context, wf *writerFacts) context.Context {
+	return context.WithValue(ctx, writerFactsKey{}, wf)
+}
+
+func writerFactsOf(ctx context.Context) *writerFacts {
+	wf, _ := ctx.Value(writerFactsKey{}).(*writerFacts)
+	return wf
+}
+
 // leaseWrite carries immutable audit and model results to a bounded critical
 // section. Contention invalidates the entire preparation, including refusals
 // and replays. No fallback scans the store while holding the lock or the
@@ -442,12 +461,34 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	noResume := !journal.ResumableAudits()
 	// writerRoute runs leaseWriter under the preparation gate. done is set
 	// when the route served or failed the write.
+	//
+	// PSR-V0-168: an observer whose command must not run under the writer
+	// lock (a guarded member's identity probe) defers instead. The command
+	// then runs here with the lock and gate released, and the route is tried
+	// once more, where the observer serves the observation only for
+	// byte-identical audited state; a second decline prepares the complete
+	// route, which observes before the gate and rebinds under the lock.
+	routeFacts := facts
+	wf := writerFactsOf(ctx)
+	if wf != nil {
+		routeFacts = wf.observe
+	}
 	writerRoute := func(from *leaseResume) (done bool, rep *Report, fast *journal.Result, err error) {
 		var handled, due bool
 		var routeErr error
-		ran, gateErr := underPreparation(ctx, repo, hooks, timing, func() {
-			handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, facts, report, from)
-		})
+		serve := func() {
+			handled, due, fast, routeErr = leaseWriter(ctx, repo, request, now, beforeCommit, routeFacts, report, from)
+		}
+		ran, gateErr := underPreparation(ctx, repo, hooks, timing, serve)
+		if ran && !handled && gateErr == nil && wf != nil && wf.settle() {
+			// Writers may have committed while the probe ran unlocked, so
+			// the write is recorded no earlier than now; the complete
+			// route after a second decline keeps this time too.
+			if wall := WallClock(); wall > now {
+				now = wall
+			}
+			ran, gateErr = underPreparation(ctx, repo, hooks, timing, serve)
+		}
 		if !ran {
 			return true, report, nil, gateErr
 		}

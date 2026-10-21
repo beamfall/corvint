@@ -130,6 +130,11 @@ type doctorScan struct {
 	// elidedBases caches, per attempt path, the retained record an elided
 	// liveness receipt in the walk restores from (CAL-V0-300).
 	elidedBases map[string]doctorBase
+	// walked caches, per receipt sequence, the decoded pools.json and
+	// attempt posts (or the read error) of a receipt an elided-record walk
+	// read, so walks for different attempts share one read and decode of
+	// each receipt (V1-1193).
+	walked map[uint64]doctorWalked
 	// journal is the live journal's size and growth (JRT-V0-012).
 	journal *doctorJournal
 	// openItems is, per OPEN or HELD ledger ticket with pending items, its
@@ -437,19 +442,11 @@ func doctorElidedRecord(src journal.Source, seq uint64, tombstone []byte, path s
 		return snapshot.ElidedRecord(tombstone, b.raw)
 	}
 	for at := seq - 1; at >= 1 && seq-at <= doctorMaxReceipts; at-- {
-		name, err := snapshot.ReceiptName(at)
+		posts, err := doctorWalkPosts(src, at, scan)
 		if err != nil {
 			return nil, err
 		}
-		raw, err := src.Read("receipts/"+name, wire.MaxReceiptFileBytes)
-		if err != nil {
-			return nil, err
-		}
-		rc, _, _, err := snapshot.DecodeRetainedReceipt(raw)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range rc.Post {
+		for _, p := range posts {
 			if p.Path != path || (p.Sha256 != nil && p.Record == nil && p.BlobSha256 == nil) {
 				continue
 			}
@@ -468,6 +465,49 @@ func doctorElidedRecord(src journal.Source, seq uint64, tombstone []byte, path s
 		}
 	}
 	return nil, fmt.Errorf("%s: no retained record within %d receipts before elided receipt %d", path, doctorMaxReceipts, seq)
+}
+
+// doctorWalkShared lets elided-record walks share decoded receipts; a test
+// clears it to measure the cost before V1-1193.
+var doctorWalkShared = true
+
+// doctorWalked is one receipt as an elided-record walk reads it.
+type doctorWalked struct {
+	posts []snapshot.PostEntry
+	err   error
+}
+
+// doctorWalkPosts returns the pools.json and attempt posts of receipt seq, or
+// the error reading or decoding it, reading and decoding each receipt at most
+// once per scan. Every walk still visits every receipt between an elided
+// receipt and its retained record and fails on the same receipt as an
+// uncached walk (V1-1193).
+func doctorWalkPosts(src journal.Source, seq uint64, scan *doctorScan) ([]snapshot.PostEntry, error) {
+	if w, ok := scan.walked[seq]; ok && doctorWalkShared {
+		return w.posts, w.err
+	}
+	name, err := snapshot.ReceiptName(seq)
+	if err != nil {
+		return nil, err
+	}
+	var w doctorWalked
+	raw, err := src.Read("receipts/"+name, wire.MaxReceiptFileBytes)
+	var rc *snapshot.Receipt
+	if err == nil {
+		rc, _, _, err = snapshot.DecodeRetainedReceipt(raw)
+	}
+	if w.err = err; err == nil {
+		for _, p := range rc.Post {
+			if p.Path == "pools.json" || strings.HasPrefix(p.Path, "attempts/") {
+				w.posts = append(w.posts, p)
+			}
+		}
+	}
+	if scan.walked == nil {
+		scan.walked = map[uint64]doctorWalked{}
+	}
+	scan.walked[seq] = w
+	return w.posts, w.err
 }
 
 func doctorPostBytes(src journal.Source, p snapshot.PostEntry) ([]byte, error) {
