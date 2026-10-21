@@ -1180,7 +1180,7 @@ jobs:
     # ci-control-plane admin review, changes what it prints, and that ci.yml is part of the
     # tree the queue entry must equal.
     needs: artifact-integrity
-    if: ${{ github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.artifact-integrity.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
