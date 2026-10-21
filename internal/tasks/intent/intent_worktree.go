@@ -76,7 +76,9 @@ func (r *Repository) WithIntentRepair(err error) error {
 	if fix == "" {
 		return err
 	}
-	return &wire.Error{Code: e.Code, Where: e.Where, Msg: e.Msg + "; " + fix}
+	out := *e
+	out.Msg = e.Msg + "; " + fix
+	return &out
 }
 
 type intentHint struct {

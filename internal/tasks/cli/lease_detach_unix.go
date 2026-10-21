@@ -32,7 +32,13 @@ func lockLeaseDetach(p string, bound time.Duration) (func(), error) {
 			}
 			return nil, err
 		}
-		time.Sleep(leaseDetachPoll)
+		// Sleep at most the remaining bound and never try past it, so a
+		// lock freed after the deadline is not taken late (V1-1721).
+		time.Sleep(min(leaseDetachPoll, time.Until(deadline)))
+		if !time.Now().Before(deadline) {
+			_ = f.Close()
+			return nil, wire.Errorf(wire.CodeLockTimeout, "detach", "another caller is still starting this detached request")
+		}
 	}
 }
 

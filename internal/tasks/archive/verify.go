@@ -347,5 +347,7 @@ func prefixWhere(err error, file string) error {
 	if e.Where != "" && e.Where != "/" {
 		where = file + e.Where
 	}
-	return &wire.Error{Code: e.Code, Where: where, Msg: e.Msg}
+	out := *e
+	out.Where = where
+	return &out
 }
