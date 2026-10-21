@@ -210,6 +210,11 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 	sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 	return result
 }
+
+// ArtifactSHA256 is the configured artifact's digest, the corpus identity an
+// outcome log is bound to (DCP-V1-285).
+func (r *Registry) ArtifactSHA256() string { return r.digest }
+
 func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map[string]any, string, *ToolFailure, *Error) {
 	result, text, failure, protocol, _ := r.CallTimed(ctx, name, arguments)
 	return result, text, failure, protocol
