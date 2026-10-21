@@ -2764,7 +2764,7 @@
     "path": "docs/specs/repository-guidance-v0.md",
     "title": "Repository guidance V0",
     "reqPrefix": "RGV-V0",
-    "intent": "accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995)",
+    "intent": "accepted (owner first-release instruction, 2026-09-13); RGV-V0-015 proposed (V1-0995); RGV-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-2053)",
     "delivery": "experimental",
     "claim": "Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints.",
     "dependsOn": [

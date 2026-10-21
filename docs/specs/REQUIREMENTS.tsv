@@ -3825,6 +3825,7 @@ RGV-V0-012	docs/specs/repository-guidance-v0.md	Real committed fixtures MUST ver
 RGV-V0-013	docs/specs/repository-guidance-v0.md	Review MUST NOT plan affected advice over an incomplete guidance inventory. When	unrecorded	-
 RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the	unrecorded	-
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
+RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th	unrecorded	-
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because	unrecorded	-
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp	unrecorded	-
