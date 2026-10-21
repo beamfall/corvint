@@ -75,8 +75,8 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 - `DCG-V0-001`: accepted, decision 0506. The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
-  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `docs/RELEASE-NOTES-*.md`
-  (amended by decision 0534, V1-1480), and `conformance/*/README.md` (one directory
+  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/AUTOMATION.md`, `docs/GLOSSARY.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, `docs/RELEASE-NOTES-*.md`
+  (amended by decision 0534, V1-1480; `docs/AUTOMATION.md` and `docs/GLOSSARY.md` by DCG-V0-042), and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
   `dir/file.ext:N,M`, a basename
   the Git index tracks at the repository root such as `ROADMAP.md:343`, and a bare `:N` or `:N-M`
@@ -213,6 +213,11 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   keeping each pin; it MUST refuse, exit 1 and leave unchanged any document whose worktree bytes
   differ from its index blob, MUST NOT stage anything, and MUST NOT touch a changed or ambiguous
   citation. A repinned citation still fails until the author stages the rewrite (V1-1530, V1-2139).
+- `DCG-V0-042`: `scanned_doc()` MUST scan `docs/AUTOMATION.md` and `docs/GLOSSARY.md` as
+  current-contract documents (V1-0997, V1-1034, V1-0225). Neither is on the legacy allowlist, so every
+  citation in them MUST carry an anchor: each was re-read against the index on 2026-10-20 and
+  pinned, relocated to the line that now states the cited claim, or, for a file never tracked, turned
+  into prose. The allowlist exception above is not used.
 - `DCG-V0-041`: `script/line-citation-unpinned-inventory.txt`, read from the index, MUST list one
   `<document><TAB><path>:<span>` row per unpinned citation a legacy document may carry, where
   `<span>` is the citation's first line, any `,line` extras and any `-last`, and `<path>` is the
@@ -301,6 +306,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-001 (V1-0178 amendment) | test case 22, skipped-basename notes preserve passing and failing results and do not exempt tracked root basenames |
 | DCG-V0-001 (V1-1480 amendment, decision 0534) | test case 23, a pinned citation in a `docs/RELEASE-NOTES-*.md` fixture passing and then failing, naming the release notes, once the cited line changes; a local mutation shifting `docs/CHANGE-EVIDENCE-MAP.md` by one line failed `line-citations-check` on `docs/RELEASE-NOTES-alpha.md:127` and passed with the base checker |
 | DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
+| DCG-V0-042 | `script/check-line-citations.sh` exits 0 on the index with both documents scanned and no row for either in the legacy allowlist or the unpinned inventory; an edit that moves a cited line in either document fails |
 | DCG-V0-041 | test case 27: an inventoried unpinned citation edited onto another non-blank line fails with a `--hash` hint, the inventoried form passes, a second copy of it fails, and unused rows are noted; the inventory was derived from the base tree's 785 legacy unpinned citations and `line-citations-check` passes with it |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned line reported as moved to line 5, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move. This change also repinned its own spec's moved script citations with `--repin` |
 
@@ -323,6 +329,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
 | DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:197-215@5e2147f9` and `:252@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
+| DCG-V0-042 | the `scanned_doc` pattern in `script/check-line-citations.sh`; the pinned citations in `docs/AUTOMATION.md` and `docs/GLOSSARY.md` | full-index run |
 | DCG-V0-041 | the inventory loader after the legacy allowlist and the inventory branch in `check`, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `shifted_token` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26 |
 

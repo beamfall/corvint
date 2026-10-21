@@ -182,7 +182,7 @@ sub log_or_backlog_doc {
 
 sub scanned_doc {
     my ($path) = @_;
-    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION|RELEASE-NOTES-[^/]*)\.md|conformance/[^/]+/README\.md)$};
+    return $path =~ m{^(?:docs/(?:specs|agent-memory|decisions)/[^/]+\.md|README\.md|docs/(?:DOGFOOD|AGENT-ROUTES|GLOSSARY|AUTOMATION|SELF-DEVELOPMENT|SPEC-TOOLCHAIN-INTEGRATION|RELEASE-NOTES-[^/]*)\.md|conformance/[^/]+/README\.md)$};
 }
 
 my @failures;
