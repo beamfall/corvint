@@ -2126,7 +2126,7 @@
     "path": "docs/specs/mcp-server-2026-07-28-v0.md",
     "title": "MCP Server 2026-07-28 V0",
     "reqPrefix": "MCPV0",
-    "intent": "proposed",
+    "intent": "accepted (companion profile; owner's 1.0 feature-cut delegation, 2026-10-20; V1-0191)",
     "delivery": "experimental",
     "claim": "A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.",
     "dependsOn": [
