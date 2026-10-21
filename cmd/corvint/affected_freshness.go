@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -31,38 +29,15 @@ func affectedMixedWarning(revision string, dirty, committed []string) string {
 
 // affectedMixedWorktreeRefusal is the AFP-V0-045 --require-clean refusal,
 // returned before the range diff, the graph walk or any provider runs.
-func affectedMixedWorktreeRefusal(revision string, dirty []string) error {
-	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --require-clean refuses to plan; HEAD is commit %s with %d dirty worktree paths", revision, len(dirty)) + affectedDirtyDetail(dirty)}
+func affectedMixedWorktreeRefusal(revision string, dirty int) error {
+	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --require-clean refuses to plan; HEAD is commit %s with %d dirty worktree paths", revision, dirty)}
 }
 
 // affectedPathListMixedRefusal is the AFP-V0-094 refusal: `--path` plans at
 // HEAD, and a worktree with any status entry would let uncommitted bytes into
 // a graph the receipt binds to that commit.
-func affectedPathListMixedRefusal(revision string, dirty []string) error {
-	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths", revision, len(dirty)) + affectedDirtyDetail(dirty)}
-}
-
-// affectedDirtyPathsShown bounds the dirty paths a MIXED refusal names.
-const affectedDirtyPathsShown = 8
-
-// affectedDirtyDetail names, for a MIXED refusal, the first
-// affectedDirtyPathsShown dirty paths (quoted, in the sorted order DirtyPaths
-// returns) and how many more there are, and states that status runs without
-// global configuration, so a path ignored only by a global excludes file is
-// dirty here, with the fix (AFP-V0-162, V1-2053).
-func affectedDirtyDetail(dirty []string) string {
-	if len(dirty) == 0 {
-		return ""
-	}
-	shown := make([]string, 0, affectedDirtyPathsShown)
-	for _, path := range dirty[:min(len(dirty), affectedDirtyPathsShown)] {
-		shown = append(shown, strconv.Quote(path))
-	}
-	detail := ": " + strings.Join(shown, ", ")
-	if len(dirty) > len(shown) {
-		detail += fmt.Sprintf(" (+%d more)", len(dirty)-len(shown))
-	}
-	return detail + "; Corvint reads status without global Git configuration, so a path ignored only by a global excludes file (core.excludesFile or ~/.config/git/ignore) is dirty here: ignore it in a tracked .gitignore or in .git/info/exclude"
+func affectedPathListMixedRefusal(revision string, dirty int) error {
+	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths", revision, dirty)}
 }
 
 // affectedPathListIgnoredRefusal names an ignored file HEAD does not track that
