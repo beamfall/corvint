@@ -125,6 +125,9 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	if goModuleRoot(root) {
+		files, features = withoutTestdata(files), withoutTestdata(features)
+	}
 	frontier := map[string]bool{}
 	if len(features) != 0 {
 		frontier[FrontierCucumberOwnership] = true
@@ -235,6 +238,34 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// goModuleRoot reports a repository whose root declares a Go module. There a
+// testdata directory is fixture data by the go tool's convention, never a
+// test or source tree of the host repository (RUBY-AFFECTED-V0-041).
+func goModuleRoot(root *affected.Source) bool {
+	_, err := root.Read("go.mod")
+	return err == nil
+}
+
+// withoutTestdata drops paths with a testdata component (RUBY-AFFECTED-V0-041).
+func withoutTestdata(files []string) []string {
+	kept := files[:0:0]
+	for _, relative := range files {
+		if !hasTestdataComponent(relative) {
+			kept = append(kept, relative)
+		}
+	}
+	return kept
+}
+
+func hasTestdataComponent(relative string) bool {
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		if component == "testdata" {
+			return true
+		}
+	}
+	return false
 }
 
 func classify(relative, body string, rails bool) framework {

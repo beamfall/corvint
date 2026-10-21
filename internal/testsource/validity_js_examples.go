@@ -87,7 +87,7 @@ type jsReader struct {
 // TSA-V0-074..079 in rule order.
 func JSExampleSources(name, text string) (map[int]testvalidity.ExampleSource, string) {
 	out := map[int]testvalidity.ExampleSource{}
-	if !IsJSValidityTestFile(name) {
+	if !IsTestFile(name) {
 		return out, testvalidity.ExampleSourceNotJSTestFile
 	}
 	base := ValidityFindings(name, text)

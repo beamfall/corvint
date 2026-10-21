@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -473,6 +474,76 @@ func TestAMAPV0079ReactImportedRouteArray(t *testing.T) {
 		}
 		if !strings.Contains(got, " "+c.want+" ") {
 			t.Fatalf("%s: reasons %q want %s", name, got, c.want)
+		}
+	}
+}
+
+// AMAP-V0-190: a statically placed JSX Routes tree inside a hooks component reads every literal
+// Route; a non-literal child records its own unknown and conditional placement still abstains.
+func TestAMAPV0190ReactRoutesInHooksComponent(t *testing.T) {
+	states, unknowns := parseReactRouter(blobEntry{path: "finances-app.tsx"}, dialectData(t, "finances-app.tsx"))
+	if len(unknowns) != 1 || unknowns[0].Reason != "non-literal-react-children" || unknowns[0].Line != 35 {
+		t.Fatalf("unknowns = %+v, want one non-literal-react-children at line 35", unknowns)
+	}
+	screens, more := resolveScreens("test", states)
+	if len(more) != 0 {
+		t.Fatalf("unexpected unknowns: %+v", more)
+	}
+	got := map[string]bool{}
+	for _, s := range screens {
+		if s.Status != StatusResolved {
+			t.Fatalf("not resolved: %+v", s)
+		}
+		got[s.Template] = true
+	}
+	for _, want := range []string{"/", "/reports/{*splat}", "/budget", "/accounts/{id}", "/{*splat}"} {
+		if !got[want] {
+			t.Errorf("missing %s in %v", want, got)
+		}
+	}
+	if len(screens) != 5 || got["/hidden"] {
+		t.Fatalf("screens = %v", got)
+	}
+	for name, src := range map[string]string{
+		"logical child":     `function A() { return (<div>{on && (<Routes><Route path="/a" /></Routes>)}</div>); }`,
+		"ternary":           `function A() { return on ? <Routes><Route path="/a" /></Routes> : null; }`,
+		"guarded return":    `function A() { if (on) return (<Routes><Route path="/a" /></Routes>); return null; }`,
+		"else return":       `function A() { if (on) { return null; } else return (<Routes><Route path="/a" /></Routes>); }`,
+		"mapped":            `function A() { return (<div>{xs.map(x => (<Routes><Route path="/a" /></Routes>))}</div>); }`,
+		"call argument":     `const A = memo(function A() { return (<Routes><Route path="/a" /></Routes>); }); const b = on ? 1 : 2;`,
+		"render prop":       `function A() { return (<X render={() => <Routes><Route path="/a" /></Routes>} />); } const b = on ? 1 : 2;`,
+		"object value":      `function A() { const v = {wide: <Routes><Route path="/a" /></Routes>}; return v[on ? 'wide' : 'x']; }`,
+		"array element":     `function A() { return [<Routes key="a"><Route path="/a" /></Routes>][on ? 0 : 1]; }`,
+		"conditional block": `function A() { if (on) { return (<Routes><Route path="/a" /></Routes>); } return null; }`,
+		"trailing operator": `function A() { const r = <Routes><Route path="/a" /></Routes> || null; return r; } const b = on ? 1 : 2;`,
+		"early return":      `function A() { if (!enabled) return null; return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+		"early return asi":  "function A() {\n  if (!enabled) return null\n  return (<Routes><Route path=\"/a\" /></Routes>)\n}\nconst b = on ? 1 : 2",
+		"early block exit":  `const A = () => { if (!enabled) { return null; } return (<Routes><Route path="/a" /></Routes>); }; const b = on ? 1 : 2;`,
+		"switch exit":       `function A() { switch (mode) { case 1: return null; } return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+		"throw":             `function A() { if (!enabled) throw new Error("x"); return (<Routes><Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+	} {
+		states, unknowns := parseReactRouter(blobEntry{path: "a.tsx"}, []byte(src))
+		if !slices.ContainsFunc(unknowns, func(u Unknown) bool { return u.Reason == "dynamic-route-context" }) {
+			t.Errorf("%s: unknowns %+v must keep dynamic-route-context", name, unknowns)
+		}
+		screens, _ := resolveScreens("test", states)
+		for _, s := range screens {
+			if s.Status == StatusResolved {
+				t.Errorf("%s: resolved %+v", name, s)
+			}
+		}
+	}
+	for name, src := range map[string]string{
+		"function":           `export function A() { const b = on ? 1 : 2; return (<div><Routes><Route path="/a" /></Routes></div>); }`,
+		"arrow":              `export const A = () => { if (on) { go(); } return (<Routes><Route path="/a" /></Routes>); };`,
+		"arrow expression":   `const A: React.FC = () => (<Routes><Route path="/a" /></Routes>); const b = on ? 1 : 2;`,
+		"typed function":     `function A(): JSX.Element { useEffect(() => { if (on) go(); }); return <Routes><Route path="/a" /></Routes>; }`,
+		"expression sibling": `function A() { return (<Routes>{extra}<Route path="/a" /></Routes>); } const b = on ? 1 : 2;`,
+	} {
+		states, _ := parseReactRouter(blobEntry{path: "a.tsx"}, []byte(src))
+		screens, _ := resolveScreens("test", states)
+		if len(screens) != 1 || screens[0].Status != StatusResolved || screens[0].Template != "/a" {
+			t.Errorf("%s: screens %+v", name, screens)
 		}
 	}
 }

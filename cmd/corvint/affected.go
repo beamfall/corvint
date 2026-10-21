@@ -1215,6 +1215,9 @@ func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []str
 	if info, err := os.Lstat(filepath.Join(root, "Gemfile")); err != nil || !info.Mode().IsRegular() {
 		return nil, []string{adviceNoRSpecGemfile}
 	}
+	if !adviceDeclaresRSpecGem(root) {
+		return nil, []string{adviceNoRSpecGem}
+	}
 	if len(files) > adviceMaxRSpecFiles {
 		return nil, []string{fmt.Sprintf(adviceRSpecBoundUnknown, len(files), adviceMaxRSpecFiles)}
 	}
@@ -1226,7 +1229,7 @@ func advisoryRSpecCheck(root string, plan affected.Plan) ([]affectedCheck, []str
 		operands[index] = "./" + file
 	}
 	command := adviceAdvisoryRSpec + " " + shellQuoteJoin(operands)
-	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile, so these spec files are the plausible first pass", units)
+	reason := fmt.Sprintf("the plan selected %d RSpec unit(s) and the repository root has a Gemfile declaring an rspec gem, so these spec files are the plausible first pass", units)
 	return []affectedCheck{{Command: command, Kind: adviceKindAdvisory, Reason: reason, Source: adviceSourcePlan}}, nil
 }
 

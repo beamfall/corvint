@@ -1,9 +1,6 @@
 package testsource
 
 import (
-	"path"
-	"strings"
-
 	"github.com/Beamfall/corvint/internal/appmap"
 )
 
@@ -17,24 +14,6 @@ var jsPromiseCallbacks = map[string]bool{"then": true, "catch": true, "finally":
 // does not start a statement.
 var jsExpressionKeywords = map[string]bool{"await": true, "return": true, "new": true, "typeof": true, "void": true,
 	"yield": true, "throw": true, "delete": true, "in": true, "of": true, "instanceof": true, "case": true}
-
-// IsJSValidityTestFile reports a JS/TS file the test-validity readings treat as a test file: an
-// IsTestFile name, or any JS/TS file under a `__tests__` directory, which Jest's default testMatch
-// selects (TSA-V0-388).
-func IsJSValidityTestFile(name string) bool {
-	if IsTestFile(name) {
-		return true
-	}
-	if !webExtensions[path.Ext(name)] {
-		return false
-	}
-	for _, segment := range strings.Split(path.Dir(name), "/") {
-		if segment == "__tests__" {
-			return true
-		}
-	}
-	return false
-}
 
 // noParams reports a callback at token i that declares no parameter: `() =>`, `async () =>`,
 // `(): T =>`, `function () {` or `function name() {`.

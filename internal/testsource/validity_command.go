@@ -155,7 +155,7 @@ func sourceValidity(r Repo, options SourceValidityOptions, apps *readBudget) (So
 			support.Flags = flags
 		}
 		file, tests := readSourceValidity(name, string(data), support)
-		if IsJSValidityTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
+		if IsTestFile(name) && !strings.HasSuffix(name, "_spec.rb") && !file.Uncertain {
 			if seeds == nil {
 				if seeds, err = r.seedRules(commit); err != nil {
 					return SourceValidityReport{}, err
@@ -306,7 +306,7 @@ func readSourceValidity(name, text string, support testvalidity.RubySupport) (So
 	}
 	base := ValidityFindings(name, text)
 	file := SourceValidityFile{Path: name, Uncertain: base.Uncertain, Reason: base.Reason, Findings: base.Findings, Abstentions: base.Abstentions}
-	if !IsJSValidityTestFile(name) || base.Uncertain {
+	if !IsTestFile(name) || base.Uncertain {
 		return file, findingTests(file.Findings, nil)
 	}
 	examples, reason := JSExampleSources(name, text)
