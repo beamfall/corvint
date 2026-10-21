@@ -89,6 +89,10 @@ naming every missing or unusable input in one line
 finish attempts are allowed; a second failure stops the lane with the exact command and output in
 its report. Then one `make dogfood-batch-check BASE=<origin/main tip>` from a clean checkout.
 Rerunning `dogfood-change` to "see where it stands" between edits is not part of the loop.
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
+(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
+(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
 
 ## 4. No polling in lanes; long commands are bounded (ASD-V0-016)
 

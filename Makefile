@@ -428,17 +428,23 @@ core-n1-replay:
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
 	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)$$' ./cmd/corvint
 
+# Dogfood targets never use the file default `BASE ?= main` (local main may not be origin/main):
+# BASE must come from the command line or the environment, or the target refuses before any work
+# (ASD-V0-019, V1-1755). dogfood-finish passes the empty value on so its one-line refusal names it.
+DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(BASE))
+DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (main) is not used by dogfood targets
+
 dogfood-change:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-change.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
 dogfood-check:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-check.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-check.sh "$(DOGFOOD_BASE)"
 
 dogfood-seal:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(DOGFOOD_BASE)"
 
 # Each input reaches the wrapper as one single-quoted word, whatever bytes its path holds.
 dogfood_finish_quote = '$(subst ','\'',$(1))'
@@ -446,18 +452,18 @@ dogfood_finish_quote = '$(subst ','\'',$(1))'
 # script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
 # VERIFY and OUTCOME (ASD-V0-015).
 dogfood-finish:
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 dogfood-batch-check:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(BASE)"
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(DOGFOOD_BASE)"
 
 dogfood-bind-range:
-	@test -n "$(BASE)" || { echo "BASE is required" >&2; exit 2; }
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@test -n "$(TARGET)" || { echo "TARGET is required" >&2; exit 2; }
-	@script/dogfood-bind-range.sh "$(BASE)" "$(TARGET)"
+	@script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
