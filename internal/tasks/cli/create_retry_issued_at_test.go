@@ -66,3 +66,50 @@ func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 		t.Fatalf("changed payload attributed to issuedAt: %s", changed.stdout)
 	}
 }
+
+// TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers reproduces V1-1438: a
+// refine whose output was lost defaulted issuedAt; a later refine then moved
+// the ticket's updatedAt more than the two-second lead past it, so neither
+// createdAt nor updatedAt rebuilds the recorded digest. The refusal recovers
+// the original issuedAt from the recordedAt of the receipt the request-index
+// entry names, and the retry with that --issued-at replays.
+func TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %+v", x.res)
+	}
+	created := atm(t, r.Root, []byte(createPayloadJSON+"\n"), "ticket", "create", "--request-id", "create-1438", "--payload-stdin")
+	if created.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("create: %s", created.stdout)
+	}
+	id := field(created.res.Items[0], "ticketId").Str
+	waitSeconds := func(n int) {
+		end := time.Now().UTC().Truncate(time.Second).Add(time.Duration(n) * time.Second)
+		for time.Now().UTC().Before(end) {
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	waitSeconds(3)
+	lost := []string{"ticket", "refine", "--request-id", "refine-lost-1438", "--target", id, "--expected-revision", "1", "--payload", `{"body":"First refine whose output was lost"}`}
+	if x := atm(t, r.Root, nil, lost...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("first refine: %s", x.stdout)
+	}
+	waitSeconds(4)
+	if x := atm(t, r.Root, nil, "ticket", "refine", "--request-id", "refine-later-1438", "--target", id, "--expected-revision", "2", "--payload", `{"body":"A later refine"}`); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("later refine: %s", x.stdout)
+	}
+	again := atm(t, r.Root, nil, lost...)
+	text := strings.Join(again.res.Warnings, " ")
+	const marker = "differs from the recorded request only in issuedAt: the original was "
+	at := strings.Index(text, marker)
+	if !hasCode(again.res, wire.CodeRequestIDConflict) || at < 0 {
+		t.Fatalf("lost-output retry after a later update does not recover issuedAt: %s", again.stdout)
+	}
+	original := text[at+len(marker) : at+len(marker)+len("2006-01-02T15:04:05Z")]
+	replay := atm(t, r.Root, nil, append(lost, "--issued-at", original)...)
+	if replay.res.Outcome != wire.OutcomeOK || !field(replay.res.Items[0], "replayed").Bool {
+		t.Fatalf("retry with the recovered --issued-at %s did not replay: %s", original, replay.stdout)
+	}
+}

@@ -712,7 +712,8 @@ func addMinutes(t wire.Timestamp, m wire.Size) wire.Timestamp {
 
 // fenced says why a command of the request's generation can no longer take
 // effect: another generation, a terminal phase, or an expired lease
-// (CAL-V0-009, CAL-V0-010). Empty means the command may proceed.
+// (CAL-V0-009, CAL-V0-010). Empty means the command may proceed. An expired
+// lease names its remedy, because no command revives it (ATR-V0-271).
 func (c leaseContext) fenced(a *snapshot.Attempt) string {
 	switch {
 	case a.Generation.Uint64() != c.l.Generation.Uint64():
@@ -720,10 +721,14 @@ func (c leaseContext) fenced(a *snapshot.Attempt) string {
 	case !a.Live():
 		return "the attempt is " + a.Phase
 	case expired(a, c.in.RecordedAt):
-		return "the lease expired at " + string(a.Lease.ExpiresAt)
+		return "the lease expired at " + string(a.Lease.ExpiresAt) + expiredRemedy
 	}
 	return ""
 }
+
+// expiredRemedy is the ATR-V0-271 recovery for every command of a generation
+// whose lease expired, including gate run after an idle gap.
+const expiredRemedy = "; no command of this generation takes effect and renew cannot revive it (CAL-V0-010): claim the ticket again, which reaps the expired lease (CAL-V0-011), then submit and run its gates at the new generation; renew or heartbeat before the lease expires to keep it through an idle gap"
 
 // recordFenced records the refusal of a stale command (TM-V0-011): the
 // receipt posts only the request entry.

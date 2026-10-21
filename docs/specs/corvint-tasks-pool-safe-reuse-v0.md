@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653)
+Intent status: accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063)
 Delivery status: experimental
 Authoritative inputs: https://github.com/beamfall/corvint/issues/498; CAL-V0-028..034 in corvint-tasks-agent-leases-v0.md; independent Gate A packet-r2/GATE-A.md PASS with no HIGH, MED findings incorporated before implementation.
 Native ticket: V1-0695, original creation receipt2436.
 
 ## Agent digest
 - Claim: Explicit foreground operator-defined reset and verification recover quarantined pool members with bound evidence.
-- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
+- Status: Accepted feature intent (issue498); PSR-V0-013..015 accepted (decision 0439); PSR-V0-016..021 accepted (decision 0441; V1-0946); PSR-V0-022 accepted (standing auto-accept 2026-10-11; V1-1406); PSR-V0-023 accepted (owner delegated to the orchestrator 2026-10-16; decision 0536; V1-1492); PSR-V0-024..026 accepted (standing auto-accept 2026-10-11; V1-1551; GitHub #1009); PSR-V0-030..043 accepted (standing auto-accept 2026-10-11; V1-1550); PSR-V0-050..057 accepted (standing auto-accept 2026-10-11; V1-1560; GitHub #1010; re-homed from the agent leases spec, owner-approved 2026-10-17); PSR-V0-080 accepted (standing auto-accept 2026-10-11; V1-1572); PSR-V0-081..086 accepted (standing auto-accept 2026-10-11; V1-1586; GitHub #1029); PSR-V0-110..116 accepted (standing auto-accept 2026-10-11; V1-1617; GitHub #1010 follow-up; GitHub #1063); PSR-V0-130..136 accepted (standing auto-accept 2026-10-11; V1-0785; GitHub #583, #1067); PSR-V0-140..143 accepted (standing auto-accept 2026-10-11; V1-1596; GitHub #1039); PSR-V0-150..153 accepted (standing auto-accept 2026-10-11; V1-1626; GitHub #1063); PSR-V0-160..167 accepted (standing auto-accept 2026-10-11; V1-1585; GitHub #1028); PSR-V0-168 accepted (standing auto-accept 2026-10-11; V1-1656); PSR-V0-169 accepted (standing auto-accept 2026-10-11; V1-1653); PSR-V0-185 accepted (standing auto-accept 2026-10-11; V1-1785; GitHub #1063); experimental source implementation; Gate A and independent source repair review passed. Current integrated runtime and terminal qualification remain pending.
 - Exists: Foreground sweep, optional dispatcher integration and focused fixtures are implemented in source. Earlier source-bound repair evidence is retained separately from current integrated qualification.
 - Blocked on: Current integrated native binary, mandatory selected tests, exact-target review, terminal evidence, hosted integration and native completion. Linux runtime and physical external cleanup remain unqualified.
 - Read next: Requirements; Acceptance evidence; Non-goals and simpler baseline; Compatibility and rollback.
@@ -818,6 +818,34 @@ declared. An older binary refuses a policy with `operations` or a pools.json wit
 or `operation` key as `MALFORMED` (unknown key), the recorded compatibility boundary while
 operations are declared or recorded. No receipt, record or preimage is rewritten.
 
+### V1-1785 compaction cost and the fast route (issue 1063 ask 4)
+
+Human-owned input: native ticket V1-1785, GitHub
+[issue 1063](https://github.com/beamfall/corvint/issues/1063) ask 4. After `receipt compact` elided
+8,882 receipts, a 2 s sample showed `ReceiptRestorer.Next` in about 20% of complete-walk samples.
+PSR-V0-114 already says a complete audit restores each elided receipt; the help did not say which
+route avoids that cost.
+
+- `PSR-V0-185`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1785; GitHub
+  #1063) The `receipt compact` help MUST also name the fast route that avoids the PSR-V0-114 restore
+  cost and say when it does not apply. A writer on the CAL-V0-116 writer-checkpoint route (mutate,
+  claim, claim-next, renew, heartbeat, release, and `pool confirm-safe` by CAL-V0-205) and a read
+  that resumes at the read checkpoint validate only the receipts after their checkpoint, so they
+  restore no elided receipt that checkpoint covers. Compaction removes both derived checkpoints, so
+  the next write and the next read each run one complete audit, which pays the restore cost, until
+  their checkpoint is rebuilt.
+
+Non-goals: a faster restore, keeping a checkpoint across compaction, or a writer-checkpoint start
+for pool acquire (declined above for issue 1063). Failure mode: a store below the writer-checkpoint
+floor, or a writer whose route declines, takes the complete audit and pays the restore cost on every
+write; the help names the route, not a guarantee that a given write takes it.
+
+Acceptance evidence: `TestPSRV0185_CompactHelpNamesFastRoute` (`internal/tasks/cli`) reads
+`receipt compact --help --verbose` and requires the writer-checkpoint route, the read checkpoint and
+the post-compaction complete audit; it fails on the base help.
+
+Rollback: revert the help sentence, the test and this subsection. No store or wire format changes.
+
 ## Acceptance evidence
 
 Initial fixture must initialize and canonically roundtrip policy/pool state, claim/release exact allocation and show QUARANTINED before fault injection. Positive reset+verify and optional cleanup-first produce bounded observation/log evidence, delegated confirmation and FREE readback; subsequent claim has fresh allocation. Exact replay after env deletion/current config change/successor allocation returns original evidence without execution. Barrier tests afterreset/beforeconfirm refuse competing sweep, ordinary cleanup and manual confirmation. Retry max2, combined deadline, total budget, exit/stdout/stderr predicates, overflow/source drift/private env syntax/permissions/symlinks/races, receipt publication failure and request conflict controls retain quarantine. Blocked identity/group probes are bounded. Actual foreground subprocess INT/TERM retirement observes PID/start identities and descendant absence; killed-host explicit recovery refuses live/unknown runner and retains quarantine. Large pool projection, descriptor/count maxima, duplicated evidence digest and archive evidence retention must be checked. PSR-V0-011/012 (issue628) add policy-validation tests for the 1..3600 bound and the pinned cwd shape, an injected-clock health timeout at 3600, and pinned health/sweep fixtures that run in the external worktree and refuse mismatched revision, dirty tracked or untracked input, alias, subdirectory and non-worktree paths without executing; hook-driven tests show a revision swapped between HEAD and status and a directory swapped after the proof run nothing, and post-exit bounded probes keep the command's terminal class. Current integrated tests/runtimes are NOT_RUN at this source phase; Linux and physical external cleanup remain NOT_OBSERVED. The earlier broad source run failed on historical replay timing and the clock fixture; the repaired five-cell run and focused vet passed at their original source binding. Required next evidence is a fresh integrated binary plus all 58 mandatory PASS observations (21 PSR/repair, 27 CAL dispatcher/CLI, nine issue503 and the clock witness), scoped race/vet and docs/specindex checks. Historical repair PASS is not a current broad PASS. The original enrollment (BASE211916, key a2284577) is retained as NON_SUCCESS. The successor enrollment at that seal, with the original single intent and both original selected checks unchanged, its CEM/OCM, report review, seal, hosted landing and native completion remain pending; actual receipts must replace pending claims only after execution.
@@ -958,3 +986,9 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-165 | `TestPSRV0165_FailedResetRetargetQuarantine`, `TestPSRV0165_PreExecutionFailureSettled` (`internal/tasks/store`); `TestPSRV0165_RecoverOrphanedOperation` (`internal/tasks/transaction`) |
 | PSR-V0-166 | `TestPSRV0166_TimeoutKillsGroupOutputBounded` (`internal/tasks/store`) |
 | PSR-V0-167 | `TestPSRV0162_OperationCodec` (`internal/tasks/snapshot`); `TestPSRV0162_PoolOperateCLIAndStatus` (`internal/tasks/cli`) |
+
+## Traceability (PSR-V0-185)
+
+| Requirement | Evidence |
+| --- | --- |
+| PSR-V0-185 | `TestPSRV0185_CompactHelpNamesFastRoute` (`internal/tasks/cli`) |
