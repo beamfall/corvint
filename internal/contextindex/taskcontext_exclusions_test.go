@@ -15,6 +15,7 @@ import (
 // TCP-V0-065: a real Git Latin-1 path is disclosed even when neither the task
 // nor a subject names it. Snapshot reads preserve the same gap and packet.
 func TestTaskContextDisclosesNonUTF8Exclusions(t *testing.T) {
+	t.Parallel()
 	for _, clean := range []bool{true, false} {
 		t.Run(fmt.Sprintf("clean=%v", clean), func(t *testing.T) {
 			root := nonUTF8Repository(t, clean)

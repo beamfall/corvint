@@ -87,6 +87,7 @@ func impactFlows(t *testing.T, a *Artifact, paths []string, depth int) (*FlowTra
 }
 
 func TestDCPV1093FlowRelationSchemaIsClosed(t *testing.T) {
+	t.Parallel()
 	a, err := frBuild(t, nil, nil)
 	if err != nil || len(a.FlowRelations) != 5 {
 		t.Fatalf("valid flow relations not joined: %v", err)
@@ -120,6 +121,7 @@ func TestDCPV1093FlowRelationSchemaIsClosed(t *testing.T) {
 }
 
 func TestDCPV1094FlowRelationKindFields(t *testing.T) {
+	t.Parallel()
 	for name, c := range map[string]struct {
 		i    int
 		edit func(*FlowRelationRecord)
@@ -157,6 +159,7 @@ func TestDCPV1094FlowRelationKindFields(t *testing.T) {
 }
 
 func TestDCPV1095FlowRelationJoinStatus(t *testing.T) {
+	t.Parallel()
 	a, err := frBuild(t, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -205,6 +208,7 @@ func TestDCPV1095FlowRelationJoinStatus(t *testing.T) {
 }
 
 func TestDCPV1096FlowRelationImpactAttribution(t *testing.T) {
+	t.Parallel()
 	a, err := frBuild(t, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -244,6 +248,7 @@ func TestDCPV1096FlowRelationImpactAttribution(t *testing.T) {
 }
 
 func TestDCPV1097FlowRelationUnreviewedAndDepth(t *testing.T) {
+	t.Parallel()
 	a, err := frBuild(t, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -302,6 +307,7 @@ func TestDCPV1097FlowRelationUnreviewedAndDepth(t *testing.T) {
 }
 
 func TestDCPV1098FlowRelationTraceAndGaps(t *testing.T) {
+	t.Parallel()
 	a, err := frBuild(t, nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -335,6 +341,7 @@ func TestDCPV1098FlowRelationTraceAndGaps(t *testing.T) {
 }
 
 func TestDCPV1099FlowRelationDeterministicAndBounded(t *testing.T) {
+	t.Parallel()
 	root, m := flowRelationFixture(t, nil, nil)
 	first, err := Build(context.Background(), root, m)
 	if err != nil {

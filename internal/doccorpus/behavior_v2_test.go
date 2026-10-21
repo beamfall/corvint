@@ -69,6 +69,7 @@ func behaviorV2Fixture(t *testing.T, edit func(*BehaviorProviderRequestV2), expe
 }
 
 func TestBehaviorV2ProducerCorpusRoundTrip(t *testing.T) {
+	t.Parallel()
 	// AFU-V1-006: preserve /2 identities from producer through the corpus boundary.
 	for _, single := range []bool{false, true} {
 		t.Run(map[bool]string{false: "four repositories", true: "single repository"}[single], func(t *testing.T) {
@@ -118,6 +119,7 @@ func TestBehaviorV2ProducerCorpusRoundTrip(t *testing.T) {
 }
 
 func TestBehaviorV2RepositoryGaps(t *testing.T) {
+	t.Parallel()
 	// AFU-V1-006: missing and stale members never become successful empty evidence.
 	cases := []struct {
 		name, kind string
@@ -155,6 +157,7 @@ func TestBehaviorV2RepositoryGaps(t *testing.T) {
 }
 
 func TestBehaviorV2RefusesMalformedOrConflictingRecords(t *testing.T) {
+	t.Parallel()
 	root, m, data := behaviorV2Fixture(t, nil, nil)
 	var good ProviderRecord
 	if err := decode(data, &good); err != nil {
@@ -206,6 +209,7 @@ func legacyV1Member(t *testing.T) string {
 }
 
 func TestBehaviorProviderV1LegacyMemberDecodes(t *testing.T) {
+	t.Parallel()
 	// AFU-V1-054: /1 keeps the legacy member on both sides of the wire and gains no alias.
 	legacy := legacyV1Member(t)
 	want := v1BehaviorProviderLiteral()
@@ -230,6 +234,7 @@ func TestBehaviorProviderV1LegacyMemberDecodes(t *testing.T) {
 }
 
 func TestBehaviorProviderV2EmitsNeutralMembersOnly(t *testing.T) {
+	t.Parallel()
 	// AFU-V1-055: the /2 record and its corpus report carry the end-to-end
 	// repository only as the neutral source and repositories members.
 	legacy := legacyV1Member(t)
@@ -253,6 +258,7 @@ func TestBehaviorProviderV2EmitsNeutralMembersOnly(t *testing.T) {
 }
 
 func TestBehaviorProviderV2RefusesLegacyMember(t *testing.T) {
+	t.Parallel()
 	// AFU-V1-056: a /2 request neither carries the legacy member nor a neutral alias of it.
 	legacy := legacyV1Member(t)
 	p := v1BehaviorProviderLiteral()

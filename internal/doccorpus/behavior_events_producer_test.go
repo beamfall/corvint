@@ -15,6 +15,7 @@ const behaviorEventsLive = "testdata/behavior-events/live-1.61.1/report.json"
 // DCP-V1-081: the producer's Node unit suite, including the byte-for-byte reproduction of the
 // committed report fixture's annotations from synthetic pages and locators.
 func TestDCPV1081ProducerNodeUnit(t *testing.T) {
+	t.Parallel()
 	out, err := exec.Command("node", "--test", "behavior-events_test.cjs").CombinedOutput()
 	if err != nil {
 		t.Fatalf("behavior-events producer: %v\n%s", err, out)
@@ -37,6 +38,7 @@ func reportAnnotations(t *testing.T, raw []byte, title, project string) []any {
 // DCP-V1-081 DCP-V1-082: the live producer run publishes exactly the annotations of the committed
 // report fixture, the importer witnesses them, and the other live attempts stay well-shaped.
 func TestDCPV1081LiveProducerIsWitnessed(t *testing.T) {
+	t.Parallel()
 	live, err := os.ReadFile(filepath.FromSlash(behaviorEventsLive))
 	if err != nil {
 		t.Fatal(err)

@@ -144,6 +144,7 @@ func TestRubyAutoloadSecondHopOnce(t *testing.T) {
 // change to FooClient attaches the same advisory rows, both hops, and the
 // ruby_autoload block.
 func TestRubyAutoloadRangeImpact(t *testing.T) {
+	t.Parallel()
 	files := rubyIssue1130Files(t)
 	root := impactRepositoryWithFiles(t, files)
 	base := testGit(t, root, "rev-parse", "HEAD")

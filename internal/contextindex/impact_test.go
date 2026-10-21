@@ -298,6 +298,7 @@ func TestImpactPreservesProductionAndTestScoping(t *testing.T) {
 }
 
 func TestImpactUsesSyntaxReferencesAndDeduplicatesMultiPathResults(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	index, err := Build(context.Background(), root)
 	if err != nil {
@@ -405,6 +406,7 @@ func TestPythonWordBoundariesAreUnicodeAware(t *testing.T) {
 }
 
 func TestImpactRejectsUnqualifiedModuleAndAcceptsPOSIXBackslashPath(t *testing.T) {
+	t.Parallel()
 	index := &Index{Module: "", Sources: map[string]Source{"token/value.go": {Path: "token/value.go"}}}
 	_, err := Impact(index, []string{"token/value.go"}, 10)
 	var unsupported *Error

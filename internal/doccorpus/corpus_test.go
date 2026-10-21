@@ -45,6 +45,7 @@ func fixture(t *testing.T) (string, Manifest) {
 	return root, m
 }
 func TestCorpusDeterministicRoundTrip(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-001 DCP-V1-002 DCP-V1-011 identity", func(t *testing.T) {
 		root, m := fixture(t)
 		a, err := Build(context.Background(), root, m)
@@ -91,6 +92,7 @@ func TestCorpusDeterministicRoundTrip(t *testing.T) {
 	})
 }
 func TestCorpusClosedInputsAndTamper(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-003 DCP-V1-004 DCP-V1-018 closure", func(t *testing.T) {
 		root, m := fixture(t)
 		t.Run("missing declared", func(t *testing.T) {
@@ -154,6 +156,7 @@ func testHash(t *testing.T, value any) string {
 }
 
 func TestHashValueRefusesOversizedValue(t *testing.T) {
+	t.Parallel()
 	if _, err := hashValue(strings.Repeat("a", MaxBytes)); err == nil || !strings.Contains(err.Error(), "output bound exceeded") {
 		t.Fatalf("oversized value hashed instead of refused: %v", err)
 	}

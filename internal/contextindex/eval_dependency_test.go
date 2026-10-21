@@ -98,6 +98,7 @@ func evalAnchorRepository(t *testing.T) string {
 // alone. The two tables disagree here, and only the index-wide one keeps the
 // frontier on the path the task's rarest word actually names.
 func TestEvalConfidentSymbolsAnchorsOnTheIndexWideTermFrequency(t *testing.T) {
+	t.Parallel()
 	confident := evalConfidentSelection(t, evalAnchorRepository(t), "resolve mode descriptor", 6)
 	paths := make(map[string]bool, len(confident))
 	for _, candidate := range confident {

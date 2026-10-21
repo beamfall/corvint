@@ -81,6 +81,7 @@ func capacityMessage(t *testing.T, err error) string {
 // A 100,000-record adoption corpus, past the former 1,000,000-posting index
 // bound, answers every indexed read.
 func TestDCPV1193HundredThousandRecordCorpusAnswersIndexedReads(t *testing.T) {
+	t.Parallel()
 	if MaxIndexPostings != 8000000 || MaxIndexKeyBytes != 64<<20 || indexPostingBound != MaxIndexPostings || indexKeyByteBound != MaxIndexKeyBytes {
 		t.Fatal("documented index bounds changed", MaxIndexPostings, MaxIndexKeyBytes)
 	}

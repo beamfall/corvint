@@ -55,6 +55,47 @@ func ftRead(s *fixtureSession, key, name string, bound int) (out ftFile, err err
 	return out, s.checkCurrent(key, name, f, info, digest)
 }
 
+// ftScanRead reads one file for scan. It keeps readCurrent's regular-file,
+// bound, retained-parent identity and digest confirmations, but not its
+// per-file fixtureSession.check: scan brackets its reads with one full check
+// at the start (the HEAD ftRead) and one at the end. The reads go through the
+// retained parent roots, so a path swap between the two checks cannot redirect
+// them, and the closing check still refuses it (V1-2268).
+func ftScanRead(s *fixtureSession, key, name string, bound int) (out ftFile, err error) {
+	p := s.parents[key]
+	if p == nil {
+		return out, fixtureRefused
+	}
+	info, err := p.root.Lstat(name)
+	if err != nil {
+		return out, err
+	}
+	if !info.Mode().IsRegular() || info.Size() > int64(bound) {
+		return out, fixtureRefused
+	}
+	f, err := safeopen.InRoot(p.root, name, os.O_RDONLY, 0, false)
+	if err != nil {
+		return out, err
+	}
+	defer func() { err = errors.Join(err, s.closeFile(f)) }()
+	out.raw, err = io.ReadAll(io.NewSectionReader(f, 0, int64(bound)+1))
+	if err != nil {
+		return out, err
+	}
+	if int64(len(out.raw)) != info.Size() {
+		return out, fixtureRefused
+	}
+	cur, err := p.root.Lstat(name)
+	if err != nil {
+		return out, err
+	}
+	if !fixtureSame(cur, info) {
+		return out, fixtureRefused
+	}
+	out.info = info
+	return out, fixtureConfirm(f, info, info.Size(), wire.Sum(out.raw))
+}
+
 func ftNames(s *fixtureSession, key string) (names []string, err error) {
 	f, err := safeopen.InRoot(s.parents[key].root, ".", os.O_RDONLY, 0, true)
 	if err != nil {
@@ -151,7 +192,7 @@ func (h *ftHarness) scan() (*ftDisk, error) {
 			if info.Size() > int64(4*wire.MiB-total) {
 				return fixtureRefused
 			}
-			f, e := ftRead(h.s, key, name, bound)
+			f, e := ftScanRead(h.s, key, name, bound)
 			if e != nil {
 				return e
 			}
@@ -169,6 +210,9 @@ func (h *ftHarness) scan() (*ftDisk, error) {
 		return nil, err
 	}
 	if err = scan("intent"); err != nil {
+		return nil, err
+	}
+	if err = h.s.check(); err != nil {
 		return nil, err
 	}
 	sort.Strings(d.dirs)
