@@ -44,7 +44,7 @@
       "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.10",
+      "adapterVersion": "0.2.11",
       "documentedAgainstHostVersion": "0.55.1",
       "fullSupport": "external-dependent",
       "host": "gemini-cli",
@@ -84,13 +84,13 @@
       "validation": "adapter-fixtures-plus-exact-native-qualification"
     },
     {
-      "adapterVersion": "0.3.2",
+      "adapterVersion": "0.3.3",
       "documentedAgainstHostVersion": "0.99.1",
       "fullSupport": "external-dependent",
       "host": "pi",
       "hostVersion": "0.99.1",
       "hostVersionEvidence": "offline-native-package-tools-tui-rpc-and-cleanup",
-      "hostVersionEvidenceAdapterVersion": "0.3.2",
+      "hostVersionEvidenceAdapterVersion": "0.3.3",
       "lifecycleConformance": {
         "profile": "host-lifecycle-qualification-v1",
         "result": "NOT_RUN"

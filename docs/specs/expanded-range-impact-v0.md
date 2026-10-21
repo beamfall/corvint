@@ -88,8 +88,25 @@ membership and must retain whole-change authority, marker selection and result a
   base-tree path that fails the validator is a copy source for any addition (checked with that
   path as the only copy source). Otherwise, or on any Git failure, the exact diff decides as
   before. Every refusal and receipt that precedes the count is unchanged, including snapshot,
-  worktree, module and ancestry refusals, so the snapshot is still loaded first. The probe adds
-  at most four bounded Git reads and writes nothing.
+  worktree, module and ancestry refusals. The probe adds at most four bounded Git reads and
+  writes nothing. ERI-V0-261 moves a proved refusal ahead of the snapshot load.
+- `ERI-V0-261`: (accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) `impact
+  --base` (both profiles, without `--worktree`) MUST return the ERI-V0-060 bound refusal before
+  loading or decoding the index snapshot when it is proved without the index, with the same
+  error bytes, exit code and unsupported-run observation as the loaded path. It is proved only
+  when the limit is valid, `--base` is a full object ID of HEAD's format, the repository is not
+  history-cut, `git status --porcelain=v1 -z --untracked-files=all` is empty, a regular snapshot
+  file for HEAD's tree and the running engine exists (no byte of it is read), the root `go.mod`
+  is a regular blob that Build admits as a decodable, non-generated, non-LFS source and declares a
+  slash-qualified module, `--base` resolves to a commit that is the only merge base with HEAD,
+  and the ERI-V0-060 lower bound exceeds the profile capacity. Otherwise, or on any Git failure,
+  the loaded path decides as before, so every in-bound range, dirty worktree, missing snapshot or
+  unqualified module is unchanged. Failure mode: a snapshot file whose body no longer decodes
+  makes the loaded path rebuild the same clean tree, so its outcome matches unless that rebuild
+  itself fails (for example on a deadline), where this refusal answers first. Non-goals: the
+  `prove` range route and MCP keep loading the index. Falsifier: a proved refusal whose bytes or
+  exit differ from the loaded path, or a refusal where the loaded path would answer differently.
+  Rollback: remove the `RangeBoundRefusalBeforeLoad` call from the impact route.
 
 ## Resource and trust boundaries
 
@@ -115,6 +132,7 @@ bounded enumeration does not close those critical misses or the non-Go semantic 
 | `ERI-V0-005` | shared immutable snapshot and Git runner | `TestExpandedRangeImpactPreservesSnapshotRefusal`, `TestExpandedRangeImpactCLIExplicitReadOnly`; existing Git interruption/cleanup regressions |
 | `ERI-V0-006` | `script/dogfood-change.sh` explicit prototype argv | actual final coordinator receipt and independent strict checker; final integrated evidence pending |
 | `ERI-V0-060` | `rangeCertainlyExceeds`, `mayLackObjects` in `compileRangeImpact` | `TestRangeImpactRefusesOverBoundBeforeCopyDetection`, `TestRangeImpactOverBoundKeepsMissingObjectRefusalForPromisorRemotes`; measured in `../build-log/2026-10-21-range-bound-before-copy-detection.md` |
+| `ERI-V0-261` | `RangeBoundRefusalBeforeLoad` (`internal/contextindex/range_bound_precheck.go`) before `overSnapshot` in the `impact` route of `cmd/corvint/main.go` | `TestERIV0261RangeBoundRefusesWithoutDecodingTheSnapshot` (SHA-1/SHA-256 and expanded over-bound refusals equal to the loaded path's with the snapshot file emptied; in-bound, missing snapshot, dirty worktree, unqualified module, non-ancestor and invalid limit answer nil); measured in `../build-log/2026-10-21-partial-1021-ticket-completions.md` |
 
 Boundary evidence includes 0, 1, 100, 101, 140, 256 and 257 members; mixed 102-Go/38-non-Go
 coverage; SHA-1/SHA-256 semantic parity; same-change ADR/ledger withholding; unsupported members

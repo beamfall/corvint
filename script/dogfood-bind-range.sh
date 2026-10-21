@@ -11,6 +11,8 @@ export LC_ALL=C
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
+guard_hunks_bin_set=${CORVINT_GUARD_HUNKS_BIN+x}
+guard_hunks_bin=${CORVINT_GUARD_HUNKS_BIN-}
 
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
@@ -101,6 +103,31 @@ resolve_corvint_bin() {
   if [[ $child_status -ne 0 || ! $(cat "$run_tmp/corvint-version.stdout") =~ ^"Corvint $expected_version (build "(0|[1-9][0-9]*)")"$ ]]; then
     refuse "corvint-version-mismatch expected=$expected_version"
   fi
+}
+
+# guarding_tests_note prints the single-shot path's guarding-tests NOTE (DCW-V0-069) for the bound
+# map, counted by the same Go rule through tools/dogfood-guard-hunks (DOGFOOD-BIND-008); awk cannot
+# read a hunk's path and test-claim basis robustly. CORVINT_GUARD_HUNKS_BIN names a built helper;
+# without it the helper is built from the current tree. The search itself never runs here.
+guarding_tests_note() {
+  local helper=$guard_hunks_bin count=
+  if [[ -z $guard_hunks_bin_set ]]; then
+    helper="$run_tmp/dogfood-guard-hunks"
+    run_child /dev/null "$run_tmp/guard-hunks-build.stderr" env GOCACHE="$go_cache" GOTOOLCHAIN=local \
+      GOFLAGS="$dogfood_goflags" go -C "$repo" build -o "$helper" -trimpath ./tools/dogfood-guard-hunks
+    [[ $child_status -eq 0 ]] || helper=
+  fi
+  if [[ -n $helper ]]; then
+    run_child "$run_tmp/guard-hunks.stdout" /dev/null "$helper" "$map"
+    [[ $child_status -ne 0 ]] || count=$(cat "$run_tmp/guard-hunks.stdout")
+  fi
+  if [[ ! $count =~ ^(0|[1-9][0-9]*)$ ]]; then
+    printf 'dogfood-bind-range: NOTE guarding-tests NOT_PRODUCED guarding-tests-count-unavailable\n' >&2
+    return 0
+  fi
+  ((count > 0)) || return 0
+  printf 'dogfood-bind-range: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=%s: to cite an observed guarding test, check out the binding with git worktree add --detach DIR %s, run corvint --root DIR cem verify --map .corvint/change.cem.json --expected-base %s --target %s --artifacts DIR --guarding-tests with DIR absolute, add its guardingTests.plan rows to DOGFOOD_CITATIONS and bind again; it runs the change'\''s tests unconfined for up to 1200 seconds (docs/DOGFOOD.md section 4)\n' \
+    "$count" "$binding" "$base" "$binding" >&2
 }
 
 # snapshot_plan SOURCE SNAPSHOT copies a plan once and applies the shared row limits.
@@ -287,6 +314,7 @@ if [[ $child_status -ne 0 ]]; then
   fail "cem-status $(failure_reason "$run_tmp/cem-status.stderr" "$child_status")"
 fi
 sed -n '1p' "$run_tmp/cem-status.json"
+guarding_tests_note
 for step in prechange-query prechange-impact local-outcome ocm-aggregate; do
   printf 'dogfood-bind-range: NOTE %s NOT_PRODUCED retroactive-binding\n' "$step" >&2
 done

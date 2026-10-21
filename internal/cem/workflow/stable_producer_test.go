@@ -60,6 +60,7 @@ func intLimit(value int) *int { return &value }
 // refused with unsupported-spec and the migration fix, and any other value is
 // refused as invalid arguments, before anything is written (CEM-V1-216).
 func TestCEMV1140ProducerSpecSelection(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)
@@ -98,6 +99,7 @@ func TestCEMV1140ProducerSpecSelection(t *testing.T) {
 // TestCEMV1141StablePrepareWritesResumesAndReplaces is the stable prepare
 // positive path and its refusal controls.
 func TestCEMV1141StablePrepareWritesResumesAndReplaces(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	prepared, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec})
 	if err != nil {
@@ -171,6 +173,7 @@ func TestCEMV1141StablePrepareWritesResumesAndReplaces(t *testing.T) {
 // 0.x); a bound stable backup or an unreadable one is refused before recovery
 // or resume cleanup, and neither the backup nor the sidecar changes.
 func TestCEMV1141StablePrepareGuardsBackups(t *testing.T) {
+	t.Parallel()
 	backup := wire.ExcludedCEMPath + ".bak-0123456789abcdef"
 	bound := stableMapBytes(t)
 	prepareStable := func(t *testing.T) (string, string, string, []byte) {
@@ -248,6 +251,7 @@ func TestCEMV1141StablePrepareGuardsBackups(t *testing.T) {
 // the out-of-band patch yields a canonical cem/1.0 producer map that verifies,
 // and a stable producer destination may be rewritten by a stable begin.
 func TestCEMV1142StableBeginWritesProducerMap(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	beginPatch(t, root, base, target)
 	for range 2 {
@@ -277,6 +281,7 @@ func TestCEMV1142StableBeginWritesProducerMap(t *testing.T) {
 // keeps the producer role, and the result verifies; a bound stable map is
 // still refused (CEM-V1-143, CEM-V1-144).
 func TestCEMV1143StableProducerMutationsStayStable(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeGoRepo(t, importReorderTarget, whisperTarget)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec}); err != nil {
 		t.Fatal(err)
@@ -332,6 +337,7 @@ func TestCEMV1143StableProducerMutationsStayStable(t *testing.T) {
 // proves the import reorder, and a wrong-class claim is rejected
 // unproven-mechanical by the stable status rather than accepted.
 func TestCEMV1144StableStructuralMark(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		reason, outcome string
 		exit            int

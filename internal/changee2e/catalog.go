@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -128,7 +129,15 @@ type declarations struct {
 		Setup     MethodCall `json:"setup"`
 		Cleanup   MethodCall `json:"cleanup"`
 	} `json:"fixtures"`
-	Environment *Environment `json:"environment"`
+	Environment *Environment     `json:"environment"`
+	ReachExempt []ReachExemption `json:"reach_exempt"`
+}
+
+// ReachExemption is one reviewed `reach_exempt` entry (CCE-V0-020): a path.Match glob over the
+// repository-relative path (`*` does not cross `/`) and the reason a human recorded for it.
+type ReachExemption struct {
+	Glob   string `json:"glob"`
+	Reason string `json:"reason"`
 }
 
 // CatalogOptions are the catalog inputs.
@@ -145,6 +154,13 @@ func BuildCatalog(ctx context.Context, o CatalogOptions) (*Catalog, error) {
 	if o.Root == "" {
 		return nil, errNoRoot
 	}
+	// The map reads run Git under the root; a relative root (the flag default ".") resolves here
+	// so they never misread it as a revision that is not a commit (V1-1711).
+	root, err := resolveExisting(o.Root)
+	if err != nil {
+		return nil, err
+	}
+	o.Root = root
 	rev, err := resolveRev(ctx, o.Root, o.Rev)
 	if err != nil {
 		return nil, err
@@ -381,6 +397,11 @@ func decodeDeclarations(data []byte) (declarations, error) {
 	if d.Environment != nil {
 		if err := d.Environment.validate(); err != nil {
 			return d, err
+		}
+	}
+	for _, e := range d.ReachExempt {
+		if _, err := path.Match(e.Glob, ""); err != nil || !nonEmptyText(e.Glob) || strings.HasPrefix(e.Glob, "/") || !nonEmptyText(e.Reason) {
+			return d, refuse("e2e-blocks-invalid", "%s: reach_exempt %q", DeclarationsPath, e.Glob)
 		}
 	}
 	return d, nil

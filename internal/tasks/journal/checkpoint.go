@@ -65,11 +65,16 @@ func (res *Result) Checkpoint() *Checkpoint {
 		return nil
 	}
 	full := res.Mode == ModeFull && res.StructuralConsistency == "CONSISTENT"
-	writer := res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil && res.ProjectionAgreement == "AGREES"
+	writer := res.Mode == ModeWriter && res.StructuralConsistency == ModeWriter && res.writerBase != nil && (res.ProjectionAgreement == "AGREES" || res.ProjectionAgreement == IntentRecordsNotCompared)
 	if !full && !writer {
 		return nil
 	}
-	cp := res.chainCheckpoint()
+	cp, err := res.chainCheckpoint()
+	if err != nil {
+		// An entry the writer checkpoint's base cannot supply: no read
+		// checkpoint is derived from it.
+		return nil
+	}
 	return &cp
 }
 

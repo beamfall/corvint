@@ -47,6 +47,14 @@ const (
 	// reader cannot resolve to one bound definition, so it abstains (TSA-V0-088).
 	RuleRBHelperUnresolved = "RB-HELPER-UNRESOLVED"
 	RuleRBHelperAmbiguous  = "RB-HELPER-AMBIGUOUS"
+	// RuleRBDenialWithoutNoEffect: a denial example asserts only the refusal status of a
+	// mutating request and nothing about its effect; advisory only (TSA-V0-564).
+	RuleRBDenialWithoutNoEffect = "RB-DENIAL-WITHOUT-NO-EFFECT"
+	// RuleRBDenialVerbUnresolved and RuleRBDenialMatcherCustom: the reader cannot name the
+	// request verb a denial example observes, or its denial matcher is a custom one, so it
+	// abstains from TSA-V0-564 with an advisory finding that changes no axis (TSA-V0-565).
+	RuleRBDenialVerbUnresolved = "RB-DENIAL-VERB-UNRESOLVED"
+	RuleRBDenialMatcherCustom  = "RB-DENIAL-MATCHER-CUSTOM"
 )
 
 // The reasons a shared example evaluated through one inclusion site abstains (TSA-V0-091,

@@ -345,7 +345,7 @@ func TestGraphIsDeterministic_NSAV0014(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	immutable, err := affected.BuildFS(os.DirFS(root), New())
+	immutable, err := affected.BuildFS(boundedDirFS{os.DirFS(root)}, New())
 	if err != nil {
 		t.Fatal(err)
 	}

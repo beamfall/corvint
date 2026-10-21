@@ -1288,6 +1288,16 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		// IDX-SNAP-V0-019. The working-tree and range profiles read Source.Data
 		// directly, which a deferred pack body leaves nil, so they take only the
 		// whole-file read (IDX-SNAP-V0-021). A miss builds exactly as before.
+		// ERI-V0-261 (V1-1881): a range whose over-bound refusal is proved
+		// without the index refuses before the snapshot is loaded, with the
+		// bytes the loaded path returns.
+		if options.command == "impact" && options.impactBaseSet && !options.impactWorktree {
+			if err := contextindex.RangeBoundRefusalBeforeLoad(ctx, options.root, options.impactBase, options.impactLimit, options.impactProfile == "expanded-256"); err != nil {
+				observeUnsupported(options.root, err, options.queryTask)
+				emitError(stderr, err)
+				return 2
+			}
+		}
 		eager := func() *contextindex.Index { return snapshotIndex(ctx, options.root) }
 		deferred := func() *contextindex.Index { return deferredSnapshotIndex(ctx, options.root) }
 		if options.impactWorktree || options.impactBaseSet {

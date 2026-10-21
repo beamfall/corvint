@@ -134,3 +134,34 @@ func readDefects(r *wire.Reader) *DefectPolicy {
 	}
 	return d
 }
+
+// MaxSharedReservationPaths bounds reservations.sharedPaths (NTP-V0-026),
+// matching the `plan batches` --shared-path bound.
+const MaxSharedReservationPaths = 64
+
+// ReservationPolicy is the NTP-V0-026 reservation declaration. SharedPaths
+// are canonical-sorted PATH keys (a trailing "/" names a directory prefix)
+// of derived files every lane regenerates: two live attempts whose
+// overlapping PATH keys are both covered by one of them do not collide.
+type ReservationPolicy struct {
+	SharedPaths []string
+}
+
+// SharedReservationPaths returns the declared reservations.sharedPaths, or
+// nil when the policy declares none.
+func (p *Policy) SharedReservationPaths() []string {
+	if p == nil || p.Reservations == nil {
+		return nil
+	}
+	return p.Reservations.SharedPaths
+}
+
+func readReservations(r *wire.Reader) *ReservationPolicy {
+	r.Closed("sharedPaths")
+	paths := r.Field("sharedPaths")
+	out := &ReservationPolicy{SharedPaths: paths.Strings(MaxSharedReservationPaths, false, func(x *wire.Reader) string { return x.Path() })}
+	if r.Err() == nil && len(out.SharedPaths) == 0 {
+		paths.Fail(wire.CodeMalformed, "sharedPaths must name at least one path")
+	}
+	return out
+}

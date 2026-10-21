@@ -71,7 +71,11 @@ type Report struct {
 	Skipped      int
 	Operators    []string
 	Elapsed      time.Duration
-	Detail       string
+	// Baseline is the wall time of the claim's baseline run, the request's
+	// cold build included (FPK-V0-142); Elapsed minus Baseline is the warm
+	// runs. It is zero when no baseline ran.
+	Baseline time.Duration
+	Detail   string
 	// Witness identifies the first behavioural kill when the runner could
 	// attribute it to one named test. It is nil for every non-kill and for an
 	// unattributed package failure.
@@ -102,9 +106,15 @@ type Witness struct {
 
 const (
 	defaultMaxMutants = 8
-	defaultBudget     = 10 * time.Minute
-	minimumPerRun     = 10 * time.Second
 	outputLimit       = 64 << 10
+)
+
+// defaultBudget is a request's whole budget when it names none, and
+// minimumPerRun the floor of its per-run share (FPK-V0-142). They are
+// variables only so tests can shorten them.
+var (
+	defaultBudget = 10 * time.Minute
+	minimumPerRun = 10 * time.Second
 )
 
 // LineSpan is one inclusive 1-based line range of the changed file.
@@ -153,6 +163,10 @@ func open(ctx context.Context, configuration exportSettings) (*Export, error) {
 	space, remove, err := newWorkspace(ctx, configuration, box)
 	if err != nil {
 		return nil, err
+	}
+	if nestingRefused(ctx, space) {
+		remove()
+		return &Export{configuration: configuration, unsandboxed: "cited tests cannot be sandboxed: " + nestingRefusal}, nil
 	}
 	return &Export{configuration: configuration, space: space, remove: remove}, nil
 }
@@ -353,7 +367,7 @@ func perRunTimeout(budget time.Duration, maxMutants int) time.Duration {
 }
 
 // falsify judges one claim on the export: baseline first, then the mutants.
-func falsify(ctx context.Context, configuration settings, space workspace) (Report, error) {
+func falsify(ctx context.Context, configuration settings, space workspace) (report Report, err error) {
 	if ctx.Err() != nil {
 		return budgetReport("budget exhausted before the run started"), nil
 	}
@@ -372,7 +386,10 @@ func falsify(ctx context.Context, configuration settings, space workspace) (Repo
 		return unsupportedReport("test file declares no tests: " + configuration.testPath), nil
 	}
 	pattern := runPattern(names)
-	baseline, output := runTests(ctx, configuration, space, pattern)
+	baselineStarted := time.Now()
+	baseline, output := runTests(ctx, configuration, space, pattern, true)
+	baselineTook := time.Since(baselineStarted)
+	defer func() { report.Baseline = baselineTook }()
 	if baseline != runPassed && ctx.Err() != nil {
 		return budgetReport("budget exhausted during the baseline run"), nil
 	}
@@ -415,12 +432,15 @@ func judgeMutants(ctx context.Context, configuration settings, space workspace, 
 		if err := os.WriteFile(changedFile, candidate.Source, 0o644); err != nil {
 			return Report{}, fmt.Errorf("mutate: write mutant: %w", err)
 		}
-		outcome, output, outcomes := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true)
+		outcome, output, outcomes := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true, false)
 		if err := os.WriteFile(changedFile, source, 0o644); err != nil {
 			return Report{}, fmt.Errorf("mutate: restore %s: %w", configuration.changedPath, err)
 		}
 		if outcome != runPassed && ctx.Err() != nil {
 			return budgetPartial(report, index), nil
+		}
+		if outcome == runTimedOut {
+			return perRunPartial(report, index, configuration.perRun), nil
 		}
 		if outcome == runBroken {
 			return Report{}, inconclusive(output)

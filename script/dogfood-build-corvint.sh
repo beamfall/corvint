@@ -136,3 +136,14 @@ dogfood_build_base_corvint() {
   ((status == 0)) || return "$status"
   dogfood_corvint_store "$out" "$key"
 }
+
+# dogfood_build_fix PREFIX tree|base prints the recovery line after a build-failed refusal
+# (DCW-V0-332, V1-1929). A failing tree of a batch usually means its sealed constituents do not
+# compose; a failing base cannot carry a seal.
+dogfood_build_fix() {
+  if [[ $2 == base ]]; then
+    printf '%s: fix: BASE does not build, so no change can be sealed on it; rerun with the last building origin/main commit as BASE, or repair main first (docs/DOGFOOD.md section 4)\n' "$1" >&2
+  else
+    printf '%s: fix: repair the compile error above and rerun; in a merge batch whose constituents build alone, they do not compose: rebase the later constituent'"'"'s work commits onto the batch head, fix it there, reseal it with BASE=<batch head>, then merge it (docs/DOGFOOD.md "Non-composing constituents")\n' "$1" >&2
+  fi
+}

@@ -2586,7 +2586,23 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	}
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
+	worktreeCoverage(packet["coverage"].(map[string]any), compiler.index)
 	return packet
+}
+
+// worktreeCoverage (TCP-V0-141, V1-1285) says when the packet's committed
+// tree is not the bytes in the worktree. "revision" is the tree the index
+// pinned, which is HEAD's tree, so a reader comparing it with a commit id can
+// mistake a current index for a stale one, and a dirty worktree is otherwise
+// silent: uncommitted edits are never evidence here. With a clean worktree
+// the member is unchanged.
+func worktreeCoverage(coverage map[string]any, index *Index) {
+	if len(index.DirtyPaths) == 0 {
+		return
+	}
+	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), fmt.Sprintf(
+		"the worktree has %d uncommitted paths; this packet reads commit %s (tree %s, the \"revision\"), so uncommitted edits are not evidence",
+		len(index.DirtyPaths), index.CommitRevision, index.Revision))
 }
 
 // taskStoreProjectionReason marks a Tasks store projection file, which is task

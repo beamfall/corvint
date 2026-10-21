@@ -201,7 +201,8 @@ func AbortCapacity(o StageObservation, c CleanupState) (AbortCapacityResult, err
 		return out, e
 	}
 	i := o.Inventory.clone()
-	i.dirs["staging"] = true
+	defer i.rollback()
+	i.stageDirectory()
 	out.Current, e = measure(i, h, cleanup.TemporaryBytes, cleanup.PromisedBytes, cleanup.Entries-1)
 	if e != nil {
 		return out, e

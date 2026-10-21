@@ -93,6 +93,19 @@ func jsSeed(name, text string, line int) seedExtract {
 		call.at = r.at(t.Line)
 		x.calls = append(x.calls, call)
 	}
+	// A call at a statement head to a function that is neither a factory callee nor known test
+	// vocabulary may seed records the reading cannot see, so the side abstains naming it; the JS/TS
+	// reading does not follow helpers (TSA-V0-644).
+	for i, t := range s.tokens {
+		if t.Kind != appmap.JSIdent || !in(i, scope) || !s.punct(i+1, "(") || s.memberAccess(i) || !jsHelperCandidate(t.Text) {
+			continue
+		}
+		if s.ident(i-1, "function") || s.ident(i-1, "new") || s.ident(i-1, "async") && s.methodDefinition(i) || !s.jsStatementHead(i) {
+			continue
+		}
+		x.abstainHelper(t.Text, r.at(t.Line))
+		break
+	}
 	asserts := map[int]*seedAssert{}
 	lines := []int{}
 	for k := e.body[0]; k < e.body[1]; k++ {
@@ -292,4 +305,42 @@ func (s *source) jsBound(start int) []string {
 		return out
 	}
 	return nil
+}
+
+// jsStatementHead reports that token i starts a statement or an expression statement's value: it
+// follows `;`, a brace, an assignment, an arrow, `await` or `return`, or a line break.
+func (s *source) jsStatementHead(i int) bool {
+	j := i - 1
+	switch {
+	case j < 0, s.tokens[j].Line < s.tokens[i].Line:
+		return true
+	case s.punct(j, ";"), s.punct(j, "{"), s.punct(j, "}"), s.punct(j, "=") && !s.punct(j-1, "="), s.ident(j, "await"), s.ident(j, "return"):
+		return true
+	case s.punct(j, ">") && s.arrow(j-1):
+		return true
+	}
+	return false
+}
+
+// jsHelperCandidate reports a lowercase callee that is not a factory callee, a keyword or known
+// JS/TS test vocabulary (TSA-V0-644).
+func jsHelperCandidate(name string) bool {
+	if name == "" || !(name[0] >= 'a' && name[0] <= 'z' || name[0] == '_') || seedLike(name) {
+		return false
+	}
+	return !jsCallVocabulary[name]
+}
+
+// jsCallVocabulary are the keywords and test-framework names a setup statement calls that never
+// seed records the reading misses (TSA-V0-644).
+var jsCallVocabulary = map[string]bool{
+	"if": true, "for": true, "while": true, "switch": true, "catch": true, "return": true, "typeof": true,
+	"await": true, "function": true, "async": true, "super": true, "import": true, "yield": true, "void": true,
+	"delete": true, "in": true, "of": true, "instanceof": true, "do": true, "with": true,
+	"expect": true, "describe": true, "it": true, "test": true, "beforeEach": true, "beforeAll": true,
+	"afterEach": true, "afterAll": true, "xit": true, "fit": true, "xtest": true, "fail": true, "pending": true,
+	"done": true, "require": true, "setTimeout": true, "clearTimeout": true, "setInterval": true,
+	"clearInterval": true, "setImmediate": true, "queueMicrotask": true, "structuredClone": true,
+	"parseInt": true, "parseFloat": true, "isNaN": true, "render": true, "act": true, "waitFor": true,
+	"mount": true, "shallow": true, "cleanup": true, "assert": true,
 }

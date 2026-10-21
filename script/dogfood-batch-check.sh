@@ -26,6 +26,7 @@ if [[ -z $corvint_bin_set ]]; then
   corvint_bin="$build_dir/corvint"
   if ! dogfood_build_tree_corvint "$corvint_bin"; then
     printf 'dogfood-batch-check: REFUSE current-tree-corvint-build-failed\n' >&2
+    dogfood_build_fix dogfood-batch-check tree
     exit 2
   fi
 else

@@ -193,7 +193,7 @@ const observation = {
     tests,
     testRunProfiles: 0,
     testRun: expect.testRunEnded ? { ended: true, corvintRunId: 'run:opaque' } : undefined,
-    registeredCommands: expect.exactCommands ? ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.importTestObservation', 'corvint.clearResults'] : [],
+    registeredCommands: expect.exactCommands ? ['corvint.selectExecutable', 'corvint.clearExecutable', 'corvint.query', 'corvint.impact', 'corvint.refresh', 'corvint.clearResults'] : [],
     statusAccessibleName: expect.statusAccessible ? 'Corvint Ready' : '',
     output: expect.outputContains ? [`Corvint ${expect.outputContains}`] : [],
     rejectedLocations: expect.minRejectedLocations ?? 0,

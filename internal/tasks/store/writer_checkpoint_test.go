@@ -178,7 +178,27 @@ func writerCheckpointRewrite(t *testing.T, repo *intent.Repository, edit func(*j
 		t.Fatal("no writer checkpoint")
 	}
 	edit(wc)
-	historyWrite(t, journal.WriterCheckpointPath(repo.StateDir), wc.Encode())
+	base, delta, err := wc.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	historyWrite(t, journal.WriterBasePath(repo.StateDir), base)
+	historyWrite(t, journal.WriterCheckpointPath(repo.StateDir), delta)
+}
+
+// writerCheckpointFiles is the retained writer checkpoint's delta followed
+// by its base; an absent file reads as empty.
+func writerCheckpointFiles(t *testing.T, repo *intent.Repository) string {
+	t.Helper()
+	var out []byte
+	for _, p := range []string{journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir)} {
+		raw, err := os.ReadFile(p)
+		if err != nil && !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		out = append(append(out, raw...), 0)
+	}
+	return string(out)
 }
 
 func rewriteFile(t *testing.T, p string, edit func([]byte) []byte) func() {
@@ -232,7 +252,11 @@ func TestCALV0115_WriterCheckpointFallsBackToCompleteAudit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wcPath := journal.WriterCheckpointPath(repo.StateDir)
+	foreignBase, err := os.ReadFile(journal.WriterBasePath(other.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wcPath, basePath := journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir)
 	run := writerMutate(t, repo, "writer-fast", nil)
 	if !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
@@ -253,7 +277,17 @@ func TestCALV0115_WriterCheckpointFallsBackToCompleteAudit(t *testing.T) {
 			rewriteFile(t, wcPath, func(raw []byte) []byte { raw[len(raw)/2] ^= 0xff; return raw })
 		}},
 		{"torn", func(t *testing.T) { rewriteFile(t, wcPath, func(raw []byte) []byte { return raw[:len(raw)/2] }) }},
-		{"foreign", func(t *testing.T) { historyWrite(t, wcPath, foreign) }},
+		{"foreign", func(t *testing.T) { historyWrite(t, basePath, foreignBase); historyWrite(t, wcPath, foreign) }},
+		// JSG-V0-004: the delta binds its base by SHA-256.
+		{"base-removed", func(t *testing.T) {
+			if err := os.Remove(basePath); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"base-corrupt", func(t *testing.T) {
+			rewriteFile(t, basePath, func(raw []byte) []byte { raw[len(raw)/2] ^= 0xff; return raw })
+		}},
+		{"base-foreign", func(t *testing.T) { historyWrite(t, basePath, foreignBase) }},
 		{"forged-receipt-digest", func(t *testing.T) {
 			writerCheckpointRewrite(t, repo, func(wc *journal.WriterCheckpoint) { wc.ReceiptSha256 = wire.Sum([]byte("forged")) })
 		}},
@@ -318,8 +352,8 @@ func TestCALV0116_WriterFullBoundDeclines(t *testing.T) {
 	}
 }
 
-// storeFiles digests every file under root except the writer checkpoint,
-// which the two routes legitimately retain at different heads.
+// storeFiles digests every file under root except the writer checkpoint and
+// its base, which the two routes legitimately retain at different heads.
 func storeFiles(t *testing.T, root, wcPath string) map[string]string {
 	t.Helper()
 	out := map[string]string{}
@@ -329,7 +363,7 @@ func storeFiles(t *testing.T, root, wcPath string) map[string]string {
 		}
 		rel, _ := filepath.Rel(root, p)
 		switch {
-		case p == wcPath || p == wcPath+".tmp":
+		case p == wcPath || p == wcPath+".tmp" || p == wcPath+".base" || p == wcPath+".base.tmp":
 			return nil
 		case d.Type()&fs.ModeSymlink != 0:
 			target, err := os.Readlink(p)
@@ -357,15 +391,40 @@ func storeFiles(t *testing.T, root, wcPath string) map[string]string {
 // route's result.
 func writerParity(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) *Report {
 	t.Helper()
+	return writerParityRoute(t, repo, write, false)
+}
+
+// writerLivenessParity is writerParity for a heartbeat or renew below the
+// writer advance tail: the fast route leaves the read checkpoint as it was
+// instead of rewriting it (decision 0549, JSG-V0-001), and every other file
+// matches the complete route.
+func writerLivenessParity(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) *Report {
+	t.Helper()
+	return writerParityRoute(t, repo, write, true)
+}
+
+func writerParityRoute(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error), liveness bool) *Report {
+	t.Helper()
 	parent := filepath.Dir(repo.PrimaryWorktree)
 	wcPath := journal.WriterCheckpointPath(repo.StateDir)
+	readCheckpoint, err := filepath.Rel(parent, journal.CheckpointPath(repo.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
 	backup := filepath.Join(t.TempDir(), "store")
 	copyTree(t, parent, backup)
+	before := storeFiles(t, parent, wcPath)[readCheckpoint]
 	fast := stagedWrite(write, nil)
 	if !fast.completed() || !fast.fast() {
 		t.Fatalf("fast route: %+v %v %v", fast.rep, fast.err, fast.stages)
 	}
 	fastFiles := storeFiles(t, parent, wcPath)
+	if liveness {
+		if fastFiles[readCheckpoint] != before {
+			t.Errorf("liveness fast route rewrote the read checkpoint")
+		}
+		delete(fastFiles, readCheckpoint)
+	}
 	if err := os.RemoveAll(parent); err != nil {
 		t.Fatal(err)
 	}
@@ -378,6 +437,9 @@ func writerParity(t *testing.T, repo *intent.Repository, write func(context.Cont
 		t.Fatalf("complete route: %+v %v %v", complete.rep, complete.err, complete.stages)
 	}
 	completeFiles := storeFiles(t, parent, wcPath)
+	if liveness {
+		delete(completeFiles, readCheckpoint)
+	}
 	for p, d := range completeFiles {
 		if fastFiles[p] != d {
 			t.Errorf("%s: fast %q, complete %q", p, fastFiles[p], d)
@@ -399,7 +461,8 @@ func writerParity(t *testing.T, repo *intent.Repository, write func(context.Cont
 
 // CAL-V0-116 and CAL-V0-119 (proposed): a create, a first and a superseding
 // note, and the claim, renew, heartbeat and release writes the route serves
-// commit the same bytes, retain the same read checkpoint and report the same
+// commit the same bytes, retain the same read checkpoint (a heartbeat or
+// renew below the advance tail retains none; decision 0549) and report the same
 // outcome as the complete route.
 func TestCALV0116_WriterRouteParity(t *testing.T) {
 	repo := writerStore(t, 70)
@@ -452,11 +515,11 @@ func TestCALV0116_WriterRouteParity(t *testing.T) {
 		}
 	}
 	claim := writerParity(t, repo, lease("parity-claim", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: created.Ticket, Holder: "agent-1", LeaseMinutes: "60"}))
-	writerParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
+	writerLivenessParity(t, repo, lease("parity-renew", transaction.LeaseRequest{Verb: transaction.LeaseRenew, AttemptID: claim.AttemptID, Generation: claim.Generation, LeaseMinutes: "60"}))
 	// The heartbeat's tail holds a note on its own claimed ticket.
 	writerParity(t, repo, writerEnvelope(repo, note("parity-note-3", "2", "Third."), now))
 	now = WallClock()
-	writerParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
+	writerLivenessParity(t, repo, lease("parity-heartbeat", transaction.LeaseRequest{Verb: transaction.LeaseHeartbeat, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 	writerParity(t, repo, lease("parity-release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: claim.AttemptID, Generation: claim.Generation}))
 }
 
@@ -474,8 +537,12 @@ func (f fixedEntropy) Read(p []byte) (int, error) {
 // complete route alone decides it, then puts the checkpoint back.
 func writerOracle(t *testing.T, repo *intent.Repository, write func(context.Context) (*Report, error)) writerRun {
 	t.Helper()
-	wcPath := journal.WriterCheckpointPath(repo.StateDir)
+	wcPath, basePath := journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir)
 	raw, err := os.ReadFile(wcPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := os.ReadFile(basePath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,6 +553,7 @@ func writerOracle(t *testing.T, repo *intent.Repository, write func(context.Cont
 	if run.fast() {
 		t.Fatalf("oracle used the writer route: %v", run.stages)
 	}
+	historyWrite(t, basePath, base)
 	historyWrite(t, wcPath, raw)
 	return run
 }
@@ -1097,8 +1165,10 @@ func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
 		t.Fatalf("complete audit: %v", auditErr)
 	}
 	refreshWriterCheckpoint(context.Background(), repo)
-	if _, err := os.Lstat(journal.WriterCheckpointPath(repo.StateDir)); !os.IsNotExist(err) {
-		t.Fatalf("scheduled complete audit kept the writer checkpoint: %v", err)
+	for _, p := range []string{journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir)} {
+		if _, err := os.Lstat(p); !os.IsNotExist(err) {
+			t.Fatalf("scheduled complete audit kept %s: %v", p, err)
+		}
 	}
 	before := mutationPublished(t, repo)
 	run := writerMutate(t, repo, "after-refresh", nil)

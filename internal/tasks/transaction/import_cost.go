@@ -7,20 +7,36 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // importCost belongs only to a process-local import sequence. Capacity forks
 // share its owned inventory temporarily, record bounded undo, and never escape.
 // encoding carries the CAL-V0-117 order-independent file-set cost of every
 // listed file; its Files count is taken from cost.Files when measured.
+// entryMeasurements counts the per-entry encoder measurements capacity makes,
+// incremental or whole; JSG-V0-014 asserts it. Only tests read it.
+var entryMeasurements atomic.Uint64
+
 type importCost struct {
 	cost        Cost
 	encoding    archive.FileSetCost
 	reserveNext [256]uint64
 }
 
+// remove uncharges an explicit file.
+func (c *importCost) remove(old archive.FileEntry) error {
+	return c.replace(old, true, archive.FileEntry{})
+}
+
+// replace charges next in place of old (when exists); a zero next path
+// charges nothing, which remove uses.
 func (c *importCost) replace(old archive.FileEntry, exists bool, next archive.FileEntry) error {
 	contribution := func(f archive.FileEntry) (Cost, archive.FileSetCost, error) {
+		if f.Path == "" {
+			return Cost{}, archive.FileSetCost{}, nil
+		}
+		entryMeasurements.Add(1)
 		enc, err := archive.EntryCost(f.Path, f.Bytes.Uint64())
 		if err != nil {
 			return Cost{}, enc, err
@@ -130,7 +146,7 @@ func (i *Inventory) rollback() {
 func (i *Inventory) advanceReserve(shard int) {
 	for {
 		candidate := fmt.Sprintf("requests/%02x/%02x%062x.json", shard, shard, i.incremental.reserveNext[shard])
-		if _, exists := i.files[candidate]; !exists {
+		if _, exists := i.files[candidate]; !exists && !i.isElided(candidate) {
 			return
 		}
 		i.incremental.reserveNext[shard]++

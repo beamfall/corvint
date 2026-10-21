@@ -250,11 +250,22 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 		if err = life.validateStage(before, s, tree); err != nil {
 			return err
 		}
+		headSha := s.HeadSha256
+		if s.Head.Segments != nil {
+			if files, headSha, err = sealedSources(life, s.Head, s.HeadSha256, files); err != nil {
+				return err
+			}
+			if len(files) > wire.MaxArchiveFiles {
+				return wire.Errorf(wire.CodeLimitExceeded, "archive", "payload file count")
+			}
+		} else if before.segmented {
+			return wire.Errorf(wire.CodeJournalForked, "segments", "segments without a segmented head")
+		}
 		// Pass 1: digest and size every file; check the receipt set.
 		m := &Manifest{
 			QueueID:           s.Head.QueueID,
 			ExportedAtSeq:     s.Head.LastSeq,
-			HeadSha256:        s.HeadSha256,
+			HeadSha256:        headSha,
 			VersionSha256:     wire.Sum(s.Version),
 			PrimaryWorktree:   s.Head.PrimaryWorktree,
 			IntentTreeSha256:  s.IntentTree,

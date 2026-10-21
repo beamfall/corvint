@@ -39,6 +39,9 @@ func main() {
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if opencodequalification.IsRetryLater(err) {
+			os.Exit(opencodequalification.RetryLaterExitCode)
+		}
 		os.Exit(1)
 	}
 }
