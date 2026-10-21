@@ -32,6 +32,9 @@ type affectedCompactReceipt struct {
 	Revision string                `json:"revision"`
 	Tool     string                `json:"tool"`
 	Warning  string                `json:"warning,omitempty"`
+	// Tiers ranks the selection for a bounded local run (AFP-V0-162); it is
+	// omitted when nothing is selected.
+	Tiers *affectedTiers `json:"tiers,omitempty"`
 }
 
 // affectedCompactPlan keeps every plan member except that each selection
@@ -135,6 +138,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Revision: full.Revision,
 		Tool:     full.Tool,
 		Warning:  full.Warning,
+		Tiers:    tierAffectedSelections(full.Plan.Selected),
 	}, nil
 }
 
