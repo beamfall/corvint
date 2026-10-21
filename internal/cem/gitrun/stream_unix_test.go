@@ -21,6 +21,13 @@ func (refusingStream) Write(p []byte) (int, error) {
 	return 0, cemcode.New(cemcode.RepositoryObjectUnavailable, "stream refused")
 }
 
+type cancelOnWrite struct{ cancel context.CancelFunc }
+
+func (c cancelOnWrite) Write(p []byte) (int, error) {
+	c.cancel()
+	return len(p), nil
+}
+
 func TestRunStreamProcessFailureParity(t *testing.T) {
 	for _, tc := range []struct{ name, script string }{
 		{"success", "printf hello"},
@@ -30,7 +37,12 @@ func TestRunStreamProcessFailureParity(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			options := shell()
-			options.PerOpTimeout = 100 * time.Millisecond
+			// Only the timeout case uses a short per-operation deadline: a
+			// shared 100 ms bound let a loaded host classify a plain exit as
+			// git-timeout on one side only (V1-1576).
+			if tc.name == "timeout" {
+				options.PerOpTimeout = 100 * time.Millisecond
+			}
 			want, wantErr := Run(context.Background(), NewDefaultBudget(), options, "-c", tc.script)
 			var got bytes.Buffer
 			gotErr := RunStream(context.Background(), NewDefaultBudget(), options, &got, "-c", tc.script)
@@ -62,11 +74,14 @@ func TestRunStreamContainsDescendants(t *testing.T) {
 				want = cemcode.RepositoryObjectUnavailable
 			}
 			if mode == "cancellation" {
+				// Cancel only once the script has written its grandchild
+				// marker and printed ready, not after a fixed sleep (V1-1576).
 				want = cemcode.GitCancelled
-				go func() { time.Sleep(150 * time.Millisecond); cancel() }()
+				sink = cancelOnWrite{cancel: cancel}
 			}
 			if mode == "timeout" {
-				options.PerOpTimeout = 200 * time.Millisecond
+				// Long enough for a loaded host to write the marker first.
+				options.PerOpTimeout = 2 * time.Second
 			}
 			if mode == "normal-exit" {
 				script = "sleep 30 >/dev/null 2>&1 & echo $! > grandchild"
