@@ -83,7 +83,7 @@ or Cucumber scenarios.
 - `RUBY-AFFECTED-V0-009`: In a Rails application whose autoload mapping is resolved (see
   `RUBY-AFFECTED-V0-010`), each observed Ruby file MUST carry an advisory edge to every other observed
   file whose autoloaded constant it references, resolved by the `internal/rubyautoload` mapper against
-  the lexical namespaces the file opens, and to the target of each `has_many`, `has_one`,
+  the lexical namespaces enclosing the reference (`RUBY-AFFECTED-V0-043`), and to the target of each `has_many`, `has_one`,
   `belongs_to`, or `has_and_belongs_to_many` association named by a literal `class_name:` or by the
   conventional camelized (singular) association name. The seam carries these as
   `Unit.AdvisoryImports`, a sorted, deduplicated list that is part of the graph digest only when
@@ -144,6 +144,15 @@ or Cucumber scenarios.
   `app/models` change. A non-literal ignore list, a further statement on the line, a second such
   line, and `autoload_lib_once` MUST still raise `ruby:rails-autoload` (V1-1850). The
   `rails-7-1-autoload-lib` class of `conformance/ruby-profile-v0/` pins the stock line.
+- `RUBY-AFFECTED-V0-043`: The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body
+  and terminator line before masking string literals, so a constant-looking word, or a quote, inside
+  heredoc text neither adds an edge nor hides the code after it; a body whose opener line passes it
+  to an evaluating call (`eval`, `class_eval`, `module_eval`, `instance_eval` or an `_exec` form),
+  or whose terminator never appears, MUST stay unmasked. A reference MUST resolve against the
+  `class` and `module` bodies that lexically enclose it, matched to their `end` through `def`
+  (not endless), `begin`, `case`, `do`, `for`, and statement-position `if`, `unless`, `while` and
+  `until`; when that scan cannot balance the file, or the file holds `=begin` or `__END__`, it MUST
+  fall back to every namespace the file opens (V1-1832).
 
 ### Autoload edge failure modes
 
@@ -251,6 +260,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-014` | `conformance/ruby-profile-v0/` fixture and rows; `internal/rubyprofile` suite | `TestRubyProfileImpactRows_RUBYAFFECTEDV0014`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileProviderRows_RUBYAFFECTEDV0014`, `TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-041` | `goModuleRoot`, `withoutTestdata` in `internal/liveverify/affected/ruby/ruby.go` | `TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041` |
 | `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043` |
 
 ## Unresolved decisions
 

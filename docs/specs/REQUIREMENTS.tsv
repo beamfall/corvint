@@ -3873,6 +3873,7 @@ RUBY-AFFECTED-V0-013	docs/specs/ruby-affected-test-adapter-v0.md	The unindented 
 RUBY-AFFECTED-V0-014	docs/specs/ruby-affected-test-adapter-v0.md	`conformance/ruby-profile-v0/` MUST hold a Rails/RSpec fixture application	unrecorded	-
 RUBY-AFFECTED-V0-041	docs/specs/ruby-affected-test-adapter-v0.md	In a repository whose root declares a Go module (`go.mod`), a Ruby or	unrecorded	-
 RUBY-AFFECTED-V0-042	docs/specs/ruby-affected-test-adapter-v0.md	Without a committed autoload declaration, the generated Rails 7.1+ line	unrecorded	-
+RUBY-AFFECTED-V0-043	docs/specs/ruby-affected-test-adapter-v0.md	The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body	unrecorded	-
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
