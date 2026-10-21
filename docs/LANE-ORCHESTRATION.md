@@ -100,6 +100,13 @@ Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= mai
 Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
 (local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
 
+- Windows vet before push (ASD-V0-023, V1-1725): install the pre-push hook once in the shared lane
+  repository (its hooks serve every linked worktree):
+  `printf '#!/bin/sh\nexec script/pre-push-windows-vet.sh "$@"\n' > "$(git rev-parse --git-path hooks)/pre-push"`
+  then `chmod +x` that file. Git runs it from the pushing checkout's top level, so each lane uses
+  its own copy. It runs `make windows-vet` when the pushed commits change a `.go`, `go.mod` or
+  `go.sum` file and refuses the push when it fails.
+
 ## 4. No polling in lanes; long commands are bounded (ASD-V0-016)
 
 Lanes never run `sleep`, `until`/`while` wait loops, `gh pr checks --watch`, `gh run watch` or
