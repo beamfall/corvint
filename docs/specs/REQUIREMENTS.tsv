@@ -2078,6 +2078,8 @@ DCW-V0-091	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-092	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1657)	standing	2026-10-11; V1-1657
 DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`	owner	2026-10-11; V1-1463
 DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's	owner	2026-10-11; V1-1927
+DCW-V0-115	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1616)	standing	2026-10-11; V1-1664; V1-1616
+DCW-V0-116	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1664, V1-1488)	standing	2026-10-11; V1-1664; V1-1488
 DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1929) After a	owner	2026-10-11; V1-1929
 DCW-V0-112	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood ch	owner	2026-10-11; V1-1760
 DCW-V0-113	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a	owner	2026-10-11; V1-2266

@@ -352,7 +352,11 @@ precedence over `DOGFOOD_CITATIONS`, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FIL
 exception) and a committed change ahead of `BASE_SHA`, and it never pushes. At the first step that
 does not succeed it stops with that step's own reasons and `fix:` lines; fix the input and rerun the
 same command. A rerun from the bind commit continues at the rebind, and one from the seal commit
-prints `seal SKIP already-sealed`.
+prints `seal SKIP already-sealed`. The prepare and bind passes run only the steps their decision
+reads; the rebind is the full pass the check reads (`DCW-V0-115`). Stderr carries one
+`TIMING <step> seconds=S commands=N` line per step and a `TIMING total` line naming
+`<git-dir>/corvint/dogfood-finish-lane.timings.tsv`, the per-command times. An interrupted run
+prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`).
 
 Repair: the per-step commands remain for a step that needs a hand, in this order:
 
@@ -1021,7 +1025,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:111`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:119@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and
