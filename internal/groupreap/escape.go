@@ -104,6 +104,13 @@ var (
 	sessionOf       = processSession
 )
 
+// EscapedSampled, when non-nil, is called after each run-time sample with the PIDs of the escaped
+// owned identities recorded so far. It is a test synchronization point only: a lifecycle test ends
+// a phase once its escaped descendants are known to be recorded, instead of after a wall-clock
+// margin a loaded host can overrun (V1-1545). Set it before the run starts and restore it after
+// the run returns.
+var EscapedSampled func(pids []int)
+
 // RunContained is Run plus bounded retirement of escaped owned descendants.
 // It starts command as the leader of a new process group. The returned error
 // is the leader's exit status as Wait reports it.
@@ -146,6 +153,13 @@ func RunContainedRetiring(command *exec.Cmd, r *Retirer) (Containment, error) {
 			}
 			if !recordEscaped(seen, table, leader) {
 				overflow = true
+			}
+			if hook := EscapedSampled; hook != nil {
+				pids := make([]int, 0, len(seen))
+				for pid := range seen {
+					pids = append(pids, pid)
+				}
+				hook(pids)
 			}
 		}
 	}()

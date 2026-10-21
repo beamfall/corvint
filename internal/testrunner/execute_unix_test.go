@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -93,7 +94,11 @@ func TestExecutorHelper(t *testing.T) {
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
-		_ = os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET")+".pid", []byte(fmt.Sprint(browser.Process.Pid)), 0600)
+		// Publish atomically: the leader and the test both treat the file's existence as
+		// readiness, so it must never be observed empty (V1-1434).
+		pidFile := os.Getenv("CORVINT_EXEC_TARGET") + ".pid"
+		_ = os.WriteFile(pidFile+".tmp", []byte(fmt.Sprint(browser.Process.Pid)), 0600)
+		_ = os.Rename(pidFile+".tmp", pidFile)
 		for {
 			time.Sleep(time.Second)
 		}
@@ -173,6 +178,99 @@ func TestExecutorHelper(t *testing.T) {
 	fmt.Print("native result")
 	os.Exit(0)
 }
+
+// releasedLimit is an execution bound that ends when the test releases it, when its hang bound
+// elapses (both report context.DeadlineExceeded, as a real timeout does), or with its parent.
+type releasedLimit struct {
+	context.Context
+	done chan struct{}
+	mu   sync.Mutex
+	err  error
+}
+
+func (c *releasedLimit) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (c *releasedLimit) Done() <-chan struct{}       { return c.done }
+func (c *releasedLimit) Err() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.err
+}
+func (c *releasedLimit) end(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.err == nil {
+		c.err = err
+		close(c.done)
+	}
+}
+
+// expireLimitAt makes Execute's timeout fire when release closes instead of after the request's
+// TimeoutSeconds, which stays only as a hang bound. A lifecycle test then times out a fixture that
+// is known to be running, however long a loaded host took to start it (V1-1545, V1-1434).
+func expireLimitAt(t *testing.T, release <-chan struct{}) {
+	t.Helper()
+	previous := executionLimit
+	t.Cleanup(func() { executionLimit = previous })
+	executionLimit = func(parent context.Context, hang time.Duration) (context.Context, context.CancelFunc) {
+		c := &releasedLimit{Context: parent, done: make(chan struct{})}
+		go func() {
+			bound := time.NewTimer(hang)
+			defer bound.Stop()
+			select {
+			case <-parent.Done():
+				c.end(parent.Err())
+			case <-release:
+				c.end(context.DeadlineExceeded)
+			case <-bound.C:
+				c.end(context.DeadlineExceeded)
+			case <-c.done:
+			}
+		}()
+		return c, func() { c.end(context.Canceled) }
+	}
+}
+
+// releaseWhenSampled returns expect and release. release closes once every PID passed to expect
+// has been recorded by groupreap's run-time escaped-descendant sampler: from then on structural
+// containment can retire them even after the timed-out leader has lost them (TRE-V0-034), so a
+// timeout released there never races the sampler (V1-1545, V1-1434).
+func releaseWhenSampled(t *testing.T) (expect func(pids []int), release <-chan struct{}) {
+	t.Helper()
+	done := make(chan struct{})
+	var mu sync.Mutex
+	var wanted []int
+	expecting, closed := false, false
+	seen := map[int]bool{}
+	check := func() {
+		if !expecting || closed {
+			return
+		}
+		for _, pid := range wanted {
+			if !seen[pid] {
+				return
+			}
+		}
+		closed = true
+		close(done)
+	}
+	previous := groupreap.EscapedSampled
+	t.Cleanup(func() { groupreap.EscapedSampled = previous })
+	groupreap.EscapedSampled = func(pids []int) {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, pid := range pids {
+			seen[pid] = true
+		}
+		check()
+	}
+	return func(pids []int) {
+		mu.Lock()
+		defer mu.Unlock()
+		wanted, expecting = append([]int(nil), pids...), true
+		check()
+	}, done
+}
+
 func executorRequest(t *testing.T) (Request, Invocation) {
 	t.Helper()
 	root := t.TempDir()
@@ -602,14 +700,17 @@ func TestExecuteRetiresEscapedDetachedDescendants(t *testing.T) {
 	for _, mode := range []string{"timeout", "timeout-graceful", "interrupt", "normal"} {
 		t.Run(mode, func(t *testing.T) {
 			r, inv := executorRequest(t)
-			// Three helper processes start under a loaded host before the bound.
-			r.TimeoutSeconds = 4
+			// The timeout modes expire when the browser is running, not after a wall-clock
+			// bound a loaded host can overrun while the three helpers start; TimeoutSeconds is
+			// only the hang bound (V1-1434).
+			r.TimeoutSeconds = 120
+			expect, started := releaseWhenSampled(t)
+			expireLimitAt(t, started)
 			target := filepath.Join(r.Root, "heartbeat")
 			inv.Environment["CORVINT_EXEC_TARGET"] = target
 			inv.Environment["CORVINT_EXEC_MODE"] = "escape"
 			inv.GracefulInterrupt = mode == "timeout-graceful" || mode == "interrupt"
 			if mode == "normal" {
-				r.TimeoutSeconds = 30
 				inv.Environment["CORVINT_ESCAPE_EXIT"] = "1"
 			}
 			ctx, cancel := context.WithCancel(context.Background())
@@ -620,9 +721,15 @@ func TestExecuteRetiresEscapedDetachedDescendants(t *testing.T) {
 				defer close(ready)
 				for ctx.Err() == nil {
 					if b, e := os.ReadFile(target + ".pid"); e == nil {
-						fmt.Sscan(string(b), &browser)
-						if mode == "interrupt" {
+						if _, e := fmt.Sscan(string(b), &browser); e != nil || browser <= 1 {
+							t.Errorf("browser pid file %q", b)
+							return
+						}
+						switch mode {
+						case "interrupt":
 							cancel()
+						case "timeout", "timeout-graceful":
+							expect([]int{browser})
 						}
 						return
 					}
