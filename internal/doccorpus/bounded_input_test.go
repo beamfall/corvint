@@ -14,6 +14,7 @@ import (
 )
 
 func TestLoadInputRefusesOverBoundBlobBeforeBody(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-018 V1-0747 input byte bound before allocation", func(t *testing.T) {
 		root := t.TempDir()
 		git(t, root, "init", "-q")
@@ -42,6 +43,7 @@ func TestLoadInputRefusesOverBoundBlobBeforeBody(t *testing.T) {
 }
 
 func TestLocalInputPathRuleNamesTheBrokenRule(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-054 V1-1226 reader refusals name the rule without widening admission", func(t *testing.T) {
 		root := t.TempDir()
 		if err := os.WriteFile(filepath.Join(root, "input.json"), []byte("{}"), 0600); err != nil {

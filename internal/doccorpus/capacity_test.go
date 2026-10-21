@@ -10,6 +10,7 @@ import (
 )
 
 func TestCorpusLargeProfile(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-033 beyond legacy record and byte bounds", func(t *testing.T) {
 		root, m := providerFixture(t, func(p *ProviderRecord) {
 			p.Schema = AdoptionProviderSchema
@@ -60,6 +61,7 @@ func TestCorpusLargeProfile(t *testing.T) {
 }
 
 func TestCorpusBoundedImpact(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-036 impact omissions retain fallback", func(t *testing.T) {
 		a := &Artifact{Schema: SchemaV2, Subjects: []Subject{}, Capabilities: []Capability{}}
 		for i := 0; i < 1000; i++ {

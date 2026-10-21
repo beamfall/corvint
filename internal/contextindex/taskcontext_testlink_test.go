@@ -48,6 +48,7 @@ func contextReasonOf(t *testing.T, packet map[string]any, kind string) (string, 
 // TestTaskContextLinksTestsByEachSignal is TCP-V0-015's one-fixture-per-signal
 // check: the test row names the signal that bound it, in both directions.
 func TestTaskContextLinksTestsByEachSignal(t *testing.T) {
+	t.Parallel()
 	index := testLinkFixture(t)
 	cases := []struct{ task, path, reason string }{
 		{"trace `Render`", "src/render/render_test.go", "tests src/render/render.go: mirrored stem (test counterpart)"},
@@ -74,6 +75,7 @@ func TestTaskContextLinksTestsByEachSignal(t *testing.T) {
 // at a limit where the lexical fill (path term `go` reaches every Go file)
 // stops short of it, that one is withheld.
 func TestTaskContextReservesOneTestSlot(t *testing.T) {
+	t.Parallel()
 	packet, err := TaskContext(context.Background(), testLinkFixture(t), "open other/other_test.go", "", 5)
 	if err != nil {
 		t.Fatal(err)

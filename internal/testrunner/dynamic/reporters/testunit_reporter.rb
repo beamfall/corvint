@@ -21,11 +21,18 @@ class CorvintTestUnitRunner < Test::Unit::UI::Console::TestRunner
     fault = @corvint_faults[test.name]
     state = case fault
             when Test::Unit::Failure then 'FAILED'
-            when Test::Unit::Error then 'UNKNOWN'
             when Test::Unit::Omission, Test::Unit::Pending then 'SKIPPED'
             else 'PASSED'
             end
-    @corvint_rows << {ID: test.name, Name: test.name, State: state}
+    row = {ID: test.name, Name: test.name, State: state}
+    # TRE-V0-115: an exception raised in a named test fails that test with
+    # cause UNKNOWN, naming only the exception class.
+    if fault.is_a?(Test::Unit::Error)
+      row[:State] = 'FAILED'
+      row[:FailureKind] = 'UNKNOWN'
+      row[:Message] = "Error: #{fault.exception.class.name}"[0, 1024]
+    end
+    @corvint_rows << row
     super
   end
   def finished(elapsed)

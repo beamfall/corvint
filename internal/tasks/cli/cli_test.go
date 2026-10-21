@@ -505,6 +505,57 @@ func TestTMV0008_AS08_TicketSearch(t *testing.T) {
 	fixture.AssertUntouched(t, r, stateBefore, intentBefore, "ticket search")
 }
 
+// TestCTSV0012_SearchTextIsTokenBasedAndFieldsNameTheRoute: --text matches
+// when every word occurs in the title or body, in any order and not
+// necessarily adjacent; a word-less --text is a usage error; a list or search
+// --fields refusal for labels or effects names the read that returns them.
+func TestCTSV0012_SearchTextIsTokenBasedAndFieldsNameTheRoute(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteState(t, r)
+	body := "Contains the needle inside the body"
+	a := fixture.Ticket("A")
+	a.Title = "Pre-compact hook does not kill the lane"
+	a.Labels = []string{"agent-memory"}
+	b := fixture.Ticket("B")
+	b.Body = &body
+	fixture.WriteIntent(t, r, a, b)
+	ids := func(x run) string {
+		var out []string
+		for _, it := range x.res.Items {
+			out = append(out, field(it, "ticketId").Str)
+		}
+		return strings.Join(out, ",")
+	}
+	for _, c := range []struct{ text, want string }{
+		{"kill pre-compact", fixture.TicketID("A")},
+		{"  HOOK   lane ", fixture.TicketID("A")},
+		{"body needle", fixture.TicketID("B")},
+		{"needle hook", ""},
+	} {
+		x := atm(t, r.Root, nil, "ticket", "search", "--text", c.text)
+		if x.res.Outcome != wire.OutcomeOK || ids(x) != c.want {
+			t.Errorf("--text %q: outcome %s items %q, want %q", c.text, x.res.Outcome, ids(x), c.want)
+		}
+	}
+	if x := atm(t, r.Root, nil, "ticket", "search", "--text", "   "); x.res.Outcome != wire.OutcomeError || x.res.Snapshot != nil {
+		t.Errorf("a word-less --text must be a usage error before any read: %+v", x.res)
+	}
+	for _, args := range [][]string{
+		{"ticket", "search", "--text", "lane", "--fields", "ticketId,labels"},
+		{"ticket", "list", "--fields", "effects"},
+		{"ticket", "search", "--text", "lane", "--fields", "effects.touchPaths"},
+	} {
+		key, _, _ := strings.Cut(args[len(args)-1][strings.LastIndex(args[len(args)-1], ",")+1:], ".")
+		w := strings.Join(compactRefused(t, r.Root, args...).res.Warnings, " ")
+		if !strings.Contains(w, "ticket show <id> --fields record."+key) || !strings.Contains(w, "ticket export") {
+			t.Errorf("%v refusal does not name the route: %s", args, w)
+		}
+	}
+	if w := strings.Join(compactRefused(t, r.Root, "ticket", "list", "--fields", "nope").res.Warnings, " "); strings.Contains(w, "ticket show <id>") {
+		t.Errorf("an unrouted key gained a route: %s", w)
+	}
+}
+
 // TestTMV0008_AS08_TicketExport: every page item carries the ticket's
 // intent path, file digest, byte count and the full record, and the record
 // re-encodes to the file bytes; paging is the §4.3 order with explicit

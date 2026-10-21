@@ -98,6 +98,13 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   as well. The executor MUST NOT create, copy into or repair the helper directory: first-use
   helper setup in a fresh HOME is an unsupported tuple, and a caller that needs one provisions
   the helper in its own task-owned HOME before the run.
+- `TRE-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2156) For
+  `unittest` and `test-unit`, a named test (or `unittest` subtest) whose native result is an error,
+  not an assertion failure, MUST be `FAILED` with failure kind `UNKNOWN` and a message naming only
+  the exception class (`Error: <Class>`, at most 1024 bytes; the exception text is not retained),
+  as `TRE-V0-110` does for `minitest` and `rails-test` (`UnexpectedError: <Class>`). A `unittest`
+  class or module fixture error, which names no single test, stays `UNKNOWN`. Other cases keep
+  their native outcomes and the run stays complete.
 
 ## Runner inventory
 
@@ -1707,8 +1714,7 @@ the error to one named test and counts it as an error, never as a pass.
 
 Decision: FAILED-with-cause rather than UNKNOWN. The native runner names the case and never counts
 it as passed, so FAILED invents no certainty; UNKNOWN discarded the other cases' outcomes. The
-Python `unittest` and Ruby `test-unit` profiles still map native errors to UNKNOWN; aligning them is
-separate work.
+Python `unittest` and Ruby `test-unit` profiles now follow the same rule (`TRE-V0-115`, V1-2156).
 
 Rollback: restore the `UNKNOWN` state in `dynamic/reporters/minitest_reporter.rb`; plans, receipts
 and parsers are unchanged in shape.
@@ -1781,3 +1787,4 @@ unchanged.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-114 | `dynamic/parse.go` `Parse`; `dynamic/testcafe.go` `reconcileNativeOutput`, `testCafeHelperFailure`; `TestTestCafeBrowserHelperFailureIsNeverAPass` | Focused unit test with the native EEXIST line from the V1-0605 qualification console; before the fix a passing report with that stderr was a complete PASSED observation, 2026-10-21 |
+| TRE-V0-115 | `dynamic/reporters/unittest_reporter.py` `addError`, `addSubTest`; `dynamic/reporters/testunit_reporter.rb` `test_finished`; `TestUnittestAndTestUnitErrorFailsOnlyThatCaseLive` | Live Python 3.9.6 unittest and Ruby 2.6.10 bundled test-unit: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN `Error: <Class>`; the test fails with the previous reporters, 2026-10-21 |

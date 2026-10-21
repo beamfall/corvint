@@ -368,6 +368,7 @@ func asSlice(value any) []any {
 }
 
 func TestPlaywrightDiscoveryProducerRoundTrip(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-046 DCP-V1-047 canonical live discovery accepted by behavior-adapter", func(t *testing.T) {
 		repo := newPlaywrightBehaviorRepo(t)
 		discovery := repo.discover(t)
@@ -433,6 +434,7 @@ func mapValues(values map[string]string) []string {
 }
 
 func TestPlaywrightDiscoveryProducerRefusals(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		edit func(t *testing.T, repo *playwrightBehaviorRepo) (configPath string)
@@ -529,6 +531,7 @@ func TestPlaywrightDiscoveryProducerRefusals(t *testing.T) {
 }
 
 func TestPlaywrightWitnessImporter(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-049 DCP-V1-050 clean run counts toward runtime_witnessed_contracts", func(t *testing.T) {
 		repo := newPlaywrightBehaviorRepo(t)
 		discovery := repo.discover(t)

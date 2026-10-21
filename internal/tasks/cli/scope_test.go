@@ -27,7 +27,9 @@ func TestCALV0022_CLIUsesOptInPack(t *testing.T) {
 			{name: "next", format: "pack", want: "DERIVED", next: true},
 			{name: "next-requested", format: "pack", requested: "manual/", want: "REQUESTED", next: true},
 			{name: "requested", format: "pack", requested: "manual/", want: "REQUESTED"},
-			{name: "declared", format: "pack", declared: `["declared/"]`, requested: "manual/", want: "DECLARED"},
+			// A requested path the declared scope does not cover refuses
+			// OUT_OF_SCOPE (ATR-V0-210, TestATRV0211_ClaimResultListsEffectiveScope).
+			{name: "declared", format: "pack", declared: `["declared/"]`, requested: "declared/sub/", want: "DECLARED"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				r := fixture.TempRepo(t)

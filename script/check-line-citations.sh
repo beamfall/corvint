@@ -132,11 +132,29 @@ sub batch_failed {
     die "git cat-file --batch failed: short read\n";
 }
 
+# DCG-V0-043 (V1-2152): a path with unmerged index entries has no stage-0 blob to read. Every
+# read of one refuses with the unmerged stages named, instead of the bare `git cat-file` exit.
+my %unmerged;
+{
+    open my $entries, '-|', 'git', 'ls-files', '-u', '-z' or die "git ls-files -u: $!\n";
+    local $/ = "\0";
+    while (my $entry = <$entries>) {
+        chomp $entry;
+        my ($stage, $path) = $entry =~ /\A\d+ [0-9a-f]+ (\d)\t(.*)\z/s or next;
+        push @{ $unmerged{$path} }, $stage;
+    }
+    close $entries
+        or die $! ? "git ls-files -u: $!\n" : 'git ls-files -u failed: exit ' . ($? >> 8) . "\n";
+}
+
 my %lines_of;
 sub lines_of {
     my ($path) = @_;
     return $lines_of{$path} if exists $lines_of{$path};
     return $lines_of{$path} = undef unless $tracked{$path};
+    die "$path is unmerged in the Git index (stages " . join(',', @{ $unmerged{$path} })
+        . ", no stage 0): resolve the conflict and git add it first\n"
+        if $unmerged{$path};
     my @lines = split /^/, index_blob($path);
     chomp @lines;
     return $lines_of{$path} = \@lines;

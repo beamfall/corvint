@@ -61,6 +61,7 @@ func corpusCode(err error) string {
 }
 
 func TestDCPV1175AdditionalRepositoryAnchors(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-175 DCP-V1-176 DCP-V1-177 DCP-V1-178 two repositories", func(t *testing.T) {
 		root, m, extra := additionalRepositoryFixture(t, nil)
 		a, err := Build(context.Background(), root, m)
@@ -125,6 +126,7 @@ func TestDCPV1175AdditionalRepositoryAnchors(t *testing.T) {
 }
 
 func TestDCPV1176AdditionalRepositoryRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-175 DCP-V1-176 refusals", func(t *testing.T) {
 		root, m, extra := additionalRepositoryFixture(t, nil)
 		build := func(edit func(*Manifest)) string {
@@ -182,6 +184,7 @@ func TestDCPV1176AdditionalRepositoryRefusals(t *testing.T) {
 }
 
 func TestDCPV1179SingleRepositoryManifestUnchanged(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-179 identity", func(t *testing.T) {
 		root, m := fixture(t)
 		data, err := Encode(m)

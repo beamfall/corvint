@@ -107,8 +107,8 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	// V1-1881: copy detection over every base-tree file dominates an
 	// over-bound refusal, so a sound lower bound refuses first, with the same
 	// error, when the exact diff below could only refuse the same way.
-	if rangeCertainlyExceeds(ctx, index, baseTree, pathLimit) {
-		return nil, rangePathBoundError(pathLimit)
+	if refusal := rangeCertainRefusal(ctx, index, baseTree, pathLimit); refusal != nil {
+		return nil, refusal
 	}
 	changes, err := readRangeChangesFor(ctx, index, baseTree)
 	if err != nil {
@@ -421,6 +421,94 @@ func rangePathBoundError(pathLimit int) error {
 // lower-bound refusal never reaches the copy-detecting diff (V1-1881).
 var readRangeChangesFor = readRangeChanges
 
+// rangeCertainRefusal returns the refusal the exact range diff
+// (readRangeChanges) would end in when it is proved from one rename-free diff,
+// or nil when it is not: the path refusal (ERI-V0-262, V1-2221) and otherwise
+// the bound refusal (ERI-V0-060). The exact parse refuses before it counts, so
+// the path refusal is tried first.
+func rangeCertainRefusal(ctx context.Context, index *Index, baseTree string, pathLimit int) error {
+	raw, err := git(ctx, index.Root, maxStatusBytes, nil, "diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--no-renames", baseTree, index.Revision)
+	if err != nil {
+		return nil
+	}
+	if refusal := rangeCertainPathRefusal(ctx, index, baseTree, raw); refusal != nil {
+		return refusal
+	}
+	if rangeCertainlyExceeds(ctx, index, baseTree, raw, pathLimit) {
+		return rangePathBoundError(pathLimit)
+	}
+	return nil
+}
+
+// rangeCertainPathRefusal returns the path refusal the exact range diff must
+// end in, without its copy detection (ERI-V0-262, V1-2221). raw is the
+// rename-free diff. Every changed path there reaches the exact parse, as a
+// changed path or as a rename or copy source, and the exact parse validates
+// each; so one changed path that fails validateRangePath proves the exact
+// diff refuses. Which refusal it returns is its first failing record's, so
+// the answer is proved only when every path that could fail there fails the
+// same way: every changed path that fails, and, when there are additions,
+// every base-tree path, any of which may be a copy source. The exact diff
+// itself must also complete: the repository is not a partial clone, whose
+// missing blobs it would report instead, and its output, which can only add
+// one source path and a score to each addition, stays within maxStatusBytes.
+// A path that is not UTF-8, any other doubt, or a Git failure answers nil.
+func rangeCertainPathRefusal(ctx context.Context, index *Index, baseTree string, raw []byte) error {
+	fields := bytes.Split(bytes.TrimSuffix(raw, []byte{0}), []byte{0})
+	if len(raw) == 0 || len(fields)%2 != 0 {
+		return nil
+	}
+	var refusal error
+	same := func(candidate error) bool {
+		if refusal == nil {
+			refusal = candidate
+		}
+		first, firstOK := refusal.(*Error)
+		next, nextOK := candidate.(*Error)
+		return firstOK && nextOK && *first == *next
+	}
+	additions := 0
+	for position := 0; position < len(fields); position += 2 {
+		metadata := strings.Fields(string(fields[position]))
+		if len(metadata) != 5 || len(metadata[0]) != 7 || metadata[0][0] != ':' || !validObjectID(metadata[2], index.ObjectFormat) ||
+			!validObjectID(metadata[3], index.ObjectFormat) || len(metadata[4]) != 1 || !utf8.Valid(fields[position+1]) {
+			return nil
+		}
+		if metadata[4] == "A" {
+			additions++
+		}
+		if err := validateRangePath(string(fields[position+1])); err != nil && !same(err) {
+			return nil
+		}
+	}
+	if refusal == nil || mayLackObjects(ctx, index.Root) {
+		return nil
+	}
+	if additions == 0 {
+		return refusal
+	}
+	listing, err := git(ctx, index.Root, maxStatusBytes, nil, "ls-tree", "-r", "-z", "--name-only", baseTree)
+	if err != nil {
+		return nil
+	}
+	longest := 0
+	for _, candidate := range bytes.Split(bytes.TrimSuffix(listing, []byte{0}), []byte{0}) {
+		if !utf8.Valid(candidate) {
+			return nil
+		}
+		longest = max(longest, len(candidate))
+		if err := validateRangePath(string(candidate)); err != nil && !same(err) {
+			return nil
+		}
+	}
+	// A copy or rename record adds "NNN" to the status and "\0source" to an
+	// addition's record; nothing else grows.
+	if len(raw)+additions*(longest+4) > maxStatusBytes {
+		return nil
+	}
+	return refusal
+}
+
 // rangeCertainlyExceeds reports whether the exact range diff (readRangeChanges)
 // must hold more than pathLimit entries and must parse without an earlier
 // refusal, so refusing on the bound now returns the bytes it would return
@@ -436,11 +524,8 @@ var readRangeChangesFor = readRangeChanges
 // lack the blobs detection reads, and the exact diff then reports the missing
 // object instead. Any doubt or Git failure answers false, and the exact path
 // decides as before.
-func rangeCertainlyExceeds(ctx context.Context, index *Index, baseTree string, pathLimit int) bool {
-	raw, err := git(ctx, index.Root, maxStatusBytes, nil, "diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--no-renames", baseTree, index.Revision)
-	if err != nil {
-		return false
-	}
+// raw is the rename-free diff rangeCertainRefusal read.
+func rangeCertainlyExceeds(ctx context.Context, index *Index, baseTree string, raw []byte, pathLimit int) bool {
 	fields := bytes.Split(bytes.TrimSuffix(raw, []byte{0}), []byte{0})
 	if len(raw) == 0 || len(fields)%2 != 0 {
 		return false

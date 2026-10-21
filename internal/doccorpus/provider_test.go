@@ -75,6 +75,7 @@ func providerFixture(t *testing.T, edit func(*ProviderRecord)) (string, Manifest
 	return root, m
 }
 func TestCorpusIndependentProviderAndNativeObservation(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-005 DCP-V1-007 DCP-V1-009 provider", func(t *testing.T) {
 		root, m := providerFixture(t, nil)
 		a, err := Build(context.Background(), root, m)
@@ -108,6 +109,7 @@ func TestCorpusIndependentProviderAndNativeObservation(t *testing.T) {
 	})
 }
 func TestCorpusHostileProviderRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-004 DCP-V1-005 hostile", func(t *testing.T) {
 		cases := map[string]func(*ProviderRecord){
 			"version drift": func(r *ProviderRecord) { r.Version = "2" },
@@ -141,6 +143,7 @@ func TestCorpusHostileProviderRefusals(t *testing.T) {
 	})
 }
 func TestCorpusUnsupportedAndGeneratedInputClosure(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-003 unsupported", func(t *testing.T) {
 		root, m := fixture(t)
 		for name, body := range map[string]string{"unknown.zig": "const unsupported = 1;\n", "generated.json": `{"schema":"corvint-evidence-corpus/1"}`} {
@@ -177,6 +180,7 @@ func TestCorpusUnsupportedAndGeneratedInputClosure(t *testing.T) {
 	})
 }
 func TestCorpusUnknownAndConflictStayExplicit(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-005 DCP-V1-010 unknown", func(t *testing.T) {
 		root, m := providerFixture(t, func(r *ProviderRecord) {
 			r.Claims[0].Evidence = Evidence{Derivation: "declared", Trust: "generated", State: "unknown", Freshness: "fresh", Anchors: []Anchor{}, Unknown: "provider has not collected evidence", Limitations: []string{}}
@@ -193,6 +197,7 @@ func TestCorpusUnknownAndConflictStayExplicit(t *testing.T) {
 	})
 }
 func TestCorpusMaintenanceHumanProseAndTampering(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-017 maintenance", func(t *testing.T) {
 		root, m := fixture(t)
 		a, err := Build(context.Background(), root, m)

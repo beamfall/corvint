@@ -636,6 +636,7 @@ func (h *ftHarness) apply(a transaction.Artifact, stage *fixtureStage, pre *wire
 }
 
 func TestTMV0009_AS11_FixtureFoundationFiveOperations(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
 			h := ftNew(t, op != transaction.Init)

@@ -15,6 +15,7 @@ import (
 // with the same result axes as the legacy-labelled public case, so the label
 // raises nothing; the portable consumer asserts the same (CEM-V1-312).
 func TestCEMV1312OpaqueReceiptLabelVerifies(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

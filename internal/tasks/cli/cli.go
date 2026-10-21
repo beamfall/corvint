@@ -135,6 +135,9 @@ func Run(env Env) int {
 	if result := commandHelp(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := readOnlyRefusal(args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	switch args[0] {
 	case "criterion-binding":
 		return emit(env.Stdout, criterionBindingCommand(env, args[1:]))
@@ -182,9 +185,9 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags}, func(a []string) *wire.Result { return ticketList(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
-			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
+			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
@@ -681,6 +684,12 @@ var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
 	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
+	// recordFieldRoutes names where ticket list and search items' omitted
+	// record keys are read (CTS-V0-012): the items drop the full record.
+	recordFieldRoutes = map[string]string{
+		"labels":  "list items omit labels; read them with ticket show <id> --fields record.labels, or ticket export for whole records",
+		"effects": "list items omit effects; read them with ticket show <id> --fields record.effects, or ticket export for whole records",
+	}
 )
 
 // page is the parsed `--offset` / `--limit` pair (§3.3): offset ≥ 0, limit
@@ -1053,6 +1062,9 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		if strings.ContainsAny(t, "\t\n\r") {
 			return f, wire.Errorf(wire.CodeMalformed, "--text", "search text must not contain TAB, LF or CR")
 		}
+		if strings.TrimSpace(t) == "" {
+			return f, wire.Errorf(wire.CodeMalformed, "--text", "search text must contain a word")
+		}
 		low := strings.ToLower(t)
 		f.text = &low
 	}
@@ -1091,8 +1103,17 @@ func (f searchFilter) matches(rec *ticket.Record) bool {
 		}
 	}
 	if f.text != nil {
-		if !strings.Contains(strings.ToLower(rec.Title), *f.text) && (rec.Body == nil || !strings.Contains(strings.ToLower(*rec.Body), *f.text)) {
-			return false
+		// Token-based (CTS-V0-012): every whitespace-separated word must occur,
+		// case-insensitively, in the title or the body, in any order, so a
+		// multi-word phrase matches a ticket whose words are not adjacent.
+		title, body := strings.ToLower(rec.Title), ""
+		if rec.Body != nil {
+			body = strings.ToLower(*rec.Body)
+		}
+		for _, word := range strings.Fields(*f.text) {
+			if !strings.Contains(title, word) && !strings.Contains(body, word) {
+				return false
+			}
 		}
 	}
 	return true
@@ -1486,6 +1507,17 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+		// ATR-V0-191: the ticket's live attempt, its holder and recovery.
+		observed := in
+		observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+		switch current := transaction.CurrentAttempt(observed, id); {
+		case rc.journalAbsent:
+			val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
+		case current == nil:
+			val.Obj.Set("liveAttempt", wire.Null())
+		default:
+			val.Obj.Set("liveAttempt", current.Value())
+		}
 		// V1-2038: the gate set complete enforces, policy-required gates included.
 		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
 		// CAL-V0-084: null without a journal, since nothing is observed.

@@ -113,6 +113,14 @@ func TestFinishLaneDCWV0067NamesTheInterruptedStep(t *testing.T) {
 	if want := "dogfood-finish-lane: prepare INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n"; stdout.String() != want {
 		t.Fatalf("stdout = %q, want %q (stderr %q)", stdout.String(), want, stderr.String())
 	}
+	// DCW-V0-116: the interruption names the exact rerun that resumes it, and
+	// DCW-V0-115: the step's timing and the run's total are still written.
+	if want := "dogfood-finish-lane: INTERRUPTED prepare\n  fix: rerun corvint dogfood finish-lane --base " + base + " (or make dogfood-finish BASE=" + base + ") with the same inputs; it prepares the map again"; !strings.Contains(stderr.String(), want) {
+		t.Fatalf("stderr lacks %q:\n%s", want, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "dogfood-finish-lane: TIMING prepare seconds=") || !strings.Contains(stderr.String(), "dogfood-finish-lane: TIMING total seconds=") {
+		t.Fatalf("stderr lacks the TIMING lines:\n%s", stderr.String())
+	}
 	// A row the pass recorded before the interruption stays in the block.
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
@@ -141,14 +149,23 @@ func TestFinishLaneDCWV0067NamesAnInterruptedSeal(t *testing.T) {
 		{"dogfood-check: SUMMARY hunks=1\ndogfood-check: PASS\n", "seal"},
 		{"dogfood-check: SUMMARY hunks=1\n", "check"},
 	} {
-		var stdout bytes.Buffer
-		lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: io.Discard}, stdout: &stdout, step: "check"}
+		var stdout, stderr bytes.Buffer
+		lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: &stderr, base: "b0", target: "t0"}, stdout: &stdout, step: "check"}
 		if _, err := boundary(context.Background(), func() int { lane.sealInterrupted([]byte(tc.verdict)); return 0 }, func() {}); !errors.Is(err, ErrInterrupted) {
 			t.Fatalf("sealInterrupted error = %v, want ErrInterrupted", err)
 		}
 		lane.interrupted()
 		if want := tc.verdict + "dogfood-finish-lane: " + tc.step + " INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=0\n"; stdout.String() != want {
 			t.Errorf("stdout = %q, want %q", stdout.String(), want)
+		}
+		// DCW-V0-116: the fix restores the bind commit's sidecar, and a stopped
+		// seal's staged rename, before the rerun resumes from the bind commit.
+		restore := "git restore --source=HEAD --staged --worktree -- " + finishLaneSidecar
+		if tc.step == "seal" {
+			restore += " .corvint/changes/t0.cem.json"
+		}
+		if !strings.Contains(stderr.String(), "\n  fix: ") || !strings.Contains(stderr.String(), restore) || !strings.Contains(stderr.String(), "rerun corvint dogfood finish-lane --base b0 ") || !strings.Contains(stderr.String(), "resumes from the bind commit t0") {
+			t.Errorf("%s stderr = %q, want the restore %q and the rerun", tc.step, stderr.String(), restore)
 		}
 	}
 }
@@ -336,5 +353,54 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	}
 	if calls == 0 || strings.Contains(stderr.String(), "REFUSE unsupported-verify-syntax") || !strings.Contains(stdout.String(), "prepare FAIL") {
 		t.Fatalf("valid verify file did not reach prepare: calls=%d stdout=%q stderr=%q", calls, stdout.String(), stderr.String())
+	}
+}
+
+// DCW-V0-115: finish-lane's prepare pass runs only the CEM prepare its
+// decision reads, never the coordination query, impact, OCM or recorder steps
+// the rebind recomputes, and the run keeps one timing row per command.
+func TestFinishLaneDCWV0115PreparePassRunsOnlyCEMPrepare(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	var labels []string
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _ io.Writer, _ io.Writer) int {
+		labels = append(labels, commandLabel(args))
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	if err != nil || code == 0 || !strings.Contains(stdout.String(), "dogfood-finish-lane: prepare FAIL") {
+		t.Fatalf("code=%d err=%v stdout=%q stderr=%q", code, err, stdout.String(), stderr.String())
+	}
+	if len(labels) == 0 || labels[0] != "cem prepare" {
+		t.Fatalf("prepare pass commands %q, want cem prepare first", labels)
+	}
+	for _, label := range labels {
+		if label != "cem prepare" && label != "dogfood-observe" {
+			t.Fatalf("prepare pass ran %q; commands %q", label, labels)
+		}
+	}
+	gitDir := testGit(t, root, "rev-parse", "--absolute-git-dir")
+	detail := gitDir + "/corvint/" + finishLaneTimings
+	if want := "dogfood-finish-lane: TIMING total seconds="; !strings.Contains(stderr.String(), want) || !strings.Contains(stderr.String(), " commands="+fmt.Sprint(len(labels))+" detail="+detail+"\n") {
+		t.Fatalf("stderr lacks the total TIMING line naming %s:\n%s", detail, stderr.String())
+	}
+	table, err := os.ReadFile(detail)
+	if err != nil || !strings.HasPrefix(string(table), "step\tcommand\texit\tseconds\nprepare\tcem prepare\t1\t") || strings.Count(string(table), "\n") != len(labels)+1 {
+		t.Fatalf("timings %q err=%v", table, err)
 	}
 }

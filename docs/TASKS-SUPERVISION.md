@@ -255,6 +255,12 @@ worker write refs, objects, hooks, `config` and the store journal itself, so a s
 still plant commands that later run in the dispatcher's or operator's unsandboxed Git, and can edit
 queue state without the CLI.
 
+A review-only Codex run (`codex exec -s read-only`) is not read-only for the store on its own: with
+the default `approval_policy=on-request`, a command Codex escalates runs outside the sandbox and can
+write `.git/taskman` (V1-1237, V1-1441). Launch a review with `-c approval_policy="never"` and
+`CORVINT_TASKS_READ_ONLY=1` in its environment; `corvint-tasks` then refuses every non-read command
+`UNSUPPORTED` (ATR-V0-212). The variable does not stop a write that bypasses the CLI.
+
 A Gemini CLI host runs headless with `-p`, where a tool call no policy rule allows is denied or
 fails, so a `--policy` file is the allow-list. This example is derived from the Gemini CLI 0.54.0
 source and is not live-qualified (see the

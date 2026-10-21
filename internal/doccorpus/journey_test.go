@@ -9,6 +9,7 @@ import (
 )
 
 func TestCorpusJourneyRequiresIndependentStepEvidence(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-008 journey", func(t *testing.T) {
 		root, m := fixture(t)
 		evidence := declaredEvidence(t, root, m, "src/view.ts", 1)

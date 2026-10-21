@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-// TestSnapshotMissNoticeNamesTheBuild is V1-1640 (IDX-SNAP-V0-102): a
-// `context` or path `impact` call that finds no snapshot and pays an in-memory
+// TestSnapshotMissNoticeNamesTheBuild is V1-1640 (IDX-SNAP-V0-102, and
+// IDX-SNAP-V0-104 for both `query` paths): a `context`, path `impact` or `query` call that finds no snapshot and pays an in-memory
 // build at least snapshotMissNoticeAfter long names that build, its duration
 // and the `index` argv on stderr; stdout, the exit code and the snapshot store
 // are unchanged, a build under the threshold stays silent, and a hit says
@@ -42,13 +42,16 @@ func TestSnapshotMissNoticeNamesTheBuild(t *testing.T) {
 	}
 	contextArgs := []string{"context", "--task", "where is ParseToken defined", "--limit", "3"}
 	impactArgs := []string{"impact", "internal/parser/token.go"}
-	for _, arguments := range [][]string{contextArgs, impactArgs} {
+	queryArgs := []string{"query", "--task", "where is ParseToken defined", "--limit", "3"}
+	authorityArgs := []string{"query", "--task", authorityStartPrompt, "--limit", "3"}
+	readers := [][]string{contextArgs, impactArgs, queryArgs, authorityArgs}
+	for _, arguments := range readers {
 		quiet, quietErr := invoke(time.Hour, arguments...)
 		if quietErr != "" {
 			t.Fatalf("%s: a build under the threshold wrote stderr %q", arguments[0], quietErr)
 		}
 		loud, notice := invoke(0, arguments...)
-		if arguments[0] == "context" && loud != quiet {
+		if arguments[0] != "impact" && loud != quiet {
 			t.Fatalf("%s: the notice changed stdout:\n%s\n%s", arguments[0], quiet, loud)
 		}
 		want := "corvint " + arguments[0] + ": no index snapshot matches this tree, so this call built the full index in memory ("
@@ -63,7 +66,7 @@ func TestSnapshotMissNoticeNamesTheBuild(t *testing.T) {
 	if code := runContext(context.Background(), []string{"--root", root, "index"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
 		t.Fatalf("index: %d %s", code, stderr.String())
 	}
-	for _, arguments := range [][]string{contextArgs, impactArgs} {
+	for _, arguments := range readers {
 		if _, hitErr := invoke(0, arguments...); hitErr != "" {
 			t.Fatalf("%s: a snapshot hit wrote stderr %q", arguments[0], hitErr)
 		}

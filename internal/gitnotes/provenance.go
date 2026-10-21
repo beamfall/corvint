@@ -73,7 +73,18 @@ func ProvenanceWithVerdictsTip(ctx context.Context, root, commit, notesTip strin
 		}
 	}
 	rows := []map[string]any{}
-	anchor, err := repo.anchorRow(ctx, target)
+	// With --notes-tip the anchor note is read from the live commit the tip
+	// state captured, by object ID, so a ref that moves away and back during
+	// the read cannot supply other content (CEM-V1-067, V1-2157).
+	anchorRead("before")
+	var anchor map[string]any
+	if tip != nil {
+		notesCommit, _ := tip["live"].(string)
+		anchor, err = repo.anchorRowAt(ctx, target, true, notesCommit)
+	} else {
+		anchor, err = repo.anchorRow(ctx, target)
+	}
+	anchorRead("after")
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +144,10 @@ func ProvenanceWithVerdictsTip(ctx context.Context, root, commit, notesTip strin
 	}
 	return result, nil
 }
+
+// anchorRead is a test seam around the anchor note read of a provenance
+// listing; it does nothing in production.
+var anchorRead = func(stage string) {}
 
 // verdictsRead is a test seam around the verdict ledger read of a
 // provenance listing; it does nothing in production.
@@ -212,7 +227,21 @@ func historyRow(kind, source, state string) map[string]any {
 // hash to the digest, and, for a `/1` pointer, the map must describe target
 // (pointerState).
 func (r *repository) anchorRow(ctx context.Context, target string) (map[string]any, error) {
-	noteOid, err := r.noteBlob(ctx, Ref, target)
+	return r.anchorRowAt(ctx, target, false, "")
+}
+
+// anchorRowAt is anchorRow over a fixed notes commit when pinned is true: the
+// note is found in that commit's tree by object ID, never through the mutable
+// ref, and an empty notesCommit (absent ref) reads no row.
+func (r *repository) anchorRowAt(ctx context.Context, target string, pinned bool, notesCommit string) (map[string]any, error) {
+	var noteOid string
+	var err error
+	switch {
+	case !pinned:
+		noteOid, err = r.noteBlob(ctx, Ref, target)
+	case notesCommit != "":
+		noteOid, err = r.noteBlobAt(ctx, notesCommit, target)
+	}
 	if err != nil || noteOid == "" {
 		return nil, err
 	}

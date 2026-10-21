@@ -77,6 +77,7 @@ func rawCanonicalDiff(t *testing.T, root, base, target string) []byte {
 // Every honest section shape must pass the proof byte for byte, in both
 // object formats.
 func TestCanonicalDiffProvesEveryHonestShape(t *testing.T) {
+	t.Parallel()
 	for _, format := range []string{"sha1", "sha256"} {
 		t.Run(format, func(t *testing.T) {
 			root, base, target := shapeRepo(t, format)
@@ -103,6 +104,7 @@ func TestCanonicalDiffProvesEveryHonestShape(t *testing.T) {
 // A patch that is not the derivation of the verified objects refuses, whether
 // a hunk byte, a header, a marker, or a whole section disagrees.
 func TestRequirePatchProvenanceRefusesDoctoredPatch(t *testing.T) {
+	t.Parallel()
 	root, base, target := shapeRepo(t, "sha1")
 	repo := open(t, root)
 	honest := rawCanonicalDiff(t, root, base, target)
@@ -136,6 +138,7 @@ func TestRequirePatchProvenanceRefusesDoctoredPatch(t *testing.T) {
 // longer sees one changed entry, must refuse rather than yield the narrower
 // patch.
 func TestCanonicalDiffRefusesMislabeledIntermediateTree(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	writeFile(t, root, "docs/rule.txt", "the rule changed\n")
 	gitCmd(t, root, "add", ".")
@@ -198,6 +201,7 @@ func writeLooseTree(t *testing.T, root string, body []byte) string {
 // The walk descends exactly MaxTreeDepth levels and refuses one more, so the
 // per-level batch spawn count is bounded.
 func TestCanonicalDiffBoundsChangeSetDepth(t *testing.T) {
+	t.Parallel()
 	root, base, _ := makeRepo(t)
 	repo := open(t, root)
 	within := deepTarget(t, root, base, MaxTreeDepth-1)

@@ -12,6 +12,7 @@ import (
 // IDX-SNAP-V0-012: the build-cost record needs an existing store, round-trips at millisecond
 // resolution, survives the writer's eviction, and is not read through a symlink.
 func TestBuildCostRecordRoundTripsBesideTheSnapshots(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	if err := RecordBuildCost(index.Root, time.Second); err == nil {
 		t.Fatal("a build cost was recorded without a snapshot store")
