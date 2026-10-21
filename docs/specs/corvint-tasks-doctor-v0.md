@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-09
-Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183)
+Intent status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 715](https://github.com/beamfall/corvint/issues/715);
 the pure-read rule TM-V0-008 and the shared journal audit CAL-V0-061; the attempt and pool
@@ -17,7 +17,7 @@ recorded in `docs/build-log/2026-10-17-V1-1598-doctor-findings.md`.
 
 ## Agent digest
 - Claim: `corvint-tasks doctor` names stuck-queue patterns from journal, pool and attempt data plus bounded plugins; `doctor --line` prints a cached status line.
-- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
+- Status: accepted (decisions 0481 and 0519; GitHub #715 and #791; TQD-V0-001..013); TQD-V0-020..033 and the TQD-V0-001 `--config`/`dispatchers` amendment accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1598, V1-1601, V1-1604, V1-1192, V1-1193, V1-1519; GitHub #1041, #1044, #1047); TQD-V0-040..042 (doctor findings honour the adopter-declared progress signal) accepted under the same standing auto-accept (V1-1608; GitHub #1050); TQD-V0-043..044 (RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from the dispatcher's queue observation) accepted under the same standing auto-accept (V1-1914, V1-1916; GitHub #1181, #1183); TQD-V0-045 (elided-record walks share receipt reads) accepted under the same standing auto-accept (V1-1193; GitHub #791); TQD-V0-013 (COMPLETED, ARCHIVED and HELD tickets are not NO_PROGRESS_HANDOFF) from V1-1176; experimental source implementation with focused CLI tests.
 - Exists: built-in PARKED_WITH_OPEN_ITEMS (configured dispatchers' parked tickets with open obligation items, TOL-V0-125), NO_PROGRESS_HANDOFF, REPEAT_REFUSAL, SLOW_LANE_RECOVERY, SETUP_ONLY_PROOF and FALSE_IDLE (detached-run supervisors only) detectors; RUNNABLE_HELD_IDLE and ROLE_QUEUE_DEEP from configured dispatchers' queue observations; QUEUE_LOCK_HELD, SLOW_QUEUE_COMMAND, NO_COMPLETIONS and FD_PRESSURE; HOST_RETRY_STORM, HOST_ERRORS and EARLY_REFUSAL from configured dispatchers' worker logs; dispatcher work-state health with WORK_STATE_FAILING; a `--config` file of thresholds; a notify hook on `--refresh` with NOTIFY_FAILED; bounded plugins with PLUGIN_FAILED; `--refresh` atomic cache; `--line` lock-free cache read.
 - Blocked on: PREFLIGHT_FAILURE waits for #713's recorded preflight evidence; the Linux process walk and `/proc` lock probes are unqualified (parser tests only); darwin names a lock holder only approximately (TQD-V0-021).
 - Read next: Requirements; Detectors; Failure modes; Traceability.
@@ -71,6 +71,7 @@ evidence. Its only write is the summary cache, made by the explicit `doctor --re
 
 - `TQD-V0-043`: For each configured dispatcher the doctor MUST read the ATR-V0-150 queue observation (`admission.json`, profile `taskman-dispatch-admission/0`) from its `programDir`. A missing observation yields nothing. One that does not decode (another profile, another program, out of bounds), or that is not a regular file (a FIFO is refused without blocking, and a final symbolic link is not followed), adds a `scan` warning `queue observation unreadable` and no finding; one written more than three of its own ticks before the scan's observation time adds the warning `queue observation is stale` and no finding. Each held run-only ticket the observation records with at least `runnableHeldIdleTicks` consecutive ticks (default 3, settable in the `--config` thresholds beside TQD-V0-020's, 1..1048576) and at least one free member yields one RUNNABLE_HELD_IDLE finding: `who` is `program/role/ticket`, `firstSeen` the streak's first tick, and the detail names the fence (`PLAN_WINDOW`, `GLOBAL_CAP`, `ROLE_CAP`, `TIER_CAP`, `BUDGET` or `PRESSURE`) with its recorded reason, the tick count, the pool, its free-member count and their names. Tickets of roles not declared `runOnly`, and holds while the pool had no free member, are never recorded and so never reported. Status: (accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181).
 - `TQD-V0-044`: From the same observation, a role whose queue (running plus waiting sessions) stayed deeper than its effective cap for at least `roleQueueDeepTicks` consecutive ticks (default 3, settable like `runnableHeldIdleTicks`) yields one ROLE_QUEUE_DEEP finding when the observation's pressure is `CALM`: `who` is `program/role`, `firstSeen` the streak's first tick, and the detail names the depth with its running and waiting counts, the effective cap with `cap` and any `capMax`, the oldest waiting ticket and since when, and the headroom: the global cap's free sessions, or that the global cap is full. An observation whose pressure is `RAISED`, `UNKNOWN` or `NOT_CONFIGURED` yields no ROLE_QUEUE_DEEP finding: missing or unknown pressure abstains rather than suggesting a raise. These two thresholds extend TQD-V0-020's closed list by exactly these members. Status: (accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183).
+- `TQD-V0-045`: When the scan restores attempt records that elided liveness receipts omit (CAL-V0-300), walks for different attempts MUST share one read and decode of each receipt within one doctor run, so a scan reads each receipt at most twice (once in the scan, once in a walk) instead of once per attempt whose walk crosses it; a receipt's read or decode error is shared the same way, so a walk that would have failed still fails. With the observation clock fixed, the complete encoded `findings` and `scan` values are byte-identical to unshared walks. Nothing is cached between runs and the walk bound (`snapshot.MaxElidedRun`) and TQD-V0-004's scan bound are unchanged. On a synthetic compacted store of 1,009 receipts (24 live attempts x 40 heartbeats) the best of five interleaved runs measured 4.06 s CPU (3.37 s wall) unshared and 1.30 s CPU (1.03 s wall) shared at host load 29-64 on 12 CPUs. Status: (accepted 2026-10-20, V1-1193, standing lane auto-accept; GitHub #791).
 
 ## Detectors
 
@@ -150,6 +151,11 @@ a stale or newer-profile observation warns and reports nothing; ROLE_QUEUE_DEEP 
 oldest wait and headroom, the full-global-cap headroom, both thresholds, and no finding at `UNKNOWN`,
 `NOT_CONFIGURED` or `RAISED` pressure.
 
+`internal/tasks/cli/doctor_walk_test.go` (darwin and linux) covers TQD-V0-045 on a store built through the
+real CLI and compacted with `CompactLiveness`: shared and unshared walks give identical findings and
+scan values, shared walks read no receipt more than twice, and unshared walks demonstrably re-read; opt-in
+with `CORVINT_DOCTOR_WALK_COST=N` (and `CORVINT_DOCTOR_WALK_ATTEMPTS`), the interleaved cost measurement.
+
 ## Compatibility and rollback
 
 The verb, item profile and cache profile are new; no stored format changes. Rollback removes the
@@ -163,6 +169,7 @@ behaviour under every policy.
 The TQD-V0-043..044 amendments add two finding kinds and two optional thresholds; rolling them back removes the
 detectors, and a doctor config naming `runnableHeldIdleTicks` or `roleQueueDeepTicks` is then refused
 as an unknown threshold, so remove those members first.
+The TQD-V0-045 walk sharing is additive and in-memory; rollback returns each walk to its own reads with identical results.
 
 ## Traceability
 
@@ -199,3 +206,4 @@ as an unknown threshold, so remove those members first.
 | TQD-V0-042 | `TestTQDV0042_SetupOnlyProofIgnoresProgressSignal` |
 | TQD-V0-043 | `TestTQDV0043_RunnableHeldIdle` |
 | TQD-V0-044 | `TestTQDV0044_RoleQueueDeep` |
+| TQD-V0-045 | `TestTQDV0045_ElidedWalksShareReceipts`, `TestTQDV0045_WalkCostMeasurement` |
