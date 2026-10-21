@@ -13,8 +13,11 @@ importers that batch CI then failed on (11 of about 24 batches needed two 31-min
 
 - AFP-V0-162 (accepted under the owner's standing auto-accept, 2026-10-11): the `affected-plan/1`
   default carries an optional `tiers` member `{counts, summary, units}` computed from each
-  selection's witness: tier 0 owns or encloses a dirty path, tier 1 is a one-edge dependent, a
-  named-path reader or a same-parent sibling of a tier-0 unit, tier 2 the rest. The selection,
+  selection's witness: tier 0 owns or encloses a dirty path, tier 1 is a one-edge dependent or a
+  same-parent sibling of a tier-0 unit below a top-level directory, tier 2 the rest. Measured on
+  this change (109 selections): with path readers in tier 1 it held 87 (spec and build-log paths
+  have many readers); with siblings under `internal/` and `cmd/` it still held 45; with both
+  narrowed it is `tier0=2 tier1=0 tier2=107`. The selection,
   `provider.go.packages` and the `--full` `affected-plan/0` document are unchanged. The member is
   in the shared compact projection, so the review embedding (RGV-V0-015) keeps equal to the default
   document. Compatible under CCF-V1-006; the `affected committed range` core-freeze golden is

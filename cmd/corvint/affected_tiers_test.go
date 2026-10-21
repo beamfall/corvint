@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // AFP-V0-162: a change to one package puts it in tier 0, its direct importer
@@ -14,15 +16,15 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	files := map[string]string{
-		"go.mod":              "module example.com/tiers\n\ngo 1.27.0\n",
-		"a/core/core.go":      "package core\n\nfunc Value() int { return 1 }\n",
-		"a/core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
-		"b/mid/mid.go":        "package mid\n\nimport \"example.com/tiers/a/core\"\n\nfunc Value() int { return core.Value() }\n",
-		"b/mid/mid_test.go":   "package mid\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
-		"c/leaf/leaf.go":      "package leaf\n\nimport \"example.com/tiers/b/mid\"\n\nfunc Value() int { return mid.Value() }\n",
-		"c/leaf/leaf_test.go": "package leaf\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
-		"a/peer/peer.go":      "package peer\n\nimport \"example.com/tiers/b/mid\"\n\nfunc Value() int { return mid.Value() }\n",
-		"a/peer/peer_test.go": "package peer\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+		"go.mod":                "module example.com/tiers\n\ngo 1.27.0\n",
+		"x/a/core/core.go":      "package core\n\nfunc Value() int { return 1 }\n",
+		"x/a/core/core_test.go": "package core\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+		"x/b/mid/mid.go":        "package mid\n\nimport \"example.com/tiers/x/a/core\"\n\nfunc Value() int { return core.Value() }\n",
+		"x/b/mid/mid_test.go":   "package mid\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+		"x/c/leaf/leaf.go":      "package leaf\n\nimport \"example.com/tiers/x/b/mid\"\n\nfunc Value() int { return mid.Value() }\n",
+		"x/c/leaf/leaf_test.go": "package leaf\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
+		"x/a/peer/peer.go":      "package peer\n\nimport \"example.com/tiers/x/b/mid\"\n\nfunc Value() int { return mid.Value() }\n",
+		"x/a/peer/peer_test.go": "package peer\n\nimport \"testing\"\n\nfunc TestValue(t *testing.T) { _ = Value() }\n",
 	}
 	for name, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(name))
@@ -39,7 +41,7 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 	} {
 		affectedGit(t, root, arguments...)
 	}
-	appendFile(t, filepath.Join(root, "a", "core", "core.go"), "\n// edited\n")
+	appendFile(t, filepath.Join(root, "x", "a", "core", "core.go"), "\n// edited\n")
 
 	receipt, _, stderr, code := runAffectedCLI(t, root)
 	if code != 0 {
@@ -50,10 +52,10 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 		t.Fatalf("default document has no tiers member: %v", receipt)
 	}
 	want := map[string]any{
-		"go:example.com/tiers/a/core": float64(0),
-		"go:example.com/tiers/b/mid":  float64(1),
-		"go:example.com/tiers/a/peer": float64(1),
-		"go:example.com/tiers/c/leaf": float64(2),
+		"go:example.com/tiers/x/a/core": float64(0),
+		"go:example.com/tiers/x/b/mid":  float64(1),
+		"go:example.com/tiers/x/a/peer": float64(1),
+		"go:example.com/tiers/x/c/leaf": float64(2),
 	}
 	if !reflect.DeepEqual(tiers["units"], want) {
 		t.Fatalf("tiers.units = %v, want %v", tiers["units"], want)
@@ -77,5 +79,17 @@ func TestAFPV0162AffectedTiersRankTheFullSelection(t *testing.T) {
 func TestAFPV0162EmptySelectionOmitsTiers(t *testing.T) {
 	if tiers := tierAffectedSelections(nil); tiers != nil {
 		t.Fatalf("empty selection tiers = %v, want nil", tiers)
+	}
+}
+
+// AFP-V0-162: a changed package directly under a top-level directory makes
+// no siblings, so internal/* does not flood tier 1.
+func TestAFPV0162TopLevelParentHasNoSiblings(t *testing.T) {
+	tiers := tierAffectedSelections([]affected.Selection{
+		{UnitID: "go:example.com/m/internal/changed", Witness: affected.Witness{Kind: affected.WitnessDirectSource, DirtyPath: "internal/changed/a.go", Via: []string{"go:example.com/m/internal/changed"}}},
+		{UnitID: "go:example.com/m/internal/other", Witness: affected.Witness{Kind: affected.WitnessDependency, DirtyPath: "internal/changed/a.go", Via: []string{"go:example.com/m/internal/changed", "go:example.com/m/internal/mid", "go:example.com/m/internal/other"}}},
+	})
+	if tiers.Units["go:example.com/m/internal/other"] != 2 || tiers.Summary != "tier0=1 tier1=0 tier2=1" {
+		t.Fatalf("tiers = %+v", tiers)
 	}
 }

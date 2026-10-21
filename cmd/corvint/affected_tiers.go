@@ -23,8 +23,10 @@ const affectedTierSummary = "tier0=%d tier1=%d tier2=%d"
 
 // tierAffectedSelections assigns each selection its tier: 0 when the unit
 // owns or encloses a dirty path; 1 when it is a direct dependent of a changed
-// unit (a one-edge witness chain), names a dirty path by literal or declared
-// read scope, or shares a tier-0 unit's parent directory; 2 otherwise. It
+// unit (a one-edge witness chain) or shares the parent directory of a tier-0
+// unit whose dirty path lies at least three directories deep (so the parent
+// is not a top-level directory); 2 otherwise, path readers included, since most changes touch a spec or
+// build-log path that many packages name. It
 // returns nil for an empty selection, so the member is then omitted.
 func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 	if len(selected) == 0 {
@@ -36,7 +38,11 @@ func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 		switch selection.Witness.Kind {
 		case affected.WitnessDirectSource, affected.WitnessDirectTest, affected.WitnessEnclosingPackage:
 			tiers.Units[selection.UnitID] = 0
-			parents[affectedUnitParent(selection.UnitID)] = true
+			// A top-level directory such as internal/ or cmd/ is no
+			// neighbourhood: its children are siblings only by layout.
+			if strings.Contains(path.Dir(path.Dir(selection.Witness.DirtyPath)), "/") {
+				parents[affectedUnitParent(selection.UnitID)] = true
+			}
 		}
 	}
 	for _, selection := range selected {
@@ -49,8 +55,6 @@ func tierAffectedSelections(selected []affected.Selection) *affectedTiers {
 			if len(selection.Witness.Via) <= 2 {
 				tier = 1
 			}
-		case affected.WitnessPathLiteralReader, affected.WitnessDeclaredReadScope:
-			tier = 1
 		}
 		if parents[affectedUnitParent(selection.UnitID)] {
 			tier = 1
