@@ -948,6 +948,7 @@ CCE-V0-022	docs/specs/change-compiled-e2e-v0.md	`prove` MUST pass the runner onl
 CCE-V0-023	docs/specs/change-compiled-e2e-v0.md	Every `corvint-test e2e` subcommand MUST exit by this closed table: `0` the	unrecorded	-
 CCE-V0-024	docs/specs/change-compiled-e2e-v0.md	Compile hygiene: emitted golden bytes MUST be pinned to the compiler version, so	unrecorded	-
 CCE-V0-025	docs/specs/change-compiled-e2e-v0.md	Text read from the page or the runner (error messages, DOM snippets, console	unrecorded	-
+CCE-V0-086	docs/specs/change-compiled-e2e-v0.md	A relative `--root`, including the default `.`, MUST resolve against the working	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
@@ -2543,6 +2544,7 @@ FPK-V0-078	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-2
 FPK-V0-079	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-080	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
 FPK-V0-081	docs/specs/falsifiable-packet-v0.md	(experimental; proposed 2026-10-20, V1-2116 for GitHub #1354; accepted under the	standing	2026-10-20; V1-2116; #1354; 2026-10-11
+FPK-V0-142	docs/specs/falsifiable-packet-v0.md	(proposed 2026-10-21, V1-1483, V1-1484, V1-1485 and V1-1577; accepted under the	owner	2026-10-21; V1-1483; V1-1484; V1-1485; V1-1577
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever	owner	2026-09-07; decision 0080
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS	unrecorded	-
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	(experimental prototype, not advertised; help labels it experimental) The CLI	unrecorded	-
@@ -3045,6 +3047,7 @@ LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decisi
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) When the selected	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140
+LPCV-V0-214	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a	standing	2026-10-11; V1-1474
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
