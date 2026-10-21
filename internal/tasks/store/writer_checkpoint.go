@@ -452,9 +452,9 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 // advanceWriterCheckpoint re-bases the checkpoint on the tail the writer
 // audit just walked, under the same lock, once that tail reaches
 // WriterAdvanceTail, and reports whether the next scheduled complete audit
-// is due: the head this write produced is WriterRefreshInterval receipts or
-// more past the complete audit the checkpoint descends from, on an
-// unsegmented store.
+// is due on an unsegmented store: the head this write produced is exactly
+// WriterRefreshInterval receipts past the complete audit the checkpoint
+// descends from, or a further multiple of writerRefreshRetry (PSR-V0-169).
 func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
 		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
@@ -467,7 +467,21 @@ func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (ref
 		// (JSG-V0-010).
 		return false
 	}
-	return w.proof.Head.LastSeq.Uint64()+1-w.wc.FullSeq >= journal.WriterRefreshInterval
+	return refreshDue(w.proof.Head.LastSeq.Uint64() + 1 - w.wc.FullSeq)
+}
+
+// writerRefreshRetry is the receipt spacing of scheduled refresh retries
+// after the first one at WriterRefreshInterval (PSR-V0-169, V1-1653).
+const writerRefreshRetry = 64
+
+// refreshDue reports whether a write whose new head is distance receipts
+// past FullSeq schedules the complete audit. A refresh that publishes
+// nothing leaves FullSeq behind; scheduling it on every later write would
+// make each of them pay a complete audit until WriterFullBound sends the
+// writes to the complete route, so it retries every writerRefreshRetry
+// receipts instead.
+func refreshDue(distance uint64) bool {
+	return distance >= journal.WriterRefreshInterval && (distance-journal.WriterRefreshInterval)%writerRefreshRetry == 0
 }
 
 // refreshWriterCheckpoint is the scheduled complete audit (CAL-V0-117,
