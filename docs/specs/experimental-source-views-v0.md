@@ -250,7 +250,7 @@ Failure modes:
   path, ambiguous/duplicate/incomplete requirement, unsupported text, capture/time/count/byte
   overflow with typed errors and no partial view. The Go handoff's requirement and text codes are
   `ambiguous-requirement`, `unsupported-requirement`, `incomplete-boundary` and `unsupported-text`
-  (`cmd/corvint/source_handoff.go:441,450,477,481`). Preserve available packet metadata including
+  (`cmd/corvint/source_handoff.go:466,479,497,457@b810edfe`). Preserve available packet metadata including
   shortages, omissions, coverage and unknown fields. After a packet-size/parse refusal no decoded packet is available; disclose this
   instead of claiming metadata preservation. Supply a raw immutable Git recovery argv
   when a syntactically safe commit/path exists; otherwise declare fallback unavailable and why.
