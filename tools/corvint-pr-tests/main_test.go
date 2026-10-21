@@ -857,3 +857,36 @@ func TestShardedSourceDrift_AFPV0022(t *testing.T) {
 		}
 	})
 }
+
+func TestAFPV0098PlanModeExecutesNothing(t *testing.T) {
+	o, _ := fixture(t)
+	o.mode = "plan"
+	o.shard, o.shards = 1, 8
+	code, err := planOnly(context.Background(), o)
+	if err != nil || code != 0 {
+		t.Fatalf("plan mode: %d %v", code, err)
+	}
+	var s selection
+	if err = readJSON(filepath.Join(o.out, "selection.json"), &s); err != nil {
+		t.Fatal(err)
+	}
+	// No qualification is read: the PR narrowing gate decides from this selection.
+	if s.Reason != "" || !equal(s.Packages, []string{"example.org/fixture/a"}) || s.Shard != 1 || s.Shards != 8 {
+		t.Fatalf("plan selection: %+v", s)
+	}
+	for _, name := range []string{"execution.json", "go.json"} {
+		if _, err = os.Stat(filepath.Join(o.out, name)); !os.IsNotExist(err) {
+			t.Fatalf("plan mode wrote %s: %v", name, err)
+		}
+	}
+	o.planner = filepath.Join(t.TempDir(), "missing")
+	if code, err = planOnly(context.Background(), o); err != nil || code != 0 {
+		t.Fatalf("plan mode with a missing planner: %d %v", code, err)
+	}
+	if err = readJSON(filepath.Join(o.out, "selection.json"), &s); err != nil {
+		t.Fatal(err)
+	}
+	if s.Reason == "" || !equal(s.Packages, []string{"./..."}) {
+		t.Fatalf("a failed plan must name a reason and the whole universe: %+v", s)
+	}
+}

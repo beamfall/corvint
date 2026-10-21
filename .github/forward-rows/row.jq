@@ -9,6 +9,10 @@
 # reason; a row with any reason is INCOMPLETE and never CLEAN. AFP-V0-052: a
 # row is INFRA instead when its only reasons are those hosted set-up failures
 # and the coverage gap of exactly their shards, and it has no non-FLAKY miss.
+# AFP-V0-099: {kind: narrowing} lines are the selection run's corvint-pr-narrowing/0
+# records. A pull-request row of a run that narrowed any shard (or whose record is
+# unreadable) is NARROWED. A queue row whose selection run narrowed counts every
+# package that run narrowed out as unselected, so a queue failure of one is a MISS.
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def str: if type == "string" and length > 0 then . else null end;
 def shortr: if length > 300 then .[0:300] + "..." else . end;
@@ -29,6 +33,15 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
 | [$in[] | select(.kind == "selection")] as $selA
 | [$in[] | select(.kind == "outcomes")] as $outA
 | [$in[] | select(.kind == "reuse")] as $reuseA
+| [$in[] | select(.kind == "narrowing")] as $narA
+| [$narA[] | select(.unreadable | not) | .doc
+   | select(type == "object" and .profile == "corvint-pr-narrowing/0" and .shards == $n
+            and (.mode == "NARROWED" or .mode == "FULL")
+            and (.shard | type) == "number" and .shard >= 0 and .shard < $n
+            and (.runId | type) == "number" and (.executed | type) == "array" and (.skipped | type) == "array")] as $nar
+| ([$narA[] | select(.unreadable)] | length > 0 or ($narA | length) != ($nar | length)
+   or any($nar[]; .mode == "NARROWED")) as $narrowedRun
+| ([$nar[] | select(.mode == "NARROWED") | .skipped[] | select(type == "string")] | unique) as $narrowedOut
 | ($reuseA | map(select(.unreadable | not) | .doc) | first // null) as $reuse
 | ($kind == "queue" and $reuse != null and $reuse.profile == "corvint-ci-reuse/0" and $reuse.mode == "REUSE") as $reused
 | [$selA[] | select(.unreadable | not) | .doc
@@ -64,6 +77,10 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
     ($selA[] | select(.unreadable) | "selection artifact \(.name) is unreadable"),
     ($outA[] | select(.unreadable) | "outcomes artifact \(.name) is unreadable"),
     ($reuseA[] | select(.unreadable) | "reuse decision \(.name) is unreadable"),
+    ($narA[] | select(.unreadable) | "narrowing record \(.name) is unreadable"),
+    (if ($narA | length) != ($nar | length) then "\(($narA | length) - ($nar | length)) narrowing record(s) fail the corvint-pr-narrowing/0 shape or shard count" else empty end),
+    ($nar[] | select(.runId != ($selectionRunId | num)) | "narrowing shard \(.shard) is run \(.runId), want \($selectionRunId)"),
+    (if ([$nar[].shard] | unique | length) != ($nar | length) then "narrowing records name a shard twice" else empty end),
     (if ($selA | length) != ($sel | length) then "\(($selA | length) - ($sel | length)) selection document(s) fail the corvint-pr-selection/0 shape or shard count" else empty end),
     (if ($outA | length) != ($out | length) then "\(($outA | length) - ($out | length)) outcomes document(s) fail the corvint-ci-outcomes/0 shape or shard count" else empty end),
     $coverage[],
@@ -89,15 +106,19 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
     $infrastructure[]
   ] as $incomplete
 | ($incomplete - $infrastructure - (if $explained then $coverage else [] end)) as $unexplained
-| ([$sel[].selected[] | select(type == "string")] | unique) as $S
+| (([$sel[].selected[] | select(type == "string")] | unique) - $narrowedOut) as $S
 | ([$out[] | .outcomes | to_entries[] | select(.value == "fail" or .value == "missing") | .key] | unique) as $F
 | ($F - $S) as $missed
 | ($F - $missed) as $both
 | [$missed[] as $p
+   # A package the selection run narrowed out is never FLAKY: it ran nowhere before the
+   # queue, so any queue failure of it is a MISS (AFP-V0-099).
+   | select(IN($narrowedOut[]; $p) | not)
    | select([$out[] | select(.outcomes[$p] == "fail" or .outcomes[$p] == "missing")]
             | all(.rerun.state == "RAN" and .rerun.outcomes[$p] == "pass"))
    | $p] as $flaky
-| (if ($incomplete | length) > 0 then
+| (if $kind == "pr" and $narrowedRun then "NARROWED"
+   elif ($incomplete | length) > 0 then
      (if $explained and ($unexplained | length) == 0 and ($missed - $flaky | length) == 0 then "INFRA" else "INCOMPLETE" end)
    elif ($missed - $flaky | length) > 0 then "MISS"
    elif ($flaky | length) > 0 then "FLAKY"
@@ -124,7 +145,10 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
        scope: ([$sel[].scope] | unique | if length == 1 then .[0] else null end),
        selected: ($S | length),
        limits: [$gaps[] | select(limit_only) | shortr],
-       notProduced: ([$sel[].notProduced[]?] | unique)},
+       notProduced: ([$sel[].notProduced[]?] | unique),
+       narrowed: (if ($narA | length) == 0 then null
+                  else {shards: [$nar[] | select(.mode == "NARROWED") | .shard] | sort,
+                        narrowedOut: ($narrowedOut | length)} end)},
      counts: {failed: ($F | length), missed: ($missed | length), flaky: ($flaky | length),
               selectedFailedInQueue: ($both | length)},
      reruns: ([$out[].rerun.state] | reduce .[] as $s ({}; .[$s] += 1)),

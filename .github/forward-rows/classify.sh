@@ -7,6 +7,7 @@
 # pull-request head), ROW_RUN, ROW_SELECTION_RUN, ROW_OUTCOMES_RUN, ROW_SHARDS,
 # ROW_EPOCH, ROW_SELECTION_DIR and ROW_OUTCOMES_DIR (gh run download trees:
 # corvint-test-shadow-*/selection.json and ci-outcomes-*/outcomes.json),
+# ROW_NARROWING_DIR (the selection run's ci-narrowing-*/narrowing.json, AFP-V0-099),
 # ROW_REUSE (a ci-reuse decision.json, or empty) and ROW_COLLECT (newline-
 # separated reasons the collector already found) and ROW_INFRA (newline-separated
 # shards whose job failed at "Set up job", AFP-V0-052). Each file is read on its
@@ -32,6 +33,9 @@ for d in "${ROW_SELECTION_DIR:-/nonexistent}"/corvint-test-shadow-*; do
 done
 for d in "${ROW_OUTCOMES_DIR:-/nonexistent}"/ci-outcomes-*; do
   [ -d "$d" ] && add outcomes "${d##*/}" "$d/outcomes.json"
+done
+for d in "${ROW_NARROWING_DIR:-/nonexistent}"/ci-narrowing-*; do
+  [ -d "$d" ] && add narrowing "${d##*/}" "$d/narrowing.json"
 done
 [ -z "${ROW_REUSE:-}" ] || add reuse ci-reuse "$ROW_REUSE"
 if ! jq -n -c --arg kind "${ROW_KIND:-}" --arg pr "${ROW_PR:-}" --arg sha "${ROW_SHA:-}" \
