@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
@@ -79,6 +78,7 @@ type SymbolResolver struct {
 	byName     map[string][]string
 	read       int
 	shared     *sharedSymbolFiles
+	prefetched *pathPrefetch
 }
 
 type symbolFile struct {
@@ -150,7 +150,7 @@ func (r *SymbolResolver) Resolve(ctx context.Context, a Anchor) (SymbolAnchorChe
 		c.Reason = "anchored path has uncommitted working-tree changes; re-resolution reads committed content only"
 		return c, nil
 	}
-	entry, exists, err := r.auth.LookupTreeEntry(ctx, r.repository.Revision, a.Path)
+	entry, exists, err := r.prefetched.lookup(ctx, r.auth, r.repository.Revision, a.Path)
 	if err != nil {
 		return c, err
 	}
@@ -209,24 +209,7 @@ func (r *SymbolResolver) Resolve(ctx context.Context, a Anchor) (SymbolAnchorChe
 // inventory: an unparsed, truncated, excluded or dirty source of that
 // language could still declare it.
 func (r *SymbolResolver) search(ctx context.Context, c SymbolAnchorCheck, a Anchor, family string, region []contextindex.NormalizedLine, position, declaration int) (SymbolAnchorCheck, error) {
-	if r.byName == nil {
-		r.byName = map[string][]string{}
-		seen := map[string]bool{}
-		for _, s := range r.index.Symbols {
-			key := s.Name + "\x00" + s.Path
-			if !seen[key] {
-				seen[key] = true
-				r.byName[s.Name] = append(r.byName[s.Name], s.Path)
-			}
-		}
-	}
-	var paths []string
-	for _, p := range r.byName[a.Symbol] {
-		if p != a.Path && contextindex.SymbolRegionLanguage(p) == family {
-			paths = append(paths, p)
-		}
-	}
-	sort.Strings(paths)
+	paths := r.candidates(a, family)
 	if len(paths) > symbolCandidateMaxPaths {
 		c.Reason = fmt.Sprintf("symbol name is declared in more than %d live paths; search withheld", symbolCandidateMaxPaths)
 		return c, nil
@@ -238,7 +221,7 @@ func (r *SymbolResolver) search(ctx context.Context, c SymbolAnchorCheck, a Anch
 			incomplete = "a same-name candidate has uncommitted working-tree changes"
 			continue
 		}
-		entry, exists, err := r.auth.LookupTreeEntry(ctx, r.repository.Revision, p)
+		entry, exists, err := r.prefetched.lookup(ctx, r.auth, r.repository.Revision, p)
 		if err != nil {
 			return c, err
 		}
@@ -356,6 +339,30 @@ func (r *SymbolResolver) match(a Anchor, blob string, current *symbolFile, regio
 	return location, normalizedDigest(live), false
 }
 
+// candidates returns, sorted, the other same-language live paths the index
+// says declare the anchor's symbol.
+func (r *SymbolResolver) candidates(a Anchor, family string) []string {
+	if r.byName == nil {
+		r.byName = map[string][]string{}
+		seen := map[string]bool{}
+		for _, s := range r.index.Symbols {
+			key := s.Name + "\x00" + s.Path
+			if !seen[key] {
+				seen[key] = true
+				r.byName[s.Name] = append(r.byName[s.Name], s.Path)
+			}
+		}
+	}
+	var paths []string
+	for _, p := range r.byName[a.Symbol] {
+		if p != a.Path && contextindex.SymbolRegionLanguage(p) == family {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
 // file reads and parses one blob once per resolver.
 func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFile, error) {
 	key := oid + "\x00" + name
@@ -375,7 +382,7 @@ func (r *SymbolResolver) file(ctx context.Context, oid, name string) (*symbolFil
 			return f, nil
 		}
 	}
-	data, over, err := r.auth.BlobBytesWithin(ctx, oid, symbolFileMaxBytes)
+	data, over, err := r.prefetched.blobWithin(ctx, r.auth, oid, symbolFileMaxBytes)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
@@ -541,19 +548,12 @@ func (c *symbolChecker) check(ctx context.Context, anchor Anchor) (SymbolAnchorC
 // committed, clean content of its path is live without a parse.
 func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAnchorCheck, error) {
 	live := c.overlay.live
-	if c.resolver == nil {
-		auth, err := gitauth.Open(c.overlay.root, gitrun.NewDefaultBudget())
-		if err != nil {
-			return SymbolAnchorCheck{}, err
-		}
-		c.release = auth.BeginObjectSession()
-		c.resolver = NewSymbolResolver(auth, live, Repository{ID: c.overlay.repository, Revision: live.CommitRevision}, live.DirtyPaths)
-		c.resolver.shared = c.overlay.files
-		c.blobs = map[string]string{}
+	if err := c.open(); err != nil {
+		return SymbolAnchorCheck{}, err
 	}
 	blob, seen := c.blobs[anchor.Path]
 	if !seen {
-		entry, exists, err := c.resolver.auth.LookupTreeEntry(ctx, live.CommitRevision, anchor.Path)
+		entry, exists, err := c.resolver.prefetched.lookup(ctx, c.resolver.auth, live.CommitRevision, anchor.Path)
 		if err != nil {
 			return SymbolAnchorCheck{}, err
 		}
@@ -569,6 +569,82 @@ func (c *symbolChecker) resolve(ctx context.Context, anchor Anchor) (SymbolAncho
 	return c.resolver.Resolve(ctx, anchor)
 }
 
+// open binds the request's resolver and Git budget on first use.
+func (c *symbolChecker) open() error {
+	if c.resolver != nil {
+		return nil
+	}
+	live := c.overlay.live
+	auth, err := gitauth.Open(c.overlay.root, newGitBudget())
+	if err != nil {
+		return err
+	}
+	c.release = auth.BeginObjectSession()
+	c.resolver = NewSymbolResolver(auth, live, Repository{ID: c.overlay.repository, Revision: live.CommitRevision}, live.DirtyPaths)
+	c.resolver.shared = c.overlay.files
+	c.resolver.prefetched = newPathPrefetch(live.CommitRevision)
+	c.blobs = map[string]string{}
+	return nil
+}
+
+// symbolPrefetchMaxBytes bounds the blob bytes one prefetch reads ahead, so
+// bodies a resolution never consumes cannot exhaust the request's Git blob
+// budget (DCP-V1-216).
+const symbolPrefetchMaxBytes = symbolReadMaxBytes / 2
+
+// prefetch batches the tree lookups and blob reads the cited anchors not yet
+// checked will need (DCP-V1-216): one walk for their paths, one for the
+// same-name candidates of those that need a re-resolution, and one header
+// and one body batch for the pinned, live and candidate blobs, pinned and
+// live first. It only warms the resolver's cache; check still decides every
+// anchor, and a batch that fails leaves the per-anchor reads to decide.
+// Only a cancelled context is an error.
+func (c *symbolChecker) prefetch(ctx context.Context, citations []Anchor) error {
+	if c.overlay == nil || c.withheld != "" {
+		return nil
+	}
+	var anchors []Anchor
+	paths := []string{}
+	for _, anchor := range citations {
+		if _, done := c.checks[SymbolAnchorKey(anchor)]; anchor.Symbol != "" && !done {
+			anchors = append(anchors, anchor)
+			paths = append(paths, anchor.Path)
+		}
+	}
+	if len(anchors) == 0 || c.open() != nil {
+		return nil // check reports a failed open
+	}
+	r, p := c.resolver, c.resolver.prefetched
+	if err := p.resolve(ctx, r.auth, paths); err != nil {
+		return err
+	}
+	oids, candidates := []string{}, []string{}
+	for _, anchor := range anchors {
+		family := contextindex.SymbolRegionLanguage(anchor.Path)
+		entry, exists := p.entries[anchor.Path]
+		live := exists && entry.Type == "blob" && entry.OID == anchor.Blob && !r.dirty[anchor.Path]
+		if family == "" || anchor.Repository != r.repository.ID || live {
+			continue
+		}
+		oids = append(oids, anchor.Blob)
+		if exists && regularBlob(entry) && !r.dirty[anchor.Path] {
+			oids = append(oids, entry.OID)
+		}
+		if found := r.candidates(anchor, family); len(found) <= symbolCandidateMaxPaths {
+			candidates = append(candidates, found...)
+		}
+	}
+	if err := p.resolve(ctx, r.auth, candidates); err != nil {
+		return err
+	}
+	for _, path := range candidates {
+		if !r.dirty[path] {
+			oids = append(oids, p.regularOIDs([]string{path})...)
+		}
+	}
+	return p.read(ctx, r.auth, oids, symbolFileMaxBytes, symbolPrefetchMaxBytes)
+}
+
 func unevaluatedSymbolAnchor(anchor Anchor) SymbolAnchorCheck {
 	return SymbolAnchorCheck{Anchor: FormatSymbolAnchor(anchor), State: SymbolAnchorUnresolved, Reason: "cited symbol anchor was not evaluated against the live tree"}
 }
@@ -580,6 +656,9 @@ func attachSymbolAnchors(ctx context.Context, r *Receipt, c *symbolChecker) erro
 	r.SymbolAnchors = nil
 	if c == nil {
 		return nil
+	}
+	if err := c.prefetch(ctx, r.Citations); err != nil {
+		return err
 	}
 	for _, anchor := range r.Citations {
 		if anchor.Symbol == "" {

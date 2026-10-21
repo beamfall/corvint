@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
-	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -78,6 +77,9 @@ func BuildPlaywrightDiscovery(ctx context.Context, input PlaywrightDiscoveryInpu
 	if len(listed) == 0 || len(listed) > MaxRecords {
 		return nil, fail("playwright listing has no tests or exceeds the execution bound")
 	}
+	if err := pinned.prefetch(ctx, listed); err != nil {
+		return nil, err
+	}
 	lines := bytes.Count(config.data, []byte{'\n'})
 	if len(config.data) > 0 && config.data[len(config.data)-1] != '\n' {
 		lines++
@@ -140,14 +142,28 @@ type playwrightPinnedSources struct {
 	auth                       *gitauth.Repository
 	release                    func()
 	files                      map[string]playwrightPinnedFile
+	batched                    *pathPrefetch
 }
 
 func newPlaywrightPinnedSources(ctx context.Context, root, repository, revision string) (*playwrightPinnedSources, error) {
-	auth, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	auth, err := gitauth.Open(root, newGitBudget())
 	if err != nil {
 		return nil, err
 	}
-	return &playwrightPinnedSources{root: root, repository: repository, revision: revision, auth: auth, release: auth.BeginObjectSession(), files: map[string]playwrightPinnedFile{}}, nil
+	return &playwrightPinnedSources{root: root, repository: repository, revision: revision, auth: auth, release: auth.BeginObjectSession(), files: map[string]playwrightPinnedFile{}, batched: newPathPrefetch(revision)}, nil
+}
+
+// prefetch resolves and reads every listed test file in batches (DCP-V1-216);
+// file keeps its per-path refusals and their order.
+func (p *playwrightPinnedSources) prefetch(ctx context.Context, listed []typescript.PlaywrightListedTest) error {
+	paths := make([]string, 0, len(listed))
+	for _, test := range listed {
+		paths = append(paths, test.Path)
+	}
+	if err := p.batched.resolve(ctx, p.auth, paths); err != nil {
+		return err
+	}
+	return p.batched.read(ctx, p.auth, p.batched.regularOIDs(paths), MaxBytes, maxPinnedInputBytes)
 }
 
 func (p *playwrightPinnedSources) close() { p.release() }
@@ -191,14 +207,14 @@ func (p *playwrightPinnedSources) file(ctx context.Context, path string) (playwr
 	if cached, ok := p.files[path]; ok {
 		return cached, nil
 	}
-	entry, ok, err := p.auth.LookupTreeEntry(ctx, p.revision, path)
+	entry, ok, err := p.batched.lookup(ctx, p.auth, p.revision, path)
 	if err != nil {
 		return playwrightPinnedFile{}, err
 	}
 	if !ok || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") {
 		return playwrightPinnedFile{}, fail("playwright file is not a regular Git blob at the source revision: " + path)
 	}
-	data, over, err := p.auth.BlobBytesWithin(ctx, entry.OID, MaxBytes)
+	data, over, err := p.batched.blobWithin(ctx, p.auth, entry.OID, MaxBytes)
 	if err != nil {
 		return playwrightPinnedFile{}, err
 	}
