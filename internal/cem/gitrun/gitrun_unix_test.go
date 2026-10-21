@@ -84,7 +84,8 @@ func TestTypedOutputBound(t *testing.T) {
 	options := shell()
 	options.StdoutLimit = 1024
 	_, err := run(t, NewDefaultBudget(), options, "dd if=/dev/zero bs=1024 count=64 2>/dev/null | tr '\\0' 'x'")
-	if cemcode.CodeOf(err) != cemcode.GitOutputExceeded {
+	// OCM-V0-026: the error names the stream and its byte bound.
+	if cemcode.CodeOf(err) != cemcode.GitOutputExceeded || !strings.Contains(err.Error(), "Git stdout exceeded its 1024-byte bound") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -95,7 +96,8 @@ func TestTypedBudgetExhaustion(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err := run(t, budget, shell(), "true")
-	if cemcode.CodeOf(err) != cemcode.GitBudgetExceeded {
+	// OCM-V0-026: the error names the operation bound that ran out.
+	if cemcode.CodeOf(err) != cemcode.GitBudgetExceeded || !strings.Contains(err.Error(), "at its 1-operation bound") {
 		t.Fatalf("got %v", err)
 	}
 }
