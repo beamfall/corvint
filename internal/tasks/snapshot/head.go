@@ -31,9 +31,21 @@ type Head struct {
 	InitSha256        wire.Digest
 	PrimaryWorktree   string
 	VersionSha256     wire.Digest
+	// Segments is the sealed prefix a taskman-journal-head/1 binds
+	// (JSG-V0-006); nil renders taskman-journal-head/0.
+	Segments *SegmentBinding
 }
 
-// DecodeHead parses and validates head.json (≤4 KiB).
+// SegmentBinding names the bound segment manifest: receipts 1..Through are
+// sealed in the segments it lists, and its file has digest ManifestSha256.
+type SegmentBinding struct {
+	Through        wire.Size
+	ManifestSha256 wire.Digest
+}
+
+// DecodeHead parses and validates head.json (≤4 KiB): a
+// taskman-journal-head/0, or a taskman-journal-head/1 that also binds the
+// segment manifest.
 func DecodeHead(data []byte) (*Head, error) {
 	if len(data) > wire.MaxJournalHeadBytes {
 		return nil, wire.Errorf(wire.CodeLimitExceeded, "/", "head.json larger than %d bytes", wire.MaxJournalHeadBytes)
@@ -43,14 +55,20 @@ func DecodeHead(data []byte) (*Head, error) {
 		return nil, err
 	}
 	r := wire.NewReader(v, "/")
-	if err := wire.ProfileVersion("/profile", v, ProfileHead); err != nil {
+	profile, keys := ProfileHead, []string{"profile", "queueId", "lastSeq", "lastReceiptSha256", "generation", "initSha256", "primaryWorktree", "versionSha256"}
+	if v.Kind == wire.KindObject && v.Obj != nil {
+		if p, ok := v.Obj.Get("profile"); ok && p.Kind == wire.KindString && p.Str == ProfileHeadSegmented {
+			profile, keys = ProfileHeadSegmented, append(keys, "segmentsThrough", "segmentManifestSha256")
+		}
+	}
+	if err := wire.ProfileVersion("/profile", v, profile); err != nil {
 		return nil, err
 	}
-	r.Closed("profile", "queueId", "lastSeq", "lastReceiptSha256", "generation", "initSha256", "primaryWorktree", "versionSha256")
+	r.Closed(keys...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
-	if err := wire.CheckProfile("/profile", r.Field("profile").String(), ProfileHead); err != nil {
+	if err := wire.CheckProfile("/profile", r.Field("profile").String(), profile); err != nil {
 		return nil, err
 	}
 	h := &Head{}
@@ -61,8 +79,15 @@ func DecodeHead(data []byte) (*Head, error) {
 	h.InitSha256 = r.Field("initSha256").Digest()
 	h.PrimaryWorktree = r.Field("primaryWorktree").PathText()
 	h.VersionSha256 = r.Field("versionSha256").Digest()
+	if profile == ProfileHeadSegmented {
+		h.Segments = &SegmentBinding{Through: r.Field("segmentsThrough").Size(), ManifestSha256: r.Field("segmentManifestSha256").Digest()}
+	}
 	if err := r.Err(); err != nil {
 		return nil, err
+	}
+	// The head receipt is never sealed (JSG-V0-008).
+	if h.Segments != nil && (h.Segments.Through.Uint64() >= h.LastSeq.Uint64() || h.Segments.Through.Uint64() == 0 || h.Segments.Through.Uint64()%SegmentReceipts != 0) {
+		return nil, wire.Errorf(wire.CodeMalformed, "/segmentsThrough", "segments must be whole %d-receipt ranges that end before the head receipt", SegmentReceipts)
 	}
 	// §2: seq starts at 1 and the INIT receipt is seq 1, so a head always
 	// names its last receipt.
@@ -75,7 +100,11 @@ func DecodeHead(data []byte) (*Head, error) {
 // Value renders the head.
 func (h *Head) Value() wire.Value {
 	o := wire.NewObject()
-	o.Set("profile", wire.String(ProfileHead))
+	if h.Segments != nil {
+		o.Set("profile", wire.String(ProfileHeadSegmented))
+	} else {
+		o.Set("profile", wire.String(ProfileHead))
+	}
 	o.Set("queueId", wire.String(h.QueueID.Raw))
 	o.Set("lastSeq", wire.String(string(h.LastSeq)))
 	if h.LastReceiptSha256 == nil {
@@ -87,6 +116,10 @@ func (h *Head) Value() wire.Value {
 	o.Set("initSha256", wire.String(string(h.InitSha256)))
 	o.Set("primaryWorktree", wire.String(h.PrimaryWorktree))
 	o.Set("versionSha256", wire.String(string(h.VersionSha256)))
+	if h.Segments != nil {
+		o.Set("segmentsThrough", wire.String(string(h.Segments.Through)))
+		o.Set("segmentManifestSha256", wire.String(string(h.Segments.ManifestSha256)))
+	}
 	return wire.ObjectValue(o)
 }
 

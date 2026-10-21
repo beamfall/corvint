@@ -233,7 +233,7 @@ func TestProbeBoundReplacesGitDeadline(t *testing.T) {
 			return err
 		},
 		"around": func(ctx context.Context, run gitRunner) error {
-			_, err := probeRepositoryAround(ctx, t.TempDir(), run, func(context.Context, Observation) error { return nil })
+			_, err := probeRepositoryAround(ctx, t.TempDir(), run, nil, func(context.Context, Observation) error { return nil })
 			return err
 		},
 		"sharing": func(ctx context.Context, run gitRunner) error {

@@ -25,8 +25,17 @@
       "docs/specs": "a scope-verdict fixture key; nothing is read",
       "internal/tasks/store/lease_gate.go": "a scope-verdict fixture key; nothing is read"
     },
+    "internal/tasks/intent": {
+      "docs/specs/INDEX.json": "a reservations.sharedPaths policy value decoded in memory; nothing is read",
+      "docs/specs/README.md": "a reservations.sharedPaths policy value decoded in memory; nothing is read",
+      "docs/specs/REQUIREMENTS.tsv": "a reservations.sharedPaths policy value decoded in memory; nothing is read"
+    },
     "internal/tasks/store": {
-      "docs/build-log": "a claim scope key written into a temporary fixture repository"
+      "docs/build-log": "a claim scope key written into a temporary fixture repository",
+      "docs/specs": "a claim-scope directory key in a temporary task store; the repository directory is not read",
+      "docs/specs/INDEX.json": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read",
+      "docs/specs/README.md": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read",
+      "docs/specs/REQUIREMENTS.tsv": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read"
     },
     "tools/gate-ledger": {
       ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",

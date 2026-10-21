@@ -2,7 +2,7 @@
 
 - Owner: Russell Lewis
 - Date: 2026-09-21
-- Intent status: proposed; BBF-V0-015..018, BBF-V0-019..028 and BBF-V0-029..033 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027)
+- Intent status: proposed; BBF-V0-015..018, BBF-V0-019..028, BBF-V0-029..033 and BBF-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027, V1-2029)
 - Delivery status: experimental
 - Authoritative inputs: owner requests [issue 54](https://github.com/beamfall/corvint/issues/54) and [issue 167](https://github.com/beamfall/corvint/issues/167),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
@@ -10,7 +10,7 @@
 
 ## Agent digest
 - Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
-- Status: proposed; BBF-V0-015..018, BBF-V0-019..028 and BBF-V0-029..033 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Status: proposed; BBF-V0-015..018, BBF-V0-019..028, BBF-V0-029..033 and BBF-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1366, V1-1367, V1-2011, V1-2027, V1-2029)/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
 - Exists: the separate experimental planner, approval gate, bounded runner, closed classifier, synthetic conformance fixtures, and opt-in approval-bound evidence export with offline verification; optional control application markers classify inert controls as NOT-APPLIED, list them separately and flag repeats across revisions (BBF-V0-015..017); an attempt without an admitted hook receipt keeps its infrastructure or invalid classification with its stdout bound and still verifies (BBF-V0-018); an opt-in declared shared-server isolation profile resets and checks a caller-declared loopback server identity around every control (BBF-V0-019..023), and an opt-in runner-neutral profile reruns selected Go test examples under a pinned caller perturbation hook (BBF-V0-024..028), with an RSpec binding whose negative controls ran live through a docker-prefixed RSpec (BBF-V0-029..033).
 - Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
@@ -201,7 +201,7 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   environment may name only declared perturbation keys, with values of at most 4096 bytes and no
   NUL. Any other output is `invalid_control` with `perturbation-output-invalid`.
 - `BBF-V0-026`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2011) The runner
-  then runs the pinned toolchain in place after its digest check, as
+  then runs the pinned toolchain's verified bytes (BBF-V0-214) as
   `go test -json -count=1 -run '^(examples)$' ./package`, under process containment, in a
   disposable clone of the test repository detached at the bound revision (copied objects, no
   hardlinks, no template hooks), so a test that writes files never modifies the protected test
@@ -277,6 +277,15 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `perturbation-output-invalid`, and a spec that writes a tracked file is classified while the
   protected test repository stays at its revision. The test is skipped without docker or the
   owner-approved qualification image `corvint-rspec-qual:2026-10-20`.
+- `BBF-V0-214`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-test
+  provider MUST read the pinned Go driver once, check those bytes against its digest and run
+  exactly them from a private copy, with `GOROOT` set to the directory two levels above the pinned
+  path, the root the in-place driver resolves. A swap of the original after the check MUST NOT
+  run; a swap before staging is `command executable drift` or `command changed before staging`; a
+  root without `pkg/tool` is `provider toolchain GOROOT unavailable`; a declared or perturbation
+  `GOROOT` key is refused at plan time. Limit: only the driver is digest-pinned. The compiler,
+  linker and standard library under `GOROOT` and the RSpec toolchain, which may be a wrapper that
+  resolves paths from its own location, still run in place.
 
 ### Approval-bound evidence wire
 
@@ -402,6 +411,7 @@ default commands remain unchanged.
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 | BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 | BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
+| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes` |
 
 ## Unresolved decisions and promotion criteria
 

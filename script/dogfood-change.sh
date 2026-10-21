@@ -30,6 +30,7 @@ if [[ -z $corvint_bin_set ]]; then
   corvint_bin="$evidence/corvint"
   if ! dogfood_build_tree_corvint "$corvint_bin"; then
     printf 'dogfood-change: REFUSE current-tree-corvint-build-failed\n' >&2
+    dogfood_build_fix dogfood-change tree
     exit 2
   fi
 else

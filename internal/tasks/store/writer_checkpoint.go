@@ -48,14 +48,19 @@ func errWriterRoute(where, why string) error {
 }
 
 // readWriterCheckpoint returns the derived writer checkpoint, or nil when it
-// is absent, unreadable, oversized or malformed. Nothing here is an error:
-// the caller then runs the complete audit.
+// or the base it binds is absent, unreadable, oversized or malformed, or the
+// base differs from the one the delta binds (JSG-V0-004). Nothing here is an
+// error: the caller then runs the complete audit.
 func readWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
 	raw, err := intent.ReadFile(journal.WriterCheckpointPath(repo.StateDir), journal.MaxWriterCheckpointBytes)
 	if err != nil {
 		return nil
 	}
-	wc, err := journal.DecodeWriterCheckpoint(raw)
+	base, err := intent.ReadFile(journal.WriterBasePath(repo.StateDir), journal.MaxWriterBaseBytes)
+	if err != nil {
+		return nil
+	}
+	wc, err := journal.DecodeWriterCheckpoint(raw, base)
 	if err != nil {
 		return nil
 	}
@@ -91,7 +96,17 @@ func retainWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoin
 		return
 	}
 	wc.Invalidation = since.digest()
-	replaceDerived(journal.WriterCheckpointPath(repo.StateDir), wc.Encode())
+	base, delta, err := wc.Encode()
+	if err != nil {
+		return
+	}
+	// A new base lands before the delta that binds it. A stop between the
+	// two leaves the old delta bound to a base that is no longer there, which
+	// the next writer declines (JSG-V0-004).
+	if wc.FreshBase() && replaceDerived(journal.WriterBasePath(repo.StateDir), base) != nil {
+		return
+	}
+	replaceDerived(journal.WriterCheckpointPath(repo.StateDir), delta)
 }
 
 // replaceDerived replaces one derived file through a fixed temporary name,
@@ -156,6 +171,31 @@ func invalidateWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	replaceDerived(writerInvalidationPath(repo), []byte(rand.Text()+"\n"))
 	mutationStage(ctx, "refresh.invalidated")
 	os.Remove(journal.WriterCheckpointPath(repo.StateDir))
+	os.Remove(journal.WriterBasePath(repo.StateDir))
+}
+
+// verifyWriterCheckpoint runs under the writer lock after a complete audit
+// whose caller read token since before it began. It compares the retained
+// writer checkpoint with what that audit measured and invalidates it when a
+// carried value differs (JSG-V0-003). It returns the token the caller's own
+// derived checkpoint may be retained under: the new one when this call made
+// the only change since, so the complete audit's checkpoint replaces the one
+// it refuted, and since otherwise, which then retains nothing. receipt audit
+// never reads the checkpoint and stays read-only.
+func verifyWriterCheckpoint(ctx context.Context, repo *intent.Repository, since writerToken, verify func(*journal.WriterCheckpoint) (bool, error)) writerToken {
+	old, _ := boundWriterCheckpoint(repo)
+	if old == nil {
+		return since
+	}
+	if ok, err := verify(old); ok && err != nil {
+		mutationStage(ctx, "verify.differs: "+err.Error())
+		prior := writerInvalidation(repo)
+		invalidateWriterCheckpoint(ctx, repo)
+		if prior == since {
+			return writerInvalidation(repo)
+		}
+	}
+	return since
 }
 
 // writerObservation is what the writer-checkpoint route observed under the
@@ -196,7 +236,7 @@ func (w *writerObservation) tail() uint64 {
 // With resume, the audit resumes from the lease command's own resume base
 // instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
-func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool, resume *leaseResume, walks *journal.WalkStats) (w *writerObservation, decline, terminal error) {
+func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
@@ -217,9 +257,14 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	var proof *journal.Result
 	var obs journal.PhysicalObservation
 	var err error
-	if resume != nil {
+	switch {
+	case resume != nil:
 		proof, obs, err = reader.AuditForResume(resume.base, requestID)
-	} else {
+	case liveness:
+		// HEARTBEAT and RENEW probe the next receipt name instead of
+		// listing receipts/ (CAL-V0-224, decision 0549).
+		proof, obs, err = reader.AuditForLiveness(wc, requestID)
+	default:
 		proof, obs, err = reader.AuditForWriter(wc, requestID, forMutation)
 	}
 	if walks != nil {
@@ -357,14 +402,34 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 			files = append(files, entry)
 		}
 	}
-	intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
-	if err != nil {
-		return nil, err
+	var elidedIntent *transaction.ElidedIntent
+	if proof.ProjectionAgreement == journal.IntentRecordsNotCompared {
+		// A liveness write lists no intent directory and reads no ticket or
+		// release: the checkpoint's canonical sizes stand for them
+		// (JSG-V0-001, decision 0549).
+		for _, p := range []string{"intent/queue.json", "intent/policy.json"} {
+			entry, err := observedEntry(p, phys)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, entry)
+		}
+		summary, err := proof.LivenessIntent()
+		if err != nil {
+			return nil, errWriterRoute("intent", err.Error())
+		}
+		elidedIntent = &transaction.ElidedIntent{Tickets: summary.Tickets, Releases: summary.Releases, Cost: summary.Cost, Has: summary.Has}
+	} else {
+		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, intentFiles...)
 	}
-	files = append(files, intentFiles...)
 	sort.Strings(dirs)
 	archive.SortFiles(files)
 	return transaction.NewSummarizedInventory(files, dirs, transaction.Elided{
+		Intent:             elidedIntent,
 		Receipts:           wc.Seq.Uint64(),
 		FirstReceiptSha256: proof.Head.InitSha256,
 		LastReceiptSha256:  wc.ReceiptSha256,
@@ -388,12 +453,19 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 // audit just walked, under the same lock, once that tail reaches
 // WriterAdvanceTail, and reports whether the next scheduled complete audit
 // is due: the head this write produced is WriterRefreshInterval receipts or
-// more past the complete audit the checkpoint descends from.
+// more past the complete audit the checkpoint descends from, on an
+// unsegmented store.
 func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
 		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
 			retainWriterCheckpoint(repo, next, w.token)
 		}
+	}
+	if w.proof.Head.Segments != nil {
+		// On a segmented store each seal re-runs the complete validators
+		// over what it seals and advances FullSeq: the seal is the refresh
+		// (JSG-V0-010).
+		return false
 	}
 	return w.proof.Head.LastSeq.Uint64()+1-w.wc.FullSeq >= journal.WriterRefreshInterval
 }
@@ -444,6 +516,11 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if now := writerInvalidation(repo); !token.ok || now != token {
 		mutationStage(ctx, "refresh.superseded")
 		return
+	}
+	if proof.Mode == journal.ModeFull {
+		token = verifyWriterCheckpoint(ctx, repo, token, func(old *journal.WriterCheckpoint) (bool, error) {
+			return proof.VerifyWriterCheckpoint(old, obs.Files)
+		})
 	}
 	if current, _ := boundWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {
 		return

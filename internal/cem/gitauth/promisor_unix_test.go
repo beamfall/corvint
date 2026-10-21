@@ -113,11 +113,44 @@ func TestCanonicalDiffNamesAMissingPromisedBlobAmongManySharedOnes(t *testing.T)
 // walk is returned as such, not hidden behind the diff's git-diff-failed.
 func TestDiffExitClassificationKeepsCancellation(t *testing.T) {
 	root, base, target := makeRepo(t)
+	markPromisor(t, root)
 	repository := open(t, root)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	err := repository.diffExitError(ctx, cemcode.New(cemcode.GitExitFailure, "diff exited"), base, target)
 	if cemcode.CodeOf(err) != cemcode.GitCancelled {
 		t.Fatalf("got %v, want git-cancelled", err)
+	}
+}
+
+// markPromisor writes the promisor pack marker Git leaves in a partial clone, so the missing-object
+// walk runs in root.
+func markPromisor(t *testing.T, root string) {
+	t.Helper()
+	pack := filepath.Join(root, ".git", "objects", "pack")
+	if err := os.MkdirAll(pack, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pack, "pack-marker.promisor"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed: V1-2133, CEM-V1-367. Outside a
+// promisor repository a changed blob that is missing during the diff keeps the diff's own
+// git-diff-failed, the sealed stable packet's cause provenance; the same repository marked as a
+// promisor store answers repository-object-unavailable.
+func TestCanonicalDiffOrdinaryRepositoryMissingBlobIsDiffFailed(t *testing.T) {
+	root, base, target := makeRepo(t)
+	blob := strings.TrimSpace(gitCmd(t, root, "rev-parse", target+":f.go"))
+	if err := os.Remove(filepath.Join(root, ".git", "objects", blob[:2], blob[2:])); err != nil {
+		t.Fatalf("remove loose target blob: %v", err)
+	}
+	if _, err := open(t, root).CanonicalDiff(context.Background(), base, target); cemcode.CodeOf(err) != cemcode.GitDiffFailed {
+		t.Fatalf("ordinary repository: got %v, want git-diff-failed", err)
+	}
+	markPromisor(t, root)
+	if _, err := open(t, root).CanonicalDiff(context.Background(), base, target); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("promisor repository: got %v, want repository-object-unavailable", err)
 	}
 }

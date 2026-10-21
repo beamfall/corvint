@@ -92,14 +92,15 @@ func resolveCheckout(ctx context.Context, root, source string) checkout {
 		return entry
 	}
 	// Git walks up to an enclosing repository, so the directory must be the
-	// top level itself or a subdirectory would silently bind its parent.
-	top, err := runGit(ctx, canonical, nil, "rev-parse", "--show-toplevel")
-	if err != nil {
+	// top level itself or a subdirectory would silently bind its parent: an
+	// empty prefix inside a worktree proves that without naming the top as a
+	// path (AFP-V0-156).
+	where, err := runGit(ctx, canonical, nil, "rev-parse", "--is-inside-work-tree", "--show-prefix")
+	if err != nil || !strings.HasPrefix(string(where), "true\n") {
 		entry.reason = "not a Git checkout"
 		return entry
 	}
-	topCanonical, err := filepath.EvalSymlinks(strings.TrimSpace(string(top)))
-	if err != nil || topCanonical != canonical {
+	if string(where) != "true\n\n" {
 		entry.reason = "not the top level of a Git checkout"
 		return entry
 	}

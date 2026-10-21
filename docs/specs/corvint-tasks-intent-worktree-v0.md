@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-04
-Intent status: accepted (owner decision 2026-10-04)
+Intent status: accepted (owner decision 2026-10-04); CTW-V0-012..013 accepted under the owner's standing auto-accept (2026-10-11) (V1-0751, V1-0854; re-homed from CAL-V0-073 and CAL-V0-106 of the agent leases spec by V1-2165, owner rule 2026-10-17)
 Delivery status: experimental
 Authoritative inputs: owner request 2026-10-04 to close the V1-0720 follow-ups, ticket V1-0325,
 `docs/build-log/2026-10-04-v1-0720-memory-workaround-layers.md` (row 3), the Corvint Tasks contract
@@ -13,7 +13,7 @@ sources under `internal/tasks/intent`, `internal/tasks/store`, `internal/tasks/a
 
 ## Agent digest
 - Claim: An agent on a feature branch files a ticket through one linked worktree on the intent branch, without switching the primary checkout.
-- Status: accepted (owner decision 2026-10-04); experimental. CTW-V0-001 through CTW-V0-009 are implemented and tested; CTW-V0-010 and CTW-V0-011 are design and code-review requirements without runtime tests.
+- Status: accepted (owner decision 2026-10-04); CTW-V0-012..013 accepted under the owner's standing auto-accept (2026-10-11) (V1-0751, V1-0854; re-homed from CAL-V0-073 and CAL-V0-106 of the agent leases spec by V1-2165, owner rule 2026-10-17) / experimental. CTW-V0-001 through CTW-V0-009 are implemented and tested; CTW-V0-010 and CTW-V0-011 are design and code-review requirements without runtime tests. CTW-V0-012..013 (`ticket create --template` and `ticket refine --batch`) are implemented and tested.
 - Exists: intent-root resolution in `internal/tasks/intent`, the store and CLI redirection, the fixture-session pin of the linked root, repair text on the two intent refusals, and fixture plus real-Git tests.
 - Blocked on: the matching edit to the external TCP-00 `docs/SPEC.md` §3.1 and `TM-V0-007` wording.
 - Read next: Requirements; Failure modes; Acceptance evidence; Rollback.
@@ -122,6 +122,116 @@ automatically committing, carrying or merging the projection between branches, c
 several intent worktrees, and changing which checkout program, workflow or lease commands read Git
 from.
 
+
+### V1-0751 CREATE payload template (re-homed CAL-V0-073)
+
+Re-homed (owner rule 2026-10-17, V1-2165): this requirement was first numbered CAL-V0-073 in the
+agent leases spec, defined after that spec's `## Requirements` section where OCM did not
+enumerate it. It moved here with the same text because the leases section is at the
+256-obligation OCM bound. CAL-V0-073 remains a retired alias: code comments, help text and test
+names that cite CAL-V0-073 mean CTW-V0-012.
+
+Authoritative input: ticket V1-0751 (owner-filed friction, 2026-10-04): `ticket create --help`
+names the 20 CREATE keys and canonical rules, but value types, the nested `effects` and `source`
+shapes, null-able keys and the `order` string were discoverable only by refusal, and
+`source.sourceQueueId` had to be guessed from `queue.json`. This amendment adds one read-only
+command. It changes no wire profile, payload key, validation rule or writer.
+
+- `CTW-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0751; re-homed from CAL-V0-073 by V1-2165) `corvint-tasks ticket create --template` MUST return, in one
+  `taskman-command-result/0` item, a byte-canonical CREATE `payload` for the current queue (also
+  as the exact string `payloadCanonical`) whose `source` is `NATIVE` with `sourceQueueId` read
+  from `queue.json`, and which `ticket create` accepts once `title`, `body` and
+  `acceptanceCriteria` (named in `fill`) are filled in. The template title is empty, so an
+  unedited template refuses. A separate `fields` object MUST document every CREATE key, the
+  optional `localToken`, `requiredRoles` and `requiresPool`, and the nested `effects`, `source`,
+  `effects.resources[]` and `dependencies[]` members by dotted path, each with its type and
+  `nullable` flag. `values` MUST mean only the closed enum of that key's own scalar value, taken
+  from the vocabularies the decoder enforces (gate and pool values from the current policy);
+  `elementValues` is the closed set each array element is drawn from (`requiredGates`, and the
+  roles inside `requiredRoles`); `current` is this queue's value of an open field
+  (`source.sourceQueueId`, an Identifier). `nullableKeys` lists the paths marked nullable;
+  `dependencies[].gateId` is nullable only with obligation `COMPLETED`, as its note says.
+  The command reads only the intent store: it MUST NOT read stdin or the journal, take the lock,
+  or write any file, works before `init`, refuses `--template` on other verbs and when any other
+  flag is passed (by presence, whatever its value), and `ticket create --help` names it.
+
+Non-goals: templates for other verbs, interactive prompting, defaults inferred from history, and
+any change to CREATE validation or canonicalization. Failure modes, as the tests enforce them: the
+`fields` keys MUST equal the key paths of the emitted payload (with one `dependencies[]` and one
+`effects.resources[]` element populated) plus `optionalKeys`, and each of the CREATE keys in
+`mutation.PayloadKeys`; each payload path marked nullable MUST be accepted as null by `ticket
+create` and each path marked non-nullable MUST be refused as null. The nullability of the optional
+`localToken`, `requiredRoles` and `requiresPool` is documented but not probed, and `type`, `note`
+and enum `values` text is checked only for the enum vocabularies listed in the test. A decoder key
+the template does not render is not detected unless it is a `mutation.PayloadKeys` entry. Rollback
+removes the flag; no store, wire or journal state depends on it.
+
+### V1-0854 batch refine (re-homed CAL-V0-106)
+
+Re-homed (owner rule 2026-10-17, V1-2165): this requirement was first numbered CAL-V0-106 in the
+agent leases spec, defined after that spec's `## Requirements` section where OCM did not
+enumerate it. It moved here with the same text because the leases section is at the
+256-obligation OCM bound. CAL-V0-106 remains a retired alias: code comments, help text and test
+names that cite CAL-V0-106 mean CTW-V0-013.
+
+Authoritative input: owner request [issue 625](https://github.com/beamfall/corvint/issues/625)
+(ticket V1-0854). Refining about 110 tickets took 110 separate `ticket refine` processes. Each one
+acquired the writer lock, ran the writer guards and §5.2 redo, and audited the store, while
+concurrent claims and heartbeats waited behind them. A single all-or-nothing batch would hold the
+lock for the whole run instead. This amendment adds a chunked batch form of `ticket refine`. It
+changes no wire profile, envelope, payload rule, receipt or replay rule, and it leaves the
+single-ticket `ticket refine` unchanged.
+
+- `CTW-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0854; re-homed from CAL-V0-106 by V1-2165) `corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload
+  JSON) [--issued-at TS] [--role ROLE]` MUST read a non-empty JSON array of at most 1000 entries,
+  and at most 8 MiB, each a closed object `{target, expectedRevision, payload}`. `target` is a
+  ticket ID or local ID, `expectedRevision` a Count string and `payload` the REFINE payload
+  canonicalized as the single form canonicalizes it. Before taking the writer lock, the command
+  MUST validate every entry: the entry's shape, its payload, that its target exists in the
+  current queue, that no target is named twice, and that the entry's derived envelope decodes. It
+  MUST also check that the actor is admitted. Any failure refuses the whole batch with the failing
+  entry's path and writes nothing. Entry `i` is the ordinary §3.3 REFINE envelope with request ID
+  `ID/i` (the derived IDs must fit `wire.MaxRequestIDBytes`) and the batch's one `issuedAt`. The
+  command MUST apply the entries in index order, in chunks. Each chunk acquires the writer lock
+  once, runs the writer guards and §5.2 redo once, and starts no entry after 8 entries
+  (`store.BatchChunkEntries`) or once it has held the lock for 2 s (`store.BatchChunkHold`). Its
+  first entry always runs. Between chunks the command MUST release the lock and wait
+  `store.BatchYield` (5 lock polls) before acquiring it again, so a polling claim, renew or
+  heartbeat can commit between chunks. Within a chunk, each entry MUST be committed exactly as the
+  single form commits it: its own request lookup and replay (TM-V0-006), CAS on
+  `expectedRevision`, recorded time sampled again from the command's clock, and receipt.
+  A refused entry, such as a stale `expectedRevision` (`REVISION_CONFLICT`) or a request ID
+  conflict, MUST write nothing for that entry, and the batch continues. An error, including a
+  writer-guard refusal while a chunk opens, MUST stop the batch at that entry and report every
+  later entry as `NOT_ATTEMPTED`. The command MUST return one `taskman-command-result/0` item with
+  `batchRequestId`, `issuedAt`, `chunkEntries`, `chunks`, the counts `completed`, `replayed`,
+  `failed` and `notAttempted`, and an `entries` array index-aligned with the input. Each entry
+  gives `index`, `requestId`, `ticketId`, `chunk`, `outcome`, `codes`, `replayed`, `receipt`,
+  `resultingRevision` and `detail`. The envelope is `OK` only when every entry completed. It is
+  `ERROR` when an entry erred, and otherwise `REFUSED`, with the union of the entry codes. Repeating
+  the command with the same `--request-id`, `--issued-at` and input MUST replay every completed
+  entry without a second receipt. The same request ID with a different `issuedAt` or entry is
+  refused per entry as `REQUEST_ID_CONFLICT`. `--batch` refuses `--target`, `--expected-revision`
+  and `--template`, is recognized only in a flag position (never as another flag's value), works only
+  on `ticket refine`, and `ticket refine --help` documents it. The 8 MiB bound applies to
+  `--payload` and `--payload-stdin` alike.
+
+Non-goals: batch forms of other verbs; one atomic all-or-nothing batch; fairness for the polling
+writer lock beyond the yield; any change to per-entry audit cost (each entry still audits the store,
+and only process start, lock acquisition, guards and redo are shared per chunk); and a default
+`issuedAt` that a retry can reproduce. A retry MUST pass the `issuedAt` that the first result
+reports.
+
+Failure modes: a waiter that does not poll during the yield can still lose the lock to the next
+chunk. It waits at most one chunk (8 entries or about 2 s plus one entry) before the next release.
+An interrupted batch leaves a completed prefix. Each entry is either committed or not, a pending
+receipt is redone by the next writer (§5.2), and the retry replays the prefix. A ticket changed by
+another writer between validation and its chunk refuses that entry as `REVISION_CONFLICT`, as the
+single form would. A batch request ID reused with a different input replays identical entries,
+refuses changed ones as `REQUEST_ID_CONFLICT`, and applies entries at indexes it did not use before. Rollback removes the `--batch` flag, `store.MutateBatch`
+and the `mutateLocked` split. Batch entries are ordinary REFINE receipts, so no store, journal or
+receipt state depends on the batch form.
+
 ## Failure modes
 
 | Situation | Behavior |
@@ -176,3 +286,5 @@ format changed, so no migration or repair is needed.
 | `CTW-V0-009` | `TestCTWV0009_IntentBranchPrimaryKeepsThePrimaryRoot`, `TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged`, `TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD` (the refusal test checks that repair text is absent, not byte equality of the whole message) |
 | `CTW-V0-010` | Design statement; no runtime test asserts a trust boundary. |
 | `CTW-V0-011` | Code review of the unchanged program, workflow and lease call sites; existing program and lease suites pass. |
+| `CTW-V0-012` (formerly CAL-V0-073) | `TestCALV0073_CreateTemplateIsReadOnlyAndAccepted`, `TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys`, `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`, `TestCALV0073_TemplateFieldsMatchPayloadNullability` (`internal/tasks/cli`) |
+| `CTW-V0-013` (formerly CAL-V0-106) | `TestCALV0106_BatchRefineAllSuccess`, `TestCALV0106_BatchRefineStaleEntryFailsAlone`, `TestCALV0106_BatchRefineMalformedEntryWritesNothing`, `TestCALV0106_BatchRefineReplayIsIdempotent`, `TestCALV0106_BatchRefineHelpAndFlags`, `TestCALV0106_BatchFlagOnlyInFlagPosition`, `TestCALV0106_BatchRefineBoundsInlinePayload` (`internal/tasks/cli`); `TestCALV0106_ClaimCommitsBetweenChunks`, `TestCALV0106_UnadmittedOrMalformedBatchWritesNothing`, `TestCALV0106_RetryAfterInterruptedBatchRedoesReplaysAndCompletes` (`internal/tasks/store`) |

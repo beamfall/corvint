@@ -127,12 +127,16 @@ const (
 	// no outcome (the binary died in another test, the output was cut): the
 	// claim is re-run alone rather than credited from the group.
 	runUnattributed
+	// runTimedOut is a warm run the runner killed at its per-run limit plus
+	// runGrace while the request still had budget (FPK-V0-142): no verdict
+	// about the mutant, reported as BUDGET_EXCEEDED naming the limit.
+	runTimedOut
 )
 
 // runGrace is how much longer than go test's own -timeout the runner waits
 // before killing the run, so a hung test is reported by go test as a failure
-// rather than silenced by the runner.
-const runGrace = 5 * time.Second
+// rather than silenced by the runner. Tests shorten it.
+var runGrace = 5 * time.Second
 
 // observeRun, when set, sees the package of every go test the runner
 // launches; the package's tests count invocations through it.
@@ -141,11 +145,24 @@ var observeRun func(packageDir string)
 // runTests runs the claimed tests inside the sandbox against whatever is
 // currently in the export and reports the classified outcome with the bounded
 // output.
-func runTests(ctx context.Context, configuration settings, space workspace, pattern string) (runOutcome, string) {
+func runTests(ctx context.Context, configuration settings, space workspace, pattern string, cold bool) (runOutcome, string) {
 	// Baselines and grouped fallbacks must use the mutants' JSON mode too:
 	// -json implies -v and can change testing.Verbose() inside the cited tests.
-	outcome, output, _ := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true)
+	outcome, output, _ := runGoTest(ctx, configuration.perRun, space, configuration.packageDir, pattern, true, cold)
 	return outcome, output
+}
+
+// perRunDetail names the per-run limit that ended a warm run (FPK-V0-142).
+// The limit is the request's go test -timeout share, not a measured time.
+func perRunDetail(limit time.Duration, where string) string {
+	return fmt.Sprintf("per-run limit of %s reached %s", limit, where)
+}
+
+// perRunPartial is budgetPartial for a warm run the per-run limit ended.
+func perRunPartial(report Report, index int, limit time.Duration) Report {
+	report = budgetPartial(report, index)
+	report.Detail = perRunDetail(limit, fmt.Sprintf("after %d of %d mutants", index, report.Mutants))
+	return report
 }
 
 // runGoTest runs one go test of packageDir's tests matching pattern inside the
@@ -154,14 +171,19 @@ func runTests(ctx context.Context, configuration settings, space workspace, patt
 // judgment. An attributable run emits -json events, read as they stream by
 // an eventSink that also returns each top-level function's own result; a
 // plain run is classified from its bounded output and returns no outcomes.
-func runGoTest(ctx context.Context, timeout time.Duration, space workspace, packageDir, pattern string, attributable bool) (runOutcome, string, map[string]runOutcome) {
+// A cold run, a package's first run of the request, also compiles its
+// dependencies into the fresh build cache: the runner does not kill it at the
+// per-run limit, so only the request's budget bounds that build while go
+// test's own -timeout still bounds its test binary (FPK-V0-142). A warm run
+// the runner kills at the limit plus runGrace is runTimedOut.
+func runGoTest(ctx context.Context, timeout time.Duration, space workspace, packageDir, pattern string, attributable, cold bool) (runOutcome, string, map[string]runOutcome) {
 	if err := resetScratch(space); err != nil {
 		return runBroken, err.Error(), nil
 	}
 	if observeRun != nil {
 		observeRun(packageDir)
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, timeout+runGrace)
+	commandCtx, cancel := runContext(ctx, timeout, cold)
 	defer cancel()
 	argv := append(append([]string{}, space.prefix...), "go", "test", "-count=1")
 	if attributable {
@@ -179,10 +201,26 @@ func runGoTest(ctx context.Context, timeout time.Duration, space workspace, pack
 	}
 	configureProcess(command)
 	err := groupreap.Run(command)
+	outcome := classifyRun(err, output.String())
 	if attributable {
-		return sink.classify(err), output.String(), sink.outcomes
+		outcome = sink.classify(err)
 	}
-	return classifyRun(err, output.String()), output.String(), nil
+	if outcome == runBroken && ctx.Err() == nil && errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
+		outcome = runTimedOut
+	}
+	if attributable {
+		return outcome, output.String(), sink.outcomes
+	}
+	return outcome, output.String(), nil
+}
+
+// runContext is the context a run is killed by: the request's alone for a
+// cold run, else the per-run limit plus runGrace.
+func runContext(ctx context.Context, timeout time.Duration, cold bool) (context.Context, context.CancelFunc) {
+	if cold {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, timeout+runGrace)
 }
 
 // eventLineLimit bounds one -json line held for decoding; a longer line is

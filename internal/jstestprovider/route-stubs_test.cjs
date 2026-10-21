@@ -11,7 +11,8 @@ const { extend, _internal } = require('./route-stubs.cjs');
 class Router extends EventEmitter {
   constructor() { super(); this.routes = []; }
   async route(url, handler, options) { this.routes.push({ url, handler, options }); }
-  async unroute(url, handler) { this.routes = this.routes.filter(r => !(r.url === url && (!handler || r.handler === handler))); }
+  async unroute(url, handler) { this.routes = this.routes.filter(r => !(_internal.sameURL(r.url, url) && (!handler || r.handler === handler))); }
+  async unrouteAll() { this.routes = []; }
   async request(href) {
     for (const r of [...this.routes].reverse()) {
       const hit = typeof r.url === 'string' ? href.includes(r.url.replaceAll('*', '')) : r.url instanceof RegExp ? r.url.test(href) : typeof r.url === 'function' ? r.url(new URL(href)) : false;
@@ -108,12 +109,45 @@ test('predicate and other patterns, existing pages and unroute by handler', asyn
     assert.equal(await context.request('http://127.0.0.1/gone'), false);
   });
   const { stubs } = record(annotations);
-  assert.deepEqual(stubs.map(s => [s.target, s.kind, s.pattern, s.hits]), [
-    ['page', 'predicate', 'isImage', 1],
-    ['page', 'other', 'pattern-object', 0],
-    ['context', 'glob', '**/gone', 0],
+  assert.deepEqual(stubs.map(s => [s.target, s.kind, s.pattern, s.hits, s.unrouted]), [
+    ['page', 'predicate', 'isImage', 1, undefined],
+    ['page', 'other', 'pattern-object', 0, undefined],
+    ['context', 'glob', '**/gone', 0, true],
   ]);
   assert.ok(!Object.hasOwn(context, 'route') && !Object.hasOwn(context, 'newPage'), 'teardown restores the context');
+});
+
+// LPCV-V0-214: a route stub that unroute or unrouteAll removes is marked unrouted, matched the way
+// Playwright matches it: same URL (a RegExp by source and flags) and, when given, same handler, on
+// the same instance only.
+test('unroute and unrouteAll mark the stubs they remove', async () => {
+  const { annotations } = await run(async context => {
+    const page = await context.newPage();
+    const kept = route => route.fulfill();
+    const gone = route => route.fulfill();
+    await page.route('**/api/a', kept);
+    await page.route('**/api/a', gone);
+    await page.unroute('**/api/a', gone);
+    await page.route(/\/api\/b/i, kept);
+    await page.request('http://127.0.0.1/api/B');
+    await page.unroute(/\/api\/b/i);
+    await page.route(/\/api\/c/, kept);
+    await page.unroute(/\/api\/c/i);
+    await context.route('**/api/d', kept);
+    await page.unroute('**/api/d');
+    const other = await context.newPage();
+    await other.route('**/api/e', kept);
+    await other.unrouteAll({ behavior: 'ignoreErrors' });
+  });
+  const { stubs } = record(annotations);
+  assert.deepEqual(stubs.map(s => [s.target, s.pattern, s.hits, s.unrouted]), [
+    ['page', '**/api/a', 0, undefined],
+    ['page', '**/api/a', 0, true],
+    ['page', '/\\/api\\/b/i', 1, true],
+    ['page', '/\\/api\\/c/', 0, undefined],
+    ['context', '**/api/d', 0, undefined],
+    ['page', '**/api/e', 0, true],
+  ]);
 });
 
 test('more than 64 stubs publish no record', async () => {

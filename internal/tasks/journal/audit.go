@@ -92,8 +92,17 @@ type Result struct {
 	selectErr, intentErr error
 	// writerBase is the writer checkpoint a ModeWriter audit resumed from.
 	writerBase *WriterCheckpoint
+	// manifest is the segment manifest the audited head binds, if any; a
+	// complete audit's writer checkpoint records its segment digests.
+	manifest *snapshot.SegmentManifest
+	// sealRebase marks the result a seal validated its range into: the
+	// writer checkpoint it derives rebuilds the base (JSG-V0-009).
+	sealRebase bool
 	// listing is what a ModeWriter audit listed but did not read.
 	listing map[string]ListedFile
+	// liveness marks an AuditForLiveness result: the intent tree was not
+	// listed and only queue.json and policy.json were read (JSG-V0-001).
+	livenessWrite bool
 	// resumeRead is what an AuditForResume walk consumed, by path; the
 	// resume recheck rereads the tail against it (PSR-V0-116, proposed).
 	resumeRead map[string]PhysicalFile
@@ -166,6 +175,7 @@ type Reader struct {
 	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
 	writer          *WriterCheckpoint // AuditForWriter only
 	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
+	liveness        bool              // AuditForLiveness: list no intent directory; read only queue.json and policy.json (JSG-V0-001)
 	prefix          bool              // AuditWriterRefresh's prefix walk only
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
@@ -226,27 +236,27 @@ type observation struct {
 	// intentRaw holds the intent bytes a writer capture read (AuditForWriter
 	// only), so the walk and the second capture do not read them again.
 	intentRaw map[string][]byte
-	// receiptsListed counts the receipts/ names a writer capture charged to
-	// its scan bound, receiptsStaging says a temporary name was among them,
-	// and receiptsQuiescent says the directory's modification and change
-	// times were both at least receiptsQuiescence before the listing began,
-	// so a later change cannot keep its stamps (CAL-V0-224).
-	receiptsListed    int
-	receiptsStaging   bool
-	receiptsQuiescent bool
 	// at is when the capture began; ResumeBase trusts a file's stamps only
 	// when they were already settled then (PSR-V0-052).
 	at time.Time
 	// seal is the retired prefix the store carries (JRT-V0-004).
 	seal *RetiredPrefix
+	// manifest is the segment manifest a taskman-journal-head/1 binds, read
+	// and checked against the head; receipts 1..manifest.Through are sealed
+	// (JSG-V0-006).
+	manifest *snapshot.SegmentManifest
+	// segErr is why segments/ and the listed receipts do not match the head.
+	// It is returned by the walk, never by the capture, so a seal that moved
+	// the store between the listing and the head read is a moved
+	// observation, not a refusal (JSG-V0-007).
+	segErr error
 }
 
-// receiptsQuiescence is how long receipts/ must have been unmodified and
-// unchanged before a writer capture's listing for the second capture to
-// reuse that listing under unchanged directory stamps (CAL-V0-224): at
-// least the coarsest stamp granularity of a filesystem that can hold the
-// journal (one second), so a change after the listing lands in a strictly
-// later change time even where stamps are whole seconds.
+// receiptsQuiescence is how long a file must have been unmodified and
+// unchanged before a resume base trusts its stamps (PSR-V0-052): at least
+// the coarsest stamp granularity of a filesystem that can hold the journal
+// (one second), so a change after the capture lands in a strictly later
+// change time even where stamps are whole seconds.
 const receiptsQuiescence = time.Second
 
 // Audit checks all current projections and returns selected canonical bytes.
@@ -435,6 +445,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 		return nil, e
 	}
 	captured = before
+	if before.manifest != nil {
+		r.Source = newSegmentView(r.Source, before.manifest)
+	}
 	if r.afterCapture != nil {
 		r.afterCapture()
 	}
@@ -456,6 +469,9 @@ func (r Reader) auditAttempt(selected map[string]bool, request string, lim limit
 	}
 	if result != nil && r.observedIntent {
 		result.selection = selected
+	}
+	if result != nil {
+		result.manifest = before.manifest
 	}
 	if r.resume != nil && bodyErr == nil {
 		// The walk resumed from a base this command audited from receipt 1;
@@ -553,8 +569,13 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 	}
 	sort.Strings(o.receipts)
 	intentRemaining := intent.MaxIntentRootEntries + wire.MaxTicketsPerQueue + wire.MaxReleasesPerQueue
-	if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
-		return nil, err
+	// A liveness write lists no intent directory and reads no ticket or
+	// release (JSG-V0-001): only the queue and policy its model decodes,
+	// by name, below.
+	if !r.liveness {
+		if err := r.scan(o, "intent", &intentRemaining, true); err != nil {
+			return nil, err
+		}
 	}
 	if _, ok := o.files["RESTORE_INCOMPLETE"]; ok {
 		return nil, wire.Errorf(wire.CodeRestoreIncomplete, "RESTORE_INCOMPLETE", "interrupted restore")
@@ -644,6 +665,27 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
 		}
 	}
+	if r.liveness {
+		for _, p := range []string{"intent/queue.json", "intent/policy.json"} {
+			max, err := snapshot.PostBound(p)
+			if err != nil {
+				return nil, err
+			}
+			raw, err := requiredRead(r.Source, p, max)
+			if err != nil {
+				return nil, err
+			}
+			if len(raw) == 0 {
+				return nil, wire.Errorf(wire.CodeMalformed, p, "empty intent file")
+			}
+			sum := wire.Sum(raw)
+			o.intentDigests[p], o.intentRaw[p] = sum, raw
+			fmt.Fprintf(inventory, "intent-digest\x00%s\x00%s\n", p, sum)
+		}
+	}
+	if o.segErr, err = r.segments(o); err != nil {
+		return nil, err
+	}
 	stageFiles, stageErr, err := r.readStage(o)
 	o.stageErr = stageErr
 	if err != nil {
@@ -658,6 +700,11 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 		fmt.Fprintf(inventory, "staging/%s\x00%s\n", f.Name, sum)
 	}
 	o.identity = Identity{HeadSha256: wire.Sum(raw), InventorySha256: wire.Digest(hex.EncodeToString(inventory.Sum(nil))), IntentTreeSha256: intent.DigestOfFiles(intents)}
+	if r.liveness {
+		// The intent tree was not observed, so no digest of it is reported
+		// (JSG-V0-002).
+		o.identity.IntentTreeSha256 = ""
+	}
 	return o, nil
 }
 
@@ -782,6 +829,14 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 		if p == "head.json" || p == "RESTORE_INCOMPLETE" || p == RetiredPrefixFile || p == RetireIncompleteFile {
 			continue
 		}
+		if dir == snapshot.SegmentsDir {
+			if _, _, ok := snapshot.ParseSegmentName(e.Name); !ok && e.Name != snapshot.SealMarkerName {
+				if _, ok := snapshot.ParseSegmentManifestName(e.Name); !ok {
+					return wire.Errorf(wire.CodeJournalForked, p, "unexpected segments file")
+				}
+			}
+			continue
+		}
 		if strings.HasPrefix(p, "effects/") && (strings.HasSuffix(p, ".boot") || strings.HasSuffix(p, ".ack")) {
 			name := strings.TrimSuffix(strings.TrimSuffix(strings.TrimPrefix(p, "effects/"), ".boot"), ".ack")
 			if _, err := wire.ParseDigest(p, name); err != nil {
@@ -798,40 +853,14 @@ func (r Reader) scan(o *observation, dir string, remaining *int, optional bool) 
 
 // scanReceiptNames lists receipts/ without a per-entry lstat (AuditForWriter).
 // Every name is validated as scan validates it; a temporary name marks the
-// observation unsettled. Receipt files are opened only when walked.
-//
-// The second capture of a writer audit, which only confirms that nothing
-// moved during the walk, reuses the first capture's listing when that
-// listing began at least receiptsQuiescence after the directory's
-// modification and change times and the directory is still the same file
-// with the same mode, size, modification time and change time (CAL-V0-224).
-// The writer lock excludes every cooperating writer for the whole audit,
-// and a foreign change after a quiescent listing lands in a later change
-// time, which restoring the modification time cannot hide. The listing is
-// held only by this attempt: the next audit lists exactly again.
+// observation unsettled. Receipt files are opened only when walked. Both
+// captures list exactly (JSG-V0-007): the CAL-V0-224 probe and listing
+// reuse are retired, since a segmented store keeps at most 1,023 names here.
 func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
-	native, ok := r.Source.(*nativeRead)
+	native, ok := nativeOf(r.Source)
 	if !ok {
 		return errCheckpoint("receipts", "writer checkpoint needs a native source")
 	}
-	if first := r.writerBefore; first != nil && first.receiptsQuiescent {
-		info, err := native.DirInfo("receipts")
-		if err != nil {
-			return err
-		}
-		if sameDirStamp(first.files["receipts"], info) {
-			if first.receiptsListed > *remaining {
-				return wire.Errorf(wire.CodeLimitExceeded, "receipts", "directory scan bound")
-			}
-			*remaining -= first.receiptsListed
-			o.files["receipts"] = info
-			o.receipts = append(o.receipts, first.receipts...)
-			o.receiptsListed, o.receiptsStaging = first.receiptsListed, first.receiptsStaging
-			o.staging = o.staging || first.receiptsStaging
-			return nil
-		}
-	}
-	listedAt := time.Now()
 	info, names, err := native.Names("receipts", *remaining)
 	if err != nil {
 		return err
@@ -844,35 +873,7 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	}
 	*remaining -= len(names)
 	o.files["receipts"] = info
-	o.receiptsListed = len(names)
-	o.receiptsQuiescent = quiescentDir(info, listedAt)
 	return receiptNames(o, names)
-}
-
-// quiescentDir says the listed directory's modification time and change
-// time were both at least receiptsQuiescence before listedAt, so a change
-// after the listing lands in a strictly later change time even on a
-// filesystem with whole-second stamps, and a restored modification time
-// cannot hide it. A platform without a change time is never quiescent.
-func quiescentDir(info os.FileInfo, listedAt time.Time) bool {
-	change, ok := changeTime(info)
-	if !ok {
-		return false
-	}
-	bound := listedAt.Add(-receiptsQuiescence)
-	return !info.ModTime().After(bound) && !time.Unix(0, change).After(bound)
-}
-
-// sameDirStamp says the listed directory is still the same file with the
-// same mode, size, modification time and change time; a platform that
-// reports no change time never matches, so the listing is made again.
-func sameDirStamp(old, info os.FileInfo) bool {
-	if old == nil || info == nil || !os.SameFile(old, info) || old.Mode() != info.Mode() || old.Size() != info.Size() || !old.ModTime().Equal(info.ModTime()) {
-		return false
-	}
-	oldChange, ok := changeTime(old)
-	change, ok2 := changeTime(info)
-	return ok && ok2 && oldChange == change
 }
 
 // receiptNames validates listed receipt names in listing order with scan's
@@ -902,7 +903,7 @@ func receiptNames(o *observation, names []string) error {
 				return aliased()
 			}
 			temps[name] = struct{}{}
-			o.staging, o.receiptsStaging = true, true
+			o.staging = true
 			continue
 		}
 		seq, ok := receiptNameSeq(name)
@@ -930,7 +931,7 @@ func receiptNames(o *observation, names []string) error {
 
 func allowedDir(p string) bool {
 	switch p {
-	case "staging", "receipts", "requests", "attempts", "effects", "pinned", "evidence", "worktrees", "intent/tickets", "intent/releases":
+	case "staging", "receipts", "requests", "attempts", "effects", "pinned", "evidence", "worktrees", "intent/tickets", "intent/releases", snapshot.SegmentsDir:
 		return true
 	}
 	if strings.HasPrefix(p, "requests/") && len(p) == len("requests/")+2 {

@@ -16,6 +16,10 @@ type latest struct {
 	seq                wire.Size
 	digest, pendingPre *wire.Digest
 	pending            bool
+	// bytes is the afterimage size (0 for a deletion), or -1 where the
+	// walk resumed from a read checkpoint or a retired prefix, which carry
+	// no sizes. Only a writer checkpoint derivation consumes it.
+	bytes int64
 }
 
 // chain is the state one receipt hands to the next. A complete audit builds
@@ -45,6 +49,90 @@ type chain struct {
 	// prefetch holds receipts a complete walk read and decoded ahead of
 	// step (V1-1701); nil on every other route.
 	prefetch *receiptPrefetch
+	// posted names every path a ModeWriter walk's tail posted; the writer
+	// checkpoint and the liveness intent summary adjust only these
+	// (JSG-V0-001). Nil on every other walk.
+	posted map[string]bool
+	// view marks a ModeWriter walk whose canonical holds only what its tail
+	// posted: every other latest entry is looked up in elided where it is
+	// used, never copied (JSG-V0-004). added counts the paths the tail
+	// posted that elided does not hold.
+	view  bool
+	added int
+}
+
+// get returns the latest afterimage of p: the walk's own, else, on a view
+// walk, the writer checkpoint's.
+func (st *chain) get(p string) (latest, bool, error) {
+	if l, ok := st.canonical[p]; ok {
+		return l, true, nil
+	}
+	if st.view {
+		return st.elided.lookup(p)
+	}
+	return latest{}, false, nil
+}
+
+// has reports whether p has a latest entry, without decoding one.
+func (st *chain) has(p string) bool {
+	if _, ok := st.canonical[p]; ok {
+		return true
+	}
+	return st.view && st.elided.holds(p)
+}
+
+// count is the number of latest entries, request paths the tail posted
+// included.
+func (st *chain) count() int {
+	if st.view {
+		return st.added + st.elided.count()
+	}
+	return len(st.canonical)
+}
+
+// each calls fn for every latest entry in path order, skipping every path
+// under a prefix in skip (each ends in '/'). On a view walk the tail's
+// entry replaces the checkpoint's.
+func (st *chain) each(skip []string, fn func(string, latest) error) error {
+	keys := make([]string, 0, len(st.canonical))
+	for p := range st.canonical {
+		if skipped(p, skip) == "" {
+			keys = append(keys, p)
+		}
+	}
+	slices.Sort(keys)
+	i := 0
+	if st.view {
+		err := st.elided.each(skip, func(p string, l latest) error {
+			for ; i < len(keys) && keys[i] < p; i++ {
+				if err := fn(keys[i], st.canonical[keys[i]]); err != nil {
+					return err
+				}
+			}
+			if i < len(keys) && keys[i] == p {
+				l = st.canonical[p]
+				i++
+			}
+			return fn(p, l)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	for ; i < len(keys); i++ {
+		if err := fn(keys[i], st.canonical[keys[i]]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// inMap is has for a plain latest map.
+func inMap(m map[string]latest) func(string) bool {
+	return func(p string) bool {
+		_, ok := m[p]
+		return ok
+	}
 }
 
 // decode decodes one receipt of the walk and returns it with its original
@@ -89,6 +177,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	}
 	if r.handoffPolicy != nil {
 		result.HandoffPolicy = &HandoffPolicyHistory{Selector: *r.handoffPolicy, Compatible: true}
+	}
+	if o.segErr != nil {
+		return result, o.segErr
 	}
 	if o.stageErr != nil {
 		return result, o.stageErr
@@ -246,14 +337,17 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 	var target *ticket.Record
 	notes := r.noteAudit(st, rc)
 	for j, p := range rc.Post {
-		prior := canonical[p.Path]
+		prior, found, err := st.get(p.Path)
+		if err != nil {
+			return err
+		}
 		if strings.HasPrefix(p.Path, "requests/") && (prior.seq != "" || (st.seal != nil && st.seal.Anchor.HasRequest(p.Path))) {
 			return wire.Errorf(wire.CodeJournalForked, p.Path, "request ID occurs more than once in retained history")
 		}
 		if strings.HasPrefix(p.Path, "requests/") && st.elided != nil && st.elided.HasRequest(p.Path) {
 			return errCheckpoint(p.Path, "request ID repeats one retained before the checkpoint")
 		}
-		if _, ok := canonical[p.Path]; !ok && len(canonical) >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
+		if !found && st.count() >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
 		}
 		checked := pre.post(j)
@@ -329,7 +423,13 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 				}
 			}
 		}
-		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq}
+		canonical[p.Path] = latest{seq: rc.Seq, digest: p.Sha256, pendingPre: rc.Pre[j].Sha256, pending: seq > headSeq, bytes: int64(len(post))}
+		if st.view && !found {
+			st.added++
+		}
+		if st.posted != nil {
+			st.posted[p.Path] = true
+		}
 		if result.selectErr == nil && r.selects(p.Path, selected) {
 			old := result.Records[p.Path]
 			st.selectedBytes -= len(old.Raw)
@@ -712,7 +812,7 @@ func (r Reader) projections(o *observation, canonical map[string]latest, checkIn
 		}
 		return wire.Errorf(code, p, "projection differs from latest canonical afterimage")
 	}
-	return r.strays(o, canonical, checkIntent)
+	return r.strays(o, inMap(canonical), checkIntent)
 }
 
 // projected observes one physical projection. Intent bytes were already read
@@ -746,7 +846,7 @@ func (r Reader) projected(o *observation, p string, needRaw bool) (*wire.Digest,
 }
 
 // strays refuses every listed projection the journal never posted.
-func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent bool) error {
+func (r Reader) strays(o *observation, has func(string) bool, checkIntent bool) error {
 	for _, p := range sortedPaths(o.files) {
 		info := o.files[p]
 		if r.intentOnly && !strings.HasPrefix(p, "intent/") {
@@ -755,10 +855,15 @@ func (r Reader) strays(o *observation, canonical map[string]latest, checkIntent 
 		if !checkIntent && strings.HasPrefix(p, "intent/") {
 			continue
 		}
-		if info.IsDir() || isTemp(p) || strings.HasPrefix(p, "staging/") {
+		if info.IsDir() || isTemp(p) || strings.HasPrefix(p, "staging/") || strings.HasPrefix(p, snapshot.SegmentsDir+"/") {
 			continue
 		}
-		if _, ok := canonical[p]; ok {
+		// A sealed request is served from its segment; a linked copy of it
+		// is a second afterimage the journal never posted (JSG-V0-005).
+		if v, ok := r.Source.(*segmentView); ok && v.sealed(p) {
+			return wire.Errorf(wire.CodeJournalForked, p, "physical duplicate of a sealed request")
+		}
+		if has(p) {
 			continue
 		}
 		// A request a retired receipt posted is the seal's, not a stray
@@ -824,6 +929,9 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	if o.seal != nil {
 		return result, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
 	}
+	if o.segErr != nil {
+		return result, o.segErr
+	}
 	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
 		if o.head != nil {
 			// A stage beside a head is a writer in flight (or one that
@@ -875,7 +983,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	}
 	st := &chain{canonical: make(map[string]latest, len(cp.Entries)), prev: &cp.ReceiptSha256, generation: cp.Generation.Uint64(), resumed: from}
 	for _, e := range cp.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}
 	result.SemanticCoverage = cp.SemanticCoverage
 	result.LastSeq, result.LastReceiptSha256 = cp.Seq, cp.ReceiptSha256
@@ -912,7 +1020,7 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 			result.Records[p] = Record{Seq: record.seq, Sha256: record.digest, Raw: raw}
 		}
 	}
-	if err := r.strays(o, st.canonical, true); err != nil {
+	if err := r.strays(o, inMap(st.canonical), true); err != nil {
 		return result, err
 	}
 	result.ProjectionAgreement = "AGREES"

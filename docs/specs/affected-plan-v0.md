@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752)
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752)/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); AFP-V0-009 amended by the owner (decision 0531; V1-0682); AFP-V0-023 owner-directed, proposed (2026-10-01, V1-0246); AFP-V0-031/032/033 accepted (decision 0438); AFP-V0-034 accepted (decision 0439); AFP-V0-035 proposed (V1-0943; no GitHub issue); AFP-V0-036 proposed (V1-0984; no GitHub issue); AFP-V0-037 proposed (V1-0991; no GitHub issue); AFP-V0-038 proposed (V1-0995; no GitHub issue); AFP-V0-039 proposed (V1-0662; no GitHub issue); AFP-V0-040 accepted (decision 0487); AFP-V0-041 accepted (decision 0488), amended (decision 0500); AFP-V0-042 accepted (decision 0496); AFP-V0-028/029/030 accepted (decision 0431), amendments accepted (decision 0509); AFP-V0-013/014/016/017/022/026 amended (decision 0431, accepted decision 0509); other AFP-V0 requirements proposed; AFP-V0-043 accepted, decision 0505; AFP-V0-044/045 accepted (decision 0519; V1-1141; GitHub #783); AFP-V0-047 accepted under the owner's standing auto-accept (2026-10-11; V1-0811); AFP-V0-048 accepted, and AFP-V0-041 (6) and AFP-V0-047 amended to it, under the owner's standing auto-accept (2026-10-11; V1-1361); AFP-V0-049 accepted under the owner's standing auto-accept (2026-10-11; V1-1371); AFP-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-1298); AFP-V0-023 and AFP-V0-050 amended by the owner (decision 0528; V1-1399, V1-1400), and (3) reworded by the owner (decision 0529; V1-1425); AFP-V0-051 accepted under the owner's standing auto-accept (2026-10-11; V1-1351); AFP-V0-053 accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat); AFP-V0-029/030 amended by the owner for the `INFRA` row class (decision 0537; V1-1514); AFP-V0-029 shadow bar amended by the owner to count the whole epoch (owner chat, 2026-10-20; V1-0812); AFP-V0-052 accepted under the owner's standing auto-accept (2026-10-11; V1-1514); AFP-V0-054 accepted under the owner's standing auto-accept (2026-10-11; V1-1719); AFP-V0-066 accepted under the owner's standing auto-accept (2026-10-11; V1-1796; GitHub #1130); AFP-V0-072 accepted under the owner's standing auto-accept (2026-10-11; V1-1806); AFP-V0-079/080/081/082 accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); AFP-V0-060 accepted by the owner (owner chat, 2026-10-18; V1-1096); AFP-V0-088 accepted under the owner's standing auto-accept (2026-10-11; V1-2049); AFP-V0-016/024/027/028 amended by them; AFP-V0-150/151/152/153/154/155 accepted under the owner's standing auto-accept (2026-10-11; V1-1087, V1-0875, V1-1820, V1-2070, V1-0996, V1-1005); AFP-V0-029/030 amended and AFP-V0-097/098/099 decided by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812); AFP-V0-316 accepted under the owner's standing auto-accept (2026-10-11; V1-2169); AFP-V0-160/161 accepted, and AFP-V0-023 amended for rule (c) by AFP-V0-161, under the owner's standing auto-accept (2026-10-11; V1-0923, V1-1766/V1-2069); AFP-V0-356 accepted under the owner's standing auto-accept (2026-10-11; V1-2053); AFP-V0-156 accepted under the owner's standing auto-accept (2026-10-11; V1-2162); AFP-V0-163/164 accepted under the owner's standing auto-accept (2026-10-11; V1-2113, V1-1752)/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, conditional when the AGENTS.md Verify section scopes them, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification; AFP-V0-022 adds complete advisory CI partitions and a digest-bound experimental sharded PR profile, and AFP-V0-041 (accepted, decision 0488) lets the full run split an owner-allowed package into test slices across those shards, and AFP-V0-048 makes the sharded PR driver run each slice on the shard the same helper assigns; AFP-V0-023 lets a project-owned `.corvint/test-read-scopes.json` take a root-locating package off the rule (d) floor, enforced in full CI by the Landlock wrapper `.github/testconfine`.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; for queue-backed narrowing, AFP-V0-028/029 shadow admission, the owner setting the repository variable `CORVINT_PR_NARROWING` to `on`, a `CORVINT_PR_TOOL_SOURCE` pin carrying `narrow.sh` and the driver's plan mode, a scheduled `ci-forward-bar` verdict saying MET (AFP-V0-097 to AFP-V0-099; `docs/build-log/2026-10-20-v1-0812-narrowing-decisions.md`), reviewed tool pins and hosted observation of the V1-0760 queue-run reuse (AFP-V0-024; hosted enablement `NOT_OBSERVED`); the optional historical profile still requires genuine 200-row qualification and matching reviewed pins (AFP-V0-014/017), and its 201-commit prerequisite is met at `adf8358220769b8d6724ad27d27625602b8a7c62`, but no campaign PASS is implied.
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -705,8 +705,9 @@ and container qualification; full fallback remains available.
   makes it unbounded, and select it, with witness `DECLARED_READ_SCOPE` or the selector line
   `declared <pkg> <- <path>`, when a dirty path is in its subtree, equals or lies under an entry,
   is an ancestor of an entry, or is the declaration itself (an edit of the declaration is
-  narrowed by AFP-V0-050, for the planner and for the selector). Rules (a) to (c) and every dependency
-  edge are unchanged; a package that depends on a declared root locator but is not itself declared
+  narrowed by AFP-V0-050, for the planner and for the selector). Rules (a) and (b) and every dependency
+  edge are unchanged, and rule (c) is unchanged except that the planner bounds a declared package's
+  path-literal reads by the same scope (AFP-V0-161); a package that depends on a declared root locator but is not itself declared
   stays on the floor. A declaration that is present but not a regular file, oversized, not exactly
   this grammar, or names a directory with no package MUST declare nothing: the planner raises the
   module-level frontier `go:test-read-scopes-invalid` and the selector falls back (AFP-V0-011).
@@ -1998,6 +1999,31 @@ and container qualification; full fallback remains available.
   default document whose `advice.unknown` repeats a `plan.unknown` entry, drops an advice-specific
   line, or does not resolve to the `--full` advice. Rollback: return `advice.Unknown` unchanged
   from `compactAffectedAdvice`.
+- **AFP-V0-316:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2169))
+  The fast-tier selector's repository index (`indexRepository` in
+  `internal/gateselect/readers.go`, used by `corvint test`, `tools/gate-affected-select` and the
+  `-bounds` and `-unresolved` listings) MAY read, parse and lex the Go sources it walks with a
+  bounded pool of at most eight workers (never more than `GOMAXPROCS`), but MUST record their
+  imports, path literals, root-locating calls and `//go:embed` directives in walk order, so the
+  index is the one the serial pass builds, and MUST return the error the serial pass meets first:
+  a source that fails its bounded read or import parse precedes any walk error (entry cap,
+  non-regular Go source) found after it. The walk, the entry cap, the nested-module and hidden
+  directory skips, and the bounded-read identity check are unchanged. Measured on this repository
+  at c9ca8beff (load average 31 to 64): indexing fell from a 1.77 s to a 0.65 s median of five
+  ten-iteration runs, and `corvint test --dry-run` over a two-package change from a 5.05 s to a
+  3.90 s median of five, with byte-identical stdout, stderr and manifest. Falsifier: an index or
+  first error that differs from the serial pass (`GOMAXPROCS=1` takes it). Rollback: restore the
+  in-walk `scanFile` call.
+- **AFP-V0-296:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2194))
+  `corvint-pr-tests` admits exactly the toolchains decision 0547 allows, `go1.27.2` and `go1.27.3`.
+  One definition in the driver, `admittedGoVersions`, holds that set. The trusted tool identity
+  observed under any other `go env GOVERSION` is refused with the existing error `unsupported Go
+  version`. The `.github/cishards` source-version set and the hosted `setup-go` pin are unchanged.
+  Falsifier: an identity accepted under a version outside the set, or refused under `go1.27.3`.
+  Rollback: set `admittedGoVersions` back to `go1.27.2` alone.
+
+### Declared documentation paths and scope-bounded literal readers
+
 - **AFP-V0-163:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2113))
   A merge-queue entry MUST NOT rerun the `artifact-integrity` archive gate on a tree that a
   successful pull-request run already verified. The `artifact-integrity` job of a
@@ -2033,6 +2059,110 @@ and container qualification; full fallback remains available.
   the previous slices and 1133.9 s with the new ones, and 1556.7 s to 1414.9 s under the committed
   `package-costs.json`. Falsifier: a plan that drops or duplicates a test of either package, or a
   slice of either predicted above 400 s. Rollback: revert both entries in the two files.
+- **AFP-V0-160:** (accepted under the owner's standing auto-accept (2026-10-11; V1-0923); no
+  GitHub issue) A repository MAY declare which of its paths are documentation rather than build or
+  test inputs, so a change of documentation alone is not an unowned path. (1) The declaration is
+  `.corvint/documentation-paths.json`, the closed object
+  `{"profile":"corvint-documentation-paths/0","paths":[ENTRY...]}`, a regular file of at most
+  64 KiB with at most 256 entries. An `ENTRY` is a canonical repository-relative file, or a
+  directory when it ends in one `/`, under the AFP-V0-023 entry grammar (never `.git` or below
+  it), never `.corvint` or a path below it, and the entries are strictly ascending. An absent
+  declaration declares nothing; one that is unreadable, oversized, not a regular file or not exactly
+  this grammar refuses the graph build, naming the declaration, rather than classifying anything.
+  The declared entries are part of the graph's canonical form and digest, omitted when there are
+  none, so graphs of repositories without the declaration keep their digest. (2) A dirty path that
+  equals an entry or lies under a directory entry, that raised `UNOWNED_DIRTY_PATH` and that is not
+  in the AFP-V0-088 (1) layout, raises no unknown entry and is listed instead in a second `nonSource`
+  group `{"class":"DECLARED_DOCUMENTATION","reason":...,"paths":[...]}`, after any
+  `TASK_STORE_PROJECTION` group, with the stated reason once and the paths in dirty-path order.
+  (3) The reader rules are unchanged: every unit whose path literal (AFP-V0-021, AFP-V0-072),
+  declared read scope (AFP-V0-023) or unbounded read (rule (d)) reaches the path is still selected,
+  and those selections are the plan's documentation checks. A path a plugin claims as source
+  (`UNINDEXED_SOURCE_PATH`) is never reclassified. (4) A declared documentation path makes no plugin
+  take part in the plan (`participants`), so documentation alone brings no language frontier, and
+  beside a source change it adds nothing to the selection or the unknown entries. (5) A Tasks store
+  projection path stays under AFP-V0-088 even inside a declared directory. (6) This repository
+  declares `docs/build-log/`, one new file per entry (decision 0423), and nothing else. Design: the
+  class is a repository declaration, modelled on the AFP-V0-088 task-store class, so the product
+  hard-codes no documentation layout; the declaration cannot name `.corvint/`, so it can never
+  classify itself or another Corvint declaration. Non-goals: no content read of the documentation,
+  no default layout, no change to the `tools/gate-affected-select` fast-tier mirror or to
+  `internal/gateselect`, whose AFP-V0-153 task-state case still counts only
+  `TASK_STORE_PROJECTION` groups (a documentation-only diff keeps its own attribution there).
+  Failure modes: a declared path that a test reads through a computed path with no literal and no
+  declared scope is not seen, the AFP-V0-021 blind spot for any data file; a too-wide declaration
+  over a real build input is a project authority error the declaration owner corrects, and its
+  readers by literal or scope are still selected. Acceptance evidence:
+  `TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160`,
+  `TestDeclaredDocumentationKeepsEveryReader_AFPV0160`,
+  `TestDeclaredDocumentationLeavesTaskStateAndSourceAlone_AFPV0160`,
+  `TestDocumentationDeclarationIsValidated_AFPV0160`,
+  `TestDocumentationDeclarationIsInTheDigest_AFPV0160` and
+  `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160`; the repository measurement in build log
+  2026-10-21-design-1021-documentation-and-scoped-readers. Rollback: delete
+  `internal/liveverify/affected/documentation.go`, its test and `.corvint/documentation-paths.json`,
+  and the `documentation` graph field, digest member and `Select` call.
+- **AFP-V0-161:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1766, V1-2069);
+  no GitHub issue) A unit with a declared read scope (AFP-V0-023) is not a path-literal reader
+  (rule (c), AFP-V0-021) of a dirty path outside that scope. (1) For such a unit, a dirty path that
+  is not in its directory subtree, not an entry, not under a subtree entry, not an ancestor of an
+  entry and not the declaration itself does not resolve for any token, so the planner neither
+  selects the unit with a `PATH_LITERAL_READER` witness nor counts it as naming a Tasks store
+  projection path (AFP-V0-088 (2)). (2) Every path the scope holds keeps the AFP-V0-021 and
+  AFP-V0-072 relation unchanged, so every reader the declaration allows is still selected with the
+  same witness. (3) The narrowing adds no unknown entry and removes none; a unit whose unit
+  frontier was named because a token named the path still has it named (AFP-V0-072 (4)). Design:
+  the declaration states that the package's tests read nothing under the root outside that scope,
+  and full CI enforces it with the Landlock wrapper (AFP-V0-023), so a literal outside it is a
+  fixture name, not a read the tests can make without failing full CI; project-owned authority
+  outranks syntax. Literal matching itself is not narrowed: the remaining over-selection comes from
+  whole-segment anchored (`/x`), climbing (`../x`) and file-name literals that a root supplied at
+  run time can join, which no literal index can rule out. Non-goals: the `tools/gate-affected-select`
+  fast-tier mirror and `internal/gateselect` keep rule (c) unbounded, a superset of the planner;
+  no new declaration is added for any package by this requirement. Failure modes: the AFP-V0-023
+  residuals carry over unchanged, now for rule (c) as for rule (d): a test that depends only on
+  metadata or absence under the root, or tolerates a denied read, is not confined, and the
+  AFP-V0-013 driver runs are not confined; a too-narrow declaration fails that package's tests in
+  full CI rather than silently under-selecting. Acceptance evidence:
+  `TestDeclaredReadScopeBoundsPathLiteralReaders_AFPV0161`,
+  `TestDeclaredReadScopeKeepsEveryInScopeLiteralReader_AFPV0161` and
+  `TestDeclaredReadScopeDropsOutOfScopeFixtureNamers_AFPV0161`; this repository's namer counts in
+  build log 2026-10-21-design-1021-documentation-and-scoped-readers. Rollback: delete the
+  read-scope guard at the top of `resolves` in `internal/liveverify/affected/readers.go` and its
+  test, and restore the AFP-V0-023 rule (c) sentence.
+
+- **AFP-V0-356:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2053))
+  A MIXED-worktree warning (`--base`) and the MIXED refusals of `--require-clean` and `--path`
+  (`unsupported-affected-mixed-worktree`) MUST name the dirty paths, sorted, at most 8 quoted, with
+  `(+N more)` for the rest, and MUST state that Corvint runs Git without global configuration
+  (decision 0158), so a path ignored only by a global excludes file (`core.excludesFile` or
+  `~/.config/git/ignore`) is dirty here, with the fix: ignore it in a tracked `.gitignore` or in
+  `.git/info/exclude`. Global excludes stay unhonoured; the dirty set, exit codes and codes are
+  unchanged. Non-goals: the `impact` MIXED warning (its budgeted envelope at
+  `MinPacketBytes` cannot carry the detail) and the MCP `RepositoryBinding`, which stays a count and
+  digest; `overview` already names the cause (RGV-V0-050). Falsifier: a MIXED refusal or warning
+  caused only by a globally excluded path that does not name the path and the fix, or that lists
+  more than 8 paths. Rollback: drop `affectedDirtyDetail` from the three messages.
+- **AFP-V0-156:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2162))
+  A root check that only needs to prove a directory is the top of a Git worktree MUST NOT name the
+  repository-root locator option of AFP-V0-012 rule (d). It MUST run `git rev-parse
+  --is-inside-work-tree --show-prefix` in the directory and accept exactly `true`, newline, empty
+  prefix, newline; any other `true` output is "not the top", and a failure or `false` (a plain
+  directory, a Git directory) is "not a worktree". The refusal reasons and codes stay as they were.
+  This covers `openRoot` in `internal/appmap/gitread.go`, `bindRepository` in
+  `internal/appflows/repositories.go` and `resolveCheckout` in `internal/extevidence/repository.go`,
+  none of which read through the located top. A package that reads, runs Git or lists files through
+  a located top stays a rule (d) reader: this requirement removes no such reader and changes no
+  detector. Measured 2026-10-21 at base c9ca8beff (load averages 55 to 120 on a 12-core host):
+  `tools/gate-affected-select -unresolved` lists 104 unresolved packages at the base and, without
+  the new `tools/dogfood-guard-hunks` package that inherits from `internal/jstestprovider`, 104
+  after the change. The 63 packages that inherited from `internal/appflows` now inherit from
+  `internal/jstestprovider` (also reached are `internal/worksource` and
+  `internal/postmergeconnector`), which use the located top, so the floor does not drop until those
+  are bounded or declared under AFP-V0-023. A one-package change to `internal/appmap/gitread.go`
+  gives 130 bound and 105 unresolved `-bounds` rows (130 and 104 at the base). Falsifier: one of
+  the three sources names the locator option, or binds a subdirectory, a Git directory or a plain
+  directory. Rollback: restore the `--show-toplevel` comparison in the three functions.
 
 ## Non-goals and authority
 
@@ -2125,7 +2255,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-022 | `.github/cishards`, `tools/corvint-pr-tests`, `tools/ci-shard-costs`, CI and qualification workflows | `TestAFPMixedAdmissionPreservesSelectedUnion`, `TestAFPCompleteBalancedPartition`, `TestAFPIsolatedBuildIgnoresModuleRedirection`, `TestShardedPRExecution_AFPV0022`, `TestAFPV0022RefreshFromHostedOutcomes`, `TestAFPV0022RefreshRefusesUnusableInput`, `TestAFPV0022DriftCheck`, `TestAFPV0022OrderRunsSelectedUnitsFirstWithoutChangingTheSet`, `TestAFPV0022OrderFallsBackToTheCurrentOrder`; hosted timing and narrowing qualification NOT_RUN |
 | AFP-V0-023 | `ReadScopesPath`, `InReadScope`, `ValidReadScopeEntry`, `Graph.scopedReadersOf`, `WitnessDeclaredReadScope`, `Unit.ReadScoped`, `Unit.ReadScope` in `internal/liveverify/affected`; `readScopes`, `applyReadScopes`, `FrontierReadScopesInvalid` in `internal/liveverify/affected/golang/readscopes.go`; `readScopes`, `inReadScope` in `internal/gateselect/readscopes.go`; `.github/testconfine` (`Load`, `Rules`, `ExecConfined`, `ConfinedEnv`, `cmd`) and the full-run `-exec` in `.github/workflows/ci.yml` | `TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023`, `TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023`, `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`, `TestSelectPackagesHonorsDeclaredReadScopes`, `TestLoadAcceptsOnlyTheExactGrammar_AFPV0023`, `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023`, `TestSelectionOnTheLiveDirtyWorktree`, `TestConfinedEnvTurnsOffVCSStamping_AFPV0023`, `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` (Linux; run on a kernel reporting Landlock ABI 4, including granted and refused reparenting); per-package declarations verified under the wrapper in a Linux container (build log 2026-10-01-declared-test-read-scopes); hosted confined full run NOT_RUN until the protected workflow change is admitted |
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
-| AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution; `pinnedGoVersion` in `tools/corvint-pr-tests/main.go`, the one Go version both `toolIdentity` and `containerRunResult` admit (V1-1520) | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; `TestContainerRunResult` admits a `pinnedGoVersion` container result and refuses a coherent `go1.27.0` one (mutation: the old `go1.27.0` literal fails the admitted case); real Linux row/hosted NOT_RUN |
+| AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution; `admittedGoVersions` in `tools/corvint-pr-tests/main.go`, the one Go version set both `toolIdentity` and `containerRunResult` admit (V1-1520, V1-2194) | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; `TestContainerRunResult` admits a `go1.27.2` container result and refuses a coherent `go1.27.0` one (mutation: the old `go1.27.0` literal fails the admitted case); real Linux row/hosted NOT_RUN |
 | AFP-V0-024 | `tools/ci-reuse-plan` (`admits`, `Decide`, `readRuns`); `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`, `TestAFPV0024PushReusesTheQueueRunOfThePushedCommit`, `TestAFPV0024QueueRunRefusalsRunInFull`, `TestAFPV0024UnreadableListingContributesNoRun`, `TestAFPV0024WorkflowShardCountsAgree`, `TestAFPV0046WorkflowWiresQueueReuse`; local replay of the push step against the live API returned FULL; the V1-0760 replay is in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted reuse `NOT_OBSERVED` |
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue; the identical-tree exception is traced under AFP-V0-046 |
@@ -2187,6 +2317,12 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
 | AFP-V0-163 | the `reuse`, `Retain integrity reuse record`, `record` and `Retain integrity tree record` steps, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity` in `.github/workflows/ci.yml` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (both fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement `NOT_OBSERVED` |
 | AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (now requires both packages split, every test selected once, each slice within 400 s); `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
+| AFP-V0-316 | `scanFiles`, `scanFile` and `record` in `internal/gateselect/readers.go` | `TestAFPV0316ParallelIndexMatchesSerial` (the pooled index deep-equals the `GOMAXPROCS=1` serial index over a 99-file fixture, five times) and `TestAFPV0316ParallelIndexReportsTheFirstErrorInWalkOrder` (two unparsable sources: always the walk-first one; recording in completion order fails it); `BenchmarkIndexRepository` |
+| AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.2 and go1.27.3 admitted, go1.27.1, go1.27.4 and go1.28.2 refused), run green under go1.27.2 and go1.27.3; fails on go1.27.3 without the fix |
+| AFP-V0-160 | `readDocumentationPaths`, `declaredDocumentation` and `documentationPaths` in `internal/liveverify/affected/documentation.go`; the `documentation` graph field and digest member in `graph.go`; the `Select` call in `select.go`; `.corvint/documentation-paths.json` | `TestDeclaredDocumentationIsNonSourceNotUnknown_AFPV0160`, `TestDeclaredDocumentationKeepsEveryReader_AFPV0160`, `TestDeclaredDocumentationLeavesTaskStateAndSourceAlone_AFPV0160`, `TestDocumentationDeclarationIsValidated_AFPV0160`, `TestDocumentationDeclarationIsInTheDigest_AFPV0160`, `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` |
+| AFP-V0-161 | the read-scope guard in `resolves`, `internal/liveverify/affected/readers.go` | `TestDeclaredReadScopeBoundsPathLiteralReaders_AFPV0161`, `TestDeclaredReadScopeKeepsEveryInScopeLiteralReader_AFPV0161`, `TestDeclaredReadScopeDropsOutOfScopeFixtureNamers_AFPV0161` |
+| AFP-V0-356 | `affectedDirtyDetail`, `affectedMixedWarning`, `affectedMixedWorktreeRefusal` and `affectedPathListMixedRefusal` in `cmd/corvint/affected_freshness.go` | `TestAFPV0356MixedNamesGloballyExcludedPath` (a path excluded only through `GIT_CONFIG_GLOBAL`'s `core.excludesFile` is named, with the cause and fix, by the `--require-clean` and `--path` refusals and the `--base` warning), `TestAFPV0356DirtyDetailIsBounded` |
+| AFP-V0-156 | the `--is-inside-work-tree --show-prefix` checks in `openRoot` (`internal/appmap/gitread.go`), `bindRepository` (`internal/appflows/repositories.go`) and `resolveCheckout` (`internal/extevidence/repository.go`) | `TestAFPV0156AppmapCarriesNoRootLocator` and the `git dir` case of `TestAMAPV0017RootUnavailable`; `TestAFPV0156BindRepositoryTopLevel`; `TestAFPV0156CheckoutTopLevelWithoutLocator` and the `git directory` case of `TestCheckoutBinding` (each locator assertion failing before the change) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

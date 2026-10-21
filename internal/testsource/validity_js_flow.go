@@ -33,7 +33,7 @@ var (
 
 // jsTestLibrary reports a test-framework module, whose calls never reach the code under test.
 func jsTestLibrary(spec string) bool {
-	return strings.HasPrefix(spec, "@testing-library/") || spec == "vitest" || spec == "@jest/globals" || spec == "jest"
+	return strings.HasPrefix(spec, "@testing-library/") || spec == "vitest" || spec == "@jest/globals" || spec == "jest" || spec == "bun:test"
 }
 
 // jsFirstParty reports a project module specifier: relative or a project alias root.

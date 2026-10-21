@@ -17,7 +17,10 @@ type claim struct {
 	report        Report
 	seen          int
 	charged       time.Duration
-	done          bool
+	// baseline is the wall time of the claim's package baseline run, the
+	// cold build included (FPK-V0-142).
+	baseline time.Duration
+	done     bool
 }
 
 // packageGroup is every live claim whose tests live in one package: they
@@ -156,7 +159,11 @@ func baselineGroup(ctx context.Context, group packageGroup, space workspace) err
 		finishAll(group.claims, budgetReport("budget exhausted before the run started"))
 		return nil
 	}
-	outcome, output, outcomes := runGroup(ctx, group, space)
+	started := time.Now()
+	outcome, output, outcomes := runGroup(ctx, group, space, true)
+	for _, entry := range group.claims {
+		entry.baseline = time.Since(started)
+	}
 	if outcome != runPassed && ctx.Err() != nil {
 		finishAll(group.claims, budgetReport("budget exhausted during the baseline run"))
 		return nil
@@ -193,6 +200,10 @@ func baselineAlone(ctx context.Context, entry *claim, space workspace) error {
 	outcome, output := runClaim(ctx, entry, space)
 	if outcome != runPassed && ctx.Err() != nil {
 		entry.finish(budgetReport("budget exhausted during the baseline run"))
+		return nil
+	}
+	if outcome == runTimedOut {
+		entry.finish(budgetReport(perRunDetail(entry.configuration.perRun, "during the baseline run")))
 		return nil
 	}
 	if outcome == runBroken {
@@ -244,10 +255,17 @@ func judgeMutantAcrossPackages(ctx context.Context, live []*claim, space workspa
 			partialAll(liveClaims(live))
 			return nil
 		}
-		outcome, output, outcomes := runGroup(ctx, group, space)
+		outcome, output, outcomes := runGroup(ctx, group, space, false)
 		if outcome != runPassed && ctx.Err() != nil {
 			partialAll(liveClaims(live))
 			return nil
+		}
+		if outcome == runTimedOut {
+			limit := groupTimeout(group)
+			for _, entry := range group.claims {
+				entry.finish(perRunPartial(entry.report, entry.seen, limit))
+			}
+			continue
 		}
 		if outcome == runBroken {
 			return inconclusive(output)
@@ -277,6 +295,10 @@ func creditGroup(ctx context.Context, group packageGroup, space workspace, outco
 		}
 		if result == runUnattributed {
 			entry.finish(budgetPartial(entry.report, entry.seen))
+			continue
+		}
+		if result == runTimedOut {
+			entry.finish(perRunPartial(entry.report, entry.seen, entry.configuration.perRun))
 			continue
 		}
 		if result == runBroken {
@@ -337,15 +359,16 @@ func (entry *claim) credit(outcome runOutcome, candidate mutant, killingTest str
 
 func (entry *claim) finish(report Report) {
 	report.Elapsed = entry.charged
+	report.Baseline = entry.baseline
 	entry.report = report
 	entry.done = true
 }
 
 // runGroup runs the union of the group's functions in one go test, charges
 // every claim the run's wall time, and returns each function's own result.
-func runGroup(ctx context.Context, group packageGroup, space workspace) (runOutcome, string, map[string]runOutcome) {
+func runGroup(ctx context.Context, group packageGroup, space workspace, cold bool) (runOutcome, string, map[string]runOutcome) {
 	started := time.Now()
-	outcome, output, outcomes := runGoTest(ctx, groupTimeout(group), space, group.dir, runPattern(groupNames(group)), true)
+	outcome, output, outcomes := runGoTest(ctx, groupTimeout(group), space, group.dir, runPattern(groupNames(group)), true, cold)
 	charge(group.claims, time.Since(started))
 	return outcome, output, outcomes
 }
@@ -353,7 +376,7 @@ func runGroup(ctx context.Context, group packageGroup, space workspace) (runOutc
 // runClaim runs one claim's own pattern, as Judge would, charging it alone.
 func runClaim(ctx context.Context, entry *claim, space workspace) (runOutcome, string) {
 	started := time.Now()
-	outcome, output := runTests(ctx, entry.configuration, space, runPattern(entry.names))
+	outcome, output := runTests(ctx, entry.configuration, space, runPattern(entry.names), false)
 	charge([]*claim{entry}, time.Since(started))
 	return outcome, output
 }

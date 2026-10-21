@@ -177,6 +177,7 @@ func TestAMAPV0017RootUnavailable(t *testing.T) {
 		"other alias":  {"tests": e2e},
 		"not git":      {"e2e": plain},
 		"subdirectory": {"e2e": filepath.Join(e2e, "e2e")},
+		"git dir":      {"e2e": filepath.Join(e2e, ".git")},
 		"relative":     {"e2e": "e2e"},
 		"missing":      {"e2e": filepath.Join(plain, "absent")},
 		"same as root": {"e2e": app},
@@ -370,6 +371,28 @@ func TestAMAPV0075WholeRepositoryRoot(t *testing.T) {
 	for _, bad := range []string{`"root": ""`, `"root": ".."`, `"root": "./"`} {
 		if _, err = decodeManifest([]byte(strings.Replace(string(raw), `"root": "e2e"`, bad, 1))); err == nil {
 			t.Errorf("admitted %s", bad)
+		}
+	}
+}
+
+// AFP-V0-156: the root check proves a worktree top from an empty prefix, so no non-test source of
+// this package names the repository-root locator option that marks a package as an unbounded
+// reader (AFP-V0-012 rule (d)).
+func TestAFPV0156AppmapCarriesNoRootLocator(t *testing.T) {
+	names, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(data), "--show-"+"toplevel") {
+			t.Errorf("%s names the repository-root locator", name)
 		}
 	}
 }

@@ -3,6 +3,7 @@ package journal
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -58,7 +59,7 @@ func TestCALV0265_RefreshPrefixWalk(t *testing.T) {
 	if err != nil || quiet.Mode != ModeFull {
 		t.Fatalf("quiescent refresh: %+v %v", quiet, err)
 	}
-	if got, err := quiet.WriterCheckpoint(quietObs.Files); err != nil || !bytes.Equal(got.Encode(), want.Encode()) {
+	if got, err := quiet.WriterCheckpoint(quietObs.Files); err != nil || !bytes.Equal(encodeWriter(t, got), encodeWriter(t, want)) {
 		t.Fatalf("quiescent refresh checkpoint differs: %v", err)
 	}
 
@@ -69,7 +70,7 @@ func TestCALV0265_RefreshPrefixWalk(t *testing.T) {
 	if err != nil || walked.Mode != ModePrefix || walked.StructuralConsistency != "CONSISTENT" {
 		t.Fatalf("prefix walk: %+v %v", walked, err)
 	}
-	if got, err := walked.WriterCheckpoint(obs.Files); err != nil || !bytes.Equal(got.Encode(), want.Encode()) {
+	if got, err := walked.WriterCheckpoint(obs.Files); err != nil || !bytes.Equal(encodeWriter(t, got), encodeWriter(t, want)) {
 		t.Fatalf("prefix checkpoint differs from the complete audit's: %v", err)
 	}
 
@@ -154,6 +155,64 @@ func TestCALV0265_PrefixRecheckAfterWalk(t *testing.T) {
 			}
 			if wire.CodeOf(err) != wire.CodeSnapshotMoved {
 				t.Fatalf("change after the walk: %+v %v", walked, err)
+			}
+		})
+	}
+}
+
+// TestCALV0265_RefreshUnderAppendsNeverAdvancesOverUnsettledHistory covers
+// decision 0549's fail-closed refresh, which a liveness write's probe
+// (CAL-V0-224) relies on to classify history it does not list. Under
+// appends the refresh's complete attempt moves and the prefix walk runs; a
+// stray temporary receipt name, or a receipt missing from history more than
+// MaxWriterTail receipts before head, then yields SNAPSHOT_MOVED and no
+// checkpoint, so FullSeq never advances past it and WriterFullBound keeps
+// its bound. A held journal is the complete audit's own classification:
+// staging present, or the missing receipt's refusal. Mutation: dropping the
+// staging check in walkPrefix returns a prefix result that binds a
+// checkpoint with an advanced FullSeq.
+func TestCALV0265_RefreshUnderAppendsNeverAdvancesOverUnsettledHistory(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		history int
+	}{
+		{"stray-staging", 0},
+		{"missing-beyond-tail", MaxWriterTail + 8},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo, r := refreshStore(t)
+			for i := 0; i < tc.history; i++ {
+				appendRequest(t, repo, fmt.Sprintf("history-%d", i))
+			}
+			receipts := filepath.Join(repo.StateDir, "receipts")
+			if tc.history == 0 {
+				name, _ := snapshot.ReceiptName(2)
+				fixture.Write(t, filepath.Join(receipts, name+".tmp-1-x"), []byte("x"))
+			} else {
+				name, _ := snapshot.ReceiptName(2)
+				if err := os.Remove(filepath.Join(receipts, name)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			held, heldObs, heldErr := r.AuditWriterRefresh()
+			if tc.history == 0 {
+				if heldErr != nil || held == nil || !held.StagingPresent {
+					t.Fatalf("held refresh with a stray temporary name: %+v %v, want staging present", held, heldErr)
+				}
+				if _, err := held.WriterCheckpoint(heldObs.Files); err == nil {
+					t.Fatal("held refresh with a stray temporary name bound a checkpoint")
+				}
+			} else if heldErr == nil || wire.CodeOf(heldErr) == wire.CodeSnapshotMoved {
+				t.Fatalf("held refresh with receipt 2 missing: %v, want a refusal", heldErr)
+			}
+			appends := 0
+			r.afterCapture = func() {
+				appends++
+				appendRequest(t, repo, fmt.Sprintf("racing-%d", appends))
+			}
+			moving, _, err := r.AuditWriterRefresh()
+			if wire.CodeOf(err) != wire.CodeSnapshotMoved || appends < 2 {
+				t.Fatalf("refresh under appends: %+v %v after %d appends, want SNAPSHOT_MOVED past the prefix walk", moving, err, appends)
 			}
 		})
 	}

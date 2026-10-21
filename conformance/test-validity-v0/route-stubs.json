@@ -1,6 +1,6 @@
 {
   "version": "test-validity-v0",
-  "description": "Request-stub hit vectors (LPCV-V0-072 to LPCV-V0-077; V1-1458, GitHub #948; V1-1475). Each case's receipt is an unprofiled corvint-js-test-provider receipt; the Go projector (internal/testvaliditydoc) must emit exactly 'expected' as each test's routeStubs member, in test order, where null means the member is omitted. A case with routeStubsRequested true is projected with the member requested (corvint test-validity --route-stubs, LPCV-V0-077). The TypeScript mirror projects axes only and does not read this file.",
+  "description": "Request-stub hit vectors (LPCV-V0-072 to LPCV-V0-077 and LPCV-V0-214; V1-1458, GitHub #948; V1-1475). Each case's receipt is an unprofiled corvint-js-test-provider receipt; the Go projector (internal/testvaliditydoc) must emit exactly 'expected' as each test's routeStubs member, in test order, where null means the member is omitted. A case with routeStubsRequested true is projected with the member requested (corvint test-validity --route-stubs, LPCV-V0-077). The TypeScript mirror projects axes only and does not read this file.",
   "cases": [
     {
       "name": "hit",
@@ -130,6 +130,15 @@
       "expected": [
         {"state": "RECORDED"},
         {"state": "NOT_PRODUCED", "reason": "route-stub-record-absent"}
+      ]
+    },
+    {
+      "name": "unrouted-before-hit",
+      "receipt": {"kind": "e2e", "tests": [
+        {"name": "stub removed with unroute before any request", "state": "passed", "attemptDetails": [{"state": "passed", "retry": 0, "durationMs": 10, "routeStubs": {"stubs": [{"target": "page", "kind": "glob", "pattern": "**/api/items", "hits": 0, "file": "stubs.spec.cjs", "line": 21, "unrouted": true}, {"target": "page", "kind": "glob", "pattern": "**/api/orders", "hits": 2, "file": "stubs.spec.cjs", "line": 22, "unrouted": true}, {"target": "context", "kind": "glob", "pattern": "**/api/users", "hits": 0, "file": "stubs.spec.cjs", "line": 23}]}}]}
+      ]},
+      "expected": [
+        {"state": "RECORDED", "findings": [{"code": "stub-never-matched", "target": "context", "kind": "glob", "pattern": "**/api/users", "file": "stubs.spec.cjs", "line": 23}]}
       ]
     }
   ]

@@ -18,9 +18,12 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -59,9 +62,9 @@ type repositoryIndex struct {
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
 	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}}
-	imports := map[string]map[string]bool{}
+	var files []indexedFile
 	entries := 0
-	err := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
+	walkErr := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -92,13 +95,69 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 		if err != nil {
 			return err
 		}
-		return index.scanFile(root, relative, expected, imports)
+		files = append(files, indexedFile{relative: relative, expected: expected})
+		return nil
 	})
-	if err != nil {
-		return nil, err
+	// V1-2169: the files are read, parsed and lexed by a bounded pool, then
+	// recorded in walk order, so the index and the first error are those of
+	// the serial pass: a file's scan error precedes any walk error after it.
+	imports := map[string]map[string]bool{}
+	for _, scanned := range scanFiles(root, module, files) {
+		if scanned.err != nil {
+			return nil, scanned.err
+		}
+		index.record(scanned, imports)
+	}
+	if walkErr != nil {
+		return nil, walkErr
 	}
 	index.link(imports)
 	return index, nil
+}
+
+// indexedFile is one Go source the walk found, with the entry it observed.
+type indexedFile struct {
+	relative string
+	expected fs.FileInfo
+}
+
+// scannedFile is what one Go source contributes to the index, computed
+// without touching it.
+type scannedFile struct {
+	relative, directory string
+	test                bool
+	imports             []string
+	scan                sourceScan
+	tokens              [][]string // pathTokens of each scan.literals entry
+	err                 error
+}
+
+// scanWorkers bounds the Go sources read and lexed at once.
+const scanWorkers = 8
+
+// scanFiles scans every file, each result at its file's offset.
+func scanFiles(root, module string, files []indexedFile) []scannedFile {
+	results := make([]scannedFile, len(files))
+	workers := min(runtime.GOMAXPROCS(0), scanWorkers, len(files))
+	if workers < 2 {
+		for offset, file := range files {
+			results[offset] = scanFile(root, module, file)
+		}
+		return results
+	}
+	var next atomic.Int64
+	var pending sync.WaitGroup
+	for range workers {
+		pending.Add(1)
+		go func() {
+			defer pending.Done()
+			for offset := int(next.Add(1)) - 1; offset < len(files); offset = int(next.Add(1)) - 1 {
+				results[offset] = scanFile(root, module, files[offset])
+			}
+		}()
+	}
+	pending.Wait()
+	return results
 }
 
 func (index *repositoryIndex) enterDirectory(root, relative string) error {
@@ -115,29 +174,45 @@ func (index *repositoryIndex) enterDirectory(root, relative string) error {
 	return nil
 }
 
-func (index *repositoryIndex) scanFile(root, relative string, expected fs.FileInfo, imports map[string]map[string]bool) error {
-	body, err := readBounded(filepath.Join(root, filepath.FromSlash(relative)), expected)
+func scanFile(root, module string, source indexedFile) scannedFile {
+	relative := source.relative
+	scanned := scannedFile{relative: relative, directory: parentDirectory(relative), test: strings.HasSuffix(relative, "_test.go")}
+	body, err := readBounded(filepath.Join(root, filepath.FromSlash(relative)), source.expected)
 	if err != nil {
-		return err
+		scanned.err = err
+		return scanned
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), relative, body, parser.ImportsOnly)
 	if err != nil {
-		return fmt.Errorf("%s: imports do not parse", relative)
+		scanned.err = fmt.Errorf("%s: imports do not parse", relative)
+		return scanned
 	}
-	directory := parentDirectory(relative)
+	for _, spec := range file.Imports {
+		value, _ := strconv.Unquote(spec.Path.Value)
+		scanned.imports = append(scanned.imports, value)
+	}
+	aliases, dotImported := rootLocatorImports(file.Imports)
+	scanned.scan = scanSource(body, aliases, dotImported)
+	scanned.tokens = make([][]string, len(scanned.scan.literals))
+	for offset, literal := range scanned.scan.literals {
+		scanned.tokens[offset] = pathTokens(literal, module)
+	}
+	return scanned
+}
+
+// record adds one scanned file to the index.
+func (index *repositoryIndex) record(scanned scannedFile, imports map[string]map[string]bool) {
+	relative, directory, test := scanned.relative, scanned.directory, scanned.test
 	pkg := index.packages[directory]
 	if pkg == nil {
 		pkg = &goPackage{}
 		index.packages[directory] = pkg
 		imports[directory] = map[string]bool{}
 	}
-	for _, spec := range file.Imports {
-		value, _ := strconv.Unquote(spec.Path.Value)
+	for _, value := range scanned.imports {
 		imports[directory][value] = true
 	}
-	test := strings.HasSuffix(relative, "_test.go")
-	aliases, dotImported := rootLocatorImports(file.Imports)
-	scan := scanSource(body, aliases, dotImported)
+	scan := scanned.scan
 	if scan.err != nil {
 		pkg.markUnresolved(relative+" does not tokenize", test)
 	}
@@ -145,8 +220,8 @@ func (index *repositoryIndex) scanFile(root, relative string, expected fs.FileIn
 		pkg.markUnresolved(relative+" calls "+call, test)
 	}
 	pkg.embeds = pkg.embeds || (scan.embeds && !test)
-	for _, literal := range scan.literals {
-		for _, value := range pathTokens(literal, index.module) {
+	for _, values := range scanned.tokens {
+		for _, value := range values {
 			index.holders[value] = appendOnce(index.holders[value], directory)
 			if !test {
 				index.nonTestHolders[value] = appendOnce(index.nonTestHolders[value], directory)
@@ -156,7 +231,6 @@ func (index *repositoryIndex) scanFile(root, relative string, expected fs.FileIn
 			}
 		}
 	}
-	return nil
 }
 
 func (pkg *goPackage) markUnresolved(reason string, test bool) {

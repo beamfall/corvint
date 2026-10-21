@@ -30,6 +30,9 @@ type Graph struct {
 	frontier   []string
 	frontierBy map[string][]string
 	digest     string
+	// documentation is the repository's declared documentation entries
+	// (AFP-V0-160), sorted; it is part of the digest when present.
+	documentation []string
 	// priorReadScopes is the read-scope declaration a change is measured
 	// from, by package directory; nil means unknown (AFP-V0-050). It is a
 	// selection input, not part of the observed graph or its digest.
@@ -58,6 +61,9 @@ type digestBody struct {
 	Languages []string     `json:"languages"`
 	Frontier  []string     `json:"frontier"`
 	Units     []digestUnit `json:"units"`
+	// Documentation appears only when the repository declares documentation
+	// paths (AFP-V0-160), so graphs without the declaration keep their digest.
+	Documentation []string `json:"documentation,omitempty"`
 }
 
 // digestUnit projects one Unit; every member is always present except the
@@ -101,7 +107,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 		return nil, ErrInvalidLanguage
 	}
 	reader := FSSource(source)
-	return build(context.Background(), languages, func(language Language) (Result, error) {
+	return build(context.Background(), languages, reader, func(language Language) (Result, error) {
 		explicit, ok := language.(SourceLanguage)
 		if !ok {
 			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
@@ -116,7 +122,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 
 func Build(ctx context.Context, root string, languages ...Language) (*Graph, error) {
 	reader := DiskSourceContext(ctx, root)
-	return build(ctx, languages, func(language Language) (Result, error) {
+	return build(ctx, languages, reader, func(language Language) (Result, error) {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
 		}
@@ -134,7 +140,7 @@ func Build(ctx context.Context, root string, languages ...Language) (*Graph, err
 	})
 }
 
-func build(ctx context.Context, languages []Language, observe func(Language) (Result, error)) (*Graph, error) {
+func build(ctx context.Context, languages []Language, reader *Source, observe func(Language) (Result, error)) (*Graph, error) {
 	if len(languages) == 0 {
 		return nil, fmt.Errorf("%w: no language plugins", ErrInvalidLanguage)
 	}
@@ -175,6 +181,11 @@ func build(ctx context.Context, languages []Language, observe func(Language) (Re
 	}
 	sort.Strings(graph.languages)
 	graph.frontier = sortedKeys(frontier)
+	documentation, err := readDocumentationPaths(reader)
+	if err != nil {
+		return nil, err
+	}
+	graph.documentation = documentation
 	graph.finish()
 	digest, err := graph.computeDigest()
 	if err != nil {
@@ -352,9 +363,10 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		units = append(units, projectUnit(graph.units[id]))
 	}
 	return json.Marshal(digestBody{
-		Languages: graph.languages,
-		Frontier:  graph.frontier,
-		Units:     units,
+		Languages:     graph.languages,
+		Frontier:      graph.frontier,
+		Units:         units,
+		Documentation: graph.documentation,
 	}, json.Deterministic(true))
 }
 

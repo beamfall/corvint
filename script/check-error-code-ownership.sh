@@ -51,6 +51,18 @@ search() {
     fi
 }
 
+# search_tree runs the same search over the scratch tree of candidate lines, whose files hold
+# index content only.
+search_tree() {
+    out=$1; shift
+    status=0
+    (cd "$work/tree" && git grep --no-index -I "$@") >"$out" || status=$?
+    if [ "$status" -gt 1 ]; then
+        printf 'error-code ownership: git grep failed (exit %s)\n' "$status" >&2
+        exit 1
+    fi
+}
+
 sources="cmd/*.go internal/*.go"
 ident='[A-Za-z_][A-Za-z0-9_]*'
 # One call argument: no top-level comma, at most one level of nested parentheses.
@@ -97,9 +109,27 @@ for index in 0 1 2 3; do
 done
 
 position="(^|[^A-Za-z0-9_])((Code|Reason)[[:space:]]*:[[:space:]]*|\"(code|reason)\"[[:space:]]*:[[:space:]]*|errors\.New\(|($first)\($assignments)\"$kebab\""
+# Every site ends in a quoted kebab literal on one line, so only a line holding one can match
+# (ECO-V0-008). Those lines are copied from the index into a scratch tree at their own line
+# numbers, every other line left empty, and the position pattern runs there: its long call-name
+# alternation then scans a small fraction of the source and finds exactly the same sites.
 set -f
 # shellcheck disable=SC2086
-search "$work/sites" -n -o -E "$position" -- $sources ':(exclude)*_test.go'
+search "$work/candidates" -n -E "\"$kebab\"" -- $sources ':(exclude)*_test.go'
+set +f
+mkdir "$work/tree"
+sed -E 's/:[0-9]+:.*$//; s/\/[^/]*$//' "$work/candidates" | LC_ALL=C sort -u |
+    (cd "$work/tree" && xargs mkdir -p)
+LC_ALL=C awk -v tree="$work/tree" '{
+        split_at = index($0, ":"); path = substr($0, 1, split_at - 1); rest = substr($0, split_at + 1)
+        split_at = index(rest, ":"); line = substr(rest, 1, split_at - 1) + 0
+        if (path != current) { if (current != "") close(file); current = path; file = tree "/" path; last = 0 }
+        while (++last < line) print "" > file
+        print substr(rest, split_at + 1) > file
+    }' "$work/candidates"
+set -f
+# shellcheck disable=SC2086
+search_tree "$work/sites" -n -o -E "$position" -- $sources
 set +f
 # One "directory<TAB>pattern" line per declaring directory, alternating its later-parameter
 # names grouped by index.

@@ -80,6 +80,10 @@ type preparedLease struct {
 	// writerToken the invalidation token read before that audit.
 	writer      *journal.WriterCheckpoint
 	writerToken writerToken
+	// writerProof and writerPhys are that complete audit and the bytes it
+	// read, which verify the retained checkpoint at commit (JSG-V0-003).
+	writerProof *journal.Result
+	writerPhys  map[string]journal.PhysicalFile
 	// base and baseObs are a settled audit from receipt 1 that a later round
 	// may resume from (PSR-V0-051, proposed); noResume is set when the
 	// prefix walk declined, so the command keeps the complete audit.
@@ -303,6 +307,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			}
 			supplied = proof
 			p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			p.writerProof, p.writerPhys = proof, observation.Files
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.
 		// Preserve the ordinary inventory-first replay/recovery path below.
@@ -351,7 +356,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		if err != nil {
 			return nil, err
 		}
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, path), bound)
+		raw, err := readLogical(repo, path, bound)
 		if err != nil {
 			return nil, err
 		}
@@ -716,6 +721,11 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	// The lock is held and the head is the audited one. Read verbs share
 	// leaseAudit, so the checkpoint is retained here and never there.
 	retainCheckpoint(repo, p.proof)
+	if p.writerProof != nil {
+		p.writerToken = verifyWriterCheckpoint(ctx, repo, p.writerToken, func(old *journal.WriterCheckpoint) (bool, error) {
+			return p.writerProof.VerifyWriterCheckpoint(old, p.writerPhys)
+		})
+	}
 	retainWriterCheckpoint(repo, p.writer, p.writerToken)
 	if !p.pending && (p.result.Kind != "Transaction" || p.result.Plan == nil) {
 		setLeaseReport(report, p.result)

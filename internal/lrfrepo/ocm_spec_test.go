@@ -257,3 +257,36 @@ func TestAgentLeasesSpecEnumeratesCALV0102(t *testing.T) {
 		}
 	}
 }
+
+// CTW-V0-012..013 (V1-2165) are CAL-V0-073 and CAL-V0-106 re-homed into the
+// intent worktree spec's Requirements section, which OCM enumerates; the
+// agent-leases spec stays within the obligation bound without them.
+func TestIntentWorktreeSpecEnumeratesRehomedCALV0073And106(t *testing.T) {
+	path := "docs/specs/corvint-tasks-intent-worktree-v0.md"
+	data, err := os.ReadFile("../../" + path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, requirements, _, err := requirementsFromBlob(path, "fixture-blob", data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CTW-V0-012", "CTW-V0-013"} {
+		if !slices.Contains(requirements, id) {
+			t.Fatalf("OCM enumerates %v; want %s", requirements, id)
+		}
+	}
+	leases := "docs/specs/corvint-tasks-agent-leases-v0.md"
+	data, err = os.ReadFile("../../" + leases)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, requirements, _, err = requirementsFromBlob(leases, "fixture-blob", data); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"CAL-V0-073", "CAL-V0-106"} {
+		if slices.Contains(requirements, id) {
+			t.Fatalf("OCM still enumerates retired alias %s in %s", id, leases)
+		}
+	}
+}

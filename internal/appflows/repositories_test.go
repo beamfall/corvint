@@ -181,3 +181,44 @@ func TestAFUV1068AncestryRewrittenRefused(t *testing.T) {
 		t.Fatalf("shallow checkout reason %q", reason)
 	}
 }
+
+// AFP-V0-156: a source binds only at the top of a Git worktree, proved from an empty prefix rather
+// than a located top path: a plain directory and a Git directory are not checkouts, and a
+// subdirectory is not the top. No non-test source of this package names the repository-root
+// locator option that marks it an unbounded reader (AFP-V0-012 rule (d)).
+func TestAFPV0156BindRepositoryTopLevel(t *testing.T) {
+	t.Parallel()
+	app := t.TempDir()
+	writeRaw(t, app, "src/pay.rb", []byte("def pay; end\n"))
+	gitTest(t, app, "init", "-q")
+	origin := commitAll(t, app, "app")
+	repo := SelectionRepository{ID: "app", Origin: origin}
+	for source, want := range map[string]string{
+		t.TempDir():                "not a Git checkout",
+		filepath.Join(app, ".git"): "not a Git checkout",
+		filepath.Join(app, "src"):  "not the top level of a Git checkout",
+	} {
+		rows, bound, _ := bindRepositories(context.Background(), t.TempDir(), []SelectionRepository{repo}, []E2ERepositoryInput{{ID: "app", Source: source, Base: origin}})
+		if len(bound) != 0 || len(rows) != 1 || rows[0].Reason != want {
+			t.Errorf("%s: rows %+v, want reason %q", source, rows, want)
+		}
+	}
+	rows, bound, codes := bindRepositories(context.Background(), t.TempDir(), []SelectionRepository{repo}, []E2ERepositoryInput{{ID: "app", Source: app, Base: origin}})
+	if len(bound) != 1 || len(codes) != 0 {
+		t.Fatalf("top-level checkout refused: rows %+v codes %+v", rows, codes)
+	}
+	names, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		if data, err := os.ReadFile(name); err != nil {
+			t.Fatal(err)
+		} else if strings.Contains(string(data), "--show-"+"toplevel") {
+			t.Errorf("%s names the repository-root locator", name)
+		}
+	}
+}

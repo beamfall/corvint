@@ -39,6 +39,9 @@ const (
 	seedReasonFixtureUnsupported  = "seed-fixture-unsupported"
 	seedReasonFixtureBoundReached = "seed-fixture-bound-exceeded"
 	seedReasonExecutionUnresolved = "seed-execution-unresolved"
+	// seedReasonHelperUnresolved is a call to a first-party helper the reading cannot follow
+	// into its factory calls (TSA-V0-644).
+	seedReasonHelperUnresolved = "seed-helper-unresolved"
 )
 
 // SeedLink names a new test and the legacy test it claims to preserve, each `path:line` of the
@@ -59,12 +62,14 @@ type SeedParity struct {
 
 // SeedSide is one side's normalised setup shape, or why it was not analysed (TSA-V0-102).
 type SeedSide struct {
-	Side     string     `json:"side"`
-	Test     string     `json:"test"`
-	Analysed bool       `json:"analysed"`
-	Reason   string     `json:"reason,omitempty"`
-	Location string     `json:"location,omitempty"`
-	Kinds    []SeedKind `json:"kinds"`
+	Side     string `json:"side"`
+	Test     string `json:"test"`
+	Analysed bool   `json:"analysed"`
+	Reason   string `json:"reason,omitempty"`
+	Location string `json:"location,omitempty"`
+	// Helper names the helper a seed-helper-unresolved side calls at Location (TSA-V0-644).
+	Helper string     `json:"helper,omitempty"`
+	Kinds  []SeedKind `json:"kinds"`
 }
 
 // SeedKind is one entity kind a side seeds: the total count and each explicitly set attribute
@@ -102,6 +107,7 @@ type seedExtract struct {
 	test    string
 	reason  string
 	at      string
+	helper  string
 	calls   []seedCall
 	asserts []seedAssert
 }
@@ -109,6 +115,13 @@ type seedExtract struct {
 func (x *seedExtract) abstain(reason, at string) {
 	if x.reason == "" {
 		x.reason, x.at = reason, at
+	}
+}
+
+// abstainHelper abstains on a call to helper at the line at (TSA-V0-644).
+func (x *seedExtract) abstainHelper(helper, at string) {
+	if x.reason == "" {
+		x.reason, x.at, x.helper = seedReasonHelperUnresolved, at, helper
 	}
 }
 
@@ -305,7 +318,7 @@ func compareSeeds(link SeedLink, legacy, current seedExtract) SeedParity {
 		x    seedExtract
 	}{{"legacy", legacy}, {"new", current}}
 	for _, p := range pairs {
-		side := SeedSide{Side: p.name, Test: p.x.test, Analysed: p.x.reason == "", Reason: p.x.reason, Location: p.x.at, Kinds: []SeedKind{}}
+		side := SeedSide{Side: p.name, Test: p.x.test, Analysed: p.x.reason == "", Reason: p.x.reason, Location: p.x.at, Helper: p.x.helper, Kinds: []SeedKind{}}
 		if side.Analysed {
 			side.Kinds = p.x.shape()
 		}
@@ -318,10 +331,14 @@ func compareSeeds(link SeedLink, legacy, current seedExtract) SeedParity {
 				continue
 			}
 			other := pairs[1-k]
+			reason := p.x.reason
+			if p.x.helper != "" {
+				reason += " calling " + p.x.helper
+			}
 			out.Findings = append(out.Findings, testvalidity.SourceFinding{
 				Rule: testvalidity.RuleSeedParityNotAnalysed, Severity: testvalidity.SeverityAdvisory,
 				Test: link.New, Location: p.x.at, Cause: other.x.test,
-				Message: fmt.Sprintf("the %s side's setup was not analysed (%s at %s), so seed parity with %s is not reported", p.name, p.x.reason, p.x.at, other.x.test),
+				Message: fmt.Sprintf("the %s side's setup was not analysed (%s at %s), so seed parity with %s is not reported", p.name, reason, p.x.at, other.x.test),
 			})
 		}
 		return out
