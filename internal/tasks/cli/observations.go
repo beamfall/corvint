@@ -14,22 +14,7 @@ import (
 // on every read and never written. holderStatus classifies the attempt's
 // recorded heartbeat at now.
 func holderStatus(a *snapshot.Attempt, now time.Time, ttlSeconds int64) string {
-	if a.LastHeartbeatAt == nil {
-		return "NOT_OBSERVED"
-	}
-	at, _ := time.Parse(time.RFC3339, string(*a.LastHeartbeatAt))
-	switch {
-	case !a.Live():
-		return "TERMINAL"
-	case a.Lease != nil && now.UTC().Format(time.RFC3339) >= string(a.Lease.ExpiresAt):
-		return "LEASE_EXPIRED"
-	case now.Before(at):
-		return "CLOCK_BEFORE_HEARTBEAT"
-	case now.Sub(at) >= time.Duration(ttlSeconds)*time.Second:
-		return "STALE_HOLDER"
-	default:
-		return "FRESH_HOLDER"
-	}
+	return transaction.HolderStatus(a, now, ttlSeconds)
 }
 
 func addHolderObservation(o *wire.Object, a *snapshot.Attempt, now time.Time, ttlSeconds int64) {

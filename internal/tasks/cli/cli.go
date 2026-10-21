@@ -1504,6 +1504,17 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
 		}
 		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+		// ATR-V0-191: the ticket's live attempt, its holder and recovery.
+		observed := in
+		observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+		switch current := transaction.CurrentAttempt(observed, id); {
+		case rc.journalAbsent:
+			val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
+		case current == nil:
+			val.Obj.Set("liveAttempt", wire.Null())
+		default:
+			val.Obj.Set("liveAttempt", current.Value())
+		}
 		// V1-2038: the gate set complete enforces, policy-required gates included.
 		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
 		// CAL-V0-084: null without a journal, since nothing is observed.

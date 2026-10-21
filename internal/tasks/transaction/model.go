@@ -675,7 +675,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		// The replay decision was already made above against this request's
 		// digest, so the pure library is handed an absent index: consulting a
 		// second index here could only disagree with that decision.
-		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
+		ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{set: state.reservations, describe: describeLive(in, state)}, Requests: absentIndex{}, Now: in.RecordedAt}
 		ctx.RetryRecovery = retryRecovery(state, env)
 		ctx.PriorNoteEvent = in.PriorNoteEvent
 		ctx.ObligationEvents, ctx.ObligationReport = in.ObligationEvents, in.ObligationReport
@@ -783,7 +783,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 			posts["evidence/"+string(wire.Sum(r.File))] = bytes.Clone(r.File)
 			effect = &ticketEffect{pre: target, post: target, kind: "RECONCILE"}
 		} else {
-			ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{state.reservations}, Requests: absentIndex{}, Now: in.RecordedAt}
+			ctx := mutation.Context{Binding: r.Actor, Queue: state.queue, Policy: state.policy, Inventory: state.tickets, Attempts: entryOracle{set: state.reservations, describe: describeLive(in, state)}, Requests: absentIndex{}, Now: in.RecordedAt}
 			adopted := mutation.Adopt(ctx, r.RequestID, target, r.File)
 			if !adopted.Planned() {
 				return Result{Kind: "Refused", Outcome: adopted.Outcome, Coverage: coverage(), Detail: adopted.Detail}
