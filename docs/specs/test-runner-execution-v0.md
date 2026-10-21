@@ -84,7 +84,9 @@ XCTest and Robolectric 4.16.1/API35 also have shared-executor witnesses. These d
 limits: TestCafe's current common-executor remote-Chrome CLI witness is qualified in
 `/private/tmp/cem10-build/dynamic/testcafe-cli-proof/qualification.json`; its prior permission
 refusal and first-use helper failure remain retained. Detox lacks a qualified task application/device;
-legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
+legacy Storybook collection is witnessed (a complete FAILED run, `storybook-test-runner/collection`,
+Dynamic qualification matrix 2026-10-17 (V1-0592); the earlier runtime-incompatibility block is
+superseded). Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
 repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-034 adds
 executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch 3.16.0 now has a real
@@ -1336,9 +1338,14 @@ Release blockers that remain, each with the missing piece:
   remote-browser path is qualified. Chrome for Testing 154 `--headless=new` never followed the
   remote `/browser/connect` redirect (`testcafe/remote-cft154-noconnect`), so the remote witness
   uses chrome-headless-shell 153.0.8010.12.
-- storybook-test-runner T: no executor-timeout witness (V1-1544). The pinned Jest config's 15 s test
-  timeout fires first and yields a complete FAILED run (`storybook-test-runner/timeout`); only the
-  interrupt path is qualified.
+- storybook-test-runner T: no executor-timeout witness, recorded as not applicable at the qualified
+  settings (V1-1544). The profile pins the runner's Jest config and refuses a caller `Config`, so its
+  per-test timeout is the pinned 15 s Jest timeout, which fires before any executor timeout of 15 s
+  or more and yields a complete FAILED run (`storybook-test-runner/timeout`, executor timeout 60 s).
+  The executor's `TimeoutSeconds` (1..1800) is still caller-chosen, so an executor timeout below the
+  Jest timeout plus runner and browser start-up is admitted but has no witness: the retained
+  Storybook fixture is gone and a new one needs a package install this lane did not run. Only the
+  interrupt path (`storybook-test-runner/interrupt`, incomplete) is qualified.
 - storybook-test-runner R: the profile pins the runner config and admits no Jest
   `test-runner-jest.config.js`; the runner has no native retry flag. The optional
   `.storybook/test-runner` config remains BLOCKED as recorded under TRE-V0-044.
