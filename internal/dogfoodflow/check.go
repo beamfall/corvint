@@ -717,6 +717,9 @@ func (c *check) verifyBinding(report []byte) int {
 		coverage = c.changeCoverage(c.root+"/.corvint/change.cem.json", intents)
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
+	if note := coverage.unlinkedNote(); note != "" {
+		c.say("%s\n", note)
+	}
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}

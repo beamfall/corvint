@@ -13,8 +13,29 @@ import (
 // unlinked members count (OCM-V0-019): requirements is the declared-intent
 // requirements the bound change cites or edits, and linked those of them
 // that something traces. The whole intent scope stays in the OCM aggregate.
+// unlinked is the referenced IDs nothing traces, sorted and comma-joined, so
+// the check can name them (OCM-V0-025).
 type changeCoverage struct {
 	requirements, linked int
+	unlinked             string
+}
+
+// maxNamedUnlinked bounds how many unlinked requirement IDs the check names.
+const maxNamedUnlinked = 32
+
+// unlinkedNote is the stderr NOTE naming each unlinked requirement, at most
+// maxNamedUnlinked of them, or "" when there is none or the coverage could
+// not be read (OCM-V0-025).
+func (coverage *changeCoverage) unlinkedNote() string {
+	if coverage == nil || coverage.unlinked == "" {
+		return ""
+	}
+	ids := strings.Split(coverage.unlinked, ",")
+	named := strings.Join(ids[:min(len(ids), maxNamedUnlinked)], ",")
+	if len(ids) > maxNamedUnlinked {
+		named += fmt.Sprintf(" (+%d more)", len(ids)-maxNamedUnlinked)
+	}
+	return fmt.Sprintf("dogfood-check: NOTE unlinked-requirements count=%d ids=%s", len(ids), named)
 }
 
 // summaryFields prints the three members, or NOT_OBSERVED for each when the
@@ -247,11 +268,16 @@ func (f *flow) changeCoverage(mapPath string, intents []string) *changeCoverage 
 	if !f.testsNaming(referenced, traced) {
 		return nil
 	}
+	unlinked := []string{}
 	for id := range referenced {
 		if traced[id] {
 			coverage.linked++
+		} else {
+			unlinked = append(unlinked, id)
 		}
 	}
+	sort.Strings(unlinked)
+	coverage.unlinked = strings.Join(unlinked, ",")
 	return coverage
 }
 
