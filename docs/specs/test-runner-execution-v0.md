@@ -327,6 +327,7 @@ problems incomplete and replaces resolved test/attempt states with UNKNOWN.
 | `attempt-bound` | An observed test has more than MaxAttempts retained attempts. | `internal/testrunner/validate.go:82@6aa55fa4` |
 | `attempt-outcome-conflict` | Playwright result statuses contradict its expected/unexpected/flaky/skipped category, or retained attempts contradict the final state (including a flaky result without at least two attempts ending in pass). | `internal/testrunner/dynamic/native.go:443@21e82322`; `internal/testrunner/dynamic/native.go:447@21e82322`; `internal/testrunner/dynamic/native.go:451@21e82322`; `internal/testrunner/dynamic/native.go:455@21e82322`; `internal/testrunner/dynamic/validation.go:158@24bd514f` |
 | `attempt-sequence` | A Playwright result retry number differs from its zero-based result position. | `internal/testrunner/dynamic/native.go:413@93e0a03b` |
+| `browser-helper-failed` | A TestCafe run's native stdout or stderr shows its per-HOME browser helper (`.testcafe-browser-tools`) failing with a Node system error such as `EEXIST` (TRE-V0-114). | `internal/testrunner/dynamic/parse.go:113@fb20120f` |
 | `case-error-conflict` | WDIO reports a native error for a nonfailed case, or Node reports a non-TODO pass event with an error. | `internal/testrunner/dynamic/native.go:195@7456805d`; `internal/testrunner/dynamic/browser.go:139@89d45ae9` |
 | `collection-or-hook-error` | A Jest/Vitest file reports failed status without a failed assertion row in that file. | `internal/testrunner/dynamic/parse.go:272@11da83fa` |
 | `collection-or-plan-error` | The AVA TAP plan count differs from the observed sequential outcome count. | `internal/testrunner/dynamic/native.go:347@e3eaf1ea` |
@@ -1740,3 +1741,42 @@ Rollback: remove the reserved-identity check; the profile's argv is unchanged.
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
 | TRE-V0-112 | `platform/platform.go` `Build` (`swift-testing`), `reservedSwiftPackageIdentity`; `TestSwiftTestingRefusesReservedPackageIdentity`; `platform/README.md` | Live Swift 6.4 (Xcode toolchain, macOS arm64) on 2026-10-20: identical one-library, one-test packages in directories `okpkg` and `Testing` pass; in `swift-testing` the build fails with `error: fatalError` (`-package-name swift_testing`). Live symlink probe: an alias `realbad-alias -> swift-testing` fails (`module 'Testing' is in package 'swift_testing'`), and `l/swift-testing -> ../okpkg` builds and passes |
+
+## TestCafe browser helper failure (experimental)
+
+V1-0605: TestCafe 3.7.6 on macOS copies its bundled `TestCafe Browser Tools.app` into
+`$HOME/.testcafe-browser-tools` on first use. With a fresh isolated HOME and a remote Chrome, the
+2026-10-01 qualification run printed `EEXIST` from `mkdir .home/.testcafe-browser-tools/TestCafe
+Browser Tools.app/Contents` and aborted before useful results, twice. A concurrent upstream
+helper copy is the suspected cause; it is not proven. A task-owned synchronous copy of the bundled
+helper into the isolated HOME before the run let the later mixed qualification pass, but that is a
+setup workaround, not a framework fix.
+
+- `TRE-V0-114`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0605) A
+  `testcafe` observation whose native stdout or stderr holds a line naming
+  `.testcafe-browser-tools` together with a Node system-error code (`E` and three or more capital
+  letters, then `:`) MUST record `browser-helper-failed` with that native line (trimmed, at most
+  240 bytes, valid UTF-8) as its detail, so the observation is incomplete even when the native
+  JSON report and exit claim a pass. A run that aborted without a report keeps `missing-report`
+  as well. The executor MUST NOT create, copy into or repair the helper directory: first-use
+  helper setup in a fresh HOME is an unsupported tuple, and a caller that needs one provisions
+  the helper in its own task-owned HOME before the run.
+
+Failure modes. An errno line that does not name the helper directory (a missing test file, say)
+and a helper path without a system error do not match. A helper failure TestCafe reports only
+inside its JSON test errors, or not at all, is not detected by this check; the native report's
+own failed tests still apply.
+
+Recorded limits.
+- Reproduction is NOT_RUN on this lane: the local TestCafe 3.7.6 tree under
+  `/private/tmp/cem10-build/toolchains-2026-10-17/testcafe` is incomplete (no `package.json` or
+  library JavaScript in `testcafe-browser-tools`), and a reinstall needs owner approval. Whether
+  the EEXIST is a helper-copy race stays a suspicion. Fresh-HOME repeated live runs with
+  descendant cleanup remain outstanding.
+
+Rollback: remove the check in `Parse` and `testCafeHelperFailure`; the TestCafe invocation is
+unchanged.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-114 | `dynamic/parse.go` `Parse`; `dynamic/browser.go` `testCafeHelperFailure`; `TestTestCafeBrowserHelperFailureIsNeverAPass` | Focused unit test with the native EEXIST line from the V1-0605 qualification console; before the fix a passing report with that stderr was a complete PASSED observation, 2026-10-21 |

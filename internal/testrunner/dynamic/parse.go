@@ -108,6 +108,11 @@ func Parse(in tr.Input) (tr.Observation, error) {
 			}
 		}
 	}
+	if in.Runner == "testcafe" {
+		if line := testCafeHelperFailure(in.Stdout, in.Stderr); line != "" {
+			problem(&o, "browser-helper-failed", line)
+		}
+	}
 	seen := map[string]bool{}
 	failed := false
 	for _, t := range o.Tests {
