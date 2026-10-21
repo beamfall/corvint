@@ -182,11 +182,16 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   across hosts and events and `latest` is their latest hour window. The line is a setup diagnosis
   read from rows already written; triage still writes nothing and never indexes.
 - `SOL-V0-030`: (added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`
-  Edit, Write or NotebookEdit target that `projectpath.Relative` does not admit: a target whose
-  cleaned path lies lexically outside both the project root and its resolved form is the exclusion
-  code `post-tool-path-outside-project`; a target lexically inside the root that still does not
-  resolve below it (for example through a symlink that escapes the root) keeps the degradation code
-  `post-tool-path-not-project-relative`. An in-project absolute target is relativized and accepted,
+  Edit, Write or NotebookEdit target that `projectpath.Relative` does not admit. It is the exclusion
+  code `post-tool-path-outside-project` only when the root resolves, the target resolves (itself, or
+  for a not-yet-created file its parent directory, without cleaning `..` away first), and both the
+  target's spelling and its resolved form lie outside both the root and the root's resolved form,
+  compared case-insensitively. Every other target keeps the degradation code
+  `post-tool-path-not-project-relative`: one that does not resolve (a missing parent, a `..` through
+  a missing component), one whose spelling lies inside the root but resolves outside (a symlink that
+  escapes the root), and one that differs from the root only by letter case or through a symlink
+  alias of the root, so an exclusion is never established from spelling alone. An in-project
+  absolute target is relativized and accepted,
   with no row. Triage MUST print each retained `adapter-degradation` key whose code is in the closed
   exclusion set (`post-tool-path-outside-project`) as `ADAPTER-EXCLUSION windows=<n> key=<key>
   latest=<window>` instead of `ADAPTER-DEGRADATION`: an out-of-project target is not a project
@@ -241,7 +246,7 @@ that OCM enumerates all thirteen clauses from this document; it does not validat
 | SOL-V0-011 | `TestAuthorityRateCountsOnlyMeasuredUserPromptRows`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` (V1-1977 external-adopter qualification: a Go module with `AGENTS.md` and accepted `docs/adr` decisions returns accepted-decision authority from a user-prompt hook event, records the measured count, and reports `zero-authoritative-rate=0/1`) |
 | SOL-V0-012 | `TestFixedFrontierDegradationIsReportedByDesign`; `TestRenderGoldenAndReadOnly`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` |
 | SOL-V0-013 | `TestSetupLineNamesSnapshotRefresh` |
-| SOL-V0-030 | `TestSOL030PostToolTargetAbstentionClasses` (outside absolute and relative targets are exclusions, in-project absolute and relative targets are accepted, a symlink-escaping in-project target stays a degradation); `TestSOL030OutOfProjectPostToolIsExclusion` (triage prints `ADAPTER-EXCLUSION` for the exclusion code and `ADAPTER-DEGRADATION` for the unresolvable code); `TestAdapterSilentAbstentionsAreLedgered` (the out-of-project Write records `post-tool-path-outside-project`) |
+| SOL-V0-030 | `TestSOL030PostToolTargetAbstentionClasses` (resolved outside absolute and relative targets are exclusions, in-project absolute and relative targets are accepted; a symlink-escaping in-project target, a missing parent, a `..` through a missing component, a case-only spelling and a symlink alias of the root are never exclusions); `TestSOL030OutOfProjectPostToolIsExclusion` (triage prints `ADAPTER-EXCLUSION` for the exclusion code and `ADAPTER-DEGRADATION` for the unresolvable code); `TestAdapterSilentAbstentionsAreLedgered` (the out-of-project Write records `post-tool-path-outside-project`) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no
 repository evidence or authority depends on it. `SOL-V0-010` rolls back by removing the adapter's

@@ -911,32 +911,65 @@ func postToolTargetAbstention(root string, payload map[string]any) string {
 	if _, relative := projectRelativePath(root, path); relative {
 		return ""
 	}
-	if lexicallyOutsideProject(root, path) {
+	if outsideProject(root, path) {
 		return "post-tool-path-outside-project"
 	}
 	return "post-tool-path-not-project-relative"
 }
 
-// lexicallyOutsideProject reports whether path, cleaned without touching the
-// filesystem, lies neither below root nor below root's resolved form. A path
-// that is lexically inside but fails resolution is not "outside": it is an
-// unresolvable in-project target.
-func lexicallyOutsideProject(root, path string) bool {
-	roots := []string{filepath.Clean(root)}
-	if resolved, err := filepath.EvalSymlinks(root); err == nil {
-		roots = append(roots, filepath.Clean(resolved))
+// outsideProject reports whether path is established to lie outside the
+// project: both its spelling and its symlink-resolved form must fall outside
+// the root and the root's resolved form, compared case-insensitively so a
+// spelling that differs from the root only by case (one directory on a
+// case-insensitive volume) is never excluded. Anything that cannot be resolved
+// (a missing root, a missing parent directory, a `..` through a missing
+// component) stays uncertain, a degradation, never an exclusion (SOL-V0-030).
+func outsideProject(root, path string) bool {
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
 	}
-	for _, base := range roots {
-		candidate := path
-		if !filepath.IsAbs(candidate) {
-			candidate = filepath.Join(base, candidate)
-		}
-		relative, err := filepath.Rel(base, filepath.Clean(candidate))
-		if err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-			return false
+	spelled := path
+	if !filepath.IsAbs(spelled) {
+		// Not filepath.Join: it would clean `missing/..` away before resolution.
+		spelled = root + string(filepath.Separator) + spelled
+	}
+	resolved, ok := resolvePostToolTarget(spelled)
+	if !ok {
+		return false
+	}
+	roots := []string{filepath.Clean(root), filepath.Clean(resolvedRoot)}
+	for _, candidate := range []string{filepath.Clean(spelled), resolved} {
+		for _, base := range roots {
+			if withinFoldingCase(base, candidate) {
+				return false
+			}
 		}
 	}
 	return true
+}
+
+// resolvePostToolTarget resolves every symlink in target. A target that does
+// not exist yet (a Write creating a file) resolves through its parent
+// directory, which must exist; the split does not clean the path.
+func resolvePostToolTarget(target string) (string, bool) {
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		return resolved, true
+	}
+	dir, base := filepath.Split(target)
+	if base == "" || base == "." || base == ".." || dir == "" {
+		return "", false
+	}
+	resolvedDir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", false
+	}
+	return filepath.Join(resolvedDir, base), true
+}
+
+func withinFoldingCase(base, candidate string) bool {
+	relative, err := filepath.Rel(strings.ToLower(base), strings.ToLower(candidate))
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 // adapterMaxErrorCodeTail bounds how much of a failing invocation's stderr is

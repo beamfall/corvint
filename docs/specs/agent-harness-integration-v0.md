@@ -245,9 +245,9 @@ separate exact extension tuple remains governed by AHI-024.
   The adapter MUST still run the shared `harness event` call and exit zero, and its receipt MAY
   remain in machine-readable output or the local self-observation ledger, but the response MUST
   NOT carry a `systemMessage`. The abstention itself is recorded under `SOL-V0-010` as the
-  exclusion `post-tool-path-outside-project`, or as the degradation
-  `post-tool-path-not-project-relative` for an in-project target that does not resolve below the
-  root (`SOL-V0-030`, V1-1975; V1-0746). An in-root target's receipt ID MUST reach the model as
+  exclusion `post-tool-path-outside-project` only for a target that resolves outside the root, or
+  otherwise as the degradation `post-tool-path-not-project-relative` (an unresolvable target, a
+  symlink escape, or a case-only or alias spelling of the root; `SOL-V0-030`, V1-1975; V1-0746). An in-root target's receipt ID MUST reach the model as
   `hookSpecificOutput.additionalContext` (`hookEventName` `PostToolUse`) and MUST NOT carry a
   `systemMessage` (decision 0161). That text MUST follow the receipt ID with `; ` and every
   degradation code the receipt carries, comma-separated, or a `+N more` count for codes beyond six or
@@ -1326,7 +1326,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1043@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1076@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
