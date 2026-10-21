@@ -2,6 +2,7 @@ package gitauth
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
@@ -29,7 +30,8 @@ import (
 // for the proof are neither retained nor charged to the blob budget.
 //
 // Failures keep their types: derivation maps a Git exit to git-diff-failed,
-// unless a needed object is missing locally (repository-object-unavailable), and
+// unless a needed object is missing locally in a promisor repository
+// (repository-object-unavailable), and
 // a per-operation timeout to git-diff-timeout, while cancellation, output, and
 // budget failures keep their own registered codes.
 func (r *Repository) CanonicalDiff(ctx context.Context, baseOID, targetOID string) ([]byte, error) {
@@ -128,12 +130,15 @@ func (r *Repository) CanonicalDiffWithCreateDestinations(ctx context.Context, ba
 // diffExitError classifies a failed diff read. Git exits unsuccessfully when a blob the diff needs
 // is a promised object that is not present locally, because the read environment forbids the lazy
 // fetch. CEM-CB-019 codes that as repository-object-unavailable, not as a patch-derivation
-// failure, so on a Git exit the verified change set and its blobs are walked, without fetching,
-// and their missing-object refusal is returned when they have one (V1-0349). A cancellation,
-// timeout or budget failure during that walk is returned through the same mapping as a diff
-// failure. Any other outcome keeps the diff's own code.
+// failure, so on a Git exit in a promisor (partial-clone) repository the verified change set and
+// its blobs are walked, without fetching, and their missing-object refusal is returned when they
+// have one (V1-0349). A cancellation, timeout or budget failure during that walk is returned
+// through the same mapping as a diff failure. In an ordinary repository a changed blob that is
+// missing or corrupt during the diff keeps the diff's own git-diff-failed, the cause provenance of
+// the sealed cem/1.0 stable packet (CEM-V1-367, V1-2133). Any other outcome keeps the diff's own
+// code.
 func (r *Repository) diffExitError(ctx context.Context, err error, baseOID, targetOID string) error {
-	if cemcode.CodeOf(err) != cemcode.GitExitFailure {
+	if cemcode.CodeOf(err) != cemcode.GitExitFailure || !r.isPromisor() {
 		return canonicalDiffError(err)
 	}
 	changed, walkErr := r.verifiedChangeSet(ctx, baseOID, targetOID)
@@ -175,6 +180,15 @@ func (r *Repository) missingPatchBlob(ctx context.Context, sections []patchSecti
 		}
 	}
 	return err
+}
+
+// isPromisor reports whether the object store holds a promisor pack, the marker Git writes for
+// every pack received from a promisor remote in a partial clone. It reads only the pack directory
+// listing, so it runs no Git and charges no operation; an unreadable directory is not a promisor
+// store, which keeps the diff's own code.
+func (r *Repository) isPromisor() bool {
+	matches, err := filepath.Glob(filepath.Join(r.CommonDir, "objects", "pack", "*.promisor"))
+	return err == nil && len(matches) > 0
 }
 
 func canonicalDiffError(err error) error {
