@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-08
-Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755)
+Intent status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..020 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910)
 Delivery status: experimental
 Authoritative inputs: `AGENTS.md`, `docs/DOGFOOD.md`, `docs/LANE-ORCHESTRATION.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/local-completion-policy-v0.md`, `docs/specs/go-production-kernel-migration-v0.md`
 
 ## Agent digest
 - Claim: Corvint development selects applicable existing feature routes, preserves real use evidence, and finishes through the existing local completion policy.
-- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..019 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755)/experimental
+- Status: accepted direction (owner requested Corvint fully involved in its future development, 2026-09-08); ASD-V0-013..020 accepted under the owner's standing auto-accept (2026-10-11) (V1-1627..V1-1632, V1-1755, V1-1910)/experimental
 - Exists: `docs/SELF-DEVELOPMENT.md`, thin Codex/Claude skill routes and native feature/eval help.
 - Blocked on: final exact-target checks, independent review and enrolled strict finish; formal FULL and protected-runner authority remain separate.
 - Read next: Requirements; Acceptance and evidence; Failure and rollback.
@@ -50,6 +50,7 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 - `ASD-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1631) The orchestrator's heartbeat runs the read-only `script/lane-idle-check.sh` over each running lane's transcript or output and flags a lane idle for more than 30 minutes; last activity comes from RFC 3339 transcript timestamps (Z or numeric offset), or the modification time of a file with no timestamp key, and a transcript that cannot be read or holds an unparseable timestamp makes the lane UNKNOWN, flagged like idle (also in `--gaps`), never a silent modification-time fallback; a flagged lane is messaged once, then stopped or redispatched with its claim released and the reason retained. `--gaps` replays transcripts and reports when each idle gap would have been flagged.
 - `ASD-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1632) Lanes use one checkout each, created once from a shared plain clone with `git worktree add` (a fresh plain clone is the fallback) and reused for every check of the lane. `script/lane-clean.sh` is dry-run by default and with `--apply` removes only checkouts under the given root whose HEAD and local branches are ancestors of the reference ref, whose status is clean, with no stash, no registered linked worktree (for a clone), and not listed as active; any Git inspection that fails keeps the checkout, and a root that does not resolve to a directory other than `/` is refused; it reports counts and free disk before and after.
 - `ASD-V0-019`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1755) The dogfood make targets (`dogfood-change`, `dogfood-check`, `dogfood-seal`, `dogfood-finish`, `dogfood-batch-check`, `dogfood-bind-range`) never use the Makefile's file default `BASE ?= main`: a BASE that does not come from the command line or the environment is treated as missing, and the target refuses with exit 2 and a message naming BASE before any script runs (`dogfood-finish` names it in its one-line missing-input refusal). Non-dogfood targets keep the default.
+- `ASD-V0-020`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1910) `script/check-goos-filenames.sh` (`make goos-filenames-check`, a `make gate` step) fails, naming each file and a rename such as `_jsts.go`, when a tracked Go file (test or not) under `cmd/` or `internal/` has a filename suffix that Go reads as a GOOS/GOARCH build constraint (Go's known lists; the first name element is ignored, as Go does) for a platform other than darwin, linux, windows, amd64 or arm64, unless the path is listed in `script/goos-filename-allowlist.txt`.
 
 ## Non-goals and trust boundary
 
@@ -58,7 +59,7 @@ protected principal, signing key or automatic command fanout. No sealed evaluati
 collection, silent trace migration, fabricated provider attachment, authority promotion or guaranteed
 future model adoption. Existing root/key, full-frame/privacy, optional execution and cleanup contracts
 remain controlling. Feature routes preserve failed, unknown, withheld and unavailable observations.
-The lane procedure (`ASD-V0-013..019`) is operator guidance and helper scripts: it adds no Tasks
+The lane procedure (`ASD-V0-013..020`) is operator guidance and helper scripts: it adds no Tasks
 store state, no daemon, no automatic lane stop and no product command, and its scripts are never
 inputs to ranking, evidence or authority.
 
@@ -70,6 +71,7 @@ inputs to ranking, evidence or authority.
 | ASD-V0-003, ASD-V0-004, ASD-V0-005, ASD-V0-006, ASD-V0-011 | Original task context/impact/affected/prove outputs, bound frontier and CEM/OCM reports, existing frozen LCP check observations and final strict finish. Before final binding, missing reports remain NOT_PRODUCED. These are task observations, not native-host conformance. |
 | ASD-V0-009, ASD-V0-010 | Existing `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` gains production-dispatch cases for feature/eval help with an invalid root and forbidden stdin. Existing feature/eval/profile tests retain admission boundaries; canonical documentation/package/spec validators cover integration. |
 | ASD-V0-019 | `Makefile` `DOGFOOD_BASE`; `make lane-scripts-test`: each dogfood target refuses without BASE, passes an explicit or environment BASE to its script, and `dogfood-finish LANE=1` lists BASE among the missing inputs. |
+| ASD-V0-020 | `script/check-goos-filenames.sh`; `make goos-filenames-test` (`script/check-goos-filenames_test.sh`): on a temporary Git fixture `_js.go`, `_wasm_test.go`, `_js_wasm.go` and `_plan9_386.go` are refused with the file and a suggested name, while darwin/linux/windows/arm64 suffixes, `validity_js_flow.go`, a bare `js.go`, files outside `cmd/` and `internal/` and allowlisted paths pass. |
 | ASD-V0-013, ASD-V0-016 | `docs/LANE-ORCHESTRATION.md` sections 1 and 4. The before/after batch measurements (median load per CPU and focused-test time with the cap; polling time and tool-timeout counts) are NOT_PRODUCED until the next batch; the procedure is in section 7. |
 | ASD-V0-014, ASD-V0-015, ASD-V0-017, ASD-V0-018 | `script/heavy.sh`, `script/dogfood-finish.sh`, `script/lane-idle-check.sh`, `script/lane-clean.sh`; `make lane-scripts-test` (`script/lane-scripts_test.sh`): two concurrent `HEAVY_SLOTS=1` commands never overlap, status and `-p` pass through, a killed owner frees its slot; the finish refusal names every missing input before any build; idle and gap detection on fixed timestamps; only merged, clean, inactive clones and worktrees are removed and only with `--apply`. The 5-lane timing, dogfood-run counts and one-off cleanup counts are NOT_PRODUCED here (section 7). |
 
@@ -99,8 +101,8 @@ no readable activity as `UNKNOWN` (flagged); `lane-clean.sh` refuses an unavaila
 and keeps any checkout it cannot read, with the reason. A stale shared repository makes merged
 checkouts look unmerged (kept), never the reverse.
 
-Roll back `ASD-V0-013..019` by reverting `docs/LANE-ORCHESTRATION.md`, the three lane scripts, the
-`DOGFOOD_BASE` Makefile refusal, the
+Roll back `ASD-V0-013..020` by reverting `docs/LANE-ORCHESTRATION.md`, the three lane scripts, the
+`DOGFOOD_BASE` Makefile refusal, the GOOS filename check, the
 `dogfood-finish` input refusal and `lane-scripts-test` together; lanes then return to charter-only
 procedure. Rollback the guide, links, skill routing and help fixes together; retain existing local completion,
 old outcomes and failed evidence. Future feature changes update their guide route and relevant

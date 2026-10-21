@@ -70,6 +70,12 @@ not see each other's slots. `make lane-scripts-test` runs the serialisation chec
 commands with `HEAVY_SLOTS=1` never overlap), the killed-wrapper, dead-owner and group-signal
 checks.
 
+Go filename pitfall: a file name ending in a GOOS or GOARCH element (`_js.go`, `_wasm.go`,
+`_android.go`, `_386.go`) is a build constraint, so `validity_js.go` silently builds only for
+GOOS=js. Name JavaScript/TypeScript analyser files `_jsts.go` or similar; `make
+goos-filenames-check` (a `make gate` step, `ASD-V0-020`) refuses such names outside
+darwin/linux/windows/amd64/arm64 unless allowlisted.
+
 ## 3. Dogfood inputs up front, one finish after the last edit (ASD-V0-015)
 
 The charter or the lane's first step fixes every dogfood input before work starts:
