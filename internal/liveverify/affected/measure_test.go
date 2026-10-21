@@ -80,7 +80,7 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 		len(graph.UnitIDs()), len(samples), p50, p95, worst, widest, probes[len(probes)/2], probe95)
 	// Both p95s come from interleaved samples, so a contended tail inflates
 	// both alike. On the reference host the ratio measures about 1.3.
-	enforceSelectionBudget(t, "incremental select p95", p95, probe95, referenceProbeP95)
+	enforceSelectionBudget(t, "incremental select p95", p95, probe95, referenceProbeP95, IncrementalBudget)
 }
 
 // The calibration probe's p95 and median on the reference host (Apple
@@ -93,29 +93,87 @@ const (
 	referenceProbeMedian = 15 * time.Millisecond
 )
 
-// enforceSelectionBudget holds a measured selection time to IncrementalBudget.
+// enforceSelectionBudget holds a measured selection time to budget, which is
+// IncrementalBudget for a single edit and liveWorktreeBudget for a dirty set.
 // A host that is contended, or slowed by the race detector, misses the
 // absolute budget without selection itself being slower; the probe, timed in
 // the same goroutine alongside the selections, slows with it. So a miss is
-// judged in probe units against IncrementalBudget/reference, where reference
+// judged in probe units against budget/reference, where reference
 // is the reference host's value of the same probe statistic: a selection
-// above that many probes would also miss the 100 ms budget on the reference
+// above that many probes would also miss the budget on the reference
 // host. Within the bound the absolute budget is skipped by name, with the
 // numbers, and never passed silently; beyond it selection itself is too slow
 // and the test fails on any host.
-func enforceSelectionBudget(t *testing.T, label string, measured, probe, reference time.Duration) {
+func enforceSelectionBudget(t *testing.T, label string, measured, probe, reference, budget time.Duration) {
 	t.Helper()
-	if measured <= IncrementalBudget {
+	exceeded, ratio, bound := selectionBudgetExceeded(measured, probe, reference, budget)
+	if measured <= budget {
 		return
 	}
-	bound := float64(IncrementalBudget) / float64(reference)
-	ratio := float64(measured) / float64(probe)
-	if ratio > bound {
+	if exceeded {
 		t.Fatalf("%s=%s exceeds the %s budget and is %.2f calibration probes (probe=%s), above the %.2f bound: selection itself is too slow",
-			label, measured, IncrementalBudget, ratio, probe, bound)
+			label, measured, budget, ratio, probe, bound)
 	}
 	t.Skipf("absolute %s budget NOT ENFORCED on this host: %s=%s, but the calibration probe took %s, so selection is %.2f probes, within the %.2f bound (V1-1343)",
-		IncrementalBudget, label, measured, probe, ratio, bound)
+		budget, label, measured, probe, ratio, bound)
+}
+
+// selectionBudgetExceeded is the verdict of enforceSelectionBudget: a time
+// within budget never exceeds it, and a time above it exceeds it only when it
+// is more than budget/reference calibration probes.
+func selectionBudgetExceeded(measured, probe, reference, budget time.Duration) (exceeded bool, ratio, bound float64) {
+	bound = float64(budget) / float64(reference)
+	ratio = float64(measured) / float64(probe)
+	return measured > budget && ratio > bound, ratio, bound
+}
+
+// liveWorktreeBudget is the selection budget for a live dirty set of the given
+// number of paths (V1-1447). IncrementalBudget is the single-edit target and
+// holds for up to liveWorktreePathsPerBudget paths; each further group of that
+// many paths adds one IncrementalBudget, up to liveWorktreeBudgetCap of them,
+// so a dirty worktree of 13 or more paths is held to 400 ms (26.67 median
+// probes) and the bound still bites. Measured on this repository under load
+// about 48: a 14-path set took 4.4-6.2 median probes, and V1-1447 recorded
+// 7.33-14 probes at 10-14 paths under load about 30, above the 6.67 bound the
+// single-edit budget gives.
+func liveWorktreeBudget(paths int) time.Duration {
+	steps := max(1, (paths+liveWorktreePathsPerBudget-1)/liveWorktreePathsPerBudget)
+	return IncrementalBudget * time.Duration(min(steps, liveWorktreeBudgetCap))
+}
+
+const (
+	liveWorktreePathsPerBudget = 4
+	liveWorktreeBudgetCap      = 4
+)
+
+// V1-1447: the live dirty-worktree bound is restated by dirty-set size, and
+// it bites: a selection above the bound for its size fails, whatever the size.
+func TestLiveWorktreeBudgetScalesWithTheDirtySetAndBites(t *testing.T) {
+	for _, tc := range []struct {
+		paths int
+		want  time.Duration
+	}{{0, 100 * time.Millisecond}, {1, 100 * time.Millisecond}, {4, 100 * time.Millisecond}, {5, 200 * time.Millisecond}, {14, 400 * time.Millisecond}, {400, 400 * time.Millisecond}} {
+		if got := liveWorktreeBudget(tc.paths); got != tc.want {
+			t.Errorf("liveWorktreeBudget(%d) = %s, want %s", tc.paths, got, tc.want)
+		}
+	}
+	probe := referenceProbeMedian
+	for _, tc := range []struct {
+		paths    int
+		measured time.Duration
+		exceeded bool
+	}{
+		{1, 90 * time.Millisecond, false},   // within the absolute budget
+		{1, 150 * time.Millisecond, true},   // 10 probes > 6.67 for one edit
+		{14, 150 * time.Millisecond, false}, // the V1-1447 ratio, within 26.67 at 14 paths
+		{14, 500 * time.Millisecond, true},  // 33.3 probes > 26.67
+		{400, 500 * time.Millisecond, true}, // the cap keeps the bound for any size
+	} {
+		exceeded, ratio, bound := selectionBudgetExceeded(tc.measured, probe, referenceProbeMedian, liveWorktreeBudget(tc.paths))
+		if exceeded != tc.exceeded {
+			t.Errorf("paths=%d measured=%s: exceeded=%v (ratio %.2f, bound %.2f), want %v", tc.paths, tc.measured, exceeded, ratio, bound, tc.exceeded)
+		}
+	}
 }
 
 var probeSink int
@@ -247,7 +305,7 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
 		}
 	}
-	enforceSelectionBudget(t, "live-worktree select median", selectElapsed, probe, referenceProbeMedian)
+	enforceSelectionBudget(t, fmt.Sprintf("live-worktree select median (%d dirty paths)", len(dirty)), selectElapsed, probe, referenceProbeMedian, liveWorktreeBudget(len(dirty)))
 }
 
 // TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739 is the bounded
