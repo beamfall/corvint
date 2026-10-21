@@ -814,7 +814,11 @@ after the deadline, and at the deadline it returns `LOCK_TIMEOUT` having recorde
 `--detach` or `--attach`. A child started by
 a launcher that died before recording it may still take the running lock after the move and run
 the request; the new child then exits without a result, and the store's request-ID replay keeps
-the mutation exactly once, as under ATR-V0-021.
+the mutation exactly once, as under ATR-V0-021. Attach and `--wait` stay `PENDING` while the stale
+child holds the running lock (ATR-V0-021 liveness) and then return its one kept result; they never
+report `SUPERVISOR_LOST` for the new child's exit (V1-1716, ruled out by
+`TestATRV0095_StaleStartingChildAfterRelaunchKeepsOneResult`, which fails with `SUPERVISOR_LOST`
+when the running-lock liveness check is removed).
 
 Acceptance evidence: `TestATRV0095_RelaunchWaitsOutTheFinishingChild` (the finishing child holds
 the running lock for 300 ms and stays visible under its recorded identity; the repeat `--detach`
@@ -2003,7 +2007,7 @@ receipt or wire shape changes.
 | ATR-V0-087 | `internal/tasks/dispatch/config.go` (`TicketLimit`), `internal/tasks/dispatch/budget.go` (`ticketLimit`, `observe`) | `TestATRV0087_EffectiveLimitPrecedence` (`internal/tasks/dispatch`) |
 | ATR-V0-088 | `internal/tasks/dispatch/budget.go` (`recordBudget`, `SpendReportFor`), `internal/tasks/cli/dispatch.go` (`dispatchBudgetValue`, `dispatchBudgetTickets`) | `TestATRV0088_HoldsAndReportNameTheSelector` (`internal/tasks/dispatch`), `TestATRV0088_DispatchStatusShowsEffectiveLimitAndSelector` (`internal/tasks/cli`) |
 | ATR-V0-089 | `internal/tasks/dispatch/budget.go` (`budget`, `budgetHeld`), `internal/tasks/dispatch/loop.go` (`tick`) | `TestATRV0089_RollingWindowPerEffectiveLimit` (`internal/tasks/dispatch`) |
-| ATR-V0-095 | `internal/tasks/cli/lease_detach.go` (`leaseDetachKept`, `leaseDetachLaunch`) | `TestATRV0095_RelaunchWaitsOutTheFinishingChild`, `TestATRV0095_RunningWaitIsBoundedByWait`, `TestV11721_LaunchLockWaitIsBoundedByWait`, `TestV11721_LaunchLockNeverTakenAfterTheBound`, `TestPSRV0111_CeilingRelaunchesOnSameRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-18-v1-1671-detach-relaunch-race.md` |
+| ATR-V0-095 | `internal/tasks/cli/lease_detach.go` (`leaseDetachKept`, `leaseDetachLaunch`) | `TestATRV0095_RelaunchWaitsOutTheFinishingChild`, `TestATRV0095_RunningWaitIsBoundedByWait`, `TestATRV0095_StaleStartingChildAfterRelaunchKeepsOneResult`, `TestV11721_LaunchLockWaitIsBoundedByWait`, `TestV11721_LaunchLockNeverTakenAfterTheBound`, `TestPSRV0111_CeilingRelaunchesOnSameRequestID` (`internal/tasks/cli`); `docs/build-log/2026-10-18-v1-1671-detach-relaunch-race.md` |
 | ATR-V0-101 | `internal/tasks/cli/dispatch_context_hook.go` (`dispatchContextHook`), `internal/tasks/dispatch/context_delivery.go` (`ContextHookNotice`), `internal/tasks/cli/cli.go`, `internal/tasks/cli/command_help.go` | `TestATRV0101_WorkerWithoutDispatcherVerbReceivesNoticesThroughHook`, `TestATRV0101_ContextHookFailsQuietly` (`internal/tasks/cli`), `TestATRV0101_MarkerWriteFailureKeepsLevelDeliverable` (`internal/tasks/dispatch`) |
 | ATR-V0-102 | `internal/tasks/dispatch/context_delivery.go` (`writeHookSettings`), `internal/tasks/dispatch/config.go` (`Placeholders`, `validate`), `internal/tasks/dispatch/loop.go` (launch) | `TestATRV0102_LaunchWritesHookSettingsAndPlaceholder`, `TestATRV0102_PlaceholderNeedsClaudeCode` (`internal/tasks/dispatch`) |
 | ATR-V0-103 | `internal/tasks/dispatch/context_delivery.go` (`ContextDelivery`), `internal/tasks/cli/dispatch.go` (`dispatchStatusValueFor`) | `TestATRV0103_StatusReportsContextDelivery` (`internal/tasks/cli`) |
