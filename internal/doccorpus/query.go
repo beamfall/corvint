@@ -24,6 +24,7 @@ type FreshnessOverlay struct {
 	State       string
 	Limitations []string
 	symbols     *symbolOverlay
+	drift       *anchorDrift
 	observation string
 }
 
@@ -99,7 +100,8 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	}()
 	unknown := FreshnessOverlay{State: "unknown"}
 	primary := func(revision string) bool { _, ok := a.Manifest.additionalRepository(revision); return !ok }
-	live, stale, limits, err := liveRepository(ctx, root, a, primary, "")
+	drift := &anchorDrift{pinned: map[string]string{}, changed: map[string]inputDrift{}}
+	live, stale, limits, err := liveRepository(ctx, root, a, primary, "", drift)
 	if err != nil {
 		return unknown, err
 	}
@@ -113,7 +115,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 	// reuse key (DCP-V1-280).
 	for _, r := range a.Manifest.AdditionalRepositories {
 		member := func(revision string) bool { return revision == r.Revision }
-		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ")
+		checkout, changed, reasons, err := liveRepository(ctx, a.Manifest.RevisionRoot(root, r.Revision), a, member, "additional repository "+r.ID+": ", drift)
 		if err != nil {
 			return unknown, err
 		}
@@ -140,7 +142,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 			limits = append(limits[:MaxResults], fmt.Sprintf("freshness diagnostic bound withheld %d reasons", omitted))
 		}
 	}
-	overlay := FreshnessOverlay{State: state, Limitations: limits, observation: observation}
+	overlay := FreshnessOverlay{State: state, Limitations: limits, drift: drift, observation: observation}
 	if symbols {
 		overlay.symbols = &symbolOverlay{root: root, live: live, repository: a.Manifest.Repository.ID, files: &sharedSymbolFiles{files: map[string]sharedSymbolFile{}}}
 	}
@@ -148,8 +150,9 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 }
 
 // liveRepository compares the scopes and inputs whose revision member admits against the live
-// checkout at dir, returning whether any is stale and each reason under prefix.
-func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string) (*contextindex.Index, bool, []string, error) {
+// checkout at dir, returning whether any is stale and each reason under prefix. It records each
+// admitted input's pinned blob, and its live drift when it differs, in drift (DCP-V1-282).
+func liveRepository(ctx context.Context, dir string, a *Artifact, member func(string) bool, prefix string, drift *anchorDrift) (*contextindex.Index, bool, []string, error) {
 	live, err := contextindex.BuildContext(ctx, dir, "")
 	if err != nil {
 		return nil, false, nil, err
@@ -226,11 +229,17 @@ func liveRepository(ctx context.Context, dir string, a *Artifact, member func(st
 		if source, ok := live.Sources[in.Path]; ok && !dirty[in.Path] {
 			entry, exists = gitauth.TreeEntry{Type: "blob", Mode: source.Mode, OID: source.BlobHash}, true
 		}
-		if !exists || entry.Type != "blob" || (entry.Mode != "100644" && entry.Mode != "100755") || entry.OID != in.Blob {
+		regular := exists && entry.Type == "blob" && (entry.Mode == "100644" || entry.Mode == "100755")
+		if !regular || entry.OID != in.Blob {
 			note("input changed or absent: " + in.Path)
 		}
 		if dirty[in.Path] {
 			note("working-tree input differs: " + in.Path)
+		}
+		key := inputKey(in.Revision, in.Path)
+		drift.pinned[key] = in.Blob
+		if !regular || entry.OID != in.Blob || dirty[in.Path] {
+			drift.changed[key] = inputDrift{dir: dir, oid: entry.OID, objectFormat: live.ObjectFormat, dirty: dirty[in.Path], exists: regular}
 		}
 	}
 	return live, stale, limits, nil
@@ -276,7 +285,7 @@ func QueryContext(ctx context.Context, a *Artifact, request Request, freshness s
 // cites are re-resolved, on demand and under one budget per call, so the
 // receipt is the one a fresh reader returns (DCP-V1-144).
 func QueryLive(ctx context.Context, a *Artifact, request Request, overlay FreshnessOverlay) (Receipt, error) {
-	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}}
+	checker := &symbolChecker{overlay: overlay.symbols, checks: map[string]SymbolAnchorCheck{}, anchors: &anchorStates{drift: overlay.drift, states: map[string]string{}, files: map[string][]byte{}}}
 	defer checker.close()
 	return queryContext(ctx, a, request, overlay.State, overlay.Limitations, checker)
 }
@@ -301,6 +310,9 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if (request.Sections != nil || request.Include != nil) && (request.Operation != "flow" || !ValidFlowFilter(request.Sections, request.Include)) {
 		return Receipt{}, fail("flow section and include filters are bounded and apply only to flow")
 	}
+	if request.Kinds != nil && (request.Operation != "gaps" || !ValidGapKinds(request.Kinds)) {
+		return Receipt{}, fail("gap kind filter is bounded and applies only to gaps")
+	}
 	if request.Offset < 0 || request.Offset > MaxCorpusRecords*4 || a.Schema != SchemaV2 && (request.Offset != 0 || request.Operation == "inventory") {
 		return Receipt{}, fail("pagination requires corpus /2 and bounded offset")
 	}
@@ -322,7 +334,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 				r.Limitations = append(r.Limitations, cap.Reason)
 			}
 		}
-		finalizeEnvelope(&r)
+		finalizeEnvelope(&r, symbols)
 		return r, nil
 	}
 	if freshness == "stale" {
@@ -419,17 +431,34 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 		if e != nil {
 			return Receipt{}, e
 		}
+		// DCP-V1-284: a kind filter keeps only the named kinds and totals each, before paging.
+		kind := func(k string) bool {
+			if request.Kinds == nil {
+				return true
+			}
+			if _, ok := r.KindTotals[k]; !ok {
+				return false
+			}
+			r.KindTotals[k]++
+			return true
+		}
+		if request.Kinds != nil {
+			r.KindTotals = map[string]int{}
+			for _, k := range request.Kinds {
+				r.KindTotals[k] = 0
+			}
+		}
 		for _, g := range append(append([]Gap{}, a.Gaps...), generated...) {
 			if err := ctx.Err(); err != nil {
 				return Receipt{}, err
 			}
-			if request.ID == "" || g.Subject == request.ID {
+			if (request.ID == "" || g.Subject == request.ID) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 			}
 		}
 		// DCP-V1-186: supplied gaps follow the computed ones, labelled by origin.
 		for _, g := range a.SuppliedGaps {
-			if request.ID == "" || g.Subject == request.ID || g.ID == request.ID {
+			if (request.ID == "" || g.Subject == request.ID || g.ID == request.ID) && kind(g.Kind) {
 				r.Results = append(r.Results, g)
 				r.Citations = append(r.Citations, g.Evidence.Anchors...)
 			}
@@ -510,7 +539,7 @@ func queryContext(ctx context.Context, a *Artifact, request Request, freshness s
 	if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 		return Receipt{}, err
 	}
-	finalizeEnvelope(&r)
+	finalizeEnvelope(&r, symbols)
 	if _, err := Encode(r); err != nil {
 		return Receipt{}, err
 	}

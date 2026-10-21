@@ -191,6 +191,9 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 		}
 		if op == "gaps" {
 			properties["id"] = map[string]any{"type": "string", "maxLength": 1024}
+			// DCP-V1-284: optional gap kind filter, one kind or a list.
+			kind := map[string]any{"type": "string", "minLength": 1, "maxLength": 128}
+			properties["kind"] = map[string]any{"oneOf": []any{kind, map[string]any{"type": "array", "minItems": 1, "maxItems": doccorpus.MaxGapKinds, "uniqueItems": true, "items": kind}}}
 		}
 		if op == "flow" {
 			// DCP-V1-170, DCP-V1-171: optional section and record-kind filters.
@@ -240,6 +243,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 		Depth      int                         `json:"depth"`
 		Section    jsontext.Value              `json:"section"`
 		Include    []string                    `json:"include"`
+		Kind       jsontext.Value              `json:"kind"`
 	}
 	if len(arguments) > 16<<10 || json.Unmarshal(arguments, &input, json.RejectUnknownMembers(true)) != nil {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
@@ -250,7 +254,7 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	}
 	kind := doccorpus.OperationInput(op)
 	for key, value := range members {
-		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow"
+		allowed := key == "retirement" || key == "offset" && r.header.Schema == doccorpus.SchemaV2 || key == "limit" || key == "query" && kind == "query" || (key == "path" || key == "paths") && kind == "path" || key == "id" && (kind == "id" || op == "gaps") || key == "depth" && op == "trace" || (key == "section" || key == "include") && op == "flow" || key == "kind" && op == "gaps"
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}, finish()
 		}
@@ -290,7 +294,11 @@ func (r *Registry) CallTimed(ctx context.Context, name string, arguments []byte)
 	if !ok || !doccorpus.ValidFlowFilter(sections, input.Include) {
 		return nil, "", nil, &Error{"invalid-arguments"}, finish()
 	}
-	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include}
+	kinds, ok := flowSections(input.Kind)
+	if !ok || !doccorpus.ValidGapKinds(kinds) {
+		return nil, "", nil, &Error{"invalid-arguments"}, finish()
+	}
+	request := doccorpus.Request{Operation: op, Retirement: input.Retirement, Query: input.Query, ID: input.ID, Path: input.Path, Limit: limit, Offset: input.Offset, Depth: input.Depth, Sections: sections, Include: input.Include, Kinds: kinds}
 	// A batch whose deadline passes while the artifact or freshness is still
 	// being prepared names every path unresolved (DCP-V1-145).
 	prepared := func(err error) (map[string]any, string, *ToolFailure, *Error, Timing) {

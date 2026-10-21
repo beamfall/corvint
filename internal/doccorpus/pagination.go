@@ -125,7 +125,7 @@ func pageReceipt(ctx context.Context, a *Artifact, original Receipt, request Req
 		if err := attachSymbolAnchors(ctx, &r, symbols); err != nil {
 			return Receipt{}, err
 		}
-		finalizeEnvelope(&r)
+		finalizeEnvelope(&r, symbols)
 		if _, err := Encode(r); err != nil {
 			if end-start > 1 {
 				end = start + (end-start)/2

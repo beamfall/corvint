@@ -74,12 +74,23 @@ func multiRepositoryFixture(t testing.TB, files [3]int) (string, []string) {
 			blob := blobID(raw)
 			m.Inputs = append(m.Inputs, doccorpus.Input{Path: path, Revision: rev, Blob: blob, SHA256: doccorpus.Digest(raw), Provider: "adapter", Purpose: "evidence"})
 			if n < 2 {
-				line := strings.SplitAfter(string(raw), "\n")[2]
+				// Two cited spans per subject, the heading and the step line (DCP-V1-282).
+				lines := strings.SplitAfter(string(raw), "\n")
+				anchor := func(line int) doccorpus.Anchor {
+					return doccorpus.Anchor{Repository: id, Revision: rev, Path: path, Blob: blob, SHA256: doccorpus.Digest(raw), Start: line, End: line, SpanSHA256: doccorpus.Digest([]byte(lines[line-1])), Authority: "external-provider", Kind: "declared", Reason: "explicit fixture provider assertion"}
+				}
 				ev := doccorpus.Evidence{Derivation: "declared", Trust: "generated", State: "supported", Freshness: "fresh", Limitations: []string{"provider declaration; structural anchor does not prove behavior"},
-					Anchors: []doccorpus.Anchor{{Repository: id, Revision: rev, Path: path, Blob: blob, SHA256: doccorpus.Digest(raw), Start: 3, End: 3, SpanSHA256: doccorpus.Digest([]byte(line)), Authority: "external-provider", Kind: "declared", Reason: "explicit fixture provider assertion"}}}
+					Anchors: []doccorpus.Anchor{anchor(1), anchor(3)}}
 				subject := fmt.Sprintf("adapter:%s-%d", names[i], n)
 				record.Subjects = append(record.Subjects, doccorpus.Subject{ID: subject, Kind: "capability", Name: fmt.Sprintf("%s quokka %d", names[i], n), Provider: "adapter", Evidence: ev})
 				record.Claims = append(record.Claims, doccorpus.Claim{ID: subject + "-claim", Subject: subject, Text: fmt.Sprintf("The %s quokka step %d", names[i], n), Provider: "adapter", Evidence: ev})
+				if i == 2 && n == 1 {
+					// Two gap kinds for the docs_gaps kind filter (DCP-V1-284): a claim without
+					// collected evidence and a test declaration without an observation.
+					unknown := doccorpus.Evidence{Derivation: "declared", Trust: "generated", State: "unknown", Freshness: "fresh", Anchors: []doccorpus.Anchor{}, Unknown: "provider has not collected evidence", Limitations: []string{}}
+					record.Claims = append(record.Claims, doccorpus.Claim{ID: subject + "-unknown", Subject: subject, Text: "The quokka step is uncollected", Provider: "adapter", Evidence: unknown})
+					record.Subjects = append(record.Subjects, doccorpus.Subject{ID: "adapter:test-0", Kind: "test", Name: "quokka test", Provider: "adapter", Evidence: ev})
+				}
 			}
 		}
 	}
