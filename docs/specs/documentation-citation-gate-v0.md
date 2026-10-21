@@ -201,6 +201,18 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   `skip-worktree`) are out of scope. This closes the silent-pass case DCG-V0-013 leaves open: an
   author who edited a cited file and ran the gate before `git add` saw a pass that never examined
   the edit (V1-0720).
+- `DCG-V0-040`: When a pinned citation's lines no longer hash to its pin, or fall outside the
+  cited file, the gate MUST search every whole-span shift of the cited line numbers that stays
+  inside the file. If exactly one shift hashes to the pin, the citation MUST still fail, worded
+  `cited content moved unchanged to <token at the new lines>` and naming `--repin`; this finding
+  replaces the range, blank-line and changed-content findings for that citation. If no shift
+  matches, the changed-content finding stands; if more than one matches, it stands and says how
+  many positions match, and the citation is not relocated. A pin shorter than eight hex characters
+  is never relocated. `script/check-line-citations.sh --repin` MUST rewrite, in the worktree only,
+  exactly the citations the scan reported as moved unchanged, shifting their line numbers and
+  keeping each pin; it MUST refuse, exit 1 and leave unchanged any document whose worktree bytes
+  differ from its index blob, MUST NOT stage anything, and MUST NOT touch a changed or ambiguous
+  citation. A repinned citation still fails until the author stages the rewrite (V1-1530, V1-2139).
 
 ## Non-goals and simpler baseline
 
@@ -278,26 +290,28 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-001 (V1-0178 amendment) | test case 22, skipped-basename notes preserve passing and failing results and do not exempt tracked root basenames |
 | DCG-V0-001 (V1-1480 amendment, decision 0534) | test case 23, a pinned citation in a `docs/RELEASE-NOTES-*.md` fixture passing and then failing, naming the release notes, once the cited line changes; a local mutation shifting `docs/CHANGE-EVIDENCE-MAP.md` by one line failed `line-citations-check` on `docs/RELEASE-NOTES-alpha.md:127` and passed with the base checker |
 | DCG-V0-021 | test case 21, an unstaged edit to a cited file passing with a note naming it, an unstaged file the gate never read left unnamed, and the note gone once the edit is staged |
+| DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned line reported as moved to line 5, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move. This change also repinned its own spec's moved script citations with `--repin` |
 
 ## Traceability
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:244-248@ac0b3493` and `:260-263@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:245-249@ac0b3493` and `:277-280@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:167-173@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:159-165@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:271-291@3a897fb5` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:315-334@65b6820b` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:75-142@c733a5fa` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:175-180@fce1154d` and `:238-243@e5963c48` | case 11 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:175-180@fce1154d` and `:239-244@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:194-212@5e2147f9` and `:259@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:195-213@5e2147f9` and `:250@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
+| DCG-V0-040 | the relocation branch in `check`, `relocations`, `shifted_token` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26 |
 
 ## Rollout, rollback, and drift
 
@@ -307,7 +321,9 @@ token that the scanner ignores rather than mis-parses. DCG-V0-016 separately mak
 line prefix fail closed when its remainder is malformed; reverting that check restores the former
 silent skip. Rollback of the anchor grammar is reverting `1b6c32e` plus unpinning those citations. Drift
 rule: an anchor is repinned only after a human reads the cited lines and confirms the sentence
-still holds; a mechanical repin sweep would defeat DCG-V0-010 and MUST NOT be added. Second drift
+still holds; a mechanical repin sweep would defeat DCG-V0-010 and MUST NOT be added. DCG-V0-040's
+`--repin` is not such a sweep: it never computes a new pin, only moves line numbers to the one
+position where the pinned text already hashes unchanged, so the sentence still cites the same text. Second drift
 rule: no path may be resolved with a filesystem test such as `-f` or `-e`, in this gate or in a
 sibling gate script, because that is the defect DCG-V0-013 closes and it fails silently in the
 passing direction. The DCG-V0-002 and DCG-V0-003 traceability pin was repinned to `check`'s two

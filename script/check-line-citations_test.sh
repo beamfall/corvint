@@ -353,4 +353,62 @@ case $output in
 *) fail "the release-notes drift was not reported: $output" ;;
 esac
 
+# 24. DCG-V0-022 (V1-1530, V1-2139): a pinned line whose text moved unchanged is named at its
+#     new position, and --repin rewrites the document to it; changed or repeated text still fails.
+#     Earlier fixture documents are dropped so the fixture document is the only one citing demo.go.
+git -C "$test_root" rm -r -q --cached docs
+rm -rf "$test_root/docs"
+mkdir -p "$test_root/docs/agent-memory"
+write_source 1
+cite "$anchor"
+pin=${anchor#*@}
+printf '%s\n' 'package demo' '' '// one' '// two' 'func Cited() int { return 1 }' 'func After() {}' \
+  > "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a moved pinned citation exited $rc, not 1: $output"
+case $output in
+*"cited content moved unchanged to \`internal/demo/demo.go:5@$pin\`"*'--repin'*) ;;
+*) fail "the unique move was not named with its new line: $output" ;;
+esac
+printf 'dirty\n' >> "$test_root/docs/agent-memory/fixture.md"
+rc=0
+output=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin rewrote a document whose worktree differs from the index: $output"
+case $output in *'differs from the index'*) ;; *) fail "--repin refusal not named: $output" ;; esac
+cite "$anchor"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || fail "--repin failed on a unique move: $out"
+grep -q "internal/demo/demo.go:5@$pin" "$test_root/docs/agent-memory/fixture.md" ||
+  fail "--repin did not rewrite the citation to line 5"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the repinned citation did not pass"
+
+# 25. Moved text that now appears twice is ambiguous and is not relocated.
+cite "$anchor"
+printf '%s\n' 'package demo' '' '// x' 'func Cited() int { return 1 }' '// y' 'func Cited() int { return 1 }' \
+  > "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "an ambiguous move exited $rc, not 1: $output"
+case $output in
+*'cited content changed'*'appears at 2 positions'*) ;;
+*) fail "the ambiguous move was relocated or not named: $output" ;;
+esac
+(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with nothing to move failed"
+grep -q "internal/demo/demo.go:3@$pin" "$test_root/docs/agent-memory/fixture.md" ||
+  fail "--repin rewrote an ambiguous citation"
+
+# 26. Changed text is not a move.
+write_source 2
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "changed text exited $rc, not 1: $output"
+case $output in
+*'moved unchanged'*) fail "changed text was reported as a move: $output" ;;
+*'cited content changed'*) ;;
+*) fail "changed text was not reported: $output" ;;
+esac
+
 echo "check-line-citations_test.sh: ok"
