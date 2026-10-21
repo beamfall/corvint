@@ -499,4 +499,10 @@ func TestAHI070OverBoundTaskRefusalNamesLimitAndLength(t *testing.T) {
 	if _, err := validateInput("user-prompt", map[string]any{"task": strings.Repeat("x", MaxQueryCharacters)}); err != nil {
 		t.Fatalf("bounded task refused: %v", err)
 	}
+	// The bound applies to the raw input, before trimming: surrounding whitespace counts.
+	padded := " " + strings.Repeat("x", MaxQueryCharacters) + " "
+	_, err = validateInput("user-prompt", map[string]any{"task": padded})
+	if !errors.As(err, &refusal) || !strings.Contains(refusal.Message, ": 2002 characters and 2002 bytes,") {
+		t.Fatalf("padded task at the trimmed bound: err=%v", err)
+	}
 }
