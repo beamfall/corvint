@@ -133,12 +133,18 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 
 // GateReuse names the earlier result a gate run reused: its digest and the
 // attempt that executed it (CAL-V0-240).
+// A CI-backed result names the retained CI run record and its run id
+// instead, with no attempt (TCD-V0-155).
 type GateReuse struct {
 	Result    wire.Digest
 	AttemptID string
+	CIRunID   string
 }
 
 func gateReuseOf(source []byte) *GateReuse {
+	if ci, err := snapshot.DecodeCIRun(source); err == nil {
+		return &GateReuse{Result: wire.Sum(source), CIRunID: string(ci.RunID)}
+	}
 	src, err := snapshot.DecodeGateResult(source)
 	if err != nil {
 		return nil
@@ -205,7 +211,7 @@ func reusableRun(repo *intent.Repository, root string, proof *journal.Result, po
 		return gateRun{}, false, nil
 	}
 	candidate := *a.CandidateTreeOid
-	_, env := gateEnvironment(def.Env)
+	_, env := gateEnvironmentKey(def)
 	definition := policy.GateDefinitionSha256(def.GateID)
 	inputs := map[string]wire.Digest{}
 	var best wire.Digest
@@ -548,6 +554,20 @@ func (c *cappedOutput) Write(p []byte) (int, error) {
 // gateEnvironment passes exactly the declared names that are set, and
 // digests the names with their presence, never their values.
 func gateEnvironment(names []string) ([]string, wire.Digest) {
+	return environmentOf(names, false)
+}
+
+// gateEnvironmentKey is gateEnvironment for a gate result's
+// environmentSha256. A gate declared reusable also digests each set
+// variable's value, so a PASS under another PATH, GOTOOLCHAIN or other
+// declared value is never reused (TCD-V0-158); any other gate keeps the
+// names-and-presence digest, so a non-reusable gate records nothing derived
+// from its values.
+func gateEnvironmentKey(def *intent.GateDefinition) ([]string, wire.Digest) {
+	return environmentOf(def.Env, def.Reusable)
+}
+
+func environmentOf(names []string, values bool) ([]string, wire.Digest) {
 	env := []string{}
 	entries := []wire.Value{}
 	for _, name := range names {
@@ -555,7 +575,11 @@ func gateEnvironment(names []string) ([]string, wire.Digest) {
 		if set {
 			env = append(env, name+"="+value)
 		}
-		entries = append(entries, wire.ObjectValue(wire.NewObject().Set("name", wire.String(name)).Set("present", wire.Bool(set))))
+		entry := wire.NewObject().Set("name", wire.String(name)).Set("present", wire.Bool(set))
+		if values && set {
+			entry.Set("valueSha256", wire.String(string(wire.Sum([]byte(value)))))
+		}
+		entries = append(entries, wire.ObjectValue(entry))
 	}
 	return env, wire.Sum(wire.EncodeFile(wire.Array(entries...)))
 }
@@ -633,7 +657,7 @@ func gateState(run execution, expected wire.Count, clean, atCandidate bool) stri
 }
 
 func runGate(ctx context.Context, def *intent.GateDefinition, argv []string, substituted bool, policy *intent.Policy, a *snapshot.Attempt, worktree string, repos []snapshot.RepositoryRecord, clock func() time.Time) (gateRun, error) {
-	env, envDigest := gateEnvironment(def.Env)
+	env, envDigest := gateEnvironmentKey(def)
 	out := &cappedOutput{}
 	started := clock()
 	run := executeArgv(ctx, def, argv, worktree, env, out)
@@ -806,8 +830,11 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 // another tree than the attempt's candidate carries the ancestry verdict
 // rechecked from git now (TCD-V0-152).
 func gateReuseFacts(root string, proof *journal.Result, attemptID string, run *gateRun, results map[wire.Digest][]byte) (transaction.LeaseFacts, error) {
-	src, err := snapshot.DecodeGateResult(run.source)
 	a, ok := lockedAttempt(proof, attemptID)
+	if ci, err := snapshot.DecodeCIRun(run.source); err == nil {
+		return ciRunFacts(root, proof, a, ci, run, results)
+	}
+	src, err := snapshot.DecodeGateResult(run.source)
 	if err != nil || !ok || a.CandidateTreeOid == nil || src.CandidateTreeOid == *a.CandidateTreeOid {
 		return transaction.GateReuseFacts(run.record, run.source, results), nil
 	}
