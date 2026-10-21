@@ -147,6 +147,7 @@ one.
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
+| V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder, 3 and 5 deferred past 1.0 |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -6849,6 +6850,58 @@ Linux and quiet-host load remain NOT_RUN.
 Rollback: revert the gate scope in `leaseWrite`, the `writerRouteReady` precheck, the refresh
 fallback and their tests, and this amendment. No store format, receipt, checkpoint format or wire
 result changes, so stores written by either build are read by the other.
+
+### V1-1512 issue 967 remainder: liveness p99, moving-journal verbs and proposal dispositions
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1512); evidence and
+dispositions only, with no behaviour change and no new requirement ID (this spec is at its
+obligation bound; the resume contract is `PSR-V0-050..057` in
+`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`). Human-owned input: native ticket V1-1512, the
+remainder of GitHub issue 967 after V1-1494.
+
+1. Liveness p99 at 40,000 receipts and 15 writers. `TestCALV0263_LeaseGateLoad` with
+   `CORVINT_TASKS_LEASE_GATE_LOAD_SECONDS=60` (default 120; shortened to fit one foreground run),
+   after the V1-0887 liveness probe, local Darwin, 12 CPUs, Go 1.27.3, host load 24.6 before and
+   27.7 after: heartbeat p50/p99 113/1,138 ms (60 calls), renew 105/1,131 ms (61 calls), against
+   352/1,962 and 407/3,547 ms in the V1-1494 run. Residual, not met: p99 stays just above 1 s, and
+   its cause is gate wait (heartbeat and renew gate-wait p99 1,051 and 1,041 ms; their own gate
+   hold p99 156 and 111 ms) behind a widen or reap commit that holds the gate for about 1 s
+   (gate-hold p99 991 and 937 ms), which is ticket- and history-proportional locked commit work,
+   not a complete audit. No liveness admission class is added (proposal 4 stays as V1-1494 left it).
+2. Widen, reap and pool verbs under sustained appends. The `PSR-V0-052` resumed write already
+   serves every lease verb; V1-1512 adds the missing maintained coverage. In the run above no call
+   failed (no `SNAPSHOT_MOVED`, no `LOCK_TIMEOUT`; 4 widens and 2 reaps) where V1-1494 recorded 8 of
+   9 widen and reap calls ending `SNAPSHOT_MOVED`. A widen or reap still costs 24 to 52 s wall at
+   40,000 receipts, almost all of it the complete audit before the gate. `CAL-V0-116`
+   rewritten-prefix detection on the resumed route stays covered by
+   `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection` and
+   `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection`.
+3. Remaining issue 967 proposals, dispositioned:
+   - Proposal 2 remainder (a single-owner background refresh; removing the `WriterFullBound`
+     4,096 cliff): deferred past 1.0. A background owner is a permanent process, which the local
+     product boundary excludes, and `CAL-V0-265` already keeps the per-caller refresh from
+     abandoning on a moving journal; the cliff is reached only when no refresh succeeds for 4,096
+     receipts, which then falls back to the complete route rather than failing.
+   - Proposal 3 (bounded per-write payload and generation history, segment sealing, offline full
+     verification): deferred past 1.0 as a journal format change; it is the sharded or segmented
+     layout escalation that decision 0547 names for V1-0887, and it needs its own decision, format
+     gate and migration.
+   - Proposal 5 (`--lock-wait` on `reap`, the current gate holder in status or doctor, `--timing`
+     for every lease verb): deferred past 1.0 as operator ergonomics; the load harness reports
+     gate wait and hold per verb, and no call in the run above timed out.
+
+Non-goals: any change to lease, generation fencing or refusal semantics; a liveness latency bound
+in a maintained test; Linux or quiet-host qualification (NOT_RUN).
+
+Acceptance evidence: `TestPSRV0052_ReapResumesUnderWriter` (a targeted reap resumes once with one
+audit; a reap of every expired lease resumes its survey and its child reap once each) and
+`TestPSRV0052_PoolReleaseResumesUnderWriter` (`internal/tasks/store`), each failing with
+`SNAPSHOT_MOVED` when the resume base is dropped (mutation recorded in the build log), beside the
+existing `TestPSRV0052_PoolAcquireResumesUnderWriter` and `TestPSRV0052_WidenResumesUnderWriter`;
+`docs/build-log/2026-10-20-v1-1512-issue-967-remainder.md`.
+
+Rollback: delete the two tests and this section. No code, store, receipt or wire format depends on
+them.
 
 ### V1-1510 work-state reader health (issue 984)
 
