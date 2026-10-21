@@ -121,6 +121,7 @@ func TestEvalQueryLearnedPathDisclosesTraceRevisionOnDrift(t *testing.T) {
 }
 
 func TestEvalQueryAcceptsStatusCleanIdentCheckout(t *testing.T) {
+	t.Parallel()
 	t.Run("IDX-SNAP-V0-008", func(t *testing.T) {
 		root := identAttributeRepository(t)
 		index, err := BuildEval(context.Background(), root)

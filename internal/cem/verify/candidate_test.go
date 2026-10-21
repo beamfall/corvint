@@ -71,6 +71,7 @@ func candidateBuildRepo(t *testing.T, kit string, r candidateRepo) string {
 	return root
 }
 func TestCandidatePortablePacket(t *testing.T) {
+	t.Parallel()
 	kit := filepath.Join(repoRoot(t), "protocol", "cem-1.0")
 	raw := readFixture(t, kit, "manifest.json")
 	digest := sha256.Sum256(raw)

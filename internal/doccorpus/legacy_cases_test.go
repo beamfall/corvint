@@ -43,6 +43,7 @@ func decodeLegacyRecord(t *testing.T, data []byte) LegacyCasesRecord {
 // DCP-V1-070/071/074: both formats join suite and section path, key cases by
 // ID and emit manual legacy cases that never count as runtime parity.
 func TestImportLegacyCasesFormats(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ format, data string }{{LegacyFormatTestRailJSON, legacyTestRailFixture}, {LegacyFormatCSV, legacyCSVFixture}} {
 		t.Run(tc.format, func(t *testing.T) {
 			data, err := ImportLegacyCases(tc.format, "", "exports/cases."+tc.format, []byte(tc.data))
@@ -81,6 +82,7 @@ func TestImportLegacyCasesFormats(t *testing.T) {
 // text appears in import or search output; the digest still changes when a
 // step changes.
 func TestLegacyCasesIDsPathsTitlesWithholdsSteps(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct{ format, data string }{{LegacyFormatTestRailJSON, legacyTestRailFixture}, {LegacyFormatCSV, legacyCSVFixture}} {
 		imported, err := ImportLegacyCases(tc.format, LegacyContentIDsPathsTitles, "cases", []byte(tc.data))
 		if err != nil {
@@ -110,6 +112,7 @@ func TestLegacyCasesIDsPathsTitlesWithholdsSteps(t *testing.T) {
 // DCP-V1-072/073: full content strips HTML (tags, script bodies, entities)
 // and is marked local-only.
 func TestImportLegacyCasesFullStripsHTML(t *testing.T) {
+	t.Parallel()
 	data, err := ImportLegacyCases(LegacyFormatTestRailJSON, LegacyContentFull, "cases", []byte(legacyTestRailFixture))
 	if err != nil {
 		t.Fatal(err)
@@ -149,6 +152,7 @@ func TestImportLegacyCasesFullStripsHTML(t *testing.T) {
 // DCP-V1-073: oversized fields are bounded with an explicit marker naming the
 // field, its stripped size and the bytes kept.
 func TestImportLegacyCasesBoundsOversized(t *testing.T) {
+	t.Parallel()
 	long := strings.Repeat("é", legacyStepBytes)
 	steps := []map[string]string{}
 	for range legacySteps + 2 {
@@ -193,6 +197,7 @@ func TestImportLegacyCasesBoundsOversized(t *testing.T) {
 // DCP-V1-075/076/077: search matches path-only feature words, returns ID,
 // path and title, and a none-found names its query and searched source.
 func TestSearchLegacyCasesReceipt(t *testing.T) {
+	t.Parallel()
 	data, err := SearchLegacyCases(LegacyFormatTestRailJSON, "exports/cases.json", []byte(legacyTestRailFixture), "Refund", 10)
 	if err != nil {
 		t.Fatal(err)
@@ -236,6 +241,7 @@ func TestSearchLegacyCasesReceipt(t *testing.T) {
 // DCP-V1-078: malformed exports, unknown sections, cycles, duplicate IDs and
 // bad options are named refusals.
 func TestLegacyCasesRefusals(t *testing.T) {
+	t.Parallel()
 	for name, tc := range map[string]struct{ format, content, data, query string }{
 		"format":           {"xlsx", "", legacyCSVFixture, ""},
 		"content":          {LegacyFormatCSV, "steps", legacyCSVFixture, ""},

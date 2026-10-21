@@ -63,6 +63,7 @@ func resultIDs(r Receipt) []string {
 }
 
 func TestDCPV1170FlowSectionFilter(t *testing.T) {
+	t.Parallel()
 	_, _, a := eightSectionFlow(t)
 	all, allBytes := flowReceipt(t, a, Request{})
 	if all.FlowSelection != nil {
@@ -98,6 +99,7 @@ func TestDCPV1170FlowSectionFilter(t *testing.T) {
 }
 
 func TestDCPV1171FlowIncludeFilter(t *testing.T) {
+	t.Parallel()
 	_, _, a := eightSectionFlow(t)
 	claims, _ := flowReceipt(t, a, Request{Include: []string{"claims"}})
 	if !slices.Equal(resultIDs(claims), []string{"adapter:flow", "adapter:flow-claim-0", "adapter:flow-claim-1"}) {
@@ -128,6 +130,7 @@ func TestDCPV1171FlowIncludeFilter(t *testing.T) {
 }
 
 func TestDCPV1172FlowSelectionReceipt(t *testing.T) {
+	t.Parallel()
 	_, _, a := eightSectionFlow(t)
 	all, allBytes := flowReceipt(t, a, Request{})
 	// DCP-V1-172: an unfiltered answer is the whole flow with no selection member.
@@ -153,6 +156,7 @@ func TestDCPV1172FlowSelectionReceipt(t *testing.T) {
 }
 
 func TestDCPV1173FlowFilterPagination(t *testing.T) {
+	t.Parallel()
 	_, _, a := eightSectionFlow(t)
 	q := Request{Sections: []string{"entities", "exceptions"}, Include: []string{"claims", "paragraphs"}}
 	full, _ := flowReceipt(t, a, q)

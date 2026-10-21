@@ -86,6 +86,7 @@ func copyTree(t *testing.T, source, destination string) {
 // rule: overlapping matches count, including one that ends at the last target
 // byte, so two occurrences are ambiguous rather than relocated.
 func TestClassifySpanCountsAMatchEndingAtTheEnd(t *testing.T) {
+	t.Parallel()
 	status, span := ClassifySpan(true, false, []byte("xx"), []byte("x"), wire.Span{Start: 0, End: 1})
 	if status != DriftAmbiguous || span != nil {
 		t.Fatalf("ClassifySpan = %v, %v; want %v with no span", status, span, DriftAmbiguous)
@@ -97,6 +98,7 @@ func TestClassifySpanCountsAMatchEndingAtTheEnd(t *testing.T) {
 // bytes, the blob OID is unchanged and driftItem reports stable, because the
 // frozen same-path rule tests OID identity before any entry kind.
 func TestDriftSymlinkSameOIDIsStable(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"
 	gitAt(t, root, author, email, date, "init", "-q")
@@ -141,6 +143,7 @@ func TestDriftSymlinkSameOIDIsStable(t *testing.T) {
 // link text contains the cited bytes once, so a blob search would have said
 // relocated.
 func TestDriftNonRegularTargetEntryIsDeleted(t *testing.T) {
+	t.Parallel()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"
 	replacements := map[string]func(t *testing.T, root, path string){
 		"symlink": func(t *testing.T, root, path string) {
@@ -204,6 +207,7 @@ func TestDriftNonRegularTargetEntryIsDeleted(t *testing.T) {
 // target-side .corvint/change.cem.json blob whose bytes differ from the
 // verified CEM input is refused, not silently accepted.
 func TestCheckTargetSidecarRejectsDrifted(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"
 	gitAt(t, root, author, email, date, "init", "-q")
@@ -232,6 +236,7 @@ func TestCheckTargetSidecarRejectsDrifted(t *testing.T) {
 // `^{commit}` peel must equal document.BaseRevision exactly: an annotated tag
 // OID used as baseRevision must be refused, not silently peeled and accepted.
 func TestInheritedRejectsBaseRevisionThatIsNotACommitOID(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"
 	gitAt(t, root, author, email, date, "init", "-q")
@@ -257,6 +262,7 @@ func TestInheritedRejectsBaseRevisionThatIsNotACommitOID(t *testing.T) {
 // resolving to a regular 100755 (executable) blob is accepted per
 // ALGORITHMS.md, not refused as though only 100644 were a regular file.
 func TestCheckEvidenceAcceptsExecutableBlob(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"
 	gitAt(t, root, author, email, date, "init", "-q")
@@ -296,6 +302,7 @@ func TestCheckEvidenceAcceptsExecutableBlob(t *testing.T) {
 // whose removed and added bytes are byte-identical never proves a mechanical
 // claim: there is nothing to prove.
 func TestMechanicalProvenRefusesIdenticalRemovedAndAdded(t *testing.T) {
+	t.Parallel()
 	hunk := &patch.Hunk{Body: []patch.BodyLine{
 		{Prefix: '-', Payload: []byte("same\n")},
 		{Prefix: '+', Payload: []byte("same\n")},

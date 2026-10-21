@@ -38,6 +38,7 @@ func impactVerificationOf(t *testing.T, files map[string]string, changed string)
 // names `bundle exec rspec` for a changed Ruby path and drops the
 // unknown-language line; without a Gemfile it offers no command and keeps it.
 func TestNGIV0027RubyImpactNamesBundleExecRSpec(t *testing.T) {
+	t.Parallel()
 	gemfile := "source \"https://rubygems.org\"\ngem \"rspec\"\n"
 	for _, test := range []struct {
 		name         string
@@ -168,6 +169,7 @@ func TestNGIV0027RubyCommandAppearsOnceAcrossPaths(t *testing.T) {
 // evidence: a JS path with no test script keeps the full receipt's
 // `git diff --check` plan and the unknown-language line, as it did before.
 func TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine(t *testing.T) {
+	t.Parallel()
 	files := rubyVerificationFiles(map[string]string{
 		"Gemfile":       "source \"https://rubygems.org\"\ngem \"rspec\"\n",
 		"lib/widget.js": "export const widget = 1;\n",
@@ -204,6 +206,7 @@ func TestNGIV0027RubySignalKeepsOtherReceiptsUnknownLine(t *testing.T) {
 // root Gemfile or Gemfile.lock declares an rspec gem; a Minitest repository
 // that also tracks spec/ keeps the unknown-language line.
 func TestNGIV0052RSpecNeedsDeclaredGem(t *testing.T) {
+	t.Parallel()
 	rspecCommands := []any{"bundle exec rspec", "git diff --check"}
 	unknownCommands := []any{"git diff --check"}
 	for _, test := range []struct {
@@ -255,6 +258,7 @@ func TestNGIV0052RSpecNeedsDeclaredGem(t *testing.T) {
 // `bin/rails test` or `bundle exec rake test` only when that runner is proved,
 // and otherwise keeps the unknown-language line.
 func TestNGIV0053MinitestCommands(t *testing.T) {
+	t.Parallel()
 	model := "class Widget\nend\n"
 	minitest := "require \"minitest/autorun\"\nclass WidgetTest < Minitest::Test\nend\n"
 	for _, test := range []struct {
@@ -322,6 +326,7 @@ func rangeVerificationOf(t *testing.T, files map[string]string, changed, replace
 // Ruby path names the repository's Ruby command before the gate; a Minitest
 // repository's range names no RSpec command.
 func TestNGIV0051RangeImpactNamesRubyCommand(t *testing.T) {
+	t.Parallel()
 	const changed = "app/api_clients/foo_client.rb"
 	edited := "class FooClient\n  def fetch = :changed\nend\n"
 	got := rangeVerificationOf(t, rubyIssue1130Files(t), "app/api_clients/foo_client.rb",
@@ -342,6 +347,7 @@ func TestNGIV0051RangeImpactNamesRubyCommand(t *testing.T) {
 // TestNGIV0051GoRangePlanUnchangedByRubySignals: NGI-V0-051. A range with no
 // Ruby path keeps its Go-only plan exactly in an RSpec repository.
 func TestNGIV0051GoRangePlanUnchangedByRubySignals(t *testing.T) {
+	t.Parallel()
 	goFiles := map[string]string{
 		"go.mod":                    "module example.test/widget\n\ngo 1.24\n",
 		"internal/widget/widget.go": "package widget\n\nfunc Widget() int { return 1 }\n",

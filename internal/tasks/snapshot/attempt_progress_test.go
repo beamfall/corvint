@@ -2,6 +2,9 @@ package snapshot
 
 import (
 	"bytes"
+	"encoding/json"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -111,6 +114,48 @@ func TestATRV0084_LatestHandoffEvidence(t *testing.T) {
 			if got := LatestHandoffEvidence(&Attempt{HandoffEvidence: c.current, PriorGenerations: c.prior}); got != c.want {
 				t.Fatalf("case %d: %q want %q", i, got, c.want)
 			}
+		}
+	})
+}
+
+// ATR-V0-193 (V1-1692): a claim recorded while the policy declares no
+// progressSignal writes a loopEvidence member with exactly the key set a
+// build before the ATR-V0-081 progress member (PR #1085) accepts, so a binary
+// rollback stays readable; a claim recorded under the signal writes the
+// `progress` member that such a build refuses as MALFORMED (closed object,
+// recorded experiment in the V1-1692 build-log entry), whose only supported
+// recovery is a build that reads it.
+func TestATRV0193_RollbackReadableWithoutProgressSignal(t *testing.T) {
+	t.Run("ATR-V0-193 RollbackReadableWithoutProgressSignal", func(t *testing.T) {
+		preProgress := []string{"candidateTreeOid", "disposition", "gateResults", "reviews"}
+		ended := &Attempt{RuntimeID: RuntimeExternalAgent, RetryAccounting: &RetryAccounting{Disposition: wire.CodeHandoff}, HandoffEvidence: "local:wp-step-3"}
+		keys := func(signal string) []string {
+			a := legacyPriorAttempt()
+			a.PriorGenerations[1].History = &GenerationHistory{Stage: ptr("implement"), Loop: LoopEvidenceWith(ended, signal)}
+			raw, err := a.Encode()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var doc struct {
+				PriorGenerations []struct {
+					LoopEvidence map[string]json.RawMessage `json:"loopEvidence"`
+				} `json:"priorGenerations"`
+			}
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				t.Fatal(err)
+			}
+			var out []string
+			for k := range doc.PriorGenerations[1].LoopEvidence {
+				out = append(out, k)
+			}
+			sort.Strings(out)
+			return out
+		}
+		if got := keys(""); !reflect.DeepEqual(got, preProgress) {
+			t.Fatalf("undeclared signal wrote loopEvidence keys %v, want the pre-#1085 set %v", got, preProgress)
+		}
+		if got := keys(intent.ProgressSignalHandoffEvidence); !reflect.DeepEqual(got, append(append([]string(nil), preProgress[:3]...), "progress", "reviews")) {
+			t.Fatalf("declared signal wrote loopEvidence keys %v", got)
 		}
 	})
 }

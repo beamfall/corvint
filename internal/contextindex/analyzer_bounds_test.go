@@ -277,6 +277,7 @@ func TestSharedExhaustedBranchOutranksLaterFind(t *testing.T) {
 // past it the answer is unknown, names the bound and is not cached. Removing
 // the bound turns the 8-module answer into "not a constant" and fails.
 func TestSharedLookupBoundAtProductionValue(t *testing.T) {
+	t.Parallel()
 	if sharedLookupBound.limit != 4096 {
 		t.Fatalf("shared-lookup limit = %d, want the declared 4096 (TSA-V0-460)", sharedLookupBound.limit)
 	}
@@ -318,6 +319,7 @@ func TestSharedLookupBoundAtProductionValue(t *testing.T) {
 // an invalid registries declaration, so setup-select returns ALL; an oversized
 // `.json` that is no manifest leaves the selection narrow.
 func TestOversizedRegistryManifestFailsClosed(t *testing.T) {
+	t.Parallel()
 	files := setupSelectFiles()
 	files["data/big.json"] = `{"rows": "` + strings.Repeat("x", maxSourceBytes) + `"}`
 	if selection := selectSetupOf(t, files, "tests/alpha.spec.ts"); selection.Mode != "selected" {

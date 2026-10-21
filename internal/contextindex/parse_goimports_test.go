@@ -96,6 +96,7 @@ func TestGoImportsStaysTotalOnUnparseableSource(t *testing.T) {
 // .go file in this repository and reports each disagreement, so the claim that
 // the scanner is unsound is demonstrated on real input rather than asserted.
 func TestGoImportsDifferentialAgainstScanner(t *testing.T) {
+	t.Parallel()
 	root := repositoryRoot(t)
 	missed, spurious, files, unparseable := 0, 0, 0, 0
 	err := filepath.WalkDir(root, func(candidate string, entry fs.DirEntry, walkErr error) error {

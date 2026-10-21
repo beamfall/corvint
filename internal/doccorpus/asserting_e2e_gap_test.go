@@ -51,6 +51,7 @@ func joinRelation(t *testing.T, a *Artifact) *Relation {
 }
 
 func TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap(t *testing.T) {
+	t.Parallel()
 	var rel Relation
 	gaps := flowGaps(t, reviewedJoin, func(a *Artifact) { rel = *joinRelation(t, a) })
 	if rel.Evidence.Trust != "generated" || rel.Evidence.ReportedTrust != "reviewed" {
@@ -66,6 +67,7 @@ func TestDCPV1150ProviderReportedReviewYieldsUnauthenticatedGap(t *testing.T) {
 }
 
 func TestDCPV1151AuthenticatedReviewClearsAssertingGap(t *testing.T) {
+	t.Parallel()
 	gaps := flowGaps(t, nil, func(a *Artifact) {
 		rel := joinRelation(t, a)
 		rel.Evidence.Trust, rel.Evidence.ReportedTrust = "reviewed", ""
@@ -81,6 +83,7 @@ func TestDCPV1151AuthenticatedReviewClearsAssertingGap(t *testing.T) {
 }
 
 func TestDCPV1152AssertingGapNamesTheFailedCondition(t *testing.T) {
+	t.Parallel()
 	setLink := func(role, typ, confidence string) func(*ProviderRecord) {
 		return func(p *ProviderRecord) {
 			reviewedJoin(p)

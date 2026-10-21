@@ -13,6 +13,7 @@ import (
 )
 
 func TestMaintenancePairRecovery(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"success", "second-failure", "cancel", "competing-writer", "open-writer", "replaced-inode", "parent-swap", "create-race"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
@@ -106,6 +107,7 @@ func TestMaintenancePairRecovery(t *testing.T) {
 }
 
 func TestMaintenancePairInterruptedProcess(t *testing.T) {
+	t.Parallel()
 	if root := os.Getenv("CORVINT_PAIR_INTERRUPT_FIXTURE"); root != "" {
 		files := [2]MaintenanceFile{{Path: "a", Before: []byte("old-a"), Next: []byte("new-a")}, {Path: "b", Before: []byte("old-b"), Next: []byte("new-b")}}
 		_, err := publishMaintenancePair(context.Background(), root, files, nil, func(stage string, i int) {
@@ -165,6 +167,7 @@ func TestMaintenancePairInterruptedProcess(t *testing.T) {
 // TestMaintenancePairPostPublishRecheck edits the first published output while
 // the second publishes; only the final recheck can detect it (FDM-V0-004).
 func TestMaintenancePairPostPublishRecheck(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	files := [2]MaintenanceFile{{Path: "a", Before: []byte("old-a"), Next: []byte("new-a")}, {Path: "b", Before: []byte("old-b"), Next: []byte("new-b")}}
 	for _, f := range files {
@@ -188,6 +191,7 @@ func TestMaintenancePairPostPublishRecheck(t *testing.T) {
 // FDM-V0-004: change the first parent only after both pre-capture checks have
 // passed. Identical visible bytes must not hide a different parent inode.
 func TestMaintenancePairPostPublishParentRecheck(t *testing.T) {
+	t.Parallel()
 	for _, kind := range []string{"missing", "replaced"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()

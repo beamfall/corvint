@@ -43,6 +43,7 @@ func parseStableSimulationPatch(t *testing.T, raw string) *patch.Patch {
 }
 
 func TestStableSimulationCreateOverBaseDirectoryRejectsFromProof(t *testing.T) {
+	t.Parallel()
 	parsed := parseStableSimulationPatch(t, ""+
 		"diff --git a/p/old.txt b/p/old.txt\n"+
 		"deleted file mode 100644\n"+
@@ -73,6 +74,7 @@ func TestStableSimulationCreateOverBaseDirectoryRejectsFromProof(t *testing.T) {
 }
 
 func TestStableSimulationCreateOverBaseGitlinkRejectsFromProof(t *testing.T) {
+	t.Parallel()
 	path := "p"
 	parsed := &patch.Patch{Groups: []*patch.Group{
 		{Kind: patch.KindCreate, NewPath: &path, Mode: "100644"},
@@ -93,6 +95,7 @@ func TestStableSimulationCreateOverBaseGitlinkRejectsFromProof(t *testing.T) {
 }
 
 func TestStableSimulationCreateDestinationsAuthenticateBaseEntries(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name string
 		path string
@@ -123,6 +126,7 @@ func TestStableSimulationCreateDestinationsAuthenticateBaseEntries(t *testing.T)
 }
 
 func TestStableSimulationPlainAndNestedCreatesAuthenticateAbsence(t *testing.T) {
+	t.Parallel()
 	cases := []string{"p", ".corvint/change.cem.json", "nested/p"}
 	for _, path := range cases {
 		t.Run(path, func(t *testing.T) {
@@ -150,6 +154,7 @@ func TestStableSimulationPlainAndNestedCreatesAuthenticateAbsence(t *testing.T) 
 }
 
 func TestStableSimulationCreateMissingProofRefuses(t *testing.T) {
+	t.Parallel()
 	path := "p"
 	parsed := &patch.Patch{Groups: []*patch.Group{
 		{Kind: patch.KindCreate, NewPath: &path, Mode: "100644"},
@@ -160,6 +165,7 @@ func TestStableSimulationCreateMissingProofRefuses(t *testing.T) {
 }
 
 func TestStableSimulationCreateOverExistingBlobRejectsInvalidField(t *testing.T) {
+	t.Parallel()
 	path := "p"
 	parsed := parseStableSimulationPatch(t, ""+
 		"diff --git a/p b/p\n"+

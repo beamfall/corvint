@@ -28,6 +28,7 @@ func commitRangeFixture(t *testing.T, root string) string {
 }
 
 func TestRangeImpactQualifiesOnlyTouchedMarkersAndAcceptedADRs(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := commitRangeFixture(t, root)
 	index, err := Build(context.Background(), root)
@@ -87,6 +88,7 @@ func TestRangeImpactQualifiesOnlyTouchedMarkersAndAcceptedADRs(t *testing.T) {
 }
 
 func TestRangeImpactEmptyDeltaIsExplicit(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	index, err := Build(context.Background(), root)
 	if err != nil {
@@ -102,6 +104,7 @@ func TestRangeImpactEmptyDeltaIsExplicit(t *testing.T) {
 }
 
 func TestRangeImpactAdmitsCopyAndRenameFromNamedSources(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		name, status, target string
 	}{
@@ -184,6 +187,7 @@ func TestParseRangeChangesRejectsCopyWithoutReportedSource(t *testing.T) {
 }
 
 func TestRangeImpactRejectsDirtyDeleteModeAndBinary(t *testing.T) {
+	t.Parallel()
 	t.Run("dirty", func(t *testing.T) {
 		root := impactRepository(t, "")
 		base := commitRangeFixture(t, root)
@@ -236,6 +240,7 @@ func TestRangeImpactRejectsDirtyDeleteModeAndBinary(t *testing.T) {
 }
 
 func TestRangeImpactDisclosesNonAcceptedChangedHunkADR(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	writeTestFile(t, root, "docs/adr/0013-proposed.md", "# Proposed decision\n\nstatus: proposed\n")
 	testGit(t, root, "add", ".")
@@ -261,6 +266,7 @@ func TestRangeImpactDisclosesNonAcceptedChangedHunkADR(t *testing.T) {
 }
 
 func TestRangeImpactRejectsMutableOrNonAncestorBase(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := commitRangeFixture(t, root)
 	index, err := Build(context.Background(), root)
@@ -274,6 +280,7 @@ func TestRangeImpactRejectsMutableOrNonAncestorBase(t *testing.T) {
 }
 
 func TestRangeImpactRejectsResultAndRangeBounds(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	index, err := Build(context.Background(), root)
@@ -348,6 +355,7 @@ func rangeHasDeletionOnlyEvidence(receipt map[string]any) bool {
 // citation for it, and MUST name the abstention. A pre-existing accepted ADR cited by
 // the same change set is unaffected, proving the refusal is scoped and not a blanket kill.
 func TestRangeImpactRefusesAuthorityFromSelfAuthoredADR(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	writeTestFile(t, root, "docs/adr/9999-self-minted.md", "# Self-minted decision\n\nstatus: accepted\n")
@@ -393,6 +401,7 @@ func TestRangeImpactRefusesAuthorityFromSelfAuthoredADR(t *testing.T) {
 // -- a pre-existing ledger record keeps its canonical authority in the very same
 // receipt, which is what proves this is not a blanket downgrade.
 func TestRangeImpactWithholdsSelfAuthoredLedgerAuthority(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	writeTestFile(t, root, "testing/scenarios.yaml",
@@ -443,6 +452,7 @@ func TestRangeImpactWithholdsSelfAuthoredLedgerAuthority(t *testing.T) {
 // the critical set, which is still overridden, keeps naming every changed Go
 // path rather than only the ones that survived the ceiling.
 func TestRangeImpactCoverageCountsTruncationOnce(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := commitRangeFixture(t, root)
 	index, err := Build(context.Background(), root)
@@ -487,6 +497,7 @@ func untrackedRangeReceipt(t *testing.T, edit func(root string)) (map[string]any
 }
 
 func TestRangeImpactAllowsCommittedIgnoredUntrackedPath(t *testing.T) {
+	t.Parallel()
 	receipt, err := untrackedRangeReceipt(t, func(root string) {
 		writeTestFile(t, root, ".gitignore", "*.log\n")
 		testGit(t, root, "add", ".gitignore")
@@ -503,6 +514,7 @@ func TestRangeImpactAllowsCommittedIgnoredUntrackedPath(t *testing.T) {
 }
 
 func TestRangeImpactAllowsDisjointUntrackedPath(t *testing.T) {
+	t.Parallel()
 	receipt, err := untrackedRangeReceipt(t, func(root string) {
 		writeTestFile(t, root, "scratch/notes.md", "operator notes\n")
 	})
@@ -516,6 +528,7 @@ func TestRangeImpactAllowsDisjointUntrackedPath(t *testing.T) {
 }
 
 func TestRangeImpactRefusesUntrackedPathOverlappingGoBuild(t *testing.T) {
+	t.Parallel()
 	for _, overlapping := range []string{"internal/token/testdata/fixture.txt", "tools/new.go", "go.work", "scratch/vendor/x.txt", "internal/GO.MOD", "scratch/Vendor/x.txt", ".GITIGNORE"} {
 		t.Run(overlapping, func(t *testing.T) {
 			_, err := untrackedRangeReceipt(t, func(root string) {
@@ -531,6 +544,7 @@ func TestRangeImpactRefusesUntrackedPathOverlappingGoBuild(t *testing.T) {
 }
 
 func TestRangeImpactBindsUntrackedAllowanceDigest(t *testing.T) {
+	t.Parallel()
 	allowed := []string{"web/draft.ts", "scratch/notes.md"}
 	receipt, err := untrackedRangeReceipt(t, func(root string) {
 		for _, path := range allowed {

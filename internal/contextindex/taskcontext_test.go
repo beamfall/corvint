@@ -104,6 +104,7 @@ func TestTaskContextAdmitsReverseImportersAndMentionedPaths(t *testing.T) {
 // mentioned and, when the index did not read it, discloses the gap
 // (TCP-V0-003). A bare word still never resolves as a basename.
 func TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":                   "module example.test/fixture\n\ngo 1.27.0\n",
 		"main.go":                  "package main\n\nfunc main() {}\n",
@@ -149,6 +150,7 @@ func TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths(t *testing.T)
 }
 
 func TestTaskContextRetrievalShapeAndNoCandidates(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	packet, err := TaskContext(context.Background(), index, "Where is `Other` defined?", "", 5)
 	if err != nil {
@@ -227,6 +229,7 @@ func TestTaskContextRetrievalShapeAndNoCandidates(t *testing.T) {
 }
 
 func TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":         "module example.test/fixture\n\ngo 1.27.0\n",
 		"cache/cache.go": "package cache\n\nfunc Demux() string { return \"demux\" }\n",
@@ -269,6 +272,7 @@ func TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits(t *testing.T) {
 // boundary commit lists every path it holds, a diff against a parent Git does
 // not have, so it must not count as a commit that changed them together.
 func TestTaskContextCochangeSkipsTheShallowBoundaryCommit(t *testing.T) {
+	t.Parallel()
 	source := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":         "module example.test/fixture\n\ngo 1.27.0\n",
 		"cache/cache.go": "package cache\n\nfunc Demux() string { return \"demux\" }\n",
@@ -313,6 +317,7 @@ func TestCochangeCommitCapTightensWithRepositoryAge(t *testing.T) {
 }
 
 func TestTaskContextRanksCorroboratedRowsFirst(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	// cache/notes.md is co-changed, a sibling, and a documentation match;
 	// docs/unrelated.md is co-changed only, and the co-change slot lists it
@@ -345,6 +350,7 @@ func TestTaskContextRanksCorroboratedRowsFirst(t *testing.T) {
 }
 
 func TestTaskContextRowsCarryAnAction(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	packet, err := TaskContext(context.Background(), index, "Reviewer asks whether `Split` handles empty keys in cache/demux.go", "cache/demux.go", 20)
 	if err != nil {
@@ -442,6 +448,7 @@ func TestSiblingsSharingASubjectTermRankFirst(t *testing.T) {
 }
 
 func TestTaskContextAdmitsFilesNamingASubjectSymbol(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	packet, err := TaskContext(context.Background(), index, "tidy the exported surface", "cache/cache.go", 20)
 	if err != nil {

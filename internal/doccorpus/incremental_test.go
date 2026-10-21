@@ -51,6 +51,7 @@ func updateIncrementalShard(t *testing.T, root string, m Manifest, path string, 
 	return m
 }
 func TestIncrementalShardParity(t *testing.T) {
+	t.Parallel()
 	t.Run("RCP-V0-007 unchanged contribution reused changed contribution compiled with cold byte oracle", func(t *testing.T) {
 		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) { first.Observations = nil })
 		ids := []ShardIdentity{{"adapter", "shards/first.json"}, {"adapter", "shards/last.json"}}
@@ -85,6 +86,7 @@ func TestIncrementalShardParity(t *testing.T) {
 	})
 }
 func TestIncrementalCacheRefusals(t *testing.T) {
+	t.Parallel()
 	t.Run("RCP-V0-007 closed contribution membership detail parity eligibility and digest", func(t *testing.T) {
 		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) { first.Observations = nil })
 		ids := []ShardIdentity{{"adapter", "shards/first.json"}, {"adapter", "shards/last.json"}}
@@ -148,6 +150,7 @@ func TestIncrementalCacheRefusals(t *testing.T) {
 }
 
 func TestIncrementalNonProviderInputInvalidation(t *testing.T) {
+	t.Parallel()
 	t.Run("RCP-V0-007 changed non-provider bytes invalidate every dependent eligible shard", func(t *testing.T) {
 		root, m := shardAdoptionFixture(t, func(first, last *ProviderRecord) { first.Observations = nil })
 		ids := []ShardIdentity{{"adapter", "shards/first.json"}, {"adapter", "shards/last.json"}}

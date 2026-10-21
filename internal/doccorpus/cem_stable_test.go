@@ -40,6 +40,7 @@ func stableDocFixture(t *testing.T) (stableReadFixture, StableCEMInputs, *Artifa
 // digest and spec, the unmodified verifier result, reference counts and
 // NOT_OBSERVED authority; no writer argv is offered and no map is encoded.
 func TestStableCEMProjectionCitesVerifiedSpan(t *testing.T) {
+	t.Parallel()
 	fixture, inputs, artifact := stableDocFixture(t)
 	receipt, err := StableCEMProjection(context.Background(), artifact, fixture.raw, "", inputs)
 	if err != nil {
@@ -86,6 +87,7 @@ func TestStableCEMProjectionCitesVerifiedSpan(t *testing.T) {
 // 0.x map refuse with no claim row; the verifier result is kept; a claim whose
 // span differs at the verified base refuses instead of citing.
 func TestStableCEMProjectionRefusals(t *testing.T) {
+	t.Parallel()
 	fixture, inputs, artifact := stableDocFixture(t)
 	ctx := context.Background()
 	refused := func(name string, data []byte, inputs StableCEMInputs) {

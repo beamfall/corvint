@@ -369,8 +369,13 @@ func executeSourceViewBytes(ctx context.Context, o sourceViewOptions, result map
 		return result, sourceRefusal("stale-blob")
 	}
 	source, err := sourceGit(deadline, root, sourceBlobLimit+1, "cat-file", "blob", blob)
-	if err != nil || len(source) > sourceBlobLimit {
+	if errors.Is(err, errSourceOutputOverflow) || err == nil && len(source) > sourceBlobLimit {
 		return result, sourceRefusal("blob-budget")
+	}
+	if err != nil {
+		// A cat-file that fails for any reason other than output size keeps
+		// its own git-failed code rather than posing as a budget refusal (V1-2258).
+		return result, err
 	}
 	if sourceObjectID(format, source) != blob {
 		return result, sourceRefusal("stale-blob")
@@ -512,7 +517,12 @@ func extractSourceView(source []byte, handle map[string]any, linesArg, requireme
 		return nil, sourceRefusal("view-budget")
 	}
 	sum := sha256.Sum256(selected)
-	return map[string]any{"text": string(selected), "byte_start": byteStart, "byte_end": byteStart + len(selected), "line_start": start + 1, "line_end": end, "bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "boundary_rule": rule}, nil
+	text, redacted := screenSourceLines(source, lines, start+1, end)
+	view := map[string]any{"text": text, "byte_start": byteStart, "byte_end": byteStart + len(selected), "line_start": start + 1, "line_end": end, "bytes": len(selected), "sha256": hex.EncodeToString(sum[:]), "boundary_rule": rule}
+	if redacted != nil {
+		view["redacted_lines"] = redacted
+	}
+	return view, nil
 }
 
 // sourcePlainPrefix reports whether the lines before a requirement clause
@@ -573,6 +583,11 @@ func sourceClauseToken(line []byte) bool {
 
 // sourceGit runs one sanitized Git read in an owned process group: cancellation
 // sends TERM to the group, then KILL, and reaps descendants before returning.
+// errSourceOutputOverflow is sourceGit's error when Git's stdout exceeded the
+// caller's limit. It lets a blob read tell a budget refusal from a failed read
+// (V1-2258); callers that do not check it see an ordinary error.
+var errSourceOutputOverflow = errors.New("git output exceeded its byte limit")
+
 func sourceGit(ctx context.Context, root string, limit int, arguments ...string) ([]byte, error) {
 	directory, err := filepath.Abs(root)
 	if err != nil {
@@ -584,6 +599,9 @@ func sourceGit(ctx context.Context, root string, limit int, arguments ...string)
 	}
 	argv := append(append([]string{executable}, sourceGitOptions...), append([]string{"-C", directory}, arguments...)...)
 	observation := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: directory, Env: sourceGitEnvironment, Timeout: sourceDeadline(ctx), ShutdownTimeout: sourceShutdownLimit, OutputLimit: limit, StderrLimit: 8192})
+	if observation.StdoutOverflow {
+		return nil, errSourceOutputOverflow
+	}
 	if observation.Err != nil || observation.ExitStatus != 0 {
 		return nil, sourceRefusal("git-failed")
 	}

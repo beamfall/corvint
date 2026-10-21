@@ -104,6 +104,7 @@ func hasEvidence(rows []map[string]any, path string, line int, confidence string
 // quoted, double-quoted, substitution-free template and single-literal
 // computed key alike.
 func TestRegistryDialectSelectsTestsPassingTheKey(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		changed, spec string
 		entry, call   int
@@ -136,6 +137,7 @@ func TestRegistryDialectSelectsTestsPassingTheKey(t *testing.T) {
 // template with a substitution makes every caller of that accessor selected
 // and names the accessor in an unknown with the count of such calls.
 func TestRegistryDialectNonLiteralKeyWidens(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["tests/dynamic.spec.ts"] = "import { DataProvider } from './data/provider';\n" +
 		"const name = 'alpha';\n" +
@@ -166,6 +168,7 @@ func TestRegistryDialectNonLiteralKeyWidens(t *testing.T) {
 // TestRegistryDialectChangedRegistrySelectsEveryCaller is NGI-V0-010's
 // registry-file arm: a change to the registry itself selects every caller.
 func TestRegistryDialectChangedRegistrySelectsEveryCaller(t *testing.T) {
+	t.Parallel()
 	rows := registryRows(registryImpact(t, registryIssueFiles(), "tests/data/registry.ts"))
 	for _, spec := range []string{"tests/alpha.spec.ts", "tests/beta.spec.ts", "tests/gamma.spec.ts"} {
 		if rows[spec] == nil {
@@ -190,6 +193,7 @@ func TestRegistryDialectChangedRegistrySelectsEveryCaller(t *testing.T) {
 // computed non-literal key, a method entry and a value that is not an
 // imported binding: each is counted, never dropped, and widens selection.
 func TestRegistryDialectUnresolvedRegistryWidens(t *testing.T) {
+	t.Parallel()
 	for name, entry := range map[string]string{
 		"spread":       "  ...other,\n",
 		"computed":     "  [prefix + 'x']: Beta,\n",
@@ -217,6 +221,7 @@ func TestRegistryDialectUnresolvedRegistryWidens(t *testing.T) {
 // file that only re-exports the registry has no readable entries, so every
 // changed path it could reach is widened and carries the unknown.
 func TestRegistryDialectReexportedRegistryIsUnresolved(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["tests/data/index.ts"] = "export { registry } from './registry';\n"
 	files["corvint/appmap.json"] = registryManifest(registryDeclaration("tests/data/index.ts", "registry", "createTestData"))
@@ -256,6 +261,7 @@ func TestRegistryDialectAliasedAccessorImport(t *testing.T) {
 // TestRegistryDialectKeyCollisionAcrossRegistries: the same key in two
 // registries binds each accessor to its own registry's module only.
 func TestRegistryDialectKeyCollisionAcrossRegistries(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["corvint/appmap.json"] = registryManifest(
 		registryDeclaration("tests/data/registry.ts", "registry", "createTestData"),
@@ -278,6 +284,7 @@ func TestRegistryDialectKeyCollisionAcrossRegistries(t *testing.T) {
 // TestRegistryDialectDeclarationFailures: an invalid declaration is a closed
 // unknown on every JS/TS changed path, and the default profile reads nothing.
 func TestRegistryDialectDeclarationFailures(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["corvint/appmap.json"] = registryManifest(`{"path": "tests/data/registry.ts", "export": "registry", "dialect": "other/0", "accessors": ["createTestData"]}`)
 	receipt := registryImpact(t, files, "src/contexts/alpha.ts")
@@ -334,6 +341,7 @@ func TestValidateRegistryDeclarations(t *testing.T) {
 // refuse (a duplicate member) is counted, never read as its last member, and
 // an escaped solidus in the schema name does not hide a declaration.
 func TestRegistryDialectStrictManifest(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	declaration := registryDeclaration("tests/data/registry.ts", "registry", "createTestData")
 	files["corvint/appmap.json"] = `{"schema": "application-map-manifest/0", "app": "shop", "registries": [], "registries": [` + declaration + `]}`
@@ -355,6 +363,7 @@ func TestRegistryDialectStrictManifest(t *testing.T) {
 // TestRegistryDialectDefaultReceiptUnchanged: the default profile renders the
 // same bytes whether or not the committed manifest declares registries.
 func TestRegistryDialectDefaultReceiptUnchanged(t *testing.T) {
+	t.Parallel()
 	render := func(files map[string]string) []byte {
 		t.Helper()
 		index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
@@ -421,6 +430,7 @@ func TestRegistryDialectLazyRequireNeverFailsOpen(t *testing.T) {
 // registry-key-unresolved row and its widening apply to every JS/TS changed
 // path, not only to the paths the registry imports.
 func TestRegistryDialectUnresolvedEntryAppliesToEveryPath(t *testing.T) {
+	t.Parallel()
 	files := registryLazyFiles()
 	files["tests/data/load.ts"] = "export const load = (name: string) => require('../../src/contexts/' + name);\n"
 	files["tests/data/registry.ts"] = "import { Calpha } from '../../src/contexts/alpha';\n" +
@@ -474,6 +484,7 @@ func registryLazyFormFiles() map[string]string {
 // lazy loader form binds its key to the module its closed specifier names,
 // so a change selects only the spec passing that key.
 func TestRegistryDialectLazyEntriesResolve(t *testing.T) {
+	t.Parallel()
 	files := registryLazyFormFiles()
 	for _, tc := range []struct {
 		form, changed, spec string
@@ -503,6 +514,7 @@ func TestRegistryDialectLazyEntriesResolve(t *testing.T) {
 // reach a second module (a constructor argument, a callback, an expression
 // after an assertion) or a require the file may rebind.
 func TestRegistryDialectLazyEntriesStayClosed(t *testing.T) {
+	t.Parallel()
 	rebound := map[string]string{
 		"shadowed require": "const require = (name: string) => ({ Czeta: Calpha });\n",
 		"declared require": "function require(name: string) { return { Czeta: Calpha }; }\n",
@@ -551,6 +563,7 @@ func TestRegistryDialectLazyEntriesStayClosed(t *testing.T) {
 // registry the file does not export, read through a declared accessor,
 // resolves like an exported one; a nested const of that name does not.
 func TestRegistryDialectNonExportedRegistry(t *testing.T) {
+	t.Parallel()
 	files := registryLazyFormFiles()
 	files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "export const registry", "const registry", 1)
 	receipt := registryImpact(t, files, "src/contexts/zeta.ts")
@@ -583,6 +596,7 @@ func TestRegistryDialectNonExportedRegistry(t *testing.T) {
 // accessor argument naming a top-level const bound to a closed literal in the
 // same file is that literal key.
 func TestRegistryDialectConstAccessorKey(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["tests/delta.spec.ts"] = "import { DataProvider } from './data/provider';\n" +
 		"const SCENARIO_CONTEXT = 'ctx:delta';\n" +
@@ -610,6 +624,7 @@ func TestRegistryDialectConstAccessorKey(t *testing.T) {
 // cannot prove bound to one literal at the call stays accessor-key-nonliteral
 // and widens every caller.
 func TestRegistryDialectConstAccessorKeyStaysNonLiteral(t *testing.T) {
+	t.Parallel()
 	call := "test('k', () => new DataProvider().createTestData(KEY));\n"
 	head := "import { DataProvider } from './data/provider';\n"
 	for name, body := range map[string]string{
@@ -649,6 +664,7 @@ func TestRegistryDialectConstAccessorKeyStaysNonLiteral(t *testing.T) {
 // unresolved registry export applies to every JS/TS changed path, and to no
 // Ruby path, which no JS/TS registry can map a key to.
 func TestRegistryDialectExportUnresolvedIsWebOnly(t *testing.T) {
+	t.Parallel()
 	files := registryIssueFiles()
 	files["tests/data/index.ts"] = "export { registry } from './registry';\n"
 	files["corvint/appmap.json"] = registryManifest(registryDeclaration("tests/data/index.ts", "registry", "createTestData"))
@@ -671,6 +687,7 @@ func TestRegistryDialectExportUnresolvedIsWebOnly(t *testing.T) {
 // `declare const require: ...` only types the loader and binds no value, so
 // lazy require entries stay closed.
 func TestRegistryDialectAmbientRequireIsLoader(t *testing.T) {
+	t.Parallel()
 	for name, prelude := range map[string]string{
 		"declare const": "declare const require: (name: string) => any;\n",
 		"declare var":   "declare var require: NodeRequire;\n",

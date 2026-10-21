@@ -1128,6 +1128,11 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   keep the `TCP-V0-065` order of display path then reason. A repository with a Tasks store
   therefore samples its real gaps (size bound, non-UTF-8, generated or protected paths) before
   task state. This changes no count, ranking, member or packet without projection exclusions.
+- `TCP-V0-160`: accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). `context
+  grep` screens the lines it quotes (`TCP-V0-017`). `internal/secretscreen` runs over the whole
+  file text, and a quoted line that a match overlaps has `text` `[REDACTED]` and `"redacted":
+  true`, keeping its `line` and `terms`. Clean lines and rows are unchanged. The packet itself
+  quotes no file text, so it needs no screen.
   Projection files never rank as results because the index never reads them. Rollback: restore
   the single path-then-reason order. Test:
   `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
@@ -1647,3 +1652,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-141 (accepted, standing auto-accept, V1-1285) | `worktreeCoverage` | `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree` |
 | TCP-V0-150 (accepted, standing auto-accept, V1-2127) | `taskContextCompiler.packet`, `lookupEnvelope` | `TestTaskContextCarriesHeadCommitBesideTreeRevision`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes` (regenerated golden), `TestCoreVerbsEmitTheFrozenProfiles` (context goldens) |
 | TCP-V0-152 (accepted, standing auto-accept, V1-1010/V1-1015) | `unresolvedAnchors`, `undeclaredAnchor` (`internal/contextindex/taskcontext_anchors.go`), `specMentionedRows`, `symbolRows` | `TestTaskContextDisclosesUnresolvedIDAnchors` |
+| TCP-V0-160 (accepted, standing auto-accept, V1-0426) | `matchingLines`, `spansOverlap` | `TestTCPV0160LookupGrepRedactsSecretLines` |

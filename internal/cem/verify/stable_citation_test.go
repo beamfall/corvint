@@ -20,6 +20,7 @@ func requireCitationOnlyOnAccept(t *testing.T, name string, r StableResult) {
 // public mutation of them (ACCEPT axis cases, wire, references and artifacts
 // rejections) and checks that only an ACCEPT carries the citation block.
 func TestCEMV1092CitationOnlyOnAccept(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}
@@ -73,6 +74,7 @@ func TestCEMV1092CitationOnlyOnAccept(t *testing.T) {
 // expectations, which TestStableS0EPublicCases compares in full: every
 // non-ACCEPT case, including the drift refusals, carries citation null.
 func TestCEMV1092SealedCasesCarryCitationOnlyOnAccept(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	accepted, drift := 0, 0
 	for _, c := range packet.cases {
@@ -100,6 +102,7 @@ func TestCEMV1092SealedCasesCarryCitationOnlyOnAccept(t *testing.T) {
 // failure path, including a cleanup override after a provisional ACCEPT and a
 // drift rejection, clears the block.
 func TestCEMV1092RefuseAndRejectClearCitation(t *testing.T) {
+	t.Parallel()
 	r := NewStableResult(StableOptions{})
 	r.Citation = &Citation{Profile: CitationProfile}
 	r.Refuse("process-cleanup", "process-cleanup-unobserved", true)

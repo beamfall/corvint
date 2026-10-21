@@ -13,6 +13,7 @@ import (
 // is a miss that still carries the loader's paired observation, and a build
 // opened on that observation is the build BuildContext makes from its own.
 func TestLoadContextSnapshotHandsTheMissObservationToTheBuild(t *testing.T) {
+	t.Parallel()
 	root := taskContextFixture(t).Root
 	if err := os.MkdirAll(SnapshotDirectory(root), 0o755); err != nil {
 		t.Fatal(err)

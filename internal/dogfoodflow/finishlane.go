@@ -38,6 +38,8 @@ type finishLane struct {
 	// step is the finish-lane step running now, named if the run is
 	// interrupted (DCW-V0-067).
 	step string
+	// clock times every step and command (DCW-V0-115).
+	clock *laneClock
 }
 
 // FinishLane runs the docs/DOGFOOD.md §4 bind loop end to end on a committed
@@ -45,12 +47,21 @@ type finishLane struct {
 // seal (DCW-V0-060). It stops at the first step that does not succeed, with that
 // step's own output, and a rerun continues from the bind commit (DCW-V0-061).
 func FinishLane(ctx context.Context, options FinishLaneOptions, stdout, stderr io.Writer) (int, error) {
-	run := &finishLane{flow: flow{ctx: ctx, prefix: "dogfood-finish-lane", root: options.Change.Root, stderr: stderr}, options: options, stdout: stdout, notes: map[string]bool{}}
+	clock := newLaneClock()
+	options.Change.Steps = clock.wrap(options.Change.Steps)
+	options.Check.BaseVerifier = clock.wrap(options.Check.BaseVerifier)
+	options.Check.TreeVerifier = clock.wrap(options.Check.TreeVerifier)
+	if options.Check.Override != nil {
+		override := clock.wrap(*options.Check.Override)
+		options.Check.Override = &override
+	}
+	run := &finishLane{flow: flow{ctx: ctx, prefix: "dogfood-finish-lane", root: options.Change.Root, stderr: stderr}, options: options, stdout: stdout, notes: map[string]bool{}, clock: clock}
 	defer run.releaseOperation()
 	code, err := boundary(ctx, run.run, func() {})
 	if errors.Is(err, ErrInterrupted) {
 		run.interrupted()
 	}
+	run.writeTimings()
 	return code, err
 }
 
@@ -63,6 +74,28 @@ func (l *finishLane) interrupted() {
 	}
 	l.line("%s INTERRUPTED", step)
 	l.reportMissing()
+	l.say("%s: INTERRUPTED %s\n  fix: %s\n", l.prefix, step, l.recovery(step))
+}
+
+// recovery is the exact command sequence that resumes an interrupted run.
+// Before the bind commit a rerun prepares again; from the bind commit on it
+// resumes there once the sidecar, and a stopped seal's staged rename, are
+// restored. A stopped pass's dogfood-report.json is never the checked one, so
+// only the finished rerun's check decides it (DCW-V0-116).
+func (l *finishLane) recovery(step string) string {
+	base := l.base
+	if base == "" {
+		base = l.options.Change.Base
+	}
+	rerun := "rerun corvint dogfood finish-lane --base " + base + " (or make dogfood-finish BASE=" + base + ") with the same inputs"
+	switch step {
+	case "rebind", "check":
+		return "git restore --source=HEAD --staged --worktree -- " + finishLaneSidecar + ", then " + rerun + "; it resumes from the bind commit " + l.target
+	case "seal":
+		return "unless HEAD is already the seal commit, git restore --source=HEAD --staged --worktree -- " + finishLaneSidecar + " .corvint/changes/" + l.target + ".cem.json; then " + rerun + "; it resumes from the bind commit " + l.target + " or reports the seal"
+	default:
+		return rerun + "; it prepares the map again, and only the rerun's check decides the report"
+	}
 }
 
 func (l *finishLane) run() int {
@@ -193,7 +226,7 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	options := l.options.Change
 	options.Citations = citations
 	var captured bytes.Buffer
-	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options}
+	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options, scope: passScopes[name]}
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
 	for _, row := range run.rows {
@@ -209,6 +242,11 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	}
 	return code, run, captured.Bytes()
 }
+
+// passScopes narrows the passes whose rows the rebind recomputes: prepare
+// reads only the prepared map, bind only what the bind commit needs; the
+// rebind runs every step (DCW-V0-115).
+var passScopes = map[string]passScope{"prepare": passPrepare, "bind": passBind, "rebind": passFull}
 
 // accept keeps an accepted pass's NOTE lines, each once per run.
 func (l *finishLane) accept(output []byte) {
@@ -253,6 +291,7 @@ func (l *finishLane) removeSidecar(name string) {
 // a refusal or an unprepared map stops it; the rows it cannot produce without
 // a plan or a committed sidecar are the bind's to decide.
 func (l *finishLane) prepare() {
+	defer l.timed("prepare")()
 	l.removeSidecar("prepare")
 	code, run, output := l.pass("prepare", "")
 	prepared := code != 2 && isRegular(l.root+"/"+finishLaneSidecar)
@@ -274,6 +313,7 @@ func (l *finishLane) prepare() {
 // is the recorder's record-index-failed, which the uncommitted sidecar causes
 // and the bind commit clears (DCW-V0-015).
 func (l *finishLane) bind() {
+	defer l.timed("bind")()
 	code, run, output := l.pass("bind", l.options.Change.Citations)
 	if code == 1 {
 		for _, row := range run.rows {
@@ -291,6 +331,7 @@ func (l *finishLane) bind() {
 // commitBind commits only the sidecar, with the caller's Git identity, signing
 // and hooks, as the recipe's git commit does.
 func (l *finishLane) commitBind() {
+	defer l.timed("commit")()
 	l.step = "commit"
 	if l.gitSucceeds("diff", "--quiet", "HEAD", "--", finishLaneSidecar) && l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar) {
 		l.line("commit SKIP sidecar-unchanged")
@@ -318,6 +359,7 @@ func (l *finishLane) gitPassthrough(args ...string) int {
 
 // rebind reruns the bind on the committed sidecar; it must complete.
 func (l *finishLane) rebind() {
+	defer l.timed("rebind")()
 	code, _, output := l.pass("rebind", l.options.Change.Citations)
 	if code != 0 {
 		l.stop("rebind", code, output)
@@ -329,6 +371,7 @@ func (l *finishLane) rebind() {
 // checkAndSeal runs the seal, which runs the check first, and ends with the
 // check's own SUMMARY and verdict lines and the seal line.
 func (l *finishLane) checkAndSeal() int {
+	defer l.timed("check-seal")()
 	l.step = "check"
 	var verdict bytes.Buffer
 	code, err := Seal(l.ctx, l.options.Check, &verdict, l.stderr)

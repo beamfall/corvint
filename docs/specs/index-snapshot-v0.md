@@ -132,7 +132,7 @@ what any packet says.
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
   the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1064-1066@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1439-1440@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1442-1443@c39315fe` and `cmd/corvint/harness_context.go:70-71@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
   (`cmd/corvint/prove.go:584@7ad2b2af`, `cmd/corvint/prove.go:605-606@38c3dce4`, `cmd/corvint/prove.go:627-628@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
@@ -856,6 +856,46 @@ the gate skips 7,099 bodies (was 3,893) with identical extracted imports for eve
 `corvint index` user CPU fell from 6.6 to 7.0 s to 5.8 to 6.0 s
 (`docs/build-log/2026-10-21-lane-ctx-1021-context-index-impact.md`).
 
+### Accepted (2026-10-21, V1-1640, owner's standing auto-accept 2026-10-11): `query` names its miss too
+
+Human intent: V1-1640 asked that `context` "and other snapshot readers" name a snapshot-miss
+build. `IDX-SNAP-V0-102` covered `context`, `impact` and `feature`; `query`, the other read the
+pre-change step uses, still paid its miss build in silence (measured at `8def072e0`: 1.40 s wall
+without a snapshot versus 0.57 s with one).
+
+- `IDX-SNAP-V0-104`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The
+  CLI `query` verb, on both its repository and authority-start paths, writes the
+  `IDX-SNAP-V0-102` notice with verb `query` when it finds no usable snapshot and its in-memory
+  build (`BuildEval` or `BuildQuery`) takes at least `snapshotMissNoticeAfter`, with the same
+  text, floor, unchanged stdout and exit code, and no store write. The notice is armed only by the
+  CLI adapter (`withSnapshotMissNotice`); the harness event path and `batch` share the build code
+  and stay silent.
+
+Failure modes: as `IDX-SNAP-V0-102`. Rollback: delete `withSnapshotMissNotice` and
+`timedMissBuild` and restore the three bare build calls. Traceability:
+`TestSnapshotMissNoticeNamesTheBuild` (both `query` paths).
+
+### Accepted (2026-10-21, V1-2237, owner's standing auto-accept 2026-10-11): mapped snapshot decode
+Human intent: the hook path decoded the 170 to 180 MB gob snapshot through read(2) in 270 to 390 ms;
+the profile put about 22% in read syscalls and 17% in the trailer SHA-256, both serial with the
+decode. The on-disk format stays unchanged (invariant 7), so no format gate applies; the edit to analyzer
+inputs still bumps the schema (to `corvint-analyzer/139` in batch 1021h, shared with V1-0426 and V1-2276) under IDX-SNAP-V0-060.
+- `IDX-SNAP-V0-105`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a
+  host where the snapshot file maps read-only, the default gob snapshot decode reads it through
+  that mapping and hashes the payload for the IDX-SNAP-V0-003 trailer check on a second goroutine
+  while the header and value decode, joining both before the mapping is released. It reads the
+  same bytes and makes the same header, value and trailer checks, so every hit returns the value
+  the read(2) decode returns and every mismatch is the same miss; no decoded value aliases the
+  mapping. A memory fault while reading the mapping, such as a file truncated under it, is an
+  error and so the IDX-SNAP-V0-003 miss, never a crash. A file that does not map takes the read(2)
+  decode unchanged.
+Failure modes: the remaining decode cost is gob's own message buffering and string copies, which
+only a format change removes (left to the pack/sectioned formats and their gate). Rollback: delete
+the `mapReadOnly` branch in `decodeSnapshotValue` and `snapshot_decode.go`.
+Traceability: `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss`
+and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
+`docs/build-log/2026-10-21-index-perf-1021i-hot-read-paths.md`.
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -1074,3 +1114,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-102 (standing auto-accept, V1-1640) | `noteSnapshotMissBuild`, `snapshotMissNoticeAfter`, `compileTaskContext` | `TestSnapshotMissNoticeNamesTheBuild` |
 | IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
+| IDX-SNAP-V0-104 (standing auto-accept, V1-1640) | `withSnapshotMissNotice`, `timedMissBuild`, `repositoryQueryContext`, `authorityStartQueryContext` | `TestSnapshotMissNoticeNamesTheBuild` |
+| IDX-SNAP-V0-105 (standing auto-accept, V1-2237) | `decodeSnapshotValue`, `decodeMappedSnapshotValue`, `guardMappedRead` | `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestMappedSnapshotDecodeFaultIsAMiss` |
