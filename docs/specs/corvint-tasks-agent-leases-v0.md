@@ -2972,7 +2972,8 @@ Source, classification table, limits and evidence: the V1-0780 retryable result 
   command that commits a first step it may then fail to finish MUST also report false, because a
   same-request retry replays that step without finishing it: `health` and `pool cleanup` once
   their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
-  owner. `OK` and uncoded results MUST NOT carry
+  owner. An error that restates another with its own location and message (`wire.Annotatef`)
+  MUST keep that error's code and not-retryable mark (V1-0908). `OK` and uncoded results MUST NOT carry
   the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
   `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
   that is not retryable.
