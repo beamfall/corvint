@@ -18,6 +18,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -31,6 +32,7 @@ func TestAggregateCaptureSignalHelper(t *testing.T) {
 	if root == "" {
 		return
 	}
+	exitWhenCaptureParentGone(os.Getenv("CORVINT_CAPTURE_SIGNAL_PARENT"))
 	key := os.Getenv("CORVINT_CAPTURE_SIGNAL_KEY")
 	repo, err := open(root, key)
 	if err != nil {
@@ -81,6 +83,37 @@ func TestAggregateCaptureSignalHelper(t *testing.T) {
 	}
 }
 
+// exitWhenCaptureParentGone bounds a self-exec helper's lifetime by its
+// parent's (V1-1498). The helper blocks on a signal its parent sends, so a
+// parent that dies without running its deferred cleanup (timeout panic,
+// SIGKILL, lane interruption) would otherwise leave it waiting forever.
+// Reparenting is the observed event: once the parent pid the caller named is
+// no longer this process's parent, the helper exits.
+func exitWhenCaptureParentGone(parent string) {
+	if parent == "" {
+		return
+	}
+	want, err := strconv.Atoi(parent)
+	if err != nil || want <= 0 {
+		fmt.Fprintf(os.Stderr, "capture helper: invalid parent pid %q\n", parent)
+		os.Exit(3)
+	}
+	go func() {
+		for {
+			if os.Getppid() != want {
+				fmt.Fprintln(os.Stderr, "capture helper: parent gone; exiting")
+				os.Exit(3)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}()
+}
+
+func fileExists(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
+}
+
 func TestAggregateCaptureNativeParentSignals(t *testing.T) {
 	if !groupreap.OwnerAvailable() {
 		t.Skip("native Owner unavailable")
@@ -100,7 +133,7 @@ func TestAggregateCaptureNativeParentSignals(t *testing.T) {
 				dir := repo.aggregateSnapshotDirectory(saved.AggregateOutcome.BindingSHA256, saved.AggregateOutcome.ActiveSnapshotSHA256)
 				ready := filepath.Join(t.TempDir(), "ready")
 				command := exec.Command(os.Args[0], "-test.run=^TestAggregateCaptureSignalHelper$", "-test.v")
-				command.Env = append(os.Environ(), "CORVINT_CAPTURE_SIGNAL_ROOT="+repo.auth.Root, "CORVINT_CAPTURE_SIGNAL_KEY="+repo.session, "CORVINT_CAPTURE_SIGNAL_MODE="+mode, "CORVINT_CAPTURE_SIGNAL_READY="+ready)
+				command.Env = append(os.Environ(), "CORVINT_CAPTURE_SIGNAL_ROOT="+repo.auth.Root, "CORVINT_CAPTURE_SIGNAL_KEY="+repo.session, "CORVINT_CAPTURE_SIGNAL_MODE="+mode, "CORVINT_CAPTURE_SIGNAL_READY="+ready, "CORVINT_CAPTURE_SIGNAL_PARENT="+strconv.Itoa(os.Getpid()))
 				var output bytes.Buffer
 				command.Stdout = &output
 				command.Stderr = &output

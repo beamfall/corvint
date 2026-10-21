@@ -6,6 +6,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -856,4 +857,50 @@ func TestShardedSourceDrift_AFPV0022(t *testing.T) {
 			t.Fatalf("cancelled shard succeeded: %d %v", code, err)
 		}
 	})
+}
+
+// AFP-V0-053 (V1-1521): a non-shim Git is identified by itself, while the Darwin xcrun shim
+// also binds the Git it runs, so two hosts sharing the shim but not the Git differ; an
+// unresolvable shim refuses identification.
+func TestGitIdentityResolvesDarwinShim(t *testing.T) {
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(dir, "git")
+	if err := os.WriteFile(target, []byte("real git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(dir, "other-git")
+	if err := os.WriteFile(other, []byte("another git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	unexpected := func() (string, error) { t.Fatal("resolver called for a non-shim Git"); return "", nil }
+	for _, c := range []struct{ goos, path string }{{"linux", darwinGitShim}, {"darwin", "/opt/homebrew/bin/git"}} {
+		got, err := gitIdentity(c.goos, c.path, "h", "git version 2.x", unexpected)
+		if err != nil || got != c.path+"\nh\ngit version 2.x" {
+			t.Fatalf("%s %s: %q %v", c.goos, c.path, got, err)
+		}
+	}
+	shim := func(path string) string {
+		got, err := gitIdentity("darwin", darwinGitShim, "shim", "git version 2.x", func() (string, error) { return path, nil })
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	first, second := shim(target), shim(other)
+	if !strings.HasPrefix(first, darwinGitShim+"\nshim\ngit version 2.x\nxcrun "+target+"\n") || first == second {
+		t.Fatalf("shim identities do not bind the resolved Git:\n%s\n%s", first, second)
+	}
+	for name, resolve := range map[string]func() (string, error){
+		"xcrun fails":   func() (string, error) { return "", errors.New("no developer tools") },
+		"relative":      func() (string, error) { return "git", nil },
+		"missing":       func() (string, error) { return filepath.Join(dir, "absent"), nil },
+		"itself (shim)": func() (string, error) { return darwinGitShim, nil },
+	} {
+		if got, err := gitIdentity("darwin", darwinGitShim, "shim", "v", resolve); err == nil {
+			t.Fatalf("%s: identified as %q", name, got)
+		}
+	}
 }

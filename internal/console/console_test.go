@@ -2,6 +2,7 @@ package console
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -821,6 +822,10 @@ func TestConsoleNotLinkedIntoDefaultBinary(t *testing.T) {
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
 	output, err := command.Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	if strings.Contains(string(output), "internal/console") {
