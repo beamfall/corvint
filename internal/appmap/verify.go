@@ -451,17 +451,16 @@ func (vo verificationOverlay) Facts(ctx context.Context, ids []string) ([]Fact, 
 			continue
 		}
 		_, st := vo.m.step(id)
-		if st == nil {
+		// A step with no binding has no run evidence; it reads Unverified by absence, whether or
+		// not it resolves, which keeps the learned section within the projection budget for the
+		// steps that do (RVN-V0-006; V1-0975).
+		if st == nil || len(st.Tests) == 0 && len(vo.v.binds[st.ID]) == 0 {
 			continue
 		}
 		if e == nil {
 			e = newVerifier(ctx, vo.m, vo.v, vo.o)
 		}
-		// A step with no binding has no run evidence; it reads Unverified by absence, which keeps
-		// the learned section within the projection budget for the steps that do.
-		if sv := e.verify(*st); sv.Reason != "no-binding" {
-			facts = append(facts, verificationFact(id, *sv))
-		}
+		facts = append(facts, verificationFact(id, *e.verify(*st)))
 	}
 	return facts, nil
 }

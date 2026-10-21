@@ -198,7 +198,7 @@ or too many inputs.
 | RVN-V0-003 | `TestRVNV0003UnresolvedRevisionNeverVerifies`, `TestRVNV0003FailingReceiptContradicts` |
 | RVN-V0-004 | `TestRVNV0004SourceChangeUnverifiesAtHead` |
 | RVN-V0-005 | `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0003FailingReceiptContradicts`, `TestRVNV0004SourceChangeUnverifiesAtHead` |
-| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0006OversizedFactFailsClosed`, `TestRVNV0006OversizedEvidenceParity`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI` |
+| RVN-V0-006 | `TestRVNV0006BudgetsAndReadOnly`, `TestRVNV0006StatusIgnoresUnrelatedAnchors`, `TestRVNV0006OversizedFactFailsClosed`, `TestRVNV0006OversizedEvidenceParity`, `TestRVNV0002PassingReceiptVerifiesStep`, `TestRVNV0FlowsAppmapVerificationCLI`, `TestRVNV0006UnboundUnresolvedStepEmitsNoFact` |
 | RVN-V0-007 | `TestRVNV0007AuthorityLimit`, `TestRVNV0002PassingReceiptVerifiesStep` |
 | RVN-V0-008 | `TestRVNV0002DeclaredBindings`, `TestRVNV0006BudgetsAndReadOnly` |
 
