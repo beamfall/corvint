@@ -1362,7 +1362,8 @@ unchanged) and `internal/contextindex/sufficiency_test.go` (TCP-V0-028, table-dr
 absent, forged, out-of-range, inverted and other-path spans, an unindexed name, no anchors,
 satisfied plus unknown, and a tracked but unindexed path; a satisfied set never holds a
 non-satisfied anchor and every missing anchor is named). TCP-V0-029's measured on/off reading is
-the V1-0098 entry in `docs/BUILD-LOG.md`.
+the V1-0098 entry in `docs/BUILD-LOG.md`; its span scorer was never committed, so that reading is
+not independently reproducible from the repository (V1-0169).
 `internal/contextindex/recency_test.go` and `internal/contextindex/blame_test.go` (TCP-V0-035..038,
 proposed: default bytes equal the recipe golden for unset, `off` and other values; an equal-BM25
 recent source leads with the flag and both rows name recency, blame and the factor; recent
@@ -1569,7 +1570,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
 | TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
 | TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
-| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
+| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed (NOT_PRODUCED, V1-0169) | measured reading in `docs/BUILD-LOG.md` (V1-0098), not independently reproducible from the repository (`docs/build-log/2026-10-21-v1-0169-tcp-v0-029-scorer-not-produced.md`) |
 | TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderClass`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
