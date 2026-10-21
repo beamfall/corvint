@@ -143,7 +143,7 @@ func TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027(t *testing.
 	if !bytes.Equal(standalone, harness.Context) {
 		t.Fatalf("context differs\nimpact  = %s\nharness = %s", standalone, harness.Context)
 	}
-	if !bytes.Contains(standalone, []byte("outside the native Go impact profile")) {
+	if !bytes.Contains(standalone, []byte("not computed by the impact profile")) {
 		t.Fatalf("impact context lacks profile disclosure: %s", standalone)
 	}
 }

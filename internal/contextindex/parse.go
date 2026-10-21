@@ -235,6 +235,11 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 	summary := ""
 	inFrontmatter := false
 	fence := ""
+	// An instructions file's summary is its preamble, the body under the
+	// title before any section, or else its title: the first line of
+	// whichever section comes first is not the document's purpose (V1-2074).
+	instructions := kind == "instructions"
+	inSection := false
 	for index, raw := range lines {
 		trimmed := strings.TrimSpace(raw)
 		if match := documentTitle.FindStringSubmatch(raw); match != nil && !titleFound {
@@ -249,6 +254,9 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 		// (FPK-V0-029): its lines, fences included, never supply the status.
 		open := fence
 		fence = nextFence(fence, trimmed)
+		if instructions && open == "" && documentHeading.MatchString(raw) && !(titleFound && titleLine == index+1) {
+			inSection = true
+		}
 		if status == "" && open == "" && fence == "" {
 			if match := documentStatus.FindStringSubmatch(raw); match != nil {
 				status = strings.ToLower(strings.TrimSpace(match[1]))
@@ -258,9 +266,12 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 			inFrontmatter = !inFrontmatter
 			continue
 		}
-		if summary == "" && !inFrontmatter && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "```") && !strings.HasPrefix(trimmed, ">") {
+		if summary == "" && !inSection && !inFrontmatter && trimmed != "" && !strings.HasPrefix(trimmed, "#") && !strings.HasPrefix(trimmed, "```") && !strings.HasPrefix(trimmed, ">") {
 			summary = truncateRunes(trimmed, 500)
 		}
+	}
+	if instructions && summary == "" {
+		summary = truncateRunes(title, 500)
 	}
 	referencesSet := make(map[string]struct{})
 	for _, candidate := range documentReference.FindAllString(text, -1) {

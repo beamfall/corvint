@@ -356,14 +356,20 @@ func scanRubyConstantSource(source Source, known func(string) bool) *rubyConstan
 				name, end := rubyReferenceAt(code, i)
 				switch {
 				case name == "" || rubyLabelOrCall(code, end):
-				case !rooted && !strings.Contains(name, "::") && rubyAssignsConstant(code, end):
+				case rubyAssignsConstant(code, end):
 					// `Thing = ...` defines a constant in the innermost
-					// namespace; it is not a reference to an autoloaded one.
-					if outer := rubyInnermost(lexical); outer != "" {
-						result.define(outer + "::" + name)
-					} else {
-						result.define(name)
+					// namespace, `::Thing = ...` a top-level one and
+					// `A::B = ...` B inside the A lexical lookup finds; none is
+					// a reference to an autoloaded constant, but the namespace
+					// a qualified target names is (V1-1714).
+					full := name
+					if !rooted {
+						full = rubyDefinedConstant(name, lexical, known, result.local)
 					}
+					if cut := strings.LastIndex(name, "::"); cut >= 0 {
+						result.references = append(result.references, rubyReference{line: line, name: name[:cut], stack: namespaces(), rooted: rooted})
+					}
+					result.define(full)
 				default:
 					result.references = append(result.references, rubyReference{line: line, name: name, stack: namespaces(), rooted: rooted})
 				}
@@ -418,6 +424,9 @@ func rubyDefinedConstant(name string, lexical []string, known func(string) bool,
 }
 
 // rubyAssignsConstant reports `Name = value`, never `==`, `=~` or `=>`.
+// `Name ||= value` is not a definition: it reads Name through lexical scope
+// and ancestors and keeps an existing (autoloaded) constant, so it stays a
+// reference (V1-1714).
 func rubyAssignsConstant(code string, end int) bool {
 	cursor, _ := rubySkipSpaces(code, end)
 	return cursor < len(code) && code[cursor] == '=' &&
@@ -758,6 +767,24 @@ func isRubyTestPath(value string) bool {
 }
 
 // rubyImpactRequested reports a request naming a Ruby path (NGI-V0-033).
+// withRubyMapped returns a view of index naming the paths autoload maps, or
+// index itself when it maps none. The view is a shallow copy, so the shared
+// index is never written and a concurrent request never sees another's set.
+func (index *Index) withRubyMapped(paths []string, autoload *rubyAutoload) *Index {
+	mapped := map[string]struct{}{}
+	for _, name := range paths {
+		if autoload.mapped(name) {
+			mapped[name] = struct{}{}
+		}
+	}
+	if len(mapped) == 0 {
+		return index
+	}
+	view := *index
+	view.rubyMapped = mapped
+	return &view
+}
+
 func rubyImpactRequested(paths []string) bool {
 	for _, name := range paths {
 		if NonGoImpactLanguage(name) == "ruby" {

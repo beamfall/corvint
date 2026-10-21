@@ -184,6 +184,28 @@ func TestGPKV0084ImpactCapabilitiesListing(t *testing.T) {
 	}
 }
 
+// TestGPKV0084ImpactCapabilitiesOutsideGitRoot is V1-2067: the listing reads
+// no repository, so it prints outside any Git checkout, while path impact
+// there is still refused for the missing root.
+func TestGPKV0084ImpactCapabilitiesOutsideGitRoot(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"impact", "--capabilities"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &decoded); err != nil || decoded["tool"] != "impact-capabilities" {
+		t.Fatalf("listing: %v %s", err, stdout.String())
+	}
+	for _, arguments := range [][]string{{"impact", "README.md"}, {"impact", "--capabilities", "--limit", "3"}} {
+		stdout.Reset()
+		stderr.Reset()
+		if code := run(arguments, strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "not a Git repository") {
+			t.Fatalf("%v: exit %d stdout %q stderr %s, want the root refusal", arguments, code, stdout.String(), stderr.String())
+		}
+	}
+}
+
 // TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged keeps
 // --capabilities a sole, valueless argument and the suffix refusal intact.
 func TestGPKV0086ImpactCapabilitiesArgumentsAndRefusalUnchanged(t *testing.T) {

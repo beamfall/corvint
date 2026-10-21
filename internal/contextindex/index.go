@@ -250,6 +250,10 @@ type Index struct {
 	// tables on the build and packet paths and carried in the snapshot.
 	Vocabulary *TermTable
 	blobFacts  map[string]*blobFacts
+	// rubyMapped names the requested Ruby paths an impact's autoload mapper
+	// resolves (NGI-V0-036). It is set only on the per-request view
+	// withRubyMapped returns, so the shared index is never written.
+	rubyMapped map[string]struct{}
 	// bodies: a deferred load's pack bodies (SnapshotRefusal); lease: a mapped read's reference, ended by Release.
 	bodies *packSection
 	lease  *snapshotLease

@@ -559,13 +559,14 @@ func registryAssertionTail(value []registryToken, at int) bool {
 // module loader: the file has no identifier escape, and every occurrence
 // outside a member access is a call that does not declare a function. Any
 // other occurrence (a declaration, parameter, import or assignment) may bind
-// the name to something else.
+// the name to something else. A TypeScript ambient `declare const|let|var
+// require: TYPE` only types the loader and binds no value (V1-1479).
 func registryRequireFree(tokens []registryToken) bool {
 	for at, token := range tokens {
 		if isRegistryPunct(token, "\\") {
 			return false
 		}
-		if !isRegistryWord(token, "require") || registryMember(tokens, at) {
+		if !isRegistryWord(token, "require") || registryMember(tokens, at) || registryAmbientDeclaration(tokens, at) {
 			continue
 		}
 		if at+1 >= len(tokens) || !isRegistryPunct(tokens[at+1], "(") ||
@@ -574,6 +575,18 @@ func registryRequireFree(tokens []registryToken) bool {
 		}
 	}
 	return true
+}
+
+// registryAmbientDeclaration reports whether the word at at is the name in a
+// TypeScript ambient `declare const|let|var NAME:` declaration on one line,
+// which emits no runtime binding.
+func registryAmbientDeclaration(tokens []registryToken, at int) bool {
+	if at < 2 || at+1 >= len(tokens) || !isRegistryPunct(tokens[at+1], ":") {
+		return false
+	}
+	keyword, declare := tokens[at-1], tokens[at-2]
+	return isRegistryWord(declare, "declare") && declare.line == keyword.line && !registryMember(tokens, at-2) &&
+		(isRegistryWord(keyword, "const") || isRegistryWord(keyword, "let") || isRegistryWord(keyword, "var"))
 }
 
 // registryMember reports whether the token at at follows a member-access dot.
@@ -890,10 +903,12 @@ func (dialect *registryDialect) impact(index *Index, changedPath string, importe
 		}
 		changedRegistry := changedPath == declaration.Path
 		// A registry whose export cannot be read, or that holds an entry
-		// whose module is not closed, may map a key to any path, so it
-		// applies to every JS/TS changed path, widened (NGI-V0-012).
-		openEntry := registry.unresolved != 0 && (language == "javascript" || language == "typescript")
-		if !changedRegistry && len(specifiers) == 0 && !lazy && !registry.missing && !openEntry {
+		// whose module is not closed, may map a key to any JS/TS path, so it
+		// applies to every JS/TS changed path, widened (NGI-V0-010,
+		// NGI-V0-012), and to no other language's path (V1-1479).
+		webPath := language == "javascript" || language == "typescript"
+		openEntry := (registry.unresolved != 0 || registry.missing) && webPath
+		if !changedRegistry && len(specifiers) == 0 && !lazy && !openEntry {
 			continue
 		}
 		accessors := map[string]bool{}
