@@ -1,7 +1,7 @@
-# 2026-10-21 gh-issues lane: RSpec denial advisory, #1358 fixture, nightly #1116 evidence, bun provider
+# 2026-10-21 gh-issues lane: RSpec denial advisory, #1358 fixture, nightly #1116 evidence, bun provider, latency contention
 
 Tickets: V1-2124 (GitHub #1366), V1-2125 (GitHub #1358), V1-2121 and V1-2122 (GitHub #1116),
-V1-2111, V1-2191 (GitHub #1405).
+V1-2111, V1-2191 (GitHub #1405), V1-2192 (GitHub #1406).
 
 ## Problem
 
@@ -51,6 +51,15 @@ V1-2111, V1-2191 (GitHub #1405).
   is one infrastructure outcome. `bun:test` joins `vitest`/`jest` as a test-framework module in
   the JS flow reading. The receipt joins through the existing example join unchanged. The
   projection check is chained onto the existing return line so no cited line moves.
+- #1406: `AHI-171` (next free AHI ID 071, offset +100), accepted under the owner's standing
+  auto-accept, records load averages, logical CPUs and the run queue (Linux) at each OpenCode timing
+  window's start and end, `NOT_OBSERVED` where the host does not expose a value, and classifies the
+  decisive attempt `PASS`, `LATENCY_HOST_CONTENDED` or `LATENCY_REGRESSION`. A latency-only,
+  complete-sample miss whose window peaked above 0.5 load per CPU makes the report `RETRY_LATER`
+  with a retry hint, a typed error and `qualify-opencode` exit 75; the consumer record still
+  requires `PASS`, and limits are unchanged. The threshold is declared, not measured: the issue's
+  failing host ran at about 11.5 load on 12 CPUs (0.96). The same-window baseline (issue item 2)
+  is a non-goal here.
 
 ## Evidence
 
@@ -70,6 +79,8 @@ V1-2111, V1-2191 (GitHub #1405).
   A live CLI run on a scratch fixture (file: dependency, `bun.lock` version 1) produced the
   receipt with 4 outcomes, exit 1 explained by the failed test, and an unchanged clean tree; the
   three refusals exited 3 with their documents.
+- `TestAHI171LatencyHostContention` (and `TestAHI056LatencyResample`) pass; without the change the
+  test does not compile (new API). Its live subtest read this macOS host's load through `sysctl`.
 
 ## NOT_RUN
 
@@ -78,6 +89,9 @@ V1-2111, V1-2191 (GitHub #1405).
 - Real-suite qualification of the denial reading against an adopter's Rails suite.
 - Bun live qualification in CI (no bun installed there); bun releases other than 1.3.11, Linux
   and Windows bun; an adopter's real Bun repository with an external service.
+- AHI-171: no live qualification campaign under synthetic CPU load (the issue's acceptance
+  scenario), so the PR references #1406 without closing it; Linux `/proc/loadavg` reading not run
+  here; no same-window baseline.
 
 ## Rollback
 
@@ -86,4 +100,5 @@ three rule constants, the help-text sentence in `cmd/corvint/tests.go`, the TSA-
 and the `TestRSpecIssue1358NonYieldingHelper` file and traceability mention. For the bun profile,
 revert `internal/jstestprovider/bun.go`, the `Bun` receipt member, the chained projection check, the
 `bun` subcommand, the `bun:test` library entry, their tests and fixtures, and the LPCV-V0-254..262
-section; `bun` then exits 2 as an unknown subcommand. Nothing is persisted.
+section; `bun` then exits 2 as an unknown subcommand. For AHI-171, revert
+`internal/opencodequalification/contention.go`, its `native.go` call sites and the exit-75 branch. Nothing is persisted.
