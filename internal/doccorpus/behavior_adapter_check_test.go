@@ -766,6 +766,50 @@ func TestDCPV1240BoundedFrontierIsTheCanonicalPrefix(t *testing.T) {
 	}
 }
 
+// TestDCPV1240BuildBoundsTheFrontierBytes proves the encoded-byte half of
+// DCP-V1-240: 2048 flow-test diagnostics each repeating a 64 KiB flow
+// identity (about 128 MiB) stay under the count bound, so only the byte
+// bound keeps the result inside the CLI output bound. The retained entries
+// are the canonical prefix, the rest are counted, and --check agrees.
+func TestDCPV1240BuildBoundsTheFrontierBytes(t *testing.T) {
+	const tests = 2048
+	raw := behaviorAdapterFlowTestRequest(t, tests)
+	result, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Frontier) >= behaviorAdapterFrontierLimit || result.FrontierOmitted == 0 || len(result.Frontier)+result.FrontierOmitted < tests {
+		t.Fatalf("byte bound not applied: retained %d, omitted %d, want fewer than %d retained of at least %d", len(result.Frontier), result.FrontierOmitted, behaviorAdapterFrontierLimit, tests)
+	}
+	if !slices.IsSortedFunc(result.Frontier, compareBehaviorAdapterDiagnostics) {
+		t.Fatal("retained frontier is not in canonical order")
+	}
+	frontier, err := Encode(result.Frontier)
+	if err != nil || len(frontier) > behaviorAdapterFrontierByteLimit {
+		t.Fatalf("retained frontier encodes to %d bytes over the %d bound: %v", len(frontier), behaviorAdapterFrontierByteLimit, err)
+	}
+	encoded, err := Encode(result)
+	if err != nil {
+		t.Fatalf("CLI build would refuse the bounded result: %v", err)
+	}
+	var decoded map[string]any
+	if err := jsonstd.Unmarshal(encoded, &decoded); err != nil || decoded["frontier_omitted"] != float64(result.FrontierOmitted) {
+		t.Fatalf("omission count not encoded: %v %v", err, decoded["frontier_omitted"])
+	}
+	if report := CheckBehaviorAdapter(raw, nil); !report.Accepted {
+		t.Fatalf("check disagrees with the CLI build: %+v", report.Refusals)
+	}
+	defer func(limit int) { behaviorAdapterFrontierByteLimit = limit }(behaviorAdapterFrontierByteLimit)
+	behaviorAdapterFrontierByteLimit = 1 << 30
+	full, err := BuildBehaviorAdapter(raw, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(result.Frontier, full.Frontier[:len(result.Frontier)]) || len(result.Frontier)+result.FrontierOmitted != len(full.Frontier)+full.FrontierOmitted {
+		t.Fatalf("byte-bounded frontier is not the canonical prefix: retained %d omitted %d of %d+%d", len(result.Frontier), result.FrontierOmitted, len(full.Frontier), full.FrontierOmitted)
+	}
+}
+
 // behaviorAdapterFlowTestRequest is the reviewed round-7 shape: one flow and
 // one variation whose flow identity is 64 KiB, and whose variation lists
 // tests unique short test identities.

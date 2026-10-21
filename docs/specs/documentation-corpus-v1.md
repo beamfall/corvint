@@ -339,11 +339,11 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   `--check` takes no value and applies to no other corpus operation. The report retains
   `full-relevant-suite` fallback, and its vocabulary contains no adopter-specific term. Status:
   (accepted, decision 0482; V1-1084; GitHub #717).
-- `DCP-V1-240`: A behavior-adapter build retains at most 4096 reconciliation frontier diagnostics:
-  the smallest under the frontier order (kind, subject, input, field and detail, then revision, digest
-  and correction), so the retained entries do not depend on reconciliation order. The result's
-  `frontier_omitted` member counts the diagnostics past that bound and is absent when none were
-  omitted. A previous result with a negative count is refused as invalid. The bound keeps the build's
+- `DCP-V1-240`: A behavior-adapter build retains at most 4096 reconciliation frontier diagnostics,
+  whose encoding together takes at most 2 MiB: the longest prefix under the frontier order (kind,
+  subject, input, field and detail, then revision, digest and correction) within both bounds, so the
+  retained entries do not depend on reconciliation order. The result's `frontier_omitted` member
+  counts the diagnostics past either bound and is absent when none were omitted. A previous result with a negative count is refused as invalid. The bound keeps the build's
   live heap and its encoded result within the output bound, so for a request whose only excess is its
   frontier the CLI build and `--check` (`DCP-V1-044`) both accept. Status: (accepted under the owner's
   standing auto-accept (2026-10-11); V1-1089).
@@ -1729,7 +1729,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-043 | `cmd/corvint-corpus-parity` | `TestCorpusParityCommandEndToEnd`, `TestCorpusParityCommandFailuresExitNonzero` |
 | DCP-V1-044 | `internal/doccorpus/behavior_adapter_check.go`, `behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | `TestBehaviorAdapterCheckParity`, `TestBehaviorAdapterCheckReportsEveryRefusal`, `TestBehaviorAdapterCheckIndependentRefusals`, `TestBehaviorAdapterCheckListsDependentChecks`, `TestBehaviorAdapterCheckStopsAtFirstItemRefusal`, `TestBehaviorAdapterCheckBoundsReport`, `TestBehaviorAdapterCheckCapsMessages`, `TestBehaviorAdapterCheckBoundsRetention`, `TestBehaviorAdapterCheckRetainsNoFrontier`, `TestBehaviorAdapterCheckRetainsNoAmplifiedKeys`, `TestBehaviorAdapterBuildBoundMessage`, `TestBehaviorAdapterCLI` (`DCP-V1-044 check`) |
 | DCP-V1-045 | `docs/DOCUMENTATION-CORPUS.md` | `TestBehaviorAdapterGuideMigrationExample` |
-| DCP-V1-240 | `internal/doccorpus/behavior_adapter.go` | `TestDCPV1240BuildBoundsTheFrontier`, `TestDCPV1240BoundedFrontierIsTheCanonicalPrefix`, `TestBehaviorAdapterCheckRetainsNoFrontier`; heap and time measured in docs/build-log/2026-10-21-behavior-adapter-bounded-frontier.md |
+| DCP-V1-240 | `internal/doccorpus/behavior_adapter.go` | `TestDCPV1240BuildBoundsTheFrontier`, `TestDCPV1240BuildBoundsTheFrontierBytes`, `TestDCPV1240BoundedFrontierIsTheCanonicalPrefix`, `TestBehaviorAdapterCheckRetainsNoFrontier`; heap and time measured in docs/build-log/2026-10-21-behavior-adapter-bounded-frontier.md |
 | DCP-V1-046..048 | `internal/doccorpus/behavior_playwright_discovery.go`, `internal/liveverify/affected/typescript/playwright_listed_tests.go`, `playwright_discovery_list.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightDiscoveryProducerRoundTrip`, `TestPlaywrightDiscoveryProducerRefusals`, `TestPlaywrightListedTestsMultiProject`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-049..052 | `internal/doccorpus/behavior_playwright_witness.go`, `cmd/corvint/docs_corpus_playwright.go` | `TestPlaywrightWitnessImporter`, `TestDocsCorpusPlaywrightProducersCLI` |
 | DCP-V1-053 | `cmd/corvint/docs.go`, `cmd/corvint-js-test-provider/main.go` | `TestDocsHelpNamesPlaywrightReceiptProducer`, `TestDocsHelpProducerExampleUsesE2EFlags` |

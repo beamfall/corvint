@@ -5,6 +5,7 @@ import (
 	"cmp"
 	json "encoding/json/v2"
 	"fmt"
+	"io"
 	"slices"
 	"sort"
 	"strconv"
@@ -1936,9 +1937,10 @@ func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject
 // behaviorAdapterFrontierLimit bounds the retained reconciliation frontier
 // (DCP-V1-240). One diagnostic per missing outcome per test grew without
 // bound (V1-1089: about 255 B each, 204 MiB for 4096 outcomes x 200 tests)
-// and the CLI then refused the result at its output bound. At about 255 B
-// per entry the retained frontier stays near 1 MiB, inside MaxBytes. A
-// variable only so tests can exercise a small bound.
+// and the CLI then refused the result at its output bound. The encoded size
+// of the retained entries is bounded separately by
+// behaviorAdapterFrontierByteLimit. A variable only so tests can exercise a
+// small bound.
 var behaviorAdapterFrontierLimit = 4096
 
 // keepDiagnostic retains the behaviorAdapterFrontierLimit smallest
@@ -1970,8 +1972,34 @@ func (a *behaviorAdapter) compactFrontier() {
 	a.frontierCeiling = &ceiling
 }
 
+// behaviorAdapterFrontierByteLimit bounds the encoded bytes of the retained
+// frontier (DCP-V1-240). The count bound alone does not: a diagnostic can
+// repeat a 64 KiB caller identity, so 2048 of them encode to about 128 MiB
+// and the CLI refused at its output bound while --check accepted. Ordinary
+// entries encode to about 400 B, so 4096 of them (about 1.6 MiB) stay under
+// this bound and the count bound governs them; half of MaxBytes is left for
+// the rest of the result. A variable only so tests can exercise the bound.
+var behaviorAdapterFrontierByteLimit = 2 << 20
+
+// retainedFrontier returns the canonical prefix of the frontier that fits
+// both the count bound and the encoded-byte bound, counting the rest. The
+// byte cut is a prefix cut of the sorted frontier, so it keeps the retained
+// set independent of reconciliation order; it runs once, on at most
+// behaviorAdapterFrontierLimit entries.
 func (a *behaviorAdapter) retainedFrontier() []BehaviorAdapterDiagnostic {
 	a.compactFrontier()
+	slices.SortFunc(a.frontier, compareBehaviorAdapterDiagnostics)
+	size := 2 // the enclosing brackets
+	for index, diagnostic := range a.frontier {
+		n, err := EncodeTo(io.Discard, diagnostic)
+		size += int(n) + 1 // the separating comma
+		if err != nil || size > behaviorAdapterFrontierByteLimit {
+			a.frontierOmitted += len(a.frontier) - index
+			clear(a.frontier[index:])
+			a.frontier = a.frontier[:index]
+			break
+		}
+	}
 	return a.frontier
 }
 
