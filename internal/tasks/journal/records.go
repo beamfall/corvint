@@ -472,7 +472,14 @@ type decodedPost struct {
 	request *snapshot.Request
 }
 
+// afterValidateRecord counts validateRecord calls in the V1-1701 parse-once
+// witness; it is nil outside tests and may be called from prepare goroutines.
+var afterValidateRecord func()
+
 func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool, *snapshot.Init, decodedPost, error) {
+	if afterValidateRecord != nil {
+		afterValidateRecord()
+	}
 	if p == "VERSION" {
 		if string(raw) != snapshot.VersionBytes {
 			return false, nil, decodedPost{}, wire.Errorf(wire.CodeUnsupportedVersion, p, "VERSION bytes differ")
