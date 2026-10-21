@@ -1995,6 +1995,8 @@ DCW-V0-074	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-075	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1652) An index	standing	2026-10-11; V1-1652
 DCW-V0-090	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1734) When	standing	2026-10-11; V1-1734
 DCW-V0-091	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1658) Untracke	standing	2026-10-11; V1-1658
+DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`	owner	2026-10-11; V1-1463
+DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's	owner	2026-10-11; V1-1927
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -3132,6 +3134,8 @@ LCP-V0-017	docs/specs/local-completion-policy-v0.md	(accepted, decision 0465; V1
 LCP-V0-018	docs/specs/local-completion-policy-v0.md	(accepted, decision 0472; V1-1043) A `dogfood begin` plan refusal of `invalid-in	owner	decision 0472; V1-1043
 LCP-V0-019	docs/specs/local-completion-policy-v0.md	(accepted, decision 0508) An enrolled dogfood event	owner	decision 0508
 LCP-V0-020	docs/specs/local-completion-policy-v0.md	accepted, decision 0510. Every `dogfood status`	unrecorded	-
+LCP-V0-031	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check	owner	2026-10-11; V1-1014
+LCP-V0-032	docs/specs/local-completion-policy-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1011) Each plan check takes	owner	2026-10-11; V1-1011
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-

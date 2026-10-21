@@ -5,7 +5,8 @@ set -eu
 # pull requests against a PreToolUse hook refusing the draft flag, and an AGENTS.md that required
 # approval to merge against a memory that arms auto-merge and a global file preauthorizing merges.
 # The resolved wording must report no conflict, and a missing or unreadable host input, or no
-# host input at all, must report UNKNOWN rather than a pass.
+# host input at all, must report UNKNOWN rather than a pass unless --repository-only scopes the
+# verdict to the project files.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 check="$source_root/script/check-instruction-conflicts.sh"
@@ -134,6 +135,23 @@ expect_line '^UNKNOWN +host [^ ]*empty/\*\.md absent or unreadable$' "empty host
 run --project "$fixtures/new-AGENTS.md"
 expect_status 3 "no host input"
 expect_line '^UNKNOWN +host layer not observed: no --host given$' "no host input"
+
+# 5b. --repository-only scopes the verdict to the project files (V1-1756): the host layer is
+#     NOT_OBSERVED, a clean repository layer exits 0, a project-file conflict still exits 1, an
+#     absent project file is still UNKNOWN, and a host file given with it is a usage error.
+run --project "$fixtures/new-AGENTS.md" --repository-only
+expect_status 0 "repository-only clean"
+expect_line '^NOT_OBSERVED +host layer: --repository-only; this verdict covers the project files only$' "repository-only host line"
+expect_line '^result: NO_CONFLICT_FOUND \(repository layer; host NOT_OBSERVED\)$' "repository-only result"
+refuse_line '^UNKNOWN' "repository-only clean"
+run --project "$fixtures/old-AGENTS.md" --project "$fixtures/global-AGENTS.md" --repository-only
+expect_status 1 "repository-only conflict"
+expect_line '^CONFLICT +pr-manual-merge ' "repository-only conflict"
+run --project "$fixtures/new-AGENTS.md" --project "$fixtures/missing.md" --repository-only
+expect_status 3 "repository-only absent project file"
+expect_line '^UNKNOWN +project [^ ]*missing.md absent or unreadable$' "repository-only absent project file"
+run --repository-only --host "$fixtures/settings.json"
+expect_status 2 "repository-only with a host file"
 
 # 6. An unreadable host file is UNKNOWN. Skipped where permission bits do not bind (root).
 cp "$fixtures/settings.json" "$fixtures/locked.json"
