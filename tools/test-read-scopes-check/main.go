@@ -13,6 +13,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"io/fs"
 	"os"
@@ -20,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -76,6 +80,9 @@ func readLiterals(root string) (map[string]map[string]string, error) {
 // finding is one test file literal that names an undeclared repository path.
 type finding struct {
 	pkg, file, path string
+	// listed marks a dependency directory a `go list -deps` of the test loads
+	// (V1-2037), rather than a literal the test names.
+	listed bool
 }
 
 // tracked lists the paths Git tracks under root, except changeEvidencePath,
@@ -170,6 +177,160 @@ func covered(directory, target string, entries []string) bool {
 	return false
 }
 
+// joinRuns returns, for every filepath.Join or path.Join call of a test file,
+// each run of two or more adjacent string-literal arguments joined with "/"
+// (V1-2117). filepath.Join(filepath.Dir(file), "..", "..", "protocol", "x")
+// yields "../../protocol/x", which named resolves against the package directory
+// (never from the root); a single literal is already a FilePathTokens token.
+func joinRuns(name string, body []byte) ([]string, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	var runs []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Join" {
+			return true
+		}
+		if pkg, ok := selector.X.(*ast.Ident); !ok || pkg.Name != "filepath" && pkg.Name != "path" {
+			return true
+		}
+		var run []string
+		flush := func() {
+			if len(run) > 1 {
+				runs = append(runs, strings.Join(run, "/"))
+			}
+			run = nil
+		}
+		for _, argument := range call.Args {
+			literal, ok := argument.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				flush()
+				continue
+			}
+			value, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				flush()
+				continue
+			}
+			run = append(run, value)
+		}
+		flush()
+		return true
+	})
+	return runs, nil
+}
+
+// goListTargets returns the package patterns of every `go list` command a test
+// file builds with exec.Command or exec.CommandContext (V1-2037): the
+// string-literal arguments after "list" that are "." or start with "./" or
+// "../". A listing with no such argument lists the package itself.
+func goListTargets(name string, body []byte) ([]string, error) {
+	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	var targets []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext" {
+			return true
+		}
+		if pkg, ok := selector.X.(*ast.Ident); !ok || pkg.Name != "exec" {
+			return true
+		}
+		listing, found := false, false
+		for _, argument := range call.Args {
+			literal, ok := argument.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING {
+				continue
+			}
+			value, err := strconv.Unquote(literal.Value)
+			if err != nil {
+				continue
+			}
+			switch {
+			case !listing:
+				listing = value == "list"
+			case value == "." || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../"):
+				targets, found = append(targets, value), true
+			}
+		}
+		if listing && !found {
+			targets = append(targets, ".")
+		}
+		return true
+	})
+	return targets, nil
+}
+
+// dependencyDirectories lists, relative to root, the directory of every
+// non-standard package that `go list -deps` of targets loads from inside root.
+// Those directories are what a confined `go list` must read. A target resolves
+// against the package directory, where `go test` runs, or, when no directory
+// is there, against the root, where a test that sets the command's Dir to the
+// root runs it; a target that is neither is an error, not a silent pass.
+func dependencyDirectories(root, directory string, targets []string) ([]string, error) {
+	var resolved []string
+	for _, target := range targets {
+		var found string
+		for _, base := range []string{directory, "."} {
+			candidate := path.Join(base, target)
+			if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(candidate))); err == nil && info.IsDir() {
+				found = candidate
+				break
+			}
+		}
+		if found == "" || found == ".." || strings.HasPrefix(found, "../") {
+			return nil, fmt.Errorf("%s: a test runs go list of %s, which names no repository directory", directory, target)
+		}
+		resolved = append(resolved, "./"+found)
+	}
+	command := exec.Command("go", append([]string{"list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}"}, resolved...)...)
+	command.Dir = root
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	out, err := command.Output()
+	if err != nil {
+		return nil, fmt.Errorf("%s: go list -deps %s: %w: %s", directory, strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	var directories []string
+	for _, line := range strings.Fields(string(out)) {
+		relative, err := filepath.Rel(root, line)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			continue
+		}
+		directories = append(directories, filepath.ToSlash(relative))
+	}
+	return directories, nil
+}
+
+// dependencyCovered reports whether a confined `go list` run by a test of
+// directory may read the source files of dependency: it is the package
+// directory or below it, or lies under a declared directory entry. Unlike
+// covered, a directory above an entry is not enough: go list reads the
+// directory's own files.
+func dependencyCovered(directory, dependency string, entries []string) bool {
+	if dependency == directory || strings.HasPrefix(dependency, directory+"/") {
+		return true
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry, "/") && strings.HasPrefix(dependency+"/", entry) {
+			return true
+		}
+	}
+	return false
+}
+
 // check returns the unrecorded findings and the recorded literals that no test
 // file names any more.
 func check(root string) ([]finding, []string, error) {
@@ -196,7 +357,7 @@ func check(root string) ([]finding, []string, error) {
 			continue
 		}
 		directory := path.Dir(unit.Tests[0])
-		tokens := make([][]string, len(unit.Tests))
+		tokens, runs := make([][]string, len(unit.Tests)), make([][]string, len(unit.Tests))
 		for index, file := range unit.Tests {
 			body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file)))
 			if err != nil {
@@ -205,12 +366,34 @@ func check(root string) ([]finding, []string, error) {
 			if tokens[index], err = golang.FilePathTokens(file, body, ""); err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
+			if runs[index], err = joinRuns(file, body); err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", file, err)
+			}
+			targets, err := goListTargets(file, body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", file, err)
+			}
+			if len(targets) > 0 {
+				dependencies, err := dependencyDirectories(root, directory, targets)
+				if err != nil {
+					return nil, nil, err
+				}
+				for _, dependency := range dependencies {
+					if !dependencyCovered(directory, dependency, unit.ReadScope) {
+						findings = append(findings, finding{pkg: directory, file: file, path: dependency, listed: true})
+					}
+				}
+			}
 		}
 		fromRoot := locatesRoot(tokens)
 		for index, file := range unit.Tests {
 			seen := map[string]bool{}
-			for _, value := range tokens[index] {
-				for _, target := range named(paths, directory, value, fromRoot) {
+			values := append(slices.Clone(tokens[index]), runs[index]...)
+			for position, value := range values {
+				// A join run resolves against the package directory only: fixture
+				// repositories join the same segments onto temporary roots, so a
+				// run is no evidence of a repository-root read (V1-2117).
+				for _, target := range named(paths, directory, value, fromRoot && position < len(tokens[index])) {
 					if seen[target] || covered(directory, target, unit.ReadScope) {
 						continue
 					}
@@ -253,6 +436,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "test-read-scopes-check: %s records %s, which no test file of the package names; remove it\n", literalsPath, entry)
 	}
 	for _, found := range findings {
+		if found.listed {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s runs go list -deps, which loads %s, outside its entries in %s; declare the directory there (AFP-V0-023)\n",
+				found.pkg, found.file, found.path, affected.ReadScopesPath)
+			continue
+		}
 		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read\n",
 			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath)
 	}
