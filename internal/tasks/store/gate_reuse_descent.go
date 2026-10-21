@@ -23,15 +23,16 @@ const maxDescentPairs = 16
 // configured remote-tracking upstream, to the commits that carry it
 // (TCD-V0-151). It never fetches and never writes a ref.
 type protectedHistory struct {
-	root  string
-	trees map[string][]string
+	root    string
+	trees   map[string][]string
+	commits map[string]string
 }
 
 // loadProtectedHistory reads the intent branch history once. A branch with
 // no local ref and no upstream yields an empty history, which refuses every
 // descendant reuse.
 func loadProtectedHistory(root, branch string) (*protectedHistory, error) {
-	h := &protectedHistory{root: root, trees: map[string][]string{}}
+	h := &protectedHistory{root: root, trees: map[string][]string{}, commits: map[string]string{}}
 	if branch == "" {
 		return h, nil
 	}
@@ -55,6 +56,7 @@ func loadProtectedHistory(root, branch string) (*protectedHistory, error) {
 		commit, tree, ok := strings.Cut(line, " ")
 		if ok {
 			h.trees[tree] = append(h.trees[tree], commit)
+			h.commits[commit] = tree
 		}
 	}
 	return h, nil
@@ -88,6 +90,30 @@ func (h *protectedHistory) descent(seal, pass string) (string, error) {
 	return "the candidate tree " + seal + " is not an ancestor of the reused result's tree " + pass + " on the protected intent branch", nil
 }
 
+// commitDescent is "" when commit is on the protected history carrying tree
+// and a commit carrying seal is an ancestor of, or is, commit; otherwise it
+// names the refusal (TCD-V0-155). A CI run is bound to its head commit, so
+// a rewound branch that dropped that commit refuses even when another commit
+// still carries the same tree.
+func (h *protectedHistory) commitDescent(seal, commit, tree string) (string, error) {
+	if h.commits[commit] != tree {
+		return "the CI run's head commit " + commit + " is not a commit carrying tree " + tree + " on the protected intent branch", nil
+	}
+	for i, s := range h.trees[seal] {
+		if i == maxDescentPairs {
+			break
+		}
+		ok, err := isAncestor(h.root, s, commit)
+		if err != nil {
+			return "", err
+		}
+		if ok {
+			return "", nil
+		}
+	}
+	return "the candidate tree " + seal + " is not an ancestor of the CI run's head commit " + commit + " on the protected intent branch", nil
+}
+
 // descentRoots maps a store's state directory to the git checkout its
 // receipt audit reads ancestry from when that is not the primary worktree;
 // only package tests set it.
@@ -115,6 +141,23 @@ func descentOracle(root string) func(seal, pass, branch string) (string, error) 
 			cache[branch] = h
 		}
 		return h.descent(seal, pass)
+	}
+}
+
+// ciDescentOracle answers the receipt audit's CI head-commit question from
+// git at root, reading each branch's history once per audit (TCD-V0-157).
+func ciDescentOracle(root string) func(seal, commit, tree, branch string) (string, error) {
+	cache := map[string]*protectedHistory{}
+	return func(seal, commit, tree, branch string) (string, error) {
+		h, ok := cache[branch]
+		if !ok {
+			var err error
+			if h, err = loadProtectedHistory(root, branch); err != nil {
+				return "", err
+			}
+			cache[branch] = h
+		}
+		return h.commitDescent(seal, commit, tree)
 	}
 }
 

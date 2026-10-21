@@ -32,8 +32,16 @@ import (
 // observation, reports that a commit carrying the attempt's candidate tree is
 // an ancestor of a commit carrying the source's tree on the intent branch the
 // history had posted (TCD-V0-153); without Descent such a reuse is refused.
+//
+// A result whose source is a retained CI run record (TCD-V0-157) must be
+// byte for byte CIGateResult for its own tree under the policy the history
+// had posted, the run must qualify under that policy's ciEvidence entry, and
+// CIDescent, the caller's git observation, must report that the run's head
+// commit is on the posted intent branch carrying that tree and descends from
+// a commit carrying the attempt's candidate tree; a rewound branch fails.
 type GateReuseReceiptAudit struct {
 	Descent   func(seal, pass, branch string) (string, error)
+	CIDescent func(seal, commit, tree, branch string) (string, error)
 	attempts  map[string]*snapshot.Attempt
 	policy    *intent.Policy
 	policyErr string
@@ -149,6 +157,9 @@ func (a *GateReuseReceiptAudit) reuse(rc *snapshot.Receipt, at *snapshot.Attempt
 	if !ok || wire.Sum(srcRaw) != *g.ReusedFrom {
 		return a.fail(rc, "reused source %s is absent or differs from its digest", from)
 	}
+	if ci, err := snapshot.DecodeCIRun(srcRaw); err == nil {
+		return a.ciReuse(rc, at, d, raw, g, ci, srcRaw)
+	}
 	src, err := snapshot.DecodeGateResult(srcRaw)
 	if err != nil {
 		return a.fail(rc, "reused source %s: %v", from, err)
@@ -224,4 +235,37 @@ func claimsReuse(raw []byte) bool {
 	}
 	r, ok := v.Obj.Get("reusedFrom")
 	return ok && r.Kind != wire.KindNull
+}
+
+// ciReuse checks a CI-backed gate result (TCD-V0-157): the run record is
+// retained, qualifies under the posted policy, the result is exactly its
+// CIGateResult, and its head commit still descends from the candidate on the
+// posted intent branch. An unobservable answer is returned as is.
+func (a *GateReuseReceiptAudit) ciReuse(rc *snapshot.Receipt, at *snapshot.Attempt, d string, raw []byte, g *snapshot.GateResult, ci *snapshot.CIRun, ciRaw []byte) error {
+	from := string(*g.ReusedFrom)
+	switch {
+	case at.CandidateTreeOid == nil:
+		return a.fail(rc, "CI-backed gate result %s names an attempt with no candidate tree", d)
+	case a.policy == nil:
+		return a.fail(rc, "the CI evidence policy cannot be recovered: %s", a.policyErr)
+	}
+	if code, detail := CIRunRefusal(a.policy, g.GateID, ci); code != "" {
+		return a.fail(rc, "CI run %s: %s", from, detail)
+	}
+	want := CIGateResult(a.policy, g.GateID, ci, ciRaw, at, g.CandidateTreeOid)
+	enc, err := want.Encode()
+	if err != nil || !bytes.Equal(enc, raw) {
+		return a.fail(rc, "CI-backed gate result %s is not CI run %s bound to attempt %s", d, from, at.AttemptID)
+	}
+	if a.CIDescent == nil || a.branch == "" {
+		return a.fail(rc, "CI run %s: its head commit's ancestry cannot be verified", from)
+	}
+	why, err := a.CIDescent(*at.CandidateTreeOid, ci.HeadSha, g.CandidateTreeOid, a.branch)
+	if err != nil {
+		return err
+	}
+	if why != "" {
+		return a.fail(rc, "CI run %s: %s", from, why)
+	}
+	return nil
 }

@@ -6596,7 +6596,8 @@ receipt-audit ancestry check are defined there. No CAL ID is added.
   `definitionSha256` equals the current policy's definition digest for the gate, which covers the
   whole gate entry, including argv, cwd, environment names, timeout, expected exit, `reusable` and
   `required`; (5) its `inputsSha256` and `environmentSha256` equal the ones this run would record
-  (the same substituted argv and the same presence of each declared environment variable); (6) the
+  (the same substituted argv and the same presence of each declared environment variable, and for a
+  reusable gate the same value: amended by `TCD-V0-158`, V1-1431); (6) the
   current policy declares the gate `reusable: true`. Reuse across tickets is allowed: the policy
   has no field that forbids it, and several tickets at one candidate tree is the case asked for.
   The binding is the definition digest, not the policy revision: the policy SHA-256 moves on any
@@ -6648,12 +6649,13 @@ build. The `complete` planner is not changed, so an older binary applies the sam
 binding and `PASSED` checks to a reused result. An older binary's `gate run` never writes one.
 
 Non-goals: reuse for external-review gates (`gate run` refuses them `UNSUPPORTED`, so a `RETURN`
-source cannot arise), across stores or trees, or keyed on environment values; a policy field limiting
+source cannot arise) or across stores or trees (`TCD-V0-151` amends trees; `TCD-V0-158` now keys
+reuse on declared environment values); a policy field limiting
 reuse to one ticket; changing any store's policy. Declaring `full-gate` reusable is the operator's
 policy update.
 
 Failure modes: a gate whose result depends on anything outside the tree, the substituted argv and
-the presence of its declared environment variables (environment values, network, clock, host
+the presence and values of its declared environment variables (`TCD-V0-158`; undeclared variables, network, clock, host
 load) will be reused as if equal, so a policy should declare only hermetic gates reusable. If the
 source attempt reruns the gate between the unlocked choice and the lock, the reuse refuses
 `GATE_STALE` and the caller runs `gate run` again. An unreadable or undecodable earlier result is
