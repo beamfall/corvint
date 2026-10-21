@@ -293,56 +293,56 @@ Usage:
   corvint --version
 
 Commands:
-  init  first repository inventory
-  adopt  recoverable repository inventory
-  query  repository context or authority receipt
+  init  first inventory
+  adopt  recoverable inventory
+  query  context or authority receipt
   feature  bounded feature context
-  eval  evaluate a frozen corpus
-  context  task-context packet: files to read
-  impact  path, untracked or range impact
+  eval  frozen corpus
+  context  task-context packet
+  impact  path or range impact
   breakage  cross-repository API relations
   changes  offline upgrade checklist
   runs  Playwright verdicts
   test  affected tests
   tests  setup, lint, duplicates
-  harness event  one agent lifecycle event
+  harness event  agent lifecycle event
   adapter  one native host adapter
-  dogfood  evidence: change, check, seal, batch-check
-  dogfood-ocm  verify dogfood OCM maps
+  dogfood  change, check, seal, batch-check
+  dogfood-ocm  verify OCM maps
   cem  Change Evidence Map tool
   ocm  Obligation Closure Map tool
   lrf  lexical relevance floor
-  frontier  Change Frontier review queue
-  record  record one local task outcome
-  migrate-traces  plan or apply trace migration
-  migration-ratchet  compare migration evidence
+  frontier  review queue
+  record  one local task outcome
+  migrate-traces  trace migration
+  migration-ratchet  migration evidence
   observations  self-observation digest
   features  inferred feature candidates
-  overview  immutable repository guidance
-  review  range advice and branch overlaps
+  overview  repository guidance
+  review  range advice, branch overlaps
   affected  affected-test plan
   flows  application flows and assertions
-  obligations  CEM external-obligations sidecar
-  prove  packet with falsifier verdicts
-  prove-observe  record prove verdict counts
-  index  write the index snapshot
+  obligations  CEM obligations sidecar
+  prove  falsifier verdicts
+  prove-observe  ledger prove verdicts
+  index  write index snapshot
   batch  batched query, context, impact
-  work  queue observation or shadow wave
+  work  queue observation
   docs  source-derived documentation
-  depsource  cite pinned Go module source
-  necessity  label packet file necessity
-  surprise  touched set vs delivered packet
-  answerability  retrieval channel agreement
+  depsource  pinned Go module source
+  necessity  packet file necessity
+  surprise  touched vs packet files
+  answerability  channel agreement
   kernel  compaction kernel
-  lease  local scope lease over paths
-  reads  opt-in unplanned-read digest
-  calibrate  packet stances vs outcomes
-  skill-export  learned traces as SKILL.md
-  witness  unwitnessed surface of a range
-  test-validity  project a live-test receipt
+  lease  scope lease over paths
+  reads  unplanned-read digest
+  calibrate  stances vs outcomes
+  skill-export  traces as SKILL.md
+  witness  unwitnessed range surface
+  test-validity  live-test receipt
   test-plan  test consolidation plan
-  step  declared authoring scope receipts
-  delta  source-free record of one change
+  step  authoring scope receipts
+  delta  source-free change record
 
 Global options:
   --root PATH  Repository root (default: current directory).
