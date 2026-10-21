@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -19,10 +19,23 @@ V1-2193 adds a second closeout-debt fix. A seal commit's own `full-gate` could n
 a later commit on `main` that already contains it, so every merged seal re-ran the full gate
 (TCD-V0-151..153). This amends the same-tree reuse rule of `CAL-V0-240` without a new CAL ID.
 
+V1-2216 adds a third. The owner's direction is that a change "checked in the cloud" needs no local
+gate run. A green GitHub Actions run on a protected intent-branch commit could not satisfy a gate,
+so every merged ticket still re-ran its required gates locally (TCD-V0-154..157). V1-1431 closes a
+gap in the reuse key: it named the declared environment variables but not their values
+(TCD-V0-158). This amends `CAL-V0-241` (5) without a new CAL ID.
+
+V1-2251 and V1-2254 add two reads for the orchestrated ticket sweep. About 40% of the tickets
+dispatched to lanes in batches 1021c and 1021d were already delivered or in flight in another PR,
+and delivered tickets stayed OPEN after their batch merged. `ticket delivery-screen` screens
+candidate tickets before dispatch (TCD-V0-159..162). `ticket batch-delivered` lists what a merged
+batch delivered, with the CI evidence a closer feeds to `gate run --ci-run` (TCD-V0-163..164).
+GitHub facts come only from an operator's `gh --json` export file.
+
 ## Agent digest
 - Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); experimental; the verb, its help entry and fixture tests exist.
-- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153).
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); experimental; the verb, its help entry and fixture tests exist.
+- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164).
 - Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -155,6 +168,82 @@ closeout step is missing.
   descendant reuse against the protected history of the queue's intent branch in the primary
   checkout. When that branch no longer carries the ancestry, or the history cannot be read, the
   audit fails `JOURNAL_FORKED`. A same-tree reuse is audited as before.
+- `TCD-V0-154`: The policy MAY carry an optional top-level `ciEvidence` object
+  `{"gates":[{"gateId","repository","requiredChecks"}]}`. Each entry names a declared `COMMAND` gate
+  exactly once, a GitHub `owner/name` repository and a sorted, duplicate-free, non-empty set of at
+  most 64 check names (1..200 bytes each); at most 16 entries. Any other shape is refused
+  `MALFORMED`. Only a gate named here accepts CI evidence, and it need not be `reusable`. An absent
+  key admits none, so removing it through a store `policy update` is the rollback. An older binary
+  refuses a policy carrying the key, so upgrade every binary that reads the store first.
+- `TCD-V0-155`: `gate run --attempt A --generation G --gate ID --ci-run FILE` reads a
+  `taskman-ci-run/0` record from FILE: `repository`, a decimal `runId`, the run's `headSha`, its
+  `conclusion` (the GitHub Actions run conclusion set), the sorted set of `passedChecks` and
+  `completedAt`. It records the gate PASSED without executing anything. The record is posted as
+  `evidence/<sha256>`. The gate result's `reusedFrom` names that digest. Its candidate and executed
+  trees are the head commit's tree, and its `inputsSha256` is the record's digest. Its
+  `environmentSha256` is the digest of an empty environment array, its exit code is the gate's
+  expected exit, and its start and end are `completedAt`. Its one evidence entry is labelled
+  `ci-run`. The result item reports `reusedFrom` as `{"result": <digest>, "ciRunId": <runId>}`.
+  `complete` accepts the result when the head commit is a protected intent-branch commit that
+  carries its tree, and when a commit carrying the attempt's candidate tree is that commit or its
+  ancestor (the history and bounds of `TCD-V0-151`). The verb never fetches, never queries GitHub
+  and never writes a ref. The record's facts are the operator's claim. Only the head commit's
+  place in local Git is re-observed.
+- `TCD-V0-156`: The model refuses a CI-backed result without writing and without executing the
+  gate when: the policy does not admit CI evidence for the gate, or the gate is not `COMMAND`
+  (`BLOCKED UNSUPPORTED`); the run is of another repository (`BLOCKED GATE_STALE`); it did not
+  conclude `success`, or a required check is not in `passedChecks` (`BLOCKED GATE_FAILED`); the head
+  commit is not on the protected intent branch carrying its tree, or no commit carrying the candidate
+  tree is its ancestor (`BLOCKED STALE_TREE`). It also refuses (`VALIDATION_FAILED MALFORMED`) a
+  record that is not exactly the result `TCD-V0-155` derives from that CI run for the attempt. A
+  head commit absent from the local repository is refused `STALE_TREE` before any write ("fetch it
+  first").
+- `TCD-V0-157`: The receipt audit (`GateReuseReceiptAudit`) verifies each recorded CI-backed result.
+  The record must be posted as `evidence/<digest>`. The policy as last posted must admit it
+  under the rules of `TCD-V0-156`. The result must equal the record `TCD-V0-155` derives. The head commit must still be
+  a protected intent-branch commit carrying the result's tree, with a commit carrying the attempt's
+  candidate tree as its ancestor. A rewound branch or an unreadable history fails `JOURNAL_FORKED`.
+- `TCD-V0-158`: For a gate declared `reusable: true`, the `environmentSha256` that a run records
+  and that reuse compares (`CAL-V0-241` (5), `TCD-V0-151`) also covers the SHA-256 of each set
+  declared variable's value. A PASS recorded under another `PATH`, `GOTOOLCHAIN`, `TMPDIR` or other
+  declared value is not reused, and the gate executes. A gate not declared reusable keeps the
+  names-and-presence digest, so it records nothing derived from its values. This replaces the
+  `CAL-V0-241` non-goal "keyed on environment values" in
+  `docs/specs/corvint-tasks-agent-leases-v0.md`.
+
+- `TCD-V0-159`: `corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE] [--ref REF]
+  [--since REV] [--limit N]` screens 1..256 tickets of the queue. It takes no lock, writes nothing
+  and never queries a network service. `--ref`, `--since` and `--limit` resolve and bound the commit
+  scan exactly as `TCD-V0-001`..`TCD-V0-003` do. `--prs FILE` is a bounded (32 MiB) JSON array that
+  `gh pr list --state all --json number,state,title,body,labels` writes. An unknown ticket, a
+  missing ticket argument or an undecodable export is refused `MALFORMED`.
+- `TCD-V0-160`: A PR title or body line references a ticket as delivered when it names the ticket
+  by ID, starts with `Refs`, `Closes`, `Fixes`, `Delivers` or `Delivered` (any case, after leading
+  punctuation) or contains `DELIVERED` in capitals, and contains none of `not started`, `not
+  delivered`, `skipped`, `residual`, `duplicate`, `blocked` or `already` (any case). Any other line
+  naming the ticket only mentions it. A commit message line naming the ticket delivers it unless it
+  contains one of those words. Delivered on any line wins over mentioned.
+- `TCD-V0-161`: The result is one `taskman-delivery-screen/0` item, marked untrusted, with
+  `mutationAuthority` false. Per ticket it carries the ticket's status, its verdict, at most 32
+  referencing PRs (number, state, reference, batch) and at most 32 referencing ref commits. The
+  verdict is `IN_FLIGHT` when an OPEN PR delivers it, else `DELIVERED` when a MERGED PR or a ref
+  commit delivers it, else `NOT_OBSERVED` when no `--prs` export was given, else `MENTIONED` when
+  anything mentions it, else `CLEAR`. A CLOSED unmerged PR never sets the verdict beyond
+  `MENTIONED`. Without an export a ticket is never `CLEAR`, and a warning says so.
+- `TCD-V0-162`: `ticket delivery-screen` exits 0 when every ticket is `CLEAR`, 1 when any is not,
+  and 2 on a refusal or error.
+- `TCD-V0-163`: `corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]` takes no
+  lock, writes nothing, completes nothing and never queries a network service. The `--prs` export
+  must hold PR N in state `MERGED` with a `mergeCommit` (otherwise `MALFORMED` when absent and
+  `PREREQUISITE_UNSATISFIED` when not merged). The lane PRs are the other exported PRs that the
+  batch title or body names as `#N`. Each ticket a lane body, or else the batch body, delivers
+  under `TCD-V0-160` is one `delivered` row: the ticket, its status, the lane PR (null for the batch
+  body), the batch PR, the merge commit and `greenRuns`. `greenRuns` is the sorted ids of the
+  `--runs` export records (`gh run list --json databaseId,headSha,conclusion`) that concluded
+  `success` at the merge commit or the batch head, or `NOT_OBSERVED` without that export. The item
+  is `taskman-batch-delivered/0`, marked untrusted, with `mutationAuthority` false.
+- `TCD-V0-164`: A ticket the batch or a lane only mentions, and that none delivers, is listed under
+  `mentioned`, never under `delivered`. A PR the batch does not name contributes nothing.
 
 ## Failure modes
 
@@ -174,14 +263,48 @@ closeout step is missing.
   the source tree to equal the attempt's tree. Its `complete` refuses the result as `GATE_STALE`,
   which is safe. Upgrade every binary that audits the store before turning the rule on.
 - An unfetched upstream misses a PASS on the remote branch. The run then executes the gate.
+- A CI run record is the operator's claim about GitHub. A forged or mistyped record whose head
+  commit really descends from the candidate on the protected branch is accepted. The audit
+  re-observes only the ancestry, not GitHub. Admit a gate in `ciEvidence` only where the branch
+  protection that put the commit on the intent branch already required those checks.
+- A CI head commit that has not been fetched is refused `STALE_TREE` with "fetch it first". The
+  verb does not fetch.
+- A rewound intent branch drops a CI head commit. The audit then fails `JOURNAL_FORKED`
+  (`TCD-V0-157`). Restore the branch, or complete those attempts with local gate runs, to recover.
+- An older binary decodes a CI-backed result's `reusedFrom` as a same-tree reuse whose source is not
+  a gate result. Its audit fails `JOURNAL_FORKED` and its `complete` refuses. Upgrade every binary
+  first. The new `taskman-ci-run/0` profile also changes `version`'s live format set
+  (`CAL-V0-130`).
+- After `TCD-V0-158`, a reusable PASS recorded by an older binary has the names-only digest, so it
+  is executed once more instead of being reused. That is safe. A per-session `TMPDIR` or `HOME`
+  declared on a reusable gate prevents reuse across sessions. Declare only variables that change
+  the result.
+
+- A delivery screen is only as fresh as its export and the fetched ref. A PR opened after the
+  export, or a merge not yet fetched, reads as `CLEAR`. Export and fetch immediately before
+  dispatch.
+- A PR body that writes `Refs <ID>` for a ticket it did not deliver makes the screen and
+  `batch-delivered` treat it as delivered. The lane convention is `Refs` lines only for delivered
+  tickets and a separate "Not delivered" list without `Refs`.
+- A lane PR that a batch body does not name as `#N` is not a lane of that batch.
+- A merge-queue run whose head is neither the merge commit nor the batch head is not listed in
+  `greenRuns`.
 
 ## Non-goals
 
 - Completing, claiming or submitting anything, or proposing a completion payload.
 - HELD and DRAFT tickets, which are not closeout debt.
-- Querying GitHub. Issue and PR state is not read, and only commit text in local Git is used.
+- Querying GitHub. `closeout-debt` reads only commit text in local Git; the delivery reads take PR
+  and run facts only from an operator export file (TCD-V0-159, TCD-V0-163).
 - Recording `COMPLETE_REFUSED`. That would need the refusal to be journaled, which is a separate
   change.
+- Querying GitHub or any network service for a CI run, or verifying its signature. The record is
+  retained, decoded offline and bound to local Git ancestry (invariant 7).
+- Dispatch claims or reservations that refuse a second dispatch (V1-2251 acceptance 2), and
+  completing tickets from `batch-delivered` (V1-2254 acceptance 1 closing part). Both stay with the
+  orchestrator and the existing native writes.
+- Capturing a CI run record automatically, or turning `ciEvidence` on for any store. Both are
+  operator actions.
 
 ## Acceptance evidence and traceability
 
@@ -200,6 +323,17 @@ closeout step is missing.
 | TCD-V0-151 | V1-2193 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `descendantResults`), `internal/tasks/transaction` (`planGateRun`, `gateVerdict`) | `TestTCDV0151_DescendantPassCoversAMergedSeal` (no execution, `reusedFrom` names the later result, `complete` accepts it) | real seal-closeout timing on the live store: NOT_PRODUCED |
 | TCD-V0-152 | V1-2193 | `internal/tasks/transaction` (`planGateRun`), `internal/tasks/store` (`gateReuseFacts`) | `TestTCDV0152_DescendantReuseRefusals` (not on the protected branch, not an ancestor: `BLOCKED STALE_TREE`, no write, then the gate executes) | none |
 | TCD-V0-153 | V1-2193 | `internal/tasks/transaction` (`GateReuseReceiptAudit`), `internal/tasks/store` (`descentOracle`) | `TestTCDV0151_DescendantPassCoversAMergedSeal` (receipt audit and binding fold pass; after rewinding the branch the fold fails `JOURNAL_FORKED`) | none |
+| TCD-V0-154 | V1-2216 | `internal/tasks/intent` (`readCIEvidence`, `CIEvidenceGate`) | `TestTCDV0154_PolicyCIEvidence` (absent key admits none; declared entry decodes; undeclared or duplicate gate, bad repository, empty, unsorted or duplicate checks and an unknown field are refused) | none |
+| TCD-V0-155 | V1-2216 criteria 1, 3 | `internal/tasks/snapshot` (`CIRun`), `internal/tasks/transaction` (`CIGateResult`, `planGateRun`), `internal/tasks/store` (`GateRunCI`, `ciRunFacts`, `commitDescent`), `internal/tasks/cli` (`gate run --ci-run`) | `TestTCDV0155_GreenCIRunClosesMergedTicketsWithoutLocalGates` (three merged tickets, one green CI run at the tip: zero `verify` executions, `reusedFrom` names the record and run id, all three `complete`) | closing real merged tickets on the live store: NOT_PRODUCED |
+| TCD-V0-156 | V1-2216 | `internal/tasks/transaction` (`CIRunRefusal`, `ciRefusal`), `internal/tasks/store` (`GateRunCI`) | `TestTCDV0156_CIRunRefusals` (failed run, missing check, other repository, gate not admitted, off the protected branch, not a descendant, absent head commit: refused, no write, no execution); `TestTCDV0155_ModelRefusesAForgedCIResult` (a record claiming the candidate tree for a later head: not completed, no write) | none |
+| TCD-V0-157 | V1-2216 criterion 2 | `internal/tasks/transaction` (`GateReuseReceiptAudit.ciReuse`), `internal/tasks/store` (`ciDescentOracle`) | `TestTCDV0155_GreenCIRunClosesMergedTicketsWithoutLocalGates` (receipt audit and binding fold pass; after rewinding the branch behind the CI head the fold fails with "is not a commit carrying tree") | none |
+| TCD-V0-158 | V1-1431 | `internal/tasks/store` (`gateEnvironmentKey`) | `TestTCDV0158_ReuseKeyCoversDeclaredEnvironmentValues` (a PASS under another value executes; the same value reuses; dropping the value from the digest fails the test) | none |
+| TCD-V0-159 | V1-2251 criterion 1 | `internal/tasks/cli` (`deliveryScreenCommand`, help) | `TestTCDV0159_DeliveryScreenVerdicts` (no ticket and an undecodable export refused `MALFORMED`; `.taskman` and `.git/taskman` byte-identical) | none |
+| TCD-V0-160 | V1-2251 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.references`) | `TestTCDV0159_DeliveryScreenVerdicts` (Refs line delivers; "skipped" and "already" lines and a "residual" commit line only mention) | none |
+| TCD-V0-161 | V1-2251 criterion 1 | `internal/tasks/cli` (`deliveryScreenValue`) | `TestTCDV0159_DeliveryScreenVerdicts` (IN_FLIGHT, DELIVERED by PR and by commit, MENTIONED, CLEAR, NOT_OBSERVED without an export; profile, untrusted, mutationAuthority) | sweep measurement below 10% (V1-2251 criterion 4): NOT_RUN |
+| TCD-V0-162 | V1-2251 | `internal/tasks/cli` (`emitDeliveryScreen`) | `TestTCDV0159_DeliveryScreenVerdicts` (exit 0 all CLEAR, 1 otherwise, 2 refused) | none |
+| TCD-V0-163 | V1-2254 criterion 1 (listing) | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (lanes from `#N`, rows with lane, batch, merge commit, green runs at merge commit and head only; NOT_OBSERVED without runs; open batch `PREREQUISITE_UNSATISFIED`; absent batch `MALFORMED`) | listing a real merged batch: NOT_RUN |
+| TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
 
 ## Rollout and rollback
 
@@ -210,3 +344,13 @@ TCD-V0-151..153 add no store format, wire codec or policy field. They take effec
 the operator marks `reusable: true`. To roll back, set the gate back to `reusable: false` through a
 store `policy update`. Then, if a descendant reuse was already recorded, revert the change only
 after those attempts have completed, because an older binary's audit refuses the recorded reuse.
+
+TCD-V0-154..157 add the optional policy key `ciEvidence` and the evidence profile `taskman-ci-run/0`.
+To roll back, remove `ciEvidence` through a store `policy update`; no gate then accepts CI
+evidence. Revert the change only after every attempt with a CI-backed result has completed,
+because an older binary's audit refuses those results. TCD-V0-158 adds no format. Reverting it
+restores the names-only key, and results recorded with values are then executed once more instead
+of being reused.
+
+TCD-V0-159..164 add two read verbs and two output-only profiles, with no store format, wire codec
+or policy change. To roll back, revert the change.

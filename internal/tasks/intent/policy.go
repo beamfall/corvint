@@ -156,7 +156,10 @@ type Policy struct {
 	// Reservations is the optional NTP-V0-026 reservation declaration; nil
 	// (the key absent) keeps every PATH key exclusive.
 	Reservations *ReservationPolicy
-	Raw          []byte
+	// CIEvidence is the optional TCD-V0-154 declaration of the command gates
+	// a retained green CI run may satisfy; nil (the key absent) admits none.
+	CIEvidence *CIEvidencePolicy
+	Raw        []byte
 }
 
 // ObligationsPolicy is the TOL-V0-015 opt-in. WorkerWitness lets a WORKER
@@ -408,7 +411,7 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
 		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations")...)
+		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations", "ciEvidence")...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}
@@ -642,6 +645,12 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	}
 	if wire.Has(v, "reservations") {
 		p.Reservations = readReservations(r.Field("reservations"))
+		if err := r.Err(); err != nil {
+			return nil, err
+		}
+	}
+	if wire.Has(v, "ciEvidence") {
+		p.CIEvidence = readCIEvidence(r.Field("ciEvidence"), p.Gates)
 		if err := r.Err(); err != nil {
 			return nil, err
 		}

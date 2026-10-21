@@ -18,7 +18,7 @@ their authority; this profile never amends them.
 ## Agent digest
 - Claim: Review verdicts (G1/G2 PASS/RETURN) and author resubmissions become typed, CAS-ordered queue events that route work without parsing Markdown.
 - Status: accepted (owner decision 2026-10-04); experimental: pure seed, read adapter/history, dispatcher gate predicates and the native writer (OWNER/OPERATOR/REVIEWER recorders, WORKER resubmissions, TREE and EVIDENCE candidates, evidence references, the issue 394 acceptance mapping).
-- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011); the bounded `gate packet` review packet (ERG-V0-017..021), resolvable in a configured source repository (ERG-V0-022).
+- Exists: closed codecs, a pure reducer, gate adapter and history reader; policy `externalReviews`, the ticket `externalReviews` field (Tasks and Core readers), the locked REVIEW_RECORD/REVIEW_RESUBMIT writer on the derived-event slot with a receipt-audit binding, `gate record|resubmit|history|state`, REVIEWER/WORKER actor admission, journal-backed EVIDENCE candidates and evidence references with the issue 394 acceptance mapping (`--from-acceptance`), the full `gates[G]` field set, native dispatcher gate observation, two-writer, crash/redo and descriptor-measurement fixtures, and the read-only `nextAction: complete-manual` offer when every required gate is a CURRENT PASS (ERG-V0-011); the bounded `gate packet` review packet (ERG-V0-017..021), resolvable in a configured source repository (ERG-V0-022), with a checkpoint commit binding when the hand-off note names its commit (ERG-V0-026) and a `gate history --cursor` command for review history past its bound (ERG-V0-027).
 - Blocked on: promotion (ERG-V0-010): independent review, current-main integration, live qualification of the issue 394 connection with a real `corvint tests accept` report, and native completion.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
@@ -302,8 +302,9 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
 - `ERG-V0-021`: A partial checkpoint MAY ride in the packet and MUST be labelled with what it does not prove.
   `--checkpoint NOTE` (and the ATR-V0-141 dispatch source, which passes the ticket's newest ATR-V0-105
   hand-off note) adds `checkpoint` with the note's source, worker, role, time and text. A note
-  names no commit, so `commitBinding` is `NOT_OBSERVED`: the packet never claims the checkpoint was
-  taken at the reviewed commit. A note of another ticket is not used; an unreadable `--checkpoint`
+  that names no commit, or one the packet's repository does not hold, has `commitBinding:
+  NOT_OBSERVED` (ERG-V0-026 binds one that does): the packet never claims the checkpoint was taken
+  at the reviewed commit without the commit to show it. A note of another ticket is not used; an unreadable `--checkpoint`
   refuses MALFORMED. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; GitHub #1169, V1-1885).
 
 - `ERG-V0-022`: `gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role whose `reviewPacket.sourceRepository` names a configuration `sourceRepositories` entry, MUST resolve the reviewed commit and its delta base in that source repository and MUST record the repository and resolved revision in the packet.
@@ -335,6 +336,21 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   dropped as the duplicate of another flag, even one whose element bytes equal its text, so it
   reaches composition and refuses `MALFORMED` in either order and never rides a replay. The locked writer's decode still refuses an unsorted or duplicated array (§2), so a
   request composed elsewhere gains no tolerance. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1923).
+
+- `ERG-V0-026`: A hand-off note that names the commit its checkpoint was taken at MUST bind the packet checkpoint to that commit when the packet's repository holds it, and MUST state the commit's relation to the reviewed commit.
+  The ATR-V0-104 note gains an optional `commit` member, a full commit id written after `truncated`;
+  a note without it keeps its exact earlier bytes, and any other value refuses the note as
+  malformed. When the commit resolves in the repository that held the reviewed commit (ERG-V0-022),
+  `checkpoint` carries `commit`, `commitBinding: OBSERVED` and `commitRelation: REVIEWED_COMMIT |
+  ANCESTOR | NOT_ANCESTOR`; a commit that does not resolve keeps `commitBinding: NOT_OBSERVED` and
+  still shows the note's `commit`. A binding proves where the checkpoint was taken, not that its text
+  describes that commit. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1921).
+
+- `ERG-V0-027`: When a gate's review history is longer than the packet reads, the packet MUST name the exact `gate history` command that returns the unread events.
+  The packet still reads at most four pages of 50 events per gate (ERG-V0-019) and still lists the
+  rest in `omitted`; it also adds `readOnDemand.history`, one `gate history <ticket> --gate G
+  --cursor DIGEST` per truncated gate in gate order, whose first page begins at the newest event the
+  packet did not read. `readOnDemand.history` is absent when nothing was truncated. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1921).
 
 ## Non-goals
 
@@ -392,6 +408,8 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | ERG-V0-019 | GitHub #1169 | `TestERGV0019_CapNamesOmittedRanges` (a 4096-byte cap keeps every item status and names the omitted hunk `src/testdata/c.txt lines 1-120`; 4095, 262145 and a non-number are usage errors), `TestERGV0019_SkeletonAndRanges` (hunk and deletion ranges; an oversized skeleton refuses LIMIT_EXCEEDED), `TestERGV0019_MetadataOnlyChangeKeepsHunk` (mode-only, new and deleted empty files keep a `metadata` hunk) | a measured packet on a real review |
 | ERG-V0-020 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (TOUCHED/UNTOUCHED items), `TestERGV0020_TouchedObligations` (witness and review-subject paths, sorted test identities, cited lines), `TestERGV0017_ReturnRecencyIsReceiptOrder` (equal `recordedAt` on two gates resolves by receipt sequence) | none beyond promotion |
 | ERG-V0-021 | GitHub #1169 | `TestERGV0019_SkeletonAndRanges` (a checkpoint that does not fit is named; `commitBinding: NOT_OBSERVED`), `TestATRV0141_ReviewRolePromptCarriesPacket` (the dispatch source receives the note path) | a hand-off note that records its commit |
+| ERG-V0-026 | V1-1921 | `TestERGV0026_CheckpointCommitBinding` (a note commit equal to the reviewed commit, an ancestor, an absent commit and no commit give REVIEWED_COMMIT, ANCESTOR, NOT_OBSERVED and NOT_OBSERVED), `TestERGV0026_HandoffNoteCommit` (`internal/tasks/dispatch`: no `commit` member without one, a full id round-trips, a short id refuses), `TestERGV0019_SkeletonAndRanges` (a note without a commit stays NOT_OBSERVED) | the dispatcher's salvaged note does not yet record its worker's commit |
+| ERG-V0-027 | V1-1921 | `TestERGV0027_HistoryBoundNamesNextCursor` (with the bound shrunk to two one-event pages, `omitted` and `readOnDemand.history` name the cursor, and the named command returns exactly the two unread events) | none beyond promotion |
 | ERG-V0-022 | GitHub #1217 | `TestERGV0022_PacketFromSourceRepository` (two repositories: `--commit` with `--source PATH` and with a configured name resolves and diffs in the source, records `repository`, writes neither `.git`; a task-repository commit still resolves; an absent commit refuses `COMMIT_NOT_FOUND:` naming both roots; an undeclared name or a non-root path refuses `SOURCE_REPOSITORY_UNKNOWN:`; `--config` alone is a usage error), `TestERGV0022_DispatchSourceBuildsWithoutSource` (the dispatch source with the role's source builds a `SOURCE_HEAD` packet without `--source`), `TestERGV0022_RoleSourceRepositoryConfig` (`internal/tasks/dispatch`: the role's source reaches the queue; an undeclared name, a bad name or path and 17 entries refuse) | operator use in a live two-repository program |
 | ERG-V0-023 | V1-1923 | `TestERGV0023_ReasonsCanonicalizedNotRefused` (four `--reason` flags out of order with a repeat record one RETURN whose history carries the three sorted reasons, `TEST` before `TESTS`; the same request id with the flags reordered replays), `TestERGV0023_MalformedEvidenceNeverDroppedAsDuplicate` (a malformed flag spelling a valid flag's element bytes is kept and sorted first in either order), `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (adding that colliding flag to a retained request id refuses `REQUEST_ID_CONFLICT` instead of replaying, and a fresh request refuses `MALFORMED`, in both orders), `TestERGV0023_EvidenceFlagsComposeSortedSet` (reordered `--evidence` flags with a repeat compose a sorted set the §2 check accepts; a malformed flag is kept for composition to refuse) | none |
 
@@ -412,7 +430,8 @@ The ERG-V0-011 offer stores nothing: rollback is reverting its code and requirem
 members disappear. A consumer of the offer must treat both members as optional.
 The ERG-V0-017 packet stores nothing and adds one read verb: rollback is reverting its code and
 requirement rows (ERG-V0-022 likewise, after removing `sourceRepositories` and
-`reviewPacket.sourceRepository` from dispatch configurations, which the earlier closed decoder refuses); a dispatch configuration that sets `reviewPacket` (ATR-V0-141) must drop it
+`reviewPacket.sourceRepository` from dispatch configurations, which the earlier closed decoder refuses; ERG-V0-026 likewise, after
+dropping the `commit` member from any hand-off note, which the earlier closed note reader refuses); a dispatch configuration that sets `reviewPacket` (ATR-V0-141) must drop it
 first, since the closed decoder would then refuse it.
 
 ## Open decisions

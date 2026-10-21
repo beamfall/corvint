@@ -81,5 +81,16 @@
     ]
   },
   "revision": "<varies:string>",
+  "tiers": {
+    "counts": [
+      1,
+      0,
+      0
+    ],
+    "summary": "tier0=1 tier1=0 tier2=0",
+    "units": {
+      "go:example.test/cli/pkg": 0
+    }
+  },
   "tool": "affected"
 }

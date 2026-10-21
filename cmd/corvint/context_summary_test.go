@@ -57,6 +57,9 @@ func gitFixture(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
 	command := exec.Command("git", arguments...)
 	command.Dir = root
+	// Pinned dates make the fixture commit id, which the packet's `commit`
+	// member carries (TCP-V0-150), as stable as its content-addressed tree.
+	command.Env = append(os.Environ(), "GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
 	output, err := command.Output()
 	if err != nil {
 		t.Fatalf("git %v: %v", arguments, err)
