@@ -285,6 +285,8 @@ func TestV10689SnapshotParsing(t *testing.T) {
 	}{
 		{"Darwin", valid, true},
 		{"Linux zombie", "11 10 Sat Oct 3 16:00:00 2026 Z+\n", true},
+		// PGO-V0-021: Darwin prints ?N for a process whose state it cannot read (V1-0692).
+		{"Darwin unknown state", "12 1 Sat Oct 3 16:00:00 2026 ?N\n", true},
 		{"duplicate same identity", valid + valid, false},
 		{"duplicate different identity", valid + "10 1 Sat Oct 3 16:00:01 2026 S\n", false},
 		{"malformed after valid", valid + "broken\n", false},
@@ -300,6 +302,62 @@ func TestV10689SnapshotParsing(t *testing.T) {
 				t.Fatal("partial or ambiguous table accepted")
 			}
 		})
+	}
+}
+
+// TestPGOV0021UnknownStateIsPotentiallyLive pins PGO-V0-021 (V1-0692): an owned
+// identity that a snapshot shows in Darwin's unknown ?N state is treated as
+// potentially live and signalled, never as exited, while an unrelated ?N row is
+// neither adopted nor signalled. Both identities are this test's own children,
+// so a wrong signal can reach only them; the snapshots are injected.
+func TestPGOV0021UnknownStateIsPotentiallyLive(t *testing.T) {
+	start := func() *exec.Cmd {
+		cmd := exec.Command("/bin/sleep", "60")
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		return cmd
+	}
+	owned, unrelated := start(), start()
+	ownedDone := make(chan error, 1)
+	go func() { ownedDone <- owned.Wait() }()
+	t.Cleanup(func() {
+		_ = owned.Process.Kill()
+		<-ownedDone
+		_ = unrelated.Process.Kill()
+		_ = unrelated.Wait()
+	})
+	const when = "Sat Oct 3 16:00:00 2026"
+	ownedRow := ObservedProcess{PID: owned.Process.Pid, ParentPID: os.Getpid(), Start: when, State: "S"}
+	unrelatedRow := ObservedProcess{PID: unrelated.Process.Pid, ParentPID: 1, Start: when, State: "?N"}
+	calls := 0
+	done := make(chan struct{})
+	close(done)
+	o := descendantObserver{root: os.Getpid(), known: map[int]ObservedProcess{ownedRow.PID: ownedRow}, stop: make(chan struct{}), done: done, snap: func(context.Context) (map[int]ObservedProcess, error) {
+		calls++
+		if calls == 1 {
+			unknown := ownedRow
+			unknown.State = "?N"
+			return map[int]ObservedProcess{unknown.PID: unknown, unrelatedRow.PID: unrelatedRow}, nil
+		}
+		return map[int]ObservedProcess{unrelatedRow.PID: unrelatedRow}, nil
+	}}
+	report, err := o.finish()
+	if err != nil || !report.Absent || calls < 2 {
+		t.Fatalf("owned ?N identity not retired: calls=%d %v %+v", calls, err, report)
+	}
+	select {
+	case err := <-ownedDone:
+		ownedDone <- err
+		var exit *exec.ExitError
+		if !errors.As(err, &exit) || exit.Sys().(syscall.WaitStatus).Signal() != syscall.SIGKILL {
+			t.Fatalf("owned ?N identity was not signalled as potentially live: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("owned ?N identity was skipped as exited")
+	}
+	if err := unrelated.Process.Signal(syscall.Signal(0)); err != nil {
+		t.Fatalf("unrelated ?N row was signalled: %v", err)
 	}
 }
 
