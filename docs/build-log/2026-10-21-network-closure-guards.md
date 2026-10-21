@@ -38,3 +38,24 @@ which cannot list the closure.
 Mutation check: removing the `jstestprovider` entry made the guard fail with the importer named.
 After the V1-1667 split moves the E2E runner out of `jstestprovider`, both allowlists shrink, and both
 guards will require that.
+
+## Review follow-up: explicit build configurations
+
+The first version of both guards listed the closure only for the host platform. On Windows,
+`internal/testrunner/device_cleanup_unix.go` is excluded, so the core guard would fail there, and a
+platform-only importer stayed invisible on other hosts.
+
+Both guards now run `go list -deps` with `CGO_ENABLED=0` and an explicit `GOOS`/`GOARCH` for
+`darwin/arm64`, `linux/amd64` and `windows/amd64`. Each configuration has its own exact expected set:
+
+| Configuration | Core `net/http` importers |
+|---|---|
+| `darwin/arm64` | `jstestprovider`, `testrunner` |
+| `linux/amd64` | `jstestprovider`, `testrunner` |
+| `windows/amd64` | `jstestprovider` |
+
+The tool path's set is `jstestprovider` in all three configurations. Every expected importer must
+carry a review reason. An importer with a reason that no configuration expects fails the guard.
+
+Mutation check: adding `testrunner` to the `windows/amd64` expectation fails with the measured
+set named.

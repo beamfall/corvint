@@ -115,7 +115,9 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
   module package in the transitive import closure of `internal/mcp/testvaliditybridge` that directly
   imports a connection-making network package (`net`, `net/http`, `net/http/*`, `net/rpc`,
   `net/smtp`) MUST appear in a reviewed allowlist that records why the tool cannot reach it. The
-  allowlist MUST be exact: a new importer, or an entry that has left the closure, fails the guard.
+  allowlist MUST be exact for each explicitly listed build configuration (at least `darwin/arm64`,
+  `linux/amd64` and `windows/amd64`, independent of the host): a new importer, or an expected entry
+  that has left that configuration's closure, fails the guard.
   Parsing-only packages (`net/url`, `net/netip`, `net/mail`, `net/textproto`) are not network access.
   Transitive `os/exec` edges, such as the Git object reads of the shared index packages, are not part
   of this guard; the tool's no-process rule stays the `MTV-V0-007` source check plus the read-only

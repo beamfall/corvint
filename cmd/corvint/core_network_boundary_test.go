@@ -37,10 +37,35 @@ var testValidityToolNetworkImporters = map[string]string{
 	"github.com/Beamfall/corvint/internal/jstestprovider": "RunE2E callers are outside the tool closure",
 }
 
-// moduleImporters lists the module packages in target's import closure that
-// directly import a package matched by imported, sorted.
-func moduleImporters(t *testing.T, target string, imported func(string) bool) []string {
+// networkGuardConfigs are the build configurations each closure guard lists
+// explicitly, so a platform-only importer (a _unix.go or _windows.go file) is
+// visible on every host and the result does not depend on the host platform.
+var networkGuardConfigs = []string{"darwin/arm64", "linux/amd64", "windows/amd64"}
+
+// coreHTTPImportersByConfig is the exact set of reviewed importers expected in
+// each configuration. testrunner's net/http import is in
+// device_cleanup_unix.go, so Windows builds do not link it.
+var coreHTTPImportersByConfig = map[string][]string{
+	"darwin/arm64":  {"github.com/Beamfall/corvint/internal/jstestprovider", "github.com/Beamfall/corvint/internal/testrunner"},
+	"linux/amd64":   {"github.com/Beamfall/corvint/internal/jstestprovider", "github.com/Beamfall/corvint/internal/testrunner"},
+	"windows/amd64": {"github.com/Beamfall/corvint/internal/jstestprovider"},
+}
+
+var testValidityToolNetworkImportersByConfig = map[string][]string{
+	"darwin/arm64":  {"github.com/Beamfall/corvint/internal/jstestprovider"},
+	"linux/amd64":   {"github.com/Beamfall/corvint/internal/jstestprovider"},
+	"windows/amd64": {"github.com/Beamfall/corvint/internal/jstestprovider"},
+}
+
+// moduleImporters lists the module packages in target's import closure for
+// config (GOOS/GOARCH) that directly import a package matched by imported,
+// sorted.
+func moduleImporters(t *testing.T, config, target string, imported func(string) bool) []string {
 	t.Helper()
+	goos, goarch, ok := strings.Cut(config, "/")
+	if !ok {
+		t.Fatalf("config %q is not GOOS/GOARCH", config)
+	}
 	_, file, _, ok := runtime.Caller(0)
 	if !ok {
 		t.Fatal("caller unavailable")
@@ -53,10 +78,10 @@ func moduleImporters(t *testing.T, target string, imported func(string) bool) []
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "list", "-deps", "-f", "{{.ImportPath}}{{range .Imports}} {{.}}{{end}}", target)
 	command.Dir = root
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOWORK=off", "GOFLAGS=", "CGO_ENABLED=0", "GOOS="+goos, "GOARCH="+goarch)
 	output, err := command.Output()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("go list %s for %s: %v", target, config, err)
 	}
 	found := []string{}
 	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
@@ -75,6 +100,35 @@ func moduleImporters(t *testing.T, target string, imported func(string) bool) []
 	return found
 }
 
+// checkImporterConfigs compares each configuration's importers with its exact
+// expected set and requires every expected importer to carry a review reason.
+func checkImporterConfigs(t *testing.T, target, rule string, imported func(string) bool, reasons map[string]string, byConfig map[string][]string) {
+	t.Helper()
+	reviewed := map[string]bool{}
+	for _, config := range networkGuardConfigs {
+		want, ok := byConfig[config]
+		if !ok {
+			t.Fatalf("%s: no expectation for %s", rule, config)
+		}
+		want = append([]string(nil), want...)
+		sort.Strings(want)
+		for _, pkg := range want {
+			if reasons[pkg] == "" {
+				t.Fatalf("%s: %s expected for %s has no review reason", rule, pkg, config)
+			}
+			reviewed[pkg] = true
+		}
+		if found := moduleImporters(t, config, target, imported); strings.Join(found, "\n") != strings.Join(want, "\n") {
+			t.Errorf("%s: %s importers = %v, reviewed expectation = %v; a new importer needs a reachability review", rule, config, found, want)
+		}
+	}
+	for _, pkg := range allowlistKeys(reasons) {
+		if !reviewed[pkg] {
+			t.Errorf("%s: reviewed importer %s is expected in no configuration; remove it", rule, pkg)
+		}
+	}
+}
+
 func allowlistKeys(m map[string]string) []string {
 	keys := make([]string, 0, len(m))
 	for key := range m {
@@ -86,26 +140,22 @@ func allowlistKeys(m map[string]string) []string {
 
 // TestCoreHTTPImportersAreAllowlisted fails when a package in the core
 // binary's closure gains a direct net/http import that is not reviewed above,
-// or when an allowlisted importer leaves the closure (so the list stays exact).
+// or when an expected importer leaves a configuration's closure (so each
+// per-configuration list stays exact).
 func TestCoreHTTPImportersAreAllowlisted(t *testing.T) {
 	t.Parallel()
-	found := moduleImporters(t, "./cmd/corvint", func(path string) bool { return path == "net/http" })
-	if want := allowlistKeys(coreHTTPImporters); strings.Join(found, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("core net/http importers = %v, reviewed allowlist = %v; a new importer needs a reachability review (invariant 7)", found, want)
-	}
+	checkImporterConfigs(t, "./cmd/corvint", "invariant 7", func(path string) bool { return path == "net/http" }, coreHTTPImporters, coreHTTPImportersByConfig)
 }
 
 // TestTestValidityToolNetworkImportersAreAllowlisted (MTV-V0-010): the MCP
 // test-validity tool path's transitive closure reaches a connection-making
-// network package only through reviewed importers. Parsing-only packages
-// (net/url, net/netip, net/mail, net/textproto) are not network access.
+// network package only through reviewed importers, in every guarded build
+// configuration. Parsing-only packages (net/url, net/netip, net/mail,
+// net/textproto) are not network access.
 func TestTestValidityToolNetworkImportersAreAllowlisted(t *testing.T) {
 	t.Parallel()
 	dialing := func(path string) bool {
 		return path == "net" || path == "net/http" || strings.HasPrefix(path, "net/http/") || path == "net/rpc" || path == "net/smtp"
 	}
-	found := moduleImporters(t, "./internal/mcp/testvaliditybridge", dialing)
-	if want := allowlistKeys(testValidityToolNetworkImporters); strings.Join(found, "\n") != strings.Join(want, "\n") {
-		t.Fatalf("test-validity tool network importers = %v, reviewed allowlist = %v; a new importer needs a reachability review (MTV-V0-010)", found, want)
-	}
+	checkImporterConfigs(t, "./internal/mcp/testvaliditybridge", "MTV-V0-010", dialing, testValidityToolNetworkImporters, testValidityToolNetworkImportersByConfig)
 }

@@ -13,14 +13,26 @@ touch `internal/tasks`, where `claude/feat-tasks-perf` is active, so this spike 
 - `lease_write.go:679`;
 - `mutate.go:154`.
 
-`policy.go` `administrativeWriteRound` (policy update and the other admin receipts) never calls it.
-That is correct under CAL-V0-060, which makes retention writer-only and best-effort. The previous
-checkpoint stays valid because a read replays the admin receipt on top of it. The only cost is one
-extra replayed receipt until the next ordinary write.
+**Observed behaviour.** `policy.go` `administrativeWriteRound` (policy update and the other
+administrative receipts) never calls `retainCheckpoint`. After an administrative write, the next
+read starts from the previous checkpoint and replays the administrative receipt. Repeated
+administrative writes with no ordinary write between them accumulate that replay work: each one adds
+a receipt that every later read replays until an ordinary writer round retains a new checkpoint.
 
-**Proposed recommendation:** document that administrative rounds are excluded from retention as a
-CAL-V0-060 clarification, with no code change. If the feat-tasks-perf checkpoint work makes replay
-cost material, it can add the call in its own lane.
+**Contract.** CAL-V0-060 makes checkpoint retention writer-side and best-effort. It does not exempt
+administrative writers. The observed omission is therefore a gap against the contract as written,
+not an intended exclusion. It is safe, because the previous checkpoint stays valid and replay is
+correct, but it is not specified.
+
+**Proposed recommendation (policy change for the orchestrator):** choose one of the following.
+
+- **(a)** Have administrative rounds retain a checkpoint like other writer rounds. This bounds
+  replay and keeps CAL-V0-060 unchanged. *Preferred.*
+- **(b)** Amend CAL-V0-060 to exempt administrative writers explicitly, and record the accumulating
+  replay cost as a known limit.
+
+Option (a) is a small change in `policy.go`. It belongs in the feat-tasks-perf lane, which owns the
+checkpoint route, so this spike makes no code change.
 
 ## V1-0671: per-phase admission of non-PATH resources
 

@@ -47,7 +47,7 @@ func TestCALV0319_HangupInterruptsGateRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	pidFile := filepath.Join(dir, "pid")
-	gate := commandGate("verify", "/bin/sh", "-c", `printf partial; echo $$ > "$0.tmp" && mv "$0.tmp" "$0"; sleep 60 & wait`, pidFile)
+	gate := commandGate("verify", "/bin/sh", "-c", `printf partial; sleep 60 & echo "$$ $!" > "$0.tmp" && mv "$0.tmp" "$0"; wait`, pidFile)
 	ergPolicyUpdateRoles(t, root, "3", []string{"implement"}, []string{"review"}, []string{"OPERATOR", "OWNER"}, false, gate)
 	runOK := func(args ...string) run {
 		t.Helper()
@@ -76,7 +76,9 @@ func TestCALV0319_HangupInterruptsGateRun(t *testing.T) {
 	}
 	exited := make(chan error, 1)
 	go func() { exited <- runner.Wait() }()
-	group := 0
+	// The script starts its descendant first and then publishes "group child"
+	// atomically, so the signal cannot arrive before the descendant exists.
+	group, child := 0, 0
 	t.Cleanup(func() {
 		if t.Failed() && group > 0 {
 			_ = syscall.Kill(-group, syscall.SIGKILL)
@@ -84,13 +86,26 @@ func TestCALV0319_HangupInterruptsGateRun(t *testing.T) {
 	})
 	for deadline := time.Now().Add(60 * time.Second); group == 0; time.Sleep(20 * time.Millisecond) {
 		if raw, err := os.ReadFile(pidFile); err == nil {
-			if group, err = strconv.Atoi(strings.TrimSpace(string(raw))); err != nil {
+			pids := strings.Fields(string(raw))
+			if len(pids) != 2 {
+				t.Fatalf("readiness file %q is not \"group child\"", raw)
+			}
+			if group, err = strconv.Atoi(pids[0]); err != nil {
+				t.Fatal(err)
+			}
+			if child, err = strconv.Atoi(pids[1]); err != nil {
 				t.Fatal(err)
 			}
 		} else if time.Now().After(deadline) {
 			_ = runner.Process.Kill()
 			t.Fatalf("gate never started\n%s", errb.Bytes())
 		}
+	}
+	if err := syscall.Kill(child, 0); err != nil {
+		t.Fatalf("gate descendant %d is not live before SIGHUP: %v", child, err)
+	}
+	if pgid, err := syscall.Getpgid(child); err != nil || pgid != group {
+		t.Fatalf("gate descendant %d is in group %d (%v), want %d", child, pgid, err, group)
 	}
 	if err := runner.Process.Signal(syscall.SIGHUP); err != nil {
 		t.Fatal(err)
@@ -102,11 +117,12 @@ func TestCALV0319_HangupInterruptsGateRun(t *testing.T) {
 		t.Fatal("gate run did not exit after SIGHUP")
 	}
 	for i := 0; ; i++ {
-		if err := syscall.Kill(-group, 0); errors.Is(err, syscall.ESRCH) {
+		groupErr, childErr := syscall.Kill(-group, 0), syscall.Kill(child, 0)
+		if errors.Is(groupErr, syscall.ESRCH) && errors.Is(childErr, syscall.ESRCH) {
 			break
 		}
 		if i > 200 {
-			t.Fatalf("gate group %d survived the SIGHUP (runner %s)\n%s", group, runner.ProcessState, errb.Bytes())
+			t.Fatalf("gate group %d or descendant %d survived the SIGHUP (runner %s)\n%s", group, child, runner.ProcessState, errb.Bytes())
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
