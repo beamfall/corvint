@@ -331,7 +331,9 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   The CLI sorts each flag by the canonical bytes of the element it composes (`{"code","text"}` or
   `{"label","sha256","bytes"}`), not by the flag string, so `TEST:x` precedes `TESTS:x`. A retry
   with the same `--request-id` and the same flags in another order matches the retained request and
-  replays it. The locked writer's decode still refuses an unsorted or duplicated array (§2), so a
+  replays it. Only a repeat of the identical flag string is dropped: a malformed flag is never
+  dropped as the duplicate of another flag, even one whose element bytes equal its text, so it
+  reaches composition and refuses `MALFORMED` in either order and never rides a replay. The locked writer's decode still refuses an unsorted or duplicated array (§2), so a
   request composed elsewhere gains no tolerance. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-1923).
 
 ## Non-goals
@@ -391,7 +393,7 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | ERG-V0-020 | GitHub #1169 | `TestERGV0017_ReviewPacketAcrossRounds` (TOUCHED/UNTOUCHED items), `TestERGV0020_TouchedObligations` (witness and review-subject paths, sorted test identities, cited lines), `TestERGV0017_ReturnRecencyIsReceiptOrder` (equal `recordedAt` on two gates resolves by receipt sequence) | none beyond promotion |
 | ERG-V0-021 | GitHub #1169 | `TestERGV0019_SkeletonAndRanges` (a checkpoint that does not fit is named; `commitBinding: NOT_OBSERVED`), `TestATRV0141_ReviewRolePromptCarriesPacket` (the dispatch source receives the note path) | a hand-off note that records its commit |
 | ERG-V0-022 | GitHub #1217 | `TestERGV0022_PacketFromSourceRepository` (two repositories: `--commit` with `--source PATH` and with a configured name resolves and diffs in the source, records `repository`, writes neither `.git`; a task-repository commit still resolves; an absent commit refuses `COMMIT_NOT_FOUND:` naming both roots; an undeclared name or a non-root path refuses `SOURCE_REPOSITORY_UNKNOWN:`; `--config` alone is a usage error), `TestERGV0022_DispatchSourceBuildsWithoutSource` (the dispatch source with the role's source builds a `SOURCE_HEAD` packet without `--source`), `TestERGV0022_RoleSourceRepositoryConfig` (`internal/tasks/dispatch`: the role's source reaches the queue; an undeclared name, a bad name or path and 17 entries refuse) | operator use in a live two-repository program |
-| ERG-V0-023 | V1-1923 | `TestERGV0023_ReasonsCanonicalizedNotRefused` (four `--reason` flags out of order with a repeat record one RETURN whose history carries the three sorted reasons, `TEST` before `TESTS`; the same request id with the flags reordered replays), `TestERGV0023_EvidenceFlagsComposeSortedSet` (reordered `--evidence` flags with a repeat compose a sorted set the §2 check accepts; a malformed flag is kept for composition to refuse) | none |
+| ERG-V0-023 | V1-1923 | `TestERGV0023_ReasonsCanonicalizedNotRefused` (four `--reason` flags out of order with a repeat record one RETURN whose history carries the three sorted reasons, `TEST` before `TESTS`; the same request id with the flags reordered replays), `TestERGV0023_MalformedEvidenceNeverDroppedAsDuplicate` (a malformed flag spelling a valid flag's element bytes is kept and sorted first in either order), `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (adding that colliding flag to a retained request id refuses `REQUEST_ID_CONFLICT` instead of replaying, and a fresh request refuses `MALFORMED`, in both orders), `TestERGV0023_EvidenceFlagsComposeSortedSet` (reordered `--evidence` flags with a repeat compose a sorted set the §2 check accepts; a malformed flag is kept for composition to refuse) | none |
 
 ## Rollout and rollback
 
