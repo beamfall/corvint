@@ -81,6 +81,7 @@ type CheckObservation struct {
 	Stdout         string   `json:"stdout,omitempty"`
 	Stderr         string   `json:"stderr,omitempty"`
 	ReuseRefused   string   `json:"reuseRefused,omitempty"` // closed sidecar-only reuse refusal (CEM-V1-207)
+	FailedTests    []string `json:"failedTests,omitempty"`  // verify result only: bounded `--- FAIL:` names of the run just observed (LCP-V0-031)
 }
 
 type artifact struct {

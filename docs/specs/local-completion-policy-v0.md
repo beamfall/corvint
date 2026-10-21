@@ -355,6 +355,15 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   with no local write, and its CLI message MUST name this route. The cross-session
   `worktree-prior-completion-stale` refusal is unchanged. Rollback: remove the supersession test in
   `Begin`; archived generations stay readable.
+- `LCP-V0-031`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1014) When a `verify` check log
+  matches the secret screen, the observation MUST stay `secretScreened` and unqualified, and each
+  retained log MUST begin with the line `log-secret-screened` followed by the captured output with
+  every secret-shaped span replaced by `[REDACTED]`, so test names and FAIL lines stay readable. If
+  the redacted text still matches the screen or would exceed the 256 KiB log bound, the log MUST
+  hold only the marker line. The `verify` result for an unqualified run MUST name, in additive
+  `checks[].failedTests`, the distinct test names of `--- FAIL: NAME` lines in its retained logs,
+  at most 16 names of at most 256 bytes each, none matching the screen; status and finish do not
+  re-read logs for it. Rollback: restore the marker-only log and drop the additive field.
 
 ## Non-goals and simpler baseline
 
@@ -536,6 +545,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-018 | `localCompletionRemedies` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginPlanIntentRefusalNamesTheRule` (`cmd/corvint/local_completion_test.go`) over unsorted, duplicated, empty and 17-path intents arrays |
 | LCP-V0-019 | `EvaluateObserved`, `EvaluateAgainst` and drift-only snapshots in `internal/localcompletion/lifecycle.go` and `internal/localcompletion/storage.go`; matched closing observation in `localEventRead` | `TestEnrolledStopSpawnsBoundedGit`, `TestDogfoodEventObservedMismatchFallsBack`, `TestEvaluateAgainstMatchesFullEvaluation`, `TestEvaluateAgainstReReadsPrivateInputs`, `TestEvaluateAgainstDirtyAndDrift`, `TestEvaluateAgainstChangedBase`; trace and same-host measurement record in `docs/build-log/2026-10-10-v1-1124-stop-git-calls.md` |
 | LCP-V0-030 | `supersededByNextStage` in `internal/localcompletion/lifecycle.go`; `TestBeginNextStageAfterSealedStage` (`internal/localcompletion/lifecycle_test.go`: stage-2 begin archives the stage-1 generation; a non-ancestor target, a failed final check, an unreviewed report set and a missing terminal record still refuse without a write); `TestDogfoodBeginPriorCompletionStaleNamesTheRoute` (`cmd/corvint/local_completion_test.go`) |
+| LCP-V0-031 | `screenedLog` and `failedTestNames` in `internal/localcompletion/screened_log.go`, applied in `Verify`; `TestScreenedCheckLogKeepsFailureLines` (screened FAIL line kept with the token redacted and named in `failedTests`; an unscreened failure names its subtests; a passing check names none; the over-bound and name bounds); `TestActualVerificationAndSecretRefusal` (no secret persists) |
 
 ## Rollout, rollback and remaining gates
 

@@ -1,8 +1,10 @@
 package localcompletion
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -808,4 +810,76 @@ func TestBeginNextStageAfterSealedStage(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestScreenedCheckLogKeepsFailureLines covers V1-1014 (LCP-V0-031): a
+// secret-screened check log keeps its FAIL lines with each secret-shaped span
+// redacted, and the verify result names the failing test.
+func TestScreenedCheckLogKeepsFailureLines(t *testing.T) {
+	script := "printf '%s\\n%s%s\\n%s\\n' '--- FAIL: TestWidget (0.00s)' '    widget_test.go:9: tok' 'en=fixture-secret' 'FAIL'; exit 1"
+	root, key, plan := fixture(t, []string{"sh", "-c", script})
+	repo := beginFixture(t, root, key, plan)
+	result, err := Verify(context.Background(), root, key, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := result.Checks[0]
+	if !check.SecretScreened || check.Qualified || check.Exit != 1 {
+		t.Fatalf("screened failure qualified or lost its exit: %#v", check)
+	}
+	if len(check.FailedTests) != 1 || check.FailedTests[0] != "TestWidget" {
+		t.Fatalf("failed tests = %#v", check.FailedTests)
+	}
+	saved, err := repo.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := string(raw)
+	if strings.Contains(log, "fixture-secret") || !strings.HasPrefix(log, "log-secret-screened\n") || !strings.Contains(log, "--- FAIL: TestWidget") || !strings.Contains(log, "[REDACTED]") {
+		t.Fatalf("screened log = %q", log)
+	}
+	if !artifactsCurrent([]artifact{saved.Observations[0].Stdout, saved.Observations[0].Stderr}) {
+		t.Fatal("screened log digest does not match its bytes")
+	}
+
+	t.Run("unscreened failure names its test", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%s\\n' '    --- FAIL: TestOuter/inner (0.01s)' '--- FAIL: TestOuter (0.01s)'; exit 1"})
+		beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := result.Checks[0].FailedTests; len(got) != 2 || got[0] != "TestOuter/inner" || got[1] != "TestOuter" || result.Checks[0].SecretScreened {
+			t.Fatalf("failed tests = %#v", result.Checks[0])
+		}
+	})
+	t.Run("passing check names none", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%s\\n' '--- FAIL: TestNotRun (0.00s)'"})
+		beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !result.Checks[0].Qualified || result.Checks[0].FailedTests != nil {
+			t.Fatalf("passing check: %#v %v", result.Checks, err)
+		}
+	})
+	t.Run("bounds", func(t *testing.T) {
+		full := "token=fixture-secret\n" + strings.Repeat("-\n", (maxLogBytes-21)/2)
+		if got := string(screenedLog([]byte(full))); got != "log-secret-screened\n" {
+			t.Fatalf("over-bound redaction kept %d bytes", len(got))
+		}
+		var many bytes.Buffer
+		for index := 0; index < 40; index++ {
+			fmt.Fprintf(&many, "--- FAIL: TestCase%d (0.00s)\n", index)
+		}
+		fmt.Fprintf(&many, "--- FAIL: %s (0.00s)\n", strings.Repeat("x", maxFailedTestName+1))
+		if got := failedTestNames(many.Bytes()); len(got) != maxFailedTests || got[0] != "TestCase0" {
+			t.Fatalf("names = %#v", got)
+		}
+		if got := failedTestNames([]byte("--- FAIL: " + strings.Repeat("y", maxFailedTestName+1) + " (0.00s)\n")); got != nil {
+			t.Fatalf("over-long name kept: %#v", got)
+		}
+	})
 }
