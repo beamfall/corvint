@@ -166,6 +166,9 @@ func Preview(ctx context.Context, root, page string, selectors []Selector, polic
 		if hasBlock && containsMarker(existingBody) {
 			return nil, refuse("marker-in-content")
 		}
+		if !hasBlock && hasUnparsedBegin(current, selector) {
+			return nil, refuse("malformed-block")
+		}
 		outcome := BlockOutcome{
 			Selector: selector, Existed: hasBlock, OldSHA256: oldDigest,
 			NewSHA256: newDigest, Commit: draft.Commit, Tree: draft.Tree,

@@ -695,3 +695,68 @@ func TestFlowDocsFinalizeRefusesOverBoundIndex(t *testing.T) {
 		t.Fatalf("over-bound index finalized: %v", e)
 	}
 }
+
+// TestFlowDocsJavaScriptModuleExtensions (AFU-V1-043, V1-0461): .mjs and .cjs
+// sources are JavaScript and produce flows like .js; a module-only scope must
+// not silently report zero flows.
+func TestFlowDocsJavaScriptModuleExtensions(t *testing.T) {
+	root, rev := fixture(t, map[string]string{
+		"tool/scan.mjs": "export function scan() {\n fetch('/api');\n}\n",
+		"tool/load.cjs": "function load() {\n throw new Error('x');\n}\nmodule.exports = { load };\n",
+	})
+	r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "tool"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	names := map[string]string{}
+	for _, f := range r.Manifest.Flows {
+		names[f.Name] = f.Path
+	}
+	if len(names) != 2 || names["scan"] != "tool/scan.mjs" || names["load"] != "tool/load.cjs" {
+		t.Fatalf("module flows=%v", names)
+	}
+}
+
+// TestFlowDocsCallInventoryDriftIsStale (AFU-V1-045, V1-0461): a body edit
+// that adds a call changes the rendered flow-diagram, so check must report
+// the flow stale, while a pure line insertion above it stays fresh.
+func TestFlowDocsCallInventoryDriftIsStale(t *testing.T) {
+	root, rev := fixture(t, map[string]string{"app/flow.js": "function first() {\n if (ready) {\n  fetch('/api');\n }\n}\n"})
+	r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(r.Manifest.Flows) != 1 {
+		t.Fatalf("flows=%d", len(r.Manifest.Flows))
+	}
+	for _, c := range r.Manifest.Flows[0].Calls {
+		if c.Name == "if" || c.Name == "function" {
+			t.Fatalf("control keyword listed as a call: %+v", r.Manifest.Flows[0].Calls)
+		}
+	}
+	flowID := r.Manifest.Flows[0].ID
+	state := func(source string) (bool, string) {
+		t.Helper()
+		if e := os.WriteFile(filepath.Join(root, "app", "flow.js"), []byte(source), 0600); e != nil {
+			t.Fatal(e)
+		}
+		git(t, root, "commit", "-qam", "edit")
+		checked, e := CheckRevision(context.Background(), root, r.Files["generation.json"], git(t, root, "rev-parse", "HEAD"), "")
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, b := range checked.Bindings {
+			if b.ID == flowID {
+				return checked.Clean, b.State
+			}
+		}
+		t.Fatal("flow binding missing")
+		return false, ""
+	}
+	if clean, s := state("// moved\nfunction first() {\n if (ready) {\n  fetch('/api');\n }\n}\n"); !clean || s != "fresh" {
+		t.Fatalf("relocation: clean=%v state=%s", clean, s)
+	}
+	if clean, s := state("// moved\nfunction first() {\n if (ready) {\n  fetch('/api');\n  render();\n }\n}\n"); clean || s != "stale" {
+		t.Fatalf("added call: clean=%v state=%s", clean, s)
+	}
+}

@@ -897,8 +897,9 @@ accepted variation, or a replacement for independent application/browser qualifi
 - **AFU-V1-043**: `docs flows generate --revision FULL_SHA --scope PATH --output-dir FRESH_DIR`
   reads immutable native-index source, emits an adoption provider and generation manifest, and
   materializes eight Markdown files per logical flow. Literal Ruby/Rails routes, named methods/jobs,
-  class-level validation/hooks, JavaScript/TypeScript named functions/arrows and literal route or
-  Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
+  class-level validation/hooks, JavaScript/TypeScript named functions/arrows (`.js`, `.mjs`, `.cjs`,
+  `.jsx`, `.ts`, `.tsx`; ES and CommonJS modules since V1-0461,
+  `TestFlowDocsJavaScriptModuleExtensions`) and literal route or Angular registrations, React JSX conditional candidates and literal Angular HTML attributes form
   the closed construct matrix. Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
@@ -912,7 +913,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   [--output-dir DIR]` strictly rederives the closed predecessor from original immutable source before
   reporting each flow, paragraph and claim fresh/stale/unresolved. Same identity plus same span hash
   remains fresh after relocation; changed spans are stale; absent/ambiguous identities are unresolved
-  and appear in retirement delta. Optional byte checking compares the original rendered directory,
+  and appear in retirement delta. A flow binds its declaration and its static call inventory, which
+  the flow diagram renders, so an added, removed or changed call is stale (since V1-0461,
+  `TestFlowDocsCallInventoryDriftIsStale`); control keywords (`if`, `function`, `return` and similar)
+  are never listed as calls. Optional byte checking compares the original rendered directory,
   including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and

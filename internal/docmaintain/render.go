@@ -17,7 +17,7 @@ const beginMarkerPrefix = "<!-- corvint:docmaintain begin "
 const endMarker = "<!-- corvint:docmaintain end -->"
 
 var blockPattern = regexp.MustCompile(
-	`(?ms)^<!-- corvint:docmaintain begin source="([^"]*)" package="([^"]*)" commit="[^"]*" source_digest="([0-9a-f]*)" -->\n(.*?)\n^<!-- corvint:docmaintain end -->\n?`,
+	`(?ms)^<!-- corvint:docmaintain begin source="([^"]*)" package="([^"]*)" commit="[^"]*" source_digest="([0-9a-f]*)" -->\n(?:(.*?)\n)??^<!-- corvint:docmaintain end -->\n?`,
 )
 
 // sourceDigest identifies exactly the cited source content of a draft — each
@@ -78,9 +78,24 @@ func findBlock(page []byte, selector Selector) (body []byte, digest string, star
 			continue
 		}
 		recorded := string(page[match[6]:match[7]])
+		// An empty block (begin marker directly followed by its end marker,
+		// as an author may seed one) has no body group.
+		if match[8] < 0 {
+			return nil, recorded, match[0], match[1], true
+		}
 		return page[match[8]:match[9]], recorded, match[0], match[1], true
 	}
 	return nil, "", 0, 0, false
+}
+
+// hasUnparsedBegin reports whether page carries a begin marker naming
+// selector that findBlock did not parse as a block (for example a hand-edited
+// marker or a missing end marker). Appending a second block would then leave
+// two begin markers for one selector and wedge every later session on
+// marker-in-content, so the caller refuses instead.
+func hasUnparsedBegin(page []byte, selector Selector) bool {
+	prefix := fmt.Sprintf("%ssource=%q package=%q ", beginMarkerPrefix, selector.Source, selector.Package)
+	return bytes.Contains(page, []byte(prefix))
 }
 
 // containsMarker reports whether body carries either literal marker

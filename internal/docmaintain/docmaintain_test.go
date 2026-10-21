@@ -205,7 +205,7 @@ func TestCleanRegenerationEqualsIncremental(t *testing.T) {
 
 	// Seed one page with an already-generated (now stale) block, as if an
 	// earlier session had run against an older revision.
-	staleBlock := renderBlock(selector[0], "0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", "stale-digest-does-not-match", []byte("stale body"))
+	staleBlock := renderBlock(selector[0], "0000000000000000000000000000000000000000", "0000000000000000000000000000000000000000", strings.Repeat("0", 64), []byte("stale body"))
 	writePage(t, root, "# Page\n\nHuman intro.\n\n"+insertionPoint+"\n"+string(staleBlock))
 
 	// A second, block-free page at the identical repository state.
@@ -226,6 +226,9 @@ func TestCleanRegenerationEqualsIncremental(t *testing.T) {
 	cleanBody, _, _, _, found2 := findBlock(clean.ProposedPage, selector[0])
 	if !found1 || !found2 {
 		t.Fatal("expected both pages to have a generated block")
+	}
+	if !incremental.Receipt.Blocks[0].Existed || strings.Count(string(incremental.ProposedPage), beginMarkerPrefix) != 1 {
+		t.Fatalf("stale block was not refreshed in place: %+v", incremental.Receipt.Blocks)
 	}
 	if string(incrementalBody) != string(cleanBody) {
 		t.Fatalf("clean regeneration diverged from incremental refresh:\nclean:\n%s\nincremental:\n%s", cleanBody, incrementalBody)
@@ -719,5 +722,58 @@ func TestZeroMaxWritesDefaultsToSelectorCount(t *testing.T) {
 	}
 	if preview.Receipt.StoppedReason != "" || !preview.Receipt.Blocks[0].Applied {
 		t.Fatalf("MaxWrites 0 must default to the selector count: %+v", preview.Receipt)
+	}
+}
+
+// TestEmptySeededBlockIsReplacedInPlace covers an author seeding the block's
+// position with a begin marker directly followed by its end marker. Before
+// V1-0461 the empty body did not parse, so apply appended a second block and
+// every later session refused with marker-in-content. The seeded block must
+// be replaced in place, human prose on both sides kept, and a rerun must be a
+// no-op.
+func TestEmptySeededBlockIsReplacedInPlace(t *testing.T) {
+	root := fixtureRepo(t, digestV1)
+	before := "# Page\n\nHuman intro.\n\n"
+	after := "\nHuman closing.\n"
+	writePage(t, root, before+
+		`<!-- corvint:docmaintain begin source="owner.md" package="widget" commit="" source_digest="" -->`+"\n"+
+		endMarker+"\n"+after)
+	selector := []Selector{{Source: "owner.md", Package: "widget"}}
+	result, err := Run(context.Background(), root, "docs/page.md", selector, alwaysPolicy())
+	if err != nil {
+		t.Fatalf("seeded block: %v", err)
+	}
+	if !result.Receipt.Applied || !result.Receipt.Blocks[0].Existed {
+		t.Fatalf("seeded block was not replaced in place: %+v", result.Receipt.Blocks)
+	}
+	page := readPage(t, root)
+	if strings.Count(page, beginMarkerPrefix) != 1 || strings.Count(page, endMarker) != 1 {
+		t.Fatalf("expected exactly one block, got:\n%s", page)
+	}
+	if !strings.HasPrefix(page, before) || !strings.HasSuffix(page, after) {
+		t.Fatalf("human prose moved or changed:\n%s", page)
+	}
+	again, err := Run(context.Background(), root, "docs/page.md", selector, alwaysPolicy())
+	if err != nil || again.Receipt.Applied || again.Receipt.Blocks[0].Skipped != "unchanged" {
+		t.Fatalf("rerun was not a no-op: %v %+v", err, again)
+	}
+}
+
+// TestMalformedSelectorBlockIsRefused: a begin marker for the selector that
+// does not parse as a block (here its end marker is missing) is refused with
+// no write, instead of appending a duplicate block.
+func TestMalformedSelectorBlockIsRefused(t *testing.T) {
+	root := fixtureRepo(t, digestV1)
+	page := "# Page\n\n" + insertionPoint + "\n" +
+		`<!-- corvint:docmaintain begin source="owner.md" package="widget" commit="x|y" source_digest="00" -->` + "\n" +
+		"body without an end marker\n"
+	writePage(t, root, page)
+	selector := []Selector{{Source: "owner.md", Package: "widget"}}
+	_, err := Run(context.Background(), root, "docs/page.md", selector, alwaysPolicy())
+	if refusal, ok := err.(*Refusal); !ok || refusal.Code != "malformed-block" {
+		t.Fatalf("expected malformed-block, got %v", err)
+	}
+	if readPage(t, root) != page {
+		t.Fatal("refused session changed the page")
 	}
 }

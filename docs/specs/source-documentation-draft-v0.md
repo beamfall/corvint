@@ -222,19 +222,20 @@ returned under its own draft code (`unsupported-documentation-source` or
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `apply-not-authorized` | `internal/docmaintain/docmaintain.go:219` | `Apply` was called with `policy.Apply` false |
-| `internal-error` | `internal/docmaintain/docmaintain.go:283` | a `DraftSources` failure is not a `doccompiler.Error` |
+| `apply-not-authorized` | `internal/docmaintain/docmaintain.go:222` | `Apply` was called with `policy.Apply` false |
+| `internal-error` | `internal/docmaintain/docmaintain.go:286` | a `DraftSources` failure is not a `doccompiler.Error` |
 | `invalid-page-path` | `internal/docmaintain/docmaintain.go:124` | the joined page path is not contained in the root, crosses a symlink, has a component naming `.git` in any letter case, or does not end in `.md` (`Preview` and `Apply`; `TestGitMetadataPageIsRefused`, `TestNonMarkdownPageIsRefused`) |
 | `invalid-root` | `internal/docmaintain/docmaintain.go:120` | the root cannot be made absolute (`Preview` and `Apply`) |
 | `invalid-selector` | `internal/docmaintain/docmaintain.go:153` | a selector source or package contains `-->` or any character Go `%q` escapes (a double quote, backslash, or non-printable rune), since the marker records the escaped value and the block could never be re-found (`TestSelectorCommentBreakoutRefused`, `TestSelectorThatQuotingChangesIsRefused`) |
-| `maintenance-conflict` | `internal/docmaintain/docmaintain.go:253` | at `Apply`, the page existence or SHA256 differs from what `Preview` started from; the result is returned with `Conflict` set and nothing is written |
+| `maintenance-conflict` | `internal/docmaintain/docmaintain.go:256` | at `Apply`, the page existence or SHA256 differs from what `Preview` started from; the result is returned with `Conflict` set and nothing is written |
 | `maintenance-session-disabled` | `internal/docmaintain/docmaintain.go:107` | `Preview` was called with `policy.Enabled` false |
 | `marker-in-content` | `internal/docmaintain/docmaintain.go:161` | the new draft Markdown, or the body of the existing block for that selector, contains the begin-marker prefix or the end marker |
-| `no-preview` | `internal/docmaintain/docmaintain.go:216` | `Apply` was called with a nil preview |
+| `malformed-block` | `internal/docmaintain/docmaintain.go:170` | the page has a begin marker naming that selector which does not parse as a block with its end marker; appending a second block would wedge every later session, so nothing is written (V1-0461, `TestMalformedSelectorBlockIsRefused`). A begin marker followed directly by its end marker is an empty block and is replaced in place (`TestEmptySeededBlockIsReplacedInPlace`) |
+| `no-preview` | `internal/docmaintain/docmaintain.go:219` | `Apply` was called with a nil preview |
 | `no-selectors` | `internal/docmaintain/docmaintain.go:110` | `Preview` was called with no selectors |
 | `page-unreadable` | `internal/docmaintain/docmaintain.go:130` | reading the page failed for a reason other than absence (`Preview`, and `Apply` before its conflict check) |
 | `repository-unavailable` | `internal/docmaintain/docmaintain.go:136` | `contextindex.BuildContext` cannot index the root, including a root that is not a Git work tree (`TestNonRepositoryRootIsRefused`) |
-| `write-failed` | `internal/docmaintain/docmaintain.go:256` | the atomic write of the proposed page failed |
+| `write-failed` | `internal/docmaintain/docmaintain.go:259` | the atomic write of the proposed page failed |
 
 ## Acceptance and rollback
 
