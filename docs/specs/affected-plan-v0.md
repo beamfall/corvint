@@ -743,21 +743,23 @@ and container qualification; full fallback remains available.
   `.github/workflows/ci.yml` in this repository exists that is either a `pull_request` run for
   the merged head (the pushed commit's second parent) or a `merge_group` run whose head is the
   pushed commit itself (V1-0760: with merge method `MERGE` the queue commit is the commit that
-  becomes `main`); and that run retained, for every shard of the current shard count, a record named
-  `ci-tested-tree-TREE-full-SHARD-of-SHARDS` whose `TREE` is exactly the pushed commit's tree
-  id. A `pull_request` or `merge_group` shard SHALL retain that record only after its complete package set passed in the full
-  branch, so a documentation-only (DCI-V0), selection-narrowed or reused (AFP-V0-046) run can
-  never be reused; after a reused queue run the push can reuse only the same pull-request run,
-  whose records name the same tree. Tree
+  becomes `main`); and that run's AFP-V0-170 `ci-tested-tree-record` job printed a record of the
+  current shard count whose tree is exactly the pushed commit's tree id (amended under the owner's
+  standing auto-accept (2026-10-11); V1-2271: the per-shard `ci-tested-tree-TREE-full-SHARD-of-SHARDS`
+  artifacts it replaces were trusted by name alone, and the shard jobs that uploaded them run
+  repository code, so any tested tree could forge them). That job SHALL print the record only
+  after every shard passed its complete package set in the full branch, so a documentation-only
+  (DCI-V0), selection-narrowed or reused (AFP-V0-046) run can never be reused; after a reused
+  queue run the push can reuse only the same pull-request run, whose record names the same tree. Tree
   identity binds every tracked file, including the workflow file blob and the pinned Go
   version; no separate comparison is trusted. REUSE therefore means that the pull-request
   merge-ref commit, or the queue commit, with the identical tree passed in full. A fork pull-request run is admitted like any
   other: it runs in this repository, and a record for the merged head can only come from a
   workflow that head, and so the merged tree, contains. The decision SHALL be made by `tools/ci-reuse-plan --event push`, built from
-  the pushed `main` commit, over retained public run and artifact listings (the `pull_request`
-  runs of the merged head and the `merge_group` runs of the pushed commit) read with no
-  permission beyond `contents: read` (ARTIFACT-V0-008 is unchanged); artifact contents are not
-  downloaded. The decision's `head` stays the merged head for either admitted run; `runId`
+  the pushed `main` commit, over retained public run and job listings (the `pull_request`
+  runs of the merged head and the `merge_group` runs of the pushed commit) and the record job's
+  log, read with `actions: read` and `contents: read` (an ARTIFACT-V0-008 exception row names the
+  `docs-plan` job); no artifact is read. The decision's `head` stays the merged head for either admitted run; `runId`
   names the reused run. Only the root race invocation is omitted: static, build, interop, documentation
   and artifact checks still run, except that AFP-V0-080 skips `go-static`, `go-interop` and
   `artifact-integrity` when the queue run of the pushed commit itself passed them. The decision, with the reused run id and tree id, SHALL be
@@ -1329,9 +1331,10 @@ and container qualification; full fallback remains available.
   hold: the queue commit is a two-parent merge; its first parent is an ancestor of the
   checked-out `refs/remotes/origin/main`, so the entry is built directly on `main`; a completed,
   successful `pull_request` run of `.github/workflows/ci.yml` in this repository exists whose
-  head is the queue commit's second parent (the PR head); and that run retained, for every shard
-  of the current shard count, an AFP-V0-024 record `ci-tested-tree-TREE-full-SHARD-of-SHARDS`
-  whose `TREE` is exactly the queue commit's tree id. The first entry on an unmoved `main` has
+  head is the queue commit's second parent (the PR head); and that run's AFP-V0-170
+  `ci-tested-tree-record` job printed a record of the current shard count whose tree is exactly
+  the queue commit's tree id (amended under the owner's standing auto-accept (2026-10-11);
+  V1-2271, as for AFP-V0-024). The first entry on an unmoved `main` has
   the parents of the merge ref the PR run tested, so the trees are equal; a later entry whose
   tree includes a preceding entry differs and stays FULL. The decision SHALL be made by
   `tools/ci-reuse-plan --event merge_group`, which admits no `merge_group` run, built from the
@@ -1342,7 +1345,7 @@ and container qualification; full fallback remains available.
   `artifact-integrity` and the other non-race checks still run, and `go-product` aggregates a
   REUSE shard as for AFP-V0-024. A REUSE queue run SHALL write no tested-tree record, gocache
   entry or shard cost outcome. Every failure path is FULL: a first parent not on `main`, a
-  single-parent commit, an unreadable listing or artifact page, a failed, cancelled, unfinished,
+  single-parent commit, an unreadable run or job listing or record job log, a failed, cancelled, unfinished,
   other-workflow or other-repository run, a missing, partial or other-tree record, a different
   shard count, a tool that does not build or exits nonzero, and a decision the workflow's
   admission check does not accept. Limits: AFP-V0-029 shadow rows (V1-0811) MUST take a REUSE
@@ -1354,6 +1357,44 @@ and container qualification; full fallback remains available.
   for a tree a full pull-request run already passed, and a narrowed PR run writes no record, so
   its queue run still runs in full. Rollback: restore the `push`-only condition on the `reuse` step and the
   `pull_request`-only record step.
+- **AFP-V0-170:** (accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The
+  only evidence an AFP-V0-024 or AFP-V0-046 REUSE decision accepts that a run tested a tree in full
+  SHALL be one line in the log of that run's `ci-tested-tree-record` job:
+  `corvint-ci-tested-tree/1 tree=TREE target=COMMIT head=HEAD shards=N`, at the start of a log line
+  after at most the hosted timestamp prefix. The job SHALL run only in a `pull_request` or
+  `merge_group` run after every `go-product-shard` succeeded, when `narrowing-verdict` is not
+  `MET` (no shard narrowed) and `docs-plan` decided neither `DOCS` nor `REUSE`; it SHALL run no
+  repository code (one `actions/checkout` with `persist-credentials: false`, then shell built-ins,
+  `git` and `printf` only), and print the line only when the checked-out commit is the run's
+  two-parent merge and, for a pull request, its second parent is the pull-request head. Trust
+  argument: an artifact, or a line any other job prints, can be produced by repository code of
+  the tested tree (a test, a build step, a fork's workflow edit), so neither is evidence; this
+  job's own log can only be written by the steps of this job, whose definition is the trusted
+  `ci.yml` of the very tree the reusing commit must equal, and changing it needs the AFP-V0-016
+  admin review. `tools/ci-reuse-plan` SHALL read only the jobs listing of an admitted run and the
+  log of its record job (`--jobs`, `--logs`) and decide REUSE only when that run has exactly one
+  job of that name, it belongs to the run and its head, it completed with `success`, its log holds
+  exactly one record line, and that line names the deciding tree, head and shard count (and, for a
+  reused `merge_group` run, that run's own commit as target); the decision names it by
+  `recordJobId`. Failure modes, each FULL: no record job (a forged artifact set, a narrowed,
+  documentation-only or reused run), two record jobs, a failed, skipped or unfinished job, a job
+  of another run or head, a missing, repeated, prefixed or suffixed line, another tree, head or
+  shard count, an older record profile, and an unreadable listing or log. Non-goals: proving that
+  GitHub runs the job as defined, and protecting against a repository administrator. Transition:
+  until this tool is on `main`, a queue entry builds the earlier tool, whose flags the reuse step
+  no longer passes, and runs FULL. Rollback: revert the record job, the reuse step and the tool
+  together; the earlier artifact records are no longer written, so a partial rollback runs FULL.
+- **AFP-V0-171:** (accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When
+  the `control-plane` job of `.github/workflows/ci-control-plane.yml` would post `failure` on a
+  pull-request head, it SHALL first read the head's commit statuses (newest first) and post
+  nothing when the newest `ci-control-plane` status there is `success` posted by a creator of
+  type `User` (the admin review AFP-V0-016 requires), so a CI rerun on an already reviewed head
+  keeps the review. A new push has no status on its head and still gets `failure`; a newer
+  failure, a bot-posted success, another context and a pending status still get `failure`; an
+  unreadable status listing stops the step, posting nothing, so the merge stays blocked. Limits:
+  any user with write access can already post that status, so the rule widens nothing; a head
+  with more than 100 newer statuses is not proved reviewed and gets `failure`. Rollback: remove
+  the status read; reruns then overwrite the review again.
 - **AFP-V0-047:** (accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The
   AFP-V0-029 shadow SHALL run without the deciding driver. `go-product-shard` SHALL carry
   `CORVINT_TEST_SHADOW_SOURCE`, a full reviewed `main` commit id pinned apart from
@@ -2250,7 +2291,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-023 | `ReadScopesPath`, `InReadScope`, `ValidReadScopeEntry`, `Graph.scopedReadersOf`, `WitnessDeclaredReadScope`, `Unit.ReadScoped`, `Unit.ReadScope` in `internal/liveverify/affected`; `readScopes`, `applyReadScopes`, `FrontierReadScopesInvalid` in `internal/liveverify/affected/golang/readscopes.go`; `readScopes`, `inReadScope` in `internal/gateselect/readscopes.go`; `.github/testconfine` (`Load`, `Rules`, `ExecConfined`, `ConfinedEnv`, `cmd`) and the full-run `-exec` in `.github/workflows/ci.yml` | `TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023`, `TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023`, `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`, `TestSelectPackagesHonorsDeclaredReadScopes`, `TestLoadAcceptsOnlyTheExactGrammar_AFPV0023`, `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023`, `TestSelectionOnTheLiveDirtyWorktree`, `TestConfinedEnvTurnsOffVCSStamping_AFPV0023`, `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` (Linux; run on a kernel reporting Landlock ABI 4, including granted and refused reparenting); per-package declarations verified under the wrapper in a Linux container (build log 2026-10-01-declared-test-read-scopes); hosted confined full run NOT_RUN until the protected workflow change is admitted |
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution; `admittedGoVersions` in `tools/corvint-pr-tests/main.go`, the one Go version set both `toolIdentity` and `containerRunResult` admit (V1-1520, V1-2194) | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; `TestContainerRunResult` admits a `go1.27.2` container result and refuses a coherent `go1.27.0` one (mutation: the old `go1.27.0` literal fails the admitted case); real Linux row/hosted NOT_RUN |
-| AFP-V0-024 | `tools/ci-reuse-plan` (`admits`, `Decide`, `readRuns`); `docs-plan` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`, `TestAFPV0024PushReusesTheQueueRunOfThePushedCommit`, `TestAFPV0024QueueRunRefusalsRunInFull`, `TestAFPV0024UnreadableListingContributesNoRun`, `TestAFPV0024WorkflowShardCountsAgree`, `TestAFPV0046WorkflowWiresQueueReuse`; local replay of the push step against the live API returned FULL; the V1-0760 replay is in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted reuse `NOT_OBSERVED` |
+| AFP-V0-024 | `tools/ci-reuse-plan` (`admits`, `Decide`, `recorded`, `readRuns`); `docs-plan` and `ci-tested-tree-record` in `.github/workflows/ci.yml` | `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`, `TestAFPV0024PushReusesTheQueueRunOfThePushedCommit`, `TestAFPV0024QueueRunRefusalsRunInFull`, `TestAFPV0024UnreadableListingContributesNoRun`, `TestAFPV0024WorkflowShardCountsAgree`, `TestAFPV0046WorkflowWiresQueueReuse`; local replay of the push step against the live API returned FULL; the V1-0760 replay is in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted reuse `NOT_OBSERVED` |
 | AFP-V0-025 | `tools/unbounded-readers`, `.corvint/unbounded-readers.json`, `make unbounded-readers-check`; `Graph.UnboundedReaders`; `ShareOf` in `.github/cishards/order.go`; `doc-gates` and `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0025RatchetFailsOffTheRecordedSet`, `TestAFPV0025ConcurrentAdditionsMergeToAPassingRecord`, `TestAFPV0025RatchetWithoutARecordRefuses`, `TestAFPV0025ShareReportsSelectedEstimatedTime`; hosted share report `NOT_OBSERVED` until this change's own CI run |
 | AFP-V0-026 | `merge_group` trigger in `.github/workflows/ci.yml`; `merge-group` job in `.github/workflows/ci-control-plane.yml` | `actionlint`; `make ci-least-privilege-check`; hosted merge-queue run `NOT_OBSERVED` until the owner enables the queue; the identical-tree exception is traced under AFP-V0-046 |
 | AFP-V0-027 | `go-product-shard` and `go-static` job conditions and `go-product` message in `.github/workflows/ci.yml` | `actionlint`; `make ci-least-privilege-check`; hosted constituent run with the label `NOT_OBSERVED` until the label exists and a batch uses it |
@@ -2286,7 +2327,9 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-097 | `.github/workflows/ci-forward-bar.yml`; `.github/forward-rows/verdict.sh`, `accept.sh`, `names.sh`; the `--arg format json` output of `bar.jq`; the `narrowing-verdict` job in `.github/workflows/ci.yml` | `TestAFPV0097VerdictWrittenOnMain` (refused off main; MET, epoch start, narrowed count; NOT MET with a MISS); `TestAFPV0097VerdictAcceptance` (MET; each of (a) to (d) failing, no artifact, newest by `created_at`, unparseable, another run, failed download, live MISS, a page budget that ends with no row, a MISS beyond the scanned pages, scanned pages under 20 rows give FULL; scanned pages that reach the verdict with 20 rows give MET); `TestAFPV0097WorkflowBindings` (equal epochs, triggers, read-only permissions, guards; the tests step runs no driver and no qualification pin remains); hosted run `NOT_OBSERVED` |
 | AFP-V0-098 | `--mode plan` (`planOnly`) in `tools/corvint-pr-tests/main.go`; `.github/forward-rows/narrow.sh`, `narrow.jq`; the narrowing gate and the tests-step filter of `go-product-shard` in `.github/workflows/ci.yml` | `TestAFPV0098PlanModeExecutesNothing`; `TestAFPV0098SupersetGuard` (superset narrows the shard to its intersection; an omitted shadow package and every other FULL reason run the whole shard); `TestAFPV0098SupersetGuardFilter` (the ci.yml filter narrows only a retained NARROWED record equal to its sidecar; an empty mode, FULL, unretained, merge-queue, missing, unreadable, empty or disagreeing sidecar or record runs the whole shard; a verified empty list runs none); `TestAFPV0098SupersetGuardSidecar` (narrow.sh writes the sidecar equal to the record; an unwritable sidecar is FULL with no record); hosted run `NOT_OBSERVED` |
 | AFP-V0-099 | `NARROWED` in `row.jq`, `classify.sh` (`ROW_NARROWING_DIR`), `collect.sh` and `bar.jq`; the `ci-narrowing-<index>` retention step in `.github/workflows/ci.yml` | `TestAFPV0099NarrowedRows` (narrowed-out queue failure MISS despite a passing rerun; FULL record clean; another run, malformed or unreadable record INCOMPLETE; PR row NARROWED); `TestAFPV0099CollectorFetchesNarrowing`; `TestAFPV0099BarExcludesNarrowedRows`; hosted run `NOT_OBSERVED` |
-| AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the record-step condition in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |
+| AFP-V0-046 | `admits` and `Decide` in `tools/ci-reuse-plan/main.go` (`--event merge_group`); the `reuse` step, its first-parent tool build and the `ci-tested-tree-record` job in `.github/workflows/ci.yml` | `TestAFPV0046QueueDecisionAdmitsOnlyThePullRequestRun`, `TestAFPV0046WorkflowWiresQueueReuse`, `TestAFPV0024ReusesOnlyAnExactTreeRecordedByEveryShard`, `TestAFPV0024AnythingElseRunsInFull`; `actionlint`; local replay against the live API in `docs/build-log/2026-10-13-ci-identical-tree-reuse.md`; hosted REUSE queue run `NOT_OBSERVED` |
+| AFP-V0-170 | `recorded`, `recordLine`, `RecordJob` and the `--jobs`/`--logs` reads in `tools/ci-reuse-plan/main.go`; the `ci-tested-tree-record` job and the `reuse` step of `docs-plan` in `.github/workflows/ci.yml`; the `job:docs-plan` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0170OnlyTheRecordJobLogVouchesForTheTree`, `TestAFPV0170RecordJobRunsNoRepositoryCode`, `TestAFPV0170ReuseStepRefusesForgedArtifacts` (fails against the artifact-trusting step); `make ci-least-privilege-check`; hosted record job and REUSE `NOT_OBSERVED` until merged |
+| AFP-V0-171 | the status read before a `failure` post in the `control-plane` job of `.github/workflows/ci-control-plane.yml` | `TestAFPV0171ControlPlaneKeepsAUserPostedSuccess` (fails against the earlier job); hosted rerun after an admin post `NOT_OBSERVED` |
 | AFP-V0-047 | `CORVINT_TEST_SHADOW_SOURCE`, the shadow checkout and build, the selection document and the outcomes, rerun and upload steps in `.github/workflows/ci.yml`; the `forward-rows` job in `.github/workflows/ci-control-plane.yml`; `.github/forward-rows/` (`selection.jq`, `outcomes.sh`, `outcomes.jq`, `collect.sh`, `classify.sh`, `row.jq`, `bar.sh`, `bar.jq`) | `TestAFPV0047ShardOutcomes` (real flaky PR run 38476173623 shard 7 stream and its rerun; bound of 8), `TestAFPV0047SelectionDocument`, `TestAFPV0047CollectorNamesRows`, `TestAFPV0047BarCountsArtifactNames`, `TestAFPV0047WorkflowBindings`, `TestAFPV0029ForwardRowsAndShadowBar`, `TestSTRV0012CIConstantsMatchFullBranch`; `actionlint`; `make ci-least-privilege-check`; read-only replay against hosted runs in `docs/build-log/2026-10-13-ci-forward-rows.md`; hosted rows `NOT_OBSERVED` |
 | AFP-V0-048 | `planShards`, `shardLayout`, `shardUnits`, `sliceRun` and the slice loop of `execute` in `tools/corvint-pr-tests/main.go` | `TestAFPV0048DriverPlacesTheFullBranchUnits` (2 to 8 shards: each shard equals `PlanFrom`, every package or slice exactly once, narrowed selections with a split package), `TestAFPV0048ZeroSlicesKeepTheIntersect`, `TestAFPV0048MismatchedSliceFileMatchesTheFullBranch`, `TestAFPV0048CommittedSlicesArePlacedOnce`, `TestAFPV0048DriverRefusesAmbiguousPlacement`, `TestAFPV0048ShardedRunExecutesSlices` (real `go test`: FULL, narrowed and stale-name runs, each test once over the shards; a lost slice refuses with no execution record), `TestShardedPRExecution_AFPV0022`; a mutation check that drops the slice placement, in `docs/build-log/2026-10-14-v1-1361-driver-runs-slices.md`; hosted sharded driver run `NOT_OBSERVED` until V1-0812 sets the pin |
 | AFP-V0-049 | `observation.ends`, `combine` and `placedOnce` in `tools/ci-test-slices/main.go`; `generate` and `replay` read the tested tree's allow-list and slice file; `.github/cishards/test-slices.json` regenerated from hosted run 38485555207 (go1.27.2) | `TestAFPV0049ReplayCombinesSlicedRuns`, `TestAFPV0049GenerateRegeneratesFromASlicedRun`, `TestAFPV0049RefusesEveryOtherRepeat`, `TestAFPV0049ReplayRefusesAPlanThatMisplacesAUnit` in `tools/ci-test-slices/combine_test.go`; mutation check and before/after replay in build log 2026-10-14-v1-1371-slices-split-outcomes |
