@@ -1346,9 +1346,10 @@ Release blockers that remain, each with the missing piece:
   (`retry-history-missing`); Bun 1.3.11 JUnit and the WebdriverIO 9.32.0 JSON reporter repeat a
   retried test's identity (`ambiguous-test-identity`). A qualified retry needs a native report that
   carries attempts.
-- Minitest reports an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which makes the whole
+- Minitest reported an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which made the whole
   run unresolved (`minitest/mixed`); assertion failures are witnessed separately
-  (`minitest/mixed-noerror`).
+  (`minitest/mixed-noerror`). Superseded by TRE-V0-110 (V1-1541): the erroring case is now FAILED
+  with cause UNKNOWN.
 
 Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
 retained evidence. Plans and receipts are unchanged in shape.
@@ -1567,3 +1568,28 @@ documents, profiles and identities are unchanged.
 | TRE-V0-078 | `cmd/corvint-test-runner/main.go` `command`, `usage`; `TestHelpNeedsNoExecutablePin` | `go test ./cmd/corvint-test-runner`; built binary `--help` printed usage, exit 0 |
 | TRE-V0-079 | `command` listing dispatch; `TestListingVerbsNeedNoExecutablePin` | built binary `profiles` printed the runner ID JSON, exit 0 |
 | TRE-V0-080 | `missingIdentity`; `TestExecutingVerbsNameMissingPinFlags` | built binary `plan` refused naming both flags, exit 1 |
+
+## Minitest unexpected-error cases (experimental)
+
+V1-1541: the profile-owned Minitest reporter mapped a test that raises (`Minitest::UnexpectedError`)
+to `UNKNOWN`, so the shared normalizer voided every case of the run, although Minitest attributes
+the error to one named test and counts it as an error, never as a pass.
+
+- `TRE-V0-110`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1541) For
+  `minitest` and `rails-test`, a test whose native result carries a `Minitest::UnexpectedError`
+  MUST be `FAILED` with failure kind `UNKNOWN` (the cause is an exception, not an assertion) and a
+  message naming only the exception class (`UnexpectedError: <Class>`, at most 1024 bytes; the
+  exception text is not retained). Other cases keep their native outcomes and the run stays
+  complete. A skipped or passed result is never reclassified.
+
+Decision: FAILED-with-cause rather than UNKNOWN. The native runner names the case and never counts
+it as passed, so FAILED invents no certainty; UNKNOWN discarded the other cases' outcomes. The
+Python `unittest` and Ruby `test-unit` profiles still map native errors to UNKNOWN; aligning them is
+separate work.
+
+Rollback: restore the `UNKNOWN` state in `dynamic/reporters/minitest_reporter.rb`; plans, receipts
+and parsers are unchanged in shape.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-110 | `dynamic/reporters/minitest_reporter.rb` `record`; `TestMinitestUnexpectedErrorFailsOnlyThatCaseLive` | Live Minitest 5.11.3 / Ruby 2.6.10: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN; the test fails with the previous reporter |
