@@ -1177,10 +1177,11 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 	if o.head == nil {
 		return result, errCheckpoint("head.json", "no settled head")
 	}
-	if o.head.Segments != nil {
-		// A prefix walk's hold check lists receipts/; a seal moves receipts
-		// out of it, so the refresh takes the complete route (JSG-V0-007).
-		return result, errCheckpoint(snapshot.SegmentsDir, "prefix walk of a segmented journal")
+	if o.segErr != nil {
+		// A segmented journal is walked through its bound segments; one
+		// that does not match its head is refused as the complete walk
+		// refuses it (JSG-V0-011).
+		return result, o.segErr
 	}
 	if o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
 		// A temporary or staged name is classified only by a complete audit
@@ -1241,11 +1242,36 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 // the same file with the same mode, size and modification time, and every
 // request, evidence and pinned afterimage the walk compared is still the
 // file the capture observed (or still absent). Receipts after H, head.json
-// and every other path may have moved.
+// and every other path may have moved. On a segmented journal the sealed
+// receipts 1..S have no files of their own: the bound manifest and every
+// segment it names must instead still be the files the capture observed
+// and the walk read (JSG-V0-011). A later seal removes walked receipts and
+// so does not hold.
 func prefixHeld(source Native, before *observation, result *Result, lim limits) (bool, error) {
 	headSeq := before.head.LastSeq.Uint64()
 	if uint64(len(before.receipts)) < headSeq {
 		return false, nil
+	}
+	var through uint64
+	if m := before.manifest; m != nil {
+		through = m.Through
+		paths := []string{snapshot.SegmentManifestName(through)}
+		for _, e := range m.Segments {
+			paths = append(paths, snapshot.SegmentName(e.First, e.Last))
+		}
+		for _, p := range paths {
+			full, err := source.path(p)
+			if err != nil {
+				return false, err
+			}
+			b, err := os.Lstat(full)
+			if err != nil && !os.IsNotExist(err) {
+				return false, err
+			}
+			if !sameStat(before.files[p], b) {
+				return false, nil
+			}
+		}
 	}
 	listing, err := source.List("receipts", lim.scan)
 	if err != nil {
@@ -1255,7 +1281,7 @@ func prefixHeld(source Native, before *observation, result *Result, lim limits) 
 	for _, e := range listing.Entries {
 		now[e.Name] = e.Info
 	}
-	for _, name := range before.receipts[:headSeq] {
+	for _, name := range before.receipts[through:headSeq] {
 		a, b := before.files["receipts/"+name], now[name]
 		if !sameStat(a, b) {
 			return false, nil
