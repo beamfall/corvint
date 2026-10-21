@@ -326,6 +326,7 @@ AMAP-V0-041	docs/specs/application-map-v0.md	Rails literal `get`, `post`, `root`
 AMAP-V0-042	docs/specs/application-map-v0.md	Rails expressions, interpolation, constraints, defaults, lambdas, unsupported	unrecorded	-
 AMAP-V0-043	docs/specs/application-map-v0.md	React `createBrowserRouter` literal object arrays and	unrecorded	-
 AMAP-V0-044	docs/specs/application-map-v0.md	React lazy routes, non-literal paths/IDs/index values, computed or repeated	unrecorded	-
+AMAP-V0-190	docs/specs/application-map-v0.md	A JSX `<Routes>` tree MUST be read even when the file elsewhere holds hooks,	unrecorded	-
 AMAP-V0-045	docs/specs/application-map-v0.md	Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relat	unrecorded	-
 AMAP-V0-046	docs/specs/application-map-v0.md	All dialects MUST use shared normalized parameter and template collision keys;	unrecorded	-
 AMAP-V0-047	docs/specs/application-map-v0.md	Coverage discovery MUST read only bounded Git tree metadata (at most 20000	unrecorded	-

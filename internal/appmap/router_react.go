@@ -110,6 +110,7 @@ func parseReactRouterWith(e blobEntry, data []byte, imp reactImporter) ([]rawSta
 	}
 	found := false
 	dynamicContext := reactDynamic(ts)
+	placed := map[int]bool{} // states of a statically placed JSX Routes tree (AMAP-V0-190)
 	for i := 0; i < len(ts); i++ {
 		if ts[i].kind == tokIdent && (ts[i].text == "createBrowserRouter" || ts[i].text == "createRoutesFromElements") && next(ts, i+1, "(") {
 			found = true
@@ -148,8 +149,14 @@ func parseReactRouterWith(e blobEntry, data []byte, imp reactImporter) ([]rawSta
 			found = true
 			v, after, valid := reactJSX(ts, i, 0)
 			if valid {
+				first := len(p.states)
 				children, _ := v.get("children")
 				p.routes(children, "", "", 0)
+				if !reactGated(ts, i, after) {
+					for k := first; k < len(p.states); k++ {
+						placed[k] = true
+					}
+				}
 				i = after - 1
 			} else {
 				p.unknown(ts[i].line, "non-literal-react-children")
@@ -157,10 +164,12 @@ func parseReactRouterWith(e blobEntry, data []byte, imp reactImporter) ([]rawSta
 			}
 		}
 	}
-	if dynamicContext {
+	if dynamicContext && len(placed) < len(p.states) || dynamicContext && len(p.states) == 0 {
 		p.unknown(1, "dynamic-route-context")
 		for i := range p.states {
-			p.states[i].reason = "dynamic-route-context"
+			if !placed[i] {
+				p.states[i].reason = "dynamic-route-context"
+			}
 		}
 	}
 	if !found {
@@ -262,6 +271,10 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 		return
 	}
 	for _, node := range v.arr {
+		if node.kind == "jsx-expression" {
+			p.unknown(node.line, "non-literal-react-children") // its siblings stay read (AMAP-V0-190)
+			continue
+		}
 		if node.kind != "object" {
 			p.unknown(node.line, "non-literal-react-route")
 			continue
@@ -401,6 +414,19 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 			}
 			return v, i + 4, true
 		}
+		if next(ts, i, "{") {
+			// A JSX expression child may compute or gate routes: it is never harvested, but it
+			// no longer discards its literal siblings (AMAP-V0-190). A comment-only `{}` is empty.
+			end := closeParen(ts, i)
+			if end <= i || !next(ts, end, "}") {
+				return jsValue{}, i, false
+			}
+			if end > i+1 {
+				children.arr = append(children.arr, jsValue{kind: "jsx-expression", line: ts[i].line})
+			}
+			i = end + 1
+			continue
+		}
 		child, after, ok := reactJSX(ts, i, depth+1)
 		if !ok {
 			return jsValue{}, i, false
@@ -501,4 +527,175 @@ func reactImported(ts []token, j int) bool {
 		}
 	}
 	return false
+}
+
+// reactGated reports whether anything other than plain JSX nesting could decide whether the
+// `<Routes>` element at ts[start:end] renders (AMAP-V0-190). It walks out through each enclosing
+// bracket. At every level, the statement holding the element must carry no conditional, logical
+// operator or loop keyword, and every enclosing bracket must be a `return (`, `=> (`, `= (` or
+// JSX-child group, or the block body of a function: a call argument, array element, attribute or
+// object value, or control-flow block is treated as gated. Anything unrecognised is gated.
+func reactGated(ts []token, start, end int) bool {
+	var stack []int
+	for j := 0; j < start; j++ {
+		if ts[j].kind != tokPunct {
+			continue
+		}
+		switch ts[j].text {
+		case "(", "[", "{":
+			stack = append(stack, j)
+		case ")", "]", "}":
+			if len(stack) == 0 {
+				return true
+			}
+			stack = stack[:len(stack)-1]
+		}
+	}
+	lo, hi := start, end-1
+	for level := len(stack); ; level-- {
+		open, close := -1, len(ts)
+		if level > 0 {
+			open = stack[level-1]
+			close = closeParen(ts, open)
+		}
+		if reactLevelGated(ts, lo, hi, open, close) {
+			return true
+		}
+		if level == 0 {
+			return false
+		}
+		if reactOpenerGated(ts, open) {
+			return true
+		}
+		lo, hi = open, close
+	}
+}
+
+// reactLevelGated scans the statement around ts[lo..hi] between the level's brackets.
+func reactLevelGated(ts []token, lo, hi, open, close int) bool {
+back:
+	for j := lo - 1; j > open; j-- {
+		t := ts[j]
+		if t.kind == tokPunct {
+			switch t.text {
+			case ";":
+				break back
+			case ")", "]", "}":
+				j = reactOpenOf(ts, j)
+				if j < 0 {
+					return true
+				}
+				continue
+			case "?":
+				return true
+			case "&", "|":
+				if j > 0 && next(ts, j-1, t.text) {
+					return true
+				}
+			}
+			continue
+		}
+		if t.kind != tokIdent {
+			continue
+		}
+		switch t.text {
+		case "if", "else", "switch", "case", "for", "while", "do":
+			return true
+		case "return":
+			if j > 0 && (next(ts, j-1, ")") || ts[j-1].kind == tokIdent && ts[j-1].text == "else") {
+				return true
+			}
+			break back
+		case "function", "const", "let", "var", "export", "class", "import":
+			break back
+		}
+	}
+	for j := hi + 1; j < close; j++ {
+		t := ts[j]
+		if t.kind == tokPunct {
+			switch t.text {
+			case ";":
+				return false
+			case "(", "[", "{":
+				j = closeParen(ts, j)
+				continue
+			case "?":
+				return true
+			case "&", "|":
+				if next(ts, j+1, t.text) {
+					return true
+				}
+			}
+			continue
+		}
+		if t.kind == tokIdent {
+			switch t.text {
+			case "function", "const", "let", "var", "export", "class", "import", "return", "if", "for", "while", "switch", "type", "interface":
+				return false
+			}
+		}
+	}
+	return false
+}
+
+// reactOpenerGated reports whether the bracket at ts[open] could decide its content renders.
+func reactOpenerGated(ts []token, open int) bool {
+	if open == 0 || ts[open].text == "[" {
+		return true
+	}
+	prev := ts[open-1]
+	if ts[open].text == "(" {
+		if prev.kind == tokIdent {
+			return prev.text != "return"
+		}
+		if next(ts, open-1, ">") {
+			return open < 2 || !next(ts, open-2, "=") // `=>` is lexed as `=` `>`: an arrow body
+		}
+		return !next(ts, open-1, "=", ",", "{", "(")
+	}
+	// A brace: a JSX expression child (after a tag's `>`), an arrow body, or a function body.
+	if next(ts, open-1, ">") {
+		return false
+	}
+	j := open - 1
+	for j > 1 && ts[j].kind == tokIdent && next(ts, j-1, ".") {
+		j -= 2 // a qualified return type annotation
+	}
+	if j > 0 && ts[j].kind == tokIdent && next(ts, j-1, ":") {
+		j -= 2
+	}
+	if j < 0 || !next(ts, j, ")") {
+		return true
+	}
+	o := reactOpenOf(ts, j)
+	if o <= 0 {
+		return true
+	}
+	switch p := ts[o-1]; {
+	case p.kind == tokIdent && (p.text == "if" || p.text == "for" || p.text == "while" || p.text == "switch" || p.text == "catch" || p.text == "with"):
+		return true
+	case p.kind == tokIdent, next(ts, o-1, "=", "(", ",", ">"):
+		return false
+	}
+	return true
+}
+
+// reactOpenOf returns the index of the bracket that ts[c] closes, or -1.
+func reactOpenOf(ts []token, c int) int {
+	depth := 0
+	for j := c; j >= 0; j-- {
+		if ts[j].kind != tokPunct {
+			continue
+		}
+		switch ts[j].text {
+		case ")", "]", "}":
+			depth++
+		case "(", "[", "{":
+			depth--
+			if depth == 0 {
+				return j
+			}
+		}
+	}
+	return -1
 }

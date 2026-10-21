@@ -438,6 +438,17 @@ but does not read it; only non-Go syntax impact does.
   Unresolved parents make descendants UNKNOWN; unsupported syntax never invents a screen.
   Element/Component expressions are opaque presentation references, never executed.
   Status: accepted, decision 0518 (V1-1131).
+- `AMAP-V0-190`: A JSX `<Routes>` tree MUST be read even when the file elsewhere holds hooks,
+  conditionals, logical operators or loops, provided the tree is statically placed: at every
+  enclosing level the statement holding it carries no `?`, `&&`, `||`, `if`/`else`/`switch`/`case`
+  or loop keyword, it is not returned after a condition, and every enclosing bracket is a
+  `return (`, `= (`, arrow-body or JSX-child group or a function block body. A call argument,
+  array element, attribute or object value, class or control-flow block, or any unrecognised
+  enclosure keeps the file-wide `dynamic-route-context` rule. A JSX expression child `{...}`
+  inside the tree MUST record `non-literal-react-children` at its own line and is never harvested,
+  while its literal siblings are still read; a comment-only `{}` child is ignored.
+  `createBrowserRouter` and `createRoutesFromElements` keep the file-wide rule. Status: accepted
+  under the owner's standing lane auto-accept (V1-1712).
 - `AMAP-V0-045`: Optional manifest `router_globs` MUST contain 1..64 unique safe repository-relative
   patterns (segment glob syntax plus whole-segment `**`). At the pinned revision the builder
   MUST compare regular tracked files matched by these patterns against explicit `routers`,
@@ -1085,7 +1096,7 @@ V1-1131 adds `router-not-declared`, `unsupported-rails-syntax`, `unsupported-rai
 `unresolved-react-routes-import` and `ambiguous-react-routes-import` (AMAP-V0-079). Unknown helper
 names also reuse `non-literal-name`; blocked descendants reuse `unresolved-parent`. Unsupported
 Ruby block structure invalidates the file's extracted states. React root conditionals invalidate
-its states, while JSX quote entities/escapes and unrepresentable optional/partial parameter
+its states (except a statically placed JSX `Routes` tree, AMAP-V0-190), while JSX quote entities/escapes and unrepresentable optional/partial parameter
 patterns remain UNKNOWN. This does not evaluate Ruby custom inflections or JavaScript control flow.
 
 V1-1890 (`actions`) abstention reasons: the V1-1131 Rails reasons above, `unresolved-parent`, `no-handler`,
@@ -1213,6 +1224,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-048 | `TestAMAPV0048DialectCLI` |
 | AMAP-V0-078 | `TestAMAPV0078ReactSameFileRouteArray` |
 | AMAP-V0-079 | `TestAMAPV0079ReactImportedRouteArray` |
+| AMAP-V0-190 | `TestAMAPV0190ReactRoutesInHooksComponent` |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
 `cmd/corvint/flows_appmap.go`, `internal/rootalias` (AMAP-V0-017). Build logs:
