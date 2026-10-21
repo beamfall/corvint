@@ -1508,6 +1508,7 @@ ATR-V0-166	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-167	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0769) The ledg	standing	2026-10-11; V1-0769
 ATR-V0-168	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1793) Each	standing	2026-10-11; V1-1793
 ATR-V0-169	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1792) Besides	standing	2026-10-11; V1-1792
+ATR-V0-170	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0832) When a	standing	2026-10-11; V1-0832
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
