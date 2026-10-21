@@ -19,17 +19,25 @@ import (
 // 8 MiB output segments. Tests lower it.
 var workerLogSegmentBytes int64 = 8 << 20
 
-const (
-	// maxRetainedWorkerDirs is how many finished worker directories outside
-	// the quiet window are kept (CAL-V0-144).
+// maxRetainedWorkerDirs is how many finished worker directories outside the
+// quiet window are kept (CAL-V0-144), and maxWorkerDirScan bounds the
+// directories one retirement pass examines: a window of the workers
+// directory plus the retained directories carried from earlier windows
+// (CAL-V0-352). Tests lower both.
+var (
 	maxRetainedWorkerDirs = 32
+	maxWorkerDirScan      = 4096
+)
+
+// maxRetireWindowPasses bounds the passes that settle one window before the
+// scan moves on, so a mark that cannot be confirmed never starves the rest.
+const maxRetireWindowPasses = 4
+
+const (
 	// workerDirQuiet keeps any worker directory whose directory or logs
 	// changed this recently, so a tree the ledger does not record (a crash
 	// between launch and the ledger save) is not removed while it writes.
-	workerDirQuiet = time.Hour
-	// maxWorkerDirScan bounds one retirement pass; a larger backlog shrinks
-	// over later passes.
-	maxWorkerDirScan = 4096
+	workerDirQuiet   = time.Hour
 	workerLeaderName = "leader"
 	// workerRetireMarks holds one candidate mark per worker directory a pass
 	// found removable. It sits beside the worker directories, never inside
@@ -116,6 +124,15 @@ func capWorkerLog(dir, name string) bool {
 // same age. A pass that finds it otherwise clears the mark. The pass runs once
 // per tick, so the two are always in different ticks. Failures are left for
 // the next pass.
+//
+// CAL-V0-352: a pass examines one window of the directory stream, read where
+// the previous window ended, plus the retained directories carried from
+// earlier windows, maxWorkerDirScan names in all. A window is held until its
+// marks settle (at most maxRetireWindowPasses passes), then the next pass
+// reads the next one, due on the next tick; the stream starts over after its
+// end. The carried directories are the newest maxRetainedWorkerDirs seen so
+// far, so one sweep of the stream leaves only the newest of all, and a backlog
+// of n directories is retired within about two passes per window.
 func (d *Dispatcher) retireWorkerDirs() {
 	// A pass that cannot read what it needs leaves any marks in place. When a
 	// confirmation was scheduled, it schedules the next one
@@ -129,14 +146,8 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 	}
 	root := filepath.Join(d.dir, "workers")
-	f, err := os.Open(root)
-	if err != nil {
-		retry()
-		return
-	}
-	entries, err := f.ReadDir(maxWorkerDirScan)
-	f.Close()
-	if err != nil && err != io.EOF {
+	window, ok := d.retireWindowNames(root)
+	if !ok {
 		retry()
 		return
 	}
@@ -158,22 +169,29 @@ func (d *Dispatcher) retireWorkerDirs() {
 	}
 	var finished []dir
 	now := d.Now()
-	for _, e := range entries {
-		if !e.IsDir() || e.Name() == workerRetireMarks || keep[e.Name()] {
+	seen := map[string]bool{}
+	for _, name := range append(append([]string{}, window...), d.retireCarry...) {
+		if seen[name] || keep[name] {
 			continue
 		}
-		path := filepath.Join(root, e.Name())
+		seen[name] = true
+		path := filepath.Join(root, name)
 		newest, ok := newestMtime(path)
 		if !ok || now.Sub(newest) < workerDirQuiet {
 			continue
 		}
-		finished = append(finished, dir{e.Name(), newest})
+		finished = append(finished, dir{name, newest})
 	}
+	var carry []string
 	removable := map[string]time.Time{}
 	// A directory kept only because the process table could not be read
 	// keeps its mark, and its confirmation is retried.
 	unsure := map[string]bool{}
-	if len(finished) > maxRetainedWorkerDirs {
+	if len(finished) <= maxRetainedWorkerDirs {
+		for _, x := range finished {
+			carry = append(carry, x.name)
+		}
+	} else {
 		sort.Slice(finished, func(i, j int) bool {
 			if !finished[i].mtime.Equal(finished[j].mtime) {
 				return finished[i].mtime.After(finished[j].mtime)
@@ -208,6 +226,7 @@ func (d *Dispatcher) retireWorkerDirs() {
 			}
 			if retained < maxRetainedWorkerDirs {
 				retained++
+				carry = append(carry, x.name)
 				continue
 			}
 			removable[x.name] = x.mtime
@@ -228,7 +247,19 @@ func (d *Dispatcher) retireWorkerDirs() {
 		}
 	}
 	defer func() {
-		if pending {
+		d.retireCarry = carry
+		d.retireHeld++
+		if pending && d.retireHeld < maxRetireWindowPasses {
+			d.retireConfirm = now.Add(workerRetireConfirm)
+			return
+		}
+		// The window settled, or held its last pass: the next pass reads
+		// the next window, due on the next tick while the stream continues.
+		d.retireWindow, d.retireHeld = nil, 0
+		switch {
+		case d.retireScan != nil:
+			d.retireConfirm = now
+		case pending:
 			d.retireConfirm = now.Add(workerRetireConfirm)
 		}
 	}()
@@ -288,6 +319,57 @@ func (d *Dispatcher) retireWorkerDirs() {
 		default:
 			pending = true // marked under workerRetireConfirm ago
 		}
+	}
+}
+
+// retireWindowNames returns the held window, or reads the next one from the
+// workers directory stream (CAL-V0-352): the carried names and at most
+// maxWorkerDirScan names less those, in directory order. A short read ends the stream, so the
+// window after it starts over; a stream already at its end is reopened once.
+func (d *Dispatcher) retireWindowNames(root string) ([]string, bool) {
+	if d.retireWindow != nil {
+		return d.retireWindow, true
+	}
+	n := max(maxWorkerDirScan-maxRetainedWorkerDirs, 1)
+	for {
+		fresh := d.retireScan == nil
+		if fresh {
+			f, err := os.Open(root)
+			if err != nil {
+				return nil, false
+			}
+			d.retireScan = f
+		}
+		entries, err := d.retireScan.ReadDir(n)
+		if err != nil && err != io.EOF {
+			d.closeRetireScan()
+			return nil, false
+		}
+		if len(entries) < n {
+			d.closeRetireScan()
+		}
+		if len(entries) == 0 && !fresh {
+			continue
+		}
+		// The window holds the carried names too, so a carried directory
+		// this window displaces is still examined by its confirming pass.
+		window := make([]string, 0, len(entries)+len(d.retireCarry))
+		window = append(window, d.retireCarry...)
+		for _, e := range entries {
+			if e.IsDir() && e.Name() != workerRetireMarks {
+				window = append(window, e.Name())
+			}
+		}
+		d.retireWindow, d.retireHeld = window, 0
+		return window, true
+	}
+}
+
+// closeRetireScan closes the CAL-V0-352 directory stream, if open.
+func (d *Dispatcher) closeRetireScan() {
+	if d.retireScan != nil {
+		_ = d.retireScan.Close()
+		d.retireScan = nil
 	}
 }
 

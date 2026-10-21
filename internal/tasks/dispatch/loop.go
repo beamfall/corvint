@@ -84,6 +84,9 @@ type Dispatcher struct {
 	configStat       func() (fs.FileInfo, error)
 	configSeen       fs.FileInfo
 	configSeenSha256 string
+	// configSeenAt is when those bytes were read; a full tick reuses their
+	// digest for an unchanged stat only within idleFullEvery of it (V1-0925).
+	configSeenAt time.Time
 	// memberSince holds the lane member state episodes observed by this
 	// run (CAL-V0-129).
 	memberSince map[string]memberEpisode
@@ -97,6 +100,10 @@ type Dispatcher struct {
 	// pressureEmitted is the level and sample knowledge last reported by a
 	// throttled event in this run; the zero value is calm and observed.
 	pressureEmitted PressureState
+	// pressureGap is set by a tick that deferred its pressure sample and
+	// launched nothing (CAL-V0-351): the next sample has no CPU baseline,
+	// as after Open, so utilization is never averaged across the gap.
+	pressureGap bool
 	// poolWaitEmitted is the PSR-V0-143 pool-wait signature last reported
 	// for each held ticket key, in memory only.
 	poolWaitEmitted map[string]string
@@ -146,6 +153,14 @@ type Dispatcher struct {
 	// is due while worker directories hold retirement marks; zero when none
 	// is pending, so ticks without marks do no retirement work.
 	retireConfirm time.Time
+	// retireScan is the open workers directory stream a CAL-V0-352 pass
+	// reads its next window from, nil between sweeps; retireWindow is the
+	// window held while its marks settle, retireHeld the passes it has had,
+	// and retireCarry the retained directories carried to the next window.
+	retireScan   *os.File
+	retireWindow []string
+	retireHeld   int
+	retireCarry  []string
 	// detached holds this dispatcher's CAL-V0-147 detached run markers by
 	// run ID, loaded at Open; deferredNow names, for the current tick, the
 	// run each ended worker's hand-off waits for; heldBy keeps the live
@@ -293,6 +308,7 @@ func (d *Dispatcher) Close() error {
 	if d.closed {
 		return d.closeErr
 	}
+	d.closeRetireScan()
 	if d.readerErr != nil {
 		// Join first so no sweep goroutine outlives Close; HOLD still writes
 		// no ledger or event, so retirePoolSweep publishes nothing here.
@@ -1530,23 +1546,51 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		d.recordAdmission(obs, nil, d.pressureLabel(), now)
 		return
 	}
-	budget, ok := d.pressureBudget(ctx, obs)
-	if !ok {
-		d.recordAdmission(obs, nil, d.pressureLabel(), now)
-		return
-	}
-	// ATR-V0-150..152: the pressure label after this tick's sample.
-	pressure := d.pressureLabel()
-	adm := &admission{calm: pressure == AdmissionPressureCalm}
 	tierOf := func(role, key string) int { return LaunchTier(d.role(role), d.ledger.Escalation[key]) }
 	// CAL-V0-149: a finished detached run relaunches its ticket's role.
 	relaunch := d.relaunches()
 	prefer := preferredRoles(relaunch)
-	spend := d.spendGate(now)
-	spend.observe(obs.Tickets)
-	spend.holdDeferred(obs.Tickets, prefer)
-	room := newPoolRoom(obs, d.ledger.Workers)
-	launches, held := roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
+	var (
+		adm            *admission
+		spend          *spendGate
+		room           *poolRoom
+		launches, held []Assignment
+		pressure       string
+		budget         *PressureBudget
+	)
+	plan := func() {
+		// ATR-V0-150..152: the pressure label after this tick's sample.
+		pressure = d.pressureLabel()
+		adm = &admission{calm: pressure == AdmissionPressureCalm}
+		spend = d.spendGate(now)
+		spend.observe(obs.Tickets)
+		spend.holdDeferred(obs.Tickets, prefer)
+		room = newPoolRoom(obs, d.ledger.Workers)
+		launches, held = roster(d.Config, obs, busy, skip, tierOf, budget, prefer, spend, room, adm)
+	}
+	// CAL-V0-351: with no worker running and a recorded calm level, the
+	// sample waits until a candidate passes every static fence. Calm is
+	// the most permissive label, so a roster that consults no budget at
+	// calm launches nothing whatever the host reads, and the tick samples
+	// nothing. A consulted deferral refuses, and the roster is planned
+	// again after the sample. While a worker runs, every tick samples, so
+	// the hysteresis keeps tracking a host that is doing work.
+	deferred := false
+	if d.Config.Pressure != nil && d.ledger.Pressure != nil && len(d.ledger.Workers) == 0 && d.pressureLabel() == AdmissionPressureCalm {
+		budget = &PressureBudget{deferred: true}
+		plan()
+		deferred = !budget.consulted
+	}
+	if deferred {
+		d.pressureGap = true
+	} else {
+		var ok bool
+		if budget, ok = d.pressureBudget(ctx, obs); !ok {
+			d.recordAdmission(obs, nil, d.pressureLabel(), now)
+			return
+		}
+		plan()
+	}
 	// ATR-V0-150: the observation is written after the launch loop, so it
 	// counts the workers actually recorded.
 	defer d.recordAdmission(obs, adm, pressure, now)
@@ -2108,8 +2152,12 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 	// no tick or utilization field reaches the ledger.
 	want := c.want(goos)
 	sample := sampler(ctx, d.Now().UTC(), want)
+	prev, gap := rec.Sample, d.pressureGap
+	if gap {
+		prev, d.pressureGap = PressureSample{}, false
+	}
 	if want.cpu {
-		sample = withCPUUtilization(rec.Sample, sample)
+		sample = withCPUUtilization(prev, sample)
 	} else {
 		sample.CPUBusyTicks, sample.CPUTotalTicks, sample.CPUTicksKnown = 0, 0, false
 		sample.CPUUtilization, sample.CPUUtilizationKnown = 0, false
@@ -2133,7 +2181,15 @@ func (d *Dispatcher) pressureBudget(ctx context.Context, obs *Observation) (*Pre
 		}
 		running = append(running, a)
 	}
-	b, err := NewPressureBudget(c, next, running, d.Config.Pinned)
+	// CAL-V0-351: the samples skipped during a gap never advanced the
+	// dwell, so the first sample after one budgets at a raised pending
+	// level at once rather than launching while it dwells. The recorded
+	// state keeps the ordinary hysteresis.
+	admit := next
+	if gap && next.PendingLevel > next.Level {
+		admit.Level = next.PendingLevel
+	}
+	b, err := NewPressureBudget(c, admit, running, d.Config.Pinned)
 	if err != nil {
 		d.emit(Event{Kind: "alert", Message: "pressure budget unavailable; launches withheld: " + err.Error()})
 		return nil, false

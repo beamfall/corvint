@@ -43,14 +43,16 @@ type idleMark struct {
 
 // idleEligible reports whether this dispatcher's tick depends only on the
 // store, its own ledger and the clock. Workers, recoveries, uncertain
-// launches, a pool sweep in flight or pending, a work-state reader and
-// pressure sampling all read or change something else, so they always tick
-// in full.
+// launches, a pool sweep in flight or pending and a work-state reader all
+// read or change something else, so they always tick in full.
 func (d *Dispatcher) idleEligible() bool {
 	if len(d.ledger.Workers) > 0 || d.sweepJob != nil || len(d.recoveries) > 0 || len(d.uncertain) > 0 || len(d.detached) > 0 {
 		return false
 	}
-	if d.Config.WorkState != nil || d.Config.Pressure != nil {
+	// CAL-V0-351: a pressure configuration no longer blocks the gate: a
+	// tick that samples changes the saved ledger, so only a tick that
+	// deferred its sample and launched nothing can arm it.
+	if d.Config.WorkState != nil {
 		return false
 	}
 	if d.Config.PoolSweep != nil && d.sweepNext.IsZero() {

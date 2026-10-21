@@ -1,8 +1,11 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -10,16 +13,26 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 )
 
-const (
-	// maxRetainedEndedRuns is how many ended runs of terminal attempts stay
-	// for inspection once they are quiet (ATR-V0-015).
+// maxRetainedEndedRuns is how many ended runs of terminal attempts stay for
+// inspection once they are quiet (ATR-V0-015). maxRunAttemptScan bounds the
+// attempt directories one retirement pass examines: a window that resumes
+// after the previous pass's, plus the attempts of the retained runs carried
+// from it (ATR-V0-154). maxRunAttemptNames bounds the names a pass lists to
+// find its window; listing reads names only. Tests lower all three.
+var (
 	maxRetainedEndedRuns = 16
-	// maxRunAttemptScan bounds one retirement pass over taskman-runs; a
-	// larger backlog shrinks over later passes.
-	maxRunAttemptScan = 1024
+	maxRunAttemptScan    = 1024
+	maxRunAttemptNames   = 64 * 1024
+)
+
+const (
+	// runRetireCursorName is the ATR-V0-154 cursor beside the attempt
+	// directories: where the next window starts and the carried attempts.
+	runRetireCursorName = ".retire-cursor"
 	// endedRunQuiet keeps a run whose files changed this recently, so an
 	// attach that is reading a just-finished run still finds it.
 	endedRunQuiet = time.Hour
@@ -37,13 +50,19 @@ const (
 // generation or a later one. Anything unproven is kept, and every failure is
 // left for a later pass.
 func (r *attemptRunner) retireEndedRuns() {
-	root := filepath.Join(r.repo.CommonDir, "taskman-runs")
-	f, err := os.Open(root)
-	if err != nil {
+	retireEndedRunsIn(filepath.Join(r.repo.CommonDir, "taskman-runs"), func(ctx context.Context, ids []string) (map[string]*snapshot.Attempt, error) {
+		return store.AttemptRecords(ctx, r.repo, ids)
+	})
+}
+
+// retireEndedRunsIn is one ATR-V0-015 pass over root's window (ATR-V0-154).
+// The cursor advances only after a pass that read every terminal record it
+// needed, so a failed lookup retries the same window.
+func retireEndedRunsIn(root string, records func(context.Context, []string) (map[string]*snapshot.Attempt, error)) {
+	window, next, ok := runRetireWindow(root)
+	if !ok {
 		return
 	}
-	attempts, _ := f.ReadDir(maxRunAttemptScan)
-	f.Close()
 	type endedRun struct {
 		dir, base, attemptID string
 		generation           uint64
@@ -51,15 +70,15 @@ func (r *attemptRunner) retireEndedRuns() {
 	}
 	var ended []endedRun
 	now := time.Now()
-	for _, a := range attempts {
-		if !a.IsDir() {
+	for _, name := range window {
+		if st, err := os.Lstat(filepath.Join(root, name)); err != nil || !st.IsDir() {
 			continue
 		}
-		if strings.HasPrefix(a.Name(), retiredRunPrefix) {
-			_ = os.RemoveAll(filepath.Join(root, a.Name())) // an earlier pass stopped mid-removal
+		if strings.HasPrefix(name, retiredRunPrefix) {
+			_ = os.RemoveAll(filepath.Join(root, name)) // an earlier pass stopped mid-removal
 			continue
 		}
-		base := filepath.Join(root, a.Name())
+		base := filepath.Join(root, name)
 		runs, err := listRuns(base)
 		if err != nil {
 			continue
@@ -70,7 +89,7 @@ func (r *attemptRunner) retireEndedRuns() {
 			}
 			dir := filepath.Join(base, e.Name())
 			rec, err := readRunRecord(dir)
-			if err != nil || rec.RunID != e.Name() || attemptRunsName(rec.AttemptID) != a.Name() || !runEnded(rec) {
+			if err != nil || rec.RunID != e.Name() || attemptRunsName(rec.AttemptID) != name || !runEnded(rec) {
 				continue
 			}
 			generation, err := strconv.ParseUint(rec.Generation, 10, 64)
@@ -84,7 +103,28 @@ func (r *attemptRunner) retireEndedRuns() {
 			ended = append(ended, endedRun{dir, base, rec.AttemptID, generation, newest})
 		}
 	}
+	newestFirst := func(runs []endedRun) {
+		sort.Slice(runs, func(i, j int) bool {
+			if !runs[i].mtime.Equal(runs[j].mtime) {
+				return runs[i].mtime.After(runs[j].mtime)
+			}
+			return runs[i].dir > runs[j].dir
+		})
+	}
+	// The attempts of the retained runs are carried to the next window, so
+	// one sweep leaves only the newest of all, not the newest of each window.
+	carry := func(runs []endedRun) {
+		seen := map[string]bool{}
+		for _, e := range runs[:min(len(runs), maxRetainedEndedRuns)] {
+			if name := filepath.Base(e.base); !seen[name] {
+				seen[name] = true
+				next.Carry = append(next.Carry, name)
+			}
+		}
+		writeRunRetireCursor(root, next)
+	}
 	if len(ended) <= maxRetainedEndedRuns {
+		carry(ended)
 		return
 	}
 	seen := map[string]bool{}
@@ -98,7 +138,7 @@ func (r *attemptRunner) retireEndedRuns() {
 	sort.Strings(ids)
 	ctx, cancel := bounded()
 	defer cancel()
-	records, err := store.AttemptRecords(ctx, r.repo, ids)
+	terminalOf, err := records(ctx, ids)
 	if err != nil {
 		return
 	}
@@ -106,19 +146,15 @@ func (r *attemptRunner) retireEndedRuns() {
 	// removed only when the terminal record is at its generation or later.
 	terminal := ended[:0]
 	for _, e := range ended {
-		if a := records[e.attemptID]; a != nil && !a.Live() && e.generation <= a.Generation.Uint64() {
+		if a := terminalOf[e.attemptID]; a != nil && !a.Live() && e.generation <= a.Generation.Uint64() {
 			terminal = append(terminal, e)
 		}
 	}
+	newestFirst(terminal)
+	carry(terminal)
 	if len(terminal) <= maxRetainedEndedRuns {
 		return
 	}
-	sort.Slice(terminal, func(i, j int) bool {
-		if !terminal[i].mtime.Equal(terminal[j].mtime) {
-			return terminal[i].mtime.After(terminal[j].mtime)
-		}
-		return terminal[i].dir > terminal[j].dir
-	})
 	for _, e := range terminal[maxRetainedEndedRuns:] {
 		// The run leaves its attempt's directory in one rename, so attach
 		// finds either the whole run or none of it.
@@ -129,6 +165,87 @@ func (r *attemptRunner) retireEndedRuns() {
 		_ = os.RemoveAll(moved)
 		_ = os.Remove(e.base) // only when no run is left
 	}
+}
+
+// runRetireCursor is where the next ATR-V0-154 window starts: after the
+// attempt directory name After ("" starts over), with the attempts of the
+// retained runs carried into it.
+type runRetireCursor struct {
+	After string   `json:"after"`
+	Carry []string `json:"carry"`
+}
+
+// runRetireWindow lists at most maxRunAttemptNames names of root and returns
+// the carried attempts plus, in name order, the names after the cursor, at
+// most maxRunAttemptScan in all. A window that reaches the last name starts
+// the next one over. A cursor that does not read back as attempt names is
+// ignored, and the sweep starts over.
+func runRetireWindow(root string) (window []string, next runRetireCursor, ok bool) {
+	f, err := os.Open(root)
+	if err != nil {
+		return nil, next, false
+	}
+	names, err := f.Readdirnames(maxRunAttemptNames)
+	f.Close()
+	if err != nil && err != io.EOF {
+		return nil, next, false
+	}
+	cur := readRunRetireCursor(root)
+	sort.Strings(names)
+	window = append(window, cur.Carry...)
+	carried := map[string]bool{}
+	for _, name := range cur.Carry {
+		carried[name] = true
+	}
+	i := sort.SearchStrings(names, cur.After)
+	if i < len(names) && names[i] == cur.After {
+		i++
+	}
+	for ; i < len(names) && len(window) < maxRunAttemptScan; i++ {
+		if names[i] != runRetireCursorName && names[i] != runRetireCursorName+".tmp" && !carried[names[i]] {
+			window = append(window, names[i])
+		}
+	}
+	if i < len(names) {
+		next.After = names[i-1]
+	}
+	return window, next, true
+}
+
+func readRunRetireCursor(root string) runRetireCursor {
+	var cur runRetireCursor
+	raw, err := readBounded(filepath.Join(root, runRetireCursorName), 64<<10)
+	if err != nil || json.Unmarshal(raw, &cur) != nil || (cur.After != "" && !runAttemptName(cur.After)) || len(cur.Carry) > maxRetainedEndedRuns {
+		return runRetireCursor{}
+	}
+	for _, name := range cur.Carry {
+		if !runAttemptName(name) {
+			return runRetireCursor{}
+		}
+	}
+	return cur
+}
+
+// writeRunRetireCursor replaces the cursor in one rename; a failed write
+// leaves the old one, and the next pass repeats its window.
+func writeRunRetireCursor(root string, cur runRetireCursor) {
+	raw, err := json.Marshal(cur)
+	if err != nil {
+		return
+	}
+	tmp := filepath.Join(root, runRetireCursorName+".tmp")
+	if os.WriteFile(tmp, append(raw, '\n'), 0o600) != nil || os.Rename(tmp, filepath.Join(root, runRetireCursorName)) != nil {
+		_ = os.Remove(tmp)
+	}
+}
+
+// runAttemptName reports a name attemptRunsName can produce.
+func runAttemptName(s string) bool {
+	if len(s) != 32 {
+		return false
+	}
+	_, err := hex.DecodeString(s)
+	return err == nil && strings.ToLower(s) == s
 }
 
 // attemptRunsName is the attempt's directory name under taskman-runs.

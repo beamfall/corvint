@@ -165,3 +165,81 @@ func TestCALV0139_ConfigReadPairsItsBytesWithTheirOwnStat(t *testing.T) {
 		t.Fatal("the restored applied file is pending")
 	}
 }
+
+// CAL-V0-350 (V1-0925): a full tick reuses the digest of the bytes last read
+// while the configuration file's stat is unchanged, so it reads nothing; a
+// changed stat, an already refused file seen again, and the idleFullEvery
+// safety net read it, and a change still applies.
+func TestCALV0350_FullTickReusesAnUnchangedConfigRead(t *testing.T) {
+	c := testConfig(t, "exit 0")
+	c.Roles[0].Match = &Match{Labels: []string{"no-such-label"}}
+	clock := time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
+	// A witness error makes every tick full.
+	q := &witnessQueue{fail: os.ErrInvalid}
+	q.obs.Tickets = []Ticket{ticket("T-1", "P1", 1)}
+	path := filepath.Join(t.TempDir(), "dispatch.json")
+	applied, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, applied, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := Open("prog", c, q, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	d.Now = func() time.Time { return clock }
+	reads := 0
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) { reads++; return readWithInfo(path) }, func() (fs.FileInfo, error) { return os.Lstat(path) }, applied)
+	tick := func(wantReads int, why string) {
+		t.Helper()
+		before := q.observes
+		if err := d.Tick(context.Background()); err != nil {
+			t.Fatalf("%s: tick: %v", why, err)
+		}
+		if q.observes != before+1 {
+			t.Fatalf("%s: the tick was not full", why)
+		}
+		if reads != wantReads {
+			t.Fatalf("%s: %d configuration reads, want %d", why, reads, wantReads)
+		}
+	}
+	tick(1, "the first full tick reads the file")
+	for i := 0; i < 5; i++ {
+		clock = clock.Add(time.Second)
+		tick(1, "an unchanged stat reuses the read")
+	}
+	clock = clock.Add(idleFullEvery)
+	tick(2, "the safety net reads the file again")
+	tick(2, "and the new read is reused")
+
+	invalid := []byte(`{"profile":"nope"}`)
+	if err := os.WriteFile(path, invalid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tick(3, "a changed file is read")
+	if r := d.ledger.Config; r == nil || r.Refused == nil || r.Refused.Sha256 != digest(invalid) {
+		t.Fatalf("refusal %+v", d.ledger.Config)
+	}
+	tick(3, "an already refused file with an unchanged stat is not read")
+
+	next := cloneConfig(t, c)
+	next.Roles[0].Prompt = "changed {ticketLocal}"
+	raw, err := json.Marshal(next)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tick(4, "a valid change is read")
+	if d.Config.Roles[0].Prompt != "changed {ticketLocal}" || d.ledger.Config.AppliedSha256 != digest(raw) || d.ledger.Config.Refused != nil {
+		t.Fatalf("change not applied: %+v", d.ledger.Config)
+	}
+	tick(4, "the applied file is reused")
+	// A failing stat reads the file rather than trusting the cache.
+	d.configStat = func() (fs.FileInfo, error) { return nil, os.ErrPermission }
+	tick(5, "a stat error reads the file")
+}
