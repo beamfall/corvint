@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-19
-Intent status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580)
+Intent status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548)
 Delivery status: experimental
 Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
 - Claim: Read-only native fixture priority-first planning with explicit incomplete coverage.
-- Status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580)/experimental; GP and production promotion held.
+- Status: accepted fixture scope (decision 0322); NTP-V0-020..025 accepted under the owner's standing lane auto-accept (2026-10-11, V1-1580); NTP-V0-246 accepted under the same auto-accept (V1-0912, decision 0548)/experimental; GP and production promotion held.
 - Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration; read-only `corvint-tasks plan batches` (NTP-V0-020..025).
 - Blocked on: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
 - Read next: Requirements; Fixture input and receipt; Acceptance and rollback; Tasks plan batches.
@@ -68,6 +68,11 @@ not asserted. Current source identities, not substitutes for those originals, ar
   source, intent, journal or reservation state. The receipt MUST label fixture observations,
   unauthenticated trusted-local execution and unavailable production qualification. GP stays NOT_RUN
   until all preregistered workloads/controls/witnesses and actual executor conditions qualify.
+- `NTP-V0-246`: Capture MUST admit at most 16384 tickets (export `page.total` and the queue
+  `tickets` count), and a decoded `taskman-plan/0` MUST carry at most 16384 `entries` and 16384
+  `blockers` per entry; one more refuses the preview and nothing is truncated. The bound covers the
+  Tasks per-queue bound (10000) with headroom; the per-response and 32 MiB aggregate byte caps still
+  apply. `corvint work plan-fixture --help` states the bound. Rollback restores the 1000 bound.
 
 ### Tasks plan batches (V1-1580, issue 1023)
 
@@ -124,7 +129,7 @@ CAL-V0-014), not inside the fixture planner above.
 All JSON is bounded, duplicate-key rejecting, closed at every interpreted record, and canonical
 UTF-8 with one terminal LF. Count and Size are decimal strings under the sibling native profile;
 Counts are at most 2147483647, Sizes at most uint64. Digests are lowercase SHA-256. This adapter
-admits at most 1000 tickets, 4096 resources per closure, 128 reservations, 256 historical plans,
+admits at most 16384 tickets (NTP-V0-246), 4096 resources per closure, 128 reservations, 256 historical plans,
 16 MiB per executor response and 32 MiB aggregate ticket exports. It refuses overflow, never truncates.
 
 Fixture observation profile `corvint-taskman-fixture-observations/0` has exactly:
@@ -204,3 +209,4 @@ real-queue cutover remain in the executor handoff. No automatic task execution i
 | NTP-V0-023 | internal/tasks/cli/plan_batches.go planBatches flags | TestNTPV0023_MaxGroupSizeBoundsGroups, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-024 | internal/tasks/cli/plan_batches.go resolveCandidate | TestNTPV0024_UnresolvableCandidateIsReportedUngrouped, TestNTPV0024_MissingNestedTreeIsUngrouped, TestNTPV0024_FatalDiffFailureRefuses, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-025 | internal/tasks/cli plan dispatch, ReadVerbs, command help, batchView | TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb, TestNTPV0025_RepositoryMergeDriverDoesNotRun, TestCALV0047_AllCommandHelpIsReadOnly |
+| NTP-V0-246 | internal/taskman maxTickets (capture, decodePlan); cmd/corvint/taskman_fixture.go help | TestNTPV0246TicketBound, TestNTPV0246PlanFixtureHelpStatesBound |

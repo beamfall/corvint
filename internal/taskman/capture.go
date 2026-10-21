@@ -151,7 +151,7 @@ func captureTickets(ctx context.Context, executor, root string, c *captured) err
 		if e != nil || limit != 100 {
 			return errors.New("export limit")
 		}
-		n, e := number(value(page, "total"), 1000)
+		n, e := number(value(page, "total"), maxTickets)
 		if e != nil {
 			return e
 		}
@@ -284,7 +284,7 @@ func Preview(ctx context.Context, root, executor, observations string) ([]byte, 
 	if e = captureTickets(ctx, executor, source.Root, &c); e != nil {
 		return nil, e
 	}
-	expected, e := number(value(c.queue, "tickets"), 1000)
+	expected, e := number(value(c.queue, "tickets"), maxTickets)
 	if e != nil || int(expected) != len(c.tickets) {
 		return nil, errors.New("queue count")
 	}

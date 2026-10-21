@@ -2048,6 +2048,7 @@ DCW-V0-091	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-092	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1657)	standing	2026-10-11; V1-1657
 DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`	owner	2026-10-11; V1-1463
 DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's	owner	2026-10-11; V1-1927
+DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1929) After a	owner	2026-10-11; V1-1929
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -3418,6 +3419,7 @@ NTP-V0-005	docs/specs/native-taskman-planning-v0.md	Collision sets MUST include 
 NTP-V0-006	docs/specs/native-taskman-planning-v0.md	The plan MUST bind queueId, policySha256, headSeq, intentTreeSha256,	unrecorded	-
 NTP-V0-007	docs/specs/native-taskman-planning-v0.md	Deferral history MUST be explicitly observed, including a complete empty history	unrecorded	-
 NTP-V0-008	docs/specs/native-taskman-planning-v0.md	Existing command/WQO behavior MUST remain intact. The new command MUST mutate no	unrecorded	-
+NTP-V0-246	docs/specs/native-taskman-planning-v0.md	Capture MUST admit at most 16384 tickets (export `page.total` and the queue	unrecorded	-
 NTP-V0-020	docs/specs/native-taskman-planning-v0.md	Candidates MUST be, for each OPEN or HELD ticket, its highest-generation attempt	unrecorded	-
 NTP-V0-021	docs/specs/native-taskman-planning-v0.md	Each candidate's changed paths MUST be the recursive, rename-free `diff-tree` fr	unrecorded	-
 NTP-V0-022	docs/specs/native-taskman-planning-v0.md	Every join MUST be confirmed by a dry chained three-way merge (`git merge-tree	unrecorded	-

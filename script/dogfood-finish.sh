@@ -104,6 +104,7 @@ base_bin="$evidence/corvint-base"
 mkdir -p "$evidence" || exit 2
 if ! dogfood_build_tree_corvint "$tree_bin"; then
   printf 'dogfood-finish-lane: REFUSE current-tree-corvint-build-failed\n' >&2
+  dogfood_build_fix dogfood-finish-lane tree
   exit 2
 fi
 base_status=0
@@ -113,6 +114,7 @@ if ((base_status == 2)); then
   exit 2
 elif ((base_status != 0)); then
   printf 'dogfood-finish-lane: REFUSE base-corvint-build-failed\n' >&2
+  dogfood_build_fix dogfood-finish-lane base
   exit 2
 fi
 steps_bin=$tree_bin
