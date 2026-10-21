@@ -621,6 +621,16 @@ func compilePlaywrightDiscovery(ctx context.Context, invocation affectedInvocati
 	return raw, nil
 }
 
+// affectedGraphContext is the context the plan path hands affected.Build: the
+// caller's own, so its deadline and cancellation bound the walk (AFP-V0-151);
+// tests wrap it to cancel mid-walk.
+var affectedGraphContext = func(ctx context.Context) context.Context { return ctx }
+
+// affectedPlanSourcesObserved runs after the plan path's last source
+// observation and before its final status and HEAD reads; tests inject a
+// commit there (AFP-V0-150).
+var affectedPlanSourcesObserved = func() {}
+
 // playwrightDiscoverySourcesVerified runs after the producer's last source observation; tests
 // replace it to inject drift at that point.
 var playwrightDiscoverySourcesVerified = func() {}
@@ -707,22 +717,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	graph, err := affected.Build(ctx, root, affectedLanguages()...)
+	graph, err := affected.Build(affectedGraphContext(ctx), root, affectedLanguages()...)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
-	}
-	// The status and the graph are two observations of one mutable worktree.
-	// A dirty set or HEAD that changed while the graph was built would bind a
-	// plan to inputs nobody observed together; refuse rather than publish.
-	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
-	}
-	if !equalStringSlices(dirty, recheck) {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
-	}
-	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {
@@ -751,6 +748,23 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	}
 	if err := affectedAppNavigations(invocation, revision, dirty, &advice); err != nil {
 		return affectedReceipt{}, nil, err
+	}
+	affectedPlanSourcesObserved()
+	// The status, the graph and every later source read (prior read scopes,
+	// advice, provider and e2e selection, app navigations) are observations of
+	// one mutable worktree. A dirty set or HEAD that changed while they were
+	// read would bind a plan to inputs nobody observed together, so both are
+	// read again after the last source observation; refuse rather than publish
+	// (AFP-V0-150, V1-1087).
+	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	if !equalStringSlices(dirty, recheck) {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
+	}
+	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
+		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
 	}
 	return affectedReceipt{
 		PathList: invocation.PathList,
