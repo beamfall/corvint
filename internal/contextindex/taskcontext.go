@@ -2570,7 +2570,8 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	}
 	packet := map[string]any{
 		"tool": "context", "ok": true, "mutates": false, "schema_version": 1,
-		"revision": compiler.index.Revision, "state": state, "subject": subject,
+		"revision": compiler.index.Revision, "commit_revision": compiler.index.CommitRevision,
+		"state": state, "subject": subject,
 		"request": map[string]any{"limit": limit, "task_chars": len(compiler.task)},
 		"coverage": map[string]any{
 			"candidates": compiler.admitted, "included_results": len(rows),
