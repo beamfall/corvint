@@ -30,4 +30,4 @@ this lane's commits; host load high (bytes are load-independent). Exit 0, 874 by
   repository drift; the tests isolate `GIT_CONFIG_GLOBAL` and `XDG_CONFIG_HOME` for this reason.
   `corvint index` writes `.corvint/.gitignore`, so `.corvint/index/` and the self-observation
   ledger are normally covered once an index exists.
-- Owner acceptance of ADS-V0-001..007 is pending.
+- ADS-V0-001..007 accepted under the delegated 1.0 feature cut (decision 0548).

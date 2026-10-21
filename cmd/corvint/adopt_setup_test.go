@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -50,7 +51,15 @@ func setupStateDigest(t *testing.T, root string) string {
 		if walkErr != nil || entry.IsDir() {
 			return walkErr
 		}
+		if !entry.Type().IsRegular() {
+			fmt.Fprintf(hash, "%s\x00%v\x00", path, entry.Type())
+			return nil
+		}
 		body, err := os.ReadFile(path)
+		if errors.Is(err, fs.ErrPermission) {
+			fmt.Fprintf(hash, "%s\x00unreadable\x00", path)
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -118,6 +127,15 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 			}
 		}
 	})
+	t.Run("codex adapter hook", func(t *testing.T) {
+		root := setupFixture(t)
+		os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte("{}\n"), 0o644)
+		os.MkdirAll(filepath.Join(root, ".codex"), 0o755)
+		os.WriteFile(filepath.Join(root, ".codex", "hooks.json"), []byte(`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"corvint adapter codex"}]}]}}`), 0o644)
+		if check := runSetup(t, root)["hooks"]; check["status"] != "ok" {
+			t.Fatalf("hooks: %v", check)
+		}
+	})
 	for _, tc := range []struct {
 		class   string
 		break_  func(t *testing.T, root string)
@@ -133,14 +151,20 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 		}, "AGENTS.md: present, does not name corvint"},
 		{"hooks", func(t *testing.T, root string) {
 			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte("{}\n"), 0o644)
-		}, ".claude/settings.json: present, no corvint hook or plugin"},
+		}, ".claude/settings.json: present, no enabled corvint plugin or corvint adapter hook"},
+		{"hooks", func(t *testing.T, root string) {
+			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte(`{"enabledPlugins":{"corvint@corvint":false}}`), 0o644)
+		}, ".claude/settings.json: present, no enabled corvint plugin or corvint adapter hook"},
+		{"hooks", func(t *testing.T, root string) {
+			os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte(`{"enabledPlugins":{"corvint@corvint":true}`), 0o644)
+		}, ".claude/settings.json: present, not valid JSON"},
 		{"ignored-paths", func(t *testing.T, root string) {
 			// `corvint index` writes .corvint/.gitignore for index/ and the self-observation
 			// ledger; the opt-in unplanned-read ledger relies on the repository's rules.
 			os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".context-corvint/\n"), 0o644)
 		}, ".corvint/unplanned-reads.jsonl: not ignored .corvint/unplanned-reads.enabled: not ignored"},
 	} {
-		t.Run(tc.class, func(t *testing.T) {
+		t.Run(tc.class+"/"+tc.witness, func(t *testing.T) {
 			root := setupFixture(t)
 			tc.break_(t, root)
 			for class, check := range runSetup(t, root) {
@@ -163,5 +187,23 @@ func TestAdoptSetupRefusesOtherOptions(t *testing.T) {
 		if code := runContext(context.Background(), append([]string{"--root", root}, args...), strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
 			t.Fatalf("%v: exit=%d stdout=%s", args, code, stdout.String())
 		}
+	}
+}
+
+// ADS-V0-001: a check that cannot observe its input is `unobserved` and still
+// carries a fix: a snapshot probe that fails (a cancelled read) and a PATH
+// without git.
+func TestAdoptSetupUnobservedChecksCarryAFix(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := setupFixture(t)
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if check := setupIndexCheck(cancelled, root); check.Status != "unobserved" || check.Fix == "" || !strings.Contains(fmt.Sprint(check.Evidence), "error: ") {
+		t.Fatalf("probe error: %+v", check)
+	}
+	t.Setenv("PATH", t.TempDir())
+	if check := setupIgnoreCheck(context.Background(), root); check.Status != "unobserved" || check.Fix == "" || !strings.Contains(fmt.Sprint(check.Evidence), "git: not found") {
+		t.Fatalf("no git: %+v", check)
 	}
 }

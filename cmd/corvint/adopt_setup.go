@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -96,6 +97,7 @@ func setupIndexCheck(ctx context.Context, root string) setupCheck {
 	check.Evidence = []string{"snapshot: " + reason}
 	if err != nil {
 		check.Status, check.Evidence = "unobserved", append(check.Evidence, "error: "+err.Error())
+		check.Fix = "resolve the snapshot error, then run corvint --root " + root + " index --if-stale"
 		return check
 	}
 	if reason != "matching" {
@@ -129,8 +131,41 @@ func setupInstructionCheck(root string) setupCheck {
 	return check
 }
 
+// setupHookConfig is the part of a Claude Code settings file or a Codex hooks
+// file that can wire Corvint: plugin enablement and command hooks.
+type setupHookConfig struct {
+	EnabledPlugins map[string]json.RawMessage `json:"enabledPlugins"`
+	Hooks          map[string][]struct {
+		Hooks []struct {
+			Type    string `json:"type"`
+			Command string `json:"command"`
+		} `json:"hooks"`
+	} `json:"hooks"`
+}
+
+// setupHookWired reports whether a parsed host file enables a `corvint@`
+// plugin (value exactly true) or runs a `corvint adapter` command hook.
+func setupHookWired(config setupHookConfig) bool {
+	for plugin, enabled := range config.EnabledPlugins {
+		if strings.HasPrefix(plugin, "corvint@") && string(bytes.TrimSpace(enabled)) == "true" {
+			return true
+		}
+	}
+	for _, matchers := range config.Hooks {
+		for _, matcher := range matchers {
+			for _, hook := range matcher.Hooks {
+				fields := strings.Fields(hook.Command)
+				if hook.Type == "command" && len(fields) >= 2 && filepath.Base(fields[0]) == "corvint" && fields[1] == "adapter" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 // setupHookCheck reports whether a repository-scoped host file wires Corvint's
-// hooks (a `corvint@` plugin enablement or a `corvint adapter` command).
+// hooks: an enabled `corvint@` plugin or a `corvint adapter` command hook.
 func setupHookCheck(root string) setupCheck {
 	check := setupCheck{Class: "hooks", Status: "gap"}
 	for _, name := range setupHookFiles {
@@ -138,11 +173,15 @@ func setupHookCheck(root string) setupCheck {
 		if !ok {
 			continue
 		}
-		if bytes.Contains(content, []byte("corvint adapter")) || bytes.Contains(content, []byte(`"corvint@`)) {
+		var config setupHookConfig
+		switch {
+		case json.Unmarshal(content, &config) != nil:
+			check.Evidence = append(check.Evidence, name+": present, not valid JSON of the expected shape")
+		case setupHookWired(config):
 			check.Status = "ok"
 			check.Evidence = append(check.Evidence, name+": wires corvint")
-		} else {
-			check.Evidence = append(check.Evidence, name+": present, no corvint hook or plugin")
+		default:
+			check.Evidence = append(check.Evidence, name+": present, no enabled corvint plugin or corvint adapter hook")
 		}
 	}
 	if len(check.Evidence) == 0 {
@@ -162,6 +201,7 @@ func setupIgnoreCheck(ctx context.Context, root string) setupCheck {
 	git, err := exec.LookPath("git")
 	if err != nil {
 		check.Status, check.Evidence = "unobserved", []string{"git: not found"}
+		check.Fix = "install git on PATH, then rerun corvint adopt --setup"
 		return check
 	}
 	ctx, cancel := context.WithTimeout(ctx, setupGitTimeout)
@@ -169,12 +209,27 @@ func setupIgnoreCheck(ctx context.Context, root string) setupCheck {
 	command := exec.CommandContext(ctx, git, "-C", root, "check-ignore", "--no-index", "--stdin", "--non-matching", "--verbose")
 	command.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
 	command.Stdin = strings.NewReader(strings.Join(setupIgnoredPaths, "\n") + "\n")
-	var output bytes.Buffer
+	var output, warnings bytes.Buffer
 	command.Stdout = &output
+	command.Stderr = &warnings
 	runErr := command.Run()
 	var exit *exec.ExitError
 	if runErr != nil && !(errors.As(runErr, &exit) && exit.ExitCode() == 1) {
 		check.Status, check.Evidence = "unobserved", []string{"git check-ignore: " + runErr.Error()}
+		check.Fix = "make git check-ignore succeed in this repository, then rerun corvint adopt --setup"
+		return check
+	}
+	// Git exits 0 while warning about an ignore file it could not read, so any
+	// diagnostic means the rules were not fully observed.
+	if text := strings.TrimSpace(warnings.String()); text != "" {
+		check.Status = "unobserved"
+		for _, line := range strings.Split(text, "\n") {
+			if len(check.Evidence) == 4 {
+				break
+			}
+			check.Evidence = append(check.Evidence, "git check-ignore: "+strings.TrimSpace(line))
+		}
+		check.Fix = "make the named ignore files readable, then rerun corvint adopt --setup"
 		return check
 	}
 	for _, line := range strings.Split(strings.TrimRight(output.String(), "\n"), "\n") {
@@ -205,6 +260,10 @@ func setupRead(root, name string) ([]byte, bool) {
 		return nil, false
 	}
 	defer repository.Close()
+	// Lstat first: a FIFO or device would block Open, and a link is not followed.
+	if info, err := repository.Lstat(filepath.FromSlash(name)); err != nil || !info.Mode().IsRegular() {
+		return nil, false
+	}
 	file, err := repository.Open(filepath.FromSlash(name))
 	if err != nil {
 		return nil, false
