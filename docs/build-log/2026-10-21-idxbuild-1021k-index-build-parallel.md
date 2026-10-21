@@ -21,8 +21,14 @@ Decisions (`GPK-V0-088`):
   symbol, and presizes the worker's interner.
 - `parserSource` hands go/parser the source string's bytes without a copy (2.4% of build CPU);
   the parser only reads them.
-- Not changed: the snapshot encoding and `snapshot.go` (open PR #1458 owns them), and the analyzer
-  schema (`script/analyzer-schema.sh check` passes with no bump). Holding directory fds was already
+- Not changed: the snapshot encoding and `snapshot.go` (open PR #1458 owns them).
+- Analyzer schema: after merging origin/main at `ef2a01db5` (batch #1464, `corvint-analyzer/139`)
+  the audited input digest drifted because these `internal/contextindex` sources are audited
+  inputs. `script/analyzer-schema.sh bump` set `corvint-analyzer/140`, the number the owner
+  reserved and approved for V1-2285 on 2026-10-21; `check` passes and the use-case receipts are
+  current. Built content is unchanged; the bump only re-keys snapshot packs. `GPK-V0-088` now
+  says so, and its definition moved into the spec's `## Requirements` section
+  (`requirement-definitions-check`, RDG-V0-021). Holding directory fds was already
   done by `cleanFileOpener`; the leaf `openat` remains.
 
 Evidence (12-CPU host, all runs alternating base and new, load recorded per run):
@@ -87,13 +93,23 @@ V1-0205 stays open.
 
 ## NOT_RUN and rollback
 
+Pre-push tests at base `ef2a01db5` (all ok): `internal/contextindex` (full), `internal/liveverify/affected`,
+`internal/liveverify/provider`, `internal/delta`, `internal/doccorpus`, `internal/trace`,
+`internal/witness`, `internal/evalrepo`, `internal/appmap`, `internal/necessity`, plus
+`TestAnalyzerSchema*` after the bump. Doc gates, the additional CI doc gates, `gofmt -l`, `go vet`
+of the touched packages and `make windows-vet` pass. Merging main moved four line citations into
+`internal/contextindex/index.go` and `parse.go`; they were repinned.
+
 NOT_RUN:
 
 - a CLI timing on a quiet host;
-- tier-2 affected units, left to batch CI;
+- the remaining tier-1 importers of `internal/contextindex` (over the 15-package cap, including
+  `cmd/corvint`, unchanged directly) and all tier-2 affected units, left to batch CI;
 - `make gate`.
 
-Rollback: revert this branch's changes to these files, the two GPK tests,
+Rollback: revert the `corvint-analyzer/140` pins in `internal/contextindex/analyzer_schema.go` and
+`analyzer_schema_test.go` (back to main's number and digest via `script/analyzer-schema.sh bump`
+after the revert), and this branch's changes to these files, the two GPK tests,
 `internal/liveverify/affected/appmap_selection_test.go` and the GPK-V0-088 section:
 
 - `internal/contextindex/index.go`

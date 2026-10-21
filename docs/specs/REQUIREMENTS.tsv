@@ -2805,6 +2805,7 @@ GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	`corvint record` and 
 GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm	unrecorded	-
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	A target is shipped only after its native conformance, filesystem-safety,	unrecorded	-
 GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	The existing Python wheel integrity contract remains binding while a wheel ships	unrecorded	-
+GPK-V0-088	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-21, standing auto-accept; V1-2285) The index build MAY run an	standing	2026-10-21; V1-2285
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
@@ -2849,7 +2850,6 @@ GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20,
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
 GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
-GPK-V0-088	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-21, standing auto-accept; V1-2285) The index build MAY run an	standing	2026-10-21; V1-2285
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
