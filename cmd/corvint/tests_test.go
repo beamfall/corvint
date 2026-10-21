@@ -47,7 +47,7 @@ func TestTestsCLI(t *testing.T) {
 			t.Fatalf("%v: code=%d", args, code)
 		}
 	}
-	if code, out, _ := runCLI(t, "--help"); code != 0 || !strings.Contains(out, "tests (TSA-V0)") {
+	if code, out, _ := runCLI(t, "--help"); code != 0 || !strings.Contains(out, "\n    tests  ") || !strings.Contains(out, " (TSA-V0)\n") {
 		t.Fatalf("root help: code=%d", code)
 	}
 	root := t.TempDir()

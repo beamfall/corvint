@@ -69,7 +69,8 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 // commit tree that builds the in-tree corvint-tasks companion on its own
 // (decision 0397): the module file, notices, Tasks packages, and the bounded
 // Core dependency closure of the explicit CAL-V0-022 pack adapter and the
-// dispatcher's process-group Owner.
+// dispatcher's process-group Owner. internal/taskprojection joins it because
+// internal/contextindex classifies Tasks store projection paths with it (V1-2068).
 var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
 
 var tasksExportPrefixes = []string{
@@ -77,7 +78,8 @@ var tasksExportPrefixes = []string{
 	"internal/cem/cemcode/", "internal/cem/gitrun/",
 	"internal/contextindex/", "internal/diagnostic/", "internal/gitstatus/", "internal/groupreap/",
 	"internal/projectprofile/", "internal/pythongrammar/", "internal/pythonsyntax/",
-	"internal/rubyautoload/", "internal/runtimeenv/", "internal/secretscreen/", "internal/untrackedallowance/",
+	"internal/rubyautoload/", "internal/runtimeenv/", "internal/secretscreen/", "internal/taskprojection/",
+	"internal/untrackedallowance/",
 }
 
 // tasksExport filters export to the corvint-tasks subset. It keeps the same

@@ -48,7 +48,7 @@ func TestRunsStabilityCLI(t *testing.T) {
 			}
 		}
 		var out, errb bytes.Buffer
-		if code := run([]string{"--help"}, strings.NewReader(""), &out, &errb); code != 0 || !strings.Contains(out.String(), "runs (PWR-V0)") {
+		if code := run([]string{"--help"}, strings.NewReader(""), &out, &errb); code != 0 || !strings.Contains(out.String(), "\n    runs  ") || !strings.Contains(out.String(), " (PWR-V0)\n") {
 			t.Fatalf("root help: code=%d", code)
 		}
 	})
