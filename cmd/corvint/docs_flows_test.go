@@ -120,7 +120,32 @@ func TestFlowDocsCLIEndToEnd(t *testing.T) {
 			fresh++
 		}
 	}
-	if stale != 2 || fresh < 30 || len(check.Added) != 0 || len(check.Retired) != 0 || len(check.OutputDifferences) != 0 {
+	// The changed authorize(...) line is the claim, its paragraph and, since
+	// V1-0461 binds each flow's static call inventory (AFU-V1-045), the
+	// create flow whose diagram renders that call.
+	if stale != 3 || fresh < 30 || len(check.Added) != 0 || len(check.Retired) != 0 || len(check.OutputDifferences) != 0 {
 		t.Fatalf("per-item freshness: %+v", check)
+	}
+}
+
+// TestFlowDocsCLIPredecessorManifestTypedStale (AFU-V1-045, V1-0461): the CLI
+// reports a generator version 1 manifest with the typed
+// flowdocs-generator-stale code and exit 2.
+func TestFlowDocsCLIPredecessorManifestTypedStale(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := exec.Command("git", "-C", root, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, out)
+	}
+	previous := filepath.Join(root, "generation.json")
+	if err = os.WriteFile(previous, []byte(`{"schema":"`+flowdocs.Schema+`","version":"1"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out, stderr bytes.Buffer
+	code := runContext(context.Background(), []string{"--root", root, "docs", "flows", "check", "--revision", strings.Repeat("a", 40), "--previous", previous}, strings.NewReader(""), &out, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), `"code": "`+flowdocs.StaleGeneratorCode+`"`) {
+		t.Fatalf("code=%d stderr=%s", code, stderr.String())
 	}
 }

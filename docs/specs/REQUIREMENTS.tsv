@@ -1098,9 +1098,9 @@ PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	Any new shipped verb
 PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate	unrecorded	-
 PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	This spec has no authority until a numbered decision records the owner's	unrecorded	-
 PRS-V1-013	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST include qualified Flows, safe application navigation,	unrecorded	-
-PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Tasks MUST replace Beamfall's active roadmap workflow through native ticket	unrecorded	-
+PRS-V1-014	docs/specs/corvint-1.0-product-and-release-v1.md	Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion	unrecorded	-
 PRS-V1-015	docs/specs/corvint-1.0-product-and-release-v1.md	Automatic developer and user-facing flow documentation MUST use revision-pinned	unrecorded	-
-PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Before Beamfall production activation, the migration MUST reconcile active work,	unrecorded	-
+PRS-V1-016	docs/specs/corvint-1.0-product-and-release-v1.md	Deferred post-1.0 (amendment 2026-10-21, V1-0464); not a stable 1.0 promotion	unrecorded	-
 PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabilities MUST retain exact-candidate acceptance evidence and	unrecorded	-
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
