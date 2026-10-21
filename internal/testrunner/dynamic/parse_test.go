@@ -348,3 +348,47 @@ func TestNightwatchSelectionAcrossFreshSessions(t *testing.T) {
 		t.Fatal("session-free native identity matched a session-elided selection")
 	}
 }
+
+// TRE-V0-114 (V1-0605): a TestCafe run whose per-HOME browser helper failed with a Node system
+// error is incomplete even when its native report and exit claim a clean pass, and the native
+// line is retained; a missing report after the failure stays incomplete too.
+func TestTestCafeBrowserHelperFailureIsNeverAPass(t *testing.T) {
+	pass := []byte(`{"endTime":"2026-10-01T00:00:00Z","total":1,"passed":1,"skipped":0,"fixtures":[{"name":"suite","path":"a.js","tests":[{"name":"p","errs":[]}]}]}`)
+	native := "Error: EEXIST: file already exists, mkdir '/h/.home/.testcafe-browser-tools/TestCafe Browser Tools.app/Contents'\n"
+	clean, err := Parse(tr.Input{Runner: "testcafe", Reports: map[string][]byte{"testcafe.json": pass}})
+	if err != nil || !clean.Complete {
+		t.Fatalf("clean pass rejected: %+v %v", clean, err)
+	}
+	for _, c := range []struct {
+		name   string
+		in     tr.Input
+		reason string
+	}{
+		{"stderr with passing report", tr.Input{Runner: "testcafe", Stderr: []byte(native), Reports: map[string][]byte{"testcafe.json": pass}}, "browser-helper-failed"},
+		{"stdout with passing report", tr.Input{Runner: "testcafe", Stdout: []byte("ok\n" + native), Reports: map[string][]byte{"testcafe.json": pass}}, "browser-helper-failed"},
+		{"aborted without report", tr.Input{Runner: "testcafe", ExitCode: 1, Stderr: []byte(native)}, "missing-report"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			o, err := Parse(c.in)
+			if err != nil {
+				t.Fatal(err)
+			}
+			codes := problemCodes(o)
+			if o.Complete || !codes[c.reason] || !codes["browser-helper-failed"] {
+				t.Fatalf("helper failure accepted: complete=%v problems=%+v", o.Complete, o.Problems)
+			}
+			for _, p := range o.Problems {
+				if p.Code == "browser-helper-failed" && !strings.Contains(p.Detail, "EEXIST: file already exists") {
+					t.Fatalf("native line not retained: %q", p.Detail)
+				}
+			}
+		})
+	}
+	// An unrelated errno line, or a helper path without a system error, is not a helper failure.
+	for _, output := range []string{"Error: ENOENT: no such file, open 'a.js'\n", "using /h/.testcafe-browser-tools cache\n"} {
+		o, err := Parse(tr.Input{Runner: "testcafe", Stderr: []byte(output), Reports: map[string][]byte{"testcafe.json": pass}})
+		if err != nil || !o.Complete {
+			t.Fatalf("%q misclassified: %+v %v", output, o.Problems, err)
+		}
+	}
+}

@@ -15,7 +15,9 @@
 // (PWP-V0-015); it exits zero only when the record is qualified. An e2e
 // admission or version refusal (a typed E2ERefusal, decided before anything
 // runs) exits with exitAdmissionRefused and writes one stderr line
-// "refusal: <code>..." naming the refusal code (PWP-V0-038).
+// "refusal: <code>..." naming the refusal code (PWP-V0-038). `bun` runs the
+// bun test profile (LPCV-V0-254); its typed pre-run refusal exits the same way
+// with the bun refusal document on stdout (LPCV-V0-258).
 package main
 
 import (
@@ -97,6 +99,9 @@ const providerUsage = `Usage: corvint-js-test-provider SUBCOMMAND [flags]
 
 Subcommands:
   unit                    run the bound Vitest adapter and print the receipt document
+  bun                     run bun test with the JUnit reporter and print the receipt document;
+                          refuses an unqualified bun version or lockfile before running
+                          (LPCV-V0-254..262)
   e2e                     run the bound Playwright adapter and print the receipt document;
                           with --external-server the document is the canonical qualified
                           receipt that test-validity --receipt, docs corpus discover-playwright
@@ -137,7 +142,7 @@ Exit status: 0 when the run was observed (a failed test is an observation); 1 wh
 infrastructure prevented an observation, retention failed or a keep-reporters record is not
 qualified; 2 for a
 usage error (and a negate or external-origins refusal); 3 when e2e refuses admission or the
-runner version before running anything, with one stderr line "refusal: <code>..." naming the
+runner version, or bun refuses its version, lockfile or isolation, before running anything, with one stderr line "refusal: <code>..." naming the
 refusal code and, without watch, the typed refusal document on stdout (PWP-V0-034, PWP-V0-038).
 The flags of each subcommand follow.
 `
@@ -164,6 +169,7 @@ func printUsage(w io.Writer) {
 	defer func() { usageSink = nil }()
 	for _, show := range []func(){
 		func() { _, _, _ = parseUnitConfig([]string{"-h"}) },
+		func() { _, _, _ = parseBunConfig([]string{"-h"}) },
 		func() { _ = runE2EMode("e2e", []string{"-h"}) },
 		func() { _, _ = parseNegate([]string{"-h"}) },
 		func() { _, _, _ = parseExternalOrigins([]string{"-h"}) },
@@ -196,7 +202,7 @@ func printSubcommandUsage(w io.Writer, show func()) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
+		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|bun|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
 		os.Exit(2)
 	}
 	var err error
@@ -206,6 +212,12 @@ func main() {
 		return
 	case "unit":
 		err = runUnit(os.Args[2:])
+	case "bun":
+		err = runBun(os.Args[2:], os.Stdout, os.Stderr)
+		if line, refused := bunRefusalLine(err); refused {
+			fmt.Fprintln(os.Stderr, line)
+			os.Exit(exitAdmissionRefused)
+		}
 	case "e2e":
 		err = runE2E(os.Args[2:])
 		if line, refused := admissionRefusalLine(err); refused {
@@ -358,6 +370,90 @@ func runUnit(args []string) error {
 		return err
 	}
 	return emit(os.Stdout, os.Stderr, withRetainedRevision(receipt, start), retainFrom(retain, cfg.Dir))
+}
+
+// parseBunConfig parses the `bun` subcommand's flags (LPCV-V0-254). Paths are resolved to absolute
+// clean paths; --test-file values are both bound and passed to bun test as path selectors.
+func parseBunConfig(args []string) (jstestprovider.BunConfig, bool, error) {
+	fs := newSubcommandFlags("bun", flag.ExitOnError)
+	dir := fs.String("dir", ".", "working directory to run bun test in (resolved to an absolute path)")
+	executable := fs.String("bun", "", "bun executable (default: bun on PATH)")
+	packageJSON := fs.String("package-json", "", "package.json path")
+	lockfile := fs.String("lockfile", "", "text bun.lock path (required; bun.lockb is refused)")
+	runnerVersion := fs.String("runner-version", "", "pinned bun version; a different observed version is refused")
+	maxConcurrency := fs.Int("max-concurrency", 0, "passed as --max-concurrency when positive; must be 1 with --service")
+	namePattern := fs.String("test-name-pattern", "", "passed as --test-name-pattern (example-level selection)")
+	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the bun run")
+	retain := fs.Bool("retain", false, "also retain the document under .corvint/test-evidence of the enclosing Git worktree")
+	var testFiles, envKeys, preload, services stringList
+	fs.Var(&testFiles, "test-file", "a test file to bind and run (repeatable, at least one)")
+	fs.Var(&envKeys, "env-key", "a declared environment variable name to observe (repeatable)")
+	fs.Var(&preload, "preload", "a preload script passed as --preload and bound by digest (repeatable)")
+	fs.Var(&services, "service", "a caller-started service the suite depends on, NAME=IDENTITY (repeatable); declares the shared-service isolation profile")
+	if err := fs.Parse(args); err != nil {
+		return jstestprovider.BunConfig{}, false, err
+	}
+	resolved := make(map[*string]string)
+	for _, p := range []*string{dir, packageJSON, lockfile} {
+		r, err := resolvePath(*p)
+		if err != nil {
+			return jstestprovider.BunConfig{}, false, err
+		}
+		resolved[p] = r
+	}
+	resolvedTestFiles := make([]string, len(testFiles))
+	for i, f := range testFiles {
+		var err error
+		if resolvedTestFiles[i], err = resolvePath(f); err != nil {
+			return jstestprovider.BunConfig{}, false, err
+		}
+	}
+	return jstestprovider.BunConfig{
+		Config: jstestprovider.Config{
+			Dir:             resolved[dir],
+			TestFiles:       resolvedTestFiles,
+			PackageJSON:     resolved[packageJSON],
+			Lockfile:        resolved[lockfile],
+			RunnerVersion:   *runnerVersion,
+			DeclaredEnvKeys: envKeys,
+			Timeout:         *timeout,
+		},
+		Executable:      *executable,
+		Preload:         preload,
+		MaxConcurrency:  *maxConcurrency,
+		TestNamePattern: *namePattern,
+		Services:        services,
+	}, *retain, nil
+}
+
+// runBun runs the bun profile. A typed *BunRefusal writes its document to stdout and is returned
+// for main to exit exitAdmissionRefused (LPCV-V0-258).
+func runBun(args []string, stdout, stderr io.Writer) error {
+	cfg, retain, err := parseBunConfig(args)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := interruptContext()
+	defer cancel()
+	receipt, err := jstestprovider.RunBun(ctx, cfg)
+	var refusal *jstestprovider.BunRefusal
+	if errors.As(err, &refusal) {
+		_, _ = stdout.Write(jstestprovider.EncodeBunRefusal(refusal))
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	return emit(stdout, stderr, receipt, retainFrom(retain, cfg.Dir))
+}
+
+// bunRefusalLine is the one stderr line for a typed bun refusal, as admissionRefusalLine.
+func bunRefusalLine(err error) (string, bool) {
+	var refusal *jstestprovider.BunRefusal
+	if !errors.As(err, &refusal) {
+		return "", false
+	}
+	return "refusal: " + strings.NewReplacer("\r", `\r`, "\n", `\n`).Replace(err.Error()), true
 }
 
 func runE2E(args []string) error {

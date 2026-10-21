@@ -121,12 +121,13 @@ func bindRepository(ctx context.Context, root string, repo SelectionRepository, 
 	if err != nil {
 		return boundRepository{}, "cannot read checkout"
 	}
-	// Git walks up to an enclosing repository, so the directory must be the top level itself.
-	top, err := git(ctx, canonical, "rev-parse", "--show-toplevel")
-	if err != nil {
+	// Git walks up to an enclosing repository, so the directory must be the top level itself: an
+	// empty prefix inside a worktree proves that without naming the top as a path (AFP-V0-156).
+	where, err := git(ctx, canonical, "rev-parse", "--is-inside-work-tree", "--show-prefix")
+	if err != nil || !strings.HasPrefix(string(where), "true\n") {
 		return boundRepository{}, "not a Git checkout"
 	}
-	if topCanonical, err := filepath.EvalSymlinks(strings.TrimSpace(string(top))); err != nil || topCanonical != canonical {
+	if string(where) != "true\n\n" {
 		return boundRepository{}, "not the top level of a Git checkout"
 	}
 	if reason := ancestryRewritten(ctx, canonical); reason != "" {

@@ -17,7 +17,7 @@ function fixture() {
  const identity=async ctx=>({root:ctx.cwd,gitDir:ctx.cwd+'/.git',session:ctx.sessionManager.getSessionId()});
  const identityCalls=[];const identify={read:identity};
  const tools=registerTools(pi,{identity:ctx=>{identityCalls.push(ctx);return identify.read(ctx)},runner,version:'0.99.1',notice(...args){notices.push(args)}});
- return {ctx,runner,calls,tools,notices,identify,identityCalls,command:(name,text)=>commands.get(name).handler(text,ctx),call:(name,args,signal)=>definitions.get(name).execute('test',args,signal,undefined,ctx)};
+ return {ctx,runner,calls,tools,notices,identify,identityCalls,definitions,command:(name,text)=>commands.get(name).handler(text,ctx),call:(name,args,signal)=>definitions.get(name).execute('test',args,signal,undefined,ctx)};
 }
 
 test('AHI-025 opaque packets are bounded to four and expire on root or session transitions',async()=>{
@@ -30,6 +30,26 @@ test('AHI-025 opaque packets are bounded to four and expire on root or session t
  assert.equal(f.calls.at(-1).input.packetSha256,'a'.repeat(64));
  f.ctx.cwd='/two';await assert.rejects(f.call('corvint_expand',selection),/stale-context/);
  f.ctx.cwd='/one';f.tools.clear();await assert.rejects(f.call('corvint_expand',selection),/stale-context/);
+});
+
+test('AHI-071 corvint_expand refuses a null or missing index before host coercion or dispatch',async()=>{
+ const f=fixture();const handle=(await f.call('corvint_context',{task:'source'})).details.handle;
+ const dispatched=f.calls.length;const prepare=f.definitions.get('corvint_expand').prepareArguments;
+ assert.equal(typeof prepare,'function');
+ assert.equal(f.definitions.get('corvint_context').prepareArguments,undefined);
+ for(const key of ['result','evidence']) {
+  const nulled={handle,result:0,evidence:0,lines:'1:1',[key]:null};
+  const missing={handle,result:0,evidence:0,lines:'1:1'};delete missing[key];
+  for(const args of [nulled,missing]) {
+   assert.throws(()=>prepare(args),/Corvint unavailable: invalid-expansion-index\./);
+   await assert.rejects(f.call('corvint_expand',args),/invalid-expansion-index/);
+  }
+ }
+ assert.equal(f.calls.length,dispatched);
+ const valid={handle,result:2,evidence:0,lines:'1:1'};
+ assert.equal(prepare(valid),valid);
+ await f.call('corvint_expand',valid);
+ assert.equal(f.calls.at(-1).input.result,2);
 });
 
 test('AHI-025 tool cancellation and trust prevent child effects, and late packets cannot cross sessions',async()=>{
@@ -64,7 +84,7 @@ test('AHI-005 AHI-025 typed supplied observations exclude raw output and malform
 });
 
 test('AHI-025 tool envelopes cannot forge profile, persistence or runtime version',()=>{
- const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.99.1',adapterVersion:'0.3.2',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
+ const good={profile:'corvint-pi-tool/0',operation:'record',hostVersion:'0.99.1',adapterVersion:'0.3.3',support:'FALLBACK',ok:true,mutation:'recorded',context:'BEGIN CORVINT REPOSITORY DATA\n{}\nEND CORVINT REPOSITORY DATA',packet:null,fault:null};
  assert.equal(validToolEnvelope(good,'record'),true);
  for(const delta of [{support:'FULL'},{hostVersion:'unknown'},{extra:true},{mutation:'not-attempted'},{packet:{}},{context:'unframed'}])assert.equal(validToolEnvelope({...good,...delta},'record'),false);
 });

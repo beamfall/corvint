@@ -53,11 +53,9 @@ root, transport, and executable identity revalidation. **Corvint: Clear Results*
 in-memory evidence projection. Query and impact remain explicit commands; live-test providers
 rerun on saves only after the separate opt-in below. Returned verification suggestions are never executed.
 
-To display a completed Corvint Go live-test observation, configure a contained workspace-relative
-`Corvint: Test Observation Path`, then run **Corvint: Import Test Observation**. V0 registers no Test
-Run Profile; live execution uses only the separately configured provider. An observation without the shared Corvint semantic verifier is
-refused with `UNVERIFIED_IMPORT` and creates no test projection; an incomplete or inconsistent run
-cannot show a passing result.
+V0 offers no Test Observation import command: importing a completed Go live-test observation is not
+offered until a shared Corvint go-live verifier is linked (post-1.0, decision 0550). V0 registers no
+Test Run Profile; live execution uses only the separately configured provider.
 
 ## Automatic unit and E2E feedback
 
@@ -112,7 +110,6 @@ qualification record before treating a host/platform tuple as supported.
 | `corvint.transport` | `cli` | Exact local transport: `cli` or `mcp-stdio`; no fallback. |
 | `corvint.executablePath` | empty | Absolute `corvint` candidate for the CLI transport. |
 | `corvint.mcpExecutablePath` | empty | Absolute `corvint-mcp` candidate for MCP `2026-07-28` stdio. |
-| `corvint.testObservationPath` | empty | Contained workspace-relative observation file imported only on command. |
 | `corvint.maxOutputBytes` | `262144` | Complete stdout bound; range 4 KiB–1 MiB. |
 | `corvint.timeoutMilliseconds` | `15000` | Explicit operation timeout; range 1–30 seconds. |
 | `corvint.liveTests.enabled` | `false` | Start the explicitly configured provider in this trusted workspace. |

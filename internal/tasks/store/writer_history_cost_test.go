@@ -145,6 +145,13 @@ func historyAppend(tb testing.TB, repo *intent.Repository, posts map[string][]by
 	receipt := wire.EncodeFile(v)
 	name, _ := snapshot.ReceiptName(seq)
 	historyWrite(tb, filepath.Join(repo.StateDir, "receipts", name), receipt)
+	if h.Segments != nil {
+		// A segmented head keeps its segment binding (JSG-V0-005).
+		sum := wire.Sum(receipt)
+		h.LastSeq, h.LastReceiptSha256 = wire.SizeOf(seq), &sum
+		historyWrite(tb, headPath, wire.EncodeFile(h.Value()))
+		return
+	}
 	historyWrite(tb, headPath, wire.EncodeFile(fixture.HeadValue(repo.PrimaryWorktree, seq, wire.Sum(receipt), h.Generation.Uint64(), h.InitSha256)))
 }
 

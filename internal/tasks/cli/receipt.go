@@ -141,3 +141,29 @@ func receiptRetire(env Env, verb string, args []string) *wire.Result {
 	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
 }
+
+// journalSeal runs `journal seal` or `journal unseal` (JSG-V0-013).
+func journalSeal(env Env, verb string, args []string) *wire.Result {
+	cmd := []string{"journal", verb}
+	if len(args) != 0 {
+		return usage(cmd, "journal "+verb+" accepts no arguments")
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	migrate := store.SealJournal
+	if verb == "unseal" {
+		migrate = store.UnsealJournal
+	}
+	report, err := migrate(writerContext(), repo)
+	if err != nil {
+		return failure(cmd, &readCtx{repo: repo}, err)
+	}
+	item := wire.NewObject()
+	item.Set("headSeq", wire.String(string(wire.SizeOf(report.HeadSeq))))
+	item.Set("sealedThroughBefore", wire.String(string(wire.SizeOf(report.ThroughBefore))))
+	item.Set("sealedThroughAfter", wire.String(string(wire.SizeOf(report.ThroughAfter))))
+	item.Set("segments", wire.String(string(wire.CountOf(int64(report.SegmentsAfter)))))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
+}

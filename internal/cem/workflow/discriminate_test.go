@@ -101,6 +101,7 @@ const discriminateWallTime = "20m"
 // runner's own reason, but only after the witness identities, bounds and hunk
 // limit that do not depend on the sandbox have been checked.
 func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
+	t.Parallel()
 	if _, err := mutate.HostSandbox(); err != nil {
 		t.Skipf("no sandbox on this host: %v", err)
 	}
@@ -186,6 +187,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 // target whose canonical patch is not the map's; every refusal leaves the map
 // untouched and runs no mutant.
 func TestDiscriminateRefusesInvalidBoundsAndTarget(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeCalcRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)

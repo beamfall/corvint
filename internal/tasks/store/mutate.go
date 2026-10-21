@@ -152,6 +152,7 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 		return guardFailure(report, env.RequestID, err)
 	}
 	retainCheckpoint(repo, canonical)
+	token = verifyWriterCheckpoint(ctx, repo, token, audit.VerifyWriterCheckpoint)
 	if wc, err := audit.WriterCheckpoint(); err == nil {
 		retainWriterCheckpoint(repo, wc, token)
 	}

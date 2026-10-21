@@ -389,7 +389,7 @@
     },
     {
       "id": "VSC-CONF-PRESENTATION-001",
-      "requirements": ["VSC-V0-021", "VSC-V0-022", "VSC-V0-023", "VSC-V0-024", "VSC-V0-041", "VSC-V0-043"],
+      "requirements": ["VSC-V0-021", "VSC-V0-022", "VSC-V0-023", "VSC-V0-024", "VSC-V0-041", "VSC-V0-043", "VSC-V0-079"],
       "title": "native command status and TreeView surface is exact bounded and accessible",
       "setup": {"trusted": true, "cliBehavior": "valid-bounded-receipt"},
       "action": {"kind": "inspect-native-surface"},

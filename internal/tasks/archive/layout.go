@@ -52,6 +52,8 @@ type scan struct {
 	stage        *snapshot.StageObservation
 	stageDigests []stageDigest
 	stageErr     error
+	// segmented records a listed segments/ directory.
+	segmented bool
 }
 
 // list opens a directory the caller has already Lstat'ed as a non-symlink
@@ -193,6 +195,15 @@ func stateLayoutRead(stateDir string, maxScan int, life *archiveRead) ([]sourceF
 				return nil, sc, err
 			}
 			out = append(out, files...)
+		case name == snapshot.SegmentsDir && info.IsDir():
+			// Sealed history (JSG-V0-012): Export serves its receipts and
+			// requests by their logical paths through sealedSources; the
+			// segment files themselves are not archive content.
+			sealed, err := flatDir(sc, abs, info, snapshot.SegmentsDir, snapshot.MaxSegmentBytes, func(string) bool { return true }, nil)
+			if err != nil {
+				return nil, sc, err
+			}
+			sc.segmented = len(sealed) != 0
 		case name == "requests" && info.IsDir():
 			shards, err := sc.list(abs, "requests/", info)
 			if err != nil {
@@ -312,4 +323,83 @@ func checkContentName(p string, digest wire.Digest) error {
 		return wire.Errorf(wire.CodeMalformed, p, "content-addressed name differs from consumed-byte digest")
 	}
 	return nil
+}
+
+// sealedSources returns the archive's logical view of a segmented store
+// (JSG-V0-012): the head rendered as taskman-journal-head/0 without its
+// segment binding, and receipts 1..S with the request afterimages they
+// posted, served from the segments the head binds once the manifest's and
+// each segment's digest check. The archive is therefore the archive of the
+// unsegmented store, and archive verify and import are unchanged. Sealed
+// bytes are held in memory for the export attempt.
+func sealedSources(life *archiveRead, head *snapshot.Head, headSha wire.Digest, files []sourceFile) ([]sourceFile, wire.Digest, error) {
+	raw, err := life.Read("head.json", wire.MaxJournalHeadBytes)
+	if err != nil {
+		return nil, "", err
+	}
+	if wire.Sum(raw) != headSha {
+		return nil, "", archiveMoved("head.json")
+	}
+	through := head.Segments.Through.Uint64()
+	name := snapshot.SegmentManifestName(through)
+	mraw, err := life.Read(name, snapshot.MaxSegmentManifestBytes)
+	if err != nil {
+		return nil, "", err
+	}
+	if wire.Sum(mraw) != head.Segments.ManifestSha256 {
+		return nil, "", archiveMoved(name)
+	}
+	m, err := snapshot.DecodeSegmentManifest(mraw, 1)
+	if err != nil {
+		return nil, "", err
+	}
+	if m.Through != through || m.QueueID != head.QueueID {
+		return nil, "", wire.Errorf(wire.CodeJournalForked, name, "segment manifest differs from the head")
+	}
+	seen := make(map[string]bool, len(files))
+	for _, f := range files {
+		if strings.HasPrefix(f.path, "receipts/") {
+			if seq, ok := parseReceiptName(strings.TrimPrefix(f.path, "receipts/")); ok && seq <= through {
+				return nil, "", wire.Errorf(wire.CodeJournalForked, f.path, "a sealed receipt is still linked")
+			}
+		}
+		seen[f.path] = true
+	}
+	for _, e := range m.Segments {
+		sname := snapshot.SegmentName(e.First, e.Last)
+		sraw, err := life.Read(sname, snapshot.MaxSegmentBytes)
+		if err != nil {
+			return nil, "", err
+		}
+		if uint64(len(sraw)) != e.Bytes || wire.Sum(sraw) != e.Sha256 {
+			return nil, "", wire.Errorf(wire.CodeJournalForked, sname, "segment differs from the digest the manifest binds")
+		}
+		seg, err := snapshot.DecodeSegment(sraw, e.First, e.Last)
+		if err != nil {
+			return nil, "", err
+		}
+		abs := filepath.Join(life.native.StateDir, filepath.FromSlash(sname))
+		for _, group := range [][]snapshot.SegmentFile{seg.Receipts, seg.Requests} {
+			for _, f := range group {
+				if seen[f.Path] {
+					return nil, "", wire.Errorf(wire.CodeJournalForked, f.Path, "sealed file is also linked or sealed twice")
+				}
+				seen[f.Path] = true
+				files = append(files, sourceFile{path: f.Path, abs: abs, max: boundFor(f.Path), raw: f.Raw})
+			}
+		}
+	}
+	plain := *head
+	plain.Segments = nil
+	hraw := wire.EncodeFile(plain.Value())
+	if _, err := snapshot.DecodeHead(hraw); err != nil {
+		return nil, "", err
+	}
+	for i := range files {
+		if files[i].path == "head.json" {
+			files[i].raw = hraw
+		}
+	}
+	sortSources(files)
+	return files, wire.Sum(hraw), nil
 }

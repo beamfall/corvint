@@ -35,7 +35,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	start := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, nil, nil)
+	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, false, nil, nil)
 	if terminal != nil {
 		out, err = guardFailure(report, env.RequestID, terminal)
 		return true, out, err
@@ -237,7 +237,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
 	var walks journal.WalkStats
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, resume, &walks)
+	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks)
 	timing.SnapshotRead += time.Since(read)
 	timing.walked(walks)
 	if terminal != nil {
@@ -255,11 +255,15 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: w.inv, Head: w.head, HeadReceipt: w.headReceipt, Queue: w.proof.Records["intent/queue.json"].Raw, Policy: w.proof.Records["intent/policy.json"].Raw, Barrier: w.barrier, Reservations: w.reservations, Pools: w.proof.Records["pools.json"].Raw, Programs: w.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: w.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	live := w.proof.ProjectionAgreement == journal.IntentRecordsNotCompared
 	for path, record := range w.proof.Records {
 		if record.Raw == nil {
 			continue
 		}
 		switch {
+		case live && (strings.HasPrefix(path, "intent/tickets/") || strings.HasPrefix(path, "intent/releases/")):
+			// A tail afterimage is not an observation of the intent tree
+			// (JSG-V0-001); the liveness model reads no ticket.
 		case strings.HasPrefix(path, "intent/tickets/"):
 			input.CanonicalTickets = append(input.CanonicalTickets, record.Raw)
 			input.CanonicalTicketPaths = append(input.CanonicalTicketPaths, path)
@@ -287,7 +291,11 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if !planned && transaction.HandoffPolicyCandidate(request, input, result) != nil {
 		return leaseDeclined(ctx, request, "handoff policy candidate")
 	}
-	if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
+	if live {
+		if err := bindLiveness(repo, w, result.Plan, guardOperation(request)); err != nil {
+			return leaseDeclined(ctx, request, "bind")
+		}
+	} else if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
 		return leaseDeclined(ctx, request, "bind")
 	}
 	// As commitLease does under the lock: the modeled branch is still the
@@ -317,7 +325,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	// As in commitLease: the lock is held and the head is the audited one
 	// (CAL-V0-060, CAL-V0-119 proposed).
-	retainCheckpoint(repo, w.proof)
+	if !live || w.tail() >= journal.WriterAdvanceTail {
+		// A liveness write retains the read checkpoint only when it also
+		// advances the writer checkpoint, so a heartbeat encodes no O(n)
+		// checkpoint (decision 0549).
+		retainCheckpoint(repo, w.proof)
+	}
 	checkpointed := writerStage(ctx, "lease.readCheckpoint", bound)
 	write := time.Now()
 	session, err := authority.NewSession(repo, lock)

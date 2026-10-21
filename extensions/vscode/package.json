@@ -37,7 +37,6 @@
     "onCommand:corvint.query",
     "onCommand:corvint.impact",
     "onCommand:corvint.refresh",
-    "onCommand:corvint.importTestObservation",
     "onCommand:corvint.clearResults",
     "onView:corvint.evidence",
     "onView:corvint.impact",
@@ -50,11 +49,10 @@
     },
     "untrustedWorkspaces": {
       "supported": "limited",
-      "description": "Corvint execution, discovery, configuration-path access, repository reads, and observation import are disabled until the workspace is trusted.",
+      "description": "Corvint execution, discovery, configuration-path access, and repository reads are disabled until the workspace is trusted.",
       "restrictedConfigurations": [
         "corvint.executablePath",
         "corvint.mcpExecutablePath",
-        "corvint.testObservationPath",
         "corvint.liveTests.enabled",
         "corvint.liveTests.command",
         "corvint.liveTests.retainEvidence",
@@ -84,10 +82,6 @@
       {
         "command": "corvint.refresh",
         "title": "Corvint: Refresh Last Explicit Query"
-      },
-      {
-        "command": "corvint.importTestObservation",
-        "title": "Corvint: Import Test Observation"
       },
       {
         "command": "corvint.clearResults",
@@ -122,12 +116,6 @@
           "default": "",
           "scope": "window",
           "description": "Absolute path to a corvint-mcp candidate, used only by the mcp-stdio transport. No PATH discovery, network transport, or automatic install is performed."
-        },
-        "corvint.testObservationPath": {
-          "type": "string",
-          "default": "",
-          "scope": "resource",
-          "description": "Workspace-relative path to a local Corvint go-live-event/0 NDJSON observation. Import is always explicit."
         },
         "corvint.maxOutputBytes": {
           "type": "integer",

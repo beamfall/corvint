@@ -96,6 +96,7 @@ func selfModifiedRepo(t *testing.T) (root, base, target string) {
 // changes, writes nothing, and still admits an unchanged span of another
 // file the patch changes and a governing file the patch leaves unchanged.
 func TestCiteRefusesSelfModifiedGoverningAuthority(t *testing.T) {
+	t.Parallel()
 	root, base, target := selfModifiedRepo(t)
 	session := openSession(t, root)
 	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
@@ -133,6 +134,7 @@ func TestCiteRefusesSelfModifiedGoverningAuthority(t *testing.T) {
 // governing instruction file and cites that file is reported, naming the
 // changing hunk and every citing basis, without changing the status state.
 func TestStatusReportsSelfModifiedAuthority(t *testing.T) {
+	t.Parallel()
 	root, base, target := selfModifiedRepo(t)
 	result := statusAfterCiting(t, root, base, target, "AGENTS.md", true)
 	if result["state"] != stableStates["ACCEPT"] || result["ok"] != true {
@@ -159,6 +161,7 @@ func TestStatusReportsSelfModifiedAuthority(t *testing.T) {
 // TestStatusOmitsSelfModifiedAuthorityWithoutAGoverningChange: a change that
 // edits no governing file keeps the status envelope byte-compatible.
 func TestStatusOmitsSelfModifiedAuthorityWithoutAGoverningChange(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	result := statusAfterCiting(t, root, base, target, "docs/rule.txt", false)
 	if result["state"] != stableStates["ACCEPT"] {

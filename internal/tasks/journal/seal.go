@@ -85,7 +85,10 @@ func (s *RetiredPrefix) Encode() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	anchor := s.Anchor.Encode()
+	anchor, err := encodeAnchor(s.Anchor)
+	if err != nil {
+		return nil, err
+	}
 	paths := make([]string, 0, len(s.Seeds))
 	for p := range s.Seeds {
 		paths = append(paths, p)
@@ -172,7 +175,7 @@ func DecodeRetiredPrefix(raw []byte) (*RetiredPrefix, error) {
 	if n > uint64(len(rest)) {
 		return nil, sealForked("anchor length")
 	}
-	anchor, err := DecodeWriterCheckpoint(rest[:n])
+	anchor, err := decodeAnchor(rest[:n])
 	if err != nil {
 		return nil, sealForked("anchor: %v", err)
 	}
@@ -306,7 +309,7 @@ func (r Reader) walkSealed(o *observation, result *Result, selected map[string]b
 	st := &chain{canonical: make(map[string]latest, len(a.Entries)), prev: &a.ReceiptSha256, generation: a.Generation.Uint64(), seal: s,
 		notes: &noteState{refs: map[string]*ticket.OperatorNoteReference{}, policyWalked: true}}
 	for _, e := range a.Entries {
-		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256}
+		st.canonical[e.Path] = latest{seq: e.Seq, digest: e.Sha256, bytes: -1}
 	}
 	// Requests receipts 1..S posted stay on disk but are not reinstated as
 	// canonical paths: their names must be exactly the ones the anchor

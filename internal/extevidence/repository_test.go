@@ -341,6 +341,7 @@ func TestCheckoutBinding(t *testing.T) {
 		"no checkout":         {nil, BindingUnbound, RelationNotVerified},
 		"missing directory":   {[]Checkout{{ID: "e2e", Source: filepath.Join(p.e2e.root, "absent")}}, BindingUnavailable, RelationNotVerified},
 		"subdirectory":        {[]Checkout{{ID: "e2e", Source: filepath.Join(p.e2e.root, "tests")}}, BindingUnavailable, RelationNotVerified},
+		"git directory":       {[]Checkout{{ID: "e2e", Source: filepath.Join(p.e2e.root, ".git")}}, BindingUnavailable, RelationNotVerified},
 		"different identity":  {[]Checkout{{ID: "e2e", Source: p.app.root}}, BindingMismatch, RelationUnresolved},
 		"bound by identity":   {[]Checkout{{ID: "e2e", Source: p.e2e.root}}, BindingCheckout, RelationFresh},
 		"unused checkout id":  {[]Checkout{{ID: "unused", Source: p.e2e.root}}, BindingUnbound, RelationNotVerified},
@@ -360,6 +361,39 @@ func TestCheckoutBinding(t *testing.T) {
 			if reason := row.(map[string]any)["reason"].(string); strings.Contains(reason, p.e2e.root) || strings.Contains(reason, p.app.root) {
 				t.Errorf("%s: a checkout reason must not carry a resolved path: %q", name, reason)
 			}
+		}
+	}
+}
+
+// AFP-V0-156: a checkout binds only at the top of a Git worktree, proved from an
+// empty prefix rather than a located top path, and no non-test source of this
+// package names the repository-root locator option that marks it an unbounded
+// reader (AFP-V0-012 rule (d)).
+func TestAFPV0156CheckoutTopLevelWithoutLocator(t *testing.T) {
+	t.Parallel()
+	p := newPair(t)
+	for source, want := range map[string]string{
+		t.TempDir():                        "not a Git checkout",
+		filepath.Join(p.e2e.root, ".git"):  "not a Git checkout",
+		filepath.Join(p.e2e.root, "tests"): "not the top level of a Git checkout",
+		p.e2e.root:                         "checkout resolved at HEAD " + p.e2e.head,
+	} {
+		if got := resolveCheckout(context.Background(), p.app.root, source).reason; got != want {
+			t.Errorf("%s: reason %q, want %q", source, got, want)
+		}
+	}
+	names, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range names {
+		if strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		if data, err := os.ReadFile(name); err != nil {
+			t.Fatal(err)
+		} else if strings.Contains(string(data), "--show-"+"toplevel") {
+			t.Errorf("%s names the repository-root locator", name)
 		}
 	}
 }

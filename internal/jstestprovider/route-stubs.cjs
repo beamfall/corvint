@@ -121,6 +121,13 @@ function override(restore, target, name, replacement) {
   });
 }
 
+// sameURL is Playwright's own unroute match: a string or predicate by identity, a RegExp by its
+// source and flags.
+function sameURL(a, b) {
+  if (a instanceof RegExp && b instanceof RegExp) return a.source === b.source && a.flags === b.flags;
+  return a === b;
+}
+
 // counted wraps a handler so each call counts as one hit of stub.
 function counted(stub, handler) {
   return function (...args) {
@@ -139,13 +146,17 @@ function session({ context, testInfo, warn }) {
   let closed = false;
   let engaged = false;
 
-  // instrument replaces route, unroute and routeWebSocket on the instance. Each handler is wrapped
-  // so a call counts as a hit; unroute(url, handler) still finds the wrappers of that handler.
+  // instrument replaces route, unroute, unrouteAll and routeWebSocket on the instance. Each handler
+  // is wrapped so a call counts as a hit; unroute(url, handler) still finds the wrappers of that
+  // handler. A route stub that unroute or unrouteAll removes is marked unrouted (LPCV-V0-214).
   // routeFromHAR registers through the instance route and is named by its call site.
   const instrument = (target, kind) => {
     const route = target.route;
     const unroute = target.unroute;
+    const unrouteAll = target.unrouteAll;
     const routeWebSocket = target.routeWebSocket;
+    // live holds this instance's registered route stubs with their URL and handler, unserialized.
+    const live = [];
     if (typeof route !== 'function') {
       warn(`no-route-${kind}`, `${kind}.route is absent in this Playwright; its stubs are not recorded`);
     } else {
@@ -154,6 +165,7 @@ function session({ context, testInfo, warn }) {
         if (typeof handler !== 'function') return route.call(this, url, handler, options);
         const stub = stubFor(kind, 'route', url, rootDir);
         stubs.push(stub);
+        live.push({ stub, url, handler });
         const wrapper = counted(stub, handler);
         if (!wrappers.has(handler)) wrappers.set(handler, []);
         wrappers.get(handler).push(wrapper);
@@ -163,10 +175,19 @@ function session({ context, testInfo, warn }) {
         // unroute(url, handler) removes the producer's wrappers of handler and then any
         // registration of handler itself made before instrumentation.
         override(restore, target, 'unroute', async function (url, handler) {
+          for (const entry of live) {
+            if (sameURL(entry.url, url) && (typeof handler !== 'function' || entry.handler === handler)) entry.stub.unrouted = true;
+          }
           if (typeof handler === 'function' && wrappers.has(handler)) {
             for (const wrapper of wrappers.get(handler)) await unroute.call(this, url, wrapper);
           }
           return unroute.call(this, url, handler);
+        });
+      }
+      if (typeof unrouteAll === 'function') {
+        override(restore, target, 'unrouteAll', function (...args) {
+          for (const entry of live) entry.stub.unrouted = true;
+          return unrouteAll.apply(this, args);
         });
       }
     }
@@ -223,7 +244,7 @@ function session({ context, testInfo, warn }) {
         // the attempt reads as NOT_PRODUCED instead of trusting the foreign record.
         warn('foreign', `a ${annotationType} annotation was published outside the producer; the attempt's record is refused`);
       }
-      const record = stubs.map(({ target, api, kind, pattern, hits, file, line }) => ({ target, ...(api ? { api } : {}), kind, pattern, hits, ...(file ? { file, line } : {}) }));
+      const record = stubs.map(({ target, api, kind, pattern, hits, file, line, unrouted }) => ({ target, ...(api ? { api } : {}), kind, pattern, hits, ...(file ? { file, line } : {}), ...(unrouted ? { unrouted: true } : {}) }));
       testInfo.annotations.push({ type: annotationType, description: JSON.stringify({ stubs: record }) });
     },
   };
@@ -295,4 +316,4 @@ function extend(baseTest, { warn: sink } = {}) {
   });
 }
 
-module.exports = { extend, annotationType, maxStubs, _internal: { callSite, clip, describe, frameLocation, observeBrowser, session } };
+module.exports = { extend, annotationType, maxStubs, _internal: { callSite, clip, describe, frameLocation, observeBrowser, sameURL, session } };

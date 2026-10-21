@@ -72,7 +72,7 @@ func TestLPCVV0074RouteStubVectors(t *testing.T) {
 			}
 		})
 	}
-	for _, name := range []string{"hit", "zero-hit", "record-absent", "websocket-and-har", "producer-absent-requested"} {
+	for _, name := range []string{"hit", "zero-hit", "record-absent", "websocket-and-har", "producer-absent-requested", "unrouted-before-hit"} {
 		if !seen[name] {
 			t.Errorf("route-stubs.json is missing the required case %q", name)
 		}

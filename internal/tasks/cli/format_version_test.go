@@ -164,7 +164,18 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		journal.ProfileWriterCheckpoint: func(t *testing.T, p string) error {
 			body := []byte(nextVersion(t, p) + "\nzzNewerLayout")
 			sum := sha256.Sum256(body)
-			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...))
+			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...), nil)
+			return err
+		},
+		journal.ProfileWriterBase: func(t *testing.T, p string) error {
+			// A current delta that binds the newer base, so the base's own
+			// version check is the one that refuses.
+			base := []byte(nextVersion(t, p) + "\nzzNewerLayout")
+			bound := sha256.Sum256(base)
+			body := append([]byte(journal.ProfileWriterCheckpoint+"\n"), bound[:]...)
+			body = append(body, make([]byte, 8+7*8+5*8+8+8+sha256.Size)...)
+			sum := sha256.Sum256(body)
+			_, err := journal.DecodeWriterCheckpoint(append(body, sum[:]...), base)
 			return err
 		},
 		journal.ProfileRetiredPrefix: func(t *testing.T, p string) error {
@@ -173,12 +184,29 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 			_, err := journal.DecodeRetiredPrefix(append(body, sum[:]...))
 			return err
 		},
-		mutation.Profile:                    plain(func(b []byte) error { _, e := mutation.Decode(b); return e }),
-		mutation.OutcomeProfile:             plain(func(b []byte) error { _, e := mutation.DecodeOutcome(b); return e }),
-		intent.ProfileImportMap:             plain(func(b []byte) error { _, e := intent.DecodeImportMap(b); return e }),
-		intent.ProfileQueue:                 plain(func(b []byte) error { _, e := intent.DecodeQueue(b); return e }),
-		intent.ProfilePolicy:                plain(func(b []byte) error { _, e := intent.DecodePolicy(b); return e }),
-		snapshot.ProfileHead:                plain(func(b []byte) error { _, e := snapshot.DecodeHead(b); return e }),
+		mutation.Profile:        plain(func(b []byte) error { _, e := mutation.Decode(b); return e }),
+		mutation.OutcomeProfile: plain(func(b []byte) error { _, e := mutation.DecodeOutcome(b); return e }),
+		intent.ProfileImportMap: plain(func(b []byte) error { _, e := intent.DecodeImportMap(b); return e }),
+		intent.ProfileQueue:     plain(func(b []byte) error { _, e := intent.DecodeQueue(b); return e }),
+		intent.ProfilePolicy:    plain(func(b []byte) error { _, e := intent.DecodePolicy(b); return e }),
+		// A head newer than /0 is /1, which this build reads; the record a
+		// later build writes after /1 is the one this build must refuse.
+		snapshot.ProfileHead: func(t *testing.T, p string) error {
+			_, e := snapshot.DecodeHead(enc(t, snapshot.ProfileHeadSegmented))
+			return e
+		},
+		snapshot.ProfileHeadSegmented:   plain(func(b []byte) error { _, e := snapshot.DecodeHead(b); return e }),
+		snapshot.ProfileSegmentManifest: plain(func(b []byte) error { _, e := snapshot.DecodeSegmentManifest(b, 1); return e }),
+		// The segment and the seal marker are not JSON: a later build's
+		// file starts with its next profile line.
+		snapshot.ProfileSegment: func(t *testing.T, p string) error {
+			_, e := snapshot.DecodeSegment([]byte(nextVersion(t, p)+"\n"+strings.Repeat("\x00", 24)), 1, snapshot.SegmentReceipts)
+			return e
+		},
+		snapshot.ProfileSealMarker: func(t *testing.T, p string) error {
+			_, e := snapshot.DecodeSealMarker([]byte(nextVersion(t, p) + "\n000000000001-000000000512\n"))
+			return e
+		},
 		snapshot.ProfileBarrier:             plain(func(b []byte) error { _, e := snapshot.DecodeBarrier(b); return e }),
 		snapshot.ProfileReceipt:             plain(func(b []byte) error { _, e := snapshot.DecodeReceipt(b); return e }),
 		snapshot.ProfileElidedReceipt:       plain(func(b []byte) error { _, _, _, e := snapshot.DecodeRetainedReceipt(b); return e }),

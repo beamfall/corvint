@@ -143,6 +143,7 @@ func treeDigest(t *testing.T, root string) string {
 // (CEM-V1-089). The verifier result is byte-identical with and without the
 // flag, held stays 0 inside it, and the caller's repository is untouched.
 func TestCEMV1088HeldOnlyFromConsumerReexecution(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRevertRepo(t)
 	hunks := prepareRevert(t, root, base, target, [3][3]string{
 		{"pkg/calc/calc_test.go", "5:5", "test-claim"},
@@ -188,6 +189,7 @@ func TestCEMV1088HeldOnlyFromConsumerReexecution(t *testing.T) {
 // the consumer runs survives; a test-claim span that declares no test is
 // not-run; a hunk with no test-claim is not a candidate.
 func TestCEMV1088ForgedWitnessNeverCounts(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRevertRepo(t)
 	hunks := prepareRevert(t, root, base, target, [3][3]string{
 		{"pkg/calc/weak_test.go", "5:5", "test-claim"},
@@ -234,6 +236,7 @@ func TestCEMV1088ForgedWitnessNeverCounts(t *testing.T) {
 // TestCEMV1088FlagIsVerifyOnly pins the opt-in boundary: status and report
 // refuse --hunk-revert rather than silently ignoring it.
 func TestCEMV1088FlagIsVerifyOnly(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
 		t.Fatal(err)

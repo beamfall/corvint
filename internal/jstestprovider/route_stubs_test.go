@@ -162,6 +162,35 @@ func TestLPCVV0076AnnotationNamesAPI(t *testing.T) {
 	}
 }
 
+// LPCV-V0-214: a stub the test removed with unroute carries unrouted true; the member has one
+// spelling, so false, null, a string or a case variant is refused, and a stub never removed
+// encodes without it.
+func TestLPCVV0214AnnotationMarksUnrouted(t *testing.T) {
+	record := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"**/a","hits":0,"unrouted":true},{"target":"page","kind":"glob","pattern":"**/b","hits":1}]}`)})
+	if record == nil || len(record.Stubs) != 2 || !record.Stubs[0].Unrouted || record.Stubs[1].Unrouted {
+		t.Fatalf("record = %+v", record)
+	}
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"stubs":[{"target":"page","kind":"glob","pattern":"**/a","hits":0,"unrouted":true},{"target":"page","kind":"glob","pattern":"**/b","hits":1}]}`; string(encoded) != want {
+		t.Fatalf("encoded = %s, want %s", encoded, want)
+	}
+	for name, member := range map[string]string{
+		"false":        `"unrouted":false`,
+		"null":         `"unrouted":null`,
+		"string":       `"unrouted":"true"`,
+		"number":       `"unrouted":1`,
+		"case variant": `"Unrouted":true`,
+		"duplicate":    `"unrouted":true,"unrouted":true`,
+	} {
+		if got := routeStubRecord([]playwrightAnnotation{routeStubAnnotation(`{"stubs":[{"target":"page","kind":"glob","pattern":"x","hits":0,` + member + `}]}`)}); got != nil {
+			t.Errorf("%s: record = %+v", name, got)
+		}
+	}
+}
+
 // LPCV-V0-072: patterns and registration paths pass the product secret screen, including a
 // credential written with regular-expression escapes.
 func TestLPCVV0072RecordIsSecretScreened(t *testing.T) {

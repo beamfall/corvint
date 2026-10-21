@@ -136,6 +136,9 @@ func RetirePrefix(ctx context.Context, repo *intent.Repository, archivePath stri
 	if err != nil {
 		return nil, err
 	}
+	if head.Segments != nil {
+		return nil, wire.Errorf(wire.CodeUnsupported, snapshot.SegmentsDir, "retire is refused on a segmented journal (JSG-V0-013); run journal unseal first")
+	}
 	if on, err := present(statePath(repo, "barrier.json")); err != nil || on {
 		if err == nil {
 			err = wire.Errorf(wire.CodePaused, "barrier.json", "a paused store is not retired")
@@ -251,8 +254,14 @@ func UnretirePrefix(ctx context.Context, repo *intent.Repository, archivePath st
 	if recovered, err := recoverRetire(ctx, repo); err != nil || recovered != "" {
 		return &RetireReport{Recovered: recovered}, err
 	}
-	if _, err := writerGuards(repo, "UNRETIRE"); err != nil {
+	head, err := writerGuards(repo, "UNRETIRE")
+	if err != nil {
 		return nil, err
+	}
+	// A store with a retired prefix is never sealed; one that binds segments
+	// is refused rather than restored beneath them (JSG-V0-013).
+	if head.Segments != nil {
+		return nil, wire.Errorf(wire.CodeUnsupported, snapshot.SegmentsDir, "unretire is refused on a segmented journal (JSG-V0-013); run journal unseal first")
 	}
 	return unretireLocked(ctx, repo, archivePath)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -745,4 +746,20 @@ func TestJRTV0008_EscalationAndGateReuseAcrossRetirement(t *testing.T) {
 		t.Fatalf("unretire: %v", err)
 	}
 	retiredAuditOK(t, s, 0, "unretired")
+}
+
+// TestJSGV0013_RetiredStoreRefusesJournalMigration checks that a store with
+// a retired prefix stays unsegmented: `journal seal` and `journal unseal`
+// refuse it as UNSUPPORTED with nothing written, because sealing from the
+// anchor is deferred (JSG-V0-013).
+func TestJSGV0013_RetiredStoreRefusesJournalMigration(t *testing.T) {
+	s, _, _, _, _ := sealedStore(t)
+	before := readTree(t, s.repo.StateDir)
+	for name, verb := range map[string]func(context.Context, *intent.Repository) (*store.JournalSealReport, error){"seal": store.SealJournal, "unseal": store.UnsealJournal} {
+		_, err := verb(context.Background(), s.repo)
+		refusesCode(t, err, wire.CodeUnsupported, "journal "+name)
+	}
+	if after := readTree(t, s.repo.StateDir); after != before {
+		t.Fatal("a refused journal migration changed the store")
+	}
 }

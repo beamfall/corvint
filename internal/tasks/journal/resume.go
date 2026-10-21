@@ -71,7 +71,7 @@ func (r Reader) auditPrefixFallback() (result *Result, observation PhysicalObser
 // SNAPSHOT_MOVED whatever the rest of its walk finds, because its second
 // capture compares the same file identity and stamps.
 func (r Reader) headMoved(o *observation) bool {
-	native, ok := r.Source.(*nativeRead)
+	native, ok := nativeOf(r.Source)
 	if !ok || !r.abortMoved {
 		return false
 	}
@@ -128,6 +128,11 @@ func (res *Result) ResumeBase(obs PhysicalObservation) (*ResumeBase, error) {
 	}
 	if res == nil || (res.Mode != ModeFull && res.Mode != ModePrefix) || res.StructuralConsistency != "CONSISTENT" || obs.Cleanup != nil || obs.Files == nil || obs.capture == nil || obs.capture.identity != res.Identity {
 		return nil, errCheckpoint("resume", "not a settled audit from receipt 1")
+	}
+	if res.Head != nil && res.Head.Segments != nil {
+		// Sealed receipts have no stat stamps of their own; S6 re-hashes
+		// the bound segments instead (JSG-V0-011).
+		return nil, errCheckpoint(snapshot.SegmentsDir, "resume base of a segmented journal")
 	}
 	wc, err := res.WriterCheckpoint(obs.Files)
 	if err != nil {
