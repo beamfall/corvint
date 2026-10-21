@@ -344,6 +344,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   JSON field MUST surface in the CLI `policy` consistently. Frontier unavailability
   MUST NOT become local satisfaction or imply authority. Rollback: remove the additive
   field and its assignments; persisted state and existing actions are unchanged.
+- `LCP-V0-030`: (accepted, owner lane auto-acceptance 2026-10-11; V1-0953) When the session's
+  satisfied enrollment for a different plan no longer evaluates as satisfied, `begin` MUST archive
+  it as a completed generation and enroll the new plan only when that enrollment is the completed
+  stage the new plan continues: its terminal record names its report set with check exit 0, the
+  review acknowledged that report set, and the target the report set bound is an ancestor of, or
+  equal to, the new plan's base (`git merge-base --is-ancestor`). This is the staged binding of an
+  over-cap batch in one clone (seal `BASE..M1`, then enroll `M1-seal..M2`). Every other stale
+  satisfied enrollment, and a failed ancestry probe, MUST keep the `prior-completion-stale` refusal
+  with no local write, and its CLI message MUST name this route. The cross-session
+  `worktree-prior-completion-stale` refusal is unchanged. Rollback: remove the supersession test in
+  `Begin`; archived generations stay readable.
 
 ## Non-goals and simpler baseline
 
@@ -452,7 +463,7 @@ elsewhere are not repeated.
 | `output-bound-exceeded` | `internal/localcompletion/finish.go` (`Write`) | a bounded output buffer would exceed the artifact byte bound |
 | `plan-bound-exceeded` | `internal/localcompletion/storage.go` (`validatePlan`) | the plan has fewer than 1 or more than 16 intents or checks; `error.message` names both bounds (`LCP-V0-018`) |
 | `plan-unavailable` | `internal/localcompletion/storage.go` (`ReadPlan`) | the plan file's parent directory does not resolve |
-| `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied |
+| `prior-completion-stale` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session's satisfied enrollment for a different plan no longer evaluates as satisfied and is not a completed stage whose bound target the new base contains (`LCP-V0-030`) |
 | `public-command-output-bound` | `internal/localcompletion/finish.go` (`public`) | a public evidence command overflowed its stdout or stderr bound |
 | `public-evidence-command-failed` | `internal/localcompletion/finish.go` (`public`) | a public evidence command exited non-zero without a valid code on stderr |
 | `public-report-path-invalid` | `internal/localcompletion/finish.go` (`generateReports`) | the report path is not an allowed path |
@@ -524,6 +535,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-020 | `TestCompletionNoActionReasons`; `TestLocalCompletionFrontierUnavailableNextActionOrReason`; `TestLocalCompletionUnavailableEvaluationReason`; `TestLocalCompletionRealEvidenceWorkflow` (satisfied status and finish JSON) |
 | LCP-V0-018 | `localCompletionRemedies` in `cmd/corvint/local_completion.go`; `TestDogfoodBeginPlanIntentRefusalNamesTheRule` (`cmd/corvint/local_completion_test.go`) over unsorted, duplicated, empty and 17-path intents arrays |
 | LCP-V0-019 | `EvaluateObserved`, `EvaluateAgainst` and drift-only snapshots in `internal/localcompletion/lifecycle.go` and `internal/localcompletion/storage.go`; matched closing observation in `localEventRead` | `TestEnrolledStopSpawnsBoundedGit`, `TestDogfoodEventObservedMismatchFallsBack`, `TestEvaluateAgainstMatchesFullEvaluation`, `TestEvaluateAgainstReReadsPrivateInputs`, `TestEvaluateAgainstDirtyAndDrift`, `TestEvaluateAgainstChangedBase`; trace and same-host measurement record in `docs/build-log/2026-10-10-v1-1124-stop-git-calls.md` |
+| LCP-V0-030 | `supersededByNextStage` in `internal/localcompletion/lifecycle.go`; `TestBeginNextStageAfterSealedStage` (`internal/localcompletion/lifecycle_test.go`: stage-2 begin archives the stage-1 generation; a non-ancestor target, a failed final check, an unreviewed report set and a missing terminal record still refuse without a write); `TestDogfoodBeginPriorCompletionStaleNamesTheRoute` (`cmd/corvint/local_completion_test.go`) |
 
 ## Rollout, rollback and remaining gates
 

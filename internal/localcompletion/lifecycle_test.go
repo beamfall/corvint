@@ -705,3 +705,107 @@ func TestMalformedNullScalarsCannotBecomeSuccessfulEvidence(t *testing.T) {
 		t.Fatal("null terminal check exit accepted")
 	}
 }
+
+// TestBeginNextStageAfterSealedStage covers V1-0953 (LCP-V0-030): a staged
+// binding seals BASE..M1 and then enrolls M1-seal..M2 in the same clone. The
+// stage-1 enrollment is satisfied but stale once HEAD moves past its target;
+// the next stage's begin archives it when that target is an ancestor of the
+// new base, and every other stale satisfied enrollment keeps refusing.
+func TestBeginNextStageAfterSealedStage(t *testing.T) {
+	commit := func(t *testing.T, root, name string) string {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, name), []byte(name+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		localGit(t, root, "add", name)
+		localGit(t, root, "commit", "-qm", name)
+		return localGit(t, root, "rev-parse", "HEAD")
+	}
+	const reviewed = "1111111111111111111111111111111111111111111111111111111111111111"
+	// sealStage records stage 1 as satisfied the way finish does: a passing
+	// final check over the reviewed report set that bound target.
+	sealStage := func(t *testing.T, repo *repository, target string, mutate func(*state)) string {
+		t.Helper()
+		saved, err := repo.load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		saved.ReportSet = &reportSet{PlanDigest: saved.PlanDigest, Target: target, Bindings: []artifact{}, Reports: []artifact{}, Observations: []observation{}, Digest: reviewed}
+		saved.Review = reviewed
+		saved.Terminal = &terminal{ReportSet: reviewed, CheckExit: 0, Artifacts: []artifact{}}
+		saved.Lifecycle = "satisfied"
+		if mutate != nil {
+			mutate(saved)
+		}
+		if err = repo.save(saved); err != nil {
+			t.Fatal(err)
+		}
+		return saved.Generation
+	}
+	beginStage2 := func(t *testing.T, root, key string, plan Plan, base string) (Evaluation, error) {
+		t.Helper()
+		next := plan
+		next.Base = base
+		raw, _ := json.Marshal(next)
+		return Begin(context.Background(), root, key, raw)
+	}
+
+	t.Run("target ancestor of the new base archives the stage", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		m1 := commit(t, root, "stage1.txt")
+		repo := beginFixture(t, root, key, plan)
+		generation := sealStage(t, repo, m1, nil)
+		seal := commit(t, root, "seal.txt")
+		commit(t, root, "stage2.txt")
+		result, err := beginStage2(t, root, key, plan, seal)
+		if err != nil || result.Lifecycle != "active" {
+			t.Fatalf("stage 2 begin: %#v %v", result, err)
+		}
+		if _, err = os.Stat(filepath.Join(repo.directory, key, generation, "state.json")); err != nil {
+			t.Fatalf("stage-1 generation not archived: %v", err)
+		}
+		current, err := repo.load()
+		if err != nil || current.Generation == generation || current.Plan.Base != seal {
+			t.Fatalf("stage-2 enrollment: %#v %v", current, err)
+		}
+	})
+
+	refusals := map[string]struct {
+		mutate func(*state)
+		target func(t *testing.T, root, base string) string
+	}{
+		"target not an ancestor of the new base": {target: func(t *testing.T, root, base string) string {
+			localGit(t, root, "checkout", "-q", "-b", "side", base)
+			side := commit(t, root, "side.txt")
+			localGit(t, root, "checkout", "-q", "main")
+			return side
+		}},
+		"final check did not pass":  {mutate: func(saved *state) { saved.Terminal.CheckExit = 1 }},
+		"report set never reviewed": {mutate: func(saved *state) { saved.Review = "" }},
+		"no terminal record":        {mutate: func(saved *state) { saved.Terminal = nil }},
+	}
+	for name, refusal := range refusals {
+		t.Run(name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			m1 := commit(t, root, "stage1.txt")
+			if refusal.target != nil {
+				m1 = refusal.target(t, root, plan.Base)
+			}
+			repo := beginFixture(t, root, key, plan)
+			sealStage(t, repo, m1, refusal.mutate)
+			seal := commit(t, root, "seal.txt")
+			commit(t, root, "stage2.txt")
+			before, err := os.ReadFile(filepath.Join(repo.directory, key, "state.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = beginStage2(t, root, key, plan, seal); err == nil || err.Error() != "prior-completion-stale" {
+				t.Fatalf("want prior-completion-stale, got %v", err)
+			}
+			after, err := os.ReadFile(filepath.Join(repo.directory, key, "state.json"))
+			if err != nil || string(after) != string(before) {
+				t.Fatalf("refusal changed the satisfied enrollment: %v", err)
+			}
+		})
+	}
+}

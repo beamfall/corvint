@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -71,7 +72,7 @@ func Begin(ctx context.Context, root, key string, raw []byte) (Evaluation, error
 				if evaluationErr != nil {
 					return Evaluation{}, evaluationErr
 				}
-				if !previous.Satisfied {
+				if !previous.Satisfied && !repo.supersededByNextStage(ctx, existing, plan.Base) {
 					return Evaluation{}, errors.New("prior-completion-stale")
 				}
 			}
@@ -668,4 +669,25 @@ func (repo *repository) inactive() (Evaluation, error) {
 		result.Owner = owner
 	}
 	return result, nil
+}
+
+// supersededByNextStage reports whether a satisfied enrollment that no longer
+// evaluates as satisfied is a completed stage the new plan continues
+// (LCP-V0-030): its final check passed over a reviewed report set, and the
+// target that report set bound is an ancestor of, or equal to, the new plan's
+// base. A staged binding seals BASE..M1 and then enrolls M1-seal..M2 in the
+// same clone; the stage-1 enrollment is stale only because HEAD moved past its
+// target. Any other stale satisfied enrollment, or a failed ancestry probe,
+// keeps the prior-completion-stale refusal.
+func (repo *repository) supersededByNextStage(ctx context.Context, prior *state, base string) bool {
+	if prior.Lifecycle != "satisfied" || prior.ReportSet == nil || prior.Terminal == nil {
+		return false
+	}
+	if prior.Terminal.CheckExit != 0 || prior.Terminal.ReportSet != prior.ReportSet.Digest || prior.Review != prior.ReportSet.Digest {
+		return false
+	}
+	if !wire.IsGitOid(prior.ReportSet.Target) || !wire.IsGitOid(base) {
+		return false
+	}
+	return repo.requireBaseAncestor(ctx, prior.ReportSet.Target, base) == nil
 }

@@ -257,6 +257,7 @@ func emitLocalCompletionFailure(stderr io.Writer, code string) int {
 // the rule (LCP-V0-018, V1-1043). Each text is fixed, so the message still
 // carries no path or command text; the code stays the stable member.
 var localCompletionRemedies = map[string]string{
-	"invalid-intent-scope": "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
-	"plan-bound-exceeded":  "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
+	"invalid-intent-scope":   "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
+	"plan-bound-exceeded":    "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
+	"prior-completion-stale": "this session's satisfied enrollment for another plan no longer evaluates as satisfied; begin admits the next stage of a staged binding only when the new plan base contains the target that enrollment bound and finished (LCP-V0-030), so set the plan base to the earlier stage's seal commit, or use a fresh worktree or clone for unrelated work",
 }
