@@ -542,8 +542,9 @@ experimental; exact client tuples and outcome/performance floors are unqualified
 > final: its untouched-repository evaluation failed (Core jobs row below). The 1.0 stability promise (frozen
 > contracts, N-1 readers or deterministic migrations) covers the Core surfaces below and nothing
 > else ([1.0 scope](docs/specs/corvint-1.0-product-and-release-v1.md), decision 0373). Stable 1.0
-> also requires the expanded Flows, safe navigation, documentation/MCP, full Beamfall roadmap
-> takeover by Tasks and automatic documentation outcomes accepted in decision 0426. Those
+> also requires the expanded Flows, safe navigation, documentation/MCP and automatic
+> documentation outcomes accepted in decision 0426; the full Beamfall roadmap takeover by Tasks
+> moved post-1.0 on 2026-10-21 (`PRS-V1-014`, `PRS-V1-016`, V1-0464). Those
 > requirements do not expand Core's binary boundary or transfer its stability promise to
 > companions. The three Core jobs must pass on Corvint, Beamfall and one untouched public
 > repository (`PRS-V1-008`; urfave/cli for rc.2, decision 0432), alongside the expanded product qualification. Platform status comes
