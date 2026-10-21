@@ -42,6 +42,9 @@ const (
 	// LocationLineAmbiguous: more than one test is declared on the line, so the reading cannot say
 	// which title path is this test's.
 	LocationLineAmbiguous = "declaration-line-ambiguous"
+	// LocationDeclarationAmbiguous: discovery found more than one bound declaration whose literal
+	// title path is the test's full name (LPCV-V0-291).
+	LocationDeclarationAmbiguous = "declaration-ambiguous"
 )
 
 // The location member names an Absent key may take.

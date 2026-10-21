@@ -2,17 +2,17 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405)
-Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191)
+Intent status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)
+Delivery status: not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
 `docs/specs/test-claim-qualification-v0.md`, `docs/DOGFOOD.md`
 
 ## Agent digest
 - Claim: Live Proof-Carrying Verification proposes bounded provider receipts and exclusion witnesses for change-specific verification.
-- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191)
+- Status: accepted (decision 0047, 2026-09-04); LPCV-V0-057..070 accepted (decision 0458; V1-1024; GitHub #682); LPCVD-V0-001..004 accepted (decision 0518; V1-1140); LPCVD-V0-005 and LPCV-V0-071 accepted (decision 0519; V1-1156, V1-1196); LPCV-V0-072..075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1458; GitHub #948); LPCV-V0-076..079 accepted under the owner's standing auto-accept (2026-10-11) (V1-1475; decision 0534); LPCV-V0-080..083 accepted under the owner's standing auto-accept (2026-10-11) (V1-1737; GitHub #1099); LPCV-V0-084 accepted under the owner's standing auto-accept (2026-10-11) (V1-1801; GitHub #1132); LPCV-V0-090..095 accepted under the owner's standing auto-accept (2026-10-11) (V1-1797; GitHub #1128, #1130, #1132); LPCV-V0-120..125 accepted under the owner's standing auto-accept (2026-10-11) (V1-1931, V1-1932; GitHub #1192, #1193); LPCV-V0-126..129 accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); LPCV-V0-131..135 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010; GitHub #1271); LPCV-V0-136..139 accepted under the owner's standing auto-accept (2026-10-11) (V1-2010, V1-2013, V1-2014; GitHub #1271); LPCV-V0-145..153 accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); LPCV-V0-214 accepted under the owner's standing auto-accept (2026-10-11) (V1-1474); LPCV-V0-254..262 accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); LPCV-V0-290..292 accepted under the owner's standing auto-accept (2026-10-11) (V1-2015, V1-2090, V1-2091)/not-started (parent product); LPCV-V0-057..069 experimental (V1-1024), join gated off pending the owner sample comparison and cost measurement (LPCV-V0-129), LPCV-V0-070 live matrix retained on the 1.63.0 tuple (LPCV-V0-126..128); LPCV-V0-072..079 experimental (V1-1458, V1-1475); LPCV-V0-080..083 experimental (V1-1737); LPCV-V0-084 experimental (V1-1801); LPCV-V0-090..095 experimental (V1-1797); LPCV-V0-120..125 experimental (V1-1931, V1-1932); LPCV-V0-131..135 experimental (V1-2010); LPCV-V0-136..139 experimental (V1-2010, V1-2013, V1-2014); LPCV-V0-145..153 experimental (V1-2045, V1-2046); LPCV-V0-214 experimental (V1-1474); LPCV-V0-254..262 experimental (V1-2191); LPCV-V0-290..292 experimental (V1-2015, V1-2090, V1-2091)
 - Exists: the parent contract and several experimental provider/affected-selection slices; the product is not delivered.
-- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstain (`LPCV-V0-128`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
+- Blocked on: qualified cross-language providers, exclusion witnesses, execution containment, and promotion evidence. Step-level negative controls (`LPCV-V0-057..069`, V1-1024) are implemented at experimental tier; the `LPCV-V0-070` live matrix is retained on the 1.63.0 tuple (`LPCV-V0-127`), 1.64.0 traces abstained (`LPCV-V0-128`) until the callId frame link (`LPCV-V0-290`), and their strength join stays gated off until the owner sample comparison and cost measurement are retained (`LPCV-V0-129`).
 - Read next: User and measurable job; Competitive and novelty boundary; V0 system boundary.
 
 ## User and measurable job
@@ -749,6 +749,9 @@ availability, legal, and failure-mode review before implementation.
 | `LPCV-V0-128` 1.64.0 derivation abstention | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); finding, not qualification | `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248): 5 of 12 cases passed; every assertion step read `NOT_MEASURED` `step-fault-underivable` (build log 2026-10-20); cause `NOT_OBSERVED` |
 | `LPCV-V0-129` join stays gated off | accepted under the owner's standing auto-accept (2026-10-11) (V1-1024); delivered | `internal/testvaliditydoc`'s `TestLPCVV0129JoinStaysGatedOff`; the owner sample comparison and G2 cost measurement stay `NOT_RUN` (owner-run) |
 | `LPCV-V0-145..153` structured test location and static source projection | accepted under the owner's standing auto-accept (2026-10-11) (V1-2045, V1-2046; GitHub #1302, #1303); experimental | `internal/testvaliditydoc`'s `TestLPCVV0145PlaywrightLocation`, `TestLPCVV0145ProfiledPlaywrightAnchorsAreDeclarations`, `TestLPCVV0146GoLocationNotRecorded`, `TestLPCVV0148RubyLocationAndSharedGroup`, `TestLPCVV0151StaticProjection`, `TestLPCVV0147DiscoveryPlacesLocation`, `TestLPCVV0146AmbiguousLineTitlePathAbsent` and `TestLPCVV0135RubyOptionalMembersDecodeClosed`; `internal/testsource`'s `TestLPCVV0147JSTitlePath`, `TestLPCVV0147RSpecTitlePath`, `TestLPCVV0147JSAmbiguousLineHasNoTitlePath`, `TestLPCVV0147RSpecComputedTitleNotLiteral`, `TestLPCVV0152StaticExamplesReadsCommittedSource` and `TestLPCVV0152StaticSupportSharesTheCommandBudget`; `internal/mcp/testvaliditybridge`'s `TestLPCVV0149ReceiptLocationMatchesCLI`; `cmd/corvint`'s `TestLPCVV0150StaticModeProjectsSourceAndWritesNothing` and `TestLPCVV0153StaticOptionsAreExclusive`; real Playwright and RSpec runs `NOT_RUN` |
+| `LPCV-V0-290` Playwright 1.64.0 frame link | accepted under the owner's standing auto-accept (2026-10-11) (V1-2015); experimental | `internal/stepnegation`'s `TestLPCVV0290Playwright164FrameLink`; `TestNegateLiveDiagnostic` qualified mode on the 1.64.0 tuple (revision 1248, Node v22.23.2): 12 of 12 cases passed with the fix and 7 failed with `step-fault-underivable` without it (build log 2026-10-21 test-validity-js) |
+| `LPCV-V0-291` Vitest and unprofiled declaration placement by title path | accepted under the owner's standing auto-accept (2026-10-11) (V1-2090); experimental | `internal/testvaliditydoc`'s `TestLPCVV0291VitestDeclarationPlacedByTitle`; a real Vitest run `NOT_RUN` |
+| `LPCV-V0-292` Playwright rootDir-relative spec binding | accepted under the owner's standing auto-accept (2026-10-11) (V1-2091); experimental | `internal/testvaliditydoc`'s `TestLPCVV0292PlaywrightRootDirRelativeSpec`; a real Playwright run with a non-root `testDir` `NOT_RUN` |
 | `LPCV-V0-254..262` bun test provider | accepted under the owner's standing auto-accept (2026-10-11) (V1-2191; GitHub #1405); experimental | `internal/jstestprovider`'s `TestLPCVV0255_RunBunBindsCommandIdentityAndTree`, `TestLPCVV0258_BunRefusalsAreTypedAndPreRun`, `TestLPCVV0260_ParseBunJUnitLiveReport`, `TestLPCVV0260_ParseBunJUnitHookAndShape` and `TestLPCVV0262_LiveBunQualification` (live, bun 1.3.11 on 2026-10-21; `NOT_RUN` without `CORVINT_BUN_EXECUTABLE`); `internal/testsource`'s `TestLPCVV0261_BunFixtureSelectedRunAndJoined`; `cmd/corvint-js-test-provider`'s `TestProviderBunRefusalExitsAdmissionRefused` |
 
 ## Step-level negative controls by fault injection (accepted, decision 0458; V1-1024; GitHub #682)
@@ -1052,7 +1055,8 @@ no run of it could count. These requirements add a qualified mode, retain one ru
   read `NOT_MEASURED` `step-fault-underivable` with the anchors
   `derivation:network:expected-value-not-literal` and `derivation:dom:no-dom-fault`. Derivation
   therefore abstains on 1.64.0 traces and never produces a `KILLED` or `SURVIVED` reading there.
-  The cause is unconfirmed (a suspected trace-format change) and is a residual.
+  The cause is unconfirmed (a suspected trace-format change) and is a residual. `LPCV-V0-290`
+  later confirmed the cause and resolved the abstention.
 - `LPCV-V0-129`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1024)
   `stepNegationJoinQualified` MUST stay false after `LPCV-V0-127`. Promotion also needs the owner
   sample comparison and the owner's G2 cost measurement from this slice's acceptance evidence,
@@ -1887,7 +1891,8 @@ reads the same document as before.
   closed reason: `not-recorded-by-provider` (the provider records no such member, as for every Go
   test), `repository-root-unbound`, `anchor-file-unbound`, `anchor-not-declaration`,
   `source-not-read`, `source-unplaced`, `title-not-literal`, `shared-example-definition` or
-  `declaration-line-ambiguous` (more than one test is declared on the line). A set
+  `declaration-line-ambiguous` (more than one test is declared on the line), or
+  `declaration-ambiguous` (`LPCV-V0-291`). A set
   member never appears in `absent`, so an absent member is never silent.
 - `LPCV-V0-147`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2045) The JS/TS
   and RSpec example readers MUST record an example's `titlePath` only when every title on it is one
@@ -1939,7 +1944,8 @@ reads the same document as before.
 
 Non-goals:
 - recording a structured title path inside the Playwright or RSpec providers' own receipts;
-- placing a Vitest failure-frame anchor without a bound source reading;
+- placing a Vitest failure-frame anchor without a bound source reading (`LPCV-V0-291` places
+  the declaration from a bound reading, never from the frame);
 - reading uncommitted worktree source, or another revision than `HEAD`, in static mode;
 - a static MCP tool;
 - projecting execution or strength from source.
@@ -1970,3 +1976,58 @@ through this projection, including the Corvint formatter's inclusion frames (`LP
 Rollback: revert the V1-2045 and V1-2046 change. `location` and `static` disappear from projected
 documents, `--static` is refused as an unknown option, and every other member is unchanged; no
 retained document or receipt format changes.
+
+## Playwright 1.64 frame link and JS declaration placement (V1-2015, V1-2090, V1-2091)
+
+Three gaps remained in the slices above. On Playwright 1.64.0 every assertion step read
+`step-fault-underivable` (`LPCV-V0-128`, V1-2015). A retained 1.64.0 trace shows the cause: the
+library's `Frame.expect` event no longer carries `stepId`, and its `callId` reuses the runner's
+expect step id. A Vitest test and an unprofiled Playwright test had no declaration, only a failure
+frame (`anchor-not-declaration`) or nothing, so their `file` and `line` stayed absent even when a
+bound source reading could place them (V1-2090). Playwright spec paths relative to a non-root
+`testDir` had no pinned binding rule (V1-2091). `LPCV-V0-290` to `LPCV-V0-292` were accepted under
+the owner's standing auto-accept (2026-10-11). The slice is experimental and changes no axis state,
+reason or anchor other than the ones named here.
+
+- `LPCV-V0-290`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step
+  negation MUST link a library `Frame` event to its runner expect step by `stepId`, or by `callId`
+  when `stepId` is absent (the 1.64.0 shape). A present `stepId` always wins. A link that names no
+  runner expect step attaches no frame, so derivation abstains as before rather than borrowing an
+  unrelated frame. This resolves the `LPCV-V0-128` abstention. It does not qualify the 1.64.0 tuple
+  for the strength join, which stays gated by `LPCV-V0-129`.
+- `LPCV-V0-291`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After the
+  anchor and discovery placements of `LPCV-V0-145` and `LPCV-V0-147`, a JS/TS outcome with no
+  `file` and no `line`, whose `file` absence is `anchor-not-declaration` or
+  `not-recorded-by-provider` and whose provider full name is not empty, MUST be placed from the
+  bound example readings of the retained `testFileDigests` keys inside the repository root. A
+  reading matches when its literal `titlePath` joined by a space (Vitest) or by ` > ` (bun) equals
+  the full name exactly. Exactly one match sets `file`, `line` and `titlePath` from that reading.
+  More than one sets `file` and `line` absent with `declaration-ambiguous`. No match leaves the
+  location unchanged. A failure frame never sets a member, and the projection's axes, reasons and
+  hygiene do not change.
+- `LPCV-V0-292`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A
+  Playwright spec anchor relative to a non-root `testDir` or `rootDir` MUST bind to the one
+  retained `testFileDigests` key inside the repository root whose path ends with the anchor at a
+  path boundary. With no repository root it stays `repository-root-unbound`, and when more than one
+  key shares the tail it stays `anchor-file-unbound`; it is never guessed.
+
+Non-goals:
+- qualifying the 1.64.0 tuple or flipping `stepNegationJoinQualified`;
+- matching a computed, template or `each`-generated title against a full name;
+- reading Playwright configuration to learn `testDir`.
+
+| Failure mode | Prevented by |
+|---|---|
+| A 1.64.0 assertion step abstains although its frame was retained. | `LPCV-V0-290` callId fallback |
+| A stray callId attaches an unrelated frame. | `LPCV-V0-290` link must name a runner expect step |
+| A failure frame reads as the declaration. | `LPCV-V0-291` placement from a bound reading only |
+| Two declarations with one full name pick one silently. | `LPCV-V0-291` `declaration-ambiguous` |
+| A rootDir-relative anchor binds to the wrong spec. | `LPCV-V0-292` unique suffix or `anchor-file-unbound` |
+
+Acceptance evidence: the focused tests in the traceability rows, and the live 1.64.0 qualified-mode
+diagnostic recorded in `docs/build-log/2026-10-21-1021p-test-validity-js.md` (12 of 12 with the
+fix, 7 of 12 failing without it). Real Vitest and non-root `testDir` Playwright runs are `NOT_RUN`.
+
+Rollback: revert the V1-2015, V1-2090 and V1-2091 change. 1.64.0 traces abstain again, Vitest and
+unprofiled locations return to their earlier absences, and no retained document or receipt format
+changes.
