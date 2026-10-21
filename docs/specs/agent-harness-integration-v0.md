@@ -56,7 +56,8 @@ outcome recording remains the separate explicit `corvint record` operation again
 `startup|resume|clear|compact`. The Claude Code and Codex adapters map the host SessionStart source
 `fork` (a resumed transcript under a new session id, in the Claude Code 2.1.267 and Codex 0.153 hook
 input schemas) to `resume` rather than refusing it as `invalid-start-source`, and the Codex plugin's
-SessionStart matcher admits `fork`. On `compact`, Corvint rehydrates a bounded impact packet from the exact
+SessionStart matcher admits `fork`. The qualified native-hook path (`cmd/corvint/native_hook.go`) applies
+the same map, so `fork` is a `resume` there too (V1-0445, `TestNativeHookForkSessionStartIsResume`). On `compact`, Corvint rehydrates a bounded impact packet from the exact
 dirty paths that exist at the pinned revision. Untracked paths are reported by count and digest but
 cannot become revision-pinned impact evidence; a dirty set that cannot fit degrades explicitly.
 This repository-derived recovery never reads a transcript or persists a prompt, decision, or model
