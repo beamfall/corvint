@@ -18,6 +18,7 @@ func stableRealTemp(t *testing.T) string {
 	return p
 }
 func TestStableArtifactRejectsStaticConfinedLinks(t *testing.T) {
+	t.Parallel()
 	base := stableRealTemp(t)
 	rootPath := filepath.Join(base, "root")
 	if e := os.MkdirAll(filepath.Join(rootPath, "actual"), 0700); e != nil {
@@ -55,6 +56,7 @@ func TestStableArtifactRejectsStaticConfinedLinks(t *testing.T) {
 	}
 }
 func TestStableArtifactRootIdentityReplacementRefuses(t *testing.T) {
+	t.Parallel()
 	base := stableRealTemp(t)
 	named := filepath.Join(base, "root")
 	if e := os.Mkdir(named, 0700); e != nil {

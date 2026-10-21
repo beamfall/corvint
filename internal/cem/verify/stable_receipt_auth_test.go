@@ -259,6 +259,7 @@ func (c *receiptAuthCase) mutate(t *testing.T, set map[string]json.RawMessage) [
 // TEST-ONLY seeds and the recipe trees derive. Set
 // CORVINT_CEM_V1084_REGENERATE=1 to rewrite them.
 func TestCEMV1084ReceiptAuthenticationFixtures(t *testing.T) {
+	t.Parallel()
 	c := loadReceiptAuthCase(t)
 	want := receiptAuthFixtures(t, repositoryRoot(t), c.expect.BaseTree, c.expect.TargetTree)
 	regenerate := os.Getenv("CORVINT_CEM_V1084_REGENERATE") == "1"
@@ -286,6 +287,7 @@ func TestCEMV1084ReceiptAuthenticationFixtures(t *testing.T) {
 // raises executionAtCommit, and every public refusal fails at its recorded
 // stage and code (CEM-V1-084).
 func TestCEMV1084ReceiptAuthenticationPublicCase(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}

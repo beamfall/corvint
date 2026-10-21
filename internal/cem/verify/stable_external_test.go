@@ -137,6 +137,7 @@ func (c *externalCase) mutate(t *testing.T, x externalCaseCriterion) []byte {
 // bytes reject; wire and identity faults refuse at their recorded stage
 // (CEM-V1-330..335).
 func TestCEMV1334ExternalCriterionPublicCase(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}
@@ -185,6 +186,7 @@ func TestCEMV1334ExternalCriterionPublicCase(t *testing.T) {
 // TestCEMV1336ExternalFixLine proves the stderr fix line names exactly the
 // unsupplied external repositories and is empty once all are supplied.
 func TestCEMV1336ExternalFixLine(t *testing.T) {
+	t.Parallel()
 	c := loadExternalCase(t)
 	fix := StableExternalFix(c.raw, nil)
 	if !strings.Contains(fix, "external repository requirements not supplied") || !strings.Contains(fix, "--external-repository NAME=/absolute/path") {

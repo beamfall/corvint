@@ -492,6 +492,7 @@ func requireStableLifecyclePlatform(t *testing.T) {
 // Each subtest prints one S0E-CASE line; a case that needs another Go release
 // is NOT_RUN, never rewritten.
 func TestStableS0EPublicCases(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
 	if len(packet.cases) != 56 {
@@ -499,6 +500,7 @@ func TestStableS0EPublicCases(t *testing.T) {
 	}
 	for _, c := range packet.cases {
 		t.Run(c.ID, func(t *testing.T) {
+			t.Parallel()
 			c := s0eBindRuntime(t, packet, c)
 			result, exit, run := runS0E(t, packet, c, s0eRecipes[c.ID])
 			ok := requireS0EResult(t, c, result, exit)
@@ -558,6 +560,7 @@ func s0eBindRuntime(t *testing.T, packet *s0ePacket, c s0eCase) s0eCase {
 // passes admission and verifies exactly like the primary repository, so each
 // T-LINKED case's injection is its only defect.
 func TestStableS0ELinkedControl(t *testing.T) {
+	t.Parallel()
 	packet := loadS0EPacket(t)
 	requireStableLifecyclePlatform(t)
 	c := packet.find(t, "normal-exit-lingering-descendant-contained")

@@ -15,6 +15,7 @@ import (
 // neutral-criterion repository and compares each result line with its pinned
 // bytes. interop/cem01-go asserts the same files.
 func TestCEMV1177ReferencePrecedenceNative(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("stable process containment is only supported on Darwin/Linux")
 	}
