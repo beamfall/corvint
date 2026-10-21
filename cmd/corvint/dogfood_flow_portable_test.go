@@ -29,7 +29,8 @@ const absentAgentReceipts = "dogfood-change: NOTE prechange-query NOT_OBSERVED a
 func dropGuardingNote(stderr string) string {
 	var kept strings.Builder
 	for _, line := range strings.SplitAfter(stderr, "\n") {
-		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") {
+		// DCW-V0-112 tier warnings are asserted where they are the subject.
+		if !strings.HasPrefix(line, "dogfood-change: NOTE guarding-tests ") && !strings.HasPrefix(line, "dogfood-check: WARN tier-below-anchored ") {
 			kept.WriteString(line)
 		}
 	}
@@ -161,6 +162,10 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	summary := "dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail
 	if code != 0 || len(lines) != 2 || lines[0] != summary || lines[1] != "dogfood-check: PASS" {
 		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	// DCW-V0-112: the plan's cited hunk sits below anchored, so check warns on stderr only.
+	if !strings.Contains(stderr, "dogfood-check: WARN tier-below-anchored path=\"fixture/fixture.go\" hunk=\"hunk:sha256:") || !strings.Contains(stderr, " tier=cited rule=CEM-V1-081 fix=") {
+		t.Fatalf("check stderr lacks the below-anchored warning: %s", stderr)
 	}
 	full, err := os.ReadFile(detail)
 	if err != nil || strings.Count(string(full), "\n") != 2 || !strings.Contains(string(full), `"tool":"cem-status"`) || !strings.Contains(string(full), `"tool":"dogfood-ocm-status"`) {

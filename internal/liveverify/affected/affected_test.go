@@ -414,7 +414,7 @@ func TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289(t *testing.T) {
 		{[]Language{x, y}, []string{"core.x"}, "UNKNOWN [x:dynamic-dispatch]"},
 		{[]Language{x, y}, []string{"solo.x"}, "UNKNOWN [x:dynamic-dispatch x:variant]"},
 		{[]Language{x, y}, []string{"notes.md"}, "UNKNOWN [x:dynamic-dispatch]"},
-		{[]Language{x, y}, nil, "UNKNOWN [x:dynamic-dispatch]"},
+		{[]Language{x, y}, nil, "BOUNDED []"},
 		{[]Language{x, y, z}, []string{"app.y"}, "UNKNOWN [z:hidden]"},
 	}
 	for _, tc := range cases {

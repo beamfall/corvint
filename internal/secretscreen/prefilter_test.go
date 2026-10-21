@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLTAV0014PatternSourceIsUnchanged(t *testing.T) {
-	const want = "97e4089e0234470bb311b37ffc445e16a5f4ba9fe14114dfb9f982bb9c7e7055"
+	const want = "e02d9b9fe67ee40b276f8472bb205ba16430100c740e31af3801e76cb01ead99"
 	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(Pattern.String()))); got != want {
 		t.Fatalf("writer pattern digest = %s, want %s; a detector change needs its own requirement and a new digest here", got, want)
 	}

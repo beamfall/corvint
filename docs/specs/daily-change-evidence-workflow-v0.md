@@ -1064,6 +1064,36 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `fix:` line saying that no change can be sealed on a `BASE` that does not build. Non-goals:
   diagnosing which constituents fail to compose, or changing exit codes or reason codes. Failure
   modes: none beyond the existing refusals; the line is advisory.
+- `DCW-V0-112`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood check`
+  MUST print to stderr, before its `PASS` line, one `dogfood-check: WARN tier-below-anchored path=<quoted>
+  hunk=<quoted> tier=<tier>` line with the `CEM-V1-081` fix for each hunk whose stable citation tier
+  is `cited` or `unknown`, at most 50 lines then one `more=N` line. The warning never changes the
+  exit code, the verdict or the `DCW-V0-033` stdout lines. Non-goals: failing the check, or warning when the status has no stable
+  citation result. Failure modes: an unparsable status line prints no warning.
+- `DCW-V0-113`: (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a
+  sealed predecessor (a branch from the shared base that merged the predecessor's seal commit) MAY
+  bind, check and seal against that seal commit as `BASE`: the range then holds only the lane's own
+  hunks and no sealed CEM, and `batch-check` verifies each sealed change against its own base. When
+  `dogfood change` reports an `ocm-aggregate` bound refusal (`map-too-large`, `too-many-claims`,
+  `too-many-obligations`) and `BASE..HEAD` adds re-verified sealed CEMs (`DCW-V0-042`), its fix line
+  MUST name the stacked-predecessor cause, at most four merged sealed changes by bind and seal
+  commit, and this route. Non-goals: excluding merged sealed hunks from a shared-base bind, widening
+  any aggregate bound. Failure modes: a lane that merged newer mainline commits after the
+  predecessor still binds them from the seal commit, so it merges mainline into the predecessor
+  first or binds from the shared base and narrows its intents; a seal commit that cannot be found
+  is named `UNKNOWN`.
+- `DCW-V0-114`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refuses
+  a cite row of the citation plan with a row-caused code (`cite-span-not-stable`,
+  `cite-self-modified-authority`, `missing-evidence`, `invalid-arguments`), `dogfood change` MUST
+  still check every later cite row of the plan in the same pass, each against the map that the
+  refused row was cited against, into a private probe output that it removes at once, and its
+  `cem-cite` failure report MUST list every refused row by plan row number, hunk, path, span and
+  code (at most 32, then a `(+N more)` count). The probes MUST NOT change the prepared map, the
+  staged citations or any tracked file, and MUST NOT probe unknown rows. Non-goals: citing the
+  admitted later rows, changing any `cem cite` refusal. Failure modes: a later row that a correction
+  of an earlier row would change is reported as the probe saw it; a probe the runner cannot start
+  is reported with its exit reason. Evidence: `TestChangeDCWV0114ReportsEveryRefusedCiteRow`.
+  Rollback: revert the probe and report lines; the first refusal still fails the step.
 
 ## Code vocabulary
 
@@ -1295,6 +1325,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
 | `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
 | `DCW-V0-332` (accepted, owner lane auto-acceptance 2026-10-11; V1-1929) | `script/dogfood-build-corvint.sh` `dogfood_build_fix` and its callers; `script/dogfood-cache_test.sh` (tree and base build failures of change, check and batch-check assert the `fix:` line) |
+| `DCW-V0-112` (accepted, owner lane auto-acceptance 2026-10-11; V1-1760) | `internal/dogfoodflow/check_tiers.go` `belowAnchoredWarnings`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDCWV0112CheckWarnsOnHunksBelowAnchored` (cited and unknown hunks warn with the exact line; anchored, mechanical, no-citation and unparsable input print none; the 50-line cap; escaped paths); `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary, real bind: the cited hunk warns on stderr while stdout keeps the summary and `PASS`) | implemented |
+| `DCW-V0-113` (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `fixHint`, `stackedPredecessorHint`; `TestChangeDCWV0113StackedPredecessorBindsAgainstItsSeal` (bound at the shared base, each aggregate bound refusal names the merged seal's bind and seal commits and the route, another reason does not; bound at the seal commit, no sealed CEM is admitted and only the lane's path changes; the sealed stacked lane's merge batch passes with each change verified against its own base) | implemented; the #1442 lane reproduced in a fixture only |
+| `DCW-V0-114` (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) | `internal/dogfoodflow/change.go` `cite`, `probeCitationRows`, `reportFailures`; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` (two refused rows and an admitted row and an unknown row in one plan: both refusals are reported in one pass, the map is unchanged and no probe or stage output remains) | implemented |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |

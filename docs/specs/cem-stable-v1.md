@@ -130,6 +130,16 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
   fetching (V1-0349, CEM-CB-019).
 
+- `CEM-V1-368`: The `cem-stable-review/0` projection MUST copy, from the verifier's own `citation`,
+  each hunk row's `tier` and `anchors`, and a top-level `citationTiers` with the per-tier counts, the
+  hunk count and `samePathCitations` (`NOT_PRODUCED` when the result has no citation). Each evidence
+  row MUST carry a `location` with the drift entry's `path` and `targetSpan` (byte offsets, or null),
+  and each hunk row a `selfOnly` flag that is true when every cited evidence path equals the hunk's
+  path. Rows MUST be ordered weakest support first: `unknown` or `NOT_PRODUCED` tier, then
+  self-only, then `cited` with no anchor, then the rest, map order breaking ties, each row keeping its
+  map `ordinal`. The Markdown report renders a `Citation tiers` line and, per row, the tier, the
+  anchors (or `none`), `self-only citation`, and `path bytes start-end` (or `bytes NOT_LOCATED`).
+
 ## Non-goals and failure modes
 
 No daemon, network account, broad language rewrite or new specification language is required. Tests remain trusted local executable code; the optional executor does not provide an operating-system sandbox. A declared executable directory does not attest every dependency in that directory. Missing browsers, simulator/device/app identities, unavailable frameworks, unsupported custom harnesses, stale claims and absent independent consumers are retained failure modes, not passes.
@@ -4022,6 +4032,33 @@ Rollback: delete the two test files. No product code, wire byte or packet byte c
 | CEM-V1-365 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `sha256-extensions-first-mixed-case` and `unknown-extension-v0` give the full result of `ordinary-sha256` and `ordinary-sha1` |
 | CEM-V1-366 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `unknown-extension-v1`, `sha1-store-claims-sha256` and `sha256-store-claims-sha1` refuse with `git-read-failed` in both consumers |
 | CEM-V1-367 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | Resolved by V1-2133 (`CEM-V1-568`): both consumers give `git-diff-failed` and the packet's `verdictSha256` on the two blob cells; the native test asserts 29/29 exact cells |
+
+### Stable review rows carry citation tier, anchors and evidence location (V1-1339, 2026-10-21)
+
+Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-1339.
+Amends the `CEM-V1-034` row content additively; the projection stays a pure function of the result.
+
+The requirement is `CEM-V1-368` in `## Requirements`.
+
+Non-goals: line numbers and a quoted span. Both need repository reads, which `CEM-V1-034` forbids in
+the projection; they remain a residual needing a contract decision. No verifier, wire or packet byte
+changes, and the portable consumer is untouched.
+
+Failure modes: a result refused before citation renders `NOT_PRODUCED` tiers and sorts every row
+first; a missing drift entry renders `NOT_PRODUCED` for its location. Record-set digests of every
+stable review change once, which is intended.
+
+Acceptance evidence: `TestCEMV1368StableRowsCarryTierAnchorsAndLocation` renders a self-cited
+two-hunk map (the 03a8ca10 shape) and an anchored map to different tier lines, rows and record-set
+digests, and fails without the change. Build log
+`docs/build-log/2026-10-21-cem-1021d-review-tiers-and-check-warnings.md`.
+
+Rollback: revert the projection and renderer change; no stored state depends on it.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-368 | `TestCEMV1368StableRowsCarryTierAnchorsAndLocation` (`internal/cem/workflow`) | Exact tier line, tier/anchor row, `path bytes start-end` row, weakest-first order with the map ordinal kept, and `NOT_PRODUCED` without a citation |
+
 ## Per-action help for `help cem`, `verify-stable` and `gate-verdict` (V1-2109, 2026-10-20)
 
 Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2109.

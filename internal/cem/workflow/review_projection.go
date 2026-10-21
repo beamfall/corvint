@@ -100,9 +100,15 @@ func stableReviewProjection(result verify.StableResult) (map[string]any, error) 
 	if err != nil {
 		return nil, err
 	}
-	drift := map[string]string{}
+	drift := map[string]verify.StableDrift{}
 	for _, entry := range result.Drift {
-		drift[entry.EvidenceID] = string(entry.Status)
+		drift[entry.EvidenceID] = entry
+	}
+	citations := map[string]verify.CitationHunk{}
+	if result.Citation != nil {
+		for _, row := range result.Citation.Hunks {
+			citations[row.HunkID] = row
+		}
 	}
 	var hunks []map[string]any
 	raw, err := json.Marshal(result.Hunks)
@@ -119,13 +125,24 @@ func stableReviewProjection(result verify.StableResult) (map[string]any, error) 
 		for _, item := range bases {
 			basis, _ := item.(map[string]any)
 			id, _ := basis["evidenceId"].(string)
-			state := "NOT_PRODUCED"
-			if status, found := drift[id]; found {
-				state = status
+			state, location := "NOT_PRODUCED", map[string]any{"path": nil, "targetSpan": nil}
+			if entry, found := drift[id]; found {
+				state = string(entry.Status)
+				location = map[string]any{"path": entry.Path, "targetSpan": stableSpan(entry.TargetSpan)}
 			}
-			evidence = append(evidence, map[string]any{"id": id, "relation": basis["relation"], "driftState": state})
+			evidence = append(evidence, map[string]any{"id": id, "relation": basis["relation"], "driftState": state, "location": location})
+		}
+		hunkID, _ := hunk["id"].(string)
+		hunkPath, _ := hunk["path"].(string)
+		tier, anchors := "NOT_PRODUCED", []any{}
+		if row, found := citations[hunkID]; found {
+			tier = row.Tier
+			for _, anchor := range row.Anchors {
+				anchors = append(anchors, anchor)
+			}
 		}
 		rows = append(rows, map[string]any{
+			"tier": tier, "anchors": anchors, "selfOnly": stableSelfOnly(evidence, hunkPath),
 			"ordinal": index + 1, "id": hunk["id"], "path": hunk["path"],
 			"oldRange": hunk["oldRange"], "newRange": hunk["newRange"],
 			"disposition": hunk["disposition"], "reason": hunk["reason"], "evidence": evidence,
@@ -134,8 +151,10 @@ func stableReviewProjection(result verify.StableResult) (map[string]any, error) 
 			"testExecution":       map[string]any{"state": "NOT_RUN", "reason": "review-does-not-execute-tests"},
 		})
 	}
+	sortStableRows(rows)
 	projection := map[string]any{
-		"profile": "cem-stable-review/0", "warning": reportWarning,
+		"citationTiers": stableCitationTiers(result.Citation),
+		"profile":       "cem-stable-review/0", "warning": reportWarning,
 		"outcome": result.Outcome, "stage": result.Stage, "code": result.Code,
 		"mapSha256": result.MapSha256, "patchSha256": result.PatchSha256,
 		"expectedBase": result.ExpectedBase, "targetRevision": result.TargetRevision,
@@ -145,6 +164,63 @@ func stableReviewProjection(result verify.StableResult) (map[string]any, error) 
 	}
 	projection["recordSetSha256"] = reviewDigest(projection)
 	return projection, nil
+}
+
+// stableSpan copies a drift target span, or nil when the verifier located none.
+func stableSpan(span map[string]int64) any {
+	if span == nil {
+		return nil
+	}
+	return map[string]any{"start": span["start"], "end": span["end"]}
+}
+
+// stableSelfOnly reports a hunk whose every cited evidence span lies in the
+// hunk's own file: a citation that restates the change rather than supporting it.
+func stableSelfOnly(evidence []any, hunkPath string) bool {
+	if len(evidence) == 0 {
+		return false
+	}
+	for _, item := range evidence {
+		location, _ := item.(map[string]any)["location"].(map[string]any)
+		if path, _ := location["path"].(string); path != hunkPath {
+			return false
+		}
+	}
+	return true
+}
+
+// sortStableRows orders the weakest support first (CEM-V1-368): unknown or
+// unproduced tiers, then self-only citations, then anchor-less citations, then
+// the rest; map order breaks ties, and each row keeps its map ordinal.
+func sortStableRows(rows []any) {
+	rank := func(row map[string]any) int {
+		switch {
+		case row["tier"] == verify.TierUnknown || row["tier"] == "NOT_PRODUCED":
+			return 0
+		case row["selfOnly"] == true:
+			return 1
+		case row["tier"] == verify.TierCited && len(row["anchors"].([]any)) == 0:
+			return 2
+		}
+		return 3
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		return rank(rows[i].(map[string]any)) < rank(rows[j].(map[string]any))
+	})
+}
+
+// stableCitationTiers is the verifier's per-tier hunk count and same-path
+// citation count, or NOT_PRODUCED when the verifier derived no citation.
+func stableCitationTiers(citation *verify.Citation) any {
+	if citation == nil {
+		return "NOT_PRODUCED"
+	}
+	return map[string]any{
+		verify.TierHeld: citation.HunksByClass.Held, verify.TierMechanicalProved: citation.HunksByClass.MechanicalProved,
+		verify.TierAnchored: citation.HunksByClass.Anchored, verify.TierCited: citation.HunksByClass.Cited,
+		verify.TierUnknown: citation.HunksByClass.Unknown, "samePathCitations": citation.SamePathCitations,
+		"hunks": len(citation.Hunks),
+	}
 }
 
 // stableResultDigest is the SHA-256 of the result's key-sorted compact JSON
@@ -239,13 +315,19 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 	} else {
 		out.WriteString("- Obligations: NOT_PRODUCED `ocm-not-supplied`\n")
 	}
+	writeStableTiers(&out, projection["citationTiers"])
 	out.WriteString("\nEach row describes a hunk the map declares; the outcome above says whether the verifier accepted it. Test execution is NOT_RUN; supplied witnesses and structural claims do not establish a current passing test.\n\n")
 	for _, entry := range projection["hunks"].([]any) {
 		row := entry.(map[string]any)
 		out.WriteString(fmt.Sprintf("- %v. %s %s: %s; reason %s\n", row["ordinal"], mdreport.CodeSpan(fmt.Sprint(row["path"])), mdreport.CodeSpan(fmt.Sprint(row["id"])), mdreport.CodeSpan(fmt.Sprint(row["disposition"])), mdreport.CodeSpan(fmt.Sprint(row["reason"]))))
+		out.WriteString("  - Tier " + mdreport.CodeSpan(fmt.Sprint(row["tier"])) + "; anchors " + stableAnchors(row["anchors"].([]any)))
+		if row["selfOnly"] == true {
+			out.WriteString("; self-only citation")
+		}
+		out.WriteString("\n")
 		for _, item := range row["evidence"].([]any) {
 			basis := item.(map[string]any)
-			out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
+			out.WriteString("  - Evidence " + mdreport.CodeSpan(fmt.Sprint(basis["id"])) + " at " + stableLocation(basis["location"].(map[string]any)) + "; relation " + mdreport.CodeSpan(fmt.Sprint(basis["relation"])) + "; drift " + mdreport.CodeSpan(fmt.Sprint(basis["driftState"])) + "\n")
 		}
 		out.WriteString("  - Coverage " + mdreport.CodeSpan(fmt.Sprint(row["coverageState"])) + "; discrimination " + mdreport.CodeSpan(fmt.Sprint(row["discriminationState"])) + "\n")
 		writeRowObligations(&out, row)
@@ -256,6 +338,43 @@ func renderStableReport(result verify.StableResult, projection map[string]any) s
 		out.WriteString("- " + claim + "\n")
 	}
 	return out.String()
+}
+
+// writeStableTiers renders the verifier's citation tier counts so a map whose
+// hunks are all merely cited reads differently from an anchored one.
+func writeStableTiers(out *strings.Builder, value any) {
+	tiers, ok := value.(map[string]any)
+	if !ok {
+		out.WriteString("- Citation tiers: NOT_PRODUCED\n")
+		return
+	}
+	fmt.Fprintf(out, "- Citation tiers: held %v, mechanical-proved %v, anchored %v, cited %v, unknown %v of %v hunks; same-path citations %v\n",
+		tiers[verify.TierHeld], tiers[verify.TierMechanicalProved], tiers[verify.TierAnchored], tiers[verify.TierCited], tiers[verify.TierUnknown], tiers["hunks"], tiers["samePathCitations"])
+}
+
+func stableAnchors(anchors []any) string {
+	if len(anchors) == 0 {
+		return "none"
+	}
+	spans := make([]string, 0, len(anchors))
+	for _, anchor := range anchors {
+		spans = append(spans, mdreport.CodeSpan(fmt.Sprint(anchor)))
+	}
+	return strings.Join(spans, ", ")
+}
+
+// stableLocation renders an evidence span as path and target byte range; the
+// projection reads no repository, so lines and quoted text are not available.
+func stableLocation(location map[string]any) string {
+	path, _ := location["path"].(string)
+	if path == "" {
+		return "NOT_PRODUCED"
+	}
+	span, _ := location["targetSpan"].(map[string]any)
+	if span == nil {
+		return mdreport.CodeSpan(path) + " bytes NOT_LOCATED"
+	}
+	return mdreport.CodeSpan(path) + fmt.Sprintf(" bytes %v-%v", span["start"], span["end"])
 }
 
 // applyStableOCM joins a supplied OCM projection onto a stable review exactly

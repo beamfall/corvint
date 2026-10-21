@@ -17,6 +17,9 @@ type alternative struct {
 	need func(lower []byte) bool
 }
 
+// writerJWTAlt is the writer's JWT-shaped branch (LTA-V0-016, V1-1704).
+const writerJWTAlt = `\b(?-i:e[wy])[a-z0-9_-]{8,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}`
+
 // writerAlternatives is Pattern in precedence order; see the comments on the
 // expression constants for why each branch sits where it does.
 var writerAlternatives = func() []alternative {
@@ -24,6 +27,12 @@ var writerAlternatives = func() []alternative {
 	// secretPattern has always carried its own flag group; keeping it here
 	// leaves Pattern's source text unchanged.
 	secret[0] = `(?i)` + secret[0]
+	// The writer's JWT branch requires the compact-JWS header structure: a
+	// base64url JSON object, so the first segment starts with a case-exact
+	// `ey` or `ew` (`{` then a quote or whitespace) at a word boundary.
+	// Dotted identifiers such as `CHECKOUT-REGRESSION.PAYMENT-FLOW.SAVED-CARD`
+	// therefore pass (V1-1704). StoredV1Pattern keeps the original shape.
+	secret[len(secret)-1] = writerJWTAlt
 	secretNeeds := []func([]byte) bool{
 		assignmentCandidate,
 		contains(`-----begin `), contains(`-----begin `), contains(`-----begin `), contains(`-----begin `),
