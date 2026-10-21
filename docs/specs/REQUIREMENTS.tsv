@@ -2384,8 +2384,8 @@ ESV-V0-006	docs/specs/experimental-source-views-v0.md	Treat focused synthetic co
 ESV-V0-007	docs/specs/experimental-source-views-v0.md	The opt-in development wrapper captures exactly one automatic canonical packet	unrecorded	-
 ESV-V0-008	docs/specs/experimental-source-views-v0.md	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,	unrecorded	-
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	`context --expand HANDLE` returns only the handle's line range, read from Git	unrecorded	-
-ESV-V0-011	docs/specs/experimental-source-views-v0.md		unrecorded	-
 ESV-V0-010	docs/specs/experimental-source-views-v0.md	The summary and expansion views stay experimental until the matched complete-tas	unrecorded	-
+ESV-V0-011	docs/specs/experimental-source-views-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-0426). Before	unrecorded	-
 EAF-V0-001	docs/specs/expert-audit-followup-v0.md	Current Go/Python secret screening MUST reject ordinary double-quoted credential	unrecorded	-
 EAF-V0-002	docs/specs/expert-audit-followup-v0.md	Go mutation baseline, mutant and isolated grouped-fallback runs MUST use matchin	unrecorded	-
 EAF-V0-003	docs/specs/expert-audit-followup-v0.md	Checkpoint output MUST preserve the caller's obligations array exactly and label	unrecorded	-

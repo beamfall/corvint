@@ -297,8 +297,7 @@ Failure modes:
   `unsupported-text` or `expand-budget`, with nothing on stdout; an empty HANDLE is
   `invalid-handle`, and a repeated `--expand` is an argument error. An empty blob's `all`
   selection has `line_start` 1 and `line_end` 0. It never substitutes HEAD, worktree or index
-  content, and it writes no repository or `.corvint/` state. Its `text` is screened by
-  `ESV-V0-011`.
+  content, and it writes no repository or `.corvint/` state. `ESV-V0-011` screens its `text`.
 - `ESV-V0-010`: The summary and expansion views stay experimental until the matched complete-task
   trial preregistered in `benchmarks/evidence-summary-trial-v0.json` runs and the owner accepts
   it. The trial compares current packets against summary plus expansion with model, effort,
