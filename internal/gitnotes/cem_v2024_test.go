@@ -187,3 +187,45 @@ func helperResult(t *testing.T, out []byte) map[string]any {
 	t.Fatalf("helper printed no RESULT line:\n%s", out)
 	return nil
 }
+
+// CEM-V1-345 (V1-2024, review finding): with --verdicts-tip the ledger is
+// read from the captured live commit by object ID. A ledger ref moved A -> B
+// -> A between the tip capture and the unmoved check passes that check, so
+// the listing must still reflect only A's content, never B's.
+func TestCEMV1345PinnedTipReadIgnoresARefMovedAwayAndBack(t *testing.T) {
+	pinVerdictClock(t)
+	root := fixtureRepo(t)
+	ctx := context.Background()
+	if _, err := AnchorWithVerdict(ctx, root, mapPath, "HEAD", root, true); err != nil {
+		t.Fatal(err)
+	}
+	a := fixtureGit(t, root, nil, "rev-parse", VerdictRef)
+	// B: the same ledger with HEAD's note replaced by a malformed one.
+	fixtureGit(t, root, nil, "notes", "--ref="+VerdictRef, "add", "-f", "-m", "not a record", "HEAD")
+	b := fixtureGit(t, root, nil, "rev-parse", VerdictRef)
+	fixtureGit(t, root, nil, "update-ref", VerdictRef, a)
+	if b == a {
+		t.Fatal("B did not change the ledger")
+	}
+
+	previous := verdictsRead
+	t.Cleanup(func() { verdictsRead = previous })
+	verdictsRead = func(stage string) {
+		switch stage {
+		case "before":
+			fixtureGit(t, root, nil, "update-ref", VerdictRef, b)
+		case "after":
+			fixtureGit(t, root, nil, "update-ref", VerdictRef, a)
+		}
+	}
+	result, err := ProvenanceWithVerdictsTip(ctx, root, "HEAD", "", true, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	member := result["verdicts"].(map[string]any)
+	tip := member["tip"].(map[string]any)
+	if tip["state"] != "current" || tip["live"] != a || member["state"] != "verified" ||
+		len(member["records"].([]VerdictRecord)) != 1 {
+		t.Fatalf("a ref moved A->B->A leaked B's ledger: %v", member)
+	}
+}

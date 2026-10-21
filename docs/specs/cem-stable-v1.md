@@ -3844,7 +3844,9 @@ Status: accepted under the owner's standing auto-accept of lane requirements (20
   gains `tip` (`ref`, `pinned`, `live`, `state`). The state is `current` when OID is the live tip
   or one of its ancestors and `rollback` otherwise, including when the live ref is absent. Under
   `rollback` the member's `state` MUST be `rollback` and `records` MUST be empty, whatever the live
-  note holds. A ledger ref that moves during the read MUST be refused with
+  note holds. The ledger MUST be read from the live tip commit captured for the state, by object
+  ID, never again through the mutable ref, so a ref moved away and back during the read cannot
+  supply other content. A ledger ref that moves during the read MUST be refused with
   `provenance-notes-moved`. `--verdicts-tip` without `--verdicts`, or an OID that is not a full
   lowercase hexadecimal commit object ID, MUST be refused with `invalid-arguments`. The read
   writes nothing (`CEM-V1-277`). This amends `CEM-V1-279`: the provenance usage becomes
@@ -3871,7 +3873,7 @@ stored ledger, note or map depends on it.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-345 | `TestCEMV1345RewoundVerdictTipReadsRollback` (`internal/gitnotes`); `TestCEMV1345VerdictsTipThroughTheCLI` (`cmd/corvint`); `ProvenanceWithVerdictsTip`, `refTipState` in `internal/gitnotes/provenance.go` | Equal and ancestor pins read `current` with the verified record; a ref reset to an older commit and a deleted ref read `rollback` with no records; the two argument refusals; repository state unchanged across every read |
+| CEM-V1-345 | `TestCEMV1345RewoundVerdictTipReadsRollback`, `TestCEMV1345PinnedTipReadIgnoresARefMovedAwayAndBack` (`internal/gitnotes`); `TestCEMV1345VerdictsTipThroughTheCLI` (`cmd/corvint`); `ProvenanceWithVerdictsTip`, `refTipState` in `internal/gitnotes/provenance.go` | Equal and ancestor pins read `current` with the verified record; a ref reset to an older commit and a deleted ref read `rollback` with no records; the two argument refusals; repository state unchanged across every read; a ref moved A to B to A mid-read still lists only A's verified record |
 | CEM-V1-346 | `TestCEMV1346TwoProcessAnchorsOneWins` (`internal/gitnotes`), which re-executes the test binary as two anchor processes; `publishNotes` in `internal/gitnotes/anchor.go` | The held process validates and stages, the free process wins, the held process is refused `verdict-ledger-conflict`, and the ledger holds only the winner's line with no staging ref |
 
 ## Plain assembly write-failure cleanup and bundle-parent limit (V1-1471, 2026-10-20)

@@ -99,7 +99,16 @@ func ProvenanceWithVerdictsTip(ctx context.Context, root, commit, notesTip strin
 		"evidence": append(rows, trailers...),
 	}
 	if verdicts {
-		member, err := repo.verdictsMember(ctx, target)
+		// With --verdicts-tip the ledger is read from the live commit the
+		// tip state captured, by object ID, so a ref that moves away and
+		// back during the read cannot supply other content (V1-2024).
+		notesCommit := ""
+		if ledgerTip != nil {
+			notesCommit, _ = ledgerTip["live"].(string)
+		}
+		verdictsRead("before")
+		member, err := repo.verdictsMember(ctx, target, ledgerTip != nil, notesCommit)
+		verdictsRead("after")
 		if err != nil {
 			return nil, err
 		}
@@ -124,6 +133,10 @@ func ProvenanceWithVerdictsTip(ctx context.Context, root, commit, notesTip strin
 	}
 	return result, nil
 }
+
+// verdictsRead is a test seam around the verdict ledger read of a
+// provenance listing; it does nothing in production.
+var verdictsRead = func(stage string) {}
 
 // requireUnmoved refuses a read during which ref left the live tip that
 // state, a refTipState result, recorded. A nil state checks nothing.
