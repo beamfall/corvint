@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -59,24 +58,11 @@ func (o Options) budget(def int) (int, error) {
 }
 
 // LoadMap reads an application-map/0 file: a regular file, bounded, closed JSON, digest checked.
+// The read never follows a final symlink or blocks on a FIFO swapped in after the type check.
 func LoadMap(filename string) (*Map, error) {
-	bad := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-map", Message: msg} }
-	before, err := os.Lstat(filename)
-	if err != nil || !before.Mode().IsRegular() {
-		return nil, bad("--map must name a regular file")
-	}
-	f, err := os.Open(filename)
-	if err != nil {
-		return nil, bad("cannot open --map")
-	}
-	defer f.Close()
-	opened, err := f.Stat()
-	if err != nil || !os.SameFile(before, opened) {
-		return nil, bad("--map changed while being read")
-	}
-	raw, err := io.ReadAll(io.LimitReader(f, maxMapBytes+1))
-	if err != nil {
-		return nil, bad("--map is unreadable or exceeds the map bound")
+	raw, ok := readRegular(filename, maxMapBytes)
+	if !ok {
+		return nil, &gokernel.Error{Code: "appmap-invalid-map", Message: fmt.Sprintf("--map must name a regular file of at most %d bytes, unchanged while read", maxMapBytes)}
 	}
 	return ParseMap(raw)
 }
@@ -99,6 +85,11 @@ func ParseMap(raw []byte) (*Map, error) {
 	}
 	if m.Schema != MapSchema {
 		return nil, bad("--map schema must be " + MapSchema)
+	}
+	for _, f := range m.Files {
+		if f.ClassExport != "" && f.ClassExport != ClassExportDefault {
+			return nil, bad("--map class_export must be omitted or " + ClassExportDefault)
+		}
 	}
 	if sum, err := mapDigest(&m); err != nil || sum != m.Digest {
 		return nil, bad("--map digest does not match its content")
