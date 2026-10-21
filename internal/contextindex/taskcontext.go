@@ -2589,8 +2589,14 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	return packet
 }
 
+// taskStoreProjectionReason marks a Tasks store projection file, which is task
+// state rather than evidence (DIRTY-CACHE-017).
+const taskStoreProjectionReason = "task store projection"
+
 // TCP-V0-065 discloses corpus gaps separately from ranked evidence. Sort a
 // copy so deterministic sampling never changes the index shared by readers.
+// TCP-V0-121: Tasks store projections are excluded by policy, not a gap in
+// what the index could read, so they sample only after every other reason.
 func taskContextExclusions(index *Index) map[string]any {
 	count := len(index.Exclusions) + index.UnsupportedSuffixCount
 	if count == 0 {
@@ -2598,6 +2604,13 @@ func taskContextExclusions(index *Index) map[string]any {
 	}
 	ordered := slices.Clone(index.Exclusions)
 	slices.SortFunc(ordered, func(left, right Exclusion) int {
+		leftProjection, rightProjection := left.Reason == taskStoreProjectionReason, right.Reason == taskStoreProjectionReason
+		if leftProjection != rightProjection {
+			if leftProjection {
+				return 1
+			}
+			return -1
+		}
 		if order := strings.Compare(left.Path, right.Path); order != 0 {
 			return order
 		}

@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -192,4 +193,66 @@ func contextExclusionWire(t *testing.T, value any) []byte {
 		t.Fatal(err)
 	}
 	return wire
+}
+
+// V1-2131, DIRTY-CACHE-017 and TCP-V0-121: Tasks store projection files that
+// name the task's terms never rank as evidence, they count in the one
+// exclusions summary, and a real gap samples ahead of them.
+func TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	files := map[string]string{
+		"go.mod":                      "module example.test/projection\n\ngo 1.27.0\n",
+		"internal/auth/revoke.go":     "package auth\n\n// RevokeDeviceSession revokes an expired device session.\nfunc RevokeDeviceSession() bool { return true }\n",
+		"zz/huge.go":                  "package zz\n\n// " + strings.Repeat("x", 2<<20) + "\n",
+		".taskman/policy.json":        `{"note":"RevokeDeviceSession revoke expired device session"}` + "\n",
+		".taskman/queue.json":         `{"note":"RevokeDeviceSession revoke expired device session"}` + "\n",
+		".taskman/releases/v1-0.json": `{"note":"RevokeDeviceSession revoke expired device session"}` + "\n",
+	}
+	for i := range 10 {
+		files[fmt.Sprintf(".taskman/tickets/V1-%04d.json", i)] = `{"title":"RevokeDeviceSession revoke expired device session"}` + "\n"
+	}
+	for path, content := range files {
+		writeTestFile(t, root, path, content)
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "revoke expired device sessions")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := TaskContext(context.Background(), index, "Fix RevokeDeviceSession for an expired device session", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := mapsFromAny(packet["results"])
+	sawSource := false
+	for _, result := range results {
+		path, _ := result["id"].(string)
+		if strings.HasPrefix(path, ".taskman/") {
+			t.Fatalf("Tasks store projection ranked as evidence: %v", results)
+		}
+		sawSource = sawSource || path == "internal/auth/revoke.go"
+	}
+	if !sawSource {
+		t.Fatalf("source evidence missing from results: %v", results)
+	}
+	exclusions := packet["exclusions"].(map[string]any)
+	samples := mapsFromAny(exclusions["samples"])
+	if exclusions["count"] != 14 || len(samples) != maxExclusionSamples {
+		t.Fatalf("exclusions summary = %v, want count 14 and %d samples", exclusions, maxExclusionSamples)
+	}
+	if samples[0]["path"] != "zz/huge.go" || samples[0]["reason"] == taskStoreProjectionReason {
+		t.Fatalf("TCP-V0-121: the real gap does not sample first: %v", samples)
+	}
+	for i, sample := range samples[1:] {
+		if sample["reason"] != taskStoreProjectionReason {
+			t.Fatalf("sample %d = %v, want a Tasks store projection after the real gap", i+1, sample)
+		}
+		if i > 0 && strings.Compare(samples[i]["path"].(string), sample["path"].(string)) >= 0 {
+			t.Fatalf("projection samples are not in path order: %v", samples)
+		}
+	}
 }

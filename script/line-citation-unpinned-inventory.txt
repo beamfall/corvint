@@ -514,11 +514,7 @@ docs/specs/go-production-kernel-migration-v0.md	cmd/corvint/main.go:559
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:176-239
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:99-150
 docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/parse.go:300
-docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/range_impact.go:154
 docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/range_impact.go:156
-docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/range_impact.go:352
-docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/range_impact.go:352
-docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/range_impact.go:369
 docs/specs/go-production-kernel-migration-v0.md	internal/lrfrepo/universe.go:178
 docs/specs/go-production-kernel-migration-v0.md	internal/tracerecordrepo/read.go:82
 docs/specs/go-production-kernel-migration-v0.md	internal/worktreeimpact/compiler.go:135

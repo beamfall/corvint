@@ -492,6 +492,19 @@ func TestSourceViewBindsObjectFormatAndOIDWidth(t *testing.T) {
 	}
 }
 
+// ESV-V0-003: the source view and each of its Git commands are bounded by the frozen 10 seconds
+// unless a test lifts the bound (V1-1302). It runs on every
+// platform, Windows included, so the production value is pinned there too (V1-1414).
+func TestSourceDeadlineReplacesFrozenBound(t *testing.T) {
+	t.Parallel()
+	if got := sourceDeadline(context.Background()); got != 10*time.Second {
+		t.Fatalf("frozen source bound = %s, want 10s", got)
+	}
+	if got := sourceDeadline(liftedSourceDeadline(context.Background())); got != 10*time.Minute {
+		t.Fatalf("lifted source bound = %s, want 10m", got)
+	}
+}
+
 // liftedSourceDeadline lifts the source view's frozen 10-second bound for tests that verify
 // refusal semantics, not latency: on a loaded host the bound expired mid-view, through the
 // scripted Git stand-in's shell wrapper or real Git alike, and turned the asserted outcome into an

@@ -1117,6 +1117,16 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   exclusion, old-consumer decoding, and frozen no-exclusion packet bytes. Rollback removes this
   optional member and its assembly only; no index or snapshot migration is needed. Owner
   acceptance remains unresolved regardless of passing local tests.
+- `TCP-V0-121`: accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks
+  store projection files (`DIRTY-CACHE-017`, reason `task store projection`) are excluded by
+  policy, not a gap in what the index could read. They still count in the `exclusions` member's
+  `count`, but its `samples` order places every other reason first. Within each group, samples
+  keep the `TCP-V0-065` order of display path then reason. A repository with a Tasks store
+  therefore samples its real gaps (size bound, non-UTF-8, generated or protected paths) before
+  task state. This changes no count, ranking, member or packet without projection exclusions.
+  Projection files never rank as results because the index never reads them. Rollback: restore
+  the single path-then-reason order. Test:
+  `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
 
 ## Non-goals and authority
 
@@ -1599,3 +1609,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
 | TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
 | TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
+| TCP-V0-121 (accepted, standing auto-accept, V1-2131) | `taskContextExclusions` | `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps` |

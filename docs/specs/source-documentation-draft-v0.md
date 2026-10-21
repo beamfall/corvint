@@ -153,6 +153,15 @@ Git read failure keeps `repository-unavailable` (`TestSDD011IndexDeadlineHasDist
 Rollback: remove the branch in `transportOrToolFailure`; the overrun reads as
 `repository-unavailable` again and no state is retained.
 
+- `SDD-V0-012`: In the `SDD-V0-009` receipt, a block's `applied` member means its refresh is
+included in the session's proposed page and counts toward `--max-writes`, in a `--preview` as in
+an `--apply`; an ineligible or bounded block reports `applied: false` with its `skipped` reason.
+Whether bytes were written is stated only by the page-level members: a preview reports
+`applied: false`, `preview_only: true` and `page_digest_after` equal to `page_digest_before`,
+and an apply that wrote reports `applied: true` and `preview_only: false`. The wire members are
+unchanged (`TestSDDV0012PreviewBlockAppliedMeansIncluded`). Status: accepted under the owner's
+standing auto-accept (2026-10-11); V1-2135.
+
 ## CLI contract
 
 ```

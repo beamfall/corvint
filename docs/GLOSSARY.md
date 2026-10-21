@@ -44,14 +44,14 @@ The following was checked against the working tree on branch `integration/go-mig
   `docs/TECHNICAL-BRAIN.md:153@b20ddc29`, which names a checked-in glossary as an admission precondition that
   nothing satisfies.
 - `authorityClass` is declared with five disjoint value sets across five owners
-  (`internal/dashboard/model/types.go:40-46@9d0ecd1e`, `internal/mcp/bridge/bridge.go:975@87b754dd`,
+  (`internal/dashboard/model/types.go:40-46@9d0ecd1e`, `internal/mcp/bridge/bridge.go:1020@87b754dd`,
   `docs/specs/change-frontier-v0.md:249@1e1231f8`, `internal/lrf/types.go:12@fc816169`,
   `docs/specs/verification-planner-observer-v0.md:285,389@c49e14bd`), plus a sixth single-value constraint in
   `docs/tcq-0.schema.json:125@49b495d9`.
 - A total order over `authorityClass` is declared exactly once, at
   `docs/specs/local-observability-dashboard-v0.md:85@186c53c1`, and covers only the seven dashboard values.
   No other surface's values are placed in it.
-- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:129-134@78d275b5`, which
+- The divergence is already recorded as debt at `docs/SPEC-TOOLCHAIN-INTEGRATION.md:129-134@dd7f7173`, which
   names four of the five sets and requires "one ordered lattice, one casing, one owner — before the
   adapter, not after". This document is the response to that requirement.
 - `frontier` is used at three different scopes without a qualifier that distinguishes them
@@ -77,7 +77,7 @@ dashboard spec cites it.
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
 | Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go:40-46@9d0ecd1e`; `docs/specs/local-observability-dashboard-v0.md:80@4b5e015c` |
-| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE` | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:975@87b754dd`; `docs/specs/mcp-server-2026-07-28-v0.md:248@f4047e06` |
+| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE` | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:1020@87b754dd`; `docs/specs/mcp-server-2026-07-28-v0.md:248@f4047e06` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:249@1e1231f8` |
 | Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12@fc816169`; `docs/lrf-0.schema.json:65,69@4aafd5d4`; `docs/specs/lexical-relevance-floor-v0.md:268,270@1875648f` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:389,285@8b000654` |
@@ -96,7 +96,7 @@ non-authoritative evidence, or is unavailable. Independent of authority.
 
 **Declared variants.** `OBSERVED`, `DECLARED`, `ADVISORY`, `NOT_OBSERVED`
 (`internal/dashboard/model/types.go:31-34@36ca6aad`). The MCP bridge admits only the two-value subset
-`OBSERVED`, `NOT_OBSERVED` (`internal/mcp/bridge/bridge.go:974@85072359`). The subset is a restriction, not
+`OBSERVED`, `NOT_OBSERVED` (`internal/mcp/bridge/bridge.go:1019@85072359`). The subset is a restriction, not
 a divergence: both members carry the dashboard meaning.
 
 ### `ADVISORY`
@@ -125,7 +125,7 @@ cross-profile definition and the following table is the mapping between the fiel
 
 | Surface | Field | Values | Citation |
 |---|---|---|---|
-| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:973@e32959ff`; `docs/MCP-SERVER.md:145@84842141` |
+| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1018@e32959ff`; `docs/MCP-SERVER.md:145@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:268,271@dc369243`; `internal/lrf/evaluate.go:195,206@572ac9c5` |
 | TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:123@c6531e00` |
 | TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:118@11bd5f87` |
@@ -141,10 +141,10 @@ splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:10
 
 **Normative definition.** Absence of any authority root. It is a value of the `authorityClass` axis
 only. It is legal only alongside an active abstention: the MCP bridge rejects any result that pairs
-`NONE` with a non-abstaining state (`internal/mcp/bridge/bridge.go:978-985@e542140b`).
+`NONE` with a non-abstaining state (`internal/mcp/bridge/bridge.go:1023-1030@e542140b`).
 
 **Declared variants.** `internal/dashboard/model/types.go:46@9b49e16a`;
-`internal/mcp/bridge/bridge.go:975@87b754dd`; `docs/specs/change-frontier-v0.md:249@1e1231f8`.
+`internal/mcp/bridge/bridge.go:1020@87b754dd`; `docs/specs/change-frontier-v0.md:249@1e1231f8`.
 
 ### `UNKNOWN`
 
@@ -170,7 +170,7 @@ expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, n
 (`docs/specs/local-observability-dashboard-v0.md:91-93@62f9e105`).
 
 **Declared variants.** `internal/dashboard/model/types.go:34@7bc4de6c`;
-`internal/mcp/bridge/bridge.go:847,974@1e3552e5`.
+`internal/mcp/bridge/bridge.go:892,1019@1e3552e5`.
 
 ### `NOT_RUN`
 
@@ -312,7 +312,7 @@ equivalent.
 | `PRODUCER_DECLARED` | frontier | `PRODUCER_DECLARED` | 30 | Identity. |
 | `producer-declared` | LRF | `PRODUCER_DECLARED` | 30 | Casing normalisation only. The LRF definition — a producer-evaluated edge that witnesses only a typed lexical relation and never closes an obligation (`docs/specs/lexical-relevance-floor-v0.md:293-294@a07f1d99`) — is exactly rank 30. |
 | `GIT_REPOSITORY` | MCP | `OWNING_VERIFIER` | 60 | The authority root is Git's content-addressed object store, read directly by Corvint. That store is the exact verifier that owns repository identity and revision facts, and it validated them. It is **not** `REPOSITORY_ACCEPTED`: nothing about a revision hash is an accepted declaration, and mapping it to rank 70 would let a commit SHA outrank an accepted specification. |
-| `REPOSITORY_EVIDENCE` | MCP | `ADAPTER_QUALIFIED` | 40 | The value is compiled by Corvint analyzers and adapters from repository bytes at a pinned revision. The receipt binding that the bridge enforces (`internal/mcp/bridge/bridge.go:1023@fdac9c05`) proves revision binding, not that each cited artifact's own owning verifier ran. Rank 40 is the honest floor. The name's resemblance to `REPOSITORY_ACCEPTED` is a false cognate and must not drive the mapping. |
+| `REPOSITORY_EVIDENCE` | MCP | `ADAPTER_QUALIFIED` | 40 | The value is compiled by Corvint analyzers and adapters from repository bytes at a pinned revision. The receipt binding that the bridge enforces (`internal/mcp/bridge/bridge.go:1068@fdac9c05`) proves revision binding, not that each cited artifact's own owning verifier ran. Rank 40 is the honest floor. The name's resemblance to `REPOSITORY_ACCEPTED` is a false cognate and must not drive the mapping. |
 | `CORVINT_PROCESS_OBSERVED` | VPO | `ADAPTER_QUALIFIED` (retire the token) | 40 | See below. |
 
 **`CORVINT_PROCESS_OBSERVED` — retire.** The token names an *observation mechanism*, not an authority
@@ -329,7 +329,7 @@ disclaims provider qualification (`:454-456@73351cde`).
 
 **Ordering safety.** No mapping above inverts an ordering that any surface declares today. The MCP
 bridge never compares `GIT_REPOSITORY` against `REPOSITORY_EVIDENCE`: each is a per-tool constant
-(`internal/mcp/bridge/bridge.go:770,823@b42bcbe6`). The dashboard order is preserved exactly. The only newly
+(`internal/mcp/bridge/bridge.go:815,868@b42bcbe6`). The dashboard order is preserved exactly. The only newly
 declared relations are those involving rank 30, which no surface previously ordered.
 
 ## Proposed comparison rules
@@ -362,7 +362,7 @@ declared relations are those involving rank 30, which no surface previously orde
    (`docs/ARCHITECTURE.md:79-82@32dad176`) describe different questions and MUST NOT be ordered against each
    other. Normalisation makes values commensurable in vocabulary, not in scope.
 9. **`NONE` requires an abstention.** Emitting rank 0 alongside a non-abstaining state is invalid
-   (`internal/mcp/bridge/bridge.go:978-985@e542140b`).
+   (`internal/mcp/bridge/bridge.go:1023-1030@e542140b`).
 
 ## Frontier disambiguation
 

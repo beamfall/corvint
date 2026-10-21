@@ -2182,6 +2182,7 @@ DCP-V1-041	docs/specs/documentation-corpus-v1.md	A companion switch-over harness
 DCP-V1-042	docs/specs/documentation-corpus-v1.md	The separately started experimental hosted companion serves only embedded digest	unrecorded	-
 DCP-V1-043	docs/specs/documentation-corpus-v1.md	The `corvint-corpus-parity` companion is qualified through its own command bound	unrecorded	-
 DCP-V1-044	docs/specs/documentation-corpus-v1.md	`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.js	unrecorded	-
+DCP-V1-240	docs/specs/documentation-corpus-v1.md	A behavior-adapter build retains at most 4096 reconciliation frontier diagnostic	unrecorded	-
 DCP-V1-045	docs/specs/documentation-corpus-v1.md	The behavior-adapter guide (`docs/DOCUMENTATION-CORPUS.md`) states the input-anc	unrecorded	-
 DCP-V1-046	docs/specs/documentation-corpus-v1.md	`corvint docs corpus discover-playwright --migration MIGRATION.json --config PAT	unrecorded	-
 DCP-V1-047	docs/specs/documentation-corpus-v1.md	An execution's identity is `playwright:` plus Playwright's own per-project test	unrecorded	-
@@ -2269,6 +2270,7 @@ DCP-V1-192	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-205	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1256;	standing	2026-10-11; #1256
 DCP-V1-206	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1256;	standing	2026-10-11; #1256
 DCP-V1-207	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1256;	standing	2026-10-11; #1256
+DCP-V1-242	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1228) A relati	standing	2026-10-11; V1-1228
 DCP-V1-200	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1255;	standing	2026-10-11; #1255
 DCP-V1-201	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1255;	standing	2026-10-11; #1255
 DCP-V1-202	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1255;	standing	2026-10-11; #1255
@@ -2296,6 +2298,7 @@ DCP-V1-158	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-159	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;	standing	2026-10-11; #1240
 DCP-V1-216	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) The rea	standing	2026-10-11; V1-1991
 DCP-V1-217	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1991)) Legacy	standing	2026-10-11; V1-1991
+DCP-V1-241	docs/specs/documentation-corpus-v1.md	`corvint docs corpus maintain --page` names the flag and the broken rule when it	unrecorded	-
 DCP-V1-054	docs/specs/documentation-corpus-v1.md	Every `corvint docs corpus` local input file (`--manifest`, `--artifact`,	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
@@ -2334,6 +2337,7 @@ ERI-V0-003	docs/specs/expanded-range-impact-v0.md	Only this profile's path capac
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	Without the new option, the existing range profile, its 100-path refusal, positi	unrecorded	-
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	The experimental compiler MUST retain one immutable clean base/head snapshot and	unrecorded	-
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	The prototype repository coordinator MUST select the experimental profile by an	unrecorded	-
+ERI-V0-060	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) Both	standing	2026-10-21; V1-1881; 2026-10-11
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	Bind the bounded canonical packet and exact caller selector to object format,	unrecorded	-
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	Return one exact contiguous immutable source range as JSON `text` whose UTF-8	unrecorded	-
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git	unrecorded	-
@@ -2885,6 +2889,8 @@ IDX-SNAP-V0-033	docs/specs/index-snapshot-v0.md	accepted, decision 0517. The chi
 IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	accepted, decision 0517. Publication, disk bounds and	unrecorded	-
 IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	accepted, decision 0517. `CORVINT_INDEX_AUTO_REFRESH=0`	unrecorded	-
 IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	accepted, decision 0517. Acceptance requires a real	unrecorded	-
+IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2130). The	unrecorded	-
+IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1732).	unrecorded	-
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
@@ -3280,6 +3286,7 @@ MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's sta
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
 MCPV0-041	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) Every	standing	2026-10-11; V1-1603
 MCPV0-042	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1999) A	standing	2026-10-11; V1-1999
+MCPV0-090	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1004) A	standing	2026-10-11; V1-1004
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -4140,6 +4147,7 @@ SDD-V0-008	docs/specs/source-documentation-draft-v0.md	Eligibility is decided by
 SDD-V0-009	docs/specs/source-documentation-draft-v0.md	`--preview` computes and returns the proposed page bytes, a unified diff against	unrecorded	-
 SDD-V0-010	docs/specs/source-documentation-draft-v0.md	The session never runs unless `--enable` is given together with exactly one of	unrecorded	-
 SDD-V0-011	docs/specs/source-documentation-draft-v0.md	When `contextindex.BuildContext` refuses because its own Git deadline expired	unrecorded	-
+SDD-V0-012	docs/specs/source-documentation-draft-v0.md	In the `SDD-V0-009` receipt, a block's `applied` member means its refresh is	unrecorded	-
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-
@@ -4312,6 +4320,7 @@ TCP-V0-062	docs/specs/task-context-packet-v0.md	(proposed (V1-0993), 2026-10-07;
 TCP-V0-063	docs/specs/task-context-packet-v0.md	(proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose pat	unrecorded	-
 TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observ	owner	2026-10-08; decision 0470; V1-0485
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
+TCP-V0-121	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks	unrecorded	-
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-

@@ -184,6 +184,13 @@ func corpusInputPathError(o corpusOptions) error {
 			return &doccorpus.Error{Code: "corpus-refused", Message: flag + ": local input paths must be canonical and relative to --root (" + rule + ")"}
 		}
 	}
+	// --page names the page maintain rewrites, so its refusal names the flag and the broken rule
+	// too, before any read; the code is unchanged (DCP-V1-241).
+	if o.op == "maintain" && o.page != "" {
+		if rule := doccorpus.CorpusPageRule(o.page); rule != "" {
+			return &doccorpus.Error{Code: "corpus-refused", Message: "--page: maintenance requires a Markdown page relative to --root outside Git metadata (" + rule + ")"}
+		}
+	}
 	return nil
 }
 func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
