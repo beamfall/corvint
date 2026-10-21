@@ -220,8 +220,9 @@ It does not enforce that its own numeric thresholds only tighten over time: the 
 here mechanically prevents a future edit from raising them; monotonic tightening is a review-time
 convention borrowed from `ACP-009`'s per-candidate ceiling table, not a property this gate checks
 for itself. It does not run on any host whose discovered `GOROOT` is not byte-identical to
-an `SNR-V0-030` pin row (on 2026-10-21 one darwin/arm64 Homebrew `go1.27.3` row; the
-earlier `go1.27.0` row was dropped when Homebrew removed that installation); the pins are platform-specific
+an `SNR-V0-030` pin row (on 2026-10-21 two darwin/arm64 rows, the official module `go1.27.2`
+and Homebrew `go1.27.3`; Linux digests `NOT_OBSERVED`; the earlier `go1.27.0` row was dropped
+when Homebrew removed that installation); the pins are platform-specific
 content digests, which is the most plausible reason it was never added to the Linux-hosted CI
 workflow. It does not measure or ratchet wall-clock latency (its own report says
 `latency=NOT_RUN`), and for the causal comparison it does not ratchet bytes/op, only allocs/op, even

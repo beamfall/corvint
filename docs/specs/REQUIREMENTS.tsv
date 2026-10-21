@@ -3005,6 +3005,7 @@ LTA-V0-012	docs/specs/learned-trace-admission-v0.md	(decision 0368, accepted by 
 LTA-V0-013	docs/specs/learned-trace-admission-v0.md	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared	unrecorded	-
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
 LTA-V0-015	docs/specs/learned-trace-admission-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
+LTA-V0-016	docs/specs/learned-trace-admission-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	the profile MUST accept only a structurally valid CEM and, for obligation checks	unrecorded	-
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	every term set MUST use the frozen identifier algorithm and subject text. A	unrecorded	-
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi	unrecorded	-
