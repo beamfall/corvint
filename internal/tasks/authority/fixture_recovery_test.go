@@ -1067,9 +1067,11 @@ func (h *ftHarness) recover() error {
 }
 
 func TestTMV0009_AS11_FixtureFoundationFreshRecovery(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		for _, stop := range []string{"durable-receipt-link", "first-post", "durable-head"} {
 			t.Run(op+"/"+stop, func(t *testing.T) {
+				t.Parallel()
 				h := ftNew(t, op != transaction.Init)
 				if op == transaction.Unpause {
 					_, e := h.publish(h.plan(h.request(transaction.Pause, "base-pause")), nil)

@@ -60,6 +60,7 @@ func fixtureIntentWorktree(t *testing.T) (*fixtureSession, string) {
 // linked intent worktree as its own root, pins `.taskman` under it rather than
 // under the primary, and refuses a replaced worktree directory.
 func TestCTWV0008_SessionPinsTheLinkedIntentWorktree(t *testing.T) {
+	t.Parallel()
 	s, linked := fixtureIntentWorktree(t)
 	if s.worktree != "worktree" || s.parents["worktree"] == nil {
 		t.Fatalf("worktree = %q, retained = %v", s.worktree, s.parents["worktree"] != nil)
@@ -89,6 +90,7 @@ func TestCTWV0008_SessionPinsTheLinkedIntentWorktree(t *testing.T) {
 // from staging under the common dir, so a linked intent worktree whose mount
 // differs from the primary's is refused UNSUPPORTED_FILESYSTEM.
 func TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused(t *testing.T) {
+	t.Parallel()
 	s, linked := fixtureIntentWorktree(t)
 	retained := s.parents["worktree"]
 	delete(s.parents, "worktree")
@@ -117,6 +119,7 @@ func TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused(t *testing.T) {
 // or a path that no longer names the pinned directory, is refused
 // UNSUPPORTED_FILESYSTEM and nothing is retained.
 func TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused(t *testing.T) {
+	t.Parallel()
 	s, linked := fixtureIntentWorktree(t)
 	retained := s.parents["worktree"]
 	delete(s.parents, "worktree")
