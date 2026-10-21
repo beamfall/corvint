@@ -143,7 +143,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-006 | the initial status branch exits zero for `git ls-files --error-unmatch` status 1; `script/check-requirement-definitions_test.sh` proves an operational status 128 exits non-zero with a diagnostic |
 | RDG-V0-007 | the script contains no write, and its final statement is `exit($failed)` gated on the failure arrays |
 | RDG-V0-004 (`..` range, V1-1062) | `script/check-requirement-definitions_test.sh`: `ALPHA-V0-001..003 are` prose passes, a real `ALPHA-V0-001.` duplicate fails; the live corpus matches 4948 definition lines under both the old and the new pattern |
-| RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section, a three-backtick line inside a four-backtick fence does not close it while a closed three-backtick fence does; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates CAL-V0-073, CAL-V0-106 and LTPM-V0-001..016 after the move; baseline of 604 rows across 10 specs at this change |
+| RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section, a three-backtick line inside a four-backtick fence does not close it while a closed three-backtick fence does; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates LTPM-V0-001..016 after the move (CAL-V0-073 and CAL-V0-106 stay baseline rows, because moving them would take the leases Requirements section past the 256-obligation OCM limit); baseline of 604 rows across 10 specs at this change |
 
 ## Traceability
 

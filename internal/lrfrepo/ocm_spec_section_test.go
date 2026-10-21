@@ -14,7 +14,9 @@ func TestRDGV0021MovedDefinitionsAreEnumerated(t *testing.T) {
 		spec string
 		want []string
 	}{
-		{"corvint-tasks-agent-leases-v0.md", []string{"CAL-V0-072", "CAL-V0-073", "CAL-V0-105", "CAL-V0-106"}},
+		// CAL-V0-073 and CAL-V0-106 stay baseline rows: with them the leases Requirements section
+		// would exceed the 256-obligation OCM limit (maxObligations).
+		{"corvint-tasks-agent-leases-v0.md", []string{"CAL-V0-072", "CAL-V0-105"}},
 		{"local-trace-producer-migration-v0.md", []string{
 			"LTPM-V0-001", "LTPM-V0-002", "LTPM-V0-003", "LTPM-V0-004", "LTPM-V0-005", "LTPM-V0-006",
 			"LTPM-V0-007", "LTPM-V0-008", "LTPM-V0-009", "LTPM-V0-010", "LTPM-V0-011", "LTPM-V0-012",
