@@ -303,8 +303,14 @@ func dependencyDirectories(root, directory string, targets []string) ([]string, 
 	if err != nil {
 		return nil, fmt.Errorf("%s: go list -deps %s: %w: %s", directory, strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
 	}
+	// One directory per line: a directory may contain spaces, so splitting at
+	// whitespace would drop its fragments as outside the root.
 	var directories []string
-	for _, line := range strings.Fields(string(out)) {
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSuffix(line, "\r")
+		if line == "" {
+			continue
+		}
 		relative, err := filepath.Rel(root, line)
 		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 			continue

@@ -43,7 +43,12 @@ func repository(t *testing.T, entries, literals string) string {
 // writeRepository writes files into a new Git repository and stages them.
 func writeRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	root := t.TempDir()
+	return writeRepositoryAt(t, t.TempDir(), files)
+}
+
+// writeRepositoryAt writes files into a new Git repository at root.
+func writeRepositoryAt(t *testing.T, root string, files map[string]string) string {
+	t.Helper()
 	for name, content := range files {
 		file := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
@@ -160,20 +165,23 @@ func TestGoListDependencyOutsideScopeFails_V1_2037(t *testing.T) {
 		"parent entry only":  {`"go.mod","internal/cem/sim/x.json","internal/cem/verify/"`, 1, "loads internal/cem/sim, outside"},
 		"declared":           {`"go.mod","internal/cem/sim/","internal/cem/verify/"`, 0, "test-read-scopes-check: ok"},
 	} {
-		root := writeRepository(t, map[string]string{
-			"go.mod":                             "module example.test/m\n\ngo 1.27\n",
-			"internal/cem/sim/s.go":              "package sim\n",
-			"internal/cem/sim/x.json":            "{}\n",
-			"internal/cem/verify/v.go":           "package verify\n\nimport _ \"example.test/m/internal/cem/sim\"\n",
-			"internal/gitnotes/g.go":             "package gitnotes\n\nimport _ \"example.test/m/internal/cem/verify\"\n",
-			"internal/gitnotes/gitnotes_test.go": test,
-			".corvint/test-read-scopes.json":     `{"profile":"corvint-test-read-scopes/0","packages":{"internal/gitnotes":[` + c.entries + `]}}`,
-		})
-		var stdout, stderr bytes.Buffer
-		code := run(root, &stdout, &stderr)
-		output := stdout.String() + stderr.String()
-		if code != c.code || !strings.Contains(output, c.want) {
-			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		// A root with a space must not split go list's directory lines.
+		for _, root := range []string{t.TempDir(), filepath.Join(t.TempDir(), "review work", "repo")} {
+			root = writeRepositoryAt(t, root, map[string]string{
+				"go.mod":                             "module example.test/m\n\ngo 1.27\n",
+				"internal/cem/sim/s.go":              "package sim\n",
+				"internal/cem/sim/x.json":            "{}\n",
+				"internal/cem/verify/v.go":           "package verify\n\nimport _ \"example.test/m/internal/cem/sim\"\n",
+				"internal/gitnotes/g.go":             "package gitnotes\n\nimport _ \"example.test/m/internal/cem/verify\"\n",
+				"internal/gitnotes/gitnotes_test.go": test,
+				".corvint/test-read-scopes.json":     `{"profile":"corvint-test-read-scopes/0","packages":{"internal/gitnotes":[` + c.entries + `]}}`,
+			})
+			var stdout, stderr bytes.Buffer
+			code := run(root, &stdout, &stderr)
+			output := stdout.String() + stderr.String()
+			if code != c.code || !strings.Contains(output, c.want) {
+				t.Errorf("%s under %q: code=%d want %d; output %q lacks %q", name, root, code, c.code, output, c.want)
+			}
 		}
 	}
 }
