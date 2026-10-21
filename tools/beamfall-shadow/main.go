@@ -20,7 +20,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -714,49 +713,31 @@ func invoke(parent context.Context, executor, runDir string, raw []byte, timeout
 		r.Status, r.Reason, r.Cleanup.ExecutionDirectory = "EXECUTION_DIRECTORY_FAILURE", "EXECUTION_DIRECTORY_FAILURE", cleanupState(e, "REMOVED")
 		return boundRun(r)
 	}
-	c := exec.CommandContext(ctx, executor)
+	// No CommandContext: its Cancel would run a group kill from os/exec that
+	// can race the reap. The owned execution stops the group itself, while
+	// its leader is held unreaped (V1-1387).
+	c := exec.Command(executor)
 	c.ExtraFiles = []*os.File{guard.file}
 	c.Dir, c.Env, c.Stdin = cwd, []string{}, bytes.NewReader(raw)
-	configureProcess(c)
-	var lock sync.Mutex
-	var killErr error
-	stop := func() {
-		if c.Process == nil {
-			return
-		}
-		e := syscall.Kill(-c.Process.Pid, syscall.SIGKILL)
-		if e != nil && !errors.Is(e, syscall.ESRCH) {
-			lock.Lock()
-			killErr = errors.Join(killErr, e)
-			lock.Unlock()
-		}
-	}
+	var owned ownedExecution
 	var stdout, stderr boundedBuffer
 	stdout.limit, stderr.limit = maxInputBytes, maxInputBytes
-	stdout.onExceeded, stderr.onExceeded = stop, stop
+	stdout.onExceeded, stderr.onExceeded = owned.stop, owned.stop
 	c.Stdout, c.Stderr = &stdout, &stderr
 	if guard.beforeExecution != nil {
 		guard.beforeExecution()
 	}
 	started := time.Now()
-	runErr := c.Run()
+	outcome := owned.run(ctx, c)
+	runErr := outcome.runErr
 	r.WallNS, r.OutputSHA256, r.OutputBytes = time.Since(started).Nanoseconds(), digest(stdout.Bytes()), stdout.Len()
 	r.StderrSHA256, r.StderrBytes = digest(stderr.Bytes()), stderr.Len()
 	r.ExecutionBinding, r.ExecutedArtifactSHA256 = "DESCRIPTOR_FD_3_"+processContainmentLabel(), guard.digest
-	r.ProcessGroup, err = processGroupState(c.Process)
-	if err != nil {
-		r.Status, r.Reason, r.Cleanup.ProcessGroup = "CLEANUP_ERROR", "PROCESS_GROUP_STATE", "ERROR"
-	} else if r.ProcessGroup != "GROUP_EMPTY_OBSERVED" {
-		state, e := cleanupProcessGroup(c.Process)
-		r.ProcessGroup, r.Cleanup.ProcessGroup = state, state
-		if e != nil {
-			r.Status, r.Reason = "CLEANUP_ERROR", "PROCESS_GROUP_CLEANUP"
-		} else {
-			r.Status, r.Reason = "PROCESS_GROUP_RESIDUE", "PROCESS_GROUP_RESIDUE"
-		}
-	} else {
-		r.Cleanup.ProcessGroup = "GROUP_EMPTY_OBSERVED"
+	if outcome.unsupported {
+		r.ExecutionBinding = "UNSUPPORTED"
 	}
+	r.ProcessGroup, r.Cleanup.ProcessGroup = outcome.group, outcome.cleanup
+	r.Status, r.Reason = outcome.status, outcome.reason
 	if r.Status == "" {
 		if guard.descriptorUnchanged() != nil {
 			r.Status, r.Reason, r.DescriptorIdentityAfter = "ARTIFACT_DESCRIPTOR_CHANGED", "ARTIFACT_DESCRIPTOR_CHANGED", "CHANGED"
@@ -782,12 +763,6 @@ func invoke(parent context.Context, executor, runDir string, raw []byte, timeout
 			}
 			r.MaxRSSState = "OBSERVED"
 		}
-	}
-	lock.Lock()
-	kill := killErr
-	lock.Unlock()
-	if r.Status == "" && kill != nil {
-		r.Status, r.Reason = "CLEANUP_ERROR", "OUTPUT_LIMIT_KILL"
 	}
 	if r.Status == "" && errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		r.Status, r.Reason = "TIMEOUT", "TIMEOUT"

@@ -232,7 +232,7 @@ func record(sourceQueue string, item Item, st Store, current map[string]*ticket.
 	}
 	rec, err := ticket.FromValue(wire.ObjectValue(o))
 	if err != nil {
-		return nil, wire.Errorf(wire.CodeOf(err), id.Raw, "%v", err)
+		return nil, wire.Annotatef(err, id.Raw, "%v", err)
 	}
 	return rec, nil
 }

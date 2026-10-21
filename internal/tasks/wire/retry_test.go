@@ -2,8 +2,10 @@ package wire
 
 import (
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -147,5 +149,27 @@ func TestCALV0078_WithoutRetryKeepsCode(t *testing.T) {
 	plain := errors.New("plain")
 	if WithoutRetry(plain) != plain || RetryForbidden(plain) || WithoutRetry(nil) != nil || RetryForbidden(nil) {
 		t.Fatal("non-wire errors changed")
+	}
+}
+
+// TestCALV0078_AnnotateKeepsNotRetryable (V1-0908): restating an error with
+// Annotatef keeps its code and its not-retryable mark, whether the mark sits on
+// a *Error, on a wrapped *Error, or on a non-wire error, and leaves an
+// unmarked error's classification to its code.
+func TestCALV0078_AnnotateKeepsNotRetryable(t *testing.T) {
+	marked := WithoutRetry(Errorf(CodeLockTimeout, "lock", "held"))
+	for name, cause := range map[string]error{
+		"marked *Error":         marked,
+		"wrapped marked *Error": fmt.Errorf("context: %w", marked),
+		"marked plain error":    WithoutRetry(fmt.Errorf("open: %w", syscall.EMFILE)),
+	} {
+		got := Annotatef(cause, "where", "restated: %v", cause)
+		if !RetryForbidden(got) || !got.NotRetryable || got.Code != CodeOf(cause) || got.Where != "where" {
+			t.Errorf("%s: annotated %#v lost the mark or code of %v", name, got, cause)
+		}
+	}
+	plain := Annotatef(Errorf(CodeSnapshotMoved, "head", "moved"), "where", "restated")
+	if RetryForbidden(plain) || plain.Code != CodeSnapshotMoved {
+		t.Errorf("unmarked cause annotated as %#v", plain)
 	}
 }

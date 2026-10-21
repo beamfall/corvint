@@ -18,32 +18,39 @@ import sys
 import tempfile
 import time
 
+# The keeper-pinned group owner shared by the qualification scripts (V1-1387).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import process_group  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 META = {"io.modelcontextprotocol/protocolVersion": "2026-07-28",
         "io.modelcontextprotocol/clientCapabilities": {}}
 
 
-def retire(process):
-    if process.poll() is not None:
-        return
-    # The CLI/MCP signal context must retire gopls's separate process group.
-    process.terminate()
-    try:
-        process.communicate(timeout=30)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-        raise RuntimeError("owned process failed graceful cleanup; descendant cleanup unproved")
+def retire(owned):
+    """Asks only the leader to stop, gives it 30 s, then retires the owned
+    group within a bound; a group signal is never sent after the keeper reap
+    (V1-1387) and an unproved retirement raises GroupHold."""
+    if owned.process.poll() is None:
+        # The CLI/MCP signal context must retire gopls's separate process group.
+        owned.process.terminate()
+        try:
+            owned.communicate(timeout=30)
+        except subprocess.TimeoutExpired:
+            owned.retire()
+            raise RuntimeError("owned process failed graceful cleanup; descendant cleanup unproved")
+    owned.retire()
 
 
 def run(argv, cwd=ROOT):
-    process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, start_new_session=True)
+    owned = process_group.OwnedGroup(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = owned.process
     try:
-        stdout, stderr = process.communicate(timeout=120)
+        stdout, stderr = owned.communicate(timeout=120)
     except BaseException:
-        retire(process)
+        retire(owned)
         raise
+    owned.retire()
     if process.returncode:
         raise subprocess.CalledProcessError(process.returncode, argv, stdout, stderr)
     return stdout
@@ -88,10 +95,11 @@ def fixture(root, workspace):
 
 class MCP:
     def __init__(self, binary, root):
-        self.process = subprocess.Popen([str(binary), "--root", str(root),
-                                         "--tool-profile", "task-review-lsp"],
-                                        stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        stderr=subprocess.DEVNULL, start_new_session=True)
+        self.owned = process_group.OwnedGroup([str(binary), "--root", str(root),
+                                               "--tool-profile", "task-review-lsp"],
+                                              stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                              stderr=subprocess.DEVNULL)
+        self.process = self.owned.process
         self.selector = selectors.DefaultSelector()
         self.selector.register(self.process.stdout, selectors.EVENT_READ)
         self.buffer = b""
@@ -125,7 +133,7 @@ class MCP:
     def close(self):
         # SIGTERM reaches the server's cancellation context; it owns and retires
         # gopls's separate process group before exiting.
-        retire(self.process)
+        retire(self.owned)
         self.selector.close()
         self.process.stdin.close()
         self.process.stdout.close()
@@ -207,8 +215,9 @@ def interruption_check(binary, work):
              "m.run(" + repr([str(binary), "--root", str(root), "context", "--task", "Find A callers",
                               "--subject", "a/a.go", "--lsp", "gopls"]) + ")")
     env = dict(os.environ, PATH=str(fake_dir) + os.pathsep + os.environ["PATH"])
-    process = subprocess.Popen([sys.executable, "-c", child], env=env, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE, start_new_session=True)
+    owned = process_group.OwnedGroup([sys.executable, "-c", child], env=env, stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+    process = owned.process
     try:
         deadline = time.monotonic() + 15
         while time.monotonic() < deadline:
@@ -222,7 +231,7 @@ def interruption_check(binary, work):
         pid = int(pidfile.read_text())
         cache = Path(cachefile.read_text())
         process.terminate()
-        process.communicate(timeout=15)
+        owned.communicate(timeout=15)
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
@@ -232,7 +241,7 @@ def interruption_check(binary, work):
         assert not cache.exists(), "provider cache survived harness interruption"
         return {"signal": "SIGTERM", "descendantRetired": True, "providerCacheRemoved": True}
     finally:
-        retire(process)
+        retire(owned)
 
 
 def main():

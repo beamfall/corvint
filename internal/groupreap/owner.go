@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -78,6 +79,10 @@ type Primitives struct {
 	// NewTimer starts a timer. Tests replace it to drive fixed deadlines without
 	// waiting on wall time.
 	NewTimer func(time.Duration) Timer
+	// SignalGroup sends a caller's graceful stop signal (Owner.Signal,
+	// PGO-V0-018) to the leader's group. A group with no signalable member is
+	// not an error.
+	SignalGroup func(leader int, signal syscall.Signal) error
 	// RepeatKillWhileLive opts a caller into repeating the group SIGKILL on
 	// each RequirePreReapQuiet observation of a live member, still only while
 	// the exited leader is held unreaped and never once the reap has begun.
@@ -177,6 +182,16 @@ const (
 	postReapProbeDeadline = 2 * time.Second
 )
 
+// ErrSignalRefused is Owner.Signal's refusal once the group ID is no longer
+// provably pinned by the unreaped leader, or the retirement has begun.
+var ErrSignalRefused = errors.New("groupreap: group signal refused: the owned group is retiring or not provably pinned")
+
+// HostPrimitives returns this platform's default primitives, so a caller can
+// wrap one of them (for example a post-reap ProbeGroup that first collects
+// reparented zombies) and keep the others, including the pre-reap QuietProof
+// that an injected ProbeGroup would otherwise replace.
+func HostPrimitives() Primitives { return defaultPrimitives() }
+
 // Start starts command as the leader of a new process group and owns it. On
 // a platform without the owner it refuses before any process is started.
 func Start(command *exec.Cmd) (*Owner, error) { return StartWith(command, Primitives{}) }
@@ -219,6 +234,9 @@ func resolvePrimitives(p Primitives) (Primitives, error) {
 	}
 	if p.ProbeGroup == nil {
 		p.ProbeGroup = defaults.ProbeGroup
+	}
+	if p.SignalGroup == nil {
+		p.SignalGroup = defaults.SignalGroup
 	}
 	if p.QuietProof == nil {
 		p.QuietProof = defaults.QuietProof
@@ -288,6 +306,22 @@ func (o *Owner) Stop() {
 	if o.state == OwnedRunning || o.state == OwnedExitObserved {
 		o.kill()
 	}
+}
+
+// Signal sends signal to the owned group as a caller's graceful stop request,
+// such as SIGINT or SIGTERM before a bounded Stop (PGO-V0-018). It is sent
+// only while the leader is held unreaped and before Finish begins retirement,
+// so the group ID is pinned; after that, or when the exit observation failed,
+// it sends nothing and returns ErrSignalRefused. It is not the retirement
+// SIGKILL: Stop and Finish still signal, prove and reap as before.
+func (o *Owner) Signal(signal syscall.Signal) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if (o.state != OwnedRunning && o.state != OwnedExitObserved) || o.observeErr != nil {
+		return ErrSignalRefused
+	}
+	o.recordEvent("signal-group")
+	return o.p.SignalGroup(o.leader, signal)
 }
 
 // kill sends the single group signal. The caller holds o.mu.

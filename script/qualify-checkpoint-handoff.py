@@ -12,8 +12,13 @@ from pathlib import Path
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
+
+# The keeper-pinned group owner shared by the qualification scripts (V1-1387).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import process_group  # noqa: E402
 
 
 TASK = 'Finish NormalizeRetries: negative inputs become 0, 0 through 5 stay unchanged, and inputs above 5 become 5. Add boundary tests.'
@@ -64,20 +69,23 @@ class Runner:
                 'GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_AUTHOR_DATE', 'GIT_COMMITTER_DATE'
             }:
                 del env[key]
-        process = subprocess.Popen(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE, start_new_session=True)
+        owned = process_group.OwnedGroup(argv, cwd=cwd, env=env, stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+        process = owned.process
         failure = None
         try:
-            stdout, stderr = process.communicate(timeout=90)
+            owned.communicate(timeout=90)
         except BaseException as error:
             failure = error
-        finally:
-            # Also retire descendants when the group leader has already exited.
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            stdout, stderr = process.communicate()
+        # Also retire descendants when the command has already exited. The
+        # retirement is bounded and signals only while the keeper pins the
+        # group ID; an unproved retirement is a GroupHold failure.
+        try:
+            stdout, stderr = owned.retire()
+        except process_group.GroupHold as error:
+            stdout, stderr = b'', b''
+            if failure is None:
+                failure = error
         index = len(self.records)
         stem = f'command-{index:03}'
         (self.output / (stem + '.stdout')).write_bytes(stdout)

@@ -7,6 +7,8 @@ package dispatch
 import (
 	"bytes"
 	"encoding/json"
+	"encoding/json/jsontext"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -669,6 +671,27 @@ var (
 // labels are built from them and must stay inside a 64-byte label.
 func ValidName(s string) bool { return namePattern.MatchString(s) }
 
+// refuseRepeatedMembers refuses a member repeated in any object at any depth
+// (ATR-V0-161): encoding/json keeps the last of a repeated member, so an
+// operator could run a configuration that differs from the one they read.
+// The match is exact after unescaping; two spellings that only case-fold to
+// one field stay the strict decoder's concern. Other syntax errors are left
+// to the strict decoder, which reports them.
+func refuseRepeatedMembers(raw []byte) error {
+	d := jsontext.NewDecoder(bytes.NewReader(raw))
+	for {
+		_, err := d.ReadToken()
+		if err == nil {
+			continue
+		}
+		var syntax *jsontext.SyntacticError
+		if errors.Is(err, jsontext.ErrDuplicateName) && errors.As(err, &syntax) {
+			return fmt.Errorf("dispatch config: repeated member %q", string(syntax.JSONPointer))
+		}
+		return nil
+	}
+}
+
 // DecodeConfig parses and validates closed configuration bytes.
 func DecodeConfig(raw []byte) (*Config, error) {
 	if len(raw) > MaxConfig {
@@ -688,6 +711,11 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	}
 	if d.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("dispatch config: trailing input")
+	}
+	// After the strict decode, so a member whose own decoder refuses a
+	// repeat (a budget override, a prompt part) keeps its specific error.
+	if err := refuseRepeatedMembers(raw); err != nil {
+		return nil, err
 	}
 	if c.StalledAfterSessions == nil && presentNull(raw, "stalledAfterSessions") {
 		return nil, fmt.Errorf("dispatch config: stalledAfterSessions is null; omit it to disable the advisory")
@@ -1235,8 +1263,16 @@ func promptSafeHost(h Host, allowed map[string]bool) error {
 		}
 		// The literal text alone is checked here: a placeholder name such as
 		// {ticketLocal} is not option text, and what it renders to is
-		// checked at launch by renderedArgvSafe.
-		if err := argvCodeRisk(i, placeholder.ReplaceAllString(a, "")); err != nil {
+		// checked at launch by renderedArgvSafe. The interpreter name is
+		// matched only when the element's last path segment is all literal
+		// (ATR-V0-163): in {ticketLocal}sh the literal sh is not the program
+		// name, and the launch recheck sees the rendered one.
+		literal := placeholder.ReplaceAllString(a, "")
+		if placeholder.MatchString(a[strings.LastIndex(a, "/")+1:]) {
+			if i > 0 && codeOption(literal) {
+				return fmt.Errorf("takes the code-string option %s", literal)
+			}
+		} else if err := argvCodeRisk(i, literal); err != nil {
 			return err
 		}
 	}

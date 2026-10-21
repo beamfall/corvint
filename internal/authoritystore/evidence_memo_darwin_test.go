@@ -25,7 +25,7 @@ func TestMemoSuccessCannotReplaceFinalViewAudit(t *testing.T) {
 		// This is a current-UID temp view, not a protected principal or native
 		// admission. It combines actual Git memo reads with the exact final
 		// audit/metadata comparison used by evidenceView.unchanged.
-		root := t.TempDir()
+		root := readerGroupTempDir(t)
 		manifest := manifestFixture()
 		manifest.Files = nil
 		manifest.ReaderGID = strconv.Itoa(os.Getegid())

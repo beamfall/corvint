@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -626,4 +627,46 @@ func TestOwnerRepeatKillFailureHoldsWithoutReaping(t *testing.T) {
 		t.Fatalf("result = %+v", result)
 	}
 	requireCalls(t, f, "kill,probe,kill")
+}
+
+// PGO-V0-018: Signal reaches the group only while the exited or running
+// leader is held unreaped and before retirement begins; it is refused once
+// Finish has started, during the reap and after release, and after a failed
+// exit observation. It never replaces the retirement SIGKILL.
+func TestPGOV0018SignalOnlyBeforeRetirement(t *testing.T) {
+	f := newFakeHost(ProbeAbsent)
+	p := f.primitives()
+	p.SignalGroup = func(_ int, signal syscall.Signal) error { f.record("signal-" + signal.String()); return nil }
+	o := adopt(nil, 4242, p)
+	if err := o.Signal(syscall.SIGINT); err != nil {
+		t.Fatalf("running Signal: %v", err)
+	}
+	f.exit <- nil
+	<-o.Exited()
+	if err := o.Signal(syscall.SIGTERM); err != nil {
+		t.Fatalf("exited-unreaped Signal: %v", err)
+	}
+	if result := o.Finish(open()); result.State != Released {
+		t.Fatalf("result = %+v events = %v", result, o.Events())
+	}
+	if err := o.Signal(syscall.SIGTERM); !errors.Is(err, ErrSignalRefused) {
+		t.Fatalf("released Signal = %v", err)
+	}
+	requireCalls(t, f, "signal-interrupt,signal-terminated,kill,probe,reap,probe")
+	if got := strings.Join(o.Events(), ","); got != "signal-group,exit-observed,signal-group,kill-group,probe-quiet,reap,probe-final,released" {
+		t.Fatalf("events = %s", got)
+	}
+
+	failed := newFakeHost(ProbeAbsent)
+	q := failed.primitives()
+	q.SignalGroup = func(int, syscall.Signal) error { failed.record("signal"); return nil }
+	held := adopt(nil, 4243, q)
+	failed.exit <- errors.New("ECHILD")
+	<-held.Exited()
+	if err := held.Signal(syscall.SIGINT); !errors.Is(err, ErrSignalRefused) {
+		t.Fatalf("unobserved Signal = %v", err)
+	}
+	if len(failed.seen()) != 0 {
+		t.Fatalf("calls after failed observation = %v", failed.seen())
+	}
 }

@@ -39,6 +39,10 @@ const (
 	// retiredRunPrefix names a run directory moved out of its attempt's
 	// directory before removal, so a reader never sees a half-removed run.
 	retiredRunPrefix = ".retired-"
+	// retiringRunPrefix names a run moved out of its attempt's directory
+	// while the pass reads the terminal records again (ATR-V0-171). Any pass
+	// that finds one restores it, so a pass that stopped keeps the run.
+	retiringRunPrefix = ".retiring-"
 )
 
 // retireEndedRuns removes the run directories of terminal attempts beyond the
@@ -76,6 +80,10 @@ func retireEndedRunsIn(root string, records func(context.Context, []string) (map
 		}
 		if strings.HasPrefix(name, retiredRunPrefix) {
 			_ = os.RemoveAll(filepath.Join(root, name)) // an earlier pass stopped mid-removal
+			continue
+		}
+		if strings.HasPrefix(name, retiringRunPrefix) {
+			restoreRetiringRun(root, name) // a pass stopped, or is still checking
 			continue
 		}
 		base := filepath.Join(root, name)
@@ -155,16 +163,63 @@ func retireEndedRunsIn(root string, records func(context.Context, []string) (map
 	if len(terminal) <= maxRetainedEndedRuns {
 		return
 	}
+	// The run leaves its attempt's directory in one rename, so attach finds
+	// either the whole run or none of it. A retry can revive the attempt
+	// after the read above, so the runs are hidden first and removed only
+	// when a second read, begun after every one left, still finds the
+	// attempt terminal at the run's generation (ATR-V0-171).
+	var moved []endedRun
+	ids = nil
+	seen = map[string]bool{}
 	for _, e := range terminal[maxRetainedEndedRuns:] {
-		// The run leaves its attempt's directory in one rename, so attach
-		// finds either the whole run or none of it.
-		moved := filepath.Join(root, retiredRunPrefix+filepath.Base(e.base)+"-"+filepath.Base(e.dir))
-		if os.Rename(e.dir, moved) != nil {
+		if os.Rename(e.dir, filepath.Join(root, retiringRunName(e.base, e.dir))) != nil {
 			continue
 		}
-		_ = os.RemoveAll(moved)
+		moved = append(moved, e)
+		if !seen[e.attemptID] {
+			seen[e.attemptID] = true
+			ids = append(ids, e.attemptID)
+		}
+	}
+	if len(moved) == 0 {
+		return
+	}
+	sort.Strings(ids)
+	again, err := records(ctx, ids)
+	for _, e := range moved {
+		name := retiringRunName(e.base, e.dir)
+		if a := again[e.attemptID]; err != nil || a == nil || a.Live() || e.generation > a.Generation.Uint64() {
+			restoreRetiringRun(root, name)
+			continue
+		}
+		retired := filepath.Join(root, retiredRunPrefix+strings.TrimPrefix(name, retiringRunPrefix))
+		if os.Rename(filepath.Join(root, name), retired) != nil {
+			continue // another pass restored it
+		}
+		_ = os.RemoveAll(retired)
 		_ = os.Remove(e.base) // only when no run is left
 	}
+}
+
+// retiringRunName is the root entry that holds the run at dir of the attempt
+// directory base while a pass rechecks it (ATR-V0-171).
+func retiringRunName(base, dir string) string {
+	return retiringRunPrefix + filepath.Base(base) + "-" + filepath.Base(dir)
+}
+
+// restoreRetiringRun moves a hidden run back into its attempt's directory.
+// A name that does not parse, or a run that cannot be moved back, is left;
+// no pass removes a .retiring- entry.
+func restoreRetiringRun(root, name string) {
+	attempt, run, ok := strings.Cut(strings.TrimPrefix(name, retiringRunPrefix), "-")
+	if !ok || !runAttemptName(attempt) || !validRunID(run) {
+		return
+	}
+	base := filepath.Join(root, attempt)
+	if os.MkdirAll(base, 0o700) != nil {
+		return
+	}
+	_ = os.Rename(filepath.Join(root, name), filepath.Join(base, run))
 }
 
 // runRetireCursor is where the next ATR-V0-154 window starts: after the
@@ -256,10 +311,10 @@ func writeRunRetireCursor(root string, cur runRetireCursor) {
 }
 
 // runWindowName reports a root entry a retirement window examines, and so a
-// name the cursor may resume after: an attempt directory name, or a retired
-// run an earlier pass did not finish removing.
+// name the cursor may resume after: an attempt directory name, a retired run
+// an earlier pass did not finish removing, or a run a pass hid to recheck.
 func runWindowName(s string) bool {
-	return runAttemptName(s) || (strings.HasPrefix(s, retiredRunPrefix) && len(s) <= 255 && !strings.ContainsAny(s, "/\x00"))
+	return runAttemptName(s) || ((strings.HasPrefix(s, retiredRunPrefix) || strings.HasPrefix(s, retiringRunPrefix)) && len(s) <= 255 && !strings.ContainsAny(s, "/\x00"))
 }
 
 // runAttemptName reports a name attemptRunsName can produce.

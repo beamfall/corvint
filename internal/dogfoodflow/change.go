@@ -425,41 +425,21 @@ func abstentionArtifact(argvSHA, base, reason, stderrSHA, stdoutSHA, target stri
 // localOutcome records the author's verification outcome, or names why no
 // outcome input was provided, and returns the local-outcome row.
 func (c *change) localOutcome(task string) step {
-	verify := []string{}
-	switch {
-	case c.options.VerifyFile != "" && !isRegular(c.options.VerifyFile):
-		return step{"local-outcome", "NOT_PRODUCED", "verify-file-unavailable"}
-	case c.options.VerifyFile != "":
-		data, err := readPrefix(c.options.VerifyFile, maxVerifyFileBytes+1)
-		if err != nil {
-			return step{"local-outcome", "NOT_PRODUCED", "verify-file-unavailable"}
-		}
-		if len(data) > maxVerifyFileBytes {
-			return step{"local-outcome", "NOT_PRODUCED", "verify-file-over-bound"}
-		}
-		verify = verifyArguments(data)
-	case c.options.Verify != "":
-		verify = verifyArguments([]byte(c.options.Verify + "\n"))
+	verify, reason := verifyInput(c.options)
+	if reason != "" {
+		return step{"local-outcome", "NOT_PRODUCED", reason}
 	}
 	if c.options.Outcome == "" || len(verify) == 0 {
 		return step{"local-outcome", "NOT_PRODUCED", "outcome-input-not-provided"}
 	}
 	output := c.evidence + "/local-outcome.json"
 	errorFile := c.evidence + "/local-outcome.stderr"
-	commands := make([]string, 0, len(verify)/2)
-	for i := 1; i < len(verify); i += 2 {
-		commands = append(commands, verify[i])
-	}
-	if err := trace.ValidateVerificationCommands(commands); err != nil {
+	if err := validateVerify(verify); err != nil {
 		if writePrivate(errorFile, []byte(err.Error()+"\n")) != nil {
 			return step{"local-outcome", "NOT_PRODUCED", "aggregate-publication-failed"}
 		}
 		fmt.Fprintln(c.stderr, err)
-		reason := trace.VerificationFailureReason(err)
-		if reason == "" {
-			reason = "record-failed"
-		}
-		return step{"local-outcome", "NOT_PRODUCED", reason}
+		return step{"local-outcome", "NOT_PRODUCED", verifyFailureReason(err)}
 	}
 	args := append([]string{"dogfood-record", "--base", c.base, "--target", c.target, "--task", task}, verify...)
 	status, captureErr := c.recordWithClosedStages(append(args, "--outcome", c.options.Outcome), output, errorFile)
@@ -482,6 +462,46 @@ func (c *change) localOutcome(task string) step {
 		return step{"local-outcome", "NOT_PRODUCED", "no-source-paths"}
 	}
 	return step{"local-outcome", "NOT_PRODUCED", "invalid-record-admission-output"}
+}
+
+// verifyInput reads the verification commands as --verify argument pairs: the
+// verify file's lines, else DOGFOOD_VERIFY. A non-empty reason is the
+// local-outcome reason an unreadable or over-bound verify file records.
+func verifyInput(options ChangeOptions) ([]string, string) {
+	switch {
+	case options.VerifyFile != "" && !isRegular(options.VerifyFile):
+		return nil, "verify-file-unavailable"
+	case options.VerifyFile != "":
+		data, err := readPrefix(options.VerifyFile, maxVerifyFileBytes+1)
+		if err != nil {
+			return nil, "verify-file-unavailable"
+		}
+		if len(data) > maxVerifyFileBytes {
+			return nil, "verify-file-over-bound"
+		}
+		return verifyArguments(data), ""
+	case options.Verify != "":
+		return verifyArguments([]byte(options.Verify + "\n")), ""
+	}
+	return nil, ""
+}
+
+// validateVerify checks the commands of verifyInput's argument pairs against
+// the recorder's admitted command syntax and bounds.
+func validateVerify(verify []string) error {
+	commands := make([]string, 0, len(verify)/2)
+	for i := 1; i < len(verify); i += 2 {
+		commands = append(commands, verify[i])
+	}
+	return trace.ValidateVerificationCommands(commands)
+}
+
+// verifyFailureReason is the local-outcome reason of a validateVerify error.
+func verifyFailureReason(err error) string {
+	if reason := trace.VerificationFailureReason(err); reason != "" {
+		return reason
+	}
+	return "record-failed"
 }
 
 // maxVerifyFileBytes bounds DOGFOOD_VERIFY_FILE well above the recorder's own

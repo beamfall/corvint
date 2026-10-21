@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055)
+Intent status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055); JRT-V0-015..016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1701; re-homed from the agent leases spec, owner-approved 2026-10-17)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 1055](https://github.com/beamfall/corvint/issues/1055)
 ("get 1055 done", 2026-10-17); the receipt chain, the complete audit and the read rule of
@@ -14,7 +14,7 @@ requirements and does not restate them. The design choice and its reasons are re
 
 ## Agent digest
 - Claim: `receipt retire` bounds the live journal by sealing the head receipt over a verified archive of the prefix; `receipt unretire` restores it.
-- Status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055) / experimental source implementation with focused store and CLI tests.
+- Status: JRT-V0-001..014 accepted under the owner's standing auto-accept (2026-10-11) (V1-1618; GitHub #1055); JRT-V0-015..016 accepted under the owner's standing auto-accept (2026-10-11) (V1-1701; re-homed from the agent leases spec, owner-approved 2026-10-17) / experimental source implementation with focused store and CLI tests.
 - Exists: `receipt retire --archive FILE [--dry-run]`, `receipt unretire --archive FILE`, the `RETIRED_PREFIX` seal, sealed complete audit and binding folds from the anchor, crash recovery through `RETIRE_INCOMPLETE`, doctor journal size, growth and JOURNAL_GROWTH.
 - Blocked on: nothing for the slice; retire is one-shot per seal, and export, compaction and import refuse on a sealed store (Non-goals).
 - Read next: Requirements; Failure modes; Compatibility and rollback; Traceability.
@@ -49,6 +49,63 @@ rooted at the anchor. No write path, scheduler, doctor or hook invokes it.
 - `JRT-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #1055) `doctor` adds `journal` to its `taskman-doctor/0` item (an additive key beside TQD-V0-001's): `receipts` and `bytes` of the live `receipts/` directory (names and sizes only, at most 4,194,304 entries; NOT_OBSERVED with a scan warning when unreadable), `retiredThrough` (S-1, or 0), `receiptsPerDay` and `bytesPerDay` over the TQD-V0-004 window scan (NOT_OBSERVED below two receipts or a zero span), `thresholdReceipts` 16384 and `thresholdBytes` 268435456. Past either threshold it emits one JOURNAL_GROWTH finding, who `journal`, whose remedy names `receipt retire --dry-run` and the archive. The window scan ends without truncation at the retired prefix. The doctor stays a pure read.
 - `JRT-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #1055) After retire the live journal holds the anchor and later receipts only, so the complete audit and cold start read no retired receipt and no retired request body, and their cost no longer grows with retired history. The before/after audit time and receipt bytes are measured and recorded in the build log; unmeasured scales are NOT_RUN.
 - `JRT-V0-014`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #1055) The `receipt compact` help states that it reclaims superseded liveness bodies only, that every receipt, chain digest and request afterimage stays in the live journal, and points to `receipt retire` (JRT-V0) to bound the journal.
+
+### V1-1701 complete journal walk decode reuse and bounded read-ahead
+
+Re-homed (owner-approved, 2026-10-17): these requirements were first numbered CAL-V0-380..381 in the
+agent leases spec; they moved here with the same text so that spec stays within the 256-obligation
+bound.
+
+A complete audit at 47,000 receipts took about 21 s. The CPU profile blamed `openat`, but the wall
+time fell once decode work was removed, so the cost was mostly CPU: each receipt's ticket and request
+afterimages were parsed two or three times, all on the walking goroutine.
+
+- `JRT-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The complete
+  walk (CAL-V0-061) MUST parse each inline ticket or request afterimage once. The record validation that already
+  parses a post hands its decoded ticket or request to the semantic step and to the operator-note
+  binding. It keeps the existing size bounds and refusal text, so no input that was refused before is
+  accepted, and no accepted input is refused.
+- `JRT-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The walk MAY
+  decode and validate receipts ahead of the step, in parallel, within one abort window (the 512-receipt
+  head-moved check) and within a 512 KiB budget of held receipt bytes. Receipt bytes are read in
+  sequence on the walking goroutine, each read bounded by the budget left before it buffers, so a
+  window never holds more than 512 KiB of receipt bytes. The decoded receipts and inline afterimages
+  a window retains are in addition to the budget, in proportion to those bytes. A receipt that does
+  not fit ends the window; one larger than the whole budget is read by step under its own bound.
+  A read-ahead records nothing until step reaches that receipt: its close error, physical-read
+  witness and read hook are settled then, in sequence, and a read-ahead that fails for any reason is
+  discarded with its close error and read again in sequence. Every ordering, chain, coverage and
+  authority check still runs in step, in sequence order. Elided receipts and receipts with any
+  blob-backed post (checked before any of its posts is validated, so JRT-V0-015 still holds) are
+  left to step's sequential route, as are receipts whose bytes fail to decode. A walk with read-ahead
+  MUST return the same result or the same refusal as a walk without it.
+
+Non-goals: concurrent file reads, a cache across commands, and changes to the capture and listing
+cost (two captures `lstat` every store file). Failure modes: a read error inside a window is
+discarded and the receipt is read again in sequence, so the refusal names the same receipt and code;
+a receipt read ahead but never reached (the walk refused earlier) contributes no close error or
+witness, so it cannot replace the refusal; held receipt bytes stay within the budget and decoded
+state is proportional to them (TMV0002 AS10 streaming bound still passes). A window that ends on a
+receipt that does not fit opens that receipt once more.
+
+Acceptance evidence: `TestV11701_PrefetchedWalkMatchesSequentialWalk` (`internal/tasks/journal`)
+audits a 601-receipt history with and without read-ahead. It asserts equal verdicts, selected records,
+request digests and canonical latest, one read per receipt in each mode, and the number of receipts
+decoded and post sets validated ahead. `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk` asserts
+the same refusal for an undecodable receipt and a forked `prev` inside a window.
+`TestV11701_ReadAheadCloseFailureSettlesInSequence` injects a close failure on a later receipt of the
+same window and asserts the earlier forked `prev` stays the refusal, and that a reached receipt's
+close failure is the sequential refusal. `TestV11701_ReadAheadHoldsAtMostTheBudget` narrows the
+budget and asserts no window holds more than it, one read per receipt, and that only the receipt
+larger than the whole budget is left to step. `TestV11701_MixedInlineAndBlobPostsValidateOnce`
+asserts equal `validateRecord` call counts with and without read-ahead for receipts mixing an inline
+and a blob-backed post. The opt-in
+`TestV11701_WalkCost` (`internal/tasks/store`) harness measured a 47,000-receipt synthetic store at
+a median of 21.2 s before and 5.8 s after (five runs each); see
+`docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md`.
+
+Rollback: revert the commit. Setting `walkPrefetch` to false in a test restores the sequential walk
+with decode reuse.
 
 ## Non-goals
 
@@ -105,3 +162,5 @@ sealed store, then remove the two verbs and the doctor `journal` key.
 | JRT-V0-012 | `TestJRTV0012_RetireCLIAndDoctorJournal` |
 | JRT-V0-013 | `TestJRTV0013_RetireBoundsAuditCost` |
 | JRT-V0-014 | `TestJRTV0012_RetireCLIAndDoctorJournal` |
+| JRT-V0-015 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_MixedInlineAndBlobPostsValidateOnce`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md` |
+| JRT-V0-016 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk`, `TestV11701_ReadAheadCloseFailureSettlesInSequence`, `TestV11701_ReadAheadHoldsAtMostTheBudget`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `TestV11701_WalkCost` (`internal/tasks/store`, opt-in) |

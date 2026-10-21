@@ -17,8 +17,9 @@ import (
 
 func detachedPIDs(t *testing.T, marker string, stop <-chan struct{}) []int {
 	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
-	for time.Now().Before(deadline) {
+	// Bounded by stop, which closes when Execute returns at its hang bound at the latest, not by
+	// a wall clock of its own (V1-1545).
+	for {
 		if b, err := os.ReadFile(marker); err == nil {
 			var pids []int
 			for _, f := range strings.Fields(string(b)) {
@@ -36,7 +37,6 @@ func detachedPIDs(t *testing.T, marker string, stop <-chan struct{}) []int {
 		case <-time.After(5 * time.Millisecond):
 		}
 	}
-	return nil
 }
 
 // processStart is the process's start time and command, or "" when it is
@@ -63,7 +63,12 @@ func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 	}{{"timeout", false}, {"timeout", true}, {"interrupt", true}, {"exit", true}} {
 		t.Run(tc.mode+"-retire="+strconv.FormatBool(tc.retire), func(t *testing.T) {
 			r, inv := executorRequest(t)
-			r.TimeoutSeconds = 3
+			// The timeout cases expire once both descendants are running; TimeoutSeconds is
+			// only the hang bound, so a loaded host cannot time the fixture out before it
+			// detaches (V1-1545).
+			r.TimeoutSeconds = 120
+			expect, detached := releaseWhenSampled(t)
+			expireLimitAt(t, detached)
 			marker := filepath.Join(r.Root, "ready")
 			inv.Environment["CORVINT_EXEC_MODE"] = "detach"
 			inv.Environment["CORVINT_EXEC_TARGET"] = marker
@@ -89,8 +94,12 @@ func TestExecuteRetiresDetachedDescendants(t *testing.T) {
 						}
 					}
 				})
-				if tc.mode == "interrupt" {
+				switch {
+				case len(pids) != 2:
+				case tc.mode == "interrupt":
 					cancel()
+				case tc.mode == "timeout":
+					expect(pids)
 				}
 				pidsc <- pids
 			}()

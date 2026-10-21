@@ -604,12 +604,16 @@ separate exact extension tuple remains governed by AHI-024.
   `corvint-event-rejected:dogfood-event-deadline` (`LCP-V0-008`) MUST keep its unchanged frame and
   code as the first line, then on following lines say in plain words that Corvint's check for the
   event did not finish within the hook time limit, that the event got no Corvint context and coding
-  continues, that the usual causes are a very large set of uncommitted or staged changes in the
-  project checkout or heavy machine load and that the notice did not measure either, and give the
-  read-only next step as the exact JSON argv `["git","-C",ROOT,"status","--short"]` for the
-  adapter-resolved root, noting that if that list is very long, committing, stashing or unstaging
-  unrelated changes may clear it, and otherwise waiting for load to drop may. The hook MUST NOT run
-  that command or claim a cause it did not observe. A root long enough that the encoded output
+  continues, that a measured reproduction found heavy machine load to be the cause while 1,266
+  changed task-store files under `.taskman/` added no measurable time, and that the notice did not
+  measure this event's cause (V1-1524 amendment, accepted under the owner's standing auto-accept; it
+  replaces the earlier unmeasured "very large set of uncommitted or staged changes, or heavy machine
+  load" wording), and give the read-only next step as the exact JSON argv
+  `["git","-C",ROOT,"status","--short"]` for the adapter-resolved root, then say that waiting for
+  load to drop may help if machine load caused the timeout, without promising recovery, that files under `.taskman/` are written by the task store and must not be
+  committed, stashed or discarded for this, and that only a very long list of other changes is worth
+  committing or unstaging. The hook MUST NOT run that command or claim a cause it did not observe;
+  the reproduction's cause is named as a reproduction finding, not as this event's measurement. A root long enough that the encoded output
   would exceed `adapterOutputLimit` keeps the frame-only notice rather than losing the frame to
   `corvint-output-too-large`. The text is appended in every channel the notice already uses: Claude
   `systemMessage` on `stop` and other user-visible events, `hookSpecificOutput.additionalContext`
@@ -1358,7 +1362,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1076@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1078@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@8de67696` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |

@@ -77,6 +77,7 @@ func (l *finishLane) run() int {
 		l.say("  fix: pass --citations FILE, a TSV plan with one row per hunk of %s (docs/DOGFOOD.md §4)\n", finishLaneSidecar)
 		l.exit(2)
 	}
+	l.requireVerifyInput()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another
 	// base or a dirty tree is refused rather than reported as done.
 	sealed := l.isSealCommit(l.target)
@@ -110,6 +111,27 @@ func (l *finishLane) run() int {
 	}
 	l.rebind()
 	return l.checkAndSeal()
+}
+
+// requireVerifyInput refuses, before prepare runs any step, a verify input the
+// bind's local-outcome row would refuse, with that row's reason (DCW-V0-092).
+func (l *finishLane) requireVerifyInput() {
+	verify, reason := verifyInput(l.options.Change)
+	detail := ""
+	if reason == "" && len(verify) > 0 {
+		if err := validateVerify(verify); err != nil {
+			reason, detail = verifyFailureReason(err), err.Error()
+		}
+	}
+	if reason == "" {
+		return
+	}
+	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	if detail != "" {
+		l.say("  %s\n", oneLine(detail))
+	}
+	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no quotes, globs or operators), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
+	l.exit(2)
 }
 
 // line writes one step line to stdout.

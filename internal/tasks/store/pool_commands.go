@@ -34,15 +34,19 @@ func poolSnapshot(ctx context.Context, repo *intent.Repository) (*intent.Policy,
 	return p, state, e
 }
 func poolSource(root string) (string, string, error) {
-	rev, e := resolveObject(root, "HEAD", "commit")
+	return poolSourceWith(gitOutput, root)
+}
+
+func poolSourceWith(git gitRunner, root string) (string, string, error) {
+	rev, e := resolveObjectWith(git, root, "HEAD", "commit")
 	if e != nil {
 		return "", "", e
 	}
-	tree, e := resolveObject(root, rev, "tree")
+	tree, e := resolveObjectWith(git, root, rev, "tree")
 	if e != nil {
 		return "", "", e
 	}
-	status, e := gitOutput(root, "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).taskman")
+	status, e := git(root, "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).taskman")
 	if e != nil {
 		return "", "", e
 	}
@@ -52,10 +56,14 @@ func poolSource(root string) (string, string, error) {
 	return rev, tree, nil
 }
 func poolConfig(root string, ref *intent.ConfigRef) error {
+	return poolConfigWith(gitOutput, root, ref)
+}
+
+func poolConfigWith(git gitRunner, root string, ref *intent.ConfigRef) error {
 	if ref == nil {
 		return nil
 	}
-	raw, e := gitOutput(root, "ls-tree", "-z", ref.Revision, "--", ref.Path)
+	raw, e := git(root, "ls-tree", "-z", ref.Revision, "--", ref.Path)
 	if e != nil {
 		return e
 	}
@@ -462,12 +470,16 @@ func acquirePreparable(a *snapshot.Attempt) bool {
 // acquire share: a prepared observation still matches the command source,
 // and every member's pinned config is current.
 func poolAdmissionSource(root string, observation []byte, policy *intent.Policy, poolID string) error {
+	return poolAdmissionSourceWith(gitOutput, root, observation, policy, poolID)
+}
+
+func poolAdmissionSourceWith(git gitRunner, root string, observation []byte, policy *intent.Policy, poolID string) error {
 	if len(observation) > 0 {
 		o, e := snapshot.DecodePoolObservation(observation)
 		if e != nil {
 			return e
 		}
-		rev, tree, e := poolSource(root)
+		rev, tree, e := poolSourceWith(git, root)
 		if e != nil {
 			return e
 		}
@@ -477,7 +489,7 @@ func poolAdmissionSource(root string, observation []byte, policy *intent.Policy,
 	}
 	if pool := policy.Pool(poolID); pool != nil {
 		for _, member := range pool.Members {
-			if e := poolConfig(root, pool.MemberConfig[member].ConfigRef); e != nil {
+			if e := poolConfigWith(git, root, pool.MemberConfig[member].ConfigRef); e != nil {
 				return e
 			}
 		}

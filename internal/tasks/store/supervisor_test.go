@@ -7,10 +7,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -61,6 +63,22 @@ func TestSupervisorWaitRetainsScopeReleasesWorker(t *testing.T) {
 	step("ATTACH", transaction.SupervisorChange{})
 	step("DISPATCH", transaction.SupervisorChange{Stage: "implement", Holder: c.Holder, Worktree: "/fixture/implement"})
 	step("BOOT", transaction.SupervisorChange{LeaderPID: 100, LeaderStarted: "observed-leader"})
+	// V1-0829: a heartbeat whose owner or leader identity is not live is a
+	// coded SUPERVISOR_LOST refusal, not a plain error.
+	self, e := supervisor.ProcessIdentity(os.Getpid())
+	if e != nil {
+		t.Fatal(e)
+	}
+	for _, hb := range []struct {
+		pid      int
+		identity string
+		msg      string
+	}{{p.OwnerPID, p.OwnerStarted, "heartbeat owner not live"}, {os.Getpid(), self, "heartbeat leader not live"}} {
+		_, e = store.SupervisorTransition(context.Background(), s.repo, operator(), "queue:acme:main", "heartbeat-"+hb.msg, claim.AttemptID, claim.Generation, transaction.SupervisorChange{Action: "HEARTBEAT", ProgramID: p.ID, OwnerPID: hb.pid, OwnerStarted: hb.identity})
+		if wire.CodeOf(e) != wire.CodeSupervisorLost || !strings.Contains(e.Error(), hb.msg) {
+			t.Fatalf("heartbeat %s: %v", hb.msg, e)
+		}
+	}
 	step("STOPPING", transaction.SupervisorChange{})
 	step("STOPPED", transaction.SupervisorChange{Clean: true, Session: "session-1", Question: "question-1"})
 	raw, e := os.ReadFile(filepath.Join(s.repo.StateDir, "attempts", claim.AttemptID+".json"))

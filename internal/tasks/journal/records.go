@@ -42,6 +42,9 @@ type chain struct {
 	// seal is the retired prefix a sealed complete walk started from
 	// (JRT-V0-004); checkpoint routes decline a chain that carries one.
 	seal *RetiredPrefix
+	// prefetch holds receipts a complete walk read and decoded ahead of
+	// step (V1-1701); nil on every other route.
+	prefetch *receiptPrefetch
 }
 
 // decode decodes one receipt of the walk and returns it with its original
@@ -138,11 +141,12 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if result.Pending && (r.divergentIntent != "" || (r.unpauseTickets && !r.pendingUnpause)) {
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
-	st := &chain{canonical: map[string]latest{}, restore: &snapshot.ReceiptRestorer{}}
+	st := &chain{canonical: map[string]latest{}, restore: &snapshot.ReceiptRestorer{}, prefetch: newReceiptPrefetch()}
 	for i, name := range o.receipts {
 		if i%abortEvery == abortEvery-1 && r.headMoved(o) {
 			return result, moved("head.json")
 		}
+		r.prefetchFrom(st.prefetch, o.receipts, i)
 		if err := r.step(o, st, result, name, uint64(i+1), headSeq, selected, request, lim); err != nil {
 			return result, err
 		}
@@ -208,11 +212,8 @@ func (r Reader) settle(o *observation, st *chain, result *Result, checkIntent bo
 // step validates one receipt against the chain and folds its posts in.
 func (r Reader) step(o *observation, st *chain, result *Result, name string, seq, headSeq uint64, selected map[string]bool, request string, lim limits) error {
 	canonical := st.canonical
-	raw, err := requiredRead(r.Source, "receipts/"+name, wire.MaxReceiptFileBytes)
-	if err != nil {
-		return err
-	}
-	rc, raw, err := st.decode(name, raw)
+	pre := st.prefetch.take(seq)
+	rc, raw, err := pre.receipt(r, st, name)
 	if err != nil {
 		return err
 	}
@@ -255,16 +256,26 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if _, ok := canonical[p.Path]; !ok && len(canonical) >= lim.scan+intent.MaxIntentRootEntries+wire.MaxTicketsPerQueue+wire.MaxReleasesPerQueue {
 			return wire.Errorf(wire.CodeLimitExceeded, p.Path, "latest metadata exceeds store scan bound")
 		}
-		post, err := r.postBytes(p)
-		if err != nil {
+		checked := pre.post(j)
+		var post []byte
+		if checked != nil {
+			post = checked.raw
+		} else if post, err = r.postBytes(p); err != nil {
 			return err
 		}
 		notes.observe(j, p, prior, post)
+		var postTicket *ticket.Record
+		var postRequest *snapshot.Request
 		if post != nil {
-			coverage, descriptor, err := r.validateRecord(p.Path, post, rc)
-			if err != nil {
-				return err
+			if checked == nil {
+				checked = &checkedPost{raw: post}
+				if checked.coverage, checked.descriptor, checked.decoded, err = r.validateRecord(p.Path, post, rc); err != nil {
+					return err
+				}
 			}
+			coverage, descriptor, decoded := checked.coverage, checked.descriptor, checked.decoded
+			postTicket, postRequest = decoded.ticket, decoded.request
+			notes.decoded(j, postTicket)
 			if !coverage {
 				result.SemanticCoverage = "UNKNOWN"
 			}
@@ -285,10 +296,8 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			}
 		}
 		if rc.TicketID != nil && p.Path == "intent/tickets/"+rc.TicketID.Local+".json" && post != nil {
-			target, err = ticket.Decode(post)
-			if err != nil {
-				return err
-			}
+			// validateRecord decoded this exact post (V1-1701).
+			target = postTicket
 		}
 		if seq == 1 {
 			if rc.Pre[j].Sha256 != nil || p.Sha256 == nil || strings.HasPrefix(p.Path, "attempts/") || strings.HasPrefix(p.Path, "effects/") {
@@ -297,9 +306,12 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 			requiredGenesis[p.Path] = true
 		}
 		if strings.HasPrefix(p.Path, "requests/") {
-			req, err := snapshot.DecodeRequest(post)
-			if err != nil {
-				return err
+			req := postRequest
+			if req == nil {
+				// A deleted request (nil post) is refused here as before.
+				if req, err = snapshot.DecodeRequest(post); err != nil {
+					return err
+				}
 			}
 			expected, _ := snapshot.RequestPath(req.Entry.RequestID)
 			if rc.RequestID == nil || req.Entry.RequestID != *rc.RequestID || req.Seq != rc.Seq || expected != p.Path || req.Entry.Outcome.Outcome != rc.Outcome || strings.Join(req.Entry.Outcome.Codes, "\x00") != strings.Join(rc.Codes, "\x00") {
@@ -452,150 +464,177 @@ func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {
 	return raw, nil
 }
 
-func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool, *snapshot.Init, error) {
+// decodedPost carries what validateRecord decoded from a ticket or request
+// post, so step and the note binding reuse it instead of decoding the same
+// bytes again (V1-1701).
+type decodedPost struct {
+	ticket  *ticket.Record
+	request *snapshot.Request
+}
+
+// afterValidateRecord counts validateRecord calls in the V1-1701 parse-once
+// witness; it is nil outside tests and may be called from prepare goroutines.
+var afterValidateRecord func()
+
+func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool, *snapshot.Init, decodedPost, error) {
+	if afterValidateRecord != nil {
+		afterValidateRecord()
+	}
 	if p == "VERSION" {
 		if string(raw) != snapshot.VersionBytes {
-			return false, nil, wire.Errorf(wire.CodeUnsupportedVersion, p, "VERSION bytes differ")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeUnsupportedVersion, p, "VERSION bytes differ")
 		}
 		if rc.Seq != "1" {
-			return false, nil, wire.Errorf(wire.CodeUnsupported, p, "VERSION changes unsupported")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeUnsupported, p, "VERSION changes unsupported")
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{}, nil
 	}
 	if strings.HasPrefix(p, "evidence/") {
-		return isOperatorNoteEvent(p, raw), nil, nil
+		return isOperatorNoteEvent(p, raw), nil, decodedPost{}, nil
 	}
 	v, err := wire.Parse(raw)
 	if err != nil {
-		return false, nil, err
+		return false, nil, decodedPost{}, err
 	}
 	if v.Kind != wire.KindObject {
-		return false, nil, wire.Errorf(wire.CodeMalformed, p, "post JSON must be an object")
+		return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "post JSON must be an object")
 	}
 	if err := checkScope(v, r.QueueID); err != nil {
-		return false, nil, err
+		return false, nil, decodedPost{}, err
 	}
 	switch {
 	case p == "intent/queue.json":
 		q, err := intent.DecodeQueue(raw)
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if q.QueueID != r.QueueID {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "queue identity differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "queue identity differs")
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{}, nil
 	case p == "intent/policy.json":
 		_, err := intent.DecodePolicy(raw)
-		return true, nil, err
+		return true, nil, decodedPost{}, err
 	case p == "intent/import-map.json":
 		_, err := intent.DecodeImportMap(raw)
-		return true, nil, err
+		return true, nil, decodedPost{}, err
 	case strings.HasPrefix(p, "intent/tickets/"):
-		t, err := ticket.Decode(raw)
+		// ticket.Decode's size bound, then its validation of the value
+		// parsed above, so the walk parses each ticket post once (V1-1701).
+		if len(raw) > wire.MaxTicketFileBytes {
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeLimitExceeded, "/", "ticket record file larger than %d bytes", wire.MaxTicketFileBytes)
+		}
+		t, err := ticket.FromValue(v)
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if p != "intent/tickets/"+t.TicketID.Local+".json" {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "ticket filename identity differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "ticket filename identity differs")
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{ticket: t}, nil
 	case strings.HasPrefix(p, "intent/releases/"):
 		x, err := release.Decode(raw)
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if p != "intent/releases/"+x.ReleaseID+".json" {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "release filename identity differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "release filename identity differs")
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{}, nil
 	case p == "barrier.json":
 		b, err := snapshot.DecodeBarrier(raw)
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if b.SinceSeq != rc.Seq {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "barrier sinceSeq differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "barrier sinceSeq differs")
 		}
 		if rc.Kind != "PAUSE" && rc.Kind != "DRAIN" && rc.Kind != "RESTORE" {
-			return false, nil, wire.Errorf(wire.CodeMalformed, p, "barrier post requires barrier receipt kind")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "barrier post requires barrier receipt kind")
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{}, nil
 	case strings.HasPrefix(p, "requests/"):
-		_, err := snapshot.DecodeRequest(raw)
-		return true, nil, err
+		// snapshot.DecodeRequest over the value parsed above (V1-1701).
+		if len(raw) > wire.MaxAttemptRecordBytes {
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeLimitExceeded, "/", "request entry too large")
+		}
+		req, err := snapshot.RequestFromValue(v)
+		if err != nil {
+			return false, nil, decodedPost{}, err
+		}
+		return true, nil, decodedPost{request: req}, nil
 	case p == "programs.json":
 		_, err := snapshot.DecodePrograms(raw)
-		return true, nil, err
+		return true, nil, decodedPost{}, err
 	case p == "pools.json":
 		_, err := snapshot.DecodePools(raw)
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
-		return true, nil, nil
+		return true, nil, decodedPost{}, nil
 	case p == "reservations.json":
 		rd := wire.NewReader(v, p)
 		if err := wire.ProfileVersion(p, v, "taskman-reservation-set/0"); err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		rd.Closed("profile", "queueId", "entries")
 		if err := rd.Err(); err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if err := wire.CheckProfile(p, rd.Field("profile").String(), "taskman-reservation-set/0"); err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		rd.Field("queueId").QueueID()
 		entries := rd.Field("entries").Array(wire.MaxActiveAttempts, true)
 		if err := rd.Err(); err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if rc.Seq == "1" && len(entries) != 0 {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "genesis reservations must be empty")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "genesis reservations must be empty")
 		}
 		for _, e := range entries {
 			if err := checkScope(e.Value(), r.QueueID); err != nil {
-				return false, nil, err
+				return false, nil, decodedPost{}, err
 			}
 		}
-		return len(entries) == 0, nil, nil
+		return len(entries) == 0, nil, decodedPost{}, nil
 	}
 	profile, _ := v.Obj.Get("profile")
 	if profile.Kind == wire.KindString && strings.HasPrefix(profile.Str, "taskman-init/") {
 		if !strings.HasPrefix(p, "pinned/") {
-			return false, nil, wire.Errorf(wire.CodeMalformed, p, "INIT descriptor requires pinned path")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "INIT descriptor requires pinned path")
 		}
 		d, err := snapshot.DecodeInit(raw)
-		return true, d, err
+		return true, d, decodedPost{}, err
 	}
 	// Later attempt/effect/pinned profiles lack full J1 semantic decoders.
 	// Recognized scope and path identity fields still cannot conflict.
 	if strings.HasPrefix(p, "attempts/") {
 		q, err := snapshot.AttemptQueue(strings.TrimSuffix(strings.TrimPrefix(p, "attempts/"), ".json"))
 		if err != nil {
-			return false, nil, err
+			return false, nil, decodedPost{}, err
 		}
 		if q != r.QueueID {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "attempt filename scope differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "attempt filename scope differs")
 		}
 		id, ok := v.Obj.Get("attemptId")
 		if ok && (id.Kind != wire.KindString || p != "attempts/"+id.Str+".json") {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "attempt path identity differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "attempt path identity differs")
 		}
 	}
 	if strings.HasPrefix(p, "effects/") {
 		key, ok := v.Obj.Get("key")
 		if ok && (key.Kind != wire.KindString || p != "effects/"+key.Str+".json") {
-			return false, nil, wire.Errorf(wire.CodeJournalForked, p, "effect path identity differs")
+			return false, nil, decodedPost{}, wire.Errorf(wire.CodeJournalForked, p, "effect path identity differs")
 		}
 	}
 	if profile.Kind != wire.KindString {
-		return false, nil, wire.Errorf(wire.CodeMalformed, p, "later record requires an explicit profile")
+		return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "later record requires an explicit profile")
 	}
 	if _, err := wire.ParseIdentifier(p, profile.Str); err != nil {
-		return false, nil, err
+		return false, nil, decodedPost{}, err
 	}
-	return false, nil, nil
+	return false, nil, decodedPost{}, nil
 }
 
 func checkScope(v wire.Value, q wire.QueueID) error {

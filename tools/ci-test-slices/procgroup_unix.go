@@ -3,49 +3,58 @@
 package main
 
 import (
+	"context"
 	"errors"
-	"os"
+	"fmt"
 	"os/exec"
 	"syscall"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
-// inGroup starts cmd as the leader of a new process group. Cancellation
-// interrupts the whole group, so `go` and the compilers, linkers and test
-// binaries it started can stop; kills every member still alive after
-// stopGrace; and returns only once the group is empty, so Wait never returns
-// while a descendant runs. A descendant that leaves the group (setsid or
-// setpgid) is not reached. A group id cannot be reused while a member remains.
-func inGroup(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		group := -cmd.Process.Pid
-		if err := syscall.Kill(group, syscall.SIGINT); errors.Is(err, syscall.ESRCH) {
-			return os.ErrProcessDone
-		} else if err != nil {
-			return err
-		}
-		if emptied(group, stopGrace) {
-			return nil
-		}
-		if err := syscall.Kill(group, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
-			return err
-		}
-		if !emptied(group, stopGrace) {
-			return errors.New("process group survived SIGKILL")
-		}
-		return nil
-	}
-}
+// host is the groupreap host the subprocess owner uses; tests record its
+// group signals and reap to pin their order (PGO-V0-019). `go` keeps forking
+// compilers and test binaries, so the group SIGKILL repeats on each pre-reap
+// live observation (PGO-V0-017).
+var host = groupreap.Primitives{RepeatKillWhileLive: true}
 
-// emptied reports whether process group -group has no member left within d.
-func emptied(group int, d time.Duration) bool {
-	for deadline := time.Now().Add(d); ; time.Sleep(20 * time.Millisecond) {
-		if errors.Is(syscall.Kill(group, 0), syscall.ESRCH) {
-			return true
-		}
-		if time.Now().After(deadline) {
-			return false
-		}
+// runOwned runs cmd as the leader of a new process group owned through its
+// unreaped leader (groupreap.Owner), so `go` and the compilers, linkers and
+// test binaries it started are all retired. Cancellation interrupts the whole
+// group, kills it if the leader has not exited after stopGrace, and returns
+// only once the group is retired. Every group signal, including the
+// interrupt, is sent while the leader is held unreaped, so no signal can name
+// a reused group ID after the reap (V1-1387); after the reap only signal-0
+// observations remain. A group whose retirement is not proved within its
+// bound (HOLD) is an error, never a success, and so is a platform without
+// the owner. A descendant that leaves the group (setsid or setpgid) is not
+// reached.
+func runOwned(ctx context.Context, cmd *exec.Cmd) error {
+	owner, err := groupreap.StartWith(cmd, host)
+	if err != nil {
+		return err
 	}
+	select {
+	case <-owner.Exited():
+	case <-ctx.Done():
+		_ = owner.Signal(syscall.SIGINT)
+		grace := time.NewTimer(stopGrace)
+		select {
+		case <-owner.Exited():
+		case <-grace.C:
+		}
+		grace.Stop()
+		owner.Stop()
+	}
+	bound, cancel := context.WithTimeout(context.Background(), stopGrace)
+	defer cancel()
+	result := owner.FinishBounded(groupreap.RetirementBound{Done: bound.Done()})
+	if result.State != groupreap.Released {
+		return fmt.Errorf("process group retirement %s: %v", result.State, result.Err)
+	}
+	if ctx.Err() != nil {
+		return errors.Join(ctx.Err(), result.WaitErr)
+	}
+	return result.WaitErr
 }
