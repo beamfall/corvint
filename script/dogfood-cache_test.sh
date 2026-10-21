@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # DCW-V0-038: observe every wrapper build environment without invoking Go or writing caches.
+# DCW-V0-038 / V1-1893: a failed build shows the compiler error tail and keeps the full log.
 # Bash 3.2 does not apply errexit to [[ ]] in loops; assertions need explicit exits.
 set -euo pipefail
 source_root=$(cd "$(dirname "$0")/.." && pwd)
@@ -35,7 +36,7 @@ cat > "$root/bin/go" <<'EOF'
 set -eu
 [[ $1 == build && $2 == -o && ${!#} == ./cmd/corvint ]] || exit 1
 printf '%s\t%s\t%s\t%s\n' "$GOCACHE" "$GOTOOLCHAIN" "$(cat source-marker)" "$*" >> "$TEST_BUILD_LOG"
-[[ ${TEST_FAIL_SOURCE-} != "$(cat source-marker)" ]] || exit 1
+[[ ${TEST_FAIL_SOURCE-} != "$(cat source-marker)" ]] || { printf 'early compile noise\n%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 >&2; printf 'cmd/corvint/x.go:1:1: undefined: fakeCompileError\n' >&2; exit 1; }
 /bin/cp -f "$TEST_FAKE_CORVINT" "$3"
 EOF
 chmod +x "$root/bin/"* "$root/repo/script/"*.sh
@@ -126,6 +127,12 @@ for action in change check; do
     reason=current-tree-corvint-build-failed
     [[ $source != base-source ]] || reason=base-corvint-build-failed
     rg -q "^dogfood-$action: REFUSE $reason$" "$root/output" || exit 1
+    # V1-1893: the compiler error tail is shown and the full log is kept at the named path.
+    rg -q '^cmd/corvint/x.go:1:1: undefined: fakeCompileError$' "$root/output" || exit 1
+    build_log=$(sed -n 's/^dogfood: full build log: //p' "$root/output")
+    [[ -n $build_log && $(grep -c 'early compile noise' "$build_log") == 20 ]] || exit 1
+    [[ $(grep -c 'early compile noise' "$root/output") == 19 ]] || exit 1
+    /bin/rm -f "$build_log"
   done
 done
 # The stub never creates even the selected caches, and no real Go build runs in this test.

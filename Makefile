@@ -463,7 +463,7 @@ dogfood-batch-check:
 dogfood-bind-range:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@test -n "$(TARGET)" || { echo "TARGET is required" >&2; exit 2; }
-	@script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
