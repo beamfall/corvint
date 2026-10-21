@@ -3633,7 +3633,9 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - Advance. When a served write's tail has reached 64 receipts, the write re-bases the checkpoint on
     that tail under the same lock and keeps `FullSeq`.
   - Scheduling. A write whose new head is 512 or more receipts past `FullSeq` schedules a complete
-    audit. That audit runs after the write has released the lock and the preparation gate.
+    audit (amended by `PSR-V0-169` in `corvint-tasks-pool-safe-reuse-v0.md`: exactly 512, then
+    every further 64). That audit runs after the write has released the lock and the preparation
+    gate.
   - Invalidation token. The token is `<state directory>.writer-checkpoint.invalidated`, derived
     state beside the checkpoint. An absent file is an observed empty token. A file that cannot be
     read, or is empty, is unobserved.
