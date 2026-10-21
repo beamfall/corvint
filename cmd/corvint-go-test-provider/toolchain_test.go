@@ -14,10 +14,18 @@ import (
 
 // The harness compiler may differ from the frozen toolchain the real parent
 // must observe. Select the latter explicitly; never rewrite its version output.
+// Without CORVINT_GO_LIVE_TEST_GOROOT, a harness built by another admitted
+// patch revision (decision 0547) uses the official pinned toolchain from the
+// module cache when it is installed there, and otherwise its own GOROOT.
 func providerFixtureGoRoot() (string, error) {
 	root := os.Getenv("CORVINT_GO_LIVE_TEST_GOROOT")
 	if root == "" {
 		root = runtime.GOROOT()
+		if runtime.Version() != provider.GoVersion {
+			if cached := moduleCacheToolchain(); cached != "" {
+				root = cached
+			}
+		}
 	}
 	root, err := filepath.EvalSymlinks(root)
 	if err != nil {
@@ -34,6 +42,25 @@ func providerFixtureGoRoot() (string, error) {
 		return "", fmt.Errorf("provider fixture requires %s; %s/bin/go version = %q (%v); set CORVINT_GO_LIVE_TEST_GOROOT to the installed pinned toolchain", provider.GoVersion, root, strings.TrimSpace(string(output)), err)
 	}
 	return root, nil
+}
+
+// moduleCacheToolchain returns the GOROOT of the official pinned toolchain
+// module (golang.org/toolchain@v0.0.1-<version>.<goos>-<goarch>) when the
+// harness compiler's module cache holds it, or "". Its version output is still
+// checked exactly by providerFixtureGoRoot.
+func moduleCacheToolchain() string {
+	command := exec.Command(filepath.Join(runtime.GOROOT(), "bin", executableName(runtime.GOOS)), "env", "GOMODCACHE")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
+	output, err := command.Output()
+	cache := strings.TrimSpace(string(output))
+	if err != nil || cache == "" {
+		return ""
+	}
+	root := filepath.Join(cache, "golang.org", "toolchain@v0.0.1-"+provider.GoVersion+"."+runtime.GOOS+"-"+runtime.GOARCH)
+	if _, err := os.Stat(filepath.Join(root, "bin", executableName(runtime.GOOS))); err != nil {
+		return ""
+	}
+	return root
 }
 
 func TestProviderFixtureRejectsUnpinnedToolchain(t *testing.T) {
