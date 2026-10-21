@@ -481,6 +481,12 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 		}
 		ran, gateErr := underPreparation(ctx, repo, hooks, timing, serve)
 		if ran && !handled && gateErr == nil && wf != nil && wf.settle() {
+			// Writers may have committed while the probe ran unlocked, so
+			// the write is recorded no earlier than now; the complete
+			// route after a second decline keeps this time too.
+			if wall := WallClock(); wall > now {
+				now = wall
+			}
 			ran, gateErr = underPreparation(ctx, repo, hooks, timing, serve)
 		}
 		if !ran {

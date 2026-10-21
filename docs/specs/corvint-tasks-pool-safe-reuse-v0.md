@@ -304,7 +304,11 @@ applies at release; pools without `allowedSources` behave as before.
   moved snapshot (`SNAPSHOT_MOVED`, next round), so no observation is ever bound to state it was
   not made for. A concurrent writer therefore waits on this confirmation for at most its locked
   append, never for the identity command; a confirmation whose state is unchanged runs the
-  command once. Verdicts, receipts and pools.json bytes are those of PSR-V0-083/084.
+  command once. After the command ran unlocked, the write is recorded at the later of the caller's
+  time and the wall clock, so a writer that committed meanwhile never leaves it earlier than the
+  head receipt. Verdicts, receipts and pools.json bytes are otherwise those of PSR-V0-083/084.
+  Limit: the revalidation key binds the policy and pool bytes only; the command's environment
+  values and executable contents are not part of it, as for PSR-V0-083's observation.
 
   Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
   timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
@@ -867,7 +871,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
-| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock` (`internal/tasks/store`) |
+| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused` (`internal/tasks/store`) |
 
 ## Traceability (PSR-V0-110..116)
 

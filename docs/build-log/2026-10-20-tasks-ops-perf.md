@@ -17,6 +17,19 @@ concurrent writer committing, the confirmation committing on the writer route af
 command running exactly once. Mutation check: forcing the in-lock probe makes the concurrent writer
 fail with LOCK_TIMEOUT after 30 s, so the test catches the regression.
 
+Review follow-up (Codex, one round): `TestPSRV0168_IdentityProbeStaleStateNotReused` changes the
+policy and, separately, the pool state while the probe is blocked; each shows a second decline, the
+complete route and a fresh probe (two runs). Mutation check: making the locked observer accept any
+cached observation fails both cases (one decline, fast commit). The pools case also exposed a clock
+defect in the first commit: the caller's `now` predates a writer that committed during the unlocked
+probe, so the retry was refused `recordedAt ... earlier than the head receipt` (STORAGE_FAILED).
+After a settled probe the write is now recorded at the later of `now` and the wall clock.
+
+Limit (Codex residual): the revalidation key binds the policy and pools bytes only. Environment
+values and the identity executable's contents are not bound, so a change to either between the
+unlocked probe and the locked revalidation is not detected; PSR-V0-083's in-lock observation had the
+same exposure to changes made before the lock was taken.
+
 Rollback: revert `pool_identity.go`, `pool_commands.go`, `lease.go` and `lease_write.go`; the probe
 runs under the lock again. No format change.
 
