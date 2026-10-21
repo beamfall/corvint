@@ -15,6 +15,24 @@ dogfood_go() {
   GOCACHE="$go_cache" GOTOOLCHAIN=local GOFLAGS="$dogfood_goflags" go "$@"
 }
 
+# dogfood_build DIR OUT builds ./cmd/corvint in DIR into OUT with the one flag set every dogfood
+# wrapper uses. A failed build keeps the full compiler output in a log file and prints its last
+# lines and the log's path on stderr (V1-1893); a successful build removes the log.
+dogfood_build() {
+  local dir=$1 out=$2 log
+  log=$(mktemp "${TMPDIR:-/tmp}/corvint-dogfood-build.XXXXXX") || return 1
+  if (cd "$dir" && dogfood_go build -o "$out" -trimpath ./cmd/corvint) > "$log" 2>&1; then
+    /bin/rm -f "$log"
+    return 0
+  fi
+  {
+    printf 'dogfood: go build ./cmd/corvint failed; last lines:\n'
+    tail -n 20 "$log"
+    printf 'dogfood: full build log: %s\n' "$log"
+  } >&2
+  return 1
+}
+
 # dogfood_corvint_key REV [SOURCE] prints the key's object ID, or fails.
 # Without SOURCE the build source is an archive of REV, and REV's root tree names every input.
 # With SOURCE (the worktree, checked out at REV) the inputs are go.mod, go.sum, go.work, vendor,
@@ -94,7 +112,7 @@ dogfood_build_tree_corvint() {
   local out=$1 key
   key=$(dogfood_corvint_key HEAD "$repo") || key=
   dogfood_corvint_reuse "$out" "$key" && return 0
-  (cd "$repo" && dogfood_go build -o "$out" -trimpath ./cmd/corvint 2> /dev/null) || return 1
+  dogfood_build "$repo" "$out" || return 1
   [[ -n $key && $(dogfood_corvint_key HEAD "$repo") == "$key" ]] || return 0
   dogfood_corvint_store "$out" "$key"
 }
@@ -110,7 +128,7 @@ dogfood_build_base_corvint() {
   trap 'rm -rf "$dogfood_base_tree"' EXIT
   if ! git -C "$repo" archive --format=tar "$base" | tar -xf - -C "$dogfood_base_tree"; then
     status=2
-  elif ! (cd "$dogfood_base_tree" && dogfood_go build -o "$out" -trimpath ./cmd/corvint 2> /dev/null); then
+  elif ! dogfood_build "$dogfood_base_tree" "$out"; then
     status=1
   fi
   rm -rf "$dogfood_base_tree"

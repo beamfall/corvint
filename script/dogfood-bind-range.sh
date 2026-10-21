@@ -15,6 +15,8 @@ corvint_bin=${CORVINT_BIN-}
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
 repo=$(cd "$(dirname "$0")/.." && pwd)
+go_cache=${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}
+source "$repo/script/dogfood-build-corvint.sh" || exit 2
 run_tmp=
 worktree=
 child_pid=
@@ -79,9 +81,20 @@ resolve_corvint_bin() {
   [[ -n $expected_version ]] || refuse project-version-unavailable
   if [[ -z $corvint_bin_set ]]; then
     corvint_bin="$run_tmp/corvint"
-    run_child /dev/null "$run_tmp/corvint-build.stderr" \
-      env GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$corvint_bin" ./cmd/corvint
-    [[ $child_status -eq 0 ]] || refuse current-tree-corvint-build-failed
+    # The same flags as the other dogfood wrappers (dogfood-build-corvint.sh); a failed build keeps
+    # its log outside run_tmp and prints the tail (V1-1893).
+    build_log=$(mktemp "${TMPDIR:-/tmp}/corvint-dogfood-build.XXXXXX") || refuse build-log-unavailable
+    run_child /dev/null "$build_log" env GOCACHE="$go_cache" GOTOOLCHAIN=local GOFLAGS="$dogfood_goflags" \
+      go build -o "$corvint_bin" -trimpath ./cmd/corvint
+    if [[ $child_status -ne 0 ]]; then
+      {
+        printf 'dogfood: go build ./cmd/corvint failed; last lines:\n'
+        tail -n 20 "$build_log"
+        printf 'dogfood: full build log: %s\n' "$build_log"
+      } >&2
+      refuse current-tree-corvint-build-failed
+    fi
+    /bin/rm -f "$build_log"
     return
   fi
   run_child "$run_tmp/corvint-version.stdout" "$run_tmp/corvint-version.stderr" "$corvint_bin" --version

@@ -70,6 +70,12 @@ not see each other's slots. `make lane-scripts-test` runs the serialisation chec
 commands with `HEAVY_SLOTS=1` never overlap), the killed-wrapper, dead-owner and group-signal
 checks.
 
+Go filename pitfall: a file name ending in a GOOS or GOARCH element (`_js.go`, `_wasm.go`,
+`_android.go`, `_386.go`) is a build constraint, so `validity_js.go` silently builds only for
+GOOS=js. Name JavaScript/TypeScript analyser files `_jsts.go` or similar; `make
+goos-filenames-check` (a `make gate` step, `ASD-V0-020`) refuses such names outside
+darwin/linux/windows/amd64/arm64 unless allowlisted.
+
 ## 3. Dogfood inputs up front, one finish after the last edit (ASD-V0-015)
 
 The charter or the lane's first step fixes every dogfood input before work starts:
@@ -89,6 +95,17 @@ naming every missing or unusable input in one line
 finish attempts are allowed; a second failure stops the lane with the exact command and output in
 its report. Then one `make dogfood-batch-check BASE=<origin/main tip>` from a clean checkout.
 Rerunning `dogfood-change` to "see where it stands" between edits is not part of the loop.
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
+(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
+(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
+
+- Windows vet before push (ASD-V0-023, V1-1725): install the pre-push hook once in the shared lane
+  repository (its hooks serve every linked worktree):
+  `printf '#!/bin/sh\nexec script/pre-push-windows-vet.sh "$@"\n' > "$(git rev-parse --git-path hooks)/pre-push"`
+  then `chmod +x` that file. Git runs it from the pushing checkout's top level, so each lane uses
+  its own copy. It runs `make windows-vet` when the pushed commits change a `.go`, `go.mod` or
+  `go.sum` file and refuses the push when it fails.
 
 ## 4. No polling in lanes; long commands are bounded (ASD-V0-016)
 
@@ -145,7 +162,19 @@ every gap above the threshold with the time the watchdog would have flagged it.
   active, and, for a clone, with no registered linked worktree; any failing Git inspection keeps
 the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees are removed with
 `git worktree remove`. Its `SUMMARY` line carries the counts
-  and free disk before and after. Go build-cache trimming is separate (V1-0360).
+  and free disk before and after.
+- Go build caches (ASD-V0-021, V1-0360): after each batch merge, and whenever free disk falls below
+  about 15%, run `make go-cache-trim` (dry run), review the `WOULD-TRIM` and `WOULD-REMOVE` lines,
+  then `make go-cache-trim APPLY=1`. It trims each Go cache to 20 GiB, oldest entries first and
+  never one used in the last 2 hours, and removes `go-build*` work directories older than 24 hours
+  that no running process names. A trimmed entry is only a later cache miss.
+- Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
+  `make scratch-sweep SCRATCH_SWEEP_ARGS='--root <session-scratch-root> --root <lanes-root>
+  --repo <shared> --keep <active-lane-or-session>... --archive <archive-dir>'` (dry run), review
+  it, then rerun with `APPLY=1`. It prunes stale worktree registrations and removes directories idle
+  for 24 hours; unfinished Git work is archived (patch, untracked tarball, status, bundle) before
+  removal and kept when no archive directory is given. Owner-approved toolchain directories go on
+  the `--keep` list.
 
 ## 7. Measuring the procedure
 

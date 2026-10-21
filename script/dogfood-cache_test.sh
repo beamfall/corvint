@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # DCW-V0-038: observe every wrapper build environment without invoking Go or writing caches.
+# DCW-V0-038 / V1-1893: a failed build shows the compiler error tail and keeps the full log.
+# ASD-V0-019 / V1-1755: dogfood make targets refuse a defaulted BASE.
 # Bash 3.2 does not apply errexit to [[ ]] in loops; assertions need explicit exits.
 set -euo pipefail
 source_root=$(cd "$(dirname "$0")/.." && pwd)
@@ -12,7 +14,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint}.sh "$root/repo/script/"
+/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint,finish}.sh "$root/repo/script/"
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -35,7 +37,7 @@ cat > "$root/bin/go" <<'EOF'
 set -eu
 [[ $1 == build && $2 == -o && ${!#} == ./cmd/corvint ]] || exit 1
 printf '%s\t%s\t%s\t%s\n' "$GOCACHE" "$GOTOOLCHAIN" "$(cat source-marker)" "$*" >> "$TEST_BUILD_LOG"
-[[ ${TEST_FAIL_SOURCE-} != "$(cat source-marker)" ]] || exit 1
+[[ ${TEST_FAIL_SOURCE-} != "$(cat source-marker)" ]] || { printf 'early compile noise\n%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 >&2; printf 'cmd/corvint/x.go:1:1: undefined: fakeCompileError\n' >&2; exit 1; }
 /bin/cp -f "$TEST_FAKE_CORVINT" "$3"
 EOF
 chmod +x "$root/bin/"* "$root/repo/script/"*.sh
@@ -143,8 +145,31 @@ for action in change check; do
     reason=current-tree-corvint-build-failed
     [[ $source != base-source ]] || reason=base-corvint-build-failed
     rg -q "^dogfood-$action: REFUSE $reason$" "$root/output" || exit 1
+    # V1-1893: the compiler error tail is shown and the full log is kept at the named path.
+    rg -q '^cmd/corvint/x.go:1:1: undefined: fakeCompileError$' "$root/output" || exit 1
+    build_log=$(sed -n 's/^dogfood: full build log: //p' "$root/output")
+    [[ -n $build_log && $(grep -c 'early compile noise' "$build_log") == 20 ]] || exit 1
+    [[ $(grep -c 'early compile noise' "$root/output") == 19 ]] || exit 1
+    /bin/rm -f "$build_log"
   done
 done
+: > "$TEST_BUILD_LOG"
+# ASD-V0-019 (V1-1755): dogfood make targets refuse a BASE taken from the Makefile default
+# (local main) before running any script; an explicit or environment BASE still reaches it.
+for target in dogfood-change dogfood-check dogfood-seal dogfood-batch-check; do
+  status=0
+  env -u BASE make -s "$target" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || exit 1
+  rg -q '^BASE is required: pass BASE=<full origin/main sha>' "$root/output" || exit 1
+  [[ $(make -s -n "$target" BASE=feedface | grep -c 'script/dogfood-[a-z-]*\.sh "feedface"') == 1 ]] || exit 1
+done
+status=0
+env -u BASE make -s dogfood-bind-range TARGET=x > "$root/output" 2>&1 || status=$?
+[[ $status == 2 ]] && rg -q '^BASE is required' "$root/output" || exit 1
+[[ $(BASE=feedface make -s -n dogfood-change | grep -c 'script/dogfood-change\.sh "feedface"') == 1 ]] || exit 1
+status=0
+env -u BASE make -s dogfood-finish LANE=1 > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q 'REFUSE missing-inputs BASE ' "$root/output" || exit 1
 # The stub never creates even the selected caches, and no real Go build runs in this test.
 [[ ! -e "$root/caller cache" && ! -e "$root/corvint cache" && ! -e "$root/private cache" && ! -e "$root/argument cache" ]] || exit 1
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'
