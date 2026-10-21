@@ -2436,6 +2436,7 @@ ERI-V0-005	docs/specs/expanded-range-impact-v0.md	The experimental compiler MUST
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	The prototype repository coordinator MUST select the experimental profile by an	unrecorded	-
 ERI-V0-060	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) Both	standing	2026-10-21; V1-1881; 2026-10-11
 ERI-V0-261	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) `impact	standing	2026-10-21; V1-1881; 2026-10-11
+ERI-V0-262	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-2221, standing lane auto-accept of 2026-10-11) Range	standing	2026-10-21; V1-2221; 2026-10-11
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	Bind the bounded canonical packet and exact caller selector to object format,	unrecorded	-
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	Return one exact contiguous immutable source range as JSON `text` whose UTF-8	unrecorded	-
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git	unrecorded	-
@@ -2996,6 +2997,7 @@ IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	accepted under the owner's stand
 IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). When	unrecorded	-
 IDX-SNAP-V0-103	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
 IDX-SNAP-V0-104	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The	unrecorded	-
+IDX-SNAP-V0-105	docs/specs/index-snapshot-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2237). On a	unrecorded	-
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
