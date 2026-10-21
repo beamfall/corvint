@@ -181,6 +181,12 @@ type taskContextCompiler struct {
 	roles bool
 	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
 	graphRanking bool
+	// undefinedIDs are the requirement ids the spec-mentioned pass found no
+	// defining clause for (TCP-V0-152).
+	undefinedIDs []string
+	// undeclared are the code-shaped identifiers the task names that no
+	// indexed declaration defines (TCP-V0-152).
+	undeclared []string
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -819,6 +825,9 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 			continue
 		}
 		symbols := definers[identifier.name]
+		if len(symbols) == 0 && undeclaredAnchor(identifier.name) {
+			compiler.undeclared = append(compiler.undeclared, identifier.name) // TCP-V0-152
+		}
 		if len(symbols) == 0 || len(symbols) > contextMaxDefiners {
 			continue
 		}
@@ -2187,6 +2196,7 @@ func (compiler *taskContextCompiler) specMentionedRows(taken []contextRow) []con
 	for _, id := range ids {
 		owners := definers[id]
 		if len(owners) == 0 {
+			compiler.undefinedIDs = append(compiler.undefinedIDs, id)
 			continue
 		}
 		reason := "defines " + id
@@ -2591,9 +2601,13 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		},
 		"results": results,
 	}
+	if compiler.index.CommitRevision != "" { // TCP-V0-150: the HEAD commit beside the tree `revision`
+		packet["commit"] = compiler.index.CommitRevision
+	}
 	if exclusions := taskContextExclusions(compiler.index); exclusions != nil {
 		packet["exclusions"] = exclusions
 	}
+	compiler.unresolvedAnchors(packet["coverage"].(map[string]any))
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	worktreeCoverage(packet["coverage"].(map[string]any), compiler.index)
