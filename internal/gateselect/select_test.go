@@ -141,6 +141,52 @@ func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 	}
 }
 
+// TestSelectPackagesTaskStateOnlyDiffSelectsNothing covers AFP-V0-153
+// (V1-2070): a BOUNDED plan whose every dirty path is a classified Tasks store
+// projection record selects nothing in the fast tier; an unclassified, unknown
+// or out-of-layout case keeps the fallback, and a package whose literal names
+// a projection record is still selected.
+func TestSelectPackagesTaskStateOnlyDiffSelectsNothing(t *testing.T) {
+	plain := writeFixture(t, map[string]string{"core/core.go": "package core\n"})
+	reading := writeFixture(t, map[string]string{
+		"core/core.go":        "package core\n",
+		"store/store_test.go": "package store\n\nvar queue = \"../.taskman/queue.json\"\n",
+	})
+	queue, ticket := ".taskman/queue.json", ".taskman/tickets/V1-0001.json"
+	plan := func(scope string, classified []string, dirty ...string) Receipt {
+		var receipt Receipt
+		receipt.Provider.Go.State = "EMPTY_SELECTION"
+		receipt.Plan.Scope = scope
+		receipt.Plan.Dirty = dirty
+		if classified != nil {
+			receipt.Plan.NonSource = append(receipt.Plan.NonSource, struct {
+				Class string   `json:"class"`
+				Paths []string `json:"paths"`
+			}{Class: "TASK_STORE_PROJECTION", Paths: classified})
+		}
+		return receipt
+	}
+	cases := []struct {
+		name, root string
+		plan       Receipt
+		verdict    string
+	}{
+		{"classified task state selects nothing", plain, plan("BOUNDED", []string{queue, ticket}, queue, ticket), "NOTHING 2 dirty path(s) are Tasks store projection task state; no Go package names or reads them"},
+		{"unclassified path keeps the fallback", plain, plan("BOUNDED", []string{queue}, queue, ticket), "FALLBACK the selection is empty while 2 path(s) are dirty"},
+		{"no nonSource member keeps the fallback", plain, plan("BOUNDED", nil, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"unknown plan keeps the fallback", plain, plan("UNKNOWN", []string{queue}, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"out-of-layout path keeps the fallback", plain, plan("BOUNDED", []string{".taskman/notes.txt"}, ".taskman/notes.txt"), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"a reader of the record is still selected", reading, plan("BOUNDED", []string{queue}, queue), "run example.com/fixture/store"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := verdict(tc.plan, tc.root); got != tc.verdict {
+				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
+			}
+		})
+	}
+}
+
 // TestSelectPackagesFallsBackWhenAttributionFails covers AFP-V0-012's global
 // fallback: a Go file whose imports do not parse leaves its edges unknown.
 func TestSelectPackagesFallsBackWhenAttributionFails(t *testing.T) {

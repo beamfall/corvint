@@ -31,16 +31,25 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"github.com/Beamfall/corvint/internal/taskprojection"
 )
 
 // Receipt is the part of an affected-plan receipt the selection reads.
 type Receipt struct {
 	Plan struct {
 		Dirty   []string `json:"dirty"`
+		Scope   string   `json:"scope"`
 		Unknown []struct {
 			Reason string `json:"reason"`
 			Detail string `json:"detail"`
 		} `json:"unknown"`
+		// NonSource is the planner's task-state classification
+		// (AFP-V0-088); taskStateOnly reads it (AFP-V0-153).
+		NonSource []struct {
+			Class string   `json:"class"`
+			Paths []string `json:"paths"`
+		} `json:"nonSource"`
 	} `json:"plan"`
 	Provider struct {
 		Go struct {
@@ -227,12 +236,43 @@ func selectPackages(plan Receipt, module, root string) []string {
 		}
 	}
 	if len(selected) == 0 && len(plan.Plan.Dirty) > 0 {
+		if taskStateOnly(plan) {
+			return append(lines, fmt.Sprintf("NOTHING %d dirty path(s) are Tasks store projection task state; no Go package names or reads them", len(plan.Plan.Dirty)))
+		}
 		return fallback(fmt.Sprintf("the selection is empty while %d path(s) are dirty", len(plan.Plan.Dirty)))
 	}
 	if len(selected) == 0 {
 		return append(lines, "NOTHING no dirty or committed path; no Go package to test")
 	}
 	return append(lines, "run "+strings.Join(selected, " "))
+}
+
+// taskStateOnly reports whether an empty selection over a non-empty diff is
+// the AFP-V0-088 task-state case (AFP-V0-153): the plan is BOUNDED and every
+// dirty path is in the recognised Tasks store projection layout and listed in
+// the plan's TASK_STORE_PROJECTION group. The caller has already applied rules
+// (a) to (d) and the declared scopes to those paths and selected nothing, so
+// the gate's own attribution agrees with the planner; any other empty
+// selection keeps the full-suite fallback.
+func taskStateOnly(plan Receipt) bool {
+	if plan.Plan.Scope != "BOUNDED" {
+		return false
+	}
+	classified := map[string]bool{}
+	for _, group := range plan.Plan.NonSource {
+		if group.Class != taskprojection.Class {
+			continue
+		}
+		for _, p := range group.Paths {
+			classified[p] = true
+		}
+	}
+	for _, dirty := range plan.Plan.Dirty {
+		if !classified[dirty] || !taskprojection.IsPath(dirty) {
+			return false
+		}
+	}
+	return len(plan.Plan.Dirty) > 0
 }
 
 // attribution is one AFP-V0-012 rule applied to one path: the kind
