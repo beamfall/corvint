@@ -697,6 +697,11 @@ operator may copy into a Go live-test provider bundle. plan.excluded is
 once with its count, and digest is the SHA-256 of the full exclusion list.
 An advisory check with arguments="provider.go.packages" runs its command with
 each of those packages appended, single-quoted.
+tiers (when anything is selected) ranks every selected unit without changing
+the selection: 0 changed packages, 1 direct importers, named-path readers and
+same-parent siblings, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
+runs tier 0 and 1 locally (at most 15 packages, ./cmd/corvint only when changed
+directly) and records tier 2 and anything skipped as NOT_RUN for CI.
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
