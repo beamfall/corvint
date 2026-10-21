@@ -431,6 +431,9 @@ func (l *ledger) packageKey(pkg string, bound map[string]string, files []string,
 		}
 	}
 	proof := fmt.Sprintf("go list -deps -test %d files; selector frontier %d, reader %d paths; %d entries digested with the gate tooling", len(files), rules["frontier"], rules["reader"], digested)
+	if rules["declared"] > 0 {
+		proof += fmt.Sprintf("; declared read scope %d paths", rules["declared"])
+	}
 	return packageKey{pkg: pkg, key: l.digestKey(packageStep, "entries "+hex.EncodeToString(h.Sum(nil)), []string{pkg}), bound: proof}
 }
 

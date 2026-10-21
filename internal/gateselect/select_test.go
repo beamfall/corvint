@@ -402,6 +402,48 @@ func TestPackageBoundsAttributesResolvedPackages(t *testing.T) {
 	}
 }
 
+// TestDeclaredPackagesAreBoundByTheirScope covers GL-V0-050 (V1-0634): the
+// -unresolved and -bounds listings treat a declared root locator as the
+// selector does, bound by its declaration, subtree and declared entries; an
+// undeclared locator stays unresolved and an invalid declaration is an error.
+func TestDeclaredPackagesAreBoundByTheirScope(t *testing.T) {
+	files := map[string]string{
+		"walker/walker.go":               "package walker\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"roamer/roamer.go":               "package roamer\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"docs/guide.md":                  "guide\n",
+		"notes/other.md":                 "other\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/"]}}` + "\n",
+	}
+	root := writeFixture(t, files)
+	unresolved, err := unresolvedPackages(fixtureModule, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := strings.Join(unresolved, ""), "unresolved example.com/fixture/roamer: \"roamer/roamer.go calls runtime.Caller\"\n"; got != want {
+		t.Errorf("unresolved:\n%s\nwant:\n%s", got, want)
+	}
+	paths := []string{".corvint/test-read-scopes.json", "docs/guide.md", "notes/other.md", "roamer/roamer.go", "walker/walker.go"}
+	lines, err := packageBounds(fixtureModule, root, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "unresolved example.com/fixture/roamer: \"roamer/roamer.go calls runtime.Caller\"\n" +
+		"bound example.com/fixture/walker declared .corvint/test-read-scopes.json\n" +
+		"bound example.com/fixture/walker declared docs/guide.md\n" +
+		"bound example.com/fixture/walker frontier walker/walker.go\n"
+	if got := strings.Join(lines, ""); got != want {
+		t.Errorf("bounds:\n%s\nwant:\n%s", got, want)
+	}
+	files[".corvint/test-read-scopes.json"] = "{}\n"
+	invalid := writeFixture(t, files)
+	if _, err := unresolvedPackages(fixtureModule, invalid); err == nil {
+		t.Error("an invalid declaration listed the unresolved packages")
+	}
+	if _, err := packageBounds(fixtureModule, invalid, paths); err == nil {
+		t.Error("an invalid declaration bounded the packages")
+	}
+}
+
 // TestPathMatcherAgreesWithNamesPath keeps the batched rule (c) matcher the
 // `-bounds` mode uses equal to the per-path namesPath relation of readers().
 func TestPathMatcherAgreesWithNamesPath(t *testing.T) {

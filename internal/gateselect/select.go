@@ -327,16 +327,21 @@ func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
 // `unresolved <pkg>: "<reason>"` line of unresolvedPackages or one
 // `bound <pkg> <rule> <path>` line per path of paths that rules (a) to (c)
 // attribute to the package, in import-path then path order, tagged with the
-// first rule that selects it. The bound of a resolved package is therefore
-// every worktree path whose change would select it: the complete set of paths
-// its tests can read (GL-V0-009). A path carrying a control character cannot
+// first rule that selects it; a package the read-scope declaration bounds is
+// resolved, and its declaration, subtree and declared entries are `declared`
+// paths (GL-V0-050). The bound of a resolved package is therefore every
+// worktree path whose change would select it: the complete set of paths its
+// tests can read (GL-V0-009). A path carrying a control character cannot
 // be printed on one line and is an error.
 func packageBounds(module, root string, paths []string) ([]string, error) {
 	index, err := indexRepository(root, module)
 	if err != nil {
 		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
 	}
-	reasons := index.unresolved()
+	reasons, scopes, err := index.undeclaredUnresolved(root)
+	if err != nil {
+		return nil, err
+	}
 	bounds := map[string]map[string]string{}
 	bind := func(directories []string, kind, p string) {
 		for _, directory := range directories {
@@ -357,6 +362,16 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 		}
 		if resolvedEvidence(p) {
 			bind(index.resolvingReaders(p), "reader", p)
+		}
+	}
+	// A declared package (AFP-V0-023, GL-V0-050) is bound by what its
+	// declaration admits: the declaration, its subtree and its declared
+	// entries, exactly the paths that select it in selectPackages.
+	for _, directory := range sortedKeys(scopes) {
+		for _, p := range paths {
+			if inReadScope(directory, scopes[directory], p) {
+				bind([]string{directory}, "declared", p)
+			}
 		}
 	}
 	// Rule (c) over every path at once: the same namesPath relation readers()
@@ -386,19 +401,38 @@ func packageBounds(module, root string, paths []string) ([]string, error) {
 // packageSource reports whether dirtyPath is a `.go` file outside testdata, `.`,
 // and `_` directories, the only path a frontier may attribute to one package.
 // unresolvedPackages indexes ROOT and returns one `unresolved <pkg>: "<reason>"`
-// line per package whose reads no literal bounds, in import-path order, in the
-// same shape selectPackages prints them.
+// line per package whose reads no literal and no read-scope declaration
+// bounds, in import-path order, in the same shape selectPackages prints them.
 func unresolvedPackages(module, root string) ([]string, error) {
 	index, err := indexRepository(root, module)
 	if err != nil {
 		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
 	}
-	reasons := index.unresolved()
+	reasons, _, err := index.undeclaredUnresolved(root)
+	if err != nil {
+		return nil, err
+	}
 	var lines []string
 	for _, directory := range sortedKeys(reasons) {
 		lines = append(lines, fmt.Sprintf("unresolved %s: %q\n", importPath(module, directory), reasons[directory]))
 	}
 	return lines, nil
+}
+
+// undeclaredUnresolved is index.unresolved() less the packages the read-scope
+// declaration bounds (AFP-V0-023), as selectPackages applies rule (d), with
+// the declared scopes. An invalid declaration is an error, so the caller keys
+// nothing on it (GL-V0-050).
+func (index *repositoryIndex) undeclaredUnresolved(root string) (map[string]string, map[string][]string, error) {
+	scopes, err := index.readScopes(root)
+	if err != nil {
+		return nil, nil, fmt.Errorf("the read-scope declaration is invalid: %w", err)
+	}
+	reasons := index.unresolved()
+	for directory := range scopes {
+		delete(reasons, directory)
+	}
+	return reasons, scopes, nil
 }
 
 func packageSource(dirtyPath string) bool {

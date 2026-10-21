@@ -2519,6 +2519,7 @@ GL-V0-006	docs/specs/gate-ledger-v0.md	Records MUST live in a per-user directory
 GL-V0-007	docs/specs/gate-ledger-v0.md	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make	unrecorded	-
 GL-V0-008	docs/specs/gate-ledger-v0.md	Two runs of one key at once MUST execute the step once: the second MUST wait on	unrecorded	-
 GL-V0-009	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A resolved package MUST run under its own key, step `g	owner	decision 0511
+GL-V0-050	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package	standing	2026-10-11; V1-0634
 GENESIS-001	docs/specs/genesis-backfill.md	`corvint init` and `corvint adopt` MUST accept one or more local Git repositorie	unrecorded	-
 GENESIS-002	docs/specs/genesis-backfill.md	zero-execution inventory MUST classify every tracked path as included, excluded,	unrecorded	-
 GENESIS-003	docs/specs/genesis-backfill.md	Git history enrichment MUST recover cited change, ownership, ticket/PR reference	unrecorded	-

@@ -6,6 +6,7 @@
     },
     "internal/gateselect": {
       ".corvint/changes": "a sealed-CEM selection fixture path matched against fixture values; nothing is read",
+      ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",
       ".taskman/queue.json": "a task-state selection fixture path matched against fixture values; nothing is read",
       ".taskman/tickets/V1-0001.json": "a task-state selection fixture path matched against fixture values; nothing is read",
       "docs/specs": "a selection fixture value matched against fixture paths; nothing is read",
@@ -28,6 +29,7 @@
       "docs/build-log": "a claim scope key written into a temporary fixture repository"
     },
     "tools/gate-ledger": {
+      ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",
       "internal/gateselect/select_test.go": "a file written into a temporary fixture repository",
       "tools/gate-affected-select/main_test.go": "a file written into a temporary fixture repository"
     }

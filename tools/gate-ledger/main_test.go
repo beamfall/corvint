@@ -449,6 +449,42 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 	}
 }
 
+// GL-V0-050 (V1-0634): a root-locating package the read-scope declaration
+// bounds is keyed per package over its subtree, its declared entries and the
+// declaration, not the tree: an unrelated edit hits its record, and an edit
+// under a declared entry or to the declaration reruns it.
+func TestGoTestKeysDeclaredPackagesByTheirScope(t *testing.T) {
+	root := packageRepository(t, map[string]string{
+		"go.mod":                         "module example.com/fixture\n\ngo 1.27\n",
+		"walker/walker_test.go":          "package walker\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\nfunc TestWalk(t *testing.T) { os.Getwd() }\n",
+		"docs/guide.md":                  "guide\n",
+		"notes/other.md":                 "other\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/"]}}` + "\n",
+	})
+	log := filepath.Join(t.TempDir(), "ARGS")
+	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
+	code, out := ledgerRun(t, args...)
+	if code != 0 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/walker ") || strings.Contains(out, "go-test-unresolved") {
+		t.Fatalf("first run: code %d, %q", code, out)
+	}
+	write(t, root, "notes/other.md", "other, edited\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "HIT go-test-package example.com/fixture/walker ") {
+		t.Fatalf("edit outside the declared scope: %q", out)
+	}
+	write(t, root, "docs/guide.md", "guide, edited\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "RUN go-test-package example.com/fixture/walker:") {
+		t.Fatalf("edit under a declared entry: %q", out)
+	}
+	write(t, root, ".corvint/test-read-scopes.json", `{"profile":"corvint-test-read-scopes/0","packages":{"walker":["docs/","notes/"]}}`+"\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "RUN go-test-package example.com/fixture/walker:") {
+		t.Fatalf("edit to the declaration: %q", out)
+	}
+	write(t, root, ".corvint/test-read-scopes.json", "{}\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "go-test-unresolved") && !strings.Contains(out, "PARTITION unavailable") {
+		t.Fatalf("an invalid declaration keyed the package by scope: %q", out)
+	}
+}
+
 func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
 	files := map[string]string{
 		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
