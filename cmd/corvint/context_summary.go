@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -251,8 +252,11 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 		return nil, contextHandleError("invalid-handle", "the handle's blob is not the pinned tree's blob at its path")
 	}
 	source, err := sourceGit(deadline, root, sourceBlobLimit+1, "cat-file", "blob", blob)
-	if err != nil || len(source) > sourceBlobLimit {
-		return nil, contextHandleError("expand-budget", fmt.Sprintf("the blob is unreadable or larger than %d bytes", sourceBlobLimit))
+	if errors.Is(err, errSourceOutputOverflow) || err == nil && len(source) > sourceBlobLimit {
+		return nil, contextHandleError("expand-budget", fmt.Sprintf("the blob is larger than %d bytes", sourceBlobLimit))
+	}
+	if err != nil {
+		return nil, contextHandleError("git-failed", "cannot read the handle's blob")
 	}
 	if sourceObjectID(format, source) != blob {
 		return nil, contextHandleError("source-digest-mismatch", "the read bytes do not recompute the blob's object ID")
