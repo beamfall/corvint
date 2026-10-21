@@ -342,27 +342,45 @@ function terminateGroup(child) {
   return term === "DELIVERED" || term === "EPERM" ? signalGroup(child, "SIGKILL") : term;
 }
 
-// cleanupConfirmed decides the owned group's cleanup at completion. A SIGKILL delivered while the leader was
-// unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before termination, or EPERM
-// (Darwin's answer for a group of unreaped zombies), the group is only probed with signal 0: it delivers
-// nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives, confirms it.
-// Any other answer, or a failed kill, stays unconfirmed (V1-0371).
-function cleanupConfirmed(child, cleanup) {
+// confirmCleanup decides the owned group's cleanup at completion and hands the answer to settle. A SIGKILL
+// delivered while the leader was unreaped, or ESRCH, confirms it. After a normal exit, an exit recorded before
+// termination, or EPERM (Darwin's answer for a group of unreaped zombies), the group is only probed with
+// signal 0: it delivers nothing, and only ESRCH, which a reused ID cannot produce while an owned member lives,
+// confirms it. Any other answer, or a failed kill, stays unconfirmed (V1-0371). A probe answering EPERM is
+// repeated, never escalated, up to ZOMBIE_REPROBES times, each a timer at least ZOMBIE_REPROBE_INTERVAL_MS
+// after the last, so a poll phase can reap a zombie leader that a stalled grace left unreaped; an orphaned
+// member stays a zombie until launchd reaps it (AHI-058; V1-1122, as AHI-052 does for OpenCode).
+const ZOMBIE_REPROBES = 40;
+const ZOMBIE_REPROBE_INTERVAL_MS = 5;
+
+function confirmCleanup(child, cleanup, settle) {
   if (cleanup === "DELIVERED" || cleanup === "ESRCH") {
-    return true;
+    settle(true);
+    return;
   }
   if (cleanup !== undefined && cleanup !== "EPERM" && cleanup !== "LEADER-REAPED") {
-    return false;
+    settle(false);
+    return;
   }
   if (child.pid === undefined || process.platform === "win32") {
-    return true;
+    settle(true);
+    return;
   }
+  probeGroup(child.pid, ZOMBIE_REPROBES, settle);
+}
+
+function probeGroup(pid, reprobes, settle) {
+  let answer = "PRESENT";
   try {
-    process.kill(-child.pid, 0);
+    process.kill(-pid, 0);
   } catch (error) {
-    return error?.code === "ESRCH";
+    answer = error?.code ?? "UNKNOWN";
   }
-  return false;
+  if (answer === "EPERM" && reprobes > 0) {
+    setTimeout(() => probeGroup(pid, reprobes - 1, settle), ZOMBIE_REPROBE_INTERVAL_MS);
+    return;
+  }
+  settle(answer === "ESRCH");
 }
 
 function invokeCorvint(cwd, event, input, timeoutMs) {
@@ -470,16 +488,17 @@ function invokeCorvint(cwd, event, input, timeoutMs) {
       child.stdout.destroy();
       child.stderr.destroy();
       child.unref();
-      const cleaned = cleanupConfirmed(child, cleanup);
-      for (const [signal, handler] of signalHandlers) {
-        process.removeListener(signal, handler);
-      }
-      resolve({
-        failureCode: cleaned ? failureCode : "corvint-process-cleanup-unconfirmed",
-        interruptedSignal,
-        status,
-        stderr: Buffer.concat(stderr).toString("utf8"),
-        stdout: Buffer.concat(stdout).toString("utf8"),
+      confirmCleanup(child, cleanup, (cleaned) => {
+        for (const [signal, handler] of signalHandlers) {
+          process.removeListener(signal, handler);
+        }
+        resolve({
+          failureCode: cleaned ? failureCode : "corvint-process-cleanup-unconfirmed",
+          interruptedSignal,
+          status,
+          stderr: Buffer.concat(stderr).toString("utf8"),
+          stdout: Buffer.concat(stdout).toString("utf8"),
+        });
       });
     };
     child.once("close", settle);
