@@ -3,7 +3,6 @@ package flowdocs
 import (
 	"context"
 	json "encoding/json/v2"
-	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -34,6 +33,8 @@ var sections = []string{"readme", "entry-points", "flow-diagram", "functional-ov
 type Options struct {
 	Revision, Scope string
 	Corpus          []byte
+	// Flows is an optional declared flow inventory (AFU-V1-101).
+	Flows []byte
 }
 type Paragraph struct {
 	ID, Section, Text string
@@ -61,6 +62,7 @@ type Manifest struct {
 	Flows          []Flow                   `json:"flows"`
 	Provider       doccorpus.ProviderRecord `json:"provider"`
 	Corpus         *doccorpus.Artifact      `json:"corpus,omitempty"`
+	Inventory      *InventoryReport         `json:"inventory,omitempty"`
 	Gaps           []string                 `json:"gaps"`
 	Outputs        []Output                 `json:"outputs"`
 }
@@ -119,6 +121,10 @@ func memberAccess(code string, start int) bool {
 func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	if !validScope(o.Scope) {
 		return nil, fail("scope must be a confined repository path")
+	}
+	inv, err := scopedInventory(o.Flows, o.Scope)
+	if err != nil {
+		return nil, err
 	}
 	index, err := contextindex.BuildRevisionContext(ctx, root, o.Revision)
 	if err != nil {
@@ -190,6 +196,8 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 		}
 	}
 	sort.Strings(names)
+	decls := []memberDecl{}
+	ambiguous := map[string]bool{}
 	for _, name := range names {
 		s := index.Sources[name]
 		ext := path.Ext(name)
@@ -215,12 +223,9 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 		for _, d := range ds {
 			if duplicate[d.name] > 1 {
 				m.Gaps = append(m.Gaps, "duplicate logical declaration unresolved")
+				ambiguous[name+":"+d.name] = true
 				continue
 			}
-			if len(m.Flows) >= MaxFlows {
-				return nil, fail("flow limit exceeds 256; narrow scope")
-			}
-			id := identity("flow", name+":"+d.name)
 			a := anchor(m.Source, s, d.line)
 			for _, symbol := range index.Symbols {
 				if symbol.Path == name && symbol.Line == d.line {
@@ -228,126 +233,49 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 					break
 				}
 			}
-			f := Flow{ID: id, Name: d.name, Path: name, Paragraphs: []Paragraph{}}
-			language := "web"
-			if ext == ".rb" {
-				language = "ruby"
+			md := memberDecl{path: name, ext: ext, text: text, source: s, d: d, a: a}
+			// With a declared inventory every declaration is a member
+			// candidate, never a flow of its own (AFU-V1-102).
+			if inv != nil {
+				if len(decls) >= MaxInventoryDeclarations {
+					return nil, fail("in-scope declarations exceed 16384; narrow scope")
+				}
+				decls = append(decls, md)
+				continue
 			}
-			codeLines := contextindex.FlowCodeLines(language, text)
-			callKeys := map[string]bool{}
-			addCall := func(name string, line int) {
-				key := name + ":" + fmt.Sprint(line)
-				if !callKeys[key] {
-					callKeys[key] = true
-					f.Calls = append(f.Calls, Call{Name: name, Anchor: anchor(m.Source, s, line)})
-				}
+			if len(m.Flows) >= MaxFlows {
+				return nil, fail("flow limit exceeds 256; narrow scope")
 			}
-			if ext != ".html" {
-				for line := d.line - 1; line < d.end; line++ {
-					code := withoutDeclarationName(language, codeLines[line])
-					for _, match := range call.FindAllStringSubmatchIndex(code, -1) {
-						name := code[match[2]:match[3]]
-						if !controlKeyword[name] || memberAccess(code, match[2]) {
-							addCall(name, line+1)
-						}
-					}
-				}
-				for _, obs := range d.observations {
-					if obs.kind != "behavior" {
-						_, name, _ := strings.Cut(obs.key, ":")
-						if name != "throw" {
-							addCall(name, obs.line)
-						}
-					}
-				}
+			b := &flowBuilder{m: &m, p: &p, f: Flow{ID: identity("flow", name+":"+d.name), Name: d.name, Path: name, Paragraphs: []Paragraph{}}, calls: map[string]bool{}}
+			b.summaries(map[string]string{
+				"entry-points":        "Source declares " + d.name + ". Entry dispatch and callers are unresolved.",
+				"technical-deep-dive": "Source declares " + d.name + "; generated call observations do not establish executed behavior.",
+			}, a)
+			if err := b.member("", md, 0); err != nil {
+				return nil, err
 			}
-
-			detail := doccorpus.FlowDetails{Actors: []string{}, Entrypoints: []string{id}, Variations: []string{}, Sections: []doccorpus.FlowSection{}}
-			add := func(section, key, body string, binding doccorpus.Anchor) string {
-				pid := identity("paragraph", id+":"+section+":"+key)
-				f.Paragraphs = append(f.Paragraphs, Paragraph{ID: pid, Section: section, Text: body, Anchor: binding})
-				p.Subjects = append(p.Subjects, doccorpus.Subject{ID: pid, Kind: "paragraph", Name: body, Provider: p.ID, Evidence: evidence(binding)})
-				p.Details[pid] = doccorpus.RecordDetails{Paragraph: &doccorpus.ParagraphDetails{Flow: id, Section: section, StableID: pid}}
-				return pid
-			}
-			for _, section := range sections {
-				body := map[string]string{
-					"readme":              "Generated source documentation. Priority: unassigned. Confidence: lexical candidate. Trust: generated; accepted intent not established.",
-					"entry-points":        "Source declares " + d.name + ". Entry dispatch and callers are unresolved.",
-					"flow-diagram":        "Static source inventory only; sequence and runtime ordering are unresolved.",
-					"functional-overview": "Accepted variations: unknown. Runtime covered variations: unknown. Denominator: no accepted variation inventory supplied by this generator.",
-					"technical-deep-dive": "Source declares " + d.name + "; generated call observations do not establish executed behavior.",
-					"entities":            "Runtime entities and persistence effects are unresolved; lexical calls are listed separately.",
-					"exceptions":          "Error reachability, rescue behavior and completeness are unresolved.",
-					"related-flows":       "Relations are static lexical candidates; computed dispatch remains unresolved.",
-				}[section]
-				add(section, "summary", body, a)
-			}
-			counts := map[string]int{}
-			for _, obs := range d.observations {
-				counts[obs.key]++
-			}
-			for _, obs := range d.observations {
-				if counts[obs.key] > 1 {
-					m.Gaps = append(m.Gaps, "duplicate lexical claim identity unresolved")
-					continue
-				}
-				binding := anchor(m.Source, s, obs.line)
-				if obs.end > obs.line {
-					binding.End = obs.end
-					lines := strings.SplitAfter(string(s.Data), "\n")
-					binding.SpanSHA256 = doccorpus.Digest([]byte(strings.Join(lines[obs.line-1:obs.end], "")))
-				}
-				pid := add(obs.section, obs.key, obs.text, binding)
-				cid := identity("claim", id+":"+obs.key)
-				ev := evidence(binding)
-				if a.Start != binding.Start {
-					ev.Anchors = append(ev.Anchors, a)
-				}
-				p.Claims = append(p.Claims, doccorpus.Claim{ID: cid, Subject: id, Text: obs.text, Provider: p.ID, Evidence: ev})
-				p.Details[cid] = doccorpus.RecordDetails{ClaimKind: obs.kind}
-				p.Relations = append(p.Relations, doccorpus.Relation{ID: identity("relation", pid+cid), From: pid, To: id, Type: "documents", Provider: p.ID, Evidence: evidence(binding)})
-			}
-			for _, item := range contextParagraphs(m, f) {
-				if len(item.anchors) > 64 {
-					return nil, fail("imported paragraph anchor bound exceeded")
-				}
-				binding := a
-				if len(item.anchors) > 0 {
-					binding = item.anchors[0]
-				}
-				add(item.section, "imported:"+item.key, item.text, binding)
-				f.Paragraphs[len(f.Paragraphs)-1].Imported = true
-				f.Paragraphs[len(f.Paragraphs)-1].Bindings = item.anchors
-				last := len(p.Subjects) - 1
-				p.Subjects[last].Evidence.Anchors = item.anchors
-				if len(item.anchors) == 0 {
-					p.Subjects[last].Evidence.State = "unknown"
-					p.Subjects[last].Evidence.Unknown = "original imported record has no source binding"
-				}
-			}
-
-			for _, section := range sections {
-				item := doccorpus.FlowSection{Name: section, Paragraphs: []string{}}
-				for _, para := range f.Paragraphs {
-					if para.Section == section {
-						item.Paragraphs = append(item.Paragraphs, para.ID)
-					}
-				}
-				detail.Sections = append(detail.Sections, item)
-			}
-			p.Subjects = append(p.Subjects, doccorpus.Subject{ID: id, Kind: "flow", Name: d.name, Provider: p.ID, Evidence: evidence(a)})
-			p.Details[id] = doccorpus.RecordDetails{Flow: &detail}
-			m.Flows = append(m.Flows, f)
+			b.finish(a)
+		}
+	}
+	if inv != nil {
+		if m.Inventory, err = buildInventory(&m, &p, inv, decls, ambiguous); err != nil {
+			return nil, err
 		}
 	}
 	if len(m.Flows) == 0 {
 		m.Gaps = append(m.Gaps, "no unambiguous supported declarations; empty inventory is not behavioral coverage")
 	}
+	// Inventory flows span files and carry caller titles, so the same-file
+	// and same-name joins below do not apply to them (AFU-V1-102).
+	related := m.Flows
+	if inv != nil {
+		related = nil
+		m.Gaps = append(m.Gaps, "Declared inventory flows: structural and lexical relations between flows are not derived.")
+	}
 	// Shared source files are an explicit structural relation, not inferred calls.
-	for i, f := range m.Flows {
-		for j := i + 1; j < len(m.Flows); j++ {
-			g := m.Flows[j]
+	for i, f := range related {
+		for j := i + 1; j < len(related); j++ {
+			g := related[j]
 			if f.Path == g.Path {
 				p.Relations = append(p.Relations, doccorpus.Relation{ID: identity("relation", f.ID+g.ID), From: f.ID, To: g.ID, Type: "related_to", Provider: p.ID, Evidence: evidence(f.Paragraphs[0].Anchor)})
 			}
@@ -355,14 +283,14 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 	}
 	// Exact same-file lexical name joins are source dependencies only.
 	byName := map[string][]string{}
-	for _, f := range m.Flows {
+	for _, f := range related {
 		short := f.Name
 		if at := strings.LastIndex(short, "#"); at >= 0 {
 			short = short[at+1:]
 		}
 		byName[f.Path+":"+short] = append(byName[f.Path+":"+short], f.ID)
 	}
-	for _, f := range m.Flows {
+	for _, f := range related {
 		seen := map[string]bool{}
 		for _, c := range f.Calls {
 			targets := byName[f.Path+":"+c.Name]
@@ -436,7 +364,11 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 			return nil, err
 		}
 	}
-	r, err := Generate(ctx, root, Options{Revision: m.Source.Revision, Scope: m.Scope, Corpus: corpus})
+	flows, err := m.inventoryInput()
+	if err != nil {
+		return nil, err
+	}
+	r, err := Generate(ctx, root, Options{Revision: m.Source.Revision, Scope: m.Scope, Corpus: corpus, Flows: flows})
 	if err != nil {
 		return nil, err
 	}
