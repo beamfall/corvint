@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -773,5 +774,38 @@ func TestBatchCheckDCWV0111NamesTheVerifierReasonCode(t *testing.T) {
 		if exit != 1 || strings.Contains(stderr, "  fix: "+code) || strings.Contains(stderr, " code=") != shown {
 			t.Fatalf("%q exit=%d stderr=%s", code, exit, stderr)
 		}
+	}
+}
+
+// DCW-V0-039 (V1-1213): the scratch repository that derives merges reads no
+// system attributes and no configured attributes file. Every scratch command
+// carries GIT_ATTR_NOSYSTEM=1 (the system file cannot be redirected in a test,
+// so its environment is asserted), and every repository read overrides
+// core.attributesFile, shown by an attributes file that a configured
+// scratch repository would otherwise apply.
+func TestBatchCheckDCWV0039ScratchIgnoresSystemAndConfiguredAttributes(t *testing.T) {
+	scratch := t.TempDir()
+	b := &batch{flow: flow{ctx: context.Background(), prefix: "dogfood-batch-check", stderr: io.Discard}, scratch: scratch}
+	environment := b.scratchCommand("version").Env
+	for _, want := range []string{"GIT_ATTR_NOSYSTEM=1", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull} {
+		if !slices.Contains(environment, want) {
+			t.Fatalf("scratch command environment lacks %s: %q", want, environment)
+		}
+	}
+	if _, status := b.runScratch("init", "-q", "--bare", "--template=", "repository.git"); status != 0 {
+		t.Fatalf("scratch init status %d", status)
+	}
+	attributes := filepath.Join(scratch, "attributes")
+	if err := os.WriteFile(attributes, []byte("* merge=forge filter=hostile\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, filepath.Join(scratch, "repository.git"), "config", "core.attributesFile", attributes)
+	if output, status := b.runScratch("--git-dir=repository.git", "check-attr", "merge", "filter", "--", "a.txt"); status != 0 ||
+		output != "a.txt: merge: forge\na.txt: filter: hostile\n" {
+		t.Fatalf("control: configured attributes not applied without the override: status=%d %q", status, output)
+	}
+	output, status, bounded := b.readScratch(true, "check-attr", "merge", "filter", "--", "a.txt")
+	if status != 0 || !bounded || output != "a.txt: merge: unspecified\na.txt: filter: unspecified\n" {
+		t.Fatalf("repository read applied a configured attributes file: status=%d bounded=%v %q", status, bounded, output)
 	}
 }
