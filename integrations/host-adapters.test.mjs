@@ -586,6 +586,8 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  writeFileSync(join(repo,'README.md'),'# fixture\n');writeFileSync(join(repo,'src/parse.go'),'package src\n');writeFileSync(join(repo,'app.ts'),'export const a = 1\n')
  const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
  git('init','-q');git('add','.');git('commit','-qm','fixture')
+ // V1-0450: a file the agent creates is untracked when its file-change arrives.
+ writeFileSync(join(repo,'created.ts'),'export const b = 2\n')
  // The root cause of the terminal notice: the real binary refuses a non-repository root.
  const refused=await createCorvintRunner({corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})({root:outside,event:'session-start',input:{}})
  assert.equal(refused.ok,false);assert.equal(refused.code,'invalid-arguments')
@@ -595,7 +597,7 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  const host=await openCode(t,repo,options)
  const context={sessionID:'session-a',signal:new AbortController().signal},verification=[{commandSha256:'b'.repeat(64),status:'passed'}]
  await host.emit('session.created',{sessionID:'session-a'})
- for(const file of ['README.md','src/parse.go','app.ts'])await host.hooks['execute.after'](written(repo,file,'session-a'))
+ for(const file of ['README.md','src/parse.go','app.ts','created.ts'])await host.hooks['execute.after'](written(repo,file,'session-a'))
  await host.hooks['execute.after']({tool:'bash',sessionID:'session-a',id:'call-a',status:'completed',input:{},result:{output:'',metadata:{corvint:{changedPaths:['app.ts'],verification}}}})
  const answered=await host.tools.corvint_context.execute({task:'explain app.ts'},context)
  const recorded=await host.tools.corvint_record_outcome.execute({task:'explain app.ts',changedPaths:['app.ts'],verification,outcome:'passed'},context)
@@ -605,8 +607,10 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  const codes=row=>JSON.parse(row.slice('[corvint/opencode] '.length)).code.split(',')
  // A deadline is a disclosed bound under host load (AHI-012), not a fault this test pins.
  assert.deepEqual(warnings.filter(row=>codes(row).some(code=>code!=='timeout')),[])
- const expected=new Set([...RECOGNISED_DEGRADATIONS,'unsupported-impact-path-suffix','unsupported-impact-repository','stop-recursion-protected'])
+ const expected=new Set([...RECOGNISED_DEGRADATIONS,'unsupported-impact-path-suffix','unsupported-impact-repository','untracked-impact-path','stop-recursion-protected'])
  assert.deepEqual(infos.flatMap(codes).filter(code=>!expected.has(code)),[])
+ // V1-0450: unless a deadline intervened, the untracked created.ts refusal reached the info log.
+ if(!warnings.some(row=>codes(row).includes('timeout')))assert.ok(infos.flatMap(codes).includes('untracked-impact-path'),infos.join('\n'))
  assert.ok(!JSON.stringify({answered,recorded}).includes('invalid-arguments'))
 })
 test('SOL-V0-010 AHI-022 V1-0767 OpenCode path abstentions reach the self-observation ledger against the real binary',async t=>{

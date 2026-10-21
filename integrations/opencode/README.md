@@ -1,6 +1,7 @@
 # Corvint for OpenCode
 
-Version 0.7.5 supports unmodified OpenCode releases from 2.0.18 through the end of the 2.0 series.
+This adapter (its version is `version` in `package.json`) supports unmodified OpenCode releases from
+2.0.18 through the end of the 2.0 series.
 It supplies awaited task context, on-demand
 query and exact source expansion, edit/evidence/verification observations, explicit outcomes, and
 compaction recovery from current Git state. OpenCode 1.x requires the older 0.2.9 adapter.

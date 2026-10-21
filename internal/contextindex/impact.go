@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"sort"
@@ -61,7 +62,7 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		}
 	}
 	if len(missing) != 0 {
-		return nil, nil, nil, &Error{Message: untrackedImpactMessage(index, missing)}
+		return nil, nil, nil, &Error{Message: untrackedImpactMessage(index, missing), Cause: ErrImpactPathsUntracked}
 	}
 	forbidden := make([]string, 0)
 	for _, value := range cleaned {
@@ -562,6 +563,20 @@ func needsGoModule(paths []string) bool {
 		}
 	}
 	return false
+}
+
+// ErrImpactPathsUntracked is the Cause of the uncoded refusal impact returns
+// when a requested path is not tracked at the indexed revision. The refusal
+// keeps no Code, so `impact` and the MCP bridge bytes are unchanged; a caller
+// that must classify it, such as the harness file-change event (V1-0450),
+// reads it through IsImpactPathsUntracked.
+var ErrImpactPathsUntracked = errors.New("impact paths are not tracked at the indexed revision")
+
+// IsImpactPathsUntracked reports whether err is impact's untracked-path
+// refusal.
+func IsImpactPathsUntracked(err error) bool {
+	var failure *Error
+	return errors.As(err, &failure) && failure.Cause == ErrImpactPathsUntracked
 }
 
 // untrackedImpactMessage keeps the `impact paths are not tracked at revision
