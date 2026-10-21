@@ -26,13 +26,16 @@ stage() { git -C "$test_root" -c user.name=t -c user.email=t@example.invalid add
 printf '%s\n' 'docs/agent-memory/fixture.md' > "$test_root/script/line-citation-legacy-documents.txt"
 stage script/line-citation-legacy-documents.txt
 
-# DCG-V0-041: the unpinned citations the fixture document may carry. Case 27 covers one that is not.
-for citation in internal/demo/demo.go:3 internal/demo/ghost.go:3 Makefile:2 Makefile:3 Makefile:9 \
-  docs/agent-memory/other.md:3 internal/demo/demo.go:4-3 NOTES.md:2 NOTES.md:9 internal/demo/demo.go:0 \
-  internal/demo/demo.go:99 internal/demo/demo.go:999 ROOT.md:999; do
-  printf 'docs/agent-memory/fixture.md\t%s\n' "$citation"
-done > "$test_root/script/line-citation-unpinned-inventory.txt"
-stage script/line-citation-unpinned-inventory.txt
+# DCG-V0-041: the unpinned citations the fixture document may carry. An unused row fails, so
+# cite() rewrites the inventory with exactly the rows each case names.
+inventory() {
+  printf '# fixture inventory\n' > "$test_root/script/line-citation-unpinned-inventory.txt"
+  for citation in "$@"; do
+    printf 'docs/agent-memory/fixture.md\t%s\n' "$citation"
+  done >> "$test_root/script/line-citation-unpinned-inventory.txt"
+  stage script/line-citation-unpinned-inventory.txt
+}
+inventory
 
 write_source() {
   printf '%s\n' 'package demo' '' "func Cited() int { return $1 }" 'func After() {}' \
@@ -40,10 +43,13 @@ write_source() {
   stage internal/demo/demo.go
 }
 
+# cite TEXT [ROW...]: the fixture document cites TEXT, and the inventory lists exactly ROW...
 cite() {
   # shellcheck disable=SC2016
   printf '# Fixture\n\nThe claim rests on `%s`.\n' "$1" > "$test_root/docs/agent-memory/fixture.md"
   stage docs/agent-memory/fixture.md
+  shift
+  inventory "$@"
 }
 
 run() {
@@ -79,7 +85,7 @@ case "$output" in
 esac
 
 # 4. The same change is invisible without a pin: unpinned citations keep the old behavior.
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 run >/dev/null || fail "an unpinned citation failed after the cited line changed"
 
 # 5. A range anchor covers every line in the range, not just its first.
@@ -100,7 +106,7 @@ run >/dev/null || fail "a full-length pin did not compare equal to the same cont
 # 7. A file that exists on disk but is untracked does not resolve: that is the shape that let a
 # citation into an author-only file pass the gate and dangle for everyone who clones.
 printf '%s\n' 'package ghost' '' 'func Ghost() {}' > "$test_root/internal/demo/ghost.go"
-cite "internal/demo/ghost.go:3"
+cite "internal/demo/ghost.go:3" internal/demo/ghost.go:3
 output=$(run) && fail "a citation into an untracked file resolved"
 case "$output" in
   *"no such file in the Git index: internal/demo/ghost.go"*) ;;
@@ -122,9 +128,9 @@ git -C "$test_root" checkout -- internal/demo/ghost.go
 # other: a real Makefile line passes and a blank Makefile line is refused.
 printf '%s\n' 'all:' 'echo build' '' > "$test_root/Makefile"
 stage Makefile
-cite "Makefile:2"
+cite "Makefile:2" Makefile:2
 run >/dev/null || fail "a citation into a tracked extensionless path did not resolve"
-cite "Makefile:3"
+cite "Makefile:3" Makefile:3
 output=$(run) && fail "a blank line in an extensionless path passed"
 case "$output" in
   *"Makefile:3 is a blank or bracket-only line"*) ;;
@@ -167,7 +173,7 @@ esac
 
 # 13. Index reads share one `git cat-file --batch` co-process; when it exits non-zero the gate must
 #     fail with that exit status instead of treating the missing bytes as an empty file.
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 mkdir -p "$test_root/fakegit"
 real_git=$(command -v git)
 # shellcheck disable=SC2016
@@ -198,7 +204,7 @@ esac
 #     (`demo.go:9`) stays unchecked prose.
 printf '%s\n' '# Notes' 'A root-level line.' > "$test_root/NOTES.md"
 stage NOTES.md
-cite "NOTES.md:2"
+cite "NOTES.md:2" NOTES.md:2
 run >/dev/null || fail "a root-file citation on a real line failed"
 cite "NOTES.md:9"
 output=$(run) && fail "a root-file citation past the end passed"
@@ -221,7 +227,7 @@ esac
 # 17. The committed ceiling is a ratchet: one otherwise-valid unpinned citation fails when the
 #     measured count exceeds it, and the diagnostic reports both values.
 write_source 1
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 # shellcheck disable=SC2016
 sed -i.bak 's/my \$unpinned_ceiling = [0-9][0-9]*;/my $unpinned_ceiling = 0;/' \
   "$test_root/script/check-line-citations.sh"
@@ -266,7 +272,7 @@ esac
 # 20. DCG-V0-001: docs/decisions/*.md is a scanned document class, not exempt prose. A new
 #     decision fixture is outside the legacy allowlist, so its unpinned citation must require an
 #     anchor exactly as a new spec document's would, and the same citation pinned then passes.
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 # shellcheck disable=SC2016
 printf '# Decision 9001 - fixture\n\nThe claim rests on `%s`.\n' 'internal/demo/demo.go:3' \
   > "$test_root/docs/decisions/9001-fixture.md"
@@ -344,7 +350,7 @@ esac
 
 # 23. DCG-V0-001 (V1-1480): docs/RELEASE-NOTES-*.md is a scanned document class, so a pinned
 #     citation in release notes fails once the cited lines change, naming the release notes.
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 write_source 1
 notes_pin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3)
 # shellcheck disable=SC2016
@@ -361,15 +367,16 @@ case $output in
 *) fail "the release-notes drift was not reported: $output" ;;
 esac
 
-# 24. DCG-V0-022 (V1-1530, V1-2139): a pinned line whose text moved unchanged is named at its
-#     new position, and --repin rewrites the document to it; changed or repeated text still fails.
+# 24. DCG-V0-022 (V1-1530, V1-2139): a pinned two-line span whose text moved unchanged is named at
+#     its new position, and --repin rewrites the document to it; changed or repeated text still fails.
 #     Earlier fixture documents are dropped so the fixture document is the only one citing demo.go.
 git -C "$test_root" rm -r -q --cached docs
 rm -rf "$test_root/docs"
 mkdir -p "$test_root/docs/agent-memory"
 write_source 1
-cite "$anchor"
-pin=${anchor#*@}
+span=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3-4)
+cite "$span"
+pin=${span#*@}
 printf '%s\n' 'package demo' '' '// one' '// two' 'func Cited() int { return 1 }' 'func After() {}' \
   > "$test_root/internal/demo/demo.go"
 stage internal/demo/demo.go
@@ -377,25 +384,25 @@ rc=0
 output=$(run) || rc=$?
 [ "$rc" = 1 ] || fail "a moved pinned citation exited $rc, not 1: $output"
 case $output in
-*"cited content moved unchanged to \`internal/demo/demo.go:5@$pin\`"*'--repin'*) ;;
-*) fail "the unique move was not named with its new line: $output" ;;
+*"cited content moved unchanged to \`internal/demo/demo.go:5-6@$pin\`"*'--repin'*) ;;
+*) fail "the unique move was not named with its new lines: $output" ;;
 esac
 printf 'dirty\n' >> "$test_root/docs/agent-memory/fixture.md"
 rc=0
 output=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
 [ "$rc" = 1 ] || fail "--repin rewrote a document whose worktree differs from the index: $output"
 case $output in *'differs from the index'*) ;; *) fail "--repin refusal not named: $output" ;; esac
-cite "$anchor"
+cite "$span"
 out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || fail "--repin failed on a unique move: $out"
-grep -q "internal/demo/demo.go:5@$pin" "$test_root/docs/agent-memory/fixture.md" ||
-  fail "--repin did not rewrite the citation to line 5"
+grep -q "internal/demo/demo.go:5-6@$pin" "$test_root/docs/agent-memory/fixture.md" ||
+  fail "--repin did not rewrite the citation to lines 5-6"
 stage docs/agent-memory/fixture.md
 run >/dev/null || fail "the repinned citation did not pass"
 
 # 25. Moved text that now appears twice is ambiguous and is not relocated.
-cite "$anchor"
-printf '%s\n' 'package demo' '' '// x' 'func Cited() int { return 1 }' '// y' 'func Cited() int { return 1 }' \
-  > "$test_root/internal/demo/demo.go"
+cite "$span"
+printf '%s\n' 'package demo' '' '// x' 'func Cited() int { return 1 }' 'func After() {}' \
+  'func Cited() int { return 1 }' 'func After() {}' > "$test_root/internal/demo/demo.go"
 stage internal/demo/demo.go
 rc=0
 output=$(run) || rc=$?
@@ -405,7 +412,7 @@ case $output in
 *) fail "the ambiguous move was relocated or not named: $output" ;;
 esac
 (cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with nothing to move failed"
-grep -q "internal/demo/demo.go:3@$pin" "$test_root/docs/agent-memory/fixture.md" ||
+grep -q "internal/demo/demo.go:3-4@$pin" "$test_root/docs/agent-memory/fixture.md" ||
   fail "--repin rewrote an ambiguous citation"
 
 # 26. Changed text is not a move.
@@ -419,11 +426,54 @@ case $output in
 *) fail "changed text was not reported: $output" ;;
 esac
 
+# 28. A unique match of one line is not move evidence: the cited `return nil` changed and another
+#     `return nil` became the only match, so the citation stays unresolved and --repin leaves it.
+printf '%s\n' 'package demo' '' 'func A() error {' '	return nil' '}' > "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+single=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:4)
+cite "$single"
+printf '%s\n' 'package demo' '' 'func A() error {' '	return errA' '}' 'func B() error {' '	return nil' '}' \
+  > "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a one-line unique match exited $rc, not 1: $output"
+case $output in
+*'moved unchanged'*) fail "a one-line unique match was relocated: $output" ;;
+*'cited content changed'*'appears once at `internal/demo/demo.go:7@'*'not relocated'*) ;;
+*) fail "the one-line match was not named as unrelocated: $output" ;;
+esac
+(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with a one-line match failed"
+grep -q "$single" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a one-line match"
+
+# 29. --repin rewrites the reported occurrence only: two identical `:3-4@PIN` continuations on one
+#     line resolve to different files, and only the one whose file moved is rewritten.
+write_source 1
+cp "$test_root/internal/demo/demo.go" "$test_root/internal/demo/copy.go"
+stage internal/demo/copy.go
+head_demo=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:1)
+head_copy=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/copy.go:1)
+# shellcheck disable=SC2016
+printf '# Fixture\n\nSee `%s` `:3-4@%s` and `%s` `:3-4@%s`.\n' "$head_demo" "$pin" "$head_copy" "$pin" \
+  > "$test_root/docs/agent-memory/fixture.md"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the two-continuation fixture did not pass before the move"
+printf '%s\n' 'package demo' '' '// one' '// two' 'func Cited() int { return 1 }' 'func After() {}' \
+  > "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of one continuation failed"
+grep -qF "\`$head_demo\` \`:5-6@$pin\` and \`$head_copy\` \`:3-4@$pin\`" "$test_root/docs/agent-memory/fixture.md" ||
+  fail "--repin did not rewrite exactly the moved continuation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the repinned continuation fixture did not pass"
+git -C "$test_root" rm -q --cached internal/demo/copy.go
+rm -f "$test_root/internal/demo/copy.go"
+
 # 27. DCG-V0-041 (V1-1952): an unpinned legacy citation edited to another non-blank line has no
 #     inventory row, so it fails with a --hash hint even though the line it now names exists;
 #     the untouched row keeps passing, and a second copy of an inventoried citation fails.
 write_source 1
-cite "internal/demo/demo.go:4"
+cite "internal/demo/demo.go:4" internal/demo/demo.go:3
 rc=0
 output=$(run) || rc=$?
 [ "$rc" = 1 ] || fail "an edited unpinned legacy citation onto a non-blank line exited $rc, not 1: $output"
@@ -431,11 +481,19 @@ case $output in
 *'unpinned citation is new or edited'*'--hash internal/demo/demo.go:4'*) ;;
 *) fail "the edited unpinned citation was not named with a pin hint: $output" ;;
 esac
-cite "internal/demo/demo.go:3"
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3
 run >/dev/null || fail "an inventoried unpinned citation failed"
-cite 'internal/demo/demo.go:3` and `internal/demo/demo.go:3'
+cite 'internal/demo/demo.go:3` and `internal/demo/demo.go:3' internal/demo/demo.go:3
 output=$(run) && fail "a second copy of a once-inventoried unpinned citation passed: $output"
-(cd "$test_root" && script/check-line-citations.sh 2>&1 | grep -q 'row(s) match no citation') ||
-  fail "unused inventory rows were not noted"
+# The inventory only shrinks: a row no citation matches fails, so a retired row cannot admit a
+# later citation with the same key.
+cite "internal/demo/demo.go:3" internal/demo/demo.go:3 internal/demo/demo.go:4
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "an unused inventory row exited $rc, not 1: $output"
+case $output in
+*'line-citation-unpinned-inventory.txt'*'internal/demo/demo.go:4'*'match no unpinned citation'*) ;;
+*) fail "the unused inventory row was not named: $output" ;;
+esac
 
 echo "check-line-citations_test.sh: ok"

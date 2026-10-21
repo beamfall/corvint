@@ -187,6 +187,9 @@ sub scanned_doc {
 
 my @failures;
 my @repins;
+# The byte offset of the token being checked in its document line, so --repin rewrites exactly
+# that occurrence and never another identical token on the same line.
+my $token_at;
 my %legacy_document;
 my (%unpinned_inventory, %unpinned_seen);
 my %drift_waiver;
@@ -257,11 +260,11 @@ sub check {
         my $in_range = !grep { $_ < 1 || $_ > @$lines } @numbers;
         if (!$in_range || anchor_of($lines, @numbers) !~ /^\Q$pin\E/) {
             my @shifts = relocations($lines, $pin, @numbers);
-            if (@shifts == 1) {
+            if (@shifts == 1 && relocatable($lines, $shifts[0], @numbers)) {
                 my $moved = shifted_token($token, $shifts[0]);
                 push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
                     . "(script/check-line-citations.sh --repin rewrites it)";
-                push @repins, [$doc, $line_number, $token, $moved];
+                push @repins, [$doc, $line_number, $token, $moved, $token_at];
                 return;
             }
         }
@@ -297,8 +300,15 @@ sub check {
     my $actual = anchor_of($lines, @numbers);
     return if $actual =~ /^\Q$pin\E/;
     my @shifts = relocations($lines, $pin, @numbers);
+    my $why = '';
+    if (@shifts > 1) {
+        $why = '; the anchored text now appears at ' . scalar(@shifts) . ' positions, so it is not relocated';
+    } elsif (@shifts == 1) {
+        $why = '; the anchored text appears once at ' . shifted_token($token, $shifts[0])
+            . ', but a span with fewer than two non-blank lines is not relocated';
+    }
     push @failures, "$doc:$line_number  $token  cited content changed: anchor \@$pin, now \@" . substr($actual, 0, 8)
-        . (@shifts ? '; the anchored text now appears at ' . scalar(@shifts) . ' positions, so it is not relocated' : '')
+        . $why
         . " (read the lines before repinning)";
 }
 
@@ -314,6 +324,16 @@ sub relocations {
         push @shifts, $shift if anchor_of($lines, map { $_ + $shift } @numbers) =~ /^\Q$pin\E/;
     }
     return @shifts;
+}
+
+# A unique hash match alone does not prove a move: when a cited `return nil` changes, another
+# `return nil` elsewhere becomes the only match. A relocation also needs the matched span to hold
+# at least two lines that are neither blank nor bracket-only, so one common line never qualifies.
+sub relocatable {
+    my ($lines, $shift, @numbers) = @_;
+    my %seen;
+    my $substantive = grep { !$seen{$_}++ && !trivial($lines->[$_ + $shift - 1]) } @numbers;
+    return $substantive >= 2;
 }
 
 # The citation token with every number in its line span moved by $shift; the pin is unchanged.
@@ -396,6 +416,7 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
         # the path; `exit:1` and the like stay prose.
         while ($line =~ /`(?:(\/?[A-Za-z0-9_][A-Za-z0-9_.\/-]*\/[A-Za-z0-9_.-]+\.[a-z0-9]+):(\d+)((?:,\d+)*)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?|:(\d+)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?|([A-Z][A-Z0-9-]*-[0-9]{3})|([A-Za-z0-9_.-]+\.[a-z0-9]+):(\d[\d,-]*)(?:\@([0-9a-f]{4,64}))?|[A-Za-z0-9_][A-Za-z0-9_.\/-]*\/[A-Za-z0-9_.-]+\.[a-z0-9]+|([A-Za-z0-9_][A-Za-z0-9_-]*(?:\/[A-Za-z0-9_-]+)*):(\d+)((?:,\d+)*)(?:-(\d+))?(?:\@([0-9a-f]{4,64}))?)`/g) {
             my $token = $&;
+            $token_at = $-[0];
             my $rest = substr($line, pos($line));
             if (defined $9) {
                 my $spec = $spec_of_id{$9};
@@ -436,10 +457,15 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     }
 }
 
-my $unused_inventory = 0;
-$unused_inventory += $unpinned_inventory{$_} - ($unpinned_seen{$_} // 0) for keys %unpinned_inventory;
-print STDERR "line citations: note: $unused_inventory script/line-citation-unpinned-inventory.txt row(s) match no citation; delete them\n"
-    if $unused_inventory > 0;
+# DCG-V0-041: the inventory only shrinks. A row no citation matches is a failure, not a note, so a
+# retired row cannot later admit a new unpinned citation with the same document, path and span.
+for my $key (sort keys %unpinned_inventory) {
+    my $unused = $unpinned_inventory{$key} - ($unpinned_seen{$key} // 0);
+    next if $unused <= 0;
+    my ($doc, $citation) = split /\t/, $key;
+    push @failures, "script/line-citation-unpinned-inventory.txt  $doc\t$citation  $unused row(s) match no "
+        . "unpinned citation that resolves: delete them (rows are only deleted, never reused)";
+}
 
 push @failures, "unpinned citation count $unpinned_count exceeds committed ceiling $unpinned_ceiling; read and pin citations or lower the ceiling"
     if $unpinned_count > $unpinned_ceiling;
@@ -459,9 +485,14 @@ if ($repin) {
             next;
         }
         my @doc_lines = split /^/, $worktree;
-        for my $move (@{ $by_doc{$doc} }) {
-            my (undef, $line_number, $from, $to) = @$move;
-            $doc_lines[$line_number - 1] =~ s/\Q$from\E/$to/g;
+        # Rewrite each reported occurrence at its own offset, right to left within a line, so an
+        # identical token elsewhere on the line (a `:N` continuation resolving to another file)
+        # stays as written.
+        for my $move (sort { $a->[1] <=> $b->[1] || $b->[4] <=> $a->[4] } @{ $by_doc{$doc} }) {
+            my (undef, $line_number, $from, $to, $at) = @$move;
+            die "$doc:$line_number: --repin offset $at no longer holds $from\n"
+                unless substr($doc_lines[$line_number - 1], $at, length $from) eq $from;
+            substr($doc_lines[$line_number - 1], $at, length $from) = $to;
             print "$doc:$line_number  $from -> $to\n";
         }
         my $temporary = "$doc.repin.$$";
