@@ -31,8 +31,7 @@ native ticket V1-0933 (ATR-V0-171);
 native tickets V1-0925, V1-0924, V1-0934 and V1-0948 (ATR-V0-180..183, re-homed from CAL-V0-350..353);
 native tickets V1-2263 and V1-1964 (ATR-V0-190..192);
 native ticket V1-1692 (ATR-V0-193);
-native tickets V1-1321, V1-1237 and V1-1441 (ATR-V0-210..212);
-native tickets V1-0830, V1-0828, V1-1874 and V1-1438 (ATR-V0-270..275);
+native tickets V1-1321, V1-1237 and V1-1441 (ATR-V0-210..212); native tickets V1-0830, V1-0828, V1-1874 and V1-1438 (ATR-V0-270..275);
 `docs/specs/corvint-tasks-agent-leases-v0.md` (external leases, heartbeat and renewal); the creation-owned
 process-group API in `internal/groupreap/owner.go`; the process start identity in
 `internal/tasks/supervisor` (`ProcessIdentity`); the in-tree sources under `internal/tasks/transaction`,
