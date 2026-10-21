@@ -425,3 +425,203 @@ func TestAFPV0082PushConcurrencyGroupsByCommit(t *testing.T) {
 	wantLine(t, "ci.yml", readWorkflow(t, "ci.yml"),
 		"  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}")
 }
+
+// stepScript extracts the run script of the step whose id is ID in job block B.
+func stepScript(t *testing.T, b, id string) string {
+	t.Helper()
+	_, rest, ok := strings.Cut(b, "        id: "+id+"\n")
+	if !ok {
+		t.Fatalf("no step with id %s", id)
+	}
+	if next := strings.Index(rest, "      - "); next >= 0 {
+		rest = rest[:next]
+	}
+	return runScript(t, rest)
+}
+
+// AFP-V0-163 (V1-2113): a merge-queue entry decides integrity reuse before the gate, skips only
+// the gate's steps on REUSE (so the job still concludes success for the AFP-V0-080 push reuse),
+// and a pull-request run names its tree only after its gate passed.
+func TestAFPV0163WorkflowWiresIntegrityTreeReuse(t *testing.T) {
+	ai := jobBlock(t, readWorkflow(t, "ci.yml"), "artifact-integrity")
+	for _, line := range []string{
+		"          fetch-depth: 2",
+		"        id: reuse",
+		"        if: github.event_name == 'merge_group'",
+		"        if: steps.reuse.outputs.mode == 'REUSE'",
+		"          name: ci-integrity-reuse",
+		"        id: record",
+		"        if: github.event_name == 'pull_request'",
+		"        if: steps.record.outputs.record != ''",
+		"          name: ${{ steps.record.outputs.record }}",
+		"        run: make go-archive-gate",
+	} {
+		wantLine(t, "artifact-integrity", ai, line)
+	}
+	if n := strings.Count(ai, "        if: steps.reuse.outputs.mode != 'REUSE'\n"); n != 2 {
+		t.Errorf("setup-go and the archive gate must both be skipped only on REUSE: %d conditions", n)
+	}
+	gate := strings.Index(ai, "run: make go-archive-gate")
+	if r, rec := strings.Index(ai, "id: reuse"), strings.Index(ai, "id: record"); r < 0 || r > gate || rec < gate {
+		t.Error("the reuse decision must precede the gate and the tree record must follow it")
+	}
+	if !strings.Contains(stepScript(t, ai, "record"), `echo "record=ci-tested-tree-$tree-artifact-integrity" >> "$GITHUB_OUTPUT"`) {
+		t.Error("the pull-request record name must be the one the queue step looks up")
+	}
+}
+
+// V1-2113 fail-closed: REUSE only for a successful pull-request run of the queue commit's second
+// parent that retained exactly one record of this tree and whose latest artifact-integrity job
+// passed on that head; every other listing, an unreadable one, or a non-merge commit leaves mode
+// empty and the gate runs in full.
+func TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree(t *testing.T) {
+	for _, tool := range []string{"bash", "jq", "git"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			t.Fatalf("the integrity reuse step needs %s on PATH: %v", tool, err)
+		}
+	}
+	const repo = "beamfall/corvint"
+	const runID = 39472511845
+	script := filepath.Join(t.TempDir(), "step.sh")
+	if err := os.WriteFile(script, []byte(stepScript(t, jobBlock(t, readWorkflow(t, "ci.yml"), "artifact-integrity"), "reuse")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// A two-parent queue commit (main + pull-request head) and a single-parent commit.
+	work := t.TempDir()
+	gitEnv := []string{"GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test",
+		"PATH=" + os.Getenv("PATH"), "HOME=" + work}
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir, cmd.Env = work, gitEnv
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q", "-b", "main")
+	git("commit", "-q", "--allow-empty", "-m", "base")
+	git("checkout", "-q", "-b", "pr")
+	if err := os.WriteFile(filepath.Join(work, "f"), []byte("x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	git("add", "f")
+	git("commit", "-q", "-m", "pr")
+	head := git("rev-parse", "HEAD")
+	git("checkout", "-q", "main")
+	git("commit", "-q", "--allow-empty", "-m", "main moved")
+	git("merge", "-q", "--no-ff", "-m", "queue", "pr")
+	merge, tree := git("rev-parse", "HEAD"), git("rev-parse", "HEAD^{tree}")
+	record := "ci-tested-tree-" + tree + "-artifact-integrity"
+
+	run := func(target string, edit func(r, a, j map[string]any), env ...string) (string, string) {
+		git("checkout", "-q", target)
+		dir := t.TempDir()
+		r := map[string]any{"id": runID, "head_sha": head, "event": "pull_request", "conclusion": "success",
+			"path": ".github/workflows/ci.yml", "repository": map[string]any{"full_name": repo}}
+		a := map[string]any{"name": record, "expired": false, "workflow_run": map[string]any{"id": runID, "head_sha": head}}
+		j := map[string]any{"name": "artifact-integrity", "conclusion": "success", "head_sha": head}
+		arts, jobs := []any{a}, []any{map[string]any{"name": "go-static", "conclusion": "success", "head_sha": head}, j}
+		if edit != nil {
+			edit(r, a, j)
+		}
+		if a["drop"] == true {
+			arts = nil
+		}
+		if a["dup"] == true {
+			delete(a, "dup")
+			arts = append(arts, a)
+		}
+		if j["drop"] == true {
+			jobs = jobs[:1]
+		}
+		writeJSON(t, filepath.Join(dir, "runs.json"), map[string]any{"workflow_runs": []any{r}})
+		if a["unreadable"] != true {
+			writeJSON(t, filepath.Join(dir, "artifacts.json"), map[string]any{"artifacts": arts})
+		}
+		if j["unreadable"] != true {
+			writeJSON(t, filepath.Join(dir, "jobs.json"), map[string]any{"jobs": jobs})
+		}
+		bin := filepath.Join(dir, "bin")
+		if err := os.Mkdir(bin, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		// A stub curl answering only the exact listings the step may read.
+		stub := `#!/bin/sh
+out= url= auth=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out=$2; shift ;;
+    -H) case "$2" in Authorization:*) auth=1 ;; esac; shift ;;
+    -*) ;;
+    *) url=$1 ;;
+  esac
+  shift
+done
+[ -n "$auth" ] && [ -n "${STUB_DENY_AUTH:-}" ] && exit 22
+case "$url" in
+  "$STUB_API/workflows/ci.yml/runs?head_sha=$STUB_HEAD&event=pull_request&status=success&per_page=20") f=runs.json ;;
+  "$STUB_API/runs/$STUB_RUN/artifacts?name=$STUB_RECORD&per_page=100") f=artifacts.json ;;
+  "$STUB_API/runs/$STUB_RUN/jobs?filter=latest&per_page=100") f=jobs.json ;;
+  *) exit 22 ;;
+esac
+[ -f "$STUB_DIR/$f" ] || exit 22
+cat "$STUB_DIR/$f" > "$out"
+`
+		if err := os.WriteFile(filepath.Join(bin, "curl"), []byte(stub), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		output, summary := filepath.Join(dir, "output"), filepath.Join(dir, "summary")
+		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)
+		cmd.Dir = work
+		cmd.Env = append(append([]string{}, gitEnv[:len(gitEnv)-2]...),
+			"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "HOME="+dir,
+			"GITHUB_API_URL=https://api.github.test", "GITHUB_REPOSITORY="+repo, "GITHUB_SHA="+target,
+			"RUNNER_TEMP="+dir, "GITHUB_OUTPUT="+output, "GITHUB_STEP_SUMMARY="+summary,
+			"GH_TOKEN=t", "STUB_DIR="+dir, "STUB_HEAD="+head, "STUB_RUN="+strconv.Itoa(runID), "STUB_RECORD="+record,
+			"STUB_API=https://api.github.test/repos/"+repo+"/actions")
+		cmd.Env = append(cmd.Env, env...)
+		_ = cmd.Run() // a nonzero exit is continue-on-error in the workflow; only the output binds
+		o, _ := os.ReadFile(output)
+		s, _ := os.ReadFile(summary)
+		return string(o), string(s)
+	}
+	out, summary := run(merge, nil)
+	if out != "mode=REUSE\n" || !strings.Contains(summary, `"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"`+tree+`","head":"`+head+`"`) ||
+		!strings.Contains(summary, `"runId":`+strconv.Itoa(runID)+`,"record":"`+record+`"`) {
+		t.Fatalf("a passed pull-request run of this tree: output %q summary %q, want REUSE naming the run and tree", out, summary)
+	}
+	if out, _ := run(merge, nil, "STUB_DENY_AUTH=1"); out != "mode=REUSE\n" {
+		t.Errorf("a refused token must retry the public listing anonymously: output %q", out)
+	}
+	if out, _ := run(head, nil); out != "" {
+		t.Errorf("a single-parent commit: output %q, want no mode", out)
+	}
+	for name, edit := range map[string]func(r, a, j map[string]any){
+		"other head":       func(r, a, j map[string]any) { r["head_sha"] = strings.Repeat("0", 40) },
+		"merge_group run":  func(r, a, j map[string]any) { r["event"] = "merge_group" },
+		"failed run":       func(r, a, j map[string]any) { r["conclusion"] = "failure" },
+		"other workflow":   func(r, a, j map[string]any) { r["path"] = ".github/workflows/other.yml" },
+		"other repository": func(r, a, j map[string]any) { r["repository"] = map[string]any{"full_name": "fork/corvint"} },
+		"string id":        func(r, a, j map[string]any) { r["id"] = strconv.Itoa(runID) },
+		"other tree record": func(r, a, j map[string]any) {
+			a["name"] = "ci-tested-tree-" + strings.Repeat("2", 40) + "-artifact-integrity"
+		},
+		"record missing":        func(r, a, j map[string]any) { a["drop"] = true },
+		"record duplicated":     func(r, a, j map[string]any) { a["dup"] = true },
+		"record expired":        func(r, a, j map[string]any) { a["expired"] = true },
+		"record of another run": func(r, a, j map[string]any) { a["workflow_run"] = map[string]any{"id": 1, "head_sha": head} },
+		"artifacts unreadable":  func(r, a, j map[string]any) { a["unreadable"] = true },
+		"job failed":            func(r, a, j map[string]any) { j["conclusion"] = "failure" },
+		"job skipped":           func(r, a, j map[string]any) { j["conclusion"] = "skipped" },
+		"job missing":           func(r, a, j map[string]any) { j["drop"] = true },
+		"job on another commit": func(r, a, j map[string]any) { j["head_sha"] = strings.Repeat("1", 40) },
+		"jobs unreadable":       func(r, a, j map[string]any) { j["unreadable"] = true },
+	} {
+		if out, _ := run(merge, edit); out != "" {
+			t.Errorf("%s: output %q, want no mode (the gate runs in full)", name, out)
+		}
+	}
+}

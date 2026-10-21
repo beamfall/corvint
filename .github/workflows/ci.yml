@@ -1043,6 +1043,11 @@ jobs:
 
   artifact-integrity:
     # Not a required check; skipped as go-interop is (AFP-V0-080, AFP-V0-081).
+    # AFP-V0-163 (V1-2113): a merge-queue entry whose tree a successful pull-request run of its
+    # second parent already verified skips the archive gate and still concludes success, so the
+    # AFP-V0-080 push reuse keeps working. The tree holds ci.yml, the Makefile, go.mod and every
+    # gate input, and the gate reads no network (GOPROXY off), so an equal tree is an equal
+    # verdict. Any mismatch, refusal or unreadable listing runs the gate in full.
     needs: static-reuse
     if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.static-reuse.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
@@ -1051,13 +1056,94 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
+          fetch-depth: 2
+      - name: Find a passed pull-request verdict for this tree
+        id: reuse
+        if: github.event_name == 'merge_group'
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          if ! head=$(git rev-parse --verify -q "$GITHUB_SHA^2") || git rev-parse --verify -q "$GITHUB_SHA^3" > /dev/null; then
+            echo 'Artifact integrity (AFP-V0-163): the queue commit is not a two-parent merge; the gate runs in full.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          record="ci-tested-tree-$tree-artifact-integrity"
+          api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
+          get() {
+            curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer $GH_TOKEN" -o "$2" "$1" ||
+              curl -fsS --max-time 30 --max-filesize 4194304 -H 'Accept: application/vnd.github+json' -o "$2" "$1"
+          }
+          d="$RUNNER_TEMP/integrity-reuse"
+          mkdir -p "$d"
+          get "$api/workflows/ci.yml/runs?head_sha=$head&event=pull_request&status=success&per_page=20" "$d/runs.json"
+          ids=$(jq -r --arg sha "$head" --arg repo "$GITHUB_REPOSITORY" '.workflow_runs[]?
+            | select(.head_sha == $sha and .event == "pull_request" and .conclusion == "success"
+              and .path == ".github/workflows/ci.yml" and .repository.full_name == $repo and (.id | type == "number"))
+            | .id' "$d/runs.json" | head -n 5)
+          for id in $ids; do
+            get "$api/runs/$id/artifacts?name=$record&per_page=100" "$d/artifacts-$id.json" || continue
+            get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs-$id.json" || continue
+            # Exactly one record of this tree from this run, and exactly one latest
+            # artifact-integrity job of this run that passed on the pull-request head.
+            jq -e --arg name "$record" --arg sha "$head" --argjson id "$id" '[.artifacts[]? | select(.name == $name)]
+              | length == 1 and all(.expired == false and .workflow_run.id == $id and .workflow_run.head_sha == $sha)' \
+              "$d/artifacts-$id.json" > /dev/null || continue
+            jq -e --arg sha "$head" '[.jobs[]? | select(.name == "artifact-integrity")]
+              | length == 1 and all(.conclusion == "success" and .head_sha == $sha)' "$d/jobs-$id.json" > /dev/null || continue
+            printf '{"profile":"corvint-ci-integrity-reuse/0","mode":"REUSE","tree":"%s","head":"%s","target":"%s","runId":%s,"record":"%s"}\n' \
+              "$tree" "$head" "$GITHUB_SHA" "$id" "$record" > "$d/decision.json"
+            cat "$d/decision.json" >> "$GITHUB_STEP_SUMMARY"
+            echo "Artifact integrity (AFP-V0-163): tree $tree passed in pull-request run $id; the gate is not rerun." >> "$GITHUB_STEP_SUMMARY"
+            echo 'mode=REUSE' >> "$GITHUB_OUTPUT"
+            exit 0
+          done
+          echo "Artifact integrity (AFP-V0-163): no successful pull-request run of $head verified tree $tree; the gate runs in full." >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain integrity reuse record
+        if: steps.reuse.outputs.mode == 'REUSE'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-integrity-reuse
+          path: ${{ runner.temp }}/integrity-reuse/decision.json
+          if-no-files-found: ignore
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: steps.reuse.outputs.mode != 'REUSE'
         with:
           cache: false
           go-version: "1.27.2"
       - name: Verify native Go archives
+        if: steps.reuse.outputs.mode != 'REUSE'
         env:
           GOTOOLCHAIN: local
           GOPROXY: "off"
           GOWORK: "off"
         run: make go-archive-gate
+      - name: Name the verified tree
+        # AFP-V0-163: only a pull-request run whose gate passed names its tested tree.
+        id: record
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          set -eu
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          mkdir -p "$RUNNER_TEMP/integrity-tree"
+          printf '{"profile":"corvint-ci-integrity-tree/0","tree":"%s","target":"%s","runId":%s}\n' \
+            "$tree" "$GITHUB_SHA" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/integrity-tree/record.json"
+          echo "record=ci-tested-tree-$tree-artifact-integrity" >> "$GITHUB_OUTPUT"
+      - name: Retain integrity tree record
+        if: steps.record.outputs.record != ''
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.record.outputs.record }}
+          path: ${{ runner.temp }}/integrity-tree/record.json
+          if-no-files-found: ignore
