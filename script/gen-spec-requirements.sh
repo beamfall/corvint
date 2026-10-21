@@ -190,19 +190,18 @@ my $blobs = index_blobs(@reads);
 my (%best, %header);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
-    if ($mode ne 'tsv') {
-        my ($title) = $blob =~ /^# ([^\n]+)/m;
-        $title = trim($title) if defined $title;
-        my $prefix = header_value($blob, 'Requirement prefix:');
-        $prefix =~ s/`//g if defined $prefix;
-        $header{$file} = {
-            title => $title,
-            prefix => $prefix,
-            intent => header_value($blob, 'Intent status:'),
-            delivery => header_value($blob, 'Delivery status:'),
-            claim => digest_claim($blob),
-        };
-    }
+    # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
+    my ($title) = $blob =~ /^# ([^\n]+)/m;
+    $title = trim($title) if defined $title;
+    my $prefix = header_value($blob, 'Requirement prefix:');
+    $prefix =~ s/`//g if defined $prefix;
+    $header{$file} = {
+        title => $title,
+        prefix => $prefix,
+        intent => header_value($blob, 'Intent status:'),
+        delivery => header_value($blob, 'Delivery status:'),
+        claim => digest_claim($blob),
+    };
     my $line_number = 0;
     my $previous_blank = 1;
     for my $line (split /^/, $blob) {
@@ -264,6 +263,15 @@ sub tsv_text {
     return join '', "id\tfile\ttitle\tacceptance\tacceptedBy\n",
         map { join("\t", $_, @{$best{$_}}{qw(file title acceptance accepted_by)}) . "\n" } @ids;
 }
+# SRG-V0-040: the specindex claim bound (1..160 characters), refused in every mode, before the
+# TSV and --lines modes exit, with the path and character length, so it fails at the first spec
+# step instead of at spec-requirements-check.
+for my $file (sort @specs) {
+    next unless defined(my $claim = $header{$file}{claim});
+    utf8::decode($claim);
+    length($claim) <= 160
+        or die "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160\n";
+}
 if ($mode eq 'tsv') {
     print tsv_text();
     exit 0;
@@ -296,10 +304,6 @@ for my $file (sort @specs) {
     next unless defined $spec->{claim};
     $spec->{claim} =~ /[.?!]\z/ && $spec->{claim} !~ /[.?!]\s/
         or die "$file: the Agent digest Claim must be one sentence ending in . ? or !\n";
-    # SRG-V0-040: the specindex claim bound (1..160 characters), refused here with the path and
-    # length so it fails at the first spec step instead of at spec-requirements-check.
-    length($spec->{claim}) <= 160
-        or die "$file: the Agent digest Claim is " . length($spec->{claim}) . " characters; the limit is 160\n";
 }
 
 sub default_prefix {

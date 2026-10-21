@@ -385,6 +385,11 @@ git -C "$project" add -- docs/specs/two.md
 long_err=$(gen --all "$refused_dir" 2>&1 > /dev/null) && fail "a 165-character claim was accepted"
 case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "the long-claim refusal did not name the path and length: $long_err" ;; esac
 test -z "$(ls -A "$refused_dir")" || fail "a refused long claim wrote into DIR"
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  long_err=$(gen $mode 2>&1 > /dev/null) && fail "mode '${mode:-tsv}' accepted a 165-character claim"
+  case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
+done
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
 
 printf 'ok\n'
