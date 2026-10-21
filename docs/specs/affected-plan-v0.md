@@ -995,7 +995,8 @@ and container qualification; full fallback remains available.
   directories on one `use` line are both read. A `go.work` that reader refuses (a raw-string or
   otherwise unreadable `use` entry, an unknown directive, over-size or unreadable) MUST raise the
   frontier `go:workspace-unparsed` and observe only the root module, which the AFP-V0-031 rules
-  then keep open against every nested module. Before this, a loose line reader guessed a use set
+  then keep open against every nested module; `CommittedReadScopes` treats the same refusal as an
+  unknown base (AFP-V0-050). Before this, a loose line reader guessed a use set
   from such a file and the plan stayed bounded. Evidence:
   `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190` (fails without the change). Rollback: restore the
   line reader in `workspaceDirectories`.
@@ -2437,7 +2438,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-187 | `scanImports`, `joinContinuation` in `internal/liveverify/affected/python/python.go` | `TestAFPV0187MultiLineFromImportReadsEveryName`; `TestAFPV0187ContinuationLinesAreNotStatements` |
 | AFP-V0-188 | `scanImports`, `pluginsAssignment`, `pluginModules`, `FrontierPytestPlugins` | `TestAFPV0188PytestPluginsAreImports` |
 | AFP-V0-189 | `linkConftests` | `TestAFPV0189ConftestSelectsEveryTestBelowIt` |
-| AFP-V0-190 | `workspaceDirectories`, `appendUse`, `FrontierWorkspaceUnparsed` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190` |
+| AFP-V0-190 | `workspaceDirectories`, `appendUse`, `FrontierWorkspaceUnparsed` in `internal/liveverify/affected/golang/golang.go`; `CommittedReadScopes` in `golang/readscopes.go` | `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190`; `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050` (a go.work that is an empty tree) |
 | AFP-V0-191 | `Result.Unobserved` in `internal/liveverify/affected/unit.go`; `digestBody.Unobserved`, `Graph.admit`, `Graph.unobservedEntries` in `graph.go`; `Graph.unownedUnknown`, `underDirectory`, `FrontierUnobservedDirectory` in `select.go`; `unobservedModules` in `golang/golang.go` | `TestNestedModuleChangeIsANestedModuleUnknown_AFPV0191`; `TestUnobservedLeavesOutDirectoriesHoldingObservedModules_AFPV0191`; `TestUnobservedDirectoriesAreValidatedAndDigested_AFPV0191`; `TestIndependentNestedModulesCloseTheFrontier_V1_0867` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
