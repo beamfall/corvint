@@ -344,9 +344,12 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 	}
 	s.shared.active[key] = true
 	defer delete(s.shared.active, key)
-	result, exact := sharedResolution{}, true
+	// exhausted is the first branch a bound stopped. It outranks any later branch's answer: the
+	// stopped branch may bind name too, which a found result elsewhere cannot rule out
+	// (TSA-V0-461).
+	result, exact, exhausted := sharedResolution{}, true, sharedResolution{}
 	forward := func(specifier, imported string) {
-		if result.kind == sharedFound || result.kind == sharedNamespace {
+		if result.kind == sharedFound || result.kind == sharedNamespace || exhausted.kind == sharedUnknown {
 			return
 		}
 		resolution := s.resolver.Resolve(module, specifier)
@@ -362,6 +365,9 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 			var nextExact bool
 			next, nextExact = s.resolveExport(resolution.Target, imported, depth+1)
 			exact = exact && nextExact
+			if next.kind == sharedUnknown && !nextExact {
+				exhausted = next
+			}
 		}
 		if next.kind != sharedNone {
 			result = next
@@ -382,6 +388,9 @@ func (s *setupSelector) resolveExport(module, name string, depth int) (sharedRes
 		for _, specifier := range table.stars {
 			forward(specifier, name)
 		}
+	}
+	if exhausted.kind == sharedUnknown {
+		result = exhausted
 	}
 	if exact {
 		s.shared.resolved[key] = result

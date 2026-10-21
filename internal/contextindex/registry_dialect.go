@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,7 +85,10 @@ func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
 // so is a manifest-naming document that mentions `registries` but is too large
 // or not strict JSON (a duplicate member included), as the map refuses it too.
 // The schema name is matched before decoding, so a manifest that spells it
-// with `\u` escapes of its letters is not discovered (a retained limit).
+// with `\u` escapes of its letters is not discovered (a retained limit). A
+// `.json` source the index excluded past its size admission is read from Git
+// within registryExcludedJSONBound and counted when it names the schema and
+// `registries`, or when it cannot be read within the bound (TSA-V0-461).
 func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 	names := make([]string, 0)
 	for name := range index.Sources {
@@ -94,6 +98,11 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 	}
 	sort.Strings(names)
 	declarations, invalid := []RegistryDeclaration{}, 0
+	for _, exclusion := range index.Exclusions {
+		if exclusion.Reason == sourceSizeExclusion && path.Ext(exclusion.Path) == ".json" && excludedRegistryManifest(index, exclusion.Path) {
+			invalid++
+		}
+	}
 	for _, name := range names {
 		text, valid, loaded := index.Sources[name].Text()
 		if !valid || !loaded || !strings.Contains(text, "application-map-manifest") {
@@ -123,6 +132,22 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 		declarations = append(declarations, members...)
 	}
 	return declarations, invalid
+}
+
+// excludedRegistryManifest reports whether a source the index excluded for size
+// may declare registries: its committed blob, read within
+// registryExcludedJSONBound, names the manifest schema and `registries`, or it
+// cannot be read within that bound. Such a manifest is past registryManifestBound,
+// so it is never decoded.
+func excludedRegistryManifest(index *Index, name string) bool {
+	if index.Root == "" || index.Revision == "" {
+		return true
+	}
+	raw, err := git(context.Background(), index.Root, registryExcludedJSONBound.limit, nil, "cat-file", "blob", index.Revision+":"+name)
+	if err != nil || !registryExcludedJSONBound.admits(len(raw)) {
+		return true
+	}
+	return bytes.Contains(raw, []byte("application-map-manifest")) && bytes.Contains(raw, []byte("registries"))
 }
 
 // registryToken is a web lexer token with the 1-based line it ends on.

@@ -143,6 +143,12 @@ func TestAnalyzerBoundsFailClosed(t *testing.T) {
 			lowerBound(t, bound, len(files["corvint/appmap.json"])-1)
 			setupAll(t, bound, files, "tests/alpha.spec.ts")
 		},
+		"registry-excluded-json": func(t *testing.T, bound *analyzerBound) {
+			files := setupSelectFiles()
+			files["data/big.json"] = `{"rows": "` + strings.Repeat("x", maxSourceBytes) + `"}`
+			lowerBound(t, bound, maxSourceBytes)
+			setupAll(t, bound, files, "tests/alpha.spec.ts")
+		},
 		"registry-declarations": func(t *testing.T, bound *analyzerBound) {
 			lowerBound(t, bound, 0)
 			setupAll(t, bound, setupSelectFiles(), "tests/alpha.spec.ts")
@@ -227,5 +233,53 @@ func TestSharedResolutionCacheSkipsCycleMarkers(t *testing.T) {
 	}
 	if got := s.resolveConst("lib/b.ts", "SHARED"); got.kind != sharedFound {
 		t.Fatalf("lib/b.ts SHARED after the cycle = %+v, want found", got)
+	}
+}
+
+// TestSharedExhaustedBranchOutranksLaterFind: TSA-V0-461, TSA-V0-462. An
+// `export *` branch the re-export bound stopped may bind the name too, so a
+// shorter later branch that finds it does not make the answer exact: the
+// resolution stays unknown, is not cached, and setup-select returns ALL.
+func TestSharedExhaustedBranchOutranksLaterFind(t *testing.T) {
+	files := map[string]string{
+		"lib/shared.ts":    "export const SHARED = { scenario_a: 1 };\n",
+		"lib/fork.ts":      "export * from './hop0';\nexport * from './short';\n",
+		"lib/short.ts":     "export * from './shared';\n",
+		"setup/x.setup.ts": "import { SHARED } from '../lib/fork';\nexport default async () => db.insert(SHARED.scenario_a);\n",
+		"tests/x.spec.ts":  "import { SHARED } from '../lib/shared';\ntest('x', () => SHARED.scenario_a);\n",
+	}
+	sharedHops(files, 0) // fork -> hop0 .. hop8 -> shared is past the 8-hop bound
+	root := impactRepositoryWithFiles(t, files)
+	index, err := BuildRevisionContext(context.Background(), root, strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &setupSelector{index: index, resolver: NewWebImportResolver(index), read: map[string]string{}, shared: newSharedState()}
+	if got := s.resolveConst("lib/fork.ts", "SHARED"); got.kind != sharedUnknown {
+		t.Fatalf("lib/fork.ts SHARED = %+v, want unknown: the stopped branch is unresolved", got)
+	}
+	if cached, ok := s.shared.resolved[[2]string{"lib/fork.ts", "SHARED"}]; ok {
+		t.Fatalf("cached lib/fork.ts SHARED = %+v: a bound-shaped result is not a permanent answer", cached)
+	}
+	selection := SelectSetup(index, []string{"tests/x.spec.ts"})
+	if selection.Mode != "all" || !slices.Contains(reasonCodes(selection), sharedReexportBound.outcome) {
+		t.Fatalf("mode=%s reasons=%+v, want ALL with %s", selection.Mode, selection.Reasons, sharedReexportBound.outcome)
+	}
+}
+
+// TestOversizedRegistryManifestFailsClosed: TSA-V0-461. A manifest past the
+// index's source admission is absent from index.Sources, yet it still counts as
+// an invalid registries declaration, so setup-select returns ALL; an oversized
+// `.json` that is no manifest leaves the selection narrow.
+func TestOversizedRegistryManifestFailsClosed(t *testing.T) {
+	files := setupSelectFiles()
+	files["data/big.json"] = `{"rows": "` + strings.Repeat("x", maxSourceBytes) + `"}`
+	if selection := selectSetupOf(t, files, "tests/alpha.spec.ts"); selection.Mode != "selected" {
+		t.Fatalf("an oversized non-manifest: mode=%s reasons=%+v, want selected", selection.Mode, selection.Reasons)
+	}
+	files["corvint/big-appmap.json"] = files["corvint/appmap.json"] + strings.Repeat(" ", maxSourceBytes)
+	selection := selectSetupOf(t, files, "tests/alpha.spec.ts")
+	if selection.Mode != "all" || !slices.Contains(reasonCodes(selection), registryManifestBound.outcome) {
+		t.Fatalf("an oversized manifest: mode=%s reasons=%+v, want ALL with %s", selection.Mode, selection.Reasons, registryManifestBound.outcome)
 	}
 }

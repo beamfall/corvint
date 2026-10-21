@@ -58,6 +58,9 @@ var (
 	registryManifestBound = &analyzerBound{"registry-manifest", 256 << 10, "bytes", "registry-unresolved"}
 	// registryDeclarationBound bounds the registries one manifest declares.
 	registryDeclarationBound = &analyzerBound{"registry-declarations", 64, "entries", "registry-unresolved"}
+	// registryExcludedJSONBound bounds the Git read of one `.json` source the index excluded for
+	// size, which is checked for a registries-declaring manifest it could not otherwise see.
+	registryExcludedJSONBound = &analyzerBound{"registry-excluded-json", 4 << 20, "bytes", "registry-unresolved"}
 	// registryAccessorBound bounds the accessors one registry declares.
 	registryAccessorBound = &analyzerBound{"registry-accessors", 16, "names", "registry-unresolved"}
 	// registryKeyBound bounds one literal registry key. A registry entry past it is unreadable
@@ -77,10 +80,15 @@ var (
 	sourceBytesBound = &analyzerBound{"source-bytes", maxSourceBytes, "bytes", "source-unreadable"}
 )
 
+// sourceSizeExclusion is the Exclusion reason admittedEntries (index.go) gives a source past
+// maxSourceBytes; TestOversizedRegistryManifestFailsClosed fails if the two drift.
+const sourceSizeExclusion = "source exceeds size bound"
+
 // analyzerBounds is every declared bound, in a fixed order.
 var analyzerBounds = []*analyzerBound{
 	setupClosureBound, sharedReexportBound, sharedLookupBound, sharedTemplateBound,
 	webConfigBytesBound, webConfigDepthBound, webConfigVisitBound,
-	registryManifestBound, registryDeclarationBound, registryAccessorBound, registryKeyBound,
+	registryManifestBound, registryExcludedJSONBound, registryDeclarationBound, registryAccessorBound,
+	registryKeyBound,
 	rubyNestingBound, rubyResolutionBound, rubySiteBound, rubyManifestBound, sourceBytesBound,
 }

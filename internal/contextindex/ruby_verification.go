@@ -8,8 +8,8 @@ import (
 
 // rubyManifestBound (analyzer_bounds.go) bounds each committed Gemfile,
 // Gemfile.lock or Rakefile read for the Ruby verification command. A larger
-// blob is treated as unreadable, so it proves no suite and the command is
-// withheld (NGI-V0-052, TSA-V0-460).
+// blob is treated as unreadable: it proves nothing, so the command is withheld
+// unless the other, readable manifest proves it alone (NGI-V0-052, TSA-V0-461).
 
 var (
 	gemfileGemPattern = regexp.MustCompile(`(?m)^[ \t]*gem[ \t(]+['"]([A-Za-z0-9_][A-Za-z0-9_.-]*)['"]`)

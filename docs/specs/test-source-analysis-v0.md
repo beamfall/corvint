@@ -3451,8 +3451,9 @@ auto-accept (2026-10-11). Hitting a bound is never a negative answer (product in
   shared-reexport (8 hops), shared-lookup (4,096 lookups) and shared-template (8 nested
   substitutions; all three `shared-constant-key-unresolved`), web-config-bytes (1 MiB),
   web-config-depth (16 links) and web-config-visits (64 configs; all three `import-unresolved`),
-  registry-manifest (256 KiB), registry-declarations (64), registry-accessors (16) and registry-key
-  (256 bytes; all four `registry-unresolved`), ruby-nesting (256 blocks), ruby-resolutions (64
+  registry-manifest (256 KiB), registry-excluded-json (4 MiB, the Git read of a `.json` source
+  the index excluded for size), registry-declarations (64), registry-accessors (16) and
+  registry-key (256 bytes; all five `registry-unresolved`), ruby-nesting (256 blocks), ruby-resolutions (64
   namespaces) and ruby-reference-sites (1,048,576; all three `ruby-reference-index-bounded`),
   ruby-manifest (256 KiB; the verification command is withheld as unknown) and source-bytes (the
   index's 1,000,000-byte admission, `source-unreadable`). Caps that only shorten a ranked or shown
@@ -3460,9 +3461,18 @@ auto-accept (2026-10-11). Hitting a bound is never a negative answer (product in
   whole request with a typed error are not analyzer bounds.
 - `TSA-V0-461`: (standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared
   bound MUST stop and report that bound's outcome, which its caller turns into ALL or a counted
-  unknown; it MUST NOT return `selected`, a receipt without the matching unknown, or a verification
-  command. A Ruby source nesting past the ruby-nesting bound MUST count every reference it makes
-  in `ruby-reference-index-bounded`, because the namespaces opened past the bound are not tracked.
+  unknown; it MUST NOT return `selected`, a receipt without the matching unknown, or a
+  verification command that rests on the stopped read. A bound removes only the evidence of the
+  read it stopped: an answer that other, readable evidence proves on its own stands (an oversized
+  Gemfile beside a readable Gemfile.lock that declares an rspec gem still names `bundle exec
+  rspec` under `NGI-V0-052`). A Ruby source nesting past the ruby-nesting bound MUST count every
+  reference it makes in `ruby-reference-index-bounded`, because the namespaces opened past the
+  bound are not tracked. A `.json` source the index excluded past its 1,000,000-byte admission
+  MUST count as an invalid registries declaration when its committed blob, read within
+  registry-excluded-json, names `application-map-manifest` and `registries`, or when it cannot be
+  read within that bound. An `export *` branch a bound stopped MUST keep a shared-constant
+  resolution unresolved even when a later branch finds the name, since the stopped branch may bind
+  it too.
 - `TSA-V0-462`: (standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted bound
   or by an in-progress recursion marker (an `export *` cycle) depends on the path that reached it
   and MUST NOT be stored as a permanent answer; a resolution cache keeps only results whose
@@ -3471,7 +3481,8 @@ auto-accept (2026-10-11). Hitting a bound is never a negative answer (product in
   declared bound one past its limit and assert its outcome and no complete answer, and MUST fail
   when a declared bound has no case.
 
-Non-goals: no bound value changes, no new reason or unknown code, no new CLI flag, and no change to
+Non-goals: no bound value changes (registry-excluded-json is a new bound on a read the analyzer
+did not make before), no new reason or unknown code, no new CLI flag, and no change to
 ranking caps (graph hops and pushes, evidence rows, the dependency-link walk, the ALL reason list).
 Python and Go analyzers outside `internal/contextindex` are not covered.
 
@@ -3480,7 +3491,11 @@ backstop); a lowered limit in a test is restored by `t.Cleanup`, and the tests t
 not parallel; source-bytes is the index's admission, so its case uses the real 1,000,001-byte
 form; a registry call-site key past registry-key is read as a computed lookup (`computed-lookup`,
 also ALL); counting every reference of an over-nested Ruby source over-reports the unknown for
-references before the overflow (conservative, never a dropped reference).
+references before the overflow (conservative, never a dropped reference). A tracked `.json`
+past the index admission costs one bounded `git cat-file` per impact or setup-select call; one
+that names the manifest schema and `registries` anywhere, or exceeds 4 MiB, widens setup-select to
+ALL and adds `registry-declaration-invalid` to every non-Go impact receipt (conservative). An
+index without a root or revision cannot read it and counts it too.
 
 Acceptance evidence: `TestAnalyzerBoundsFailClosed` in
 `internal/contextindex/analyzer_bounds_test.go` runs one case per declared bound and fails for a
@@ -3491,11 +3506,18 @@ the cache holds no miss and resolves the other cycle member, and fails when inex
 cached. The existing bound tests (`TestSelectSetupSharedConstantReviewForms`,
 `TestSelectSetupSharedConstantOpenSetups`, `TestWebImportResolverFailsClosed`,
 `TestRegistryDialectUnresolvedRegistryWidens`, `TestRubyAutoloadResolutionBound`,
-`TestRubyAutoloadSiteBound`) pass unchanged apart from naming the declared bounds.
+`TestRubyAutoloadSiteBound`) pass unchanged apart from naming the declared bounds. Independent
+review follow-ups each failed before their fix: `TestOversizedRegistryManifestFailsClosed` (a
+manifest past the index admission left the selection `selected`; an oversized non-manifest still
+does) and `TestSharedExhaustedBranchOutranksLaterFind` (a later short `export *` branch's find
+replaced the stopped branch's unknown). The mixed-manifest rows of
+`TestNGIV0052RSpecNeedsDeclaredGem` pin the reworded TSA-V0-461 behaviour, which was already the
+implementation.
 
 Rollback: restore the per-file constants in `setup_select.go`, `setup_shared.go`,
 `webresolve.go`, `registry_dialect.go`, `ruby_autoload.go` and `ruby_verification.go`, remove
-`analyzer_bounds.go` and its test, drop the `overflowed` field, return the analyzer schema to
+`analyzer_bounds.go` and its test, drop the `overflowed` field, `excludedRegistryManifest`,
+`sourceSizeExclusion` and the `exhausted` latch in `resolveExport`, return the analyzer schema to
 `corvint-analyzer/131`, and remove this section and the NGI-V0-040 sentence. Nothing is persisted
 beyond the derived index, which the schema bump rebuilds.
 
@@ -3504,6 +3526,6 @@ beyond the derived index, which the schema bump rebuilds.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` | experimental |
-| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/ruby_autoload.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded` | experimental |
-| TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers` | experimental |
+| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
+| TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers`, `TestSharedExhaustedBranchOutranksLaterFind` | experimental |
 | TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |
