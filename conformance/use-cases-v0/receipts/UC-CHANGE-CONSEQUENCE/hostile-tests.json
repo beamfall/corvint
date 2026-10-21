@@ -7,13 +7,13 @@
     ]
   },
   "evidenceClass": "hostile-tests",
-  "repositoryRevision": "a9cd7afce7b154ef5177493eddb2465810a4950f",
+  "repositoryRevision": "6d2ff45afb94d7a9308391102360de207c5028be",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/usecase_hostile_change_consequence_test.go",
-      "sha256": "d3fda33ffb5d7e32c13ac74e5b1ea5ee3d8bdef061d4d2d7d46195d4cec6536d"
+      "sha256": "55b31883f3e4acd9567a711323c1e605f7bc1e8367890093ec99e4b2383db4e1"
     }
   ],
   "useCaseId": "UC-CHANGE-CONSEQUENCE"

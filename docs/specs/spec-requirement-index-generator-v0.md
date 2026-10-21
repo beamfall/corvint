@@ -215,7 +215,8 @@ No requirement below diverges from the implementation.
     reflow that keeps a requirement's meaning but changes its first line, and so its title.
     `script/spec-requirements-conflict_test.sh` shows that case as an expected conflict.
 
-  Each such conflict is resolved by resolving the spec and regenerating, as SRG-V0-013 states.
+  Each such conflict is resolved by resolving and staging the spec, then running
+  `make spec-requirements-resolve` (SRG-V0-041), which regenerates the index as SRG-V0-013 states.
 - `SRG-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1525) A reader
   that needs a requirement's line MUST take it from the spec, never from the committed index. Go
   readers MUST use `specindex.DefinitionLine`, which applies the SRG-V0-003 and SRG-V0-004 ranks
@@ -244,6 +245,19 @@ No requirement below diverges from the implementation.
   generator mode MUST refuse an Agent digest Claim longer than 160 characters, the bound the
   `internal/specindex` INDEX test enforces, naming the spec path and the claim's character length, so
   `make spec-requirements` fails at the first spec step rather than at `spec-requirements-check`.
+- `SRG-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a
+  merge, `make spec-requirements-resolve` (`script/spec-requirements-resolve.sh`) MUST exit 1 and
+  name the paths when any unmerged path is not `docs/specs/REQUIREMENTS.tsv`, `INDEX.json` or
+  `README.md`, or when no path is unmerged. Otherwise it MUST restart each unmerged generated file
+  from the current branch's side, regenerate all three from the staged specs exactly as
+  `make spec-requirements` does, and stage them, so the merged files equal a fresh generation. This
+  is the one-command resolution for the SRG-V0-016 limits: two changes that append adjacent rows to
+  one section (after the conflicted spec is resolved and staged) and two changes that each add a
+  new spec. `script/spec-requirements-conflict_test.sh` MUST show both cases, the second merged in
+  both orders. Non-goal: it does not merge a conflicted spec, and a new spec from the other side
+  gets the INDEX.json entry and README.md row its header derives, so hand-set fields of that entry
+  are re-applied by hand. Rollback: delete the script and the target; the manual
+  take-a-side-and-regenerate resolution is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -301,7 +315,7 @@ definition line (SRG-V0-017).
 | A new tracked spec has no INDEX.json entry or README.md row | one is appended from the header: H1 title, declared or first rank 0 prefix, no dependencies |
 | A new tracked spec has a superseded Agent digest, with no `Claim` | refused, naming the spec; its INDEX.json entry and README.md row are added by hand once, and only its statuses are projected after that |
 | A README.md description is hand-edited so that its first sentence holds an abbreviation such as `Dr.` | the old claim is cut at the abbreviation and the rest is kept as the tail; the mis-split shows in the regenerated README.md diff |
-| Two lanes each add a new spec | both append at the end of INDEX.json and the README.md table and conflict there; take either side and regenerate |
+| Two lanes each add a new spec | both append at the end of INDEX.json and the README.md table and conflict there; `make spec-requirements-resolve` takes this side and regenerates (SRG-V0-041) |
 | Two lanes change the same spec's header status | a real conflict in the header, INDEX.json and README.md, resolved by the people who disagree |
 | A marker's parenthetical never closes | it runs to the end of the line |
 | A negation spans an inner parenthesis, as in `(not (yet) accepted, decision 0478)` | the negated phrase is removed whole and the mode is `unrecorded` |
@@ -340,6 +354,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
 | SRG-V0-018 | `script/gen-spec-requirements_test.sh` case 10: `--all` output equals each mode's output byte for byte, a refused projection leaves DIR empty, a missing or absent DIR exits 2, and a newline path and a gitlink entry take the one-shot fallback beside the batch. On the live corpus at `f3ca7224` the `--all` files were byte-identical to the three-pass output and the committed files; the V1-1641 build-log entry holds the before and after timings |
 | SRG-V0-040 | `script/gen-spec-requirements_test.sh`: a 165-character claim fails `--all` with `<path>: the Agent digest Claim is 165 characters; the limit is 160` and leaves DIR empty, and the TSV, `--lines`, `--index` and `--readme` modes refuse it with the same message (the TSV mode now reads spec headers too) |
+| SRG-V0-041 | `script/spec-requirements-conflict_test.sh`: the target refuses while the one-section spec is still conflicted and resolves the TSV once it is staged; two new specs conflict only in generated files and resolve in both merge orders to the fresh generation with both specs indexed |
 
 ## Traceability
 
@@ -364,6 +379,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
 | SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
+| SRG-V0-041 | `script/spec-requirements-resolve.sh` and the `spec-requirements-resolve` target in the `Makefile` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 

@@ -220,8 +220,9 @@ It does not enforce that its own numeric thresholds only tighten over time: the 
 here mechanically prevents a future edit from raising them; monotonic tightening is a review-time
 convention borrowed from `ACP-009`'s per-candidate ceiling table, not a property this gate checks
 for itself. It does not run on any host whose discovered `GOROOT` is not byte-identical to
-an `SNR-V0-030` pin row (on 2026-10-21 one darwin/arm64 Homebrew `go1.27.3` row; the
-earlier `go1.27.0` row was dropped when Homebrew removed that installation); the pins are platform-specific
+an `SNR-V0-030` pin row (on 2026-10-21 two darwin/arm64 rows, the official module `go1.27.2`
+and Homebrew `go1.27.3`; Linux digests `NOT_OBSERVED`; the earlier `go1.27.0` row was dropped
+when Homebrew removed that installation); the pins are platform-specific
 content digests, which is the most plausible reason it was never added to the Linux-hosted CI
 workflow. It does not measure or ratchet wall-clock latency (its own report says
 `latency=NOT_RUN`), and for the causal comparison it does not ratchet bytes/op, only allocs/op, even
@@ -285,17 +286,17 @@ decision 0226 the run completed with exit 0 and an `SNR-V0-014` line whose paren
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| SNR-V0-001 | `script/check-sql-native-ratchets.sh:21@c6e1dd0e` (lock `mkdir`) and `:26-28@682a66e3` (cleanup trap) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
-| SNR-V0-002 | `script/check-sql-native-ratchets.sh:31-35@97a0bf90` (`SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` case block) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
+| SNR-V0-001 | `script/check-sql-native-ratchets.sh:22@c6e1dd0e` (lock `mkdir`) and `:27-29@682a66e3` (cleanup trap) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
+| SNR-V0-002 | `script/check-sql-native-ratchets.sh:32-36@97a0bf90` (`SQL_NATIVE_RATCHET_LOCK_TEST_HOLD` case block) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13 |
 | SNR-V0-003, SNR-V0-004 | `check_toolchain` and the receipt build in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run passed both (see Verified current state) |
-| SNR-V0-005 | `script/check-sql-native-ratchets.sh:51-52@9aea4cd3` (`source_bytes` `find`/`wc -c` pipeline and ceiling test) | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling-boundary fixture), plus the real 2026-09-13 invocations: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink (see `../BUILD-LOG.md` 2026-09-13) |
+| SNR-V0-005 | `script/check-sql-native-ratchets.sh:52-53@9aea4cd3` (`source_bytes` `find`/`wc -c` pipeline and ceiling test) | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (ceiling-boundary fixture), plus the real 2026-09-13 invocations: refusal at `source_bytes=65908`, then pass at `source_bytes=64153` after the `analyzer.go` shrink (see `../BUILD-LOG.md` 2026-09-13) |
 | SNR-V0-006 | the `build` function and `binary_bytes` check in `script/check-sql-native-ratchets.sh` | real 2026-09-13 post-shrink run: `binary_bytes=2832594` |
 | SNR-V0-007, SNR-V0-008 | the `core_base` export and the `core-a`/`core-b` build and `deps` comparison block in `script/check-sql-native-ratchets.sh` | `sh script/check-sql-native-ratchets_test.sh`, exit 0 (Core-base export fixture); real 2026-09-13 decision-0226 run (`core_base=469c2478`): `core_binary=identical core_deps=identical`; scratch candidate-wiring commit refused |
 | SNR-V0-009 | the cross-compile `for target in ...` loop in `script/check-sql-native-ratchets.sh` | real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-010 | the `TestSQLite351NestedWithDelimiterWorkRatchet` invocation in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/analyzer_test.go`; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-011 | the `measure` calls against `BenchmarkAnalyzeCandidate` in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/analyzer_test.go`; ceilings from `analyzer-candidate-profiles.md`; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-012 | the fixture copy and `measure` calls against `BenchmarkAnalyzeCausalSQL` in `script/check-sql-native-ratchets.sh` | `experimental/analyzers/sqlnative/causal_benchmark_test.go`; not yet exercised by a real run |
-| SNR-V0-013 | the causal_parent presence guard, `script/check-sql-native-ratchets.sh:68-75@92746b02` (`git cat-file -e "$causal_parent^{commit}"`) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13, proving the guard is false for the pinned, absent `causal_parent` and true for a real commit; the parent-separation comparison itself has not been produced (`causal_parent` absent from the object database) and this spec never claims it has |
+| SNR-V0-013 | the causal_parent presence guard, `script/check-sql-native-ratchets.sh:69-76@92746b02` (`git cat-file -e "$causal_parent^{commit}"`) | `sh script/check-sql-native-ratchets_test.sh`, exit 0, 2026-09-13, proving the guard is false for the pinned, absent `causal_parent` and true for a real commit; the parent-separation comparison itself has not been produced (`causal_parent` absent from the object database) and this spec never claims it has |
 | SNR-V0-014 | the final `printf` in `script/check-sql-native-ratchets.sh` | the gate invocation's stdout; real 2026-09-13 decision-0226 run (`core_base=469c2478`) |
 | SNR-V0-015 | the `cleanup` trap and `ratchet_root` scoping in `script/check-sql-native-ratchets.sh` | inspection |
 | SNR-V0-030 | `toolchain_pins`, `reject_toolchain` and the pin-row match in `script/check-sql-native-ratchets.sh` | `script/check-sql-native-ratchets_test.sh` cases 4 (fixture pin row for the host toolchain reaches the receipt build), 7 (unpinned go binary: one `TOOLCHAIN_MISMATCH` line, exit 78, lock released) and 8 (every real row's version is admitted by the Makefile `go-version` target) |

@@ -86,6 +86,7 @@ AFP-V0-160	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-161	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1766, V1-2069);	standing	2026-10-11; V1-1766; V1-2069
 AFP-V0-356	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2053))	standing	2026-10-11; V1-2053
 AFP-V0-156	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2162))	standing	2026-10-11; V1-2162
+AFP-V0-162	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252))	standing	2026-10-11; V1-2256; V1-2252
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -700,6 +701,7 @@ CEM-V1-243	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-244	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After th	standing	2026-10-11; V1-2106
 CEM-V1-245	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The	standing	2026-10-11; V1-1470
 CEM-V1-568	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git	standing	2026-10-11; V1-2133
+CEM-V1-368	docs/specs/cem-stable-v1.md	The `cem-stable-review/0` projection MUST copy, from the verifier's own `citatio	unrecorded	-
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -1562,6 +1564,17 @@ TCD-V0-010	docs/specs/corvint-tasks-closeout-debt-v0.md	`docs/DOGFOOD.md` tells 
 TCD-V0-151	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` of a gate declared `reusable: true` with no qualifying same-tree re	unrecorded	-
 TCD-V0-152	docs/specs/corvint-tasks-closeout-debt-v0.md	The model refuses a reused result at a tree other than the candidate with `BLOCK	unrecorded	-
 TCD-V0-153	docs/specs/corvint-tasks-closeout-debt-v0.md	The receipt audit (`GateReuseReceiptAudit`, `CAL-V0-243`) verifies each recorded	unrecorded	-
+TCD-V0-154	docs/specs/corvint-tasks-closeout-debt-v0.md	The policy MAY carry an optional top-level `ciEvidence` object	unrecorded	-
+TCD-V0-155	docs/specs/corvint-tasks-closeout-debt-v0.md	`gate run --attempt A --generation G --gate ID --ci-run FILE` reads a	unrecorded	-
+TCD-V0-156	docs/specs/corvint-tasks-closeout-debt-v0.md	The model refuses a CI-backed result without writing and without executing the	unrecorded	-
+TCD-V0-157	docs/specs/corvint-tasks-closeout-debt-v0.md	The receipt audit (`GateReuseReceiptAudit`) verifies each recorded CI-backed res	unrecorded	-
+TCD-V0-158	docs/specs/corvint-tasks-closeout-debt-v0.md	For a gate declared `reusable: true`, the `environmentSha256` that a run records	unrecorded	-
+TCD-V0-159	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE] [--ref RE	unrecorded	-
+TCD-V0-160	docs/specs/corvint-tasks-closeout-debt-v0.md	A PR title or body line references a ticket as delivered when it names the ticke	unrecorded	-
+TCD-V0-161	docs/specs/corvint-tasks-closeout-debt-v0.md	The result is one `taskman-delivery-screen/0` item, marked untrusted, with	unrecorded	-
+TCD-V0-162	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket delivery-screen` exits 0 when every ticket is `CLEAR`, 1 when any is not	unrecorded	-
+TCD-V0-163	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]` takes no	unrecorded	-
+TCD-V0-164	docs/specs/corvint-tasks-closeout-debt-v0.md	A ticket the batch or a lane only mentions, and that none delivers, is listed un	unrecorded	-
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
@@ -1634,6 +1647,8 @@ ERG-V0-020	docs/specs/corvint-tasks-external-reviews-v0.md	The packet MUST name 
 ERG-V0-021	docs/specs/corvint-tasks-external-reviews-v0.md	A partial checkpoint MAY ride in the packet and MUST be labelled with what it do	unrecorded	-
 ERG-V0-022	docs/specs/corvint-tasks-external-reviews-v0.md	`gate packet <ticket> --source PATH|NAME [--config FILE]`, and a dispatch role w	unrecorded	-
 ERG-V0-023	docs/specs/corvint-tasks-external-reviews-v0.md	`gate record|resubmit` MUST compose repeated `--reason CODE:TEXT` and	unrecorded	-
+ERG-V0-026	docs/specs/corvint-tasks-external-reviews-v0.md	A hand-off note that names the commit its checkpoint was taken at MUST bind the	unrecorded	-
+ERG-V0-027	docs/specs/corvint-tasks-external-reviews-v0.md	When a gate's review history is longer than the packet reads, the packet MUST na	unrecorded	-
 CTW-V0-001	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent root is the checkout whose `.taskman/` is the intent projection. Ever	unrecorded	-
 CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary worktree's HEAD does not name the intent branch from	unrecorded	-
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
@@ -1784,6 +1799,7 @@ TOL-V0-075	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-076	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) The	standing	2026-10-11; #1170
 TOL-V0-077	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170); rev	standing	2026-10-11; #1170; 2026-10-19; #1189
 TOL-V0-078	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1170)) Eac	standing	2026-10-11; #1170
+TOL-V0-131	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1922)	standing	2026-10-11; V1-1922
 TOL-V0-079	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) An	standing	2026-10-11; #1180
 TOL-V0-080	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) A c	standing	2026-10-11; #1180
 TOL-V0-081	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GitHub #1180)) `PR	standing	2026-10-11; #1180
@@ -2059,6 +2075,9 @@ DCW-V0-092	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-110	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`	owner	2026-10-11; V1-1463
 DCW-V0-111	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's	owner	2026-10-11; V1-1927
 DCW-V0-332	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1929) After a	owner	2026-10-11; V1-1929
+DCW-V0-112	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1760) A passing `dogfood ch	owner	2026-10-11; V1-1760
+DCW-V0-113	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-2266) A lane stacked on a	owner	2026-10-11; V1-2266
+DCW-V0-114	docs/specs/daily-change-evidence-workflow-v0.md	(accepted, owner lane auto-acceptance 2026-10-11; V1-1724) When `cem cite` refus	owner	2026-10-11; V1-1724
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -2476,6 +2495,7 @@ EEP-V0-024	docs/specs/external-evidence-provider-v0.md	Each invocation owns one 
 EEP-V0-025	docs/specs/external-evidence-provider-v0.md	The expansion is at most two hops. Seeds are at most three `.go` paths whose	unrecorded	-
 EEP-V0-026	docs/specs/external-evidence-provider-v0.md	An absent or failing provider yields no record and no partial rows: the section	unrecorded	-
 EEP-V0-027	docs/specs/external-evidence-provider-v0.md	The shared CLI/MCP Go provider reads root ancestry through the bounded Git	unrecorded	-
+EEP-V0-028	docs/specs/external-evidence-provider-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-1757) Before	standing	2026-10-11; V1-1757
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode	unrecorded	-
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with	unrecorded	-
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin	unrecorded	-
@@ -3006,6 +3026,7 @@ LTA-V0-012	docs/specs/learned-trace-admission-v0.md	(decision 0368, accepted by 
 LTA-V0-013	docs/specs/learned-trace-admission-v0.md	Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared	unrecorded	-
 LTA-V0-014	docs/specs/learned-trace-admission-v0.md	The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a te	unrecorded	-
 LTA-V0-015	docs/specs/learned-trace-admission-v0.md	The writer screen MUST treat the structural `PASS:` prefix inside one complete	unrecorded	-
+LTA-V0-016	docs/specs/learned-trace-admission-v0.md	The writer screen's JWT-shaped branch MUST require compact-JWS header structure:	unrecorded	-
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	the profile MUST accept only a structurally valid CEM and, for obligation checks	unrecorded	-
 LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	every term set MUST use the frozen identifier algorithm and subject text. A	unrecorded	-
 LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi	unrecorded	-
@@ -3532,6 +3553,8 @@ OCM-V0-020	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-021	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1049) each	standing	2026-10-11; V1-1049
 OCM-V0-022	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1048) when	standing	2026-10-11; V1-1048
 OCM-V0-023	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0522) at an	standing	2026-10-11; V1-0522
+OCM-V0-024	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1068) each	standing	2026-10-11; V1-1068
+OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961) when the	standing	2026-10-11; V1-1961
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -3777,6 +3800,7 @@ PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) `Owner.S	standing	2026-10-11; V1-1387
 PGO-V0-019	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1387) The deve	standing	2026-10-11; V1-1387
 PGO-V0-020	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
+PGO-V0-021	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0692) The POSI	standing	2026-10-11; V1-0692
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
@@ -4266,6 +4290,7 @@ SRG-V0-016	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-017	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1525) A reader	standing	2026-10-11; V1-1525
 SRG-V0-018	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1641) `--all D	standing	2026-10-11; V1-1641
 SRG-V0-040	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2141) Every	standing	2026-10-11; V1-2141
+SRG-V0-041	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a	standing	2026-10-11; V1-1758
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -4414,6 +4439,8 @@ TCP-V0-064	docs/specs/task-context-packet-v0.md	(accepted 2026-10-08, decision 0
 TCP-V0-065	docs/specs/task-context-packet-v0.md	(accepted, decision 0516 (V1-0315); experimental) A task-context	owner	decision 0516; V1-0315
 TCP-V0-121	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2131). Tasks	unrecorded	-
 TCP-V0-141	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1285). The pack	unrecorded	-
+TCP-V0-150	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-2127). The	unrecorded	-
+TCP-V0-152	docs/specs/task-context-packet-v0.md	accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	unrecorded	-
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-

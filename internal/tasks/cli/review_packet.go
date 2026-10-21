@@ -31,8 +31,6 @@ const (
 	reviewPacketMinBytes     = dispatch.MinReviewPacketBytes
 	reviewPacketMaxBytes     = dispatch.MaxReviewPacketBytes
 	reviewPacketDefaultBytes = dispatch.DefaultReviewPacketBytes
-	// reviewPacketHistoryPages bounds the history read per gate (4 x 50).
-	reviewPacketHistoryPages = 4
 	// reviewPacketMaxFiles bounds the files whose diffs are read.
 	reviewPacketMaxFiles = 256
 	// reviewPacketMaxHunks bounds the hunks the cap considers one by one.
@@ -51,6 +49,22 @@ const (
 	PacketRevSourceHead     = "SOURCE_HEAD"
 	sourceRepositoryUnknown = "SOURCE_REPOSITORY_UNKNOWN:"
 	commitNotFound          = "COMMIT_NOT_FOUND:"
+)
+
+// reviewPacketHistoryPages and reviewPacketHistoryPage bound the history
+// read per gate (4 x 50 events); past them the packet names the gate's next
+// `gate history --cursor` (ERG-V0-027). They are variables only so a test can
+// reach the bound with a few events.
+var (
+	reviewPacketHistoryPages = 4
+	reviewPacketHistoryPage  = transaction.ExternalReviewHistoryMax
+)
+
+// ERG-V0-026 relations of a bound checkpoint commit to the reviewed commit.
+const (
+	CheckpointAtReviewed  = "REVIEWED_COMMIT"
+	CheckpointAncestor    = "ANCESTOR"
+	CheckpointNotAncestor = "NOT_ANCESTOR"
 )
 
 // packetRepo is a repository a packet's commit may resolve in (ERG-V0-022):
@@ -90,6 +104,10 @@ type packetObligation struct {
 
 type packetOmission struct{ Section, Path, Range string }
 
+// packetHistoryCursor is a gate whose history the packet did not read past
+// cursor (ERG-V0-027).
+type packetHistoryCursor struct{ Gate, Cursor string }
+
 type reviewPacket struct {
 	Ticket, Commit                       string
 	Repo                                 packetRepo
@@ -105,6 +123,11 @@ type reviewPacket struct {
 	Obligations                          []packetObligation
 	Checkpoint                           *dispatch.HandoffNote
 	CheckpointSource                     string
+	// CheckpointCommit is the note's commit resolved in the packet's
+	// repository and CheckpointRelation its relation to Commit; both are
+	// empty when the note names no commit or it does not resolve (ERG-V0-026).
+	CheckpointCommit, CheckpointRelation string
+	History                              []packetHistoryCursor
 	Fixed                                []packetOmission
 }
 
@@ -241,8 +264,18 @@ func (p *reviewPacket) value(in packetInclusion, maxBytes int) wire.Value {
 	}
 	checkpoint := wire.Null()
 	if n := p.Checkpoint; n != nil {
+		binding := string(ticket.NotObserved)
+		if p.CheckpointCommit != "" {
+			binding = "OBSERVED"
+		}
 		c := wire.NewObject().Set("source", wire.String(p.CheckpointSource)).Set("worker", wire.String(n.Worker)).Set("role", wire.String(n.Role)).
-			Set("at", wire.String(n.At)).Set("commitBinding", wire.String(string(ticket.NotObserved)))
+			Set("at", wire.String(n.At)).Set("commitBinding", wire.String(binding))
+		if n.Commit != "" {
+			c.Set("commit", wire.String(n.Commit))
+		}
+		if p.CheckpointRelation != "" {
+			c.Set("commitRelation", wire.String(p.CheckpointRelation))
+		}
 		if in.checkpoint {
 			c.Set("text", wire.String(strings.Join(n.Messages, "\n")))
 		} else {
@@ -272,6 +305,13 @@ func (p *reviewPacket) value(in packetInclusion, maxBytes int) wire.Value {
 		Set("searched", wire.Array(searched...))
 	if p.ReturnGate != "" {
 		read.Set("returnedItems", wire.String("gate history "+p.Ticket+" --gate "+p.ReturnGate))
+	}
+	if len(p.History) > 0 {
+		more := make([]wire.Value, 0, len(p.History))
+		for _, h := range p.History {
+			more = append(more, wire.String("gate history "+p.Ticket+" --gate "+h.Gate+" --cursor "+h.Cursor))
+		}
+		read.Set("history", wire.Array(more...))
 	}
 	return wire.ObjectValue(wire.NewObject().Set("profile", wire.String(ReviewPacketProfile)).Set("ticketId", wire.String(p.Ticket)).
 		Set("commit", wire.String(p.Commit)).Set("repository", wire.ObjectValue(repo)).Set("maxBytes", wire.String(strconv.Itoa(maxBytes))).Set("deltaBase", wire.ObjectValue(base)).
@@ -334,7 +374,8 @@ func touchedBy(text string, changed []string) []string {
 
 // packetHistory reads each gate's newest events (at most four pages): the
 // candidate trees that passed review, newest first per gate, and the newest
-// RETURN across gates by receipt sequence.
+// RETURN across gates by receipt sequence. A gate with older events is named
+// in omitted and its next page cursor kept for readOnDemand (ERG-V0-027).
 func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) (map[string]string, error) {
 	passed := map[string]string{}
 	gates := make([]string, 0, len(rec.ExternalReviews))
@@ -349,7 +390,7 @@ func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) 
 		ref := rec.ExternalReviews[gate]
 		var cursor *wire.Digest
 		for page := 0; page < reviewPacketHistoryPages; page++ {
-			pg, err := transaction.ExternalReviewHistory(snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}, store.ExternalReviewBlob(rc.repo), id, gate, cursor, transaction.ExternalReviewHistoryMax)
+			pg, err := transaction.ExternalReviewHistory(snapshot.ExternalReviewRef{Generation: ref.Generation, Revision: ref.Revision, Head: ref.Head}, store.ExternalReviewBlob(rc.repo), id, gate, cursor, reviewPacketHistoryPage)
 			if err != nil {
 				return nil, wire.Errorf(wire.CodeMissingEvidence, "gate packet", "%v", err)
 			}
@@ -365,6 +406,7 @@ func packetHistory(rc *readCtx, id string, rec *ticket.Record, p *reviewPacket) 
 			}
 			if page == reviewPacketHistoryPages-1 {
 				p.Fixed = append(p.Fixed, packetOmission{"history", gate, "events from " + string(*cursor) + " back"})
+				p.History = append(p.History, packetHistoryCursor{gate, string(*cursor)})
 			}
 		}
 	}
@@ -543,6 +585,9 @@ func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.Ha
 		return nil, rc, err
 	}
 	root := p.Repo.Root
+	if note != nil && note.Commit != "" {
+		p.bindCheckpoint(root, note.Commit)
+	}
 	if err := packetBase(root, p, passed, attemptBase); err != nil {
 		return nil, rc, err
 	}
@@ -563,6 +608,24 @@ func collectReviewPacket(env Env, ticketArg, commitArg string, note *dispatch.Ha
 		p.Obligations = touchedObligations(ledger, changed)
 	}
 	return p, rc, nil
+}
+
+// bindCheckpoint resolves the hand-off note's commit in the packet's
+// repository (ERG-V0-026): resolved, the checkpoint's commit binding is
+// OBSERVED with its relation to the reviewed commit; a commit the repository
+// does not hold leaves it NOT_OBSERVED.
+func (p *reviewPacket) bindCheckpoint(root, commit string) {
+	c, err := store.ResolveCommit(root, commit)
+	if err != nil || c == "" {
+		return
+	}
+	p.CheckpointCommit, p.CheckpointRelation = c, CheckpointNotAncestor
+	switch {
+	case c == p.Commit:
+		p.CheckpointRelation = CheckpointAtReviewed
+	case store.IsAncestor(root, c, p.Commit):
+		p.CheckpointRelation = CheckpointAncestor
+	}
 }
 
 // packetBase picks the ERG-V0-017 delta base: the newest ancestor whose tree
