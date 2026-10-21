@@ -1,6 +1,7 @@
 package flowdocs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -758,5 +759,58 @@ func TestFlowDocsCallInventoryDriftIsStale(t *testing.T) {
 	}
 	if clean, s := state("// moved\nfunction first() {\n if (ready) {\n  fetch('/api');\n  render();\n }\n}\n"); clean || s != "stale" {
 		t.Fatalf("added call: clean=%v state=%s", clean, s)
+	}
+}
+
+// TestFlowDocsMemberKeywordCallsAreDrift (AFU-V1-045, V1-0461): the control
+// keyword exclusion applies only to bare names. A member call that spells a
+// keyword (`promise.catch(h)`, `iterator.return(v)`) is a real call, so
+// adding one leaves the flow stale.
+func TestFlowDocsMemberKeywordCallsAreDrift(t *testing.T) {
+	for _, added := range []string{"  promise.catch(handle);\n", "  iterator.return(value);\n", "  promise\n    .catch(handle);\n"} {
+		root, rev := fixture(t, map[string]string{"app/flow.js": "function first() {\n  load();\n}\n"})
+		r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app"})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e := os.WriteFile(filepath.Join(root, "app", "flow.js"), []byte("function first() {\n  load();\n"+added+"}\n"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		git(t, root, "commit", "-qam", "edit")
+		checked, e := CheckRevision(context.Background(), root, r.Files["generation.json"], git(t, root, "rev-parse", "HEAD"), "")
+		if e != nil {
+			t.Fatal(e)
+		}
+		if checked.Clean {
+			t.Fatalf("added member call %q left the flow fresh", added)
+		}
+	}
+}
+
+// TestFlowDocsPredecessorGeneratorManifestIsTypedStale (AFU-V1-045, V1-0461):
+// a manifest that generator version 1 wrote is refused with the typed
+// flowdocs-generator-stale code at its own unchanged revision, by Open,
+// check and generate --previous alike, instead of the generic rederivation
+// mismatch; regenerating with the current generator is clean.
+func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
+	root, rev := fixture(t, map[string]string{"app/flow.js": "function first() {\n  if (ready) {\n    load();\n  }\n}\n"})
+	r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "app"})
+	if e != nil {
+		t.Fatal(e)
+	}
+	current := r.Files["generation.json"]
+	predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"1"`), 1)
+	if bytes.Equal(predecessor, current) {
+		t.Fatal("fixture did not carry the generator version")
+	}
+	var coded *doccorpus.Error
+	if _, e := Open(context.Background(), root, predecessor); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
+		t.Fatalf("Open: %v", e)
+	}
+	if _, e := CheckRevision(context.Background(), root, predecessor, rev, ""); !errors.As(e, &coded) || coded.Code != StaleGeneratorCode {
+		t.Fatalf("CheckRevision: %v", e)
+	}
+	if checked, e := CheckRevision(context.Background(), root, current, rev, ""); e != nil || !checked.Clean {
+		t.Fatalf("regenerated manifest: %v %+v", e, checked)
 	}
 }

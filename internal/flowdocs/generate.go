@@ -15,7 +15,15 @@ import (
 )
 
 const Schema = "corvint-flow-documentation/1"
-const Version = "1"
+
+// Version is the generator version a manifest records. Version 2 (V1-0461)
+// binds each flow's static call inventory and drops bare control keywords
+// from it, so a version 1 manifest can no longer be rederived byte for byte.
+const Version = "2"
+
+// StaleGeneratorCode is the typed refusal of a manifest an older generator
+// wrote: it must be regenerated, not compared (AFU-V1-045).
+const StaleGeneratorCode = "flowdocs-generator-stale"
 const MaxFlows = 256
 const MaxBytes = 64 << 20
 const MaxManifestBytes = 256 << 20
@@ -98,6 +106,14 @@ var controlKeyword = map[string]bool{
 	"case": true, "when": true, "catch": true, "function": true, "return": true, "typeof": true,
 	"await": true, "yield": true, "void": true, "delete": true, "in": true, "of": true, "do": true,
 	"else": true, "and": true, "or": true, "not": true,
+}
+
+// memberAccess reports whether the identifier at start is a property access
+// (`promise.catch(`, `iterator.return(`, `a?.delete(`): such a name is a real
+// call even when it spells a control keyword.
+func memberAccess(code string, start int) bool {
+	before := strings.TrimRight(code[:start], " \t")
+	return strings.HasSuffix(before, ".")
 }
 
 func Generate(ctx context.Context, root string, o Options) (*Result, error) {
@@ -228,9 +244,11 @@ func Generate(ctx context.Context, root string, o Options) (*Result, error) {
 			}
 			if ext != ".html" {
 				for line := d.line - 1; line < d.end; line++ {
-					for _, match := range call.FindAllStringSubmatch(withoutDeclarationName(language, codeLines[line]), -1) {
-						if !controlKeyword[match[1]] {
-							addCall(match[1], line+1)
+					code := withoutDeclarationName(language, codeLines[line])
+					for _, match := range call.FindAllStringSubmatchIndex(code, -1) {
+						name := code[match[2]:match[3]]
+						if !controlKeyword[name] || memberAccess(code, match[2]) {
+							addCall(name, line+1)
 						}
 					}
 				}
@@ -403,6 +421,9 @@ func Open(ctx context.Context, root string, raw []byte) (*Result, error) {
 	var m Manifest
 	if err := json.Unmarshal(raw, &m, json.RejectUnknownMembers(true)); err != nil {
 		return nil, fail("invalid closed generation manifest")
+	}
+	if m.Schema == Schema && m.Version == "1" {
+		return nil, &doccorpus.Error{Code: StaleGeneratorCode, Message: "generation manifest was written by flow-docs generator version 1; regenerate it with docs flows generate (generator version " + Version + ") before check or finalize"}
 	}
 	if m.Schema != Schema || m.Version != Version {
 		return nil, fail("unsupported generator version")

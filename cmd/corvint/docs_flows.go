@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/flowdocs"
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 type docsFlowsOptions struct{ root, mode, revision, scope, output, corpus, previous, providerRevision, providerPath string }
@@ -132,6 +135,12 @@ func runDocsFlows(ctx context.Context, o docsFlowsOptions, stdout, stderr io.Wri
 		}
 	}
 	if err != nil {
+		// A predecessor generator's manifest keeps its typed code on the wire
+		// so callers can regenerate instead of treating it as a crash.
+		var stale *doccorpus.Error
+		if errors.As(err, &stale) && stale.Code == flowdocs.StaleGeneratorCode {
+			err = &gokernel.Error{Code: stale.Code, Message: stale.Message}
+		}
 		emitError(stderr, err)
 		return 2
 	}

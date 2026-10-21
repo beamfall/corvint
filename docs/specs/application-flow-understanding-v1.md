@@ -916,7 +916,12 @@ accepted variation, or a replacement for independent application/browser qualifi
   and appear in retirement delta. A flow binds its declaration and its static call inventory, which
   the flow diagram renders, so an added, removed or changed call is stale (since V1-0461,
   `TestFlowDocsCallInventoryDriftIsStale`); control keywords (`if`, `function`, `return` and similar)
-  are never listed as calls. Optional byte checking compares the original rendered directory,
+  are never listed as bare calls; a member call that spells one (`promise.catch(h)`,
+  `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
+  generator to version 2: a version 1 manifest cannot be rederived byte for byte, so check, finalize
+  and `generate --previous` refuse it with the typed `flowdocs-generator-stale` code even at its own
+  revision; regenerate it once with the current binary
+  (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
   including missing/extra/changed files, without writing anything. Exit 1 means drift; exit 2 refusal.
 - **AFU-V1-046**: Materialization requires a new directory under existing nonsymlink parents and
   exclusively creates confined files. Refuse human-file overwrite, symlinks, malformed paths and
