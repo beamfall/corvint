@@ -49,8 +49,10 @@ it. Document in STA-V0-007 that presence follows the admitted source set.
 - `requires.tools` declares the minimum Corvint version whose CLI surface the package uses.
 - Release notes list package version changes.
 
-Follow-up: a check that fails when a file under `protocol/integrations/<host>/` changes without a
-matching version change in that package's manifest.
+This rule already exists as AHI-020 for host packages. `script/check-host-package-versions.sh`
+(`make host-package-versions-check`) enforces it, but its package list does not include the
+Spec Kit `extension.yml` or the OpenSpec package. Follow-up: add both to that gate and add the
+`requires.tools` minimum. A second checker is not needed.
 
 ## V1-1844: warning and salvage fields on `finished`, or a per-worker `stopped` event
 
