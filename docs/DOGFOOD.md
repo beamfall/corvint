@@ -146,7 +146,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 9. Run `make dogfood-check BASE=$BASE`. Expected: one `dogfood-check: SUMMARY cem=STATE hunks=N
    supported=N unknown=N mechanical=N unknownShare=U/M reasonedUnknown=N ocm=STATE ...
    report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` line, then
-   `dogfood-check: PASS` (`DCW-V0-033`). `unknownShare` is the map's unknown hunks over its material
+   `dogfood-check: PASS` (`DCW-V0-033`). On stderr, each hunk whose stable citation tier is
+   `cited` or `unknown` prints one `dogfood-check: WARN tier-below-anchored path=... hunk=...
+   tier=...` line with the `CEM-V1-081` fix (at most 50, then `more=N`); the warning never fails the
+   check (`DCW-V0-112`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
    (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.
    The detail file holds the full CEM and OCM status JSON; `DOGFOOD_VERBOSE=1` prints that JSON
@@ -873,7 +876,8 @@ The multi-intent aggregate (`OCM-V0-013`) sums every declared scope and refuses 
 bytes, 512 claims or 256 obligations. The refusal names the observed total, the bound and each
 scope's share by its line in `.corvint/change.ocm-intents`, for example
 `too-many-obligations: aggregate OCM obligations exceed the limit: observed 300, bound 256; per scope
-1=230, 2=70` (`OCM-V0-021`); `corvint dogfood finish` keeps the same text in the `detail` member of
+1=230, 2=70; narrow: list fewer intent scopes in the manifest and bind the rest as a separate staged
+change` (`OCM-V0-021`, `OCM-V0-024`: the fixed suffix names the route below); `corvint dogfood finish` keeps the same text in the `detail` member of
 its `dogfood-ocm-status` evidence row (`OCM-V0-022`). To get under the bound (`OCM-V0-023`):
 
 1. Keep the owning spec, the one whose requirements this change adds or implements. Use the
