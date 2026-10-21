@@ -46,7 +46,8 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 	want := strconv.Itoa(len(matrix))
 	for name, got := range map[string]string{
 		"REUSE_SHARDS":            one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
-		"ci-shard-cost-drift":     one("SHARDS", ci, `(?m)^      SHARDS: "([0-9]+)"$`),
+		"ci-shard-cost-drift":     one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		"ci-tested-tree-record":   one("SHARDS", jobBlock(t, ci, "ci-tested-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
 		"qualification default":   one("qualification", qualification, `(?m)^      shards:\n(?:        .*\n)*?        default: "([0-9]+)"$`),
 		"qualification CI remark": one("qualification", qualification, `CI uses ([0-9]+);`),
 		"ci-test-slices default":  one("ci-test-slices", slices, `fs\.Int\("shards", ([0-9]+),`),
@@ -59,8 +60,9 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 }
 
 // V1-0760 and V1-1360: the reuse step decides for both the main push and the merge-queue
-// entry, names its event to the tool, and merge-queue shards retain the tested-tree record that
-// a main push reuses. Losing any of these silently restores FULL on that path.
+// entry, names its event to the tool, and merge-queue runs keep the tested-tree record (since
+// AFP-V0-170 the record job's log) that a main push reuses. Losing any of these silently
+// restores FULL on that path.
 func TestAFPV0046WorkflowWiresQueueReuse(t *testing.T) {
 	b, err := os.ReadFile("../../.github/workflows/ci.yml")
 	if err != nil {
@@ -73,8 +75,8 @@ func TestAFPV0046WorkflowWiresQueueReuse(t *testing.T) {
 		`--event "$GITHUB_EVENT_NAME"`,
 		`--target "$GITHUB_SHA"`,
 		`list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json`,
-		`elif [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then` + "\n" +
-			`            tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")`,
+		`--jobs "$d/jobs" --logs "$d/logs"`,
+		`if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product-shard.result == 'success'`,
 		`git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main`,
 	} {
 		if n := strings.Count(ci, want); n != 1 {
@@ -424,19 +426,6 @@ func TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs(t *testing.T) {
 func TestAFPV0082PushConcurrencyGroupsByCommit(t *testing.T) {
 	wantLine(t, "ci.yml", readWorkflow(t, "ci.yml"),
 		"  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}")
-}
-
-// stepScript extracts the run script of the step whose id is ID in job block B.
-func stepScript(t *testing.T, b, id string) string {
-	t.Helper()
-	_, rest, ok := strings.Cut(b, "        id: "+id+"\n")
-	if !ok {
-		t.Fatalf("no step with id %s", id)
-	}
-	if next := strings.Index(rest, "      - "); next >= 0 {
-		rest = rest[:next]
-	}
-	return runScript(t, rest)
 }
 
 // AFP-V0-163 (V1-2113): a merge-queue entry decides integrity reuse before the gate and skips

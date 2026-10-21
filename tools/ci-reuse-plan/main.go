@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // ci-reuse-plan implements the repository-specific AFP-V0-024 main-push and AFP-V0-046
 // merge-queue reuse decisions. It reads retained GitHub API responses and never contacts the
-// network or runs a test.
+// network or runs a test. The tested tree is taken only from the log of the reused run's
+// ci-tested-tree-record job (AFP-V0-170), which runs no repository code; artifact names, which
+// any job running repository code can choose, are never read.
 package main
 
 import (
@@ -13,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 const profile = "corvint-ci-reuse/0"
@@ -34,27 +37,39 @@ type run struct {
 	} `json:"repository"`
 }
 
-type artifact struct {
-	Name        string `json:"name"`
-	WorkflowRun struct {
-		ID      int64  `json:"id"`
-		HeadSHA string `json:"head_sha"`
-	} `json:"workflow_run"`
+// job is one entry of a run's latest-attempt jobs listing.
+type job struct {
+	ID         int64  `json:"id"`
+	RunID      int64  `json:"run_id"`
+	Name       string `json:"name"`
+	HeadSHA    string `json:"head_sha"`
+	Status     string `json:"status"`
+	Conclusion string `json:"conclusion"`
 }
+
+// RecordJob names the ci.yml job that, after every go-product shard passed in full, prints the
+// tested tree to its own log (AFP-V0-170).
+const RecordJob = "ci-tested-tree-record"
+
+// recordLine is that job's one record line, behind the runner timestamp a job log adds.
+var recordLine = regexp.MustCompile(`^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:.]+Z )?corvint-ci-tested-tree/1 tree=([0-9a-f]{40}) target=([0-9a-f]{40}) head=([0-9a-f]{40}) shards=([0-9]+)$`)
 
 type decision struct {
-	Profile string   `json:"profile"`
-	Mode    string   `json:"mode"`
-	Reason  string   `json:"reason"`
-	Tree    string   `json:"tree"`
-	Head    string   `json:"head"`
-	Shards  int      `json:"shards"`
-	RunID   *int64   `json:"runId"`
-	Records []string `json:"records"`
+	Profile string `json:"profile"`
+	Mode    string `json:"mode"`
+	Reason  string `json:"reason"`
+	Tree    string `json:"tree"`
+	Head    string `json:"head"`
+	Shards  int    `json:"shards"`
+	RunID   *int64 `json:"runId"`
+	// RecordJobID names the reused run's ci-tested-tree-record job whose log named the tree.
+	RecordJobID *int64   `json:"recordJobId"`
+	Records     []string `json:"records"`
 }
 
-// RecordName is the artifact name one full pull-request or merge-queue shard retains after
-// its complete package set passed on the tested tree.
+// RecordName names one shard of the full pull-request or merge-queue run whose record job
+// vouched for the tested tree. Since AFP-V0-170 it is a decision field only: no artifact of
+// that name is uploaded or read.
 func RecordName(tree string, shard, shards int) string {
 	return fmt.Sprintf("ci-tested-tree-%s-full-%d-of-%d", tree, shard, shards)
 }
@@ -76,10 +91,50 @@ func admits(r run, repository, event, head, target string) bool {
 	return false
 }
 
-// Decide returns REUSE only when one admitted run retained a full-shard record naming tree
-// for every shard; anything else is FULL. head echoes the tested commit's second parent for
-// either event; the reused run is named by runId.
-func Decide(repository, event, tree, head, target string, shards int, runs []run, artifacts func(int64) ([]artifact, bool)) decision {
+// recorded returns the id of r's one latest ci-tested-tree-record job when that job passed on
+// r's head and its log holds exactly one record line naming tree, head and shards, and, for a
+// merge-queue run, r's own commit as the target (AFP-V0-170). Anything else is 0.
+func recorded(r run, tree, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) int64 {
+	listed, ok := jobs(r.ID)
+	if !ok {
+		return 0
+	}
+	var record *job
+	for i := range listed {
+		if listed[i].Name != RecordJob {
+			continue
+		}
+		if record != nil {
+			return 0
+		}
+		record = &listed[i]
+	}
+	if record == nil || record.ID <= 0 || record.RunID != r.ID || record.HeadSHA != r.HeadSHA || record.Status != "completed" || record.Conclusion != "success" {
+		return 0
+	}
+	text, ok := logs(record.ID)
+	if !ok {
+		return 0
+	}
+	var found []string
+	for _, line := range strings.Split(strings.ReplaceAll(string(text), "\r", ""), "\n") {
+		if m := recordLine.FindStringSubmatch(line); m != nil {
+			if found != nil {
+				return 0
+			}
+			found = m
+		}
+	}
+	if found == nil || found[1] != tree || found[3] != head || found[4] != strconv.Itoa(shards) || (r.Event == "merge_group" && found[2] != r.HeadSHA) {
+		return 0
+	}
+	return record.ID
+}
+
+// Decide returns REUSE only when one admitted run's record job vouched for tree over every
+// shard; anything else is FULL. head echoes the tested commit's second parent for either
+// event; the reused run is named by runId and its record job by recordJobId.
+func Decide(repository, event, tree, head, target string, shards int, runs []run, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) decision {
 	d := decision{Profile: profile, Mode: "FULL", Tree: tree, Head: head, Shards: shards, Records: []string{}}
 	admitted := 0
 	for _, r := range runs {
@@ -87,52 +142,47 @@ func Decide(repository, event, tree, head, target string, shards int, runs []run
 			continue
 		}
 		admitted++
-		listed, ok := artifacts(r.ID)
-		if !ok {
+		jobID := recorded(r, tree, head, shards, jobs, logs)
+		if jobID == 0 {
 			continue
-		}
-		have := map[string]bool{}
-		for _, a := range listed {
-			if a.WorkflowRun.ID == r.ID && a.WorkflowRun.HeadSHA == r.HeadSHA {
-				have[a.Name] = true
-			}
 		}
 		records := make([]string, 0, shards)
 		for shard := 0; shard < shards; shard++ {
-			if name := RecordName(tree, shard, shards); have[name] {
-				records = append(records, name)
-			}
+			records = append(records, RecordName(tree, shard, shards))
 		}
-		if len(records) == shards {
-			id := r.ID
-			d.Mode, d.RunID, d.Records = "REUSE", &id, records
-			if r.Event == "merge_group" {
-				d.Reason = "a successful merge-queue run of this commit retained a full record of this exact tree for every shard"
-			} else {
-				d.Reason = "a successful pull-request run retained a full record of this exact tree for every shard"
-			}
-			return d
+		id := r.ID
+		d.Mode, d.RunID, d.RecordJobID, d.Records = "REUSE", &id, &jobID, records
+		if r.Event == "merge_group" {
+			d.Reason = "the record job of a successful merge-queue run of this commit named this exact tree after every shard passed in full"
+		} else {
+			d.Reason = "the record job of a successful pull-request run named this exact tree after every shard passed in full"
 		}
+		return d
 	}
 	if admitted == 0 {
 		d.Reason = "no admitted successful run: a pull-request run of the merged head or, for a push, a merge-queue run of this commit"
 	} else {
-		d.Reason = "no admitted run retained a full record of this exact tree for every shard"
+		d.Reason = "no admitted run's record job named this exact tree for every shard"
 	}
 	return d
 }
 
-func readBounded(path string, v any) bool {
+func readFile(path string) ([]byte, bool) {
 	f, e := os.Open(path)
 	if e != nil {
-		return false
+		return nil, false
 	}
 	defer f.Close()
 	b, e := io.ReadAll(io.LimitReader(f, maxInput+1))
 	if e != nil || len(b) > maxInput {
-		return false
+		return nil, false
 	}
-	return json.Unmarshal(b, v) == nil
+	return b, true
+}
+
+func readBounded(path string, v any) bool {
+	b, ok := readFile(path)
+	return ok && json.Unmarshal(b, v) == nil
 }
 
 // readRuns concatenates the runs of every readable workflow-runs listing in order. An
@@ -170,23 +220,26 @@ func main() {
 	shards := flag.Int("shards", 0, "shard count of the full run")
 	var runsPaths pathList
 	flag.Var(&runsPaths, "runs", "retained workflow-runs API response (repeatable)")
-	artifactsDir := flag.String("artifacts", "", "directory of retained RUN_ID.json run-artifacts API responses")
+	jobsDir := flag.String("jobs", "", "directory of retained RUN_ID.json latest run-jobs API responses")
+	logsDir := flag.String("logs", "", "directory of retained JOB_ID.txt job logs")
 	flag.Parse()
 	if flag.NArg() != 0 || *repository == "" || (*event != "push" && *event != "merge_group") || !oidPattern.MatchString(*tree) ||
-		!oidPattern.MatchString(*head) || !oidPattern.MatchString(*target) || *shards < 1 || *shards > maxShards || len(runsPaths) == 0 || *artifactsDir == "" {
-		fmt.Fprintln(os.Stderr, "usage: ci-reuse-plan --repository OWNER/NAME --event push|merge_group --tree TREE --head COMMIT --target COMMIT --shards N --runs FILE [--runs FILE] --artifacts DIR")
+		!oidPattern.MatchString(*head) || !oidPattern.MatchString(*target) || *shards < 1 || *shards > maxShards || len(runsPaths) == 0 || *jobsDir == "" || *logsDir == "" {
+		fmt.Fprintln(os.Stderr, "usage: ci-reuse-plan --repository OWNER/NAME --event push|merge_group --tree TREE --head COMMIT --target COMMIT --shards N --runs FILE [--runs FILE] --jobs DIR --logs DIR")
 		os.Exit(2)
 	}
 	var d decision
 	if runs, ok := readRuns(runsPaths); !ok {
 		d = decision{Profile: profile, Mode: "FULL", Reason: "workflow runs response unavailable", Tree: *tree, Head: *head, Shards: *shards, Records: []string{}}
 	} else {
-		d = Decide(*repository, *event, *tree, *head, *target, *shards, runs, func(id int64) ([]artifact, bool) {
+		d = Decide(*repository, *event, *tree, *head, *target, *shards, runs, func(id int64) ([]job, bool) {
 			var page struct {
-				Artifacts []artifact `json:"artifacts"`
+				Jobs []job `json:"jobs"`
 			}
-			ok := readBounded(filepath.Join(*artifactsDir, strconv.FormatInt(id, 10)+".json"), &page)
-			return page.Artifacts, ok
+			ok := readBounded(filepath.Join(*jobsDir, strconv.FormatInt(id, 10)+".json"), &page)
+			return page.Jobs, ok
+		}, func(id int64) ([]byte, bool) {
+			return readFile(filepath.Join(*logsDir, strconv.FormatInt(id, 10)+".txt"))
 		})
 	}
 	if e := json.NewEncoder(os.Stdout).Encode(d); e != nil {
