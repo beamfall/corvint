@@ -1001,6 +1001,27 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   so check proves its shape, not that the refusal happened; a deadline message reworded in
   `internal/contextindex` stops matching and reverts to the blocking `exit-2` row.
 
+- `DCW-V0-110`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`
+  fails `unbound-commits` and every listed commit is reachable from the second parent of a merge in
+  `BASE..HEAD`, it MUST print, after that failure's `fix:` line, one more `fix:` line naming the
+  latest such merge and its merged parent as the `BASE` to rerun with when that parent is a
+  mainline commit, and stating that a merged lane branch is not mainline. The verdict is unchanged:
+  the commits stay unbound under that `BASE` and nothing is admitted as mainline. A merged-forward
+  lane uses the mainline commit it merged as `BASE`; checked from it, every lane commit is still in
+  the range. Non-goals: admitting a commit because a ref such as `origin/main` contains it (a local
+  ref is no authority), sealing Tasks policy carries. Failure modes: the line also names a merged
+  lane tip that holds unbound commits; it states the mainline condition and the check command, and
+  a rerun from that tip would leave those commits to no check, which the operator must not do.
+- `DCW-V0-111`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) When a constituent's
+  verifier output carries a stable `code` shaped as a reason code (`[a-z0-9][a-z0-9-]{0,63}`),
+  `batch-check` MUST append ` code=<code>` to the constituent's `CONSTITUENT` line and failure
+  detail, which `dogfood change`'s sealed-CEM refusal also prints. A code, or a stderr-only
+  refusal code reported as the state, that names a cause outside the sealed change MUST print its
+  own `fix:` line once per failure reason after the reason's `fix:` line; `unsupported-object-alternates`
+  names the repack-and-remove or `git clone --no-local` recovery. Non-goals: admitting an
+  unsupported constituent, or a fix line for a code the change itself causes. Failure modes: a
+  verifier that omits the code leaves only `state=`.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -1225,6 +1246,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-073` (accepted under the owner's standing auto-accept (2026-10-11); V1-1786) | `internal/dogfoodflow/batch.go` `deriveMerge`, `batchRecovery`, `finish`; `internal/dogfoodflow/batch_dropped.go` `droppedSide`, `conflictHunks`, `parseConflict`, `restoredBy`, `dispositions`; `TestBatchCheckDCWV0073ReportsEachDroppedHunk` (two-sided conflict in two regions merged with `-X ours`: each hunk listed and failing, a reasoned disposition covers one, a reasonless one does not, a later sealed change restoring the other passes with the tally; fails on the pre-V1-1786 code, which passed with `merges=1`), `TestBatchCheckDCWV0073FirstParentTreeDropsSide` (`-s ours` merge is `UNKNOWN`), `TestBatchCheckDCWV0040NamesUnboundContentAndRecovery` (recovery text) | implemented; semantic correctness of a restoration or disposition NOT_OBSERVED |
 | `DCW-V0-074` (accepted under the owner's standing auto-accept (2026-10-11); V1-1639) | `script/dogfood-build-corvint.sh` `dogfood_corvint_key`, `dogfood_corvint_reuse`, `dogfood_corvint_store`, `dogfood_build_tree_corvint`, `dogfood_build_base_corvint`, called by the four wrappers; `script/dogfood-bin-reuse_test.sh` (stub toolchain: reuse on an unchanged tree, a dirty non-input and a doc-only commit; rebuild on a modified, staged, untracked or ignored input, a modified or committed `VERSION`, a committed input, another Go version, an unavailable key, a tampered record and a missing `go.mod`; the base verifier keyed by the base root tree); `script/dogfood-change_test.sh` and `script/dogfood-cache_test.sh` (every build passes `-trimpath`); V1-1639 before/after wall times of two consecutive `make dogfood-change` runs | implemented; key completeness beyond the module's package directories NOT_OBSERVED |
 | `DCW-V0-075` (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) | `internal/contextindex/git.go` `gitDeadline` (unchanged); `internal/dogfoodflow/flow.go` `impactDeadlineOverrun`, `internal/dogfoodflow/change.go` `prechangeImpact`, `failing`, `reportFailures`, `internal/dogfoodflow/check.go` `checkContextAbstention`; `TestDCWV0075GitDeadlineIsThirtySeconds`, `TestDCWV0075SlowGitOverrunsTheDeadline` (an injected slow Git wrapper overruns a shorter caller deadline with the exact uncoded refusal and `context.DeadlineExceeded` cause); `TestDCWV0075OneOverrunIsRetriedOnce` (impact runs twice, the retry's output is produced); `TestDCWV0075SecondOverrunIsAVisibleNonBlockingAbstention` (exactly two runs, the admitted row, null digest, no artifact, NOTE lines, `exit-2` still blocks, check accepts the retained envelope and fails a drifted one) | implemented; a live overrun under host load NOT_OBSERVED |
+| `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
+| `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 | Requirement | Focused evidence | Status |
@@ -1298,6 +1321,9 @@ Roll back `DCW-V0-048` and `DCW-V0-049` by reverting their change: a uniform pla
 again, a prepared stable chore map keeps no role, `cem status --citation` loses `citationClass`
 and the baseline tool disappears. No committed map carries a role before V1-1276, so nothing
 needs migrating; a later stable map with a role stays valid under `CEM-V1-095`.
+Roll back `DCW-V0-110` and `DCW-V0-111` by reverting their change: `unbound-commits` and refused
+constituents lose the extra `fix:` lines and ` code=` suffixes; verdicts are unchanged, so nothing
+needs migrating.
 Roll back `DCW-V0-075` by reverting its change: a deadline overrun again records the blocking
 `exit-2` row with no retry, and an earlier checker treats a report carrying
 `impact-deadline-exceeded` as incomplete; no artifact or format needs migrating.

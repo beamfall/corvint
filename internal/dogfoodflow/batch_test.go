@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -675,5 +676,102 @@ func TestBatchCheckDCWV0039RefusesScratchInsideRepository(t *testing.T) {
 	}
 	if entries, err := os.ReadDir(inside); err != nil || len(entries) != 0 {
 		t.Fatalf("scratch written inside the repository: %v %v", entries, err)
+	}
+}
+
+// DCW-V0-110 (V1-1463): a lane that merged the mainline forward past an
+// unbound mainline commit still fails unbound-commits against its original
+// BASE, and the failure names the merged mainline commit as the BASE that
+// passes; checked from that BASE every commit of the lane is still checked. A
+// commit made on the lane itself gets no such line.
+func TestBatchCheckDCWV0110NamesTheMergedForwardBase(t *testing.T) {
+	repo := newBatchRepo(t)
+	original := repo.base
+	testGit(t, repo.root, "checkout", "-q", "main")
+	repo.write("b.txt", "b1\nb2\nb3\npolicy\n")
+	carry := repo.commit("chore(tasks): carry policy to main")
+	repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "main")
+	forward := testGit(t, repo.root, "rev-parse", "HEAD")
+	code, stdout, stderr := repo.check()
+	want := "dogfood-batch-check: FAIL unbound-commits count=1\n  " + carry + "\n  fix: bind each listed commit through a sealed change"
+	hint := "  fix: every listed commit came in through merge " + forward + " from its merged parent " + carry +
+		"; if that parent is a mainline commit (git merge-base --is-ancestor " + carry + " origin/main), its commits are the mainline's to check: rerun batch-check with BASE=" + carry
+	if code != 1 || !strings.Contains(stderr, want) || !strings.Contains(stderr, hint) || strings.Contains(stdout, "PASS") {
+		t.Fatalf("original base exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+
+	repo.base = carry
+	code, stdout, stderr = repo.check()
+	if code != 0 || stderr != "" || !strings.Contains(stdout, "dogfood-batch-check: PASS constituents=1 commits=4\n") {
+		t.Fatalf("merged-forward base exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+
+	// The lane's own unbound commit fails from the merged-forward BASE too,
+	// with no merged-parent line: no merge brought it in.
+	repo.write("a.txt", "a1\nA2\na3\nlane fix-up\n")
+	fixup := repo.commit("lane fix-up")
+	code, _, stderr = repo.check()
+	if code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+fixup+"\n") || strings.Contains(stderr, "came in through merge") {
+		t.Fatalf("lane fix-up exit=%d stderr=%s", code, stderr)
+	}
+	repo.base = original
+	code, _, stderr = repo.check()
+	if code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=2\n") || strings.Contains(stderr, "came in through merge") {
+		t.Fatalf("mixed unbound exit=%d stderr=%s", code, stderr)
+	}
+}
+
+// DCW-V0-111 (V1-1927): a constituent the verifier reports unsupported
+// carries the verifier's reason code on its CONSTITUENT and failure lines, and
+// a reason code outside the sealed change, such as an alternates-backed clone,
+// prints its own fix line after the failure's.
+func TestBatchCheckDCWV0111NamesTheVerifierReasonCode(t *testing.T) {
+	repo := newBatchRepo(t)
+	bind, seal := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	repo.batch(seal)
+	fix := "  fix: unsupported-object-alternates: the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared), not a fault of the sealed change"
+	for name, output := range map[string]string{
+		"stdout": `{"mutates":false,"ok":false,"state":"unsupported","tool":"cem-status","stableVerification":{"code":"unsupported-object-alternates","outcome":"UNSUPPORTED","stage":"repository"}}` + "\n",
+		"stderr": "",
+	} {
+		repo.status = 2
+		repo.output = func(string, string) string { return output }
+		verifier := repo.verifier()
+		if name == "stderr" {
+			// The refusal reaches stderr alone: its code becomes the state.
+			verifier.Run = func(_ context.Context, _ string, _ []string, _, stderr io.Writer) int {
+				fmt.Fprint(stderr, `{"code":"unsupported-object-alternates","ok":false}`+"\n")
+				return 2
+			}
+		}
+		var stdout, stderr bytes.Buffer
+		code, err := BatchCheck(context.Background(), BatchCheckOptions{Root: repo.root, Base: repo.base, Verifier: verifier}, &stdout, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantLine, wantDetail := " state=unsupported code=unsupported-object-alternates\n", "  bind="+bind+" state=unsupported code=unsupported-object-alternates\n"
+		if name == "stderr" {
+			wantLine, wantDetail = " state=unsupported-object-alternates\n", "  bind="+bind+" state=unsupported-object-alternates\n"
+		}
+		if code != 1 || !strings.Contains(stdout.String(), "CONSTITUENT bind="+bind) || !strings.Contains(stdout.String(), wantLine) ||
+			!strings.Contains(stderr.String(), "FAIL constituent-cem-policy count=1\n"+wantDetail+"  fix: rebind and reseal") ||
+			!strings.Contains(stderr.String(), fix) || strings.Count(stderr.String(), "  fix: unsupported-object-alternates") != 1 {
+			t.Fatalf("%s exit=%d stdout=%s stderr=%s", name, code, stdout.String(), stderr.String())
+		}
+	}
+
+	// A code with no recovery of its own, or one shaped like anything but a
+	// reason code, adds no fix line, and a malformed code is not repeated.
+	for code, shown := range map[string]bool{"unproven-mechanical": true, "Bad Code\n": false} {
+		encoded, _ := json.Marshal(code)
+		repo.output = func(string, string) string {
+			return `{"ok":false,"state":"rejected","tool":"cem-status","stableVerification":{"code":` + string(encoded) + `,"outcome":"REJECT"}}` + "\n"
+		}
+		repo.status = 1
+		exit, _, stderr := repo.check()
+		if exit != 1 || strings.Contains(stderr, "  fix: "+code) || strings.Contains(stderr, " code=") != shown {
+			t.Fatalf("%q exit=%d stderr=%s", code, exit, stderr)
+		}
 	}
 }

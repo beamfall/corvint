@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,6 +61,17 @@ var batchRecovery = map[string]string{
 	"octopus-merge-unbound":         "merge one branch at a time so each merge tree is derivable from two parents",
 }
 
+// batchCodeRecovery names the recovery of a constituent verifier reason code
+// that lies outside the sealed change, printed after the failure's own fix
+// line (DCW-V0-111).
+var batchCodeRecovery = map[string]string{
+	"unsupported-object-alternates": "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared), not a fault of the sealed change; check in a clone made with git clone --no-local, or run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun batch-check",
+}
+
+// verifierCode is the shape of a reason code the batch check repeats from the
+// verifier's output; anything else is not printed.
+var verifierCode = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,63}$`)
+
 type batch struct {
 	flow
 	options      BatchCheckOptions
@@ -79,6 +91,12 @@ type batch struct {
 	// bound changes that can restore a dropped hunk (DCW-V0-073).
 	bases   map[string]string
 	dropped droppedTally
+	// codeFixes lists, per failure reason, the verifier reason codes with a
+	// recovery of their own (DCW-V0-111).
+	codeFixes map[string][]string
+	// forward is the merge whose merged parent holds every unbound commit,
+	// and that parent (DCW-V0-110).
+	forward [2]string
 }
 
 // BatchCheck verifies a merge batch whose every change is already bound and
@@ -92,7 +110,8 @@ func BatchCheck(ctx context.Context, options BatchCheckOptions, stdout, stderr i
 		flow:    flow{ctx: ctx, prefix: "dogfood-batch-check", root: options.Root, stderr: stderr},
 		options: options, stdout: stdout,
 		constituents: map[string]bool{}, covered: map[string]bool{}, failures: map[string][]string{}, derived: map[string]int{},
-		bases: map[string]string{},
+		bases:     map[string]string{},
+		codeFixes: map[string][]string{},
 	}
 	return boundary(ctx, run.run, run.cleanup)
 }
@@ -260,6 +279,7 @@ type cemStatus struct {
 	// (CEM-V1-017, CEM-V1-148).
 	StableVerification *struct {
 		Outcome        string  `json:"outcome"`
+		Code           string  `json:"code"`
 		Accept         *bool   `json:"accept"`
 		ExpectedBase   *string `json:"expectedBase"`
 		TargetRevision *string `json:"targetRevision"`
@@ -288,6 +308,9 @@ type sealedVerification struct {
 	reasoned  int
 	observed  cemStatus
 	ran       bool
+	// code is the verifier's reason code of a failed constituent, when its
+	// output names one (DCW-V0-111).
+	code string
 }
 
 // verifySealedCEM re-verifies the sealed CEM of one bind commit that target
@@ -356,6 +379,9 @@ func (f *flow) verifySealedCEM(verifier Runner, target, bind string) sealedVerif
 	case !parsed || !result.observed.proves(cem.BaseRevision, bind):
 		result.failure, result.detail = "constituent-unverified", result.detail+" state="+result.observed.State
 	}
+	if stable := result.observed.StableVerification; result.failure != "" && stable != nil && verifierCode.MatchString(stable.Code) {
+		result.code, result.detail = stable.Code, result.detail+" code="+stable.Code
+	}
 	return result
 }
 
@@ -373,10 +399,13 @@ func (b *batch) verifyConstituent(bind string) {
 		return
 	}
 	if result.ran {
-		observed := result.observed
-		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d reasonedUnknown=%d state=%s\n",
+		observed, code := result.observed, ""
+		if result.code != "" {
+			code = " code=" + result.code
+		}
+		b.print("%s: CONSTITUENT bind=%s base=%s hunks=%s supported=%s unknown=%s bootstrapUnknown=%d reasonedUnknown=%d state=%s%s\n",
 			b.prefix, bind, result.base, observedCount(observed.Counts.Total), observedCount(observed.Counts.Supported),
-			observedCount(observed.Counts.Unknown), len(result.bootstrap), result.reasoned, observed.State)
+			observedCount(observed.Counts.Unknown), len(result.bootstrap), result.reasoned, observed.State, code)
 		for _, added := range result.bootstrap {
 			b.print("  bootstrap-unknown %s\n", added)
 		}
@@ -384,6 +413,14 @@ func (b *batch) verifyConstituent(bind string) {
 	}
 	if result.failure != "" {
 		b.failure(result.failure, result.detail)
+		// A verifier refusal in stderr alone leaves its code as the state.
+		code := result.code
+		if code == "" {
+			code = result.observed.State
+		}
+		if batchCodeRecovery[code] != "" && !slices.Contains(b.codeFixes[result.failure], code) {
+			b.codeFixes[result.failure] = append(b.codeFixes[result.failure], code)
+		}
 		return
 	}
 	b.bases[bind] = result.base
@@ -405,9 +442,13 @@ func observedCount(value *int) string {
 // (DCW-V0-050) or a derivable merge.
 func (b *batch) verifyCoverage() {
 	listing := b.gitValue("rev-list", "--topo-order", "--reverse", "--parents", b.base+".."+b.target)
+	var merges [][2]string
 	for _, line := range nonEmpty(strings.Split(listing, "\n")) {
 		fields := strings.Fields(line)
 		commit, parents := fields[0], fields[1:]
+		if len(parents) == 2 {
+			merges = append(merges, [2]string{commit, parents[1]})
+		}
 		switch {
 		case b.covered[commit]:
 		case len(parents) == 0:
@@ -420,6 +461,27 @@ func (b *batch) verifyCoverage() {
 			b.failure("octopus-merge-unbound", commit)
 		default:
 			b.deriveMerge(commit, parents[0], parents[1])
+		}
+	}
+	b.mergedForward(merges)
+}
+
+// mergedForward finds, for a range whose unbound commits a merge brought in
+// from its second parent, the latest such merge (DCW-V0-110): a lane that
+// merged the mainline forward and is checked against its original BASE. It
+// changes no verdict; the commits stay unbound under this BASE, and finish
+// names the merged parent as the BASE that leaves them to the mainline's own
+// check while every commit of the branch is still checked.
+func (b *batch) mergedForward(merges [][2]string) {
+	unbound := b.failures["unbound-commits"]
+	if len(unbound) == 0 {
+		return
+	}
+	for index := len(merges) - 1; index >= 0; index-- {
+		merged := merges[index][1]
+		if b.gitValue(append(append([]string{"rev-list", "--count"}, unbound...), "^"+merged)...) == "0" {
+			b.forward = merges[index]
+			return
 		}
 	}
 }
@@ -566,6 +628,13 @@ func (b *batch) finish(commits, constituents int) int {
 				b.say("  %s\n", detail)
 			}
 			b.say("  fix: %s\n", batchRecovery[reason])
+			for _, code := range b.codeFixes[reason] {
+				b.say("  fix: %s: %s\n", code, batchCodeRecovery[code])
+			}
+			if reason == "unbound-commits" && b.forward[0] != "" {
+				b.say("  fix: every listed commit came in through merge %s from its merged parent %s; if that parent is a mainline commit (git merge-base --is-ancestor %s origin/main), its commits are the mainline's to check: rerun batch-check with BASE=%s, which still checks every commit of this branch; a merged lane branch is not mainline, and its commits need the binding above\n",
+					b.forward[0], b.forward[1], b.forward[1], b.forward[1])
+			}
 		}
 		return 1
 	}

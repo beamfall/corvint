@@ -516,6 +516,15 @@ blob fails `unsealed-cem-at-head`, so a bound but unsealed change is caught befo
 When `BASE` itself tracks an unsealed CEM, the inherited archive above (`DCW-V0-043`) is no
 constituent: a lane that adds it, or a lone commit that renames the shared path to it, is covered,
 and the head may then drop the shared path.
+A lane that merged the mainline forward (`git merge origin/main`) uses the mainline commit it
+merged as `BASE`, which is also its merge base with the mainline. Against its original base, a
+mainline commit with no sealed CEM of its own, such as a Tasks policy carry, fails
+`unbound-commits`, and the failure names the merge and its merged parent as the `BASE` to rerun
+with; every commit of the lane is still checked (`DCW-V0-110`). Mainline commits are the mainline's
+own check; a merged lane branch is not mainline, and its commits still need a binding. A refused
+constituent repeats the verifier's reason code (`state=unsupported
+code=unsupported-object-alternates`), and a code outside the sealed change, such as an
+alternates-backed clone, prints its own `fix:` line (`DCW-V0-111`).
 
 A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
 not reverified (each change's own check already did), the merged changes' interaction is not
