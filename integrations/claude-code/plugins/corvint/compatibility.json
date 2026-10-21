@@ -63,6 +63,7 @@
     "olderHosts": "a host that lacks these events ignores the registration silently; the compact SessionStart context then states that no pin verification ran",
     "degradations": [
       "invalid-compaction-trigger",
+      "compaction-pin-not-emitted",
       "compaction-pin-not-preserved",
       "compaction-pin-revision-unavailable",
       "compaction-pin-verification-unavailable",
