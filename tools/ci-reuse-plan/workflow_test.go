@@ -73,8 +73,8 @@ func TestAFPV0046WorkflowWiresQueueReuse(t *testing.T) {
 		`--event "$GITHUB_EVENT_NAME"`,
 		`--target "$GITHUB_SHA"`,
 		`list "head_sha=$GITHUB_SHA&event=merge_group" queue-runs.json`,
-		`if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then` + "\n" +
-			`              tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")`,
+		`elif [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "$GITHUB_EVENT_NAME" = merge_group ]; then` + "\n" +
+			`            tree=$(git rev-parse --verify -q "$TESTED_MERGE^{tree}")`,
 		`git -C "$src" merge-base --is-ancestor "$base" refs/remotes/origin/main`,
 	} {
 		if n := strings.Count(ci, want); n != 1 {
