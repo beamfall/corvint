@@ -348,10 +348,11 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed map[st
 // every plugin once a dirty path is owned by none, since a path no plugin
 // claims may be an edge any of them could not resolve. A path classified as
 // task state is no such edge, so it involves no plugin (AFP-V0-088). An empty
-// dirty set shows no plugin's absence, so every plugin takes part in it.
+// dirty set changes nothing a frontier could hide an edge from, so no plugin
+// takes part in it (V1-2126).
 func (graph *Graph) participants(reached map[string]Witness, dirty []string, nonSource []NonSource) []string {
 	if len(dirty) == 0 {
-		return graph.languages
+		return nil
 	}
 	involved := make(map[string]bool)
 	for id := range reached {

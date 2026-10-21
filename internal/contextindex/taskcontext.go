@@ -137,6 +137,10 @@ type taskContextCompiler struct {
 	// TCP-V0-035's reorder moves documentation rows among the documentation
 	// positions.
 	lexicalDocumentation []lexicalHit
+	// definedIDs maps each requirement id the task text names to the specs
+	// whose clause line defines it, recorded by the spec-mentioned pass so the
+	// answerability verdict counts a defined id as a specific term (V1-2235).
+	definedIDs map[string][]string
 	// lexicalHead is the code positions the lexical fill placed as
 	// TCP-V0-013's head, ahead of the merged order; a documentation hit they
 	// displaced is omitted by the limit under the head rule, not by the
@@ -2146,6 +2150,12 @@ func (compiler *taskContextCompiler) specMentionedRows(taken []contextRow) []con
 		return nil
 	}
 	definers, capped := compiler.specDefinitions(specs)
+	compiler.definedIDs = map[string][]string{}
+	for _, id := range requirementIDTokens(compiler.task) {
+		for _, owner := range definers[id] {
+			compiler.definedIDs[id] = append(compiler.definedIDs[id], owner.path)
+		}
+	}
 	compiler.relationState[specMentionedRelation] = "examined"
 	if capped {
 		compiler.relationState[specMentionedRelation] = "capped"
@@ -3334,11 +3344,28 @@ func (compiler *taskContextCompiler) specificTerms() []specificTerm {
 	terms := make([]specificTerm, 0, len(names))
 	tracked := compiler.trackedPaths()
 	for _, name := range names {
+		if _, defined := compiler.definedIDs[name]; defined {
+			continue
+		}
 		sources := unionSources(postingSources(&table.Words, name), postingSources(&table.Terms, strings.ToLower(name)))
 		sources = unionSources(sources, pathSources(table, name))
 		if len(sources) < cut {
 			terms = append(terms, specificTerm{term: name, sources: sources, tracked: trackedNaming(tracked, name)})
 		}
+	}
+	// A requirement id the task names is a specific term once a tracked spec
+	// defines it (TCP-V0-009); its sources are the defining specs. An id no
+	// spec defines adds no term, so it can neither invent support nor
+	// withhold a row (V1-2235).
+	for id, owners := range compiler.definedIDs {
+		sources := make([]uint32, 0, len(owners))
+		for _, owner := range owners {
+			if source, ok := table.sourceID(owner); ok {
+				sources = append(sources, uint32(source))
+			}
+		}
+		slices.Sort(sources)
+		terms = append(terms, specificTerm{term: id, sources: slices.Compact(sources), tracked: len(owners)})
 	}
 	sort.Slice(terms, func(left, right int) bool { return terms[left].term < terms[right].term })
 	return terms

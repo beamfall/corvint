@@ -1190,9 +1190,10 @@ func declaresMandatoryCheck(checks []affectedCheck) bool {
 
 // advisoryAffectedChecks proposes the Go packages the plan selected. Any state
 // other than RUNNABLE yields no command and one unknown line naming the state,
-// except an empty selection over a graph with no Go unit, which yields neither.
+// except an empty selection over a graph with no Go unit or over an empty
+// dirty set (V1-2126), which yields neither: there is nothing to run.
 func advisoryAffectedChecks(plan affected.Plan, provider affectedGoProvider) ([]affectedCheck, []string) {
-	if provider.State == providerStateEmpty && provider.noGoUnits {
+	if provider.State == providerStateEmpty && (provider.noGoUnits || len(plan.Dirty) == 0) {
 		return nil, nil
 	}
 	if provider.State != providerStateRunnable {

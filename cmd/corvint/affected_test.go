@@ -147,6 +147,54 @@ func TestAffectedCleanTreeSelectsNothingAndWritesNothing(t *testing.T) {
 	}
 }
 
+// TestAffectedEmptyDiffIsABoundedEmptyPlan_V1_2126: on a clean checkout of the
+// multi-language fixture, with no base and with --base at HEAD, no path
+// changed, so no plugin takes part: the plan is BOUNDED with no unknown and the
+// advice names no Go gap and, with no repository declaration, no mandatory
+// check. A dirty path still reports itself and its plugins' frontiers.
+func TestAffectedEmptyDiffIsABoundedEmptyPlan_V1_2126(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	for _, options := range [][]string{nil, {"--base", head}} {
+		receipt, _, stderr, code := runAffectedCLI(t, root, options...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", options, code, stderr)
+		}
+		plan := receipt["plan"].(map[string]any)
+		if plan["scope"] != "BOUNDED" || len(plan["unknown"].([]any)) != 0 || len(plan["dirty"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
+			t.Fatalf("%v: empty diff plan = scope %v unknown %v dirty %v selected %v, want a BOUNDED empty plan", options, plan["scope"], plan["unknown"], plan["dirty"], plan["selected"])
+		}
+		advice := receipt["advice"].(map[string]any)
+		for _, line := range advice["unknown"].([]any) {
+			if strings.HasPrefix(line.(string), "NO_ADVISORY_GO_COMMAND") || strings.HasPrefix(line.(string), "PLAN_UNKNOWN") {
+				t.Fatalf("%v: advice unknown %q on an empty diff", options, line)
+			}
+		}
+		for _, check := range advice["checks"].([]any) {
+			if kind := check.(map[string]any)["kind"]; kind != "advisory" {
+				t.Fatalf("%v: %v check %v with no repository declaration", options, kind, check)
+			}
+		}
+	}
+	core := filepath.Join(root, "core", "core.go")
+	body, err := os.ReadFile(core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(core, append(body, []byte("\n// edited\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", head)
+	if code != 0 {
+		t.Fatalf("dirty: exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if dirty := plan["dirty"].([]any); len(dirty) != 1 || dirty[0] != "core/core.go" || len(plan["selected"].([]any)) == 0 {
+		t.Fatalf("a dirty worktree over an empty committed diff must report its dirty path: dirty %v selected %v", plan["dirty"], plan["selected"])
+	}
+}
+
 func TestAffectedUnreadableSubtreeFailsClosed(t *testing.T) {
 	t.Parallel()
 	if os.Geteuid() == 0 {
