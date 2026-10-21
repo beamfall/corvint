@@ -7,7 +7,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {EventEmitter} from 'node:events';
 import {decodeQualified,createQualifiedRunner,assertProtectedConsumer,QUALIFIED_FAULTS} from './qualified-runner.mjs';
-import register,{LIFECYCLE_BUDGET_MS} from './extension.mjs';
+import register,{LIFECYCLE_BUDGET_MS,FALLBACK_CLEANUP_MS} from './extension.mjs';
 import {resizeInWorker,RESIZE_DEADLINE_MS} from './resize-worker.mjs';
 
 const sha='a'.repeat(64),profile='corvint-qualified-lifecycle/2';
@@ -123,18 +123,22 @@ function fallback(t,{fault='invalid-qualified-response',elapsed=0,ordinaryResult
  t.after(()=>emit('session_shutdown',{}));
  return {calls,timeouts,notices,prompt:()=>emit('before_agent_start',{prompt:'question',systemPrompt:'BASE'})};
 }
-test('V1-0448 PPI-V0-004 ordinary fallback receives only the remaining lifecycle budget',async t=>{
+test('V1-0448 PPI-V0-004 ordinary fallback receives the remaining budget less its cleanup reserve',async t=>{
  const f=fallback(t,{elapsed:1500});const output=await f.prompt();
- assert.equal(LIFECYCLE_BUDGET_MS,2000);assert.deepEqual(f.timeouts,[500]);assert.equal(f.calls.length,1);
+ // The ordinary runner needs 100 ms to SIGKILL plus a 15 ms exit poll after its abort fires.
+ assert.equal(LIFECYCLE_BUDGET_MS,2000);assert.ok(FALLBACK_CLEANUP_MS>=115);assert.deepEqual(f.timeouts,[2000-FALLBACK_CLEANUP_MS-1500]);assert.equal(f.calls.length,1);
  assert.ok(f.calls[0].signal instanceof AbortSignal);assert.equal(f.calls[0].signal.aborted,false);assert.equal(output.systemPrompt,'BASE\nORDINARY');
 });
-test('V1-0448 PPI-V0-004 an exhausted budget skips the fallback and reports deadline',async t=>{
- const f=fallback(t,{elapsed:2000});const output=await f.prompt();
- assert.equal(f.calls.length,0);assert.equal(f.timeouts.length,0);assert.equal(output,undefined);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
+test('V1-0448 PPI-V0-004 a budget with no room beyond cleanup skips the fallback and reports deadline',async t=>{
+ for(const elapsed of [2000,2000-FALLBACK_CLEANUP_MS])await skipped(t,elapsed);
 });
+async function skipped(t,elapsed){
+ const f=fallback(t,{elapsed});const output=await f.prompt();
+ assert.equal(f.calls.length,0);assert.equal(f.timeouts.length,0);assert.equal(output,undefined);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
+}
 test('V1-0448 PPI-V0-004 a fallback cut off by the budget reports deadline, not aborted',async t=>{
  const f=fallback(t,{elapsed:100,ordinaryResult:(request,budgets)=>{budgets.at(-1).abort();assert.equal(request.signal.aborted,true);return {fault:'aborted'}}});
- assert.equal(await f.prompt(),undefined);assert.deepEqual(f.timeouts,[1900]);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
+ assert.equal(await f.prompt(),undefined);assert.deepEqual(f.timeouts,[2000-FALLBACK_CLEANUP_MS-100]);assert.equal(f.notices.length,1);assert.match(f.notices[0],/unavailable: deadline\./);
 });
 test('V1-0448 PPI-V0-004 unlisted qualified faults fold as qualified-lifecycle-unavailable',async t=>{
  assert.deepEqual([...QUALIFIED_FAULTS].sort(),['invalid-qualified-response','qualified-core-unavailable','qualified-lifecycle-unavailable']);

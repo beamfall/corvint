@@ -111,8 +111,8 @@ one follow-up. Abort/error, trust/session/input drift, malformed replies and rec
 restart a turn. Recursive unresolved state is displayed without triggering a model turn. Missing
 admission uses a separate ordinary FALLBACK request and a visible degradation; malformed qualified
 output is never reinterpreted as authority. The qualified attempt and its ordinary fallback share
-the ordinary adapter's 2000 ms hard limit: the fallback receives only the remaining budget, and an
-exhausted or expired budget reports `deadline`. Only the closed qualified fault set
+the ordinary adapter's 2000 ms hard limit: the fallback receives only the remaining budget less a
+200 ms reserve for its SIGTERM/SIGKILL cleanup, and an exhausted or expired budget reports `deadline`. Only the closed qualified fault set
 (`qualified-lifecycle-unavailable`, `invalid-qualified-response`, `qualified-core-unavailable`) enters
 the fallback's degradations; any other fault is folded as `qualified-lifecycle-unavailable`. The fixed
 image worker resolves null, so upstream omits the image, on any worker error, exit, malformed reply or

@@ -3,8 +3,10 @@ import register from '../pi/extension.js';
 import {QUALIFIED_FAULTS} from './qualified-runner.mjs';
 
 // One lifecycle request, qualified attempt plus ordinary fallback, keeps the
-// ordinary adapter's 2000 ms hard limit (V1-0448).
-export const LIFECYCLE_BUDGET_MS=2000;
+// ordinary adapter's 2000 ms hard limit (V1-0448). The fallback's abort fires
+// FALLBACK_CLEANUP_MS early: on abort the ordinary runner sends SIGTERM, then
+// SIGKILL after 100 ms, and polls every 15 ms for the process group to exit.
+export const LIFECYCLE_BUDGET_MS=2000,FALLBACK_CLEANUP_MS=200;
 const systemClock={now:()=>performance.now(),timeout:ms=>AbortSignal.timeout(ms)};
 
 // The ordinary adapter owns context recovery, tools and cleanup. Protected Stop
@@ -22,7 +24,7 @@ export default function registerProtected(pi,{ordinary,qualified,installed,versi
    if(eligible&&result.fault&&!request.signal?.aborted&&requestEpoch===epoch){
     // An unlisted fault never reaches the host as a degradation code.
     const fault=QUALIFIED_FAULTS.has(result.fault)?result.fault:'qualified-lifecycle-unavailable';
-    const remaining=Math.floor(LIFECYCLE_BUDGET_MS-(clock.now()-started));
+    const remaining=Math.floor(LIFECYCLE_BUDGET_MS-FALLBACK_CLEANUP_MS-(clock.now()-started));
     if(remaining<=0)result={fault:'deadline'};
     else{
      const budget=clock.timeout(remaining);
