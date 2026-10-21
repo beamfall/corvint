@@ -2,15 +2,15 @@
 
 Owner: Russell Lewis
 Date: 2026-10-19
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124)
 Delivery status: experimental
 Authoritative inputs: V1-1587 / GitHub #1030, V1-1589 / GitHub #1032 and V1-1592 / GitHub #1035
-owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339, V1-2108 / GitHub #1340 and V1-2114 / GitHub #1339, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
+owner requests, V1-1698 / GitHub #1082 for shared-constant keys, and V1-1769 / GitHub #1114 owner requests, V1-1783 / GitHub #1123, V1-1784 / GitHub #1124, V1-1824 / GitHub #1140 and V1-1798 / GitHub #1128 and #1130 and V1-1858 / GitHub #1159, V1-1866 / GitHub #1163 and V1-1867 / GitHub #1164 and V1-1884 / GitHub #1168 and V1-1887 / GitHub #1171 and V1-1889 / GitHub #1173, V1-1919 / GitHub #1185, V1-1930 / GitHub #1191, V1-1931 / GitHub #1192, V1-1932 / GitHub #1193, V1-1933 / GitHub #1194, V1-1935 / GitHub #1196 and V1-1934 / GitHub #1195 owner requests, V1-1944, V1-1965 / GitHub #1213, V1-1972 / GitHub #1224, V1-2039 / GitHub #1291, V1-2040 / GitHub #1292, V1-2041 / GitHub #1293, V1-2104 / GitHub #1339, V1-2108 / GitHub #1340, V1-2114 / GitHub #1339 and V1-2124 / GitHub #1366, agent-drafted and accepted under the owner's standing auto-accept (2026-10-11);
 AGENTS.md invariants 1, 2, 4, 7 and 8.
 
 ## Agent digest
 - Claim: Read-only analysis of committed tests selects setup, lints, finds duplicates, flags validity defects, reports teardown dependents and checks source citations.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-1587, V1-1589, V1-1592, V1-1698, V1-1769, V1-1783, V1-1784, V1-1824, V1-1798, V1-1787, V1-1858, V1-1866, V1-1867, V1-1884, V1-1887, V1-1889, V1-1919, V1-1930, V1-1931, V1-1932, V1-1933, V1-1935, V1-1934, V1-1944, V1-1965, V1-1972, V1-2039, V1-2040, V1-2041, V1-2104, V1-2108, V1-2114, V1-2124)/experimental
 - Exists: `internal/testsource`, `internal/testvalidity/source_rules.go`, `internal/contextindex/setup_select.go` and the experimental `corvint tests setup-select`, `corvint tests lint`, `corvint tests duplicates`, `corvint tests validity`, `corvint tests teardown`, `corvint tests citations` and `corvint tests example-join` commands.
 - Blocked on: an MCP tool for setup-select, a preflight lint hookup, showing advisory findings in a run receipt and a preflight surface for the static test-validity rules are not built; real-suite qualification is NOT_RUN.
 - Read next: Requirements; Boundaries and failure modes; Delivery.
@@ -529,6 +529,70 @@ No live qualification on a real suite was run (NOT_RUN). Rollback removes
 `internal/testvalidity/source_rules.go`, `internal/testsource/validity*.go`, their tests and this
 section. `BLOCK-NOT-CALLED` alone rolls back by removing `internal/testsource/validity_rspec_block.go`,
 its test, the helper capture in `validity_rspec.go`, the rule ID and reason, and TSA-V0-053..056. Nothing is persisted, and no existing projection, report or wire contract changes.
+
+### RSpec denial examples without a no-effect assertion (V1-2124)
+
+A request or controller example that asserts only a refusal status (`have_http_status(:forbidden)`,
+`be_unauthorized`, `expect(response.status).to eq 403`) proves the caller saw a refusal, not that
+the refused operation had no effect: a handler that writes, mails or enqueues before it denies
+stays green. GitHub #1366 asks for an advisory reading of that shape.
+
+- `TSA-V0-564`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) An RSpec example whose
+  own body positively asserts a built-in 401/403 refusal status (`have_http_status` with
+  `:forbidden`, `:unauthorized`, `401` or `403`, quoted or not; `be_forbidden`;
+  `be_unauthorized`; or `expect(response.status|code).to eq|eql|be 401|403`), whose body holds no
+  no-effect assertion, and whose observed request is a literal `post`, `put`, `patch` or `delete`
+  call MUST get an `advisory` `RB-DENIAL-WITHOUT-NO-EFFECT` finding located at the refusal
+  assertion and caused by the first mutating call. The observed request is read in the example
+  body, in the bodies of the subject and lets that the example or a group hook calls by name (or
+  `subject` through `is_expected`), and in the before(:each), let! and subject! hooks of the
+  example's group chain. A no-effect assertion is a `change` matcher, an expectation over
+  `.count`, `.size`, `.length`, `.reload`, `exists?`, `find_by`, `where`, `pluck`, `first` or
+  `last`, a negated `have_received`/`receive`/`have_been_made`/`have_requested`, enqueue, mail,
+  broadcast or `exist` matcher, or an `assert_no_*` assertion. A denial whose only observed
+  requests are `get` or `head` MUST NOT be flagged. The finding MUST NOT change any projection
+  axis.
+- `TSA-V0-565`: (standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) A refusal example
+  without a no-effect assertion whose request the reader cannot name MUST abstain with an
+  `advisory` `RB-DENIAL-VERB-UNRESOLVED` finding located at the refusal and caused by the example
+  line: when no literal request call is read on the paths of TSA-V0-564, or when a let or subject
+  on the group chain shadows the request helper name. An example whose refusal matcher is not a
+  built-in one (a positive matcher whose name reads as a refusal, such as `render_forbidden`), or
+  that holds a negated block matcher the reader does not know, MUST abstain with an `advisory`
+  `RB-DENIAL-MATCHER-CUSTOM` finding caused by that matcher, unless its only observed requests are
+  `get` or `head`. Neither finding changes any projection axis.
+
+Non-goals: no reading of a refusal asserted through a shared example, a custom helper method or a
+response body; no Rails routing, so a `post` to an action that does not mutate is still flagged
+(advisory); no Minitest, request-spec framework other than RSpec, or other language; no INVALID
+severity and no ABSTAINED axis, since the shape is a weak test, not a broken one.
+
+Failure modes: a no-effect assertion the reader does not recognise (a project matcher outside a
+negated block expectation, an assertion in a shared example or an `after` hook) leaves a false
+advisory finding, which changes no axis; a request issued through a project helper (`make_request`)
+abstains instead of flagging; a status compared through a variable is not read as a refusal and
+the example is not flagged (a missed advisory, never a wrong axis).
+
+Acceptance evidence: `TestRSpecDenialWithoutNoEffect` in
+`internal/testsource/validity_rspec_denial_test.go` flags the status-only `patch` and the quoted
+`"403"` `post`, keeps the `change`, `reload`, `not_to have_received`, `get`, `head`, non-refusal and
+negated-refusal examples clean, abstains on `render_forbidden` and on `make_request`, and asserts
+that `ApplyExampleSource` keeps an ELIGIBLE hygiene axis ELIGIBLE for each finding;
+`TestRSpecDenialRequestOnChain` flags a request in a before hook and in a named subject the example
+calls, and abstains when `let(:post)` shadows the request helper. Both tests fail when the reading
+is not wired into the example findings.
+
+Rollback: remove `internal/testsource/validity_rspec_denial.go`, its test, the `denialFindings`
+call in `exampleFindings`, the three rule constants in
+`internal/testvalidity/source_rules_rspec.go`, the help-text sentence in `cmd/corvint/tests.go` and
+this section. Nothing is persisted.
+
+#### Traceability (V1-2124)
+
+| Requirement | Code | Evidence | Status |
+|---|---|---|---|
+| TSA-V0-564 | `internal/testsource/validity_rspec_denial.go`, `internal/testsource/validity_rspec_examples.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
+| TSA-V0-565 | `internal/testsource/validity_rspec_denial.go` | `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain` | experimental |
 
 ## Teardown dependents (V1-1884)
 
@@ -1382,7 +1446,7 @@ back to `RSpecExampleSources`. Nothing is persisted.
 
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
-| TSA-V0-084 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_rspec_block.go` | `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecBlockNeverYieldedSameFile`, `TestRSpecHelperForms` | experimental |
+| TSA-V0-084 | `internal/testsource/validity_rspec_vacuous.go`, `internal/testsource/validity_rspec_block.go` | `TestRSpecBlockNeverYieldedAcrossFiles`, `TestRSpecBlockNeverYieldedSameFile`, `TestRSpecHelperForms`, `TestRSpecIssue1358NonYieldingHelper` (V1-2125 / GitHub #1358) | experimental |
 | TSA-V0-085 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecChangeOnIdentity` | experimental |
 | TSA-V0-086 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecAssignmentInPredicate` | experimental |
 | TSA-V0-087 | `internal/testsource/validity_rspec_vacuous.go` | `TestRSpecRaiseErrorOnlyIsAdvisory` | experimental |

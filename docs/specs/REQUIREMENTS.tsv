@@ -114,6 +114,7 @@ AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decisio
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
+AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
 AHI-070	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2062) The gene	standing	2026-10-11; V1-2062
 AHI-033	docs/specs/agent-harness-integration-v0.md	The owner-approved first OpenCode UI slice (2026-09-28, “looks good. build it”	unrecorded	-
 AHI-034	docs/specs/agent-harness-integration-v0.md	The owner-approved change cockpit (2026-09-28, “do it” after the change	unrecorded	-
@@ -1548,6 +1549,9 @@ TCD-V0-007	docs/specs/corvint-tasks-closeout-debt-v0.md	The result has one item 
 TCD-V0-008	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb is a pure read (product invariant 4). It takes no lock, and it never	unrecorded	-
 TCD-V0-009	docs/specs/corvint-tasks-closeout-debt-v0.md	The exit status is 0 for an OK result with no candidates, 1 for an OK result wit	unrecorded	-
 TCD-V0-010	docs/specs/corvint-tasks-closeout-debt-v0.md	`docs/DOGFOOD.md` tells operators to run the verb after merges and to finish eac	unrecorded	-
+TCD-V0-151	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` of a gate declared `reusable: true` with no qualifying same-tree re	unrecorded	-
+TCD-V0-152	docs/specs/corvint-tasks-closeout-debt-v0.md	The model refuses a reused result at a tree other than the candidate with `BLOCK	unrecorded	-
+TCD-V0-153	docs/specs/corvint-tasks-closeout-debt-v0.md	The receipt audit (`GateReuseReceiptAudit`, `CAL-V0-243`) verifies each recorded	unrecorded	-
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
@@ -3049,6 +3053,15 @@ LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decisi
 LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) When the selected	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140
 LPCV-V0-214	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a	standing	2026-10-11; V1-1474
+LPCV-V0-254	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191)	standing	2026-10-11; V1-2191
+LPCV-V0-255	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The	standing	2026-10-11; V1-2191
+LPCV-V0-256	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The rece	standing	2026-10-11; V1-2191
+LPCV-V0-257	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The prof	standing	2026-10-11; V1-2191
+LPCV-V0-258	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A bun	standing	2026-10-11; V1-2191
+LPCV-V0-259	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A suite	standing	2026-10-11; V1-2191
+LPCV-V0-260	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) The JUni	standing	2026-10-11; V1-2191
+LPCV-V0-261	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) A bun	standing	2026-10-11; V1-2191
+LPCV-V0-262	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2191) Admittin	standing	2026-10-11; V1-2191
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -4614,6 +4627,8 @@ TSA-V0-053	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-054	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) Rule `BLOCK-NOT-CALLE	standing	2026-10-11; V1-1824; #1140
 TSA-V0-055	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140) `BLOCK-NOT-CALLED` MU	standing	2026-10-11; V1-1824; #1140
 TSA-V0-056	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1824 / GitHub #1140)	standing	2026-10-11; V1-1824; #1140
+TSA-V0-564	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) An RSpec example whos	standing	2026-10-11; V1-2124; #1366
+TSA-V0-565	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-2124 / GitHub #1366) A refusal example	standing	2026-10-11; V1-2124; #1366
 TSA-V0-110	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) `corvint tests teardo	standing	2026-10-11; V1-1884; #1168
 TSA-V0-111	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The declaration MUST	standing	2026-10-11; V1-1884; #1168
 TSA-V0-112	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1884 / GitHub #1168) The reading MUST plac	standing	2026-10-11; V1-1884; #1168

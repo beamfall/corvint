@@ -177,6 +177,7 @@ func (r *rspecReader) exampleFindings(test string, e rspecExample) []testvalidit
 		out = append(out, finding(testvalidity.RuleDescribedClassStubbed, testvalidity.SeverityAdvisory, location, cause,
 			"described_class is stubbed, so an expectation can observe the stub instead of the unit under test"))
 	}
+	out = append(out, r.denialFindings(test, e)...)
 	return append(out, r.vacuousFindings(test, e)...)
 }
 

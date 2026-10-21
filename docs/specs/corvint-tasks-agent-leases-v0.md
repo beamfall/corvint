@@ -6573,6 +6573,11 @@ a gate result's `reusedFrom` digest; until now every `gate run` executed and wro
 reusable; every other part of CAL-V0-016 (refusal unless the worktree is clean at the candidate
 tree, the receipt kind, a holder never reporting a pass) is unchanged.
 
+Amendment (V1-2193): `TCD-V0-151..153` in `corvint-tasks-closeout-debt-v0.md` widen CAL-V0-240's
+same-tree condition. With no same-tree result, a result whose commit on the protected intent branch
+descends from a commit carrying the candidate tree also qualifies. The model refusals and the
+receipt-audit ancestry check are defined there. No CAL ID is added.
+
 - `CAL-V0-240`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the
   policy declares a COMMAND gate `reusable: true` and the store holds a result that qualifies under
   CAL-V0-241, `gate run` MUST NOT execute the gate. It records, in the CAL-V0-016 `GATE_RESULT`
