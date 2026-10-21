@@ -2348,6 +2348,7 @@ ERI-V0-004	docs/specs/expanded-range-impact-v0.md	Without the new option, the ex
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	The experimental compiler MUST retain one immutable clean base/head snapshot and	unrecorded	-
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	The prototype repository coordinator MUST select the experimental profile by an	unrecorded	-
 ERI-V0-060	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) Both	standing	2026-10-21; V1-1881; 2026-10-11
+ERI-V0-261	docs/specs/expanded-range-impact-v0.md	(accepted 2026-10-21, V1-1881, standing lane auto-accept of 2026-10-11) `impact	standing	2026-10-21; V1-1881; 2026-10-11
 ESV-V0-001	docs/specs/experimental-source-views-v0.md	Bind the bounded canonical packet and exact caller selector to object format,	unrecorded	-
 ESV-V0-002	docs/specs/experimental-source-views-v0.md	Return one exact contiguous immutable source range as JSON `text` whose UTF-8	unrecorded	-
 ESV-V0-003	docs/specs/experimental-source-views-v0.md	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git	unrecorded	-
