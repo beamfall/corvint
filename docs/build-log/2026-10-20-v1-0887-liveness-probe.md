@@ -3,7 +3,7 @@
 Date: 2026-10-20. Ticket: V1-0887 (P1, GitHub issue 642). Base:
 `2b0cfce94ae2cea248c3ccab4b301af99af572d6`. Spec: `docs/specs/corvint-tasks-agent-leases-v0.md`
 (`CAL-V0-224` amended in place, `CAL-V0-232` text updated; no new requirement ID, because the
-leases spec is at its obligation bound). Authority: decision 0547 row V1-0887 (owner-delegated):
+leases spec is at its obligation bound). Authority: decision 0548 row V1-0887 (owner-delegated):
 amend the `CAL-V0-224` non-goal to allow a next-name probe plus checkpoint-decode reuse; target
 50 ms or less, flat from 3,000 to 13,000 receipts; if missed, record the shortfall and the
 sharded-layout escalation instead of claiming it; lease, generation fencing and refusal semantics
@@ -22,7 +22,7 @@ from 3,000 to 13,000 receipts, but it is about 170 ms, not 50 ms.
   checkpoint's receipt and the tail by name and declines when the name after head exists.
 - `store.observeWriter` takes a `liveness` flag; `leaseWriter` passes
   `transaction.LivenessLease(request)`, `mutateWriter` passes false. Resume audits are unchanged.
-- Checkpoint-decode reuse, also allowed by decision 0547, is not implemented: `readCheckpoint`
+- Checkpoint-decode reuse, also allowed by decision 0548, is not implemented: `readCheckpoint`
   measured 1.1 ms at both sizes below.
 
 Failure mode accepted with the probe (recorded in `CAL-V0-224`): a missing history name or a stray,
@@ -72,7 +72,11 @@ intent reads, 20% in the `CAL-V0-189` intent `TreeDigest`, about 6.6% in the rec
 The 50 ms target is missed by about 120 ms. What remains is proportional to tickets, not receipts:
 the intent tree read in the first capture and digested again before effects (`CAL-V0-189`),
 capacity measurement, the transaction model, and about 30 ms of commit and fsync. A sharded
-`receipts/` layout, the escalation decision 0547 names, removes only receipt-proportional work,
+`receipts/` layout, the escalation decision 0548 names, removes only receipt-proportional work,
 which the probe already removed for liveness writes, so it would not reach 50 ms either. Reaching
 it needs the ticket-proportional reads reduced (V1-0915) or liveness records outside the audited
 journal, which V1-0887 excludes without a further decision.
+
+Update (2026-10-20): the owner ruled the miss not acceptable for 1.0. Decision 0549 sets the
+design that reaches the target, and `docs/build-log/2026-10-20-tasks-perf-spike-and-probe-fixes.md`
+records the profile and the probe tightening after the Codex review.

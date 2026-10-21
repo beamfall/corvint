@@ -147,7 +147,7 @@ one.
 | V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
-| V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder, 3 and 5 deferred past 1.0 |
+| V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
 
 CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
 by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
@@ -3526,7 +3526,8 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     without a checkpoint.
   - Removal. Removing the file forces the next write through the complete audit. `receipt audit
     --help` names both checkpoint files and says so.
-- `CAL-V0-116`: (accepted by decision 0439) Writer audit and fast route.
+- `CAL-V0-116`: (accepted by decision 0439; amended 2026-10-20 by decision 0549 for the `CAL-V0-224`
+  liveness probe) Writer audit and fast route.
   - Scope. These writers MAY resume their audit at the writer checkpoint:
     - `store.Mutate`, for every operation except REOPEN and the review operations, which read
       attempt history;
@@ -3537,7 +3538,13 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - The writer audit MUST:
     - rebind the checkpoint's queue ID, primary worktree, init digest and generation, and its named
       receipt's sequence, generation and digest, as CAL-V0-061 does;
-    - require the receipt names on disk to be exactly 1..head;
+    - require the receipt names on disk to be exactly 1..head. Exception (decision 0549): a
+      HEARTBEAT or RENEW over a quiescent `receipts/` on a platform with a change time takes the
+      `CAL-V0-224` liveness probe instead. It binds the directory stamps, reads the tail by name
+      and declines when the name after head exists, so a missing history name or a stray name
+      it does not read is left to the next listing writer audit or the `CAL-V0-117`/`CAL-V0-265`
+      refresh, whose prefix walk retains nothing while a stray, staged name or stage digest
+      is present;
     - walk every receipt after the checkpoint with the complete audit's per-receipt validators;
     - refuse a tail request path that the checkpoint already holds;
     - decline when the caller's own request ID is retained anywhere or its request file exists
@@ -3580,7 +3587,8 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     lock timeout and an error from the commit itself are returned as the complete route returns
     them.
   - Parity. Served writes commit the same bytes and report the same outcome as the complete route on
-    the same store.
+    the same store, except that a liveness write under the `CAL-V0-224` probe can commit on a store
+    whose unobserved receipt names the complete route refuses as `MALFORMED` (decision 0549).
   - Unreachable case. CAL-V0-012's writer-behind-newer-head case cannot occur on this route, because
     the route samples the clock under the lock.
   - Accepted guarantee change (decision 0439). A fast writer does not re-read receipts 1..Seq, their request
@@ -3592,7 +3600,8 @@ subsection of S20. That subsection governs nothing and differs from this one: it
     - non-cooperating edits of private state between audits.
 
     `receipt audit`, the complete route and the `CAL-V0-117` refresh still refuse all of them.
-    File stat stamps (device, inode, size, modification time) are not adopted as evidence.
+    File stat stamps (device, inode, size, modification time) are not adopted as evidence, except
+    the `receipts/` directory stamps that the `CAL-V0-224` liveness probe binds (decision 0549).
 - `CAL-V0-117`: (accepted by decision 0439) Counts, advance and scheduled refresh.
   - Counts. Every complete audit re-derives the checkpoint counts from receipt 1. A summarized
     inventory's archive cost and limits MUST equal those of the complete inventory it replaces. When
@@ -6148,10 +6157,12 @@ each of its two captures. The tail receipts it reads, and its model, bind and co
 grow with receipts; model and commit are proportional to tickets. The receipt chain, generation
 fencing and refusals stay in the audited journal; no liveness record moves out of it.
 
-- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887); amended 2026-10-20 by decision 0547 row V1-0887, owner-delegated, for the liveness probe)
+- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887); amended 2026-10-20 by decision 0548 row V1-0887, owner-delegated, for the liveness probe; amended
+  2026-10-20 by decision 0549 for its quiescence condition and listing rule)
   Characterization and regression guard for liveness write work. A settled `CAL-V0-116` writer
   audit with a tail of k receipts MUST read exactly k + 1 receipt files (the checkpoint's receipt
-  and the tail), whatever the history. Its first capture MUST list `receipts/` exactly. Its second
+  and the tail), whatever the history. Its first capture MUST list `receipts/` exactly, except
+  under the liveness probe below (decision 0549). Its second
   capture, which only confirms that nothing moved during the walk, MAY reuse the first capture's
   listing when that listing was quiescent and the directory is unchanged, and MUST list exactly
   otherwise, so a receipt or temporary name that appears or leaves during the walk moves the attempt
@@ -6172,8 +6183,12 @@ fencing and refusals stay in the audited journal; no liveness record moves out o
     name after a quiescent listing lands in a later change time, which `utimes` cannot restore and
     the second capture sees, and the inventory digest already binds the directory stamp, so such an
     attempt moves (`SNAPSHOT_MOVED`) and its retry lists the fresh directory exactly.
-  - Liveness probe (2026-10-20): a HEARTBEAT or RENEW (`transaction.LivenessLease`) on a platform
-    with a change time MUST NOT list `receipts/` in either capture. Each capture takes the
+  - Liveness probe (2026-10-20; quiescence condition by decision 0549): a HEARTBEAT or RENEW
+    (`transaction.LivenessLease`) on a platform with a change time MUST NOT list `receipts/` in
+    either capture when the directory was quiescent (as defined above) at the first capture's
+    stat; when it was not, both captures MUST list exactly. A rename after that stat, even within
+    one timestamp tick and at the same size, therefore lands in a strictly later change time.
+    Each probing capture takes the
     directory's no-follow metadata instead, the second capture MUST move the attempt unless it is
     the same file with the same mode, size, modification time and change time as the first, and
     the walk MUST read the checkpoint's receipt and the tail by name (k + 1 reads) and MUST decline
@@ -6185,25 +6200,34 @@ fencing and refusals stay in the audited journal; no liveness record moves out o
     `MALFORMED`. It is
     found by the next listing writer audit (any other verb), which declines to the refusing
     complete route, or by the `CAL-V0-117` scheduled complete audit at most 512 receipts later,
-    whose refusal removes the checkpoint so the next write refuses. Lease,
+    whose refusal removes the checkpoint so the next write refuses. The `CAL-V0-265` prefix walk
+    that serves that refresh on a moving journal MUST retain nothing while a stray, staged name or
+    stage digest is present, so it never advances `FullSeq` over such a name (decision 0549).
+    Decision 0549 R7 retires the probe and this failure mode with the segmented journal. Lease,
     generation fencing and refusal semantics of the liveness verbs are otherwise unchanged:
     the probe changes only which names the audit observes.
-  - Checkpoint-decode reuse is allowed by the same decision and not implemented: reading and
+  - Checkpoint-decode reuse is allowed by decision 0548 and not implemented: reading and
     decoding the writer checkpoint measured 1.1 ms at both 3,000 and 13,000 receipts (880 tickets),
     flat and about 1% of a heartbeat, so reuse would not move the target.
   A maintained test MUST show the read count and the listing counts (two for a fresh directory,
   two for a modification time restored under a fresh change time, one for a quiescent one) at two
-  history sizes by counting reads and listings, never durations.
+  history sizes by counting reads and listings, never durations. Maintained tests MUST also show
+  that a liveness write lists on a directory that is not quiescent, that a rename after a probing
+  first capture with a restored modification time moves the attempt, that a refresh under appends
+  never advances over a stray staged name or a missing history name, and that a CLAIM over a
+  broken history refuses and leaves the journal unchanged.
   The remaining listing is the history-proportional part of every other fast write; it is kept
   because `CAL-V0-116` requires the names on disk to be exactly 1..head and a crash-left temporary
   name to decline the fast route.
 
-Residual (not met): a heartbeat or renew is not yet milliseconds. Its receipt work is flat by
+Residual (not met; 1.0 work per decision 0549): a heartbeat or renew is not yet milliseconds. Its receipt work is flat by
 construction since the 2026-10-20 liveness probe (no listing, k + 1 reads), and wall time measured
-flat within host-load noise, about 170 ms at 3,000 and 13,000 receipts (decision 0547 target 50 ms,
+flat within host-load noise, about 170 ms at 3,000 and 13,000 receipts (decision 0548 target 50 ms,
 missed). The listing the probe removed cost about 2 µs per name under host load about 50; what
-remains is proportional to tickets, not receipts, so a sharded `receipts/` layout (the escalation
-decision 0547 names) would not reach the target either; see
+remains is proportional to tickets, not receipts (about 105 µs per ticket), so a sharded
+`receipts/` layout alone would not reach the target either. Decision 0549 sets the 1.0 design: a
+liveness route without intent reads, incremental capacity, a bounded checkpoint and a segmented
+journal; see
 `docs/build-log/2026-10-20-v1-0887-liveness-probe.md`. Non-liveness writes keep the listing. The reads that stay proportional to tickets
 (the intent tree read in the first capture and digested again before effects per `CAL-V0-189`,
 capacity measurement, the authority session's per-operation check and the checkpoint's embedded
@@ -6810,7 +6834,8 @@ sections, not by journal size, with unchanged receipts, audit verdicts and order
   with its projection at its own head, so the checkpoint is bound exactly as a complete audit's
   is; steps 1, 3, 4 and 5 and the invalidation token are unchanged.
 
-Non-goals (issue 967 proposals not delivered here): a single-owner background refresh in place of
+Non-goals (issue 967 proposals not delivered here; proposals 2 remainder and 3 are 1.0 work per
+decision 0549, which replaces the background refresh with segment sealing): a single-owner background refresh in place of
 the refresh in each caller past the interval, and removing the `WriterFullBound` (4,096) cliff
 (proposal 2, remainder); bounded per-write payload and generation history, segment sealing and
 offline full verification (proposal 3); `--lock-wait` on `reap`, the current gate holder in status
@@ -6866,26 +6891,26 @@ remainder of GitHub issue 967 after V1-1494.
    352/1,962 and 407/3,547 ms in the V1-1494 run. Residual, not met: p99 stays just above 1 s, and
    its cause is gate wait (heartbeat and renew gate-wait p99 1,051 and 1,041 ms; their own gate
    hold p99 156 and 111 ms) behind a widen or reap commit that holds the gate for about 1 s
-   (gate-hold p99 991 and 937 ms), which is ticket- and history-proportional locked commit work,
-   not a complete audit. No liveness admission class is added (proposal 4 stays as V1-1494 left it).
+   (gate-hold p99 991 and 937 ms), which is history-proportional locked work, not a complete audit:
+   in a resumed round `RecheckResume` runs under the writer lock and stats every base receipt and
+   request file (an attribution from the code and the round numbers, not timed separately;
+   decision 0549). No liveness admission class is added (proposal 4 stays as V1-1494 left it).
 2. Widen, reap and pool verbs under sustained appends. The `PSR-V0-052` resumed write already
    serves every lease verb; V1-1512 adds the missing maintained coverage. In the run above no call
    failed (no `SNAPSHOT_MOVED`, no `LOCK_TIMEOUT`; 4 widens and 2 reaps) where V1-1494 recorded 8 of
    9 widen and reap calls ending `SNAPSHOT_MOVED`. A widen or reap still costs 24 to 52 s wall at
-   40,000 receipts, almost all of it the complete audit before the gate. `CAL-V0-116`
+   40,000 receipts, almost all of it the complete audit before the gate. `PSR-V0-053`
    rewritten-prefix detection on the resumed route stays covered by
    `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection` and
    `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection`.
 3. Remaining issue 967 proposals, dispositioned:
    - Proposal 2 remainder (a single-owner background refresh; removing the `WriterFullBound`
-     4,096 cliff): deferred past 1.0. A background owner is a permanent process, which the local
-     product boundary excludes, and `CAL-V0-265` already keeps the per-caller refresh from
-     abandoning on a moving journal; the cliff is reached only when no refresh succeeds for 4,096
-     receipts, which then falls back to the complete route rather than failing.
+     4,096 cliff): 1.0, per decision 0549 (R9, R10). The cliff is removed without a background
+     owner, which invariant 7 excludes: segment sealing in the writer that crosses each 512-receipt
+     boundary replaces the per-caller refresh.
    - Proposal 3 (bounded per-write payload and generation history, segment sealing, offline full
-     verification): deferred past 1.0 as a journal format change; it is the sharded or segmented
-     layout escalation that decision 0547 names for V1-0887, and it needs its own decision, format
-     gate and migration.
+     verification): 1.0, per decision 0549 (R4 to R8, R12, R13), with its format gate, migration
+     (`journal seal`/`unseal`) and rollback.
    - Proposal 5 (`--lock-wait` on `reap`, the current gate holder in status or doctor, `--timing`
      for every lease verb): deferred past 1.0 as operator ergonomics; the load harness reports
      gate wait and hold per verb, and no call in the run above timed out.

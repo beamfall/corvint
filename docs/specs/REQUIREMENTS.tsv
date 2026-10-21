@@ -1234,7 +1234,7 @@ CAL-V0-114	docs/specs/corvint-tasks-agent-leases-v0.md	When the journal audit (c
 CAL-V0-120	docs/specs/corvint-tasks-agent-leases-v0.md	A policy MAY carry the optional top-level key `holderLiveness`, a closed object	unrecorded	-
 CAL-V0-121	docs/specs/corvint-tasks-agent-leases-v0.md	`STALE_HOLDER` is advisory input, not release authority. `release --help` MUST s	unrecorded	-
 CAL-V0-115	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer checkpoint file. The writer checkpoint is der	owner	decision 0439
-CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer audit and fast route.	owner	decision 0439
+CAL-V0-116	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439; amended 2026-10-20 by decision 0549 for the `CAL-V0-	owner	decision 0439; 2026-10-20; decision 0549
 CAL-V0-117	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Counts, advance and scheduled refresh.	owner	decision 0439
 CAL-V0-118	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Writer cost measurement. The opt-in profile	owner	decision 0439
 CAL-V0-119	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted by decision 0439) Read checkpoint from a writer audit.	owner	decision 0439
@@ -1336,7 +1336,7 @@ CAL-V0-223	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-260	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,	standing	2026-10-11; V1-1353
 CAL-V0-261	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`	standing	2026-10-11; V1-1353
 CAL-V0-262	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verb	standing	2026-10-11; V1-1353
-CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15; 2026-10-20; decision 0547
+CAL-V0-224	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended	standing	2026-10-11; V1-0887; 2026-10-15; 2026-10-20; decision 0548
 CAL-V0-232	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
 CAL-V0-233	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
 CAL-V0-234	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-	standing	2026-10-11; V1-0887; 2026-10-15
