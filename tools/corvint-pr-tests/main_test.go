@@ -86,7 +86,10 @@ func fixture(t *testing.T) (options, identity) {
 }
 
 func TestToolIdentityRequiresCurrentGoVersion(t *testing.T) {
-	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3"} {
+	// Decision 0547 (V1-2194): exactly the go1.27.2 pin and the go1.27.3
+	// revision are admitted; neighbours on both sides are refused.
+	admitted := map[string]bool{"go1.27.2": true, "go1.27.3": true}
+	for _, version := range []string{"go1.27.1", "go1.27.2", "go1.27.3", "go1.27.4", "go1.28.2"} {
 		t.Run(version, func(t *testing.T) {
 			bin := t.TempDir()
 			script := "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' '" + version + "' ;;\nenv:CC) printf '%s\\n' '/usr/bin/cc' ;;\n*) exit 1 ;;\nesac\n"
@@ -108,7 +111,7 @@ func TestToolIdentityRequiresCurrentGoVersion(t *testing.T) {
 			if id.GoVersion != version {
 				t.Fatalf("observed version=%q, want %q: %v", id.GoVersion, version, err)
 			}
-			if version == "go1.27.2" {
+			if admitted[version] {
 				if err != nil {
 					t.Fatal(err)
 				}
