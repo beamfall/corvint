@@ -133,6 +133,11 @@ or Cucumber scenarios.
   `ruby-constant-lookup-dynamic` unknown and affected's `ruby:rails-autoload` frontier (`UNKNOWN`
   scope). The suite MUST run as an ordinary Go test of `internal/rubyprofile`, so the existing
   go-product CI shards execute it; it MUST NOT need Ruby, Bundler, or RSpec on the host.
+- `RUBY-AFFECTED-V0-041`: In a repository whose root declares a Go module (`go.mod`), a Ruby or
+  `.feature` file with a `testdata` directory component is fixture data by the go tool's convention
+  and MUST NOT become a Ruby unit, mark the host as a Rails layout, or raise a frontier; the Go
+  adapter owns any reader of that tree (V1-1816). Without a root `go.mod` the same file stays a unit,
+  because RSpec's default `spec/**/*_spec.rb` pattern can run a spec under a `testdata` directory.
 
 ### Autoload edge failure modes
 
@@ -238,6 +243,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-012` | helper classification and `supportEdges` in `internal/liveverify/affected/ruby/` | `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012` |
 | `RUBY-AFFECTED-V0-013` | `stockGemGroupLoad` in `internal/liveverify/affected/ruby/ruby.go` | `TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013` |
 | `RUBY-AFFECTED-V0-014` | `conformance/ruby-profile-v0/` fixture and rows; `internal/rubyprofile` suite | `TestRubyProfileImpactRows_RUBYAFFECTEDV0014`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileProviderRows_RUBYAFFECTEDV0014`, `TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-041` | `goModuleRoot`, `withoutTestdata` in `internal/liveverify/affected/ruby/ruby.go` | `TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041` |
 
 ## Unresolved decisions
 
