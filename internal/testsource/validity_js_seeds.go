@@ -129,7 +129,7 @@ type seedHook struct {
 // SeedFindings returns the TSA-V0-241..246 findings of one JS/TS test file under rules.
 func SeedFindings(name, text string, rules SeedRules) []testvalidity.SourceFinding {
 	out := []testvalidity.SourceFinding{}
-	if !IsJSValidityTestFile(name) || ValidityFindings(name, text).Uncertain {
+	if !IsTestFile(name) || ValidityFindings(name, text).Uncertain {
 		return out
 	}
 	r := &jsReader{s: parseSource(name, text), name: name}
