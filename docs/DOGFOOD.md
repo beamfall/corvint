@@ -485,6 +485,15 @@ sealed-cem-in-change` print a `fix:` line naming this path; `intent-scope-drift`
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or
    `corvint dogfood batch-check $BASE`).
 
+Non-composing constituents. Two changes can each build and seal alone and still fail to build once
+merged, for example when one renames a function the other calls. `dogfood-batch-check`,
+`dogfood-check` and `dogfood-finish` then refuse `current-tree-corvint-build-failed`, show the
+compiler tail and print a `fix:` line naming this paragraph; a `base-corvint-build-failed` refusal
+prints a `fix:` line saying that no change can be sealed on a `BASE` that does not build
+(`DCW-V0-332`). Recover as for a conflict in step 2: rebase the later constituent's own work commits
+onto the batch head, fix the build there, bind, check and seal it again with `BASE=<batch head>`,
+then merge it. Do not fix the build in a direct batch commit, which fails `unbound-commits`.
+
 The check is read-only: it writes no object, ref, index, worktree file, trace or ledger, runs no
 repository-configured filter, hook or merge driver (a configuration Core's hardened status cannot
 read safely refuses `worktree-status-unavailable`), and refuses a `TMPDIR` inside the repository. Its

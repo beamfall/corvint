@@ -135,9 +135,9 @@ for action in change check; do
   rg -q "^dogfood-$action: REFUSE corvint-bin-unresolved$" "$root/output" || exit 1
 done
 unset CORVINT_BIN
-for action in change check; do
+for action in change check batch-check; do
   for source in tree-source base-source; do
-    [[ $action != change || $source != base-source ]] || continue
+    [[ $action == check || $source != base-source ]] || continue
     : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
     status=0
     TEST_FAIL_SOURCE=$source bash "script/dogfood-$action.sh" "$base" > "$root/output" 2>&1 || status=$?
@@ -145,6 +145,10 @@ for action in change check; do
     reason=current-tree-corvint-build-failed
     [[ $source != base-source ]] || reason=base-corvint-build-failed
     rg -q "^dogfood-$action: REFUSE $reason$" "$root/output" || exit 1
+    # DCW-V0-332 (V1-1929): each build-failed refusal names its recovery.
+    fix='Non-composing constituents'
+    [[ $source != base-source ]] || fix='no change can be sealed on it'
+    [[ $(grep -c "^dogfood-$action: fix: .*$fix" "$root/output") == 1 ]] || exit 1
     # V1-1893: the compiler error tail is shown and the full log is kept at the named path.
     rg -q '^cmd/corvint/x.go:1:1: undefined: fakeCompileError$' "$root/output" || exit 1
     build_log=$(sed -n 's/^dogfood: full build log: //p' "$root/output")

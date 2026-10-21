@@ -46,6 +46,7 @@ base_bin="$evidence/corvint-base"
 mkdir -p "$evidence" || exit 2
 if ! dogfood_build_tree_corvint "$tree_bin"; then
   printf 'dogfood-check: REFUSE current-tree-corvint-build-failed\n' >&2
+  dogfood_build_fix dogfood-check tree
   exit 2
 fi
 base_status=0
@@ -55,6 +56,7 @@ if ((base_status == 2)); then
   exit 2
 elif ((base_status != 0)); then
   printf 'dogfood-check: REFUSE base-corvint-build-failed\n' >&2
+  dogfood_build_fix dogfood-check base
   exit 2
 fi
 cd "$repo" || exit 2

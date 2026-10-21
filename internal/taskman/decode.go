@@ -15,6 +15,13 @@ import (
 // imported from the in-tree Tasks wire package (decision 0397).
 var nativeCodes = strings.Join(taskswire.Codes, " ")
 
+// maxTickets bounds the tickets one capture admits and the entries and
+// blockers one decoded plan carries (NTP-V0-246). It covers the Tasks
+// per-queue bound (10,000) with headroom; the byte caps on each executor
+// response and the 32 MiB ticket aggregate still apply. Above it, capture
+// and decode refuse; nothing is truncated.
+const maxTickets = 16384
+
 var ticketKeys = strings.Join(taskswire.TicketRecordKeys, " ")
 
 func oneOf(s, allowed string) bool {
@@ -493,7 +500,7 @@ func decodePlan(v wire.Value) (Plan, error) {
 			return p, e
 		}
 	}
-	entries, e := array(value(v, "entries"), 1000)
+	entries, e := array(value(v, "entries"), maxTickets)
 	if e != nil {
 		return p, e
 	}
@@ -524,7 +531,7 @@ func decodePlan(v wire.Value) (Plan, error) {
 				return p, errors.New("history deferral sequence")
 			}
 		}
-		blockers, err := stringsAt(entry, "blockers", 1000)
+		blockers, err := stringsAt(entry, "blockers", maxTickets)
 		if err != nil {
 			return p, err
 		}
