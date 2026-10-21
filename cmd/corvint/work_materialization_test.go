@@ -196,6 +196,10 @@ func TestMain(m *testing.M) {
 		os.Setenv("CORVINT_INDEX_AUTO_REFRESH", "0")
 		os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
 	}
+	// A fixture build on a loaded host can pass the one-second snapshot-miss
+	// notice threshold and add a stderr line that tests asserting empty stderr
+	// reject; TestSnapshotMissNoticeNamesTheBuild sets its own thresholds.
+	snapshotMissNoticeAfter = time.Hour
 	code := m.Run()
 	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root} {
 		if root == "" {
