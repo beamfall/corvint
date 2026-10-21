@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"go/parser"
 	"go/token"
 	"os"
@@ -116,6 +117,10 @@ func TestCoreHasNoDependencyEdge(t *testing.T) {
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
 	output, err := command.Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	for _, banned := range []string{"internal/analyzerrust", "cmd/corvint-analyzer-rust"} {
@@ -136,6 +141,10 @@ func TestCandidateClosureIsSelfContained(t *testing.T) {
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
 	output, err := command.Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	firstParty := []string{}

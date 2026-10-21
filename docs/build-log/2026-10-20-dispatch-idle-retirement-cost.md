@@ -1,19 +1,21 @@
 # V1-0925, V1-0924 and V1-0934: dispatcher idle and retirement cost
 
 Date: 2026-10-20. Base: `a148e3a92b78105cc57542829d95f963244adc45`. Branch
-`claude/feat-dispatch-perf`. Spec: `docs/specs/corvint-tasks-agent-leases-v0.md` CAL-V0-350..352
-and `docs/specs/corvint-tasks-attempt-runner-v0.md` ATR-V0-154, accepted under the owner's standing
-auto-accept of lane requirements (2026-10-11). CAL-V0-320..349 are held by peer branches, so the new
-IDs start at 350.
+`claude/feat-dispatch-perf`. Spec: `docs/specs/corvint-tasks-attempt-runner-v0.md` ATR-V0-180..182
+and ATR-V0-154, accepted under the owner's standing auto-accept of lane requirements (2026-10-11).
+
+Re-homed (owner-approved, 2026-10-17): ATR-V0-180..183 were first numbered CAL-V0-350..353 in the
+agent leases spec; they moved to the attempt runner spec with the same text so the leases spec stays
+within the 256-obligation bound. Test names keep the old numbers.
 
 ## Decisions
 
-- **V1-0925 config read reuse (CAL-V0-350).** The digest is cached by the identity CAL-V0-127
+- **V1-0925 config read reuse (ATR-V0-180).** The digest is cached by the identity CAL-V0-127
   already compares (`sameConfigStat`: same file, size, mode, mtime). Any change, a stat error, a
   clock that went backwards, or a read older than the 15-minute idle safety net reads the bytes
   again (fail closed). That safety net covers a same-size rewrite within the timestamp granularity.
   A refused digest that is reused is not reported again.
-- **V1-0924 deferred pressure sample (CAL-V0-351).** The idle gate no longer excludes a pressure
+- **V1-0924 deferred pressure sample (ATR-V0-181).** The idle gate no longer excludes a pressure
   configuration. Deferral applies only with no worker running and a recorded calm state. Calm is
   the most permissive label, so a roster that never reaches the pressure budget at calm launches
   nothing under any sample. In that case the tick samples nothing, and the ledger bytes stay
@@ -27,7 +29,7 @@ IDs start at 350.
   - its budget uses the pending level when that is higher, because the skipped ticks never
     advanced the dwell. A mutation that drops the pending-level rule launches under a critical
     first sample, and the test catches it.
-- **V1-0934 dispatcher (CAL-V0-352).** The dispatcher keeps an open `workers/` stream between
+- **V1-0934 dispatcher (ATR-V0-182).** The dispatcher keeps an open `workers/` stream between
   passes. It holds each window until its marks settle (at most 4 passes) and carries the retained
   32 into the next window. Window plus carried names stay within 4,096. The first attempt carried
   only the retained names, not the window's earlier carry. A carried directory displaced in a
@@ -59,7 +61,7 @@ do not exist at the base. The wall-clock effect on a live dispatcher was not mea
 - CAL ID collisions: peer branches hold CAL-V0-320..349 without merged specs. A requirement-ID
   reservation file would avoid scanning every remote branch.
 
-## V1-0948 test process hygiene (CAL-V0-353)
+## V1-0948 test process hygiene (ATR-V0-183)
 
 Decision: tests record each launched worker leader through a nil-by-default `launchObserved`
 hook in `launch`, and `testConfig` registers a cleanup that SIGKILLs each recorded process group
@@ -78,20 +80,20 @@ orchestrator.
 
 Seven findings, all fixed in one commit:
 
-1. CAL-V0-353: ownership needs a positive start-identity match. An absent leader or an identity
+1. ATR-V0-183: ownership needs a positive start-identity match. An absent leader or an identity
    read error no longer counts; such a present group is reported as unverified and not signalled,
    in the per-test cleanup and in `TestMain`. The leader-only `SIGKILL` cleanups in the reload and
    dispatch tests, which orphaned `sleep` children, were removed in favour of the group reap.
-2. CAL-V0-351: the post-idle hold stays until the pending transition resolves, not for one sample.
-3. CAL-V0-351: with CPU selected, the first post-gap sample has no interval; it admits no capped
+2. ATR-V0-181: the post-idle hold stays until the pending transition resolves, not for one sample.
+3. ATR-V0-181: with CPU selected, the first post-gap sample has no interval; it admits no capped
    launch and the next tick samples a fresh interval. The old CPU assertion was vacuous (the
    signal was never selected); the new test asserts CPU is selected.
-4. CAL-V0-350: the idle gate's next full tick is due by the config read time plus 15 minutes, and
+4. ATR-V0-180: the idle gate's next full tick is due by the config read time plus 15 minutes, and
    a pending reload check honours the cache age.
 5. to 7. ATR-V0-154: duplicate carried names make the cursor malformed; each writer uses its own
    `CreateTemp` file before the rename; the window and the cursor check share `runWindowName`, so
    a window of 1,024 `.retired-` names advances the cursor instead of resetting it.
 
 Mutation evidence: holding for one gap sample only, with no CPU baseline hold, fails the three
-CAL-V0-351 launch tests. Removing the idle bound alone passes because the pending-check age
+ATR-V0-181 launch tests. Removing the idle bound alone passes because the pending-check age
 covers it; removing both fails `TestCALV0350_IdleSkipEndsWhenTheCachedConfigExpires`.

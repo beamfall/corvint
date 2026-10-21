@@ -23,7 +23,7 @@ var workerLogSegmentBytes int64 = 8 << 20
 // quiet window are kept (CAL-V0-144), and maxWorkerDirScan bounds the
 // directories one retirement pass examines: a window of the workers
 // directory plus the retained directories carried from earlier windows
-// (CAL-V0-352). Tests lower both.
+// (ATR-V0-182). Tests lower both.
 var (
 	maxRetainedWorkerDirs = 32
 	maxWorkerDirScan      = 4096
@@ -125,7 +125,7 @@ func capWorkerLog(dir, name string) bool {
 // per tick, so the two are always in different ticks. Failures are left for
 // the next pass.
 //
-// CAL-V0-352: a pass examines one window of the directory stream, read where
+// ATR-V0-182: a pass examines one window of the directory stream, read where
 // the previous window ended, plus the retained directories carried from
 // earlier windows, maxWorkerDirScan names in all. A window is held until its
 // marks settle (at most maxRetireWindowPasses passes), then the next pass
@@ -323,7 +323,7 @@ func (d *Dispatcher) retireWorkerDirs() {
 }
 
 // retireWindowNames returns the held window, or reads the next one from the
-// workers directory stream (CAL-V0-352): the carried names and at most
+// workers directory stream (ATR-V0-182): the carried names and at most
 // maxWorkerDirScan names less those, in directory order. A short read ends the stream, so the
 // window after it starts over; a stream already at its end is reopened once.
 func (d *Dispatcher) retireWindowNames(root string) ([]string, bool) {
@@ -365,7 +365,7 @@ func (d *Dispatcher) retireWindowNames(root string) ([]string, bool) {
 	}
 }
 
-// closeRetireScan closes the CAL-V0-352 directory stream, if open.
+// closeRetireScan closes the ATR-V0-182 directory stream, if open.
 func (d *Dispatcher) closeRetireScan() {
 	if d.retireScan != nil {
 		_ = d.retireScan.Close()

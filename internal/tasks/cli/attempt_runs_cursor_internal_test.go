@@ -19,7 +19,7 @@ import (
 // TestATRV0154_RetirementSweepsABacklogBeyondOneWindow plants more attempt
 // directories than one pass examines, a quarter of them empty so a window can
 // hold nothing removable. Every pass examines at most maxRunAttemptScan
-// attempts and makes at most one terminal lookup, and within the stated
+// attempts and makes at most two terminal lookups, and within the stated
 // number of passes every ended run of a terminal attempt is retired except
 // the newest maxRetainedEndedRuns of all.
 func TestATRV0154_RetirementSweepsABacklogBeyondOneWindow(t *testing.T) {
@@ -92,7 +92,7 @@ func TestATRV0154_RetirementSweepsABacklogBeyondOneWindow(t *testing.T) {
 		}
 		before := lookups
 		retireEndedRunsIn(root, records)
-		if lookups-before > 1 {
+		if lookups-before > 2 { // the second rechecks the runs it removes (ATR-V0-171)
 			t.Fatalf("pass %d made %d lookups", passes, lookups-before)
 		}
 	}

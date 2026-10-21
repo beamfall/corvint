@@ -240,6 +240,28 @@ func (r *ReceiptRestorer) Next(raw []byte) (*Receipt, []byte, error) {
 	return rc, original, nil
 }
 
+// WholeReceipt decodes raw exactly as Next does when raw is a whole
+// taskman-receipt/0 file, without touching any restorer state, and returns
+// nil with no error for an elided receipt, which only Next can restore. A
+// walk may decode ahead with it and then Accept the receipt in sequence
+// (V1-1701).
+func WholeReceipt(raw []byte) (*Receipt, error) {
+	v, err := parseReceiptFile(raw)
+	if err != nil {
+		return nil, err
+	}
+	if profileOf(v) == ProfileElidedReceipt {
+		return nil, nil
+	}
+	return decodeReceiptValue(v, ProfileReceipt, "")
+}
+
+// Accept folds in a whole receipt that WholeReceipt decoded, in sequence:
+// the state Next would have kept had it decoded the same bytes.
+func (r *ReceiptRestorer) Accept(rc *Receipt) {
+	r.observe(rc)
+}
+
 // Superseded refuses a walk that reached the head with an elided receipt
 // still the latest post of its attempt. CAL-V0-300 elides only superseded
 // receipts, so the head receipt and the latest record of every attempt are

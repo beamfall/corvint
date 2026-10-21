@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -160,6 +161,10 @@ func TestCandidateDependencyClosureHasNoAmbientChannels(t *testing.T) {
 	command.Dir = root
 	output, err := command.Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	for _, forbidden := range []string{"os/exec", "net", "net/http", "plugin", "runtime/cgo"} {

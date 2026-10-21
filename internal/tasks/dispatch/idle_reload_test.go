@@ -167,7 +167,7 @@ func TestCALV0139_ConfigReadPairsItsBytesWithTheirOwnStat(t *testing.T) {
 	}
 }
 
-// CAL-V0-350 (V1-0925): a full tick reuses the digest of the bytes last read
+// ATR-V0-180 (V1-0925): a full tick reuses the digest of the bytes last read
 // while the configuration file's stat is unchanged, so it reads nothing; a
 // changed stat, an already refused file seen again, and the idleFullEvery
 // safety net read it, and a change still applies.
@@ -245,7 +245,7 @@ func TestCALV0350_FullTickReusesAnUnchangedConfigRead(t *testing.T) {
 	tick(5, "a stat error reads the file")
 }
 
-// CAL-V0-350: a cached configuration digest is trusted only within
+// ATR-V0-180: a cached configuration digest is trusted only within
 // idleFullEvery of its read, and the idle skip ends there too. A same-size
 // rewrite that preserves the compared timestamps is invisible to the stat;
 // a full tick at minute 14 still reuses the digest, but the file is read

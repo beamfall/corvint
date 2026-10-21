@@ -56,7 +56,7 @@ func groupPresent(pid int) bool { return syscall.Kill(-pid, 0) == nil }
 
 // reapLaunched stops every worker group recorded at or after index from
 // whose leader is positively matched, with SIGKILL to the group, and waits,
-// bounded, until each is empty (V1-0948, CAL-V0-353). It returns the groups
+// bounded, until each is empty (V1-0948, ATR-V0-183). It returns the groups
 // it killed, those still present after the wait, and the unverified ones:
 // a group still present after the same wait under a recorded pid whose
 // leader no longer matches, which may be a leak or an unrelated group and
@@ -109,7 +109,7 @@ func reapOnCleanup(t *testing.T) {
 	})
 }
 
-// TestMain is the maintained leak check (CAL-V0-353): after every test has
+// TestMain is the maintained leak check (ATR-V0-183): after every test has
 // run its cleanups, no worker group any test launched may still run under
 // its matched leader; such a group is killed and fails the package. A group
 // present under a recorded pid whose leader no longer matches cannot be
@@ -170,7 +170,7 @@ func TestCALV0353_CleanupReapsTheWholeWorkerGroup(t *testing.T) {
 	}
 }
 
-// CAL-V0-353: once the leader is gone, a group under its pid cannot be
+// ATR-V0-183: once the leader is gone, a group under its pid cannot be
 // attributed, so the reaper reports it and never signals it.
 func TestCALV0353_UnmatchedLeaderIsReportedNotSignalled(t *testing.T) {
 	from := launchedCount()

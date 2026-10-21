@@ -188,9 +188,9 @@ func TestPSRV0153_BoundedAuditKeepsRewrittenPrefixDetection(t *testing.T) {
 	if run.completed() || run.fast() || run.timing.Resumed != 0 || wire.CodeOf(run.err) == wire.CodeSnapshotMoved {
 		t.Fatalf("acquire over a rewritten prefix: %+v %v stages %v", run.rep, run.err, run.stages)
 	}
-	// Round 1 moved; round 2's attempt refuses and the guarded complete
-	// audit derives that refusal again, as it does on every refusal.
-	if timing := run.timing; timing.Rounds != 2 || timing.CompleteWalks != 3 || timing.CompleteMoved != 1 {
+	// Round 1 moved; round 2's attempt refuses in one complete walk, and the
+	// guarded audit reuses that refusal instead of walking again (V1-1703).
+	if timing := run.timing; timing.Rounds != 2 || timing.CompleteWalks != 2 || timing.CompleteMoved != 1 {
 		t.Fatalf("rounds: %+v", timing)
 	}
 	if got := headSeqOf(t, f.repo); got != tampered {

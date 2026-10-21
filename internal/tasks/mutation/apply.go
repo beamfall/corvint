@@ -891,6 +891,17 @@ func copyStrings(ss []string) []string {
 	return out
 }
 
+func copyStageRoles(m map[string][]string) map[string][]string {
+	if m == nil {
+		return nil
+	}
+	out := make(map[string][]string, len(m))
+	for k, v := range m {
+		out[k] = copyStrings(v)
+	}
+	return out
+}
+
 func copyDependencies(ds []ticket.Dependency) []ticket.Dependency {
 	out := make([]ticket.Dependency, len(ds))
 	for i, d := range ds {

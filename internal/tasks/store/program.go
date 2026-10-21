@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -15,7 +14,54 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-var programWriter sync.Mutex
+// programWriters holds one in-process program writer mutex per store root
+// (the canonical StateDir), so transitions on one store serialize while
+// independent stores in one process proceed concurrently (V1-1108). An entry
+// counts its holder and waiters and is removed when the count reaches zero,
+// so the map holds only stores with a transition in flight and one store
+// never has two mutexes.
+var programWriters = struct {
+	sync.Mutex
+	byRoot map[string]*programWriterEntry
+}{byRoot: map[string]*programWriterEntry{}}
+
+type programWriterEntry struct {
+	sync.Mutex
+	refs int
+}
+
+// lockProgramWriter locks the store's program writer and returns its unlock.
+func lockProgramWriter(repo *intent.Repository) func() {
+	root := repo.StateDir
+	programWriters.Lock()
+	e := programWriters.byRoot[root]
+	if e == nil {
+		e = &programWriterEntry{}
+		programWriters.byRoot[root] = e
+	}
+	e.refs++
+	programWriters.Unlock()
+	e.Lock()
+	return func() {
+		e.Unlock()
+		programWriters.Lock()
+		if e.refs--; e.refs == 0 {
+			delete(programWriters.byRoot, root)
+		}
+		programWriters.Unlock()
+	}
+}
+
+// recoveryBootRefusal codes a RecoveryBoot failure. A retryable operational
+// condition, such as descriptor exhaustion while opening the boot capsule,
+// keeps its code; missing, invalid or mismatched boot evidence leaves the
+// prior worker's quiescence unproved (CAL-V0-037).
+func recoveryBootRefusal(err error) error {
+	if wire.RetryOf(wire.CodeOf(err)).Retryable {
+		return wire.Annotatef(err, "program", "recovery boot unavailable: %v", err)
+	}
+	return wire.Errorf(wire.CodeQuiescenceUnproved, "program", "recovery boot unavailable: %v", err)
+}
 
 // ProgramTransition records the expected whole-inventory binding under the
 // native writer lock. A competing owner cannot replace the observed program.
@@ -29,8 +75,7 @@ func ProgramTransition(ctx context.Context, repo *intent.Repository, actor mutat
 // before the write refuses it and one recorded after it is a later revision
 // (CAL-V0-089).
 func programTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, fenced bool, output ...[]byte) (*Report, error) {
-	programWriter.Lock()
-	defer programWriter.Unlock()
+	defer lockProgramWriter(repo)()
 	proof, e := readLeaseProof(ctx, repo)
 	if e != nil {
 		return nil, e
@@ -51,7 +96,7 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 					return nil, e
 				}
 				if identity == old.OwnerStarted && !old.OwnerReleased {
-					return nil, fmt.Errorf("program still has a live owner")
+					return nil, wire.Errorf(wire.CodeAttemptLive, "program", "program still has a live owner")
 				}
 				for path, record := range proof.Records {
 					_ = path
@@ -61,10 +106,10 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 					if a, e := snapshot.DecodeAttempt(record.Raw); e == nil && a.Supervision != nil && a.Supervision.ProgramID == old.ID && a.Supervision.Worker {
 						boot, err := supervisor.RecoveryBoot(old.EffectDirectory, old.Effect, supervisor.Boot{PID: old.LeaderPID, Started: old.LeaderStarted})
 						if err != nil {
-							return nil, fmt.Errorf("recovery boot unavailable: %w", err)
+							return nil, recoveryBootRefusal(err)
 						}
 						if !supervisor.RecoverHost(old.EffectDirectory, boot) {
-							return nil, fmt.Errorf("prior program worker quiescence remains uncertain")
+							return nil, wire.Errorf(wire.CodeQuiescenceUnproved, "program", "prior program worker quiescence remains uncertain")
 						}
 						change.PreviousWorkerClean = true
 						change.Next.Phase = "FINISHED"
@@ -128,15 +173,15 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 	if change.Action == "HEARTBEAT" {
 		a, ok := lockedAttempt(proof, attempt)
 		if !ok || a.Lane == nil || a.Supervision == nil {
-			return nil, fmt.Errorf("heartbeat lane absent")
+			return nil, wire.Errorf(wire.CodeFenced, "supervisor transition", "heartbeat lane absent")
 		}
 		owner, e := supervisor.ProcessIdentity(change.OwnerPID)
 		if e != nil || owner != change.OwnerStarted {
-			return nil, fmt.Errorf("heartbeat owner not live")
+			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat owner not live")
 		}
 		leader, e := supervisor.ProcessIdentity(int(a.Lane.LeaderPid.Uint64()))
 		if e != nil || leader != a.Supervision.LeaderStarted {
-			return nil, fmt.Errorf("heartbeat leader not live")
+			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat leader not live")
 		}
 	}
 	raw, e := snapshot.EncodeProgramJSON(change)
@@ -148,7 +193,7 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 		choice.Root = change.Worktree
 		a, ok := lockedAttempt(proof, attempt)
 		if !ok {
-			return nil, fmt.Errorf("dispatch attempt missing")
+			return nil, wire.Errorf(wire.CodeFenced, "supervisor transition", "dispatch attempt missing")
 		}
 		rec := claimedRecord(proof, a.TicketID.Raw)
 		pool := change.Pool
@@ -190,7 +235,7 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 					return f, e
 				}
 				if rev != o.Revision || tree != o.Tree {
-					return f, fmt.Errorf("stage health source changed before allocation")
+					return f, wire.Errorf(wire.CodeSnapshotMoved, "supervisor transition", "stage health source changed before allocation")
 				}
 			}
 			return f, nil

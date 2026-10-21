@@ -163,18 +163,31 @@ func TestStableLifecycleOpTimeoutRetiresDescendants(t *testing.T) {
 	s, B := lifecycleSession(t, context.Background(), nil)
 	pid := filepath.Join(B, "timeout.pid")
 	shim := lifecycleShim(t, B, "slowlinger", "/bin/sleep 300 &\necho $! > "+pid+"\nexec /bin/sleep 300")
-	s.hooks = &stableHooks{gitPath: func(*stableTx) string { return shim }, opTimeout: func(*stableTx) time.Duration { return 500 * time.Millisecond }}
-	if _, e := s.transact(formatTx()); e == nil || e.code != "git-timeout" {
-		t.Fatalf("want git-timeout, got %v", e)
-	}
-	if s.hold || len(s.held) != 0 {
-		t.Fatal("unexpected hold")
+	// The timer is armed before the owner launches the shim, so under host
+	// load a short timeout can fire before the shim records its descendant;
+	// that attempt proves nothing either way. Retry with a longer timeout
+	// until a descendant was recorded before the timeout fired (V1-1470).
+	var b []byte
+	for _, timeout := range []time.Duration{500 * time.Millisecond, 2 * time.Second, 8 * time.Second, 30 * time.Second} {
+		_ = os.Remove(pid)
+		s.hooks = &stableHooks{gitPath: func(*stableTx) string { return shim }, opTimeout: func(*stableTx) time.Duration { return timeout }}
+		if _, e := s.transact(formatTx()); e == nil || e.code != "git-timeout" {
+			t.Fatalf("want git-timeout, got %v", e)
+		}
+		if s.hold || len(s.held) != 0 {
+			t.Fatal("unexpected hold")
+		}
+		var err error
+		if b, err = os.ReadFile(pid); err == nil && strings.HasSuffix(string(b), "\n") {
+			break
+		}
+		t.Logf("timeout %v fired before the shim recorded its descendant; retrying longer", timeout)
+		b = nil
 	}
 	// Observe only: the keeper is reaped, so the recorded PID is no longer
 	// pinned and the test must not signal it.
-	b, err := os.ReadFile(pid)
-	if err != nil {
-		t.Fatalf("descendant pid not recorded: %v", err)
+	if b == nil {
+		t.Fatal("descendant pid not recorded before any timeout fired")
 	}
 	n, err := strconv.Atoi(strings.TrimSpace(string(b)))
 	if err != nil {

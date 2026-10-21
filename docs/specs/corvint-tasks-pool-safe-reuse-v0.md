@@ -309,6 +309,23 @@ applies at release; pools without `allowedSources` behave as before.
   head receipt. Verdicts, receipts and pools.json bytes are otherwise those of PSR-V0-083/084.
   Limit: the revalidation key binds the policy and pool bytes only; the command's environment
   values and executable contents are not part of it, as for PSR-V0-083's observation.
+  Claims (V1-2138): the same deferral covers a `CLAIM` or `CLAIM_NEXT`'s Git observations (the
+  base commit and tree, a prepared pool observation's command source, each member's pinned config)
+  and its CAL-V0-022 scope deriver. Observations that do not depend on audited state run before
+  the route; on the route the lock-held observer serves only memoized results and otherwise
+  declines (`fast.declined: ... claim Git observation deferred ...`) without running anything. A
+  query naming an exact object (`rev-parse` or `ls-tree` of a full OID) is immutable and memoized
+  for its argument list; a derivation is memoized for the identical root, tree, title and body.
+  Every other Git query (a symbolic revision such as `HEAD`, worktree status) is bound to the
+  head.json and intent tree digests read before it ran (the snapshot `bindObservation` checks),
+  and the lock-held observer serves it only while the audited state carries that snapshot. The
+  rest of the observation then runs unlocked for the recorded state and the route is tried once
+  more. A journal or intent change meanwhile (for example a workflow that integrated a commit and
+  then wrote) misses the bound observations, so the retry declines again and the complete route
+  observes Git afresh, reusing the derivation; a ticket edited meanwhile misses the derivation
+  key. The reprobe is bounded by that single retry. A served observation clears the memo. A claim
+  with no deriver resolves no base tree. Rollback: drop the claim's writer observer in
+  `leaseOnce`; the route then observes under the lock as before.
 
   Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
   timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
@@ -655,7 +672,11 @@ resumed in round 2 after one prefix walk, so the decline itself is a preconditio
   Negative evidence for PSR-V0-150: a receipt rewritten with its stamps restored while the bounded
   complete attempt walks, as the journal also moves, never commits. That attempt is
   `SNAPSHOT_MOVED`; the next round's attempt refuses, the head stays where the tamper left it, and
-  the command ends with the complete route's own decision for that journal.
+  the command ends with the complete route's own decision for that journal. A refusal that a
+  round's preparation audit derived in one complete, unmoved walk of the head it read is that
+  round's decision: the guarded complete audit reuses it instead of walking the same head again, so
+  a refusing round charges one complete walk (V1-1703). A walk that moved, a declined prefix walk,
+  a prefix result and `REDO_PENDING` still take the guarded complete audit.
 
 Failure modes:
 - A writer that commits faster than one complete walk, on a command whose resume is declined,
@@ -800,6 +821,8 @@ Bounded acquire calls (PSR-V0-110..116; V1-1617, issue 1010 follow-up, issue 106
 
 Bounded complete audit (PSR-V0-150..153; V1-1626, issue 1063): the focused store and CLI tests named in that subsection and in Traceability (PSR-V0-150..153); the 47,000-receipt harness runs before and after the change on a loaded 12-CPU host are in the build log; quiet-host and Linux qualification NOT_RUN.
 
+Allocated changedSeq (PSR-V0-013; V1-0895): when a live attempt takes a PREPARING member to ALLOCATED, the member records that receipt's sequence as `changedSeq`, the last pool-state change that `pool status` reports. `TestPSRV0013_PreparedAllocationAdvancesChangedSeq` (`internal/tasks/transaction`) failed before the fix, with changedSeq 3 where 7 was expected. Receipts already written keep the sequence they recorded, and nothing is migrated. Rollback: revert the commit.
+
 ## Non-goals and simpler baseline
 
 Baseline remains explicit pool cleanup and operator confirm-safe. No physical ownership discovery, authenticated operator, debt change, live lane reset, #494 writer repair, daemon/service, new native journal framework, broad redaction framework or dispatcher redesign. No sweep deadline or dispatcher budget increase for long cleanup (PSR-V0-011), no fetching, checkout or creation of a pinned worktree, no trust in its contents beyond the revision proof, and no atomic proof of the pinned checkout, no exclusion of concurrent mutation by actors outside Tasks during or after the proof, and no descriptor-bound (fchdir) execution (PSR-V0-012). Escaped/detached processes and external services remain outside process-group qualification; captured logs may contain secrets. Shared allocations (PSR-V0-016..021) add no dispatcher batching, no cross-holder, cross-pool or cross-stage sharing, no supervised or lane-untouched sharing, no transfer between allocations, no configurable share bound and no claim-next share selection; the simpler baseline is one allocation per attempt, which remains the default. Capacity slots (PSR-V0-030..043) add no daemon or timer, no push notification (a waiter polls with a fresh request id), no supervised-attempt or claim-time acquisition, no pool member, cleanup or quarantine, no per-holder quota, no re-ranking after enqueue (priority is the ticket priority at enqueue), no fairness among exclusive requests beyond wait order (a higher-priority exclusive can delay a lower one), no revocation of a grant made under a larger capacity, no automatic removal of a waiter the current policy can no longer grant, no replayed slot state, and no dispatcher integration; the simpler baseline remains a one-member pool per unit, which serializes and quarantines each use.
@@ -871,7 +894,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
-| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused` (`internal/tasks/store`) |
+| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_UnmovedClaimServedOnWriterRoute`, `TestV12138_ClaimRebindsMovedBaseAfterJournalAdvance`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
 
 ## Traceability (PSR-V0-110..116)
 

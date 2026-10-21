@@ -24,7 +24,7 @@ func (p *pressureCount) read(context.Context, time.Time, pressureWant) PressureS
 	return p.sample
 }
 
-// CAL-V0-351 (V1-0924): with pressure limits configured and nothing that
+// ATR-V0-181 (V1-0924): with pressure limits configured and nothing that
 // could launch, consecutive ticks skip both the store observation and the
 // pressure sample; once work is eligible the host is sampled before any
 // launch, and a raised sample still holds it.
@@ -137,7 +137,7 @@ func idlePressureRig(t *testing.T, p PressureConfig, sampler func(context.Contex
 	return d, q, tick
 }
 
-// CAL-V0-351: after a gap the raised pending level budgets every sample
+// ATR-V0-181: after a gap the raised pending level budgets every sample
 // until the transition resolves, not only the first: with a dwell of 3,
 // two critical samples after idle both hold the launch.
 func TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles(t *testing.T) {
@@ -165,7 +165,7 @@ func TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles(t *testing.T) {
 	}
 }
 
-// CAL-V0-351: with the cpu signal selected, the first sample after a gap
+// ATR-V0-181: with the cpu signal selected, the first sample after a gap
 // has no interval and is UNKNOWN; it admits nothing, and the next tick
 // samples a fresh interval instead of deferring again.
 func TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval(t *testing.T) {
@@ -202,7 +202,7 @@ func TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval(t *testing.T) {
 	}
 }
 
-// CAL-V0-351: a deferred budget refuses its first candidate and records the
+// ATR-V0-181: a deferred budget refuses its first candidate and records the
 // consultation, so nothing launches before a sample.
 func TestCALV0351_DeferredBudgetRefuses(t *testing.T) {
 	b := &PressureBudget{deferred: true}

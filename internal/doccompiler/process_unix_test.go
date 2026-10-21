@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,7 +19,7 @@ func TestRunCommandCancellationKillsProcessGroupDescendant(t *testing.T) {
 	root := t.TempDir()
 	pidPath := filepath.Join(root, "child.pid")
 	scriptPath := filepath.Join(root, "runner")
-	script := "#!/bin/sh\n/bin/sleep 30 &\necho $! > '" + pidPath + "'\nwait\n"
+	script := "#!/bin/sh\n/bin/sleep 3600 &\necho $! > '" + pidPath + "'\nwait\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -33,42 +34,58 @@ func TestRunCommandCancellationKillsProcessGroupDescendant(t *testing.T) {
 		_, err := runCommand(ctx, scriptPath, nil, root, []string{"PATH=" + root}, 1024, 1024)
 		done <- err
 	}()
-	pid := waitForProcessPID(t, pidPath)
+	pid := waitForProcessPID(t, pidPath, done)
 	cancel()
-	var err error
-	select {
-	case err = <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("cancelled command did not return")
-	}
-	if errorCode(err) != "command-timeout" {
+	if err := <-done; errorCode(err) != "command-timeout" {
 		t.Fatalf("error = %v", err)
 	}
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		err = syscall.Kill(pid, 0)
-		if errors.Is(err, syscall.ESRCH) {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	t.Fatalf("descendant %d survived cancellation", pid)
+	requireDescendantGone(t, pid)
 }
 
-func waitForProcessPID(t *testing.T, path string) int {
+// waitForProcessPID waits for the runner's PID handoff. Its sync points are the handoff itself
+// and the command's return, never a wall clock: under host load the shell can take longer than
+// any fixed margin to write the file (V1-1481), and a hang is the package hang detector's to
+// report. A command that returns before the handoff fails the test with its error.
+func waitForProcessPID(t *testing.T, path string, done <-chan error) int {
 	t.Helper()
-	deadline := time.Now().Add(3 * time.Second)
 	for {
 		raw, err := os.ReadFile(path)
 		pid, parseErr := strconv.Atoi(strings.TrimSpace(string(raw)))
 		if err == nil && parseErr == nil && pid > 0 {
+			// A survivor would otherwise outlive the test by its sleep.
+			t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 			return pid
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out waiting for PID handoff at %s: read=%v parse=%v value=%q", path, err, parseErr, raw)
+		select {
+		case commandErr := <-done:
+			t.Fatalf("command returned before the PID handoff at %s: %v (read=%v parse=%v value=%q)", path, commandErr, err, parseErr, raw)
+		case <-time.After(10 * time.Millisecond):
 		}
-		time.Sleep(10 * time.Millisecond)
 	}
+}
+
+// requireDescendantGone asserts that pid no longer runs once runCommand has returned. That
+// return is the sync point: the descendant inherits the command's stdout pipe, so Wait returns
+// only after every holder has closed it by exiting, or after the one-minute WaitDelay with the
+// holder still alive. The descendant is then either reaped or a zombie awaiting its new
+// parent's reap; any other state is a survivor. No wall-clock poll decides it (V1-1481).
+func requireDescendantGone(t *testing.T, pid int) {
+	t.Helper()
+	if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+		return
+	}
+	out, err := exec.Command("/bin/ps", "-o", "stat=", "-p", strconv.Itoa(pid)).Output()
+	state := strings.TrimSpace(string(out))
+	var exitErr *exec.ExitError
+	switch {
+	case err == nil && strings.HasPrefix(state, "Z"):
+		return
+	case errors.As(err, &exitErr) && state == "":
+		return // ps found no such process: reaped between the two probes
+	case err != nil:
+		t.Fatalf("cannot read the state of descendant %d: %v", pid, err)
+	}
+	t.Fatalf("descendant %d survived cancellation in state %q", pid, state)
 }
 
 func TestUnixContainmentRemainsUnqualifiedForSessionEscapes(t *testing.T) {

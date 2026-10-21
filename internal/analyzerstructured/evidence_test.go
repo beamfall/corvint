@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -194,6 +195,10 @@ func TestCoreParentCandidateByteIdentity(t *testing.T) {
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	dependencies, err := command.Output()
 	if err != nil {
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			t.Fatalf("go list -deps: %v: %s", err, exit.Stderr)
+		}
 		t.Fatal(err)
 	}
 	for _, forbidden := range []string{"internal/analyzerstructured", "corvint-analyzer-structured-data"} {

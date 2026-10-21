@@ -98,6 +98,12 @@ type CarryEntry struct {
 	Text          string `json:"text"`
 	Cut           bool   `json:"cut"`
 	RedactedLines int    `json:"redactedLines"`
+	// Fingerprint is the CAL-V0-057 work fingerprint the session launched
+	// and ended on (ATR-V0-168). An entry is offered and kept only while
+	// the ticket's fingerprint still equals it, so progress invalidates it
+	// durably even when the record's removal failed before a restart. An
+	// entry written before ATR-V0-168 has none and is never offered.
+	Fingerprint string `json:"fingerprint,omitempty"`
 }
 
 // CarryRecord is one ticket's ATR-V0-112 record, or a worker's marker of
@@ -148,7 +154,7 @@ func ReadCarryOver(path string) (*CarryRecord, error) {
 		return nil, errors.New("carry-over record is malformed")
 	}
 	for _, e := range r.Entries {
-		if _, err := time.Parse(time.RFC3339, e.At); err != nil || !carryField.MatchString(e.Worker) || !carryField.MatchString(e.Role) || !carryField.MatchString(e.EndReason) || len(e.Text) > maxCarryMessage || e.RedactedLines < 0 {
+		if _, err := time.Parse(time.RFC3339, e.At); err != nil || !carryField.MatchString(e.Worker) || !carryField.MatchString(e.Role) || !carryField.MatchString(e.EndReason) || len(e.Text) > maxCarryMessage || e.RedactedLines < 0 || len(e.Fingerprint) > 64 {
 			return nil, errors.New("carry-over record has a malformed entry")
 		}
 	}
@@ -282,9 +288,12 @@ func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progr
 	if slices.ContainsFunc(rec.Entries, func(e CarryEntry) bool { return e.Worker == w.ID }) {
 		return // a finish replayed after a restart
 	}
+	// ATR-V0-168: entries from another work fingerprint predate progress
+	// and are dropped, so an append never extends them.
+	rec.Entries = slices.DeleteFunc(rec.Entries, func(e CarryEntry) bool { return e.Fingerprint != w.Fingerprint })
 	text, maxTurns := carryMessage(d.dir, w.ID)
 	text, cut, redacted := boundScreened(text, false, maxCarryMessage)
-	rec.Entries = append(rec.Entries, CarryEntry{Worker: w.ID, Role: w.Role, At: now.UTC().Format(time.RFC3339), EndReason: d.carryEndReason(w, maxTurns), Text: text, Cut: cut, RedactedLines: redacted})
+	rec.Entries = append(rec.Entries, CarryEntry{Worker: w.ID, Role: w.Role, At: now.UTC().Format(time.RFC3339), EndReason: d.carryEndReason(w, maxTurns), Text: text, Cut: cut, RedactedLines: redacted, Fingerprint: w.Fingerprint})
 	if n := len(rec.Entries); n > maxCarryEntries {
 		rec.Entries = rec.Entries[n-maxCarryEntries:]
 	}
@@ -312,16 +321,21 @@ func (d *Dispatcher) noteCarryOver(w *Worker, now time.Time, class string, progr
 }
 
 // carryOverFor is the ATR-V0-113 block for a launch of a role with c on
-// ticket, and the entries it offers; empty when the record does not read.
-func (d *Dispatcher) carryOverFor(c *CarryOver, ticket string) (string, []CarryEntry) {
+// ticket at work fingerprint fp, and the entries it offers; empty when the
+// record does not read. Only entries recorded at fp are offered
+// (ATR-V0-168).
+func (d *Dispatcher) carryOverFor(c *CarryOver, ticket, fp string) (string, []CarryEntry) {
 	if d.carryStale[ticket] {
 		return "", nil
 	}
 	rec, err := ReadCarryOver(CarryOverPath(d.dir, ticket))
-	if err != nil || rec.Ticket != ticket || len(rec.Entries) == 0 {
+	if err != nil || rec.Ticket != ticket {
 		return "", nil
 	}
-	entries := rec.Entries
+	entries := slices.DeleteFunc(rec.Entries, func(e CarryEntry) bool { return e.Fingerprint != fp })
+	if len(entries) == 0 {
+		return "", nil
+	}
 	if n := c.sessions(); len(entries) > n {
 		entries = entries[len(entries)-n:]
 	}

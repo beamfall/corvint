@@ -254,6 +254,12 @@ func MatchString(text string) bool {
 	return len(writerMatches(text)) != 0
 }
 
+// MatchIndexes returns the byte spans of text that Screen would redact, in
+// order; nil when text holds no secret-shaped content.
+func MatchIndexes(text string) [][]int {
+	return writerMatches(text)
+}
+
 // MatchStoredV1String reports whether text matches the immutable schema-v1
 // trace detector. New writes must use MatchString instead.
 func MatchStoredV1String(text string) bool {

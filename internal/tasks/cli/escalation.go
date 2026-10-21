@@ -170,7 +170,7 @@ func escalationSubmit(cmd []string, fl map[string]string, req ticket.EscalationR
 		// codec errors use the shared classification.
 		var typed *wire.Error
 		if !errors.As(err, &typed) {
-			err = wire.Errorf(wire.CodeOf(err), "request", "%v", err)
+			err = wire.Annotatef(err, "request", "%v", err)
 		}
 		return errorResult(cmd, err)
 	}

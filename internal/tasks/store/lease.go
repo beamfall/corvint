@@ -125,7 +125,17 @@ func leaseOnce(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		}
 	}
 	if lease.Verb == transaction.LeaseClaim || lease.Verb == transaction.LeaseClaimNext {
-		facts = claimFacts(ctx, repo, choice)
+		// V1-2138: the writer route observes a claim under the writer lock,
+		// so it gets an observer that runs no Git command and no deriver.
+		// The complete route observes Git afresh; a derivation depends only
+		// on the exact tree, title and body, so it reuses the probe's.
+		probe := newClaimProbe(ctx, repo, choice)
+		facts = claimFactsWith(ctx, repo, choice, gitOutput, probe.scope(false, choice.Derive))
+		settleCtx := ctx
+		ctx = withWriterFacts(ctx, &writerFacts{
+			observe: probe.observer(settleCtx, repo, choice),
+			settle:  func() bool { return probe.settle(settleCtx, repo, choice) },
+		})
 	}
 	report, proof, err := administrativeWriteWith(ctx, repo, request, now, nil, facts)
 	if err == nil && lease.LaneUntouched && report.Outcome.Outcome == mutation.OutcomeCompleted {
@@ -331,7 +341,14 @@ func mintAttemptID(queueID string) (string, error) {
 
 // resolveObject names the full object id of rev^{kind} in root.
 func resolveObject(root, rev, kind string) (string, error) {
-	out, err := gitOutput(root, "rev-parse", "--verify", "--end-of-options", rev+"^{"+kind+"}")
+	return resolveObjectWith(gitOutput, root, rev, kind)
+}
+
+// gitRunner runs one Git observation in root; gitOutput is the direct one.
+type gitRunner func(root string, args ...string) ([]byte, error)
+
+func resolveObjectWith(git gitRunner, root, rev, kind string) (string, error) {
+	out, err := git(root, "rev-parse", "--verify", "--end-of-options", rev+"^{"+kind+"}")
 	if err != nil {
 		return "", err
 	}
@@ -359,7 +376,11 @@ func leaseRoot(repo *intent.Repository, choice LeaseChoice) string {
 	return choice.Root
 }
 
-func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
+// scopeRunner is the claim observer's scope derivation; a writer-locked one
+// declines instead of running the deriver (V1-2138).
+type scopeRunner func(ctx context.Context, root, tree string, rec *ticket.Record) ([]string, wire.Digest, error)
+
+func claimFactsWith(ctx context.Context, repo *intent.Repository, choice LeaseChoice, git gitRunner, scope scopeRunner) claimObserver {
 	return func(proof *journal.Result, input *transaction.Input) (transaction.LeaseFacts, error) {
 		root := leaseRoot(repo, choice)
 		rev := choice.Lease.Base
@@ -370,7 +391,7 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 		if err != nil {
 			return transaction.LeaseFacts{}, err
 		}
-		base, err := resolveObject(root, rev, "commit")
+		base, err := resolveObjectWith(git, root, rev, "commit")
 		if err != nil {
 			return transaction.LeaseFacts{}, err
 		}
@@ -379,7 +400,7 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 		if e != nil {
 			return facts, e
 		}
-		if e := poolAdmissionSource(root, choice.pool.Observation, policy, choice.Lease.Pool); e != nil {
+		if e := poolAdmissionSourceWith(git, root, choice.pool.Observation, policy, choice.Lease.Pool); e != nil {
 			return facts, e
 		}
 		rec := claimedRecord(proof, choice.Lease.TicketID)
@@ -394,11 +415,18 @@ func claimFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice
 		if rec == nil || choice.Lease.Scope != nil || len(transaction.Declared(rec)) > 0 {
 			return facts, nil
 		}
-		tree, err := resolveObject(root, base, "tree")
+		if choice.Derive == nil {
+			// NoScopeDeriver abstains for every tree, so no Git runs.
+			facts.DerivedTicketID = rec.TicketID.Raw
+			return facts, nil
+		}
+		tree, err := resolveObjectWith(git, root, base, "tree")
 		if err != nil {
 			return transaction.LeaseFacts{}, err
 		}
-		facts.DerivedPaths, facts.DerivationSha256 = derive(ctx, choice.Derive, root, tree, rec)
+		if facts.DerivedPaths, facts.DerivationSha256, err = scope(ctx, root, tree, rec); err != nil {
+			return transaction.LeaseFacts{}, err
+		}
 		facts.DerivedTicketID = rec.TicketID.Raw
 		return facts, nil
 	}

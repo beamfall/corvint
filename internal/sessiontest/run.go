@@ -190,6 +190,9 @@ type Runner struct {
 	Universe []string
 	// now is the shard clock, time.Now unless a test fixes it.
 	now func() time.Time
+	// deadline binds a context to the shard deadline on the same clock as
+	// now; context.WithDeadline unless a test drives a virtual clock.
+	deadline func(context.Context, time.Time) (context.Context, context.CancelFunc)
 	// adapters replaces AdapterManifests when a test sets it.
 	adapters map[string]AdapterManifest
 }
@@ -199,6 +202,13 @@ func (r *Runner) clock() time.Time {
 		return r.now()
 	}
 	return time.Now()
+}
+
+func (r *Runner) withDeadline(ctx context.Context, deadline time.Time) (context.Context, context.CancelFunc) {
+	if r.deadline != nil {
+		return r.deadline(ctx, deadline)
+	}
+	return context.WithDeadline(ctx, deadline)
 }
 
 // errDiscoveryBudget is a probe refused because the shard budget ran out.
@@ -225,7 +235,7 @@ func (r *Runner) Execute(ctx context.Context, m Manifest, manifestDigest string,
 	versions := map[string][2]string{}
 	// Discovery spends the shard budget too (STR-V0-015): each probe is bound
 	// by the shard deadline, and none starts after it.
-	discoverCtx, cancelDiscover := context.WithDeadline(ctx, deadline)
+	discoverCtx, cancelDiscover := r.withDeadline(ctx, deadline)
 	defer cancelDiscover()
 	for _, invocation := range planned {
 		key := runnerKey(invocation)
@@ -506,7 +516,7 @@ func firstOf(values []string) string {
 // deadline and returns what the receipt records, plus a reason to stop
 // launching when the budget or a cancellation ended it.
 func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string) {
-	runCtx, cancel := context.WithDeadline(ctx, deadline)
+	runCtx, cancel := r.withDeadline(ctx, deadline)
 	defer cancel()
 	env := append(append([]string{}, r.Environ...), planned.Env...)
 	envDigest, _ := Digest(env)

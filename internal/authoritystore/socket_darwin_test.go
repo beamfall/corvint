@@ -13,7 +13,14 @@ import (
 func TestDarwinReciprocalSocketWitness(t *testing.T) {
 	// No subprocess or durable service: every listener/connection is owned by
 	// this test process and closed on every return, failure, and process exit.
-	path := filepath.Join(t.TempDir(), "w.sock")
+	// The socket lives under /tmp, not t.TempDir(): a long TMPDIR plus the test name and the
+	// random suffix can exceed Darwin's 104-byte sun_path ("bind: invalid argument", V1-0778).
+	dir, err := os.MkdirTemp("/tmp", "corvint-sock-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	path := filepath.Join(dir, "w.sock")
 	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
 	if err != nil {
 		t.Fatal(err)

@@ -13,7 +13,6 @@ package publish
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,15 +135,7 @@ func readBoundedFile(path string, bound int, code string, beforeOpen func(string
 		return nil, cemcode.New(code, "input %q could not be opened", path)
 	}
 	defer func() { _ = file.Close() }()
-	opened, err := file.Stat()
-	if err != nil || !os.SameFile(before, opened) {
-		return nil, cemcode.New(code, "input %q changed while being read", path)
-	}
-	data, err := io.ReadAll(io.LimitReader(file, int64(bound)+1))
-	if err != nil || len(data) > bound || int64(len(data)) != before.Size() {
-		return nil, cemcode.New(code, "input %q could not be read completely", path)
-	}
-	return data, nil
+	return readOpened(file, before, bound, code, path)
 }
 
 // Output names one root-relative publication target.

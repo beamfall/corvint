@@ -119,7 +119,7 @@ func TestContainerRunResult(t *testing.T) {
 		dir := t.TempDir()
 		o := options{base: strings.Repeat("a", 40), head: strings.Repeat("b", 40), target: strings.Repeat("c", 40), source: strings.Repeat("d", 40)}
 		p := containerProfile{Source: o.source, Tools: map[string]string{"corvint": "planner", "gate-affected-select": "selector", "corvint-pr-tests": "driver"}}
-		id := identity{GoVersion: "go1.27.0", OS: "linux", Arch: "amd64", GoBinary: "go-hash", Compiler: "cc-hash", Git: "git-hash", Source: o.source, Container: &p, Driver: "driver", Planner: "planner", Selector: "selector", Args: testArgs, Env: []string{"GIT_CONFIG_GLOBAL=/dev/null"}}
+		id := identity{GoVersion: pinnedGoVersion, OS: "linux", Arch: "amd64", GoBinary: "go-hash", Compiler: "cc-hash", Git: "git-hash", Source: o.source, Container: &p, Driver: "driver", Planner: "planner", Selector: "selector", Args: testArgs, Env: []string{"GIT_CONFIG_GLOBAL=/dev/null"}}
 		s := selection{Schema: schema, Base: o.base, Head: o.head, Target: o.target, Tree: strings.Repeat("e", 40), ObservedTarget: o.target, ObservedTree: strings.Repeat("e", 40), Identity: id, Packages: []string{"./..."}, Reason: "qualification unavailable"}
 		e := execution{Selection: s, Exit: 1, Env: id.Env, Args: append(append([]string{}, testArgs...), s.Packages...)}
 		failure := exec.Command("sh", "-c", "exit 1").Run()
@@ -152,6 +152,16 @@ func TestContainerRunResult(t *testing.T) {
 				// Coherent between both files, but the frozen identity lacks Git.
 				wrong := s
 				wrong.Identity.Git = ""
+				wrongExecution := e
+				wrongExecution.Selection = wrong
+				writeJSON(filepath.Join(dir, "selection.json"), wrong)
+				writeJSON(filepath.Join(dir, "execution.json"), wrongExecution)
+			},
+			func() {
+				// V1-1520: coherent between both files, but recorded by a Go version other
+				// than the one toolIdentity admits.
+				wrong := s
+				wrong.Identity.GoVersion = "go1.27.0"
 				wrongExecution := e
 				wrongExecution.Selection = wrong
 				writeJSON(filepath.Join(dir, "selection.json"), wrong)

@@ -265,3 +265,76 @@ func TestChangeDCWV0068NamesTheStagedMapOfALaterRow(t *testing.T) {
 		t.Fatalf("stderr lacks %q:\n%s", want, stderr.String())
 	}
 }
+
+// DCW-V0-092 (V1-1657): finish-lane refuses a verify input the bind's
+// local-outcome row would refuse before prepare runs any step, with the same
+// reason code; a quoted -run regex line is the common case.
+func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	scratch := t.TempDir()
+	write := func(name string, data []byte) string {
+		t.Helper()
+		path := filepath.Join(scratch, name)
+		if err := os.WriteFile(path, data, 0o666); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	plan := write("cites.tsv", []byte("1\ta.txt\t1:1\tspecification\n"))
+	for _, tc := range []struct {
+		name, verifyFile, verify, reason string
+	}{
+		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "env-quoted", verify: "go test -run \"TestA\" ./internal/a", reason: "unsupported-verify-syntax"},
+		{name: "over-bound", verifyFile: write("big.txt", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)), reason: "verify-file-over-bound"},
+		{name: "unavailable", verifyFile: filepath.Join(scratch, "missing.txt"), reason: "verify-file-unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+				calls++
+				return 1
+			}}
+			var stdout, stderr bytes.Buffer
+			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: tc.verifyFile, Verify: tc.verify, Outcome: "passed"}}, &stdout, &stderr)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if code != 2 || calls != 0 || stdout.Len() != 0 {
+				t.Fatalf("exit=%d step calls=%d stdout=%q stderr=%q, want exit 2 before any step", code, calls, stdout.String(), stderr.String())
+			}
+			out := stderr.String()
+			if !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE "+tc.reason+"\n") || !strings.Contains(out, "  fix: pass a readable verify file of at most 65536 bytes") {
+				t.Fatalf("stderr = %q, want REFUSE %s with a fix line", out, tc.reason)
+			}
+			if tc.reason == "unsupported-verify-syntax" && !strings.Contains(out, "outside the admitted set") {
+				t.Fatalf("stderr = %q, want the refused byte named", out)
+			}
+		})
+	}
+	// A shell-free verify file passes the early check and reaches prepare.
+	calls := 0
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	good := write("good.txt", []byte("go test -count=1 -run TestA ./internal/a\n"))
+	if _, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: good, Outcome: "passed"}}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if calls == 0 || strings.Contains(stderr.String(), "REFUSE unsupported-verify-syntax") || !strings.Contains(stdout.String(), "prepare FAIL") {
+		t.Fatalf("valid verify file did not reach prepare: calls=%d stdout=%q stderr=%q", calls, stdout.String(), stderr.String())
+	}
+}

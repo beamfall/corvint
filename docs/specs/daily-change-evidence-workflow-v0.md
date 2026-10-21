@@ -1025,6 +1025,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   repository `.gitignore`. Otherwise the uncommitted-changes hint stays. Non-goals: ignoring
   untracked files in the recorder, or reading a personal excludes file. Failure modes: an
   unreadable or over-bound listing names nothing and keeps the generic hint.
+- `DCW-V0-092`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1657)
+  `corvint dogfood finish-lane` MUST read and validate its verify input (the `--verify` file, else
+  `DOGFOOD_VERIFY`) before prepare runs any step, and MUST refuse with exit 2 and
+  `dogfood-finish-lane: REFUSE <reason>` using the reason the bind's `local-outcome` row would
+  record (`unsupported-verify-syntax`, `verify-file-unavailable` or `verify-file-over-bound`),
+  the validator's message when there is one, and a `fix:` line. A shell-free verify input still
+  reaches prepare. Non-goals: changing the admitted command syntax or bounds, or validating the
+  outcome or intents inputs here. Failure modes: a verify file changed after the early check is
+  still caught at bind as before.
 
 - `DCW-V0-110`: (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) When `batch-check`
   fails `unbound-commits` and every listed commit is reachable from the second parent of a merge in
@@ -1278,6 +1287,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-074` (accepted under the owner's standing auto-accept (2026-10-11); V1-1639) | `script/dogfood-build-corvint.sh` `dogfood_corvint_key`, `dogfood_corvint_reuse`, `dogfood_corvint_store`, `dogfood_build_tree_corvint`, `dogfood_build_base_corvint`, called by the four wrappers; `script/dogfood-bin-reuse_test.sh` (stub toolchain: reuse on an unchanged tree, a dirty non-input and a doc-only commit; rebuild on a modified, staged, untracked or ignored input, a modified or committed `VERSION`, a committed input, another Go version, an unavailable key, a tampered record and a missing `go.mod`; the base verifier keyed by the base root tree); `script/dogfood-change_test.sh` and `script/dogfood-cache_test.sh` (every build passes `-trimpath`); V1-1639 before/after wall times of two consecutive `make dogfood-change` runs | implemented; key completeness beyond the module's package directories NOT_OBSERVED |
 | `DCW-V0-090` (accepted under the owner's standing auto-accept (2026-10-11); V1-1734) | `script/dogfood-finish.sh`; the DCW-V0-090 group of `script/lane-scripts_test.sh` (a committed spec edit without regeneration refuses `spec-requirements-stale` before any build; regenerated indexes pass) | implemented |
 | `DCW-V0-091` (accepted under the owner's standing auto-accept (2026-10-11); V1-1658) | `internal/dogfoodflow/change.go` `untrackedPaths`, `fixHint`; `TestChangeDCWV0091NamesUntrackedPathsForRecordIndexFailed` in `internal/dogfoodflow/untracked_hint_test.go` (an excluded untracked file hidden from `git status` makes the recorder refuse `record-index-failed`; the fix line names it; a clean tree keeps the generic hint) | implemented |
+| `DCW-V0-092` (accepted under the owner's standing auto-accept (2026-10-11); V1-1657) | `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `internal/dogfoodflow/change.go` `verifyInput`, `validateVerify`; `TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare` in `internal/dogfoodflow/finishlane_test.go` (a quoted `-run` regex line in the file and in `DOGFOOD_VERIFY`, an over-bound and a missing file each refuse with the bind's reason before any step runs; a shell-free file reaches prepare) | implemented |
 | `DCW-V0-075` (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) | `internal/contextindex/git.go` `gitDeadline` (unchanged); `internal/dogfoodflow/flow.go` `impactDeadlineOverrun`, `internal/dogfoodflow/change.go` `prechangeImpact`, `failing`, `reportFailures`, `internal/dogfoodflow/check.go` `checkContextAbstention`; `TestDCWV0075GitDeadlineIsThirtySeconds`, `TestDCWV0075SlowGitOverrunsTheDeadline` (an injected slow Git wrapper overruns a shorter caller deadline with the exact uncoded refusal and `context.DeadlineExceeded` cause); `TestDCWV0075OneOverrunIsRetriedOnce` (impact runs twice, the retry's output is produced); `TestDCWV0075SecondOverrunIsAVisibleNonBlockingAbstention` (exactly two runs, the admitted row, null digest, no artifact, NOTE lines, `exit-2` still blocks, check accepts the retained envelope and fails a drifted one) | implemented; a live overrun under host load NOT_OBSERVED |
 | `DCW-V0-110` (accepted, owner lane auto-acceptance 2026-10-11; V1-1463) | `internal/dogfoodflow/batch.go` `verifyCoverage`, `mergedForward`, `finish`; `TestBatchCheckDCWV0110NamesTheMergedForwardBase` (an unbound mainline carry merged forward fails against the original base with the merged-parent `fix:` line and passes from the merged mainline commit; a lane fix-up fails from either base with no such line) | implemented; the 13e1b26d8 lane reproduced in a fixture only |
 | `DCW-V0-111` (accepted, owner lane auto-acceptance 2026-10-11; V1-1927) | `internal/dogfoodflow/batch.go` `verifySealedCEM`, `verifyConstituent`, `batchCodeRecovery`, `finish`; `TestBatchCheckDCWV0111NamesTheVerifierReasonCode` (stdout and stderr-only refusals; no fix line for another or a malformed code); `TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations` (built binary and real verifier: an alternates-backed clone prints `code=unsupported-object-alternates` and its `fix:` line) | implemented |
@@ -1357,6 +1367,8 @@ and the baseline tool disappears. No committed map carries a role before V1-1276
 needs migrating; a later stable map with a role stays valid under `CEM-V1-095`.
 Roll back `DCW-V0-091` by reverting its change: `record-index-failed` again prints only the
 uncommitted-changes hint; nothing is persisted.
+Roll back `DCW-V0-092` by reverting its change: an unusable verify input is again refused only
+at bind, after prepare; nothing is persisted.
 Roll back `DCW-V0-090` by reverting its change: a stale spec index is again caught only by
 the `spec-requirements-check` doc gate; no artifact needs migrating.
 Roll back `DCW-V0-110` and `DCW-V0-111` by reverting their change: `unbound-commits` and refused

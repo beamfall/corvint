@@ -132,7 +132,7 @@ what any packet says.
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
   the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1064-1066@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1426-1427@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1429-1430@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
   (`cmd/corvint/prove.go:584@7ad2b2af`, `cmd/corvint/prove.go:605-606@38c3dce4`, `cmd/corvint/prove.go:627-628@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
@@ -822,6 +822,40 @@ digests agree. Measured on a sample comment-only edit to `internal/contextindex/
 one command, 0.54 s wall, rewrote three lines in two files and left 18 receipts current, and the
 pin test passed (`docs/build-log/2026-10-21-analyzer-schema-maintenance.md`).
 
+### Accepted (2026-10-21, V1-1640, owner's standing auto-accept 2026-10-11): the miss names its build
+
+Human intent: lanes in fresh clones called `context` without ever running `index`, so each call
+paid a full in-memory build (measured 22.8 s wall, 7.25 s user, 813 MB at `c92ee0015` versus 5.8 s
+with a snapshot) without being told; the build itself should also stop running the import regex
+over bodies that cannot hold an import.
+
+- `IDX-SNAP-V0-102`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). When
+  `context` or the path, range or working-tree `impact` and `feature` profiles find no usable
+  snapshot and their in-memory build takes at least one second (`snapshotMissNoticeAfter`), they
+  write exactly one stderr line naming the verb, that no snapshot matches the tree, the build's
+  duration in milliseconds and the JSON argv `["corvint","--root",ROOT,"index"]`. Stdout bytes,
+  the exit code and the snapshot store are unchanged; a faster build and a snapshot hit write
+  nothing. The line is diagnostic: it is never evidence, ranking or authority input, and the read
+  stays read-only (invariant 4). The one-second floor keeps fixture-sized builds silent.
+- `IDX-SNAP-V0-103`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The
+  generic import scanner runs its regular expression only over a body in which some `from` is
+  followed by at least one of the expression's space runes and a quote, or some `import` by
+  optional spaces, an optional `(` with optional spaces, and a quote (`mayHoldGenericImport`).
+  That gate is exact on a match's opening, so it never skips a body the expression matches and
+  every import edge, and therefore the index content, is unchanged; it bumps `analyzerSchemaID`
+  under `IDX-SNAP-V0-017`/`IDX-SNAP-V0-060`.
+
+Failure modes: a build just under one second stays silent; the notice reports wall time, which host
+load inflates. Rollback: delete `noteSnapshotMissBuild` and its two calls, and `mayHoldGenericImport`
+(restoring the quote-plus-keyword gate), with a schema rebump.
+
+Traceability: `TestSnapshotMissNoticeNamesTheBuild` (notice text, unchanged stdout, silence under
+the floor and on a hit, no store write), `TestGenericImportPrefilterLosesNoMatch` and
+`FuzzGenericImportPrefilter`. Measured on this repository's 11,870 tracked files at `c9ca8beff`:
+the gate skips 7,099 bodies (was 3,893) with identical extracted imports for every file, and
+`corvint index` user CPU fell from 6.6 to 7.0 s to 5.8 to 6.0 s
+(`docs/build-log/2026-10-21-lane-ctx-1021-context-index-impact.md`).
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -1038,3 +1072,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-035 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
 | IDX-SNAP-V0-036 (accepted, decision 0517) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
 | IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
+| IDX-SNAP-V0-102 (standing auto-accept, V1-1640) | `noteSnapshotMissBuild`, `snapshotMissNoticeAfter`, `compileTaskContext` | `TestSnapshotMissNoticeNamesTheBuild` |
+| IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
