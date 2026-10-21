@@ -434,6 +434,11 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 		}
 		o.Set("operation", recorded)
 	}
+	if cmd[0] == "claim" {
+		// ATR-V0-211: every claim result names the effective reserved
+		// scope, null when nothing was reserved.
+		o.Set("scope", claimScopeValue(report.Scope))
+	}
 	if report.SharedAllocation != nil {
 		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))
 	}
@@ -469,6 +474,19 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 	res.Warnings = append(res.Warnings, report.ScopeWarnings...)
 	res.Warnings = append(res.Warnings, report.ReplayWarnings...)
 	return res
+}
+
+// claimScopeValue renders a claimed attempt's scope as its source and
+// sorted resources, or null.
+func claimScopeValue(sc *snapshot.Scope) wire.Value {
+	if sc == nil {
+		return wire.Null()
+	}
+	res, err := snapshot.ResourcesValue("/scope/resources", sc.Resources)
+	if err != nil {
+		return wire.Null()
+	}
+	return wire.ObjectValue(wire.NewObject().Set("source", wire.String(sc.Source)).Set("resources", res))
 }
 
 func reapReceiptsValue(list []store.ReapReceipt) wire.Value {

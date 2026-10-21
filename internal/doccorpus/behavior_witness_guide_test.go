@@ -12,6 +12,7 @@ import (
 // input it describes, and a real request whose receipt input carries the sample's anchor
 // metadata imports a witness through the documented --receipt-input.
 func TestDCPV1080GuideWitnessRequestExample(t *testing.T) {
+	t.Parallel()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "docs", "DOCUMENTATION-CORPUS.md"))
 	if err != nil {
 		t.Fatal(err)

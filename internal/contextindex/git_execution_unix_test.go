@@ -92,6 +92,7 @@ func TestBuildWithGitExecutionRejectsAmbientFallback(t *testing.T) {
 }
 
 func TestBuildWithGitExecutionOwnsEnvironment(t *testing.T) {
+	t.Parallel()
 	root := testRepository(t)
 	realGit, err := exec.LookPath("git")
 	if err != nil {
@@ -117,6 +118,7 @@ func TestBuildWithGitExecutionOwnsEnvironment(t *testing.T) {
 // WQO-V0-042: even an unchanged worktree cannot replace immutable blob
 // acquisition. A failed cat-file must fail the closure rather than read disk.
 func TestBuildWithGitExecutionRequiresImmutableObjects(t *testing.T) {
+	t.Parallel()
 	t.Run("WQO-V0-042", func(t *testing.T) {
 		root := testRepository(t)
 		ordinary, err := Build(context.Background(), root)
@@ -237,6 +239,7 @@ func TestBuildWithGitExecutionOwnsPipesAndCancellation(t *testing.T) {
 // drain bound detects a pipe holder that never lets go rather than timing a
 // reader a loaded host has not scheduled yet.
 func TestGitCapturesOutputThatDrainsAfterGitExits(t *testing.T) {
+	t.Parallel()
 	wrapper := filepath.Join(t.TempDir(), "git")
 	body := "#!/bin/sh\nprintf 'sha1\\n'\n/bin/sleep 2 &\nexit 0\n"
 	if err := os.WriteFile(wrapper, []byte(body), 0o700); err != nil {

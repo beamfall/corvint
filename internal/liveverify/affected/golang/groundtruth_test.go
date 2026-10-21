@@ -98,9 +98,10 @@ func listFirstPartyPackages(t *testing.T, root string) []listPackage {
 	command.Dir = root
 	stdout := &bytes.Buffer{}
 	command.Stdout = stdout
-	command.Stderr = &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	command.Stderr = stderr
 	if err := command.Run(); err != nil {
-		t.Skipf("go list failed: %v", err)
+		t.Skipf("go list failed: %v: %s", err, bytes.TrimSpace(stderr.Bytes()))
 	}
 	decoder := jsontext.NewDecoder(stdout)
 	packages := make([]listPackage, 0, 128)

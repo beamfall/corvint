@@ -8,6 +8,7 @@ import (
 )
 
 func TestStableLiteralRepository(t *testing.T) {
+	t.Parallel()
 	p := os.Getenv("CEM_STABLE_FIXTURE_ROOT")
 	if p == "" {
 		t.Skip("literal fixtures required")

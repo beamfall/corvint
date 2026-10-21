@@ -13,6 +13,7 @@ import (
 // DCP-V1-174: corvint.docs_flow admits section (one name or a list) and
 // include, carries them to the flow query, and refuses malformed filters.
 func TestDCPV1174DocsFlowToolFilters(t *testing.T) {
+	t.Parallel()
 	root, _, a := doccorpus.EightSectionFlowForTest(t)
 	data, err := doccorpus.Encode(a)
 	if err != nil {

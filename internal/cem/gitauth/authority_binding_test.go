@@ -16,6 +16,7 @@ import (
 )
 
 func TestAuthorityDirectoryFIFORefusal(t *testing.T) {
+	t.Parallel()
 	if path := os.Getenv("CORVINT_AUTHORITY_FIFO_PROBE"); path != "" {
 		var root *os.Root
 		var err error
@@ -66,6 +67,7 @@ func (c *authorityModeContext) Err() error {
 }
 
 func TestAuthorityRawReadRejectsExecuteModeChange(t *testing.T) {
+	t.Parallel()
 	path := t.TempDir()
 	contents := []byte("same immutable bytes")
 	name := filepath.Join(path, "file")
@@ -107,6 +109,7 @@ func authorityBindingFixture(t *testing.T) (string, *os.Root) {
 }
 
 func TestAuthorityBindingRejectsTerminalAndParentSymlinks(t *testing.T) {
+	t.Parallel()
 	for _, parent := range []bool{false, true} {
 		t.Run(map[bool]string{false: "terminal", true: "parent"}[parent], func(t *testing.T) {
 			path, root := authorityBindingFixture(t)
@@ -127,6 +130,7 @@ func TestAuthorityBindingRejectsTerminalAndParentSymlinks(t *testing.T) {
 }
 
 func TestAuthorityBindingRejectsObservedNamespaceAndModeDrift(t *testing.T) {
+	t.Parallel()
 	cases := map[string]func(*testing.T, string){
 		"terminal replacement": func(t *testing.T, path string) {
 			if err := os.Rename(filepath.Join(path, "dir", "file"), filepath.Join(path, "saved")); err != nil {
@@ -210,6 +214,7 @@ func TestAuthorityBindingRejectsObservedNamespaceAndModeDrift(t *testing.T) {
 }
 
 func TestAuthorityBindingCancellationAndDescriptorCleanup(t *testing.T) {
+	t.Parallel()
 	_, root := authorityBindingFixture(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

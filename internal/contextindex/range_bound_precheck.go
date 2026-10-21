@@ -24,8 +24,8 @@ import (
 //     declares a slash-qualified module, so the module refusal passes;
 //   - base resolves to a commit that is the only merge base with HEAD;
 //
-// and rangeCertainlyExceeds then proves the bound refusal. Any Git failure or
-// doubt answers nil. It writes nothing.
+// and rangeCertainRefusal then proves the path refusal (ERI-V0-262) or the
+// bound refusal. Any Git failure or doubt answers nil. It writes nothing.
 func RangeBoundRefusalBeforeLoad(ctx context.Context, root, base string, limit int, expanded bool) error {
 	if limit < 1 || limit > maxLimit {
 		return nil
@@ -61,10 +61,7 @@ func RangeBoundRefusalBeforeLoad(ctx context.Context, root, base string, limit i
 	if expanded {
 		pathLimit = maxExpandedRangePaths
 	}
-	if !rangeCertainlyExceeds(ctx, &Index{Root: root, Revision: identity.treeRevision, ObjectFormat: identity.objectFormat}, resolved[1], pathLimit) {
-		return nil
-	}
-	return rangePathBoundError(pathLimit)
+	return rangeCertainRefusal(ctx, &Index{Root: root, Revision: identity.treeRevision, ObjectFormat: identity.objectFormat}, resolved[1], pathLimit)
 }
 
 // snapshotFilePresent reports whether the snapshot file a loader would read for

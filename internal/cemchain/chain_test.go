@@ -243,13 +243,14 @@ func newTasks(t *testing.T, bin, root, corvint, consumer string) *tasks {
 	return s
 }
 
-// ticket creates one native ticket whose declared touch path is src/.
+// ticket creates one native ticket whose declared touch paths cover the
+// claimed scope; a claim cannot widen past them (ATR-V0-210).
 func (s *tasks) ticket() string {
 	s.t.Helper()
 	payload := obj(
 		"acceptanceCriteria", wire.Strings([]string{"Add returns the sum and its runner receipt passes"}),
 		"body", wire.Null(), "capabilities", wire.Strings(nil), "dependencies", wire.Array(), "dueDate", wire.Null(),
-		"effects", obj("coverage", str("QUALIFIED"), "externalUnbounded", wire.Bool(false), "resources", wire.Array(), "touchPaths", wire.Strings([]string{"src/"})),
+		"effects", obj("coverage", str("QUALIFIED"), "externalUnbounded", wire.Bool(false), "resources", wire.Array(), "touchPaths", wire.Strings([]string{".corvint/changes/", "artifacts/", "src/"})),
 		"estimateMinutes", wire.Null(), "executionClass", str("AUTONOMOUS"), "kind", str("FEATURE"), "labels", wire.Strings(nil),
 		"milestone", wire.Null(), "order", str("0"), "owner", wire.Null(), "priority", str("P2"), "requiredGates", wire.Strings(nil),
 		"requirementRefs", wire.Strings(nil),

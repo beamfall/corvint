@@ -8,6 +8,7 @@ import (
 )
 
 func TestAuthorityRequiresActualCleanHead(t *testing.T) {
+	t.Parallel()
 	root, base, target := makeRepo(t)
 	repo := open(t, root)
 	if err := repo.RequireCleanTarget(context.Background(), target); err != nil {
@@ -23,6 +24,7 @@ func TestAuthorityRequiresActualCleanHead(t *testing.T) {
 }
 
 func TestAuthoritySnapshotNeverRunsRepositoryCleanFilter(t *testing.T) {
+	t.Parallel()
 	root, _, _ := makeRepo(t)
 	writeFile(t, root, ".gitattributes", "*.go filter=evil\n")
 	gitCmd(t, root, "add", ".gitattributes")

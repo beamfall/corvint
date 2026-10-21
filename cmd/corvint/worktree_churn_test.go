@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -74,4 +75,29 @@ func churnEventStderr(t *testing.T, root string, readErr error) string {
 		t.Fatalf("status %d stdout %s", status, &stdout)
 	}
 	return stderr.String()
+}
+
+// LCP-V0-034 (V1-1976): a prompt the bounded prompt-context contract refuses reports the one
+// named `dogfood-event-prompt-bounds` code instead of the uncaused `dogfood-event-unavailable`;
+// every other contextindex refusal keeps the fixed unavailable code.
+func TestV11976PromptContractRefusalHasNamedCode(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	for _, test := range []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"anchor bounds", &contextindex.Error{Code: "unsupported-dogfood-context-bounds", Message: "dogfood context exceeds the bounded anchor profile"}, "dogfood-event-prompt-bounds"},
+		{"wrapped budget", fmt.Errorf("prompt: %w", &contextindex.Error{Code: "unsupported-dogfood-context-budget", Message: "budget"}), "dogfood-event-prompt-bounds"},
+		{"invalid context", &contextindex.Error{Code: "invalid-dogfood-context", Message: "invalid"}, "dogfood-event-prompt-bounds"},
+		{"other contextindex refusal", &contextindex.Error{Code: "index-unavailable", Message: "missing"}, "dogfood-event-unavailable"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			stderr := churnEventStderr(t, root, test.err)
+			if !strings.Contains(stderr, `"code": "`+test.want+`"`) {
+				t.Fatalf("refusal %s, want code %s", stderr, test.want)
+			}
+		})
+	}
 }

@@ -38,6 +38,7 @@ type citationMeasureVectors struct {
 // (V1-1331), the annotation stop terms on short code lines (V1-1335) and the
 // base path of a deletion hunk in samePathCitations (V1-1332).
 func TestCEMV1082MeasureVectorsNative(t *testing.T) {
+	t.Parallel()
 	top := repositoryRoot(t)
 	checkStableCaseManifest(t, top, "citation-vectors/")
 	raw, err := os.ReadFile(filepath.Join(top, "protocol/cem-1.0/stable/citation-vectors/measures.json"))

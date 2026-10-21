@@ -103,6 +103,7 @@ func ftNativeRead(t *testing.T, h *ftHarness, journalCode, archiveCode string) (
 }
 
 func TestTMV0022_AS11_FixtureNativeCompletedHistories(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
 			h, p := ftFlow(t, op)
@@ -139,6 +140,7 @@ func TestTMV0022_AS11_FixtureNativeCompletedHistories(t *testing.T) {
 }
 
 func TestTMV0008_AS27_FixtureNativeStageParity(t *testing.T) {
+	t.Parallel()
 	cases := []struct{ name, code string }{
 		{"absent", ""}, {"empty", ""}, {"temp-empty", ""}, {"temp-malformed", ""}, {"temp-max", ""}, {"temp-over", wire.CodeLimitExceeded},
 		{"active", ""}, {"temp-short", ""}, {"temp-equal", ""}, {"temp-different", wire.CodeJournalForked}, {"temp-long", wire.CodeLimitExceeded},
@@ -266,6 +268,7 @@ func TestTMV0008_AS27_FixtureNativeStageParity(t *testing.T) {
 }
 
 func TestTMV0006_AS35_FixtureNativeEmptyIntentIndex(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"missing", "corrupt"} {
 		t.Run(mode, func(t *testing.T) {
 			h := ftNew(t, true)
@@ -320,6 +323,7 @@ func TestTMV0006_AS35_FixtureNativeEmptyIntentIndex(t *testing.T) {
 }
 
 func TestTMV0009_AS11_FixtureNativeInterruptedStatuses(t *testing.T) {
+	t.Parallel()
 	for _, op := range []string{transaction.Init, transaction.Pause, transaction.Unpause, transaction.KeepJournal, transaction.AdoptFile} {
 		t.Run(op, func(t *testing.T) {
 			h, p := ftFlow(t, op)
@@ -387,6 +391,7 @@ func TestTMV0009_AS11_FixtureNativeInterruptedStatuses(t *testing.T) {
 }
 
 func TestTMV0008_AS10_FixtureNativeAccountingAndSequentialReads(t *testing.T) {
+	t.Parallel()
 	h := ftNew(t, true)
 	_, beforeExport := ftNativeRead(t, h, "", "")
 	absent, err := h.capture()
@@ -473,6 +478,7 @@ func TestTMV0008_AS10_FixtureNativeAccountingAndSequentialReads(t *testing.T) {
 }
 
 func TestTMV0008_AS11_FixtureNativeStageBindings(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"queue", "base", "request", "request-id", "timestamp", "operation", "head", "receipt", "actual-queue"} {
 		t.Run(mode, func(t *testing.T) {
 			h, p := ftFlow(t, transaction.Pause)
@@ -565,6 +571,7 @@ func TestTMV0008_AS11_FixtureNativeStageBindings(t *testing.T) {
 }
 
 func TestTMV0002_AS27_FixtureNativeAssignedEmptyEvidence(t *testing.T) {
+	t.Parallel()
 	h, p := ftFlow(t, transaction.KeepJournal)
 	// Complete the KEEP first, preserving present-empty discarded D. Its leftover
 	// empty evidence slot remains an assigned complete slot, never absence.
@@ -593,6 +600,7 @@ func TestTMV0002_AS27_FixtureNativeAssignedEmptyEvidence(t *testing.T) {
 }
 
 func TestTMV0022_AS35_FixtureNativePrecommitIntent(t *testing.T) {
+	t.Parallel()
 	for _, mode := range []string{"empty", "valid-divergent"} {
 		t.Run(mode, func(t *testing.T) {
 			h := ftNew(t, true)
@@ -626,6 +634,7 @@ func TestTMV0022_AS35_FixtureNativePrecommitIntent(t *testing.T) {
 }
 
 func TestTMV0007_AS35_FixtureNativeOrdinaryIntentRefusal(t *testing.T) {
+	t.Parallel()
 	h := ftNew(t, true)
 	h.edit([]byte("{"))
 	before := fixture.TreeSnapshot(t, h.r.Root)

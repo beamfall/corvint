@@ -20,6 +20,7 @@ func unknownCodes(receipt map[string]any, name string) map[string]bool {
 // NGI-V0-002 NGI-V0-004 NGI-V0-006: every new suffix works at the repository
 // root without a Go module, carries real committed hunks, and repeats exactly.
 func TestNonGoRangeImpact(t *testing.T) {
+	t.Parallel()
 	for _, suffix := range []string{".rb", ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"} {
 		t.Run(suffix, func(t *testing.T) {
 			name := "value" + suffix
@@ -172,6 +173,7 @@ func TestNonGoImpactExcludedFrontier(t *testing.T) {
 
 // NGI-V0-004: Go-only input keeps the existing shape and module constraint.
 func TestNonGoRangeImpactLegacyGoBytes(t *testing.T) {
+	t.Parallel()
 	root := impactRepository(t, "")
 	base := commitRangeFixture(t, root)
 	index, err := Build(context.Background(), root)
@@ -202,6 +204,7 @@ func TestNonGoRangeImpactLegacyGoBytes(t *testing.T) {
 // NGI-V0-002 NGI-V0-004 NGI-V0-006 ERI-V0-002 ERI-V0-004: a mixed
 // range keeps Go counting/test selectors distinct from syntax-only members.
 func TestNonGoRangeImpactMixed(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":                  "module example.test/mixed\n\ngo 1.27\n",
 		"internal/value/value.go": "package value\nfunc Value() int { return 1 }\n",
@@ -233,6 +236,7 @@ func TestNonGoRangeImpactMixed(t *testing.T) {
 // NGI-V0-004: module validation depends on actual changed Go membership.
 // Snapshot/base validation therefore precedes it for multiply-invalid requests.
 func TestNonGoRangeImpactGoModuleValidationPriority(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":                  "module local\n\ngo 1.27\n",
 		"internal/value/value.go": "package value\nfunc Value() int { return 1 }\n",
@@ -265,6 +269,7 @@ func TestNonGoRangeImpactGoModuleValidationPriority(t *testing.T) {
 // NGI-V0-006 ERI-V0-002: new-language members retain fail-closed snapshot,
 // binary, excluded-source and target-blob checks in both capacity profiles.
 func TestNonGoRangeImpactRefusals(t *testing.T) {
+	t.Parallel()
 	for _, suffix := range []string{".rb", ".js", ".ts"} {
 		for _, failure := range []string{"dirty", "binary", "excluded", "drift", "snapshot"} {
 			t.Run(suffix+"/"+failure, func(t *testing.T) {

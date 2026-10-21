@@ -702,7 +702,14 @@ func (ctx *Context) finalize(pre, work *ticket.Record, forced bool) *refusal {
 		switch obs {
 		case ticket.Unsatisfied:
 		case ticket.Satisfied:
-			return refuse(OutcomeBlocked, wire.CodeAttemptLive, "an attempt is live; this mutation would change acceptanceRevision")
+			detail := "an attempt is live; this mutation would change acceptanceRevision"
+			// ATR-V0-190: name the blocking attempt and how to free it.
+			if d, ok := ctx.Attempts.(ticket.AttemptDescriber); ok {
+				if named := d.DescribeLiveAttempt(work.TicketID.Raw); named != "" {
+					detail += ": " + named
+				}
+			}
+			return refuse(OutcomeBlocked, wire.CodeAttemptLive, "%s", detail)
 		default:
 			return refuse(OutcomeBlocked, wire.CodeAttemptLive, "attempt liveness NOT_OBSERVED; an acceptance-relevant mutation is refused until it is")
 		}

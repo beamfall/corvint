@@ -37,6 +37,7 @@ func rangeUncertainty(receipt map[string]any) []any {
 // same unknown-language line path impact reports for that path; a proved
 // runner drops it from both.
 func TestNGIV0059RubyRangeReportsUnknownVerification(t *testing.T) {
+	t.Parallel()
 	const changed = "app/api_clients/foo_client.rb"
 	edited := "class FooClient\n  def fetch = :changed\nend\n"
 	for _, test := range []struct {
@@ -67,6 +68,7 @@ func TestNGIV0059RubyRangeReportsUnknownVerification(t *testing.T) {
 // admits no Ruby path, or whose plan names a Go command, never gains the line:
 // Go range receipts keep their exact bytes in a Ruby repository with no runner.
 func TestNGIV0059RangeWithoutRubyPathKeepsUncertainty(t *testing.T) {
+	t.Parallel()
 	goFiles := map[string]string{
 		"go.mod":                    "module example.test/widget\n\ngo 1.24\n",
 		"internal/widget/widget.go": "package widget\n\nfunc Widget() int { return 1 }\n",

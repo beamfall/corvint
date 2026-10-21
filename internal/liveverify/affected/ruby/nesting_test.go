@@ -147,3 +147,31 @@ func TestRegexKeywordFallsBack_RUBYAFFECTEDV0043(t *testing.T) {
 		t.Fatalf("want whole-file fallback, got frames=%v fallback=%v", scopes.frames, scopes.fallback)
 	}
 }
+
+// TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044: a quote inside
+// a /.../ or %r regex literal in an operand position opens no string, so the
+// constants after it stay visible, while division masks nothing.
+func TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044(t *testing.T) {
+	for source, want := range map[string]map[string]bool{
+		"x =~ /'/\nFoo::Bar.call\n":                  {"Foo::Bar": true},
+		"if x =~ /[/\"]/ then Baz end\nQux\n":        {"Baz": true, "Qux": true},
+		"case x\nwhen /\"/ then Widget\nend\n":       {"Widget": true},
+		"y = x.match(%r{'}) && Gadget\n":             {"Gadget": true},
+		"y = x.match(%r(\")) && Gadget\n":            {"Gadget": true},
+		"a = b / c; Widget\nd = e/f / g + Gadget\n":  {"Widget": true, "Gadget": true},
+		"total = sum(x) / 2 + Widget.count / Rate\n": {"Widget": true, "Rate": true},
+		"x = /Hidden/\n":                             {"Hidden": false},
+		"x = a / Kept\n":                             {"Kept": true},
+		"x.split /,/\nFoo\n":                         {"Foo": true},
+	} {
+		masked := maskQuotedLiteralsAndInlineComments(source)
+		if len(masked) != len(source) {
+			t.Fatalf("%q: length changed: %q", source, masked)
+		}
+		for word, kept := range want {
+			if strings.Contains(masked, word) != kept {
+				t.Fatalf("%q: masked=%q, want %q kept=%v", source, masked, word, kept)
+			}
+		}
+	}
+}

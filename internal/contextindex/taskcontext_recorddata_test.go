@@ -51,6 +51,7 @@ func recordDataPacket(t *testing.T, index *Index, task string, limit int) (map[s
 // data/c.json took three of the four head positions at limit 8 and the
 // weaker code rows were omitted.
 func TestTaskContextRecordDataIsGatedLikeDocumentation(t *testing.T) {
+	t.Parallel()
 	t.Run("TCP-V0-063 a record-data flood does not displace weaker code", func(t *testing.T) {
 		packet, got, lines := recordDataPacket(t, recordDataFixture(t, 6, nil), "needle signal", 8)
 		want := []string{

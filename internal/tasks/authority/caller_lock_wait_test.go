@@ -17,6 +17,11 @@ import (
 // preparation admission and the writer lock, while a default waiter beside it
 // still refuses LOCK_TIMEOUT at the §1 bound.
 func TestCALV0111_CallerWaitOutlastsDefault(t *testing.T) {
+	// Parallel: the test mostly sleeps past the default, so it overlaps the
+	// package's CPU-bound fixture tests instead of adding 35 s of wall time
+	// (V1-0348). The hold margin below absorbs the scheduling delay that
+	// overlap adds.
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("holds both locks past the 30-second default")
 	}
@@ -30,7 +35,10 @@ func TestCALV0111_CallerWaitOutlastsDefault(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hold := authority.DefaultLockWait + time.Second
+	// The default waiters must refuse between the default and the release;
+	// five seconds of margin keeps that window load-robust while the caller
+	// wait (40 s) still outlasts the hold.
+	hold := authority.DefaultLockWait + 5*time.Second
 	type result struct {
 		name    string
 		elapsed time.Duration
@@ -72,7 +80,7 @@ func TestCALV0111_CallerWaitOutlastsDefault(t *testing.T) {
 				t.Errorf("%s: %v after %v, want acquisition after the default", r.name, r.err, r.elapsed)
 			}
 		default:
-			if wire.CodeOf(r.err) != wire.CodeLockTimeout || r.elapsed >= hold {
+			if wire.CodeOf(r.err) != wire.CodeLockTimeout || r.elapsed < authority.DefaultLockWait || r.elapsed >= hold {
 				t.Errorf("%s: %v after %v, want LOCK_TIMEOUT at the default", r.name, r.err, r.elapsed)
 			}
 		}

@@ -53,6 +53,7 @@ func triggerRows(t *testing.T, result map[string]any) []map[string]any {
 // reported as `cites` rather than a verdict, carries an evidence handle pinned to
 // the citing document's blob, and never comes from inside a fenced block.
 func TestAuthorityTriggersFireOnlyForCitedRequestedPaths(t *testing.T) {
+	t.Parallel()
 	index := authorityFixture(t)
 	result, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 20)
 	if err != nil {
@@ -87,6 +88,7 @@ func TestAuthorityTriggersFireOnlyForCitedRequestedPaths(t *testing.T) {
 // inside either kind never fires, while a real citation on the line after a
 // closing fence keeps its own evidence handle.
 func TestAuthorityTriggersSkipTildeAndNestedFences(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":      "module example.test/fixture\n\ngo 1.27.0\n",
 		"pkg/core.go": coreSource,
@@ -120,6 +122,7 @@ func TestAuthorityTriggersSkipTildeAndNestedFences(t *testing.T) {
 // ATI-V0-006: the three anchor states a cited path can be in, computed the way
 // script/check-line-citations.sh computes them, including over a written range.
 func TestAuthorityTriggerAnchorStatesMatchTheCitationGate(t *testing.T) {
+	t.Parallel()
 	index := authorityFixture(t)
 	result, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 20)
 	if err != nil {
@@ -143,6 +146,7 @@ func TestAuthorityTriggerAnchorStatesMatchTheCitationGate(t *testing.T) {
 // ATI-V0-005, ATI-V0-008: invariant-3 authority orders the table, anchor state
 // breaks its ties, and both are deterministic.
 func TestAuthorityTriggersOrderByAuthorityThenAnchor(t *testing.T) {
+	t.Parallel()
 	index := authorityFixture(t)
 	result, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 20)
 	if err != nil {
@@ -166,6 +170,7 @@ func TestAuthorityTriggersOrderByAuthorityThenAnchor(t *testing.T) {
 // ATI-V0-009, ATI-V0-010: the table is bounded and its two blind spots are named
 // rather than absorbed into the silence.
 func TestAuthorityTriggersBoundResultsAndReportBlindSpots(t *testing.T) {
+	t.Parallel()
 	index := authorityFixture(t)
 	limited, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 1)
 	if err != nil {
@@ -191,6 +196,7 @@ func TestAuthorityTriggersBoundResultsAndReportBlindSpots(t *testing.T) {
 // ATI-V0-011: a path the index could never resolve is a typed refusal, not an
 // empty answer that would read as "no authority cites this".
 func TestAuthorityTriggersRefuseUnusablePaths(t *testing.T) {
+	t.Parallel()
 	index := authorityFixture(t)
 	if _, err := LookupAuthorityTriggers(index, nil, 20); err == nil {
 		t.Fatal("no paths was accepted")
@@ -241,6 +247,7 @@ func TestAuthorityCiteCitedNumbersDegradesMalformedRanges(t *testing.T) {
 // the cited target before it is expanded: the lookup returns cleanly and reports
 // the anchor as unreadable rather than allocating over the written range.
 func TestAuthorityTriggersBoundAbsurdCitationRanges(t *testing.T) {
+	t.Parallel()
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":      "module example.test/fixture\n\ngo 1.27.0\n",
 		"pkg/core.go": coreSource,

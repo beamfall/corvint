@@ -44,6 +44,7 @@ func nativeDocsManifest(t *testing.T, files map[string]string, schema string) (s
 }
 
 func TestDCPV1146OversizedParagraphStaysVerbatim(t *testing.T) {
+	t.Parallel()
 	var table strings.Builder
 	table.WriteString("| id | text |\n|---|---|\n")
 	for i := 0; table.Len() < 3*maxSpanBytes; i++ {
@@ -75,6 +76,7 @@ func TestDCPV1146OversizedParagraphStaysVerbatim(t *testing.T) {
 // An over-bound line is a located not-collected gap; the rest of the corpus still builds
 // (GitHub #1242).
 func TestDCPV1146OversizedLineIsAGap(t *testing.T) {
+	t.Parallel()
 	exact := strings.Repeat("z", maxSpanBytes-1) + "\n"
 	files := map[string]string{
 		"a.md":     "# A\n\nNormal prose.\n",
@@ -135,6 +137,7 @@ func TestDCPV1146OversizedLineIsAGap(t *testing.T) {
 }
 
 func TestDCPV1146RefusalsNameTheSpan(t *testing.T) {
+	t.Parallel()
 	_, err := nativeDocsBuild(t, map[string]string{"x.go": "package x\n\nfunc F() string { return \"" + strings.Repeat("y", maxSpanBytes) + "\" }\n"}, ManifestSchemaV2)
 	if err == nil || !strings.Contains(err.Error(), "vacuous or oversized anchor at docs/x.go:3-3") {
 		t.Fatalf("oversized anchor refusal is not located: %v", err)

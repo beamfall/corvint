@@ -312,22 +312,27 @@ func TestGH494PreparationAdmission(t *testing.T) {
 		admissionRestore(t)
 		// Two separately reached delays consume one original budget. A new timer
 		// at publication or final-gate acquisition would incorrectly succeed.
+		// V1-0849 (V1-0738): the budget is scaled so the phases before
+		// publication fit inside it under a saturated host; each delay stays
+		// below the budget and their sum above it, as before.
+		const budget = time.Second
+		delay := budget * 6 / 10
 		start := time.Now()
 		published, gate := false, false
 		admissionReached = func(p string, _ uint64) {
 			if p == "published" {
 				published = true
-				time.Sleep(60 * time.Millisecond)
+				time.Sleep(delay)
 			}
 		}
 		old := preparationOpen
 		preparationOpen = func(r *os.Root, n string, f int, m os.FileMode, d bool) (*os.File, error) {
 			gate = true
-			time.Sleep(60 * time.Millisecond)
+			time.Sleep(delay)
 			return old(r, n, f, m, d)
 		}
-		l, e := AcquirePreparation(context.Background(), repo, LockOptions{Wait: 100 * time.Millisecond, Poll: time.Millisecond})
-		if l != nil || wire.CodeOf(e) != wire.CodeLockTimeout || !published || !gate || !strings.Contains(e.Error(), "phase=gate") || time.Since(start) > time.Second {
+		l, e := AcquirePreparation(context.Background(), repo, LockOptions{Wait: budget, Poll: time.Millisecond})
+		if l != nil || wire.CodeOf(e) != wire.CodeLockTimeout || !published || !gate || !strings.Contains(e.Error(), "phase=gate") || time.Since(start) > 10*budget {
 			t.Fatalf("one budget %v %v %t %t", l, e, published, gate)
 		}
 		if EffectiveWait(0) != 30*time.Second || EffectiveWait(time.Hour) != 30*time.Second {

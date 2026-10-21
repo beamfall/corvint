@@ -195,6 +195,7 @@ func TestSnapshotLoadJoinsAnEngineDigestThatFinishesLast(t *testing.T) {
 // tree, so a later commit with that tree hits it and must report HEAD, not
 // the commit the snapshot was written at (IDX-SNAP-V0-002).
 func TestSnapshotHitReportsTheLiveCommitForTheSameTree(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	if _, err := WriteSnapshot(index); err != nil {
 		t.Fatal(err)
@@ -211,6 +212,7 @@ func TestSnapshotHitReportsTheLiveCommitForTheSameTree(t *testing.T) {
 }
 
 func TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	root := index.Root
 	if _, hit, err := LoadSnapshot(context.Background(), root); err != nil || hit {
@@ -333,6 +335,7 @@ exec %s "$@"
 
 // Only the worktree fallback store writes an ignore file (DIRTY-CACHE-013).
 func TestWriteSnapshotDoesNotRewriteMatchingGitIgnore(t *testing.T) {
+	t.Parallel()
 	index := taskContextFixture(t)
 	unlinkCommonDirectory(t, index.Root)
 	if _, err := WriteSnapshot(index); err != nil {
@@ -377,6 +380,7 @@ func TestWriteSnapshotDoesNotRewriteMatchingGitIgnore(t *testing.T) {
 }
 
 func TestBuildContextMatchesBuildIncludingImportEvidence(t *testing.T) {
+	t.Parallel()
 	full := taskContextFixture(t)
 	narrow, err := BuildContext(context.Background(), full.Root, "cache/cache.go")
 	if err != nil {
@@ -593,6 +597,7 @@ var linkedSnapshotComponents = []struct {
 // and evict files outside the store, so index refuses before writing anything
 // (IDX-SNAP-V0-005).
 func TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory(t *testing.T) {
+	t.Parallel()
 	for _, component := range linkedSnapshotComponents {
 		t.Run(component.name, func(t *testing.T) {
 			root := impactRepositoryWithFiles(t, map[string]string{
@@ -642,6 +647,7 @@ func TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory(t *testing.T) {
 // named for this tree, and every loader must miss on it rather than serve those
 // outside bytes (IDX-SNAP-V0-005).
 func TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory(t *testing.T) {
+	t.Parallel()
 	for _, component := range linkedSnapshotComponents {
 		t.Run(component.name, func(t *testing.T) {
 			root := impactRepositoryWithFiles(t, map[string]string{
@@ -714,6 +720,7 @@ func linkedWorktrees(t *testing.T) []string {
 // and each worktree's dirty view stays its own (DIRTY-CACHE-013,
 // DIRTY-CACHE-003).
 func TestLinkedWorktreesShareOneCleanSnapshot(t *testing.T) {
+	t.Parallel()
 	roots := linkedWorktrees(t)
 	common := mustEvalSymlinks(t, testGit(t, roots[1], "rev-parse", "--path-format=absolute", "--git-common-dir"))
 	directory := SnapshotDirectory(roots[0])
@@ -1023,6 +1030,7 @@ func TestEvictSnapshotsNamesRemovalsAndKeepsLiveHeadTreesFirst(t *testing.T) {
 // live set holds the tree at each worktree's HEAD and omits a worktree whose
 // directory is gone, which Git reports prunable.
 func TestLiveWorktreeTreesNamesEveryLiveHead(t *testing.T) {
+	t.Parallel()
 	roots := linkedWorktrees(t)
 	writeTestFile(t, roots[1], "pkg/second.go", "package pkg\n\nfunc Second() {}\n")
 	testGit(t, roots[1], "add", ".")

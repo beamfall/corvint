@@ -10,6 +10,7 @@ import (
 )
 
 func TestCorpusIndependentFlowAdapter(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-006 DCP-V1-019 adapter", func(t *testing.T) {
 		root, m := fixture(t)
 		ev := declaredEvidence(t, root, m, "src/view.ts", 1)

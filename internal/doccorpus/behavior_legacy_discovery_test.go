@@ -85,6 +85,7 @@ func legacyTuples(legacy BehaviorLegacyCase) []string {
 }
 
 func TestLegacyDiscoveryInventory(t *testing.T) {
+	t.Parallel()
 	root, revision := legacyRepo(t)
 	t.Run("DCP-V1-060 DCP-V1-061 jasmine every case once with disabled marked", func(t *testing.T) {
 		inventory, _, err := legacyInventory(t, root, "jasmine", revision, "e2e/jasmine/summary.spec.js", nil)
@@ -246,6 +247,7 @@ func TestLegacyDiscoveryInventory(t *testing.T) {
 }
 
 func TestLegacyDiscoveryDeterministicReadOnly(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-064 pinned, deterministic and read-only", func(t *testing.T) {
 		root, revision := legacyRepo(t)
 		status := git(t, root, "status", "--porcelain", "--untracked-files=all")
@@ -300,6 +302,7 @@ func legacyRegistry(t *testing.T, inventory LegacyInventory, edit func(*Behavior
 }
 
 func TestLegacyCrosswalk(t *testing.T) {
+	t.Parallel()
 	root, revision := legacyRepo(t)
 	base, _, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", nil)
 	if err != nil {
@@ -421,6 +424,7 @@ func TestLegacyCrosswalk(t *testing.T) {
 // TestLegacyPreconditionDigestCompileGap shows the behavior compiler keeps a changed seed
 // digest from becoming runtime parity (DCP-V1-067).
 func TestLegacyPreconditionDigestCompileGap(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-067 compiler reports a precondition mismatch for a different seed digest", func(t *testing.T) {
 		seed := "setup:seedOrders@sha256:" + Digest([]byte("seedOrders({count:2})"))
 		changed := "setup:seedOrders@sha256:" + Digest([]byte("seedOrders({count:3})"))
@@ -446,6 +450,7 @@ func TestLegacyPreconditionDigestCompileGap(t *testing.T) {
 }
 
 func TestLegacyDiscoveryRefusals(t *testing.T) {
+	t.Parallel()
 	root, revision := legacyRepo(t)
 	t.Run("DCP-V1-068 named refusals and file unknowns", func(t *testing.T) {
 		for _, tc := range []struct {
@@ -605,6 +610,7 @@ var legacyRoundThreeSuite = `describe('round three', () => {
 // misread: regex/division context, string escapes, template substitutions, chained matchers,
 // precondition order and nesting, and hooks it cannot bind (DCP-V1-061..063, DCP-V1-068).
 func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	git(t, root, "init", "-q")
 	git(t, root, "config", "user.name", "Corpus test")
@@ -760,6 +766,7 @@ func TestLegacyDiscoveryStaticEdgeCases(t *testing.T) {
 // TestLegacyLexerCanonicalAndEscapes pins operator boundaries in canonical text and the decoding
 // of surrogate escapes (DCP-V1-062, DCP-V1-063, DCP-V1-068).
 func TestLegacyLexerCanonicalAndEscapes(t *testing.T) {
+	t.Parallel()
 	canonical := func(src string) string {
 		tokens, _, ok := lexLegacy(src)
 		if !ok {
@@ -802,6 +809,7 @@ func TestLegacyLexerCanonicalAndEscapes(t *testing.T) {
 // comment and separates statements, and an assertion, command or precondition that the static
 // reader did not consume becomes an unknown that keeps its case from parity (DCP-V1-062, DCP-V1-063).
 func TestLegacyResidueFailsClosed(t *testing.T) {
+	t.Parallel()
 	root, revision := legacyRepo(t)
 	base, _, err := legacyInventory(t, root, "mocha", revision, "e2e/cypress", nil)
 	if err != nil {
