@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -82,11 +83,28 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 	}
 	invoked := map[string]bool{}
 	queue := []string{}
-	visit := func(body []rubyLine) {
+	// calls holds, per bare name a non-asserting setup line invokes, the first such line
+	// (TSA-V0-644).
+	calls := map[string]string{}
+	visit := func(body []rubyLine, params map[string]bool) {
 		for n := range invokedNames(body) {
 			if !invoked[n] {
 				invoked[n] = true
 				queue = append(queue, n)
+			}
+		}
+		setup := []rubyLine{}
+		for _, l := range body {
+			if !rspecAssertLine.MatchString(maskRubyStrings(l.text)) {
+				setup = append(setup, l)
+			}
+		}
+		names := invokedNames(setup)
+		for _, l := range setup {
+			for _, n := range rubyStatementHeads(maskRubyStrings(l.text)) {
+				if _, ok := calls[n]; !ok && names[n] && !params[n] {
+					calls[n] = at(l.line)
+				}
 			}
 		}
 		for _, l := range body {
@@ -97,7 +115,7 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 		}
 	}
 	add(e.body, "")
-	visit(e.body)
+	visit(e.body, nil)
 	for _, g := range chain {
 		for _, h := range r.groups[g].hooks {
 			body, own := h.body, ""
@@ -110,16 +128,56 @@ func rspecSeed(name, text string, line int, read fixtureReader) (seedExtract, er
 				}
 			}
 			add(body, own)
-			visit(body)
+			visit(body, nil)
 		}
 	}
+	helpers := r.seedHelpers(chain)
+	followed := []string{}
 	for len(queue) > 0 {
 		n := queue[0]
 		queue = queue[1:]
-		if let, ok := resolve(n); ok && let.lazy {
-			add(let.body, let.name)
-			visit(let.body)
+		if let, ok := resolve(n); ok {
+			if let.lazy {
+				add(let.body, let.name)
+				visit(let.body, nil)
+			}
+			continue
 		}
+		// A first-party helper the setup calls is followed into its factory calls; its body
+		// nests one level under the def (TSA-V0-644).
+		if h, ok := helpers[n]; ok {
+			followed = append(followed, n)
+			depths := rubyBodyDepths(h.body)
+			for _, l := range h.body {
+				if _, ok := scope[l.line]; !ok {
+					scope[l.line], depth[l.line] = "", depths[l.line]+1
+				}
+			}
+			visit(h.body, helperParams(h.body))
+		}
+	}
+	// A helper is followed only when it runs exactly once, unconditionally, for the example; a
+	// name the setup calls that is neither a let, a followed helper nor known RSpec, Rails or
+	// Capybara vocabulary may seed records the reading cannot see, so the side abstains naming
+	// it (TSA-V0-644).
+	for _, n := range followed {
+		if site, ok := r.helperSite(scope, depth, n, helpers[n], at); !ok {
+			x.abstainHelper(n, site)
+		}
+	}
+	unresolved := []string{}
+	for n := range calls {
+		if _, isHelper := helpers[n]; isHelper || seedCallVocabulary[n] || seedLike(n) || !(n[0] >= 'a' && n[0] <= 'z' || n[0] == '_') {
+			continue
+		}
+		if _, ok := resolve(n); ok || r.canonical(e.group, n) != "" {
+			continue
+		}
+		unresolved = append(unresolved, n)
+	}
+	slices.Sort(unresolved)
+	for _, n := range unresolved {
+		x.abstainHelper(n, calls[n])
 	}
 	fixtures := map[int]bool{}
 	for _, g := range chain {
@@ -637,4 +695,130 @@ func yamlValue(v string) string {
 		return "null"
 	}
 	return strconv.Quote(v)
+}
+
+// seedHelpers maps each def an example of chain can call to its body: a def of an enclosing
+// group, innermost first, or at file level (TSA-V0-644).
+func (r *rspecReader) seedHelpers(chain []int) map[string]rspecHelper {
+	out := map[string]rspecHelper{}
+	for _, g := range append(append([]int{}, chain...), 0) {
+		for _, h := range r.helpers {
+			if h.group != g || len(h.body) == 0 {
+				continue
+			}
+			if n := helperName(h.body); n != "" {
+				if _, ok := out[n]; !ok {
+					out[n] = h
+				}
+			}
+		}
+	}
+	return out
+}
+
+// helperSite finds the one line that calls helper n among the lines that run for the example,
+// outside the helper's own body. It reports false, with the first calling line, when the helper
+// is called more than once, from a nested block or a conditional line, or not found.
+func (r *rspecReader) helperSite(scope map[int]string, depth map[int]int, n string, h rspecHelper, at func(int) string) (string, bool) {
+	own := map[int]bool{}
+	for _, l := range h.body {
+		own[l.line] = true
+	}
+	word := regexp.MustCompile(`(^|[^\w.:@$])` + regexp.QuoteMeta(n) + `($|[^\w?!:])`)
+	site, count, plain := "", 0, true
+	for _, l := range r.lines {
+		if _, ok := scope[l.line]; !ok || own[l.line] {
+			continue
+		}
+		masked := maskRubyStrings(l.text)
+		for _, loc := range word.FindAllStringIndex(masked, -1) {
+			if site == "" {
+				site = at(l.line)
+			}
+			count++
+			if depth[l.line]+strings.Count(masked[:loc[0]], "{")-strings.Count(masked[:loc[0]], "}") != 0 || rubyConditional.MatchString(masked) {
+				plain = false
+			}
+		}
+	}
+	return site, count == 1 && plain
+}
+
+// rubyStatementHeads returns the word each statement of a masked line starts with: at the line
+// start or after `;`, `{` or `do`, past block parameters and one `name =` assignment. An argument
+// or attribute value is not a head: the reading already treats it as a value it does not know.
+func rubyStatementHeads(masked string) []string {
+	out := []string{}
+	starts := []int{0}
+	for i := 0; i < len(masked); i++ {
+		switch {
+		case masked[i] == ';' || masked[i] == '{':
+			starts = append(starts, i+1)
+		case strings.HasPrefix(masked[i:], "do") && (i == 0 || !isWordByte(masked[i-1])) && (i+2 == len(masked) || !isWordByte(masked[i+2])):
+			starts = append(starts, i+2)
+		}
+	}
+	for _, p := range starts {
+		rest := strings.TrimLeft(masked[p:], " \t")
+		if strings.HasPrefix(rest, "|") {
+			if k := strings.IndexByte(rest[1:], '|'); k >= 0 {
+				rest = strings.TrimLeft(rest[k+2:], " \t")
+			}
+		}
+		if m := rubyHeadAssign.FindStringIndex(rest); m != nil {
+			rest = rest[m[1]:]
+		}
+		if w := rubyWord.FindStringIndex(rest); w != nil && w[0] == 0 {
+			out = append(out, rest[:w[1]])
+		}
+	}
+	return out
+}
+
+// rubyHeadAssign matches a leading `name =` or `@name =` assignment, not `==`, `=~` or `=>`.
+var rubyHeadAssign = regexp.MustCompile(`^@?[A-Za-z_]\w*\s*=(?:[^=~>]|$)\s*`)
+
+// seedCallVocabulary are the bare RSpec, FactoryBot, Rails and Capybara names a setup line calls
+// that never seed records the reading misses: the reading follows lets, subjects and helpers and
+// reads factory calls itself (TSA-V0-644).
+var seedCallVocabulary = map[string]bool{
+	"let": true, "let!": true, "subject": true, "subject!": true, "before": true, "after": true, "around": true,
+	"it": true, "specify": true, "example": true, "scenario": true, "describe": true, "context": true, "feature": true,
+	"fixtures": true, "described_class": true, "is_expected": true, "expect": true, "allow": true,
+	"allow_any_instance_of": true, "expect_any_instance_of": true, "receive": true, "receive_messages": true,
+	"double": true, "instance_double": true, "class_double": true, "object_double": true, "spy": true,
+	"instance_spy": true, "anything": true, "any_args": true, "hash_including": true, "stub_const": true,
+	"travel_to": true, "travel": true, "travel_back": true, "freeze_time": true, "sign_in": true, "sign_out": true,
+	"login_as": true, "logout": true, "puts": true, "p": true, "pp": true, "print": true, "sleep": true,
+	"raise": true, "require": true, "require_relative": true, "lambda": true, "proc": true, "loop": true,
+	"aggregate_failures": true, "pending": true, "skip": true, "get": true, "post": true, "put": true,
+	"patch": true, "delete": true, "head": true, "follow_redirect!": true, "render": true, "visit": true,
+	"click_on": true, "click_button": true, "click_link": true, "fill_in": true, "select": true, "check": true,
+	"uncheck": true, "choose": true, "within": true, "find": true, "perform_enqueued_jobs": true,
+	"attributes_for": true, "build_stubbed": true, "build_stubbed_list": true, "sequence": true,
+	"generate": true, "file_fixture": true, "fixture_file_upload": true, "rand": true, "format": true,
+}
+
+// helperParams are the parameter names a def declares, with the def's own name: the body reads
+// them as locals, not as calls (TSA-V0-644).
+func helperParams(body []rubyLine) map[string]bool {
+	out := map[string]bool{helperName(body): true}
+	head := stripRubyStrings(body[0].text)
+	if rubyOneLine.MatchString(head) {
+		head, _, _ = strings.Cut(head, ";")
+	}
+	m := rspecDefHead.FindStringSubmatch(strings.TrimSpace(head))
+	if m == nil {
+		return out
+	}
+	for _, p := range strings.Split(m[2]+m[3], ",") {
+		p = strings.TrimLeft(strings.TrimSpace(p), "*&")
+		if k := strings.IndexAny(p, "=:"); k >= 0 {
+			p = p[:k]
+		}
+		if p = strings.TrimSpace(p); p != "" {
+			out[p] = true
+		}
+	}
+	return out
 }
