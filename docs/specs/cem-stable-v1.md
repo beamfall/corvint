@@ -95,6 +95,32 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   verifier only for repositories whose snapshots fit its envelope; for a larger repository, such
   as this one, its `UNSUPPORTED` answer is a bound, not a disagreement with the canonical
   route's verdict.
+- `CEM-V1-242`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2136) The native
+  names of the sealed repository-envelope recipe MUST exist in `internal/cem/verify`:
+  `TestStableRepositoryEnvelopeOrdinary` runs the case array named by
+  `CEM_STABLE_REPOSITORY_CASES` (closed fields `ID`, `Repository`, `Map`, `ExpectedBase`, `Target`,
+  `ArtifactRoot`, `Expected`, `Exit`, `Env`; absolute paths; unique IDs) and compares each complete
+  result and exit with the frozen expectation through an admitted runtime tuple. Unset, it
+  materializes the packet's ordinary, origin, linked and relative cells itself.
+  `TestStableRepositoryEnvelopeCancelled`, `...DescendantCleanup` and `...RootIdentity` run the
+  matching public cases (at least 11, 3 and 1). The sealed document is not rewritten.
+- `CEM-V1-243`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1329) The native
+  and the portable tamper-matrix tests MUST carry the same table of one pinned `verdictSha256` per
+  sealed `CEM-V1-226` case, MUST fail when the table and the sealed case list differ in size, and
+  MUST fail when either consumer's recomputed digest differs from the pin. The sealed
+  `EXPECTED.json` is unchanged.
+- `CEM-V1-244`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After the
+  outside-repository check, an out-of-tree map read and an absolute-path report publish MUST open
+  the checked parent directory as a held handle whose identity equals the one observed at the
+  check, and MUST perform every member operation through that handle: the map read refuses a
+  non-regular or oversized member and opens without following a final symlink; the report is
+  written to an exclusive temporary member, synced, renamed and the directory synced. A changed
+  parent identity MUST refuse (`map-unavailable` for the map, `publish-failed` for the report)
+  with nothing read from or written to the swapped target.
+- `CEM-V1-245`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The
+  portable op-timeout descendant test MUST retry with longer timeouts (500 ms, 2 s, 8 s, 30 s)
+  while the timeout fires before the shim records its descendant, MUST still require
+  `git-timeout` and no hold on every attempt, and MUST fail when no attempt records a descendant.
 
 ## Non-goals and failure modes
 
@@ -4126,32 +4152,7 @@ Four independent gaps:
   launched. Under host load the timer fired before the shim recorded its descendant, and the test
   failed with "descendant pid not recorded" (V1-1470).
 
-- `CEM-V1-242`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2136) The native
-  names of the sealed repository-envelope recipe MUST exist in `internal/cem/verify`:
-  `TestStableRepositoryEnvelopeOrdinary` runs the case array named by
-  `CEM_STABLE_REPOSITORY_CASES` (closed fields `ID`, `Repository`, `Map`, `ExpectedBase`, `Target`,
-  `ArtifactRoot`, `Expected`, `Exit`, `Env`; absolute paths; unique IDs) and compares each complete
-  result and exit with the frozen expectation through an admitted runtime tuple. Unset, it
-  materializes the packet's ordinary, origin, linked and relative cells itself.
-  `TestStableRepositoryEnvelopeCancelled`, `...DescendantCleanup` and `...RootIdentity` run the
-  matching public cases (at least 11, 3 and 1). The sealed document is not rewritten.
-- `CEM-V1-243`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1329) The native
-  and the portable tamper-matrix tests MUST carry the same table of one pinned `verdictSha256` per
-  sealed `CEM-V1-226` case, MUST fail when the table and the sealed case list differ in size, and
-  MUST fail when either consumer's recomputed digest differs from the pin. The sealed
-  `EXPECTED.json` is unchanged.
-- `CEM-V1-244`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After the
-  outside-repository check, an out-of-tree map read and an absolute-path report publish MUST open
-  the checked parent directory as a held handle whose identity equals the one observed at the
-  check, and MUST perform every member operation through that handle: the map read refuses a
-  non-regular or oversized member and opens without following a final symlink; the report is
-  written to an exclusive temporary member, synced, renamed and the directory synced. A changed
-  parent identity MUST refuse (`map-unavailable` for the map, `publish-failed` for the report)
-  with nothing read from or written to the swapped target.
-- `CEM-V1-245`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The
-  portable op-timeout descendant test MUST retry with longer timeouts (500 ms, 2 s, 8 s, 30 s)
-  while the timeout fires before the shim records its descendant, MUST still require
-  `git-timeout` and no hold on every attempt, and MUST fail when no attempt records a descendant.
+The requirements `CEM-V1-242..245` are defined in the Requirements section above.
 
 Non-goals:
 - no change to any sealed member, committed map, the stable verifier's verdicts or the map wire;
