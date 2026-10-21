@@ -50,6 +50,13 @@ type webSymbolKey struct{ path, name string }
 // import whose clause is empty, which is not a valid statement.
 var webImportStatement = regexp.MustCompile(`(?ms)^[ \t]*import[ \t]+([^'"].*?)[ \t]+from[ \t]*['"]([^'"]+)['"]`)
 
+// webImportAfterSemicolon is the same statement written after a code `;`, so
+// every import of a line such as `import { a } from './a'; import { b } from
+// './b'` binds where the oracle read only the first (GPK-V0-087, V1-2128;
+// known-divergent DR-0044). It is tried only right after a `;` the web lexer
+// reads as code, never one inside a string, template or comment.
+var webImportAfterSemicolon = regexp.MustCompile(`(?s)\A[ \t]*import[ \t]+([^'"].*?)[ \t]+from[ \t]*['"]([^'"]+)['"]`)
+
 var (
 	webNamedClause = regexp.MustCompile(`(?s)\{(.*?)\}`)
 	webAliasSplit  = regexp.MustCompile(`\s+as\s+`)
@@ -274,39 +281,34 @@ type webBinding struct {
 
 // webImportBindings returns the local names a file binds through static named
 // imports, in the oracle's `sorted(bindings.items())` order. A type-only clause
-// or a type-only item binds no value and is skipped.
+// or a type-only item binds no value and is skipped. A statement after a code
+// `;` that the oracle pattern did not already cover is read too, but only adds
+// a local the oracle reading left unbound: it never rebinds one (GPK-V0-087).
 func webImportBindings(text string) []webBinding {
 	bindings := make(map[string]webBinding)
-	for _, match := range webImportStatement.FindAllStringSubmatchIndex(text, -1) {
-		clause := TrimPythonSpace(text[match[2]:match[3]])
-		module := text[match[4]:match[5]]
-		if strings.HasPrefix(clause, "type ") {
+	statements := webImportStatement.FindAllStringSubmatchIndex(text, -1)
+	for _, match := range statements {
+		addWebImportBindings(bindings, text, match, false)
+	}
+	// covered is the end of the last statement already read at or before start: a `;` inside a
+	// statement's own text opens no second statement.
+	covered, next := 0, 0
+	for _, start := range webCodeSemicolons(text) {
+		for ; next < len(statements) && statements[next][0] < start; next++ {
+			covered = max(covered, statements[next][1])
+		}
+		if start < covered {
 			continue
 		}
-		named := webNamedClause.FindStringSubmatch(clause)
-		if named == nil {
+		match := webImportAfterSemicolon.FindStringSubmatchIndex(text[start:])
+		if match == nil {
 			continue
 		}
-		line := strings.Count(text[:match[0]], "\n") + 1
-		for _, raw := range strings.Split(named[1], ",") {
-			item := TrimPythonSpace(raw)
-			if item == "" || strings.HasPrefix(item, "type ") {
-				continue
-			}
-			parts := webAliasSplit.Split(item, -1)
-			exported, local := "", ""
-			switch len(parts) {
-			case 1:
-				exported, local = parts[0], parts[0]
-			case 2:
-				exported, local = parts[0], parts[1]
-			default:
-				continue
-			}
-			if webIdentifier.MatchString(exported) && webIdentifier.MatchString(local) {
-				bindings[local] = webBinding{local, module, exported, line}
-			}
+		for at := range match {
+			match[at] += start
 		}
+		addWebImportBindings(bindings, text, match, true)
+		covered = max(covered, match[1])
 	}
 	ordered := make([]webBinding, 0, len(bindings))
 	for _, binding := range bindings {
@@ -314,6 +316,60 @@ func webImportBindings(text string) []webBinding {
 	}
 	sort.Slice(ordered, func(left, right int) bool { return ordered[left].local < ordered[right].local })
 	return ordered
+}
+
+// addWebImportBindings records the named bindings of one matched statement.
+// keep leaves an already bound local as it is.
+func addWebImportBindings(bindings map[string]webBinding, text string, match []int, keep bool) {
+	clause := TrimPythonSpace(text[match[2]:match[3]])
+	module := text[match[4]:match[5]]
+	if strings.HasPrefix(clause, "type ") {
+		return
+	}
+	named := webNamedClause.FindStringSubmatch(clause)
+	if named == nil {
+		return
+	}
+	line := strings.Count(text[:match[0]], "\n") + 1
+	for _, raw := range strings.Split(named[1], ",") {
+		item := TrimPythonSpace(raw)
+		if item == "" || strings.HasPrefix(item, "type ") {
+			continue
+		}
+		parts := webAliasSplit.Split(item, -1)
+		exported, local := "", ""
+		switch len(parts) {
+		case 1:
+			exported, local = parts[0], parts[0]
+		case 2:
+			exported, local = parts[0], parts[1]
+		default:
+			continue
+		}
+		if _, bound := bindings[local]; bound && keep {
+			continue
+		}
+		if webIdentifier.MatchString(exported) && webIdentifier.MatchString(local) {
+			bindings[local] = webBinding{local, module, exported, line}
+		}
+	}
+}
+
+// webCodeSemicolons returns the offset just past every `;` the web lexer reads
+// as code, in order. A `;` inside a string, template literal, regex or comment
+// is not one.
+func webCodeSemicolons(text string) []int {
+	lexer := &webLexer{text: text}
+	offsets := []int{}
+	for {
+		token, ok := lexer.next()
+		if !ok {
+			return offsets
+		}
+		if token.kind == webPunct && token.text == ";" {
+			offsets = append(offsets, lexer.position)
+		}
+	}
 }
 
 // resolvedWebSource resolves one specifier to the single indexed source it

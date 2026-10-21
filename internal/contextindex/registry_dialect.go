@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,13 +25,9 @@ import (
 // RegistryDialect is the one admitted registry dialect name.
 const RegistryDialect = "string-key-registry/0"
 
-const (
-	registryManifestSchema   = "application-map-manifest/0"
-	maxRegistryManifestBytes = 256 << 10
-	maxRegistryDeclarations  = 64
-	maxRegistryAccessors     = 16
-	maxRegistryKeyBytes      = 256
-)
+// Its bounds are registryManifestBound, registryDeclarationBound,
+// registryAccessorBound and registryKeyBound (analyzer_bounds.go, TSA-V0-460).
+const registryManifestSchema = "application-map-manifest/0"
 
 var registryIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]{0,63}$`)
 
@@ -47,8 +44,8 @@ type RegistryDeclaration struct {
 // ValidateRegistryDeclarations is the closed check the application map's
 // manifest decoder and impact's discovery share (NGI-V0-007).
 func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
-	if len(declarations) > maxRegistryDeclarations {
-		return fmt.Errorf("registries must list at most %d entries", maxRegistryDeclarations)
+	if !registryDeclarationBound.admits(len(declarations)) {
+		return fmt.Errorf("registries must list at most %d entries", registryDeclarationBound.limit)
 	}
 	seen := map[string]bool{}
 	for _, declaration := range declarations {
@@ -68,8 +65,8 @@ func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
 			return fmt.Errorf("registry %s export %s is repeated", declaration.Path, declaration.Export)
 		}
 		seen[declaration.Path+"\x00"+declaration.Export] = true
-		if len(declaration.Accessors) == 0 || len(declaration.Accessors) > maxRegistryAccessors {
-			return fmt.Errorf("registry %s: accessors must list 1 to %d names", declaration.Path, maxRegistryAccessors)
+		if len(declaration.Accessors) == 0 || !registryAccessorBound.admits(len(declaration.Accessors)) {
+			return fmt.Errorf("registry %s: accessors must list 1 to %d names", declaration.Path, registryAccessorBound.limit)
 		}
 		names := map[string]bool{}
 		for _, accessor := range declaration.Accessors {
@@ -88,7 +85,10 @@ func ValidateRegistryDeclarations(declarations []RegistryDeclaration) error {
 // so is a manifest-naming document that mentions `registries` but is too large
 // or not strict JSON (a duplicate member included), as the map refuses it too.
 // The schema name is matched before decoding, so a manifest that spells it
-// with `\u` escapes of its letters is not discovered (a retained limit).
+// with `\u` escapes of its letters is not discovered (a retained limit). A
+// `.json` source the index excluded past its size admission is read from Git
+// within registryExcludedJSONBound and counted when it names the schema and
+// `registries`, or when it cannot be read within the bound (TSA-V0-461).
 func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 	names := make([]string, 0)
 	for name := range index.Sources {
@@ -98,12 +98,17 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 	}
 	sort.Strings(names)
 	declarations, invalid := []RegistryDeclaration{}, 0
+	for _, exclusion := range index.Exclusions {
+		if exclusion.Reason == sourceSizeExclusion && path.Ext(exclusion.Path) == ".json" && excludedRegistryManifest(index, exclusion.Path) {
+			invalid++
+		}
+	}
 	for _, name := range names {
 		text, valid, loaded := index.Sources[name].Text()
 		if !valid || !loaded || !strings.Contains(text, "application-map-manifest") {
 			continue
 		}
-		if len(text) > maxRegistryManifestBytes || !strictJSON(text) {
+		if !registryManifestBound.admits(len(text)) || !strictJSON(text) {
 			if strings.Contains(text, "registries") {
 				invalid++
 			}
@@ -127,6 +132,22 @@ func declaredRegistries(index *Index) ([]RegistryDeclaration, int) {
 		declarations = append(declarations, members...)
 	}
 	return declarations, invalid
+}
+
+// excludedRegistryManifest reports whether a source the index excluded for size
+// may declare registries: its committed blob, read within
+// registryExcludedJSONBound, names the manifest schema and `registries`, or it
+// cannot be read within that bound. Such a manifest is past registryManifestBound,
+// so it is never decoded.
+func excludedRegistryManifest(index *Index, name string) bool {
+	if index.Root == "" || index.Revision == "" {
+		return true
+	}
+	raw, err := git(context.Background(), index.Root, registryExcludedJSONBound.limit, nil, "cat-file", "blob", index.Revision+":"+name)
+	if err != nil || !registryExcludedJSONBound.admits(len(raw)) {
+		return true
+	}
+	return bytes.Contains(raw, []byte("application-map-manifest")) && bytes.Contains(raw, []byte("registries"))
 }
 
 // registryToken is a web lexer token with the 1-based line it ends on.
@@ -164,7 +185,7 @@ func isRegistryWord(token registryToken, text string) bool {
 // registryLiteral admits a closed quoted string or a substitution-free
 // template with a printable body and no escape: the only key it compares.
 func registryLiteral(token registryToken) (string, bool) {
-	if token.kind != webString || !(token.quoted || token.template) || token.text == "" || len(token.text) > maxRegistryKeyBytes {
+	if token.kind != webString || !(token.quoted || token.template) || token.text == "" || !registryKeyBound.admits(len(token.text)) {
 		return "", false
 	}
 	for _, character := range token.text {
@@ -426,7 +447,7 @@ func registryEntryOf(property []registryToken, bindings map[string]registryBindi
 		key, ok = registryLiteral(first)
 		value = property[1:]
 	case first.kind == webWord:
-		key, ok = first.text, len(first.text) <= maxRegistryKeyBytes
+		key, ok = first.text, registryKeyBound.admits(len(first.text))
 		value = property[1:]
 		if len(value) == 0 {
 			value = property[:1]

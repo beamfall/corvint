@@ -21,6 +21,18 @@ func splitTarget(target string) (goos, arch string, err error) {
 	return "", "", fmt.Errorf("target %q is not GOOS/GOARCH", target)
 }
 
+// tasksCrossTarget is the one extra target the standalone Tasks archive builds for
+// (CAL-V0-320). It is cross-built only: the host cannot execute it, so no smoke runs and the
+// archive says so. The full companion bundle still admits only supportedTarget.
+const tasksCrossTarget = "linux/amd64"
+
+func validateTasksTarget(target string) error {
+	if target == tasksCrossTarget {
+		return nil
+	}
+	return validateTarget(target)
+}
+
 func validateTarget(target string) error {
 	if target != supportedTarget {
 		return fmt.Errorf("unsupported target %q: only %q is admitted; see NotRunTargets for the rest", target, supportedTarget)

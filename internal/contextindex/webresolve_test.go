@@ -257,9 +257,9 @@ func TestWebImportResolverFixture(t *testing.T) {
 func TestWebImportResolverFailsClosed(t *testing.T) {
 	page := "export const Page = 1;\n"
 	deep := map[string]string{"src/lib/page.ts": page, "app/a.ts": "", "tsconfig.json": `{"extends": "./c1.json"}`}
-	for depth := 1; depth <= maxWebConfigDepth+1; depth++ {
+	for depth := 1; depth <= webConfigDepthBound.limit+1; depth++ {
 		next := `{"extends": "./c` + itoa(depth+1) + `.json"}`
-		if depth == maxWebConfigDepth+1 {
+		if depth == webConfigDepthBound.limit+1 {
 			next = `{"compilerOptions": {"baseUrl": "src"}}`
 		}
 		deep["c"+itoa(depth)+".json"] = next

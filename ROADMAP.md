@@ -612,8 +612,10 @@ the extension.
   adapter-owned knowledge store. OpenCode cannot reach `FULL` until a pinned version passes a safe
   frontier/continuation test.
   A first Codex/Claude Code/Gemini CLI/OpenCode native package slice and shared lifecycle command now
-  exist as `FALLBACK` developer previews. V7 remains open: exact expansion, MCP, accepted Frontier
-  authority, and black-box host matrices are not delivered.
+  exist as `FALLBACK` developer previews. V7 remains open: exact expansion, accepted Frontier
+  authority, and black-box host matrices are not delivered. The stdio `corvint-mcp` companion passed
+  its official-schema receipt on 2026-10-20 and `mcp-server-unavailable` is retired (V1-0191); no
+  host row leaves `FALLBACK` with it.
   P1 MCP verb parity remains behind the Conditional-work outside-demand trigger: a consumer Corvint did
   not author must request it.
 - **V8 — operational consequences:** explainable side effects and test selection, E2E journey and
@@ -751,7 +753,7 @@ Milestone `m0-scope` is a ticket label, not a release.
 | [local-completion-policy-v0.md](docs/specs/local-completion-policy-v0.md) | implemented | none |
 | [local-observability-dashboard-v0.md](docs/specs/local-observability-dashboard-v0.md) | experimental | V1-0025 |
 | [local-trace-producer-migration-v0.md](docs/specs/local-trace-producer-migration-v0.md) | experimental | none |
-| [mcp-server-2026-07-28-v0.md](docs/specs/mcp-server-2026-07-28-v0.md) | experimental | none |
+| [mcp-server-2026-07-28-v0.md](docs/specs/mcp-server-2026-07-28-v0.md) | implemented | none |
 | [mcp-test-validity-profile-v0.md](docs/specs/mcp-test-validity-profile-v0.md) | experimental | none |
 | [migration-evidence-ratchet-v0.md](docs/specs/migration-evidence-ratchet-v0.md) | experimental | none |
 | [native-cem-adapter.md](docs/specs/native-cem-adapter.md) | experimental | none |

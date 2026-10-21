@@ -4,7 +4,7 @@
   "adapter": {
     "host": "codex",
     "surface": "plugin",
-    "version": "0.2.6"
+    "version": "0.2.7"
   },
   "host": {
     "minimumStaticallyValidatedVersion": "0.149.0",
@@ -30,7 +30,6 @@
     "compaction-rehydration-repository-dirty-paths-only",
     "compaction-untracked-paths-not-rehydratable",
     "host-version-unknown",
-    "mcp-server-unavailable",
     "full-black-box-conformance-not-run"
   ]
 }

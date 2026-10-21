@@ -822,7 +822,7 @@ func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 	documented, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
 	documentedCommands := map[string]bool{}
 	for _, line := range strings.Split(documented, "\n") {
-		if !strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "   ") {
+		if !strings.HasPrefix(line, "    ") {
 			continue
 		}
 		command := strings.Fields(line)[0]

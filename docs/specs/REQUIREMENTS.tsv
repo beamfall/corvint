@@ -1,4 +1,11 @@
 id	file	title	acceptance	acceptedBy
+ADS-V0-001	docs/specs/adoption-setup-report-v0.md	`corvint [--root PATH] adopt --setup` MUST print one canonical JSON object	unrecorded	-
+ADS-V0-002	docs/specs/adoption-setup-report-v0.md	`--setup` MUST NOT combine with any other `adopt` option or with `init`; such a	unrecorded	-
+ADS-V0-003	docs/specs/adoption-setup-report-v0.md	the `index-snapshot` check MUST use the read-only snapshot probe and report	unrecorded	-
+ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check MUST report `gap` unless a root `AGENTS.md`,	unrecorded	-
+ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
+ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
+ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -1044,8 +1051,8 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	A Core refusal MUST exit 2
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	The admission, freshness, omission and abstention members MUST keep their names,	unrecorded	-
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j	unrecorded	-
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST carry a `Command maturity:` section that lists the Core verbs of	unrecorded	-
-CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(proposed (V1-0945; no GitHub issue), not accepted) Root help is a compact verb	unrecorded	-
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST label every dispatched top-level verb with its maturity. (amended	unrecorded	-
+CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; V1-0945) Root help is a compact verb index of at most	owner	decision 0548; V1-0945
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
@@ -1377,6 +1384,7 @@ CAL-V0-316	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-317	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The	standing	2026-10-11; V1-1548
 CAL-V0-318	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper	standing	2026-10-11; V1-1548
 CAL-V0-319	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the	standing	2026-10-11; V1-2012
+CAL-V0-320	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1981) The	standing	2026-10-11; V1-1981
 CAL-V0-073	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket create --template` MUST return, in one	unrecorded	-
 CAL-V0-106	docs/specs/corvint-tasks-agent-leases-v0.md	`corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payloa	unrecorded	-
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
@@ -2695,6 +2703,7 @@ GPK-V0-083	docs/specs/go-production-kernel-migration-v0.md	(accepted, decision 0
 GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `corvint impact	standing	2026-10-20; V1-2047
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
+GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
@@ -3218,16 +3227,16 @@ MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	Legacy calls MUST reuse each ex
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.context` MUST compile the same packet as `corvint context` in process,	unrecorded	-
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.cem.report` MUST render the `corvint cem report` Markdown and the stabl	unrecorded	-
-MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
-MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0632 S2). A `cem/1.0` map refused before its stable verifier runs (	unrecorded	-
+MCPV0-036	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) `corvint.cem.report` MUST accept one optional `artifacts`	unrecorded	-
+MCPV0-037	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0632 S2) A `cem/1.0` map refused before its stable verifier runs (a	unrecorded	-
 MCPV0-027	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,	unrecorded	-
 MCPV0-028	docs/specs/mcp-server-2026-07-28-v0.md	`reasonClass` MUST be one of the closed values `git-filter`, `config-include`,	unrecorded	-
 MCPV0-038	docs/specs/mcp-server-2026-07-28-v0.md	A tool call whose Go repository probe exceeded its own bound while the request	unrecorded	-
 MCPV0-029	docs/specs/mcp-server-2026-07-28-v0.md	The opt-in `--tool-profile task-review-lsp` descendant exposes the task-review	unrecorded	-
 MCPV0-030	docs/specs/mcp-server-2026-07-28-v0.md	An explicitly requested gopls call uses TCP-V0-052's shared evidence and drift	unrecorded	-
-MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Each impact result carries at most four	unrecorded	-
-MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). Path impact accepts `--budget-bytes N`	unrecorded	-
-MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	proposed (V1-0944; no GitHub issue). When a successful tool result carries	unrecorded	-
+MCPV0-031	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Each impact result carries at most four	unrecorded	-
+MCPV0-032	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) Path impact accepts `--budget-bytes N`	unrecorded	-
+MCPV0-033	docs/specs/mcp-server-2026-07-28-v0.md	(V1-0944; no GitHub issue) When a successful tool result carries	unrecorded	-
 MCPV0-034	docs/specs/mcp-server-2026-07-28-v0.md	accepted 2026-10-08 (decision 0470; V1-0485; no GitHub issue). `Registry.Call` c	unrecorded	-
 MCPV0-039	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603)	standing	2026-10-11; V1-1603
 MCPV0-040	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1603) A	standing	2026-10-11; V1-1603
@@ -3856,6 +3865,7 @@ DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	the native disk s
 DIRTY-CACHE-014	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decision 0518 (V1-1141)**. A normal	unrecorded	-
 DIRTY-CACHE-015	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted, decision 0518 (V1-1141)**. Path impact	unrecorded	-
 DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decision 0519; V1-1174)**. Every verb	unrecorded	-
+DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
@@ -4694,6 +4704,10 @@ TSA-V0-360	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-361	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) Shell is read in order, with its	standing	2026-10-11; V1-1948
 TSA-V0-362	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1948) A role locator MUST be checked again	standing	2026-10-11; V1-1948
 TSA-V0-363	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1947 / GitHub #1199) `corvint tests	standing	2026-10-11; V1-1947; #1199
+TSA-V0-460	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) Every analyzer bound that can stop	standing	2026-10-11; V1-1720
+TSA-V0-461	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) An analyzer that exhausts a declared	standing	2026-10-11; V1-1720
+TSA-V0-462	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) A result shaped by an exhausted boun	standing	2026-10-11; V1-1720
+TSA-V0-463	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1720) One table-driven test MUST drive eac	standing	2026-10-11; V1-1720
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	`corvint [--root PATH] surprise --task TEXT --base REV --target REV	unrecorded	-
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas	unrecorded	-
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	The actual set MUST be the changed paths of the committed range, read as	unrecorded	-

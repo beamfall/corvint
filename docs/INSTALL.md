@@ -36,11 +36,11 @@ Continue only if the command succeeds and reports `OK`. Extract into a new direc
 the binary against the checksum inside the archive:
 
 ```sh
-mkdir corvint-<version>
-tar -xzf corvint_darwin_arm64.tar.gz -C corvint-<version>
-cd corvint-<version>/corvint_darwin_arm64
-shasum -a 256 -c SHA256SUMS
-./corvint --version
+mkdir corvint-<version> &&
+  tar -xzf corvint_darwin_arm64.tar.gz -C corvint-<version> &&
+  cd corvint-<version>/corvint_darwin_arm64 &&
+  shasum -a 256 -c SHA256SUMS &&
+  ./corvint --version
 ```
 
 Expect `Corvint <version> (build N)`, matching the release manifest's exact version and build
@@ -152,7 +152,25 @@ archive and `SHA256SUMS`; verify that checksum before extracting into a fresh di
 `bin/` to PATH and use the [external-agent setup guide](TASKS-EXTERNAL-AGENTS.md).
 The version keeps its explicit unverified label. This candidate is not an execution cutover,
 release promotion, or proof that the complete workflow bundle is qualified. Publishing it as a
-release asset remains an explicit operator action. Other Tasks archive targets are NOT_RUN.
+release asset remains an explicit operator action.
+
+For Linux agent hosts the same command with `-target linux/amd64` cross-builds
+`corvint-tasks_linux_amd64.tar.gz` (static, `CGO_ENABLED=0`) with its `SHA256SUMS` line. The build
+host never runs it, so no version/help smoke happens and the manifest `qualification` is
+`reproducible-cross-build-only-target-runtime-not-observed`: the Linux runtime is NOT_OBSERVED until
+a Linux host does the following with a downloaded archive and an existing `.taskman` store
+(CAL-V0-320):
+
+```sh
+# One && chain: a failed checksum stops before anything is extracted or run.
+sha256sum -c SHA256SUMS --ignore-missing &&
+  mkdir tasks && tar -xzf corvint-tasks_linux_amd64.tar.gz -C tasks &&
+  tasks/bin/corvint-tasks version &&
+  (cd /path/to/repo-with-.taskman && /abs/tasks/bin/corvint-tasks roadmap)
+```
+
+Run `roadmap` read-only on a copy or a clean checkout. Other Tasks archive targets, including
+linux/arm64, are NOT_RUN.
 
 ## Optional workflow bundle
 
