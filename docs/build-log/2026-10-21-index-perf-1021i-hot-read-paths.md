@@ -57,11 +57,24 @@ measurement because it inflates every wall time here.
 
 The `impact` stdout and stderr bytes and the exit code were identical before and after.
 
+## Verification
+
+- New tests:
+  - `TestRangeImpactRefusesUnsafePathBeforeCopyDetection`
+  - `TestRangeCertainPathRefusalDefersMixedRefusals`
+  - `TestMappedSnapshotDecodeMatchesStreamedDecode`
+  - `TestMappedSnapshotDecodeFaultIsAMiss`
+
+  The first and last fail with the fix disabled: the range test reports one exact-diff call, and the fault test dies with a fatal fault.
+- On macOS a truncated MAP_PRIVATE file keeps its pages readable, so the fault test uses a PROT_NONE mapping. Linux raises SIGBUS on truncation instead.
+- `corvint affected` tier 0 passed: `internal/contextindex` in full, 250 s. Tier 1, capped at 14 packages, also passed: diagnostic, specindex, sharedpath, lrfrepo, liveverify/affected, fixture-maintenance-check, corvint-go-test-provider, semescalate, obscorpus, protocol/integrations, capabilities-check, cem-citation-baseline, spec-coverage-audit and tasks/ticket.
+- Doc gates passed, as did `make windows-vet`, `script/analyzer-schema.sh check`, `gofmt` and `go vet`.
+
 ## NOT_RUN
 
 - `make gate` (charter).
 - `./cmd/corvint` package tests (it is unchanged).
-- Affected units beyond tiers 0 and 1 and the capped sibling and importer set listed in the PR.
+- The other 132 affected units: 84 dependency-path importers, 21 binary-exec, 14 unbounded-reader and the rest of the path-literal shell tests.
 
 ## Residuals
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"os"
 	"reflect"
+	"syscall"
 	"testing"
 )
 
@@ -71,36 +72,24 @@ func TestMappedSnapshotDecodeMatchesStreamedDecode(t *testing.T) {
 	}
 }
 
-// TestMappedSnapshotDecodeFaultIsAMiss pins IDX-SNAP-V0-105: a snapshot
-// truncated under its mapping is an error, the IDX-SNAP-V0-003 miss, rather
-// than a crash on either the decode or the hash goroutine.
+// TestMappedSnapshotDecodeFaultIsAMiss pins IDX-SNAP-V0-105: a memory fault
+// while reading the mapping, which a file truncated under it raises on hosts
+// that do not keep its pages, is an error and so the IDX-SNAP-V0-003 miss,
+// on the decode and the hash goroutine alike, never a crash. A PROT_NONE
+// mapping faults on every host; any other panic is re-raised.
 func TestMappedSnapshotDecodeFaultIsAMiss(t *testing.T) {
-	index := taskContextFixture(t)
-	receipt, err := WriteSnapshot(index)
+	mapping, err := syscall.Mmap(-1, 0, 1<<16, syscall.PROT_NONE, syscall.MAP_ANON|syscall.MAP_PRIVATE)
 	if err != nil {
 		t.Fatal(err)
 	}
-	identity, err := readIdentity(context.Background(), index.Root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	file, err := os.OpenFile(receipt.Path, os.O_RDWR, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil {
-		t.Fatal(err)
-	}
-	mapping := mapReadOnly(file, info.Size())
-	if mapping == nil {
-		t.Fatal("snapshot file did not map")
-	}
-	if err := file.Truncate(0); err != nil {
-		t.Fatal(err)
-	}
+	identity := repositoryIdentity{objectFormat: "sha1"}
 	if err := decodeMappedSnapshotValue(mapping, identity, snapshotEngineID(), &Index{}); !errors.Is(err, errSnapshotFault) {
-		t.Fatalf("truncated mapping decoded: %v", err)
+		t.Fatalf("faulting mapping decoded: %v", err)
 	}
+	defer func() {
+		if recovered := recover(); recovered != "not a fault" {
+			t.Fatalf("non-fault panic became %v", recovered)
+		}
+	}()
+	_ = guardMappedRead(func() error { panic("not a fault") })
 }
