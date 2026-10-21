@@ -681,6 +681,19 @@ func (d *Dispatcher) admitProgress(ctx context.Context, obs *Observation, ended 
 			changed = true
 		}
 	}
+	// ATR-V0-167: the progress accounting of a granted worker or an
+	// unparked key is applied in this same save, before the worker leaves
+	// the ledger, so an interrupt before finish cannot lose it. finish and
+	// the unparked loop apply it again, which changes nothing.
+	for _, w := range ended {
+		if granted[w.ID] {
+			d.accountOn(&staged, w.Key, true)
+			infraEndedOn(&staged, w.Key, w.ID, true)
+		}
+	}
+	for _, key := range unparked {
+		d.accountOn(&staged, key, true)
+	}
 	if changed {
 		if err := staged.validateProgress(); err != nil {
 			return nil, nil, nil, err
@@ -1385,18 +1398,21 @@ func (d *Dispatcher) finish(obs *Observation, ended []*Worker, granted, pending 
 // account updates the CAL-V0-057 ladder of a ticket after one finished
 // session: no progress extends its streak; progress resets it and returns
 // every deescalating role to its base model.
-func (d *Dispatcher) account(key string, progress bool) {
+func (d *Dispatcher) account(key string, progress bool) { d.accountOn(d.ledger, key, progress) }
+
+// accountOn is account on the given ledger.
+func (d *Dispatcher) accountOn(l *Ledger, key string, progress bool) {
 	if !d.Config.Escalates() || strings.HasPrefix(key, "lane:") {
 		return
 	}
-	e := d.ledger.Escalation[key]
+	e := l.Escalation[key]
 	if !progress {
 		if e == nil {
 			e = &EscalationState{}
-			if d.ledger.Escalation == nil {
-				d.ledger.Escalation = map[string]*EscalationState{}
+			if l.Escalation == nil {
+				l.Escalation = map[string]*EscalationState{}
 			}
-			d.ledger.Escalation[key] = e
+			l.Escalation[key] = e
 		}
 		e.Streak++
 		return
@@ -1411,7 +1427,7 @@ func (d *Dispatcher) account(key string, progress bool) {
 		}
 	}
 	if len(e.Tiers) == 0 {
-		delete(d.ledger.Escalation, key)
+		delete(l.Escalation, key)
 	}
 }
 
@@ -1719,7 +1735,7 @@ func (d *Dispatcher) launchRoster(ctx context.Context, obs *Observation) {
 		var carryText string
 		var carried []CarryEntry
 		if a.Ticket != "" && !strings.HasPrefix(a.Key, "lane:") && role.CarryOver.on() {
-			carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket)
+			carryText, carried = d.carryOverFor(role.CarryOver, a.Ticket, Fingerprint(obs, a.Key))
 			// ATR-V0-133: a store-derived argv value must not turn the
 			// launched argv into one that runs the block as code.
 			if err := renderedArgvSafe(host.Argv, values); carryText != "" && err != nil {

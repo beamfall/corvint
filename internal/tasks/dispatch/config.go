@@ -703,9 +703,6 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	if !strictSweepConfig(raw) {
 		return nil, fmt.Errorf("dispatch config: malformed poolSweep JSON")
 	}
-	if err := refuseRepeatedMembers(raw); err != nil {
-		return nil, err
-	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
 	var c Config
@@ -714,6 +711,11 @@ func DecodeConfig(raw []byte) (*Config, error) {
 	}
 	if d.Decode(new(any)) != io.EOF {
 		return nil, fmt.Errorf("dispatch config: trailing input")
+	}
+	// After the strict decode, so a member whose own decoder refuses a
+	// repeat (a budget override, a prompt part) keeps its specific error.
+	if err := refuseRepeatedMembers(raw); err != nil {
+		return nil, err
 	}
 	if c.StalledAfterSessions == nil && presentNull(raw, "stalledAfterSessions") {
 		return nil, fmt.Errorf("dispatch config: stalledAfterSessions is null; omit it to disable the advisory")
