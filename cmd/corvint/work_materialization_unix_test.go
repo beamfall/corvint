@@ -141,43 +141,109 @@ func TestWorkActualProducerInterruptedScratchCleanup(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute) // hang detector, not a budget (decision 0082)
 	defer cancel()
+	// V1-0849 (V1-0638): force the interleaving CI lost. A producer observed with
+	// live scratch can remove it and exit before SIGKILL lands (in CI, SIGSTOP had
+	// not yet taken effect). The attempt must then witness nothing, not report a
+	// disappeared witness.
+	letProducerWin := func(done <-chan struct{}) { <-done }
+	forced := false
+	for attempt := 0; attempt < workInterruptAttempts && !forced; attempt++ {
+		var witnesses []string
+		if forced, witnesses = workInterruptActualProducer(t, ctx, run, letProducerWin); len(witnesses) != 0 {
+			t.Fatalf("producer that removed its scratch left witnesses: %v", witnesses)
+		}
+	}
+	if !forced {
+		t.Fatal("actual producer did not acquire scratch under observer ownership")
+	}
+	// The interruption outcome is decided only after the producer's reap: a
+	// directory present then is one the SIGKILLed producer never removed. Attempts
+	// that observed nothing or lost the race are counted, not timed.
+	var witnesses []string
+	observedAttempts := 0
+	for attempt := 0; attempt < workInterruptAttempts && len(witnesses) == 0; attempt++ {
+		var observed bool
+		observed, witnesses = workInterruptActualProducer(t, ctx, run, nil)
+		if observed {
+			observedAttempts++
+		}
+		if len(witnesses) == 0 {
+			t.Logf("attempt %d interrupted no acquisition (observed %v); retrying", attempt+1, observed)
+		}
+	}
+	if observedAttempts == 0 {
+		t.Fatal("actual producer did not acquire scratch under observer ownership")
+	}
+	if len(witnesses) == 0 {
+		t.Fatalf("interruption witness disappeared before observer cleanup in all %d observed attempts", observedAttempts)
+	}
+	runRoot := run.root
+	run.Close()
+	for _, witness := range witnesses {
+		if _, err := os.Stat(witness); !os.IsNotExist(err) {
+			t.Fatalf("killed producer acquisition scratch remains: %s", witness)
+		}
+	}
+	if _, err := os.Stat(runRoot); !os.IsNotExist(err) {
+		t.Fatal("observer run root remains after interrupted producer")
+	}
+}
+
+// workInterruptAttempts bounds producer runs that observe no acquisition or
+// lose the kill race; it is an attempt count, not a timing budget.
+const workInterruptAttempts = 8
+
+// workInterruptActualProducer runs the built producer once and SIGKILLs its
+// group while an acquisition directory exists under run.tmp. It reports whether
+// an acquisition was observed, and the acquisition directories that remain after
+// the producer is reaped. beforeKill, when set, runs between the observation and
+// SIGKILL.
+func workInterruptActualProducer(t *testing.T, ctx context.Context, run *workMaterialization, beforeKill func(<-chan struct{})) (bool, []string) {
+	t.Helper()
 	producer := exec.CommandContext(ctx, filepath.Join(run.tmp, "corvint-work-queue-owner/build/corvint-work-queue"), "snapshot")
 	producer.Dir, producer.Env = run.target, run.environment
 	producer.WaitDelay = time.Second
 	workContain(producer)
 	producer.Cancel = func() error { workKillGroup(producer); return nil }
-	// Guardian cleanup is registered before the process can acquire scratch.
-	t.Cleanup(func() { workKillGroup(producer) })
+	done := make(chan struct{})
+	// Guardian cleanup is registered before the process can acquire scratch; a
+	// reaped producer's process-group ID is no longer this test's to signal.
+	t.Cleanup(func() {
+		select {
+		case <-done:
+		default:
+			workKillGroup(producer)
+		}
+	})
 	if err := producer.Start(); err != nil {
 		t.Fatal(err)
 	}
-	done := make(chan struct{})
 	go func() { _ = producer.Wait(); close(done) }()
-	acquired := ""
+	pattern := filepath.Join(run.tmp, "corvint-work-source-*")
+	observed := false
 	// The poll ends on producer exit or the hang detector, not a fixed budget; the scan
-	// after an observed exit still runs once.
+	// after an observed exit still runs once. No SIGSTOP: a stop can catch a forked Git
+	// child after it leaves the producer group and before exec, and SIGCONT to the
+	// group then cannot resume it, so the producer never exits.
 	exited := false
-	for !exited && ctx.Err() == nil {
+	for !observed && !exited && ctx.Err() == nil {
 		select {
 		case <-done:
 			exited = true
 		default:
 		}
-		paths, err := filepath.Glob(filepath.Join(run.tmp, "corvint-work-source-*"))
+		paths, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if len(paths) > 0 {
-			// Stop the owned group before asserting the directory still exists, closing
-			// the race with a normally completed short root-resolution acquisition.
-			_ = syscall.Kill(-producer.Process.Pid, syscall.SIGSTOP)
-			if _, err := os.Stat(paths[0]); err == nil {
-				acquired = paths[0]
-				break
-			}
-			_ = syscall.Kill(-producer.Process.Pid, syscall.SIGCONT)
+			observed = true
+			break
 		}
 		time.Sleep(time.Millisecond)
+	}
+	if observed && beforeKill != nil {
+		beforeKill(done)
 	}
 	workKillGroup(producer)
 	select {
@@ -185,18 +251,9 @@ func TestWorkActualProducerInterruptedScratchCleanup(t *testing.T) {
 	case <-time.After(time.Minute): // hang detector for a SIGKILLed group reap (decision 0082)
 		t.Fatal("producer group did not terminate")
 	}
-	if acquired == "" {
-		t.Fatal("actual producer did not acquire scratch under observer ownership")
+	witnesses, err := filepath.Glob(pattern)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := os.Stat(acquired); err != nil {
-		t.Fatalf("interruption witness disappeared before observer cleanup: %v", err)
-	}
-	runRoot := run.root
-	run.Close()
-	if _, err := os.Stat(acquired); !os.IsNotExist(err) {
-		t.Fatalf("killed producer acquisition scratch remains: %s", acquired)
-	}
-	if _, err := os.Stat(runRoot); !os.IsNotExist(err) {
-		t.Fatal("observer run root remains after interrupted producer")
-	}
+	return observed, witnesses
 }
