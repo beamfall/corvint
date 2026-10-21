@@ -482,14 +482,15 @@ func choose(in PlanInput, e PlanEntry, selected []PlanEntry, waiting map[string]
 			return e
 		}
 	}
+	shared := in.Policy.SharedReservationPaths()
 	for _, en := range in.Reservations.Entries {
-		if ticket.Collide(e.Resources, en.Resources) {
+		if ticket.CollideShared(e.Resources, en.Resources, shared) {
 			e.Blockers, e.SerialFallback = []string{en.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}
 	}
 	for _, s := range selected {
-		if ticket.Collide(e.Resources, s.Resources) {
+		if ticket.CollideShared(e.Resources, s.Resources, shared) {
 			e.Blockers, e.SerialFallback = []string{s.Ticket.TicketID.Raw}, fallbackOnly(in, e, selected)
 			return e
 		}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -95,4 +96,33 @@ func TestV11368SnapshotBoundUnderLoad(t *testing.T) {
 			t.Fatalf("final sweep outside the settle bound: %v", waited)
 		}
 	})
+}
+
+// V1-1651 (PGO-V0-018): a version smoke on a loaded host loses two periodic
+// snapshots to their timeout and then gets a slow one, a blind interval of
+// about 6 s. That exceeded the old 5 s bound and failed the smoke; it now
+// completes with the loss kept as a limitation.
+func TestV11651VersionSmokeSurvivesTwoLostSnapshots(t *testing.T) {
+	var calls atomic.Int32
+	snap := func(ctx context.Context) (map[int]ObservedProcess, error) {
+		switch calls.Add(1) {
+		case 2, 3: // a hung ps: lost when its own timeout expires
+			<-ctx.Done()
+			return nil, ctx.Err()
+		case 4: // a slow ps that still succeeds
+			time.Sleep(time.Second)
+		}
+		return descendantSnapshot(ctx)
+	}
+	o := run(context.Background(), Spec{Argv: []string{"/bin/sh", "-c", "/bin/sleep 7; echo 'Corvint 1.0.0'"}, Dir: t.TempDir(), Env: []string{"PATH=/usr/bin:/bin", "LANG=C"}, Timeout: 10 * time.Second, ShutdownTimeout: 2 * time.Second, OutputLimit: 64 << 10, ObserveDescendants: true}, processWaitChannels{descendantSnap: snap})
+	if o.Err != nil || o.ExitStatus != 0 || !o.OwnedProcessGroupCleanup {
+		t.Fatalf("version smoke failed: %v (exit %d, cleanup %v)", o.Err, o.ExitStatus, o.OwnedProcessGroupCleanup)
+	}
+	report := o.DescendantObservation
+	if report == nil || !report.Absent || !slices.ContainsFunc(report.Limitations, func(s string) bool { return strings.HasPrefix(s, "2 periodic snapshots were unavailable") }) {
+		t.Fatalf("lost snapshots not kept as a limitation: %+v", report)
+	}
+	if got := strings.TrimSpace(string(o.Stdout)); got != "Corvint 1.0.0" {
+		t.Fatalf("stdout %q", got)
+	}
 }

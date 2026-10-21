@@ -3368,6 +3368,7 @@ NTP-V0-022	docs/specs/native-taskman-planning-v0.md	Every join MUST be confirmed
 NTP-V0-023	docs/specs/native-taskman-planning-v0.md	`--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item	unrecorded	-
 NTP-V0-024	docs/specs/native-taskman-planning-v0.md	A candidate whose base commit is absent or unresolvable, whose candidate tree or	unrecorded	-
 NTP-V0-025	docs/specs/native-taskman-planning-v0.md	The verb MUST follow the Tasks read contract: one lock-free snapshot-bracketed s	unrecorded	-
+NTP-V0-026	docs/specs/native-taskman-planning-v0.md	The store policy MAY declare `reservations.sharedPaths`, a sorted, unique, non-e	unrecorded	-
 NEC-V0-001	docs/specs/necessity-labels-v0.md	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST	unrecorded	-
 NEC-V0-002	docs/specs/necessity-labels-v0.md	The verb MUST load the index exactly as `context --task` does (the tree's snapsh	unrecorded	-
 NEC-V0-003	docs/specs/necessity-labels-v0.md	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,	unrecorded	-
@@ -3701,6 +3702,7 @@ PGO-V0-011	docs/specs/process-group-owner-v0.md	(accepted under the owner's stan
 PGO-V0-012	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); cem1-producer-har	standing	2026-10-11
 PGO-V0-016	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1244). In the	standing	2026-10-11; V1-1244
 PGO-V0-017	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2111) Every Ow	standing	2026-10-11; V1-2111
+PGO-V0-018	docs/specs/process-group-owner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1651) The obse	standing	2026-10-11; V1-1651
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	An optimization trial MUST begin from one canonical Corvint packet whose exact b	unrecorded	-
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	V0 transformations are only whole-handle omission, exact duplicate elimination,	unrecorded	-
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	Counterfactual search MUST run outside live agent sessions using bounded hierarc	unrecorded	-
