@@ -317,7 +317,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		if err != nil {
 			return nil, err
 		}
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, path), bound)
+		raw, err := readLogical(repo, path, bound)
 		if err != nil {
 			return nil, err
 		}

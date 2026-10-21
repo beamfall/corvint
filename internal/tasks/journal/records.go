@@ -175,6 +175,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 	if r.handoffPolicy != nil {
 		result.HandoffPolicy = &HandoffPolicyHistory{Selector: *r.handoffPolicy, Compatible: true}
 	}
+	if o.segErr != nil {
+		return result, o.segErr
+	}
 	if o.stageErr != nil {
 		return result, o.stageErr
 	}
@@ -813,8 +816,13 @@ func (r Reader) strays(o *observation, has func(string) bool, checkIntent bool) 
 		if !checkIntent && strings.HasPrefix(p, "intent/") {
 			continue
 		}
-		if info.IsDir() || isTemp(p) || strings.HasPrefix(p, "staging/") {
+		if info.IsDir() || isTemp(p) || strings.HasPrefix(p, "staging/") || strings.HasPrefix(p, snapshot.SegmentsDir+"/") {
 			continue
+		}
+		// A sealed request is served from its segment; a linked copy of it
+		// is a second afterimage the journal never posted (JSG-V0-005).
+		if v, ok := r.Source.(*segmentView); ok && v.sealed(p) {
+			return wire.Errorf(wire.CodeJournalForked, p, "physical duplicate of a sealed request")
 		}
 		if has(p) {
 			continue
@@ -881,6 +889,9 @@ func (r Reader) walkTail(o *observation, cp *Checkpoint, selected map[string]boo
 	result := &Result{Identity: o.identity, Head: o.head, Mode: ModeCheckpoint, Records: map[string]Record{}, StructuralConsistency: "NOT_OBSERVED", ProjectionAgreement: "NOT_OBSERVED", SemanticCoverage: "NOT_OBSERVED", HistoricalAcceptance: "NOT_OBSERVED", ActorAuthentication: "NOT_OBSERVED", Liveness: "NOT_OBSERVED", RuntimeQualification: "NOT_OBSERVED"}
 	if o.seal != nil {
 		return result, errCheckpoint(RetiredPrefixFile, "store carries a retired prefix")
+	}
+	if o.segErr != nil {
+		return result, o.segErr
 	}
 	if o.head == nil || o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
 		if o.head != nil {

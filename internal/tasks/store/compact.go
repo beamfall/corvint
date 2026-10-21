@@ -70,6 +70,9 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 	if err != nil {
 		return nil, err
 	}
+	if head.Segments != nil {
+		return nil, wire.Errorf(wire.CodeUnsupported, snapshot.SegmentsDir, "compaction is refused on a segmented journal (JSG-V0-008)")
+	}
 	if err := compactAudit(repo, head); err != nil {
 		return nil, err
 	}

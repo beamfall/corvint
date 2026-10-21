@@ -297,7 +297,8 @@ func retainedElsewhere(rc *readCtx, id string, f reviewFlags) error {
 	if err != nil {
 		return err
 	}
-	if _, err := os.Lstat(filepath.Join(rc.repo.StateDir, path)); errors.Is(err, fs.ErrNotExist) {
+	// A sealed afterimage has no physical file (JSG-V0-012).
+	if _, err := os.Lstat(filepath.Join(rc.repo.StateDir, path)); errors.Is(err, fs.ErrNotExist) && rc.snap.Head.Segments == nil {
 		return nil
 	}
 	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
@@ -481,7 +482,7 @@ func reviewSubject(repo *intent.Repository, seqArg string) (snapshot.ExternalRev
 	if err != nil {
 		return none("%v", err)
 	}
-	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "receipts", name), wire.MaxReceiptFileBytes)
+	raw, err := journal.Logical(journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}).Read("receipts/"+name, wire.MaxReceiptFileBytes)
 	if errors.Is(err, fs.ErrNotExist) {
 		return none("receipt %d does not exist", seq)
 	}

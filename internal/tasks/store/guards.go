@@ -72,6 +72,11 @@ func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, er
 			return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "interrupted retire marker present or unobservable; run `receipt retire` or `receipt unretire` to finish it")
 		}
 	}
+	// A seal a stop interrupted is finished or undone before anything else
+	// reads the journal (JSG-V0-008).
+	if err := settleSegmentSeal(repo); err != nil {
+		return nil, err
+	}
 	version, err := intent.ReadFile(filepath.Join(repo.StateDir, "VERSION"), 4096)
 	if err != nil {
 		return nil, err

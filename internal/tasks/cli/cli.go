@@ -489,7 +489,7 @@ func LiveFormats() []string {
 		wire.CriterionCaptureProfile, wire.CriterionVerificationProfile, wire.CriterionCaptureResultProfile,
 		archive.Profile, journal.ProfileCheckpoint, journal.ProfileWriterCheckpoint, journal.ProfileWriterBase, journal.ProfileRetiredPrefix, mutation.Profile, mutation.OutcomeProfile,
 		intent.ProfileImportMap, intent.ProfileQueue, intent.ProfilePolicy,
-		snapshot.ProfileHead, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit,
+		snapshot.ProfileHead, snapshot.ProfileHeadSegmented, snapshot.ProfileSegment, snapshot.ProfileSegmentManifest, snapshot.ProfileSealMarker, snapshot.ProfileBarrier, snapshot.ProfileReceipt, snapshot.ProfileElidedReceipt, snapshot.ProfileInit,
 		snapshot.ProfileAttempt, snapshot.ProfileReservations, snapshot.ProfileRetryAccounting,
 		snapshot.ProfileGateResult, snapshot.ProfileManifest, snapshot.SupervisedProfile,
 		snapshot.ProfileExternalReviewRequest, snapshot.ProfileExternalReviewEvent,
@@ -845,7 +845,7 @@ func lastAttemptEnded(rc *readCtx, ids []string) (map[string]wire.Value, error) 
 			latest[id] = a
 		}
 	}
-	src := journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}
+	src := journal.Logical(journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()})
 	for id, a := range latest {
 		out[id] = wire.String("UNKNOWN")
 		path := "attempts/" + a.AttemptID + ".json"

@@ -1417,6 +1417,7 @@ func freeze(r Request, d wire.Digest, now wire.Timestamp, inv *Inventory, base *
 		h.InitSha256 = base.InitSha256
 		h.PrimaryWorktree = base.PrimaryWorktree
 		h.VersionSha256 = base.VersionSha256
+		h.Segments = base.Segments
 	}
 	head := wire.EncodeFile(h.Value())
 	if _, e := snapshot.DecodeHead(head); e != nil {

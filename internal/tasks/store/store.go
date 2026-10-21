@@ -280,7 +280,18 @@ func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan
 // at that point would (CAL-V0-019). It is nil outside tests.
 var publishFault func(transaction.Artifact) error
 
+// applyWithFaults publishes plan and then seals the oldest segment when the
+// committed head is far enough past it (JSG-V0-008). A seal never declines
+// the committed write.
 func applyWithFaults(repo *intent.Repository, session *authority.Session, plan transaction.Publication, beforeCommit, beforeBarrierDelete func() error) (receipt string, err error) {
+	receipt, err = applyArtifacts(repo, session, plan, beforeCommit, beforeBarrierDelete)
+	if err == nil {
+		sealAfterCommit(repo, session)
+	}
+	return receipt, err
+}
+
+func applyArtifacts(repo *intent.Repository, session *authority.Session, plan transaction.Publication, beforeCommit, beforeBarrierDelete func() error) (receipt string, err error) {
 	arts := plan.Artifacts()
 	record, err := snapshot.DecodeReceipt(plan.Receipt())
 	if err != nil {

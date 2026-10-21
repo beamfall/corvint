@@ -245,7 +245,9 @@ func importBatch(repo *intent.Repository, session *authority.Session, actor muta
 	if err = a.bind(repo, request.Operation); err != nil {
 		return guardFailure(report, request.RequestID, err)
 	}
-	if report.Receipt, err = applyBeforeCommit(repo, session, batch, func() error { return importPreimages(repo, batch) }); err != nil {
+	// An import's batches carry the head each one wrote, so none seals; the
+	// next ordinary write does (JSG-V0-008).
+	if report.Receipt, err = applyArtifacts(repo, session, batch, func() error { return importPreimages(repo, batch) }, nil); err != nil {
 		return report, err
 	}
 	if err = a.sequence.Advance(batch); err != nil {

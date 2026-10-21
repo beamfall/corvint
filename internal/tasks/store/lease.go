@@ -284,7 +284,7 @@ func readReceiptBytes(repo *intent.Repository, seq uint64) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return intent.ReadFile(filepath.Join(repo.StateDir, "receipts", name), wire.MaxReceiptFileBytes)
+	return readLogical(repo, "receipts/"+name, wire.MaxReceiptFileBytes)
 }
 
 func readReceipt(repo *intent.Repository, seq uint64) (*snapshot.Receipt, error) {

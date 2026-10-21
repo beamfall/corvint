@@ -136,6 +136,9 @@ func RetirePrefix(ctx context.Context, repo *intent.Repository, archivePath stri
 	if err != nil {
 		return nil, err
 	}
+	if head.Segments != nil {
+		return nil, wire.Errorf(wire.CodeUnsupported, snapshot.SegmentsDir, "retire is refused on a segmented journal (JSG-V0-008)")
+	}
 	if on, err := present(statePath(repo, "barrier.json")); err != nil || on {
 		if err == nil {
 			err = wire.Errorf(wire.CodePaused, "barrier.json", "a paused store is not retired")

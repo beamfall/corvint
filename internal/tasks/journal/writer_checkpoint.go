@@ -1081,11 +1081,9 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 }
 
 // AuditForLiveness is AuditForWriter (forMutation false) for a HEARTBEAT or
-// RENEW (CAL-V0-224, amended for V1-0887 by decision 0549): neither capture
-// lists receipts/. Each stats the directory, the second requires its stamps
-// unchanged, and the walk probes that no receipt follows head, so the work
-// no longer grows with the number of receipts. A platform without a change
-// time lists exactly, as AuditForWriter does.
+// RENEW. Both captures list receipts/ exactly, as AuditForWriter does: on a
+// segmented journal it holds at most 1,023 names, so the listing no longer
+// grows with the history (JSG-V0-007, replacing the CAL-V0-224 probe).
 //
 // It also lists no intent directory and reads no ticket or release
 // (JSG-V0-001): only queue.json and policy.json, by name, whose digests the
@@ -1093,7 +1091,7 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 // its ProjectionAgreement is IntentRecordsNotCompared, and LivenessIntent
 // summarizes the live ticket and release records from the checkpoint.
 func (r Reader) AuditForLiveness(wc *WriterCheckpoint, requestID string) (*Result, PhysicalObservation, error) {
-	r.probeReceipts, r.liveness = haveChangeTime, true
+	r.liveness = true
 	return r.AuditForWriter(wc, requestID, false)
 }
 
@@ -1150,6 +1148,11 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 	}
 	if o.head == nil {
 		return result, errCheckpoint("head.json", "no settled head")
+	}
+	if o.head.Segments != nil {
+		// A prefix walk's hold check lists receipts/; a seal moves receipts
+		// out of it, so the refresh takes the complete route (JSG-V0-007).
+		return result, errCheckpoint(snapshot.SegmentsDir, "prefix walk of a segmented journal")
 	}
 	if o.stageErr != nil || o.staging || len(o.stageDigests) > 0 {
 		// A temporary or staged name is classified only by a complete audit
@@ -1281,32 +1284,30 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= WriterFullBound {
 		return result, errCheckpoint("/seq", "tail exceeds the writer bound")
 	}
-	if o.receiptsProbed {
-		// A liveness write probes the name after head instead of listing
-		// (CAL-V0-224): a pending receipt there is the complete route's to
-		// settle. The checkpoint's receipt and the tail are read by name.
-		next, err := snapshot.ReceiptName(headSeq + 1)
-		if err != nil {
-			return result, err
-		}
-		if _, present, err := optionalRead(r.Source, "receipts/"+next, wire.MaxReceiptFileBytes); err != nil || present {
-			return result, errCheckpoint("receipts", "a receipt follows head")
-		}
-	} else {
-		// Names validated by receiptSeq are canonical and unique, so a count
-		// of head with first 1 and last head is exactly 1..head. A pending or
-		// extra receipt is classified by the complete audit.
-		if uint64(len(o.receipts)) != headSeq {
-			return result, errCheckpoint("receipts", "receipt names differ from head")
-		}
-		first, _ := snapshot.ReceiptName(1)
-		last, err := snapshot.ReceiptName(headSeq)
-		if err != nil {
-			return result, err
-		}
-		if o.receipts[0] != first || o.receipts[len(o.receipts)-1] != last {
-			return result, errCheckpoint("receipts", "receipt names differ from head")
-		}
+	if o.segErr != nil {
+		return result, o.segErr
+	}
+	// Names validated by receiptSeq are canonical and unique, so a count of
+	// head-S with first S+1 and last head is exactly S+1..head, S being the
+	// sealed prefix (0 when unsegmented, JSG-V0-007). A pending or extra
+	// receipt is classified by the complete audit.
+	low := uint64(1)
+	if head.Segments != nil {
+		low = head.Segments.Through.Uint64() + 1
+	}
+	if from < low {
+		return result, errCheckpoint("/seq", "checkpoint receipt is sealed")
+	}
+	if uint64(len(o.receipts)) != headSeq-low+1 {
+		return result, errCheckpoint("receipts", "receipt names differ from head")
+	}
+	first, _ := snapshot.ReceiptName(low)
+	last, err := snapshot.ReceiptName(headSeq)
+	if err != nil {
+		return result, err
+	}
+	if o.receipts[0] != first || o.receipts[len(o.receipts)-1] != last {
+		return result, errCheckpoint("receipts", "receipt names differ from head")
 	}
 	name, err := snapshot.ReceiptName(from)
 	if err != nil {
