@@ -116,6 +116,58 @@ func receiptSites(t *testing.T, rel string, source []byte) []string {
 	return sites
 }
 
+// receiptReaderFunc is the one product function that reads receipts.
+const receiptReaderFunc = "runTestVerifyShards"
+
+// indirectReceiptSites returns the import-graph and call-graph sites of a
+// product Go file (V1-2025): "dir importer" for a package outside
+// internal/sessiontest that imports it, which could reach a receipt through
+// reflection or an unnamed value rather than a receipt symbol, and
+// "path decl reference" for every use of the reader function, which could
+// hand verify-shards' decoded result to another consumer.
+func indirectReceiptSites(t *testing.T, rel string, source []byte) []string {
+	t.Helper()
+	base := path.Base(rel)
+	if !strings.HasSuffix(rel, ".go") || strings.HasSuffix(base, "_test.go") {
+		return nil
+	}
+	if !strings.Contains(string(source), sessiontestImport) && !strings.Contains(string(source), receiptReaderFunc) {
+		return nil
+	}
+	file, err := parser.ParseFile(token.NewFileSet(), rel, source, parser.SkipObjectResolution)
+	if err != nil {
+		t.Fatalf("%s: %v", rel, err)
+	}
+	var sites []string
+	for _, spec := range file.Imports {
+		if value, _ := strconv.Unquote(spec.Path.Value); value == sessiontestImport && path.Dir(rel) != "internal/sessiontest" {
+			sites = append(sites, path.Dir(rel)+" importer")
+		}
+	}
+	for _, unit := range declUnits(file) {
+		name, _ := declName(unit)
+		ast.Inspect(unit, func(node ast.Node) bool {
+			if fn, ok := node.(*ast.FuncDecl); ok {
+				// The declaration's own name is not a use.
+				if fn.Body != nil {
+					ast.Inspect(fn.Body, func(inner ast.Node) bool {
+						if ident, ok := inner.(*ast.Ident); ok && ident.Name == receiptReaderFunc {
+							sites = append(sites, rel+" "+name+" reference")
+						}
+						return true
+					})
+				}
+				return false
+			}
+			if ident, ok := node.(*ast.Ident); ok && ident.Name == receiptReaderFunc {
+				sites = append(sites, rel+" "+name+" reference")
+			}
+			return true
+		})
+	}
+	return sites
+}
+
 // declUnits splits a file into its functions and the single specs of its
 // general declarations, so a site names the function, type, constant or
 // variable that holds it.
@@ -200,8 +252,28 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 		}
 	}
 
+	// V1-2025: the import-graph and call-graph spies.
+	for rel, source := range map[string]string{
+		"internal/rank/reflect.go":  "package rank\nimport (\"reflect\"; st \"" + sessiontestImport + "\")\nvar T = reflect.TypeOf(st.Options{})\n",
+		"cmd/corvint/learn.go":      "package main\nfunc learn() { _ = " + receiptReaderFunc + "(nil, nil, nil) }\n",
+		"cmd/corvint/learn_hook.go": "package main\nvar hook = " + receiptReaderFunc + "\n",
+	} {
+		if len(indirectReceiptSites(t, rel, []byte(source))) == 0 {
+			t.Fatalf("SPY_INEFFECTIVE: %s reaches receipts indirectly but yields no site", rel)
+		}
+	}
+	for rel, source := range map[string]string{
+		"internal/sessiontest/own.go": "package sessiontest\nimport \"" + sessiontestImport + "\"\n",
+		"cmd/corvint/decl.go":         "package main\nfunc " + receiptReaderFunc + "() {}\n",
+		"cmd/corvint/learn_test.go":   "package main\nfunc learn() { _ = " + receiptReaderFunc + "(nil, nil, nil) }\n",
+	} {
+		if sites := indirectReceiptSites(t, rel, []byte(source)); len(sites) != 0 {
+			t.Fatalf("SPY_FALSE_POSITIVE: %s yields %v", rel, sites)
+		}
+	}
+
 	root := moduleRoot(t)
-	var sites []string
+	var sites, indirect []string
 	err := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -228,6 +300,7 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 			return nil
 		}
 		sites = append(sites, receiptSites(t, filepath.ToSlash(rel), source)...)
+		indirect = append(indirect, indirectReceiptSites(t, filepath.ToSlash(rel), source)...)
 		return nil
 	})
 	if err != nil {
@@ -272,5 +345,18 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 	}
 	if len(extra)+len(missing) != 0 {
 		t.Fatalf("STR-V0-011 receipt sites changed; a receipt reader other than verify-shards needs its own accepted requirement first.\nnew sites: %q\ngone sites: %q", extra, missing)
+	}
+	slices.Sort(indirect)
+	indirect = slices.Compact(indirect)
+	wantIndirect := []string{
+		// The reader and its one dispatch.
+		"cmd/corvint importer",
+		"cmd/corvint/test.go runTest reference",
+		// Tools that read sessiontest's command declarations, not receipts.
+		"tools/test-commands-check importer",
+		"tools/test-commands-run importer",
+	}
+	if !slices.Equal(indirect, wantIndirect) {
+		t.Fatalf("STR-V0-011 indirect receipt reach changed (V1-2025): a new sessiontest importer or a second use of %s needs review that it reads no receipt.\ngot  %q\nwant %q", receiptReaderFunc, indirect, wantIndirect)
 	}
 }
