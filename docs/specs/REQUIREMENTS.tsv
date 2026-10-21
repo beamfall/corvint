@@ -101,6 +101,7 @@ AHI-027	docs/specs/agent-harness-integration-v0.md	`pre-compact` MUST emit, as p
 AHI-028	docs/specs/agent-harness-integration-v0.md	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv	unrecorded	-
 AHI-029	docs/specs/agent-harness-integration-v0.md	Neither compaction event writes repository, index, trace, or store state; the on	unrecorded	-
 AHI-030	docs/specs/agent-harness-integration-v0.md	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure	unrecorded	-
+AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendmen	standing	2026-10-11; V1-1974
 AHI-053	docs/specs/agent-harness-integration-v0.md	accepted, decision 0517 (V1-1128). Amendment to `AHI-031`	unrecorded	-
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
@@ -4480,6 +4481,7 @@ TRE-V0-077	docs/specs/test-runner-execution-v0.md	(proposed; V1-0594) A JUnit Vi
 TRE-V0-078	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095)	standing	2026-10-11; V1-2095
 TRE-V0-079	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
 TRE-V0-080	docs/specs/test-runner-execution-v0.md	(accepted under the owner's 2026-10-11 standing lane auto-accept; V1-2095) The	standing	2026-10-11; V1-2095
+TRE-V0-087	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1553) A	standing	2026-10-11; V1-1553
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587

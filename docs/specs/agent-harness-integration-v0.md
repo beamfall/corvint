@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -527,6 +527,29 @@ separate exact extension tuple remains governed by AHI-024.
   names the host version the pin hooks are registered for, that their verdict reaches the user
   only, and that this packet is the model-facing rehydration and, on a host without the compaction
   events, the only one.
+- `AHI-057`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendment to
+  `AHI-027` and `AHI-028`. A `pre-compact` output that carries no pin (any degradation, including a
+  dogfood-event deadline and the watchdog kill) MUST begin its plain stdout with one instruction
+  line and the line `corvint-compaction-pin/0 unavailable`, then the unchanged degradation frame
+  text; the `systemMessage` frame and its `SOL-V0-010` reason are unchanged. `post-compact` MUST
+  report `compaction-pin-not-emitted` when the last pin-shaped line in `compact_summary` is that
+  unavailable line (whitespace between its two tokens may be reflowed), and otherwise MUST keep
+  `AHI-028` unchanged: the last pin is verified, and a summary with neither a re-validating pin nor
+  the unavailable line still degrades `compaction-pin-not-preserved`. A pin-shaped line is the
+  profile followed by `revision=` or `unavailable`; the last one is found before it is validated,
+  so a later pin the summary truncated degrades `compaction-pin-not-preserved` and is never
+  hidden behind an earlier unavailable line or replaced by an earlier whole pin. Rationale: from 2026-10-14
+  to 2026-10-20 every recorded compaction summary without a pin (39 of 173) fell in an hour in
+  which `pre-compact` had degraded; each of the 67 `compaction-pin-not-preserved` ledger hours had
+  a `pre-compact` degradation in that hour or the one before, 64 of them a dogfood-event deadline;
+  and all 511 recorded summaries that contain a pin parse and re-validate. The `compaction-pin-not-preserved` rows therefore reported a
+  pin the summary never received as one it dropped. Non-goals: this does not make `pre-compact`
+  meet its deadline, and the compact `SessionStart` packet still does not carry the pin.
+  Failure modes: a summary that drops the unavailable line still reports
+  `compaction-pin-not-preserved`; untrusted summary text that ends with a forged unavailable line
+  yields `compaction-pin-not-emitted`, which is still a degradation and never a clean report.
+  Evidence: `TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin`. Rollback: revert the
+  unavailable line and its detection, so a degraded `pre-compact` prints its frame text alone.
 - `AHI-053`: accepted, decision 0517 (V1-1128). Amendment to `AHI-031`
   and the no-writer wording of `AHI-029`: stale Claude/Codex notices retain their frame, code,
   channels and exact manual argv but may report a background refresh started, already running,
@@ -1296,6 +1319,8 @@ remain stale on the next event. No daemon, synchronous hook build or authority i
 - Failure mode (`AHI-027`): a summary that drops the pin line leaves `post-compact` with nothing
   to verify; it degrades `compaction-pin-not-preserved` and the compact `SessionStart` packet is
   the whole recovery.
+- Failure mode (`AHI-057`): a degraded `pre-compact` emits no pin; when the summary keeps its
+  unavailable line `post-compact` degrades `compaction-pin-not-emitted` instead.
 - V0 does not claim model-internal observation, causal attribution, test execution authority,
   complete tool interception, an empty Frontier, or compatibility outside the tested matrix.
 
@@ -1315,14 +1340,15 @@ there, which is the whole of what the row asserts.
 |---|---|---|
 | `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1007@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
-| `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:119@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
-| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:88@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
-| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:95@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
-| `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:209@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
-| `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:196@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
+| `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
+| `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@8de67696` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
+| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:103@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
+| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:110@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
+| `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:244@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
+| `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:231@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
 | `harness-output-too-large` | `internal/gokernel/harness.go:466` | "harness response exceeds its byte budget" |
-| `invalid-compaction-trigger` | `cmd/corvint/host_adapter_compaction.go:67@3ccad220` | Claude adapter: the `PreCompact`/`PostCompact` `trigger` is not `manual` or `auto` |
+| `invalid-compaction-trigger` | `cmd/corvint/host_adapter_compaction.go:77@3ccad220` | Claude adapter: the `PreCompact`/`PostCompact` `trigger` is not `manual` or `auto` |
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:73` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:340` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
@@ -1458,6 +1484,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-028` | `cmd/corvint/host_adapter_compaction.go` (`runClaudePostCompact`, `parseCompactionPin`, `compactionPinMissing`, `compactionReportLine`) | `TestAHI028ClaudePostCompactReportsNonRehydratablePaths` (exact report naming the pinned path the tree lacks; lost, escaping and unresolvable pins degrade by name) |
 | `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification); `TestAdapterDegradationAdmitsCompactionEventsAndCodes` (every compaction degradation is admitted to the SOL-V0-010 ledger on both events) |
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
+| `AHI-057` (accepted under the owner's standing auto-accept (2026-10-11); V1-1974) | `cmd/corvint/host_adapter_compaction.go` (`compactionPinUnavailable`, `compactionPinNotEmitted`, the pre-compact branch of `compactionPlainOutput`) | `TestAHI057ClaudeCompactionDistinguishesUnemittedPinFromLostPin` (a deadline-degraded pre-compact prints the unavailable line before its frame; a recorded-shape summary that keeps it, reflowed or after a carried-forward pin, reports not-emitted; one that keeps neither line, or whose last pin is mangled or truncated after an unavailable line or a whole pin, reports not-preserved; a later pin is verified); `TestClaudeCompactionDegradationIsPlainText` |
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-055` (accepted under the owner's standing auto-accept (2026-10-11); V1-1280) | `cmd/corvint/host_adapter.go` (`deadlineRemediation`, `withDeadlineRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestClaudeAdapterStopDeadlineFailsOpenVisibly`, `TestClaudeCompactionDeadlineNamesRemediation`, `TestDeadlineRemediationKeepsFrameWithinLimit`, `TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice`, `TestCodexAdapterDeadlineNamesRemediation`, `TestClaudeAdapterStaleSnapshotNamesRemediation`, `TestCodexAdapterStaleSnapshotNamesRemediation` |

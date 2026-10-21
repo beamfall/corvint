@@ -958,7 +958,7 @@ func TestAdapterDegradationAdmitsCompactionEventsAndCodes(t *testing.T) {
 	writeIgnore(t, root)
 	now := time.Date(2026, 9, 27, 1, 0, 0, 0, time.UTC)
 	codes := []string{
-		"compaction-block-unavailable", "compaction-pin-not-preserved", "compaction-pin-revision-unavailable",
+		"compaction-block-unavailable", "compaction-pin-not-emitted", "compaction-pin-not-preserved", "compaction-pin-revision-unavailable",
 		"compaction-pin-verification-unavailable", "corvint-degradations-unrecognised", "git-unavailable",
 		"invalid-compaction-trigger",
 	}
