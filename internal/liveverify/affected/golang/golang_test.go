@@ -12,6 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func TestPackagesUnderBuildOutputDirectoryNamesAreSelected(t *testing.T) {
@@ -134,21 +135,7 @@ func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	}
 }
 
-func runGit(t *testing.T, gitExecutable, root string, arguments ...string) {
-	t.Helper()
-	// GIT_CONFIG_GLOBAL=/dev/null hides the host's maintenance settings, so disable
-	// auto maintenance here: a detached `git maintenance` outliving a commit races
-	// the TempDir cleanup (V1-0662).
-	command := exec.Command(gitExecutable, append([]string{"-C", root, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, arguments...)...)
-	command.Env = append(os.Environ(),
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",
-		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test",
-	)
-	if output, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("git %v: %v: %s", arguments, err, output)
-	}
-}
+var runGit = testsupport.RunGit
 
 func fixtureRoot(t *testing.T, name string) string {
 	t.Helper()
