@@ -1904,6 +1904,13 @@ and container qualification; full fallback remains available.
   default document whose `advice.unknown` repeats a `plan.unknown` entry, drops an advice-specific
   line, or does not resolve to the `--full` advice. Rollback: return `advice.Unknown` unchanged
   from `compactAffectedAdvice`.
+- **AFP-V0-296:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2194))
+  `corvint-pr-tests` admits exactly the toolchains decision 0547 allows, `go1.27.2` and `go1.27.3`.
+  One definition in the driver, `admittedGoVersions`, holds that set. The trusted tool identity
+  observed under any other `go env GOVERSION` is refused with the existing error `unsupported Go
+  version`. The `.github/cishards` source-version set and the hosted `setup-go` pin are unchanged.
+  Falsifier: an identity accepted under a version outside the set, or refused under `go1.27.3`.
+  Rollback: set `admittedGoVersions` back to `go1.27.2` alone.
 
 ## Non-goals and authority
 
@@ -2053,6 +2060,7 @@ rather than selecting nothing at `BOUNDED`. A consumer still cannot read closure
 | AFP-V0-153 | `taskStateOnly` and the `Plan.Scope`/`Plan.NonSource` receipt members in `internal/gateselect/select.go` | `TestSelectPackagesTaskStateOnlyDiffSelectsNothing` (classified task state is `NOTHING`; an unclassified path, an absent `nonSource`, an `UNKNOWN` plan and an out-of-layout path fall back; a package naming `.taskman/queue.json` is still selected) |
 | AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers; a test file in an embedding package still selects its importer); both test-file cases fail before the change |
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
+| AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.2 and go1.27.3 admitted, go1.27.1, go1.27.4 and go1.28.2 refused), run green under go1.27.2 and go1.27.3; fails on go1.27.3 without the fix |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

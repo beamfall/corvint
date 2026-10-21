@@ -552,11 +552,17 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	if id.Container != nil && (id.Container.Source != id.Source || id.Container.Tools["corvint"] != id.Planner || id.Container.Tools["gate-affected-select"] != id.Selector || id.Container.Tools["corvint-pr-tests"] != id.Driver || runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
 		return id, errors.New("container trusted tool identity mismatch")
 	}
-	if id.GoVersion != "go1.27.2" {
+	if !admittedGoVersions[id.GoVersion] {
 		return id, errors.New("unsupported Go version")
 	}
 	return id, nil
 }
+
+// admittedGoVersions is the one definition of the toolchains the driver
+// runs under: the go1.27.2 pin and its go1.27.3 patch revision (decision
+// 0547, V1-2194). Any other version is refused "unsupported Go version".
+var admittedGoVersions = map[string]bool{"go1.27.2": true, "go1.27.3": true}
+
 func topology(ctx context.Context, o options, merge bool) (string, error) {
 	if !oid.MatchString(o.base) || !oid.MatchString(o.target) {
 		return "", errors.New("base/target must be full OIDs")
