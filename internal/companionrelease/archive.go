@@ -77,8 +77,19 @@ func buildTarGz(entries []ArchiveEntry) ([]byte, error) {
 	if err := gw.Close(); err != nil {
 		return nil, err
 	}
+	// A near-incompressible export at the 512 MiB content bound gains tar
+	// headers and gzip stored-block framing, so its archive can exceed the
+	// verifier's compressed-archive bound. Refuse it here rather than emit an
+	// archive decodeTarGz would reject (PUB-V0-012, V1-1529).
+	if int64(gzBuf.Len()) > archiveSizeLimit {
+		return nil, fmt.Errorf("archive size %d exceeds the verifier's archive bound %d", gzBuf.Len(), archiveSizeLimit)
+	}
 	return gzBuf.Bytes(), nil
 }
+
+// archiveSizeLimit is maxRetainedArchiveBytes outside tests; a test lowers it
+// to drive the refusal without allocating the full bound.
+var archiveSizeLimit int64 = maxRetainedArchiveBytes
 
 func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
