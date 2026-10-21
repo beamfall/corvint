@@ -46,3 +46,34 @@ func TestV10799_CodexStreamRefusesRepeatedAndFoldedMembers(t *testing.T) {
 		}
 	}
 }
+
+// TestV10799_HandoffRefusalLeavesSessionAndUsageUnobserved: the three Codex
+// readers share one member verdict, so a JSON handoff that repeats or
+// case-aliases a member leaves session and usage unobserved as well as
+// refusing the result (V1-0799, V1-0950).
+func TestV10799_HandoffRefusalLeavesSessionAndUsageUnobserved(t *testing.T) {
+	for name, msg := range map[string]string{
+		"repeated kind": `{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"WAIT\",\"kind\":\"BUILT\",\"summary\":\"s\",\"nextAction\":\"n\"}"}}`,
+		"folded kind":   `{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"BUILT\",\"KIND\":\"WAIT\",\"summary\":\"s\",\"nextAction\":\"n\"}"}}`,
+	} {
+		stream := codexStream(codexStarted, msg, codexDone)
+		if s, _, e := DecodeEvents(stream); e == nil || s != "" {
+			t.Errorf("%s: DecodeEvents session %q err %v", name, s, e)
+		}
+		if s := ObservedSession(stream); s != "" {
+			t.Errorf("%s: session %q observed", name, s)
+		}
+		if _, _, ok := ObservedUsage(stream); ok {
+			t.Errorf("%s: usage observed", name)
+		}
+	}
+	// A prose final text is not a handoff: the result is refused but the
+	// session and usage stay observable.
+	prose := codexStream(codexStarted, `{"type":"item.completed","item":{"type":"agent_message","text":"I could not finish"}}`, codexDone)
+	if s := ObservedSession(prose); s != "s1" {
+		t.Errorf("prose: session %q", s)
+	}
+	if _, _, ok := ObservedUsage(prose); !ok {
+		t.Error("prose: usage unobserved")
+	}
+}

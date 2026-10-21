@@ -34,20 +34,54 @@ func checkCodexLine(line []byte) error {
 	return codexEventMembers.check(line)
 }
 
-func DecodeEvents(raw []byte) (string, HostResult, error) {
-	session := ""
-	result := HostResult{}
-	completed := false
+// codexMembers is the one member verdict the Codex result, session and usage
+// readers share: every line passes checkCodexLine, and a final agent_message
+// text that is JSON repeats no member and aliases no handoff member. Any
+// refusal leaves the session and usage unobserved as well as refusing the
+// result; a prose final text is not a handoff and keeps them observable
+// (CAL-V0-075; V1-0799, V1-0950).
+func codexMembers(raw []byte) error {
 	final := ""
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	scanner.Buffer(make([]byte, 4096), 1<<20)
 	for scanner.Scan() {
 		if e := checkCodexLine(scanner.Bytes()); e != nil {
-			return session, result, e
+			return e
 		}
+		var event struct {
+			Type string `json:"type"`
+			Item struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"item"`
+		}
+		if json.Unmarshal(scanner.Bytes(), &event) == nil && event.Type == "item.completed" && event.Item.Type == "agent_message" {
+			final = event.Item.Text
+		}
+	}
+	if e := scanner.Err(); e != nil {
+		return e
+	}
+	if json.Valid([]byte(final)) {
+		return exactMembers([]byte(final), handoffMembers)
+	}
+	return nil
+}
+
+func DecodeEvents(raw []byte) (string, HostResult, error) {
+	session := ""
+	result := HostResult{}
+	if e := codexMembers(raw); e != nil {
+		return "", result, e
+	}
+	completed := false
+	final := ""
+	scanner := bufio.NewScanner(bytes.NewReader(raw))
+	scanner.Buffer(make([]byte, 4096), 1<<20)
+	for scanner.Scan() {
 		var event map[string]json.RawMessage
 		if e := json.Unmarshal(scanner.Bytes(), &event); e != nil {
-			return session, result, e
+			return "", result, e
 		}
 		var kind string
 		json.Unmarshal(event["type"], &kind)
@@ -87,9 +121,6 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 	if session == "" || !completed || final == "" {
 		return session, result, fmt.Errorf("incomplete host turn")
 	}
-	if e := exactMembers([]byte(final), handoffMembers); e != nil {
-		return session, result, e
-	}
 	if e := decode([]byte(final), &result); e != nil {
 		return session, result, e
 	}
@@ -103,6 +134,9 @@ func DecodeEvents(raw []byte) (string, HostResult, error) {
 // turn-completed event. Missing or null dimensions, and any line that repeats
 // or case-aliases a member, remain unobserved (V1-0950).
 func ObservedUsage(raw []byte) (uint64, uint64, bool) {
+	if codexMembers(raw) != nil {
+		return 0, 0, false
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	var input, output uint64
 	found := false
@@ -111,7 +145,7 @@ func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 			Type  string                     `json:"type"`
 			Usage map[string]json.RawMessage `json:"usage"`
 		}
-		if checkCodexLine(scanner.Bytes()) != nil || json.Unmarshal(scanner.Bytes(), &event) != nil {
+		if json.Unmarshal(scanner.Bytes(), &event) != nil {
 			return 0, 0, false
 		}
 		if event.Type != "turn.completed" {
@@ -135,6 +169,9 @@ func ObservedUsage(raw []byte) (uint64, uint64, bool) {
 }
 
 func ObservedSession(raw []byte) string {
+	if codexMembers(raw) != nil {
+		return ""
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(raw))
 	session := ""
 	for scanner.Scan() {
@@ -142,7 +179,7 @@ func ObservedSession(raw []byte) string {
 			Type string `json:"type"`
 			ID   string `json:"thread_id"`
 		}
-		if checkCodexLine(scanner.Bytes()) != nil || json.Unmarshal(scanner.Bytes(), &e) != nil {
+		if json.Unmarshal(scanner.Bytes(), &e) != nil {
 			return ""
 		}
 		if e.Type == "thread.started" {
