@@ -64,4 +64,16 @@ q -C "$work" checkout main
 if git -C "$work" push origin side > "$tmp/out4" 2>&1; then fail "push of a non-HEAD Go branch was accepted"; fi
 grep -q 'REFUSE windows-vet-not-run' "$tmp/out4" || { cat "$tmp/out4" >&2; fail "no windows-vet-not-run refusal"; }
 
+# 5. An annotated tag on the checked-out Go-changing HEAD is peeled and vetted, not refused.
+echo '// tagged' >> "$work/add.go" && q -C "$work" commit -am tagged
+q -C "$work" tag -a v1 -m v1
+runs=$(grep -c vet-ran "$work/vet.log")
+git -C "$work" push origin v1 > "$tmp/out5" 2>&1 || { cat "$tmp/out5" >&2; fail "annotated tag push refused"; }
+[[ $(grep -c vet-ran "$work/vet.log") == $((runs + 1)) ]] || fail "annotated tag push did not run the vet"
+
+# 6. An untracked Go file (the vet would read it, the push would not carry it) is refused.
+printf 'package fixture\n' > "$work/stray.go"
+if git -C "$work" push origin main > "$tmp/out6" 2>&1; then fail "push with an untracked Go file was accepted"; fi
+grep -q 'REFUSE windows-vet-not-run untracked Go files' "$tmp/out6" || { cat "$tmp/out6" >&2; fail "no untracked-Go refusal"; }
+
 echo "pre-push-windows-vet_test: ok"

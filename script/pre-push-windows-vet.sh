@@ -10,7 +10,9 @@
 # sha this clone lacks, `merge-base <local sha> CORVINT_PRE_PUSH_BASE (default origin/main)`; when
 # no base can be found the push counts as changing Go. The vet runs once, on the working tree, so it
 # refuses when a pushed Go-changing sha is not the checked-out HEAD or the tree has uncommitted Go
-# changes: check out the commit you push, or run the vet on it and push with --no-verify.
+# changes, or when untracked (including ignored) Go files exist, which the vet would read but the
+# push does not carry: check out the commit you push, or run the vet on it and push with
+# --no-verify. A pushed annotated tag is peeled to its commit before the HEAD comparison.
 # CORVINT_PRE_PUSH_VET overrides the vet command (default `make windows-vet`).
 set -uo pipefail
 
@@ -40,13 +42,18 @@ done
 head=$(git rev-parse HEAD 2> /dev/null) || head=
 for entry in "${needs_vet[@]}"; do
   sha=${entry%% *}
-  if [[ $sha != "$head" ]]; then
+  commit=$(git rev-parse -q --verify "$sha^{commit}" 2> /dev/null) || commit=$sha
+  if [[ $commit != "$head" ]]; then
     printf 'pre-push: REFUSE windows-vet-not-run %s is not the checked-out HEAD; check it out and push again, or run make windows-vet on it and push with --no-verify\n' "${entry#* }" >&2
     exit 1
   fi
 done
 if [[ -n $(git status --porcelain --untracked-files=no -- "${go_paths[@]}" 2> /dev/null) ]]; then
   printf 'pre-push: REFUSE windows-vet-not-run the working tree has uncommitted Go changes, so the vet would not check the pushed commit; commit or stash them and push again\n' >&2
+  exit 1
+fi
+if ! untracked=$(git ls-files --others -- "${go_paths[@]}" 2> /dev/null) || [[ -n $untracked ]]; then
+  printf 'pre-push: REFUSE windows-vet-not-run untracked Go files would be vetted but are not pushed; remove or commit them and push again\n' >&2
   exit 1
 fi
 printf 'pre-push: Go inputs changed; running %s\n' "$vet_command" >&2
