@@ -347,3 +347,64 @@ func TestUCV0DerivedDogfoodOutcome(t *testing.T) {
 		})
 	}
 }
+
+// TestUCV0217DigestStatusMatchesLedger: UCV0-217 (V1-0303). The spec's Agent
+// digest states each job status the ledger holds: every row that is not
+// `specified`/`UNPROVEN` is named in a digest clause carrying its own
+// `status`/`CLAIM`, and the remaining count of `specified`/`UNPROVEN` rows is
+// spelled out, so a ledger change without the digest change fails here.
+func TestUCV0217DigestStatusMatchesLedger(t *testing.T) {
+	raw, err := os.ReadFile("ledger.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ledger struct {
+		UseCases []struct{ ID, Status, Claim string } `json:"useCases"`
+	}
+	if err := json.Unmarshal(raw, &ledger); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := os.ReadFile("../../docs/specs/use-case-conformance-v0.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exists string
+	for _, line := range strings.Split(string(spec), "\n") {
+		if strings.HasPrefix(line, "- Exists: ") {
+			exists = line
+			break
+		}
+	}
+	if exists == "" {
+		t.Fatal("use-case-conformance-v0.md has no Agent digest Exists line")
+	}
+	clauses := strings.Split(exists, ";")
+	specified := 0
+	for _, row := range ledger.UseCases {
+		if row.Status == "specified" && row.Claim == "UNPROVEN" {
+			specified++
+			continue
+		}
+		named := false
+		for _, clause := range clauses {
+			if strings.Contains(clause, "`"+row.ID+"`") {
+				named = true
+				if want := fmt.Sprintf("`%s`/`%s`", row.Status, row.Claim); !strings.Contains(clause, want) {
+					t.Errorf("digest clause %q names %s without the ledger's %s", strings.TrimSpace(clause), row.ID, want)
+				}
+			}
+		}
+		if !named {
+			t.Errorf("digest does not name %s (%s/%s)", row.ID, row.Status, row.Claim)
+		}
+	}
+	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+		"twenty", "twenty-one", "twenty-two"}
+	if specified >= len(words) {
+		t.Fatalf("%d specified rows exceed the spelled-out count table", specified)
+	}
+	if want := fmt.Sprintf("the other %s jobs stay `specified`/`UNPROVEN`", words[specified]); !strings.Contains(exists, want) {
+		t.Errorf("digest does not say %q", want)
+	}
+}

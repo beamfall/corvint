@@ -4874,6 +4874,7 @@ UCV0-013	docs/specs/use-case-conformance-v0.md	The canonical ledger profile MUST
 UCV0-014	docs/specs/use-case-conformance-v0.md	(accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified	owner	2026-09-26; decision 0424; decision 0398; V1-0341
 UCV0-015	docs/specs/use-case-conformance-v0.md	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be	unrecorded	-
 UCV0-016	docs/specs/use-case-conformance-v0.md	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the	unrecorded	-
+UCV0-217	docs/specs/use-case-conformance-v0.md	(accepted 2026-10-21 under the owner's standing auto-accept of 2026-10-11; V1-03	standing	2026-10-21; 2026-10-11; V1-0303
 VPO-V0-001	docs/specs/verification-planner-observer-v0.md	Every V0 JSON document MUST be one Change Frontier canonical JSON body followed	unrecorded	-
 VPO-V0-002	docs/specs/verification-planner-observer-v0.md	Every document MUST contain exactly its named `profile`. Unknown profiles fail	unrecorded	-
 VPO-V0-003	docs/specs/verification-planner-observer-v0.md	Content identities use	unrecorded	-

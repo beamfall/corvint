@@ -3376,7 +3376,7 @@
     "path": "docs/specs/use-case-conformance-v0.md",
     "title": "Main Use-Case Conformance V0",
     "reqPrefix": "UCV0",
-    "intent": "proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424)",
+    "intent": "proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303)",
     "delivery": "experimental",
     "claim": "Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.",
     "dependsOn": [
