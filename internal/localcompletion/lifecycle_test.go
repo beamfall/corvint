@@ -865,6 +865,25 @@ func TestScreenedCheckLogKeepsFailureLines(t *testing.T) {
 			t.Fatalf("passing check: %#v %v", result.Checks, err)
 		}
 	})
+	t.Run("truncated private key blocks keep only the marker", func(t *testing.T) {
+		// A header with no footer matches the screen as the header alone, so
+		// redaction would keep the key body (Codex review of V1-1014).
+		const body = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7fixturebody\n"
+		for name, header := range map[string]string{
+			"PEM":           "-----BEGIN RSA PRIV" + "ATE KEY-----\n",
+			"PEM lowercase": "-----begin ec priv" + "ate key-----\n",
+			"PGP":           "-----BEGIN PGP PRIV" + "ATE KEY BLOCK-----\n",
+		} {
+			for _, raw := range []string{
+				"--- FAIL: TestKey (0.00s)\n" + header + body,
+				header + body + "-----END RSA PRIV" + "ATE KEY-----\n--- FAIL: TestKey (0.00s)\n",
+			} {
+				if got := string(screenedLog([]byte(raw))); got != screenedLogMarker {
+					t.Fatalf("%s: screened log kept %q", name, got)
+				}
+			}
+		}
+	})
 	t.Run("bounds", func(t *testing.T) {
 		full := "token=fixture-secret\n" + strings.Repeat("-\n", (maxLogBytes-21)/2)
 		if got := string(screenedLog([]byte(full))); got != "log-secret-screened\n" {
