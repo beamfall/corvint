@@ -95,6 +95,14 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   verifier only for repositories whose snapshots fit its envelope; for a larger repository, such
   as this one, its `UNSUPPORTED` answer is a bound, not a disagreement with the canonical
   route's verdict.
+- `CEM-V1-568`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git
+  exits unsuccessfully deriving the canonical patch, the native reader MUST walk the change set for
+  a missing object, and answer `repository-object-unavailable`, only in a promisor (partial-clone)
+  repository, identified without running Git by a `*.promisor` pack marker in the common object
+  store. In any other repository the failure MUST keep `git-diff-failed`, the sealed packet's cause
+  provenance, so `verify.Stable` returns the packet's code and `verdictSha256` on
+  `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
+  fetching (V1-0349, CEM-CB-019).
 
 ## Non-goals and failure modes
 
@@ -4112,14 +4120,7 @@ Rollback: revert the change commit; it adds a test and this record only.
 Status: accepted under the owner's standing auto-accept of lane requirements (2026-10-11); V1-2133.
 Resolves `CEM-V1-367`.
 
-- `CEM-V1-568`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git
-  exits unsuccessfully deriving the canonical patch, the native reader MUST walk the change set for
-  a missing object, and answer `repository-object-unavailable`, only in a promisor (partial-clone)
-  repository, identified without running Git by a `*.promisor` pack marker in the common object
-  store. In any other repository the failure MUST keep `git-diff-failed`, the sealed packet's cause
-  provenance, so `verify.Stable` returns the packet's code and `verdictSha256` on
-  `missing-target-blob` and `corrupt-target-blob`. A promisor repository still refuses without
-  fetching (V1-0349, CEM-CB-019).
+The requirement is `CEM-V1-568` in `## Requirements`.
 
 Non-goals: no packet, cell, portable-consumer or wire change; no change to cancellation, timeout or
 budget classification during the walk.
