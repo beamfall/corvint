@@ -1211,6 +1211,18 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-046 | `TestAMAPV0046SharedTemplates` |
 | AMAP-V0-047 | `TestAMAPV0047Bounds` |
 | AMAP-V0-048 | `TestAMAPV0048DialectCLI` |
+| AMAP-V0-060 | `TestAMAPV0060StatsReconcile`, `TestStatsCLI` |
+| AMAP-V0-061 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-062 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-063 | `TestAMAPV0060StatsReconcile` |
+| AMAP-V0-064 | `TestAMAPV0064StatsSummary`, `TestStatsCLI` |
+| AMAP-V0-065 | boundary statement with no executable evidence: the stats report carries no equivalence claim, and adopter-scale qualification is `NOT_RUN` |
+| AMAP-V0-070 | `TestAMAPV0070DirectoryStarEnum` |
+| AMAP-V0-071 | `TestAMAPV0070DirectoryStarEnum` |
+| AMAP-V0-072 | `TestAMAPV0070DirectoryStarEnum`, `TestAMAPV0072FailedHopDoesNotLeakBetweenLookups` |
+| AMAP-V0-075 | `TestAMAPV0075WholeRepositoryRoot` |
+| AMAP-V0-076 | `TestAMAPV0075WholeRepositoryRoot` |
+| AMAP-V0-077 | `TestAMAPV0018SingleRootUnchanged`, `TestAMAPV0019DirtySecondRoot`, `TestAMAPV0075WholeRepositoryRoot` (a `"."` join equals the narrower-root join) |
 | AMAP-V0-078 | `TestAMAPV0078ReactSameFileRouteArray` |
 | AMAP-V0-079 | `TestAMAPV0079ReactImportedRouteArray` |
 
