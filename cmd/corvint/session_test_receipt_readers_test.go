@@ -168,6 +168,18 @@ func indirectReceiptSites(t *testing.T, rel string, source []byte) []string {
 	return sites
 }
 
+// normalizeIndirectSites sorts the sites and collapses only the per-file
+// repeats of a package importer. Every reference stays its own entry, so a
+// second use of the reader inside an already-listed declaration still
+// changes the set (V1-2025).
+func normalizeIndirectSites(sites []string) []string {
+	out := slices.Clone(sites)
+	slices.Sort(out)
+	return slices.CompactFunc(out, func(a, b string) bool {
+		return a == b && strings.HasSuffix(a, " importer")
+	})
+}
+
 // declUnits splits a file into its functions and the single specs of its
 // general declarations, so a site names the function, type, constant or
 // variable that holds it.
@@ -262,6 +274,15 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 			t.Fatalf("SPY_INEFFECTIVE: %s reaches receipts indirectly but yields no site", rel)
 		}
 	}
+	// Two references in one declaration are two sites, and normalization
+	// keeps both, so a second handoff inside runTest is not hidden.
+	twice := indirectReceiptSites(t, "cmd/corvint/test.go", []byte("package main\nfunc runTest() { _ = "+receiptReaderFunc+"(nil, nil, nil); hook := "+receiptReaderFunc+"; _ = hook }\n"))
+	if got := normalizeIndirectSites(twice); len(got) != 2 || got[0] != got[1] {
+		t.Fatalf("SPY_INEFFECTIVE: two references in one declaration normalize to %q", got)
+	}
+	if got := normalizeIndirectSites([]string{"cmd/corvint importer", "cmd/corvint importer"}); len(got) != 1 {
+		t.Fatalf("SPY_FALSE_POSITIVE: per-file importer repeats normalize to %q", got)
+	}
 	for rel, source := range map[string]string{
 		"internal/sessiontest/own.go": "package sessiontest\nimport \"" + sessiontestImport + "\"\n",
 		"cmd/corvint/decl.go":         "package main\nfunc " + receiptReaderFunc + "() {}\n",
@@ -346,8 +367,7 @@ func TestSTRV0011ReceiptsHaveNoOtherReader(t *testing.T) {
 	if len(extra)+len(missing) != 0 {
 		t.Fatalf("STR-V0-011 receipt sites changed; a receipt reader other than verify-shards needs its own accepted requirement first.\nnew sites: %q\ngone sites: %q", extra, missing)
 	}
-	slices.Sort(indirect)
-	indirect = slices.Compact(indirect)
+	indirect = normalizeIndirectSites(indirect)
 	wantIndirect := []string{
 		// The reader and its one dispatch.
 		"cmd/corvint importer",
