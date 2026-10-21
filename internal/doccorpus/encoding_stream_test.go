@@ -41,6 +41,7 @@ func largeArtifact(t *testing.T) (*Artifact, []byte) {
 }
 
 func TestDCPV1085StreamedEncodingIsEncode(t *testing.T) {
+	t.Parallel()
 	t.Run("DCP-V1-085 pre-sized and streamed encodings equal Encode", func(t *testing.T) {
 		a, raw := largeArtifact(t)
 		small := Request{Operation: "get", ID: "adapter:claim:00001"}

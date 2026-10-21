@@ -29,6 +29,7 @@ func behaviorAdapterGuide(t *testing.T) (string, []byte) {
 // guide's anchor placement and later-commit rule is accepted, while inputs
 // anchored outside the provider repository are refused as documented.
 func TestBehaviorAdapterGuideMigrationExample(t *testing.T) {
+	t.Parallel()
 	guide, example := behaviorAdapterGuide(t)
 	var migration BehaviorMigration
 	if err := decode(example, &migration); err != nil {
