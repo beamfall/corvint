@@ -504,6 +504,17 @@ func (r Reader) AuditForWriter(wc *WriterCheckpoint, requestID string, forMutati
 	return nil, observation, moved("/")
 }
 
+// AuditForLiveness is AuditForWriter (forMutation false) for a HEARTBEAT or
+// RENEW (CAL-V0-224, amended for V1-0887 by decision 0547): neither capture
+// lists receipts/. Each stats the directory, the second requires its stamps
+// unchanged, and the walk probes that no receipt follows head, so the work
+// no longer grows with the number of receipts. A platform without a change
+// time lists exactly, as AuditForWriter does.
+func (r Reader) AuditForLiveness(wc *WriterCheckpoint, requestID string) (*Result, PhysicalObservation, error) {
+	r.probeReceipts = haveChangeTime
+	return r.AuditForWriter(wc, requestID, false)
+}
+
 // ModePrefix is Result.Mode for the scheduled writer-checkpoint refresh's
 // prefix walk (CAL-V0-265, proposed): every receipt 1..H of the head H its
 // capture observed, walked exactly as the complete audit walks them, and
@@ -680,19 +691,32 @@ func (r Reader) walkWriter(o *observation, wc *WriterCheckpoint, selected map[st
 	if headSeq-from > MaxWriterTail || headSeq-wc.FullSeq >= WriterFullBound {
 		return result, errCheckpoint("/seq", "tail exceeds the writer bound")
 	}
-	// Names validated by receiptSeq are canonical and unique, so a count of
-	// head with first 1 and last head is exactly 1..head. A pending or extra
-	// receipt is classified by the complete audit.
-	if uint64(len(o.receipts)) != headSeq {
-		return result, errCheckpoint("receipts", "receipt names differ from head")
-	}
-	first, _ := snapshot.ReceiptName(1)
-	last, err := snapshot.ReceiptName(headSeq)
-	if err != nil {
-		return result, err
-	}
-	if o.receipts[0] != first || o.receipts[len(o.receipts)-1] != last {
-		return result, errCheckpoint("receipts", "receipt names differ from head")
+	if o.receiptsProbed {
+		// A liveness write probes the name after head instead of listing
+		// (CAL-V0-224): a pending receipt there is the complete route's to
+		// settle. The checkpoint's receipt and the tail are read by name.
+		next, err := snapshot.ReceiptName(headSeq + 1)
+		if err != nil {
+			return result, err
+		}
+		if _, present, err := optionalRead(r.Source, "receipts/"+next, wire.MaxReceiptFileBytes); err != nil || present {
+			return result, errCheckpoint("receipts", "a receipt follows head")
+		}
+	} else {
+		// Names validated by receiptSeq are canonical and unique, so a count
+		// of head with first 1 and last head is exactly 1..head. A pending or
+		// extra receipt is classified by the complete audit.
+		if uint64(len(o.receipts)) != headSeq {
+			return result, errCheckpoint("receipts", "receipt names differ from head")
+		}
+		first, _ := snapshot.ReceiptName(1)
+		last, err := snapshot.ReceiptName(headSeq)
+		if err != nil {
+			return result, err
+		}
+		if o.receipts[0] != first || o.receipts[len(o.receipts)-1] != last {
+			return result, errCheckpoint("receipts", "receipt names differ from head")
+		}
 	}
 	name, err := snapshot.ReceiptName(from)
 	if err != nil {

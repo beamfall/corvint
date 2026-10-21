@@ -196,7 +196,7 @@ func (w *writerObservation) tail() uint64 {
 // With resume, the audit resumes from the lease command's own resume base
 // instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
-func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation bool, resume *leaseResume, walks *journal.WalkStats) (w *writerObservation, decline, terminal error) {
+func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
@@ -217,9 +217,14 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	var proof *journal.Result
 	var obs journal.PhysicalObservation
 	var err error
-	if resume != nil {
+	switch {
+	case resume != nil:
 		proof, obs, err = reader.AuditForResume(resume.base, requestID)
-	} else {
+	case liveness:
+		// HEARTBEAT and RENEW probe the next receipt name instead of
+		// listing receipts/ (CAL-V0-224, decision 0547).
+		proof, obs, err = reader.AuditForLiveness(wc, requestID)
+	default:
 		proof, obs, err = reader.AuditForWriter(wc, requestID, forMutation)
 	}
 	if walks != nil {

@@ -6147,7 +6147,7 @@ each of its two captures. The tail receipts it reads, and its model, bind and co
 grow with receipts; model and commit are proportional to tickets. The receipt chain, generation
 fencing and refusals stay in the audited journal; no liveness record moves out of it.
 
-- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887))
+- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887); amended 2026-10-20 by decision 0547 row V1-0887, owner-delegated, for the liveness probe)
   Characterization and regression guard for liveness write work. A settled `CAL-V0-116` writer
   audit with a tail of k receipts MUST read exactly k + 1 receipt files (the checkpoint's receipt
   and the tail), whatever the history. Its first capture MUST list `receipts/` exactly. Its second
@@ -6171,19 +6171,39 @@ fencing and refusals stay in the audited journal; no liveness record moves out o
     name after a quiescent listing lands in a later change time, which `utimes` cannot restore and
     the second capture sees, and the inventory digest already binds the directory stamp, so such an
     attempt moves (`SNAPSHOT_MOVED`) and its retry lists the fresh directory exactly.
+  - Liveness probe (2026-10-20): a HEARTBEAT or RENEW (`transaction.LivenessLease`) on a platform
+    with a change time MUST NOT list `receipts/` in either capture. Each capture takes the
+    directory's no-follow metadata instead, the second capture MUST move the attempt unless it is
+    the same file with the same mode, size, modification time and change time as the first, and
+    the walk MUST read the checkpoint's receipt and the tail by name (k + 1 reads) and MUST decline
+    when the next name after head exists. The inventory digest binds the directory stamp as before.
+    Every other verb, and every write on a platform without a change time, lists as above.
+    Failure mode, accepted with the probe: a missing tail name is still found by the walk, but a
+    missing history name, or a stray, extra or temporary name the walk does not read, is not
+    observed, so a liveness write can commit where the complete route refuses that name as
+    `MALFORMED`. It is
+    found by the next listing writer audit (any other verb), which declines to the refusing
+    complete route, or by the `CAL-V0-117` scheduled complete audit at most 512 receipts later,
+    whose refusal removes the checkpoint so the next write refuses. Lease,
+    generation fencing and refusal semantics of the liveness verbs are otherwise unchanged:
+    the probe changes only which names the audit observes.
+  - Checkpoint-decode reuse is allowed by the same decision and not implemented: reading and
+    decoding the writer checkpoint measured 1.1 ms at both 3,000 and 13,000 receipts (880 tickets),
+    flat and about 1% of a heartbeat, so reuse would not move the target.
   A maintained test MUST show the read count and the listing counts (two for a fresh directory,
   two for a modification time restored under a fresh change time, one for a quiescent one) at two
   history sizes by counting reads and listings, never durations.
-  The remaining listing is the history-proportional part of a fast heartbeat or renew; it is kept
+  The remaining listing is the history-proportional part of every other fast write; it is kept
   because `CAL-V0-116` requires the names on disk to be exactly 1..head and a crash-left temporary
   name to decline the fast route.
 
-Residual (not met): a heartbeat or renew is not yet milliseconds or flat. Probing only for the
-next receipt name instead of listing was rejected because a fast write would commit where the
-complete route refuses a missing, stray or temporary name. The first listing remains, about 2 µs
-per name under host load about 50 (about 27 ms at 13,000 receipts), and avoiding it needs a
-`CAL-V0-116` change (a next-name probe, stamp evidence that survives an attempt, or a sharded
-`receipts/` layout), which is an owner decision. The reads that stay proportional to tickets
+Residual (not met): a heartbeat or renew is not yet milliseconds. Its receipt work is flat by
+construction since the 2026-10-20 liveness probe (no listing, k + 1 reads), and wall time measured
+flat within host-load noise, about 170 ms at 3,000 and 13,000 receipts (decision 0547 target 50 ms,
+missed). The listing the probe removed cost about 2 µs per name under host load about 50; what
+remains is proportional to tickets, not receipts, so a sharded `receipts/` layout (the escalation
+decision 0547 names) would not reach the target either; see
+`docs/build-log/2026-10-20-v1-0887-liveness-probe.md`. Non-liveness writes keep the listing. The reads that stay proportional to tickets
 (the intent tree read in the first capture and digested again before effects per `CAL-V0-189`,
 capacity measurement, the authority session's per-operation check and the checkpoint's embedded
 ticket inventory) are recorded by V1-0915 and `docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
@@ -6191,8 +6211,8 @@ A clock stepped back by more than one second during one attempt, combined with a
 in that window, is the one case the stamps do not separate; the complete route still refuses it.
 
 Non-goals: moving liveness records out of the journal; changing the receipt, checkpoint or wire
-formats; a probe-only receipt check; stamp evidence that survives an attempt or a write, or that
-replaces the first exact listing.
+formats; a probe-only receipt check for any verb other than HEARTBEAT and RENEW; stamp evidence that
+survives an attempt or a write, or that replaces the first exact listing of a non-liveness write.
 
 Acceptance evidence: `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`;
 two listings for a fresh directory and for a modification time restored under a fresh change time,
@@ -6201,12 +6221,23 @@ the walk declines),
 `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing` (a settled-looking receipt a foreign
 process adds after a quiescent listing moves the attempt and the retry declines) and
 `TestCALV0224_ListingNeverOutlivesItsAttempt` (every attempt's first capture lists exactly; an
-orphaned temporary name under restored stamps declines), each with one recorded mutation; the
+orphaned temporary name under restored stamps declines), each with one recorded mutation;
+`TestCALV0224_LivenessProbeNeverListsReceipts` (`internal/tasks/journal`; no listing and k + 1
+reads at two history sizes, a pending next name declines, a name renamed during the walk under a
+restored modification time moves the attempt, and the recorded failure mode: a temporary name below
+head passes the probe while the listing audit declines; three recorded mutations) and
+`TestCALV0224_LivenessWritesProbeReceipts` (`internal/tasks/store`; heartbeat and renew commit on
+the writer route past a temporary name, widen does not; one recorded mutation); the
 existing writer fast-route and fencing suites in `internal/tasks/journal` and `internal/tasks/store`;
 `docs/build-log/2026-10-14-v1-0887-liveness-o1.md`;
-`docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+`docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`;
+`docs/build-log/2026-10-20-v1-0887-liveness-probe.md`.
 
-Rollback: revert the reuse branch of `scanReceiptNames`, `sameDirStamp`, `receiptsQuiescence`, the
+Rollback: for the liveness probe alone, delete `AuditForLiveness`, `probeReceiptsDir`, the
+`probeReceipts` and `receiptsProbed` fields and the probe branch of `walkWriter` in
+`internal/tasks/journal`, pass the plain writer audit from `observeWriter` in `internal/tasks/store`,
+and delete the two liveness probe tests and the liveness probe bullet; liveness writes then list as
+other verbs do. For the whole amendment, revert the reuse branch of `scanReceiptNames`, `sameDirStamp`, `receiptsQuiescence`, the
 `change_time_*.go` files and `DirInfo` in `internal/tasks/journal`, the quiescent cases of the three
 tests, and this amendment's text; the original two-listing text then holds again. No store,
 receipt or wire format depends on it.
@@ -6221,9 +6252,10 @@ receipt or wire format depends on it.
   `CAL-V0-117` scheduled refresh (a complete audit once the head is 512 receipts past the
   checkpoint's `FullSeq`) or a declined write's complete-route fallback, both of which read
   history by contract. The test asserts outcomes and the route, never durations. `CAL-V0-116`,
-  `CAL-V0-117` and `CAL-V0-224` are unchanged. History-proportional work remains in every fast
-  write: the two exact listings of `receipts/`, and reading and decoding the writer checkpoint,
-  whose retained request records grow with history.
+  `CAL-V0-117` and `CAL-V0-224` are unchanged. History-proportional work remained in every fast
+  write: the exact listings of `receipts/`, and reading and decoding the writer checkpoint,
+  whose retained request records grow with history. Since the 2026-10-20 `CAL-V0-224` liveness
+  probe a heartbeat or renew lists none, and checkpoint decoding measured flat (1.1 ms).
 
 Measurement (2026-10-15, local Darwin, Go 1.27.2, the real `corvint-tasks` CLI built from the base,
 one process per call, 880 tickets, median of 5 after one warm-up, host load 35 to 39 on 12 CPUs):

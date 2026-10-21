@@ -166,6 +166,7 @@ type Reader struct {
 	observedIntent  bool              // AuditForMutation: select queue, policy and observed tickets/releases
 	writer          *WriterCheckpoint // AuditForWriter only
 	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
+	probeReceipts   bool              // AuditForLiveness: stat receipts/ and probe the next name instead of listing it
 	prefix          bool              // AuditWriterRefresh's prefix walk only
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
@@ -234,6 +235,9 @@ type observation struct {
 	receiptsListed    int
 	receiptsStaging   bool
 	receiptsQuiescent bool
+	// receiptsProbed says a liveness capture stat'ed receipts/ without
+	// listing it; the walk then probes the name after head (CAL-V0-224).
+	receiptsProbed bool
 	// at is when the capture began; ResumeBase trusts a file's stamps only
 	// when they were already settled then (PSR-V0-052).
 	at time.Time
@@ -814,6 +818,9 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	if !ok {
 		return errCheckpoint("receipts", "writer checkpoint needs a native source")
 	}
+	if r.probeReceipts {
+		return r.probeReceiptsDir(native, o)
+	}
 	if first := r.writerBefore; first != nil && first.receiptsQuiescent {
 		info, err := native.DirInfo("receipts")
 		if err != nil {
@@ -847,6 +854,32 @@ func (r Reader) scanReceiptNames(o *observation, remaining *int) error {
 	o.receiptsListed = len(names)
 	o.receiptsQuiescent = quiescentDir(info, listedAt)
 	return receiptNames(o, names)
+}
+
+// probeReceiptsDir is scanReceiptNames for a liveness write
+// (AuditForLiveness, CAL-V0-224): receipts/ is stat'ed from its own
+// no-follow handle, never listed, and its stamps stay in the inventory. The
+// walk reads the checkpoint's receipt and the tail by name and probes that
+// the name after head is absent. The second capture moves the attempt unless
+// the directory is still the same file with the same mode, size,
+// modification time and change time, so a name added, renamed or removed
+// during the walk, even under a restored modification time, is never
+// committed over. Names below the tail are not observed here: the next
+// writer that lists exactly, or the scheduled refresh, classifies them.
+func (r Reader) probeReceiptsDir(native *nativeRead, o *observation) error {
+	info, err := native.DirInfo("receipts")
+	if err != nil {
+		return err
+	}
+	if info == nil || !info.IsDir() {
+		return wire.Errorf(wire.CodeMalformed, "receipts", "missing listed directory metadata")
+	}
+	if first := r.writerBefore; first != nil && !sameDirStamp(first.files["receipts"], info) {
+		return moved("receipts")
+	}
+	o.files["receipts"] = info
+	o.receiptsProbed = true
+	return nil
 }
 
 // quiescentDir says the listed directory's modification time and change
