@@ -3022,6 +3022,7 @@ LPCVD-V0-001	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decisi
 LPCVD-V0-002	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) Extend the closed	owner	decision 0518; V1-1140
 LPCVD-V0-004	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) When the selected	owner	decision 0518; V1-1140
 LPCVD-V0-003	docs/specs/live-proof-carrying-verification-v0.md	(accepted, decision 0518; V1-1140) Discovery MUST expose	owner	decision 0518; V1-1140
+LPCV-V0-214	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a	standing	2026-10-11; V1-1474
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -3050,7 +3051,6 @@ LPCV-V0-076	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-077	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) When ask	standing	2026-10-11; V1-1475
 LPCV-V0-078	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475; decision	standing	2026-10-11; V1-1475
 LPCV-V0-079	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1475) A retain	standing	2026-10-11; V1-1475
-LPCV-V0-214	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a	standing	2026-10-11; V1-1474
 LPCV-V0-080	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A Playwr	standing	2026-10-11; V1-1737
 LPCV-V0-081	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) When any	standing	2026-10-11; V1-1737
 LPCV-V0-082	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1737) A passed	standing	2026-10-11; V1-1737

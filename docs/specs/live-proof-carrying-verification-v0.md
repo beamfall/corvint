@@ -473,6 +473,22 @@ The Go projector `internal/testvalidity` sets axis reasons from the kebab-case c
 | `unsupported-report-state` | `internal/testvalidity/projection.go:274` | the claim report state is none of the known `tcq` report states; the execution axis is `UNSUPPORTED` |
 | `workspace-execution-identity-mismatch` | `internal/testvalidity/projection.go:222` | the execution currency is `STALE`; the freshness axis is `STALE` (`LPCV-V0-054`; pinned by the `stale-execution` vector in `TestProjectMatchesSharedVectors`) |
 
+### Request-stub unroute marking (V1-1474)
+
+- `LPCV-V0-214`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a
+  test's `unroute(url, handler)` or `unroute(url)` removes a `route` stub the producer recorded on
+  the same instance, or `unrouteAll` removes every route stub of that instance, the producer MUST
+  mark that stub `"unrouted": true`. It matches the way Playwright removes a route: the same URL
+  argument (a string or predicate by identity, a RegExp by source and flags) and, when given, the
+  same handler. An `unroute` on a page never marks a stub of its context, and the reverse holds.
+  A stub never removed omits the member. The closed decoding of `LPCV-V0-072` accepts the member
+  only as `true`; `false`, `null`, any other value or a case variant is refused. A stub with zero
+  hits that is marked unrouted MUST NOT produce a `stub-never-matched` finding. A stub that is
+  never removed keeps its `LPCV-V0-073` finding, and so does a stub removed by any other means.
+  The stub stays in the record either way. Rollback: revert the producer marking, the decoded
+  member and the finding guard together; a retained receipt carrying the member is then refused
+  by the closed decoding and reads as `NOT_PRODUCED`, never as zero hits.
+
 ## Promotion experiments
 
 All promotion corpora, changes, defects, splits, metrics, exclusions, and stopping rules MUST be
@@ -1085,21 +1101,8 @@ standing auto-accept (2026-10-11). The external-profile question was decided by 
 
 A stub the test itself removes before any request reaches it was withdrawn on purpose, not
 silently missed, so V1-1474 states the unroute rule as `LPCV-V0-214`, accepted under the owner's
-standing auto-accept (2026-10-11). IDs `LPCV-V0-154..213` stay free.
-
-- `LPCV-V0-214`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1474) When a
-  test's `unroute(url, handler)` or `unroute(url)` removes a `route` stub the producer recorded on
-  the same instance, or `unrouteAll` removes every route stub of that instance, the producer MUST
-  mark that stub `"unrouted": true`. It matches the way Playwright removes a route: the same URL
-  argument (a string or predicate by identity, a RegExp by source and flags) and, when given, the
-  same handler. An `unroute` on a page never marks a stub of its context, and the reverse holds.
-  A stub never removed omits the member. The closed decoding of `LPCV-V0-072` accepts the member
-  only as `true`; `false`, `null`, any other value or a case variant is refused. A stub with zero
-  hits that is marked unrouted MUST NOT produce a `stub-never-matched` finding. A stub that is
-  never removed keeps its `LPCV-V0-073` finding, and so does a stub removed by any other means.
-  The stub stays in the record either way. Rollback: revert the producer marking, the decoded
-  member and the finding guard together; a retained receipt carrying the member is then refused
-  by the closed decoding and reads as `NOT_PRODUCED`, never as zero hits.
+standing auto-accept (2026-10-11), defined under `## Requirements` (Request-stub unroute marking).
+IDs `LPCV-V0-154..213` stay free.
 
 Non-goals:
 - stubs registered only on a negative-control path (GitHub #872);
