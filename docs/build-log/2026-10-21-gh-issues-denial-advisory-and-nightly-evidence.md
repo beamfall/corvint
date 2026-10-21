@@ -1,7 +1,7 @@
-# 2026-10-21 gh-issues lane: RSpec denial advisory, #1358 fixture, nightly #1116 evidence
+# 2026-10-21 gh-issues lane: RSpec denial advisory, #1358 fixture, nightly #1116 evidence, bun provider
 
 Tickets: V1-2124 (GitHub #1366), V1-2125 (GitHub #1358), V1-2121 and V1-2122 (GitHub #1116),
-V1-2111. V1-2191 (GitHub #1405, bun runner) was not started in this lane.
+V1-2111, V1-2191 (GitHub #1405).
 
 ## Problem
 
@@ -10,6 +10,8 @@ V1-2111. V1-2191 (GitHub #1405, bun runner) was not started in this lane.
   denies stays green.
 - #1358: the issue reports that a block handed to a helper that never yields passes validity.
 - #1116: the nightly Release gates failed on runs 39121848489, 39258757168 and 39416257984.
+- #1405: affected selection already recognised `bun:test` suites (`bun-test` units), but the JS
+  provider ran only Vitest and Playwright, so a Bun suite produced no receipt and no verdict.
 
 ## Decisions
 
@@ -36,6 +38,20 @@ V1-2111. V1-2191 (GitHub #1405, bun runner) was not started in this lane.
   groupreap callers (`becfcd18d`, V1-2111). The macOS `internal/mcp/bridge` package passed in run
   39416257984.
 
+- #1405: `LPCV-V0-254..262` (IDs offset +100 above origin/main's LPCV-V0-153), accepted under
+  the owner's standing auto-accept (2026-10-11), add `corvint-js-test-provider bun`: `bun test
+  --reporter=junit` under procgroup containment, the exact argv (preload, `--max-concurrency`,
+  `--test-name-pattern`, files), a `bun` receipt member (producer build from embedded VCS info,
+  bun executable digest and observed version, `bun.lock` digest and version, preload digests,
+  declared isolation, exit, start/publish repository identity), and three typed pre-run refusals
+  (`bun-version-unqualified`, `bun-lockfile-unqualified`, `bun-isolation-concurrency-undeclared`)
+  that exit 3 with a `corvint-bun-test-refusal/0` document. The qualified set is exactly bun
+  1.3.11, the version a live run observed. Example-level selection is `--test-name-pattern`:
+  bun 1.3.11 has no `file:line` filter. A failing `beforeAll` hook (an unnamed, line-less case)
+  is one infrastructure outcome. `bun:test` joins `vitest`/`jest` as a test-framework module in
+  the JS flow reading. The receipt joins through the existing example join unchanged. The
+  projection check is chained onto the existing return line so no cited line moves.
+
 ## Evidence
 
 - `TestRSpecDenialWithoutNoEffect`, `TestRSpecDenialRequestOnChain`: pass; both fail with the
@@ -45,15 +61,29 @@ V1-2111. V1-2191 (GitHub #1405, bun runner) was not started in this lane.
 - Local repeats on this host at the lane base: `TestATRV0004*` and `TestTQDV0021_RealProbes` at
   `-count=15`, `TestMCPV0038IndexDeadlineHasDistinctCode` at `-count=30`: all pass.
 
+- Bun: `TestLPCVV0255_RunBunBindsCommandIdentityAndTree`, `TestLPCVV0258_BunRefusalsAreTypedAndPreRun`,
+  `TestLPCVV0260_ParseBunJUnitLiveReport` (a report bun 1.3.11 wrote), `TestLPCVV0260_ParseBunJUnitHookAndShape`,
+  `TestLPCVV0261_BunFixtureSelectedRunAndJoined`, `TestProviderBunRefusalExitsAdmissionRefused` and the
+  extended `TestProviderHelpPrintsEverySubcommandUsage`: pass; without the change they do not compile
+  (new API) or, for the help test, omit `bun `. `TestLPCVV0262_LiveBunQualification` passed with
+  `CORVINT_BUN_EXECUTABLE` set to the pre-installed bun 1.3.11 (darwin arm64; nothing downloaded).
+  A live CLI run on a scratch fixture (file: dependency, `bun.lock` version 1) produced the
+  receipt with 4 outcomes, exit 1 explained by the failed test, and an unchanged clean tree; the
+  three refusals exited 3 with their documents.
+
 ## NOT_RUN
 
 - A passing scheduled nightly Release-gates run after these fixes is not yet observed; the
   hosted-runner timing classes are covered by local repeats only.
 - Real-suite qualification of the denial reading against an adopter's Rails suite.
-- V1-2191 (bun): not started; no bun toolchain installed, no live qualification.
+- Bun live qualification in CI (no bun installed there); bun releases other than 1.3.11, Linux
+  and Windows bun; an adopter's real Bun repository with an external service.
 
 ## Rollback
 
 Remove `internal/testsource/validity_rspec_denial.go`, its test and the `denialFindings` call, the
 three rule constants, the help-text sentence in `cmd/corvint/tests.go`, the TSA-V0-564/565 section
-and the `TestRSpecIssue1358NonYieldingHelper` file and traceability mention. Nothing is persisted.
+and the `TestRSpecIssue1358NonYieldingHelper` file and traceability mention. For the bun profile,
+revert `internal/jstestprovider/bun.go`, the `Bun` receipt member, the chained projection check, the
+`bun` subcommand, the `bun:test` library entry, their tests and fixtures, and the LPCV-V0-254..262
+section; `bun` then exits 2 as an unknown subcommand. Nothing is persisted.
