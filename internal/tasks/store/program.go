@@ -15,7 +15,16 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-var programWriter sync.Mutex
+// programWriters holds one mutex per store state directory. It serializes
+// this process's program transitions over one store, each held across the
+// proof read and the write that binds it; transitions over different stores
+// share no record, so they need not wait for each other (V1-1499).
+var programWriters sync.Map // state directory -> *sync.Mutex
+
+func programWriter(repo *intent.Repository) *sync.Mutex {
+	mu, _ := programWriters.LoadOrStore(repo.StateDir, new(sync.Mutex))
+	return mu.(*sync.Mutex)
+}
 
 // ProgramTransition records the expected whole-inventory binding under the
 // native writer lock. A competing owner cannot replace the observed program.
@@ -29,8 +38,9 @@ func ProgramTransition(ctx context.Context, repo *intent.Repository, actor mutat
 // before the write refuses it and one recorded after it is a later revision
 // (CAL-V0-089).
 func programTransition(ctx context.Context, repo *intent.Repository, actor mutation.Binding, queue, id string, next snapshot.Program, fenced bool, output ...[]byte) (*Report, error) {
-	programWriter.Lock()
-	defer programWriter.Unlock()
+	mu := programWriter(repo)
+	mu.Lock()
+	defer mu.Unlock()
 	proof, e := readLeaseProof(ctx, repo)
 	if e != nil {
 		return nil, e
