@@ -150,6 +150,12 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 	return append(encoded, '\n'), nil
 }
 
+// docsSubcommands is the `docs` dispatch table: nav, draft and consume dispatch through
+// parseDocsInvocation, corpus through parseCorpusInvocation, maintain through
+// docs_maintain.go and flows through docs_flows.go. docsHelp lists every entry with its
+// maturity, and TestDocsHelpListsEveryDispatchedSubcommand pins the two together (V1-2134).
+var docsSubcommands = []string{"nav", "draft", "consume", "corpus", "maintain", "flows"}
+
 const docsHelp = `Experimental source documentation orientation
 
 Usage:
@@ -157,6 +163,10 @@ Usage:
   corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
   corvint [--root PATH] docs draft --source PATH --package DIRECTORY
   corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
+  corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)
+  corvint [--root PATH] docs maintain --page PATH ...  (corvint help docs maintain)
+  corvint [--root PATH] docs flows generate|check|finalize ...  (corvint help docs flows)
+Maturity: every docs subcommand (nav, draft, consume, corpus, maintain, flows) is experimental.
 
 Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
 source, emits an exact proposal patch, and validates navigation by a full candidate reload.

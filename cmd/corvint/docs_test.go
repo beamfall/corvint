@@ -405,3 +405,27 @@ func TestDocsCLICarriageReturnCannotEscapeSourceExcerpt(t *testing.T) {
 		})
 	}
 }
+
+// V1-2134: docs help lists every dispatched docs subcommand with its maturity, and every listed
+// subcommand dispatches (its own help exits 0) while an unlisted one is refused.
+func TestDocsHelpListsEveryDispatchedSubcommand(t *testing.T) {
+	t.Parallel()
+	usage, _, _ := strings.Cut(docsHelp, "\n\nNavigation")
+	_, maturity, _ := strings.Cut(usage, "\nMaturity: ")
+	for _, name := range docsSubcommands {
+		if !strings.Contains(usage, "corvint [--root PATH] docs "+name+" ") || !strings.Contains(maturity, name+",") && !strings.Contains(maturity, name+")") {
+			t.Errorf("docs usage omits %q or its maturity:\n%s", name, usage)
+		}
+		var stdout, stderr bytes.Buffer
+		if code := run([]string{"--root", "/definitely/not/a/repository", "docs", name, "--help"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 0 || stdout.Len() == 0 {
+			t.Errorf("docs %s --help exit=%d stderr=%q", name, code, &stderr)
+		}
+	}
+	if got := strings.Count(usage, "\n  corvint [--root PATH] docs "); got < len(docsSubcommands) {
+		t.Errorf("usage lines=%d, dispatch table=%d", got, len(docsSubcommands))
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--root", "/definitely/not/a/repository", "docs", "bogus"}, &forbiddenHelpReader{}, &stdout, &stderr); code != 2 {
+		t.Errorf("unlisted docs subcommand exit=%d", code)
+	}
+}
