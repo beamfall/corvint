@@ -51,6 +51,11 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	directTopic := ""
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
+		// A nested topic passed as the one argument the refusal lists it as
+		// ("docs corpus") resolves like its separate-word form (DCP-V1-057).
+		if command, subcommand, spaced := strings.Cut(rest[1], " "); directTopic == "" && spaced {
+			directTopic = nestedHelpTopic(command, subcommand)
+		}
 	} else if len(rest) == 3 && rest[0] == "help" {
 		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
