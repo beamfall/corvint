@@ -655,7 +655,11 @@ resumed in round 2 after one prefix walk, so the decline itself is a preconditio
   Negative evidence for PSR-V0-150: a receipt rewritten with its stamps restored while the bounded
   complete attempt walks, as the journal also moves, never commits. That attempt is
   `SNAPSHOT_MOVED`; the next round's attempt refuses, the head stays where the tamper left it, and
-  the command ends with the complete route's own decision for that journal.
+  the command ends with the complete route's own decision for that journal. A refusal that a
+  round's preparation audit derived in one complete, unmoved walk of the head it read is that
+  round's decision: the guarded complete audit reuses it instead of walking the same head again, so
+  a refusing round charges one complete walk (V1-1703). A walk that moved, a declined prefix walk,
+  a prefix result and `REDO_PENDING` still take the guarded complete audit.
 
 Failure modes:
 - A writer that commits faster than one complete walk, on a command whose resume is declined,

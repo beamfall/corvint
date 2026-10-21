@@ -241,6 +241,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		timing.walked(observation.Walks)
 		return proof, observation, auditErr
 	}
+	// refused is a refusal the preparation audit derived in one complete,
+	// unmoved walk of this head. The guarded audit below would walk the same
+	// head again only to derive it once more, so it reuses this one
+	// (V1-1703).
+	var refused func(journal.Reader) (*journal.Result, journal.PhysicalObservation, error)
 	if !possibleLeaseAudit(repo, head) {
 		// The writer checkpoint this audit derives is bound to the
 		// invalidation token read before it (CAL-V0-117, proposed).
@@ -301,6 +306,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.
 		// Preserve the ordinary inventory-first replay/recovery path below.
+		if w := observation.Walks; auditErr != nil && wire.CodeOf(auditErr) != wire.CodeRedoPending && !errors.Is(auditErr, journal.ErrPrefixDeclined) && w.Complete == 1 && w.CompleteMoved == 0 && w.Prefix == 0 && w.Resumed == 0 {
+			refused = func(journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
+				return proof, journal.PhysicalObservation{}, auditErr
+			}
+		}
 	}
 	if inv == nil {
 		inv, err, p.fatalCleanup = guardedLeaseInventory(repo, g, hooks)
@@ -309,7 +319,11 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 		}
 	}
 	var cleanup error
-	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, observe)
+	audit := observe
+	if refused != nil {
+		audit = refused
+	}
+	p.proof, err, cleanup = leaseAuditObserved(repo, g, inv, head, supplied, audit)
 	readEnd = time.Now()
 	if cleanup != nil {
 		p.recordCleanup("journal audit close", cleanup)
