@@ -214,7 +214,7 @@ func newBindingFold(repo *intent.Repository) *bindingFold {
 			return FilesAtCommit(root, commit, paths)
 		}},
 		memo:   &transaction.TicketPosts{},
-		reuses: &transaction.GateReuseReceiptAudit{},
+		reuses: &transaction.GateReuseReceiptAudit{Descent: descentOracle(descentRoot(repo))},
 	}
 }
 
