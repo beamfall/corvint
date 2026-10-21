@@ -33,12 +33,12 @@ average at start and end. Each is a single paired measurement, not a benchmark.
 | --- | --- | --- |
 | authority, `ReturnedFaults` test | 50.8 s, load 23-26; check 60.7 % of CPU | 23.1 s, load ~11; check 26.3 % |
 | authority, package | 225.0 s, load 11-16 | 151.8 s, load 16-11 (122.8 s at load 9-10); check 22.6 % of package CPU |
-| contextindex, package | 311.8 s, load 10.7-7.3 | 300.9 s, load 17.5-37.3 |
+| contextindex, package | 311.8 s, load 10.7-7.3 | 157.5 s, load 22.8-44.8 (after merging origin/main); 300.9 s in an earlier run at load 17.5-37.3 |
 | doccorpus, 164 parallel-safe tests | 408.9 s, load 29.3-10.3 | 114.1 s, load 21.2-31.0 |
 
-The contextindex "after" ran at about 3x the load. In that run the sequential tests took 278.6 s, against
+In the earlier contextindex run the sequential tests took 278.6 s, against
 164.2 s before, while the 151 parallel tests finished in about 22 s of wall time (154.6 s serial
-before). At the before load this projects to about 180 s; it is an inference, not a measurement.
+before). 
 
 The doccorpus profile names the cost driver. The DCP-V1-216 bulk equivalence tests run the per-path,
 unbounded Git reads for 5,000 anchors or 4,096 files to compare bytes with the batched reads:
