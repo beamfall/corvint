@@ -797,7 +797,7 @@ above stands with that substitution.
   (`cmd/corvint/prove.go:1064-1066@d473eb95`, `cmd/corvint/main.go:1410-1421@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
   (`cmd/corvint/index_snapshot.go:93-94@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1439-1440@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:412-414@9faff3e7`, called at
-  `cmd/corvint/main.go:1435@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
+  `cmd/corvint/main.go:1435@3dc52f02`; `BuildEval`, `internal/contextindex/index.go:314-315@b1c33c59`, called at `cmd/corvint/harness_context.go:71@eb4f5986`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)

@@ -856,6 +856,25 @@ the gate skips 7,099 bodies (was 3,893) with identical extracted imports for eve
 `corvint index` user CPU fell from 6.6 to 7.0 s to 5.8 to 6.0 s
 (`docs/build-log/2026-10-21-lane-ctx-1021-context-index-impact.md`).
 
+### Accepted (2026-10-21, V1-1640, owner's standing auto-accept 2026-10-11): `query` names its miss too
+
+Human intent: V1-1640 asked that `context` "and other snapshot readers" name a snapshot-miss
+build. `IDX-SNAP-V0-102` covered `context`, `impact` and `feature`; `query`, the other read the
+pre-change step uses, still paid its miss build in silence (measured at `8def072e0`: 1.40 s wall
+without a snapshot versus 0.57 s with one).
+
+- `IDX-SNAP-V0-104`: accepted under the owner's standing auto-accept (2026-10-11) (V1-1640). The
+  CLI `query` verb, on both its repository and authority-start paths, writes the
+  `IDX-SNAP-V0-102` notice with verb `query` when it finds no usable snapshot and its in-memory
+  build (`BuildEval` or `BuildQuery`) takes at least `snapshotMissNoticeAfter`, with the same
+  text, floor, unchanged stdout and exit code, and no store write. The notice is armed only by the
+  CLI adapter (`withSnapshotMissNotice`); the harness event path and `batch` share the build code
+  and stay silent.
+
+Failure modes: as `IDX-SNAP-V0-102`. Rollback: delete `withSnapshotMissNotice` and
+`timedMissBuild` and restore the three bare build calls. Traceability:
+`TestSnapshotMissNoticeNamesTheBuild` (both `query` paths).
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -1074,3 +1093,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-102 (standing auto-accept, V1-1640) | `noteSnapshotMissBuild`, `snapshotMissNoticeAfter`, `compileTaskContext` | `TestSnapshotMissNoticeNamesTheBuild` |
 | IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
+| IDX-SNAP-V0-104 (standing auto-accept, V1-1640) | `withSnapshotMissNotice`, `timedMissBuild`, `repositoryQueryContext`, `authorityStartQueryContext` | `TestSnapshotMissNoticeNamesTheBuild` |
