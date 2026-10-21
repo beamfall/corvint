@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -116,7 +117,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 	return affectedCompactReceipt{
 		Snapshot: full.Snapshot,
 		PathList: full.PathList,
-		Advice:   compactAffectedAdvice(full.Advice, full.Provider.Go.Packages),
+		Advice:   compactAffectedAdvice(full.Advice, full.Provider.Go.Packages, full.Plan.Unknown),
 		Mutates:  full.Mutates,
 		OK:       full.OK,
 		Plan: affectedCompactPlan{
@@ -170,10 +171,18 @@ func summarizeAffectedExclusions(exclusions []affected.Exclusion) (affectedExclu
 	return affectedExcludedSummary{Count: len(exclusions), Digest: affectedExcludedDigestPrefix + hex.EncodeToString(sum[:]), Groups: groups}, nil
 }
 
+// affectedPlanUnknownReference is the one advice.unknown line of the
+// affected-plan/1 default that stands for the plan.unknown entries the
+// `--full` advice repeats (AFP-V0-155).
+const affectedPlanUnknownReference = "PLAN_UNKNOWN: %d plan.unknown entries; see plan.unknown"
+
 // compactAffectedAdvice replaces the package list of the advisory Go command
 // with a reference to provider.go.packages. A command that is not exactly the
 // prefix followed by the quoted packages is kept whole, so nothing is lost.
-func compactAffectedAdvice(advice affectedAdvice, packages []string) affectedCompactAdvice {
+// An advice.unknown line that is exactly a plan.unknown entry's "reason:
+// detail" is replaced by one count line naming plan.unknown, which the
+// default keeps whole; every advice-specific line is kept (AFP-V0-155).
+func compactAffectedAdvice(advice affectedAdvice, packages []string, planUnknown []affected.Unknown) affectedCompactAdvice {
 	checks := make([]affectedCompactCheck, 0, len(advice.Checks))
 	full := adviceAdvisoryGoTest + " " + shellQuoteJoin(packages)
 	for _, check := range advice.Checks {
@@ -183,5 +192,24 @@ func compactAffectedAdvice(advice affectedAdvice, packages []string) affectedCom
 		}
 		checks = append(checks, compact)
 	}
-	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: advice.Unknown}
+	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown)}
+}
+
+func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []string {
+	fromPlan := make(map[string]bool, len(planUnknown))
+	for _, entry := range planUnknown {
+		fromPlan[entry.Reason+": "+entry.Detail] = true
+	}
+	kept, repeated := make([]string, 0, len(unknown)), 0
+	for _, line := range unknown {
+		if fromPlan[line] {
+			repeated++
+			continue
+		}
+		kept = append(kept, line)
+	}
+	if repeated == 0 {
+		return unknown
+	}
+	return sortedUniqueStrings(append(kept, fmt.Sprintf(affectedPlanUnknownReference, len(planUnknown))))
 }
