@@ -197,7 +197,7 @@ func TestRegistryDialectUnresolvedRegistryWidens(t *testing.T) {
 		"method":       "  make() { return 1; },\n",
 		"local-value":  "  'ctx:local': new LocalContext(),\n",
 		"called-value": "  'ctx:call': makeBeta(),\n",
-		"long-key":     "  " + strings.Repeat("k", maxRegistryKeyBytes+1) + ": Beta,\n",
+		"long-key":     "  " + strings.Repeat("k", registryKeyBound.limit+1) + ": Beta,\n",
 	} {
 		files := registryIssueFiles()
 		files["tests/data/registry.ts"] = strings.Replace(files["tests/data/registry.ts"], "};\n", entry+"};\n", 1)

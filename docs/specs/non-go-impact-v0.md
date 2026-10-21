@@ -321,9 +321,10 @@ path receives it by default, add a bounded second hop, and mark every such row a
 - `NGI-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1794) The
   Ruby reference index MUST be bounded: an unbalanced source resolves each reference against
   at most 64 of the namespaces it opens, and the index retains at most 1,048,576 reference
-  sites in total. Every reference whose resolutions or sites a bound cut MUST be counted in a
-  `ruby-reference-index-bounded` unknown row on each mapped changed Ruby path, never dropped
-  silently; below both bounds no row is added.
+  sites in total. Every reference whose resolutions or sites a bound cut, and every reference
+  of a source that nests more than 256 blocks (whose deeper namespaces are not tracked;
+  TSA-V0-461, V1-1720), MUST be counted in a `ruby-reference-index-bounded` unknown row on each
+  mapped changed Ruby path, never dropped silently; below every bound no row is added.
 
 ### Ruby verification command (V1-1796; GitHub #1130 item 4)
 
@@ -460,7 +461,7 @@ for languages not admitted by this new range capability.
 | `ruby-constant-lookup-dynamic` | `count` dynamic constant lookups or dynamic sends in other Ruby sources may name the constant (`NGI-V0-019`). |
 | `ruby-constant-name-literal` | `count` strings or association symbols in other Ruby sources may name the constant without a resolvable reference (`NGI-V0-019`). |
 | `ruby-constant-source-unavailable` | `count` other Ruby sources could not be read for constant references (`NGI-V0-019`). |
-| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution or retained-site bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
+| `ruby-reference-index-bounded` | `count` Ruby references were indexed incompletely because the resolution, retained-site or nesting bound cut them, so the named-constant rows may be incomplete (`NGI-V0-040`). |
 
 These codes are uncertainty, never execution evidence. The versioned receipt
 names `language_profile: non-go-syntax-v0`; line 0 denotes a baseline frontier.
@@ -504,7 +505,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-037` | `rangeRubyAutoload`, wiring in `compileRangeImpact` | `TestRubyAutoloadRangeImpact`; `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-038` | `isRubyTestPath` (`internal/contextindex/ruby_autoload.go`); `isTestPath` unchanged | `TestIsTestPathRSpec`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubySpecPathNonRubyRequestBaseBytes` |
 | `NGI-V0-039` | `internal/rubyautoload` package | `TestRubyAutoloadConstantMapping`, `TestRubyAutoloadMapperDeclaration`; real CLI output in `../build-log/2026-10-18-v1-1794-ruby-constant-impact.md` |
-| `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound` |
+| `NGI-V0-040` | `resolutions`, `indexSites`, `loadRubyAutoload`; `ruby-reference-index-bounded` in `rubyAutoload.impact` | `TestRubyAutoloadResolutionBound`, `TestRubyAutoloadSiteBound`, `TestRubyNestingOverflowIsBounded` |
 
 Names in this matrix identify evidence rather than implying passing execution.
 Observed execution and independent findings are retained in

@@ -342,11 +342,11 @@ func TestRubyAutoloadNestingBound(t *testing.T) {
 	nested := func(depth int, body string) string {
 		return "module Jobs\n" + strings.Repeat("begin\n", depth) + body + strings.Repeat("end\n", depth) + "end\nTail.new\n"
 	}
-	within := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth-1, "Thing.new\n"))}, func(string) bool { return false })
+	within := scanRubyConstantSource(Source{Data: []byte(nested(rubyNestingBound.limit-1, "Thing.new\n"))}, func(string) bool { return false })
 	if !within.balanced {
 		t.Fatal("nesting at the bound must stay balanced")
 	}
-	past := scanRubyConstantSource(Source{Data: []byte(nested(maxRubyNestingDepth, "Thing.new\n"))}, func(string) bool { return false })
+	past := scanRubyConstantSource(Source{Data: []byte(nested(rubyNestingBound.limit, "Thing.new\n"))}, func(string) bool { return false })
 	if past.balanced {
 		t.Fatal("begin blocks past the nesting bound must mark the file unbalanced")
 	}
