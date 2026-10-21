@@ -146,6 +146,20 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	baseW := &WriterCheckpoint{Checkpoint: derived.Checkpoint, sizes: baseSizes, requests: baseReq}
 	baseW.Seq, baseW.Entries = wire.SizeOf(seqA), baseEntries
 	baseW.notes = []writerNote{{entry: uint32(baseIndex(ticketPath("A"))), digest: noteDigest(refA)}}
+	// JSG-V0-009: the base carries its header and aggregates at seqA, which
+	// must agree with its own table.
+	baseW.Cost = archive.FileSetCost{Files: int(seqA) + len(baseReq)/writerRequestBytes}
+	for i, e := range baseEntries {
+		if e.Sha256 != nil && intentRecord(e.Path) {
+			if strings.HasPrefix(e.Path, "intent/tickets/") {
+				baseW.Intent.Tickets++
+			} else {
+				baseW.Intent.Releases++
+			}
+			baseW.Intent.Cost.PayloadBytes += baseSizes[i]
+		}
+	}
+	baseW.Intent.Cost.Files = baseW.Intent.Tickets + baseW.Intent.Releases
 	baseRaw, _, err := baseW.Encode()
 	if err != nil {
 		t.Fatal(err)
@@ -349,20 +363,51 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 	}
 	otherBase := append([]byte(nil), baseRaw...)
 	otherBase[len(otherBase)-1] ^= 1
+	// JSG-V0-009: the base's checkpoint header, aggregates and segment
+	// digests follow its notes.
+	notesEnd := rec(bt.n) + len(bt.paths) + len(bt.reqs) + len(bt.notes)
+	metaCP := int(binary.BigEndian.Uint64(baseRaw[notesEnd:]))
+	aggAt := notesEnd + 8 + metaCP
+	meta := func(i int, v uint64) [2][]byte {
+		return rebound(func(out []byte) []byte { binary.BigEndian.PutUint64(out[aggAt+8*i:], v); return out })
+	}
+	reheader := func(edit func(w *WriterCheckpoint)) [2][]byte {
+		w := *baseW
+		edit(&w)
+		out, _, err := w.Encode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return rebound(func([]byte) []byte { return out })
+	}
 	for name, c := range map[string][2][]byte{
-		"base absent":         {raw, nil},
-		"another base":        {raw, otherBase},
-		"base version":        rebound(func(out []byte) []byte { copy(out, strings.Replace(baseMagic, "/0", "/1", 1)); return out }),
-		"base profile":        rebound(func(out []byte) []byte { out[0] ^= 0x20; return out }),
-		"base truncated":      rebound(func(out []byte) []byte { return out[:baseHeaderBytes-1] }),
-		"base length":         rebound(func(out []byte) []byte { return append(out, 0) }),
-		"base entry count":    header(1, uint64(bt.n+1)),
-		"base request count":  header(2, 0),
-		"base note count":     header(3, 2),
-		"base path bytes":     header(4, uint64(len(bt.paths)-1)),
-		"base seq zero":       header(0, 0),
-		"base past the delta": header(0, seqB+1),
-		"base path gap":       rebound(func(out []byte) []byte { binary.BigEndian.PutUint32(out[rec(1):], 1); return out }),
+		"base absent":    {raw, nil},
+		"another base":   {raw, otherBase},
+		"base version":   rebound(func(out []byte) []byte { copy(out, strings.Replace(baseMagic, "/1", "/2", 1)); return out }),
+		"base version 0": rebound(func(out []byte) []byte { copy(out, strings.Replace(baseMagic, "/1", "/0", 1)); return out }),
+		"base meta header length": rebound(func(out []byte) []byte {
+			binary.BigEndian.PutUint64(out[notesEnd:], uint64(metaCP+1))
+			return out
+		}),
+		"base meta truncated":        rebound(func(out []byte) []byte { return out[:len(out)-1] }),
+		"base meta file count":       meta(1, uint64(baseW.Cost.Files+1)),
+		"base meta intent tickets":   meta(5, uint64(baseW.Intent.Tickets+1)),
+		"base meta intent payload":   meta(7, baseW.Intent.Cost.PayloadBytes+1),
+		"base meta segments":         meta(baseAggregates, 1),
+		"base exceeds the delta":     meta(0, 901),
+		"base header at another seq": reheader(func(w *WriterCheckpoint) { w.Seq = wire.SizeOf(seqA - 1) }),
+		"base worktree differs":      reheader(func(w *WriterCheckpoint) { w.PrimaryWorktree += "x" }),
+		"base queue differs":         reheader(func(w *WriterCheckpoint) { w.InitSha256 = wire.Digest(strings.Repeat("0", 64)) }),
+		"base profile":               rebound(func(out []byte) []byte { out[0] ^= 0x20; return out }),
+		"base truncated":             rebound(func(out []byte) []byte { return out[:baseHeaderBytes-1] }),
+		"base length":                rebound(func(out []byte) []byte { return append(out, 0) }),
+		"base entry count":           header(1, uint64(bt.n+1)),
+		"base request count":         header(2, 0),
+		"base note count":            header(3, 2),
+		"base path bytes":            header(4, uint64(len(bt.paths)-1)),
+		"base seq zero":              header(0, 0),
+		"base past the delta":        header(0, seqB+1),
+		"base path gap":              rebound(func(out []byte) []byte { binary.BigEndian.PutUint32(out[rec(1):], 1); return out }),
 		"base unordered paths": rebound(func(out []byte) []byte {
 			out[rec(bt.n)+int(binary.BigEndian.Uint32(out[rec(bt.n-1):]))] = 'A'
 			return out
@@ -375,11 +420,11 @@ func TestCALV0115_WriterCheckpointCodecIsClosed(t *testing.T) {
 		"base ticket size":          recordU64(ia, 16, uint64(len(fixture.Ticket("A").Encode()))+1),
 		"base request path":         withEntry(requestPathOf(c[:]), true),
 		"base note on a non-ticket": rebound(func(out []byte) []byte {
-			binary.BigEndian.PutUint32(out[len(out)-writerNoteBytes:], uint32(io))
+			binary.BigEndian.PutUint32(out[notesEnd-writerNoteBytes:], uint32(io))
 			return out
 		}),
 		"base note out of range": rebound(func(out []byte) []byte {
-			binary.BigEndian.PutUint32(out[len(out)-writerNoteBytes:], uint32(bt.n))
+			binary.BigEndian.PutUint32(out[notesEnd-writerNoteBytes:], uint32(bt.n))
 			return out
 		}),
 	} {

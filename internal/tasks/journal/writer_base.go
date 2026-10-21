@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -18,7 +19,12 @@ import (
 // without decoding. The delta (ProfileWriterCheckpoint) binds it by SHA-256;
 // like the delta it is derived state, and an absent or differing base only
 // sends the next writer through the complete audit.
-const ProfileWriterBase = "taskman-writer-base/0"
+//
+// Version 1 appends the checkpoint header and the aggregates at the base's
+// sequence and the SHA-256 of every sealed segment it covers, so a seal can
+// resume the complete validators from the base (JSG-V0-009). A version 0
+// base is refused as another version and the writer takes the complete route.
+const ProfileWriterBase = "taskman-writer-base/1"
 
 const baseMagic = ProfileWriterBase + "\n"
 
@@ -39,8 +45,18 @@ const baseRecordBytes = 4 + 2 + 1 + 1 + 8 + 8 + sha256.Size
 // maxBasePathBytes bounds one entry path.
 const maxBasePathBytes = 1 << 12
 
+// maxBaseCheckpointBytes bounds the encoded checkpoint header in the base.
+const maxBaseCheckpointBytes = 16 * wire.KiB
+
+// baseAggregates is the base's aggregates at its sequence: receipt bytes,
+// the four archive cost fields, then the five intent aggregate fields.
+const baseAggregates = 10
+
+// maxBaseSegments bounds the sealed segment digests a base carries.
+const maxBaseSegments = wire.MaxArchiveFiles/snapshot.SegmentReceipts + 1
+
 // MaxWriterBaseBytes bounds the base a writer is willing to consume.
-const MaxWriterBaseBytes = baseHeaderBytes + (baseRecordBytes+maxBasePathBytes)*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + writerNoteBytes*wire.MaxTicketsPerQueue
+const MaxWriterBaseBytes = baseHeaderBytes + (baseRecordBytes+maxBasePathBytes)*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + writerNoteBytes*wire.MaxTicketsPerQueue + 8 + maxBaseCheckpointBytes + baseAggregates*8 + 8 + sha256.Size*maxBaseSegments
 
 // WriterBasePath is the sibling of the writer checkpoint that holds its base.
 func WriterBasePath(stateDir string) string { return WriterCheckpointPath(stateDir) + ".base" }
@@ -59,6 +75,19 @@ type baseTable struct {
 	notes  []byte
 	raw    []byte
 	intent struct{ tickets, releases, payload uint64 }
+	// meta is the checkpoint the base was rendered from, without entries,
+	// sizes, requests or notes: its header and aggregates at seq, and the
+	// sealed segments it covers (JSG-V0-009).
+	meta baseMeta
+}
+
+// baseMeta is a base's checkpoint header, aggregates and segment digests.
+type baseMeta struct {
+	header       Checkpoint
+	receiptBytes uint64
+	cost         archive.FileSetCost
+	intent       IntentAggregate
+	segments     [][sha256.Size]byte
 }
 
 func (b *baseTable) rec(i int) []byte { return b.recs[i*baseRecordBytes : (i+1)*baseRecordBytes] }
@@ -146,7 +175,13 @@ func encodeBase(w *WriterCheckpoint) ([]byte, error) {
 		}
 		pathBytes += len(e.Path)
 	}
-	buf := make([]byte, 0, baseHeaderBytes+baseRecordBytes*len(w.Entries)+pathBytes+len(w.requests)+writerNoteBytes*len(w.notes))
+	header := w.Checkpoint
+	header.Entries = nil
+	cp := header.Encode()
+	if len(cp) > maxBaseCheckpointBytes || len(w.segments) > maxBaseSegments {
+		return nil, errCheckpoint("writer checkpoint base", "header or segments exceed the base bound")
+	}
+	buf := make([]byte, 0, baseHeaderBytes+baseRecordBytes*len(w.Entries)+pathBytes+len(w.requests)+writerNoteBytes*len(w.notes)+8+len(cp)+baseAggregates*8+8+sha256.Size*len(w.segments))
 	buf = append(buf, baseMagic...)
 	for _, v := range []uint64{w.Seq.Uint64(), uint64(len(w.Entries)), w.Requests(), uint64(len(w.notes)), uint64(pathBytes)} {
 		buf = binary.BigEndian.AppendUint64(buf, v)
@@ -178,6 +213,15 @@ func encodeBase(w *WriterCheckpoint) ([]byte, error) {
 		buf = binary.BigEndian.AppendUint32(buf, n.entry)
 		buf = append(buf, n.digest[:]...)
 	}
+	buf = binary.BigEndian.AppendUint64(buf, uint64(len(cp)))
+	buf = append(buf, cp...)
+	for _, v := range []uint64{w.ReceiptBytes, uint64(w.Cost.Files), w.Cost.PayloadBytes, w.Cost.EntryBytes, w.Cost.TarBytes, uint64(w.Intent.Tickets), uint64(w.Intent.Releases), w.Intent.Cost.PayloadBytes, w.Intent.Cost.EntryBytes, w.Intent.Cost.TarBytes} {
+		buf = binary.BigEndian.AppendUint64(buf, v)
+	}
+	buf = binary.BigEndian.AppendUint64(buf, uint64(len(w.segments)))
+	for _, d := range w.segments {
+		buf = append(buf, d[:]...)
+	}
 	return buf, nil
 }
 
@@ -185,7 +229,11 @@ func encodeBase(w *WriterCheckpoint) ([]byte, error) {
 // strictly ordered paths, flags, sequences at or before the base, a deletion
 // with neither size nor digest, no request paths, strictly ordered requests,
 // and notes on live tickets in entry order. It also sums the live ticket and
-// release records the delta's intent aggregate is checked against.
+// release records the delta's intent aggregate is checked against, and
+// checks the trailing checkpoint header, aggregates and segment digests
+// against the table: the header at the base's sequence, the intent
+// aggregate equal to the sums, one file per receipt and request, and
+// segments only over receipts the base covers.
 func decodeBase(raw []byte) (*baseTable, error) {
 	bad := func(why string) error { return errCheckpoint("writer checkpoint base", why) }
 	if len(raw) > MaxWriterBaseBytes {
@@ -205,14 +253,16 @@ func decodeBase(raw []byte) (*baseTable, error) {
 	if seq < 1 || n > uint64(maxCheckpointEntries()) || nreq > uint64(wire.MaxArchiveFiles) || nnotes > uint64(wire.MaxTicketsPerQueue) || pathBytes > n*maxBasePathBytes {
 		return nil, bad("counts out of range")
 	}
-	if uint64(len(raw)-baseHeaderBytes) != n*baseRecordBytes+pathBytes+nreq*writerRequestBytes+nnotes*writerNoteBytes {
+	table := n*baseRecordBytes + pathBytes + nreq*writerRequestBytes + nnotes*writerNoteBytes
+	if uint64(len(raw)-baseHeaderBytes) < table+8 {
 		return nil, bad("length differs from its counts")
 	}
 	b := &baseTable{sha: sha256.Sum256(raw), seq: seq, n: int(n), raw: raw}
 	rest := raw[baseHeaderBytes:]
 	b.recs, rest = rest[:n*baseRecordBytes], rest[n*baseRecordBytes:]
 	b.paths, rest = string(rest[:pathBytes]), rest[pathBytes:]
-	b.reqs, b.notes = rest[:nreq*writerRequestBytes], rest[nreq*writerRequestBytes:]
+	b.reqs, rest = rest[:nreq*writerRequestBytes], rest[nreq*writerRequestBytes:]
+	b.notes, rest = rest[:nnotes*writerNoteBytes], rest[nnotes*writerNoteBytes:]
 	var zero [sha256.Size]byte
 	off := uint64(0)
 	for i := 0; i < b.n; i++ {
@@ -260,5 +310,75 @@ func decodeBase(raw []byte) (*baseTable, error) {
 			return nil, bad("note entry is not a live ticket")
 		}
 	}
+	if err := b.decodeMeta(rest); err != nil {
+		return nil, err
+	}
 	return b, nil
+}
+
+// decodeMeta checks the base's trailing checkpoint header, aggregates and
+// segment digests; see decodeBase.
+func (b *baseTable) decodeMeta(rest []byte) error {
+	bad := func(why string) error { return errCheckpoint("writer checkpoint base", why) }
+	n := binary.BigEndian.Uint64(rest)
+	rest = rest[8:]
+	if n > maxBaseCheckpointBytes || uint64(len(rest)) < n+baseAggregates*8+8 {
+		return bad("checkpoint header length")
+	}
+	cp, err := DecodeCheckpoint(rest[:n])
+	if err != nil {
+		return err
+	}
+	if cp.Seq.Uint64() != b.seq || len(cp.Entries) != 0 {
+		return bad("checkpoint header is not at the base")
+	}
+	rest = rest[n:]
+	var v [baseAggregates]uint64
+	for i := range v {
+		v[i] = binary.BigEndian.Uint64(rest[8*i:])
+	}
+	rest = rest[baseAggregates*8:]
+	nseg := binary.BigEndian.Uint64(rest)
+	rest = rest[8:]
+	if nseg > maxBaseSegments || nseg*snapshot.SegmentReceipts > b.seq || uint64(len(rest)) != nseg*sha256.Size {
+		return bad("segment digests")
+	}
+	if v[1] != b.seq+b.requests() || v[0] > v[2] || v[5] != b.intent.tickets || v[6] != b.intent.releases || v[7] != b.intent.payload {
+		return bad("aggregates differ from the table")
+	}
+	m := &b.meta
+	m.header, m.receiptBytes = *cp, v[0]
+	m.cost = archive.FileSetCost{Files: int(v[1]), PayloadBytes: v[2], EntryBytes: v[3], TarBytes: v[4]}
+	m.intent = IntentAggregate{Tickets: int(v[5]), Releases: int(v[6]), Cost: archive.FileSetCost{Files: int(v[5] + v[6]), PayloadBytes: v[7], EntryBytes: v[8], TarBytes: v[9]}}
+	m.segments = make([][sha256.Size]byte, nseg)
+	for i := range m.segments {
+		copy(m.segments[i][:], rest[i*sha256.Size:])
+	}
+	return nil
+}
+
+// bindsDelta checks a base against the delta that binds it: the same queue,
+// worktree and init, aggregates that never shrink from the base to the
+// delta, and at the base's own sequence the same header and aggregates.
+// v is the delta's seven aggregates and iv its intent aggregate.
+func (b *baseTable) bindsDelta(cp *Checkpoint, v, iv []uint64) error {
+	bad := func(why string) error { return errCheckpoint("writer checkpoint", why) }
+	h := &b.meta.header
+	if h.QueueID != cp.QueueID || h.PrimaryWorktree != cp.PrimaryWorktree || h.InitSha256 != cp.InitSha256 || h.Generation.Uint64() > cp.Generation.Uint64() {
+		return bad("base header differs from the delta's")
+	}
+	m := &b.meta
+	if m.receiptBytes > v[1] || uint64(m.cost.Files) > v[2] || m.cost.PayloadBytes > v[3] || m.cost.EntryBytes > v[4] || m.cost.TarBytes > v[5] {
+		return bad("base aggregates exceed the delta's")
+	}
+	if b.seq != cp.Seq.Uint64() {
+		return nil
+	}
+	if h.ReceiptSha256 != cp.ReceiptSha256 || h.Generation != cp.Generation || h.SemanticCoverage != cp.SemanticCoverage || m.receiptBytes != v[1] || uint64(m.cost.Files) != v[2] || m.cost.PayloadBytes != v[3] || m.cost.EntryBytes != v[4] || m.cost.TarBytes != v[5] {
+		return bad("base differs from the delta at its own sequence")
+	}
+	if uint64(m.intent.Tickets) != iv[0] || uint64(m.intent.Releases) != iv[1] || m.intent.Cost.PayloadBytes != iv[2] || m.intent.Cost.EntryBytes != iv[3] || m.intent.Cost.TarBytes != iv[4] {
+		return bad("base intent aggregate differs from the delta's")
+	}
+	return nil
 }
