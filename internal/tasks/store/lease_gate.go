@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -82,7 +83,7 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err != nil {
 			return &Report{}, err
 		}
-		run, reused, err := reusableRun(repo, proof, policy, def, a, argv, substituted)
+		run, reused, err := reusableRun(repo, leaseRoot(repo, choice), proof, policy, def, a, argv, substituted)
 		if err != nil {
 			return &Report{}, err
 		}
@@ -194,30 +195,39 @@ func recordedReuse(repo *intent.Repository, seq uint64, attemptID, gate string) 
 // candidate tree, under the current definition digest, whose inputs and
 // environment digests equal the ones this run would record. The lowest
 // qualifying digest is chosen, so the choice does not depend on read order.
-// A gate not declared reusable, or no qualifying result, runs as before; an
+// With no same-tree result, a qualifying result at another tree is chosen
+// when its commit on the protected intent branch descends from a commit
+// carrying the candidate tree (TCD-V0-151). A gate not declared reusable, or no qualifying result, runs as before; an
 // unreadable or undecodable record is skipped, never trusted. The model
 // rechecks the choice under the lock.
-func reusableRun(repo *intent.Repository, proof *journal.Result, policy *intent.Policy, def *intent.GateDefinition, a *snapshot.Attempt, argv []string, substituted bool) (gateRun, bool, error) {
+func reusableRun(repo *intent.Repository, root string, proof *journal.Result, policy *intent.Policy, def *intent.GateDefinition, a *snapshot.Attempt, argv []string, substituted bool) (gateRun, bool, error) {
 	if !def.Reusable {
 		return gateRun{}, false, nil
 	}
 	candidate := *a.CandidateTreeOid
-	inputs := gateInputs(candidate, argv, substituted)
 	_, env := gateEnvironment(def.Env)
 	definition := policy.GateDefinitionSha256(def.GateID)
+	inputs := map[string]wire.Digest{}
 	var best wire.Digest
 	var source []byte
 	var chosen *snapshot.GateResult
+	// elsewhere holds qualifying results at other trees, a descendant
+	// reuse's candidates when none is at the candidate (TCD-V0-151).
+	elsewhere := map[wire.Digest][]byte{}
 	for path, record := range proof.Records {
 		if !strings.HasPrefix(path, "attempts/") || record.Sha256 == nil {
 			continue
 		}
 		owner, err := snapshot.DecodeAttempt(record.Raw)
-		if err != nil || owner.AttemptID == a.AttemptID || owner.CandidateTreeOid == nil || *owner.CandidateTreeOid != candidate {
+		if err != nil || owner.AttemptID == a.AttemptID || owner.CandidateTreeOid == nil {
 			continue
 		}
+		tree := *owner.CandidateTreeOid
+		if _, ok := inputs[tree]; !ok {
+			inputs[tree] = gateInputs(tree, argv, substituted)
+		}
 		for _, d := range owner.GateResults {
-			if source != nil && wire.Digest(d) >= best {
+			if tree == candidate && source != nil && wire.Digest(d) >= best {
 				continue
 			}
 			raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", d), snapshot.MaxGateRecordBytes)
@@ -225,10 +235,20 @@ func reusableRun(repo *intent.Repository, proof *journal.Result, policy *intent.
 				continue
 			}
 			g, err := snapshot.DecodeGateResult(raw)
-			if err != nil || g.GateID != def.GateID || g.ReusedFrom != nil || g.State != "PASSED" || g.AttemptID != owner.AttemptID || g.CandidateTreeOid != candidate || g.DefinitionSha256 != definition || g.InputsSha256 != inputs || g.EnvironmentSha256 != env {
+			if err != nil || g.GateID != def.GateID || g.ReusedFrom != nil || g.State != "PASSED" || g.AttemptID != owner.AttemptID || g.CandidateTreeOid != tree || g.DefinitionSha256 != definition || g.InputsSha256 != inputs[tree] || g.EnvironmentSha256 != env {
+				continue
+			}
+			if tree != candidate {
+				elsewhere[wire.Digest(d)] = raw
 				continue
 			}
 			best, source, chosen = wire.Digest(d), raw, g
+		}
+	}
+	if source == nil && len(elsewhere) > 0 {
+		var err error
+		if best, source, chosen, err = descendantSource(root, intentBranch(proof), candidate, elsewhere); err != nil {
+			return gateRun{}, false, err
 		}
 	}
 	if source == nil {
@@ -237,6 +257,35 @@ func reusableRun(repo *intent.Repository, proof *journal.Result, policy *intent.
 	g := transaction.ReusedGateResult(chosen, best, a)
 	record, err := g.Encode()
 	return gateRun{record: record, source: source}, err == nil, err
+}
+
+// descendantSource is the lowest-digest result among results at other trees
+// whose tree is on the protected intent branch as a descendant of candidate
+// (TCD-V0-151), or none.
+func descendantSource(root, branch, candidate string, results map[wire.Digest][]byte) (wire.Digest, []byte, *snapshot.GateResult, error) {
+	digests := make([]wire.Digest, 0, len(results))
+	for d := range results {
+		digests = append(digests, d)
+	}
+	slices.Sort(digests)
+	h, err := loadProtectedHistory(root, branch)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	for _, d := range digests {
+		g, err := snapshot.DecodeGateResult(results[d])
+		if err != nil {
+			continue
+		}
+		why, err := h.descent(candidate, g.CandidateTreeOid)
+		if err != nil {
+			return "", nil, nil, err
+		}
+		if why == "" {
+			return d, results[d], g, nil
+		}
+	}
+	return "", nil, nil, nil
 }
 
 // gateInputs digests the candidate tree, the (empty) declared inputs and,
@@ -622,7 +671,7 @@ func gateFacts(repo *intent.Repository, choice LeaseChoice) claimObserver {
 				return transaction.GateFacts(nil, nil, nil, "", false, results), err
 			}
 			if choice.gate.source != nil {
-				return transaction.GateReuseFacts(choice.gate.record, choice.gate.source, results), nil
+				return gateReuseFacts(leaseRoot(repo, choice), proof, l.AttemptID, choice.gate, results)
 			}
 			return transaction.GateFacts(nil, choice.gate.record, choice.gate.output, "", false, results), nil
 		}
@@ -745,7 +794,32 @@ func completeFacts(repo *intent.Repository, root string, proof *journal.Result, 
 			}
 		}
 	}
-	return transaction.CompleteFacts(tree, reachable, upstream, unintegrated, results), nil
+	a, _ := lockedAttempt(proof, l.AttemptID)
+	descendants, err := descendantResults(root, proof, a, results)
+	if err != nil {
+		return transaction.LeaseFacts{}, err
+	}
+	return transaction.CompleteFacts(tree, reachable, upstream, unintegrated, results).WithDescendantResults(descendants), nil
+}
+
+// gateReuseFacts are a reused gate run's facts under the lock; a source at
+// another tree than the attempt's candidate carries the ancestry verdict
+// rechecked from git now (TCD-V0-152).
+func gateReuseFacts(root string, proof *journal.Result, attemptID string, run *gateRun, results map[wire.Digest][]byte) (transaction.LeaseFacts, error) {
+	src, err := snapshot.DecodeGateResult(run.source)
+	a, ok := lockedAttempt(proof, attemptID)
+	if err != nil || !ok || a.CandidateTreeOid == nil || src.CandidateTreeOid == *a.CandidateTreeOid {
+		return transaction.GateReuseFacts(run.record, run.source, results), nil
+	}
+	h, err := loadProtectedHistory(root, intentBranch(proof))
+	if err != nil {
+		return transaction.LeaseFacts{}, err
+	}
+	why, err := h.descent(*a.CandidateTreeOid, src.CandidateTreeOid)
+	if err != nil {
+		return transaction.LeaseFacts{}, err
+	}
+	return transaction.GateDescendantReuseFacts(run.record, run.source, why, results), nil
 }
 
 // intentIntegrated reports whether the intent branch contains commit, or,

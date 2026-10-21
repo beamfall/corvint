@@ -131,6 +131,11 @@ func (a *GateReuseReceiptAudit) Seed(posts []snapshot.PostEntry, blob ExternalRe
 	a.attempts = seedAttempts(posts, blob)
 	a.accepted = map[string]bool{}
 	a.policy, a.policyErr = seedPolicy(posts, blob)
+	for _, p := range posts {
+		if p.Path == "intent/queue.json" {
+			a.branch = postedBranch(p, blob)
+		}
+	}
 	for _, at := range a.attempts {
 		for _, d := range at.GateResults {
 			raw, ok := blob(wire.Digest(d))

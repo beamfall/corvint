@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -15,10 +15,14 @@ Completion is a separate native write that no merge triggers, so a ticket stays 
 
 This profile adds one read verb that lists those tickets as candidates. It never completes them.
 
+V1-2193 adds a second closeout-debt fix. A seal commit's own `full-gate` could not reuse the PASS of
+a later commit on `main` that already contains it, so every merged seal re-ran the full gate
+(TCD-V0-151..153). This amends the same-tree reuse rule of `CAL-V0-240` without a new CAL ID.
+
 ## Agent digest
 - Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); experimental; the verb, its help entry and fixture tests exist.
-- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof.
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); experimental; the verb, its help entry and fixture tests exist.
+- Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153).
 - Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -129,6 +133,29 @@ closeout step is missing.
 - `TCD-V0-010`: `docs/DOGFOOD.md` tells operators to run the verb after merges and to finish each
   candidate through the native closeout path.
 
+- `TCD-V0-151`: A `gate run` of a gate declared `reusable: true` with no qualifying same-tree result
+  (`CAL-V0-240`) may reuse a PASSED, unreused result of the same gate, definition digest and
+  environment that another attempt's record names at a different tree. This holds only when a
+  commit carrying the attempt's candidate tree is an ancestor of, or is, a commit carrying the
+  result's tree. Both commits must be read from the protected history: the queue's `intentBranch`
+  (`refs/heads/<intentBranch>`) and its configured remote-tracking upstream, at most 100,000
+  commits, with at most 16 ancestry checks. The inputs digest is compared at the result's tree. The
+  rebound record names the source in `reusedFrom` as in `CAL-V0-241`, the lowest qualifying digest
+  is chosen, and the gate does not execute. `complete` accepts that reused result as evidence after
+  it rechecks the same ancestry. No new policy field exists: the existing `reusable` flag turns the
+  rule on, so a gate that is not reusable is unchanged. The verb never fetches and never writes a
+  ref.
+- `TCD-V0-152`: The model refuses a reused result at a tree other than the candidate with `BLOCKED
+  STALE_TREE` and no write when the store, rechecking under the lock, finds either of these. The
+  result's tree is not a commit on the protected intent branch ("is not a commit on the protected
+  intent branch"). Or no commit carrying the candidate tree is its ancestor ("is not an ancestor of
+  the reused result's tree"). A result whose ancestry was not observed is refused the same way. The
+  run then executes the gate as before.
+- `TCD-V0-153`: The receipt audit (`GateReuseReceiptAudit`, `CAL-V0-243`) verifies each recorded
+  descendant reuse against the protected history of the queue's intent branch in the primary
+  checkout. When that branch no longer carries the ancestry, or the history cannot be read, the
+  audit fails `JOURNAL_FORKED`. A same-tree reuse is audited as before.
+
 ## Failure modes
 
 - A ticket ID mentioned in passing ("follow-up to V1-1234") is listed. This is why the label is
@@ -140,6 +167,13 @@ closeout step is missing.
 - A stale `origin/<intentBranch>` (not fetched) misses recent merges. Fetch first, or pass `--ref`.
 - An issue number that a different repository's ticket also links can be listed. Only this queue's
   tickets and this repository's origin slug are considered.
+
+- A force-pushed or rewound intent branch can drop the commit that covered a reuse. The receipt
+  audit then fails `JOURNAL_FORKED` (`TCD-V0-153`). Restore the branch to recover.
+- An older `corvint-tasks` binary audits a descendant reuse as `JOURNAL_FORKED`, because it requires
+  the source tree to equal the attempt's tree. Its `complete` refuses the result as `GATE_STALE`,
+  which is safe. Upgrade every binary that audits the store before turning the rule on.
+- An unfetched upstream misses a PASS on the remote branch. The run then executes the gate.
 
 ## Non-goals
 
@@ -163,8 +197,16 @@ closeout step is missing.
 | TCD-V0-008 | V1-1615 criterion (g) | `internal/tasks/cli` | `TestTCDV0005_CandidatesThroughTheCLI` (`.taskman` and `.git/taskman` trees byte-identical before and after) | none |
 | TCD-V0-009 | V1-1615 | `internal/tasks/cli` (`Run`) | `TestTCDV0005_CandidatesThroughTheCLI` (exit 1); `TestTCDV0003_ClosedTicketsAndTruncation` (exit 0); `TestTCDV0001_ArgumentsAndRefs` (exit 2 with MALFORMED); `TestTCDV0002_GitFailureIsUnsupported` (exit 2 with UNSUPPORTED) | none |
 | TCD-V0-010 | V1-1615 | `docs/DOGFOOD.md` | the one-line instruction | none |
+| TCD-V0-151 | V1-2193 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `descendantResults`), `internal/tasks/transaction` (`planGateRun`, `gateVerdict`) | `TestTCDV0151_DescendantPassCoversAMergedSeal` (no execution, `reusedFrom` names the later result, `complete` accepts it) | real seal-closeout timing on the live store: NOT_PRODUCED |
+| TCD-V0-152 | V1-2193 | `internal/tasks/transaction` (`planGateRun`), `internal/tasks/store` (`gateReuseFacts`) | `TestTCDV0152_DescendantReuseRefusals` (not on the protected branch, not an ancestor: `BLOCKED STALE_TREE`, no write, then the gate executes) | none |
+| TCD-V0-153 | V1-2193 | `internal/tasks/transaction` (`GateReuseReceiptAudit`), `internal/tasks/store` (`descentOracle`) | `TestTCDV0151_DescendantPassCoversAMergedSeal` (receipt audit and binding fold pass; after rewinding the branch the fold fails `JOURNAL_FORKED`) | none |
 
 ## Rollout and rollback
 
 The verb is additive and read-only. There is no store format, wire codec or policy change. To roll
 back, revert the change. Nothing persisted depends on the verb.
+
+TCD-V0-151..153 add no store format, wire codec or policy field. They take effect only for gates
+the operator marks `reusable: true`. To roll back, set the gate back to `reusable: false` through a
+store `policy update`. Then, if a descendant reuse was already recorded, revert the change only
+after those attempts have completed, because an older binary's audit refuses the recorded reuse.
