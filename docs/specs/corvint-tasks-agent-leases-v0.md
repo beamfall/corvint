@@ -150,6 +150,7 @@ one.
 | V1-0924 | CAL-V0-351 | Accepted (standing auto-accept, 2026-10-20): an idle, calm dispatcher with pressure configured defers its sample until a candidate passes every static fence, so the CAL-V0-139 idle gate arms; a launch is always preceded by a sample, and the first sample after a deferral budgets at its pending level; focused tests |
 | V1-0934 | CAL-V0-352 | Accepted (standing auto-accept, 2026-10-20): worker-directory retirement reads one window of the directory stream per pass, resumes after it, and carries the retained directories, so a backlog beyond 4,096 is swept within two passes per window; focused test |
 | V1-0948 | CAL-V0-353 | Accepted (standing auto-accept, 2026-10-20): dispatch tests stop and reap every worker process group they launch, and the package fails when one survives; focused test and leak mutation |
+| V1-1701 | CAL-V0-380..381 | Accepted (standing auto-accept, 2026-10-20): the complete journal walk parses each inline afterimage once and decodes and validates receipts ahead of step within one abort window and a 512 KiB budget; same results and refusals; focused equivalence tests and a 47,000-receipt measurement (median 21.2 s to 5.8 s) |
 | V1-1321 | none (stopped) | Claim scope union conflicts with the CAL-V0-021 precedence; needs an amendment first; not implemented |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 
@@ -7373,6 +7374,59 @@ group: the group is reported unverified and the child is not signalled.
 
 Rollback: revert the commit; tests again leave worker trees to the caller.
 
+### V1-1701 complete journal walk decode reuse and bounded read-ahead
+
+A complete audit at 47,000 receipts took about 21 s. The CPU profile blamed `openat`, but the wall
+time fell once decode work was removed, so the cost was mostly CPU: each receipt's ticket and request
+afterimages were parsed two or three times, all on the walking goroutine.
+
+- `CAL-V0-380`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1701) The complete
+  walk MUST parse each inline ticket or request afterimage once. The record validation that already
+  parses a post hands its decoded ticket or request to the semantic step and to the operator-note
+  binding. It keeps the existing size bounds and refusal text, so no input that was refused before is
+  accepted, and no accepted input is refused.
+- `CAL-V0-381`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1701) The walk MAY
+  decode and validate receipts ahead of the step, in parallel, within one abort window (the 512-receipt
+  head-moved check) and within a 512 KiB budget of held receipt bytes. Receipt bytes are read in
+  sequence on the walking goroutine, each read bounded by the budget left before it buffers, so a
+  window never holds more than 512 KiB of receipt bytes. The decoded receipts and inline afterimages
+  a window retains are in addition to the budget, in proportion to those bytes. A receipt that does
+  not fit ends the window; one larger than the whole budget is read by step under its own bound.
+  A read-ahead records nothing until step reaches that receipt: its close error, physical-read
+  witness and read hook are settled then, in sequence, and a read-ahead that fails for any reason is
+  discarded with its close error and read again in sequence. Every ordering, chain, coverage and
+  authority check still runs in step, in sequence order. Elided receipts and receipts with any
+  blob-backed post (checked before any of its posts is validated, so CAL-V0-380 still holds) are
+  left to step's sequential route, as are receipts whose bytes fail to decode. A walk with read-ahead
+  MUST return the same result or the same refusal as a walk without it.
+
+Non-goals: concurrent file reads, a cache across commands, and changes to the capture and listing
+cost (two captures `lstat` every store file). Failure modes: a read error inside a window is
+discarded and the receipt is read again in sequence, so the refusal names the same receipt and code;
+a receipt read ahead but never reached (the walk refused earlier) contributes no close error or
+witness, so it cannot replace the refusal; held receipt bytes stay within the budget and decoded
+state is proportional to them (TMV0002 AS10 streaming bound still passes). A window that ends on a
+receipt that does not fit opens that receipt once more.
+
+Acceptance evidence: `TestV11701_PrefetchedWalkMatchesSequentialWalk` (`internal/tasks/journal`)
+audits a 601-receipt history with and without read-ahead. It asserts equal verdicts, selected records,
+request digests and canonical latest, one read per receipt in each mode, and the number of receipts
+decoded and post sets validated ahead. `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk` asserts
+the same refusal for an undecodable receipt and a forked `prev` inside a window.
+`TestV11701_ReadAheadCloseFailureSettlesInSequence` injects a close failure on a later receipt of the
+same window and asserts the earlier forked `prev` stays the refusal, and that a reached receipt's
+close failure is the sequential refusal. `TestV11701_ReadAheadHoldsAtMostTheBudget` narrows the
+budget and asserts no window holds more than it, one read per receipt, and that only the receipt
+larger than the whole budget is left to step. `TestV11701_MixedInlineAndBlobPostsValidateOnce`
+asserts equal `validateRecord` call counts with and without read-ahead for receipts mixing an inline
+and a blob-backed post. The opt-in
+`TestV11701_WalkCost` (`internal/tasks/store`) harness measured a 47,000-receipt synthetic store at
+a median of 21.2 s before and 5.8 s after (five runs each); see
+`docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md`.
+
+Rollback: revert the commit. Setting `walkPrefetch` to false in a test restores the sequential walk
+with decode reuse.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8328,3 +8382,5 @@ after this restore.
 | CAL-V0-351 | `TestCALV0351_IdlePressureConfigSkipsTheSample`, `TestCALV0351_DeferredBudgetRefuses`, `TestCALV0351_PostIdleHoldLastsUntilThePendingLevelSettles`, `TestCALV0351_PostIdleCPUSampleWaitsForAFreshInterval`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly` (`internal/tasks/dispatch`) |
 | CAL-V0-352 | `TestCALV0352_RetirementSweepsABacklogBeyondOneWindow` and the `TestCALV0144_*` tests (`internal/tasks/dispatch`) |
 | CAL-V0-353 | `TestCALV0353_CleanupReapsTheWholeWorkerGroup`, `TestCALV0353_UnmatchedLeaderIsReportedNotSignalled` and the package `TestMain` leak check (`internal/tasks/dispatch`) |
+| CAL-V0-380 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_MixedInlineAndBlobPostsValidateOnce`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md` |
+| CAL-V0-381 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk`, `TestV11701_ReadAheadCloseFailureSettlesInSequence`, `TestV11701_ReadAheadHoldsAtMostTheBudget`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `TestV11701_WalkCost` (`internal/tasks/store`, opt-in) |
