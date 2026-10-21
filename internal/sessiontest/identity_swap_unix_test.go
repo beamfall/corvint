@@ -12,8 +12,9 @@ import (
 )
 
 // TestSTRV0060PathDigestRefusesSwap pins STR-V0-060 (V1-2129): a dirty path
-// replaced between pathDigest's Lstat and its open by a symlink, a FIFO with no
-// writer, or another regular file is refused with errPathChanged inside a
+// replaced between pathDigest's Lstat and its open by a symlink (to another
+// file or to its own renamed inode), a FIFO with no writer, or another regular
+// file is refused with errPathChanged inside a
 // deadline; the link is never followed and the FIFO never blocks the digest.
 func TestSTRV0060PathDigestRefusesSwap(t *testing.T) {
 	swaps := map[string]func(t *testing.T, path, other string){
@@ -22,6 +23,17 @@ func TestSTRV0060PathDigestRefusesSwap(t *testing.T) {
 				t.Error(err)
 			}
 			if err := os.Symlink(other, path); err != nil {
+				t.Error(err)
+			}
+		},
+		// The link names the original file's own inode, so only a no-follow
+		// open, not the post-open identity check, refuses it.
+		"symlink-to-same-inode": func(t *testing.T, path, _ string) {
+			moved := path + ".orig"
+			if err := os.Rename(path, moved); err != nil {
+				t.Error(err)
+			}
+			if err := os.Symlink(moved, path); err != nil {
 				t.Error(err)
 			}
 		},
