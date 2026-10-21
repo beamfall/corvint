@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -13,10 +14,9 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// poolStatusRepo returns a pool db whose member a is ALLOCATED, b is
-// QUARANTINED after its attempt ended and review is FREE. Member a runs a
-// passing health command at claim, so its retained outcome is observable.
-func poolStatusRepo(t *testing.T) (*fixture.Repo, string, string) {
+// poolHealthRepo is an initialised store whose pool db has members a, b and
+// review, where member a runs a passing health command at claim.
+func poolHealthRepo(t *testing.T) *fixture.Repo {
 	t.Helper()
 	r := exclusionCLIRepo(t)
 	raw, err := os.ReadFile(filepath.Join(r.IntentDir, "policy.json"))
@@ -34,6 +34,15 @@ func poolStatusRepo(t *testing.T) (*fixture.Repo, string, string) {
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatal(x.res)
 	}
+	return r
+}
+
+// poolStatusRepo returns a pool db whose member a is ALLOCATED, b is
+// QUARANTINED after its attempt ended and review is FREE. Member a runs a
+// passing health command at claim, so its retained outcome is observable.
+func poolStatusRepo(t *testing.T) (*fixture.Repo, string, string) {
+	t.Helper()
+	r := poolHealthRepo(t)
 	held := planTicket(t, r.Root, "held", "P1", `["held"]`)
 	ended := planTicket(t, r.Root, "ended", "P2", `["ended"]`)
 	a := atm(t, r.Root, nil, "claim", held, "--holder", "builder", "--request-id", "claim-a", "--pool", "db", "--stage", "implement", "--exclude-member", "b", "--exclude-member", "review")
@@ -171,5 +180,32 @@ func TestPSRV0015_PoolStatusLockFreeAndWritesNothing(t *testing.T) {
 	poolStatusMembers(t, r.Root)
 	if !fixture.SameTree(state, fixture.TreeSnapshot(t, r.StateDir)) || !fixture.SameTree(intents, fixture.TreeSnapshot(t, r.IntentDir)) {
 		t.Fatal("pool status wrote")
+	}
+}
+
+// PSR-V0-013 (V1-0895): a claim whose member runs a health command takes it
+// PREPARING in one receipt and ALLOCATED in the next; pool status reports the
+// allocated member's changedSeq as that second receipt, not the preparation.
+func TestPSRV0013_PoolStatusAllocatedAfterPreparing(t *testing.T) {
+	r := poolHealthRepo(t)
+	held := planTicket(t, r.Root, "held", "P1", `["held"]`)
+	headSeq := func() uint64 {
+		x := atm(t, r.Root, nil, "pool", "status")
+		if x.res.Outcome != wire.OutcomeOK || x.res.Snapshot == nil {
+			t.Fatalf("pool status: %s", x.stdout)
+		}
+		return x.res.Snapshot.HeadSeq.Uint64()
+	}
+	before := headSeq()
+	if a := atm(t, r.Root, nil, "claim", held, "--holder", "builder", "--request-id", "claim-a", "--pool", "db", "--stage", "implement", "--exclude-member", "b", "--exclude-member", "review"); a.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim a %s", a.stdout)
+	}
+	after := headSeq()
+	if after < before+2 {
+		t.Fatalf("claim took receipts %d..%d; want a PREPARING receipt before the allocation", before+1, after)
+	}
+	m := poolStatusMembers(t, r.Root)["db/a"]
+	if field(m, "state").Str != "ALLOCATED" || field(m, "changedSeq").Str != strconv.FormatUint(after, 10) {
+		t.Fatalf("member a %s changedSeq %s, want ALLOCATED at %d", field(m, "state").Str, field(m, "changedSeq").Str, after)
 	}
 }
