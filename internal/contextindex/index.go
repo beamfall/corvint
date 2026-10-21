@@ -1360,7 +1360,7 @@ func forbiddenPath(value string) string {
 	if taskprojection.IsPath(value) {
 		// DIRTY-CACHE-017: Tasks store projection files are task state, never
 		// indexed source or evidence.
-		return "task store projection"
+		return taskStoreProjectionReason
 	}
 	return ""
 }

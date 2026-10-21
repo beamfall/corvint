@@ -34,7 +34,7 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   only committed Git content at an explicit revision (`git cat-file`, `ls-tree`, `diff`), never the
   worktree, and MUST tokenize with the application map's JavaScript/TypeScript lexer
   (`appmap.LexJS`) rather than a second lexer. Test files are JS/TS files whose stem ends in `.spec`
-  or `.test`; page-object files are JS/TS files under a `pages`, `page-objects`, `pageobjects` or
+  or `.test`, or that have a `__tests__` directory segment (`TSA-V0-388`); page-object files are JS/TS files under a `pages`, `page-objects`, `pageobjects` or
   `pom` directory or whose stem ends in `.page` or `Page`. Declarations are `test`/`it`/`specify`
   (and `x`/`f` variants) calls with a title and callback, nested in `describe`/`context`/`suite`
   calls, with `only`, `skip`, `fixme`, `fail`, `slow`, `serial` and `parallel` modifiers; a
@@ -1050,13 +1050,13 @@ and no JS rule read an assertion that never runs. It is agent-drafted and accept
 owner's standing auto-accept (2026-10-11). It reuses the TSA-V0-010 lexer and the TSA-V0-073
 reader; it adds no parser.
 
-- `TSA-V0-388`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293)
-  `testsource.IsJSValidityTestFile(name)` MUST hold for an `IsTestFile` name and for any file with
-  a TSA-V0-010 JS/TS extension that has a `__tests__` directory segment, which Jest's default
-  `testMatch` selects. `ValidityFindings`, `JSExampleSources` (and so TSA-V0-082 discovery), the
-  TSA-V0-081 `tests validity` reading and the TSA-V0-241 seed reading MUST use it in place of
-  `IsTestFile`. `IsTestFile` itself, and lint, role-locator, teardown and the other readers that
-  use it, MUST stay unchanged.
+- `TSA-V0-388`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293; amended V1-2058)
+  `testsource.IsTestFile(name)` MUST hold for a JS/TS file whose stem ends in `.spec` or `.test` and
+  for any file with a TSA-V0-010 JS/TS extension that has a `__tests__` directory segment, which
+  Jest's default `testMatch` selects. It is the one JS/TS test-file predicate: `ValidityFindings`,
+  `JSExampleSources` (and so TSA-V0-082 discovery), the TSA-V0-081 `tests validity` reading, the
+  TSA-V0-241 seed reading, lint, role-locator, teardown, seed-parity, actor-authorization and the
+  environment-contract readers all use it.
 - `TSA-V0-389`: (standing auto-accept, 2026-10-11; V1-2041 / GitHub #1293) A located example MUST
   get an `advisory` `JS-ASSERTION-NOT-AWAITED` finding, located at the call and caused by the
   example, for each `.then(`, `.catch(` or `.finally(` call in its body when all of these hold:
@@ -1094,8 +1094,8 @@ Failure modes:
 - A non-test helper module under `__tests__` is read as a test file and lists no examples.
 
 Acceptance evidence: synthetic fixtures only.
-- `IsJSValidityTestFile` over `__tests__` paths, other directories and non-JS files, with
-  `IsTestFile` unchanged.
+- `IsTestFile` over `__tests__` paths, other directories and non-JS files, and lint of a changed
+  `__tests__` file (`TestJestTestsDirectoryFileIsLinted`, V1-2058).
 - A Jest fixture with unawaited `.then` and chained `.catch` assertions beside awaited, returned,
   concise, `done`, later-awaited, nested-executor and passed-on forms.
 - `tests validity` on a `__tests__/cart.ts` Jest file: `xit`, `xtest`, `test.skip` and `xdescribe`
@@ -3560,6 +3560,6 @@ beyond the derived index, which the schema bump rebuilds.
 | Requirement | Code | Evidence | Status |
 |---|---|---|---|
 | TSA-V0-460 | `internal/contextindex/analyzer_bounds.go` | `TestAnalyzerBoundsFailClosed` | experimental |
-| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
+| TSA-V0-461 | `internal/contextindex/analyzer_bounds.go`, `internal/contextindex/setup_select.go`, `internal/contextindex/setup_shared.go`, `internal/contextindex/registry_dialect.go`, `internal/contextindex/ruby_autoload.go`, `internal/contextindex/ruby_verification.go` | `TestAnalyzerBoundsFailClosed`, `TestRubyNestingOverflowIsBounded`, `TestOversizedRegistryManifestFailsClosed`, `TestSharedExhaustedBranchOutranksLaterFind`, `TestSharedLookupBoundAtProductionValue`, `TestNGIV0052RSpecNeedsDeclaredGem` | experimental |
 | TSA-V0-462 | `internal/contextindex/setup_shared.go` | `TestSharedResolutionCacheSkipsCycleMarkers`, `TestSharedExhaustedBranchOutranksLaterFind` | experimental |
 | TSA-V0-463 | `internal/contextindex/analyzer_bounds_test.go` | `TestAnalyzerBoundsFailClosed` | experimental |

@@ -83,7 +83,7 @@ or Cucumber scenarios.
 - `RUBY-AFFECTED-V0-009`: In a Rails application whose autoload mapping is resolved (see
   `RUBY-AFFECTED-V0-010`), each observed Ruby file MUST carry an advisory edge to every other observed
   file whose autoloaded constant it references, resolved by the `internal/rubyautoload` mapper against
-  the lexical namespaces the file opens, and to the target of each `has_many`, `has_one`,
+  the lexical namespaces enclosing the reference (`RUBY-AFFECTED-V0-043`), and to the target of each `has_many`, `has_one`,
   `belongs_to`, or `has_and_belongs_to_many` association named by a literal `class_name:` or by the
   conventional camelized (singular) association name. The seam carries these as
   `Unit.AdvisoryImports`, a sorted, deduplicated list that is part of the graph digest only when
@@ -120,8 +120,7 @@ or Cucumber scenarios.
   arguments (`*Rails.groups(:assets)`, a computed group list), indentation (a conditional or nested
   call), a further statement on the line, the same call in any other file, and any other computed
   `require`, `load`, or `.require(` call. The recognition is lexical; it reads no Gemfile and does not
-  evaluate Bundler. Under `RUBY-AFFECTED-V0-010` the Rails 7.1 `config.autoload_lib` line remains
-  autoload-root configuration.
+  evaluate Bundler. The Rails 7.1 `config.autoload_lib` line is read under `RUBY-AFFECTED-V0-042`.
 - `RUBY-AFFECTED-V0-014`: `conformance/ruby-profile-v0/` MUST hold a Rails/RSpec fixture application
   and an expected-row table that cover autoloaded constants, `described_class` specs, shared
   examples, `spec/support/**` helpers, and request, controller, and worker specs. Every positive
@@ -133,13 +132,41 @@ or Cucumber scenarios.
   `ruby-constant-lookup-dynamic` unknown and affected's `ruby:rails-autoload` frontier (`UNKNOWN`
   scope). The suite MUST run as an ordinary Go test of `internal/rubyprofile`, so the existing
   go-product CI shards execute it; it MUST NOT need Ruby, Bundler, or RSpec on the host.
+- `RUBY-AFFECTED-V0-041`: In a repository whose root declares a Go module (`go.mod`), a Ruby or
+  `.feature` file with a `testdata` directory component is fixture data by the go tool's convention
+  and MUST NOT become a Ruby unit, mark the host as a Rails layout, or raise a frontier; the Go
+  adapter owns any reader of that tree (V1-1816). Without a root `go.mod` the same file stays a unit,
+  because RSpec's default `spec/**/*_spec.rb` pattern can run a spec under a `testdata` directory.
+- `RUBY-AFFECTED-V0-042`: Without a committed autoload declaration, the generated Rails 7.1+ line
+  `config.autoload_lib(ignore: %w[assets tasks])` (any literal `%w[...]` or `%w(...)` word list,
+  alone on its line but for a trailing comment) MUST be read as the `lib` autoload root minus exactly
+  the listed `lib/<word>` subdirectories, so a stock 7.1 application stays `BOUNDED` for an
+  `app/models` change. A non-literal ignore list, a further statement on the line, a second such
+  line, and `autoload_lib_once` MUST still raise `ruby:rails-autoload` (V1-1850). The
+  `rails-7-1-autoload-lib` class of `conformance/ruby-profile-v0/` pins the stock line.
+- `RUBY-AFFECTED-V0-043`: The constant scan of `RUBY-AFFECTED-V0-009` MUST mask each heredoc body
+  and terminator line before masking string literals, so a constant-looking word, or a quote, inside
+  heredoc text neither adds an edge nor hides the code after it; a body whose opener line passes it
+  to an evaluating call (`eval`, `class_eval`, `module_eval`, `instance_eval` or an `_exec` form),
+  or whose terminator never appears, MUST stay unmasked. A heredoc start MUST open a body only
+  with a quoted or upper-case identifier and not directly after an identifier or closing bracket, so
+  a shift such as `items<<Widget` masks nothing. Code inside `#{...}` in a body that is not
+  single-quoted MUST stay; an interpolation that does not close on its line keeps the rest of the
+  body. A reference MUST resolve against the
+  `class` and `module` bodies that lexically enclose it, matched to their `end` through `def`
+  (not endless), `begin`, `case`, `do`, `for`, and statement-position `if`, `unless`, `while` and
+  `until`; when that scan cannot balance the file, or the file holds `=begin`, `__END__` or a
+  slash-delimited span holding a block keyword (a possible regex literal such as `/end/`), it MUST
+  fall back to every namespace the file opens (V1-1832).
 
 ### Autoload edge failure modes
 
 - A dynamic constant lookup or unresolvable association hides its target: the slice keeps
   `ruby:rails-autoload` (`UNKNOWN_SCOPE`) rather than guessing an edge.
-- Lexical nesting is approximated by the namespaces a file opens, and heredoc text is not masked:
-  both can add false advisory edges, which only widen selection.
+- Lexical nesting falls back to the namespaces a file opens, and an ambiguous, evaluated or
+  unterminated heredoc stays unmasked: both can add false advisory edges, which only widen
+  selection (RUBY-AFFECTED-V0-043). A quote inside a regex literal still opens a string in the
+  literal mask, as before this requirement.
 - A constant defined outside an observed `.rb` file (gem, engine, generated code) has no edge; the
   referencing test still selects on its own file and on boot/support edges, and an unmapped
   association raises the frontier.
@@ -238,6 +265,9 @@ affected tuple.
 | `RUBY-AFFECTED-V0-012` | helper classification and `supportEdges` in `internal/liveverify/affected/ruby/` | `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012` |
 | `RUBY-AFFECTED-V0-013` | `stockGemGroupLoad` in `internal/liveverify/affected/ruby/ruby.go` | `TestStockBundlerRequireKeepsRailsAppBounded_RUBYAFFECTEDV0013` |
 | `RUBY-AFFECTED-V0-014` | `conformance/ruby-profile-v0/` fixture and rows; `internal/rubyprofile` suite | `TestRubyProfileImpactRows_RUBYAFFECTEDV0014`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileProviderRows_RUBYAFFECTEDV0014`, `TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-041` | `goModuleRoot`, `withoutTestdata` in `internal/liveverify/affected/ruby/ruby.go` | `TestGoModuleTestdataRubyFixtureIsNotAUnit_RUBYAFFECTEDV0041` |
+| `RUBY-AFFECTED-V0-042` | `readStockAutoloadLib` in `internal/rubyautoload/rubyautoload.go`; `rails-7-1-autoload-lib` class in `conformance/ruby-profile-v0/rows.json` | `TestStockAutoloadLibIsReadAsLibRoot_RUBYAFFECTEDV0042`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014`, `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 
 ## Unresolved decisions
 

@@ -460,8 +460,8 @@ func Verify(ctx context.Context, root, key, checkID string) (Evaluation, error) 
 	if secretscreen.MatchString(string(result.Stdout)) || secretscreen.MatchString(string(result.Stderr)) {
 		observed.SecretScreened = true
 		observed.Passed = false
-		result.Stdout = []byte("log-secret-screened\n")
-		result.Stderr = []byte("log-secret-screened\n")
+		result.Stdout = screenedLog(result.Stdout)
+		result.Stderr = screenedLog(result.Stderr)
 	}
 	for index, data := range [][]byte{result.Stdout, result.Stderr} {
 		name := repo.local(fmt.Sprintf("check-%03d-%d.log", len(saved.Observations)+1, index))
@@ -487,7 +487,16 @@ func Verify(ctx context.Context, root, key, checkID string) (Evaluation, error) 
 	if ctx.Err() != nil {
 		return Evaluation{}, errors.New("verification-cancelled")
 	}
-	return repo.evaluate(ctx, saved)
+	evaluation, err := repo.evaluate(ctx, saved)
+	if err == nil && !observed.Passed {
+		failed := failedTestNames(result.Stdout, result.Stderr)
+		for index := range evaluation.Checks {
+			if evaluation.Checks[index].ID == checkID {
+				evaluation.Checks[index].FailedTests = failed
+			}
+		}
+	}
+	return evaluation, err
 }
 
 func Review(ctx context.Context, root, key, reportDigest string) (Evaluation, error) {

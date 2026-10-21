@@ -42,5 +42,7 @@ Recorded limits:
   decides which specs rerun.
 - `const_get` also raises `ruby:dynamic-test-definition`, because the plugin
   treats it as a possible generated test.
-- The Rails 7.1 generated `config.autoload_lib(...)` line is autoload-root
-  configuration the mapper does not model, so this fixture uses the 7.0 form.
+- The base application uses the Rails 7.0 `config/application.rb`. The
+  positive `rails-7-1-autoload-lib` class overlays the generated Rails 7.1 form
+  with `config.autoload_lib(ignore: %w[assets tasks])` and expects the same
+  rows as `autoloaded-constant` (`RUBY-AFFECTED-V0-042`).

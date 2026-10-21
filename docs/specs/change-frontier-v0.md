@@ -438,6 +438,14 @@ the invariant is restated here over authority resolution itself.
 Wire freeze: `frontier/0` and `frontier-error/0` are frozen as of 2026-09-22 (`CF-V0-034`,
 decision 0357).
 
+Gap disposition (V1-0127, 2026-10-20): no producer-generated vector can now be added for the
+relocated, `evidence-drift` or deleted states, or for the other cases that skip with capability
+`obligation-free-universe`. The suite's bytes are frozen and never edited (successor rule above),
+the `frontier/0` producer route is deleted with the 0.x wire (`CEM-V1-215..219`, V1-1278 S2b),
+and no stable frontier document is produced (`CEM-V1-126`). The gaps above therefore stay
+recorded gaps of this frozen suite; a successor frontier profile covers those states in its own
+suite or records its own gaps.
+
 ### Repository read-only guarantee
 
 Added 2026-09-12 by `docs/decisions/0162-change-frontier-read-only-requirement-2026-09-12.md`.

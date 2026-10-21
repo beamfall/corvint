@@ -100,6 +100,10 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 			}
 			_ = emit(stdout, map[string]any{"ok": false, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "policy": result})
 		}
+		var bound *localcompletion.CheckBoundError
+		if errors.As(err, &bound) {
+			return emitLocalCompletionFailureDetail(stderr, err.Error(), bound.Detail())
+		}
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
 	code := localCompletionExit(args[0], flags["--check"], result)
@@ -232,6 +236,12 @@ func localCompletionPublicCommand(ctx context.Context, root string, args []strin
 }
 
 func emitLocalCompletionFailure(stderr io.Writer, code string) int {
+	return emitLocalCompletionFailureDetail(stderr, code, "")
+}
+
+// emitLocalCompletionFailureDetail appends a fixed, typed detail (LCP-V0-032)
+// to the remedy; callers pass only text built from bounded, validated values.
+func emitLocalCompletionFailureDetail(stderr io.Writer, code, detail string) int {
 	// Operational errors can contain paths or command text. Only fixed, bounded
 	// reason codes belong on this new public surface.
 	for _, r := range code {
@@ -247,6 +257,9 @@ func emitLocalCompletionFailure(stderr io.Writer, code string) int {
 	if remedy, ok := localCompletionRemedies[code]; ok {
 		message = code + ": " + remedy
 	}
+	if detail != "" && code != "local-completion-failed" {
+		message += "; " + detail
+	}
 	// The top-level code is the CCF-V1-004 member every Core refusal carries; the nested error
 	// object stays for readers of the earlier envelope.
 	_ = emit(stderr, map[string]any{"ok": false, "code": code, "error": map[string]string{"code": code, "message": message}})
@@ -257,6 +270,7 @@ func emitLocalCompletionFailure(stderr io.Writer, code string) int {
 // the rule (LCP-V0-018, V1-1043). Each text is fixed, so the message still
 // carries no path or command text; the code stays the stable member.
 var localCompletionRemedies = map[string]string{
+	"invalid-check-bound":  "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
 	"invalid-intent-scope": "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
 	"plan-bound-exceeded":  "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
 }

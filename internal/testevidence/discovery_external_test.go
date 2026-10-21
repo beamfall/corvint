@@ -10,7 +10,8 @@ import (
 // These tests import testvaliditydoc, which imports rubytestprovider, which
 // imports testevidence, so they live in the external test package (V1-1811).
 
-// V1-1811: the leaf constant and the location Discover reads cannot drift.
+// V1-1811, V1-1842: testvaliditydoc aliases the leaf constant; this guard is
+// trivial and stays only to name the binding.
 func TestEvidenceDirectoryMatchesDiscovery(t *testing.T) {
 	if testevidence.EvidenceDirectory != testvaliditydoc.EvidenceDirectory {
 		t.Fatalf("testevidence %q, testvaliditydoc %q", testevidence.EvidenceDirectory, testvaliditydoc.EvidenceDirectory)

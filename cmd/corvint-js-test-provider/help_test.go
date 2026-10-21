@@ -152,3 +152,24 @@ func TestProviderHelpExplainsSetupProjectFileBinding(t *testing.T) {
 		}
 	}
 }
+
+// V1-1221: negate and external-origins -h/--help print that subcommand's flags to stdout and exit
+// 0 instead of a negate-invalid-arguments refusal; a flag after "--" is not a help request.
+func TestSubcommandHelpPrintsUsage(t *testing.T) {
+	for _, c := range []struct{ sub, flag string }{
+		{"negate", "-all-steps"}, {"external-origins", "-policy"},
+	} {
+		for _, arg := range []string{"-h", "--help", "-help"} {
+			code, stdout, stderr := runProviderMain(t, c.sub, arg)
+			if code != 0 || stderr != "" || !strings.Contains(stdout, "Usage of "+c.sub+":") || !strings.Contains(stdout, c.flag) {
+				t.Fatalf("%s %s exited %d: stdout=%q stderr=%q", c.sub, arg, code, stdout, stderr)
+			}
+			if strings.Contains(stdout, "refusal") || strings.Contains(stdout, "invalid") {
+				t.Fatalf("%s %s refused: %s", c.sub, arg, stdout)
+			}
+		}
+	}
+	if !isHelpRequest([]string{"--root", "x", "-h"}) || isHelpRequest([]string{"--", "-h"}) || isHelpRequest(nil) {
+		t.Fatal("help detection must stop at --")
+	}
+}

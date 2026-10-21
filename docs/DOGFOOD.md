@@ -51,7 +51,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 |---|---|---|
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
-| `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2). When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
+| `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1) and normally exists at `BASE`. A spec this change creates MAY be listed as a same-change bootstrap intent scope (`OCM-V0-009`, decisions 0055 and 0170; section 2): its matching CEM hunk MUST stay explicitly `unknown` and never counts as historical evidence, and dogfood subtracts it from the unknown ceiling only after every OCM map and the aggregate verify against the same exact base, target, map digest and patch digest; any OCM failure grants no subtraction. When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
 | `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. `HUNK<TAB>PATH<TAB>START:END<TAB>RELATION` rows, `HUNK` being a hunk's ordinal in `hunks` order (from 1) or its full hunk ID; cite each hunk with the base lines that hunk itself depends on or implements, and a hunk cited against several bases takes one row each; one span cited for every hunk of a non-chore change with at least two hunks refuses `citation-plan-uniform` (`DCW-V0-048`); LF-terminated, at most 256 rows; the span must exist at `BASE`, and `PATH` may be any file there, code and tests as well as specs (`DCW-V0-041`). Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`). A hunk no base evidence supports takes `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` instead, `REASON` being `insufficient-evidence` or `conflicting-evidence` and `NOTE` a one-line reason; it stays `unknown` with that reason, is admitted, and is counted in the check's `unknownShare` (`DCW-V0-046`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
@@ -194,7 +194,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 
 | Class | Trigger | `dogfood-change` | `dogfood-check` |
 |---|---|---|---|
-| Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
+| Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed`. Untracked files count even when `git status` hides them: the recorder ignores `core.excludesFile`, so the `fix:` line names each untracked path outside `.corvint/`; move it out of the worktree or list it in the repository `.gitignore` (`DCW-V0-091`) | `REFUSE dirty-worktree` (exit 2) with the required-order line |
 | Unsupported | repository-configured clean or process filter | NOT_OBSERVED | `REFUSE worktree-status-unavailable` (exit 2) with the reason and a `fix:` line; the filter never runs (`DCW-V0-045`) |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
 | Unknown | hunk neither cited nor kept unknown with a reason by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch`, an empty one `cem-cite: empty-citation-plan` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
@@ -516,6 +516,15 @@ blob fails `unsealed-cem-at-head`, so a bound but unsealed change is caught befo
 When `BASE` itself tracks an unsealed CEM, the inherited archive above (`DCW-V0-043`) is no
 constituent: a lane that adds it, or a lone commit that renames the shared path to it, is covered,
 and the head may then drop the shared path.
+A lane that merged the mainline forward (`git merge origin/main`) uses the mainline commit it
+merged as `BASE`, which is also its merge base with the mainline. Against its original base, a
+mainline commit with no sealed CEM of its own, such as a Tasks policy carry, fails
+`unbound-commits`, and the failure names the merge and its merged parent as the `BASE` to rerun
+with; every commit of the lane is still checked (`DCW-V0-110`). Mainline commits are the mainline's
+own check; a merged lane branch is not mainline, and its commits still need a binding. A refused
+constituent repeats the verifier's reason code (`state=unsupported
+code=unsupported-object-alternates`), and a code outside the sealed change, such as an
+alternates-backed clone, prints its own `fix:` line (`DCW-V0-111`).
 
 A `PASS` keeps these limits visible as `NOTE` lines: OCM and the local outcome of each change are
 not reverified (each change's own check already did), the merged changes' interaction is not
@@ -551,7 +560,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   (`corvint-version-mismatch expected=V`); without it the current tree is built
   (`current-tree-corvint-build-failed`). The 256-commit refusal is not a promise that one piece fits:
   size each piece for both the 256-row citation-plan limit
-  (`script/dogfood-bind-range.sh:93-100@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
+  (`script/dogfood-bind-range.sh:106-113@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
   budget (`internal/cem/gitrun/gitrun.go:32-38@a875e210`). For the current object-identity and
   tree-walk checks, use roughly 5.7 operations per changed path plus 10 per evidence record as a
   planning estimate; path depth, shared objects, and request-memo hits change the exact count, so
@@ -962,8 +971,8 @@ After merges land, run `corvint-tasks ticket closeout-debt` and finish each list
 
 The separate [local completion policy](specs/local-completion-policy-v0.md) coordinates the loop
 above for an explicitly enrolled change. Freeze a private JSON plan with the immutable `base`,
-sorted owning `intents`, and nonempty `checks` (`id`, `argv`, `timeoutSeconds`, optional
-`allowCemSidecarOnlyReuse`, default false). Use the repository's selected required gates; selection
+sorted owning `intents`, and nonempty `checks` (`id`, `argv` of 1-64 elements, `timeoutSeconds` of
+1-3600, optional `allowCemSidecarOnlyReuse`, default false; split a longer run into several checks). Use the repository's selected required gates; selection
 is a review responsibility. Run `corvint dogfood begin --plan FILE` before work and preserve the
 original context receipts. One active session owns a worktree because legacy coordination outputs
 are shared. A different session must use its own worktree or wait for explicit completion/cancellation.

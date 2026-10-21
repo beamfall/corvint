@@ -50,8 +50,8 @@ var flowsSchemas = map[string][]string{
 	ToolFlowsNavigate: {appflows.NavigationMapSchema, appflows.NavigationPacketSchema},
 }
 
-// NewFlows binds the opt-in flows descendant profile, which adds the four read-only flows tools to
-// the V0 three (AFU-V1-034, amending MCPV0-026).
+// NewFlows binds the opt-in flows descendant profile, which adds the five read-only flows tools
+// (coverage, map, gaps, impact, navigate) to the V0 three (AFU-V1-034, amending MCPV0-026).
 func NewFlows(root string) (*Registry, *Error) {
 	registry, err := New(root)
 	if err != nil {

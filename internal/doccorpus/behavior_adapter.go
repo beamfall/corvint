@@ -2,8 +2,10 @@ package doccorpus
 
 import (
 	"bytes"
+	"cmp"
 	json "encoding/json/v2"
 	"fmt"
+	"io"
 	"slices"
 	"sort"
 	"strconv"
@@ -117,16 +119,19 @@ type BehaviorAdapterDelta struct {
 }
 
 type BehaviorAdapterResult struct {
-	Schema      string                       `json:"schema"`
-	Provider    ProviderRecord               `json:"provider"`
-	Variations  []BehaviorAdapterVariation   `json:"variations"`
-	Claims      []BehaviorAdapterClaimRecord `json:"claims"`
-	Artifacts   []BehaviorAdapterArtifact    `json:"artifacts"`
-	Coverage    []BehaviorAdapterCoverage    `json:"coverage"`
-	Frontier    []BehaviorAdapterDiagnostic  `json:"frontier"`
-	Delta       BehaviorAdapterDelta         `json:"delta"`
-	Fallback    string                       `json:"fallback"`
-	Limitations []string                     `json:"limitations"`
+	Schema     string                       `json:"schema"`
+	Provider   ProviderRecord               `json:"provider"`
+	Variations []BehaviorAdapterVariation   `json:"variations"`
+	Claims     []BehaviorAdapterClaimRecord `json:"claims"`
+	Artifacts  []BehaviorAdapterArtifact    `json:"artifacts"`
+	Coverage   []BehaviorAdapterCoverage    `json:"coverage"`
+	Frontier   []BehaviorAdapterDiagnostic  `json:"frontier"`
+	// FrontierOmitted counts reconciliation diagnostics past the retained
+	// frontier bound (DCP-V1-240); it is absent when nothing was omitted.
+	FrontierOmitted int                  `json:"frontier_omitted,omitzero"`
+	Delta           BehaviorAdapterDelta `json:"delta"`
+	Fallback        string               `json:"fallback"`
+	Limitations     []string             `json:"limitations"`
 }
 
 type behaviorAdapterOrigin struct {
@@ -144,6 +149,8 @@ type behaviorAdapter struct {
 	mappings              map[string]BehaviorAdapterMapping
 	origins               map[string]behaviorAdapterOrigin
 	frontier              []BehaviorAdapterDiagnostic
+	frontierOmitted       int
+	frontierCeiling       *BehaviorAdapterDiagnostic
 	testClaims            map[string][]BehaviorAdapterTestClaim
 	testReady             map[string]bool
 	runtimeReady          map[string]bool
@@ -212,6 +219,9 @@ func validatePreviousBehaviorAdapterResult(request BehaviorAdapterRequest, resul
 	invalid := func(reason string) error { return fail("invalid previous behavior adapter result: " + reason) }
 	if result.Schema != BehaviorAdapterResultSchema || result.Fallback != "full-relevant-suite" || result.Provider.Schema != BehaviorProviderSchema || result.Provider.ID != request.ProviderID || result.Provider.Version != request.ProviderVersion || result.Provider.Source.ID != request.Source.ID || result.Provider.BehaviorContracts == nil || len(result.Coverage) != 5 {
 		return invalid("lineage")
+	}
+	if result.FrontierOmitted < 0 {
+		return invalid("frontier omission count")
 	}
 	registry := result.Provider.BehaviorContracts
 	if registry.ContractID != request.ContractID || registry.Repositories != nil || !validBehaviorRevisions(registry.Revisions) || result.Provider.Source != registry.Revisions.E2E || registry.SourceRevision != result.Provider.Source.Revision || registry.DocumentationRevision != registry.Revisions.Docs.Revision || !sameBehaviorRepositories(registry.Revisions, request.Revisions) {
@@ -851,7 +861,7 @@ func (a *behaviorAdapter) result(registry BehaviorRegistry, discovery BehaviorDi
 	if err != nil {
 		return BehaviorAdapterResult{}, err
 	}
-	result := BehaviorAdapterResult{Schema: BehaviorAdapterResultSchema, Provider: provider, Variations: variations, Claims: a.claimRecords(), Artifacts: artifacts, Frontier: a.frontier, Fallback: "full-relevant-suite", Limitations: behaviorAdapterLimitations()}
+	result := BehaviorAdapterResult{Schema: BehaviorAdapterResultSchema, Provider: provider, Variations: variations, Claims: a.claimRecords(), Artifacts: artifacts, Frontier: a.retainedFrontier(), FrontierOmitted: a.frontierOmitted, Fallback: "full-relevant-suite", Limitations: behaviorAdapterLimitations()}
 	if !a.checking {
 		result.Coverage = behaviorAdapterCoverage(provider, discovery, variations, a.linkedReady, a.variationRuntimeReady, result.Limitations)
 	}
@@ -1911,7 +1921,7 @@ func (a *behaviorAdapter) gap(originKey, kind, subject, field, detail, correctio
 	if pointer, ok := a.mappings[strings.Split(originKey, ":")[0]+"s"].Fields[field]; ok {
 		origin.Field = origin.Record + pointer
 	}
-	a.frontier = append(a.frontier, BehaviorAdapterDiagnostic{Kind: kind, Subject: subject, Input: origin.Input.ID, Field: origin.Field, Revision: origin.Revision, Digest: origin.Digest, Detail: detail, Correction: correction})
+	a.keepDiagnostic(BehaviorAdapterDiagnostic{Kind: kind, Subject: subject, Input: origin.Input.ID, Field: origin.Field, Revision: origin.Revision, Digest: origin.Digest, Detail: detail, Correction: correction})
 }
 
 func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject, field, detail, correction string) {
@@ -1921,7 +1931,76 @@ func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject
 	if field == "" {
 		field = "/"
 	}
-	a.frontier = append(a.frontier, BehaviorAdapterDiagnostic{Kind: kind, Subject: subject, Input: input.ID, Field: field, Revision: input.Anchor.Revision, Digest: input.Anchor.SHA256, Detail: detail, Correction: correction})
+	a.keepDiagnostic(BehaviorAdapterDiagnostic{Kind: kind, Subject: subject, Input: input.ID, Field: field, Revision: input.Anchor.Revision, Digest: input.Anchor.SHA256, Detail: detail, Correction: correction})
+}
+
+// behaviorAdapterFrontierLimit bounds the retained reconciliation frontier
+// (DCP-V1-240). One diagnostic per missing outcome per test grew without
+// bound (V1-1089: about 255 B each, 204 MiB for 4096 outcomes x 200 tests)
+// and the CLI then refused the result at its output bound. The encoded size
+// of the retained entries is bounded separately by
+// behaviorAdapterFrontierByteLimit. A variable only so tests can exercise a
+// small bound.
+var behaviorAdapterFrontierLimit = 4096
+
+// keepDiagnostic retains the behaviorAdapterFrontierLimit smallest
+// diagnostics under compareBehaviorAdapterDiagnostics and counts the rest,
+// so the retained set and the count do not depend on reconciliation order.
+// Once a compaction has run, a diagnostic at or above the largest retained
+// one can never be retained and is counted without being stored.
+func (a *behaviorAdapter) keepDiagnostic(diagnostic BehaviorAdapterDiagnostic) {
+	if a.frontierCeiling != nil && compareBehaviorAdapterDiagnostics(diagnostic, *a.frontierCeiling) >= 0 {
+		a.frontierOmitted++
+		return
+	}
+	a.frontier = append(a.frontier, diagnostic)
+	if len(a.frontier) >= 2*behaviorAdapterFrontierLimit {
+		a.compactFrontier()
+	}
+}
+
+func (a *behaviorAdapter) compactFrontier() {
+	limit := behaviorAdapterFrontierLimit
+	if len(a.frontier) <= limit {
+		return
+	}
+	slices.SortFunc(a.frontier, compareBehaviorAdapterDiagnostics)
+	a.frontierOmitted += len(a.frontier) - limit
+	clear(a.frontier[limit:])
+	a.frontier = a.frontier[:limit]
+	ceiling := a.frontier[limit-1]
+	a.frontierCeiling = &ceiling
+}
+
+// behaviorAdapterFrontierByteLimit bounds the encoded bytes of the retained
+// frontier (DCP-V1-240). The count bound alone does not: a diagnostic can
+// repeat a 64 KiB caller identity, so 2048 of them encode to about 128 MiB
+// and the CLI refused at its output bound while --check accepted. Ordinary
+// entries encode to about 400 B, so 4096 of them (about 1.6 MiB) stay under
+// this bound and the count bound governs them; half of MaxBytes is left for
+// the rest of the result. A variable only so tests can exercise the bound.
+var behaviorAdapterFrontierByteLimit = 2 << 20
+
+// retainedFrontier returns the canonical prefix of the frontier that fits
+// both the count bound and the encoded-byte bound, counting the rest. The
+// byte cut is a prefix cut of the sorted frontier, so it keeps the retained
+// set independent of reconciliation order; it runs once, on at most
+// behaviorAdapterFrontierLimit entries.
+func (a *behaviorAdapter) retainedFrontier() []BehaviorAdapterDiagnostic {
+	a.compactFrontier()
+	slices.SortFunc(a.frontier, compareBehaviorAdapterDiagnostics)
+	size := 2 // the enclosing brackets
+	for index, diagnostic := range a.frontier {
+		n, err := EncodeTo(io.Discard, diagnostic)
+		size += int(n) + 1 // the separating comma
+		if err != nil || size > behaviorAdapterFrontierByteLimit {
+			a.frontierOmitted += len(a.frontier) - index
+			clear(a.frontier[index:])
+			a.frontier = a.frontier[:index]
+			break
+		}
+	}
+	return a.frontier
 }
 
 func (a *behaviorAdapter) artifacts(provider ProviderRecord) ([]BehaviorAdapterArtifact, error) {
@@ -2180,9 +2259,21 @@ func behaviorReverseLinkSet(adapterResult BehaviorAdapterResult, retain bool) (m
 }
 
 func sortBehaviorAdapterResult(result *BehaviorAdapterResult) {
-	sort.Slice(result.Frontier, func(i, j int) bool {
-		left := result.Frontier[i]
-		right := result.Frontier[j]
-		return left.Kind+"\x00"+left.Subject+"\x00"+left.Input+"\x00"+left.Field+"\x00"+left.Detail < right.Kind+"\x00"+right.Subject+"\x00"+right.Input+"\x00"+right.Field+"\x00"+right.Detail
-	})
+	slices.SortFunc(result.Frontier, compareBehaviorAdapterDiagnostics)
+}
+
+// compareBehaviorAdapterDiagnostics orders the frontier by kind, subject,
+// input, field and detail, then breaks ties on the remaining members so the
+// order is total and a bounded frontier keeps the same entries every run.
+func compareBehaviorAdapterDiagnostics(left, right BehaviorAdapterDiagnostic) int {
+	return cmp.Or(
+		strings.Compare(left.Kind, right.Kind),
+		strings.Compare(left.Subject, right.Subject),
+		strings.Compare(left.Input, right.Input),
+		strings.Compare(left.Field, right.Field),
+		strings.Compare(left.Detail, right.Detail),
+		strings.Compare(left.Revision, right.Revision),
+		strings.Compare(left.Digest, right.Digest),
+		strings.Compare(left.Correction, right.Correction),
+	)
 }

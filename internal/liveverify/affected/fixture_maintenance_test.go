@@ -117,7 +117,9 @@ func TestLiveVerifyGitFixturesDisableDetachedMaintenance(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		if strings.Contains(string(source), "GIT_CONFIG_GLOBAL") {
+		// A fixture that runs Git through testsupport.RunGit inherits that
+		// helper's isolation and safeguards, checked below.
+		if strings.Contains(string(source), "GIT_CONFIG_GLOBAL") || strings.Contains(string(source), "testsupport.RunGit") {
 			isolating++
 		}
 		reason, err := unguardedFixture(source)
@@ -136,5 +138,14 @@ func TestLiveVerifyGitFixturesDisableDetachedMaintenance(t *testing.T) {
 	// today; fewer means the walk no longer reaches them and the guard is vacuous.
 	if isolating < 4 {
 		t.Fatalf("scanned %d config-isolating fixture files, want at least 4", isolating)
+	}
+	helper, err := os.ReadFile(filepath.Join("..", "..", "testsupport", "gitfixture.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"GIT_CONFIG_GLOBAL="`, `"maintenance.auto=false"`, `"gc.auto=0"`} {
+		if !strings.Contains(string(helper), want) {
+			t.Errorf("testsupport/gitfixture.go lacks %s", want)
+		}
 	}
 }

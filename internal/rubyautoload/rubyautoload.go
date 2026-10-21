@@ -18,6 +18,7 @@ import (
 	"io"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -51,6 +52,9 @@ var (
 	inflectPair        = regexp.MustCompile(`^\s*(['"])([a-z0-9_]{1,64})['"]\s*=>\s*(['"])([A-Z][A-Za-z0-9_]{0,63})['"]\s*(?:,|$)`)
 	autoloadRootConfig = regexp.MustCompile(`\b(?:autoload_paths|eager_load_paths|autoload_once_paths|autoload_lib|autoload_lib_once|push_dir)\b`)
 	collapseConfig     = regexp.MustCompile(`\.collapse\b`)
+	// stockAutoloadLib is the generated Rails 7.1+ line, alone on its line
+	// except for a trailing comment, with a literal %w ignore list.
+	stockAutoloadLib = regexp.MustCompile(`^\s*config\.autoload_lib\s*\(\s*ignore:\s*%w(?:\[([a-z0-9_ ]*)\]|\(([a-z0-9_ ]*)\))\s*\)\s*(?:#.*)?$`)
 )
 
 // defaultIgnored are the default `lib` subdirectories Rails' `autoload_lib`
@@ -108,6 +112,7 @@ type Mapper struct {
 	declarationInvalid bool
 	declared           bool
 	configUnresolved   int
+	autoloadLib        bool
 	constants          map[string]string
 	paths              map[string]string
 	known              map[string]bool
@@ -264,7 +269,7 @@ func (mapper *Mapper) readConfiguredInflections(repository Repository, paths []s
 			if i >= len(raw) {
 				break
 			}
-			if !mapper.declared && autoloadRootConfig.MatchString(code) {
+			if !mapper.declared && autoloadRootConfig.MatchString(code) && !mapper.readStockAutoloadLib(raw[i]) {
 				mapper.configUnresolved++
 			}
 			if collapseConfig.MatchString(code) {
@@ -298,6 +303,32 @@ func (mapper *Mapper) readConfiguredInflections(repository Repository, paths []s
 		}
 		return a.Kind < b.Kind
 	})
+}
+
+// readStockAutoloadLib applies the generated Rails 7.1+
+// `config.autoload_lib(ignore: %w[assets tasks])` line: `lib` becomes an
+// autoload root and exactly the listed `lib` subdirectories are ignored, as
+// Rails does. Any other spelling, including a non-literal ignore list, a second
+// such line or autoload_lib_once, reports false and stays unresolved
+// (NGI-V0-021, V1-1850).
+func (mapper *Mapper) readStockAutoloadLib(line string) bool {
+	match := stockAutoloadLib.FindStringSubmatch(line)
+	if match == nil || mapper.autoloadLib {
+		return false
+	}
+	words := strings.Fields(match[1] + match[2])
+	ignored := make([]string, 0, len(words))
+	for _, word := range words {
+		ignored = append(ignored, "lib/"+word)
+	}
+	sort.Strings(ignored)
+	mapper.autoloadLib = true
+	mapper.ignored = slices.Compact(ignored)
+	if !slices.Contains(mapper.roots, "lib") {
+		mapper.roots = append(mapper.roots, "lib")
+		sort.Strings(mapper.roots)
+	}
+	return true
 }
 
 // inflectPairs reads the literal `"word" => "Constant"` pairs of one

@@ -19,8 +19,15 @@ class CorvintReporter < Minitest::AbstractReporter
   end
   def record(result)
     state = result.skipped? ? 'SKIPPED' : (result.passed? ? 'PASSED' : 'FAILED')
-    state = 'UNKNOWN' if result.failures.any? { |f| f.is_a?(Minitest::UnexpectedError) }
-    @rows << {ID: "#{result.klass}##{result.name}", Name: result.name, State: state}
+    row = {ID: "#{result.klass}##{result.name}", Name: result.name, State: state}
+    # TRE-V0-110: an exception Minitest attributes to one named test fails that
+    # test with cause UNKNOWN; it never voids the other cases of the run.
+    errors = result.failures.select { |f| f.is_a?(Minitest::UnexpectedError) }
+    if state == 'FAILED' && !errors.empty?
+      row[:FailureKind] = 'UNKNOWN'
+      row[:Message] = errors.map { |f| "UnexpectedError: #{f.error.class.name}" }.uniq.join("\n")[0, 1024]
+    end
+    @rows << row
   end
   def report
     File.open(@output, File::WRONLY | File::CREAT | File::EXCL, 0600) do |f|

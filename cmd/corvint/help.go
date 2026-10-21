@@ -12,7 +12,7 @@ var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
 	"cover": true, "discriminate": true,
-	"anchor": true, "provenance": true, "export": true,
+	"anchor": true, "provenance": true, "export": true, "verify-stable": true, "gate-verdict": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -52,7 +52,7 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic, _ = publicHelpTopic(rest[1])
 	} else if len(rest) == 3 && rest[0] == "help" {
-		directTopic = nestedHelpTopic(rest[1], rest[2])
+		directTopic = cemOrNestedHelpTopic(rest[1], rest[2])
 	}
 	switch {
 	case len(rest) > 0 && (rest[0] == "--help" || rest[0] == "-h"), len(rest) == 1 && rest[0] == "help":
@@ -618,7 +618,8 @@ When prove-observe has recorded proofs, the digest opens with the
 repository's falsification rate (FALSIFICATION) and one FALSIFIER line per
 falsifier: judged rows are PASS or FAIL, failed rows are FAIL. Host adapter
 degradations are tallied as ADAPTER-DEGRADATION lines by host/event/code,
-counting retained hour windows with the newest window.
+counting retained hour windows with the newest window; an out-of-project
+post-tool target is a correct exclusion and is tallied as ADAPTER-EXCLUSION.
 `
 
 const flowsHelp = `Inspect experimental web-flow assertion candidates and runtime observations.
@@ -1069,7 +1070,7 @@ Usage:
   corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]
-  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts]
+  corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]
   corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
     --artifacts DIR --output DIR
   corvint [--root PATH] cem verify-stable --repository PATH --map MAP
@@ -1109,8 +1110,8 @@ Actions:
            same map and REV is refused, an identical one writes nothing.
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            note, Assisted-by/Agent-Logs-Url trailers as untrusted rows; with
-           --notes-tip OID, rollback when OID is not an ancestor of the ref;
-           with --verdicts, list REV's verdict ledger records.
+           --notes-tip OID (or --verdicts-tip OID), rollback when OID is not an
+           ancestor of its ref; --verdicts lists REV's verdict ledger records.
   export   (read-only) Verify the cem/1.0 map as cem verify does (with
            --artifacts) and require the target to commit it, then copy the map
            as cem.json and each declared artifact under artifacts/ into the new
@@ -1200,6 +1201,20 @@ Options:
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for the cem/1.0 map.
   --target REV        Independent target; required for the cem/1.0 map.
+  --replace           prepare only: replace an existing map that binds a
+                      different target, intent or CEM (otherwise refused
+                      with map-outdated) or that no longer verifies. The
+                      replaced map's links, marks and assessments are
+                      discarded, not carried over; copy the map aside first
+                      to keep that review.
+
+report writes by default to .git/corvint/ocm-review.md, private Git metadata
+that never dirties the worktree. An explicit --output must be a normalized,
+repository-relative path inside the repository root that names no .git
+segment; an absolute path such as /tmp/report.md is refused with
+unsupported-ocm-output-path. A report written inside the worktree is a visible
+untracked file, which blocks clean-worktree admission (for example frozen
+selected-check verification) until it is moved or removed.
 
 The bound CEM must be a cem/1.0 map; a retired cem/0.x map refuses with
 unsupported-spec and its recovery line.
@@ -1374,13 +1389,14 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
-// cpuProfileHelpNote documents the CPUPROFILE env knob (V1-0051): it is
+// cpuProfileHelpNote documents the CORVINT_CPUPROFILE env knob (V1-0051,
+// V1-1643: runtimeenv.Value("CPUPROFILE") resolves the CORVINT_ prefix): it is
 // off by default, operator-set only, and applies to this command and to
 // `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
 // local pprof file and never widens what the command reads, returns, or
 // mutates (AGENTS.md invariant 4).
 const cpuProfileHelpNote = `
-CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
+CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
 profile for this invocation to PATH. Diagnostic only; it does not change
 what is read, returned, or mutated.
 `

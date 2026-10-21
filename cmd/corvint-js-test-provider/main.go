@@ -173,6 +173,27 @@ func printUsage(w io.Writer) {
 	}
 }
 
+// isHelpRequest reports whether a subcommand's flags, before any "--", ask for its usage.
+// negate and external-origins otherwise turn flag.ErrHelp into a refusal (V1-1221).
+func isHelpRequest(args []string) bool {
+	for _, arg := range args {
+		switch arg {
+		case "--":
+			return false
+		case "-h", "-help", "--help":
+			return true
+		}
+	}
+	return false
+}
+
+// printSubcommandUsage writes one subcommand's flag usage to w; it runs no test.
+func printSubcommandUsage(w io.Writer, show func()) {
+	usageSink = w
+	defer func() { usageSink = nil }()
+	show()
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
@@ -192,6 +213,10 @@ func main() {
 			os.Exit(exitAdmissionRefused)
 		}
 	case "negate":
+		if isHelpRequest(os.Args[2:]) {
+			printSubcommandUsage(os.Stdout, func() { _, _ = parseNegate([]string{"-h"}) })
+			return
+		}
 		ctx, cancel := interruptContext()
 		err = runNegate(ctx, os.Args[2:], os.Stdout)
 		cancel()
@@ -201,6 +226,10 @@ func main() {
 	case "qualify-keep-reporters":
 		err = runQualifyKeepReporters(os.Args[2:])
 	case "external-origins":
+		if isHelpRequest(os.Args[2:]) {
+			printSubcommandUsage(os.Stdout, func() { _, _, _ = parseExternalOrigins([]string{"-h"}) })
+			return
+		}
 		err = runExternalOrigins(os.Args[2:], os.Stdout, os.Stderr)
 		if errors.Is(err, errExternalOriginsRefused) {
 			os.Exit(2)

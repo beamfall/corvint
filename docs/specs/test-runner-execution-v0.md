@@ -57,6 +57,38 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   acceptance, generation and candidate identities. FAILED alone MUST NOT establish a killed control;
   exact reviewed assertion/control relevance remains a separate experiment obligation. Default Core,
   frozen CEM0.x and Tasks policy remain unchanged until their own versioned migration is delivered.
+- `TRE-V0-110`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1541) For
+  `minitest` and `rails-test`, a test whose native result carries a `Minitest::UnexpectedError`
+  MUST be `FAILED` with failure kind `UNKNOWN` (the cause is an exception, not an assertion) and a
+  message naming only the exception class (`UnexpectedError: <Class>`, at most 1024 bytes; the
+  exception text is not retained). Other cases keep their native outcomes and the run stays
+  complete. A skipped or passed result is never reclassified.
+- `TRE-V0-111`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537) The
+  `ctest` profile MUST run CTest with `--test-dir` set to a run-owned `ctest-run/` directory in the
+  report directory, whose generated `CTestTestfile.cmake` only includes the caller's build tree
+  (`subdirs("<Root>")`). CTest's own bookkeeping (`Testing/`, including `Testing/Temporary/`
+  `LastTest.log`, `LastTestsFailed.log` and `CTestCostData.txt`) is not written into the build
+  tree and stays in the report directory evidence (`ctest-run/Testing/Temporary/`). Tests still run
+  from their own build directories, so files a test itself writes there are outside this
+  requirement. A `Root` that is not absolute or holds a character CMake would
+  re-parse inside a quoted argument (`"`, `\`, `$`, `;`, NUL, CR, LF) is refused, never quoted.
+- `TRE-V0-113`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1537 review)
+  The run-owned test directory MUST keep the top-level configuration CTest reads from its test
+  directory. Its `CTestCustom.cmake` includes the build tree's `CTestCustom.cmake`, or else its
+  `CTestCustom.ctest` (CTest's precedence), so pre- and post-test hooks still run and a failing hook
+  still fails the run. The build tree's `DartConfiguration.tcl` (default test `TimeOut` and other
+  test settings) is copied with only its `BuildDirectory` entry pointed at the run directory, which
+  keeps CTest's bookkeeping out of the build tree. A `DartConfiguration.tcl` that cannot be read, or
+  that has other than exactly one `BuildDirectory` entry, is refused rather than dropped. Paths reach
+  CMake with forward slashes, so a Windows `Root` such as `C:\build` is admitted, and the
+  metacharacter refusal applies to the converted path.
+- `TRE-V0-112`: (accepted under the owner's 2026-10-11 standing lane auto-accept; V1-1535) The
+  `swift-testing` profile MUST refuse, before execution, a package directory (`Root`, or `Root`
+  joined with `Project`) whose symlink-resolved base name is case-insensitively a reserved
+  toolchain package identity, because SwiftPM derives the identity from the resolved directory.
+  A package directory that cannot be resolved is refused. The reserved set holds only the observed
+  collision, `swift-testing`. Other names, including `Testing` and a symlink named `swift-testing`
+  that resolves elsewhere, are admitted.
 
 ## Runner inventory
 
@@ -84,7 +116,9 @@ XCTest and Robolectric 4.16.1/API35 also have shared-executor witnesses. These d
 limits: TestCafe's current common-executor remote-Chrome CLI witness is qualified in
 `/private/tmp/cem10-build/dynamic/testcafe-cli-proof/qualification.json`; its prior permission
 refusal and first-use helper failure remain retained. Detox lacks a qualified task application/device;
-legacy Storybook collection is blocked by the observed runtime incompatibility. Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
+legacy Storybook collection is witnessed (a complete FAILED run, `storybook-test-runner/collection`,
+Dynamic qualification matrix 2026-10-17 (V1-0592); the earlier runtime-incompatibility block is
+superseded). Playwright now retains actual pinned Chrome DOM pass/fail/skip/retry/zero/collection cases;
 a timeout initially left its native detached browser group alive (V1-0608), with durable cleanup
 repair independently reviewed and locally qualified for native cooperating Playwright; TRE-V0-034 adds
 executor-owned retirement of escaped descendants for every profile. The prior no-browser fixture remains retained. Nightwatch 3.16.0 now has a real
@@ -1337,9 +1371,14 @@ Release blockers that remain, each with the missing piece:
   remote-browser path is qualified. Chrome for Testing 154 `--headless=new` never followed the
   remote `/browser/connect` redirect (`testcafe/remote-cft154-noconnect`), so the remote witness
   uses chrome-headless-shell 153.0.8010.12.
-- storybook-test-runner T: no executor-timeout witness (V1-1544). The pinned Jest config's 15 s test
-  timeout fires first and yields a complete FAILED run (`storybook-test-runner/timeout`); only the
-  interrupt path is qualified.
+- storybook-test-runner T: no executor-timeout witness, recorded as not applicable at the qualified
+  settings (V1-1544). The profile pins the runner's Jest config and refuses a caller `Config`, so its
+  per-test timeout is the pinned 15 s Jest timeout, which fires before any executor timeout of 15 s
+  or more and yields a complete FAILED run (`storybook-test-runner/timeout`, executor timeout 60 s).
+  The executor's `TimeoutSeconds` (1..1800) is still caller-chosen, so an executor timeout below the
+  Jest timeout plus runner and browser start-up is admitted but has no witness: the retained
+  Storybook fixture is gone and a new one needs a package install this lane did not run. Only the
+  interrupt path (`storybook-test-runner/interrupt`, incomplete) is qualified.
 - storybook-test-runner R: the profile pins the runner config and admits no Jest
   `test-runner-jest.config.js`; the runner has no native retry flag. The optional
   `.storybook/test-runner` config remains BLOCKED as recorded under TRE-V0-044.
@@ -1347,9 +1386,10 @@ Release blockers that remain, each with the missing piece:
   (`retry-history-missing`); Bun 1.3.11 JUnit and the WebdriverIO 9.32.0 JSON reporter repeat a
   retried test's identity (`ambiguous-test-identity`). A qualified retry needs a native report that
   carries attempts.
-- Minitest reports an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which makes the whole
+- Minitest reported an erroring test (`Minitest::UnexpectedError`) as UNKNOWN, which made the whole
   run unresolved (`minitest/mixed`); assertion failures are witnessed separately
-  (`minitest/mixed-noerror`).
+  (`minitest/mixed-noerror`). Superseded by TRE-V0-110 (V1-1541): the erroring case is now FAILED
+  with cause UNKNOWN.
 
 Rollback reverts the four parser changes and their tests and fixtures; the matrix stays as
 retained evidence. Plans and receipts are unchanged in shape.
@@ -1648,3 +1688,55 @@ Rollback removes `DeviceCleanup` from the invocation and execution, `device_clea
 the Android steps, the Appium session hook and delete step, the runner's pre-cleanup plan
 refusal, these tests and this section. Device-bound plans written with cleanup would then fail
 closed decoding; historical plans and receipts are unaffected.
+
+## Minitest unexpected-error cases (experimental)
+
+V1-1541: the profile-owned Minitest reporter mapped a test that raises (`Minitest::UnexpectedError`)
+to `UNKNOWN`, so the shared normalizer voided every case of the run, although Minitest attributes
+the error to one named test and counts it as an error, never as a pass.
+
+Decision: FAILED-with-cause rather than UNKNOWN. The native runner names the case and never counts
+it as passed, so FAILED invents no certainty; UNKNOWN discarded the other cases' outcomes. The
+Python `unittest` and Ruby `test-unit` profiles still map native errors to UNKNOWN; aligning them is
+separate work.
+
+Rollback: restore the `UNKNOWN` state in `dynamic/reporters/minitest_reporter.rb`; plans, receipts
+and parsers are unchanged in shape.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-110 | `dynamic/reporters/minitest_reporter.rb` `record`; `TestMinitestUnexpectedErrorFailsOnlyThatCaseLive` | Live Minitest 5.11.3 / Ruby 2.6.10: one raising and one passing test give native exit 1, a complete run, PASSED and FAILED/UNKNOWN; the test fails with the previous reporter |
+
+## CTest run-owned test directory (experimental)
+
+V1-1537: CTest always writes `Testing/Temporary` (`LastTest.log`, `LastTestsFailed.log`,
+`CTestCostData.txt`) into the directory it runs from, so the `ctest` profile left residue in the
+caller's build tree.
+
+Decision: the log is retained as report-directory evidence but is not a parsed report, so a large
+test log cannot exceed the report byte bound and turn a complete run incomplete; the JUnit report
+stays the only parsed input.
+
+Rollback: restore the earlier `ctest` argv without `--test-dir` and drop the generated file.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-111 | `native/native.go` `Build` (`ctest`); `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestRunLeavesBuildDirectoryUnchanged` | Live CTest 4.4.4 (macOS arm64): one passing and one failing test that write nothing give a complete run, the build tree digest set is unchanged (no `Testing/` entry) and `LastTest.log` sits under the report directory; the live test fails with the previous argv (the build tree gained `Testing/Temporary/*`) |
+| TRE-V0-113 | `native/native.go` `ctestRunFiles`; `TestCTestRunsFromRunOwnedTestDirectory`, `TestCTestCarriesDartConfiguration`, `TestCTestWindowsRootUsesForwardSlashes` (Windows only), `TestCTestRunKeepsBuildTreeConfiguration` | Live CTest 4.4.4 (macOS arm64): a `CTestCustom.cmake` pre-test hook that exits 3 makes the run incomplete, and a `DartConfiguration.tcl` `TimeOut: 1` fails a 5 s test; both subtests fail against the wrapper without the carried files (the hook was skipped and the run passed). Copying `DartConfiguration.tcl` unchanged sent `Testing/` back into the build tree, which is why `BuildDirectory` is relocated. The Windows test is type-checked by `make windows-vet` and NOT_RUN on Windows |
+
+## swift-testing reserved package identity (experimental)
+
+V1-1535: SwiftPM derives a package's identity from its directory name. A fixture package in a
+directory named `swift-testing` is compiled with `-package-name swift_testing`, which collides with
+the toolchain swift-testing package; Swift 6.4 then fails the build with `error: fatalError` and the
+run reports a build failure that is the fixture's fault, not the code under test.
+
+Decision: reserve only the identity a live run showed to fail; a directory named `Testing` built and
+passed on the same toolchain, so it is not reserved. A newly observed collision is added to the set
+with its own live witness.
+
+Rollback: remove the reserved-identity check; the profile's argv is unchanged.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-112 | `platform/platform.go` `Build` (`swift-testing`), `reservedSwiftPackageIdentity`; `TestSwiftTestingRefusesReservedPackageIdentity`; `platform/README.md` | Live Swift 6.4 (Xcode toolchain, macOS arm64) on 2026-10-20: identical one-library, one-test packages in directories `okpkg` and `Testing` pass; in `swift-testing` the build fails with `error: fatalError` (`-package-name swift_testing`). Live symlink probe: an alias `realbad-alias -> swift-testing` fails (`module 'Testing' is in package 'swift_testing'`), and `l/swift-testing -> ../okpkg` builds and passes |

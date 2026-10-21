@@ -241,6 +241,23 @@ type StableRefusal struct {
 	Exit   int
 }
 
+// StableAdmissionRefusal is a refusal after the stable verifier accepted: an
+// inexact sidecar or a failed OCM/LRF admission. It keeps the accepted
+// verifier result as evidence of the step reached; it is never an accept
+// (V1-2034). Its message is the admission error's, unchanged, so callers that
+// print or trim it see the same text as before.
+type StableAdmissionRefusal struct {
+	Result verify.StableResult
+	Err    error
+}
+
+func (e *StableAdmissionRefusal) Error() string {
+	return e.Err.Error()
+}
+
+// Unwrap exposes the admission refusal's code to CodeOf.
+func (e *StableAdmissionRefusal) Unwrap() error { return e.Err }
+
 // Code is the verifier refusal code, or the first REJECT issue code.
 func (e *StableRefusal) Code() string {
 	if e.Result.Code != nil {
@@ -296,18 +313,18 @@ func VerifyStableUniverse(ctx context.Context, cemRaw, ocmRaw []byte, options St
 		return nil, err
 	}
 	if result.Sidecar != "EXACT" {
-		return nil, cemcode.New(cemcode.ExcludedArtifactMismatch, "stable OCM/LRF admission requires the exact committed sidecar at the target; sidecar is %s", result.Sidecar)
+		return nil, &StableAdmissionRefusal{Result: result, Err: cemcode.New(cemcode.ExcludedArtifactMismatch, "stable OCM/LRF admission requires the exact committed sidecar at the target; sidecar is %s", result.Sidecar)}
 	}
 	universe, err := stableUniversePhase(ctx, cemRaw, ocmRaw, options, result)
 	if err != nil {
-		return nil, err
+		return nil, &StableAdmissionRefusal{Result: result, Err: err}
 	}
 	again, err := acceptedStable(ctx, cemRaw, options)
 	if err != nil {
 		return nil, err
 	}
 	if !sameStableResult(result, again) {
-		return nil, cemcode.New(cemcode.RepositoryObjectUnavailable, "stable verification changed during OCM/LRF admission")
+		return nil, &StableAdmissionRefusal{Result: result, Err: cemcode.New(cemcode.RepositoryObjectUnavailable, "stable verification changed during OCM/LRF admission")}
 	}
 	return universe, nil
 }

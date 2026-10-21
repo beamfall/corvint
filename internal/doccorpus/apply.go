@@ -138,14 +138,22 @@ func corpusParent(repository *os.Root, relative string) (*os.Root, error) {
 	return current, nil
 }
 
-func validCorpusPage(page string) bool {
-	if !validPath(page) || path.Ext(page) != ".md" {
-		return false
+func validCorpusPage(page string) bool { return CorpusPageRule(page) == "" }
+
+// CorpusPageRule names the rule a maintained page path breaks, or returns "" for a Markdown page
+// relative to the root and outside Git metadata: the local input path rule (DCP-V1-054), then a
+// `.md` extension, then no `.git` component (DCP-V1-241).
+func CorpusPageRule(page string) string {
+	if rule := LocalInputPathRule(page); rule != "" {
+		return rule
+	}
+	if path.Ext(page) != ".md" {
+		return "got a page that is not Markdown"
 	}
 	for _, component := range strings.Split(page, "/") {
 		if strings.EqualFold(component, ".git") {
-			return false
+			return "got a page inside Git metadata"
 		}
 	}
-	return true
+	return ""
 }

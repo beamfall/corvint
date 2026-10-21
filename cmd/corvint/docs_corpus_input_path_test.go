@@ -66,3 +66,36 @@ func TestDocsCorpusHelpStatesRootRelativeInputs(t *testing.T) {
 		}
 	}
 }
+
+// TestDCPV1241CorpusMaintainPageRefusalNamesFlag checks that a refused `docs corpus maintain
+// --page` names the flag and the broken rule before any read, under the unchanged corpus-refused
+// code and error shape (DCP-V1-241, V1-1227).
+func TestDCPV1241CorpusMaintainPageRefusalNamesFlag(t *testing.T) {
+	root, _ := playwrightCorpusRepository(t)
+	for _, tc := range []struct{ name, page, rule string }{
+		{"absolute", filepath.Join(root, "docs", "page.md"), "got an absolute path"},
+		{"parent", "../page.md", "got a parent traversal"},
+		{"non-canonical", "docs/./page.md", "got a non-canonical path"},
+		{"not markdown", "docs/page.txt", "got a page that is not Markdown"},
+		{"git metadata", "docs/.GIT/page.md", "got a page inside Git metadata"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, out, stderr := corpusCLI(t, root, "docs", "corpus", "maintain", "--artifact", "missing-corpus.json", "--page", tc.page)
+			if code != 2 || out != "" {
+				t.Fatalf("%d %q %s", code, out, stderr)
+			}
+			var refusal struct {
+				Code  string `json:"code"`
+				Error string `json:"error"`
+				OK    bool   `json:"ok"`
+			}
+			if err := json.Unmarshal([]byte(strings.TrimSpace(stderr)), &refusal, json.RejectUnknownMembers(true)); err != nil {
+				t.Fatalf("refusal is not the closed error object: %v %s", err, stderr)
+			}
+			want := "--page: maintenance requires a Markdown page relative to --root outside Git metadata (" + tc.rule + ")"
+			if refusal.OK || refusal.Code != "corpus-refused" || refusal.Error != want {
+				t.Fatalf("refusal = %v, want code corpus-refused and %q", refusal, want)
+			}
+		})
+	}
+}

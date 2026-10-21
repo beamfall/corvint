@@ -26,7 +26,7 @@ var fixtureRoot = filepath.Join("..", "..", "conformance", "ruby-profile-v0")
 // The fixture classes the row table must cover: the positive classes the
 // #1130 profile names and the dynamic lookups that must stay unknown.
 var (
-	positiveClasses = []string{"autoloaded-constant", "described-class", "shared-examples", "support-helper", "request-spec", "controller-spec", "worker-spec"}
+	positiveClasses = []string{"autoloaded-constant", "described-class", "shared-examples", "support-helper", "request-spec", "controller-spec", "worker-spec", "rails-7-1-autoload-lib"}
 	negativeClasses = []string{"dynamic-constantize", "dynamic-const-get"}
 )
 
@@ -397,8 +397,8 @@ func TestRubyProfileRowsCoverEveryClass_RUBYAFFECTEDV0014(t *testing.T) {
 		if _, duplicate := declared[class.Class]; duplicate {
 			t.Fatalf("class %s declared twice", class.Class)
 		}
-		if class.Negative != (class.Overlay != "") {
-			t.Fatalf("class %s: only negative classes carry an overlay", class.Class)
+		if class.Negative && class.Overlay == "" {
+			t.Fatalf("class %s: a negative class must carry an overlay", class.Class)
 		}
 		declared[class.Class] = class
 	}

@@ -12,6 +12,10 @@ const cemActionHelpPrefix = "cem-"
 // closing wire note. status, verify and report share one Actions paragraph.
 // It returns "" for an action cemHelp does not document.
 func cemActionHelp(action string) string {
+	if action == "gate-verdict" {
+		// Its usage lives in the closing Tasks gate section, not in Usage.
+		return "Change Evidence Map gate-verdict action.\n" + cemGateVerdictHelp + "\nFull command help: corvint cem --help\n"
+	}
 	usage := cemHelpUsage(action)
 	paragraphAction := action
 	if action == "verify" || action == "report" {
@@ -28,7 +32,7 @@ func cemActionHelp(action string) string {
 			text.WriteString("\nVerification options:\n" + options)
 		}
 	}
-	if action == "status" || action == "verify" || action == "anchor" {
+	if action == "status" || action == "verify" || action == "anchor" || action == "verify-stable" {
 		// The out-of-tree map rules (CEM-V1-317).
 		if paths, ok := cemHelpBlock("\nMap paths:\n"); ok {
 			text.WriteString("\nMap paths:\n" + paths)
@@ -99,4 +103,14 @@ func cemHelpBlock(marker string) (string, bool) {
 	}
 	block, _, _ := strings.Cut(after, "\n\n")
 	return block + "\n", true
+}
+
+// cemOrNestedHelpTopic names the topic of `corvint help COMMAND SUBCOMMAND`:
+// `help cem ACTION` is that action's help (CEM-V1-344), any other pair a
+// nested topic. It lives here so help.go lines other documents cite stay put.
+func cemOrNestedHelpTopic(command, subcommand string) string {
+	if command == "cem" && cemHelpActions[subcommand] {
+		return cemActionHelpPrefix + subcommand
+	}
+	return nestedHelpTopic(command, subcommand)
 }

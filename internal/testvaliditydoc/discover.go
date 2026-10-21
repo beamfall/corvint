@@ -14,13 +14,15 @@ import (
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
+	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
 const (
 	// EvidenceDirectory is the one worktree-relative retained-evidence
-	// location discovery reads (LPCV-V0-053, decision 0202).
-	EvidenceDirectory = ".corvint/test-evidence"
+	// location discovery reads (LPCV-V0-053, decision 0202). It is defined by
+	// the leaf package testevidence, its single source (V1-1842).
+	EvidenceDirectory = testevidence.EvidenceDirectory
 	// MaxEvidenceEntries bounds the retained-evidence directory listing.
 	MaxEvidenceEntries = 256
 	// MaxDiscoveryAttempts bounds how many newest candidates are read.

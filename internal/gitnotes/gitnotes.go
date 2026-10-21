@@ -138,6 +138,24 @@ func (r *repository) noteBlob(ctx context.Context, ref, commit string) (string, 
 	return "", nil
 }
 
+// noteBlobAt is noteBlob read from one notes commit by object ID: the note
+// of commit is the blob whose tree path, with fan-out slashes removed, is
+// commit. "" when that commit holds no note for it.
+func (r *repository) noteBlobAt(ctx context.Context, notesCommit, commit string) (string, error) {
+	out, err := r.git(ctx, MaxListBytes, nil, "ls-tree", "-r", "-z", "--end-of-options", notesCommit+"^{tree}")
+	if err != nil {
+		return "", err
+	}
+	for _, entry := range strings.Split(string(out), "\x00") {
+		meta, path, found := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if found && len(fields) == 3 && fields[1] == "blob" && strings.ReplaceAll(path, "/", "") == commit {
+			return fields[2], nil
+		}
+	}
+	return "", nil
+}
+
 func (r *repository) blob(ctx context.Context, oid string, limit int) ([]byte, error) {
 	return r.git(ctx, limit, nil, "cat-file", "blob", oid)
 }

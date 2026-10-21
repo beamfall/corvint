@@ -23,6 +23,23 @@ import (
 // rule (c) does, because a dogfood change commits it on every change.
 const ChangeEvidencePath = ".corvint/change.cem.json"
 
+// SealedChangesDirectory holds the sealed CEMs a dogfood seal moves the
+// sidecar to, one `<commit>.cem.json` per change (AFP-V0-152).
+const SealedChangesDirectory = ".corvint/changes/"
+
+// resolvedEvidence reports whether dirtyPath is the CEM sidecar or a sealed
+// CEM directly under SealedChangesDirectory: a path whose Go readers must
+// resolve to it (resolves), because every dogfooded change commits one and a
+// fixture-root token naming the same components reads a temporary copy
+// (AFP-V0-152, V1-1820).
+func resolvedEvidence(dirtyPath string) bool {
+	if dirtyPath == ChangeEvidencePath {
+		return true
+	}
+	name, sealed := strings.CutPrefix(dirtyPath, SealedChangesDirectory)
+	return sealed && strings.HasSuffix(name, ".cem.json") && len(name) > len(".cem.json") && !strings.Contains(name, "/")
+}
+
 // PathTokenBound names, in a LANGUAGE_FRONTIER detail
 // "<namespace>:path-token-bound:<unit>", a unit whose plugin dropped its path
 // tokens at the bound (AFP-V0-021).
@@ -175,10 +192,10 @@ func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Un
 
 // resolves reports whether unit id can read dirtyPath by one of its tokens.
 // A non-Go unit keeps the component-run relation: a shell or other test's
-// working directory is unknown. For the CEM sidecar, a Go unit's token must
-// resolve against the unit's directory, or against the repository root when a
-// parent-only or anchored token of the unit could put it there, to the sidecar
-// or one of its ancestors. An anchored token always resolves: it is anchored at
+// working directory is unknown. For the CEM sidecar and a sealed CEM
+// (resolvedEvidence), a Go unit's token must resolve against the unit's
+// directory, or against the repository root when a parent-only or anchored
+// token of the unit could put it there, to that path or one of its ancestors. An anchored token always resolves: it is anchored at
 // its module's directory, which this graph does not record, so narrowing it
 // could drop a real reader. For any other path see namesFileOnlyWithin.
 func (graph *Graph) resolves(id, dirtyPath string) bool {
@@ -187,7 +204,7 @@ func (graph *Graph) resolves(id, dirtyPath string) bool {
 	}
 	unit := graph.units[id]
 	directory := relativeDirectory(append(append([]string(nil), unit.Sources...), unit.Tests...)[0])
-	if dirtyPath != ChangeEvidencePath {
+	if !resolvedEvidence(dirtyPath) {
 		return namesFileOnlyWithin(directory, unit.PathTokens, dirtyPath)
 	}
 	anchored := rootAnchored(unit.PathTokens)

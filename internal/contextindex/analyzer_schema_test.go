@@ -17,8 +17,8 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/134"
-		const auditedSHA256 = "72fc61a64882c1983ab1e3bd0b476152c667b378e5a7843419816c4a896db467"
+		const auditedSchema = "corvint-analyzer/135"
+		const auditedSHA256 = "bbaf38e2c610fb40e85a5bc0155c4da61d7b440157377b0dd3975d28184c26f7"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -51,7 +51,7 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 		}
 		got := fmt.Sprintf("%x", digest.Sum(nil))
 		if analyzerSchemaID != auditedSchema || got != auditedSHA256 {
-			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, bump analyzerSchemaID and update both audit pins", analyzerSchemaID, got)
+			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, then run script/analyzer-schema.sh bump, which sets the schema number past origin/main's, rewrites both audit pins and repins use-case receipts (IDX-SNAP-V0-060)", analyzerSchemaID, got)
 		}
 	})
 }

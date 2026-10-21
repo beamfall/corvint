@@ -79,13 +79,28 @@ type cemStableView struct {
 }
 
 // cemStableRefusal is the stderr document for a refused binding. It keeps
-// the input digests and, when the verifier ran, its whole result.
+// the input digests, the verifier step reached and, when the verifier ran,
+// its whole result; when it did not run, verificationReason says why
+// (CEM-V1-349, V1-2034).
 type cemStableRefusal struct {
-	Profile      string               `json:"profile"`
-	Code         string               `json:"code"`
-	Input        cemStableInput       `json:"input"`
-	Verification *verify.StableResult `json:"verification"`
+	Profile            string               `json:"profile"`
+	Code               string               `json:"code"`
+	Input              cemStableInput       `json:"input"`
+	VerifierStage      string               `json:"verifierStage"`
+	VerificationReason string               `json:"verificationReason,omitempty"`
+	Verification       *verify.StableResult `json:"verification"`
 }
+
+// Verifier steps a cem-stable refusal reports (CEM-V1-349).
+const (
+	verifierStageNotRun   = "NOT_RUN"
+	verifierStageRefused  = "refused"
+	verifierStageAccepted = "accepted"
+	// verifierNotRunReason is the NOT_RUN reason: the map was refused before
+	// the stable verifier ran (a retired cem/0.x map or an unreadable
+	// stable document); the refusal code names which.
+	verifierNotRunReason = "refused-before-verification"
+)
 
 func isCEMStableCommand(arguments []string) bool {
 	return len(arguments) > 0 && arguments[0] == "cem-stable"
@@ -149,9 +164,18 @@ func runCEMStableContext(ctx context.Context, arguments []string, stdout, stderr
 			refusal.Code = errorInternal
 		}
 		var stable *lrfrepo.StableRefusal
-		if errors.As(err, &stable) {
+		var admission *lrfrepo.StableAdmissionRefusal
+		switch {
+		case errors.As(err, &admission):
+			// The verifier accepted; the sidecar or the OCM/LRF admission
+			// refused after it.
+			result := admission.Result
+			refusal.VerifierStage, refusal.Verification = verifierStageAccepted, &result
+		case errors.As(err, &stable):
 			result := stable.Result
-			refusal.Verification = &result
+			refusal.VerifierStage, refusal.Verification = verifierStageRefused, &result
+		default:
+			refusal.VerifierStage, refusal.VerificationReason = verifierStageNotRun, verifierNotRunReason
 		}
 		return writeCEMStableDocument(stderr, stderr, refusal, 2)
 	}

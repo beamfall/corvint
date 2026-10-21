@@ -238,9 +238,14 @@ func TestConsoleChainGaps(t *testing.T) {
 			doc := f.ocm()
 			doc["cem"] = map[string]any{"mapSha256": strings.Repeat("b", 64)}
 			f.writeOCM(t, "change.ocm.json", doc)
+			// V1-0151: the sealed map's digest with another targetRevision is stale too.
+			other := f.ocm()
+			other["targetRevision"] = f.base
+			f.writeOCM(t, "change.ocm.001.json", other)
 			f.writeTrace(t, f.change, f.traceRow(f.base, "recorded against the base"))
 		}, want: []string{"<b>gap: stale</b>", "spanSha256 " + strings.Repeat("a", 64) + " does not match",
-			"targetRevision names this change but cem.mapSha256", "the row names revision"}},
+			"targetRevision names this change but cem.mapSha256", "cem.mapSha256 names the sealed map but targetRevision names ",
+			"the row names revision"}},
 		{name: "ambiguous", setup: func(t *testing.T, f *chainFixture) {
 			f.writeTrace(t, f.change, f.traceRow(f.change, "first"), f.traceRow(f.change, "second"))
 		}, want: []string{"<b>gap: ambiguous</b>",
@@ -253,12 +258,15 @@ func TestConsoleChainGaps(t *testing.T) {
 			cem["evidence"] = []any{}
 		}, setup: func(t *testing.T, f *chainFixture) {
 			doc := f.ocm()
+			// V1-0151: a hunk edge of an obligation whose disposition is not linked is unsupported.
 			doc["obligations"] = []any{map[string]any{"id": "FIX-V0-001", "disposition": "unknown", "reason": "unassessed",
-				"hunkIds": []any{}, "claimIds": []any{}}}
+				"hunkIds": []any{}, "claimIds": []any{}}, map[string]any{"id": "FIX-V0-002", "disposition": "unknown",
+				"reason": "unassessed", "hunkIds": []any{chainHunkID}, "claimIds": []any{chainClaimID}}}
 			f.writeOCM(t, "change.ocm.001.json", doc)
 			f.writeTrace(t, f.change, "{not json}\n")
 		}, want: []string{"<b>gap: unsupported</b>", "states disposition &#34;unknown&#34;, reason &#34;no-evidence&#34;",
 			"the obligation lists no hunk", "the obligation lists no test claim",
+			"the obligation lists this hunk but states disposition &#34;unknown&#34;",
 			"the row is not a schema_version 1 trace record"}},
 	}
 	for _, tc := range cases {

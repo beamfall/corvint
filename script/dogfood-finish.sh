@@ -41,6 +41,30 @@ fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+# DCW-V0-090: a change that touches docs/specs/ must commit the regenerated spec indexes. The
+# generator reads a private index of HEAD, so staged or worktree edits cannot hide a stale commit.
+if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
+  spec_tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-check.XXXXXX") || exit 2
+  trap '/bin/rm -rf "$spec_tmp"' EXIT
+  mkdir "$spec_tmp/out" || exit 2
+  stale=()
+  if GIT_INDEX_FILE="$spec_tmp/index" git -C "$repo" read-tree HEAD &&
+    (cd "$repo" && GIT_INDEX_FILE="$spec_tmp/index" script/gen-spec-requirements.sh --all "$spec_tmp/out"); then
+    for file in REQUIREMENTS.tsv INDEX.json README.md; do
+      git -C "$repo" cat-file blob "HEAD:docs/specs/$file" 2> /dev/null | cmp -s - "$spec_tmp/out/$file" ||
+        stale+=("docs/specs/$file")
+    done
+  else
+    stale+=(generation-failed)
+  fi
+  if ((${#stale[@]} > 0)); then
+    printf 'dogfood-finish-lane: REFUSE spec-requirements-stale %s\n' "${stale[*]}" >&2
+    printf 'fix: stage the changed spec, run make spec-requirements, commit the regenerated files, then rerun\n' >&2
+    exit 2
+  fi
+  /bin/rm -rf "$spec_tmp"
+  trap - EXIT
+fi
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 override=()

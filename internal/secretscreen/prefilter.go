@@ -143,8 +143,15 @@ func slackTokenPrefix(lower []byte) bool {
 
 // credentialStems covers writerAssignmentNames: every name there contains one
 // of these, and may be followed by further field characters. Bare pass must
-// end the field, so it is checked without a suffix.
-var credentialStems = []string{"key", "authorization", "credential", "passphrase", "passwd", "password", "secret", "token"}
+// end the field, so it is checked without a suffix. The only names with key
+// are api, access, account and private followed by an optional _ or - and
+// key, so a bare key (an e2e inventory's test_key, for example) is no
+// candidate (V1-1689).
+var credentialStems = []string{
+	"apikey", "api_key", "api-key", "accesskey", "access_key", "access-key",
+	"accountkey", "account_key", "account-key", "privatekey", "private_key", "private-key",
+	"authorization", "credential", "passphrase", "passwd", "password", "secret", "token",
+}
 
 func fieldByte(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '_' || c == '.' || c == '-'
