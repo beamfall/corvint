@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 )
 
 // Freshness states from EEP-V0-009.
@@ -28,6 +29,13 @@ func Freshness(ctx context.Context, root, captured, provider string) string {
 		return FreshnessEqual
 	}
 	if !isKnownCommit(ctx, root, provider) {
+		return FreshnessRevisionUnavailable
+	}
+	// Grafted or shallow history answers ancestry falsely; that is uncertainty, never an
+	// ahead/unrelated verdict (EEP-V0-028).
+	if gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return runGit(ctx, root, nil, args...)
+	}) != "" {
 		return FreshnessRevisionUnavailable
 	}
 	providerIsAncestor, ok := isAncestor(ctx, root, provider, captured)

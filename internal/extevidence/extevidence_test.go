@@ -591,3 +591,32 @@ func TestLimitsAndOmissions(t *testing.T) {
 		t.Fatalf("entity bound must reject the record, got %v", err)
 	}
 }
+
+// TestFreshnessDistrustsRewrittenAncestry_EEPV0028 grafts the orphan onto head, and separately cuts
+// head's parents with a shallow marker; Git then answers provider-ahead and unrelated-history, and
+// freshness must degrade both to revision-unavailable instead.
+func TestFreshnessDistrustsRewrittenAncestry_EEPV0028(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	gitDir := func(root string) string {
+		return strings.TrimSpace(gitOutput(t, root, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	}
+	grafted := newRepository(t)
+	info := filepath.Join(gitDir(grafted.root), "info")
+	if err := os.MkdirAll(info, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(info, "grafts"), []byte(grafted.orphan+" "+grafted.head+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Freshness(ctx, grafted.root, grafted.head, grafted.orphan); got != FreshnessRevisionUnavailable {
+		t.Errorf("grafted orphan = %s, want %s", got, FreshnessRevisionUnavailable)
+	}
+	shallow := newRepository(t)
+	if err := os.WriteFile(filepath.Join(gitDir(shallow.root), "shallow"), []byte(shallow.head+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := Freshness(ctx, shallow.root, shallow.head, shallow.first); got != FreshnessRevisionUnavailable {
+		t.Errorf("shallow head = %s, want %s", got, FreshnessRevisionUnavailable)
+	}
+}

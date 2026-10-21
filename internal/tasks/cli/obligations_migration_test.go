@@ -12,11 +12,11 @@ import (
 )
 
 // migrationAlias is a 78-byte adopter id for row n, the length of the
-// longest ids an adopter's 4,562-row ledger carried (GitHub #1071). It has
-// one dot: three dot-joined runs of 10 or more bytes are token-shaped and
-// meet the shared secret screen.
+// longest ids an adopter's 4,562-row ledger carried (GitHub #1071). Its
+// dot-joined runs of 10 or more bytes are not JWT-shaped, so the shared
+// secret screen admits them (LTA-V0-016, V1-1704).
 func migrationAlias(n int) string {
-	a := fmt.Sprintf("CHECKOUT-REGRESSION-PAYMENT-FLOW-SAVED-CARD-3DS-CHALLENGE-RETRY-PATH-V2.R%05d", n)
+	a := fmt.Sprintf("CHECKOUT-REGRESSION.PAYMENT-FLOW.SAVED-CARD-3DS-CHALLENGE-RETRY-PATH-V2.R%05d", n)
 	if len(a) != 78 {
 		panic(fmt.Sprintf("alias is %d bytes", len(a)))
 	}

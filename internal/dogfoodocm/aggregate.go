@@ -277,8 +277,14 @@ func boundMessage(text string, total, bound int, perScope []int) string {
 		}
 		fmt.Fprintf(&output, "%s %d=%d", separator, index+1, count)
 	}
+	// OCM-V0-024 (V1-1068): name the supported narrowing route; it carries no path.
+	output.WriteString(boundNarrowing)
 	return output.String()
 }
+
+// boundNarrowing is the fixed route a bound refusal names: split the scopes
+// across staged changes rather than raising the bound or dropping a scope.
+const boundNarrowing = "; narrow: list fewer intent scopes in the manifest and bind the rest as a separate staged change"
 
 func rejectDuplicateRequirements(scopes []verifiedScope) error {
 	seen := make(map[string]bool)

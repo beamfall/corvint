@@ -58,7 +58,7 @@ func lookupEnvelope(index *Index, mode string, request map[string]any, results [
 		rows = append(rows, result)
 	}
 	request["limit"] = limit
-	return map[string]any{
+	envelope := map[string]any{
 		"tool": "context", "mode": mode, "ok": true, "mutates": false, "schema_version": 1,
 		"revision": index.Revision, "state": state, "request": request,
 		"coverage": map[string]any{
@@ -67,6 +67,10 @@ func lookupEnvelope(index *Index, mode string, request map[string]any, results [
 		},
 		"results": rows,
 	}
+	if index.CommitRevision != "" { // TCP-V0-150
+		envelope["commit"] = index.CommitRevision
+	}
+	return envelope
 }
 
 // LookupDefinitions lists the symbols defining identifier: exact-name matches

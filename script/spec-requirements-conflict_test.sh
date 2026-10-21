@@ -26,7 +26,7 @@ GIT_CONFIG_NOSYSTEM=1
 export GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM
 repo=$test_root/repo
 mkdir -p "$repo/script" "$repo/docs/specs"
-cp "$source_root/script/gen-spec-requirements.sh" "$repo/script/"
+cp "$source_root/script/gen-spec-requirements.sh" "$source_root/script/spec-requirements-resolve.sh" "$repo/script/"
 git() { command git -C "$repo" -c user.name=t -c user.email=t@example.invalid -c merge.conflictStyle=merge "$@"; }
 git init -q -b main
 
@@ -118,11 +118,14 @@ awk '
   END { exit bad }
 ' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "a REQUIREMENTS.tsv conflict held more than the new rows"
 
-# Resolution: keep both requirement lines, then regenerate rather than hand-merge the TSV.
+# Resolution: keep both requirement lines and stage the spec; the resolve target refuses until
+# then, and afterwards regenerates the TSV rather than hand-merging it (SRG-V0-041).
+resolve() { make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve > /dev/null 2>&1; }
+resolve && fail "spec-requirements-resolve ran with the spec still conflicted"
 sed -e '/^<<<<<<< /d' -e '/^=======$/d' -e '/^>>>>>>> /d' "$repo/docs/specs/shared.md" > "$test_root/spec"
 cp "$test_root/spec" "$repo/docs/specs/shared.md"
-git checkout -q --theirs -- docs/specs/REQUIREMENTS.tsv
-regen
+git add -- docs/specs/shared.md
+resolve || fail "spec-requirements-resolve refused a merge whose only conflict left is the TSV"
 git commit -q --no-edit
 for id in SHR-V0-003 SHR-V0-004; do
   grep -q "^$id	docs/specs/shared.md	.*	standing	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost in the merge"
@@ -252,6 +255,47 @@ for order in 'lane-r lane-w' 'lane-w lane-r'; do
   git commit -q --no-edit
   grep -q '^SEC-V0-010	docs/specs/sections.md	.*The tenth clause continues	' "$repo/docs/specs/REQUIREMENTS.tsv" &&
     grep -q '^SEC-V0-013	' "$repo/docs/specs/REQUIREMENTS.tsv" || fail "the regenerated merge of $2 into $1 lost a row"
+done
+
+# SRG-V0-041: two lanes that each add a new spec conflict in INDEX.json and README.md (and in
+# REQUIREMENTS.tsv when the new rows are adjacent); one command regenerates and stages all three,
+# in either merge order, to the fresh generation from the merged specs.
+new_spec() {
+  git checkout -q -b "$1" "$base"
+  printf '# %s spec\n\nIntent status: accepted\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s adds a spec.\n\n## Requirements\n\n- %s: (accepted, decision 0004) The clause.\n' \
+    "$2" "$2" "$3" > "$repo/docs/specs/$2.md"
+  regen
+  git commit -q -m "$1"
+}
+new_spec lane-n1 newone NEW-V0-001
+new_spec lane-n2 newtwo NWT-V0-001
+for order in 'lane-n1 lane-n2' 'lane-n2 lane-n1'; do
+  set -- $order
+  git checkout -q -b "merge-$1-$2" "$1"
+  if git merge -q --no-edit "$2" > /dev/null 2>&1; then fail "two new specs merged without a conflict; drop the SRG-V0-016 limit"; fi
+  for path in $(git diff --name-only --diff-filter=U); do
+    case $path in
+      docs/specs/INDEX.json | docs/specs/README.md | docs/specs/REQUIREMENTS.tsv) ;;
+      *) fail "two new specs conflicted in $path" ;;
+    esac
+  done
+  resolve || fail "spec-requirements-resolve refused two new specs merging $2 into $1"
+  test -z "$(git diff --name-only --diff-filter=U)" || fail "spec-requirements-resolve left a conflict"
+  git commit -q --no-edit
+  for file in REQUIREMENTS.tsv INDEX.json README.md; do
+    case $file in
+      REQUIREMENTS.tsv) flag= ;;
+      INDEX.json) flag=--index ;;
+      README.md) flag=--readme ;;
+    esac
+    (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" ||
+      fail "the resolved merge of $2 into $1 left a $file that is not the regenerated one"
+  done
+  for id in NEW-V0-001 NWT-V0-001; do
+    grep -q "^$id	" "$repo/docs/specs/REQUIREMENTS.tsv" || fail "$id lost merging $2 into $1"
+  done
+  grep -q 'newone.md' "$repo/docs/specs/INDEX.json" && grep -q 'newtwo.md' "$repo/docs/specs/README.md" ||
+    fail "the resolved merge of $2 into $1 lost a new spec's INDEX.json entry or README.md row"
 done
 
 printf 'ok\n'
