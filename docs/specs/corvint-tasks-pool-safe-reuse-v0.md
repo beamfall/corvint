@@ -309,6 +309,18 @@ applies at release; pools without `allowedSources` behave as before.
   head receipt. Verdicts, receipts and pools.json bytes are otherwise those of PSR-V0-083/084.
   Limit: the revalidation key binds the policy and pool bytes only; the command's environment
   values and executable contents are not part of it, as for PSR-V0-083's observation.
+  Claims (V1-2138): the same deferral covers a `CLAIM` or `CLAIM_NEXT`'s Git observations (the
+  base commit and tree, a prepared pool observation's command source, each member's pinned config)
+  and its CAL-V0-022 scope deriver. Observations that do not depend on audited state run before
+  the route; on the route the lock-held observer serves only results memoized for the identical
+  Git argument list, or for the identical root, tree, title and body, and otherwise declines
+  (`fast.declined: ... claim Git observation deferred ...`) without running anything. The rest of
+  the observation then runs unlocked for the recorded state and the route is tried once more; a
+  ticket edited meanwhile misses the derivation key and the complete route decides. A served
+  observation clears the memo, so a later round observes Git afresh. Base resolution has the
+  complete route's freshness: both observe Git before the lock. A claim with no deriver resolves
+  no base tree. Rollback: drop the claim's writer observer in `leaseOnce`; the route then
+  observes under the lock as before.
 
   Failure modes: a source outside the allow-list (refused before allocation); a drifted, failing,
   timed-out, over-limit or malformed identity (member stays QUARANTINED with the reason); a missing
@@ -875,7 +887,7 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-084 | `TestPSRV0081_SourceIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-085 | `TestPSRV0081_SourceIdentityGuard`, `TestPSRV0085_LaneUntouchedKeepsIdentityGuard` (`internal/tasks/cli`) |
 | PSR-V0-086 | `TestPSRV0086_PoolsWithoutSourcesUnchanged` (`internal/tasks/cli`) |
-| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused` (`internal/tasks/store`) |
+| PSR-V0-168 | `TestPSRV0168_IdentityProbeOutsideWriterLock`, `TestPSRV0168_IdentityProbeStaleStateNotReused`, `TestV12138_ClaimDerivationOutsideWriterLock`, `TestV12138_LockedClaimObserverRunsNoGit` (`internal/tasks/store`) |
 
 ## Traceability (PSR-V0-110..116)
 
