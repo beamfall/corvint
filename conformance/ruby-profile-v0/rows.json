@@ -32,6 +32,11 @@
       "changed": "app/workers/welcome_worker.rb"
     },
     {
+      "class": "rails-7-1-autoload-lib",
+      "changed": "app/models/user.rb",
+      "overlay": "overlays/rails-7-1-autoload-lib"
+    },
+    {
       "class": "dynamic-constantize",
       "changed": "app/models/user.rb",
       "overlay": "overlays/dynamic-constantize",
@@ -119,6 +124,23 @@
       "class": "worker-spec",
       "results": [
         "path app/workers/welcome_worker.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "results": [
+        "path app/models/user.rb",
+        "reference app/controllers/users_controller.rb",
+        "reference app/models/account.rb",
+        "reference app/workers/welcome_worker.rb",
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/models/account_spec.rb",
+        "test spec/models/user_spec.rb",
+        "test spec/requests/users_spec.rb",
         "test spec/workers/welcome_worker_spec.rb"
       ],
       "unknowns": [
@@ -228,6 +250,18 @@
       "unknown": []
     },
     {
+      "class": "rails-7-1-autoload-lib",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/account_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/user_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+      },
+      "unknown": []
+    },
+    {
       "class": "dynamic-constantize",
       "scope": "UNKNOWN",
       "selected": {
@@ -332,6 +366,18 @@
       "class": "worker-spec",
       "example": "spec/workers/welcome_worker_spec.rb:4",
       "rspecId": "./spec/workers/welcome_worker_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "example": "spec/models/user_spec.rb:4",
+      "rspecId": "./spec/models/user_spec.rb[1:1]",
       "status": "passed",
       "association": "ASSOCIATED",
       "execution": "PASSED",
